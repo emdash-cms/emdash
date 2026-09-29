@@ -10,13 +10,22 @@
 
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
+import type { DialectAdapter } from "kysely";
 import { Kysely, sql, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
+import { LockingSqliteAdapter } from "../../../src/database/migration-lock.js";
 import { PendingMigrationsError } from "../../../src/database/migrations/policy.js";
-import { runMigrations } from "../../../src/database/migrations/runner.js";
+import {
+	MIGRATION_NAMES,
+	MigrationLockHeldError,
+	runMigrations,
+} from "../../../src/database/migrations/runner.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
@@ -25,6 +34,13 @@ import { getI18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { ContentBeforeSaveHandler } from "../../../src/plugins/types.js";
 import { runWithContext } from "../../../src/request-context.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
+
+class LockingSqliteDialect extends SqliteDialect {
+	override createAdapter(): DialectAdapter {
+		return new LockingSqliteAdapter();
+	}
+}
 
 function createDeps(): RuntimeDependencies {
 	return {
@@ -59,6 +75,53 @@ function createDeps(): RuntimeDependencies {
 }
 
 describe("EmDashRuntime.create — cold boot", () => {
+	it("does not re-enter native save hooks for content created inside a save hook", async () => {
+		const deps = createDeps();
+		deps.plugins = [
+			definePlugin({
+				id: "nested-create",
+				version: "1.0.0",
+				capabilities: ["content:write"],
+				hooks: {
+					"content:beforeSave": async (event, ctx) => {
+						if (event.content.createCompanion === true) {
+							if (!ctx.content?.create) throw new Error("Content write access unavailable");
+							await ctx.content.create("posts", { title: "Companion" });
+						}
+						const content = { ...event.content };
+						delete content.createCompanion;
+						return { ...content, title: `${String(event.content.title)} [native]` };
+					},
+				},
+			}),
+		];
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			await new SchemaRegistry(runtime.db).createCollection({ slug: "posts", label: "Posts" });
+			await new SchemaRegistry(runtime.db).createField("posts", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+			});
+			const result = await runtime.handleContentCreate("posts", {
+				data: { title: "Original", createCompanion: true },
+			});
+			expect(result).toMatchObject({
+				success: true,
+				data: { item: { data: { title: "Original [native]" } } },
+			});
+			const items = await new ContentRepository(runtime.db).findMany("posts", { limit: 10 });
+			expect(items.items).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ data: { title: "Original [native]" } }),
+					expect.objectContaining({ data: { title: "Companion" } }),
+				]),
+			);
+		} finally {
+			await runtime.shutdown();
+		}
+	});
+
 	it("initializes end-to-end and records each phase's own timing", async () => {
 		const timings: Array<{ name: string; dur: number; desc?: string }> = [];
 		const runtime = await EmDashRuntime.create(createDeps(), timings);
@@ -114,6 +177,77 @@ describe("EmDashRuntime.create — cold boot", () => {
 			);
 		} finally {
 			await runtime.stopCron();
+		}
+	});
+
+	it("runs the MCP route of a built plugin when the sandbox is bypassed", async () => {
+		const deps = createDeps();
+		deps.plugins = [];
+		deps.sandboxBypassed = true;
+		deps.sandboxedPluginEntries = [
+			{
+				id: "bypassed-mcp",
+				version: "1.0.0",
+				options: {},
+				code: `export default {
+					routes: {
+						echo: {
+							permission: "content:read",
+							methods: ["POST"],
+							handler: async ({ input }) => ({ echoed: input.value }),
+						},
+					},
+				};`,
+				capabilities: ["content:read"],
+				allowedHosts: [],
+				storage: {},
+				routes: [
+					{
+						name: "echo",
+						permission: "content:read",
+						methods: ["POST"],
+					},
+				],
+				mcp: {
+					tools: [
+						{
+							name: "echo",
+							description: "Echo a value.",
+							route: "echo",
+							permission: "content:read",
+							destructive: false,
+							inputSchema: z.toJSONSchema(z.object({ value: z.string() }), {
+								target: "draft-7",
+							}),
+							outputSchema: z.toJSONSchema(z.object({ echoed: z.string() }), {
+								target: "draft-7",
+							}),
+						},
+					],
+				},
+			},
+		];
+
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			const plugin = runtime.configuredPlugins.find(({ id }) => id === "bypassed-mcp");
+			const tool = plugin?.mcp?.tools.echo;
+			expect(tool?.input.safeParse({ value: "hello" }).success).toBe(true);
+			expect(tool?.input.safeParse({ value: 42 }).success).toBe(false);
+
+			const result = await runtime.handlePluginApiRoute(
+				"bypassed-mcp",
+				"POST",
+				"/echo",
+				new Request("http://test.local/_emdash/api/plugins/bypassed-mcp/echo", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ value: "hello" }),
+				}),
+			);
+			expect(result).toEqual({ success: true, status: 200, data: { echoed: "hello" } });
+		} finally {
+			await runtime.shutdown();
 		}
 	});
 
@@ -406,6 +540,33 @@ describe("EmDashRuntime.create — cold boot", () => {
 
 		// An immediate retry (same entrypoint → same failure record) must
 		// fail fast without building a new connection or touching the db.
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
+		expect(dialectCalls).toBe(1);
+	});
+
+	it("backs off behind a migration lock that was left long ago", async () => {
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await sql`DELETE FROM _emdash_migrations WHERE name = ${MIGRATION_NAMES.at(-1)}`.execute(
+			setupDb,
+		);
+		await sql`UPDATE _emdash_migrations_lock SET is_locked = ${Date.now() - 10 * 60_000}`.execute(
+			setupDb,
+		);
+
+		let dialectCalls = 0;
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			createDialect: () => {
+				dialectCalls += 1;
+				return new LockingSqliteDialect({ database: sqlite });
+			},
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(MigrationLockHeldError);
 		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
 		expect(dialectCalls).toBe(1);
 	});

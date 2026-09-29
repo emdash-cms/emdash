@@ -1022,6 +1022,32 @@ describe("Navigation Menus", () => {
 			expect(created[0]?.id).toBe(sourceId);
 		});
 
+		it("rejects a translation whose name differs from its source", async () => {
+			const { handleMenuCreate } = await import("../../../src/api/handlers/menus.js");
+
+			const sourceId = ulid();
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: sourceId, name: "primary", label: "Primary", locale: "en" })
+				.execute();
+
+			const result = await handleMenuCreate(db, {
+				name: "principal",
+				label: "Principal",
+				locale: "es",
+				translationOf: sourceId,
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("VALIDATION_ERROR");
+			const created = await db
+				.selectFrom("_emdash_menus")
+				.select("id")
+				.where("name", "=", "principal")
+				.execute();
+			expect(created).toEqual([]);
+		});
+
 		it("clones items inheriting the source's translation_group", async () => {
 			const { handleMenuCreate } = await import("../../../src/api/handlers/menus.js");
 

@@ -239,6 +239,7 @@ export class JetstreamIngestor {
 			rkey: event.commit.rkey,
 			operation: event.commit.operation,
 			cid: event.commit.operation === "delete" ? "" : event.commit.cid,
+			source: "jetstream",
 			...(event.commit.operation !== "delete" ? { jetstreamRecord: event.commit.record } : {}),
 		};
 

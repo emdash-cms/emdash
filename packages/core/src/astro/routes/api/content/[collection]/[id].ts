@@ -28,7 +28,9 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	const id = params.id!;
 	const locale = url.searchParams.get("locale") || undefined;
 
-	const result = await emdash.handleContentGet(collection, id, locale);
+	const result = await emdash.handleContentGet(collection, id, locale, {
+		includeDrafts: hasPermission(user, "content:read_drafts"),
+	});
 
 	// Hide non-published items from users without content:read_drafts. Return
 	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.
@@ -129,11 +131,14 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		? body
 		: { ...body, authorId: undefined };
 
+	const actor = user ? { id: user.id, role: user.role } : undefined;
+
 	// Pass _rev through for optimistic concurrency validation
 	const result = await emdash.handleContentUpdate(collection, resolvedId, {
 		...writeBody,
 		locale,
 		_rev: body._rev,
+		actor,
 	});
 
 	if (!result.success) return unwrapResult(result);

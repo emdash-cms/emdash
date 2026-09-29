@@ -73,14 +73,14 @@ The available fields have the following options. `label` is required and `descri
 
 The form is available from the settings control on the plugin's card in **Plugins**. Reading or changing it requires `plugins:manage`.
 
-Settings use the plugin's namespaced KV store. A field named `retentionDays` is available to the plugin as `settings:retentionDays`:
+Settings use the plugin's namespaced settings store. A field named `retentionDays` is available to the plugin as `retentionDays`:
 
 ```typescript title="src/index.ts"
 const retentionDays =
-	(await ctx.kv.get<number>("settings:retentionDays")) ?? 30;
+	(await ctx.settings.get<number>("retentionDays")) ?? 30;
 ```
 
-Schema defaults fill the generated form when no value is stored, but EmDash does not write those defaults to KV. Apply the same fallback when the runtime reads the setting. Clearing a non-secret field deletes its stored value and returns the form to its default. Secret values are never sent back to the browser; the form reports only whether a secret is set and lets an administrator replace or clear it.
+Schema defaults fill the generated form when no value is stored, but EmDash does not write those defaults to the settings store. Apply the same fallback when the runtime reads the setting. Clearing a non-secret field deletes its stored value and returns the form to its default. Secret values are encrypted before persistence and never sent back to the browser; the form reports only whether a secret is set and lets an administrator replace or clear it.
 
 Settings labels and descriptions render as declared. If those strings must change with the admin locale, build a custom React settings page instead.
 

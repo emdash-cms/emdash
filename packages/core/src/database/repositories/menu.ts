@@ -600,6 +600,7 @@ export class MenuRepository {
 					.insertInto("_emdash_menu_items")
 					.values({
 						id,
+						translation_group: id,
 						menu_id: menuId,
 						parent_id: parentId,
 						sort_order: i,

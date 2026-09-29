@@ -83,8 +83,8 @@ function snapshotFetch(
 		tamperedProfile?: boolean;
 	} = {},
 ) {
-	return async (input: RequestInfo | URL): Promise<Response> => {
-		const url = new URL(input instanceof Request ? input.url : input.toString());
+	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		const url = new URL(new Request(input, init).url);
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
 				Status: 0,
@@ -132,8 +132,8 @@ function snapshotFetch(
 }
 
 function releaseFetch(record: ReturnType<typeof release> | null, options: { error?: string } = {}) {
-	return async (input: RequestInfo | URL): Promise<Response> => {
-		const url = new URL(input instanceof Request ? input.url : input.toString());
+	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		const url = new URL(new Request(input, init).url);
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
 				Status: 0,
@@ -160,7 +160,7 @@ describe("PDS origin identity", () => {
 describe("publisher verification snapshot", () => {
 	it("uses a signed repository proof instead of an unverified profile response", async () => {
 		const fetch: typeof globalThis.fetch = async (input, init) => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
+			const url = new URL(new Request(input, init).url);
 			if (url.hostname === "cloudflare-dns.com") {
 				return Response.json({ Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] });
 			}
@@ -262,7 +262,7 @@ describe("publisher verification snapshot", () => {
 
 	it("ignores an unsigned higher-semver baseline injected into listRecords", async () => {
 		const fetch: typeof globalThis.fetch = async (input, init) => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
+			const url = new URL(new Request(input, init).url);
 			if (url.hostname === "cloudflare-dns.com") {
 				return Response.json({ Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] });
 			}
@@ -285,7 +285,7 @@ describe("publisher verification snapshot", () => {
 
 	it("retains a genuine baseline omitted from listRecords", async () => {
 		const fetch: typeof globalThis.fetch = async (input, init) => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
+			const url = new URL(new Request(input, init).url);
 			if (url.hostname === "cloudflare-dns.com") {
 				return Response.json({ Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] });
 			}
@@ -334,8 +334,8 @@ describe("authoritative release reconciliation read", () => {
 	});
 
 	it("preserves sync.getRecord 404 status through the guarded fetch", async () => {
-		const fetch: typeof globalThis.fetch = async (input) => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			const url = new URL(new Request(input, init).url);
 			if (url.hostname === "cloudflare-dns.com") {
 				return Response.json({ Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] });
 			}

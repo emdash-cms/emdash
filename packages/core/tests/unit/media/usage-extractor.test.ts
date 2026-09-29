@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { extractMediaUsageOccurrences } from "../../../src/media/usage/extractor.js";
+import {
+	extractMediaUsageOccurrences,
+	MediaUsageBlockResolutionError,
+} from "../../../src/media/usage/extractor.js";
 import type { MediaUsageExtractionField } from "../../../src/media/usage/types.js";
 
 function field(
@@ -12,6 +15,79 @@ function field(
 }
 
 describe("extractMediaUsageOccurrences", () => {
+	it("uses block keys and retained version definitions for nested media", () => {
+		const now = new Date().toISOString();
+		const layout: MediaUsageExtractionField = {
+			slug: "layout",
+			type: "blocks",
+			blockTypes: [
+				{
+					id: "hero",
+					slug: "hero",
+					label: "Hero",
+					currentVersion: 1,
+					source: "user",
+					createdAt: now,
+					updatedAt: now,
+					versions: [
+						{
+							id: "hero-v1",
+							blockTypeId: "hero",
+							version: 1,
+							fingerprint: "v1",
+							active: true,
+							createdAt: now,
+							updatedAt: now,
+							fields: [
+								{ slug: "image", label: "Image", type: "image" },
+								{ slug: "file", label: "File", type: "file" },
+								{ slug: "body", label: "Body", type: "portableText" },
+								{
+									slug: "items",
+									label: "Items",
+									type: "repeater",
+									validation: {
+										subFields: [{ slug: "photo", label: "Photo", type: "image" }],
+									},
+								},
+							],
+						},
+					],
+				},
+			],
+		};
+		const first = {
+			_type: "hero",
+			_version: 1,
+			_key: "first",
+			image: { id: "image-1", darkVariant: { id: "image-dark" } },
+			file: { id: "file-1", mimeType: "application/pdf" },
+			body: [{ _type: "image", asset: { _ref: "body-image" } }],
+			items: [{ photo: { id: "repeater-image" } }],
+		};
+		const second = { _type: "hero", _version: 1, _key: "second", image: { id: "image-2" } };
+		const extract = (blocks: unknown[]) =>
+			extractMediaUsageOccurrences({ fields: [layout], data: { layout: blocks } });
+
+		const paths = extract([first, second])
+			.map((occurrence) => occurrence.fieldPath)
+			.toSorted();
+		expect(paths).toEqual([
+			"layout.first.body[0].asset._ref",
+			"layout.first.file",
+			"layout.first.image",
+			"layout.first.image.darkVariant",
+			"layout.first.items[0].photo",
+			"layout.second.image",
+		]);
+		expect(
+			extract([second, first])
+				.map((occurrence) => occurrence.fieldPath)
+				.toSorted(),
+		).toEqual(paths);
+		expect(() => extract([{ ...first, _version: 99 }])).toThrow(MediaUsageBlockResolutionError);
+	});
+
 	it("extracts top-level image and file field references", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [field("hero", "image"), field("attachment", "file"), field("title", "string")],
@@ -296,6 +372,75 @@ describe("extractMediaUsageOccurrences", () => {
 				mediaKind: "image",
 				mimeType: "image/avif",
 			},
+		]);
+	});
+
+	it("extracts the images inside a Portable Text gallery block (#2872)", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{ _type: "block", _key: "p1", children: [] },
+					{
+						_type: "gallery",
+						_key: "g1",
+						columns: 3,
+						images: [
+							{ _key: "a", asset: { _ref: "gallery-one", url: "/_emdash/api/media/file/one.jpg" } },
+							{
+								_key: "b",
+								asset: { id: "cf-two", provider: "cloudflare-images", mimeType: "image/webp" },
+							},
+							{ _key: "c", asset: { url: "https://example.com/external.jpg" } },
+							{ _key: "d" },
+							"not-an-image",
+						],
+					},
+					{ _type: "gallery", _key: "g2", images: "malformed" },
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[1].images[0].asset._ref",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_image",
+				mediaId: "gallery-one",
+				provider: "local",
+				providerAssetId: "gallery-one",
+				mediaKind: "image",
+				mimeType: null,
+			},
+			{
+				fieldSlug: "body",
+				fieldPath: "body[1].images[1].asset.id",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_image",
+				mediaId: null,
+				provider: "cloudflare-images",
+				providerAssetId: "cf-two",
+				mediaKind: "image",
+				mimeType: "image/webp",
+			},
+		]);
+	});
+
+	it("counts an image used both in a gallery and as an image block as two uses", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{ _type: "image", _key: "img", asset: { _ref: "shared" } },
+					{ _type: "gallery", _key: "g", images: [{ _key: "a", asset: { _ref: "shared" } }] },
+				],
+			},
+		});
+
+		expect(occurrences.map((occurrence) => occurrence.fieldPath)).toEqual([
+			"body[0].asset._ref",
+			"body[1].images[0].asset._ref",
 		]);
 	});
 

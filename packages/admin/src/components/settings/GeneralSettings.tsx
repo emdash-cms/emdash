@@ -5,18 +5,76 @@
  * (posts per page, date format, timezone).
  */
 
-import { Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { Autocomplete, Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, type Locale } from "date-fns";
+import { enUS } from "date-fns/locale/en-US";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import {
+	fetchSettings,
+	updateSettings,
+	type MediaItem,
+	type SiteSettings,
+	type SiteSettingsUpdate,
+} from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-function generalSettingsSnapshot(settings: Partial<SiteSettings>) {
+const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
+const exampleDate = new Date(2026, 0, 23);
+const previewLocaleLoaders: Record<string, () => Promise<Locale>> = {
+	ar: () => import("date-fns/locale/ar").then(({ ar }) => ar),
+	eu: () => import("date-fns/locale/eu").then(({ eu }) => eu),
+	bn: () => import("date-fns/locale/bn").then(({ bn }) => bn),
+	ca: () => import("date-fns/locale/ca").then(({ ca }) => ca),
+	"zh-CN": () => import("date-fns/locale/zh-CN").then(({ zhCN }) => zhCN),
+	"zh-TW": () => import("date-fns/locale/zh-TW").then(({ zhTW }) => zhTW),
+	cs: () => import("date-fns/locale/cs").then(({ cs }) => cs),
+	da: () => import("date-fns/locale/da").then(({ da }) => da),
+	nl: () => import("date-fns/locale/nl").then(({ nl }) => nl),
+	"en-GB": () => import("date-fns/locale/en-GB").then(({ enGB }) => enGB),
+	fa: () => import("date-fns/locale/fa-IR").then(({ faIR }) => faIR),
+	fr: () => import("date-fns/locale/fr").then(({ fr }) => fr),
+	ka: () => import("date-fns/locale/ka").then(({ ka }) => ka),
+	de: () => import("date-fns/locale/de").then(({ de }) => de),
+	hi: () => import("date-fns/locale/hi").then(({ hi }) => hi),
+	hu: () => import("date-fns/locale/hu").then(({ hu }) => hu),
+	id: () => import("date-fns/locale/id").then(({ id }) => id),
+	ja: () => import("date-fns/locale/ja").then(({ ja }) => ja),
+	nb: () => import("date-fns/locale/nb").then(({ nb }) => nb),
+	pl: () => import("date-fns/locale/pl").then(({ pl }) => pl),
+	"pt-BR": () => import("date-fns/locale/pt-BR").then(({ ptBR }) => ptBR),
+	"sr-Latn": () => import("date-fns/locale/sr-Latn").then(({ srLatn }) => srLatn),
+	"es-419": () => import("date-fns/locale/es").then(({ es }) => es),
+	"es-ES": () => import("date-fns/locale/es").then(({ es }) => es),
+	sv: () => import("date-fns/locale/sv").then(({ sv }) => sv),
+	th: () => import("date-fns/locale/th").then(({ th }) => th),
+	tr: () => import("date-fns/locale/tr").then(({ tr }) => tr),
+	uk: () => import("date-fns/locale/uk").then(({ uk }) => uk),
+};
+
+function datePreview(pattern: string, locale: Locale): string | null {
+	try {
+		return pattern.trim() ? format(exampleDate, pattern, { locale }) : null;
+	} catch {
+		return null;
+	}
+}
+
+function isValidTimezone(timezone: string): boolean {
+	try {
+		Intl.DateTimeFormat("en", { timeZone: timezone });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
 		title: settings.title ?? "",
 		tagline: settings.tagline ?? "",
@@ -30,7 +88,7 @@ function generalSettingsSnapshot(settings: Partial<SiteSettings>) {
 }
 
 export function GeneralSettings() {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 
@@ -44,10 +102,36 @@ export function GeneralSettings() {
 		staleTime: Infinity,
 	});
 
-	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
-	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
+	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
+	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
+	const [showTimezoneError, setShowTimezoneError] = React.useState(false);
+	const [previewLocale, setPreviewLocale] = React.useState<{ code: string; value: Locale | null }>({
+		code: "en",
+		value: enUS,
+	});
+
+	React.useEffect(() => {
+		const code = i18n.locale;
+		const load = previewLocaleLoaders[code];
+		if (!load) {
+			setPreviewLocale({ code, value: enUS });
+			return;
+		}
+		let active = true;
+		void (async () => {
+			try {
+				const value = await load();
+				if (active) setPreviewLocale({ code, value });
+			} catch {
+				if (active) setPreviewLocale({ code, value: null });
+			}
+		})();
+		return () => {
+			active = false;
+		};
+	}, [i18n.locale]);
 
 	React.useEffect(() => {
 		if (settings) {
@@ -62,10 +146,11 @@ export function GeneralSettings() {
 	);
 
 	const saveMutation = useMutation({
-		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
+		mutationFn: (data: SiteSettingsUpdate) => updateSettings(data),
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Settings saved successfully`,
 				variant: "success",
@@ -82,8 +167,19 @@ export function GeneralSettings() {
 		},
 	});
 
+	const pattern = formData.dateFormat ?? "MMMM d, yyyy";
+	const previewLoading = previewLocale.code !== i18n.locale;
+	const preview =
+		previewLoading || !previewLocale.value ? null : datePreview(pattern, previewLocale.value);
+	const timezone = formData.timezone ?? "UTC";
+	const recognizedTimezone = isValidTimezone(timezone);
+	const savedTimezoneUnchanged = timezone === savedFormData.timezone;
+	const canSaveTimezone = recognizedTimezone || savedTimezoneUnchanged;
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		setShowTimezoneError(true);
+		if (!canSaveTimezone) return;
 		saveMutation.mutate(formData);
 	};
 
@@ -108,11 +204,11 @@ export function GeneralSettings() {
 	};
 
 	const handleLogoRemove = () => {
-		setFormData((prev) => ({ ...prev, logo: undefined }));
+		setFormData((prev) => ({ ...prev, logo: null }));
 	};
 
 	const handleFaviconRemove = () => {
-		setFormData((prev) => ({ ...prev, favicon: undefined }));
+		setFormData((prev) => ({ ...prev, favicon: null }));
 	};
 
 	const title = t`General Settings`;
@@ -322,18 +418,48 @@ export function GeneralSettings() {
 					<SettingRow>
 						<Input
 							label={t`Date Format`}
-							value={formData.dateFormat ?? "MMMM d, yyyy"}
+							value={pattern}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
-							description={t`Example: ${formData.dateFormat ?? "MMMM d, yyyy"} → January 23, 2026`}
+							description={
+								previewLoading
+									? t`Loading preview…`
+									: preview === null
+										? t`Preview unavailable for this format`
+										: t`Example: ${pattern} → ${preview}`
+							}
 						/>
 					</SettingRow>
 					<SettingRow>
-						<Input
+						<Autocomplete
 							label={t`Timezone`}
-							value={formData.timezone ?? "UTC"}
-							onChange={(e) => handleChange("timezone", e.target.value)}
-							description={t`Timezone for displaying dates (e.g., America/New_York)`}
-						/>
+							items={timezones}
+							value={timezone}
+							onValueChange={(value: string) => handleChange("timezone", value)}
+							description={
+								recognizedTimezone
+									? t`Search for an IANA timezone (e.g., Europe/London)`
+									: savedTimezoneUnchanged
+										? t`This saved timezone isn't recognized. Choose a suggestion for reliable date display.`
+										: t`Choose a recognized timezone for reliable date display.`
+							}
+							error={
+								showTimezoneError && !canSaveTimezone
+									? t`Enter a recognized timezone to save`
+									: undefined
+							}
+						>
+							<Autocomplete.InputGroup placeholder={t`Search timezones…`} />
+							<Autocomplete.Content>
+								<Autocomplete.List className="max-h-64 overflow-y-auto">
+									{(item: string) => (
+										<Autocomplete.Item key={item} value={item}>
+											{item}
+										</Autocomplete.Item>
+									)}
+								</Autocomplete.List>
+								<Autocomplete.Empty>{t`No matching timezones`}</Autocomplete.Empty>
+							</Autocomplete.Content>
+						</Autocomplete>
 					</SettingRow>
 				</SettingsSection>
 

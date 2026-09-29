@@ -16,13 +16,15 @@
  */
 
 import type { APIRoute } from "astro";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { handleSitemapData } from "#api/handlers/seo.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
-import { interpolateUrlPattern, localizePath } from "../../i18n/resolve.js";
+import { resolveLocalizedContentRoutePath } from "../../i18n/resolve.js";
 import { buildSeoImageUrl } from "../../seo/media-url.js";
 
 export const prerender = false;
@@ -97,7 +99,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 		const urlByEntry = new Map<string, string | null>();
 		const resolveEntryUrl = async (entry: Entry): Promise<string | null> => {
 			if (urlByEntry.has(entry.id)) return urlByEntry.get(entry.id) ?? null;
-			const path = interpolateUrlPattern({
+			const absolutePath = await resolveLocalizedContentRoutePath({
 				pattern: col.urlPattern,
 				collection: col.collection,
 				slug: entry.slug || entry.id,
@@ -106,9 +108,10 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 				// no updatedAt fallback — tokens stay literal without a publish
 				// date, consistent with the resolver's documented behavior.
 				date: entry.publishedAt,
+				locale: entry.locale,
+				trailingSlash: virtualConfig?.trailingSlash,
 			});
-			const localized = await localizePath(path, entry.locale);
-			const absolute = localized === null ? null : `${siteUrl}${localized}`;
+			const absolute = absolutePath === null ? null : `${siteUrl}${absolutePath}`;
 			urlByEntry.set(entry.id, absolute);
 			return absolute;
 		};

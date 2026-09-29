@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 
 import { defineCommand } from "citty";
 
+import { busyLockHeldSince, migrationLockHeldMessage } from "../../database/migration-lock.js";
 import { buildMigrationManifestFromConfig } from "../../migrations/config-loader.js";
 import type { CoreMigrationIdentity } from "../../migrations/identity.js";
 import type { MigrationManifestV1 } from "../../migrations/manifest.js";
@@ -17,6 +18,7 @@ import type {
 	MigrationExecutor,
 	MigrationExecutorFactory,
 	MigrationReport,
+	MigrationRequest,
 	MigrationTarget,
 	MigrationTargetOverrides,
 } from "../../migrations/protocol.js";
@@ -26,6 +28,9 @@ const SAFE_TARGET_KIND_PATTERN = /^[a-z][a-z0-9_-]*$/;
 const SAFE_MIGRATION_NAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const CREDENTIAL_URL_PATTERN = /:\/\/[^/\s]+@/;
 const CREDENTIAL_QUERY_PATTERN = /[?&](?:auth|credential|key|password|secret|signature|token)=/i;
+const LOCK_ID_PATTERN = /^[1-9]\d{0,15}$/;
+const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const MAX_DATE_MS = 8.64e15;
 
 export const MIGRATE_EXIT_CODES = Object.freeze({
 	success: 0,
@@ -46,6 +51,7 @@ export interface MigrateCommandOptions extends MigrationTargetOverrides {
 	status?: boolean;
 	json?: boolean;
 	expectedTargetFingerprint?: string;
+	releaseLock?: string;
 }
 
 export interface MigrateCommandDependencies {
@@ -228,6 +234,14 @@ function validateOptions(options: MigrateCommandOptions): void {
 	if (options.check && options.status) {
 		throw new MigrateCommandError("--check and --status cannot be used together.");
 	}
+	if (options.releaseLock !== undefined) {
+		if (options.check || options.status) {
+			throw new MigrateCommandError("--release-lock cannot be used with --check or --status.");
+		}
+		if (!LOCK_ID_PATTERN.test(options.releaseLock)) {
+			throw new MigrateCommandError("--release-lock requires the lock id shown by --status.");
+		}
+	}
 	if (
 		options.expectedTargetFingerprint &&
 		!FINGERPRINT_PATTERN.test(options.expectedTargetFingerprint)
@@ -311,13 +325,27 @@ function safeReport(value: unknown, target: Readonly<MigrationTarget>): Migratio
 			"The migration executor report target does not match the confirmed target.",
 		);
 	}
-	return {
+	const report: MigrationReport = {
 		target: { ...reportTarget },
 		knownApplied: safeMigrationNames(value.knownApplied, "knownApplied"),
 		pending: safeMigrationNames(value.pending, "pending"),
 		unknownApplied: safeMigrationNames(value.unknownApplied, "unknownApplied"),
 		executed: safeMigrationNames(value.executed, "executed"),
 	};
+	if (value.lock !== undefined) {
+		const lock = value.lock;
+		if (
+			!isRecord(lock) ||
+			typeof lock.id !== "string" ||
+			!LOCK_ID_PATTERN.test(lock.id) ||
+			typeof lock.heldSince !== "string" ||
+			!ISO_TIMESTAMP_PATTERN.test(lock.heldSince)
+		) {
+			throw new MigrateCommandError("The migration executor returned an invalid lock report.");
+		}
+		report.lock = { id: lock.id, heldSince: lock.heldSince };
+	}
+	return report;
 }
 
 function printTarget(target: Readonly<MigrationTarget>, write: (value: string) => void): void {
@@ -337,6 +365,9 @@ function printNameSet(
 }
 
 function printHumanReport(report: MigrationReport, write: (value: string) => void): void {
+	if (report.lock) {
+		write(`Migration lock: held since ${report.lock.heldSince} (id ${report.lock.id})`);
+	}
 	printNameSet("Known applied", report.knownApplied, write);
 	printNameSet("Pending", report.pending, write);
 	printNameSet("Unknown applied", report.unknownApplied, write);
@@ -419,6 +450,14 @@ function safeCommandMessage(
 	if (error instanceof MigrateCommandError || error instanceof MigrationManifestValidationError) {
 		return error.message;
 	}
+	// Redaction would strip the docs link and could rewrite digits of the lock
+	// id that match an environment value, so the message is rebuilt instead.
+	if (error instanceof Error && error.name === "MigrationLockHeldError") {
+		const heldSince = busyLockHeldSince(error);
+		if (heldSince !== undefined && Number.isSafeInteger(heldSince) && heldSince <= MAX_DATE_MS) {
+			return migrationLockHeldMessage(heldSince);
+		}
+	}
 	if (error instanceof Error && error.message) return redactExecutorMessage(error.message, env);
 	return "Migration command failed. Check the project configuration, target, and credentials.";
 }
@@ -475,13 +514,13 @@ export async function runMigrateCommand(
 				dependencies.onSignal("SIGTERM", onSignal),
 			);
 
-			const applying = !options.check && !options.status;
-			if (applying && target.kind === "d1") {
-				dependencies.writeStderr(
-					"Warning: D1 migration jobs must be serialized externally by Cloudflare account and database UUID; this command does not coordinate concurrent applies.",
-				);
-			}
-			if (applying) {
+			const releasing = options.releaseLock !== undefined;
+			const applying = !options.check && !options.status && !releasing;
+			if (applying || releasing) {
+				const operation = releasing ? "lock release" : "apply";
+				const question = releasing
+					? `Release migration lock ${options.releaseLock} on ${target.label}? Release it only when no migration is running.`
+					: `Apply EmDash migrations to ${target.label}?`;
 				if (options.expectedTargetFingerprint) {
 					if (options.expectedTargetFingerprint !== target.fingerprint) {
 						dependencies.writeStderr("Expected target fingerprint does not match the target.");
@@ -490,28 +529,31 @@ export async function runMigrateCommand(
 					}
 				} else if (!dependencies.interactive || options.json) {
 					dependencies.writeStderr(
-						"Noninteractive apply requires --expected-target-fingerprint with the displayed fingerprint.",
+						`Noninteractive ${operation} requires --expected-target-fingerprint with the displayed fingerprint.`,
 					);
 					exitCode = MIGRATE_EXIT_CODES.confirmation;
 					return exitCode;
-				} else if (!(await dependencies.confirm(`Apply EmDash migrations to ${target.label}?`))) {
-					dependencies.writeStderr("Migration cancelled.");
+				} else if (!(await dependencies.confirm(question))) {
+					dependencies.writeStderr(releasing ? "Lock release cancelled." : "Migration cancelled.");
 					exitCode = MIGRATE_EXIT_CODES.confirmation;
 					return exitCode;
 				}
 			}
 
-			const rawReport = await Promise.race([
-				executor.execute({
-					action: applying ? "apply" : "check",
-					i18n: manifest.i18n,
-					artifact: {
-						emdashVersion: manifest.emdashVersion,
-						migrationSetFingerprint: manifest.migrationSet.fingerprint,
-					},
-				}),
-				interruption,
-			]);
+			const request: MigrationRequest = {
+				action: "check",
+				i18n: manifest.i18n,
+				artifact: {
+					emdashVersion: manifest.emdashVersion,
+					migrationSetFingerprint: manifest.migrationSet.fingerprint,
+				},
+			};
+			if (applying) request.action = "apply";
+			if (releasing) {
+				request.action = "release-lock";
+				request.lockId = options.releaseLock;
+			}
+			const rawReport = await Promise.race([executor.execute(request), interruption]);
 			if (rawReport === interruptedResult || interrupted) {
 				exitCode = MIGRATE_EXIT_CODES.interrupted;
 				return exitCode;
@@ -520,6 +562,7 @@ export async function runMigrateCommand(
 			if (options.json) {
 				dependencies.writeStdout(JSON.stringify(report));
 			} else {
+				if (releasing) dependencies.writeStdout(`Released migration lock ${options.releaseLock}.`);
 				printHumanReport(report, dependencies.writeStdout);
 			}
 			exitCode = reportExitCode(options, report);
@@ -561,7 +604,11 @@ export const migrateCommand = defineCommand({
 		json: { type: "boolean", description: "Print the stable JSON report" },
 		"expected-target-fingerprint": {
 			type: "string",
-			description: "Required target fingerprint for noninteractive apply",
+			description: "Required target fingerprint for noninteractive apply or lock release",
+		},
+		"release-lock": {
+			type: "string",
+			description: "Release the migration lock with the id shown by --status",
 		},
 		database: { type: "string", description: "Override the SQLite database path" },
 		"database-url-env": {
@@ -582,6 +629,7 @@ export const migrateCommand = defineCommand({
 			status: args.status,
 			json: args.json,
 			expectedTargetFingerprint: args["expected-target-fingerprint"],
+			releaseLock: args["release-lock"],
 			database: args.database,
 			databaseUrlEnv: args["database-url-env"],
 			d1: args.d1,

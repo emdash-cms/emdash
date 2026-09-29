@@ -1,0 +1,33 @@
+{
+	"name": "@emdash-cms/plugins-site",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"predev": "pnpm --filter '@emdash-cms/plugins-site^...' build",
+		"dev": "astro dev",
+		"prebuild": "pnpm --filter '@emdash-cms/plugins-site^...' build",
+		"build": "astro build",
+		"preview": "astro preview",
+		"deploy": "pnpm build && wrangler deploy",
+		"typecheck": "astro check",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@astrojs/cloudflare": "catalog:",
+		"@atcute/lexicons": "catalog:",
+		"@emdash-cms/plugin-types": "workspace:*",
+		"@emdash-cms/registry-lexicons": "workspace:*",
+		"@emdash-cms/registry-loader": "workspace:*",
+		"@emdash-cms/registry-verification": "workspace:*",
+		"astro": "catalog:",
+		"marked": "^17.0.3",
+		"sanitize-html": "^2.17.1"
+	},
+	"devDependencies": {
+		"@astrojs/check": "catalog:",
+		"@types/sanitize-html": "^2.16.0",
+		"vitest": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

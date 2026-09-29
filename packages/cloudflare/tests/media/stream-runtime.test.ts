@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-// `stream-runtime` imports `env` from cloudflare:workers at module scope. This
-// suite supplies credentials through config, so an empty env is sufficient.
-vi.mock("cloudflare:workers", () => ({ env: {} }));
+const { fakeEnv } = vi.hoisted(() => ({ fakeEnv: {} as Record<string, string | undefined> }));
+
+vi.mock("cloudflare:workers", () => ({ env: fakeEnv }));
 
 import type { MediaValue } from "emdash/media";
 
@@ -54,5 +54,60 @@ describe("cloudflare stream getEmbed", () => {
 			meta: { playback: { hls: HLS }, thumbnail: "https://legacy.example/thumb.jpg" },
 		});
 		expect((await videoEmbed(legacy)).poster).toBe("https://legacy.example/thumb.jpg");
+	});
+});
+
+function thumbnailUrl(mediaProvider: ReturnType<typeof createMediaProvider>, id: string): string {
+	const getThumbnailUrl = mediaProvider.getThumbnailUrl;
+	if (!getThumbnailUrl) throw new Error("Stream provider does not implement getThumbnailUrl");
+	return getThumbnailUrl(id);
+}
+
+describe("cloudflare stream credential resolution", () => {
+	const originalAccountId = process.env.CF_ACCOUNT_ID;
+	const originalApiToken = process.env.CF_STREAM_TOKEN;
+
+	afterEach(() => {
+		for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
+		if (originalAccountId === undefined) delete process.env.CF_ACCOUNT_ID;
+		else process.env.CF_ACCOUNT_ID = originalAccountId;
+		if (originalApiToken === undefined) delete process.env.CF_STREAM_TOKEN;
+		else process.env.CF_STREAM_TOKEN = originalApiToken;
+	});
+
+	it("falls back to process.env when no Workers binding is set", () => {
+		process.env.CF_ACCOUNT_ID = "nodeacc1";
+		process.env.CF_STREAM_TOKEN = "node-token";
+
+		const nodeProvider = createMediaProvider({});
+		expect(new URL(thumbnailUrl(nodeProvider, "video-id")).hostname).toBe(
+			"customer-nodeacc1.cloudflarestream.com",
+		);
+	});
+
+	it("prefers the Workers binding over process.env", () => {
+		fakeEnv.CF_ACCOUNT_ID = "wrkracc1";
+		process.env.CF_ACCOUNT_ID = "nodeacc1";
+		process.env.CF_STREAM_TOKEN = "node-token";
+
+		const workersProvider = createMediaProvider({});
+		expect(new URL(thumbnailUrl(workersProvider, "video-id")).hostname).toBe(
+			"customer-wrkracc1.cloudflarestream.com",
+		);
+	});
+
+	it("prefers a direct config value over both the Workers binding and process.env", () => {
+		fakeEnv.CF_ACCOUNT_ID = "wrkracc1";
+		process.env.CF_ACCOUNT_ID = "nodeacc1";
+		process.env.CF_STREAM_TOKEN = "node-token";
+
+		const directProvider = createMediaProvider({ accountId: "directac" });
+		expect(new URL(thumbnailUrl(directProvider, "video-id")).hostname).toBe(
+			"customer-directac.cloudflarestream.com",
+		);
+	});
+
+	it("throws the existing missing-variable error when neither source has the value", () => {
+		expect(() => createMediaProvider({})).toThrow("Missing CF_ACCOUNT_ID");
 	});
 });

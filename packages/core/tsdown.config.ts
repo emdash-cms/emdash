@@ -13,7 +13,7 @@ const TS_EXT = /\.tsx?$/;
  * Mirror each entry's path under src/ into dist/, preserving the original
  * filename verbatim. tsdown/rolldown's default name template rewrites `[` and
  * `]` to `_`, which would mangle dynamic-route entrypoints
- * (`[collection]`, `[...path]`) and decouple `emdash/routes/*` resolution from
+ * (`[collection]`, `[...path]`) and decouple `emdash/internal/routes/*` resolution from
  * the real filenames. Mirroring keeps dist a 1:1 image of src so route
  * injection resolves entrypoints by their actual paths.
  */
@@ -95,6 +95,8 @@ export default defineConfig({
 		"src/database/instrumentation.ts",
 		// Fail-fast Postgres migration lock (used by @emdash-cms/cloudflare's Hyperdrive adapter)
 		"src/database/pg-migration-lock.ts",
+		// Row-based migration lock (used by @emdash-cms/cloudflare's D1 adapters)
+		"src/database/migration-lock.ts",
 		// Storage adapters (runtime - loaded via virtual:emdash/storage)
 		"src/storage/local.ts",
 		"src/storage/s3.ts",
@@ -110,6 +112,8 @@ export default defineConfig({
 		"src/runtime.ts",
 		// Seed engine
 		"src/seed/index.ts",
+		// Repo tooling: scripts/env-types.mjs
+		"src/schema/project-env-types.ts",
 		// CLI
 		"src/cli/index.ts",
 		// Client (programmatic editing API)
@@ -121,10 +125,18 @@ export default defineConfig({
 		"src/page/index.ts",
 		// Plugin admin utilities (shared helpers for plugin admin.tsx files)
 		"src/plugin-utils.ts",
-		// `emdash/plugin` — type-only subpath for sandboxed plugin authors.
+		// `emdash/plugin` — sandboxed authoring types and lightweight helpers.
 		"src/plugin-types.ts",
+		"src/plugin-test-runtime.ts",
+		"src/registry/testing.ts",
 		// Standard plugin adapter (loaded by virtual:emdash/plugins at runtime)
 		"src/plugins/adapt-sandbox-entry.ts",
+		// Platform adapter runtime used behind lazy sandbox bridges.
+		"src/plugins/host.ts",
+		// Lightweight synchronous log redaction for sandbox bridges.
+		"src/plugins/secret-redactor.ts",
+		// Binary-safe HTTP transport shared by sandbox runners.
+		"src/plugins/http-wire.ts",
 		// Public source-exported subpaths -- compiled so consumers never
 		// type-check our raw .ts (avoids the dual-package identity hazard).
 		// `./ui`, `./ui/search` and the `*-admin.tsx` providers stay source:

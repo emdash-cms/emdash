@@ -120,22 +120,19 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 		},
 
-		// Route handlers are typed with specific input schemas but the route record
-		// erases the generic to `unknown`. The cast is safe because the input schema
-		// guarantees the runtime shape matches the handler's expected type.
 		routes: {
 			// --- Public routes ---
 
 			submit: {
 				public: true,
 				input: submitSchema,
-				handler: submitHandler as never,
+				handler: submitHandler,
 			},
 
 			definition: {
 				public: true,
 				input: definitionSchema,
-				handler: definitionHandler as never,
+				handler: definitionHandler,
 			},
 
 			// --- Admin routes (require auth) ---
@@ -145,40 +142,40 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 			"forms/create": {
 				input: formCreateSchema,
-				handler: formsCreateHandler as never,
+				handler: formsCreateHandler,
 			},
 			"forms/update": {
 				input: formUpdateSchema,
-				handler: formsUpdateHandler as never,
+				handler: formsUpdateHandler,
 			},
 			"forms/delete": {
 				input: formDeleteSchema,
-				handler: formsDeleteHandler as never,
+				handler: formsDeleteHandler,
 			},
 			"forms/duplicate": {
 				input: formDuplicateSchema,
-				handler: formsDuplicateHandler as never,
+				handler: formsDuplicateHandler,
 			},
 
 			"submissions/list": {
 				input: submissionsListSchema,
-				handler: submissionsListHandler as never,
+				handler: submissionsListHandler,
 			},
 			"submissions/get": {
 				input: submissionGetSchema,
-				handler: submissionGetHandler as never,
+				handler: submissionGetHandler,
 			},
 			"submissions/update": {
 				input: submissionUpdateSchema,
-				handler: submissionUpdateHandler as never,
+				handler: submissionUpdateHandler,
 			},
 			"submissions/delete": {
 				input: submissionDeleteSchema,
-				handler: submissionDeleteHandler as never,
+				handler: submissionDeleteHandler,
 			},
 			"submissions/export": {
 				input: exportSchema,
-				handler: exportHandler as never,
+				handler: exportHandler,
 			},
 
 			"settings/turnstile-status": {

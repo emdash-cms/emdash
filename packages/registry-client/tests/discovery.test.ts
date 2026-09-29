@@ -1,4 +1,4 @@
-import { ClientResponseError } from "@atcute/client";
+import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -177,6 +177,55 @@ describe("DiscoveryClient", () => {
 
 		expect(result).toEqual({ status: "unavailable", reason: "listing-unavailable" });
 		expect(JSON.stringify(result)).not.toContain(unsafeSentinel);
+	});
+
+	it("preserves complete release-history evidence on package views", async () => {
+		const { fetch } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
+				status: 200,
+				body: {
+					uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
+					cid: CID,
+					did: "did:plc:abc",
+					slug: "gallery",
+					indexedAt: "2026-04-01T00:00:00Z",
+					profile: {},
+					historicalReleaseCount: 1,
+					releaseHistoryComplete: true,
+				},
+			},
+		});
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+		await expect(client.getPackage({ did: "did:plc:abc", slug: "gallery" })).resolves.toMatchObject(
+			{
+				historicalReleaseCount: 1,
+				releaseHistoryComplete: true,
+			},
+		);
+	});
+
+	it("rejects malformed release-history evidence", async () => {
+		const { fetch } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
+				status: 200,
+				body: {
+					uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
+					cid: CID,
+					did: "did:plc:abc",
+					slug: "gallery",
+					indexedAt: "2026-04-01T00:00:00Z",
+					profile: {},
+					historicalReleaseCount: "1",
+					releaseHistoryComplete: true,
+				},
+			},
+		});
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+		await expect(client.getPackage({ did: "did:plc:abc", slug: "gallery" })).rejects.toBeInstanceOf(
+			ClientValidationError,
+		);
 	});
 
 	it("does not downgrade other response failures to ListingUnavailable", async () => {

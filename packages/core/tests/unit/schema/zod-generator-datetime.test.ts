@@ -1,16 +1,8 @@
 /**
- * Regression tests for issue #1368: a `datetime` field could not round-trip
- * through its own admin editor. The validator was
- * `z.string().datetime().or(z.string().date())`, which only accepts ISO with a
- * `Z` suffix or a bare `YYYY-MM-DD` date. But `<input type="datetime-local">`
- * (and many seeds) produce a *naive* datetime (`YYYY-MM-DDTHH:mm[:ss]`, no
- * offset). Since the admin re-sends every loaded field on autosave, a stored
- * naive datetime failed validation and the entry became unsavable. Same class
- * of autosave-round-trip bug as #867.
- *
- * The fix validates standard and minute-precision ISO datetimes with `Z`,
- * timezone offsets, or no offset, plus `z.iso.date()` for date-only values —
- * while still rejecting garbage and impossible dates.
+ * Datetime fields represent instants. Storage migration 079 canonicalizes
+ * legacy naive/date-only values before this validation requires an explicit
+ * offset, while the admin converts its datetime-local input using the site
+ * timezone before sending it.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 
@@ -44,9 +36,6 @@ describe("zod-generator datetime validation (issue #1368)", () => {
 		["minute-precision ISO with Z", "2024-01-15T14:30Z"],
 		["ISO with timezone offset", "2024-01-15T14:30:00+00:00"],
 		["minute-precision ISO with timezone offset", "2024-01-15T14:30+00:00"],
-		["naive datetime with seconds (seeded value -- the bug)", "2026-06-04T18:30:00"],
-		["naive datetime without seconds (datetime-local default)", "2024-01-15T14:30"],
-		["date only", "2024-01-15"],
 	] as const;
 
 	for (const [label, value] of accepted) {
@@ -57,6 +46,9 @@ describe("zod-generator datetime validation (issue #1368)", () => {
 	}
 
 	const rejected = [
+		["naive datetime with seconds", "2026-06-04T18:30:00"],
+		["naive datetime without seconds", "2024-01-15T14:30"],
+		["date only", "2024-01-15"],
 		["non-date text", "not-a-date"],
 		["slash-separated date", "2024/01/15"],
 		["an impossible date (semantic validation retained)", "2024-13-45T99:99:99"],
@@ -73,6 +65,6 @@ describe("zod-generator datetime validation (issue #1368)", () => {
 		const schema = generateFieldSchema(datetimeField({ required: false }));
 		expect(schema.parse(undefined)).toBe(undefined);
 		expect(schema.parse(null)).toBe(null);
-		expect(schema.safeParse("2026-06-04T18:30:00").success).toBe(true);
+		expect(schema.safeParse("2026-06-04T18:30:00").success).toBe(false);
 	});
 });

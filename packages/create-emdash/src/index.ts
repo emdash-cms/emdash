@@ -27,7 +27,14 @@ import {
 	validateProjectName,
 	wantsHelp,
 } from "./flags.js";
-import { isDirNonEmpty, runCommand, sanitizePackageName, writeEncryptionKey } from "./utils.js";
+import {
+	isDirNonEmpty,
+	replacePackageManagerCommands,
+	runCommand,
+	sanitizePackageName,
+	setWorkerLoader,
+	writeEncryptionKey,
+} from "./utils.js";
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -296,6 +303,26 @@ async function resolveShouldInstall(flags: ParsedFlags): Promise<boolean> {
 	return shouldInstall;
 }
 
+/**
+ * Resolve the Cloudflare-only sandboxed-plugins capability. It defaults off
+ * because Worker Loader is only available on Workers paid plans.
+ */
+async function resolveSandboxedPlugins(flags: ParsedFlags, platform: Platform): Promise<boolean> {
+	if (platform !== "cloudflare") return false;
+	if (flags.sandboxedPlugins !== undefined) return flags.sandboxedPlugins;
+	if (flags.yes) return false;
+
+	const enabled = await p.confirm({
+		message: "Enable sandboxed plugins? (Requires Worker Loader, available on Workers paid plans)",
+		initialValue: false,
+	});
+	if (p.isCancel(enabled)) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+	return enabled;
+}
+
 async function main() {
 	// Short-circuit --help before strict parsing so a user typing
 	// `npm create emdash@latest --help --template nope` gets the help they
@@ -334,6 +361,7 @@ async function main() {
 	const templateConfig = getTemplateConfig(platform, templateKey);
 	const pm = await resolvePackageManager(flags);
 	const shouldInstall = await resolveShouldInstall(flags);
+	const enableSandboxedPlugins = await resolveSandboxedPlugins(flags, platform);
 
 	const installCmd = `${pm} install`;
 	const runCmd = (script: string) => (pm === "npm" ? `npm run ${script}` : `${pm} ${script}`);
@@ -349,9 +377,11 @@ async function main() {
 
 		// Set project name in package.json
 		const pkgPath = resolve(projectDir, "package.json");
+		let scripts: string[] = [];
 		if (existsSync(pkgPath)) {
 			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 			pkg.name = projectName;
+			scripts = Object.keys(pkg.scripts ?? {});
 
 			// Templates ship with `packageManager: "pnpm@X"` baked in by the
 			// sync script. Drop it when the user picked a different PM so
@@ -372,6 +402,14 @@ async function main() {
 			writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 		}
 
+		for (const doc of ["README.md", "AGENTS.md"]) {
+			const docPath = resolve(projectDir, doc);
+			if (existsSync(docPath)) {
+				const content = readFileSync(docPath, "utf-8");
+				writeFileSync(docPath, replacePackageManagerCommands(content, pm, scripts));
+			}
+		}
+
 		// Scaffold a fresh EMDASH_ENCRYPTION_KEY into the local-secrets file.
 		// Both Node and Cloudflare use `.env` now — since Aug 2025 Wrangler and
 		// the Cloudflare Vite plugin read `.env` in local development, so we no
@@ -381,6 +419,7 @@ async function main() {
 		const secretsFile = ".env";
 		const keyResult = writeEncryptionKey(projectDir, secretsFile);
 		ensureGitignored(projectDir, secretsFile);
+		const loaderResult = setWorkerLoader(projectDir, enableSandboxedPlugins);
 
 		s.stop("Project created!");
 
@@ -403,6 +442,16 @@ async function main() {
 			);
 		} else {
 			p.log.info(`Wrote ${pc.cyan("EMDASH_ENCRYPTION_KEY")} to ${pc.cyan(secretsFile)}.`);
+		}
+
+		if (loaderResult === "enabled") {
+			p.log.info(
+				`Enabled sandboxed plugins (${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")}; requires a Workers paid plan).`,
+			);
+		} else if (loaderResult === "disabled") {
+			p.log.info(
+				`Sandboxed plugins are disabled. Uncomment ${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")} to enable them later on a Workers paid plan.`,
+			);
 		}
 
 		if (shouldInstall) {

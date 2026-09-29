@@ -10,9 +10,16 @@ import { sql, type Kysely } from "kysely";
 
 import { ContentRepository } from "../../database/repositories/content.js";
 import { MediaRepository } from "../../database/repositories/media.js";
+import { OptionsRepository } from "../../database/repositories/options.js";
 import { UserRepository } from "../../database/repositories/user.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import {
+	SCHEDULED_POLICY_REJECTION_PREFIX,
+	isScheduledPolicyRejection,
+	type ScheduledPolicyRejection,
+	type VersionedScheduledPolicyRejection,
+} from "../../plugins/content-policy.js";
 import { getSchedulerHealth, type SchedulerHealth } from "../../scheduler-health.js";
 import type { ApiResult } from "../types.js";
 
@@ -43,7 +50,11 @@ export interface DashboardStats {
 	userCount: number;
 	recentItems: RecentItem[];
 	schedulerHealth: SchedulerHealth;
+	policyRejectedScheduled: number;
+	policyRejections: VersionedScheduledPolicyRejection[];
 }
+
+const POLICY_REJECTION_PREVIEW_LIMIT = 20;
 
 /**
  * Fetch dashboard statistics.
@@ -83,11 +94,28 @@ export async function handleDashboardStats(
 		// Media and user counts
 		const mediaRepo = new MediaRepository(db);
 		const userRepo = new UserRepository(db);
-		const [mediaCount, userCount, schedulerHealth] = await Promise.all([
+		const optionsRepo = new OptionsRepository(db);
+		const [
+			mediaCount,
+			userCount,
+			schedulerHealth,
+			policyRejectedScheduled,
+			versionedPolicyRejectionOptions,
+		] = await Promise.all([
 			mediaRepo.count(),
 			userRepo.count(),
 			getSchedulerHealth(db, now),
+			optionsRepo.countByPrefix(SCHEDULED_POLICY_REJECTION_PREFIX),
+			optionsRepo.getVersionedByPrefix<ScheduledPolicyRejection>(
+				SCHEDULED_POLICY_REJECTION_PREFIX,
+				{
+					limit: POLICY_REJECTION_PREVIEW_LIMIT,
+				},
+			),
 		]);
+		const policyRejections = [...versionedPolicyRejectionOptions.values()]
+			.filter(({ value }) => isScheduledPolicyRejection(value))
+			.map(({ value, revision }) => ({ ...value, _rev: revision }));
 
 		// Recent items across all collections (last 10 updated, any status)
 		const recentItems = await fetchRecentItems(db, collections);
@@ -100,6 +128,8 @@ export async function handleDashboardStats(
 				userCount,
 				recentItems,
 				schedulerHealth,
+				policyRejectedScheduled,
+				policyRejections,
 			},
 		};
 	} catch (error) {

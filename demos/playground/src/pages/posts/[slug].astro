@@ -269,6 +269,7 @@ const publishDate =
 									readingTime={getReadingTime(p.data.content)}
 									tags={postTags.map((t) => ({ slug: t.slug, label: t.label }))}
 									bylines={postBylines}
+									edit={p.edit}
 								/>
 							)
 						)}

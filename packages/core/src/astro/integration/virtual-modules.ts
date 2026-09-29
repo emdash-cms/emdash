@@ -290,9 +290,12 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					storage: descriptor.storage,
 					adminPages: descriptor.adminPages,
 					adminWidgets: descriptor.adminWidgets,
+					editorPanels: descriptor.editorPanels,
+					editorActions: descriptor.editorActions,
 					settingsSchema: descriptor.settingsSchema,
 					portableTextBlocks: descriptor.portableTextBlocks,
 					fieldWidgets: descriptor.fieldWidgets,
+					mcp: descriptor.mcp,
 				})})`,
 			);
 		} else {
@@ -304,7 +307,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 	});
 
 	const adapterImport = needsAdapter
-		? `import { adaptSandboxEntry } from "emdash/plugins/adapt-sandbox-entry";\n`
+		? `import { adaptSandboxEntry } from "emdash/internal/plugins/adapt-sandbox-entry";\n`
 		: "";
 
 	return `
@@ -412,7 +415,7 @@ export function generateMediaProvidersModule(descriptors: MediaProviderDescripto
 	// Add local provider first if not disabled
 	if (!localDisabled) {
 		imports.push(
-			`import { createMediaProvider as createLocalProvider } from "emdash/media/local-runtime";`,
+			`import { createMediaProvider as createLocalProvider } from "emdash/internal/media/local-runtime";`,
 		);
 		entries.push(`{
 	id: "local",
@@ -701,6 +704,8 @@ export const sandboxedPlugins = [];
     hooks: ${JSON.stringify(descriptor.hooks ?? [])},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
+    editorPanels: ${JSON.stringify(descriptor.editorPanels ?? [])},
+    editorActions: ${JSON.stringify(descriptor.editorActions ?? [])},
     settingsSchema: ${JSON.stringify(descriptor.settingsSchema)},
     portableTextBlocks: ${JSON.stringify(descriptor.portableTextBlocks ?? [])},
     fieldWidgets: ${JSON.stringify(descriptor.fieldWidgets ?? [])},

@@ -1,25 +1,27 @@
 ---
 title: The plugin registry
-description: Configure and install plugins from the experimental EmDash registry.
+description: Discover, review, and install sandboxed plugins from the EmDash registry.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Steps } from "@astrojs/starlight/components";
 
-The plugin registry is the supported catalog for sandboxed plugins. It lets administrators browse and install plugins from the EmDash admin panel. Review the publisher, selected version, and requested permissions before installing a plugin.
+The plugin registry is the supported catalog for sandboxed plugins. Anyone can browse published plugins at [plugins.emdashcms.com](https://plugins.emdashcms.com). Administrators can review and install them from the **Registry** section of the EmDash admin panel.
 
-<Aside type="caution" title="Experimental">
-	Registry configuration can change in a minor release. Pin `emdash` to an exact version while
-	using the registry, and read its changelog before upgrading. EmDash runs the hosted registry at
-	`https://registry.emdashcms.com`.
-</Aside>
+EmDash uses the hosted registry at `https://registry.emdashcms.com` by default when the site has an enabled plugin sandbox.
 
-When `experimental.registry` is configured, the admin panel displays a **Registry** section for browsing and installing plugins.
+## Plugin public names
 
-## Enable the registry
+Every registry plugin has a public name made from its publisher's current Atmosphere account handle and its package slug. For example, a package with the slug `my-gallery` published by `example.com` appears as `@example.com/my-gallery`.
+
+The public name appears in registry results and under **Plugins** after installation. Select it to open the plugin detail page, or paste the complete name into registry search to find that exact package. EmDash resolves the handle to the publisher's stable account identifier before loading the package.
+
+If the handle conclusively stops resolving back to the publisher, EmDash displays **INVALID HANDLE** and prevents new installation from the package detail page. Existing installations remain in their current state so an identity lookup cannot disable a running site. Review the installed plugin and contact its publisher before updating it. A temporary lookup failure displays the stable publisher identifier with **Handle unavailable** instead of reporting an invalid handle.
+
+## Enable registry installs
 
 To install plugins from the registry, configure storage and an available sandbox runner. Complete the platform-specific [plugin sandbox setup](/deployment/plugin-sandbox/) first.
 
-Add the hosted registry and Cloudflare sandbox runner to the `emdash()` configuration in `astro.config.mjs`:
+Add the Cloudflare sandbox runner to the `emdash()` configuration in `astro.config.mjs`:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -30,22 +32,19 @@ export default defineConfig({
 	integrations: [
 		emdash({
 			sandboxRunner: sandbox(),
-			experimental: {
-				registry: "https://registry.emdashcms.com",
-			},
 		}),
 	],
 });
 ```
 
-Use the bare hosted registry URL for the normal setup. See the [`experimental.registry` configuration reference](/reference/configuration/#experimentalregistry) for custom registry settings.
+EmDash displays the **Registry** catalog after the sandbox runner is configured. See the [`registry` configuration reference](/reference/configuration/#registry) to select a different aggregator, set registry policy, or disable discovery.
 
 ## Install a registry plugin
 
 <Steps>
 
 1. Open **Registry** in the admin panel.
-2. Search for a plugin and open its detail page.
+2. Search by title, description, or a complete public name such as `@example.com/my-gallery`, then open the plugin's detail page.
 3. Select a release and review its publisher, metadata, requested permissions, and verification status.
 4. Select **Install**.
 5. Review the verification status and permissions in the consent dialog, then confirm.

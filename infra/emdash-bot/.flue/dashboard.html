@@ -640,9 +640,20 @@
 			}
 
 			async function load() {
+				let nextLoadMs = 20_000;
 				try {
 					const response = await fetch("/api/dashboard", { cache: "no-store" });
-					if (!response.ok) throw new Error(String(response.status));
+					if (!response.ok) {
+						const retryAfter = response.headers.get("retry-after");
+						if (retryAfter) {
+							const seconds = Number(retryAfter);
+							const retryAt = Number.isFinite(seconds)
+								? Date.now() + seconds * 1_000
+								: Date.parse(retryAfter);
+							if (Number.isFinite(retryAt)) nextLoadMs = Math.max(nextLoadMs, retryAt - Date.now());
+						}
+						throw new Error(String(response.status));
+					}
 					payload = await response.json();
 					byId("repository-link").href = payload.repositoryUrl;
 					byId("updated-at").textContent = `Updated ${relativeTime(payload.updatedAt)}`;
@@ -652,14 +663,17 @@
 					if (selected && tracePage?.issueNumber !== selected.number) loadTrace(selected.number);
 				} catch {
 					byId("updated-at").textContent = "Data unavailable";
-					byId("issues").replaceChildren(
-						element("div", "empty", "Could not load current bot work."),
-					);
+					if (!payload) {
+						byId("issues").replaceChildren(
+							element("div", "empty", "Could not load current bot work."),
+						);
+					}
+				} finally {
+					setTimeout(load, nextLoadMs);
 				}
 			}
 
 			load();
-			setInterval(load, 20_000);
 		</script>
 	</body>
 </html>

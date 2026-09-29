@@ -332,9 +332,10 @@ describe("EmDashClient Integration", () => {
 		await ctx.client.delete("posts", item.id);
 		await ctx.client.restore("posts", item.id);
 
-		// Should be accessible again (restore preserves the previous status)
+		// Restore brings the entry back as a draft without its schedule
 		const restored = await ctx.client.get("posts", item.id);
-		expect(restored.status).toBe("scheduled");
+		expect(restored.status).toBe("draft");
+		expect(restored.scheduledAt).toBeNull();
 
 		// Final cleanup
 		await ctx.client.delete("posts", item.id);

@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.37.0",
+  "version": "1.0.1",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -23,25 +23,34 @@
       "default": "./dist/astro/index.mjs"
     },
     "./plugin": {
-      "types": "./dist/plugin-types.d.mts"
+      "types": "./dist/plugin-types.d.mts",
+      "default": "./dist/plugin-types.mjs"
+    },
+    "./internal/plugin-test-runtime": {
+      "types": "./dist/plugin-test-runtime.d.mts",
+      "default": "./dist/plugin-test-runtime.mjs"
+    },
+    "./internal/testing/registry": {
+      "types": "./dist/registry/testing.d.mts",
+      "default": "./dist/registry/testing.mjs"
     },
     "./middleware": {
       "types": "./dist/astro/middleware.d.mts",
       "default": "./dist/astro/middleware.mjs"
     },
-    "./middleware/setup": {
+    "./internal/middleware/setup": {
       "types": "./dist/astro/middleware/setup.d.mts",
       "default": "./dist/astro/middleware/setup.mjs"
     },
-    "./middleware/auth": {
+    "./internal/middleware/auth": {
       "types": "./dist/astro/middleware/auth.d.mts",
       "default": "./dist/astro/middleware/auth.mjs"
     },
-    "./middleware/media-usage-write-fence": {
+    "./internal/middleware/media-usage-write-fence": {
       "types": "./dist/astro/middleware/media-usage-write-fence.d.mts",
       "default": "./dist/astro/middleware/media-usage-write-fence.mjs"
     },
-    "./middleware/redirect": {
+    "./internal/middleware/redirect": {
       "types": "./dist/astro/middleware/redirect.d.mts",
       "default": "./dist/astro/middleware/redirect.mjs"
     },
@@ -52,8 +61,8 @@
       "types": "./dist/cli/index.d.mts",
       "default": "./dist/cli/index.mjs"
     },
-    "./routes/*.astro": "./src/astro/routes/*.astro",
-    "./routes/*": {
+    "./internal/routes/*.astro": "./src/astro/routes/*.astro",
+    "./internal/routes/*": {
       "types": "./dist/astro/routes/*.d.mts",
       "default": "./dist/astro/routes/*.mjs"
     },
@@ -83,7 +92,7 @@
       "types": "./dist/db/sqlite.d.mts",
       "default": "./dist/db/sqlite.mjs"
     },
-    "./db/sqlite-migrations": {
+    "./internal/db/sqlite-migrations": {
       "types": "./dist/db/sqlite-migrations.d.mts",
       "default": "./dist/db/sqlite-migrations.mjs"
     },
@@ -91,7 +100,7 @@
       "types": "./dist/db/libsql.d.mts",
       "default": "./dist/db/libsql.mjs"
     },
-    "./db/libsql-migrations": {
+    "./internal/db/libsql-migrations": {
       "types": "./dist/db/libsql-migrations.d.mts",
       "default": "./dist/db/libsql-migrations.mjs"
     },
@@ -99,7 +108,7 @@
       "types": "./dist/db/postgres.d.mts",
       "default": "./dist/db/postgres.mjs"
     },
-    "./db/postgres-migrations": {
+    "./internal/db/postgres-migrations": {
       "types": "./dist/db/postgres-migrations.d.mts",
       "default": "./dist/db/postgres-migrations.mjs"
     },
@@ -111,9 +120,13 @@
       "types": "./dist/database/instrumentation.d.mts",
       "default": "./dist/database/instrumentation.mjs"
     },
-    "./database/pg-migration-lock": {
+    "./internal/database/pg-migration-lock": {
       "types": "./dist/database/pg-migration-lock.d.mts",
       "default": "./dist/database/pg-migration-lock.mjs"
+    },
+    "./internal/database/migration-lock": {
+      "types": "./dist/database/migration-lock.d.mts",
+      "default": "./dist/database/migration-lock.mjs"
     },
     "./storage/local": {
       "types": "./dist/storage/local.d.mts",
@@ -123,7 +136,7 @@
       "types": "./dist/storage/s3.d.mts",
       "default": "./dist/storage/s3.mjs"
     },
-    "./object-cache/memory": {
+    "./internal/object-cache/memory": {
       "types": "./dist/object-cache/memory.d.mts",
       "default": "./dist/object-cache/memory.mjs"
     },
@@ -131,7 +144,7 @@
       "types": "./dist/media/index.d.mts",
       "default": "./dist/media/index.mjs"
     },
-    "./media/local-runtime": {
+    "./internal/media/local-runtime": {
       "types": "./dist/media/local-runtime.d.mts",
       "default": "./dist/media/local-runtime.mjs"
     },
@@ -139,7 +152,7 @@
       "types": "./dist/media/image-endpoint.d.mts",
       "default": "./dist/media/image-endpoint.mjs"
     },
-    "./image-endpoint": {
+    "./internal/image-endpoint": {
       "types": "./dist/astro/image-endpoint.d.mts",
       "default": "./dist/astro/image-endpoint.mjs"
     },
@@ -155,7 +168,7 @@
       "types": "./dist/seed/index.d.mts",
       "default": "./dist/seed/index.mjs"
     },
-    "./middleware/request-context": {
+    "./internal/middleware/request-context": {
       "types": "./dist/astro/middleware/request-context.d.mts",
       "default": "./dist/astro/middleware/request-context.mjs"
     },
@@ -182,12 +195,25 @@
       "types": "./dist/plugin-utils.d.mts",
       "default": "./dist/plugin-utils.mjs"
     },
-    "./plugins/adapt-sandbox-entry": {
+    "./internal/plugins/adapt-sandbox-entry": {
       "types": "./dist/plugins/adapt-sandbox-entry.d.mts",
       "default": "./dist/plugins/adapt-sandbox-entry.mjs"
+    },
+    "./internal/plugins/host": {
+      "types": "./dist/plugins/host.d.mts",
+      "default": "./dist/plugins/host.mjs"
+    },
+    "./plugins/secret-redactor": {
+      "types": "./dist/plugins/secret-redactor.d.mts",
+      "default": "./dist/plugins/secret-redactor.mjs"
+    },
+    "./internal/plugins/http-wire": {
+      "types": "./dist/plugins/http-wire.d.mts",
+      "default": "./dist/plugins/http-wire.mjs"
     }
   },
   "imports": {
+    "#node-sqlite": "./src/db/node-sqlite-compat.js",
     "#api/schemas.js": "./src/api/schemas/index.js",
     "#api/*": "./src/api/*",
     "#config/*": "./src/config/*",
@@ -225,13 +251,16 @@
     "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:repro": "vitest run --config vitest.repro.config.ts"
+    "test:repro": "vitest run --config vitest.repro.config.ts",
+    "test:types": "vitest run --config vitest.types.config.ts"
   },
   "dependencies": {
+    "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@atcute/multibase": "catalog:",
     "@emdash-cms/admin": "workspace:*",
     "@emdash-cms/auth": "workspace:*",
+    "@emdash-cms/blocks": "workspace:*",
     "@emdash-cms/gutenberg-to-portable-text": "workspace:*",
     "@emdash-cms/plugin-types": "workspace:*",
     "@emdash-cms/registry-client": "workspace:*",
@@ -301,17 +330,16 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
-    "@cloudflare/vitest-pool-workers": "catalog:",
+    "@astrojs/react": "catalog:",
+    "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
-    "@emdash-cms/blocks": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",
-    "@types/better-sqlite3": "^7.6.12",
-    "better-sqlite3": "catalog:",
     "@types/pg": "^8.16.0",
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
-    "@vitest/ui": "^4.1.10",
+    "@vitest/ui": "catalog:",
+    "astro": "catalog:",
     "image-size": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",

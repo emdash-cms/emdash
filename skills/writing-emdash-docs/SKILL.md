@@ -9,14 +9,14 @@ Produce documentation that helps a specific reader complete a task or understand
 
 ## Load the right context
 
-Before drafting or editing:
+Load only the context needed for the artifact:
 
-1. Read `docs/src/content/docs/contributing/docs-style-guide.mdx` completely for public documentation. Apply its relevant voice and readability rules to other prose in the repository.
-2. Read [references/docs-practice.md](references/docs-practice.md) completely for every writing or revision task.
-3. Read [references/anti-slop.md](references/anti-slop.md) completely for every writing or revision task.
-4. Read nearby pages of the same type to preserve established structure, terminology, frontmatter, imports, and Starlight component usage.
-5. Inspect the implementation, types, tests, command help, or configuration that establishes every technical claim. Do not rely on memory when the repository can answer the question.
-6. Read `AGENTS.md` for repository-wide rules.
+1. Read `AGENTS.md` for repository-wide rules.
+2. For public documentation, read `docs/src/content/docs/contributing/docs-style-guide.mdx` completely.
+3. Read [references/docs-practice.md](references/docs-practice.md) when creating or restructuring a page, changing a task path, reviewing accessibility or information architecture, or writing substantial examples.
+4. Read [references/anti-slop.md](references/anti-slop.md) for prose-heavy revisions, de-slopping, or humanization. A small factual correction does not require loading it.
+5. Read nearby pages of the same type to preserve established structure, terminology, frontmatter, imports, and Starlight component usage.
+6. Inspect the implementation, types, tests, command help, or configuration that establishes every technical claim. Do not rely on memory when the repository can answer the question.
 7. For changesets, read [.changeset/README.md](../../.changeset/README.md) completely. Treat the entry as public CHANGELOG documentation and review whether affected readers can recognize the surface, understand the observable effect, and act on any migration guidance. Frontmatter validity and technical accuracy do not make an unhelpful entry acceptable.
 
 ## Define the reader and outcome
@@ -57,7 +57,7 @@ For public docs, describe how to use EmDash. Put internal design detail in contr
 
 ## Run the anti-slop pass
 
-Finish the content pass before polishing sentences. Then inspect every changed paragraph using [references/anti-slop.md](references/anti-slop.md).
+For a prose-heavy revision, finish the content pass before polishing sentences. Then inspect every changed paragraph using [references/anti-slop.md](references/anti-slop.md). For a narrow factual correction, apply the same judgment without loading or mechanically running the full reference.
 
 Ask of each sentence:
 
@@ -88,7 +88,7 @@ When asked for an audit only, report prioritized, concrete findings without edit
 
 ## Verify
 
-Run the narrowest checks that cover the changed artifact:
+Run the narrowest checks that cover the changed artifact. Common checks include:
 
 ```bash
 pnpm lint:quick
@@ -96,4 +96,6 @@ pnpm --dir docs build
 git diff --check
 ```
 
-Use additional tests when code samples or generated reference material depend on executable behavior. If a repository-wide check is already broken, record the pre-existing failure and still run any independent checks that remain meaningful.
+Use the docs build for public docs, docs configuration, or shared content consumed by that build; do not run it merely because another Markdown file changed. Validate skill frontmatter and relative links when editing skills. Use additional tests when code samples or generated reference material depend on executable behavior.
+
+If validation fails because declaration output is missing, run the root build and retry. Treat a remaining failure as introduced by the current work rather than establishing a pre-edit failure baseline.

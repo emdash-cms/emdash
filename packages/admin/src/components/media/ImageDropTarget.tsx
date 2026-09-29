@@ -50,7 +50,7 @@ export function ImageDropTarget({
 		}
 		const file = files[0]!;
 		if (!matchesMimeAllowlist(file.type, ["image/"])) {
-			setError(t`Only image files can be dropped here.`);
+			setError(t`Only image files can be uploaded here.`);
 			return;
 		}
 		if (allowedMimeTypes?.length && !matchesMimeAllowlist(file.type, allowedMimeTypes)) {
@@ -114,7 +114,7 @@ export function ImageDropTarget({
 				<Button
 					type="button"
 					variant="ghost"
-					className="h-auto min-h-32 w-full flex-col items-center justify-center gap-3 rounded-[10px] px-4 py-5 text-center text-sm text-kumo-subtle"
+					className="h-auto min-h-32 w-full flex-col items-center justify-center gap-3 rounded-[10px] px-4 py-5 text-center text-base text-kumo-subtle"
 					aria-label={t`Drop an image here or browse for ${label}`}
 					disabled={uploading}
 					onClick={() => {
@@ -123,7 +123,9 @@ export function ImageDropTarget({
 					}}
 				>
 					{uploading ? (
-						<Loader size="sm" aria-hidden="true" />
+						<span aria-hidden="true" className="flex shrink-0">
+							<Loader size="sm" />
+						</span>
 					) : (
 						<UploadSimple className="h-8 w-8 shrink-0" aria-hidden="true" />
 					)}
@@ -145,7 +147,7 @@ export function ImageDropTarget({
 				{uploading ? t`Uploading image…` : ""}
 			</span>
 			{error && (
-				<p role="alert" className="text-sm text-kumo-danger">
+				<p role="alert" className="text-xs leading-4 text-kumo-danger">
 					{error}
 				</p>
 			)}

@@ -27,6 +27,11 @@
 	"durable_objects": {
 		"bindings": [
 			{
+				"name": "GITHUB_RATE_LIMIT",
+				"class_name": "GitHubRateLimitDO",
+				"script_name": "emdash-bot",
+			},
+			{
 				"name": "REVIEW_WATCHDOG",
 				"class_name": "ReviewWatchdog",
 			},

@@ -168,7 +168,7 @@ export async function runAction(
 		const runnerTemp = runtime.getEnvironment("RUNNER_TEMP");
 		const repository = runtime.getEnvironment("GITHUB_REPOSITORY");
 		const workflowRef = runtime.getEnvironment("GITHUB_WORKFLOW_REF");
-		const repositoryVisibility = runtime.getEnvironment("GITHUB_REPOSITORY_VISIBILITY");
+		const repositoryVisibility = runtime.getInput("repository-visibility");
 		if (!runnerTemp || !repository || !workflowRef || !repositoryVisibility) {
 			throw new ActionConfigurationError("GitHub workflow identity is unavailable");
 		}
@@ -301,6 +301,9 @@ export async function runAction(
 	await setIntentOutputs(runtime, intent);
 	if (intent.state === "awaiting_approval") {
 		runtime.info(`Release intent ${intent.id} requires approval: ${intent.approvalUrl}`);
+		await runtime.writeSummary(
+			`## Approve ${intent.packageSlug} ${intent.version}\n\n[Open EmDash to review and approve the release](${intent.approvalUrl})`,
+		);
 		return intent;
 	}
 	if (intent.state === "published" && intent.result) {

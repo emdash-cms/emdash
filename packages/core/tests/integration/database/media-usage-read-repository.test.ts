@@ -7,6 +7,7 @@ import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
 } from "../../../src/media/usage/source-key.js";
+import { CONTENT_SOURCE_SCHEMA_VERSION } from "../../../src/media/usage/types.js";
 import { SQL_BATCH_SIZE } from "../../../src/utils/chunks.js";
 import {
 	describeEachDialect,
@@ -336,10 +337,10 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "failed",
 		});
 
-		const scopes = await repo.findCollectionIndexStatusScopes({
-			adapterId: "content-media",
-			scopeType: "collection",
-		});
+		const { scopes } = await repo.findCoverageWithOptions(
+			{ adapterId: "content-media", scopeType: "collection" },
+			[],
+		);
 
 		expect(scopes).toEqual([
 			{
@@ -642,7 +643,7 @@ async function insertCollectionStatus(
 			scope_type: "collection",
 			scope_key: slug,
 			status,
-			schema_version: 1,
+			schema_version: CONTENT_SOURCE_SCHEMA_VERSION,
 			collection_id: `collection-${slug}`,
 			reconciliation_required: reconciliationRequired,
 			capture_state: "active",

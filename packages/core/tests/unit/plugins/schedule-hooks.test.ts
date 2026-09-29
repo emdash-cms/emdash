@@ -1,10 +1,12 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
+import { scheduledPolicyRejectionKey } from "../../../src/plugins/content-policy.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
 import type { ContentScheduleStateChangeEvent } from "../../../src/plugins/types.js";
@@ -129,6 +131,45 @@ describe("content scheduling hooks", () => {
 				}),
 			}),
 		);
+	});
+
+	it("does not clear a newer policy rejection created while scheduling", async () => {
+		const item = await repo.create({
+			type: "post",
+			slug: "policy-race",
+			status: "draft",
+			data: { title: "Policy race" },
+		});
+		const key = scheduledPolicyRejectionKey("post", item.id);
+		const options = new OptionsRepository(db);
+		await options.set(key, {
+			collection: "post",
+			id: item.id,
+			pluginId: "old-policy",
+			reason: "Old rejection",
+			rejectedAt: "2030-01-01T00:00:00.000Z",
+		});
+		await sql`
+			CREATE TRIGGER replace_policy_rejection_after_schedule
+			AFTER UPDATE OF scheduled_at ON ec_post
+			BEGIN
+				UPDATE options
+				SET value = '{"pluginId":"new-policy","reason":"New rejection"}',
+					revision = 'newer-revision';
+			END
+		`.execute(db);
+
+		const result = await runtime.handleContentSchedule(
+			"post",
+			item.id,
+			new Date(Date.now() + 86_400_000).toISOString(),
+		);
+
+		expect(result.success).toBe(true);
+		expect(await options.getVersioned(key)).toEqual({
+			value: expect.objectContaining({ pluginId: "new-policy", reason: "New rejection" }),
+			revision: "newer-revision",
+		});
 	});
 
 	it("fires content:afterUnschedule when scheduled content is unscheduled", async () => {

@@ -9,6 +9,7 @@ import {
 	type MediaItem,
 } from "../../lib/api.js";
 import { useCurrentUser } from "../../lib/api/current-user.js";
+import { localMediaFileUrl } from "../../lib/media-utils.js";
 import { MediaDetailPanel } from "../MediaDetailPanel.js";
 
 const ROLE_AUTHOR = 30;
@@ -59,7 +60,7 @@ export function useMediaAssetEditor(onItemChanged: (item: LocalMediaItem) => voi
 				? fetchedMedia
 				: {
 						...fetchedMedia,
-						url: `/_emdash/api/media/file/${encodeURIComponent(fetchedMedia.storageKey)}`,
+						url: localMediaFileUrl(fetchedMedia.storageKey),
 					};
 			const user = userResult.data;
 			const canEdit =

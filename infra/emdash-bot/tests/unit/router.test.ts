@@ -151,6 +151,23 @@ describe("router", () => {
 		expect(decision.action).toBe("investigate.repro");
 	});
 
+	test.each([
+		{ state: "working", label: "bot:working" },
+		{ state: "fixing", label: "bot:fixing" },
+		{ state: "in_review", label: "bot:in-review" },
+	] as const)("system resume restarts a paused publication in $state", ({ state, label }) => {
+		const decision = resolve({
+			labels: ["bot:bug", label],
+			event: "resume",
+			actor: "system",
+			resumeState: state,
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe(state);
+		expect(decision.action).toBe("investigate.resume");
+	});
+
 	test("isDestructive flags decline and take_over only", () => {
 		expect(isDestructive("decline")).toBe(true);
 		expect(isDestructive("take_over")).toBe(true);
@@ -169,8 +186,7 @@ describe("router", () => {
 		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
 		expect(d.addLabel).toBe("bot:fixing");
-		expect(d.removeLabels).toContain("bot:blocked");
-		expect(d.removeLabels).not.toContain("bot:fixing");
+		expect(d.removeLabels).toEqual(["bot:blocked"]);
 	});
 
 	test("resolve: in_review accepts revise (PR feedback bridge)", () => {
@@ -318,8 +334,7 @@ describe("router", () => {
 		});
 		assertTransition(d);
 		expect(d.to).toBe("triage");
-		expect(d.removeLabels).toContain("bot:working");
-		expect(d.removeLabels).toContain("bot:blocked");
+		expect(d.removeLabels).toEqual(["bot:working", "bot:blocked"]);
 	});
 
 	test("reset: bare-verb only (destructive) -> not offered to the classifier", () => {

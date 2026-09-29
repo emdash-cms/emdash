@@ -1,92 +1,54 @@
-# Phase 6: Verify & Iterate
+# Phase 6: Verify the rendered site
 
-Seed content, run the dev server, compare screenshots, and iterate until pages match.
+Run the site against disposable data, compare each in-scope page with its reference, and verify the interactions that matter to the port.
 
-## 6.1 Start Dev Server
+## Start from known data
 
-The seed is applied on the first request when the database is empty. If you've already run the dev server against an existing database, delete `data.db` first so the seed reapplies.
+Use a dedicated test database or a disposable site. Do not delete an existing database or terminate an unrelated process to force the seed to reapply. If the current project cannot be reset safely, create a separate fixture or ask the user which data may be replaced.
 
-Kill any existing server first:
+Start the project with its package script and watch for seed or runtime errors:
 
 ```bash
-lsof -ti:4321 | xargs kill -9 2>/dev/null || true
-rm -f data.db   # only if you need a clean slate
 pnpm dev
 ```
 
-Watch the logs for any seed validation errors and fix them before continuing.
+Record the actual URL and viewport used for comparison.
 
-## 6.3 Screenshot Each Page Type
+## Capture comparable screenshots
 
-Screenshot every page type you captured in Phase 1:
+Capture only the page types and responsive states selected during discovery. Use the same viewport, content shape, scroll position, and UI state for each reference-and-result pair.
 
 ```bash
-# Homepage
 agent-browser open http://localhost:4321
 agent-browser screenshot output/homepage.png --full
-
-# Single post
-agent-browser open http://localhost:4321/posts/hello-world
-agent-browser screenshot output/single-post.png --full
-
-# Blog archive
-agent-browser open http://localhost:4321/posts
-agent-browser screenshot output/archive.png --full
-
-# Category page
-agent-browser open http://localhost:4321/categories/news
-agent-browser screenshot output/category.png --full
-
-# Static page
-agent-browser open http://localhost:4321/pages/about
-agent-browser screenshot output/page.png --full
-
-# 404 page
-agent-browser open http://localhost:4321/nonexistent
-agent-browser screenshot output/404.png --full
 ```
 
-## 6.4 Compare & Iterate
+Inspect each screenshot before using it as evidence. Confirm that fonts and images loaded, transient overlays are absent, and the screenshot shows the intended route and state.
 
-Compare each screenshot pair:
+## Compare behavior and presentation
 
-| Page Type   | Reference                               | Output                   |
-| ----------- | --------------------------------------- | ------------------------ |
-| Homepage    | `discovery/screenshots/homepage.png`    | `output/homepage.png`    |
-| Single Post | `discovery/screenshots/single-post.png` | `output/single-post.png` |
-| Archive     | `discovery/screenshots/archive.png`     | `output/archive.png`     |
-| Category    | `discovery/screenshots/category.png`    | `output/category.png`    |
-| Page        | `discovery/screenshots/page.png`        | `output/page.png`        |
-| 404         | `discovery/screenshots/404.png`         | `output/404.png`         |
+Check:
 
-For each page, identify differences and fix:
+- layout structure, content width, alignment, and spacing;
+- typography, colors, borders, and imagery;
+- navigation, menus, forms, and interactive states;
+- desktop and mobile behavior;
+- long, missing, and representative CMS content;
+- focus, keyboard use, semantic headings, and visible labels;
+- console and request failures.
 
-1. **Layout** - CSS grid/flexbox, content width, spacing
-2. **Typography** - Font family, sizes, line height
-3. **Colors** - Background, text, links, borders
-4. **Components** - Headers, footers, cards, buttons
-5. **Responsive** - Check mobile viewport too
+Match the fidelity requested by the user. Do not substitute a vague “same design language” judgment when the task requires a close reproduction, and do not spend time on pixel-level differences when the requested outcome is structural.
 
-Re-screenshot after each round of fixes.
+Re-capture the affected state after each meaningful round of fixes. Keep the final reference-and-result images and report deliberate deviations.
 
-**Don't aim for pixel-perfect** - aim for "same design language."
+## Build
 
-## 6.5 Final Build Test
+Run the project build after rendered verification:
 
 ```bash
 pnpm run build
 ```
 
-## License Compliance
+## License and attribution
 
-WordPress themes are GPL-licensed. Every ported theme needs:
-
-1. **LICENSE** - GPL-2.0 text (download with curl, don't output directly):
-
-   ```bash
-   curl -o LICENSE https://raw.githubusercontent.com/spdx/license-list-data/main/text/GPL-2.0-or-later.txt
-   ```
-
-2. **README.md** - Credits to original theme
-
-3. **package.json** - `"license": "GPL-2.0-or-later"`
+Inspect the theme's actual license and bundled notices. Preserve required attribution and include the applicable license text for code or assets that the port redistributes. Track third-party fonts, images, icons, and demo content separately; their licenses may differ from the theme code.

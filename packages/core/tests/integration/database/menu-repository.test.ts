@@ -283,6 +283,21 @@ describe("MenuRepository", () => {
 	});
 
 	describe("setItems()", () => {
+		it("assigns each replacement item its own translation group", async () => {
+			const menu = await repo.create({ name: "primary", label: "Primary" });
+
+			await repo.setItems(menu.id, menu.locale, [
+				{ label: "Home", type: "custom", customUrl: "/" },
+				{ label: "About", type: "custom", customUrl: "/about" },
+			]);
+
+			const items = await repo.findItems(menu.id);
+			expect(items).toHaveLength(2);
+			for (const item of items) {
+				expect(item.translationGroup).toBe(item.id);
+			}
+		});
+
 		it("replaces existing items atomically and resolves parentIndex", async () => {
 			const menu = await repo.create({ name: "primary", label: "Primary" });
 			await repo.createItem(menu.id, menu.locale, {

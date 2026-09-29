@@ -376,7 +376,7 @@ The Orchestrator stores the plan and projects it into one evolving GitHub commen
 
 ### Statuses
 
-`running`, `succeeded`, `failed`, `timed_out`, `cancelled`
+`running`, `paused`, `succeeded`, `failed`, `timed_out`, `cancelled`
 
 ### Diagram
 

@@ -17,7 +17,12 @@ import { EventEmitter } from "node:events";
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { WorkerdSandboxRunner, waitForProcessExit } from "../src/sandbox/runner.js";
+import {
+	makeWorkerdExitHandler,
+	WorkerdSandboxRunner,
+	waitForProcessExit,
+} from "../src/sandbox/runner.js";
+import type { ExitHandlerHost } from "../src/sandbox/runner.js";
 
 interface FakeProc extends EventEmitter {
 	exitCode: number | null;
@@ -133,5 +138,25 @@ describe("stopWorkerd timer cleanup", () => {
 
 		expect(fake.kill).not.toHaveBeenCalled();
 		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it("treats a replacement process crash as unexpected after an intentional stop", async () => {
+		const runner = new WorkerdSandboxRunner({ db: null as any });
+		const stopped = makeFakeProc();
+		(runner as any).workerdProcess = stopped;
+		const stopPromise = (runner as any).stopWorkerd() as Promise<void>;
+		stopped.emit("exit");
+		await stopPromise;
+
+		const replacement = makeFakeProc();
+		(runner as any).workerdProcess = replacement;
+		(runner as any).healthy = true;
+		const scheduleRestart = vi.spyOn(runner as any, "scheduleRestart").mockImplementation(() => {});
+		makeWorkerdExitHandler(runner as unknown as ExitHandlerHost, replacement as ChildProcess)(
+			1,
+			null,
+		);
+
+		expect(scheduleRestart).toHaveBeenCalledOnce();
 	});
 });

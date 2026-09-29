@@ -15,21 +15,20 @@ export default defineConfig({
 		"src/image-endpoint.ts",
 		"src/auth/index.ts",
 		"src/sandbox/index.ts",
+		"src/sandbox/bridge.ts",
 		"src/worker.ts",
 		"src/plugins/index.ts",
 		// Standalone entry: cloudflareEmail() descriptors reference this module
 		// as their `entrypoint`, so the astro integration can statically import
 		// `createPlugin` from it (#1721).
 		"src/plugins/cloudflare-email.ts",
+		"src/plugins/cloudflare-email-env.ts",
 		"src/plugins/ai-search.ts",
 		"src/plugins/ai-search-admin.tsx",
 
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",
-		// Cache provider (full-page response cache)
-		"src/cache/runtime.ts",
-		"src/cache/config.ts",
 		// Object cache backend (KV)
 		"src/cache/kv.ts",
 	],

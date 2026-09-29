@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { groupEntriesByPublishedAt } from "../../../src/widgets/archives.js";
 
@@ -7,6 +7,25 @@ function entry(publishedAt: unknown) {
 }
 
 describe("groupEntriesByPublishedAt", () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it("formats each displayed month once while counting all entries in that month", () => {
+		const format = vi.spyOn(Date.prototype, "toLocaleDateString");
+		const entries = Array.from({ length: 100 }, () => entry(new Date(2026, 2, 15)));
+		entries.push(entry(new Date(2026, 1, 1)), entry(new Date(2026, 2, 20)));
+
+		expect(groupEntriesByPublishedAt(entries, { limit: 1 })).toEqual([
+			{ label: "March 2026", count: 101, url: "/archives/2026/03" },
+		]);
+		expect(format).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not format month labels when no groups are displayed", () => {
+		const format = vi.spyOn(Date.prototype, "toLocaleDateString");
+		expect(groupEntriesByPublishedAt([entry(new Date(2026, 2, 15))], { limit: 0 })).toEqual([]);
+		expect(format).not.toHaveBeenCalled();
+	});
+
 	it("groups Date publishedAt values by month instead of skipping them", () => {
 		const groups = groupEntriesByPublishedAt(
 			[entry(new Date(2026, 2, 15)), entry(new Date(2026, 2, 20)), entry(new Date(2026, 1, 1))],

@@ -389,7 +389,7 @@ const scheduleCommand = defineCommand({
 		},
 		at: {
 			type: "string",
-			description: "ISO 8601 datetime to publish at",
+			description: "ISO 8601 datetime with Z or an explicit UTC offset to publish at",
 			required: true,
 		},
 		"override-lock": {

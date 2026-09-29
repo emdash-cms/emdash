@@ -347,7 +347,14 @@ export function relativizeContentLinks(blocks: PortableTextBlock[], siteUrl: str
 				break;
 			case "image":
 				// asset.url stays absolute (media pass), only the click-through link
-				if (block.link) block.link = relativizeUrl(block.link, sourceHost) ?? block.link;
+				if (typeof block.link === "string") {
+					block.link = relativizeUrl(block.link, sourceHost) ?? block.link;
+				} else if (block.link?.href) {
+					block.link = {
+						...block.link,
+						href: relativizeUrl(block.link.href, sourceHost) ?? block.link.href,
+					};
+				}
 				break;
 			case "table":
 				for (const row of block.rows) {

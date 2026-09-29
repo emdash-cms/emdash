@@ -134,6 +134,11 @@ The operation ID is stable within the generated contract and is commonly used as
 
 | Method | Path | Operation | Summary |
 | --- | --- | --- | --- |
+| `GET` | `/_emdash/api/schema/block-types` | `listBlockTypes` | List block types |
+| `POST` | `/_emdash/api/schema/block-types` | `createBlockType` | Create a block type |
+| `GET` | `/_emdash/api/schema/block-types/{slug}` | `getBlockType` | Get a block type |
+| `PUT` | `/_emdash/api/schema/block-types/{slug}` | `updateBlockType` | Update a block type |
+| `POST` | `/_emdash/api/schema/block-types/{slug}/versions/{version}/activate` | `activateBlockTypeVersion` | Activate a block type version |
 | `GET` | `/_emdash/api/schema/collections` | `listCollections` | List all collections |
 | `POST` | `/_emdash/api/schema/collections` | `createCollection` | Create a collection |
 | `GET` | `/_emdash/api/schema/collections/{slug}` | `getCollection` | Get a collection |
@@ -260,9 +265,40 @@ The operation ID is stable within the generated contract and is commonly used as
 | `PUT` | `/_emdash/api/admin/allowed-domains/{domain}` | `updateAllowedDomain` | Update an allowed domain |
 | `DELETE` | `/_emdash/api/admin/allowed-domains/{domain}` | `deleteAllowedDomain` | Remove an allowed domain |
 
+### Transfer
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/admin/transfer/capabilities` | `getTransferCapabilities` | Get site transfer capabilities |
+| `GET` | `/_emdash/api/admin/transfer/imports` | `listTransferImports` | List site imports |
+| `POST` | `/_emdash/api/admin/transfer/imports` | `createTransferImport` | Create a site import |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}` | `getTransferImport` | Get a site import |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}/missing` | `listTransferImportMissingFiles` | List package files still to upload |
+| `PUT` | `/_emdash/api/admin/transfer/imports/{id}/files/{path}` | `uploadTransferImportFile` | Upload one package file |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/analyze` | `analyzeTransferImport` | Advance import analysis |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}/plan` | `getTransferImportPlan` | Get an import plan |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/cancel` | `cancelTransferImport` | Cancel a site import |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/abandon` | `abandonTransferImport` | Abandon a failed or cancelled import |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/execute` | `executeTransferImport` | Start a planned import |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/advance` | `advanceTransferImport` | Advance an executing import |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}/receipt` | `getTransferImportReceipt` | Get an import receipt |
+| `GET` | `/_emdash/api/admin/transfer/exports` | `listTransferExports` | List site exports |
+| `POST` | `/_emdash/api/admin/transfer/exports` | `createTransferExport` | Start a site export |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}` | `getTransferExport` | Get a site export |
+| `POST` | `/_emdash/api/admin/transfer/exports/{id}/advance` | `advanceTransferExport` | Advance a site export |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}/manifest` | `getTransferExportManifest` | Download an export manifest |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}/files/{path}` | `downloadTransferExportFile` | Download one export file |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}/archive` | `downloadTransferExportArchive` | Download an export archive |
+| `GET` | `/_emdash/api/admin/transfer/approvals` | `listTransferApprovals` | List transfer approvals |
+| `POST` | `/_emdash/api/admin/transfer/approvals/{id}/approve` | `approveTransferApproval` | Approve a transfer request |
+| `POST` | `/_emdash/api/admin/transfer/approvals/{id}/deny` | `denyTransferApproval` | Deny a transfer request |
+
 {/* rest-endpoint-inventory:end */}
 
 ## Content lifecycle and bylines
+
+The [content lifecycle reference](/reference/content-lifecycle/) defines the state, revision,
+permission, conflict, and hook behavior shared by REST, MCP, the CLI, and the admin panel.
 
 Content reads return an opaque `_rev` token when one is available. Send `_rev` with `PUT /content/{collection}/{id}` to prevent overwriting a change made since the read. A stale token produces a conflict; read the item again before retrying. The CLI makes this check mandatory for `content update`, while the REST field remains optional for clients that deliberately choose an unconditional write.
 
@@ -306,11 +342,11 @@ Content-Type: application/json
 }
 ```
 
-Changing a published entry creates a draft while the previous version stays live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date but removes it from the live site.
+Changing a published entry creates a draft while the previous version stays live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date, cancels any pending schedule, and removes the entry from the live site.
 
 Creation and update bodies accept byline credits, and content responses include the primary byline and ordered credits. The content list can filter by stored byline IDs and optionally include an author's inferred byline. Creating and managing the byline records themselves is available through the [MCP byline tools](/reference/mcp-server/#byline-tools), not the public REST contract.
 
-The lifecycle operations distinguish a soft delete from permanent deletion. Restore acts on trashed content; permanent deletion removes a trashed item and cannot be undone. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
+The lifecycle operations distinguish a soft delete from permanent deletion. Restore returns trashed content as a draft with no schedule; permanent deletion removes a trashed item and cannot be undone. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
 
 ### Entry edit lock
 
@@ -340,19 +376,45 @@ The acquire body can include an opaque `token` that identifies one editing sessi
 
 When another user holds the lease, protected content writes return `409 ENTRY_LOCKED`. The error details identify the holder and expiry. To override the lock, send `"overrideLock": true` in the JSON body for a write that has a body, or `?overrideLock=true` for a `DELETE` operation that has no body.
 
-## Translations and relations
+## Reference selections
+
+A [`reference` field](/reference/field-types/#reference) links an entry to entries in another collection through a relation. Its value is not part of `data`, and it is keyed by translation group, so every translation of an entry shares one selection.
+
+Creation and update bodies carry selections under `references`, keyed by field slug, each an array of at most 1000 entry IDs in display order. EmDash writes the selection in the same transaction as the entry. The following update replaces the entry's author:
+
+```http
+PUT /_emdash/api/content/articles/01JARTICLE0000000000000000
+Authorization: Bearer $EMDASH_TOKEN
+Content-Type: application/json
+
+{
+	"data": { "title": "Updated launch notes" },
+	"references": { "author": ["01JAUTHOR00000000000000000"] },
+	"_rev": "opaque-revision-token"
+}
+```
+
+A field bound to the child end of its relation selects the entries pointing at the one being written, which carry no order of their own. Relation limits are enforced on both ends, so a selection that would give a linked entry more parents than the relation allows is rejected alongside one that links too many entries itself.
+
+On a collection that keeps revisions, a selection changed on a published entry is staged in the draft with the entry's other pending edits. It becomes live when the entry is published and is discarded with the draft. Publishing re-checks the whole selection against the relation's limits.
+
+A single-entry read returns `references` keyed by field slug. Each field holds the first page of its linked entries, 50 of them, with a `nextCursor` when the field holds more, and reports each entry's ID, slug, collection, display title, resolved locale, and translation group. A caller who may read drafts sees a staged selection where the draft carries one. The content list operation does not include references.
+
+Relation definitions and link traversal are admin routes, absent from OpenAPI and outside the public contract. Write and read selections through the content operations above, and render them on a site with [`getEmDashEntry()`](/reference/api/#getemdashentry) and [`getEmDashReferences()`](/reference/api/#getemdashreferences).
+
+## Translations
 
 The public REST contract exposes content translations and taxonomy-definition translations. Content creation accepts `translationOf`, and taxonomy creation uses the same field to add a locale variant. The content-term operations return locale-aware assignments.
 
 `GET /taxonomies/{name}` returns the site's default-locale definition when `locale` is omitted, falling back to the lowest locale code only when the default locale has no definition. An update behaves differently: when `locale` is omitted, it changes the definition with the lowest locale code. Pass `locale` so a translated-taxonomy update reaches the intended definition. If that locale has no definition, the update returns `NOT_FOUND` instead of falling back to another locale. The translations operation returns every definition in the shared group and supplies the IDs accepted by `translationOf`.
+
+`label` and `labelSingular` belong to one locale's definition. `hierarchical` and `collections` belong to the taxonomy: every locale returns the same values, and an update that sends either changes it for every locale. Creating a definition for a name that already exists in another locale adds it to that taxonomy, whether or not the request sends `translationOf`. The new definition takes the taxonomy's `hierarchical` and `collections`, and a create that sends different values returns `VALIDATION_ERROR`.
 
 Deleting a taxonomy removes every locale of its definition, all its terms, and all assignments of those terms to content. It does not delete the content entries themselves.
 
 The term-reorder operation changes one sibling group. The `ids` array may contain only part of that group; listed terms exchange their existing positions and omitted terms stay where they are. For example, reordering `[A, B, C]` with `ids: ["C", "A"]` produces `[C, B, A]`. Reordering does not change parent relationships, and one term order applies across every locale in its translation group.
 
 Menu, taxonomy-term, and byline translation routes are not in the public REST contract. Their supported translation listings are available through `menu_translations`, `taxonomy_term_translations`, and `byline_translations` on the [MCP server](/reference/mcp-server/#tool-inventory).
-
-EmDash has internal routes that support relation editing in the admin, but they are absent from OpenAPI. External REST clients should use the relation and reference fields described by the collection schema instead of calling those internal routes.
 
 ## Media endpoints
 
@@ -362,7 +424,9 @@ Media operations cover listing, upload, metadata updates, image replacement, fol
 
 `GET /media` supports cursor or numbered-page pagination, MIME-type and filename filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
 
-`usage.count` counts distinct active content rows or locales whose current indexed source references the media item. Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
+`usage.count` counts distinct active content rows or locales whose current indexed source references the media item, plus each site setting that selects it (`logo`, `favicon`, `seo.defaultOgImage`). Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
+
+`GET /media/{id}/usage` returns the referencing content entries in pages. Every page also includes `siteSettings`, the site settings that select the media item, for example `[{ "setting": "favicon" }]`. Site settings are read from the stored settings on each request and do not depend on usage indexing.
 
 Every usage result includes a coverage status:
 
@@ -376,7 +440,7 @@ Every usage result includes a coverage status:
 | `stale` | The index is older than the content it describes. |
 | `unknown` | The stored state is not recognized by this EmDash version. |
 
-Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, and Portable Text image blocks in EmDash collections. It does not scan application code, rendered HTML, settings, menus, widgets, plugin data, external sites, or provider-only assets.
+Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image and gallery blocks, and media declared by retained block versions in EmDash collections. The site logo, favicon, and default social image settings are also reported. Usage does not include custom Portable Text blocks, application code, rendered HTML, other settings, menus, widgets, plugin data, external sites, or provider-only assets.
 
 ### Direct multipart upload
 
@@ -484,6 +548,14 @@ If a write request times out or returns `409` or `500`, read the activation and 
 The work-list operations expose failed or delayed entry indexing without returning content, media references, lease tokens, raw database errors, or an exact backlog count. Retrying one item is idempotent. `409 WORK_LEASE_ACTIVE` means a worker is still processing the item; the response includes `details.leaseExpiresAt`, so wait until that time and read the item again before retrying. `409 WORK_CHANGED` means another request changed the work item; read its current state rather than overwriting the newer work.
 
 The repair operation accepts either `{ "scope": "collection", "collection": "articles" }` or `{ "scope": "all" }`. An all-collection repair runs synchronously and sequentially, so it can take a long time on a large site. A `200` response can still report `partial`, `failed`, or `stale`; inspect `data.status`, the per-collection status, and the source counts before treating the repair as complete.
+
+## Site transfer
+
+The transfer operations under `/_emdash/api/admin/transfer/` export a site as a site package and import one into an empty site. The [site transfer guide](/guides/site-transfer/) describes the export, upload, analysis, execution, and receipt workflow.
+
+Session users need the `transfer:export` or `transfer:import` permission, which only administrators hold. Bearer tokens need `admin` or the `transfer:export`, `transfer:analyze`, or `transfer:execute` scope named by each operation. The approval operations accept signed-in sessions only. They decide requests made by the MCP `site_export_start` and `site_import_start` tools; the REST export and execute operations do not take an approval.
+
+While an import is executing, and after it fails or is cancelled until it is abandoned, most other write operations return `503 TRANSFER_IMPORT_IN_PROGRESS`. The guide lists the [operations that stay available](/guides/site-transfer/#writes-are-blocked-during-an-import).
 
 ## Pagination
 

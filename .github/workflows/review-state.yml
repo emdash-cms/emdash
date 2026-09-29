@@ -3,6 +3,10 @@ name: Review State
 # Event-driven interpreter that maintains four mutually-exclusive review/*
 # labels on open PRs so maintainers can see review status at a glance.
 # Pure actions/github-script: no checkout, no secrets, no agent.
+#
+# A review on a fork PR would get a read-only token here, so the job skips it
+# and emdash-bot applies the same rules from the review webhook
+# (infra/emdash-bot/.flue/lib/review-state.ts). Change both together.
 
 on:
   pull_request_target:
@@ -20,6 +24,9 @@ permissions:
 jobs:
   review-state:
     name: Update review state labels
+    if: >-
+      github.event_name != 'pull_request_review'
+      || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

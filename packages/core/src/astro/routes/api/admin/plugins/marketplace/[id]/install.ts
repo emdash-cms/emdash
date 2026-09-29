@@ -9,15 +9,19 @@ import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { handleMarketplaceInstall } from "#api/index.js";
-import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
+import { handleMarketplaceInstall, handleMarketplaceUninstall } from "#api/index.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { finalizePluginInstall } from "#plugins/install-finalization.js";
+import { pluginPublicRouteAcknowledgementSchema } from "#plugins/routes.js";
+
+import { checkSiteWriteFence } from "../../../../../../../transfer/fence.js";
 
 export const prerender = false;
 
 const installBodySchema = z.object({
 	version: z.string().min(1).optional(),
 	confirmMcpTools: z.boolean().optional(),
+	acknowledgedPublicRoutes: pluginPublicRouteAcknowledgementSchema.optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -32,8 +36,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const denied = requirePerm(user, "plugins:manage");
 		if (denied) return denied;
 
-		const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
-		if (activationFence) return activationFence;
+		const writeFence = await checkSiteWriteFence(emdash.db);
+		if (writeFence) return writeFence;
 
 		if (!id) {
 			return apiError("INVALID_REQUEST", "Plugin ID required", 400);
@@ -60,12 +64,19 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				siteOrigin,
 				sandboxBypassed: emdash.isSandboxBypassed(),
 				confirmMcpTools: body.confirmMcpTools,
+				acknowledgedPublicRoutes: body.acknowledgedPublicRoutes,
 			},
 		);
 
 		if (!result.success) return unwrapResult(result);
 
-		await emdash.syncMarketplacePlugins();
+		await finalizePluginInstall({
+			pluginId: id,
+			syncRuntime: () => emdash.syncMarketplacePlugins(),
+			runLifecycle: () => emdash.runPluginInstallLifecycle(id),
+			rollback: () =>
+				handleMarketplaceUninstall(emdash.db, emdash.storage, id, { deleteData: true }),
+		});
 
 		return unwrapResult(result, 201);
 	} catch (error) {

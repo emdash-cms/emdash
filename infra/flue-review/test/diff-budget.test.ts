@@ -40,6 +40,45 @@ describe("elideLargeDiffSections", () => {
 		expect(elideLargeDiffSections(diff)).toBe(diff);
 	});
 
+	it("reports a compiled release Action change without exposing its diff", () => {
+		const compiled = fileSection(
+			"apps/release-action/dist/index.js",
+			2,
+			"+const compiledSecret = 'never return this';",
+		);
+		const source = fileSection("apps/release-action/src/index.ts", 2);
+		const out = elideLargeDiffSections(compiled + source);
+		const compiledMarker = [
+			"diff --git a/apps/release-action/dist/index.js b/apps/release-action/dist/index.js",
+			"(compiled release-action artifact changed; contents omitted from model review context)",
+			"",
+		].join("\n");
+
+		expect(out).toBe(compiledMarker + source);
+		expect(out).not.toContain("compiledSecret");
+	});
+
+	it.each([
+		"diff --git a/apps/release-action/dist/index.js b/apps/release-action/dist/renamed.js",
+		"diff --git a/apps/release-action/dist/old.js b/apps/release-action/dist/index.js",
+	])("omits compiled content when a rename touches the artifact: %s", (header) => {
+		const diff = [header, "similarity index 99%", "renamed bundle content", ""].join("\n");
+
+		expect(elideLargeDiffSections(diff)).toBe(
+			`${header}\n(compiled release-action artifact changed; contents omitted from model review context)\n`,
+		);
+	});
+
+	it.each([
+		"apps/release-action/dist/index.js.map",
+		"apps/release-action/dist/index.jsx",
+		"apps/release-action/dist/nested/index.js",
+		"apps/release-action-copy/dist/index.js",
+	])("does not omit the similarly named release Action path %s", (path) => {
+		const diff = fileSection(path, 2);
+		expect(elideLargeDiffSections(diff)).toBe(diff);
+	});
+
 	it("elides a section over the per-file budget, keeping its header", () => {
 		const big = fileSection("types.d.ts", 2_000);
 		const small = fileSection("src/a.ts", 5);
@@ -63,6 +102,17 @@ describe("elideLargeDiffSections", () => {
 		expect(out).toContain(a);
 		expect(out).toContain(c);
 		expect(out).not.toContain(b);
+	});
+
+	it("applies budgets to UTF-8 bytes rather than JavaScript string length", () => {
+		const unicode = fileSection("src/unicode.ts", 100, "+const value = 'é';");
+		const budgetBetweenCodeUnitsAndBytes = unicode.length + 1;
+		const out = elideLargeDiffSections(unicode, {
+			perFileBytes: budgetBetweenCodeUnitsAndBytes,
+			totalBytes: 100_000,
+		});
+
+		expect(out).toContain("diff content elided");
 	});
 
 	it("skips an unreducible headerless section instead of looping on it", () => {

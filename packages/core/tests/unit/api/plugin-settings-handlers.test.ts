@@ -7,13 +7,14 @@
  */
 
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	getPluginSettingsSchema,
 	handlePluginSettingsGet,
 	handlePluginSettingsUpdate,
 } from "../../../src/api/handlers/plugin-settings.js";
+import { generateEncryptionKey } from "../../../src/config/secrets.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import type { SandboxedPluginEntry } from "../../../src/emdash-runtime.js";
@@ -86,10 +87,13 @@ describe("plugin settings handlers", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", generateEncryptionKey());
 		db = await setupTestDatabase();
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -129,10 +133,87 @@ describe("plugin settings handlers", () => {
 		expect(result.data.secretsSet).toEqual({ apiKey: true });
 		expect("apiKey" in result.data.values).toBe(false);
 
-		// Stored exactly where `ctx.kv.get("settings:{key}")` reads.
+		// Stored exactly where `ctx.settings.get()` and the compatibility alias read.
 		const options = new OptionsRepository(db);
-		expect(await options.get(`plugin:${PLUGIN_ID}:settings:apiKey`)).toBe("s3cret");
+		const storedSecret = await options.get(`plugin:${PLUGIN_ID}:settings:apiKey`);
+		expect(storedSecret).toMatchObject({ v: 1, kid: expect.any(String) });
+		expect(JSON.stringify(storedSecret)).not.toContain("s3cret");
 		expect(await options.get(`plugin:${PLUGIN_ID}:settings:retries`)).toBe(5);
+	});
+
+	it("fails a mixed update before writing when the encryption key is missing", async () => {
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", "");
+		const result = await handlePluginSettingsUpdate(db, PLUGIN_ID, SCHEMA, {
+			enabled: false,
+			apiKey: "must-not-be-stored",
+		});
+		expect(result).toEqual({
+			success: false,
+			error: {
+				code: "PLUGIN_SETTING_ENCRYPTION_KEY_MISSING",
+				message: "Plugin secret settings require EMDASH_ENCRYPTION_KEY",
+			},
+		});
+		expect(JSON.stringify(result)).not.toContain("must-not-be-stored");
+		const options = new OptionsRepository(db);
+		await expect(options.get(`plugin:${PLUGIN_ID}:settings:enabled`)).resolves.toBeNull();
+		await expect(options.get(`plugin:${PLUGIN_ID}:settings:apiKey`)).resolves.toBeNull();
+	});
+
+	it("fails a mixed update before writing when the encryption key is malformed", async () => {
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", "not-a-valid-key");
+		const result = await handlePluginSettingsUpdate(db, PLUGIN_ID, SCHEMA, {
+			enabled: false,
+			apiKey: "must-not-be-stored",
+		});
+		expect(result).toEqual({
+			success: false,
+			error: {
+				code: "PLUGIN_SETTING_ENCRYPTION_KEY_INVALID",
+				message:
+					"EMDASH_ENCRYPTION_KEY is malformed. Restore or correct the configured key from its secret backup. Generate a new key only if no stored plugin setting depends on the lost key.",
+			},
+		});
+		expect(JSON.stringify(result)).not.toContain("must-not-be-stored");
+		const options = new OptionsRepository(db);
+		await expect(options.get(`plugin:${PLUGIN_ID}:settings:enabled`)).resolves.toBeNull();
+		await expect(options.get(`plugin:${PLUGIN_ID}:settings:apiKey`)).resolves.toBeNull();
+	});
+
+	it("allows credential replacement and unrelated updates when the stored key is unavailable", async () => {
+		await handlePluginSettingsUpdate(db, PLUGIN_ID, SCHEMA, {
+			apiKey: "must-never-appear",
+		});
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", generateEncryptionKey());
+		const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+		const loaded = await handlePluginSettingsGet(db, PLUGIN_ID, SCHEMA);
+		expect(loaded).toMatchObject({
+			success: true,
+			data: { secretsSet: { apiKey: true } },
+		});
+		expect(JSON.stringify(loaded)).not.toContain("must-never-appear");
+
+		const updated = await handlePluginSettingsUpdate(db, PLUGIN_ID, SCHEMA, {
+			enabled: false,
+		});
+		expect(updated).toMatchObject({
+			success: true,
+			data: { values: { enabled: false }, secretsSet: { apiKey: true } },
+		});
+		expect(JSON.stringify(updated)).not.toContain("must-never-appear");
+		const replaced = await handlePluginSettingsUpdate(db, PLUGIN_ID, SCHEMA, {
+			apiKey: "replacement-secret",
+		});
+		expect(replaced).toMatchObject({
+			success: true,
+			data: { secretsSet: { apiKey: true } },
+		});
+		const stored = await new OptionsRepository(db).get(`plugin:${PLUGIN_ID}:settings:apiKey`);
+		expect(JSON.stringify(stored)).not.toContain("must-never-appear");
+		expect(JSON.stringify(stored)).not.toContain("replacement-secret");
+		expect(JSON.stringify(errorLog.mock.calls)).not.toContain("must-never-appear");
+		errorLog.mockRestore();
 	});
 
 	it("PUT with null clears a stored value (reverting to the default)", async () => {

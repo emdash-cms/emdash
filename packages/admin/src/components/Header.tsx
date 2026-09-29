@@ -15,6 +15,7 @@ async function handleLogout() {
 	// Clear the public-site toolbar-bootstrap flag (see Shell.tsx).
 	try {
 		localStorage.removeItem("emdash-editor");
+		localStorage.removeItem("emdash-toolbar-labels");
 	} catch {
 		// ignore — flag is best-effort
 	}

@@ -116,6 +116,7 @@ if (runtime) {
 	if (page.content && isI18nEnabled()) {
 		const alternates = await getHreflangAlternates(page.content.collection, page.content.id, {
 			siteUrl,
+			trailingSlash: virtualConfig?.trailingSlash,
 		});
 		hreflangContributions = alternates.map((a) => ({
 			kind: "link",

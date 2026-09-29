@@ -1,6 +1,8 @@
 # Portable Text Block Types
 
-**Trusted plugins only.** PT blocks require Astro components for site-side rendering (`componentsEntry`), loaded at build time from an npm package. Sandboxed/marketplace plugins cannot define PT blocks.
+Plugin CLI and registry packages cannot define Portable Text block types. `emdash-plugin build` warns that `portableTextBlocks` require trusted mode and omits them from the sandboxed manifest. Site-side rendering also needs an Astro `componentsEntry`, which is loaded with the site at build time.
+
+Core can forward declarative block metadata from a config-declared standard plugin descriptor, but that path does not make the definition portable through the registry and does not provide a site renderer. Treat custom Portable Text blocks as a native-plugin feature unless the site owns both the descriptor and the rendering components and has verified the complete editor-to-render path.
 
 Plugins can add custom block types to the Portable Text editor. These appear in the slash command menu and can be inserted into any `portableText` field.
 
@@ -78,7 +80,7 @@ fields: [
 ];
 ```
 
-See [Block Kit reference](./block-kit.md) for all element types.
+See [Block Kit](./block-kit.md) for element shapes. The Portable Text editor additionally renders `repeater` and `media_picker` authoring elements. Do not assume every element accepted by the shared union renders in every Block Kit surface.
 
 The `action_id` of each field becomes a key in the Portable Text block data. The field with `action_id: "id"` is treated as the primary identifier (typically the URL).
 

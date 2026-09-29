@@ -36,6 +36,12 @@ export interface SearchOptions {
 	limit?: number;
 	/** Pagination cursor */
 	cursor?: string;
+	/**
+	 * Which indexed fields to match against (defaults to 'all').
+	 * With 'title', only the collection's title field is matched; collections
+	 * whose title field is not indexed for search return no results.
+	 */
+	scope?: "all" | "title";
 }
 
 /**
@@ -50,6 +56,8 @@ export interface CollectionSearchOptions {
 	limit?: number;
 	/** Pagination cursor */
 	cursor?: string;
+	/** Which indexed fields to match against (defaults to 'all'). */
+	scope?: "all" | "title";
 }
 
 /**

@@ -22,7 +22,14 @@ import {
 	DELETE as deleteSchedule,
 } from "../../../src/astro/routes/api/content/[collection]/[id]/schedule.js";
 import { POST as postUnpublish } from "../../../src/astro/routes/api/content/[collection]/[id]/unpublish.js";
+import { POST as refreshVisualActionToken } from "../../../src/astro/routes/api/visual-editing/action-token.js";
+import { POST as postVisualPublish } from "../../../src/astro/routes/api/visual-editing/content/[collection]/[id]/publish.js";
+import { resolveSecretsCached } from "../../../src/config/secrets.js";
 import type { Database } from "../../../src/database/types.js";
+import {
+	generateVisualEditingActionToken,
+	verifyVisualEditingActionToken,
+} from "../../../src/visual-editing/action-token.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const editor = { id: "u-edit", role: Role.EDITOR };
@@ -116,12 +123,15 @@ function ctx(opts: {
 	emdash: ReturnType<typeof buildEmdash>;
 	method?: string;
 	body?: unknown;
+	headers?: HeadersInit;
 	url?: string;
 }): APIContext {
 	const url = new URL(opts.url ?? "http://localhost/_emdash/api/content/post/hello");
+	const headers = new Headers(opts.headers);
+	headers.set("content-type", "application/json");
 	const request = new Request(url, {
 		method: opts.method ?? "GET",
-		headers: { "content-type": "application/json" },
+		headers,
 		body: opts.body ? JSON.stringify(opts.body) : undefined,
 	});
 	return {
@@ -135,6 +145,20 @@ function ctx(opts: {
 		cache: { enabled: false, invalidate: vi.fn() },
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
+}
+
+function visualCtx(
+	emdash: ReturnType<typeof buildEmdash>,
+	path: string,
+	token?: string,
+): APIContext {
+	return ctx({
+		user: editor,
+		emdash,
+		method: "POST",
+		headers: token ? { "X-EmDash-Visual-Action": token } : undefined,
+		url: `http://localhost/_emdash/api/visual-editing/${path}`,
+	});
 }
 
 describe("PUT /content/:collection/:id forwards locale to handleContentGet", () => {
@@ -183,6 +207,127 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 		);
 		expect(res.status).toBe(200);
 		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentPublish).toHaveBeenCalledWith(
+			"post",
+			"resolved-id",
+			expect.objectContaining({
+				actor: { id: editor.id, role: editor.role },
+				origin: { source: "api" },
+			}),
+		);
+	});
+
+	it("does not trust a caller-controlled visual-editor header", async () => {
+		const emdash = buildEmdash();
+		const res = await postPublish(
+			ctx({
+				user: editor,
+				emdash,
+				method: "POST",
+				headers: { "X-EmDash-Action-Origin": "visual-editor" },
+				url: "http://localhost/_emdash/api/content/post/hello/publish",
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(emdash.handleContentPublish).toHaveBeenCalledWith(
+			"post",
+			"resolved-id",
+			expect.objectContaining({ origin: { source: "api" } }),
+		);
+	});
+
+	it("rejects the visual-editing route without server attestation", async () => {
+		const emdash = buildEmdash();
+		const res = await postVisualPublish(visualCtx(emdash, "content/post/hello/publish"));
+		expect(res.status).toBe(403);
+		await expect(res.json()).resolves.toMatchObject({
+			error: { code: "VISUAL_ACTION_TOKEN_INVALID" },
+		});
+		expect(emdash.handleContentPublish).not.toHaveBeenCalled();
+	});
+
+	it("returns UNAUTHORIZED when visual publishing has no authenticated user", async () => {
+		const emdash = buildEmdash();
+		const context = visualCtx(emdash, "content/post/hello/publish");
+		context.locals.user = null;
+
+		const res = await postVisualPublish(context);
+
+		expect(res.status).toBe(401);
+		await expect(res.json()).resolves.toMatchObject({ error: { code: "UNAUTHORIZED" } });
+		expect(emdash.handleContentPublish).not.toHaveBeenCalled();
+	});
+
+	it("marks publication with a short-lived token bound to the editor", async () => {
+		const emdash = buildEmdash();
+		const { previewSecret } = await resolveSecretsCached(db);
+		const token = await generateVisualEditingActionToken(previewSecret, editor.id);
+		const res = await postVisualPublish(visualCtx(emdash, "content/post/hello/publish", token));
+		expect(res.status).toBe(200);
+		expect(emdash.handleContentPublish).toHaveBeenCalledWith(
+			"post",
+			"resolved-id",
+			expect.objectContaining({ origin: { source: "visual-editor" } }),
+		);
+	});
+
+	it("renews a valid visual action token beyond its original lifetime", async () => {
+		vi.useFakeTimers({ now: new Date("2030-01-01T00:00:00.000Z") });
+		try {
+			const emdash = buildEmdash();
+			const { previewSecret } = await resolveSecretsCached(db);
+			const originalToken = await generateVisualEditingActionToken(previewSecret, editor.id);
+			vi.setSystemTime(new Date("2030-01-01T00:04:00.000Z"));
+			const response = await refreshVisualActionToken(
+				visualCtx(emdash, "action-token", originalToken),
+			);
+			expect(response.status).toBe(200);
+			const body = await response.json();
+			const renewedToken = body.data.token as string;
+
+			vi.setSystemTime(new Date("2030-01-01T00:06:00.000Z"));
+			await expect(
+				verifyVisualEditingActionToken(originalToken, previewSecret, editor.id),
+			).resolves.toBe(false);
+			await expect(
+				verifyVisualEditingActionToken(renewedToken, previewSecret, editor.id),
+			).resolves.toBe(true);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it.each([
+		["missing", undefined],
+		["invalid", "not-a-token"],
+	])("rejects %s attestation when renewing a visual action token", async (_label, token) => {
+		const emdash = buildEmdash();
+		const response = await refreshVisualActionToken(visualCtx(emdash, "action-token", token));
+		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "VISUAL_ACTION_TOKEN_INVALID" },
+		});
+	});
+
+	it("returns 422 for a policy rejection", async () => {
+		const emdash = buildEmdash();
+		emdash.handleContentPublish.mockResolvedValueOnce({
+			success: false,
+			error: { code: "PUBLISH_REJECTED", message: "Approval is required." },
+		});
+
+		const res = await postPublish(
+			ctx({
+				user: editor,
+				emdash,
+				method: "POST",
+				url: "http://localhost/_emdash/api/content/post/hello/publish",
+			}),
+		);
+		expect(res.status).toBe(422);
+		await expect(res.json()).resolves.toMatchObject({
+			error: { code: "PUBLISH_REJECTED", message: "Approval is required." },
+		});
 	});
 });
 

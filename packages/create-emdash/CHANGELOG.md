@@ -1,5 +1,63 @@
 # create-emdash
 
+## 1.0.1
+
+### Patch Changes
+
+- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. Before upgrading from 0.42, read the [upgrade guide](https://docs.emdashcms.com/upgrade-to-v1/), which lists each change and how to migrate.
+  
+  From this release, breaking changes ship only in a new major version.
+
+## 1.0.1-rc.1
+
+No changes in this release.
+
+## 1.0.1-rc.0
+
+### Patch Changes
+
+- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. The other entries for this version describe each one and how to migrate; check them before upgrading from 0.42.
+  
+  From this release, breaking changes ship only in a new major version.
+  
+  The first 1.x version is 1.0.1. npm also lists a deprecated `emdash@1.0.0`, published by mistake from 0.7-era code; do not install it.
+
+## 0.42.0
+
+### Patch Changes
+
+- [#3490](https://github.com/emdash-cms/emdash/pull/3490) [`9f90ed6`](https://github.com/emdash-cms/emdash/commit/9f90ed6b69463809a9eaff2fa12a47d70a568eb8) Thanks [@kgni](https://github.com/kgni)! - Fixes pnpm commands in the `README.md` and `AGENTS.md` of sites created with npm, yarn, or bun. They now show the chosen package manager's commands, such as `npm run dev`, `yarn dev`, or `bun dev`. Bun uses `bun run build` and `bun run deploy`, because `bun build` and `bun deploy` run Bun's own commands instead of the site's scripts.
+
+- [#3511](https://github.com/emdash-cms/emdash/pull/3511) [`9ef32ba`](https://github.com/emdash-cms/emdash/commit/9ef32ba4f5598c2d99cbe2ef25641c4aa75f4128) Thanks [@kgni](https://github.com/kgni)! - Fixes `npm run wrangler login` in the `README.md` of Cloudflare sites created with npm. It now shows `npx wrangler login`, because `npm run` only runs `package.json` scripts.
+
+## 0.41.0
+
+No changes in this release.
+
+## 0.40.1
+
+No changes in this release.
+
+## 0.40.0
+
+No changes in this release.
+
+## 0.39.1
+
+No changes in this release.
+
+## 0.39.0
+
+No changes in this release.
+
+## 0.38.0
+
+### Patch Changes
+
+- [#2351](https://github.com/emdash-cms/emdash/pull/2351) [`f0af9a1`](https://github.com/emdash-cms/emdash/commit/f0af9a10b34ea50a14d04ef3fe84c323b6d17ce2) Thanks [@MattieTK](https://github.com/MattieTK)! - New Cloudflare projects leave the paid-plan Worker Loader binding disabled so they can deploy on the Workers free plan. Enable sandboxed plugins in the scaffold prompt or with `--sandboxed-plugins`.
+  
+  The Cloudflare `sandbox()` helper now selects the runner from the `LOADER` binding in `wrangler.jsonc`, including the named environment selected with `CLOUDFLARE_ENV`. Without it, config-based sandboxed plugins do not load and marketplace or registry installs return `SANDBOX_NOT_AVAILABLE`, while browsing remains available.
+
 ## 0.37.0
 
 ### Patch Changes

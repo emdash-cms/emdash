@@ -6,9 +6,9 @@ const REPOSITORY_PATTERN = /^[a-z0-9_.-]+\/[a-z0-9_.-]+$/;
 const LOGIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,38})$/;
 const ACTOR_PATTERN = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})|[A-Za-z0-9-]{1,39}\[bot\])$/;
 const SHA_PATTERN = /^[a-f0-9]{40}$/;
-const REF_PATTERN = /^refs\/[A-Za-z0-9._/-]{1,507}$/;
+const REF_PATTERN = /^refs\/[A-Za-z0-9.@_/-]{1,507}$/;
 const WORKFLOW_REF_PATTERN =
-	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
+	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9.@_/-]+$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);

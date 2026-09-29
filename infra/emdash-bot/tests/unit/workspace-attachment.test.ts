@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import {
 	attachPublisherWorkspaceWithRetry,
 	attachWorkspaceWithRetry,
+	isGitHubRateLimitFailure,
 	prepareWorkspaceBeforeModel,
 } from "../../.flue/lib/workspace-attachment.js";
 
@@ -66,15 +67,14 @@ describe("workspace attachment", () => {
 		expect(discard).not.toHaveBeenCalled();
 	});
 
-	test("retries a GitHub 429 on a fresh sandbox", async () => {
+	test("does not discard the workspace when GitHub asks publication to wait", async () => {
 		const attach = vi
 			.fn<() => Promise<string>>()
-			.mockRejectedValueOnce(
+			.mockRejectedValue(
 				new Error(
 					"container setup failed (128): fatal: unable to access repository: The requested URL returned error: 429",
 				),
-			)
-			.mockResolvedValueOnce("ready");
+			);
 		const discard = vi.fn(async () => {});
 
 		await expect(
@@ -84,13 +84,17 @@ describe("workspace attachment", () => {
 				attach,
 				discard,
 			}),
-		).resolves.toBe("ready");
+		).rejects.toThrow("requested URL returned error: 429");
 
-		expect(attach).toHaveBeenCalledTimes(2);
-		expect(discard).toHaveBeenCalledOnce();
+		expect(attach).toHaveBeenCalledOnce();
+		expect(discard).not.toHaveBeenCalled();
 	});
 
-	test("retries a publisher GitHub 429 on a fresh publisher sandbox", async () => {
+	test("recognizes direct GitHub API rate-limit failures", () => {
+		expect(isGitHubRateLimitFailure(new Error("GitHub API rate limit exceeded: 429"))).toBe(true);
+	});
+
+	test("does not discard a publisher workspace when GitHub asks it to wait", async () => {
 		const attached: string[] = [];
 		const discarded: string[] = [];
 
@@ -108,13 +112,43 @@ describe("workspace attachment", () => {
 					discarded.push(sandboxId);
 				},
 			}),
-		).resolves.toBe("ready");
+		).rejects.toThrow("requested URL returned error: 429");
 
-		expect(attached).toEqual([
-			"investigate-2973-run-publisher",
-			"investigate-2973-run-publisher-r1",
-		]);
-		expect(discarded).toEqual(["investigate-2973-run-publisher"]);
+		expect(attached).toEqual(["investigate-2973-run-pub"]);
+		expect(discarded).toEqual([]);
+	});
+
+	test("keeps publisher retry sandbox ids within the platform limit", async () => {
+		const sandboxIds: string[] = [];
+
+		await attachPublisherWorkspaceWithRetry({
+			agentId: "investigate-3218-a7901373-b69a-414c-baa3-8cb6a866792e",
+			attach: async ({ sandboxId, attempt }) => {
+				sandboxIds.push(sandboxId);
+				if (attempt < 2) throw new Error("HTTP error! status: 500");
+				return "ready";
+			},
+			discard: async () => {},
+		});
+
+		expect(sandboxIds.every((sandboxId) => sandboxId.length <= 63)).toBe(true);
+	});
+
+	test("bounds long sandbox ids without collapsing distinct agents", async () => {
+		const sandboxIds: string[] = [];
+		for (const suffix of ["first", "second"]) {
+			await attachPublisherWorkspaceWithRetry({
+				agentId: `${"investigate-3218-long-runtime-identifier-".repeat(2)}${suffix}`,
+				attach: async ({ sandboxId }) => {
+					sandboxIds.push(sandboxId);
+					return "ready";
+				},
+				discard: async () => {},
+			});
+		}
+
+		expect(sandboxIds.every((sandboxId) => sandboxId.length === 63)).toBe(true);
+		expect(new Set(sandboxIds).size).toBe(2);
 	});
 
 	test("continues on a fresh sandbox when failed-sandbox cleanup also fails", async () => {

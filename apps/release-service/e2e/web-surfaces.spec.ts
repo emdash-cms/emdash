@@ -162,6 +162,7 @@ test("account approves a connection requested by the permanent release workflow"
 						workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
 						allowedRefs: ["refs/tags/*"],
 						allowedEnvironments: ["production"],
+						repositoryConnection: true,
 						active: true,
 						stateVersion: 1,
 						authorizedBy: PUBLISHER_DID,
@@ -179,13 +180,15 @@ test("account approves a connection requested by the permanent release workflow"
 	await page.goto(`/publisher?connection=${connectionRequest.id}`);
 	await expect(page.getByText("Signed in as @publisher.example.com")).toBeVisible();
 	await expect(page.getByText(PUBLISHER_DID)).toHaveCount(0);
-	await expect(page.getByRole("heading", { name: "2. Prepare your plugin" })).toBeVisible();
-	await expect(page.getByRole("heading", { name: "Approve workflow for gallery" })).toBeVisible();
+	await expect(
+		page.getByRole("heading", { name: "2. Connect your GitHub repository" }),
+	).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Connect GitHub repository" })).toBeVisible();
 	await expect(page.getByText("example/gallery")).toBeVisible();
 	await expect(page.getByText(".github/workflows/release.yml")).toBeVisible();
 	await expect(page.getByText("v1.2.3")).toBeVisible();
-	await expect(page.getByText("All version tags")).toBeVisible();
-	await page.getByRole("button", { name: "Approve workflow" }).click();
+	await expect(page.getByText("All package version tags")).toBeVisible();
+	await page.getByRole("button", { name: "Connect repository" }).click();
 	await expect(page.getByRole("button", { name: "Check for workflow requests" })).toBeVisible();
 	expect(confirmed).toBe(true);
 });

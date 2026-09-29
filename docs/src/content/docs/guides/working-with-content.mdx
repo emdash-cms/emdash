@@ -41,7 +41,8 @@ model. For example, a collection may support revisions, previews, taxonomies, or
 5. Review the draft. If the collection supports previews, select **Preview** to see the rendered
    page before publishing.
 
-6. Select **Publish**. The saved draft becomes the live version that public content queries return.
+6. Select **Publish now**, then confirm. The saved draft becomes the live version that public
+   content queries return.
 </Steps>
 
 The entry has a stable content ID and a separate slug. The ID continues to identify the same entry
@@ -58,6 +59,10 @@ add more blocks.
 Use the toolbar to format the selected text. To insert a block, select the add-block control beside
 a paragraph or type `/` and search for a block by name. Image and gallery blocks open the same media
 picker used by image fields.
+
+You can also drag image files into the editor or paste a copied image or screenshot. Each image
+uploads to the Media Library and appears between the surrounding blocks when the upload finishes. If
+an upload fails, the reason appears where the image would have gone.
 
 When you select an image block, its settings let you replace or remove that use of the image and set
 its display size, alignment, alt text, caption, and optional tooltip. **Edit asset** opens the
@@ -103,27 +108,30 @@ If the browser or computer closes without releasing it, the lock expires seven m
 last renewal.
 
 Locks are independent for each locale, so two people can edit different translations of the same
-entry. A script or API client is also refused while another editor holds the lock unless it uses the
-documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock) for the complete
-API behavior.
+entry. A script, API client, or MCP client is also refused while another editor holds the lock
+unless it uses the documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock)
+for the complete API behavior and
+[Content lifecycle and bylines](/reference/mcp-server/#content-lifecycle-and-bylines) for the MCP
+tools.
 
 An administrator can turn locking off for a collection under **Content Types**, then the collection,
 then **Edit locking**.
 
 ## Publish or schedule changes
 
-The publishing control reflects what will happen to the saved draft:
+Publishing and scheduling use separate controls:
 
-- **Publish** makes a new draft live.
-- **Publish changes now** makes pending changes to a published entry live immediately.
-- **Schedule publication** sets when a new entry becomes live.
-- **Schedule changes** sets when pending changes replace the current live revision.
-- **Change schedule** or **Remove schedule** updates an existing schedule.
-- **Unpublish** removes the live revision from public queries and keeps an editable draft.
+- **Publish now** makes a new draft live after confirmation.
+- **Publish changes** makes pending changes to a published entry live after confirmation.
+- **Schedule** sets when a new entry or pending changes become live.
+- **Change schedule** updates an existing schedule.
+- **Remove schedule** cancels an existing schedule.
+- **Unpublish** removes the live revision from public queries, cancels any schedule, and keeps an
+  editable draft.
 
-To schedule an entry, save it first, open the publishing menu, choose the relevant schedule action,
-and select a future date and time. The editor displays the time zone used for the schedule. Until
-that time, the current live revision stays public; for a new entry, nothing is public yet.
+To schedule an entry, save it first, select **Schedule** below the publishing summary, and choose a
+future date and time. The editor displays the time zone used for the schedule. Until that time, the
+current live revision stays public; for a new entry, nothing is public yet.
 
 Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare Workers require a
 Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow
@@ -162,7 +170,8 @@ Open an entry's actions or select one or more rows on the collection page, then 
 Trash**. Trashed entries stop appearing in ordinary content queries but remain available on the
 collection's **Trash** tab.
 
-From **Trash**, select **Restore** to return an entry to the collection.
+From **Trash**, select **Restore** to return an entry to the collection. A restored entry comes back as
+a draft with no schedule. Publish it to make it public.
 
 <Aside type="caution">
 	An administrator can select **Delete Permanently** in Trash. Permanent deletion removes the entry
@@ -176,9 +185,10 @@ inside the request's `data` object. An update saves a draft revision; publishing
 Pass the latest `_rev` value when updating or publishing so the server rejects a stale write instead
 of replacing newer work.
 
-Use the [REST API reference](/reference/rest-api/#content-endpoints) for request bodies, permissions,
-lock overrides, publishing, scheduling, restoring, and permanent deletion. Use the
-[CLI reference](/reference/cli/#emdash-content) for equivalent terminal commands.
+Use the [content lifecycle reference](/reference/content-lifecycle/) for state transitions,
+permissions, conflicts, and hooks. The [REST API reference](/reference/rest-api/) defines request and
+response bodies, and the [CLI reference](/reference/cli/#emdash-content) covers equivalent terminal
+commands.
 
 Continue with [Querying Content](/guides/querying-content/) to render published entries in an Astro
 site, or [Media Library](/guides/media-library/) to add and manage reusable files.

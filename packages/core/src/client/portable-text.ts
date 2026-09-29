@@ -373,6 +373,43 @@ export function resetKeyCounter(): void {
 export interface FieldSchema {
 	slug: string;
 	type: string;
+	blockTypes?: Array<{
+		slug: string;
+		currentVersion: number;
+		versions: Array<{
+			version: number;
+			fields: Array<{ slug: string; type: string }>;
+		}>;
+	}>;
+}
+
+function convertNestedBlockPortableText(
+	value: unknown,
+	field: FieldSchema,
+	direction: "read" | "write",
+): unknown {
+	if (!Array.isArray(value)) return value;
+	return value.map((block) => {
+		if (!block || typeof block !== "object" || Array.isArray(block)) return block;
+		const record = { ...block };
+		const type = typeof record._type === "string" ? record._type : undefined;
+		const version = typeof record._version === "number" ? record._version : undefined;
+		const blockType = field.blockTypes?.find((candidate) => candidate.slug === type);
+		const definition = blockType?.versions.find(
+			(candidate) => candidate.version === (version ?? blockType.currentVersion),
+		);
+		if (!definition) return block;
+		for (const nestedField of definition.fields) {
+			if (nestedField.type !== "portableText") continue;
+			const nestedValue = record[nestedField.slug];
+			if (direction === "read" && Array.isArray(nestedValue)) {
+				record[nestedField.slug] = portableTextToMarkdown(nestedValue as PortableTextBlock[]);
+			} else if (direction === "write" && typeof nestedValue === "string") {
+				record[nestedField.slug] = markdownToPortableText(nestedValue);
+			}
+		}
+		return record;
+	});
 }
 
 /**
@@ -390,6 +427,8 @@ export function convertDataForRead(
 	for (const field of fields) {
 		if (field.type === "portableText" && Array.isArray(result[field.slug])) {
 			result[field.slug] = portableTextToMarkdown(result[field.slug] as PortableTextBlock[]);
+		} else if (field.type === "blocks") {
+			result[field.slug] = convertNestedBlockPortableText(result[field.slug], field, "read");
 		}
 	}
 	return result;
@@ -407,6 +446,8 @@ export function convertDataForWrite(
 	for (const field of fields) {
 		if (field.type === "portableText" && typeof result[field.slug] === "string") {
 			result[field.slug] = markdownToPortableText(result[field.slug] as string);
+		} else if (field.type === "blocks") {
+			result[field.slug] = convertNestedBlockPortableText(result[field.slug], field, "write");
 		}
 	}
 	return result;

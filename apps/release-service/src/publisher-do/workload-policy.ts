@@ -2,7 +2,7 @@ const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const DECIMAL_ID_PATTERN = /^[1-9][0-9]*$/;
-const REF_PATTERN = /^refs\/[A-Za-z0-9._/-]{1,507}$/;
+const REF_PATTERN = /^refs\/[A-Za-z0-9.@_/-]{1,507}$/;
 const WORKFLOW_PATH_PATTERN =
 	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml$/;
 const MAX_POLICY_VALUES = 32;
@@ -16,6 +16,7 @@ export interface StoredWorkloadPolicy {
 	workflowRef: string;
 	allowedRefs: readonly string[];
 	allowedEnvironments: readonly string[];
+	repositoryConnection: boolean;
 	active: boolean;
 	stateVersion: number;
 	authorizedBy: string;
@@ -33,8 +34,18 @@ export interface PutWorkloadPolicyInput {
 	allowedRefs: readonly string[];
 	allowedEnvironments: readonly string[];
 	active: boolean;
+	repositoryConnection?: boolean;
 	expectedVersion: number | null;
 	now?: number;
+}
+
+export interface WorkloadPolicyMatchInput {
+	repository: string;
+	repositoryId: string;
+	repositoryOwnerId: string;
+	workflowRef: string;
+	ref: string;
+	environment: string | null;
 }
 
 export type PutWorkloadPolicyResult =
@@ -68,6 +79,7 @@ interface WorkloadPolicyRow {
 	authorized_by: string;
 	created_at: number;
 	updated_at: number;
+	repository_connection: number;
 }
 
 interface InvalidatedIntentRow {
@@ -172,9 +184,9 @@ export function refRuleMatches(rule: string, value: string): boolean {
 export function validWorkflowRefRule(value: string): boolean {
 	const separator = value.lastIndexOf("@");
 	if (separator < 1) return false;
+	const ref = value.slice(separator + 1);
 	return (
-		WORKFLOW_PATH_PATTERN.test(value.slice(0, separator)) &&
-		validRefRule(value.slice(separator + 1))
+		WORKFLOW_PATH_PATTERN.test(value.slice(0, separator)) && (ref === "refs/*" || validRefRule(ref))
 	);
 }
 
@@ -184,12 +196,11 @@ export function workflowRefRuleMatches(rule: string, value: string): boolean {
 	const ruleSeparator = normalizedRule.lastIndexOf("@");
 	const valueSeparator = normalizedValue.lastIndexOf("@");
 	if (ruleSeparator < 1 || valueSeparator < 1) return false;
+	const ruleRef = normalizedRule.slice(ruleSeparator + 1);
+	const valueRef = normalizedValue.slice(valueSeparator + 1);
 	return (
 		normalizedRule.slice(0, ruleSeparator) === normalizedValue.slice(0, valueSeparator) &&
-		refRuleMatches(
-			normalizedRule.slice(ruleSeparator + 1),
-			normalizedValue.slice(valueSeparator + 1),
-		)
+		(ruleRef === "refs/*" ? REF_PATTERN.test(valueRef) : refRuleMatches(ruleRef, valueRef))
 	);
 }
 
@@ -209,6 +220,7 @@ function rowToPolicy(row: WorkloadPolicyRow): StoredWorkloadPolicy {
 		workflowRef: row.workflow_ref,
 		allowedRefs: parseStringArray(row.allowed_refs, validRefRule),
 		allowedEnvironments: parseStringArray(row.allowed_environments, validEnvironment),
+		repositoryConnection: row.repository_connection === 1,
 		active: row.active === 1,
 		stateVersion: row.state_version,
 		authorizedBy: row.authorized_by,
@@ -235,6 +247,10 @@ export function initializeWorkloadPolicySchema(storage: DurableObjectStorage): v
 		);
 		CREATE INDEX IF NOT EXISTS idx_workload_policies_active
 			ON workload_policies(active, package_slug);
+		CREATE TABLE IF NOT EXISTS repository_connection_policies (
+			package_slug TEXT PRIMARY KEY,
+			created_at INTEGER NOT NULL
+		);
 	`);
 }
 
@@ -263,6 +279,8 @@ export class WorkloadPolicyStore {
 			!validWorkflowRefRule(input.workflowRef) ||
 			!workflowRef.startsWith(`${repository}/.github/workflows/`) ||
 			typeof input.active !== "boolean" ||
+			(input.repositoryConnection !== undefined &&
+				typeof input.repositoryConnection !== "boolean") ||
 			(input.expectedVersion !== null &&
 				(!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1)) ||
 			!Number.isSafeInteger(now) ||
@@ -319,6 +337,14 @@ export class WorkloadPolicyStore {
 				input.packageSlug,
 				now,
 			);
+			if (input.repositoryConnection === true) {
+				this.#storage.sql.exec(
+					`INSERT INTO repository_connection_policies (package_slug, created_at)
+					 VALUES (?, ?) ON CONFLICT(package_slug) DO NOTHING`,
+					input.packageSlug,
+					now,
+				);
+			}
 			const invalidatedApprovalChallenges = this.#invalidatePreWriteIntents(
 				input.publisherDid,
 				input.packageSlug,
@@ -331,6 +357,44 @@ export class WorkloadPolicyStore {
 				invalidatedApprovalChallenges,
 			} as const;
 		});
+	}
+
+	findMatching(input: WorkloadPolicyMatchInput): StoredWorkloadPolicy | null {
+		const rows = this.#storage.sql
+			.exec<WorkloadPolicyRow>(
+				`SELECT workload_policies.package_slug, repository, repository_id, repository_owner_id,
+				        workflow_ref, allowed_refs, allowed_environments, active,
+				        state_version, authorized_by, workload_policies.created_at, updated_at,
+				        1 AS repository_connection
+				 FROM workload_policies
+				 INNER JOIN repository_connection_policies
+				   ON repository_connection_policies.package_slug = workload_policies.package_slug
+				 WHERE active = 1 AND repository = ? AND repository_id = ?
+				   AND repository_owner_id = ?
+				 ORDER BY workload_policies.package_slug`,
+				input.repository.toLowerCase(),
+				input.repositoryId,
+				input.repositoryOwnerId,
+			)
+			.toArray();
+		for (const row of rows) {
+			const policy = rowToPolicy(row);
+			if (!workflowRefRuleMatches(policy.workflowRef, input.workflowRef)) continue;
+			if (
+				policy.allowedRefs.length > 0 &&
+				!policy.allowedRefs.some((rule) => refRuleMatches(rule, input.ref))
+			) {
+				continue;
+			}
+			if (
+				policy.allowedEnvironments.length > 0 &&
+				(input.environment === null || !policy.allowedEnvironments.includes(input.environment))
+			) {
+				continue;
+			}
+			return policy;
+		}
+		return null;
 	}
 
 	#invalidatePreWriteIntents(
@@ -434,7 +498,11 @@ export class WorkloadPolicyStore {
 			.exec<WorkloadPolicyRow>(
 				`SELECT package_slug, repository, repository_id, repository_owner_id,
 				        workflow_ref, allowed_refs, allowed_environments, active,
-				        state_version, authorized_by, created_at, updated_at
+				        state_version, authorized_by, created_at, updated_at,
+				        EXISTS (
+				          SELECT 1 FROM repository_connection_policies
+				          WHERE repository_connection_policies.package_slug = workload_policies.package_slug
+				        ) AS repository_connection
 				 FROM workload_policies WHERE package_slug = ?`,
 				packageSlug,
 			)
@@ -455,7 +523,11 @@ export class WorkloadPolicyStore {
 			.exec<WorkloadPolicyRow>(
 				`SELECT package_slug, repository, repository_id, repository_owner_id,
 				        workflow_ref, allowed_refs, allowed_environments, active,
-				        state_version, authorized_by, created_at, updated_at
+				        state_version, authorized_by, created_at, updated_at,
+				        EXISTS (
+				          SELECT 1 FROM repository_connection_policies
+				          WHERE repository_connection_policies.package_slug = workload_policies.package_slug
+				        ) AS repository_connection
 				 FROM workload_policies
 				 WHERE (? IS NULL OR package_slug > ?)
 				 ORDER BY package_slug LIMIT ?`,

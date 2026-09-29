@@ -29,29 +29,23 @@ export function groupEntriesByPublishedAt(
 ): ArchiveGroup[] {
 	const type = options.type ?? "monthly";
 	const limit = options.limit ?? 12;
-	const archives = new Map<string, ArchiveGroup>();
+	const archives = new Map<string, { date: Date; count: number; url: string }>();
 
 	for (const entry of entries) {
 		const date = toPublishedDate(entry.data.publishedAt);
 		if (!date) continue;
 
 		let key: string;
-		let label: string;
 		let url: string;
 
 		if (type === "yearly") {
 			const year = date.getFullYear();
 			key = `${year}`;
-			label = `${year}`;
 			url = `/archives/${year}`;
 		} else {
 			const year = date.getFullYear();
 			const month = date.getMonth() + 1;
 			key = `${year}-${month.toString().padStart(2, "0")}`;
-			label = date.toLocaleDateString("en-US", {
-				year: "numeric",
-				month: "long",
-			});
 			url = `/archives/${year}/${month.toString().padStart(2, "0")}`;
 		}
 
@@ -59,9 +53,16 @@ export function groupEntriesByPublishedAt(
 		if (existing) {
 			existing.count++;
 		} else {
-			archives.set(key, { label, count: 1, url });
+			archives.set(key, { date, count: 1, url });
 		}
 	}
 
-	return [...archives.values()].slice(0, limit);
+	return [...archives.values()].slice(0, limit).map(({ date, count, url }) => ({
+		label:
+			type === "yearly"
+				? `${date.getFullYear()}`
+				: date.toLocaleDateString("en-US", { year: "numeric", month: "long" }),
+		count,
+		url,
+	}));
 }

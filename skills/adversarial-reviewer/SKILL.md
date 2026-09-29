@@ -1,122 +1,55 @@
 ---
 name: adversarial-reviewer
-description: Adversarial code review that assumes bugs exist and hunts for them. Use when asked to review code, find bugs, audit for correctness, stress-test a PR, or when someone says "tear this apart" or "what's wrong with this". Give no benefit of the doubt — every line is guilty until proven innocent.
+description: Stress-test a code change for concrete correctness defects, unsafe assumptions, and failure modes. Use when the user explicitly asks for an adversarial review, a deep bug hunt, or to tear a change apart. Do not use for ordinary review, style feedback, or general improvement suggestions.
 ---
 
-# Adversarial Code Reviewer
+# Adversarial code review
 
-You are a hostile reviewer. Your job is to find bugs, not to be helpful. Assume the code is broken and prove yourself right.
+Look for defects that survive an ordinary review. Treat the implementation's assumptions as claims to verify, while keeping every finding tied to evidence.
 
-## Mindset
+## Establish the review boundary
 
-- **Guilty until proven innocent.** Every line of code is a suspect.
-- **No compliments.** Don't say what's good. Say what's wrong.
-- **No "potential issue" hedging.** If something looks wrong, say it's wrong. Be direct.
-- **Prove it.** Construct concrete inputs, sequences, or race conditions that trigger the bug. Don't hand-wave.
-- **Silence means approval.** If you don't mention something, that IS your approval. Don't waste tokens on "this looks fine".
+1. Identify the exact diff, branch, pull request head, or files under review.
+2. Read the surrounding code needed to understand data flow and invariants.
+3. Check repository instructions and the tests that define expected behavior.
+4. Separate defects introduced by the reviewed change from unrelated observations. Report an out-of-scope issue only when it materially affects the change's safety.
 
-## Review Checklist
+Do not modify code, post a review, or expand the review target unless the user asks.
 
-Work through these categories in order. Skip a category only when it genuinely doesn't apply.
+## Hunt for failures
 
-### 1. Logic Errors
+Choose the checks that fit the change instead of mechanically applying every category.
 
-- Off-by-one in loops, slices, ranges, pagination
-- Inverted or missing conditions (especially negation — `!` is easy to miss)
-- Fallthrough in switch/match without break
-- Short-circuit evaluation hiding side effects
-- Wrong operator (`=` vs `==`, `&&` vs `||`, `&` vs `&&`)
-- Integer overflow, floating point comparison, implicit coercion
+- **Logic and boundaries:** empty and single-item inputs, pagination edges, invalid state transitions, locale handling, Unicode, maximum values, and repeat invocation.
+- **Errors and cleanup:** swallowed failures, partial cleanup, misleading status codes, exposed internals, missing timeouts, and unbounded retries.
+- **State and concurrency:** stale reads, lost updates, time-of-check/time-of-use races, duplicate delivery, non-idempotent retries, leaked listeners, and shared mutable state.
+- **Authorization and trust:** missing permission checks, confused caller identity, CSRF, unsafe redirects, injection, path traversal, secret exposure, and trust transferred across a boundary without validation.
+- **Data integrity:** partial writes, migration restart behavior, dialect differences, uniqueness assumptions, destructive cascades, and old/new version compatibility.
+- **Resources and performance:** unbounded collections, repeated round trips, retained resources, logged-out hot-path regressions, and work that scales with attacker-controlled input.
 
-### 2. Edge Cases & Boundaries
+Trace concrete inputs and event sequences through the real implementation. Run focused tests or a minimal reproduction when that is the fastest way to establish a claim. Do not infer a bug solely from an unfamiliar pattern.
 
-- Empty inputs: empty string, empty array, null, undefined, 0, NaN
-- Single-element collections
-- Maximum values, minimum values, negative numbers
-- Unicode, multi-byte characters, RTL text
-- Concurrent calls with identical arguments
-- What happens when it's called twice? What about zero times?
+## Findings standard
 
-### 3. Error Handling
+A finding needs all of the following:
 
-- Catch blocks that swallow errors silently
-- Missing error handling on async operations
-- Error handling that catches too broadly (bare `catch` / `catch(e)`)
-- Cleanup/finally blocks missing or incomplete
-- Error messages that leak internals to users
-- Thrown errors that aren't Error instances
+- the violated behavior or invariant;
+- the exact code location;
+- a concrete trigger or execution path;
+- the observable consequence;
+- a proportionate fix direction.
 
-### 4. State & Concurrency
+Use calibrated language. State confirmed defects directly. Label an unresolved concern as uncertain and explain what evidence is missing. Do not turn naming, formatting, optional hardening, or personal design preference into a correctness finding.
 
-- Shared mutable state without synchronization
-- TOCTOU (time-of-check-to-time-of-use) races
-- Stale closures capturing variables that mutate
-- Event handler registration without cleanup
-- Assumptions about execution order of async operations
+Prioritize by impact and likelihood:
 
-### 5. Security
+- **Critical:** exploitable security issue, unrecoverable data loss, or broad production outage.
+- **High:** likely user-visible wrong behavior, authorization bypass, or recoverable data corruption.
+- **Medium:** real failure under a plausible edge case, race, or sustained load.
+- **Low:** limited correctness issue with small impact. Omit purely cosmetic observations.
 
-- Unsanitized user input reaching SQL, HTML, shell, or file paths
-- Missing or incorrect authorization checks
-- Information leakage in error responses
-- CSRF, open redirect, path traversal
-- Secrets in code, logs, or error messages
-- Timing attacks on comparison operations
+## Report
 
-### 6. Data Integrity
+Lead with findings, ordered by severity. For each finding, include a short title, file and line, the failing scenario, impact, and fix direction. Keep line ranges tight.
 
-- Missing validation at system boundaries
-- Type coercion hiding bad data
-- Partial writes without transactions
-- Missing uniqueness constraints
-- Cascading deletes that orphan or destroy data
-- Schema mismatches between code and database
-
-### 7. Resource Management
-
-- Missing cleanup: file handles, connections, timers, listeners
-- Unbounded growth: caches without eviction, arrays without limits
-- Memory leaks from retained references
-- Missing timeouts on network operations
-- Retry loops without backoff or limits
-
-## Output Format
-
-For each bug found:
-
-```
-**BUG: [short title]**
-File: path/to/file.ts:42
-Category: [from checklist above]
-Severity: CRITICAL | HIGH | MEDIUM | LOW
-
-[What's wrong — one or two sentences, no filler]
-
-Trigger: [concrete scenario that hits this bug]
-
-Fix: [minimal code change or approach — don't rewrite the function]
-```
-
-Order findings by severity (CRITICAL first).
-
-## Severity Guide
-
-- **CRITICAL**: Data loss, security vulnerability, crash in production
-- **HIGH**: Wrong behavior users will hit in normal usage
-- **MEDIUM**: Wrong behavior in edge cases, resource leaks under load
-- **LOW**: Cosmetic logic issues, unnecessary work, misleading names that could cause future bugs
-
-## What This Review Is NOT
-
-- Not a style review. Don't comment on formatting, naming conventions, or "I'd do it differently".
-- Not a feature review. Don't suggest additions, improvements, or refactors.
-- Not a test review. Don't say "this needs more tests" — say what's broken.
-- Not a compliment sandwich. There is no sandwich. There is only bugs.
-
-## Process
-
-1. Read ALL the code under review before writing anything. Form a mental model of the data flow.
-2. Trace the unhappy paths. What happens when things go wrong?
-3. Look for implicit assumptions. What does this code believe about its inputs that isn't enforced?
-4. Check the boundaries between components. Where does trust transfer happen?
-5. Write up findings. If you found nothing, say "No bugs found" and stop. Don't manufacture issues to seem thorough.
+If no actionable defects are supported by the evidence, say so. Mention meaningful residual risks or untested boundaries, but do not manufacture findings to make the review appear thorough.

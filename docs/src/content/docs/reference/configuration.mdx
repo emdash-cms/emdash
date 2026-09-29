@@ -271,9 +271,51 @@ emdash({
 
 With `false`, plugins declared in `sandboxed` and installed from the marketplace run in the main server process without isolation or resource limits. Restore sandboxing after the diagnosis.
 
+### `registry`
+
+**Optional.** Configures the [plugin registry](/plugins/registry/) aggregator and policy. With no explicit value, EmDash uses `https://registry.emdashcms.com` when [`sandboxRunner`](#sandboxrunner) is configured and `sandbox` is not `false`.
+
+Set `registry: false` to disable registry discovery and registry-installed plugins while keeping the sandbox runner available for plugins declared in `sandboxed` and legacy Marketplace plugins:
+
+```js title="astro.config.mjs"
+emdash({
+	sandboxRunner: sandbox(),
+	registry: false,
+});
+```
+
+Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
+
+```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxRunner: sandbox(),
+	registry: {
+		aggregatorUrl: "https://registry.emdashcms.com",
+		acceptLabelers: "did:web:labels.emdashcms.com",
+		policy: {
+			minimumReleaseAge: "48h",
+			minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
+		},
+	},
+});
+```
+
+| Option                            | Type                   | Description                                                                                   |
+| --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
+| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
+| `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
+| `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
+| `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
+
+The release-age policy exempts a package's first release only when the registry reports one retained release and confirms that it observed the package continuously. A backfilled package, a deleted earlier release, or missing history evidence keeps the holdback in force. Explicit publisher and package exemptions apply regardless of history.
+
+See [The plugin registry](/plugins/registry/) for the install workflow and trust model.
+
 ### `marketplace`
 
-**Optional.** Base URL for the plugin marketplace shown in the admin. Marketplace plugins require `sandboxRunner` because they always run sandboxed.
+**Deprecated.** Base URL used to update plugins installed from the legacy Marketplace. Marketplace browsing and new installs are not shown in the admin. Existing Marketplace plugins remain updateable and uninstallable while this option is configured.
 
 ```js
 emdash({
@@ -282,7 +324,7 @@ emdash({
 });
 ```
 
-Production URLs must use HTTPS; HTTP is accepted only for `localhost` and `127.0.0.1` during development. When `experimental.registry` is also configured, the registry supplies new installs and updates while plugins already installed from the marketplace continue to run.
+Production URLs must use HTTPS; HTTP is accepted only for `localhost` and `127.0.0.1` during development. Keep this option until every Marketplace plugin has been replaced or uninstalled, then remove it. Follow [Migrate from Marketplace](/plugins/migrate-from-marketplace/) for the complete procedure.
 
 ### `fonts`
 
@@ -387,7 +429,7 @@ See [MCP Server Reference](/reference/mcp-server/) for token creation and client
 
 ### `siteUrl`
 
-**Optional.** The public browser-facing origin for the site (scheme + host + optional port, **no path**).
+The public browser-facing origin for the site (scheme + host + optional port, **no path**). Set it before running production setup. Only loopback development hosts can complete setup without a configured origin.
 
 Behind a **TLS-terminating reverse proxy**, `Astro.url` returns the internal address (`http://localhost:4321`) instead of the public one (`https://cms.example.com`). This breaks passkeys, CSRF origin matching, OAuth redirects, login redirects, MCP discovery, snapshot exports, sitemap, robots.txt, and JSON-LD structured data. Set `siteUrl` to fix all of these at once.
 
@@ -408,12 +450,15 @@ emdash({
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
 
-On **Cloudflare Workers**, the env-var fallback reads `process.env`, which is empty unless the `nodejs_compat_populate_process_env` compatibility flag is enabled. To use the env var instead of the config option there, set both:
+Setup fails with `SITE_URL_REQUIRED` on a non-loopback host when neither source is set. This prevents the first unauthenticated setup request from choosing the origin used in later authentication emails.
+
+On **Cloudflare Workers**, the env-var fallback reads `process.env`. With `nodejs_compat`, Cloudflare populates `process.env` by default for compatibility dates on or after `2025-04-01`. Projects pinned to an earlier date must also add `nodejs_compat_populate_process_env`.
 
 ```jsonc
 // wrangler.jsonc
 {
-	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
 	"vars": { "EMDASH_SITE_URL": "https://cms.example.com" },
 }
 ```
@@ -472,7 +517,7 @@ Prefer fixing **`allowedDomains`** (and forwarded headers) first; use **`siteUrl
 
 With TLS in front, binding the dev server to loopback (**`astro dev --host 127.0.0.1`**) is often enough: the proxy connects locally while **`siteUrl`** matches the public HTTPS origin.
 
-If your proxy writes a client-IP header, set [**`trustedProxyHeaders`**](#trustedproxyheaders) so EmDash's rate limits can use the real client IP instead of bucketing every request under a shared "unknown" key.
+If your proxy writes a client-IP header, set [**`trustedProxyHeaders`**](#trustedproxyheaders) so EmDash's rate limits can use the real client IP. Without a trusted client IP, the authentication rate limits are skipped and all public comment submissions share one rate-limit bucket (20 comments per 10 minutes across all visitors).
 
 <Aside type="caution">
 	Your reverse proxy should forward a **port-aware** `Host` / `X-Forwarded-Host` when you use non-default ports. If the proxy strips the port, **`rpId`** and Astro’s rebuilt URL can be wrong.
@@ -512,9 +557,9 @@ export default defineConfig({
 
 ### `trustedProxyHeaders`
 
-**Optional.** Headers to trust for client-IP resolution when running behind a reverse proxy you control. Used by auth rate limits (magic-link, signup, passkey, OAuth device flow) and the public comment endpoint.
+**Optional.** Headers to trust for client-IP resolution when running behind a reverse proxy you control. Used by auth rate limits (magic-link, signup, passkey, OAuth device flow, OAuth client registration) and the public comment endpoint.
 
-On Cloudflare the `cf` object attached to the request is used automatically — you normally do **not** need to set this. On self-hosted deployments behind nginx, Caddy, Traefik, Fly, Railway, or similar, set this to the header your proxy writes so rate limits can bucket by real client IP instead of treating every request as "unknown".
+On Cloudflare the `cf` object attached to the request is used automatically — you normally do **not** need to set this. On self-hosted deployments behind nginx, Caddy, Traefik, Fly, Railway, or similar, set this to the header your proxy writes so rate limits can count requests per real client IP.
 
 The following example trusts the `x-real-ip` header set by nginx, Caddy, or Traefik:
 
@@ -539,8 +584,9 @@ When not set in config, EmDash reads the `EMDASH_TRUSTED_PROXY_HEADERS` env var 
 	**Only set this when you control the reverse proxy.** Untrusted clients can set any header
 	they like; trusting forwarded-IP headers from an open network is an IP-spoofing vulnerability
 	that defeats rate limiting. If EmDash is exposed directly to the public internet with no
-	proxy in front, leave this unset — rate limits will fall back to a shared "unknown" bucket
-	(stricter defaults) rather than trust a spoofable header.
+	proxy in front, leave this unset rather than trust a spoofable header. EmDash then skips the
+	authentication rate limits, counts all public comment submissions in one shared bucket, and
+	treats all visitors as one voter for comment reactions.
 </Aside>
 
 ### `maxUploadSize`
@@ -574,16 +620,42 @@ emdash({
 	admin: {
 		logo: "/images/agency-logo.webp",
 		siteName: "Agency CMS",
+		footerLabel: "AgencyX",
 		favicon: "/favicon.ico",
 	},
 });
 ```
 
-| Option     | Type     | Description                                      |
-| ---------- | -------- | ------------------------------------------------ |
-| `logo`     | `string` | Logo URL or path for the login page and sidebar  |
-| `siteName` | `string` | Name shown in the sidebar and browser title      |
-| `favicon`  | `string` | Favicon URL or path for admin pages               |
+| Option        | Type              | Description                                                                    |
+| ------------- | ----------------- | ------------------------------------------------------------------------------ |
+| `logo`        | `string`          | Logo URL or path for the login page and sidebar                                |
+| `siteName`    | `string`          | Name shown in the sidebar header and browser title                             |
+| `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
+| `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
+
+### `updateCheck`
+
+**Optional.** Controls the core update notice in the admin dashboard. Defaults to `true`.
+
+When enabled, EmDash checks the public npm registry for published `emdash` releases — at most once per day, deferred after the response so it never slows down a request — and shows a dismissible banner in the admin dashboard when a newer version is available. Dismissing the banner hides it for that version; it reappears when a newer version becomes available.
+
+The banner names the newest stable release that has been public for at least 24 hours, so a release is announced a day after it ships. To match a release-age policy in your package manager, such as pnpm's `minimumReleaseAge`, set `minimumReleaseAge` to a duration string (`"48h"`, `"7d"`) or a number of seconds. With `"7d"`, the banner offers the newest release that is at least a week old:
+
+```js
+emdash({
+	updateCheck: { minimumReleaseAge: "7d" },
+})
+```
+
+The check is a plain GET to `https://registry.npmjs.org/emdash` and carries no site data. Deployments without outbound internet access simply never show the banner. Set to `false` to disable the check entirely:
+
+```js
+emdash({
+	updateCheck: false,
+})
+```
+
+The banner is informational only — updating EmDash means bumping the `emdash` package in your project and redeploying, which the admin can't (and shouldn't) trigger.
 
 ### `toolbar`
 
@@ -611,47 +683,6 @@ Notes on `"client"` mode:
 - EmDash injects nothing session-specific — but if your own templates branch on `Astro.locals.user` (e.g. an "Admin" nav link for logged-in users), that variance is still in your HTML and still fragments the cache.
 
 In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
-
-### `experimental`
-
-**Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.
-
-<Aside type="caution">
-	Experimental options are unstable. Pin EmDash to an exact version when you depend on one, and check the changelog before upgrading.
-</Aside>
-
-#### `experimental.registry`
-
-**Optional.** Use the experimental [plugin registry](/plugins/registry/) as the admin dashboard's source for browsing and installing plugins instead of the marketplace. Registry plugins run sandboxed, so this option requires a [`sandboxRunner`](/deployment/plugin-sandbox/).
-
-Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
-
-```js title="astro.config.mjs"
-import { sandbox } from "@emdash-cms/cloudflare";
-
-emdash({
-	sandboxRunner: sandbox(),
-	experimental: {
-		registry: {
-			aggregatorUrl: "https://registry.emdashcms.com",
-			acceptLabelers: "did:web:labels.emdashcms.com",
-			policy: {
-				minimumReleaseAge: "48h",
-				minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
-			},
-		},
-	},
-});
-```
-
-| Option                            | Type                   | Description                                                                                   |
-| --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
-| `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
-| `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
-| `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
-
-See [The plugin registry](/plugins/registry/) for the full workflow, trust model, and how to query the registry from your own site.
 
 ## Database adapters
 
@@ -966,6 +997,8 @@ The site also needs a Worker Loader binding and the plugin bridge entry point. S
 
 Pass media provider descriptors to [`mediaProviders`](#mediaproviders). Both built-in Cloudflare providers are imported from `@emdash-cms/cloudflare`.
 
+Each `*EnvVar` option below names an environment variable. The provider reads it in this order: a Cloudflare Workers binding of that name, then `process.env` on the Node adapter. The matching direct option (`accountId`, `accountHash`, `apiToken`) always takes precedence over both.
+
 ### `cloudflareImages(config)`
 
 Adds Cloudflare Images for browsing, uploading, deleting, and delivering image assets.
@@ -1006,31 +1039,6 @@ mediaProviders: [cloudflareStream({ controls: true })];
 ```
 
 See [Media Library: Media providers](/guides/media-library/#media-providers) for the required bindings and rendering components.
-
-## Astro cache adapter
-
-### `cloudflareCache(config?)`
-
-<Aside type="caution" title="Deprecated adapter">
-	`cloudflareCache()` is retained for existing sites. New Cloudflare sites should enable native
-	Workers Caching in `wrangler.jsonc` and use `cacheCloudflare()` from
-	`@astrojs/cloudflare/cache`. The native provider invalidates through `cache.purge()` and does
-	not need zone credentials.
-</Aside>
-
-The legacy adapter returns an Astro `cache.provider` that stores responses in the Workers Cache API and purges cache tags through the Cloudflare REST API:
-
-```js title="astro.config.mjs"
-import { cloudflareCache } from "@emdash-cms/cloudflare";
-
-export default defineConfig({
-	cache: {
-		provider: cloudflareCache(),
-	},
-});
-```
-
-It accepts `cacheName` (default `"emdash"`) and `bookmarkCookie` (default `"__em_d1_bookmark"`), plus `zoneId` or `zoneIdEnvVar` and `apiToken` or `apiTokenEnvVar` for purge-by-tag requests. The default variable names are `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN`.
 
 ## Live collections
 
@@ -1086,8 +1094,7 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 	"emdash": {
 		"label": "My Blog Template",
 		"schema": ".emdash/schema.sql",
-		"seed": ".emdash/seed.json",
-		"url": "https://my-site.pages.dev"
+		"seed": ".emdash/seed.json"
 	}
 }
 ```
@@ -1097,7 +1104,6 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 | `label`       | Template name for display          |
 | `schema`      | Optional SQL schema read by `emdash init` |
 | `seed`        | Path to seed JSON file             |
-| `url`         | Remote URL used by the deprecated `emdash dev --types` flow |
 
 ## TypeScript configuration
 

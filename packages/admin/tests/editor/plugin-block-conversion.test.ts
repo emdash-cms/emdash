@@ -69,6 +69,14 @@ describe("PM → PT: plugin blocks", () => {
 		});
 	});
 
+	it("does not add an empty id to a newly inserted url-identified block", () => {
+		const doc = pmDoc(pmPluginBlock("embed", "", { url: "https://youtu.be/abc" }));
+		const blocks = prosemirrorToPortableText(doc);
+
+		expect(blocks[0]).toMatchObject({ _type: "embed", url: "https://youtu.be/abc" });
+		expect(blocks[0]).not.toHaveProperty("id");
+	});
+
 	it("data fields cannot overwrite _type", () => {
 		const doc = pmDoc(pmPluginBlock("youtube", "vid-1", { _type: "malicious" }));
 		const blocks = prosemirrorToPortableText(doc);

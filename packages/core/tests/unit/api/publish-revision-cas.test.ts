@@ -207,10 +207,11 @@ describe("conditional publish route authorization", () => {
 		} as unknown as APIContext);
 
 		expect(response.status).toBe(200);
-		expect(handleContentPublish).toHaveBeenCalledWith("post", "entry", {
-			publishedAt: undefined,
-			_rev: "approved-rev",
-		});
+		expect(handleContentPublish).toHaveBeenCalledWith(
+			"post",
+			"entry",
+			expect.objectContaining({ _rev: "approved-rev" }),
+		);
 		expect(await response.json()).toMatchObject({ data: { _rev: "next-rev" } });
 	});
 

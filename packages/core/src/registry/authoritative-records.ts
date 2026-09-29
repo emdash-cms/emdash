@@ -65,12 +65,30 @@ export type AuthoritativeRecordReader = (
 	options?: AuthoritativeRecordReadOptions,
 ) => Promise<AuthoritativeRecordReadResult>;
 
+const AUTHORITATIVE_READER_OVERRIDE = Symbol.for("emdash.registry.authoritativeRecordReader");
+interface AuthoritativeReaderGlobal {
+	[AUTHORITATIVE_READER_OVERRIDE]?: AuthoritativeRecordReader;
+}
+
+export function setDefaultAuthoritativeRecordReaderForTesting(
+	reader: AuthoritativeRecordReader | undefined,
+): AuthoritativeRecordReader | undefined {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Symbol.for state must survive duplicated SSR module chunks.
+	const state = globalThis as AuthoritativeReaderGlobal;
+	const previous = state[AUTHORITATIVE_READER_OVERRIDE];
+	state[AUTHORITATIVE_READER_OVERRIDE] = reader;
+	return previous;
+}
+
 export async function readAuthoritativePackageRelease(
 	publisherDid: string,
 	packageSlug: string,
 	version: string,
 	options: AuthoritativeRecordReadOptions = {},
 ): Promise<AuthoritativeRecordReadResult> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Symbol.for state must survive duplicated SSR module chunks.
+	const override = (globalThis as AuthoritativeReaderGlobal)[AUTHORITATIVE_READER_OVERRIDE];
+	if (override) return override(publisherDid, packageSlug, version, options);
 	try {
 		const client = new DirectPdsClient({
 			did: publisherDid,
@@ -86,6 +104,7 @@ export async function readAuthoritativePackageRelease(
 			package: packageSlug,
 			version,
 			rkey: release.rkey,
+			profileCid: profile.cid,
 			profile: profile.value,
 			release: release.value,
 		});
@@ -123,6 +142,12 @@ export async function verifyAuthoritativePackageRelease(
 ): Promise<RecordVerificationReport> {
 	const context = records.inspection.value;
 	const provenanceReference = context.releaseExtension.provenance;
+	if (provenanceReference && context.repository === null) {
+		return verificationFailure(
+			"PROVENANCE_UNVERIFIABLE",
+			"The release supplies provenance, but its signed profile has no repository anchor.",
+		);
+	}
 	let document: Uint8Array | undefined;
 	if (provenanceReference) {
 		const fetched = await fetchVerifiedResource(provenanceReference.url, {
@@ -145,6 +170,7 @@ export async function verifyAuthoritativePackageRelease(
 		package: records.packageSlug,
 		version: records.version,
 		rkey: records.release.rkey,
+		profileCid: records.profile.cid,
 		profile: records.profile.value,
 		release: records.release.value,
 		provenance:

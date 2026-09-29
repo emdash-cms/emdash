@@ -5,11 +5,15 @@ import type {
 	ProvenanceEvidence,
 	ProvenanceStatus,
 	RecordVerificationCode,
+	RecordInspectionInput,
+	RecordInspectionReport,
 	RecordVerificationInputWithVerifier,
 	RecordVerificationReason,
 	RecordVerificationReport,
 	VerifiedRecordContext,
 } from "./records.js";
+
+export { inspectPackageReleaseRecords } from "./records.js";
 
 export type RecordVerificationInput = RecordVerificationInputWithVerifier;
 
@@ -25,6 +29,8 @@ export type {
 	ProvenanceStatus,
 	ProvenanceVerifier,
 	RecordVerificationCode,
+	RecordInspectionInput,
+	RecordInspectionReport,
 	RecordVerificationReason,
 	RecordVerificationReport,
 	VerifiedProvenance,

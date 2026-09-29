@@ -86,9 +86,13 @@ const formatDate = (date: Date) =>
 									{post.data.publishedAt && <span class="meta-dot" />}
 									<span>{getReadingTime(post.data.content)} min read</span>
 								</div>
-								<h2 class="post-title">{post.data.title}</h2>
+								<h2 class="post-title" {...post.edit.title}>
+									{post.data.title}
+								</h2>
 								{post.data.excerpt && (
-									<p class="post-excerpt">{post.data.excerpt}</p>
+									<p class="post-excerpt" {...post.edit.excerpt}>
+										{post.data.excerpt}
+									</p>
 								)}
 							</a>
 							{tags.length > 0 && (

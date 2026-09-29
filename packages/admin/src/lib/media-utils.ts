@@ -100,8 +100,51 @@ export function providerItemToMediaItem(
 	};
 }
 
+const MAX_UPLOAD_PREVIEW_BYTES = 8 * 1024 * 1024;
+const UPLOAD_PREVIEW_MIME_TYPES = new Set([
+	"image/jpeg",
+	"image/png",
+	"image/gif",
+	"image/webp",
+	"image/avif",
+]);
+
+/** A local preview URL for a file being uploaded, or undefined for large files and formats not previewed. */
+export function createUploadPreviewUrl(file: File): string | undefined {
+	if (file.size > MAX_UPLOAD_PREVIEW_BYTES || !UPLOAD_PREVIEW_MIME_TYPES.has(file.type)) {
+		return undefined;
+	}
+	try {
+		return URL.createObjectURL(file);
+	} catch {
+		return undefined;
+	}
+}
+
 /** Root-absolute path prefix for locally stored media served by EmDash. */
 const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
+
+/**
+ * URL of the local media file route for a storage key or media ID.
+ *
+ * Keys can contain `/` (an existing bucket layout such as `2026/08/photo.jpg`), and the
+ * `[...key]` route matches them as path segments, so each segment is encoded on its own:
+ * `?`, `#` and `%` stay inside the path, but `/` still separates segments. A key with an
+ * empty, `.` or `..` segment is encoded whole instead, because the URL parser would
+ * collapse those segments (even percent-encoded ones) and move the request off the route;
+ * encoded whole, the slashes become `%2F` and no segment is a dot segment any more.
+ *
+ * That covers slash-delimited traversal only. A key that is exactly `.` or `..` has no
+ * representation as a path segment: the parser collapses `%2e` and `%2e%2e` the same way.
+ * Neither is a valid storage key.
+ */
+export function localMediaFileUrl(key: string): string {
+	const segments = key.split("/");
+	if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+		return `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(key)}`;
+	}
+	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
+}
 
 export function getMediaPreviewUrl(originalUrl: string, contentHash?: string | null): string {
 	if (!contentHash || !originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;

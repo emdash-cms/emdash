@@ -14,7 +14,11 @@ import { sql } from "kysely";
 import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { interpolateUrlPattern, resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
+import {
+	resolveLocalizedContentRoutePath,
+	resolveLocale,
+	resolveLocaleChain,
+} from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
@@ -27,6 +31,8 @@ export interface MenuQueryOptions {
 	/** Override the locale used for the lookup. When omitted, the locale comes
 	 * from the request context or the configured defaultLocale. */
 	locale?: string;
+	/** Astro's route trailing-slash policy for resolved content links. */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -38,18 +44,30 @@ export interface MenuQueryOptions {
  * const menuEs = await getMenu("primary", { locale: "es" });
  * ```
  */
-export function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
+export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`menu:${name}:${locale ?? "*"}`, () =>
+	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
+	return requestCached(`menu:${name}:${locale ?? "*"}:${trailingSlash}`, () =>
 		cachedQuery({
 			namespace: CacheNamespace.MENUS,
-			key: `${name}:${locale ?? "*"}`,
+			key: `${name}:${locale ?? "*"}:${trailingSlash}`,
 			load: async () => {
 				const db = await getDb();
-				return getMenuWithDb(name, db, { locale });
+				return getMenuWithDb(name, db, { locale, trailingSlash });
 			},
 		}),
 	);
+}
+
+async function getHostTrailingSlash(): Promise<"always" | "never" | "ignore"> {
+	try {
+		const config = (await import("virtual:emdash/config")) as {
+			default?: { trailingSlash?: "always" | "never" | "ignore" };
+		};
+		return config.default?.trailingSlash ?? "ignore";
+	} catch {
+		return "ignore";
+	}
 }
 
 /**
@@ -86,7 +104,7 @@ export async function getMenuWithDb(
 		.orderBy("sort_order", "asc")
 		.execute();
 
-	const items = await buildMenuTree(itemRows, db, menuRow.locale);
+	const items = await buildMenuTree(itemRows, db, menuRow.locale, options.trailingSlash);
 
 	return {
 		id: menuRow.id,
@@ -151,6 +169,7 @@ async function buildMenuTree(
 	items: MenuItemRow[],
 	db: Kysely<Database>,
 	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
 ): Promise<MenuItem[]> {
 	const contentReferences = collectContentReferences(items);
 	const taxonomyReferences = new Set(
@@ -166,8 +185,10 @@ async function buildMenuTree(
 		resolveTaxonomyReferences(db, taxonomyReferences, locale),
 	]);
 
-	const resolvedItems = items.map((item) =>
-		resolveMenuItem(item, urlPatterns, contentLookup, taxonomyLookup),
+	const resolvedItems = await Promise.all(
+		items.map((item) =>
+			resolveMenuItem(item, urlPatterns, contentLookup, taxonomyLookup, locale, trailingSlash),
+		),
 	);
 	const validItems = resolvedItems.filter((item): item is MenuItem => item !== null);
 
@@ -259,12 +280,14 @@ function getCollectionUrlPatterns(
  * (migration 036 remapped all existing references); we look it up against
  * the per-locale ec_* row or per-locale taxonomy row.
  */
-function resolveMenuItem(
+async function resolveMenuItem(
 	item: MenuItemRow,
 	urlPatterns: Map<string, string | null>,
 	contentLookup: ContentReferenceLookup,
 	taxonomyLookup: TaxonomyReferenceLookup,
-): MenuItem | null {
+	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
+): Promise<MenuItem | null> {
 	let url: string | null;
 
 	switch (item.type) {
@@ -274,11 +297,13 @@ function resolveMenuItem(
 
 		case "page":
 		case "post":
-			url = resolveContentUrl(
+			url = await resolveContentUrl(
 				item.reference_collection || `${item.type}s`,
 				item.reference_id,
 				urlPatterns,
 				contentLookup,
+				locale,
+				trailingSlash,
 			);
 			if (url === null) return null;
 			break;
@@ -295,11 +320,13 @@ function resolveMenuItem(
 			// slug. Entry references resolve like page/post items.
 			if (!item.reference_collection) return null;
 			if (item.reference_id) {
-				url = resolveContentUrl(
+				url = await resolveContentUrl(
 					item.reference_collection,
 					item.reference_id,
 					urlPatterns,
 					contentLookup,
+					locale,
+					trailingSlash,
 				);
 				if (url === null) return null;
 			} else {
@@ -309,11 +336,13 @@ function resolveMenuItem(
 
 		default:
 			if (item.reference_collection && item.reference_id) {
-				url = resolveContentUrl(
+				url = await resolveContentUrl(
 					item.reference_collection,
 					item.reference_id,
 					urlPatterns,
 					contentLookup,
+					locale,
+					trailingSlash,
 				);
 				if (url === null) return null;
 			} else {
@@ -420,21 +449,25 @@ function shouldPreferLocalizedRow(
  * (falling back to the source if no translation exists so the menu link is
  * still clickable).
  */
-function resolveContentUrl(
+async function resolveContentUrl(
 	collection: string,
 	referenceGroup: string | null,
 	urlPatterns: Map<string, string | null>,
 	contentLookup: ContentReferenceLookup,
-): string | null {
+	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
+): Promise<string | null> {
 	if (!referenceGroup) return null;
 	const row = contentLookup.get(collection)?.get(referenceGroup);
 	if (!row) return null;
-	return interpolateUrlPattern({
+	return resolveLocalizedContentRoutePath({
 		pattern: urlPatterns.get(collection) ?? null,
 		collection,
 		slug: row.slug,
 		id: row.id,
 		date: row.publishedAt,
+		locale,
+		trailingSlash,
 	});
 }
 

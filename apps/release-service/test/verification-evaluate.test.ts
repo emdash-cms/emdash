@@ -66,6 +66,7 @@ const WORKLOAD_POLICY: StoredWorkloadPolicy = {
 	workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
 	allowedRefs: ["refs/heads/main"],
 	allowedEnvironments: [],
+	repositoryConnection: false,
 	active: true,
 	stateVersion: 1,
 	authorizedBy: PUBLISHER_DID,

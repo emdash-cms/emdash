@@ -6,7 +6,7 @@
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
-import { PluginRouteError } from "emdash";
+import { after, PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
 import { formatSubmissionText, formatWebhookPayload } from "../format.js";
@@ -14,7 +14,7 @@ import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
 import type { FormDefinition, Submission, SubmissionFile } from "../types.js";
 import { getFormFields } from "../types.js";
-import { validateSubmission } from "../validation.js";
+import { evaluateCondition, validateSubmission } from "../validation.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -23,6 +23,28 @@ function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
 
 function submissions(ctx: RouteContext): StorageCollection<Submission> {
 	return ctx.storage.submissions as StorageCollection<Submission>;
+}
+
+/**
+ * Whether two URLs name the same target, ignoring a difference that is not one.
+ *
+ * A configured `https://example.test/hook` answered by `https://example.test/hook/` is the same endpoint, and
+ * warning about it would train editors to ignore the warning. Anything unparseable falls back to string equality.
+ */
+const withoutTrailingSlash = (u: URL) =>
+	u.pathname.endsWith("/") ? u.pathname.slice(0, -1) : u.pathname;
+
+function sameTarget(a: string, b: string): boolean {
+	try {
+		const [x, y] = [new URL(a), new URL(b)];
+		return (
+			x.origin === y.origin &&
+			withoutTrailingSlash(x) === withoutTrailingSlash(y) &&
+			x.search === y.search
+		);
+	} catch {
+		return a === b;
+	}
 }
 
 export async function submitHandler(ctx: RouteContext<SubmitInput>) {
@@ -94,7 +116,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 3. Validate submission data
 	const allFields = getFormFields(form);
-	const result = validateSubmission(allFields, input.data);
+	const result = validateSubmission(allFields, input.data, new Set(Object.keys(input.files ?? {})));
 
 	if (!result.valid) {
 		return { success: false, errors: result.errors };
@@ -102,19 +124,26 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 4. Upload files
 	const files: SubmissionFile[] = [];
-	if (input.files && ctx.media && "upload" in ctx.media) {
+	const pending = allFields.flatMap((field) => {
+		if (field.type !== "file") return [];
+		if (field.condition && !evaluateCondition(field.condition, input.data)) return [];
+		const fileData = input.files?.[field.name];
+		return fileData ? [{ field, fileData }] : [];
+	});
+	if (pending.length > 0 && !(ctx.media && "upload" in ctx.media)) {
+		throw PluginRouteError.internal("File uploads are not configured");
+	}
+	if (pending.length > 0) {
 		const mediaWithWrite = ctx.media as {
 			upload(
 				filename: string,
 				contentType: string,
 				bytes: ArrayBuffer,
 			): Promise<{ mediaId: string; storageKey: string; url: string }>;
+			delete(id: string): Promise<boolean>;
 		};
 
-		for (const field of allFields.filter((f) => f.type === "file")) {
-			const fileData = input.files[field.name];
-			if (!fileData) continue;
-
+		for (const { field, fileData } of pending) {
 			// Validate file type
 			if (field.validation?.accept) {
 				const allowed = field.validation.accept.split(",").map((s) => s.trim().toLowerCase());
@@ -139,20 +168,27 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					`File too large for ${field.label}. Maximum: ${Math.round(field.validation.maxFileSize / 1024)} KB`,
 				);
 			}
+		}
 
-			const uploaded = await mediaWithWrite.upload(
-				fileData.filename,
-				fileData.contentType,
-				fileData.bytes,
-			);
+		try {
+			for (const { field, fileData } of pending) {
+				const uploaded = await mediaWithWrite.upload(
+					fileData.filename,
+					fileData.contentType,
+					fileData.bytes.buffer,
+				);
 
-			files.push({
-				fieldName: field.name,
-				filename: fileData.filename,
-				contentType: fileData.contentType,
-				size: fileData.bytes.byteLength,
-				mediaId: uploaded.mediaId,
-			});
+				files.push({
+					fieldName: field.name,
+					filename: fileData.filename,
+					contentType: fileData.contentType,
+					size: fileData.bytes.byteLength,
+					mediaId: uploaded.mediaId,
+				});
+			}
+		} catch (error) {
+			await Promise.allSettled(files.map((file) => mediaWithWrite.delete(file.mediaId)));
+			throw error;
 		}
 	}
 
@@ -220,21 +256,40 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		}
 	}
 
-	// 9. Webhook (fire and forget)
+	// 9. Webhook, deferred past the response rather than dropped.
+	//
+	// `after()` hands the promise to the host's lifetime extender (`waitUntil` under workerd), so the
+	// call is still guaranteed to run once the visitor has their confirmation. A bare floating promise
+	// is not: the isolate may be torn down as soon as the response is sent.
+	//
+	// The response is inspected too, because `fetch` only rejects on a transport error. A 4xx or 5xx
+	// resolves, and so does the login page a webhook behind an auth wall redirects to, which is why a
+	// misconfigured webhook could fail on every submission and log nothing.
+	//
+	// Redirects are detected by comparing the final URL, NOT by `response.redirected`: plugin HTTP access
+	// follows redirects itself with `redirect: "manual"` so it can strip credentials on a cross-origin hop,
+	// so the response it hands back always reports `redirected: false` however many hops it took.
 	if (settings.webhookUrl && ctx.http) {
 		const payload = formatWebhookPayload(form, submissionId, result.data, files);
-		ctx.http
-			.fetch(settings.webhookUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			})
-			.catch((err: unknown) => {
-				ctx.log.error("Webhook failed", {
-					error: String(err),
-					url: settings.webhookUrl,
+		const { http, log } = ctx;
+		const url = settings.webhookUrl;
+		after(async () => {
+			try {
+				const response = await http.fetch(url, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
 				});
-			});
+				if (!response.ok) {
+					log.error("Webhook failed", { url, status: response.status });
+				} else if (response.url && !sameTarget(response.url, url)) {
+					// A 2xx from somewhere else. Usually an auth wall, and the webhook never ran.
+					log.warn("Webhook was redirected", { url, finalUrl: response.url });
+				}
+			} catch (error: unknown) {
+				log.error("Webhook failed", { url, error: String(error) });
+			}
+		});
 	}
 
 	// 10. Return success

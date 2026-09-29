@@ -72,4 +72,32 @@ describe("Redirects", () => {
 		await expect.element(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument();
 		expect(screen.getByText("/source-101").query()).toBeNull();
 	});
+
+	it("uses accessible tabs to switch between redirects and 404 errors", async () => {
+		const screen = await render(<Redirects />);
+
+		const redirectsTab = screen.getByRole("tab", { name: /^Redirects/ });
+		const notFoundTab = screen.getByRole("tab", { name: "404 Errors" });
+		const search = screen.getByRole("searchbox", { name: "Search source or destination..." });
+		const redirectsIcon = redirectsTab.element().querySelector("svg")!;
+		const notFoundIcon = notFoundTab.element().querySelector("svg")!;
+		const redirectsPath = redirectsIcon.querySelector("path")!.getAttribute("d");
+		const notFoundPath = notFoundIcon.querySelector("path")!.getAttribute("d");
+
+		await expect.element(redirectsTab).toHaveAttribute("aria-selected", "true");
+		expect(redirectsIcon).toHaveAttribute("aria-hidden", "true");
+		expect(notFoundIcon).toHaveAttribute("aria-hidden", "true");
+		await expect.element(search).toBeInTheDocument();
+		await notFoundTab.click();
+
+		await expect.element(notFoundTab).toHaveAttribute("aria-selected", "true");
+		expect(redirectsTab.element().querySelector("svg path")!.getAttribute("d")).not.toBe(
+			redirectsPath,
+		);
+		expect(notFoundTab.element().querySelector("svg path")!.getAttribute("d")).not.toBe(
+			notFoundPath,
+		);
+		await expect.element(screen.getByText("No 404 errors recorded yet.")).toBeInTheDocument();
+		expect(search.query()).toBeNull();
+	});
 });

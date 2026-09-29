@@ -1,5 +1,5 @@
 ---
-import type { MediaValue, ContentBylineCredit } from "emdash";
+import type { ContentBylineCredit, EditProxy, MediaValue } from "emdash";
 import { Image } from "emdash/ui";
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
 	readingTime?: number;
 	tags?: Array<{ slug: string; label: string }>;
 	bylines?: ContentBylineCredit[];
+	edit?: EditProxy;
 }
 
 const {
@@ -22,6 +23,7 @@ const {
 	readingTime,
 	tags,
 	bylines,
+	edit,
 } = Astro.props;
 
 const formattedDate = date
@@ -37,7 +39,7 @@ const formattedDate = date
 	<a href={href} class="card-link">
 		{
 			featuredImage ? (
-				<div class="card-image">
+				<div class="card-image" {...edit?.featured_image}>
 					<Image image={featuredImage} />
 				</div>
 			) : (
@@ -89,8 +91,8 @@ const formattedDate = date
 				{formattedDate && readingTime && <span class="meta-dot" />}
 				{readingTime && <span>{readingTime} min</span>}
 			</div>
-			<h2 class="card-title">{title}</h2>
-			{excerpt && <p class="card-excerpt">{excerpt}</p>}
+			<h2 class="card-title" {...edit?.title}>{title}</h2>
+			{excerpt && <p class="card-excerpt" {...edit?.excerpt}>{excerpt}</p>}
 		</div>
 	</a>
 	{

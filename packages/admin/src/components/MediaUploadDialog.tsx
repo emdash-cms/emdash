@@ -16,7 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import * as React from "react";
 
-import { formatFileSize } from "../lib/media-utils.js";
+import { createUploadPreviewUrl, formatFileSize } from "../lib/media-utils.js";
 import {
 	useMediaUploadQueue,
 	type MediaUploadJob,
@@ -47,15 +47,6 @@ export interface MediaUploadDialogProps {
 	onQueueIdle?: () => void;
 	upload: (file: File, options: { signal: AbortSignal }) => Promise<void>;
 	concurrency?: number;
-}
-
-function previewUrlFor(file: File): string | undefined {
-	if (file.size > MAX_PREVIEW_BYTES || !PREVIEW_MIME_TYPES.has(file.type)) return undefined;
-	try {
-		return URL.createObjectURL(file);
-	} catch {
-		return undefined;
-	}
 }
 
 function FileKindIcon({ file }: { file: File }) {
@@ -200,7 +191,7 @@ export function MediaUploadDialog({
 	} = useMediaUploadQueue({
 		upload,
 		concurrency,
-		createPreviewUrl: previewUrlFor,
+		createPreviewUrl: createUploadPreviewUrl,
 		onQueueIdle,
 	});
 

@@ -37,6 +37,22 @@ function listApiResponse(
 	});
 }
 
+/** The envelope the live D1 list endpoint returns: `result_info` has no `total_pages` (#2840). */
+function liveListApiResponse(
+	result: unknown[],
+	page: number,
+	totalCount: number,
+	perPage = 100,
+): Response {
+	return Response.json({
+		success: true,
+		errors: [],
+		messages: [],
+		result,
+		result_info: { count: result.length, page, per_page: perPage, total_count: totalCount },
+	});
+}
+
 function database(uuid = DATABASE_ID, name = "site-db"): Record<string, unknown> {
 	return { uuid, name, version: "production" };
 }
@@ -90,6 +106,65 @@ describe("resolveD1MigrationTarget", () => {
 			"name=site-db",
 		);
 		expect(fetch).toHaveBeenCalledTimes(2);
+	});
+
+	describe("with the live list envelope, which has no total_pages (#2840)", () => {
+		const resolveByName = (fetch: typeof globalThis.fetch) =>
+			resolveD1MigrationTarget(
+				{ binding: "DB" },
+				{
+					projectRoot: "/project",
+					env: { CLOUDFLARE_ACCOUNT_ID: ACCOUNT_ID, CLOUDFLARE_API_TOKEN: TOKEN },
+					overrides: { d1: "site-db" },
+				},
+				{ fetch },
+			);
+
+		it("resolves a name from a single page", async () => {
+			const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+				liveListApiResponse([database(DATABASE_ID, "site-db")], 1, 1),
+			);
+
+			await expect(resolveByName(fetch)).resolves.toMatchObject({ databaseId: DATABASE_ID });
+			expect(fetch).toHaveBeenCalledTimes(1);
+		});
+
+		it("walks every page derived from total_count and per_page", async () => {
+			const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+				const url = new URL(input instanceof Request ? input.url : input.toString());
+				return url.searchParams.get("page") === "1"
+					? liveListApiResponse([database(undefined, "site-db-preview")], 1, 2, 1)
+					: liveListApiResponse([database(DATABASE_ID, "site-db")], 2, 2, 1);
+			});
+
+			await expect(resolveByName(fetch)).resolves.toMatchObject({ databaseId: DATABASE_ID });
+			expect(fetch).toHaveBeenCalledTimes(2);
+		});
+
+		it("ignores a preview database whose name only contains the requested name", async () => {
+			// `name` is a substring filter, so the page also lists `site-db-staging`.
+			const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+				liveListApiResponse(
+					[
+						{
+							...database("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", "site-db-staging"),
+							version: "preview",
+						},
+						database(DATABASE_ID, "site-db"),
+					],
+					1,
+					2,
+				),
+			);
+
+			await expect(resolveByName(fetch)).resolves.toMatchObject({ databaseId: DATABASE_ID });
+		});
+
+		it("still reports a missing name", async () => {
+			const fetch = vi.fn<typeof globalThis.fetch>(async () => liveListApiResponse([], 1, 0));
+
+			await expect(resolveByName(fetch)).rejects.toThrow(/No D1 database named site-db/);
+		});
 	});
 
 	it("rejects duplicate exact names found on different result pages", async () => {

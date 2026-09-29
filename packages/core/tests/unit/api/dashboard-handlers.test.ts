@@ -5,6 +5,7 @@ import { handleDashboardStats } from "../../../src/api/handlers/dashboard.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { scheduledPolicyRejectionKey } from "../../../src/plugins/content-policy.js";
 import { SCHEDULER_HEARTBEAT_OPTION } from "../../../src/scheduler-health.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createPostFixture, createPageFixture } from "../../utils/fixtures.js";
@@ -144,6 +145,59 @@ describe("Dashboard Handlers", () => {
 			const healthy = await handleDashboardStats(db, now);
 			expect(healthy.success).toBe(true);
 			expect(healthy.data!.schedulerHealth.status).toBe("healthy");
+		});
+
+		it("counts scheduled publications that policy plugins rejected", async () => {
+			db = await setupTestDatabase();
+			const options = new OptionsRepository(db);
+			await options.set(scheduledPolicyRejectionKey("posts", "post-1"), {
+				collection: "posts",
+				id: "post-1",
+				pluginId: "content-guard",
+				reason: "Approval is required.",
+				rejectedAt: "2030-01-01T00:00:00.000Z",
+			});
+			await options.set(scheduledPolicyRejectionKey("pages", "missing-page"), {
+				collection: "pages",
+				id: "missing-page",
+				pluginId: "removed-plugin",
+				reason: "A removed plugin blocked this entry.",
+				rejectedAt: "2030-01-02T00:00:00.000Z",
+			});
+
+			const result = await handleDashboardStats(db);
+			expect(result.success).toBe(true);
+			expect(result.data!.policyRejectedScheduled).toBe(2);
+			expect(result.data!.policyRejections).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						id: "post-1",
+						pluginId: "content-guard",
+						_rev: expect.any(String),
+					}),
+					expect.objectContaining({ id: "missing-page", pluginId: "removed-plugin" }),
+				]),
+			);
+		});
+
+		it("bounds the policy-rejection records returned to the dashboard", async () => {
+			db = await setupTestDatabase();
+			const options = new OptionsRepository(db);
+			for (let index = 0; index < 25; index++) {
+				const id = `post-${String(index).padStart(2, "0")}`;
+				await options.set(scheduledPolicyRejectionKey("posts", id), {
+					collection: "posts",
+					id,
+					pluginId: "content-guard",
+					reason: "Approval is required.",
+					rejectedAt: "2030-01-01T00:00:00.000Z",
+				});
+			}
+
+			const result = await handleDashboardStats(db);
+			expect(result.success).toBe(true);
+			expect(result.data!.policyRejectedScheduled).toBe(25);
+			expect(result.data!.policyRejections).toHaveLength(20);
 		});
 
 		it("returns recent items across collections", async () => {

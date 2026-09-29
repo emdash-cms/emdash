@@ -240,6 +240,33 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
+	it("treats a missing repository extension as optional provenance", async () => {
+		const report = await verify(extensionlessOverrides());
+
+		expect(report).toMatchObject({
+			success: true,
+			status: "unattested",
+			value: {
+				profileExtension: null,
+				repository: null,
+				policy: { requireProvenance: false },
+			},
+		});
+	});
+
+	it("rejects provenance when an extensionless profile has no repository anchor", async () => {
+		const release = cloneRelease();
+		release.artifacts.package.checksum = artifactChecksum;
+		release.extensions["com.emdashcms.experimental.package.releaseExtension"].provenance =
+			provenance;
+
+		expect(await verify(extensionlessOverrides({ release }))).toMatchObject({
+			success: false,
+			code: "PROVENANCE_UNVERIFIABLE",
+			provenance: { status: "failed" },
+		});
+	});
+
 	it("inspects signed policy before provenance evidence is available", async () => {
 		const profile = cloneProfile();
 		profile.extensions["com.emdashcms.experimental.package.profileExtension"].releasePolicy = {
@@ -397,6 +424,17 @@ function withProvenance() {
 	release.artifacts.package.checksum = artifactChecksum;
 	release.extensions["com.emdashcms.experimental.package.releaseExtension"].provenance = provenance;
 	return release;
+}
+
+function extensionlessOverrides(
+	override: Partial<RecordVerificationInput> = {},
+): Partial<RecordVerificationInput> {
+	const profile = cloneProfile();
+	delete (profile as { extensions?: unknown }).extensions;
+	return {
+		profile,
+		...override,
+	};
 }
 
 function verifierReturning(

@@ -20,6 +20,7 @@ import {
 	PluginRouteRegistry,
 	PluginRouteError,
 	createRouteRegistry,
+	pluginPublicRouteAcknowledgementSchema,
 	toRouteCallerInfo,
 } from "../../../src/plugins/routes.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
@@ -128,6 +129,15 @@ describe("PluginRouteError", () => {
 			expect(error.status).toBe(500);
 			expect(error.message).toBe("Something broke");
 		});
+	});
+});
+
+describe("public route acknowledgement", () => {
+	it("accepts every route-name set allowed by the manifest contract", () => {
+		const routes = Array.from({ length: 101 }, (_, index) =>
+			index === 0 ? "a".repeat(257) : `route-${index}`,
+		);
+		expect(pluginPublicRouteAcknowledgementSchema.parse(routes)).toEqual(routes);
 	});
 });
 
@@ -243,6 +253,32 @@ describe("PluginRouteHandler", () => {
 			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
 
 			expect(handler.getRouteMeta("admin")).toEqual({ public: false });
+		});
+
+		it("exposes declared method, request, and response policy", () => {
+			const plugin = createTestPlugin({
+				routes: {
+					webhook: {
+						public: true,
+						methods: ["POST"],
+						request: {
+							body: "bytes",
+							maxBytes: 4096,
+							headers: ["x-signature"],
+						},
+						response: "raw",
+						handler: vi.fn(),
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			expect(handler.getRouteMeta("webhook")).toEqual({
+				public: true,
+				methods: ["POST"],
+				request: { body: "bytes", maxBytes: 4096, headers: ["x-signature"] },
+				response: "raw",
+			});
 		});
 	});
 

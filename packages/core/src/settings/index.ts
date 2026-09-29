@@ -9,11 +9,18 @@ import type { Kysely } from "kysely";
 
 import { after } from "../after.js";
 import { siteSettingsTag } from "../cache/chrome-tags.js";
+import { resolvePluginEncryptionKeys } from "../config/secrets.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
+import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
+import {
+	PluginSettingEncryptionError,
+	decryptPluginSetting,
+	isEncryptedPluginSetting,
+} from "../plugins/settings.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
 
@@ -26,10 +33,44 @@ import {
 	invalidateSingleFlightCache,
 	singleFlightCached,
 } from "../utils/single-flight-cache.js";
-import type { SiteSettings, SiteSettingKey, MediaReference, SeoSettings } from "./types.js";
+import type {
+	MediaReference,
+	SeoSettings,
+	SiteSettings,
+	SiteSettingsUpdate,
+	SiteSettingKey,
+} from "./types.js";
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
+
+function isPluginSettingEnvelopeRecord(value: unknown): value is Record<string, unknown> {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		!Array.isArray(value) &&
+		"$emdash" in value &&
+		value.$emdash === "plugin-setting"
+	);
+}
+
+async function decodePersistedPluginSetting(
+	pluginId: string,
+	key: string,
+	value: unknown,
+	encryptionKeys?: Awaited<ReturnType<typeof resolvePluginEncryptionKeys>>,
+): Promise<unknown> {
+	if (isEncryptedPluginSetting(value)) {
+		return decryptPluginSetting(pluginId, key, value, encryptionKeys);
+	}
+	if (isPluginSettingEnvelopeRecord(value)) {
+		throw new PluginSettingEncryptionError(
+			"PLUGIN_SETTING_DECRYPTION_FAILED",
+			"Plugin secret setting has an invalid encrypted envelope",
+		);
+	}
+	return value;
+}
 
 /**
  * Worker-isolate cache for the resolved `site:*` settings.
@@ -315,21 +356,37 @@ export async function getSiteSettingsWithDb(
  * ```
  */
 export async function setSiteSettings(
-	settings: Partial<SiteSettings>,
+	settings: SiteSettingsUpdate,
 	db: Kysely<Database>,
 ): Promise<void> {
-	const options = new OptionsRepository(db);
-
-	// Convert settings to options format
 	const updates: Record<string, unknown> = {};
+	const deletions: string[] = [];
+	const seo = settings.seo;
+
 	for (const [key, value] of Object.entries(settings)) {
-		if (value !== undefined) {
-			updates[`${SETTINGS_PREFIX}${key}`] = value;
-		}
+		if (value === undefined || (key === "seo" && seo?.defaultOgImage === null)) continue;
+		if (value === null) deletions.push(`${SETTINGS_PREFIX}${key}`);
+		else updates[`${SETTINGS_PREFIX}${key}`] = value;
 	}
 
 	try {
-		await options.setMany(updates);
+		await withTransaction(db, async (trx) => {
+			const transactionOptions = new OptionsRepository(trx);
+			await transactionOptions.setMany(updates);
+			await transactionOptions.deleteMany(deletions);
+
+			if (seo?.defaultOgImage === null) {
+				const existingSeo =
+					(await transactionOptions.get<SeoSettings>(`${SETTINGS_PREFIX}seo`)) ?? {};
+				const nextSeo = { ...existingSeo, ...seo };
+				delete nextSeo.defaultOgImage;
+				if (Object.keys(nextSeo).length === 0) {
+					await transactionOptions.delete(`${SETTINGS_PREFIX}seo`);
+				} else {
+					await transactionOptions.set(`${SETTINGS_PREFIX}seo`, nextSeo);
+				}
+			}
+		});
 	} finally {
 		invalidateSiteSettingsCache();
 	}
@@ -360,8 +417,10 @@ export async function getPluginSettingWithDb<T = unknown>(
 	db: Kysely<Database>,
 ): Promise<T | undefined> {
 	const options = new OptionsRepository(db);
-	const value = await options.get<T>(`plugin:${pluginId}:settings:${key}`);
-	return value ?? undefined;
+	const value = await options.get(`plugin:${pluginId}:settings:${key}`);
+	if (value === null) return undefined;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller supplies the expected plugin setting type
+	return (await decodePersistedPluginSetting(pluginId, key, value)) as T;
 }
 
 /**
@@ -388,13 +447,19 @@ export async function getPluginSettingsWithDb(
 	const options = new OptionsRepository(db);
 	const allOptions = await options.getByPrefix(prefix);
 
-	const settings: Record<string, unknown> = {};
-	for (const [key, value] of allOptions) {
-		if (!key.startsWith(prefix)) {
-			continue;
-		}
-		settings[key.slice(prefix.length)] = value;
-	}
-
-	return settings;
+	const entries = [...allOptions].filter(([key]) => key.startsWith(prefix));
+	const encryptionKeys = entries.some(([, value]) => isEncryptedPluginSetting(value))
+		? await resolvePluginEncryptionKeys()
+		: undefined;
+	return Object.fromEntries(
+		await Promise.all(
+			entries.map(async ([storedKey, value]) => {
+				const key = storedKey.slice(prefix.length);
+				return [
+					key,
+					await decodePersistedPluginSetting(pluginId, key, value, encryptionKeys),
+				] as const;
+			}),
+		),
+	);
 }

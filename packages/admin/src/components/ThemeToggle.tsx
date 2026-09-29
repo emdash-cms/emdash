@@ -1,45 +1,34 @@
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Sun, Moon, Monitor } from "@phosphor-icons/react";
-import * as React from "react";
+import { Sun, Moon } from "@phosphor-icons/react";
 
 import { useTheme } from "./ThemeProvider";
 
-/**
- * Theme toggle button that cycles through: system -> light -> dark
- */
 export function ThemeToggle() {
 	const { t } = useLingui();
-	const { theme, setTheme, resolvedTheme } = useTheme();
+	const { setTheme, resolvedTheme } = useTheme();
 
-	const cycleTheme = () => {
-		const order: ["system", "light", "dark"] = ["system", "light", "dark"];
-		const currentIndex = order.indexOf(theme);
-		const nextIndex = (currentIndex + 1) % order.length;
-		setTheme(order[nextIndex]!);
+	const toggleTheme = () => {
+		const nextTheme = resolvedTheme === "light" ? "dark" : "light";
+		const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+			? "dark"
+			: "light";
+		setTheme(nextTheme === systemTheme ? "system" : nextTheme);
 	};
 
-	const resolvedLabel = resolvedTheme === "light" ? t`light` : t`dark`;
-	const label =
-		theme === "system" ? t`System (${resolvedLabel})` : theme === "light" ? t`Light` : t`Dark`;
+	const label = resolvedTheme === "light" ? t`Switch to dark` : t`Switch to light`;
 
 	return (
 		<Button
 			variant="ghost"
 			shape="square"
 			size="sm"
-			aria-label={t`Toggle theme (current: ${label})`}
-			onClick={cycleTheme}
-			title={t`Theme: ${label}`}
+			aria-label={label}
+			onClick={toggleTheme}
+			title={label}
 		>
-			{theme === "system" ? (
-				<Monitor className="h-4 w-4" />
-			) : theme === "light" ? (
-				<Sun className="h-4 w-4" />
-			) : (
-				<Moon className="h-4 w-4" />
-			)}
-			<span className="sr-only">{t`Toggle theme (current: ${label})`}</span>
+			{resolvedTheme === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+			<span className="sr-only">{label}</span>
 		</Button>
 	);
 }

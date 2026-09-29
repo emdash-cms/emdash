@@ -243,7 +243,7 @@ describe("delegated release Action", () => {
 			"GITHUB_WORKFLOW_REF",
 			"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
 		);
-		runtime.environment.set("GITHUB_REPOSITORY_VISIBILITY", "public");
+		runtime.inputs.set("repository-visibility", "public");
 		const prepared = preparedFiles();
 		const requests: Request[] = [];
 		const responses = sequenceFetch([
@@ -321,7 +321,7 @@ describe("delegated release Action", () => {
 			"GITHUB_WORKFLOW_REF",
 			"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
 		);
-		runtime.environment.set("GITHUB_REPOSITORY_VISIBILITY", "public");
+		runtime.inputs.set("repository-visibility", "public");
 		const requests: Request[] = [];
 		await executeAction(runtime, {
 			prepareReleaseFiles: async () => preparedFiles(),
@@ -388,6 +388,9 @@ describe("delegated release Action", () => {
 
 		expect(result.state).toBe("awaiting_approval");
 		expect(runtime.outputs.get("approval-url")).toBe(approvalUrl);
+		expect(runtime.summaries).toContain(
+			`## Approve gallery 1.2.3\n\n[Open EmDash to review and approve the release](${approvalUrl})`,
+		);
 		expect(runtime.failures).toEqual([]);
 	});
 

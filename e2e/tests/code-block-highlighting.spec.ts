@@ -94,6 +94,94 @@ test.describe("Admin code block highlighting", () => {
 		await expect(language).toBeFocused();
 		await expect(controls).toHaveCSS("opacity", "1");
 	});
+
+	test("keeps the language picker accessible and visible on a small viewport", async ({
+		admin,
+	}) => {
+		const page = admin.page;
+		await page.setViewportSize({ width: 320, height: 568 });
+		const node = page.locator(".emdash-code-block-node").first();
+		const trigger = node.getByRole("button", { name: /^Set language/ });
+		await node.scrollIntoViewIfNeeded();
+		await trigger.focus();
+		await page.keyboard.press("Enter");
+
+		const popup = page.locator(".emdash-code-language-popover");
+		const input = page.getByRole("combobox", { name: "Language" });
+		await expect(input).toBeVisible();
+		await expect(page.getByRole("option", { name: "JavaScript" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+		const [popupBox, inputBox] = await Promise.all([popup.boundingBox(), input.boundingBox()]);
+		expect(popupBox).not.toBeNull();
+		expect(inputBox).not.toBeNull();
+		expect(popupBox!.y).toBeGreaterThanOrEqual(0);
+		expect(popupBox!.y + popupBox!.height).toBeLessThanOrEqual(568);
+		expect(inputBox!.y).toBeGreaterThanOrEqual(0);
+
+		await page.keyboard.press("Escape");
+		await expect(trigger).toBeFocused();
+		await expect(trigger).toHaveCSS("outline-width", "2px");
+	});
+
+	test("animates dismissal and removes scale motion when reduced motion is requested", async ({
+		admin,
+	}) => {
+		const page = admin.page;
+		const node = page.locator(".emdash-code-block-node").first();
+		const trigger = node.getByRole("button", { name: /^Set language/ });
+		await node.scrollIntoViewIfNeeded();
+		await trigger.focus();
+		await page.keyboard.press("Enter");
+		const popupLocator = page.locator(".emdash-code-language-popover");
+		await expect(popupLocator).toBeVisible();
+		await popupLocator.evaluate(
+			(element) =>
+				new Promise<void>((resolve, reject) => {
+					requestAnimationFrame(() => {
+						void Promise.all(element.getAnimations().map((animation) => animation.finished)).then(
+							() => resolve(),
+							reject,
+						);
+					});
+				}),
+		);
+
+		const stayedMounted = await page.evaluate(() => {
+			const popupElement = document.querySelector<HTMLElement>(".emdash-code-language-popover");
+			const button = document.querySelector<HTMLElement>(
+				'.emdash-code-block-controls [aria-label^="Set language"]',
+			);
+			button?.click();
+			return popupElement?.isConnected ?? false;
+		});
+		expect(stayedMounted).toBe(true);
+		const closingState = await page.evaluate(
+			() =>
+				new Promise<{ connected: boolean; ending: boolean }>((resolve) => {
+					requestAnimationFrame(() => {
+						const popupElement = document.querySelector<HTMLElement>(
+							".emdash-code-language-popover",
+						);
+						resolve({
+							connected: popupElement?.isConnected ?? false,
+							ending: popupElement?.hasAttribute("data-ending-style") ?? false,
+						});
+					});
+				}),
+		);
+		expect(closingState).toEqual({ connected: true, ending: true });
+		await expect(page.locator(".emdash-code-language-popover")).toHaveCount(0);
+
+		await page.emulateMedia({ reducedMotion: "reduce" });
+		await trigger.focus();
+		await page.keyboard.press("Enter");
+		const reducedPopup = page.locator(".emdash-code-language-popover");
+		await expect(reducedPopup).toBeVisible();
+		await expect(reducedPopup).toHaveCSS("transition-duration", "0s");
+		await expect(reducedPopup).toHaveCSS("transform", "none");
+	});
 });
 
 test("keeps public code block rendering unchanged", async ({ page }) => {

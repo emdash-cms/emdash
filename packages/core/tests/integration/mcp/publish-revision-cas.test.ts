@@ -3,6 +3,8 @@ import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import type { ContentPolicyEvent } from "../../../src/plugins/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -196,5 +198,42 @@ describe("MCP conditional content publication", () => {
 		expect(
 			results.filter((result) => result.isError && /CONFLICT/.test(extractText(result))),
 		).toHaveLength(1);
+	});
+
+	it("identifies MCP publication to policy hooks", async () => {
+		await harness.cleanup();
+		const events: ContentPolicyEvent[] = [];
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: {
+				plugins: [
+					definePlugin({
+						id: "mcp-policy",
+						version: "1.0.0",
+						capabilities: ["hooks.content-policy:register"],
+						hooks: {
+							"content:beforePublish": async (event) => {
+								events.push(event);
+							},
+						},
+					}),
+				],
+			},
+		});
+		const created = await createDraft();
+
+		const result = await harness.client.callTool({
+			name: "content_publish",
+			arguments: { collection: "post", id: created.item.id, _rev: created._rev },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			origin: { source: "mcp" },
+			actor: { id: ADMIN_ID, role: Role.ADMIN, source: "mcp" },
+		});
 	});
 });

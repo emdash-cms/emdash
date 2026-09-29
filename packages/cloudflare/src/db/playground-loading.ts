@@ -458,7 +458,9 @@ export function renderPlaygroundLoadingPage(): string {
       });
   }
 
-  document.getElementById("pg-retry").addEventListener("click", init);
+  document.getElementById("pg-retry").addEventListener("click", function() {
+    location.replace("/_playground/reset");
+  });
 
   init();
 })();

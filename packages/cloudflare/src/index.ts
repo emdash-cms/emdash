@@ -39,6 +39,7 @@ import type {
 	ObjectCacheDescriptor,
 	StorageDescriptor,
 } from "emdash";
+import { unstable_readConfig } from "wrangler";
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
@@ -289,7 +290,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		config,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/d1-migrations",
 			manifestConfig: { binding: config.binding },
 		},
 		supportsRequestScope: true,
@@ -389,7 +390,7 @@ export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 		},
 		type: "postgres",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/hyperdrive-migrations",
 			manifestConfig: { binding, connectionStringEnv },
 		},
 		// Each request gets a fresh pg connection that is closed afterwards —
@@ -529,15 +530,31 @@ export function access(config: AccessConfig): AuthDescriptor {
 /**
  * Cloudflare Worker Loader sandbox adapter
  *
- * Returns the module path for the Cloudflare sandbox runner.
- * Use this in the `sandboxRunner` config option.
+ * Returns the module path for the Cloudflare sandbox runner when the project's
+ * Wrangler config includes the `LOADER` Worker Loader binding. Without that
+ * paid-plan binding, sandboxed plugins are disabled at build time.
  *
  * @example
  * ```ts
  * sandboxRunner: sandbox()
  * ```
  */
-export function sandbox(): string {
+export function sandbox(): string | undefined {
+	const environment = process.env.CLOUDFLARE_ENV;
+	const config = unstable_readConfig(environment ? { env: environment } : {}, {
+		hideWarnings: true,
+	});
+	const hasWorkerLoader = config.worker_loaders?.some(
+		(loader: { binding?: string }) => loader.binding === "LOADER",
+	);
+
+	if (!hasWorkerLoader) {
+		console.warn(
+			"[emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding. Worker Loader requires a Workers paid plan.",
+		);
+		return undefined;
+	}
+
 	return "@emdash-cms/cloudflare/sandbox";
 }
 
@@ -605,8 +622,3 @@ export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
 // Re-export media providers (config-time)
 export { cloudflareImages, type CloudflareImagesConfig } from "./media/images.js";
 export { cloudflareStream, type CloudflareStreamConfig } from "./media/stream.js";
-
-// Legacy Cache API + zone REST purge provider (config-time). Prefer
-// cacheCloudflare() from @astrojs/cloudflare/cache with wrangler
-// "cache": { "enabled": true } for native Workers Caching.
-export { cloudflareCache, type CloudflareCacheConfig } from "./cache/config.js";

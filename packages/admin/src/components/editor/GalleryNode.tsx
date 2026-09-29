@@ -21,6 +21,7 @@ import {
 	canonicalMediaProviderId,
 	getMediaObjectPosition,
 	getMediaPreviewUrl,
+	localMediaFileUrl,
 } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 
@@ -79,7 +80,7 @@ declare module "@tiptap/react" {
 /** Resolve the admin preview URL for a gallery image. */
 export function galleryImageUrl(image: GalleryImage): string {
 	if (image.asset.url) return image.asset.url;
-	if (image.asset._ref) return `/_emdash/api/media/file/${encodeURIComponent(image.asset._ref)}`;
+	if (image.asset._ref) return localMediaFileUrl(image.asset._ref);
 	return "";
 }
 

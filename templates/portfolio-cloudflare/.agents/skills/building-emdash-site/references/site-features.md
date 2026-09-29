@@ -3,7 +3,7 @@
 ## Site Settings
 
 ```typescript
-import { getSiteSettings, getSiteSetting } from "emdash";
+import { getSiteSettings, getSiteSettingsWithCacheHint, getSiteSetting } from "emdash";
 
 // All settings
 const settings = await getSiteSettings();
@@ -14,6 +14,10 @@ settings.favicon?.url;
 
 // Single setting
 const title = await getSiteSetting("title");
+
+// Cached route: register invalidation for settings changes
+const { data: cachedSettings, cacheHint } = await getSiteSettingsWithCacheHint();
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ```
 
 Available keys: `title`, `tagline`, `logo`, `favicon`, `social`, `timezone`, `dateFormat`.
@@ -23,13 +27,17 @@ Use these instead of hard-coding site name, logo, etc.
 ## Navigation Menus
 
 ```typescript
-import { getMenu, getMenus } from "emdash";
+import { getMenu, getMenuWithCacheHint, getMenus } from "emdash";
 
 // Fetch a named menu
 const menu = await getMenu("primary");
 
 // List all menus
 const menus = await getMenus();
+
+// Cached route
+const { data: primaryMenu, cacheHint } = await getMenuWithCacheHint("primary");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ```
 
 ### Rendering a menu
@@ -41,7 +49,11 @@ const primaryMenu = await getMenu("primary");
 ---
 <nav>
 	{primaryMenu?.items.map(item => (
-		<a href={item.url} target={item.target}>{item.label}</a>
+		<a
+			href={item.url}
+			target={item.target}
+			rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+		>{item.label}</a>
 	))}
 </nav>
 ```
@@ -78,11 +90,23 @@ interface MenuItem {
 ## Taxonomies
 
 ```typescript
-import { getTaxonomyTerms, getTerm, getEntryTerms, getEntriesByTerm } from "emdash";
+import {
+	getTaxonomyTerms,
+	getTaxonomyTermsWithCacheHint,
+	getTerm,
+	getEntryTerms,
+	getEntriesByTerm,
+} from "emdash";
 
 // All terms in a taxonomy (name must match your seed's "name" field exactly)
 const categories = await getTaxonomyTerms("category");
 const tags = await getTaxonomyTerms("tag");
+
+// Cached taxonomy archive or facet
+const { data: cachedCategories, cacheHint } = await getTaxonomyTermsWithCacheHint("category", {
+	includeCounts: false,
+});
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Single term by slug
 const term = await getTerm("category", "news");
@@ -104,7 +128,7 @@ const newsPosts = await getEntriesByTerm("posts", "category", "news");
 
 ```astro
 ---
-const tags = await getEntryTerms("posts", post.data.id, "tag");
+const tags = post.data.terms?.tag ?? [];
 ---
 {tags.map(t => (
 	<a href={`/tag/${t.slug}`}>{t.label}</a>
@@ -134,6 +158,8 @@ import { WidgetArea } from "emdash/ui";
 	<WidgetArea name="sidebar" />
 </aside>
 ```
+
+`WidgetArea` registers its widget-area cache hint when Astro's route cache is enabled.
 
 The `WidgetArea` component automatically renders all widgets in the area (search, categories, tags, recent posts, rich text, etc.) with appropriate HTML and CSS classes.
 
@@ -209,10 +235,10 @@ const results = await search("hello world", {
 	status: "published",
 	limit: 20,
 });
-// { results: SearchResult[], total, nextCursor? }
+// { items: SearchResult[], nextCursor? }
 ```
 
-Each result has: `collection`, `id`, `title`, `slug`, `snippet` (HTML with `<mark>` highlights), `score`.
+Each item has: `collection`, `id`, `title`, `slug`, `locale`, `snippet` (sanitized HTML with `<mark>` highlights), and `score`.
 
 ### Search page
 
@@ -257,7 +283,20 @@ Search requires per-collection enablement:
 
 ## SEO Meta
 
-Generate SEO meta from content entries:
+> [!IMPORTANT]
+> On server-rendered content pages that fetch the entry with `getEmDashEntry()`
+> and render `<EmDashHead>`, EmDash automatically applies the SEO panel's
+> description, image, canonical URL, and noindex setting. The panel title
+> supplies the social and JSON-LD title contributions. The panel data uses the
+> entry query the page already runs, so it adds no additional query.
+>
+> `<EmDashHead>` cannot set the document `<title>`, so use `getSeoMeta()` for
+> the title. Prerendered pages, pages without `<EmDashHead>`, hand-rolled query
+> paths, and multi-entry collection results do not receive this overlay. Use
+> `getSeoMeta()` or the raw SEO data on those paths.
+
+Use `getSeoMeta()` when the template needs to set `<title>` or the page does not
+receive the automatic overlay:
 
 ```typescript
 import { getSeoMeta } from "emdash";
@@ -268,18 +307,30 @@ const seo = getSeoMeta(post, {
 	path: `/posts/${slug}`,
 	defaultOgImage: featuredImageUrl, // Optional fallback
 });
-
-// Returns: { title, description, canonical, ogImage, robots }
 ```
 
 Use in your layout's `<head>`:
 
 ```astro
 <title>{seo.title}</title>
-<meta name="description" content={seo.description} />
-<link rel="canonical" href={seo.canonical} />
-<meta property="og:image" content={seo.ogImage} />
+{seo.description && <meta name="description" content={seo.description} />}
+{seo.canonical && <link rel="canonical" href={seo.canonical} />}
+{seo.ogImage && <meta property="og:image" content={seo.ogImage} />}
 {seo.robots && <meta name="robots" content={seo.robots} />}
+```
+
+### Custom title and description defaults
+
+Pass computed fallbacks through `defaultTitle` and `defaultDescription`. Values
+set in the SEO panel take precedence over these defaults:
+
+```ts
+import { getSeoMeta } from "emdash";
+
+const seo = getSeoMeta(post, {
+	defaultTitle: `${post.data.title}: A practical guide`,
+	defaultDescription: `Read ${post.data.title} on My Blog.`,
+});
 ```
 
 ## Comments

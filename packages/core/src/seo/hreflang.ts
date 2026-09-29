@@ -27,7 +27,7 @@ import type { Kysely } from "kysely";
 import { ContentRepository } from "../database/repositories/content.js";
 import type { Database } from "../database/types.js";
 import { getI18nConfig, isI18nEnabled } from "../i18n/config.js";
-import { interpolateUrlPattern, localizePath } from "../i18n/resolve.js";
+import { resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
 import { requestCached } from "../request-cache.js";
 import { getCollectionInfoWithDb } from "../schema/query.js";
 import { getSiteSettingsWithDb } from "../settings/index.js";
@@ -73,6 +73,8 @@ export interface HreflangOptions {
 	 * requires fully-qualified URLs.
 	 */
 	siteUrl?: string;
+	/** Astro's route trailing-slash policy. */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -98,7 +100,7 @@ export async function getHreflangAlternates(
 	options: HreflangOptions = {},
 ): Promise<HreflangAlternate[]> {
 	if (!isI18nEnabled()) return [];
-	const key = `hreflang:${collection}:${entryId}:${options.siteUrl ?? ""}`;
+	const key = `hreflang:${collection}:${entryId}:${options.siteUrl ?? ""}:${options.trailingSlash ?? "ignore"}`;
 	return requestCached(key, async () => {
 		const { getDb } = await import("../loader.js");
 		const db = await getDb();
@@ -162,16 +164,17 @@ export async function getHreflangAlternatesWithDb(
 	const resolved: Array<{ locale: string; href: string }> = [];
 	for (const variant of published) {
 		const locale = variant.locale || "en";
-		const path = interpolateUrlPattern({
+		const path = await resolveLocalizedContentRoutePath({
 			pattern: urlPattern,
 			collection,
 			slug: variant.slug || variant.id,
 			id: variant.id,
 			date: variant.publishedAt,
+			locale,
+			trailingSlash: options.trailingSlash,
 		});
-		const localized = await localizePath(path, locale);
-		if (localized === null) continue;
-		resolved.push({ locale, href: `${siteUrl}${localized}` });
+		if (path === null) continue;
+		resolved.push({ locale, href: `${siteUrl}${path}` });
 	}
 	if (resolved.length === 0) return [];
 

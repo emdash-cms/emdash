@@ -119,4 +119,4 @@ Create `src/layouts/Base.astro` with:
 }
 ```
 
-See `references/design-extraction.md` for detailed extraction techniques.
+Record which values come from source CSS, `theme.json`, computed styles, or a deliberate substitution. Verify the resulting tokens at the same viewports used during discovery.

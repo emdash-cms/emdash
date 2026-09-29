@@ -1,17 +1,19 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
+import { CONTENT_SOURCE_SCHEMA_VERSION } from "../../../src/media/usage/types.js";
 
 interface CapturedQuery {
 	sql: string;
 	parameters: readonly unknown[];
 }
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let repo: MediaUsageRepository;
 let captured: CapturedQuery[];
@@ -55,7 +57,7 @@ it("keeps aggregate progress to one indexed metadata statement as collections gr
 					scope_type: "collection",
 					scope_key: collection.slug,
 					status: "complete",
-					schema_version: 1,
+					schema_version: CONTENT_SOURCE_SCHEMA_VERSION,
 					collection_id: collection.id,
 					reconciliation_required: 0,
 					capture_state: "active",

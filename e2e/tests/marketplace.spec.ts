@@ -1,115 +1,184 @@
-/**
- * Plugin Marketplace E2E Tests
- *
- * Tests the plugin marketplace admin pages:
- * - Browse page at /plugins/marketplace
- * - Detail page at /plugins/marketplace/{pluginId}
- *
- * These tests run against a mock marketplace server (port 4445) that serves
- * canned plugin data. The proxy endpoints in the EmDash admin forward
- * requests to the mock, so we're testing the full UI flow.
- */
+import { expect, test } from "../fixtures";
 
-import { test, expect } from "../fixtures";
-
-// URL patterns (module scope for e18e/prefer-static-regex)
-const PLUGIN_DETAIL_URL_PATTERN = /\/plugins\/marketplace\/seo-toolkit/;
-const MARKETPLACE_BROWSE_URL_PATTERN = /\/plugins\/marketplace\/?$/;
-
-test.describe("Plugin Marketplace", () => {
+test.describe("Registry cutover", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
 	});
 
-	test.describe("Browse page", () => {
-		test("renders marketplace page with plugin cards", async ({ admin, page }) => {
-			await admin.goto("/plugins/marketplace");
-			await admin.waitForShell();
-			await admin.waitForLoading();
+	test("shows registry as the only plugin discovery path", async ({ admin, page }) => {
+		await admin.goto("/");
+		await admin.waitForShell();
 
-			// Wait for at least one plugin card to appear (the mock serves SEO Toolkit)
-			await expect(page.getByText("SEO Toolkit")).toBeVisible({ timeout: 15000 });
-		});
-
-		test("plugin card shows name, author, version", async ({ admin, page }) => {
-			await admin.goto("/plugins/marketplace");
-			await admin.waitForShell();
-			await admin.waitForLoading();
-
-			// Wait for cards to load
-			await expect(page.getByText("SEO Toolkit")).toBeVisible({ timeout: 15000 });
-
-			// The card is a link element containing plugin info
-			const seoCard = page.locator("a", { hasText: "SEO Toolkit" }).first();
-
-			// Author
-			await expect(seoCard.getByText("Labs")).toBeVisible();
-
-			// Version
-			await expect(seoCard.getByText("v2.1.0")).toBeVisible();
-		});
-
-		test("search filters plugins by name", async ({ admin, page }) => {
-			await admin.goto("/plugins/marketplace");
-			await admin.waitForShell();
-			await admin.waitForLoading();
-
-			await expect(page.getByText("SEO Toolkit")).toBeVisible({ timeout: 15000 });
-
-			// Type in the search box
-			const searchInput = page.getByPlaceholder("Search plugins...");
-			await searchInput.fill("nonexistent-plugin-xyz");
-
-			// Wait for the debounced search to complete
-			await page.waitForTimeout(1000);
-
-			// No plugins should match
-			await expect(page.getByText("SEO Toolkit")).not.toBeVisible({ timeout: 5000 });
-		});
+		await expect(page.getByRole("link", { name: "Registry" })).toHaveAttribute(
+			"href",
+			"/_emdash/admin/plugins/registry",
+		);
+		await expect(page.getByRole("link", { name: "Marketplace", exact: true })).toHaveCount(0);
+		await expect(page.getByRole("link", { name: "Themes", exact: true })).toHaveCount(0);
 	});
 
-	test.describe("Plugin detail page", () => {
-		test("navigates to detail page on card click", async ({ admin, page }) => {
-			await admin.goto("/plugins/marketplace");
-			await admin.waitForShell();
-			await admin.waitForLoading();
+	test("does not expose the legacy marketplace browse route", async ({ admin, page }) => {
+		await admin.goto("/plugins/marketplace");
+		await admin.waitForShell();
 
-			// Wait for cards
-			const seoCard = page.locator("a", { hasText: "SEO Toolkit" }).first();
-			await expect(seoCard).toBeVisible({ timeout: 15000 });
+		await expect(page.getByRole("heading", { name: "Page Not Found" })).toBeVisible();
+		await expect(page.getByText("Marketplace browsing is no longer available.")).toBeVisible();
+	});
 
-			// Click the card
-			await seoCard.click();
+	test("shows marketplace migration guidance only on the admin dashboard", async ({
+		admin,
+		page,
+	}) => {
+		await admin.goto("/");
+		await admin.waitForShell();
 
-			// URL should include the plugin ID
-			await expect(page).toHaveURL(PLUGIN_DETAIL_URL_PATTERN, { timeout: 10000 });
+		await expect(page.getByText("Marketplace configuration is deprecated")).toBeVisible();
+		await expect(page.getByRole("link", { name: "Migration guide" })).toHaveAttribute(
+			"href",
+			"https://docs.emdashcms.com/plugins/migrate-from-marketplace/",
+		);
+
+		await admin.goto("/plugins/registry");
+		await expect(page.getByText("Marketplace configuration is deprecated")).toHaveCount(0);
+	});
+
+	test("does not expose legacy marketplace plugin details", async ({ admin, page }) => {
+		await admin.goto("/plugins/marketplace/seo-toolkit");
+		await admin.waitForShell();
+
+		await expect(page.getByRole("heading", { name: "Page Not Found" })).toBeVisible();
+		await expect(
+			page.getByText(
+				"Marketplace browsing is no longer available. Manage installed plugins from Plugins.",
+			),
+		).toBeVisible();
+	});
+
+	test("verifies a registry plugin before showing installation consent", async ({
+		admin,
+		page,
+	}) => {
+		test.setTimeout(90_000);
+		await page.addInitScript(() => {
+			localStorage.setItem(
+				"emdash:did-handle:did:plc:delegated00000000000000",
+				JSON.stringify({
+					resolution: { status: "missing" },
+					expiresAt: Date.now() + 60_000,
+				}),
+			);
 		});
+		await admin.goto("/plugins/registry/did:plc:delegated00000000000000/gallery");
+		await admin.waitForShell();
 
-		test("detail page shows plugin info", async ({ admin, page }) => {
-			await admin.goto("/plugins/marketplace/seo-toolkit");
-			await admin.waitForShell();
-			await admin.waitForLoading();
+		await expect(page.getByRole("heading", { name: "Gallery" })).toBeVisible({ timeout: 15_000 });
+		await page.getByLabel("Version").click();
+		await page.getByRole("option", { name: "1.2.3" }).click();
+		const verificationResponse = page.waitForResponse(
+			(response) =>
+				response.url().endsWith("/_emdash/api/admin/plugins/registry/verify") &&
+				response.request().method() === "POST",
+		);
+		await page.getByRole("button", { name: "Install", exact: true }).click();
 
-			// Plugin name in heading (use first() since sidebar may also have an h1)
-			await expect(page.locator("h1").first()).toContainText("SEO Toolkit", { timeout: 15000 });
-
-			// Author
-			await expect(page.getByText("EmDash Labs").first()).toBeVisible();
+		const response = await verificationResponse;
+		expect(response.status()).toBe(200);
+		await expect(response.json()).resolves.toMatchObject({
+			success: true,
+			data: {
+				version: "1.2.3",
+				verification: {
+					profileCid: "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe",
+					provenance: "absent-optional",
+				},
+			},
 		});
+		const dialog = page.getByRole("dialog", { name: "Capability consent" });
+		await expect(dialog.getByRole("heading", { name: "Review Verified Plugin" })).toBeVisible();
+		await expect(
+			dialog.getByText(
+				"The signed publisher records and package are valid. Build provenance was not provided.",
+			),
+		).toBeVisible();
+		await expect(
+			dialog.getByText("bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe"),
+		).toBeHidden();
 
-		test("back link navigates to browse page", async ({ admin, page }) => {
-			await admin.goto("/plugins/marketplace/seo-toolkit");
-			await admin.waitForShell();
-			await admin.waitForLoading();
+		const installResponse = page.waitForResponse(
+			(candidate) =>
+				candidate.url().endsWith("/_emdash/api/admin/plugins/registry/install") &&
+				candidate.request().method() === "POST",
+		);
+		await dialog.getByRole("button", { name: "Accept & Install" }).click();
+		expect((await installResponse).status()).toBe(201);
+		await expect(dialog).toBeHidden();
+		await expect(page.getByRole("button", { name: "Installed" })).toBeDisabled();
 
-			await expect(page.locator("h1").first()).toContainText("SEO Toolkit", { timeout: 15000 });
+		const pluginsResponse = await page.request.get("/_emdash/api/admin/plugins");
+		expect(pluginsResponse.status()).toBe(200);
+		const plugins = (await pluginsResponse.json()) as {
+			data: {
+				items: Array<{
+					id: string;
+					source?: string;
+					registryPublisherDid?: string;
+					registrySlug?: string;
+				}>;
+			};
+		};
+		const installed = plugins.data.items.find(
+			(item) =>
+				item.source === "registry" &&
+				item.registryPublisherDid === "did:plc:delegated00000000000000" &&
+				item.registrySlug === "gallery",
+		);
+		expect(installed).toBeDefined();
 
-			// Click the back link (look for any link going back to marketplace)
-			const backLink = page.locator("a", { hasText: "Marketplace" }).first();
-			await backLink.click();
+		const pluginPath = encodeURIComponent(installed!.id);
+		await admin.goto(`/plugins/${pluginPath}/overview`);
+		await admin.waitForLoading();
+		await expect(page.getByRole("heading", { name: "Installed Gallery 1.2.3" })).toBeVisible();
+		const hello = await page.request.get(`/_emdash/api/plugins/${pluginPath}/hello`);
+		await expect(hello.json()).resolves.toMatchObject({ data: { version: "1.2.3" } });
 
-			// Should navigate back to browse page
-			await expect(page).toHaveURL(MARKETPLACE_BROWSE_URL_PATTERN, { timeout: 10000 });
-		});
+		await admin.goto("/plugins-manager");
+		await admin.waitForLoading();
+		const card = page.locator(".rounded-lg.border.bg-kumo-base", { hasText: "Gallery" }).first();
+		await expect(card).toBeVisible();
+		await card.getByRole("switch", { name: "Disable plugin" }).click();
+		await expect(card.getByText("Disabled", { exact: true })).toBeVisible();
+		expect((await page.request.get(`/_emdash/api/plugins/${pluginPath}/hello`)).status()).toBe(404);
+		await card.getByRole("switch", { name: "Enable plugin" }).click();
+		await expect(card.getByText("Disabled", { exact: true })).toHaveCount(0);
+		const reenabledHello = await page.request.get(`/_emdash/api/plugins/${pluginPath}/hello`);
+		expect(reenabledHello.status(), await reenabledHello.text()).toBe(200);
+
+		await page.getByRole("button", { name: "Check for updates" }).click();
+		await card.getByRole("button", { name: "Update to v1.3.0" }).click();
+		const updateDialog = page.getByRole("dialog", { name: "Capability consent" });
+		await expect(
+			updateDialog.getByRole("heading", { name: "Review Verified Update" }),
+		).toBeVisible();
+		await expect(updateDialog.getByText(/media/i).first()).toBeVisible();
+		await updateDialog.getByRole("button", { name: "Accept & Update" }).click();
+		await expect(page.getByText("Plugin updated", { exact: true })).toBeVisible();
+		await expect(card.getByText("v1.3.0", { exact: true })).toBeVisible();
+
+		await admin.goto(`/plugins/${pluginPath}/overview`);
+		await admin.waitForLoading();
+		await expect(page.getByRole("heading", { name: "Installed Gallery 1.3.0" })).toBeVisible();
+
+		await admin.goto("/plugins-manager");
+		await admin.waitForLoading();
+		const updatedCard = page
+			.locator(".rounded-lg.border.bg-kumo-base", { hasText: "Gallery" })
+			.first();
+		await updatedCard.getByRole("button", { name: "Expand details" }).click();
+		await updatedCard.getByRole("button", { name: "Uninstall", exact: true }).click();
+		const uninstallDialog = page.getByRole("dialog", { name: "Uninstall confirmation" });
+		await uninstallDialog.getByText("Also delete plugin storage data").click();
+		await uninstallDialog.getByRole("button", { name: "Uninstall", exact: true }).click();
+		await expect(page.getByText("Plugin uninstalled", { exact: true })).toBeVisible();
+		await expect(updatedCard).toHaveCount(0);
 	});
 });

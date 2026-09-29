@@ -247,7 +247,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 			const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 			const result = await harness.client.callTool({
 				name: "content_schedule",
-				arguments: { collection: "post", id: item.id, scheduledAt: future },
+				arguments: {
+					collection: "post",
+					id: item.id,
+					scheduledAt: future,
+					_rev: await currentRev(harness.client, "post", item.id),
+				},
 			});
 
 			expect(result.isError, extractText(result)).toBeFalsy();

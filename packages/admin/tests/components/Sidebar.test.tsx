@@ -41,6 +41,7 @@ import {
 	getSidebarTaxonomies,
 	isItemActive,
 	NavIcon,
+	parseFolderState,
 	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
@@ -167,6 +168,22 @@ describe("filterNavItemsByRole", () => {
 		// must strip every gated entry at role=0.
 		const visible = filterNavItemsByRole(items, 0).map((i) => i.to);
 		expect(visible).toEqual(["/"]);
+	});
+});
+
+describe("parseFolderState", () => {
+	it("keeps only label → boolean pairs from the stored value", () => {
+		expect(parseFolderState('{"Calendar":false,"Club":true,"x":"yes","y":1}')).toEqual({
+			Calendar: false,
+			Club: true,
+		});
+	});
+
+	it("treats missing, malformed, or non-object storage as no choices", () => {
+		expect(parseFolderState(null)).toEqual({});
+		expect(parseFolderState("{oops")).toEqual({});
+		expect(parseFolderState("[true]")).toEqual({});
+		expect(parseFolderState("null")).toEqual({});
 	});
 });
 

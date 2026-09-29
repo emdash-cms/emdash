@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { cn, parseTimestamp, slugify } from "../../src/lib/utils";
+import { cn, formatRelativeTime, parseTimestamp, slugify } from "../../src/lib/utils";
 
 describe("slugify", () => {
 	it("converts basic text to slug", () => {
@@ -105,5 +105,22 @@ describe("parseTimestamp", () => {
 
 	it("treats a Postgres hour-only offset as already zoned", () => {
 		expect(parseTimestamp("2026-05-03 17:26:23+00").toISOString()).toBe("2026-05-03T17:26:23.000Z");
+	});
+});
+
+describe("formatRelativeTime", () => {
+	const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+
+	it("formats recent times in the admin locale", () => {
+		expect(formatRelativeTime(minutesAgo(5), "de")).toBe("vor 5 Minuten");
+		expect(formatRelativeTime(minutesAgo(3 * 60), "fr")).toBe("il y a 3 heures");
+		expect(formatRelativeTime(minutesAgo(3 * 24 * 60), "en")).toBe("3 days ago");
+	});
+
+	it("treats a SQLite timestamp without a timezone as UTC", () => {
+		const sqlite = minutesAgo(5)
+			.replace("T", " ")
+			.replace(/\.\d+Z$/, "");
+		expect(formatRelativeTime(sqlite, "en")).toBe("5 minutes ago");
 	});
 });

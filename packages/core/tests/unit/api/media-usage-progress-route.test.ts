@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { injectCoreRoutes } from "../../../src/astro/integration/routes.js";
 import { GET, POST } from "../../../src/astro/routes/api/admin/media-usage/progress.js";
 import * as maintenanceEngine from "../../../src/media/usage/maintenance-engine.js";
+import { CONTENT_SOURCE_SCHEMA_VERSION } from "../../../src/media/usage/types.js";
 import {
 	setupForDialectWithCollections,
 	teardownForDialect,
@@ -30,7 +31,7 @@ describe("admin media usage progress route", () => {
 					collection_id: collection.id,
 					capture_state: "active",
 					status: "complete",
-					schema_version: 1,
+					schema_version: CONTENT_SOURCE_SCHEMA_VERSION,
 					reconciliation_required: 0,
 				})
 				.where("adapter_id", "=", "content-media")

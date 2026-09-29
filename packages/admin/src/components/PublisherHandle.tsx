@@ -1,9 +1,9 @@
 /**
- * Publisher identity for ordinary registry views.
+ * Publisher byline for a registry package detail view.
  *
- * Mutable handles are outside the package-profile CID's moderation boundary,
- * so browse and detail pages render only an approved author name or a stable,
- * shortened DID. Routing likewise uses the full DID.
+ * Public `@handle/slug` names and links are rendered by
+ * `RegistryPluginIdentity`; this component keeps the separately approved
+ * author-name or stable-DID fallback used by the "Published by" line.
  */
 
 export interface PublisherIdentityProfile {

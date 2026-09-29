@@ -77,11 +77,11 @@ The package profile supplies the stable information shown across releases.
 | Field | Required | Rules |
 | --- | --- | --- |
 | `license` | Yes | Non-empty SPDX expression, up to 256 characters. |
-| `author` or `authors` | Yes | Use one form. `author` has `name` and optional `url` or `email`; `authors` accepts 1–32 entries. |
+| `author` or `authors` | Yes | Use one form. `author` has a `name` of up to 64 graphemes and an optional `url` or `email`; `authors` accepts 1–32 entries. |
 | `security` or `securityContacts` | Yes | Use one form. Each contact must contain an `email`, a `url`, or both; the list accepts 1–8 entries. |
-| `name` | No | Display name, up to 1,024 characters. The slug is used when this is absent. |
-| `description` | No | Short description, up to 1,024 characters. Keep it near the 140-grapheme registry convention so lists do not need to truncate it. |
-| `keywords` | No | Up to five non-empty strings, each no longer than 128 characters. |
+| `name` | No | Display name, up to 100 graphemes. The slug is used when this is absent. |
+| `description` | No | Short description, up to 140 graphemes. |
+| `keywords` | No | Up to five non-empty strings, each no longer than 64 graphemes. |
 | `sections` | No | Long-form CommonMark sections for `description`, `installation`, `faq`, `changelog`, and `security`. |
 
 Each section can be an inline string or a file reference relative to the manifest:

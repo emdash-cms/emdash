@@ -13,7 +13,11 @@
  */
 
 import { env } from "cloudflare:workers";
-import type { CollectionDeletionGuardInput, CollectionDeletionGuardResult } from "emdash";
+import {
+	EmDashConfigurationError,
+	type CollectionDeletionGuardInput,
+	type CollectionDeletionGuardResult,
+} from "emdash";
 import { kyselyLogOption, recordRpc } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
@@ -50,7 +54,7 @@ function getNamespace(config: DurableObjectsConfig): DurableObjectNamespace<EmDa
 }
 
 function bindingError(binding: string): Error {
-	return new Error(
+	return new EmDashConfigurationError(
 		`Durable Object binding "${binding}" not found in environment. ` +
 			`Check your wrangler.jsonc configuration:\n\n` +
 			`"durable_objects": {\n` +
@@ -59,6 +63,7 @@ function bindingError(binding: string): Error {
 			`"migrations": [{ "tag": "v1", "new_sqlite_classes": ["EmDashDB"] }]\n\n` +
 			`For read replication also set:\n` +
 			`"compatibility_flags": ["experimental", "replica_routing"]`,
+		"BINDING_NOT_FOUND",
 	);
 }
 

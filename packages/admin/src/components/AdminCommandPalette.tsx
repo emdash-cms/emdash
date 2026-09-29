@@ -6,11 +6,12 @@
  */
 
 import { CommandPalette } from "@cloudflare/kumo";
+import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui as useLinguiContext } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Gear, Users, MagnifyingGlass } from "@phosphor-icons/react";
+import { ArrowsLeftRight, Gear, Users, MagnifyingGlass } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
@@ -24,11 +25,14 @@ import {
 	getTaxonomyNavIcon,
 	resolveNavIcon,
 } from "./admin-navigation-icons.js";
-import { resolvePluginPageLabel } from "./Sidebar.js";
+import { resolvePluginPageLabel, visibleCollectionEntries } from "./Sidebar.js";
 
 /** Subset of manifest fields used by the palette (matches `Shell` props shape). */
 type CommandPaletteManifest = {
-	collections: Record<string, { label: string; labelSingular?: string }>;
+	collections: Record<
+		string,
+		{ label: string; labelSingular?: string; icon?: string; hidden?: boolean }
+	>;
 	plugins: AdminManifest["plugins"];
 };
 
@@ -135,13 +139,13 @@ export function buildNavItems(
 	];
 
 	// Add collection links
-	for (const [name, config] of Object.entries(manifest.collections)) {
+	for (const [name, config] of visibleCollectionEntries(manifest.collections)) {
 		items.push({
 			id: `collection-${name}`,
 			title: config.label,
 			to: "/content/$collection",
 			params: { collection: name },
-			icon: getCollectionNavIcon(name),
+			icon: getCollectionNavIcon(name, config.icon),
 			keywords: ["content", name],
 		});
 	}
@@ -238,6 +242,14 @@ export function buildNavItems(
 			keywords: ["configuration", "preferences"],
 		},
 		{
+			id: "transfer",
+			title: msg`Site Transfer`,
+			to: "/settings/transfer",
+			icon: ArrowsLeftRight,
+			minRole: ROLE_ADMIN,
+			keywords: ["export", "import", "migrate", "move", "package"],
+		},
+		{
 			id: "security",
 			title: msg`Security Settings`,
 			to: "/settings/security",
@@ -252,6 +264,7 @@ export function buildNavItems(
 		if (config.enabled === false) continue;
 		if (config.adminPages && config.adminPages.length > 0) {
 			for (const page of config.adminPages) {
+				if (!isSafePluginPagePath(page.path)) continue;
 				// Same treatment as the sidebar: declared labels go through the
 				// shared i18n instance so plugin catalogs can localize them.
 				const label = resolvePluginPageLabel(page.label, pluginId, translateLabel);
@@ -259,7 +272,7 @@ export function buildNavItems(
 				items.push({
 					id: `plugin-${pluginId}-${page.path}`,
 					title: label,
-					to: `/plugins/${pluginId}${page.path}`,
+					to: `/plugins/${pluginId}${normalizePluginPagePath(page.path)}`,
 					icon: resolveNavIcon(page.icon),
 					keywords: ["plugin", pluginId],
 				});

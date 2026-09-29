@@ -50,6 +50,7 @@ const policy: StoredWorkloadPolicy = {
 	workflowRef: "emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
 	allowedRefs: ["refs/heads/main"],
 	allowedEnvironments: ["production"],
+	repositoryConnection: false,
 	active: true,
 	stateVersion: 1,
 	authorizedBy: "did:plc:publisher",

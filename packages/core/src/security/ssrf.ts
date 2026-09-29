@@ -1,69 +1,94 @@
 /**
- * SSRF protection for import URLs.
+ * SSRF protection for outbound HTTP requests.
  *
- * Validates that URLs don't target internal/private network addresses.
- * Applied before any fetch() call in the import pipeline.
+ * Validates that URLs do not target non-public network addresses.
  */
-
-const IPV4_MAPPED_IPV6_DOTTED_PATTERN = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i;
-const IPV4_MAPPED_IPV6_HEX_PATTERN = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
-const IPV4_TRANSLATED_HEX_PATTERN = /^::ffff:0:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
-const IPV6_EXPANDED_MAPPED_PATTERN =
-	/^0{0,4}:0{0,4}:0{0,4}:0{0,4}:0{0,4}:ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
-
-/**
- * IPv4-compatible (deprecated) addresses: ::XXXX:XXXX
- *
- * The WHATWG URL parser normalizes [::127.0.0.1] to [::7f00:1] (no ffff prefix).
- * These are deprecated but still parsed, and bypass the ffff-based checks.
- */
-const IPV4_COMPATIBLE_HEX_PATTERN = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
-
-/**
- * NAT64 prefix (RFC 6052): 64:ff9b::XXXX:XXXX
- *
- * Used by NAT64 gateways to embed IPv4 addresses in IPv6.
- * [64:ff9b::127.0.0.1] normalizes to [64:ff9b::7f00:1].
- */
-const NAT64_HEX_PATTERN = /^64:ff9b::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
 
 const IPV6_BRACKET_PATTERN = /^\[|\]$/g;
-
-/** Match fc00::/7 ULA — first byte 0xfc or 0xfd followed by any byte. */
-const IPV6_ULA_FC_PATTERN = /^fc[0-9a-f]{2}:/;
-const IPV6_ULA_FD_PATTERN = /^fd[0-9a-f]{2}:/;
+const IPV4_PART_PATTERN = /^(?:0|[1-9]\d{0,2})$/;
+const IPV6_PART_PATTERN = /^[0-9a-f]{1,4}$/i;
 
 /** Strip trailing dots from an FQDN-form hostname ("localhost." -> "localhost"). */
 const TRAILING_DOT_PATTERN = /\.+$/;
 
 /**
- * Private and reserved IP ranges that should never be fetched.
- *
- * Includes:
- * - Loopback (127.0.0.0/8)
- * - Private (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
- * - Link-local (169.254.0.0/16)
- * - Cloud metadata (169.254.169.254 — AWS/GCP/Azure)
- * - IPv6 loopback and link-local
+ * IPv4 ranges that are not globally reachable unicast destinations.
  */
 const BLOCKED_PATTERNS: Array<{ start: number; end: number }> = [
-	// 127.0.0.0/8 — loopback
-	{ start: ip4ToNum(127, 0, 0, 0), end: ip4ToNum(127, 255, 255, 255) },
-	// 10.0.0.0/8 — private
-	{ start: ip4ToNum(10, 0, 0, 0), end: ip4ToNum(10, 255, 255, 255) },
-	// 172.16.0.0/12 — private
-	{ start: ip4ToNum(172, 16, 0, 0), end: ip4ToNum(172, 31, 255, 255) },
-	// 192.168.0.0/16 — private
-	{ start: ip4ToNum(192, 168, 0, 0), end: ip4ToNum(192, 168, 255, 255) },
-	// 169.254.0.0/16 — link-local (includes cloud metadata endpoint)
-	{ start: ip4ToNum(169, 254, 0, 0), end: ip4ToNum(169, 254, 255, 255) },
-	// 0.0.0.0/8 — current network
+	// Current network
 	{ start: ip4ToNum(0, 0, 0, 0), end: ip4ToNum(0, 255, 255, 255) },
+	// Private use
+	{ start: ip4ToNum(10, 0, 0, 0), end: ip4ToNum(10, 255, 255, 255) },
+	// Shared address space
+	{ start: ip4ToNum(100, 64, 0, 0), end: ip4ToNum(100, 127, 255, 255) },
+	// Loopback
+	{ start: ip4ToNum(127, 0, 0, 0), end: ip4ToNum(127, 255, 255, 255) },
+	// Link-local, including common cloud metadata endpoints
+	{ start: ip4ToNum(169, 254, 0, 0), end: ip4ToNum(169, 254, 255, 255) },
+	// Private use
+	{ start: ip4ToNum(172, 16, 0, 0), end: ip4ToNum(172, 31, 255, 255) },
+	// IETF protocol assignments. Globally reachable exceptions are handled below.
+	{ start: ip4ToNum(192, 0, 0, 0), end: ip4ToNum(192, 0, 0, 255) },
+	// Documentation
+	{ start: ip4ToNum(192, 0, 2, 0), end: ip4ToNum(192, 0, 2, 255) },
+	// Deprecated 6to4 relay anycast
+	{ start: ip4ToNum(192, 88, 99, 0), end: ip4ToNum(192, 88, 99, 255) },
+	// Private use
+	{ start: ip4ToNum(192, 168, 0, 0), end: ip4ToNum(192, 168, 255, 255) },
+	// Benchmarking
+	{ start: ip4ToNum(198, 18, 0, 0), end: ip4ToNum(198, 19, 255, 255) },
+	// Documentation
+	{ start: ip4ToNum(198, 51, 100, 0), end: ip4ToNum(198, 51, 100, 255) },
+	{ start: ip4ToNum(203, 0, 113, 0), end: ip4ToNum(203, 0, 113, 255) },
+	// Multicast, reserved, and limited broadcast
+	{ start: ip4ToNum(224, 0, 0, 0), end: ip4ToNum(255, 255, 255, 255) },
+];
+
+const ALLOWED_IPV4_EXCEPTIONS = new Set([ip4ToNum(192, 0, 0, 9), ip4ToNum(192, 0, 0, 10)]);
+
+interface Ipv6Range {
+	address: number[];
+	prefixLength: number;
+}
+
+function ipv6Range(address: string, prefixLength: number): Ipv6Range {
+	const parsed = parseIpv6(address);
+	if (parsed === null) throw new Error(`Invalid IPv6 range: ${address}/${prefixLength}`);
+	return { address: parsed, prefixLength };
+}
+
+const IPV6_GLOBAL_UNICAST_RANGE = ipv6Range("2000::", 3);
+const IPV4_COMPATIBLE_IPV6_RANGE = ipv6Range("::", 96);
+const IPV4_EMBEDDED_IPV6_RANGES: Ipv6Range[] = [
+	IPV4_COMPATIBLE_IPV6_RANGE,
+	ipv6Range("::ffff:0:0", 96),
+	ipv6Range("::ffff:0:0:0", 96),
+	ipv6Range("64:ff9b::", 96),
+];
+
+/** Globally reachable allocations inside the otherwise reserved 2001::/23 block. */
+const ALLOWED_IPV6_SPECIAL_RANGES: Ipv6Range[] = [
+	ipv6Range("2001:1::1", 128),
+	ipv6Range("2001:1::2", 128),
+	ipv6Range("2001:1::3", 128),
+	ipv6Range("2001:3::", 32),
+	ipv6Range("2001:4:112::", 48),
+	ipv6Range("2001:20::", 28),
+	ipv6Range("2001:30::", 28),
+];
+
+/** Non-global allocations inside the ordinary IPv6 global-unicast range. */
+const BLOCKED_IPV6_GLOBAL_UNICAST_RANGES: Ipv6Range[] = [
+	ipv6Range("2001::", 23),
+	ipv6Range("2001:db8::", 32),
+	ipv6Range("2002::", 16),
+	ipv6Range("3ffe::", 16),
+	ipv6Range("3fff::", 20),
 ];
 
 // Bracket-stripped form is used for lookups (validateExternalUrl strips
 // brackets from parsed.hostname before checking), so "::1" appears here
-// without brackets. The "::1" case is already covered by isPrivateIp, but
+// without brackets. The "::1" case is already covered by isNonPublicIp, but
 // keeping it here makes the intent explicit and gives a clearer error
 // message for the common `http://[::1]/` form.
 const BLOCKED_HOSTNAMES = new Set([
@@ -101,80 +126,78 @@ function parseIpv4(ip: string): number | null {
 	const parts = ip.split(".");
 	if (parts.length !== 4) return null;
 
-	const nums = parts.map(Number);
-	if (nums.some((n) => isNaN(n) || n < 0 || n > 255)) return null;
+	const nums = parts.map((part) => (IPV4_PART_PATTERN.test(part) ? Number(part) : Number.NaN));
+	if (nums.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
 
 	return ip4ToNum(nums[0], nums[1], nums[2], nums[3]);
 }
 
-/**
- * Convert IPv4-mapped/translated IPv6 addresses from hex form back to IPv4.
- *
- * The WHATWG URL parser normalizes dotted-decimal to hex:
- *   [::ffff:127.0.0.1] -> [::ffff:7f00:1]
- *   [::ffff:169.254.169.254] -> [::ffff:a9fe:a9fe]
- *
- * Without this conversion, the hex forms bypass isPrivateIp() regex checks.
- */
-export function normalizeIPv6MappedToIPv4(ip: string): string | null {
-	// Match hex-form IPv4-mapped IPv6: ::ffff:XXXX:XXXX
-	let match = ip.match(IPV4_MAPPED_IPV6_HEX_PATTERN);
-	if (!match) {
-		// Match IPv4-translated (RFC 6052): ::ffff:0:XXXX:XXXX
-		match = ip.match(IPV4_TRANSLATED_HEX_PATTERN);
+function parseIpv6(ip: string): number[] | null {
+	let address = ip;
+	if (address.includes(".")) {
+		const separator = address.lastIndexOf(":");
+		if (separator === -1) return null;
+		const ipv4 = parseIpv4(address.slice(separator + 1));
+		if (ipv4 === null) return null;
+		address = `${address.slice(0, separator + 1)}${(ipv4 >>> 16).toString(16)}:${(ipv4 & 0xffff).toString(16)}`;
 	}
-	if (!match) {
-		// Match fully expanded form: 0000:0000:0000:0000:0000:ffff:XXXX:XXXX
-		match = ip.match(IPV6_EXPANDED_MAPPED_PATTERN);
-	}
-	if (!match) {
-		// Match IPv4-compatible (deprecated) form: ::XXXX:XXXX (no ffff prefix)
-		match = ip.match(IPV4_COMPATIBLE_HEX_PATTERN);
-	}
-	if (!match) {
-		// Match NAT64 prefix (RFC 6052): 64:ff9b::XXXX:XXXX
-		match = ip.match(NAT64_HEX_PATTERN);
-	}
-	if (match) {
-		const high = parseInt(match[1] ?? "", 16);
-		const low = parseInt(match[2] ?? "", 16);
-		return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
-	}
-	return null;
+	if (address.includes(":::") || address.split("::").length > 2) return null;
+
+	const [before = "", after = ""] = address.split("::");
+	const head = before === "" ? [] : before.split(":");
+	const tail = after === "" ? [] : after.split(":");
+	const parts = [...head, ...tail];
+	if (parts.some((part) => !IPV6_PART_PATTERN.test(part)) || parts.length > 8) return null;
+	if (address.includes("::") ? parts.length >= 8 : parts.length !== 8) return null;
+
+	const zeroCount = address.includes("::") ? 8 - parts.length : 0;
+	return [...head, ...Array.from<string>({ length: zeroCount }).fill("0"), ...tail].map((part) =>
+		Number.parseInt(part, 16),
+	);
 }
 
-function isPrivateIp(ip: string): boolean {
-	// Normalize IPv6 strings to lowercase. `new URL().hostname` already
-	// lowercases, but resolver output (from DoH or an injected resolver) may
-	// not. Without this, "FE80::1" bypasses the link-local check.
-	const normalized = ip.toLowerCase();
-
-	// Handle IPv6 loopback
-	if (normalized === "::1" || normalized === "::ffff:127.0.0.1") return true;
-
-	// Handle IPv4-mapped IPv6 in hex form (WHATWG URL parser normalizes to this)
-	// e.g. ::ffff:7f00:1 -> 127.0.0.1, ::ffff:a9fe:a9fe -> 169.254.169.254
-	const hexIpv4 = normalizeIPv6MappedToIPv4(normalized);
-	if (hexIpv4) return isPrivateIp(hexIpv4);
-
-	// Handle IPv4-mapped IPv6 in dotted-decimal form
-	const v4Match = normalized.match(IPV4_MAPPED_IPV6_DOTTED_PATTERN);
-	const ipv4 = v4Match ? v4Match[1] : normalized;
-
-	const num = parseIpv4(ipv4);
-	if (num === null) {
-		// If we can't parse it, block IPv6 addresses that look internal.
-		// fc00::/7 is Unique Local (first byte 0xfc or 0xfd), fe80::/10 is
-		// link-local. Only match when followed by hex digit + colon to avoid
-		// collisions with hypothetical non-address strings.
-		return (
-			normalized.startsWith("fe80:") ||
-			IPV6_ULA_FC_PATTERN.test(normalized) ||
-			IPV6_ULA_FD_PATTERN.test(normalized)
-		);
+function isIpv6InRange(address: number[], range: Ipv6Range): boolean {
+	const completeParts = Math.floor(range.prefixLength / 16);
+	for (let i = 0; i < completeParts; i++) {
+		if (address[i] !== range.address[i]) return false;
 	}
 
-	return BLOCKED_PATTERNS.some((range) => num >= range.start && num <= range.end);
+	const remainingBits = range.prefixLength % 16;
+	if (remainingBits === 0) return true;
+	const mask = (0xffff << (16 - remainingBits)) & 0xffff;
+	return (address[completeParts] & mask) === (range.address[completeParts] & mask);
+}
+
+function extractEmbeddedIpv4(address: number[]): number | null {
+	if (!IPV4_EMBEDDED_IPV6_RANGES.some((range) => isIpv6InRange(address, range))) return null;
+	const ipv4 = ((address[6] << 16) | address[7]) >>> 0;
+	// The unspecified and loopback addresses retain their native IPv6 meaning.
+	if (ipv4 <= 1 && isIpv6InRange(address, IPV4_COMPATIBLE_IPV6_RANGE)) return null;
+	return ipv4;
+}
+
+/** Convert a hex-form IPv6 address with an embedded IPv4 destination to dotted decimal. */
+export function normalizeIPv6MappedToIPv4(ip: string): string | null {
+	if (ip.includes(".")) return null;
+	const address = parseIpv6(ip);
+	if (address === null) return null;
+	const ipv4 = extractEmbeddedIpv4(address);
+	if (ipv4 === null) return null;
+	return `${ipv4 >>> 24}.${(ipv4 >>> 16) & 0xff}.${(ipv4 >>> 8) & 0xff}.${ipv4 & 0xff}`;
+}
+
+function isNonPublicIp(ip: string): boolean {
+	const parsedIpv4 = parseIpv4(ip);
+	const ipv6 = parsedIpv4 === null ? parseIpv6(ip) : null;
+	const ipv4 = ipv6 === null ? parsedIpv4 : extractEmbeddedIpv4(ipv6);
+	if (ipv4 !== null) {
+		if (ALLOWED_IPV4_EXCEPTIONS.has(ipv4)) return false;
+		return BLOCKED_PATTERNS.some((range) => ipv4 >= range.start && ipv4 <= range.end);
+	}
+	if (ipv6 === null) return true;
+	if (ALLOWED_IPV6_SPECIAL_RANGES.some((range) => isIpv6InRange(ipv6, range))) return false;
+	if (!isIpv6InRange(ipv6, IPV6_GLOBAL_UNICAST_RANGE)) return true;
+	return BLOCKED_IPV6_GLOBAL_UNICAST_RANGES.some((range) => isIpv6InRange(ipv6, range));
 }
 
 /**
@@ -190,17 +213,15 @@ export class SsrfError extends Error {
 }
 
 /**
- * Validate that a URL is safe to fetch (not targeting internal networks).
+ * Validate a URL's scheme, hostname, and literal address.
  *
  * Checks:
  * 1. URL is well-formed with http/https scheme
  * 2. Hostname is not a known internal name (localhost, metadata endpoints)
- * 3. If hostname is an IP literal, it's not in a private range
+ * 3. If hostname is an IP literal, it is a public address
  *
- * Note: DNS rebinding attacks are not fully mitigated (hostname could resolve
- * to a private IP). Full protection requires resolving DNS and checking the IP
- * before connecting, which needs a custom fetch implementation. This covers
- * the most common SSRF vectors.
+ * Hostnames also need DNS validation before dispatch. Resolving and checking
+ * addresses does not bind an ordinary fetch() connection to those addresses.
  *
  * @throws SsrfError if the URL targets an internal address
  */
@@ -241,11 +262,11 @@ export function validateExternalUrl(url: string): URL {
 		}
 	}
 
-	// Check if hostname is an IP address in a private range. Use the
+	// Check if hostname is a non-public IP address. Use the
 	// normalized form so "127.0.0.1.." and friends don't bypass parseIpv4
 	// (which rejects extra trailing dots).
-	if (isPrivateIp(normalizedHost)) {
-		throw new SsrfError("URLs targeting private IP addresses are not allowed");
+	if (isIpLiteral(normalizedHost) && isNonPublicIp(normalizedHost)) {
+		throw new SsrfError("URLs targeting non-public IP addresses are not allowed");
 	}
 
 	return parsed;
@@ -283,6 +304,7 @@ const DOH_TIMEOUT_MS = 3000;
 const DEFAULT_DOH_URL = "https://cloudflare-dns.com/dns-query";
 
 interface DohAnswer {
+	type: number;
 	data: string;
 }
 
@@ -307,8 +329,14 @@ function parseDohResponse(raw: unknown): DohResponse {
 	const answers: DohAnswer[] = [];
 	if (hasProperty(raw, "Answer") && Array.isArray(raw.Answer)) {
 		for (const entry of raw.Answer) {
-			if (hasProperty(entry, "data") && typeof entry.data === "string") {
-				answers.push({ data: entry.data });
+			if (
+				hasProperty(entry, "type") &&
+				typeof entry.type === "number" &&
+				Number.isInteger(entry.type) &&
+				hasProperty(entry, "data") &&
+				typeof entry.data === "string"
+			) {
+				answers.push({ type: entry.type, data: entry.data });
 			}
 		}
 	}
@@ -324,6 +352,7 @@ function parseDohResponse(raw: unknown): DohResponse {
  */
 export const cloudflareDohResolver: DnsResolver = async (hostname) => {
 	async function query(type: "A" | "AAAA"): Promise<string[]> {
+		const expectedAnswerType = type === "A" ? 1 : 28;
 		const params = new URLSearchParams({ name: hostname, type });
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), DOH_TIMEOUT_MS);
@@ -347,8 +376,10 @@ export const cloudflareDohResolver: DnsResolver = async (hostname) => {
 			}
 			// DoH Answer arrays often include CNAME records alongside A/AAAA
 			// records. Their `data` is a hostname, not an IP. Filter to just
-			// IP literals so isPrivateIp sees real addresses.
-			return body.Answer.map((a) => a.data).filter(isIpLiteral);
+			// IP literals of the requested record type.
+			return body.Answer.filter((answer) => answer.type === expectedAnswerType)
+				.map((answer) => answer.data)
+				.filter(isIpLiteral);
 		} finally {
 			clearTimeout(timeout);
 		}
@@ -359,14 +390,12 @@ export const cloudflareDohResolver: DnsResolver = async (hostname) => {
 };
 
 /**
- * Validate a URL and resolve its hostname to check the actual IPs against
- * the private-range blocklist. This catches DNS rebinding attacks using
- * attacker-controlled domains that publicly resolve to private addresses,
- * and wildcard DNS services like nip.io used by exploit tooling.
+ * Validate a URL and reject hostnames that resolve to non-public addresses,
+ * including wildcard DNS services like nip.io used by exploit tooling.
  *
  * Runs `validateExternalUrl` first for cheap pre-flight checks (scheme,
  * literal IP, known-bad hostnames). Then resolves the hostname and rejects
- * if ANY returned address is private.
+ * if ANY returned address is non-public.
  *
  * Fails closed: if resolution fails or returns no records, throws SsrfError.
  *
@@ -381,9 +410,9 @@ export const cloudflareDohResolver: DnsResolver = async (hostname) => {
  * - Host-file overrides or split-horizon corporate DNS on self-hosted Node.
  * - Attacker-controlled rebinding services the caller has allowlisted.
  *
- * The only complete defense is a network-layer egress firewall. On
- * Cloudflare Workers, the platform fetch pipeline provides most of that.
- * On self-hosted Node, operators must restrict egress themselves.
+ * Connections must use the addresses from resolveAndValidateExternalUrlTarget
+ * to avoid a second lookup. Callers using ordinary fetch() need network-level
+ * egress controls to prevent these attacks.
  */
 export async function resolveAndValidateExternalUrl(
 	url: string,
@@ -411,7 +440,7 @@ export async function resolveAndValidateExternalUrlTarget(
 	const hostname = parsed.hostname.replace(IPV6_BRACKET_PATTERN, "");
 
 	// If the hostname is already an IP literal, validateExternalUrl has
-	// already checked it against the private-range list. Skip DNS.
+	// already checked it against the non-public ranges. Skip DNS.
 	if (isIpLiteral(hostname)) {
 		return { url: parsed, addresses: [hostname] };
 	}
@@ -435,20 +464,17 @@ export async function resolveAndValidateExternalUrlTarget(
 		if (!isIpLiteral(ip)) {
 			throw new SsrfError("Hostname resolver returned a non-IP address");
 		}
-		if (isPrivateIp(ip)) {
-			throw new SsrfError("Hostname resolves to a private IP address");
+		if (isNonPublicIp(ip)) {
+			throw new SsrfError("Hostname resolves to a non-public IP address");
 		}
 	}
 
 	return { url: parsed, addresses };
 }
 
-/** True when a string looks like an IPv4 or IPv6 literal. */
+/** True when a string is a valid IPv4 or IPv6 literal. */
 function isIpLiteral(host: string): boolean {
-	if (parseIpv4(host) !== null) return true;
-	// Very loose IPv6 heuristic — matches anything with a colon, which is
-	// never valid in DNS hostnames, so this is safe.
-	return host.includes(":");
+	return parseIpv4(host) !== null || parseIpv6(host) !== null;
 }
 
 /**

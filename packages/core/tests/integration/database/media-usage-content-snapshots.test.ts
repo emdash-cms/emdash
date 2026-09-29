@@ -3,8 +3,12 @@ import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
-import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
+import {
+	CONTENT_SOURCE_SCHEMA_VERSION,
+	loadContentMediaUsageSnapshots,
+} from "../../../src/media/usage/content-snapshots.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -55,7 +59,6 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 				raw_data: { id: "media-ignored" },
 			},
 		});
-
 		const result = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
 
 		expect(result.success).toBe(true);
@@ -305,6 +308,120 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		expect(overlay.occurrences).toEqual([]);
 	});
 
+	it("keeps block media in independent live and draft projections", async () => {
+		await new BlockTypeRegistry(ctx.db).createBlockType({
+			slug: "feature",
+			label: "Feature",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["feature"] },
+		});
+		const item = await insertPost(ctx, {
+			slug: "block-projections",
+			status: "published",
+			data: {
+				title: "Block projections",
+				layout: [
+					{
+						_type: "feature",
+						_version: 1,
+						_key: "live-feature",
+						image: { id: "media-live-block", provider: "local" },
+					},
+				],
+			},
+		});
+		await sql`
+			UPDATE ${sql.ref("ec_posts")}
+			SET layout = ${serializeFieldValue([
+				{
+					_type: "feature",
+					_version: 1,
+					_key: "live-feature",
+					image: { id: "media-live-block", provider: "local" },
+				},
+			])}
+			WHERE id = ${item.id}
+		`.execute(ctx.db);
+		const draft = await revisionRepo.create({
+			collection: "posts",
+			entryId: item.id,
+			data: {
+				layout: [
+					{
+						_type: "feature",
+						_version: 1,
+						_key: "draft-feature",
+						image: { id: "media-draft-block", provider: "local" },
+					},
+				],
+			},
+		});
+		await setDraftRevision(ctx, item.id, draft.id);
+
+		const withDraftMedia = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+		expect(withDraftMedia.success).toBe(true);
+		if (!withDraftMedia.success) throw new Error(withDraftMedia.error);
+		expect(getSnapshot(withDraftMedia, "columns").occurrences).toEqual([
+			expect.objectContaining({
+				fieldPath: "layout.live-feature.image",
+				mediaId: "media-live-block",
+			}),
+		]);
+		expect(getSnapshot(withDraftMedia, "draft_overlay").occurrences).toEqual([
+			expect.objectContaining({
+				fieldPath: "layout.draft-feature.image",
+				mediaId: "media-draft-block",
+			}),
+		]);
+
+		const clearedDraft = await revisionRepo.create({
+			collection: "posts",
+			entryId: item.id,
+			data: { layout: [] },
+		});
+		await setDraftRevision(ctx, item.id, clearedDraft.id);
+		const withoutDraftMedia = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+		expect(withoutDraftMedia.success).toBe(true);
+		if (!withoutDraftMedia.success) throw new Error(withoutDraftMedia.error);
+		expect(getSnapshot(withoutDraftMedia, "columns").occurrences).toEqual([
+			expect.objectContaining({ mediaId: "media-live-block" }),
+		]);
+		expect(getSnapshot(withoutDraftMedia, "draft_overlay").occurrences).toEqual([]);
+
+		const draftOnlyItem = await insertPost(ctx, {
+			slug: "draft-only-block",
+			status: "published",
+			data: { title: "Draft only", layout: [] },
+		});
+		const draftOnlyRevision = await revisionRepo.create({
+			collection: "posts",
+			entryId: draftOnlyItem.id,
+			data: {
+				layout: [
+					{
+						_type: "feature",
+						_version: 1,
+						_key: "draft-only-feature",
+						image: { id: "media-draft-only-block", provider: "local" },
+					},
+				],
+			},
+		});
+		await setDraftRevision(ctx, draftOnlyItem.id, draftOnlyRevision.id);
+		const draftOnly = await loadContentMediaUsageSnapshots(ctx.db, "posts", draftOnlyItem.id);
+		expect(draftOnly.success).toBe(true);
+		if (!draftOnly.success) throw new Error(draftOnly.error);
+		expect(getSnapshot(draftOnly, "columns").occurrences).toEqual([]);
+		expect(getSnapshot(draftOnly, "draft_overlay").occurrences).toEqual([
+			expect.objectContaining({ mediaId: "media-draft-only-block" }),
+		]);
+	});
+
 	it("fails when draft_revision_id belongs to another content row", async () => {
 		const item = await insertPost(ctx, {
 			slug: "live-post",
@@ -429,8 +546,8 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		const secondColumns = getSnapshot(secondResult, "columns");
 		const secondOverlay = getSnapshot(secondResult, "draft_overlay");
 
-		expect(firstColumns.source.schemaVersion).toBe(1);
-		expect(firstOverlay.source.schemaVersion).toBe(1);
+		expect(firstColumns.source.schemaVersion).toBe(CONTENT_SOURCE_SCHEMA_VERSION);
+		expect(firstOverlay.source.schemaVersion).toBe(CONTENT_SOURCE_SCHEMA_VERSION);
 		expect(firstColumns.source.sourceFingerprint).toEqual(
 			expect.stringMatching(/^media-usage-projection:v1:sha256:[a-f0-9]{64}$/),
 		);

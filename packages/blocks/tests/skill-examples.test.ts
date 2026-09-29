@@ -28,6 +28,7 @@ const TO_BLOCKS: Record<string, (example: unknown) => unknown[]> = {
 		},
 	],
 	"Button Confirmations": (example) => [{ type: "actions", elements: [example] }],
+	"Links and admin locale": (example) => [{ type: "actions", elements: [example] }],
 };
 
 function extractJsonExamples(markdown: string): Example[] {

@@ -12,6 +12,8 @@ const mediaSchema = z.object({
 	mimeType: z.string().optional(),
 	blurhash: z.string().optional(),
 	dominantColor: z.string().optional(),
+	focalX: z.number().optional(),
+	focalY: z.number().optional(),
 	provider: z.string().optional(),
 	previewUrl: z.string().optional(),
 	meta: z.record(z.string(), z.unknown()).optional(),

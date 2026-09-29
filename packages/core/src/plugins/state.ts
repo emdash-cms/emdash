@@ -208,6 +208,32 @@ export class PluginStateRepository {
 		return (await this.get(pluginId))!;
 	}
 
+	async restoreIfVersion(expectedVersion: string, state: PluginState): Promise<boolean> {
+		const result = await this.db
+			.updateTable("_plugin_state")
+			.set({
+				version: state.version,
+				status: state.status,
+				installed_at: state.installedAt.toISOString(),
+				activated_at: state.activatedAt?.toISOString() ?? null,
+				deactivated_at: state.deactivatedAt?.toISOString() ?? null,
+				source: state.source,
+				marketplace_version: state.marketplaceVersion,
+				display_name: state.displayName,
+				description: state.description,
+				registry_publisher_did: state.registryPublisherDid,
+				registry_slug: state.registrySlug,
+				mcp_tools_enabled: state.mcpToolsEnabled ? 1 : 0,
+				mcp_tools_consent: state.mcpToolsConsent,
+			})
+			.where("plugin_id", "=", state.pluginId)
+			.where("version", "=", expectedVersion)
+			.where("source", "=", state.source)
+			.executeTakeFirst();
+
+		return (result.numUpdatedRows ?? 0n) > 0n;
+	}
+
 	/**
 	 * Enable a plugin
 	 */

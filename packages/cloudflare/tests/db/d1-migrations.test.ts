@@ -12,14 +12,14 @@ function response(result: unknown): Response {
 	return Response.json({ success: true, errors: [], messages: [], result });
 }
 
-function queryResponse(results: Record<string, unknown>[] = []): Response {
+function queryResponse(results: Record<string, unknown>[] = [], changes = 0): Response {
 	return response([
 		{
 			success: true,
 			results,
 			meta: {
-				changed_db: false,
-				changes: 0,
+				changed_db: changes > 0,
+				changes,
 				duration: 0.1,
 				last_row_id: null,
 				rows_read: results.length,
@@ -36,15 +36,20 @@ afterEach(() => {
 
 describe("D1 migration executor", () => {
 	it("constructs from remote metadata without issuing SQL, then checks through the REST dialect", async () => {
-		const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+		const queries: string[] = [];
+		const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
 			const url = input instanceof Request ? input.url : input.toString();
 			if (!url.endsWith("/query")) {
 				return response({ uuid: DATABASE_ID, name: "site-db", version: "production" });
 			}
+			if (typeof init?.body !== "string") throw new Error("Expected a JSON query body.");
+			const { sql } = JSON.parse(init.body) as { sql: string };
+			queries.push(sql);
+			const table = /\bfrom\s+"?(\w+)"?/i.exec(sql)?.[1];
 			return Response.json(
 				{
 					success: false,
-					errors: [{ code: 7500, message: "no such table: _emdash_migrations: SQLITE_ERROR" }],
+					errors: [{ code: 7500, message: `no such table: ${table}: SQLITE_ERROR` }],
 					messages: [],
 					result: null,
 				},
@@ -77,10 +82,13 @@ describe("D1 migration executor", () => {
 				},
 			}),
 		).resolves.toMatchObject({ pending: identity.names, executed: [] });
-		expect(fetch).toHaveBeenCalledTimes(2);
+		expect(queries).toEqual([
+			expect.stringMatching(/^select name from "_emdash_migrations"$/i),
+			expect.stringMatching(/^select "is_locked" from "_emdash_migrations_lock" where/i),
+		]);
 	});
 
-	it("applies a pending migration through the REST dialect", async () => {
+	it("applies a pending migration through the REST dialect while holding the migration lock", async () => {
 		const identity = await getCoreMigrationIdentity();
 		const pendingMigration = identity.names.at(-1);
 		if (!pendingMigration) throw new Error("Expected at least one core migration.");
@@ -88,6 +96,8 @@ describe("D1 migration executor", () => {
 		const applied = new Set(identity.names.slice(0, -1));
 		const tables = ["_emdash_migrations", "_emdash_migrations_lock", "_emdash_collections"];
 		const requests: Array<{ sql: string; params: unknown[] }> = [];
+		let lock = 0;
+		const lockDuringInsert: number[] = [];
 		const fetch = vi.fn<typeof globalThis.fetch>(async (input, init) => {
 			const url = input instanceof Request ? input.url : input.toString();
 			if (!url.endsWith("/query")) {
@@ -117,8 +127,15 @@ describe("D1 migration executor", () => {
 					})),
 				);
 			}
+			if (/\bupdate\s+["`]?_emdash_migrations_lock["`]?/i.test(request.sql)) {
+				const [value, , expected] = request.params;
+				if (lock !== expected) return queryResponse();
+				lock = Number(value);
+				return queryResponse([], 1);
+			}
 			if (/\binsert\s+into\s+["`]?_emdash_migrations["`]?\b/i.test(request.sql)) {
 				applied.add(String(request.params[0]));
+				lockDuringInsert.push(lock);
 			}
 			return queryResponse();
 		});
@@ -148,6 +165,9 @@ describe("D1 migration executor", () => {
 				/\binsert\s+into\s+["`]?_emdash_migrations["`]?\b/i.test(request.sql),
 			)?.params[0],
 		).toBe(pendingMigration);
+		expect(lockDuringInsert).toEqual([expect.any(Number)]);
+		expect(lockDuringInsert[0]).toBeGreaterThan(0);
+		expect(lock).toBe(0);
 	});
 
 	it("fails without the API token before making a metadata request", async () => {

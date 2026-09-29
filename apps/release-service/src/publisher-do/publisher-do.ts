@@ -399,6 +399,10 @@ export type RequestWorkflowConnectionResult =
 				| "WORKFLOW_CONNECTION_LIMIT_REACHED";
 	  };
 
+export type WorkflowConnectionAvailability =
+	| { ok: true }
+	| { ok: false; code: "DELEGATION_REQUIRED" | "PUBLISHER_SUSPENDED" };
+
 export type CreateWorkflowConnectionInvitationResult =
 	| StoreWorkflowConnectionInvitationResult
 	| { ok: false; code: "DELEGATION_REQUIRED" | "PUBLISHER_SUSPENDED" };
@@ -851,11 +855,44 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		if (currentPolicy && workflowConnectionPolicyMatches(currentPolicy, input.claim)) {
 			return { ok: true, status: "connected", policy: currentPolicy };
 		}
+		const repositoryPolicy = this.#workloadPolicies.findMatching(input.claim);
+		if (repositoryPolicy) {
+			const reused = await this.putWorkloadPolicy({
+				publisherDid: input.publisherDid,
+				packageSlug: input.packageSlug,
+				repository: repositoryPolicy.repository,
+				repositoryId: repositoryPolicy.repositoryId,
+				repositoryOwnerId: repositoryPolicy.repositoryOwnerId,
+				workflowRef: repositoryPolicy.workflowRef,
+				allowedRefs: repositoryPolicy.allowedRefs,
+				allowedEnvironments: repositoryPolicy.allowedEnvironments,
+				active: true,
+				expectedVersion: currentPolicy?.stateVersion ?? null,
+				now: input.now,
+			});
+			if (reused.ok) return { ok: true, status: "connected", policy: reused.policy };
+		}
 		const result = this.#workflowConnections.create(input, currentPolicy?.stateVersion ?? null);
 		if (result.ok) await this.#scheduleNextAlarm(input.now ?? Date.now());
 		return result.ok
 			? { ok: true, status: "pending", request: result.request, replayed: result.replayed }
 			: result;
+	}
+
+	getWorkflowConnectionAvailability(publisherDid: string): WorkflowConnectionAvailability {
+		this.#assertPublisherObjectName(publisherDid);
+		const owner = this.ctx.storage.sql
+			.exec<PublisherSessionOwnerRow>(
+				"SELECT did, status, session_epoch FROM publisher WHERE id = 1",
+			)
+			.toArray()[0];
+		if (!owner || this.#readDelegation()?.status !== "active") {
+			return { ok: false, code: "DELEGATION_REQUIRED" };
+		}
+		if (owner.did !== publisherDid) {
+			throw new PublisherStateError("PUBLISHER_DID_MISMATCH");
+		}
+		return owner.status === "suspended" ? { ok: false, code: "PUBLISHER_SUSPENDED" } : { ok: true };
 	}
 
 	async createWorkflowConnectionInvitation(
@@ -938,7 +975,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			return { ok: false, code: "WORKFLOW_CONNECTION_CONFLICT" };
 		}
 		const expectedVersion = prepared.request.expectedPolicyVersion;
-		const expectedPolicy = workflowConnectionPolicy(prepared.request, refScope);
+		const currentPolicy = this.#workloadPolicies.get(prepared.request.packageSlug);
+		const expectedPolicy = workflowConnectionPolicy(prepared.request, refScope, currentPolicy);
 		if (prepared.replayed) {
 			const policy = this.#workloadPolicies.get(expectedPolicy.packageSlug);
 			return policy && workloadPolicyEquals(policy, expectedPolicy)
@@ -948,6 +986,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		const result = await this.putWorkloadPolicy({
 			publisherDid,
 			...expectedPolicy,
+			repositoryConnection: true,
 			expectedVersion,
 			now,
 		});

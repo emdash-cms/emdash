@@ -10,10 +10,18 @@
  * works cross-dialect.
  */
 
-import type { ColumnDataType, Kysely, RawBuilder } from "kysely";
+import type {
+	ColumnDataType,
+	Compilable,
+	CompiledQuery,
+	Kysely,
+	QueryResult,
+	RawBuilder,
+} from "kysely";
 import { PostgresAdapter, sql } from "kysely";
 
 import type { DatabaseDialectType } from "../db/adapters.js";
+import type { Database } from "./types.js";
 import { validateIdentifier, validateJsonFieldName } from "./validate.js";
 
 export type { DatabaseDialectType };
@@ -47,6 +55,34 @@ export function isPostgres(db: Kysely<any>): boolean {
 export interface CompoundSelectLimitedAdapter {
 	/** Maximum terms per compound SELECT. Must be a positive integer. */
 	readonly compoundSelectLimit: number;
+}
+
+/**
+ * Declared by an adapter that can execute independent compiled statements as
+ * one atomic batch. The statements run in order and either all commit or none
+ * do. D1 exposes this through `D1Database.batch()` even though it does not
+ * support Kysely's interactive transaction API.
+ */
+export interface AtomicBatchAdapter {
+	executeAtomicBatch(queries: readonly CompiledQuery[]): Promise<readonly QueryResult<unknown>[]>;
+}
+
+/**
+ * Execute a fixed statement list atomically when the active adapter supports
+ * it. Returns `null` for adapters that should use an ordinary transaction.
+ */
+export async function executeAtomicBatchIfSupported<DB>(
+	db: Kysely<DB>,
+	queries: readonly (Compilable | RawBuilder<unknown>)[],
+): Promise<readonly QueryResult<unknown>[] | null> {
+	const adapter: object = db.getExecutor().adapter;
+	if (!("executeAtomicBatch" in adapter) || typeof adapter.executeAtomicBatch !== "function") {
+		return null;
+	}
+
+	return adapter.executeAtomicBatch(
+		queries.map((query) => ("isRawBuilder" in query ? query.compile(db) : query.compile())),
+	);
 }
 
 /**
@@ -336,6 +372,91 @@ export function pluginDataExtractExpr(
 	const extract = `json_extract(data, '$.${field}')`;
 	if (!options?.numeric) return extract;
 	return `CASE WHEN json_type(data, '$.${field}') IN ('integer', 'real') THEN ${extract} END`;
+}
+
+/**
+ * Build the new value of the `_plugin_storage.data` (text-JSON) column for a
+ * guarded `updateIf`, composing wholesale `set` fields and integer `delta`
+ * fields into a SINGLE dialect-correct expression.
+ *
+ * Both branches go through `json_set` / `jsonb_set` so the write never rewrites
+ * the whole column from JS (which would require a read-then-write and break the
+ * single-statement atomicity that makes no-oversell hold):
+ *
+ * - **set** field → the value is stored via `json(?)` (SQLite) / `?::jsonb`
+ *   (Postgres) with `JSON.stringify(value)`, uniformly handling scalars,
+ *   objects, arrays, and `null` (stored as JSON `null`, never SQL `NULL` — a
+ *   SQL `NULL` in `jsonb_set` would null the entire `data` column and hit the
+ *   `NOT NULL` constraint).
+ * - **delta** field → `COALESCE(<numeric extract>, 0) + n`, where the extract
+ *   is the type-guarded numeric form from {@link pluginDataExtractExpr} so a
+ *   missing or null stored value coalesces to `0` on both dialects. The update
+ *   guard rejects invalid counters and unsafe results. Integer arithmetic stays
+ *   integer (Postgres `to_jsonb(numeric)` and SQLite integer `+` both round-trip
+ *   without a spurious `.0`).
+ *
+ * Field names are validated (`validateJsonFieldName` / `pluginDataExtractExpr`)
+ * before interpolation, so the JSON path is a safe identifier and values are
+ * bound parameters — no injection surface.
+ *
+ * SQLite:   json_set(json_set(data, '$.f1', json(?)), '$.f2', COALESCE(json_extract(...), 0) + ?)
+ * Postgres: (jsonb_set(jsonb_set(data::jsonb, '{f1}', ?::jsonb), '{f2}', to_jsonb(COALESCE(..., 0) + ?)))::text
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function pluginDataWriteExpr(
+	db: Kysely<any>,
+	setEntries: Array<[string, unknown]>,
+	deltaEntries: Array<[string, number]>,
+): RawBuilder<string> {
+	const pg = isPostgres(db);
+	let expr: RawBuilder<unknown> = pg ? sql`data::jsonb` : sql`data`;
+
+	for (const [field, value] of setEntries) {
+		validateJsonFieldName(field, "plugin storage set field name");
+		const json = JSON.stringify(value ?? null);
+		if (pg) {
+			expr = sql`jsonb_set(${expr}, ${sql.lit(`{${field}}`)}, ${json}::jsonb)`;
+		} else {
+			expr = sql`json_set(${expr}, ${sql.lit(`$.${field}`)}, json(${json}))`;
+		}
+	}
+
+	for (const [field, n] of deltaEntries) {
+		const numericExtract = pluginDataExtractExpr(db, field, { numeric: true });
+		if (pg) {
+			expr = sql`jsonb_set(${expr}, ${sql.lit(`{${field}}`)}, to_jsonb(COALESCE(${sql.raw(numericExtract)}, 0) + ${n}))`;
+		} else {
+			expr = sql`json_set(${expr}, ${sql.lit(`$.${field}`)}, cast(COALESCE(${sql.raw(numericExtract)}, 0) as integer) + cast(${n} as integer))`;
+		}
+	}
+
+	if (pg) {
+		return sql<string>`(${expr})::text`;
+	}
+	return sql<string>`${expr}`;
+}
+
+export function pluginDataUpdateGuard(
+	db: Kysely<Database>,
+	deltaEntries: Array<[string, number]>,
+): RawBuilder<boolean> {
+	const pg = isPostgres(db);
+	const conditions: RawBuilder<boolean>[] = [
+		pg ? sql`jsonb_typeof(data::jsonb) = 'object'` : sql`json_type(data) = 'object'`,
+	];
+	for (const [field, amount] of deltaEntries) {
+		const numeric = sql.raw(pluginDataExtractExpr(db, field, { numeric: true }));
+		const type = pg
+			? sql`jsonb_typeof(data::jsonb -> ${sql.lit(field)})`
+			: sql`json_type(data, ${sql.lit(`$.${field}`)})`;
+		const base = sql`coalesce(${numeric}, 0)`;
+		const integral = pg ? sql`${base} = trunc(${base})` : sql`${base} = cast(${base} as integer)`;
+		const lower = Math.max(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER - amount);
+		const upper = Math.min(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - amount);
+		conditions.push(sql`((${type} is null or ${type} = 'null' or ${numeric} is not null)
+			and ${integral} and ${base} >= ${lower} and ${base} <= ${upper})`);
+	}
+	return sql`(${sql.join(conditions, sql` and `)})`;
 }
 
 /**

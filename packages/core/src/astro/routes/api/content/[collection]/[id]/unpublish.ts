@@ -62,7 +62,11 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 		});
 	}
 
-	const result = await emdash.handleContentUnpublish(collection, resolvedId, { _rev: body?._rev });
+	const result = await emdash.handleContentUnpublish(collection, resolvedId, {
+		_rev: body?._rev,
+		actor: { id: user!.id, role: user!.role },
+		origin: { source: "api" },
+	});
 
 	if (!result.success) return unwrapResult(result);
 

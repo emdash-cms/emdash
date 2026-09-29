@@ -1,5 +1,5 @@
 ---
-import { getEmDashEntry } from "emdash";
+import { getEmDashEntry, getSeoMeta } from "emdash";
 import Base from "../layouts/Base.astro";
 import MarketingBlocks from "../components/MarketingBlocks.astro";
 
@@ -8,22 +8,38 @@ const { entry: page, cacheHint } = await getEmDashEntry("pages", "pricing");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 const pageContent = page?.data.content;
+const seo = page
+	? getSeoMeta(page, {
+			siteUrl: Astro.url.origin,
+			path: "/pricing",
+			defaultDescription: "Simple, transparent pricing. No hidden fees. No surprises.",
+		})
+	: null;
 ---
 
 <Base
-	title="Pricing"
-	description="Simple, transparent pricing. No hidden fees. No surprises."
+	title={seo?.title || "Pricing"}
+	pageTitle={page?.data.title || "Pricing"}
+	description={seo?.description}
+	image={seo?.ogImage}
+	canonical={seo?.canonical}
+	robots={seo?.robots}
+	content={page ? { collection: "pages", id: page.data.id, slug: page.id } : undefined}
 >
 	{
-		pageContent ? (
-			<MarketingBlocks value={pageContent} />
+		page && pageContent ? (
+			<div {...page.edit.content}>
+				<MarketingBlocks value={pageContent} />
+			</div>
 		) : (
 			<div class="empty-state">
 				<h1>Pricing</h1>
 				<p>Add pricing content in the admin.</p>
-				<a href="/_emdash/admin" class="btn btn-primary">
-					Open Admin
-				</a>
+					{Astro.locals.user && (
+						<a href="/_emdash/admin" class="btn btn-primary">
+							Open Admin
+						</a>
+					)}
 			</div>
 		)
 	}

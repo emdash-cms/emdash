@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiResponseError } from "../../src/lib/api/client";
+import type { PluginInfo } from "../../src/lib/api/plugins";
 import type {
 	DidHandleResolution,
 	RegistryClientConfig,
@@ -30,6 +32,7 @@ const mockResolveRegistryPackageStatus = vi.fn();
 const mockListRegistryReleases = vi.fn();
 const mockVerifyRegistryPlugin = vi.fn();
 const mockInstallRegistryPlugin = vi.fn();
+const mockFetchPlugins = vi.fn<() => Promise<PluginInfo[]>>(async () => []);
 const mockResolveDidToHandle = vi.fn<(did: string) => Promise<DidHandleResolution>>(async () => ({
 	status: "ok",
 	handle: "acme.dev",
@@ -61,7 +64,7 @@ vi.mock("../../src/lib/api/client", async () => {
 });
 
 vi.mock("../../src/lib/api/plugins", () => ({
-	fetchPlugins: vi.fn(async () => []),
+	fetchPlugins: () => mockFetchPlugins(),
 }));
 
 const { RegistryPluginDetail } = await import("../../src/components/RegistryPluginDetail");
@@ -72,6 +75,8 @@ interface PkgOverrides {
 	sections?: Record<string, unknown>;
 	lastUpdated?: string;
 	labels?: { val?: string; src?: string }[];
+	historicalReleaseCount?: number;
+	releaseHistoryComplete?: boolean;
 }
 
 function makePackage(overrides: PkgOverrides = {}): RegistryPackageView {
@@ -80,6 +85,8 @@ function makePackage(overrides: PkgOverrides = {}): RegistryPackageView {
 		handle: "acme.dev",
 		slug: "myplugin",
 		labels: overrides.labels ?? [],
+		historicalReleaseCount: overrides.historicalReleaseCount,
+		releaseHistoryComplete: overrides.releaseHistoryComplete,
 		profile: {
 			name: "My Plugin",
 			description: "A short description.",
@@ -98,17 +105,20 @@ interface ReleaseOverrides {
 	sbom?: { format?: string; url?: string; checksum?: string };
 	extensions?: Record<string, unknown>;
 	labels?: unknown[];
+	indexedAt?: string;
+	version?: string;
 }
 
 function makeRelease(overrides: ReleaseOverrides = {}): RegistryReleaseView {
 	const cid = `bafyrei${"a".repeat(52)}`;
+	const version = overrides.version ?? "1.2.3";
 	return {
-		uri: "at://did:plc:acme/com.emdashcms.experimental.package.release/myplugin:1.2.3",
+		uri: `at://did:plc:acme/com.emdashcms.experimental.package.release/myplugin:${version}`,
 		cid,
 		did: "did:plc:acme",
 		package: "myplugin",
-		version: "1.2.3",
-		indexedAt: "2025-03-01T00:00:00Z",
+		version,
+		indexedAt: overrides.indexedAt ?? "2025-03-01T00:00:00Z",
 		labels: overrides.labels ?? [],
 		release: {
 			sbom: overrides.sbom,
@@ -128,6 +138,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 function setup(pkg: RegistryPackageView, releases: RegistryReleaseView[]) {
+	mockFetchPlugins.mockResolvedValue([]);
 	mockGetRegistryPackageStatus.mockResolvedValue({ status: "passed", value: pkg });
 	mockResolveRegistryPackageStatus.mockResolvedValue({ status: "passed", value: pkg });
 	mockListRegistryReleases.mockResolvedValue({ releases });
@@ -142,6 +153,7 @@ function verificationPreview(): RegistryInstallResult {
 		capabilities: ["users:read"],
 		declaredAccess: { users: { read: {} } },
 		mcpTools: [],
+		publicRoutes: ["webhook"],
 		verification: {
 			profileCid: "bafy-profile",
 			releaseCid: "bafy-release",
@@ -316,6 +328,74 @@ describe("RegistryPluginDetail release withdrawal", () => {
 	});
 });
 
+describe("RegistryPluginDetail minimum release age", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("allows a proven first release through the holdback", async () => {
+		setup(makePackage({ historicalReleaseCount: 1, releaseHistoryComplete: true }), [
+			makeRelease({ indexedAt: new Date().toISOString() }),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail
+					pluginId="acme.dev/myplugin"
+					config={{
+						...CONFIG,
+						policy: { minimumReleaseAgeSeconds: 48 * 60 * 60 },
+					}}
+				/>
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeEnabled();
+		expect(screen.getByText("Release is too new to install").query()).toBeNull();
+	});
+
+	it("keeps incomplete history held back", async () => {
+		setup(makePackage({ historicalReleaseCount: 1, releaseHistoryComplete: false }), [
+			makeRelease({ indexedAt: new Date().toISOString() }),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail
+					pluginId="acme.dev/myplugin"
+					config={{
+						...CONFIG,
+						policy: { minimumReleaseAgeSeconds: 48 * 60 * 60 },
+					}}
+				/>
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+		await expect.element(screen.getByText("Release is too new to install")).toBeInTheDocument();
+	});
+
+	it("defaults to an older age-qualified release when the newest release is too new", async () => {
+		setup(makePackage({ historicalReleaseCount: 2, releaseHistoryComplete: true }), [
+			makeRelease({ version: "2.0.0", indexedAt: new Date().toISOString() }),
+			makeRelease({ version: "1.0.0", indexedAt: "2025-03-01T00:00:00Z" }),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail
+					pluginId="acme.dev/myplugin"
+					config={{
+						...CONFIG,
+						policy: { minimumReleaseAgeSeconds: 48 * 60 * 60 },
+					}}
+				/>
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeEnabled();
+		await expect.element(screen.getByText("Version 1.0.0")).toBeInTheDocument();
+		expect(screen.getByText("Release is too new to install").query()).toBeNull();
+	});
+});
+
 describe("RegistryPluginDetail independent install consent", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -346,17 +426,50 @@ describe("RegistryPluginDetail independent install consent", () => {
 			slug: "myplugin",
 			version: "1.2.3",
 		});
-		await expect.element(screen.getByText("Independent verification")).toBeInTheDocument();
+		await expect.element(screen.getByText("Build provenance verified")).toBeInTheDocument();
 		await expect.element(screen.getByText("Read user accounts")).toBeInTheDocument();
+		await expect.element(screen.getByText("Public routes")).toBeInTheDocument();
+		await expect.element(screen.getByText("webhook", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Technical verification details" }).click();
 		await expect.element(screen.getByText("bafy-profile")).toBeInTheDocument();
 		await expect.element(screen.getByText("bafy-release")).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Accept & Install" }).click();
 		expect(mockInstallRegistryPlugin).toHaveBeenCalledWith(
 			expect.objectContaining({
+				acknowledgedPublicRoutes: ["webhook"],
 				acknowledgedProfileCid: "bafy-profile",
 				acknowledgedReleaseCid: "bafy-release",
 			}),
 		);
+	});
+
+	it("shows installed state instead of offering another install", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockFetchPlugins.mockResolvedValue([
+			{
+				id: "r_installed",
+				name: "My Plugin",
+				version: "1.2.3",
+				enabled: true,
+				status: "active",
+				capabilities: [],
+				hasAdminPages: false,
+				hasDashboardWidgets: false,
+				hasHooks: false,
+				hasSettings: false,
+				source: "registry",
+				registryPublisherDid: "did:plc:acme",
+				registrySlug: "myplugin",
+			},
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Installed" })).toBeDisabled();
+		expect(screen.getByRole("button", { name: "Install", exact: true }).query()).toBeNull();
 	});
 
 	it("shows a verification failure without opening consent", async () => {
@@ -374,6 +487,55 @@ describe("RegistryPluginDetail independent install consent", () => {
 		expect(screen.getByRole("dialog").query()).toBeNull();
 	});
 
+	it("shows actionable guidance for incomplete publisher verification metadata", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockVerifyRegistryPlugin.mockRejectedValue(
+			new ApiResponseError(
+				400,
+				"RECORD_VERIFICATION_FAILED",
+				"The signed repository extension is malformed.",
+				{ verificationCode: "PROFILE_EXTENSION_INVALID" },
+			),
+		);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Install" }).click();
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("Ask the publisher to republish it with the latest EmDash plugin CLI.");
+		expect(screen.getByRole("dialog").query()).toBeNull();
+	});
+
+	it("keeps actionable verification guidance inside consent when install revalidation fails", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockVerifyRegistryPlugin.mockResolvedValue(verificationPreview());
+		mockInstallRegistryPlugin.mockRejectedValue(
+			new ApiResponseError(
+				400,
+				"RECORD_VERIFICATION_FAILED",
+				"The signed repository extension is malformed.",
+				{ verificationCode: "PROFILE_EXTENSION_INVALID" },
+			),
+		);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Install" }).click();
+		await screen.getByRole("button", { name: "Accept & Install" }).click();
+
+		await expect
+			.element(screen.getByRole("dialog").getByRole("alert"))
+			.toHaveTextContent("Ask the publisher to republish it with the latest EmDash plugin CLI.");
+	});
+
 	it("blocks install when the publisher's claimed handle does not resolve back to its DID", async () => {
 		mockResolveDidToHandle.mockResolvedValueOnce({ status: "invalid" });
 		setup(makePackage(), [makeRelease()]);
@@ -383,9 +545,7 @@ describe("RegistryPluginDetail independent install consent", () => {
 			</Wrapper>,
 		);
 
-		await expect
-			.element(screen.getByText("We couldn't verify this publisher's identity"))
-			.toBeInTheDocument();
+		await expect.element(screen.getByText("INVALID HANDLE")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
 		expect(mockVerifyRegistryPlugin).not.toHaveBeenCalled();
 	});
@@ -407,7 +567,7 @@ describe("RegistryPluginDetail lastUpdated and approved publisher identity", () 
 		await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
 	});
 
-	it("renders an approved author name without resolving a mutable handle", async () => {
+	it("renders the canonical public name and approved author name", async () => {
 		setup(makePackage(), [makeRelease()]);
 		const screen = await render(
 			<Wrapper>
@@ -415,8 +575,7 @@ describe("RegistryPluginDetail lastUpdated and approved publisher identity", () 
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText(/Published by/)).toHaveTextContent("Published by Acme");
-		expect(screen.container.querySelector("bdi")?.textContent).toBe("Acme");
-		expect(screen.container.textContent).not.toContain("acme.dev");
+		await expect.element(screen.getByText("@acme.dev/myplugin")).toBeInTheDocument();
 	});
 
 	it("renders a fixed unavailable state without publisher content or media requests", async () => {

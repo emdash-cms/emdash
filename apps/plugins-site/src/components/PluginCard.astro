@@ -1,0 +1,208 @@
+---
+import type { RegistryEntryData } from "@emdash-cms/registry-loader";
+
+import { pluginPath, publisherHandle } from "../lib/registry.js";
+
+interface Props {
+	entry: RegistryEntryData;
+}
+
+const { entry } = Astro.props;
+const plugin = entry.package;
+const profile = plugin.profile;
+const name = profile?.name || plugin.slug;
+const handle = publisherHandle(plugin);
+const href = pluginPath(plugin);
+const hue =
+	[...plugin.slug].reduce(
+		(sum, character) => sum + character.charCodeAt(0),
+		0,
+	) % 48;
+const initials = name
+	.split(/[\s-_]+/)
+	.map((part) => part[0])
+	.join("")
+	.slice(0, 2)
+	.toUpperCase();
+---
+
+<a class="plugin-card" href={href} style={`--card-angle: ${128 + hue}deg`}>
+	<div class="plugin-icon" aria-hidden="true"><span>{initials}</span></div>
+	<div class="plugin-card-body">
+		<p class="package-reference">
+			{handle && <span>@{handle}</span>}<span class="package-slug"
+				>/{plugin.slug}</span
+			>
+		</p>
+		<div class="plugin-card-heading">
+			<h2>{name}</h2>
+			{
+				plugin.latestVersion && (
+					<span class="version">v{plugin.latestVersion}</span>
+				)
+			}
+		</div>
+		<p class="description">{profile?.description || "An EmDash plugin."}</p>
+		{profile?.license && <p class="license">{profile.license} license</p>}
+		{
+			profile?.keywords && profile.keywords.length > 0 && (
+				<ul class="keywords" aria-label="Keywords">
+					{profile.keywords.slice(0, 3).map((keyword) => (
+						<li>{keyword}</li>
+					))}
+				</ul>
+			)
+		}
+	</div>
+</a>
+
+<style>
+	.plugin-card {
+		position: relative;
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 1.1rem;
+		min-height: 14rem;
+		padding: 1.35rem;
+		color: inherit;
+		text-decoration: none;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.15rem;
+		box-shadow: var(--shadow-card);
+		transition:
+			transform 180ms ease,
+			border-color 180ms ease,
+			box-shadow 180ms ease;
+	}
+
+	.plugin-card:hover {
+		transform: translateY(-3px);
+		border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+		box-shadow: var(--shadow-card-hover);
+	}
+
+	.plugin-card:focus-visible {
+		outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent);
+		outline-offset: 3px;
+	}
+
+	.plugin-icon {
+		display: grid;
+		place-items: center;
+		width: 3.2rem;
+		height: 3.2rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+		border-radius: 0.85rem;
+		background:
+			radial-gradient(
+				circle at 76% 15%,
+				rgb(255 255 255 / 80%),
+				transparent 34%
+			),
+			linear-gradient(var(--card-angle), #fff2e8, #ffe2d3 48%, #f7d9ee);
+		box-shadow: inset 0 1px 0 rgb(255 255 255 / 75%);
+		color: #8b2d18;
+		font-size: 0.88rem;
+		font-weight: 700;
+		letter-spacing: -0.03em;
+	}
+
+	:global([data-theme="dark"]) .plugin-icon {
+		background:
+			radial-gradient(
+				circle at 76% 15%,
+				rgb(255 255 255 / 14%),
+				transparent 34%
+			),
+			linear-gradient(var(--card-angle), #4e2017, #3c1d27 48%, #30203f);
+		color: #ffd9c8;
+	}
+
+	.plugin-card-body {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+	}
+
+	.plugin-card-heading {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	h2 {
+		margin: 0;
+		font-size: 1.1rem;
+		line-height: 1.25;
+		letter-spacing: -0.025em;
+	}
+
+	.version {
+		flex: none;
+		color: var(--muted);
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+	}
+
+	.description {
+		display: -webkit-box;
+		overflow: hidden;
+		margin: 0 0 1rem;
+		color: var(--muted);
+		font-size: 0.9rem;
+		line-height: 1.55;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+	}
+
+	.package-reference {
+		display: block;
+		margin: 0 0 0.55rem;
+		color: var(--accent-ink);
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		font-weight: 600;
+		line-height: 1.35;
+		letter-spacing: -0.015em;
+		overflow-wrap: anywhere;
+	}
+
+	.license {
+		margin: auto 0 0;
+		color: var(--subtle);
+		font-size: 0.72rem;
+	}
+
+	.keywords {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin: 0.65rem 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.keywords li {
+		padding: 0.22rem 0.48rem;
+		color: var(--muted);
+		font-size: 0.68rem;
+		background: var(--surface-soft);
+		border: 1px solid var(--line-soft);
+		border-radius: 999px;
+	}
+
+	@media (max-width: 520px) {
+		.plugin-card {
+			min-height: 12.5rem;
+			padding: 1.1rem;
+		}
+
+		.plugin-card-heading {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 0.2rem;
+		}
+	}
+</style>

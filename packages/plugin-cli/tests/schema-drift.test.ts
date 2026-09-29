@@ -76,4 +76,32 @@ describe("JSON Schema drift", () => {
 
 		expect(lf(asCrlf)).toBe(lf(regenerate()));
 	});
+
+	it.each([
+		["empty draft access", { collections: ["posts"], draft: {} }],
+		["empty read selector", { collections: ["posts"], draft: { read: {} } }],
+		["draft without collection scope", { draft: { patch: { fields: ["title"] } } }],
+	])("rejects %s through the committed authoring schema", async (_label, extension) => {
+		const committed = JSON.parse(await readFile(COMMITTED_SCHEMA_PATH, "utf8"));
+		const schema = z.fromJSONSchema(committed);
+		const manifest = {
+			slug: "translator",
+			version: "0.1.0",
+			publisher: "example.com",
+			license: "MIT",
+			author: { name: "Example" },
+			security: { email: "security@example.com" },
+			admin: {
+				editorPanels: [
+					{
+						id: "translate",
+						title: "Translate",
+						route: "translate",
+						...extension,
+					},
+				],
+			},
+		};
+		expect(schema.safeParse(manifest).success).toBe(false);
+	});
 });

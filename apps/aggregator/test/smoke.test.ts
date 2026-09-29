@@ -30,6 +30,15 @@ beforeAll(async () => {
 });
 
 describe("aggregator scaffold smoke test", () => {
+	it("redirects the root URL to the public plugin directory", async () => {
+		const response = await SELF.fetch("https://registry.emdashcms.com/", {
+			redirect: "manual",
+		});
+
+		expect(response.status).toBe(308);
+		expect(response.headers.get("location")).toBe("https://plugins.emdashcms.com/");
+	});
+
 	it("reuses a recent readiness snapshot across repeated probes", async () => {
 		let sessions = 0;
 		const db = new Proxy(env.DB, {

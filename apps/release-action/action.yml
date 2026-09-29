@@ -9,7 +9,7 @@ inputs:
     description: Publisher DID that owns the package.
     required: true
   connection-invitation:
-    description: Single-use invitation created by the publisher for the first workflow connection.
+    description: Legacy single-use package invitation from workflows created before repository connections.
     required: false
   release-file:
     description: Legacy path to a URL-source release JSON file. Cannot be combined with bundle or provenance inputs.
@@ -24,6 +24,10 @@ inputs:
   provenance-file:
     description: Path to the Sigstore bundle emitted by actions/attest-build-provenance.
     required: false
+  repository-visibility:
+    description: Visibility of the repository running the workflow. Defaults to the triggering event's repository.
+    required: false
+    default: ${{ github.event.repository.visibility }}
   idempotency-key:
     description: Stable key for replaying this submission. Defaults to the GitHub run.
     required: false

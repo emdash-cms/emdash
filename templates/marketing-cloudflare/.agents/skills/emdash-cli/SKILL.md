@@ -1,14 +1,16 @@
 ---
 name: emdash-cli
-description: Use the EmDash CLI to manage content, schema, media, and more. Use this skill when you need to interact with a running EmDash instance from the command line — creating content, managing collections, uploading media, generating types, or scripting CMS operations.
+description: Use the EmDash CLI to inspect and manage an EmDash instance from the command line, including content, schema, media, taxonomies, menus, search, authentication, seeds, migrations, generated types, and whole-site export and import.
 ---
 
 # EmDash CLI
 
-The EmDash CLI (`emdash` or `ec`) manages EmDash CMS instances. Commands fall into two categories:
+The EmDash CLI (`emdash`, with the short alias `em`) manages EmDash CMS instances. Commands fall into two categories:
 
-- **Local commands** — work directly on a SQLite file, no running server needed: `init`, `dev`, `seed`, `export-seed`, `auth secret`
-- **Remote commands** — talk to a running EmDash instance via HTTP: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`
+- **Local commands** work with project files or a configured database: `init`, `doctor`, `seed`, `migrate`, `export-seed`, and `secrets`.
+- **Remote commands** talk to a running EmDash instance: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site`, and `plugin`.
+
+Run `npx emdash --help` and `npx emdash <command> --help` for the installed version's exact commands and flags. Resolve the current target with a read command before a destructive or bulk mutation; examples in this skill do not authorize changing an instance the user did not place in scope.
 
 ## Authentication
 
@@ -19,30 +21,22 @@ Remote commands resolve auth automatically:
 3. Stored credentials from `emdash login`
 4. Dev bypass (localhost only — no token needed)
 
-For local dev servers, just run the command — auth is handled automatically. For remote instances, run `emdash login --url https://my-site.pages.dev` first.
+For a localhost development server with the development bypass enabled, the client can authenticate automatically. For a remote instance, run `emdash login --url https://my-site.pages.dev` or provide a scoped token.
 
 ## Custom Headers & Reverse Proxies
 
 Sites behind Cloudflare Access or other reverse proxies need auth headers on every request. The CLI supports this via `--header` flags and environment variables.
 
-### Service Tokens (Recommended for CI/Automation)
+### Service tokens for automation
 
 ```bash
-# Single header
-npx emdash login --url https://my-site.pages.dev \
-  --header "CF-Access-Client-Id: xxx.access" \
-  --header "CF-Access-Client-Secret: yyy"
-
-# Short form
-npx emdash login -H "CF-Access-Client-Id: xxx" -H "CF-Access-Client-Secret: yyy"
-
-# Via environment (newline-separated)
+# Provide sensitive headers through the environment in CI.
 export EMDASH_HEADERS="CF-Access-Client-Id: xxx
 CF-Access-Client-Secret: yyy"
-npx emdash login --url https://my-site.pages.dev
+npx emdash whoami --url https://my-site.pages.dev
 ```
 
-Headers are persisted to `~/.config/emdash/auth.json` after login, so subsequent commands inherit them automatically.
+`emdash login --header` persists custom headers to `~/.config/emdash/auth.json` for later commands. Prefer environment-provided headers in CI so a service secret is not written to the credential file or shell history.
 
 ### Cloudflare Access Browser Flow
 
@@ -81,7 +75,7 @@ pnpm dev
 # `mkdir -p` because the directory may not exist yet)
 mkdir -p .emdash
 npx emdash export-seed > .emdash/seed.json
-npx emdash export-seed --with-content > .emdash/seed.json
+npx emdash export-seed --with-content=all > .emdash/seed.json
 ```
 
 ### Type Generation
@@ -111,8 +105,8 @@ npx emdash whoami
 # Logout
 npx emdash logout
 
-# Generate auth secret for deployment
-npx emdash auth secret
+# Generate an encryption key for deployment
+npx emdash secrets generate
 ```
 
 ### Content CRUD
@@ -162,8 +156,9 @@ npx emdash schema get posts
 # Create collection
 npx emdash schema create articles --label Articles --description "Blog articles"
 
-# Delete collection
-npx emdash schema delete articles --force
+# Delete a collection after inspecting it and confirming the target
+npx emdash schema get articles
+npx emdash schema delete articles
 
 # Add field
 npx emdash schema add-field posts body --type portableText --label "Body Content"
@@ -173,7 +168,7 @@ npx emdash schema add-field posts featured --type boolean --required
 npx emdash schema remove-field posts featured
 ```
 
-Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `select`, `multiSelect`, `image`, `file`, `reference`, `portableText`, `json`, `slug`, `url`. See `FIELD_TYPE_TO_COLUMN` in `packages/core/src/schema/types.ts` for the authoritative list.
+`schema add-field` supports the field types printed by `npx emdash schema add-field --help`. The full product schema supports additional field types that are not necessarily creatable through this command.
 
 ### Media
 
@@ -213,6 +208,36 @@ npx emdash menu list
 npx emdash menu get primary
 ```
 
+### Site Export and Import
+
+`emdash site` copies a whole site (content model, content, history, settings, and media, but no users or secrets) into a `.emdash` site package, and imports a package into an empty site. The token needs `admin`, which the `emdash login` token has, or the `transfer:export`, `transfer:analyze`, and `transfer:execute` scopes. An `INSUFFICIENT_SCOPE` error means the token has neither. A package holds every entry and the email addresses of authors and commenters: treat it like a database backup.
+
+```bash
+# Export (re-run the same command to resume after an interruption)
+npx emdash site export --url https://old.example.com --output site.emdash
+npx emdash site export --url https://old.example.com --output site.emdash --no-comments
+
+# Import, step 1: upload and analyze; prints the plan and its digest
+npx emdash site import site.emdash --url https://new.example.com --analyze
+npx emdash site import site.emdash --url https://new.example.com --analyze \
+  --map-principal editor@example.com=editor@example.com --use-target-title
+
+# Import, step 2: execute exactly the reviewed plan
+npx emdash site import site.emdash --url https://new.example.com --plan sha256:<hex> --confirm
+
+# Follow up on an import by operation id
+npx emdash site import status <operation-id> --url https://new.example.com
+npx emdash site import resume <operation-id> [site.emdash] --url https://new.example.com
+npx emdash site import receipt <operation-id> --url https://new.example.com
+
+# Stop an import, or lift the write block a failed or cancelled import leaves
+# (neither deletes what the import wrote; --yes skips the prompt)
+npx emdash site import cancel <operation-id> --url https://new.example.com
+npx emdash site import abandon <operation-id> --url https://new.example.com
+```
+
+Show the user the plan (differences from the source site, warnings, blockers, principal mappings) and get their confirmation before running `--confirm`; it writes to the target site and blocks other writes there until it finishes. `site import` exits `2` when the plan has blockers, and `site import status` exits `1` for an import that failed, was cancelled or abandoned, or expired. Only cancel or abandon an import when the user asks: abandoning leaves partial data on the site, which then has to be reset before another import. `--map-principal` takes `<principal id or email>=<user id, email, or none>` and is repeatable; decision flags only work with `--analyze`, and each change produces a new plan digest. The public site is not hidden during an import, so the target should stay private until the command prints a receipt with `receiptDigestValid: true`.
+
 ## Drafts and Publishing
 
 The CLI auto-publishes on `create` and `update` by default. This means:
@@ -227,7 +252,7 @@ Collections that support revisions store edits as draft revisions. The CLI handl
 
 ## JSON Output
 
-All remote commands support `--json` for machine-readable output. It's auto-enabled when stdout is piped.
+All remote commands support `--json` for machine-readable output. It's auto-enabled when stdout is piped. `emdash site` always writes progress to stderr, so stdout holds only the JSON result; errors are `{ "error": { "code", "message" } }`.
 
 ```bash
 # Pipe to jq

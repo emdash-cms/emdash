@@ -20,6 +20,8 @@ import {
 	_prosemirrorToPortableText,
 	PortableTextEditor,
 } from "../../src/components/PortableTextEditor";
+
+import "../../dist/styles.css";
 import { render } from "../utils/render";
 
 // ---------------------------------------------------------------------------
@@ -152,6 +154,18 @@ async function renderAndGetEditor(props: Partial<Parameters<typeof PortableTextE
  */
 function typeIntoEditor(editor: Editor, text: string) {
 	editor.chain().focus().insertContent(text).run();
+}
+
+function simulateTyping(editor: Editor, text: string) {
+	editor.commands.focus();
+	for (const char of text) {
+		const { from, to } = editor.state.selection;
+		const insertText = () => editor.state.tr.insertText(char, from, to);
+		const handled = editor.view.someProp("handleTextInput", (handler) =>
+			handler(editor.view, from, to, char, insertText),
+		);
+		if (!handled) editor.view.dispatch(insertText());
+	}
 }
 
 // Shorthand block builders
@@ -932,6 +946,61 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
 		expect(linkDef?.href).toBe("https://api.example.com");
 		expect(span?.marks).toContain(linkDef?._key);
+	});
+
+	it("saves typed dotted filenames as plain Portable Text", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange });
+
+		simulateTyping(editor, "open main.py and user.name now ");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; href?: string }>;
+		}>;
+		expect(blocks[0]?.children?.map((span) => span.text).join("")).toBe(
+			"open main.py and user.name now ",
+		);
+		expect(blocks[0]?.markDefs).toBeUndefined();
+		expect(blocks[0]?.children?.every((span) => !span.marks?.length)).toBe(true);
+	});
+
+	it("saves pasted dotted filenames as plain Portable Text", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange });
+
+		editor.commands.focus();
+		editor.view.pasteText("See README.md and setup.sh for details.");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; href?: string }>;
+		}>;
+		expect(blocks[0]?.children?.map((span) => span.text).join("")).toBe(
+			"See README.md and setup.sh for details.",
+		);
+		expect(blocks[0]?.markDefs).toBeUndefined();
+		expect(blocks[0]?.children?.every((span) => !span.marks?.length)).toBe(true);
+	});
+
+	it("continues to save typed explicit URLs as links", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange });
+
+		simulateTyping(editor, "Visit https://example.com now ");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; _key: string; href?: string }>;
+		}>;
+		const linkDef = blocks[0]?.markDefs?.find((markDef) => markDef._type === "link");
+		expect(linkDef?.href).toBe("https://example.com");
+		expect(
+			blocks[0]?.children?.find((span) => span.text === "https://example.com")?.marks,
+		).toContain(linkDef?._key);
 	});
 
 	it("renders a bullet list", async () => {
@@ -1743,7 +1812,7 @@ describe("Code block copy action", () => {
 		}
 	});
 
-	it("preserves alias, free-form, apply, and cancel behavior", async () => {
+	it("preserves alias, free-form, and cancel behavior", async () => {
 		const { screen, editor } = await renderAndGetEditor({
 			value: [
 				{
@@ -1756,27 +1825,89 @@ describe("Code block copy action", () => {
 		});
 		const storedLanguage = () =>
 			editor.getJSON().content?.find((item) => item.type === "codeBlock")?.attrs?.language;
-		const clickPickerAction = (label: "Apply language" | "Cancel") => {
-			const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
-			expect(button).not.toBeNull();
-			button?.click();
-		};
 		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
-		await screen.getByPlaceholder("Language").fill("js");
-		clickPickerAction("Apply language");
+		await screen.getByPlaceholder("Search for a language…").fill("js");
+		await userEvent.keyboard("{Enter}");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("javascript"));
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
-		await screen.getByPlaceholder("Language").fill("Discarded Language");
-		const cancelButton = document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]');
-		expect(cancelButton).not.toBeNull();
-		cancelButton?.focus();
-		await userEvent.keyboard("{Enter}");
+		const discardedInput = screen.getByPlaceholder("Search for a language…");
+		await discardedInput.fill("Discarded Language");
+		const discardedInputElement = discardedInput.element() as HTMLInputElement;
+		await userEvent.keyboard("{Escape}");
+		expect(discardedInputElement.value).toBe("Discarded Language");
 		expect(storedLanguage()).toBe("javascript");
 
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
-		await screen.getByPlaceholder("Language").fill("Custom Language");
-		clickPickerAction("Apply language");
+		await screen.getByRole("combobox", { name: "Language" }).fill("Custom Language");
+		await expect
+			.element(screen.getByText("No matches. Press Enter to use “custom-language”."))
+			.toBeVisible();
+		await userEvent.keyboard("{Enter}");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
+
+		await screen.getByRole("button", { name: "Set language (current: custom-language)" }).click();
+		await userEvent.keyboard("{ArrowDown}{Enter}");
+		await vi.waitFor(() => expect(storedLanguage()).toBe("astro"));
+	});
+
+	it("keeps language suggestions available while typing over the current language", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: 'const greeting = "hello";',
+					language: "plaintext",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
+
+		const input = screen.getByPlaceholder("Search for a language…");
+		await expect.element(input).toHaveValue("");
+		expect(
+			screen
+				.getByRole("option")
+				.elements()
+				.slice(0, 3)
+				.map((option) => option.textContent?.trim()),
+		).toEqual(["Astro", "Bash", "C"]);
+		const emptyStatus = document.querySelector<HTMLElement>('.kumo-popover-popup [role="status"]');
+		expect(emptyStatus).not.toBeNull();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill(" js ");
+		await expect.element(screen.getByRole("option", { name: "JavaScript" })).toBeVisible();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill("");
+		await userEvent.keyboard("Java");
+
+		await expect.element(input).toHaveValue("Java");
+		await screen.getByRole("option", { name: "JavaScript" }).click();
+
+		await vi.waitFor(() => {
+			const codeBlock = editor.getJSON().content?.find((item) => item.type === "codeBlock");
+			expect(codeBlock?.attrs?.language).toBe("javascript");
+			expect(codeBlock?.content?.[0]?.text).toBe('const greeting = "hello";');
+		});
+	});
+
+	it("identifies the search and marks the stored language", async () => {
+		const { screen } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: "Console.WriteLine();",
+					language: "csharp",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: C#)" }).click();
+
+		await expect.element(screen.getByRole("combobox", { name: "Language" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("option", { name: "C#" }))
+			.toHaveAttribute("aria-selected", "true");
 	});
 
 	it("prevents block formatting that cannot survive inside a table cell", async () => {

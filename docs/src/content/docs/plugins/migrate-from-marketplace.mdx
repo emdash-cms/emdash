@@ -1,0 +1,60 @@
+---
+title: Migrate from Marketplace
+description: Move an existing EmDash site from Marketplace discovery to the plugin registry.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Sites with a `marketplace` option use the registry for new plugin discovery after upgrading. Existing Marketplace plugins continue to run and remain updateable and uninstallable while the option is configured.
+
+Follow this guide before removing `marketplace` from `astro.config.mjs`.
+
+## Check the plugin sandbox
+
+The hosted registry becomes the default catalog when `sandboxRunner` is configured and `sandbox` is not `false`. Complete the [plugin sandbox setup](/deployment/plugin-sandbox/) if the site does not already have an available runner.
+
+The following configuration enables the Cloudflare sandbox. EmDash then uses the hosted registry at `https://registry.emdashcms.com` without a separate registry option:
+
+```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxRunner: sandbox(),
+	marketplace: "https://marketplace.emdashcms.com",
+});
+```
+
+Keep the `marketplace` option during the migration. Legacy Marketplace plugins need it to check for and download updates.
+
+## Review installed Marketplace plugins
+
+<Steps>
+
+1. Upgrade EmDash and open **Plugins** in the admin panel.
+2. Select **Check for updates** and apply any required updates to plugins marked **Marketplace**.
+3. Review each Marketplace plugin and decide whether to keep it temporarily, replace it with a registry package, or uninstall it.
+4. When uninstalling, select **Also delete plugin storage data** only if that data is no longer needed.
+
+</Steps>
+
+Marketplace and registry installations have separate identities, bundles, and storage. Installing a registry package does not convert a Marketplace installation or copy its data. Follow the plugin publisher's migration instructions when replacing a plugin that stores data.
+
+<Aside type="caution">
+	Do not remove the `marketplace` option while an installed Marketplace plugin still needs updates.
+	Removing it does not uninstall the plugin, but EmDash cannot fetch later Marketplace releases.
+</Aside>
+
+## Remove Marketplace configuration
+
+After replacing or uninstalling every plugin marked **Marketplace**, remove the deprecated option:
+
+```js title="astro.config.mjs" del={3}
+emdash({
+	sandboxRunner: sandbox(),
+	marketplace: "https://marketplace.emdashcms.com",
+});
+```
+
+Restart EmDash. The Marketplace migration banner disappears, and **Registry** remains the only plugin catalog in the admin panel.
+
+To use a different aggregator, configure [`registry`](/reference/configuration/#registry) explicitly.

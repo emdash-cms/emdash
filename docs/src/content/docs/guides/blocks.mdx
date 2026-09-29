@@ -1,0 +1,194 @@
+---
+title: Build pages with blocks
+description: Define versioned block types, add a blocks field, and render the stored composition with Astro components.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+A `blocks` field stores an ordered page composition. Each item records a block type, a retained schema version, a stable key, and the fields declared by that version. Editors add and reorder blocks in the content editor. The Astro route maps each block type to a component.
+
+## Define the block types
+
+Define block types before the collection field that uses them. A seed preserves every numbered version and the active `currentVersion` pointer.
+
+The following seed defines Hero and Feature grid blocks, then makes them available in a Pages `layout` field:
+
+```json title="seed/seed.json"
+{
+  "$schema": "https://emdashcms.com/seed.schema.json",
+  "version": "1",
+  "blockTypes": [
+    {
+      "slug": "hero",
+      "label": "Hero",
+      "category": "Layout",
+      "currentVersion": 1,
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            { "slug": "heading", "label": "Heading", "type": "string", "required": true },
+            { "slug": "body", "label": "Body", "type": "portableText" },
+            { "slug": "image", "label": "Image", "type": "image" },
+            { "slug": "link_label", "label": "Link label", "type": "string" },
+            { "slug": "link_url", "label": "Link URL", "type": "url" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "feature_grid",
+      "label": "Feature grid",
+      "category": "Layout",
+      "currentVersion": 1,
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            { "slug": "heading", "label": "Heading", "type": "string" },
+            {
+              "slug": "items",
+              "label": "Items",
+              "type": "repeater",
+              "validation": {
+                "subFields": [
+                  { "slug": "title", "label": "Title", "type": "string", "required": true },
+                  { "slug": "description", "label": "Description", "type": "text" }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "collections": [
+    {
+      "slug": "pages",
+      "label": "Pages",
+      "fields": [
+        { "slug": "title", "label": "Title", "type": "string", "required": true },
+        {
+          "slug": "layout",
+          "label": "Layout",
+          "type": "blocks",
+          "validation": {
+            "allowedTypes": ["hero", "feature_grid"],
+            "maxItems": 20
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+The order of `allowedTypes` controls the block picker. If you remove an allowed type later, EmDash moves it to the server-managed `retiredTypes` list. Existing blocks remain editable, but editors cannot add or duplicate that type.
+
+## Create the Astro components
+
+Each component receives `value`, `index`, and `blockKey`. The value includes `_type`, `_version`, and `_key`, so a component can narrow retained versions when its block schema evolves.
+
+The Hero component reads every displayed value from the stored block:
+
+```astro title="src/components/blocks/Hero.astro"
+---
+import { sanitizeHref } from "emdash";
+import { Image, PortableText, type BlockComponentProps } from "emdash/ui";
+import type { PageLayoutBlock } from "../../../emdash-env";
+
+type HeroBlock = Extract<PageLayoutBlock, { _type: "hero" }>;
+type Props = BlockComponentProps<HeroBlock>;
+
+const { value } = Astro.props;
+---
+
+<section class="hero">
+  <div>
+    <h1>{value.heading}</h1>
+    {value.body && <PortableText value={value.body} />}
+    {value.link_url && <a href={sanitizeHref(value.link_url)}>{value.link_label}</a>}
+  </div>
+  {value.image && <Image image={value.image} />}
+</section>
+```
+
+Create a component for each allowed type. The component controls markup and styling; the block value supplies content and media.
+
+## Render the composition
+
+Use `defineBlockComponents` to require one component for every `_type` in the generated field union. Pass that map to `<Blocks>` in the page route.
+
+```astro title="src/pages/pages/[slug].astro"
+---
+import { decodeSlug, getEmDashEntry } from "emdash";
+import { Blocks, defineBlockComponents } from "emdash/ui";
+import type { PageLayoutBlock } from "../../../emdash-env";
+import FeatureGrid from "../../components/blocks/FeatureGrid.astro";
+import Hero from "../../components/blocks/Hero.astro";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
+
+const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
+if (!page) return Astro.redirect("/404");
+Astro.cache.set(cacheHint);
+
+const components = defineBlockComponents<PageLayoutBlock>({
+  hero: Hero,
+  feature_grid: FeatureGrid,
+});
+---
+
+<Blocks value={page.data.layout} components={components} />
+```
+
+`<Blocks>` performs no content, schema, media, or network queries. It renders the supplied array in stored order. A block component can make an explicit application query when that component needs other data.
+
+## Handle a missing component
+
+During development, an unmapped type produces a visible placeholder and a console warning. The placeholder names the `_type` but does not print the stored block value.
+
+In production, an unmapped type renders the `fallback` component when supplied. Otherwise it renders no output:
+
+```astro title="src/pages/pages/[slug].astro"
+---
+import MissingBlock from "../../components/blocks/MissingBlock.astro";
+---
+
+<Blocks value={page.data.layout} components={components} fallback={MissingBlock} />
+```
+
+Ship renderer support before enabling or activating a block type used by production content.
+
+## Change a block schema
+
+Compatible changes amend the active version. Adding an optional field, adding a default, or loosening validation keeps the same version number. Stored blocks receive defaults the next time they are written.
+
+A breaking change creates an inactive version. Removing a field, changing a field type, adding a required field, or narrowing validation is breaking.
+
+<Steps>
+
+1. Create the breaking version through the schema API or MCP. Keep it inactive.
+
+2. Update the renderer to handle both the retained version and the new version. Deploy the renderer.
+
+3. Activate the new version. New blocks use it after activation.
+
+4. Migrate stored blocks explicitly with `migrateBlocks: true`. Preserve each block `_key` while changing `_version` and its version-specific fields.
+
+</Steps>
+
+Old versions remain available for revisions, drafts, media tracking, and stored content. Block types and retained versions do not have a hard-delete operation.
+
+<Aside type="caution" title="Deploy the unknown-field protection first">
+  Sites upgrading from an EmDash release older than 0.39 must first deploy a release that treats unknown field types as read-only and rejects writes. Create blocks fields only after every runtime has that protection. This prevents an older runtime in a rolling deployment or rollback from rewriting block JSON as a string.
+</Aside>
+
+## Supported nested fields
+
+Block definitions support `string`, `text`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, `multiSelect`, `portableText`, `image`, `file`, and `repeater`.
+
+References, JSON, slugs, nested blocks, custom widgets, physical indexes, uniqueness, and per-subfield localization are not supported inside a block definition. A blocks field itself cannot be required, unique, searchable, indexed, or assigned a custom field widget.
+
+For exact field validation and stored value rules, see the [`blocks` field reference](/reference/field-types/#blocks). For seed conflict and export behavior, see [Seed files](/themes/seed-files/#block-types).

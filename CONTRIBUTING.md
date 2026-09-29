@@ -66,20 +66,21 @@ Core changes propagate to the demo automatically.
 
 ## Repository Layout
 
-| Directory                 | What it is                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `packages/core/`          | Main `emdash` package -- Astro integration, REST API, database, schema, plugins |
-| `packages/admin/`         | React admin UI SPA (`@emdash-cms/admin`)                                        |
-| `packages/auth/`          | Auth -- passkeys, OAuth, magic links (`@emdash-cms/auth`)                       |
-| `packages/cloudflare/`    | Cloudflare Workers adapter + plugin sandbox                                     |
-| `packages/blocks/`        | Portable Text block definitions                                                 |
-| `packages/create-emdash/` | `create-emdash` CLI scaffolder                                                  |
-| `packages/plugins/`       | First-party plugins                                                             |
-| `demos/`                  | Dev/test apps (`simple`, `cloudflare`, `postgres`, ...)                         |
-| `templates/`              | Starter templates                                                               |
-| `docs/`                   | Documentation site (Starlight)                                                  |
-| `e2e/`                    | Playwright test infrastructure                                                  |
-| `i18n/`                   | Translation status dashboard (Lunaria)                                          |
+| Directory                 | What it is                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/`          | Main `emdash` package -- Astro integration, REST API, database, schema, plugins                                                                   |
+| `packages/admin/`         | React admin UI SPA (`@emdash-cms/admin`)                                                                                                          |
+| `packages/auth/`          | Auth -- passkeys, OAuth, magic links (`@emdash-cms/auth`)                                                                                         |
+| `packages/cloudflare/`    | Cloudflare Workers adapter + plugin sandbox                                                                                                       |
+| `packages/blocks/`        | Portable Text block definitions                                                                                                                   |
+| `packages/create-emdash/` | `create-emdash` CLI scaffolder                                                                                                                    |
+| `packages/plugins/`       | First-party plugins                                                                                                                               |
+| `demos/`                  | Dev/test apps (`simple`, `cloudflare`, `postgres`, ...)                                                                                           |
+| `templates/`              | Starter templates                                                                                                                                 |
+| `skills/`                 | Agent skills; those listed in `scripts/sync-skills-repo.mjs` publish to [emdash-cms/skills](https://github.com/emdash-cms/skills) on each release |
+| `docs/`                   | Documentation site (Starlight)                                                                                                                    |
+| `e2e/`                    | Playwright test infrastructure                                                                                                                    |
+| `i18n/`                   | Translation status dashboard (Lunaria)                                                                                                            |
 
 ## Checks
 

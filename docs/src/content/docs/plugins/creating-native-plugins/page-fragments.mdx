@@ -20,7 +20,7 @@ return definePlugin({
 	capabilities: ["hooks.page-fragments:register"],
 	hooks: {
 		"page:fragments": async (event, ctx) => {
-			const analyticsId = await ctx.kv.get<string>("settings:analyticsId");
+			const analyticsId = await ctx.settings.get<string>("analyticsId");
 			if (!analyticsId || event.page.path.startsWith("/_emdash/")) return null;
 
 			const encodedId = encodeURIComponent(analyticsId);

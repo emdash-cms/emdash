@@ -1,14 +1,12 @@
 /**
- * Registry Browse
+ * Registry browse
  *
  * Grid of plugin cards backed by the experimental decentralized plugin
- * registry's aggregator. Search box debounces directly into the
- * aggregator's `searchPackages` XRPC -- the aggregator is a public,
- * read-only service, so no server proxy is involved.
+ * registry's public, read-only aggregator.
  *
- * Cards navigate to `/plugins/marketplace/$pluginId` (the same path the
- * marketplace browse uses); the router branches to the registry detail
- * component when `manifest.registry` is configured.
+ * Cards navigate to `/plugins/registry/$publisher/$slug`. A search that
+ * matches `@handle/slug` resolves that package directly; other input uses
+ * the aggregator's free-text `searchPackages` endpoint.
  */
 
 import { Badge, Button, Input } from "@cloudflare/kumo";
@@ -20,12 +18,18 @@ import * as React from "react";
 
 import {
 	searchRegistryPackages,
+	resolveRegistryPackageStatus,
 	registryQueryPolicyKey,
 	type RegistryClientConfig,
 	type RegistryPackageView,
 } from "../lib/api/registry.js";
+import {
+	parseRegistryPublicName,
+	registryIdentityPublisherParam,
+} from "../lib/registry-identity.js";
+import { cn } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
-import { PublisherIdentity } from "./PublisherHandle.js";
+import { RegistryPluginIdentity, useRegistryPluginIdentity } from "./RegistryPluginIdentity.js";
 
 export interface RegistryBrowseProps {
 	/** Resolved manifest.registry block. Required -- caller checks. */
@@ -66,12 +70,22 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 			registryQueryPolicyKey(config),
 			debouncedQuery,
 		],
-		queryFn: ({ pageParam }) =>
-			searchRegistryPackages(config, {
+		queryFn: async ({ pageParam }) => {
+			const publicName = parseRegistryPublicName(debouncedQuery);
+			if (publicName) {
+				const result = await resolveRegistryPackageStatus(
+					config,
+					publicName.handle,
+					publicName.slug,
+				);
+				return { packages: result.status === "passed" ? [result.value] : [] };
+			}
+			return searchRegistryPackages(config, {
 				q: debouncedQuery || undefined,
 				cursor: pageParam,
 				limit: 20,
-			}),
+			});
+		},
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) => lastPage.cursor,
 		refetchOnMount: "always",
@@ -177,6 +191,7 @@ interface RegistryPackageCardProps {
 
 function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 	const { t } = useLingui();
+	const identity = useRegistryPluginIdentity(pkg.did, pkg.slug)!;
 	// `profile` is lexicon-validated at the DiscoveryClient boundary, so the
 	// shape is trustworthy (or `null`). These are plain text content
 	// (React-escaped) — no URL/href, so no scheme allow-list is needed here.
@@ -186,9 +201,12 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 
 	return (
 		<Link
-			to="/plugins/marketplace/$pluginId"
-			params={{ pluginId: `${pkg.did}/${pkg.slug}` }}
-			className="block rounded-md border border-kumo-border bg-kumo-surface p-4 transition-colors hover:bg-kumo-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
+			to="/plugins/registry/$publisher/$slug"
+			params={{ publisher: registryIdentityPublisherParam(identity), slug: pkg.slug }}
+			className={cn(
+				"block rounded-md border bg-kumo-surface p-4 transition-colors hover:bg-kumo-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand",
+				identity.status === "invalid" ? "border-kumo-danger" : "border-kumo-border",
+			)}
 		>
 			<div className="flex items-start gap-3">
 				<div className="mt-1 rounded-md bg-kumo-subtle p-2 text-kumo-subtle">
@@ -196,9 +214,18 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 				</div>
 				<div className="min-w-0 flex-1">
 					<h2 className="truncate font-semibold">{name ?? pkg.slug}</h2>
-					<PublisherIdentity did={pkg.did} profile={pkg.profile} variant="card" />
+					<RegistryPluginIdentity
+						identity={identity}
+						invalidMessage={t`The publisher identity cannot be verified.`}
+						className="mt-0.5"
+						linked={false}
+					/>
 
-					{description ? (
+					{identity.status === "invalid" ? (
+						<p className="mt-2 text-sm font-medium text-kumo-danger">
+							{t`Installation is unavailable.`}
+						</p>
+					) : description ? (
 						<p className="mt-2 line-clamp-2 text-sm text-kumo-default">{description}</p>
 					) : null}
 					{license ? <p className="mt-2 text-xs text-kumo-subtle">{license}</p> : null}

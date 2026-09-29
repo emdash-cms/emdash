@@ -26,6 +26,7 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { resolveImageMedia } from "../content/converters/gallery.js";
 import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
@@ -153,13 +154,21 @@ function attrStr(attrs: Record<string, unknown> | undefined, key: string): strin
 /** Safely extract an optional string attribute from ProseMirror attrs */
 function attrStrOpt(attrs: Record<string, unknown> | undefined, key: string): string | undefined {
 	const v = attrs?.[key];
-	return typeof v === "string" ? v : undefined;
+	return typeof v === "string" && v ? v : undefined;
 }
 
 /** Safely extract a number attribute from ProseMirror attrs */
 function attrNum(attrs: Record<string, unknown> | undefined, key: string): number | undefined {
 	const v = attrs?.[key];
 	return typeof v === "number" ? v : undefined;
+}
+
+function attrDimension(
+	attrs: Record<string, unknown> | undefined,
+	key: string,
+): number | undefined {
+	const value = attrNum(attrs, key);
+	return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function canonicalMediaProviderId(provider: string | undefined): string | undefined {
@@ -266,6 +275,10 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			const provider = attrStrOpt(node.attrs, "provider");
 			const blurhash = attrStrOpt(node.attrs, "blurhash");
 			const dominantColor = attrStrOpt(node.attrs, "dominantColor");
+			const title = attrStrOpt(node.attrs, "title");
+			const caption = Object.hasOwn(node.attrs ?? {}, "caption")
+				? (attrStrOpt(node.attrs, "caption") ?? (title ? "" : undefined))
+				: title;
 			// Persist LQIP as first-class block fields (matching the image-field
 			// MediaValue path) rather than nesting in `asset.meta`, so read sites
 			// and normalize don't need a dual-shape fallback. `asset.meta` is left
@@ -280,13 +293,14 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 					provider: provider && provider !== "local" ? provider : undefined,
 				},
 				alt: attrStrOpt(node.attrs, "alt"),
-				caption: attrStrOpt(node.attrs, "caption") ?? attrStrOpt(node.attrs, "title"),
-				width: attrNum(node.attrs, "width"),
-				height: attrNum(node.attrs, "height"),
+				caption,
+				title,
+				width: attrDimension(node.attrs, "width"),
+				height: attrDimension(node.attrs, "height"),
 				...(blurhash ? { blurhash } : {}),
 				...(dominantColor ? { dominantColor } : {}),
-				displayWidth: attrNum(node.attrs, "displayWidth"),
-				displayHeight: attrNum(node.attrs, "displayHeight"),
+				displayWidth: attrDimension(node.attrs, "displayWidth"),
+				displayHeight: attrDimension(node.attrs, "displayHeight"),
 			};
 		}
 		case "horizontalRule":
@@ -298,14 +312,15 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 		}
 		case "pluginBlock": {
 			// Spread the captured data back out so the block round-trips losslessly.
-			// `data` holds every field except _type / _key / id (which live on
-			// dedicated attrs).
-			const { blockType, id, data } = node.attrs ?? {};
+			// `data` holds every field except _type / _key and the identity field
+			// (`id` or `url`, named by `identityField`), which live on dedicated attrs.
+			const { blockType, id, identityField, data } = node.attrs ?? {};
+			const field = identityField === "url" || identityField === "" ? identityField : "id";
 			return {
 				...(data && typeof data === "object" ? data : {}),
 				_type: typeof blockType === "string" ? blockType : "embed",
 				_key: k(),
-				id: typeof id === "string" ? id : "",
+				...(field ? { [field]: typeof id === "string" ? id : "" } : {}),
 			};
 		}
 		default:
@@ -571,6 +586,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			url?: string;
 			alt?: string;
 			caption?: string;
+			title?: string;
 			width?: number;
 			height?: number;
 			/** LQIP — first-class field (legacy snapshots keep it in `asset.meta`). */
@@ -579,8 +595,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			displayWidth?: number;
 			displayHeight?: number;
 		};
-		const asset = ib.asset;
-		const meta = asset?.meta;
+		const meta = ib.asset?.meta;
+		const { asset, alt, width, height } = resolveImageMedia(ib);
 		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
 		const blurhash =
 			typeof ib.blurhash === "string"
@@ -597,14 +613,14 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return {
 			type: "image",
 			attrs: {
-				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
-				alt: ib.alt || "",
-				title: ib.caption || "",
-				caption: ib.caption || "",
-				mediaId: asset?._ref,
-				provider: canonicalMediaProviderId(asset?.provider),
-				width: ib.width,
-				height: ib.height,
+				src: asset.url || ib.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
+				alt: alt || "",
+				title: ib.title || "",
+				caption: Object.hasOwn(ib, "caption") ? ib.caption || "" : ib.title || "",
+				mediaId: asset._ref || undefined,
+				provider: canonicalMediaProviderId(asset.provider),
+				width,
+				height,
 				blurhash,
 				dominantColor,
 				displayWidth: ib.displayWidth,
@@ -621,15 +637,22 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 	// Unknown block types — treat as plugin blocks. Capture every field other
 	// than the well-known ones into `data` so the block round-trips losslessly,
 	// even if no plugin currently registers this type. Matches the admin
-	// editor's behaviour at PortableTextEditor.tsx:572-588.
-	const { _type, _key, id, url, ...rest } = block;
+	// editor's `convertCustomBlock`.
+	// The identity lives under whichever of `id` / `url` the block arrived with,
+	// so the PM → PT direction can write it back under the same key.
+	const identityField =
+		typeof block.id === "string" ? "id" : typeof block.url === "string" ? "url" : "";
+	const identity = identityField ? block[identityField] : undefined;
 	// Filter out _-prefixed keys to prevent accumulation across edit cycles.
-	const data = Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
+	const data = Object.fromEntries(
+		Object.entries(block).filter(([key]) => !key.startsWith("_") && key !== identityField),
+	);
 	return {
 		type: "pluginBlock",
 		attrs: {
-			blockType: typeof _type === "string" ? _type : "embed",
-			id: typeof id === "string" ? id : typeof url === "string" ? url : "",
+			blockType: typeof block._type === "string" ? block._type : "embed",
+			id: typeof identity === "string" ? identity : "",
+			identityField,
 			data,
 		},
 	};
@@ -1209,13 +1232,14 @@ const PluginBlockNode = Node.create({
 	draggable: true,
 
 	addAttributes() {
-		// All three attributes are stored on the ProseMirror node but not
+		// These attributes are stored on the ProseMirror node but not
 		// rendered as DOM attributes — they're metadata for the round-trip,
 		// not styling or behaviour the placeholder DOM needs to expose.
 		const noDom = { rendered: false, parseHTML: () => null };
 		return {
 			blockType: { default: "", ...noDom },
 			id: { default: "", ...noDom },
+			identityField: { default: "id", ...noDom },
 			data: { default: {}, ...noDom },
 		};
 	},
@@ -2096,6 +2120,10 @@ export function InlinePortableTextEditor({
 	tablePlaceholder = TableBlockNode.options.placeholder,
 }: InlinePortableTextEditorProps) {
 	const initialRef = React.useRef(value);
+	// The editor document last known to be stored: the one the loaded content
+	// produced, then the one each successful save sent. `save()` does nothing
+	// while the current document is structurally equal to it (`Node.eq`).
+	const savedDocRef = React.useRef<Editor["state"]["doc"] | null>(null);
 	const savingRef = React.useRef(false);
 	const editorRef = React.useRef<ReturnType<typeof useEditor>>(null);
 
@@ -2159,9 +2187,9 @@ export function InlinePortableTextEditor({
 			// one that can still land.
 			if (savingRef.current && !options?.keepalive) return;
 
-			const current = JSON.stringify(getBlocks());
-			const initial = JSON.stringify(initialRef.current);
-			if (current === initial) return;
+			const doc = editorRef.current?.state.doc;
+			if (!doc || !savedDocRef.current || doc.eq(savedDocRef.current)) return;
+			const blocks = getBlocks();
 
 			savingRef.current = true;
 			try {
@@ -2171,13 +2199,14 @@ export function InlinePortableTextEditor({
 						method: "PUT",
 						credentials: "same-origin",
 						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-						body: JSON.stringify({ data: { [field]: getBlocks() } }),
+						body: JSON.stringify({ data: { [field]: blocks } }),
 						keepalive: options?.keepalive ?? false,
 					},
 				);
 
 				if (res.ok) {
-					initialRef.current = getBlocks();
+					initialRef.current = blocks;
+					savedDocRef.current = doc;
 					document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "saved" } }));
 					document.dispatchEvent(
 						new CustomEvent("emdash:content-changed", {
@@ -2245,6 +2274,9 @@ export function InlinePortableTextEditor({
 						provider: { default: null },
 						width: { default: null },
 						height: { default: null },
+						displayWidth: { default: null },
+						displayHeight: { default: null },
+						caption: { default: null },
 						blurhash: { default: null },
 						dominantColor: { default: null },
 					};
@@ -2289,9 +2321,10 @@ export function InlinePortableTextEditor({
 		},
 	});
 
-	// Store editor ref for getBlocks
+	// Store editor ref for getBlocks, and record the loaded document as saved.
 	React.useEffect(() => {
 		editorRef.current = editor;
+		if (editor && !savedDocRef.current) savedDocRef.current = editor.state.doc;
 	}, [editor]);
 
 	// Slash menu command handler

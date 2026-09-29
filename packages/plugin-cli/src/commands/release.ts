@@ -6,6 +6,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 import pc from "picocolors";
 
+import { releasePlanCommand, releasePrepareCommand } from "../release-prepare.js";
 import {
 	cancelDelegatedReleaseIntent,
 	dryRunDelegatedRelease,
@@ -329,6 +330,8 @@ export const releaseCommand = defineCommand({
 		"dry-run": releaseDryRunCommand,
 		enrol: releaseEnrolCommand,
 		reject: releaseRejectCommand,
+		plan: releasePlanCommand,
+		prepare: releasePrepareCommand,
 		revoke: releaseRevokeCommand,
 		setup: releaseSetupCommand,
 		submit: releaseSubmitCommand,

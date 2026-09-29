@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql as kyselySql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
@@ -84,6 +84,23 @@ describe("ContentRepository", () => {
 			expect(content.data).toEqual({ title: "Test Post", content: "Body" });
 			expect(content.status).toBe("published");
 			expect(content.authorId).toBe("author-1");
+		});
+
+		it("canonicalizes custom and built-in datetimes when creating content", async () => {
+			await registry.createField("post", {
+				slug: "starts_at",
+				label: "Starts at",
+				type: "datetime",
+			});
+			const content = await repo.create({
+				type: "post",
+				slug: "timed-post",
+				data: { title: "Timed", starts_at: "2026-08-22T01:00:00+09:00" },
+				publishedAt: "2026-08-22T01:00:00+09:00",
+			});
+
+			expect(content.data.starts_at).toBe("2026-08-21T16:00:00.000Z");
+			expect(content.publishedAt).toBe("2026-08-21T16:00:00.000Z");
 		});
 
 		it("should throw validation error when type is missing", async () => {
@@ -508,6 +525,47 @@ describe("ContentRepository", () => {
 					"2026-08-02T12:00:00.000Z",
 				]);
 				expect(new Set(items.map((item) => item.id)).size).toBe(5);
+			});
+
+			it("stores equivalent datetime notations identically and orders by the instant", async () => {
+				await registry.createField("post", {
+					slug: "starts_at",
+					label: "Starts at",
+					type: "datetime",
+					indexed: true,
+				});
+				const seeded = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+				});
+				const values = [
+					"2026-08-21T16:00:00.000Z",
+					"2026-08-22T01:00:00+09:00",
+					"2026-08-22T00:00:00.000Z",
+				];
+				for (const [index, value] of values.entries()) {
+					await repo.update("post", seeded.items[index]!.id, { data: { starts_at: value } });
+				}
+
+				const ordered = await repo.findMany("post", {
+					orderBy: { field: "starts_at", direction: "asc" },
+					where: {
+						fieldFilters: { starts_at: { gte: "2026-08-22T00:00:00+09:00" } },
+					},
+				});
+				const stored = await kyselySql<{ starts_at: string }>`
+					SELECT starts_at FROM ec_post WHERE starts_at IS NOT NULL ORDER BY starts_at
+				`.execute(db);
+
+				expect(stored.rows.map((row) => row.starts_at)).toEqual([
+					"2026-08-21T16:00:00.000Z",
+					"2026-08-21T16:00:00.000Z",
+					"2026-08-22T00:00:00.000Z",
+				]);
+				expect(ordered.items.map((item) => item.data.starts_at)).toEqual([
+					"2026-08-21T16:00:00.000Z",
+					"2026-08-21T16:00:00.000Z",
+					"2026-08-22T00:00:00.000Z",
+				]);
 			});
 
 			it("rejects unindexed custom order fields", async () => {
