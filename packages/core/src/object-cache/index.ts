@@ -777,6 +777,8 @@ export const CacheNamespace = {
 	SCHEMA: "schema",
 	/** Public (approved) comments. */
 	COMMENTS: "comments",
+	/** Widget areas and their widgets. */
+	WIDGETS: "widgets",
 } as const;
 
 /** Namespace for a content collection's cached queries. */
@@ -833,6 +835,11 @@ export function invalidateBylineObjectCache(): void {
 /** Invalidate cached navigation menus. */
 export function invalidateMenuObjectCache(): void {
 	invalidateObjectCache(CacheNamespace.MENUS);
+}
+
+/** Invalidate cached widget areas. */
+export function invalidateWidgetObjectCache(): void {
+	invalidateObjectCache(CacheNamespace.WIDGETS);
 }
 
 /** Invalidate cached collection schema/metadata reads (e.g. getCollectionInfo). */

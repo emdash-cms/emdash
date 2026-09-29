@@ -7,6 +7,8 @@ import { Role } from "@emdash-cms/auth";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+
 import { handleMenuCreate, handleMenuItemCreate } from "../../../src/api/handlers/menus.js";
 import { handleTaxonomyCreate, handleTermCreate } from "../../../src/api/handlers/taxonomies.js";
 import {
@@ -40,6 +42,12 @@ import {
 	PUT as putWidget,
 } from "../../../src/astro/routes/api/widget-areas/[name]/widgets/[id].js";
 import { POST as postWidgetAreas } from "../../../src/astro/routes/api/widget-areas/index.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import {
+	__setObjectCacheBackendForTests,
+	CacheNamespace,
+	cachedQuery,
+} from "../../../src/object-cache/index.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("Chrome write routes — edge cache invalidation", () => {
@@ -386,6 +394,42 @@ describe("Chrome write routes — edge cache invalidation", () => {
 				.values({ id: widgetId, area_id: areaId, type: "content", sort_order: 0 })
 				.execute();
 			return { areaId, widgetId };
+		}
+
+		beforeEach(async () => {
+			const store = new Map<string, string>();
+			__setObjectCacheBackendForTests(
+				{
+					get: (key) => Promise.resolve(store.get(key) ?? null),
+					set: (key, value) => {
+						store.set(key, value);
+						return Promise.resolve();
+					},
+					delete: (key) => {
+						store.delete(key);
+						return Promise.resolve();
+					},
+				},
+				{ revalidate: 60_000, defaultTtl: 3600 },
+			);
+			await readCachedWidgets("stale");
+			await waitForDeferredTasks();
+		});
+
+		afterEach(async () => {
+			await waitForDeferredTasks();
+			// Every widget write must also drop the cached widget areas.
+			const cached = await readCachedWidgets("fresh");
+			__setObjectCacheBackendForTests(null);
+			expect(cached, "widget object cache not invalidated").toBe("fresh");
+		});
+
+		function readCachedWidgets(value: string) {
+			return cachedQuery({
+				namespace: CacheNamespace.WIDGETS,
+				key: "areas",
+				load: async () => value,
+			});
 		}
 
 		it("invalidates on create", async () => {
