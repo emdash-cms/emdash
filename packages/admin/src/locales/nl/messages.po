@@ -481,12 +481,12 @@ msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr ""
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:329
+#: packages/admin/src/components/MediaUploadDialog.tsx:311
 msgid "{completedCount} of {0} complete"
 msgstr ""
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:214
+#: packages/admin/src/components/MediaUploadDialog.tsx:196
 msgid "{completedCount} of {0} uploads complete"
 msgstr ""
 
@@ -502,7 +502,7 @@ msgstr "{count, plural, one {# item} other {# items}}"
 msgid "{current} of {total}"
 msgstr "{current} van {total}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:216
+#: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr ""
 
@@ -631,7 +631,7 @@ msgstr ""
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:305
+#: packages/admin/src/components/MediaUploadDialog.tsx:287
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr ""
 
@@ -1421,7 +1421,7 @@ msgstr "Alle statussen"
 msgid "All types"
 msgstr "Alle types"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:218
+#: packages/admin/src/components/MediaUploadDialog.tsx:200
 msgid "All uploads finished"
 msgstr ""
 
@@ -2080,7 +2080,7 @@ msgstr "Blader door en installeer plugins die in de gedecentraliseerde registry 
 msgid "Browse and install plugins to extend your site."
 msgstr "Blader door plugins en installeer ze om je site uit te breiden."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:286
+#: packages/admin/src/components/MediaUploadDialog.tsx:268
 msgid "Browse files"
 msgstr ""
 
@@ -2089,7 +2089,7 @@ msgstr ""
 msgid "Browse Files"
 msgstr "Bestanden kiezen"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:295
+#: packages/admin/src/components/MediaUploadDialog.tsx:277
 msgid "Browse files to upload"
 msgstr ""
 
@@ -2254,7 +2254,7 @@ msgid "Cancel (Esc)"
 msgstr "Annuleren (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:159
+#: packages/admin/src/components/MediaUploadDialog.tsx:141
 msgid "Cancel {0}"
 msgstr ""
 
@@ -2263,7 +2263,7 @@ msgstr ""
 msgid "Cancel import"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:349
+#: packages/admin/src/components/MediaUploadDialog.tsx:331
 msgid "Cancel remaining"
 msgstr ""
 
@@ -2582,7 +2582,7 @@ msgstr ""
 msgid "Clear"
 msgstr "Wissen"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:334
+#: packages/admin/src/components/MediaUploadDialog.tsx:316
 msgid "Clear completed"
 msgstr ""
 
@@ -2651,7 +2651,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1835
 #: packages/admin/src/components/MediaPickerModal.tsx:1001
 #: packages/admin/src/components/MediaPickerModal.tsx:1008
-#: packages/admin/src/components/MediaUploadDialog.tsx:255
+#: packages/admin/src/components/MediaUploadDialog.tsx:237
 #: packages/admin/src/components/MenuEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:408
 #: packages/admin/src/components/MenuEditor.tsx:412
@@ -2845,7 +2845,7 @@ msgstr "Reacties van ingelogde CMS-gebruikers worden automatisch goedgekeurd"
 msgid "Comments with this status will appear here."
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:86
+#: packages/admin/src/components/MediaUploadDialog.tsx:68
 msgid "Complete"
 msgstr ""
 
@@ -4107,13 +4107,13 @@ msgstr "Verwerpen..."
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:76
 #: packages/admin/src/components/Dashboard.tsx:196
-#: packages/admin/src/components/editor/ImageUploadExtension.ts:134
+#: packages/admin/src/components/editor/ImageUploadExtension.ts:107
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "Sluiten"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:161
+#: packages/admin/src/components/MediaUploadDialog.tsx:143
 msgid "Dismiss completed {0}"
 msgstr ""
 
@@ -4215,7 +4215,7 @@ msgstr ""
 #: packages/admin/src/components/BulkTagDialog.tsx:504
 #: packages/admin/src/components/BylineCreditsEditor.tsx:920
 #: packages/admin/src/components/ContentList.tsx:1133
-#: packages/admin/src/components/MediaUploadDialog.tsx:353
+#: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2148
 msgid "Done"
@@ -4310,7 +4310,7 @@ msgstr "Concepten"
 msgid "Drafts & Private"
 msgstr "Concepten & privé"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:274
+#: packages/admin/src/components/MediaUploadDialog.tsx:256
 msgid "Drag and drop files here"
 msgstr ""
 
@@ -4350,7 +4350,7 @@ msgstr "Sleep widgets hierheen om ze toe te voegen"
 msgid "Drag widgets into an area to add them"
 msgstr "Sleep widgets naar een gebied om ze toe te voegen"
 
-#: packages/admin/src/components/media/ImageDropTarget.tsx:134
+#: packages/admin/src/components/media/ImageDropTarget.tsx:136
 msgid "Drop an image here or <0>browse</0>"
 msgstr ""
 
@@ -5810,7 +5810,7 @@ msgstr "Bestandsnaam"
 msgid "Filename cannot be changed after upload"
 msgstr "Bestandsnaam kan na het uploaden niet meer worden gewijzigd"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:246
+#: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Files upload as soon as you add them."
 msgstr ""
 
@@ -6357,7 +6357,7 @@ msgstr "Afbeeldingsinstellingen"
 msgid "Image shown when this page is shared on social media"
 msgstr "Afbeelding die wordt getoond wanneer deze pagina op social media wordt gedeeld"
 
-#: packages/admin/src/components/editor/ImageUploadExtension.ts:252
+#: packages/admin/src/components/editor/ImageUploadExtension.ts:225
 #: packages/admin/src/components/media/ImageDropTarget.tsx:72
 msgid "Image upload failed. Try again."
 msgstr ""
@@ -8259,7 +8259,7 @@ msgstr ""
 msgid "No fields to compare"
 msgstr "Geen velden om te vergelijken"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:329
+#: packages/admin/src/components/MediaUploadDialog.tsx:311
 msgid "No files added"
 msgstr ""
 
@@ -8577,11 +8577,8 @@ msgstr "Alleen e-mailadressen van toegestane domeinen kunnen zich registreren."
 msgid "Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked."
 msgstr ""
 
+#: packages/admin/src/components/editor/ImageUploadExtension.ts:212
 #: packages/admin/src/components/media/ImageDropTarget.tsx:53
-msgid "Only image files can be dropped here."
-msgstr ""
-
-#: packages/admin/src/components/editor/ImageUploadExtension.ts:239
 msgid "Only image files can be uploaded here."
 msgstr ""
 
@@ -8691,7 +8688,7 @@ msgstr "Optionele tooltip bij hover"
 msgid "Options (one per line)"
 msgstr "Opties (één per regel)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:276
+#: packages/admin/src/components/MediaUploadDialog.tsx:258
 msgid "Or browse files from your computer"
 msgstr ""
 
@@ -9395,7 +9392,7 @@ msgstr ""
 msgid "Python"
 msgstr "Python"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:98
+#: packages/admin/src/components/MediaUploadDialog.tsx:80
 msgid "Queued"
 msgstr ""
 
@@ -9713,7 +9710,7 @@ msgstr "Verwijderen"
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:2764
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/MediaUploadDialog.tsx:162
+#: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:458
 msgid "Remove {0}"
@@ -10101,7 +10098,7 @@ msgstr "Opnieuw proberen"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
-#: packages/admin/src/components/MediaUploadDialog.tsx:148
+#: packages/admin/src/components/MediaUploadDialog.tsx:130
 msgid "Retry {0}"
 msgstr ""
 
@@ -10114,7 +10111,7 @@ msgstr ""
 msgid "Retry copy"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:344
+#: packages/admin/src/components/MediaUploadDialog.tsx:326
 msgid "Retry failed"
 msgstr ""
 
@@ -11913,7 +11910,7 @@ msgstr ""
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 msgstr "De volgende tabellen bevatten content maar zijn niet geregistreerd als collecties. Registreer ze om deze content in de admin te beheren."
 
-#: packages/admin/src/components/editor/ImageUploadExtension.ts:211
+#: packages/admin/src/components/editor/ImageUploadExtension.ts:184
 msgid "The image is in the Media Library, but this entry is now read-only."
 msgstr ""
 
@@ -13101,7 +13098,7 @@ msgid "Upload Export File"
 msgstr "Exportbestand uploaden"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:209
-#: packages/admin/src/components/MediaUploadDialog.tsx:94
+#: packages/admin/src/components/MediaUploadDialog.tsx:76
 msgid "Upload failed"
 msgstr ""
 
@@ -13140,7 +13137,7 @@ msgstr ""
 msgid "Upload to {0}"
 msgstr "Uploaden naar {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:243
+#: packages/admin/src/components/MediaUploadDialog.tsx:225
 msgid "Upload to {providerName}"
 msgstr ""
 
@@ -13157,14 +13154,14 @@ msgid "Uploaded:"
 msgstr "Geüpload:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:209
-#: packages/admin/src/components/MediaUploadDialog.tsx:78
+#: packages/admin/src/components/MediaUploadDialog.tsx:60
 #: packages/admin/src/components/WordPressImport.tsx:2147
 msgid "Uploading"
 msgstr "Uploaden"
 
-#: packages/admin/src/components/editor/ImageUploadExtension.ts:141
-#: packages/admin/src/components/media/ImageDropTarget.tsx:132
-#: packages/admin/src/components/media/ImageDropTarget.tsx:145
+#: packages/admin/src/components/editor/ImageUploadExtension.ts:114
+#: packages/admin/src/components/media/ImageDropTarget.tsx:134
+#: packages/admin/src/components/media/ImageDropTarget.tsx:147
 msgid "Uploading image…"
 msgstr ""
 

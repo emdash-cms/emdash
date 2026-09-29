@@ -84,6 +84,11 @@
       "default": "./dist/auth/providers/google.mjs"
     },
     "./auth/providers/google-admin": "./src/auth/providers/google-admin.tsx",
+    "./auth/providers/microsoft": {
+      "types": "./dist/auth/providers/microsoft.d.mts",
+      "default": "./dist/auth/providers/microsoft.mjs"
+    },
+    "./auth/providers/microsoft-admin": "./src/auth/providers/microsoft-admin.tsx",
     "./db": {
       "types": "./dist/db/index.d.mts",
       "default": "./dist/db/index.mjs"

@@ -11,7 +11,14 @@ import { hashToken } from "../tokens.js";
 import type { AuthAdapter, User, RoleLevel } from "../types.js";
 import { github, fetchGitHubEmail } from "./providers/github.js";
 import { google } from "./providers/google.js";
-import type { OAuthProvider, OAuthConfig, OAuthProfile, OAuthState } from "./types.js";
+import { createMicrosoftProvider } from "./providers/microsoft.js";
+import type {
+	MicrosoftOAuthConfig,
+	OAuthProvider,
+	OAuthConfig,
+	OAuthProfile,
+	OAuthState,
+} from "./types.js";
 
 export { github, google };
 
@@ -20,6 +27,7 @@ export interface OAuthConsumerConfig {
 	providers: {
 		github?: OAuthConfig;
 		google?: OAuthConfig;
+		microsoft?: MicrosoftOAuthConfig;
 	};
 	/**
 	 * Check if self-signup is allowed for this email domain
@@ -32,7 +40,7 @@ export interface OAuthConsumerConfig {
  */
 export async function createAuthorizationUrl(
 	config: OAuthConsumerConfig,
-	providerName: "github" | "google",
+	providerName: "github" | "google" | "microsoft",
 	stateStore: StateStore,
 	options?: {
 		/** When set, this flow accepts an invite and the callback completes it. */
@@ -44,8 +52,9 @@ export async function createAuthorizationUrl(
 		throw new Error(`OAuth provider ${providerName} not configured`);
 	}
 
-	const provider = getProvider(providerName);
+	const provider = getProvider(providerName, config);
 	const state = generateState();
+	const nonce = provider.verifyIdToken ? generateState() : undefined;
 	const redirectUri = new URL(
 		`/_emdash/api/auth/oauth/${providerName}/callback`,
 		config.baseUrl,
@@ -60,6 +69,7 @@ export async function createAuthorizationUrl(
 		provider: providerName,
 		redirectUri,
 		codeVerifier,
+		...(nonce ? { nonce } : {}),
 		...(options?.inviteToken ? { inviteToken: options.inviteToken } : {}),
 	});
 
@@ -75,6 +85,10 @@ export async function createAuthorizationUrl(
 	url.searchParams.set("code_challenge", codeChallenge);
 	url.searchParams.set("code_challenge_method", "S256");
 
+	if (nonce) {
+		url.searchParams.set("nonce", nonce);
+	}
+
 	return { url: url.toString(), state };
 }
 
@@ -84,7 +98,7 @@ export async function createAuthorizationUrl(
 export async function handleOAuthCallback(
 	config: OAuthConsumerConfig,
 	adapter: AuthAdapter,
-	providerName: "github" | "google",
+	providerName: "github" | "google" | "microsoft",
 	code: string,
 	state: string,
 	stateStore: StateStore,
@@ -103,7 +117,7 @@ export async function handleOAuthCallback(
 	// Delete state (single-use)
 	await stateStore.delete(state);
 
-	const provider = getProvider(providerName);
+	const provider = getProvider(providerName, config);
 
 	// Exchange code for tokens
 	const tokens = await exchangeCode(
@@ -114,8 +128,9 @@ export async function handleOAuthCallback(
 		storedState.codeVerifier,
 	);
 
-	// Fetch user profile
-	const profile = await fetchProfile(provider, tokens.accessToken, providerName);
+	const profile = provider.verifyIdToken
+		? await profileFromIdToken(provider, tokens.idToken, storedState.nonce)
+		: await fetchProfile(provider, tokens.accessToken, providerName);
 
 	// When the flow carried an invite token, complete the invite instead of
 	// applying the self-signup policy.
@@ -124,7 +139,9 @@ export async function handleOAuthCallback(
 	}
 
 	// Find or create user
-	return findOrCreateOAuthUser(adapter, providerName, profile, config.canSelfSignup);
+	return findOrCreateOAuthUser(adapter, providerName, profile, config.canSelfSignup, {
+		requireVerifiedEmail: provider.requireVerifiedEmailForSignup,
+	});
 }
 
 /**
@@ -298,6 +315,27 @@ async function fetchProfile(
 }
 
 /**
+ * Read the user profile from a verified ID token
+ */
+async function profileFromIdToken(
+	provider: OAuthProvider,
+	idToken: string | undefined,
+	nonce: string | undefined,
+): Promise<OAuthProfile> {
+	if (!provider.verifyIdToken || !idToken || !nonce) {
+		throw new OAuthError("id_token_invalid", "Missing ID token or nonce");
+	}
+	try {
+		return provider.parseProfile(await provider.verifyIdToken(idToken, nonce));
+	} catch (error) {
+		throw new OAuthError(
+			"id_token_invalid",
+			error instanceof Error ? error.message : "Invalid ID token",
+		);
+	}
+}
+
+/**
  * Signup policy callback.
  * Return `{ allowed: true, role }` to permit signup, or `null` to deny.
  */
@@ -317,6 +355,10 @@ export async function findOrCreateOAuthUser(
 	providerName: string,
 	profile: OAuthProfile,
 	canSelfSignup?: CanSelfSignup,
+	options?: {
+		/** Refuse self-signup when the provider has not verified the email */
+		requireVerifiedEmail?: boolean;
+	},
 ): Promise<User> {
 	// Check if OAuth account already linked
 	const existingAccount = await adapter.getOAuthAccount(providerName, profile.id);
@@ -351,6 +393,12 @@ export async function findOrCreateOAuthUser(
 	if (canSelfSignup) {
 		const signup = await canSelfSignup(profile.email);
 		if (signup?.allowed) {
+			if (options?.requireVerifiedEmail && !profile.emailVerified) {
+				throw new OAuthError(
+					"signup_not_allowed",
+					"Cannot sign up: email not verified by provider",
+				);
+			}
 			// Create new user
 			const user = await adapter.createUser({
 				email: profile.email,
@@ -374,12 +422,22 @@ export async function findOrCreateOAuthUser(
 	throw new OAuthError("signup_not_allowed", "Self-signup not allowed for this email domain");
 }
 
-function getProvider(name: "github" | "google"): OAuthProvider {
+function getProvider(
+	name: "github" | "google" | "microsoft",
+	config: OAuthConsumerConfig,
+): OAuthProvider {
 	switch (name) {
 		case "github":
 			return github;
 		case "google":
 			return google;
+		case "microsoft": {
+			const microsoftConfig = config.providers.microsoft;
+			if (!microsoftConfig) {
+				throw new Error("OAuth provider microsoft not configured");
+			}
+			return createMicrosoftProvider(microsoftConfig);
+		}
 	}
 }
 
@@ -432,7 +490,8 @@ export class OAuthError extends Error {
 			| "signup_not_allowed"
 			| "invite_invalid"
 			| "invite_email_mismatch"
-			| "invite_email_unverified",
+			| "invite_email_unverified"
+			| "id_token_invalid",
 		message: string,
 	) {
 		super(message);
