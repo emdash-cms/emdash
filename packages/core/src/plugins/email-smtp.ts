@@ -753,6 +753,9 @@ export async function clearSmtpConfigFromDb(db: Kysely<Database>): Promise<void>
  * Load SMTP config from DB first, then fall back to env vars.
  * Returns null if neither is configured.
  *
+ * DB settings take precedence so admin changes apply without a restart, so
+ * every send reads the options table, even when only env vars are set.
+ *
  * The encryption key is the same `EMDASH_ENCRYPTION_KEY` used for plugin
  * secrets — the SMTP password is a plugin secret in spirit.
  */

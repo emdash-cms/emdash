@@ -175,6 +175,9 @@ export function loadCloudflareConfigFromEnv(): CloudflareEmailConfig | null {
 /**
  * Load Cloudflare Email config: DB first, then env fallback.
  * Returns null if neither is configured.
+ *
+ * DB settings take precedence so admin changes apply without a restart, so
+ * every send reads the options table, even when only env vars are set.
  */
 export async function loadCloudflareConfig(
 	db: Kysely<Database>,
