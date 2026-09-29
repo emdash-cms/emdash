@@ -22,6 +22,7 @@ import type {
 	PluginContext,
 	ActorInfo,
 	ContentHookEvent,
+	ContentSaveHookDetails,
 	ContentDeleteEvent,
 	ContentStateChangeEvent,
 	MediaUploadEvent,
@@ -183,6 +184,11 @@ const contentSaveHookContext =
 
 export function getActiveContentSaveHookName(): ContentSaveHookName | undefined {
 	return contentSaveHookContext.getStore();
+}
+
+function assignSaveHookDetails(event: ContentHookEvent, details: ContentSaveHookDetails): void {
+	if (details.locale !== undefined) event.locale = details.locale;
+	if (details.translationOf !== undefined) event.translationOf = details.translationOf;
 }
 
 /**
@@ -558,6 +564,7 @@ export class HookPipeline {
 		isNew: boolean,
 		id?: string,
 		actor?: ActorInfo,
+		details: ContentSaveHookDetails = {},
 	): Promise<{
 		content: Record<string, unknown>;
 		results: HookResult<Record<string, unknown>>[];
@@ -575,6 +582,7 @@ export class HookPipeline {
 			};
 			if (id !== undefined) event.id = id;
 			if (actor !== undefined) event.actor = { ...actor };
+			assignSaveHookDetails(event, details);
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
@@ -618,6 +626,7 @@ export class HookPipeline {
 		isNew: boolean,
 		actor?: ActorInfo,
 		excludePluginId?: string,
+		details: ContentSaveHookDetails = {},
 	): Promise<HookResult<void>[]> {
 		const hooks = this.getTypedHooks("content:afterSave");
 		const results: HookResult<void>[] = [];
@@ -627,6 +636,7 @@ export class HookPipeline {
 			const { handler } = hook;
 			const event: ContentHookEvent = { content, collection, isNew };
 			if (actor !== undefined) event.actor = { ...actor };
+			assignSaveHookDetails(event, details);
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
