@@ -1,0 +1,29 @@
+.changeset/plain-text-after-links.md
+  s_d8021c569e4ef0::t_09e5f21ea71169 1-5
+packages/admin/src/components/PortableTextEditor.tsx
+  s_d8021c569e4ef0::t_3f1ac04df769c5 365-380,4035,4044,4552,4564
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_d8021c569e4ef0::t_86d1335182cb28 1006-1029
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_d8021c569e4ef0::t_e653aa97aa846b 700,736-742
+packages/admin/tests/editor/link-destination-input.test.tsx
+  s_d8021c569e4ef0::t_2bceb029cafdb4 568,621,647
+packages/admin/tests/editor/toolbar.test.tsx
+  s_d8021c569e4ef0::t_97941f1ffbbb73 1711,1737-1738
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3ac145751cf1a863e2654ccc9901fcdc0c614c71",
+  "prompts": {},
+  "sessions": {
+    "s_d8021c569e4ef0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ed3f-6811-71d0-b810-8f5b89fefd3d",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
