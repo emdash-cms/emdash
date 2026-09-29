@@ -271,17 +271,23 @@ export function SeoSettings() {
 						/>
 					</SettingRow>
 					<SettingRow>
-						<Switch
-							label={t`Disallow AI training`}
+						<Switch.Group
 							controlFirst={false}
-							className="ms-auto"
-							checked={formData.seo?.disallowAiTraining === true}
-							onCheckedChange={(checked) => handleSeoChange("disallowAiTraining", checked)}
-							aria-describedby="seo-disallow-ai-training-description"
-						/>
-						<p id="seo-disallow-ai-training-description" className="text-sm text-kumo-subtle">
-							{t`Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.`}
-						</p>
+							description={
+								<span id="seo-disallow-ai-training-description">
+									{t`Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.`}
+								</span>
+							}
+						>
+							<Switch
+								label={t`Disallow AI training`}
+								controlFirst={false}
+								className="ms-auto"
+								checked={formData.seo?.disallowAiTraining === true}
+								onCheckedChange={(checked) => handleSeoChange("disallowAiTraining", checked)}
+								aria-describedby="seo-disallow-ai-training-description"
+							/>
+						</Switch.Group>
 					</SettingRow>
 				</SettingsSection>
 
