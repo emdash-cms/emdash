@@ -45,10 +45,12 @@ export interface CalendarItem extends CalendarEntry {
 export const OVERDUE_GRACE_MS = 2 * 60_000;
 
 const DAY_MS = 86_400_000;
-/** UTC offsets run from −12 to +14 hours. */
-const ZONE_MARGIN_MS = 14 * 3_600_000;
-/** The last instant the API accepts: its datetimes have four-digit years. */
-const MAX_TIME = Date.UTC(9999, 11, 31, 23, 59, 59, 999);
+/** UTC offsets run from −12 to +14 hours today; historical local mean time reached almost ±16. */
+const ZONE_MARGIN_MS = 16 * 3_600_000;
+/** The API's datetimes, and the day keys here, have four-digit years. */
+const MIN_YEAR = 1000;
+const MAX_YEAR = 9999;
+const MAX_TIME = Date.UTC(MAX_YEAR, 11, 31, 23, 59, 59, 999);
 const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
 const MAX_LIST_VALUES = 50;
 const MAX_LIST_VALUE_LENGTH = 64;
@@ -74,7 +76,7 @@ export function isMonthKey(value: unknown): value is string {
 	if (!match) return false;
 	const year = Number(match[1]);
 	const month = Number(match[2]);
-	return year >= 1970 && year <= 9999 && month >= 1 && month <= 12;
+	return year >= MIN_YEAR && year <= MAX_YEAR && month >= 1 && month <= 12;
 }
 
 /**

@@ -44,6 +44,17 @@ describe("dayKeyInZone and fetchRange", () => {
 		expect(dayKeyInZone(latest, "Etc/GMT+12")).toBe("2026-10-31");
 		expect(latest).toBeLessThan(Date.parse(to));
 	});
+
+	it("fetches every grid day in the local mean time of historical zones", () => {
+		const { from, to } = fetchRange(monthGridDays("1800-03", 0));
+		const earliest = Date.parse("1800-02-22T09:28:00.000Z");
+		const latest = Date.parse("1800-04-06T15:26:00.000Z");
+
+		expect(dayKeyInZone(earliest, "America/Juneau")).toBe("1800-02-23");
+		expect(earliest).toBeGreaterThanOrEqual(Date.parse(from));
+		expect(dayKeyInZone(latest, "Asia/Manila")).toBe("1800-04-05");
+		expect(latest).toBeLessThan(Date.parse(to));
+	});
 });
 
 describe("createCalendarDisplay", () => {
@@ -106,7 +117,7 @@ describe("calendarState", () => {
 });
 
 describe("parseCalendarSearch", () => {
-	it("keeps a known view and a month from 1970 to 9999", () => {
+	it("keeps a known view and a month from 1000 to 9999", () => {
 		expect(parseCalendarSearch({ view: "agenda", month: "2026-10" })).toMatchObject({
 			view: "agenda",
 			month: "2026-10",
@@ -115,6 +126,8 @@ describe("parseCalendarSearch", () => {
 			view: "month",
 			month: "9999-12",
 		});
+		expect(parseCalendarSearch({ month: "1969-12" })).toMatchObject({ month: "1969-12" });
+		expect(parseCalendarSearch({ month: "1000-01" })).toMatchObject({ month: "1000-01" });
 	});
 
 	it("splits, de-duplicates, and bounds list params, keeping only known states", () => {
@@ -135,7 +148,7 @@ describe("parseCalendarSearch", () => {
 	});
 
 	it("drops unknown views and invalid months", () => {
-		for (const month of ["2026-13", "2026-00", "1969-12", "0099-01", "2026-1", 202610]) {
+		for (const month of ["2026-13", "2026-00", "0999-12", "0099-01", "2026-1", 202610]) {
 			expect(parseCalendarSearch({ view: "week", month })).toMatchObject({
 				view: undefined,
 				month: undefined,
