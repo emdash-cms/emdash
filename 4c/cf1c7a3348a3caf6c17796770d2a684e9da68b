@@ -1,0 +1,39 @@
+.changeset/quiet-blockquote-marks.md
+  s_e4bf309bcac872::t_8da2e8a201d386 1-5
+packages/admin/src/styles.css
+  s_6faa5a24c7d9fe::t_0da8828f3a4eac 232-236
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_715d4a90065394::t_9457e71877a5d6 1064-1079,1081-1084,1087-1088
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4ccf1c7a3348a3caf6c17796770d2a684e9da68b",
+  "prompts": {},
+  "sessions": {
+    "s_6faa5a24c7d9fe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f1ec-c7b9-7943-8b75-c3e0fa0297ef",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_715d4a90065394": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f1f6-2397-7b41-b0f8-00fb42575f2e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e4bf309bcac872": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1978833f-fe8a-4b53-bca5-4ad7eb5a7632",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
