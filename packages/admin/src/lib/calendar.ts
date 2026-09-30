@@ -297,13 +297,20 @@ export interface CalendarDisplay {
 	monthDayShort(day: string): string;
 	fullDate(day: string): string;
 	dayNumber(day: string): string;
-	collection(slug: string): { label: string; color: CollectionColor };
+	collection(slug: string): CalendarCollection;
+}
+
+export interface CalendarCollection {
+	label: string;
+	color: CollectionColor;
+	/** The icon name the collection declares for the sidebar. */
+	icon?: string;
 }
 
 export interface CalendarDisplayOptions {
 	locale: string;
 	timeZone: string | undefined;
-	collections: ReadonlyArray<{ slug: string; label: string }>;
+	collections: ReadonlyArray<{ slug: string; label: string; icon?: string }>;
 	showLocale: boolean;
 	viewerTimeZone?: string;
 }
@@ -408,12 +415,13 @@ export function createCalendarDisplay(options: CalendarDisplayOptions): Calendar
 		calendar: "gregory",
 	});
 
-	const colors = new Map(
+	const collections = new Map<string, CalendarCollection>(
 		options.collections.map((collection, index) => [
 			collection.slug,
 			{
 				label: collection.label,
 				color: COLLECTION_COLORS[index % COLLECTION_COLORS.length] ?? "neutral",
+				icon: collection.icon,
 			},
 		]),
 	);
@@ -446,6 +454,6 @@ export function createCalendarDisplay(options: CalendarDisplayOptions): Calendar
 			year: "numeric",
 		}),
 		dayNumber: dayFormatter(locale, { day: "numeric" }),
-		collection: (slug) => colors.get(slug) ?? { label: slug, color: "neutral" },
+		collection: (slug) => collections.get(slug) ?? { label: slug, color: "neutral" },
 	};
 }

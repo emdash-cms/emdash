@@ -114,6 +114,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			visibleCollectionEntries(manifest.collections).map(([slug, collection]) => ({
 				slug,
 				label: collection.label,
+				icon: collection.icon,
 			})),
 		[manifest.collections],
 	);
