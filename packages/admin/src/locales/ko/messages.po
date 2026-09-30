@@ -415,7 +415,7 @@ msgstr ""
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:213
 msgid "{0} plugins"
-msgstr "{0} 플러그인"
+msgstr "플러그인 {0}개"
 
 #. placeholder {0}: theme.name
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:206
@@ -1383,7 +1383,7 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:110
 msgid "All capabilities"
-msgstr "모든 기능"
+msgstr "모든 권한"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:152
 msgid "All collections"
@@ -2290,11 +2290,11 @@ msgstr "표준 URL"
 
 #: packages/admin/src/components/PluginManager.tsx:575
 msgid "Capabilities"
-msgstr "기능"
+msgstr "권한"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:93
 msgid "Capability consent"
-msgstr "기능 동의"
+msgstr "권한 동의"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:491
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:527
@@ -4073,7 +4073,7 @@ msgstr "비활성"
 
 #: packages/admin/src/components/PluginManager.tsx:670
 msgid "Disabled:"
-msgstr "비활성:"
+msgstr "비활성화:"
 
 #. placeholder {0}: selectedUser?.name || selectedUser?.email
 #: packages/admin/src/routes/users.tsx:274
@@ -4981,7 +4981,7 @@ msgstr "Facebook"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:345
 msgid "Fail"
-msgstr "실패됨"
+msgstr "실패"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
@@ -5821,7 +5821,7 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
-msgstr "기능별로 필터링"
+msgstr "권한별로 필터링"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:185
 msgid "Filter by collection"
@@ -7980,7 +7980,7 @@ msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:262
 msgid "NEW"
-msgstr "NEW"
+msgstr "신규"
 
 #: packages/admin/src/components/ContentEditor.tsx:1448
 msgid "New {itemLabel}"
@@ -9343,7 +9343,7 @@ msgstr "게시됨"
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:347
 msgid "Published {0}"
-msgstr "게시됨 {0}"
+msgstr "게시일: {0}"
 
 #: packages/admin/src/router.tsx:600
 msgid "Published {total} items"
@@ -9644,7 +9644,7 @@ msgstr "등록이 취소되었거나 시간이 초과되었습니다. 다시 시
 #: packages/admin/src/components/PluginManager.tsx:447
 #: packages/admin/src/components/Sidebar.tsx:475
 msgid "Registry"
-msgstr ""
+msgstr "레지스트리"
 
 #: packages/admin/src/components/ContentTypeList.tsx:138
 #: packages/admin/src/components/RelationList.tsx:68
@@ -9919,7 +9919,7 @@ msgstr "답글:"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:220
 msgid "Repository"
-msgstr "저장소"
+msgstr "레포지토리"
 
 #: packages/admin/src/components/SignupPage.tsx:290
 msgid "Request a new link"
@@ -10498,7 +10498,7 @@ msgstr "스크린샷 {0}"
 #. placeholder {1}: screenshots.length
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:478
 msgid "Screenshot {0} of {1}"
-msgstr "{1} 중 스크린샷 {0}"
+msgstr "스크린샷 {0}/{1}"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:267
 msgid "Screenshot blurred due to image audit"
@@ -11984,7 +11984,7 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:179
 msgid "The marketplace is empty. Check back later for new plugins."
-msgstr "마켓플레이스가 비어 있습니다. 나중에 새 플러그인이 등록될 예정입니다."
+msgstr "마켓플레이스가 비어 있습니다. 나중에 새 플러그인이 있는지 다시 확인해 주세요."
 
 #: packages/admin/src/components/MenuList.tsx:69
 msgid "The menu has been deleted."
