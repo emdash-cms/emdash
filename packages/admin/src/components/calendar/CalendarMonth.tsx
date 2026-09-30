@@ -343,10 +343,11 @@ function CalendarDayButton({ day, modifiers, children, className, ...props }: Da
 		<button
 			ref={ref}
 			{...props}
-			// Kumo's unlayered picker styles leave the button at the start of the wider column.
 			className={cn(
 				className,
+				// Kumo's unlayered picker styles leave the button at the start of the wider column.
 				"!mx-auto",
+				// Kumo's red badge keeps white text in both themes; the inverse text tokens turn dark.
 				modifiers.today && modifiers.selected && "!bg-kumo-badge-red !text-white",
 			)}
 			aria-label={states.length > 0 ? t`${dayLabel}, ${entries}` : dayLabel || undefined}

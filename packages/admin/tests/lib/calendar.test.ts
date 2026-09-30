@@ -196,6 +196,8 @@ describe("formatTimeUntil", () => {
 	it("counts down to a future time and never reads as past", () => {
 		expect(formatTimeUntil(3 * 3_600_000, "en")).toBe("in 3 hours");
 		expect(formatTimeUntil(-90_000, "en")).toBe("in 1 minute");
+		expect(formatTimeUntil(-3 * 3_600_000, "en")).toBe("in 1 minute");
+		expect(formatTimeUntil(-3 * 86_400_000, "en")).toBe("in 1 minute");
 	});
 });
 
