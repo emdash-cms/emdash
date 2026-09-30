@@ -1407,6 +1407,48 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(await stub.getInboxDepth()).toBe(0);
 	});
 
+	test("discards an entry that keeps throwing and tells its author", async () => {
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal(
+			"fetch",
+			(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				const method = (init?.method ?? "GET").toUpperCase();
+				if (method === "GET" && url.includes("/comments")) {
+					return Promise.resolve(new Response("[]", { status: 200 }));
+				}
+				if (method === "POST" && url.endsWith("/comments")) {
+					const body = parseJsonBody(init?.body) as { body: string };
+					comments.push(body.body);
+					return Promise.resolve(new Response("{}", { status: 201 }));
+				}
+				return Promise.resolve(new Response("{}", { status: 200 }));
+			},
+		);
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.enqueue(
+			makeEvent({
+				event: null,
+				needsClassify: true,
+				classifyText: "classifier-throws",
+				actor: "reporter",
+				deliveryId: "poison-thrown-entry",
+				anchorNumber: 42,
+				dryRun: false,
+			}),
+		);
+		await stub.enqueue(makeEvent({ event: "confirm", arg: null, deliveryId: "queued-entry" }));
+
+		for (let attempt = 0; attempt < 3; attempt += 1) await stub.tick();
+
+		expect(await stub.getInboxDepth()).toBe(0);
+		expect(comments).toHaveLength(1);
+		expect(comments[0]).toContain("couldn't act on");
+	});
+
 	test("drains a bounded batch of successful inbox entries per tick", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.enqueue(makeEvent({ event: "confirm", arg: null, deliveryId: "batch-entry-1" }));

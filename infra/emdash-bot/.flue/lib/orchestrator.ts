@@ -357,7 +357,7 @@ const RECOVERY_RETRY_MAX_MS = 60 * 60_000;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
-const CLASSIFIER_MAX_ATTEMPTS = 3;
+const INBOX_ENTRY_MAX_ATTEMPTS = 3;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
 const PR_FEEDBACK_EVENTS: ReadonlySet<EventId | null> = new Set([
 	"revise",
@@ -557,7 +557,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "recovered" };
 		}
 		if (await this.hasPendingSideEffects()) {
-			throw new Error("an earlier GitHub projection is still pending");
+			throw new ProjectionPendingError("an earlier GitHub projection is still pending");
 		}
 		if (input.anchorNumber !== undefined) {
 			await this.ctx.storage.put(STORAGE.anchorNumber, input.anchorNumber);
@@ -1710,12 +1710,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 		try {
 			await this.processEvent(entry.input);
 		} catch (error) {
-			if (!(error instanceof ClassifierProcessingError)) throw error;
+			if (error instanceof GitHubRateLimitError || error instanceof ProjectionPendingError) {
+				throw error;
+			}
 			const attempts = (entry.attempts ?? 0) + 1;
 			await this.ctx.storage.transaction(async (transaction) => {
 				const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
 				if (!current.some((candidate) => candidate.id === entry.id)) return;
-				if (attempts < CLASSIFIER_MAX_ATTEMPTS) {
+				if (attempts < INBOX_ENTRY_MAX_ATTEMPTS) {
 					await transaction.put(
 						STORAGE.inbox,
 						current.map((candidate) =>
@@ -1740,11 +1742,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 						current.filter((candidate) => candidate.id !== entry.id),
 					);
 			});
-			if (attempts >= CLASSIFIER_MAX_ATTEMPTS) {
-				console.error("[orchestrator] discarded classifier entry after retry limit", {
+			if (attempts >= INBOX_ENTRY_MAX_ATTEMPTS) {
+				console.error("[orchestrator] discarded inbox entry after retry limit", {
 					deliveryId: entry.input.deliveryId,
-					error: error.message,
+					error: error instanceof Error ? error.message : String(error),
 				});
+				await this.postDiscardedEntryNotice(entry.input);
 				return true;
 			}
 			throw error;
@@ -2877,7 +2880,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
-			throw new Error("readonly reply is queued behind an earlier GitHub projection");
+			throw new ProjectionPendingError(
+				"readonly reply is queued behind an earlier GitHub projection",
+			);
 		}
 	}
 
@@ -2904,7 +2909,28 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
-			throw new Error("command feedback is queued behind an earlier GitHub projection");
+			throw new ProjectionPendingError(
+				"command feedback is queued behind an earlier GitHub projection",
+			);
+		}
+	}
+
+	private async postDiscardedEntryNotice(input: NormalizedEvent): Promise<void> {
+		if (input.dryRun === true || (input.actor !== "maintainer" && input.actor !== "reporter")) {
+			return;
+		}
+		try {
+			const anchorNumber =
+				input.anchorNumber ?? (await this.ctx.storage.get<number>(STORAGE.anchorNumber));
+			if (anchorNumber === undefined) return;
+			await this.persistStandaloneSideEffect({
+				anchorNumber,
+				commentBody:
+					"I couldn't act on this comment after several attempts. Please try again, or comment `@emdashbot retry`.",
+			});
+			await this.armAlarm();
+		} catch (error) {
+			console.error("[orchestrator] failed to queue discarded-entry notice", error);
 		}
 	}
 
@@ -2924,7 +2950,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
-			throw new Error("resume reply is queued behind an earlier GitHub projection");
+			throw new ProjectionPendingError(
+				"resume reply is queued behind an earlier GitHub projection",
+			);
 		}
 	}
 
@@ -4215,6 +4243,13 @@ export type CleanupOutcome =
 	| { kind: "reaped" }
 	| { kind: "skipped"; reason: string }
 	| { kind: "error"; error: string };
+
+class ProjectionPendingError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "ProjectionPendingError";
+	}
+}
 
 class ClassifierProcessingError extends Error {
 	constructor(reason: string) {

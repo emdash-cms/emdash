@@ -28,6 +28,9 @@ export class OrchestratorDO extends ProductionOrchestratorDO {
 				reasoning: "test classification",
 			});
 		}
+		if (input.comment === "classifier-throws") {
+			return Promise.reject(new Error("AI binding unavailable in workers-pool test"));
+		}
 		return Promise.resolve({ kind: "error", error: "classifier unavailable in workers-pool test" });
 	}
 
