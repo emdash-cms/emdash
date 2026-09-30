@@ -368,7 +368,7 @@ msgstr ""
 #. placeholder {1}: i18n.number(seedProgress.total)
 #: packages/admin/src/components/SetupWizard.tsx:210
 msgid "{0} of {1} items"
-msgstr ""
+msgstr "전체 {1}개 항목 중 {0}개"
 
 #. placeholder {0}: i18n.number(matched)
 #. placeholder {1}: i18n.number(plan.principals.length)
@@ -1813,7 +1813,7 @@ msgstr "승인"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
-msgstr "장치 승인"
+msgstr "기기 승인"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:208
 msgid "Authorized approvers"
@@ -3054,7 +3054,7 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:355
 msgid "Continue to import"
-msgstr ""
+msgstr "계속해서 가져오기"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
 msgid "Continue with another device"
@@ -4010,11 +4010,11 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:218
 msgid "Device authorized"
-msgstr "기기 인증 완료"
+msgstr "기기 승인 완료"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:261
 msgid "Device code"
-msgstr "장치 코드"
+msgstr "기기 코드"
 
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Device-bound"
@@ -4703,7 +4703,7 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:173
 msgid "Empty site"
-msgstr ""
+msgstr "빈 사이트"
 
 #: packages/admin/src/components/users/UserDetail.tsx:319
 msgid "Enable"
@@ -4789,7 +4789,7 @@ msgstr "이름을 입력하세요"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Enter the code from your terminal"
-msgstr "터미널에서 코드를 입력하세요"
+msgstr "터미널에 표시된 코드를 입력하세요"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:123
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:132
@@ -5044,7 +5044,7 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Failed to create admin"
-msgstr ""
+msgstr "관리자를 생성하지 못했습니다"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/lib/api/backups.ts:51
@@ -5317,7 +5317,7 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:501
 msgid "Failed to fetch setup status"
-msgstr ""
+msgstr "설정 상태를 불러오지 못했습니다"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:144
 msgid "Failed to fetch terms"
@@ -6226,7 +6226,7 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:158
 msgid "How do you want to start?"
-msgstr ""
+msgstr "어떻게 시작하시겠어요?"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:794
 msgid "How is the slug generated?"
@@ -6397,7 +6397,7 @@ msgstr "초안, 사용자 정의 게시물 유형, ACF 필드 및 SEO 데이터�
 
 #: packages/admin/src/components/SetupWizard.tsx:178
 msgid "Import an existing EmDash site"
-msgstr ""
+msgstr "기존 EmDash 사이트 가져오기"
 
 #: packages/admin/src/components/WordPressImport.tsx:2436
 msgid "Import Another File"
@@ -6791,7 +6791,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:276
 #: packages/admin/src/components/SignupPage.tsx:222
 msgid "Jane Doe"
-msgstr "제인 도"
+msgstr "홍길동"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:39
 msgid "Java"
@@ -8555,7 +8555,7 @@ msgstr "OG 이미지"
 
 #: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
-msgstr ""
+msgstr "설정을 완료한 후 다른 EmDash 사이트에서 내보낸 .emdash 패키지를 업로드하세요."
 
 #: packages/admin/src/components/RelationForm.tsx:353
 #: packages/admin/src/components/RelationForm.tsx:362
@@ -8564,7 +8564,7 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
-msgstr "본인이 인식하는 코드만 승인하세요."
+msgstr "본인이 확인한 코드만 승인하세요."
 
 #: packages/admin/src/components/SignupPage.tsx:114
 msgid "Only email addresses from allowed domains can sign up."
@@ -8635,7 +8635,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:355
 #: packages/admin/src/components/SignupPage.tsx:237
 msgid "Open the dashboard"
-msgstr ""
+msgstr "대시보드 열기"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
 msgid "Open Windows settings"
@@ -8830,7 +8830,7 @@ msgstr "패스키 이름"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:761
 msgid "Passkey Name (optional)"
-msgstr "패스키 이름(선택사항)"
+msgstr "패스키 이름(선택 사항)"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:784
 msgid "Passkey registered successfully!"
@@ -10307,7 +10307,7 @@ msgstr "현재 창"
 #: packages/admin/src/components/SetupWizard.tsx:167
 #: packages/admin/src/components/SetupWizard.tsx:207
 msgid "Sample content"
-msgstr ""
+msgstr "샘플 콘텐츠"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:820
 #: packages/admin/src/components/editor/ImageNode.tsx:321
@@ -10994,7 +10994,7 @@ msgstr "초대 보내기"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 msgid "Send magic link"
-msgstr "로그인 링크 보내기"
+msgstr "매직 링크 보내기"
 
 #: packages/admin/src/components/users/UserDetail.tsx:332
 msgid "Send Recovery Link"
@@ -11128,7 +11128,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:527
 #: packages/admin/src/components/SetupWizard.tsx:530
 msgid "Setup failed"
-msgstr ""
+msgstr "설정에 실패했습니다"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:109
 msgid "Share this link with the invited user"
@@ -11207,7 +11207,7 @@ msgstr "로그인"
 #: packages/admin/src/components/InviteAcceptPage.tsx:161
 #: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
-msgstr "대신 로그인하세요"
+msgstr "로그인하기"
 
 #: packages/admin/src/locales/emails.ts:53
 msgid "Sign in to {siteName}"
@@ -11531,11 +11531,11 @@ msgstr "가져오기 시작"
 
 #: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Start with the template’s content types and no content."
-msgstr ""
+msgstr "템플릿의 콘텐츠 유형만 적용하고 콘텐츠 없이 시작합니다."
 
 #: packages/admin/src/components/SetupWizard.tsx:168
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
-msgstr ""
+msgstr "템플릿의 예시 게시물과 페이지로 시작합니다. 새 사이트에 권장합니다."
 
 #: packages/admin/src/components/ContentEditor.tsx:2258
 #: packages/admin/src/components/PortableTextEditor.tsx:2930
@@ -12127,7 +12127,7 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:188
 msgid "The sample content added so far is kept. Continue to add the rest."
-msgstr ""
+msgstr "지금까지 추가된 샘플 콘텐츠는 유지됩니다. 계속해서 나머지를 추가하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:817
 msgid "The selected folder no longer exists. Choose another location and save again."
@@ -12786,7 +12786,7 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:239
 msgid "Try another code"
-msgstr "다른 코드를 사용해 보세요"
+msgstr "다른 코드 입력"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1116
 #: packages/admin/src/components/MediaPickerModal.tsx:1409
@@ -13855,7 +13855,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:801
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
-msgstr "기기의 생체 인식, 보안 키 또는 PIN을 사용하라는 메시지가 표시됩니다."
+msgstr "기기의 생체 인증, 보안 키 또는 PIN을 사용하라는 메시지가 표시됩니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:1389
 msgid "You'll be redirected to WordPress to authorize the connection."
@@ -13948,7 +13948,7 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:272
 msgid "Your Name"
-msgstr "이름 입력"
+msgstr "이름"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:66
 #: packages/admin/src/components/SignupPage.tsx:218
