@@ -318,6 +318,19 @@ describe("HTML block editor", () => {
 		expect(htmlBlocks(latest())[0]?.html).toBe("one");
 	});
 
+	it("writes typing that waited while the editor was read-only", async () => {
+		const { screen, editor, pm, latest } = await renderEditor();
+		await insertFromSlashMenu(pm);
+		await userEvent.keyboard("kept");
+		editor.setEditable(false);
+		await pause(400);
+		editor.setEditable(true);
+
+		await screen.getByRole("tab", { name: "CSS" }).click();
+
+		await vi.waitFor(() => expect(htmlBlocks(latest())[0]?.html).toBe("kept"));
+	});
+
 	it("lays out its controls in the interface direction, not the content's", async () => {
 		const previousLocale = i18n.locale;
 		const previousDir = document.documentElement.dir;
