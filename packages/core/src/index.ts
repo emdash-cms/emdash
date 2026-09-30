@@ -252,6 +252,7 @@ export {
 	invalidateTaxonomyObjectCache,
 	invalidateBylineObjectCache,
 	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
 	invalidateSchemaObjectCache,
 	invalidateCommentObjectCache,
 	contentNamespace,

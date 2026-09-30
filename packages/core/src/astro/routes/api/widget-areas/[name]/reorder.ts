@@ -11,6 +11,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { reorderWidgetsBody } from "#api/schemas.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
+import { invalidateWidgetObjectCache } from "#widgets/index.js";
 
 export const prerender = false;
 
@@ -56,11 +57,19 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		}
 
 		// Update sort_order for each widget
-		await Promise.all(
-			body.widgetIds.map((id, index) =>
-				db.updateTable("_emdash_widgets").set({ sort_order: index }).where("id", "=", id).execute(),
-			),
-		);
+		try {
+			await Promise.all(
+				body.widgetIds.map((id, index) =>
+					db
+						.updateTable("_emdash_widgets")
+						.set({ sort_order: index })
+						.where("id", "=", id)
+						.execute(),
+				),
+			);
+		} finally {
+			invalidateWidgetObjectCache();
+		}
 
 		if (cache?.enabled) await cache.invalidate({ tags: [widgetAreaTag(name)] });
 		return apiSuccess({ success: true });
