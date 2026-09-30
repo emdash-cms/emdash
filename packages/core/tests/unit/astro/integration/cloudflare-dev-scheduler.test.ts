@@ -1,5 +1,10 @@
+import { execFileSync } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +15,80 @@ afterEach(() => {
 });
 
 describe("Cloudflare dev scheduler", () => {
+	it.each([true, false])(
+		"verifies HTTPS against the configured dev certificate (matching: %s)",
+		async (matching) => {
+			const root = mkdtempSync(join(tmpdir(), "emdash-dev-tls-"));
+			const configPath = join(root, "openssl.cnf");
+			writeFileSync(
+				configPath,
+				"[req]\ndistinguished_name=dn\n[dn]\n[test]\nsubjectAltName=IP:127.0.0.1\nbasicConstraints=critical,CA:TRUE\n",
+			);
+			function certificate(name: string) {
+				const keyPath = join(root, `${name}.key`);
+				const certPath = join(root, `${name}.pem`);
+				execFileSync(
+					"openssl",
+					[
+						"req",
+						"-x509",
+						"-newkey",
+						"ec",
+						"-pkeyopt",
+						"ec_paramgen_curve:P-256",
+						"-nodes",
+						"-days",
+						"1",
+						"-subj",
+						"/CN=127.0.0.1",
+						"-config",
+						configPath,
+						"-extensions",
+						"test",
+						"-keyout",
+						keyPath,
+						"-out",
+						certPath,
+					],
+					{ stdio: "ignore" },
+				);
+				return { key: readFileSync(keyPath), cert: readFileSync(certPath) };
+			}
+			const served = certificate("served");
+			const trusted = matching ? served : certificate("other");
+			let maintenanceRequests = 0;
+			const httpServer = createHttpsServer(served, (request, response) => {
+				if (request.url === "/_emdash/api/dev/scheduled-tasks" && request.method === "POST") {
+					maintenanceRequests++;
+				}
+				response.writeHead(204).end();
+			});
+			const server = {
+				httpServer,
+				resolvedUrls: { local: [] as string[], network: [] },
+				config: { server: { https: { cert: trusted.cert } } },
+			};
+			const warn = vi.fn();
+			startCloudflareDevScheduler(server, { warn }, { intervalMs: 25 });
+			try {
+				await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
+				const address = httpServer.address();
+				if (!address || typeof address === "string") throw new Error("Expected a TCP address");
+				server.resolvedUrls.local.push(`https://127.0.0.1:${address.port}`);
+				if (matching) {
+					await vi.waitFor(() => expect(maintenanceRequests).toBeGreaterThan(0));
+					expect(warn).not.toHaveBeenCalled();
+				} else {
+					await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+					expect(maintenanceRequests).toBe(0);
+				}
+			} finally {
+				await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+				rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
+
 	it("keeps issuing maintenance requests after the initial HTTP response completes", async () => {
 		let maintenanceRequests = 0;
 		let applicationScheduledRequests = 0;
