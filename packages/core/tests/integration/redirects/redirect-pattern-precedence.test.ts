@@ -4,6 +4,10 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
 import {
+	createRedirectSource,
+	publishRedirectArtifacts,
+} from "../../../src/redirects/artifacts.js";
+import {
 	invalidateRedirectCache,
 	loadCachedRedirects,
 	matchCachedPatterns,
@@ -48,7 +52,8 @@ describeEachDialect("redirect pattern precedence", (dialect) => {
 
 	async function matchBoth(path: string) {
 		const repo = new RedirectRepository(db);
-		const cached = await loadCachedRedirects(() => repo.findAllEnabled());
+		await publishRedirectArtifacts(db);
+		const cached = await loadCachedRedirects(createRedirectSource(db));
 		return {
 			cached: matchCachedPatterns(cached.patterns, path)?.redirect.id,
 			direct: (await repo.matchPath(path))?.redirect.id,

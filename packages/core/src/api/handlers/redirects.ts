@@ -16,7 +16,7 @@ import {
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { FindManyResult } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
-import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { wouldCreateLoop, detectLoops, type RedirectEdge } from "../../redirects/loops.js";
 import { validatePattern, validateDestinationParams, isPattern } from "../../redirects/patterns.js";
 import { isTerminalStatus } from "../../redirects/status.js";
@@ -174,7 +174,7 @@ export async function handleRedirectCreate(
 			);
 			return { success: true, data: redirect };
 		});
-		if (result.success) invalidateRedirectCache();
+		if (result.success) await publishRedirectChanges(db);
 		return result;
 	} catch {
 		return {
@@ -351,7 +351,7 @@ export async function handleRedirectUpdate(
 			await updateLoopCache(repo.db);
 			return { success: true, data: updated };
 		});
-		if (result.success) invalidateRedirectCache();
+		if (result.success) await publishRedirectChanges(db);
 		return result;
 	} catch {
 		return {
@@ -402,7 +402,7 @@ export async function handleRedirectDelete(
 			await updateLoopCache(repo.db);
 			return { success: true, data: { deleted: true } };
 		});
-		if (result.success) invalidateRedirectCache();
+		if (result.success) await publishRedirectChanges(db);
 		return result;
 	} catch {
 		return {

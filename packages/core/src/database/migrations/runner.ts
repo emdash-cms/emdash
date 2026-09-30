@@ -98,6 +98,7 @@ import * as m087 from "./087_reference_field_relations.js";
 import * as m088 from "./088_cron_oneshot_utc.js";
 import * as m089 from "./089_auto_seed_completion.js";
 import * as m090 from "./090_redirect_enable_loop_guard.js";
+import * as m091 from "./091_redirect_artifacts.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -189,6 +190,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"088_cron_oneshot_utc": m088,
 	"089_auto_seed_completion": m089,
 	"090_redirect_enable_loop_guard": m090,
+	"091_redirect_artifacts": m091,
 });
 
 /** Ordered names from the statically registered migration set. */

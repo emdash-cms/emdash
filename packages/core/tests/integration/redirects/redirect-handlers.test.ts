@@ -10,7 +10,12 @@ import {
 } from "../../../src/api/handlers/redirects.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
-import { invalidateRedirectCache, loadCachedRedirects } from "../../../src/redirects/cache.js";
+import { createRedirectSource } from "../../../src/redirects/artifacts.js";
+import {
+	invalidateRedirectCache,
+	loadCachedRedirects,
+	type RedirectSource,
+} from "../../../src/redirects/cache.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("redirect handlers — loop detection", () => {
@@ -227,23 +232,27 @@ describe("redirect handlers — loop detection", () => {
 	describe("redirect cache invalidation", () => {
 		it("invalidates after successful writes but not rejected writes", async () => {
 			invalidateRedirectCache();
-			const repo = new RedirectRepository(db);
 			const created = await handleRedirectCreate(db, { source: "/a", destination: "/b" });
 			if (!created.success) throw new Error(created.error.message);
+			const published = createRedirectSource(db);
 			let loads = 0;
-			const load = async () => {
-				loads++;
-				return repo.findAllEnabled();
+			const source: RedirectSource = {
+				load: async () => {
+					loads++;
+					return published.load();
+				},
+				isCurrent: (version) => published.isCurrent(version),
 			};
-			await loadCachedRedirects(load);
+			await loadCachedRedirects(source);
 
 			await handleRedirectCreate(db, { source: "/a", destination: "/other" });
-			await loadCachedRedirects(load);
+			await loadCachedRedirects(source);
 			expect(loads).toBe(1);
 
 			await handleRedirectCreate(db, { source: "/c", destination: "/d" });
-			await loadCachedRedirects(load);
+			const cached = await loadCachedRedirects(source);
 			expect(loads).toBe(2);
+			expect(cached.exact.get("/c")?.destination).toBe("/d");
 		});
 	});
 });
