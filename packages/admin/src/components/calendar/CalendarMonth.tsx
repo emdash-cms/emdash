@@ -157,13 +157,11 @@ function CalendarMonthGrid({
 				{filteredEmpty &&
 					onClearFilters && (
 						// Laid over the grid rather than above it, so the grid stays put.
-						<div className="pointer-events-none absolute inset-x-0 top-16 flex justify-center px-4">
-							<div className="pointer-events-auto">
-								<CalendarFilteredNotice
-									cutOff={loadedThrough !== undefined}
-									onClearFilters={onClearFilters}
-								/>
-							</div>
+						<div className="absolute inset-0 flex items-center justify-center bg-radial from-kumo-base/90 via-kumo-base/60 to-kumo-base/30 p-4 backdrop-blur-xs transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none">
+							<CalendarFilteredNotice
+								cutOff={loadedThrough !== undefined}
+								onClearFilters={onClearFilters}
+							/>
 						</div>
 					)}
 			</div>
