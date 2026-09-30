@@ -1083,7 +1083,7 @@ msgstr "추가"
 #: packages/admin/src/components/TaxonomyManager.tsx:756
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
 msgid "Add {0}"
-msgstr ""
+msgstr "{0} 추가"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:563
 msgid "Add {singularLower} to {ready} posts"
@@ -2169,7 +2169,7 @@ msgstr ""
 #: packages/admin/src/components/Sidebar.tsx:432
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Bylines"
-msgstr "작성자 정보"
+msgstr "저자 정보"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:29
 msgid "C"
@@ -3335,7 +3335,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
 msgid "Create byline"
-msgstr "바이라인 추가"
+msgstr "저자 정보 추가"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:725
 msgid "Create Content Type"
