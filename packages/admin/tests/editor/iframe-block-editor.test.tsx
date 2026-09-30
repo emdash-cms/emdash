@@ -99,11 +99,13 @@ describe("Iframe block editor", () => {
 		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
 		const { screen, latest } = await renderEditor({ value: [saved] });
 		await screen.getByRole("tab", { name: "Code" }).click();
+		await vi.waitFor(() => expect(codeEditor()).not.toBeNull());
 		await userEvent.click(codeEditor()!);
 
 		await userEvent.keyboard("{ControlOrMeta>}a{/ControlOrMeta}http://example.com/insecure");
 
 		await expect.element(screen.getByText("Only https links can be embedded.")).toBeVisible();
+		expect(codeEditor()).toHaveAccessibleDescription(/Only https links can be embedded\./);
 		expect(frames(latest())).toEqual([saved]);
 	});
 

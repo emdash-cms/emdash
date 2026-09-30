@@ -115,6 +115,7 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 	const code = embed.src ? iframeEmbedToCode(embed) : "";
 	// Blocks from the API or clipboard skip the Code tab's checks.
 	const url = httpsUrl(embed.src);
+	const errorId = React.useId();
 
 	const [tab, setTab] = React.useState(() => (embed.src ? "preview" : "code"));
 	const [revision, setRevision] = React.useState(0);
@@ -218,8 +219,9 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 						autoFocus={focus.autoFocus}
 						ariaLabel={t`Embed code`}
 						placeholder={t`Paste an embed code or an https link…`}
+						describedBy={errorId}
 					/>
-					<div aria-live="polite" className="px-3 text-xs text-kumo-danger">
+					<div id={errorId} aria-live="polite" className="px-3 text-xs text-kumo-danger">
 						{error && <p className="py-2">{t(REASONS[error])}</p>}
 					</div>
 				</>

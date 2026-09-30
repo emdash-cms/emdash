@@ -33,6 +33,8 @@ export interface CodeEditorProps {
 	autoFocus: boolean;
 	ariaLabel: string;
 	placeholder: string;
+	/** The id of another element that describes the editor, such as an error. */
+	describedBy?: string;
 }
 
 const LANGUAGES: Record<CodeEditorLanguage, () => Extension> = { html, css, javascript };
@@ -87,6 +89,7 @@ export default function CodeEditor({
 	autoFocus,
 	ariaLabel,
 	placeholder: placeholderText,
+	describedBy,
 	...callbacks
 }: CodeEditorProps) {
 	const { t } = useLingui();
@@ -126,7 +129,10 @@ export default function CodeEditor({
 				),
 				keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
 				editableCompartment.of(editability(editable)),
-				EditorView.contentAttributes.of({ "aria-label": ariaLabel, "aria-describedby": hintId }),
+				EditorView.contentAttributes.of({
+					"aria-label": ariaLabel,
+					"aria-describedby": describedBy ? `${hintId} ${describedBy}` : hintId,
+				}),
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) callbacksRef.current.onChange(update.state.doc.toString());
 				}),
