@@ -181,9 +181,10 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 	const flush = React.useCallback(() => {
 		window.clearTimeout(timer.current);
 		const changes = pending.current;
-		pending.current = {};
 		if (Object.keys(changes).length === 0) return;
+		// Edits that can't be written now wait for the next flush.
 		if (editor.isDestroyed || !editor.isEditable || typeof getPos() !== "number") return;
+		pending.current = {};
 		Object.assign(known.current, changes);
 		updateAttributes(changes);
 	}, [editor, getPos, updateAttributes]);
