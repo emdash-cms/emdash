@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { createServer as createHttpServer } from "node:http";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +10,50 @@ afterEach(() => {
 });
 
 describe("Cloudflare dev scheduler", () => {
+	it("keeps issuing maintenance requests after the initial HTTP response completes", async () => {
+		let maintenanceRequests = 0;
+		let applicationScheduledRequests = 0;
+		const httpServer = createHttpServer((request, response) => {
+			if (request.url === "/_emdash/api/dev/scheduled-tasks" && request.method === "POST") {
+				maintenanceRequests++;
+			}
+			if (request.url?.startsWith("/cdn-cgi/handler/scheduled")) {
+				applicationScheduledRequests++;
+			}
+			response.writeHead(204).end();
+		});
+		const server = { httpServer, resolvedUrls: { local: [] as string[], network: [] } };
+		const warn = vi.fn();
+		startCloudflareDevScheduler(server, { warn }, { intervalMs: 25 });
+
+		try {
+			await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
+			const address = httpServer.address();
+			if (!address || typeof address === "string") throw new Error("Expected a TCP address");
+			const origin = `http://127.0.0.1:${address.port}`;
+			server.resolvedUrls.local.push(origin);
+			const initialResponse = await fetch(origin);
+			await initialResponse.arrayBuffer();
+			const requestsAfterInitialResponse = maintenanceRequests;
+
+			await vi.waitFor(() => {
+				expect(maintenanceRequests).toBeGreaterThanOrEqual(requestsAfterInitialResponse + 2);
+			});
+			expect(applicationScheduledRequests).toBe(0);
+			expect(warn).not.toHaveBeenCalled();
+		} finally {
+			await new Promise<void>((resolve, reject) => {
+				httpServer.close((error) => {
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve();
+				});
+			});
+		}
+	});
+
 	function createServer(origin = "http://localhost:4323/") {
 		return Object.assign(new EventEmitter(), {
 			address: () => ({ address: "127.0.0.1", family: "IPv4", port: 4323 }),
