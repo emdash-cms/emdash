@@ -69,6 +69,9 @@ const TABS: Record<
 	},
 };
 
+// Isolated blocks run the HTML tab as written, so a whole snippet works there.
+const ISOLATED_HTML_PLACEHOLDER = msg`Write HTML, or paste a snippet with its styles and scripts…`;
+
 function isTab(value: string): value is Tab {
 	return value === "preview" || (FIELDS as readonly string[]).includes(value);
 }
@@ -218,7 +221,8 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 				/>
 			) : (
 				<EmbedCodeEditor
-					key={`${activeTab}-${revisions[activeTab]}`}
+					// The HTML tab's placeholder depends on the mode.
+					key={`${activeTab}-${isolated}-${revisions[activeTab]}`}
 					language={TABS[activeTab].language}
 					value={values[activeTab]}
 					onChange={(value) => handleChange(activeTab, value)}
@@ -227,7 +231,11 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 					editable={editable}
 					autoFocus={focus.autoFocus}
 					ariaLabel={t(TABS[activeTab].editorLabel)}
-					placeholder={t(TABS[activeTab].placeholder)}
+					placeholder={t(
+						activeTab === "html" && isolated
+							? ISOLATED_HTML_PLACEHOLDER
+							: TABS[activeTab].placeholder,
+					)}
 				/>
 			)}
 		</EmbedBlockCard>
