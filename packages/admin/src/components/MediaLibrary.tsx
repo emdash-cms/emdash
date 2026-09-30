@@ -1763,7 +1763,13 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{isImage ? (
 						<img
-							src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.contentHash)}
+							src={getMediaThumbnailUrl(
+								item.url,
+								item.mimeType,
+								80,
+								item.contentHash,
+								item.storageKey,
+							)}
 							alt={item.alt || item.filename}
 							draggable={false}
 							className="emdash-media-transparency-grid h-full w-full object-cover"

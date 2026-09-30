@@ -16,8 +16,11 @@ import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { mediaConfirmBody } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
+import { isHeicMedia } from "#media/image-endpoint.js";
 import type { MediaItem } from "#types";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
+
+import { configuredImageServiceSupportsHeic } from "../../../../image-service.js";
 
 export const prerender = false;
 
@@ -153,6 +156,25 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				"UPLOAD_SIZE_MISMATCH",
 				"Confirmed size does not match the pending media item",
 				400,
+			);
+		}
+
+		if (
+			emdash.storage &&
+			isHeicMedia(existing.mimeType, existing.filename) &&
+			!(await configuredImageServiceSupportsHeic(emdash.storage, request.url))
+		) {
+			const failed = await repo.markFailed(id, existing.storageKey);
+			if (!failed) return await confirmationConflict(repo, id);
+			try {
+				await emdash.storage.delete(existing.storageKey);
+			} catch (error) {
+				console.error("[media] unsupported HEIC cleanup failed:", error);
+			}
+			return apiError(
+				"UNSUPPORTED_IMAGE_FORMAT",
+				"HEIC images require a configured HEIC-capable image service",
+				415,
 			);
 		}
 

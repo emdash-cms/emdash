@@ -2,6 +2,10 @@ import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const configuredImageServiceSupportsHeic = vi.hoisted(() => vi.fn(async () => false));
+
+vi.mock("../../../src/astro/image-service.js", () => ({ configuredImageServiceSupportsHeic }));
+
 import { POST as postConfirm } from "../../../src/astro/routes/api/media/[id]/confirm.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
@@ -99,6 +103,26 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		expect(row?.blurhash).toBeTruthy();
 		expect(row?.dominantColor).toMatch(/^rgb\(/);
 		expect(row?.contentHash).toBe(await computeContentHash(JPEG_4x4));
+	});
+
+	it("fails and removes a signed HEIC upload when the image service is not capable", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.heic",
+			mimeType: "image/heic",
+			size: 1024,
+			storageKey: "photo.heic",
+			authorId: "user-1",
+		});
+		const storage = { delete: vi.fn(async () => undefined) };
+
+		const res = await postConfirm(
+			buildContext({ db, id: pending.id, storage, body: { size: 1024 } }),
+		);
+
+		expect(res.status).toBe(415);
+		expect(storage.delete).toHaveBeenCalledWith("photo.heic");
+		expect((await repo.findById(pending.id))?.status).toBe("failed");
 	});
 
 	it("allows a contributing uploader to confirm their own pending file", async () => {

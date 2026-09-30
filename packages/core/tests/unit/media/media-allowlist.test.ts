@@ -19,6 +19,13 @@ describe("GLOBAL_UPLOAD_ALLOWLIST", () => {
 		expect(matchesMimeAllowlist("image/avif", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
 	});
 
+	it("allows HEIC-family images for capable image services", () => {
+		expect(matchesMimeAllowlist("image/heic", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+		expect(matchesMimeAllowlist("image/heif", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+		expect(matchesMimeAllowlist("image/heic-sequence", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+		expect(matchesMimeAllowlist("image/heif-sequence", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
+	});
+
 	it("still allows video, audio, and pdf", () => {
 		expect(matchesMimeAllowlist("video/mp4", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
 		expect(matchesMimeAllowlist("audio/mpeg", GLOBAL_UPLOAD_ALLOWLIST)).toBe(true);
