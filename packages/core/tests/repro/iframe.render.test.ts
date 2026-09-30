@@ -62,6 +62,7 @@ describe("Iframe rendering", () => {
 
 	it("renders nothing for an iframe block with other fields, which belongs to a plugin", async () => {
 		expect(await render({ src: "https://example.com/", theme: "dark" })).not.toContain("<iframe");
+		expect(await render({ src: "https://example.com/", title: 5 })).not.toContain("<iframe");
 	});
 
 	it("drops same-origin access for a page on the site's own host", async () => {

@@ -40,8 +40,24 @@ const ALLOWED_FEATURES = new Set([
 	"web-share",
 ]);
 
-// An `iframe` block with other fields belongs to a plugin.
-const FIELDS = new Set(["_type", "_key", "src", "title", "width", "height", "allow", "allowFullscreen"]);
+const isString = (value: unknown) => typeof value === "string";
+const dimension = (value: unknown) =>
+	typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000
+		? value
+		: undefined;
+
+// An `iframe` block with other fields, or with values of other types, belongs
+// to a plugin.
+const FIELDS = new Map<string, (value: unknown) => boolean>([
+	["_type", () => true],
+	["_key", () => true],
+	["src", isString],
+	["title", isString],
+	["width", (value) => dimension(value) !== undefined],
+	["height", (value) => dimension(value) !== undefined],
+	["allow", isString],
+	["allowFullscreen", (value) => typeof value === "boolean"],
+]);
 
 const WHITESPACE_RE = /\s+/;
 const MARKUP_RE = /[&"<>]/g;
@@ -58,15 +74,16 @@ function httpsUrl(value: unknown): URL | undefined {
 
 const { node } = Astro.props;
 const src =
-	node && Object.keys(node).every((key) => FIELDS.has(key)) ? httpsUrl(node.src) : undefined;
+	node &&
+	Object.entries(node).every(
+		([key, value]) => value === undefined || (FIELDS.get(key)?.(value) ?? false),
+	)
+		? httpsUrl(node.src)
+		: undefined;
 if (!src) {
 	return null;
 }
 
-const dimension = (value: unknown) =>
-	typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000
-		? value
-		: undefined;
 const width = dimension(node.width);
 const height = dimension(node.height);
 const size =

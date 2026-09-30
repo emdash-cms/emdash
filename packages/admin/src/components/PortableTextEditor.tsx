@@ -134,7 +134,7 @@ import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
-import { iframeEmbedFromAttrs } from "./editor/iframe-embed";
+import { iframeEmbedFromAttrs, isBuiltInIframeBlock } from "./editor/iframe-embed";
 import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
@@ -1201,25 +1201,9 @@ function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
 	return block._type === "block";
 }
 
-const IFRAME_BLOCK_FIELDS = new Set([
-	"_type",
-	"_key",
-	"src",
-	"title",
-	"width",
-	"height",
-	"allow",
-	"allowFullscreen",
-]);
-
-/** An `iframe` block with other fields belongs to a plugin and stays a plugin block. */
+/** A built-in `iframe` block. Any other belongs to a plugin and stays a plugin block. */
 function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
-	return (
-		block._type === "iframe" &&
-		"src" in block &&
-		typeof block.src === "string" &&
-		Object.keys(block).every((key) => IFRAME_BLOCK_FIELDS.has(key))
-	);
+	return block._type === "iframe" && isBuiltInIframeBlock(block);
 }
 
 function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock {

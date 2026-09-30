@@ -224,23 +224,32 @@ function isGalleryBlock(block: PortableTextBlock): block is PortableTextGalleryB
 	return block._type === "gallery" && "images" in block && Array.isArray(block.images);
 }
 
-const IFRAME_BLOCK_FIELDS = new Set([
-	"_type",
-	"_key",
-	"src",
-	"title",
-	"width",
-	"height",
-	"allow",
-	"allowFullscreen",
+const isString = (value: unknown) => typeof value === "string";
+const isFrameDimension = (value: unknown) =>
+	typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000;
+
+const IFRAME_BLOCK_FIELDS = new Map<string, (value: unknown) => boolean>([
+	["_type", () => true],
+	["_key", () => true],
+	["src", isString],
+	["title", isString],
+	["width", isFrameDimension],
+	["height", isFrameDimension],
+	["allow", isString],
+	["allowFullscreen", (value) => typeof value === "boolean"],
 ]);
 
-/** An `iframe` block with other fields belongs to a plugin and stays a generic block. */
+/**
+ * An `iframe` block with other fields, or with values of other types, belongs
+ * to a plugin and stays a generic block.
+ */
 function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
 	return (
 		block._type === "iframe" &&
 		typeof block.src === "string" &&
-		Object.keys(block).every((key) => IFRAME_BLOCK_FIELDS.has(key))
+		Object.entries(block).every(
+			([key, value]) => value === undefined || (IFRAME_BLOCK_FIELDS.get(key)?.(value) ?? false),
+		)
 	);
 }
 

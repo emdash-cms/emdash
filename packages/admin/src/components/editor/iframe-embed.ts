@@ -77,6 +77,33 @@ function isDimension(value: unknown): value is number {
 	return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000;
 }
 
+const isString = (value: unknown) => typeof value === "string";
+
+const IFRAME_BLOCK_FIELDS = new Map<string, (value: unknown) => boolean>([
+	["_type", () => true],
+	["_key", () => true],
+	["src", isString],
+	["title", isString],
+	["width", isDimension],
+	["height", isDimension],
+	["allow", isString],
+	["allowFullscreen", (value) => typeof value === "boolean"],
+]);
+
+/**
+ * Whether a Portable Text `iframe` block is the built-in kind. One with other
+ * fields, or with values of other types, belongs to a plugin.
+ */
+export function isBuiltInIframeBlock(block: object): boolean {
+	return (
+		"src" in block &&
+		typeof block.src === "string" &&
+		Object.entries(block).every(
+			([key, value]) => value === undefined || (IFRAME_BLOCK_FIELDS.get(key)?.(value) ?? false),
+		)
+	);
+}
+
 /** Read an iframe block's saved fields, keeping only valid ones. */
 export function iframeEmbedFromAttrs(attrs: object): IframeEmbed {
 	const {

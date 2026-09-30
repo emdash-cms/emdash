@@ -46,12 +46,16 @@ describe("iframe block round-trip (core converters)", () => {
 		]);
 	});
 
-	it("leaves an iframe block with other fields to its plugin", () => {
+	it.each([
+		["other fields", { theme: "dark" }],
+		["a size that isn't a whole number", { width: "100%", height: "400" }],
+		["a title that isn't text", { title: 5 }],
+	])("leaves an iframe block with %s to its plugin", (_, fields) => {
 		const block = {
 			_type: "iframe",
 			_key: "plugin1",
 			src: "https://example.com/widget",
-			theme: "dark",
+			...fields,
 		};
 
 		const pm = portableTextToProsemirror([block], { preserveIdentity: true });

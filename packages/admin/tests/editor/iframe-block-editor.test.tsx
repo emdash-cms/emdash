@@ -180,13 +180,20 @@ describe("Iframe block conversion", () => {
 			src: "https://example.com/",
 			theme: "dark",
 		};
+		const pluginSize: Block = {
+			_type: "iframe",
+			_key: "plugin2",
+			src: "https://example.com/",
+			width: "100%",
+		};
 
-		const pm = portableTextToProsemirror([embed, plugin]);
+		const pm = portableTextToProsemirror([embed, plugin, pluginSize]);
 
 		expect(pm.content?.map((node) => (node as { type: string }).type)).toEqual([
 			"iframeBlock",
 			"pluginBlock",
+			"pluginBlock",
 		]);
-		expect(prosemirrorToPortableText(pm)).toStrictEqual([embed, plugin]);
+		expect(prosemirrorToPortableText(pm)).toStrictEqual([embed, plugin, pluginSize]);
 	});
 });
