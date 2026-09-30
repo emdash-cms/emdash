@@ -117,6 +117,18 @@ describe("HTML block frame", () => {
 		expect(await nextMessage(frame, (data) => data === "ran")).toBe("ran");
 	});
 
+	it("runs a style and a script written in the HTML", async () => {
+		const frame = mountFrame({
+			html: '<style>p { margin: 0; height: 240px; }</style><p>Hello</p><script>parent.postMessage("ran", "*");</script>',
+		});
+
+		const ran = nextMessage(frame, (data) => data === "ran");
+		const height = nextHeight(frame);
+
+		expect(await ran).toBe("ran");
+		expect(await height).toBe(240);
+	});
+
 	it("runs JavaScript that opens with a legacy HTML comment", async () => {
 		const frame = mountFrame({
 			html: "<p>Hello</p>",
