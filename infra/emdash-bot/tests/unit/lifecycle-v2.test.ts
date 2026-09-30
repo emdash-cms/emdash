@@ -39,6 +39,15 @@ describe("maintainer-facing lifecycle", () => {
 		}
 	});
 
+	test("accepts an implemented change from a revise run", () => {
+		expect(
+			outcomeFromResult({ ok: true, mode: "revise", result: { implemented: true }, pushed: true }),
+		).toBe("agent.fix_ready");
+		expect(
+			outcomeFromResult({ ok: true, mode: "revise", result: { implemented: true }, pushed: false }),
+		).toBe("agent.failed");
+	});
+
 	test("automatically escalates an eligible triage result into work", () => {
 		const decision = resolve({
 			labels: ["bot:task", "bot:triaging"],

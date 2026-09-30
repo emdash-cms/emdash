@@ -424,9 +424,9 @@ export function outcomeFromResult({
 		if (result.reproduced === true) return "agent.reproduced";
 		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
 	}
-	if (effectiveMode === "fix" || effectiveMode === "work") {
+	if (effectiveMode === "fix" || effectiveMode === "work" || effectiveMode === "revise") {
 		const delivered =
-			result.fixed === true || (effectiveMode === "work" && result.implemented === true);
+			result.fixed === true || (effectiveMode !== "fix" && result.implemented === true);
 		return delivered && pushed === true ? "agent.fix_ready" : "agent.failed";
 	}
 	if (effectiveMode === "implement") {
