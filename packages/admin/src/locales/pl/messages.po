@@ -1046,7 +1046,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeList.tsx:210
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1410
-#: packages/admin/src/components/TaxonomyManager.tsx:1463
+#: packages/admin/src/components/TaxonomyManager.tsx:1464
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Actions"
@@ -1885,7 +1885,7 @@ msgstr ""
 msgid "Available Providers"
 msgstr "Dostępni dostawcy"
 
-#: packages/admin/src/components/Widgets.tsx:466
+#: packages/admin/src/components/Widgets.tsx:467
 msgid "Available Widgets"
 msgstr ""
 
@@ -2853,7 +2853,7 @@ msgstr ""
 msgid "Complete signup"
 msgstr "Dokończ rejestrację"
 
-#: packages/admin/src/components/Widgets.tsx:931
+#: packages/admin/src/components/Widgets.tsx:933
 msgid "Component"
 msgstr ""
 
@@ -2925,7 +2925,7 @@ msgstr ""
 #: packages/admin/src/components/PortableTextEditor.tsx:3104
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:591
-#: packages/admin/src/components/Widgets.tsx:899
+#: packages/admin/src/components/Widgets.tsx:901
 msgid "Content"
 msgstr "Treść"
 
@@ -3259,7 +3259,7 @@ msgid "Couldn't verify how many values reference \"{0}\". Deleting will still re
 msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1408
-#: packages/admin/src/components/TaxonomyManager.tsx:1462
+#: packages/admin/src/components/TaxonomyManager.tsx:1463
 msgid "Count"
 msgstr "Ilość"
 
@@ -3701,9 +3701,9 @@ msgstr "Zdefiniowane w kodzie"
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:367
-#: packages/admin/src/components/TaxonomyManager.tsx:1533
-#: packages/admin/src/components/TaxonomyManager.tsx:1549
-#: packages/admin/src/components/Widgets.tsx:716
+#: packages/admin/src/components/TaxonomyManager.tsx:1535
+#: packages/admin/src/components/TaxonomyManager.tsx:1551
+#: packages/admin/src/components/Widgets.tsx:718
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:847
 msgid "Delete"
@@ -3729,7 +3729,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:327
 #: packages/admin/src/components/TaxonomyManager.tsx:492
-#: packages/admin/src/components/Widgets.tsx:817
+#: packages/admin/src/components/Widgets.tsx:819
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
 msgstr "Usuń {0}"
@@ -3745,13 +3745,13 @@ msgid "Delete {0} menu"
 msgstr "Usuń menu {0}"
 
 #. placeholder {0}: area.label
-#: packages/admin/src/components/Widgets.tsx:664
+#: packages/admin/src/components/Widgets.tsx:666
 msgid "Delete {0} widget area"
 msgstr ""
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1529
+#: packages/admin/src/components/TaxonomyManager.tsx:1531
 #: packages/admin/src/routes/bylines.tsx:874
 msgid "Delete {0}?"
 msgstr "Usunąć {0}?"
@@ -3889,11 +3889,11 @@ msgstr ""
 msgid "Delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1547
+#: packages/admin/src/components/TaxonomyManager.tsx:1549
 msgid "Delete Taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:714
+#: packages/admin/src/components/Widgets.tsx:716
 msgid "Delete Widget Area?"
 msgstr ""
 
@@ -3902,7 +3902,7 @@ msgid "Deleted"
 msgstr "Usunięto"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1548
+#: packages/admin/src/components/TaxonomyManager.tsx:1550
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr ""
 
@@ -3923,9 +3923,9 @@ msgstr ""
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:368
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
-#: packages/admin/src/components/TaxonomyManager.tsx:1550
-#: packages/admin/src/components/Widgets.tsx:717
+#: packages/admin/src/components/TaxonomyManager.tsx:1536
+#: packages/admin/src/components/TaxonomyManager.tsx:1552
+#: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/bylines.tsx:877
 msgid "Deleting..."
 msgstr "Usuwanie..."
@@ -4318,7 +4318,7 @@ msgstr ""
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Przeciągnij i upuść lub kliknij, aby wybrać plik (.xml)"
 
-#: packages/admin/src/components/Widgets.tsx:700
+#: packages/admin/src/components/Widgets.tsx:702
 msgid "Drag here to add"
 msgstr ""
 
@@ -4329,7 +4329,7 @@ msgstr "Przeciągnij, aby zmienić kolejność"
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:922
-#: packages/admin/src/components/Widgets.tsx:802
+#: packages/admin/src/components/Widgets.tsx:804
 msgid "Drag to reorder {0}"
 msgstr ""
 
@@ -4342,11 +4342,11 @@ msgstr ""
 msgid "Drag to reorder block"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:706
 msgid "Drag widgets here to add them"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:467
+#: packages/admin/src/components/Widgets.tsx:468
 msgid "Drag widgets into an area to add them"
 msgstr ""
 
@@ -4366,7 +4366,7 @@ msgstr ""
 msgid "Drop one image at a time."
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:700
+#: packages/admin/src/components/Widgets.tsx:702
 msgid "Drop to add widget"
 msgstr ""
 
@@ -4835,7 +4835,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:234
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1207
-#: packages/admin/src/components/Widgets.tsx:769
+#: packages/admin/src/components/Widgets.tsx:771
 #: packages/admin/src/router.tsx:3138
 msgid "Error"
 msgstr "Błąd"
@@ -4852,7 +4852,7 @@ msgstr ""
 msgid "Error saving section"
 msgstr "Błąd zapisywania sekcji"
 
-#: packages/admin/src/components/Widgets.tsx:784
+#: packages/admin/src/components/Widgets.tsx:786
 msgid "Error updating widget"
 msgstr ""
 
@@ -7216,7 +7216,7 @@ msgid "Loading setup..."
 msgstr "Ładowanie konfiguracji..."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1396
-#: packages/admin/src/components/TaxonomyManager.tsx:1467
+#: packages/admin/src/components/TaxonomyManager.tsx:1468
 msgid "Loading terms..."
 msgstr "Ładowanie terminów..."
 
@@ -7575,7 +7575,7 @@ msgid "Medium section heading"
 msgstr "Średni nagłówek sekcji"
 
 #: packages/admin/src/components/Widgets.tsx:104
-#: packages/admin/src/components/Widgets.tsx:914
+#: packages/admin/src/components/Widgets.tsx:916
 msgid "Menu"
 msgstr "Menu"
 
@@ -7930,7 +7930,7 @@ msgstr "Mój świetny blog"
 #: packages/admin/src/components/TaxonomyManager.tsx:781
 #: packages/admin/src/components/TaxonomyManager.tsx:1045
 #: packages/admin/src/components/TaxonomyManager.tsx:1407
-#: packages/admin/src/components/TaxonomyManager.tsx:1461
+#: packages/admin/src/components/TaxonomyManager.tsx:1462
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:430
@@ -8115,7 +8115,7 @@ msgstr "Brak {0}."
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #: packages/admin/src/components/TaxonomyManager.tsx:1399
-#: packages/admin/src/components/TaxonomyManager.tsx:1470
+#: packages/admin/src/components/TaxonomyManager.tsx:1471
 msgid "No {0} yet. Create one to get started."
 msgstr "Brak {0}. Utwórz, aby rozpocząć."
 
@@ -8483,7 +8483,7 @@ msgstr ""
 msgid "No users yet."
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:504
+#: packages/admin/src/components/Widgets.tsx:505
 msgid "No widget areas yet. Create one to get started."
 msgstr ""
 
@@ -10317,7 +10317,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:32
-#: packages/admin/src/components/Widgets.tsx:983
+#: packages/admin/src/components/Widgets.tsx:985
 #: packages/admin/src/routes/bylines.tsx:859
 msgid "Save"
 msgstr "Zapisz"
@@ -10405,7 +10405,7 @@ msgstr ""
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/TaxonomyManager.tsx:889
 #: packages/admin/src/components/users/UserDetail.tsx:311
-#: packages/admin/src/components/Widgets.tsx:983
+#: packages/admin/src/components/Widgets.tsx:985
 #: packages/admin/src/routes/bylines.tsx:859
 msgid "Saving..."
 msgstr "Zapisywanie..."
@@ -10826,7 +10826,7 @@ msgstr ""
 msgid "Select a collection"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:956
+#: packages/admin/src/components/Widgets.tsx:958
 msgid "Select a component..."
 msgstr ""
 
@@ -10839,7 +10839,7 @@ msgstr ""
 msgid "Select a location"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:919
+#: packages/admin/src/components/Widgets.tsx:921
 msgid "Select a menu..."
 msgstr ""
 
@@ -11746,7 +11746,7 @@ msgstr ""
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1561
+#: packages/admin/src/components/TaxonomyManager.tsx:1563
 msgid "Taxonomy created"
 msgstr "Taksonomia utworzona"
 
@@ -11784,7 +11784,7 @@ msgstr "Szablon:"
 #: packages/admin/src/components/TaxonomyManager.tsx:760
 #: packages/admin/src/components/TaxonomyManager.tsx:761
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
-#: packages/admin/src/components/TaxonomyManager.tsx:1529
+#: packages/admin/src/components/TaxonomyManager.tsx:1531
 msgid "Term"
 msgstr "Termin"
 
@@ -12553,7 +12553,7 @@ msgstr ""
 msgid "This version is not visible on the site"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:715
+#: packages/admin/src/components/Widgets.tsx:717
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr ""
 
@@ -12562,7 +12562,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "To przeniesie element do kosza. Możesz go później przywrócić z kosza."
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1531
+#: packages/admin/src/components/TaxonomyManager.tsx:1533
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "This will permanently delete \"{0}\" and remove it from all content."
 
@@ -12600,7 +12600,7 @@ msgstr "Strefa czasowa"
 #: packages/admin/src/components/ContentList.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
-#: packages/admin/src/components/Widgets.tsx:891
+#: packages/admin/src/components/Widgets.tsx:893
 msgid "Title"
 msgstr "Tytuł"
 
@@ -12981,8 +12981,8 @@ msgstr "Bez tytułu"
 msgid "Untitled file"
 msgstr "Plik bez nazwy"
 
-#: packages/admin/src/components/Widgets.tsx:536
-#: packages/admin/src/components/Widgets.tsx:809
+#: packages/admin/src/components/Widgets.tsx:538
+#: packages/admin/src/components/Widgets.tsx:811
 msgid "Untitled Widget"
 msgstr ""
 
@@ -13647,8 +13647,8 @@ msgstr ""
 msgid "Wide"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:802
-#: packages/admin/src/components/Widgets.tsx:817
+#: packages/admin/src/components/Widgets.tsx:804
+#: packages/admin/src/components/Widgets.tsx:819
 msgid "widget"
 msgstr ""
 
@@ -13660,7 +13660,7 @@ msgstr ""
 msgid "Widget area created"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:645
+#: packages/admin/src/components/Widgets.tsx:647
 msgid "Widget area deleted"
 msgstr ""
 
@@ -13668,15 +13668,15 @@ msgstr ""
 msgid "Widget areas"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:765
+#: packages/admin/src/components/Widgets.tsx:767
 msgid "Widget deleted"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:894
+#: packages/admin/src/components/Widgets.tsx:896
 msgid "Widget title"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:780
+#: packages/admin/src/components/Widgets.tsx:782
 msgid "Widget updated"
 msgstr ""
 
@@ -13739,7 +13739,7 @@ msgstr ""
 msgid "Working…"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:904
+#: packages/admin/src/components/Widgets.tsx:906
 msgid "Write widget content..."
 msgstr ""
 

@@ -734,7 +734,15 @@ describe("Bubble Menu", () => {
 			expect(link!.getAttribute("href")).toBe("https://example.com");
 		});
 
-		await userEvent.keyboard("{ArrowLeft}{End} for more information");
+		// ProseMirror only observes native caret moves via the async selectionchange
+		// event, and for 20ms after the editor refocuses it resets moves it has not
+		// observed yet. Back-to-back synthetic keys outrun both, so move the caret
+		// through the editor instead.
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+		const linkEnd = editor.state.selection.from;
+		editor.commands.setTextSelection(linkEnd - 1);
+		editor.commands.setTextSelection(linkEnd);
+		await userEvent.keyboard(" for more information");
 
 		await vi.waitFor(() => {
 			expect(pm.textContent).toBe("Hello world for more information");

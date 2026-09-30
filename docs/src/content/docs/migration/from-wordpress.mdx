@@ -160,11 +160,11 @@ import { decodeSlug, getEmDashEntry } from "emdash";
 import { PortableText } from "emdash/ui";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error } = await getEmDashEntry("posts", slug);
 if (error) return new Response("Could not load the post", { status: 500 });
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 ---
 
 <article>

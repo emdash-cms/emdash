@@ -1456,32 +1456,34 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 					)}
 				</div>
 			) : (
-				<div className="border rounded-lg">
-					<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
-						<div className="flex-1">{t`Name`}</div>
-						<div className="w-16 text-center">{t`Count`}</div>
-						<div className="w-24 text-center">{t`Actions`}</div>
-					</div>
+				<div className="border rounded-lg overflow-x-auto">
+					<div className="min-w-[560px]">
+						<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
+							<div className="flex-1">{t`Name`}</div>
+							<div className="w-16 text-center">{t`Count`}</div>
+							<div className="w-24 text-center">{t`Actions`}</div>
+						</div>
 
-					{termsLoading ? (
-						<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
-					) : terms.length === 0 ? (
-						<div className="p-8 text-center text-kumo-subtle">
-							{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
-						</div>
-					) : (
-						<div className="divide-y divide-kumo-line">
-							<TermGroup
-								siblings={terms}
-								parentId={null}
-								onEdit={handleEdit}
-								onDelete={handleDelete}
-								onMove={handleMove}
-								onTranslate={setTranslateTarget}
-								canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
-							/>
-						</div>
-					)}
+						{termsLoading ? (
+							<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
+						) : terms.length === 0 ? (
+							<div className="p-8 text-center text-kumo-subtle">
+								{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
+							</div>
+						) : (
+							<div className="divide-y divide-kumo-line">
+								<TermGroup
+									siblings={terms}
+									parentId={null}
+									onEdit={handleEdit}
+									onDelete={handleDelete}
+									onMove={handleMove}
+									onTranslate={setTranslateTarget}
+									canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
+								/>
+							</div>
+						)}
+					</div>
 				</div>
 			)}
 

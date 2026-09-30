@@ -61,7 +61,7 @@ const result = await getLiveEntry("plugins", {
 	slug: Astro.params.slug!,
 });
 
-if (!result.entry) return Astro.redirect("/404");
+if (!result.entry) return Astro.rewrite("/404");
 
 const { package: plugin, latestRelease } = result.entry.data;
 ---
