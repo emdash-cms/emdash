@@ -608,6 +608,34 @@ describe("link destination input in the editor", () => {
 		});
 	});
 
+	it("keeps the image toolbar and the pick error showing when a picked entry has no URL yet", async () => {
+		vi.mocked(fetchManifest).mockResolvedValue(
+			makeManifest({ posts: { label: "Posts", urlPattern: "/blog/{year}/{month}/{slug}" } }),
+		);
+		vi.mocked(fetchContent).mockResolvedValue({
+			status: "draft",
+			publishedAt: null,
+		} as unknown as ContentItem);
+		mockSearchResponses([], [helloPost]);
+		const { screen, editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+		let toolbar: HTMLElement | null = null;
+		await vi.waitFor(() => {
+			toolbar = document.querySelector<HTMLElement>("[data-emdash-image-bubble-menu]");
+			expect(toolbar).toBeVisible();
+		});
+		toolbar!.querySelector<HTMLButtonElement>('[aria-label="Add link"]')!.click();
+
+		await typeQuery(screen, "hello");
+		const option = screen.getByRole("option", { name: /Hello World/ });
+		await expect.element(option).toBeVisible();
+		(option.element() as HTMLElement).click();
+
+		await expect.element(screen.getByText(/no URL until it is published/)).toBeVisible();
+		expect(toolbar).toBeVisible();
+		expect(editor.getAttributes("image").link).toBeNull();
+	});
+
 	it("applies typed URLs from the toolbar popover via Apply", async () => {
 		mockSearchResponses([]);
 		const { screen, editor, pm } = await renderEditor();

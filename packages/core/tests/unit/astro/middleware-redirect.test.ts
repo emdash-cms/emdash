@@ -35,6 +35,7 @@ interface BuildContextOpts {
 function buildContext({ pathname, emdashDb }: BuildContextOpts): {
 	context: MiddlewareContext;
 	redirect: ReturnType<typeof vi.fn>;
+	cache: { set: ReturnType<typeof vi.fn> };
 } {
 	const redirect = vi.fn(
 		(location: string, status: number) =>
@@ -42,14 +43,16 @@ function buildContext({ pathname, emdashDb }: BuildContextOpts): {
 	);
 	const url = new URL(`https://example.com${pathname}`);
 	const locals = emdashDb !== undefined ? { emdash: { db: emdashDb } } : {};
+	const cache = { set: vi.fn() };
 	const ctx = {
 		url,
 		request: new Request(url.toString()),
 		locals,
 		redirect,
+		cache,
 	};
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro-shaped object for the middleware under test
-	return { context: ctx as unknown as MiddlewareContext, redirect };
+	return { context: ctx as unknown as MiddlewareContext, redirect, cache };
 }
 
 describe("redirect middleware — issue #808", () => {
@@ -374,9 +377,8 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 	});
 
 	it("logs a content miss under its real path across the redirect-to-/404 flow", async () => {
-		// The documented template pattern answers a content miss with
-		// Astro.redirect("/404"): the first request is a 302, the browser then
-		// requests /404, which renders with status 404.
+		// A site that answers a content miss with Astro.redirect("/404") sends a
+		// 302 first; the browser then requests /404, which renders with status 404.
 		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
 
 		const miss = buildContext({ pathname: "/posts/deleted-post" });
@@ -395,6 +397,16 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
 		expect(rows.map((r) => r.path)).toEqual(["/posts/deleted-post"]);
 		log404.mockRestore();
+	});
+
+	it("keeps 404 responses out of the route cache", async () => {
+		const miss = buildContext({ pathname: "/posts/deleted-post" });
+		await onRequest(miss.context, async () => new Response("not found", { status: 404 }));
+		expect(miss.cache.set).toHaveBeenCalledWith(false);
+
+		const hit = buildContext({ pathname: "/posts/live-post" });
+		await onRequest(hit.context, async () => new Response("ok", { status: 200 }));
+		expect(hit.cache.set).not.toHaveBeenCalled();
 	});
 
 	it("does not log ordinary redirects", async () => {

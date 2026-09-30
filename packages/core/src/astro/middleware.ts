@@ -46,6 +46,7 @@ import {
 	resolveRuntimeMigrationMode,
 	type RuntimeMigrationMode,
 } from "../database/migrations/policy.js";
+import { markRequestScopedDb } from "../database/request-scoped.js";
 import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	DB_INIT_DEADLINE_MS,
@@ -595,7 +596,8 @@ const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
  * Ask the configured database adapter for a per-request scoped Kysely. The
  * adapter encapsulates any per-request semantics (D1 sessions, read-replica
  * routing, bookmark cookies, etc.); core just forwards the cookie jar and
- * request flags and wraps next() in ALS if a scope was returned.
+ * request flags, registers the returned handle as a view of the configured
+ * database, and wraps next() in ALS if a scope was returned.
  */
 function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
@@ -605,7 +607,9 @@ function createRequestScopedDb(
 	const fn = virtualCreateRequestScopedDb as (
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
-	return fn(opts);
+	const scoped = fn(opts);
+	if (scoped) markRequestScopedDb(scoped.db);
+	return scoped;
 }
 
 const buildDate = virtualBuildTime ? new Date(virtualBuildTime) : null;

@@ -150,6 +150,7 @@ import {
 	type CommentStatus,
 } from "./lib/api/comments";
 import { runBulkAction } from "./lib/bulk";
+import { parseCalendarSearch } from "./lib/calendar";
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
@@ -157,6 +158,7 @@ import { sanitizeRedirectUrl } from "./lib/url";
 import { useEntryLock } from "./lib/useEntryLock";
 import { BylineSchemaPage } from "./routes/byline-schema";
 import { BylinesPage } from "./routes/bylines";
+import { CalendarPage } from "./routes/calendar";
 import { UsersPage } from "./routes/users";
 
 // Router context type
@@ -400,6 +402,13 @@ function DashboardPage() {
 
 	return <Dashboard manifest={manifest} />;
 }
+
+const calendarRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/calendar",
+	component: CalendarPage,
+	validateSearch: parseCalendarSearch,
+});
 
 // Content list route
 const contentListRoute = createRoute({
@@ -3030,6 +3039,7 @@ const notFoundRoute = createRoute({
 // Create route tree with admin routes under layout and setup route separate
 const adminRoutes = adminLayoutRoute.addChildren([
 	dashboardRoute,
+	calendarRoute,
 	contentListRoute,
 	contentNewRoute,
 	contentEditRoute,

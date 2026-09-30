@@ -17,7 +17,7 @@ import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
-import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
+import { decodeCursor, encodeCursor, InvalidCursorError } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
@@ -447,10 +447,12 @@ const INCLUDE_IN_DATA: Record<string, string> = {
 const DATE_COLUMNS = new Set(["created_at", "updated_at", "published_at", "scheduled_at"]);
 
 /**
- * Hidden, symbol-keyed property on each mapped data record carrying the raw
- * DB string for every date column. Lets cursor encoders downstream reproduce
- * the loader's exact `nextCursor` format without round-tripping through
- * `new Date()`, which loses precision for stored values that aren't already
+ * Hidden, symbol-keyed property on each mapped data record carrying raw DB
+ * values: the string of every date column and, in a collection load, the
+ * primary sort column's value. Lets cursor encoders downstream reproduce the
+ * loader's exact `nextCursor` from an entry, whose `data` leaves some columns
+ * out, parses text that looks like JSON, and holds dates as `Date` objects,
+ * which lose precision for stored values that aren't already
  * ISO-with-milliseconds (e.g. `2026-01-01T00:00:00Z` becomes
  * `2026-01-01T00:00:00.000Z`).
  */
@@ -517,9 +519,10 @@ function normalizeLocalMediaValue(value: unknown): unknown {
 function mapRowToData(
 	row: Record<string, unknown>,
 	booleanFields: ReadonlySet<string>,
+	sortColumn?: string,
 ): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
-	const rawDateValues: Record<string, string> = {};
+	const rawValues: Record<string, SortCursorValue> = {};
 
 	for (const [key, value] of Object.entries(row)) {
 		// Include certain system columns (mapped to camelCase where needed)
@@ -527,7 +530,7 @@ function mapRowToData(
 			// Convert date columns from ISO strings to Date objects
 			if (DATE_COLUMNS.has(key)) {
 				if (typeof value === "string") {
-					rawDateValues[key] = value;
+					rawValues[key] = value;
 					data[INCLUDE_IN_DATA[key]] = new Date(value);
 				} else {
 					data[INCLUDE_IN_DATA[key]] = null;
@@ -562,8 +565,11 @@ function mapRowToData(
 		}
 	}
 
+	if (sortColumn !== undefined && sortColumn in row) {
+		rawValues[sortColumn] = sortCursorValue(row[sortColumn]);
+	}
 	Object.defineProperty(data, CURSOR_RAW_VALUES, {
-		value: rawDateValues,
+		value: rawValues,
 		enumerable: false,
 		configurable: false,
 		writable: false,
@@ -819,26 +825,119 @@ function buildOrderByClause(
 }
 
 /**
- * Build a cursor WHERE condition for keyset pagination.
- * Uses the primary sort field + id as tiebreaker for stable ordering.
+ * Sort columns every row has a value for. Their cursors keep the plain
+ * `{ orderValue, id }` shape; any other sort column can hold NULL.
+ */
+const NON_NULL_SORT_COLUMNS = new Set(["id", "created_at", "updated_at", "status", "locale"]);
+
+type SortCursorValue = string | number | null;
+
+interface SortCursorPayload {
+	version: 1;
+	field: string;
+	value: SortCursorValue;
+}
+
+function sortCursorValue(value: unknown): SortCursorValue {
+	if (typeof value === "string" || typeof value === "number") return value;
+	if (typeof value === "boolean") return value ? 1 : 0;
+	if (value instanceof Date) return value.toISOString();
+	return null;
+}
+
+/**
+ * Encode the cursor for the page after the row whose primary sort column
+ * `field` holds `value`.
+ *
+ * @internal shared with query.ts, which re-encodes cursors from entries.
+ */
+export function encodeSortCursor(field: string, value: unknown, id: string): string {
+	const cursorValue = sortCursorValue(value);
+	if (NON_NULL_SORT_COLUMNS.has(field)) {
+		return encodeCursor(cursorValue === null ? "" : String(cursorValue), id);
+	}
+	const payload: SortCursorPayload = { version: 1, field, value: cursorValue };
+	return encodeCursor(JSON.stringify(payload), id);
+}
+
+function decodeSortCursor(cursor: string, field: string): { value: SortCursorValue; id: string } {
+	const { orderValue, id } = decodeCursor(cursor);
+	if (NON_NULL_SORT_COLUMNS.has(field)) return { value: orderValue, id };
+
+	let payload: unknown;
+	try {
+		payload = JSON.parse(orderValue);
+	} catch {
+		payload = undefined;
+	}
+	// A plain `{ orderValue, id }` cursor, which nullable columns were paged
+	// with before and which wrote a NULL as "".
+	if (payload === null || typeof payload !== "object") {
+		return { value: orderValue === "" ? null : orderValue, id };
+	}
+	const candidate = payload as Partial<SortCursorPayload>;
+	const { value } = candidate;
+	if (
+		candidate.version !== 1 ||
+		candidate.field !== field ||
+		(value !== null && typeof value !== "string" && typeof value !== "number")
+	) {
+		throw new InvalidCursorError(cursor);
+	}
+	return { value, id };
+}
+
+/**
+ * Keyset condition for the rows after `cursor`, ordered by `sort` then `id`
+ * in `direction`. The ORDER BY keeps each dialect's own NULL position, lowest
+ * on SQLite and highest on Postgres, so the condition follows it.
  *
  * Throws `InvalidCursorError` if the cursor is malformed; callers should
  * let this propagate so users see a real error rather than silently
  * falling back to the first page.
  */
+function sortCursorCondition(
+	db: Kysely<Database>,
+	cursor: string,
+	column: string,
+	direction: SortDirection,
+	sort: RawBuilder<unknown>,
+	id: RawBuilder<unknown>,
+): ReturnType<typeof sql> {
+	const { value, id: cursorId } = decodeSortCursor(cursor, column);
+	const cmp = direction === "asc" ? sql.raw(">") : sql.raw("<");
+	const nullsFirst = (direction === "asc") !== isPostgres(db);
+	if (value === null) {
+		return nullsFirst
+			? sql`(${sort} IS NOT NULL OR ${id} ${cmp} ${cursorId})`
+			: sql`(${sort} IS NULL AND ${id} ${cmp} ${cursorId})`;
+	}
+	const past = sql`${sort} ${cmp} ${value} OR (${sort} = ${value} AND ${id} ${cmp} ${cursorId})`;
+	return nullsFirst || NON_NULL_SORT_COLUMNS.has(column)
+		? sql`(${past})`
+		: sql`(${past} OR ${sort} IS NULL)`;
+}
+
+/**
+ * Build a cursor WHERE condition for keyset pagination.
+ * Uses the primary sort field + id as tiebreaker for stable ordering.
+ */
 function buildCursorCondition(
+	db: Kysely<Database>,
 	cursor: string,
 	orderBy: OrderBySpec | undefined,
 	tablePrefix?: string,
 ): ReturnType<typeof sql> {
-	const { orderValue, id: cursorId } = decodeCursor(cursor);
-	const primary = getPrimarySort(orderBy, tablePrefix);
-	const idField = tablePrefix ? `${tablePrefix}.id` : "id";
-
-	if (primary.direction === "desc") {
-		return sql`(${sql.ref(primary.field)} < ${orderValue} OR (${sql.ref(primary.field)} = ${orderValue} AND ${sql.ref(idField)} < ${cursorId}))`;
-	}
-	return sql`(${sql.ref(primary.field)} > ${orderValue} OR (${sql.ref(primary.field)} = ${orderValue} AND ${sql.ref(idField)} > ${cursorId}))`;
+	const primary = getPrimarySort(orderBy);
+	const ref = (column: string) => sql.ref(tablePrefix ? `${tablePrefix}.${column}` : column);
+	return sortCursorCondition(
+		db,
+		cursor,
+		primary.field,
+		primary.direction,
+		ref(primary.field),
+		ref("id"),
+	);
 }
 
 /** Type guard: is the where value a range object (not a string or array)? */
@@ -1061,7 +1160,6 @@ export function buildTaxonomyPivotQuery(
 	const isIndexedSort =
 		singleSort && (primary.field === "published_at" || primary.field === "created_at");
 	const dir = primary.direction === "asc" ? sql`ASC` : sql`DESC`;
-	const cmp = primary.direction === "asc" ? sql.raw(">") : sql.raw("<");
 
 	const firstGroups = groupSets[0] ?? [];
 	const restGroups = groupSets.slice(1);
@@ -1128,8 +1226,14 @@ export function buildTaxonomyPivotQuery(
 		let cursorClause = sql``;
 		let havingClause = sql``;
 		if (cursor) {
-			const { orderValue, id } = decodeCursor(cursor);
-			const cond = sql`(${sortval} ${cmp} ${orderValue} OR (${sortval} = ${orderValue} AND r.id ${cmp} ${id}))`;
+			const cond = sortCursorCondition(
+				db,
+				cursor,
+				primary.field,
+				primary.direction,
+				sortval,
+				sql.ref("r.id"),
+			);
 			// A GROUP BY makes `sortval` an aggregate → cursor goes in HAVING.
 			if (multiGroup) havingClause = sql`HAVING ${cond}`;
 			else cursorClause = sql`AND ${cond}`;
@@ -1164,7 +1268,7 @@ export function buildTaxonomyPivotQuery(
 
 	// Temp-sort path: seek the term via the pivot, sort the joined candidate set.
 	const orderByClause = buildOrderByClause(orderBy, "r");
-	const cursorCond = cursor ? sql`AND ${buildCursorCondition(cursor, orderBy, "r")}` : sql``;
+	const cursorCond = cursor ? sql`AND ${buildCursorCondition(db, cursor, orderBy, "r")}` : sql``;
 	const limitClause = buildPivotLimitOffset(db, fetchLimit, offset);
 	return sql<Record<string, unknown>>`
 		WITH picked AS (
@@ -1411,7 +1515,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						: undefined;
 
 				// Build cursor condition if cursor is provided
-				const cursorCondition = cursor ? buildCursorCondition(cursor, orderBy) : null;
+				const cursorCondition = cursor ? buildCursorCondition(db, cursor, orderBy) : null;
 
 				// Separate taxonomy / byline filters from field filters
 				let result: { rows: Record<string, unknown>[] };
@@ -1607,11 +1711,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const hasMore = limit ? result.rows.length > limit : false;
 				const rows = hasMore ? result.rows.slice(0, limit) : result.rows;
 
+				const primary = getPrimarySort(orderBy);
+				// Strip table prefix from field name for row lookup
+				const sortColumn = primary.field.includes(".")
+					? primary.field.split(".").pop()!
+					: primary.field;
+
 				// Map rows to entries
 				const booleanFields = parseFoldedBooleanFields(rows[0]);
 				const entries = rows.map((row) => {
 					const id = entryIdForRow(row);
-					const data = mapRowToData(row, booleanFields);
+					const data = mapRowToData(row, booleanFields, sortColumn);
 					stashFolded(data, row);
 					return {
 						id,
@@ -1629,17 +1739,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				let nextCursor: string | undefined;
 				if (hasMore && rows.length > 0) {
 					const lastRow = rows.at(-1)!;
-					const primary = getPrimarySort(orderBy);
-					// Strip table prefix from field name for row lookup
-					const fieldName = primary.field.includes(".")
-						? primary.field.split(".").pop()!
-						: primary.field;
-					const lastOrderValue = lastRow[fieldName];
-					const orderStr =
-						typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
-							? String(lastOrderValue)
-							: "";
-					nextCursor = encodeCursor(orderStr, String(lastRow.id));
+					nextCursor = encodeSortCursor(sortColumn, lastRow[sortColumn], String(lastRow.id));
 				}
 
 				// Collection-level cache hint uses the most recent updated_at
