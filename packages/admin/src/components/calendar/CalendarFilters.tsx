@@ -30,6 +30,7 @@ interface CalendarFiltersProps {
 	locales: readonly string[];
 	value: CalendarFilterValues;
 	onChange: (value: Partial<CalendarFilterValues>) => void;
+	triggerRef?: React.Ref<HTMLButtonElement>;
 }
 
 const NO_FILTERS: CalendarFilterValues = { collections: [], locales: [], states: [] };
@@ -60,6 +61,7 @@ export function CalendarFilters({
 	locales,
 	value,
 	onChange,
+	triggerRef,
 }: CalendarFiltersProps) {
 	const { t } = useLingui();
 	const groups: CalendarFilterGroup[] = [
@@ -114,6 +116,7 @@ export function CalendarFilters({
 			<DropdownMenu.Trigger
 				render={
 					<Button
+						ref={triggerRef}
 						variant="secondary"
 						className="w-full justify-center text-sm sm:w-auto"
 						icon={

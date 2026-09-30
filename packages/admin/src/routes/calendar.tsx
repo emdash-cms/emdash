@@ -244,7 +244,12 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			...(patch.states && { states: toListParam(patch.states) }),
 		});
 	};
-	const clearFilters = () => setFilters({ collections: [], locales: [], states: [] });
+	const filterTriggerRef = React.useRef<HTMLButtonElement>(null);
+	// The notices offering this unmount once it runs, so focus moves to the Filter menu.
+	const clearFilters = () => {
+		setFilters({ collections: [], locales: [], states: [] });
+		filterTriggerRef.current?.focus();
+	};
 	const prefetchMonth = (target: string) => {
 		if (!isMonthKey(target)) return;
 		const targetRange = fetchRange(monthGridDays(target, weekStartsOn));
@@ -311,6 +316,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						locales={locales}
 						value={filters}
 						onChange={setFilters}
+						triggerRef={filterTriggerRef}
 					/>
 				}
 			/>

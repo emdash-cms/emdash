@@ -126,6 +126,7 @@ describe("CalendarPage", () => {
 			locales: undefined,
 			states: undefined,
 		});
+		await expect.element(screen.getByRole("button", { name: "Filter: 1 selected" })).toHaveFocus();
 	});
 
 	it("counts only the month's own days on a phone, where the picker hides the rest", async () => {
