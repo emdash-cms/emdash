@@ -238,6 +238,18 @@ export function resolveImageEndpoint(opts: {
 	};
 }
 
+const EDGE_SLASHES = /^\/+|\/+$/g;
+
+/**
+ * The `routePattern` Astro reports for requests to the image endpoint. It drops
+ * the trailing slash `image.endpoint.route` carries under `trailingSlash: "always"`.
+ *
+ * @internal
+ */
+export function imageEndpointRoutePattern(route: string | undefined): string {
+	return `/${(route ?? "/_image").replace(EDGE_SLASHES, "")}`;
+}
+
 /**
  * Warn when `@astrojs/react` is not registered in the host's `integrations`.
  *
@@ -645,7 +657,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 
 				const imageConfig: Record<string, unknown> = {};
 				if (imageRemotePatterns.length) imageConfig.remotePatterns = imageRemotePatterns;
-				if (imageEndpoint) imageConfig.endpoint = { entrypoint: imageEndpoint };
+				if (imageEndpoint) {
+					imageConfig.endpoint = { entrypoint: imageEndpoint };
+					serializableConfig.imageEndpointRoute = imageEndpointRoutePattern(
+						astroConfig.image?.endpoint?.route,
+					);
+				}
 
 				updateConfig({
 					security: securityConfig,

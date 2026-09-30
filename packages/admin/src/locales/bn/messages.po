@@ -27,17 +27,17 @@ msgid "-- Select --"
 msgstr "-- নির্বাচন করুন --"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1914
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "\"{0}\" {providerName} থেকে মুছে ফেলা হবে।"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1915
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "\"{0}\" তার মিডিয়া প্রোভাইডার থেকে মুছে ফেলা হবে।"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1916
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" স্থায়ীভাবে মুছে ফেলা হবে।"
 
@@ -124,7 +124,7 @@ msgstr "{0, plural, one {আপলোড তালিকা পূর্ণ থ�
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1496
+#: packages/admin/src/components/MediaDetailPanel.tsx:1508
 #: packages/admin/src/components/MediaLibrary.tsx:1002
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {#টি ফোল্ডার লোড হয়েছে} other {#টি ফোল্ডার লোড হয়েছে}}"
@@ -1573,8 +1573,8 @@ msgid "Alt text"
 msgstr "বিকল্প টেক্সট"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:742
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
-#: packages/admin/src/components/MediaDetailPanel.tsx:1581
+#: packages/admin/src/components/MediaDetailPanel.tsx:1576
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
 msgid "Alt Text"
 msgstr "বিকল্প টেক্সট"
 
@@ -1680,7 +1680,7 @@ msgstr "এক্সপোর্ট ফাইল বিশ্লেষণ কর
 msgid "Analyzing WordPress site..."
 msgstr "WordPress সাইট বিশ্লেষণ করা হচ্ছে..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1749
+#: packages/admin/src/components/MediaDetailPanel.tsx:1761
 msgid "Animated WebP files become still images when cropped."
 msgstr "ক্রপ করলে অ্যানিমেটেড WebP ফাইল স্থির ছবিতে পরিণত হয়।"
 
@@ -1812,7 +1812,7 @@ msgstr "অ্যাডমিন হিসেবে, আপনি ব্যব�
 msgid "Ask an administrator to complete this setup."
 msgstr "এই সেটআপ সম্পন্ন করতে একজন অ্যাডমিনকে বলুন।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1703
 msgid "Aspect ratio"
 msgstr "অ্যাসপেক্ট রেশিও"
 
@@ -1988,7 +1988,7 @@ msgstr "অবতার"
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:651
-#: packages/admin/src/components/MediaDetailPanel.tsx:1793
+#: packages/admin/src/components/MediaDetailPanel.tsx:1805
 #: packages/admin/src/components/MediaLibrary.tsx:811
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/WordPressImport.tsx:1530
@@ -2312,7 +2312,7 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1315
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1588
 #: packages/admin/src/components/MenuEditor.tsx:440
@@ -2391,7 +2391,7 @@ msgstr "সক্ষমতার সম্মতি"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:527
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:750
 #: packages/admin/src/components/editor/ImageNode.tsx:302
-#: packages/admin/src/components/MediaDetailPanel.tsx:1592
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Caption"
 msgstr "ক্যাপশন"
 
@@ -2638,7 +2638,7 @@ msgstr "আপলোড করার জন্য ফাইল বেছে ন�
 msgid "Choose package file"
 msgstr "প্যাকেজ ফাইল বেছে নিন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1824
+#: packages/admin/src/components/MediaDetailPanel.tsx:1836
 msgid "Choose replacement image"
 msgstr "প্রতিস্থাপনের ছবি বেছে নিন"
 
@@ -2749,7 +2749,7 @@ msgstr "{siteName}-এ সাইন ইন করতে এই লিঙ্ক�
 #: packages/admin/src/components/FieldEditor.tsx:686
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:461
 #: packages/admin/src/components/MediaDetailPanel.tsx:1116
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaPickerModal.tsx:1001
 #: packages/admin/src/components/MediaPickerModal.tsx:1008
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
@@ -3120,7 +3120,7 @@ msgstr "কনটেন্ট টাইপ"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "একই গ্রুপের কনটেন্ট টাইপগুলো সাইডবারে একটি সংকোচনযোগ্য ফোল্ডারে থাকে"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1922
+#: packages/admin/src/components/MediaDetailPanel.tsx:1934
 msgid "Content using this media item may show a broken reference."
 msgstr "এই মিডিয়া আইটেম ব্যবহারকারী কনটেন্টে ভাঙা রেফারেন্স দেখা যেতে পারে।"
 
@@ -3220,7 +3220,7 @@ msgstr "টোকেন কপি করুন"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
-#: packages/admin/src/components/MediaDetailPanel.tsx:1355
+#: packages/admin/src/components/MediaDetailPanel.tsx:1367
 msgid "Copy URL"
 msgstr "URL কপি করুন"
 
@@ -3460,7 +3460,7 @@ msgstr "বাইলাইন তৈরি করুন"
 msgid "Create Content Type"
 msgstr "কনটেন্ট টাইপ তৈরি করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1856
+#: packages/admin/src/components/MediaDetailPanel.tsx:1868
 msgid "Create cropped copy"
 msgstr "ক্রপ করা কপি তৈরি করুন"
 
@@ -3645,7 +3645,7 @@ msgstr "ক্রপ করা কপি তৈরি করা হচ্ছে.
 msgid "Creating..."
 msgstr "তৈরি করা হচ্ছে..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1629
 msgid "Crop"
 msgstr "ক্রপ করুন"
 
@@ -3655,7 +3655,7 @@ msgstr "ক্রপ করুন"
 msgid "Crop area {0} by {1} pixels."
 msgstr "ক্রপ এলাকা {0} × {1} পিক্সেল।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1724
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Crop output dimensions"
 msgstr "ক্রপ আউটপুটের মাত্রা"
 
@@ -3812,8 +3812,8 @@ msgstr "কোডে নির্ধারিত"
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1908
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
 #: packages/admin/src/components/MenuEditor.tsx:555
 #: packages/admin/src/components/MenuList.tsx:233
 #: packages/admin/src/components/Redirects.tsx:612
@@ -3940,7 +3940,7 @@ msgstr "HTML ব্লক মুছুন"
 msgid "Delete image"
 msgstr "ছবি মুছুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1908
 msgid "Delete media?"
 msgstr "মিডিয়া মুছবেন?"
 
@@ -4033,8 +4033,8 @@ msgstr "\"{0}\" মুছলে সব বাইলাইন থেকে {1, pl
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:854
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1921
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Redirects.tsx:613
@@ -4088,7 +4088,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "যাঁরা ছবিটি দেখতে পান না তাঁদের জন্য ছবিটির উদ্দেশ্য ও প্রাসঙ্গিক বিবরণ লিখুন।"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1584
+#: packages/admin/src/components/MediaDetailPanel.tsx:1596
 msgid "Describe this image for accessibility"
 msgstr "অ্যাক্সেসিবিলিটির জন্য এই ছবির বর্ণনা দিন"
 
@@ -4154,7 +4154,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr "সোর্স সাইটের সাথে পার্থক্য"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1308
+#: packages/admin/src/components/MediaDetailPanel.tsx:1314
 msgid "Dimensions:"
 msgstr "মাপ:"
 
@@ -4202,7 +4202,7 @@ msgstr "<0>{0}</0>-কে নিষ্ক্রিয় করলে পুন�
 msgid "Disabling..."
 msgstr "নিষ্ক্রিয় করা হচ্ছে..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1882
+#: packages/admin/src/components/MediaDetailPanel.tsx:1894
 msgid "Discard"
 msgstr "বাতিল করুন"
 
@@ -4211,7 +4211,7 @@ msgstr "বাতিল করুন"
 msgid "Discard changes"
 msgstr "পরিবর্তনগুলো বাতিল করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1880
+#: packages/admin/src/components/MediaDetailPanel.tsx:1892
 msgid "Discard changes?"
 msgstr "পরিবর্তনগুলো বাতিল করবেন?"
 
@@ -4219,7 +4219,7 @@ msgstr "পরিবর্তনগুলো বাতিল করবেন?"
 msgid "Discard draft changes?"
 msgstr "খসড়ার পরিবর্তনগুলো বাতিল করবেন?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1883
+#: packages/admin/src/components/MediaDetailPanel.tsx:1895
 msgid "Discarding..."
 msgstr "বাতিল করা হচ্ছে..."
 
@@ -4788,11 +4788,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash আগের ছবিটি রাখে না।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:2004
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash ক্রপ না করা ছবিটি রাখে না।"
 
@@ -4991,11 +4991,11 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "ইমপোর্ট করা প্রতিটি রেকর্ড ও মিডিয়া ফাইল আবার পড়ে দেখা হয়েছে এবং প্যাকেজের সাথে মিলেছে। ট্রান্সফারের রেকর্ড হিসেবে এই রসিদটি রেখে দিন।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1986
 msgid "Every place using this image will update to the cropped version."
 msgstr "যেসব জায়গায় এই ছবি ব্যবহৃত হয়েছে, সবখানে ক্রপ করা সংস্করণে আপডেট হয়ে যাবে।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1939
+#: packages/admin/src/components/MediaDetailPanel.tsx:1951
 msgid "Every place using this image will update to the selected version."
 msgstr "যেসব জায়গায় এই ছবি ব্যবহৃত হয়েছে, সবখানে নির্বাচিত সংস্করণে আপডেট হয়ে যাবে।"
 
@@ -5248,11 +5248,11 @@ msgstr "কনটেন্ট মুছতে ব্যর্থ হয়েছ
 msgid "Failed to delete field"
 msgstr "ফিল্ড মুছতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:681
+#: packages/admin/src/lib/api/media.ts:758
 msgid "Failed to delete from provider"
 msgstr "প্রোভাইডার থেকে মুছতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:541
+#: packages/admin/src/lib/api/media.ts:618
 msgid "Failed to delete media"
 msgstr "মিডিয়া মুছতে ব্যর্থ হয়েছে"
 
@@ -5400,7 +5400,7 @@ msgstr "মিডিয়া ফোল্ডারগুলো আনতে ব
 msgid "Failed to fetch media item"
 msgstr "মিডিয়া আইটেম আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:614
+#: packages/admin/src/lib/api/media.ts:691
 msgid "Failed to fetch media providers"
 msgstr "মিডিয়া প্রোভাইডার আনতে ব্যর্থ হয়েছে"
 
@@ -5421,7 +5421,7 @@ msgstr "প্লাগইন সেটিংস আনতে ব্যর্থ
 msgid "Failed to fetch plugins"
 msgstr "প্লাগইনগুলো আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:644
+#: packages/admin/src/lib/api/media.ts:721
 msgid "Failed to fetch provider media"
 msgstr "প্রোভাইডারের মিডিয়া আনতে ব্যর্থ হয়েছে"
 
@@ -5677,7 +5677,7 @@ msgstr "ফিল্ডের ক্রম পরিবর্তন করতে
 msgid "Failed to reorder widgets"
 msgstr "উইজেটের ক্রম পরিবর্তন করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:529
+#: packages/admin/src/lib/api/media.ts:606
 msgid "Failed to replace media image"
 msgstr "মিডিয়া ছবি প্রতিস্থাপন করতে ব্যর্থ হয়েছে"
 
@@ -5792,7 +5792,7 @@ msgstr "বাইলাইন ফিল্ড আপডেট করতে ব�
 msgid "Failed to update domain"
 msgstr "ডোমেইন আপডেট করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:565
+#: packages/admin/src/lib/api/media.ts:642
 msgid "Failed to update media"
 msgstr "মিডিয়া আপডেট করতে ব্যর্থ হয়েছে"
 
@@ -5830,11 +5830,11 @@ msgstr "একটি প্যাকেজ ফাইল আপলোড কর�
 msgid "Failed to upload file"
 msgstr "ফাইল আপলোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:470
+#: packages/admin/src/lib/api/media.ts:547
 msgid "Failed to upload media"
 msgstr "মিডিয়া আপলোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/media.ts:669
+#: packages/admin/src/lib/api/media.ts:746
 msgid "Failed to upload to provider"
 msgstr "প্রোভাইডারে আপলোড করতে ব্যর্থ হয়েছে"
 
@@ -5928,8 +5928,8 @@ msgstr "ফাইল {0}"
 msgid "File from media library"
 msgstr "মিডিয়া লাইব্রেরি থেকে ফাইল"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1403
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1415
+#: packages/admin/src/components/MediaDetailPanel.tsx:1432
 #: packages/admin/src/components/MediaLibrary.tsx:1205
 msgid "Filename"
 msgstr "ফাইলের নাম"
@@ -6019,8 +6019,8 @@ msgstr "প্রকাশের তারিখ পরিবর্তনের 
 msgid "Fix invalid fields before changing the schedule"
 msgstr "সময়সূচি পরিবর্তনের আগে অবৈধ ফিল্ডগুলো ঠিক করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
-#: packages/admin/src/components/MediaDetailPanel.tsx:1633
+#: packages/admin/src/components/MediaDetailPanel.tsx:1634
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
 msgid "Focal point"
 msgstr "ফোকাল পয়েন্ট"
 
@@ -6066,7 +6066,7 @@ msgstr "ফোল্ডার উপলব্ধ নয়"
 msgid "Folders"
 msgstr "ফোল্ডার"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1523
+#: packages/admin/src/components/MediaDetailPanel.tsx:1535
 #: packages/admin/src/components/MediaLibrary.tsx:1027
 #: packages/admin/src/components/MediaLibrary.tsx:1571
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
@@ -6089,7 +6089,7 @@ msgstr "খসড়াসহ সম্পূর্ণ কনটেন্ট ই
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "সেরা ইমপোর্ট অভিজ্ঞতার জন্য আপনার WordPress সাইটে <0>EmDash Exporter</0> প্লাগইনটি ইনস্টল করুন।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1336
+#: packages/admin/src/components/MediaDetailPanel.tsx:1348
 msgid "Format:"
 msgstr "ফরম্যাট:"
 
@@ -7260,7 +7260,7 @@ msgstr "আরও লোড করুন"
 msgid "Load More"
 msgstr "আরও লোড করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1542
+#: packages/admin/src/components/MediaDetailPanel.tsx:1554
 #: packages/admin/src/components/MediaLibrary.tsx:1057
 #: packages/admin/src/components/MediaLibrary.tsx:1249
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
@@ -7320,7 +7320,7 @@ msgstr "এক্সপোর্ট লোড হচ্ছে…"
 msgid "Loading folders"
 msgstr "ফোল্ডার লোড হচ্ছে"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Loading folders..."
 msgstr "ফোল্ডার লোড হচ্ছে..."
 
@@ -7411,7 +7411,7 @@ msgstr "উইজেট লোড হচ্ছে..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
 #: packages/admin/src/components/MediaDetailPanel.tsx:612
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
-#: packages/admin/src/components/MediaDetailPanel.tsx:1729
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:2763
@@ -7453,10 +7453,10 @@ msgstr "লোকেল"
 msgid "Locales will use this site’s capitalization"
 msgstr "লোকেলগুলো এই সাইটের বড়/ছোট হাতের অক্ষরের ধরন অনুসরণ করবে"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1431
-#: packages/admin/src/components/MediaDetailPanel.tsx:1459
-#: packages/admin/src/components/MediaDetailPanel.tsx:1550
-#: packages/admin/src/components/MediaDetailPanel.tsx:1552
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
+#: packages/admin/src/components/MediaDetailPanel.tsx:1471
+#: packages/admin/src/components/MediaDetailPanel.tsx:1562
+#: packages/admin/src/components/MediaDetailPanel.tsx:1564
 msgid "Location"
 msgstr "অবস্থান"
 
@@ -7561,11 +7561,11 @@ msgstr "URL রিডাইরেক্ট পরিচালনা করুন
 msgid "Manage your passkeys and authentication"
 msgstr "আপনার পাসকি ও প্রমাণীকরণ পরিচালনা করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1389
+#: packages/admin/src/components/MediaDetailPanel.tsx:1401
 msgid "Managed by {providerName}"
 msgstr "{providerName} দ্বারা পরিচালিত"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1390
+#: packages/admin/src/components/MediaDetailPanel.tsx:1402
 msgid "Managed by an external media provider"
 msgstr "একটি বাহ্যিক মিডিয়া প্রোভাইডার দ্বারা পরিচালিত"
 
@@ -8448,7 +8448,7 @@ msgstr "তুলনা করার মতো কোনো ফিল্ড ন�
 msgid "No files added"
 msgstr "কোনো ফাইল যোগ করা হয়নি"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1502
+#: packages/admin/src/components/MediaDetailPanel.tsx:1514
 msgid "No folders found"
 msgstr "কোনো ফোল্ডার পাওয়া যায়নি"
 
@@ -8590,7 +8590,7 @@ msgstr "এই রেজিস্ট্রিতে এখনও কোনো �
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "\"{debouncedQuery}\"-এর সাথে কোনো প্লাগইন মেলেনি।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1370
 msgid "No public URL available"
 msgstr "কোনো পাবলিক URL উপলব্ধ নেই"
 
@@ -8883,7 +8883,7 @@ msgstr "ঐচ্ছিক ক্যাপশন"
 msgid "Optional caption displayed below the image"
 msgstr "ছবির নিচে দেখানো ঐচ্ছিক ক্যাপশন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1595
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Optional caption for display"
 msgstr "প্রদর্শনের জন্য ঐচ্ছিক ক্যাপশন"
 
@@ -8961,7 +8961,7 @@ msgstr "অন্যান্য"
 msgid "Outline"
 msgstr "রূপরেখা"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1722
+#: packages/admin/src/components/MediaDetailPanel.tsx:1734
 msgid "Output size"
 msgstr "আউটপুটের আকার"
 
@@ -9434,7 +9434,7 @@ msgstr "ছবি তুলে নিতে Space চাপুন। সরা�
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:453
 #: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:102
-#: packages/admin/src/components/MediaDetailPanel.tsx:1676
+#: packages/admin/src/components/MediaDetailPanel.tsx:1688
 #: packages/admin/src/components/MediaLibrary.tsx:1204
 msgid "Preview"
 msgstr "প্রিভিউ"
@@ -10132,23 +10132,23 @@ msgstr "{label}-এর ডার্ক মোড ভ্যারিয়েন�
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
-#: packages/admin/src/components/MediaDetailPanel.tsx:1943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 #: packages/admin/src/components/PortableTextEditor.tsx:4757
 msgid "Replace image"
 msgstr "ছবি প্রতিস্থাপন করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
-#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
+#: packages/admin/src/components/MediaDetailPanel.tsx:1990
 msgid "Replace original"
 msgstr "মূল ছবি প্রতিস্থাপন করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1935
-#: packages/admin/src/components/MediaDetailPanel.tsx:1970
+#: packages/admin/src/components/MediaDetailPanel.tsx:1947
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "Replace original image?"
 msgstr "মূল ছবি প্রতিস্থাপন করবেন?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1734
+#: packages/admin/src/components/MediaDetailPanel.tsx:1746
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "মূল ছবি প্রতিস্থাপন শুধুমাত্র Original অনুপাতে উপলব্ধ।"
 
@@ -10165,13 +10165,13 @@ msgid "Replace with empty list"
 msgstr "খালি তালিকা দিয়ে প্রতিস্থাপন করুন"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:932
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1956
 msgid "Replacing image..."
 msgstr "ছবি প্রতিস্থাপন করা হচ্ছে..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:951
-#: packages/admin/src/components/MediaDetailPanel.tsx:1979
-#: packages/admin/src/components/MediaDetailPanel.tsx:1999
+#: packages/admin/src/components/MediaDetailPanel.tsx:1991
+#: packages/admin/src/components/MediaDetailPanel.tsx:2011
 msgid "Replacing original..."
 msgstr "মূল ছবি প্রতিস্থাপন করা হচ্ছে..."
 
@@ -10233,8 +10233,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "{resendCooldown} সেকেন্ড পরে আবার পাঠান"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:442
-#: packages/admin/src/components/MediaDetailPanel.tsx:1668
-#: packages/admin/src/components/MediaDetailPanel.tsx:1718
+#: packages/admin/src/components/MediaDetailPanel.tsx:1680
+#: packages/admin/src/components/MediaDetailPanel.tsx:1730
 msgid "Reset"
 msgstr "রিসেট করুন"
 
@@ -10242,7 +10242,7 @@ msgstr "রিসেট করুন"
 msgid "Reset column widths"
 msgstr "কলামের প্রস্থ রিসেট করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1703
+#: packages/admin/src/components/MediaDetailPanel.tsx:1715
 msgid "Reset crop"
 msgstr "ক্রপ রিসেট করুন"
 
@@ -10342,7 +10342,7 @@ msgstr "অবসরপ্রাপ্ত"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:218
-#: packages/admin/src/components/MediaDetailPanel.tsx:1529
+#: packages/admin/src/components/MediaDetailPanel.tsx:1541
 #: packages/admin/src/components/MediaLibrary.tsx:1021
 #: packages/admin/src/components/MediaLibrary.tsx:1574
 #: packages/admin/src/components/MediaPickerModal.tsx:1208
@@ -10583,7 +10583,7 @@ msgstr "নমুনা কনটেন্ট"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:820
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/Redirects.tsx:193
@@ -10631,7 +10631,7 @@ msgstr "তারিখ সংরক্ষণ করুন"
 msgid "Save name"
 msgstr "নাম সংরক্ষণ করুন"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1756
 msgid "Save or discard the other changes before cropping."
 msgstr "ক্রপ করার আগে অন্যান্য পরিবর্তন সংরক্ষণ করুন বা বাতিল করুন।"
 
@@ -10666,7 +10666,7 @@ msgid "Saving a collection here turns this field into an entry picker. Its store
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:1329
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/PluginSettings.tsx:166
@@ -10893,8 +10893,8 @@ msgstr "অনুসন্ধান ব্যর্থ হয়েছে"
 msgid "Search failed. Check your connection and try again."
 msgstr "অনুসন্ধান ব্যর্থ হয়েছে। আপনার সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1482
-#: packages/admin/src/components/MediaDetailPanel.tsx:1483
+#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Search folders"
 msgstr "ফোল্ডার অনুসন্ধান করুন"
 
@@ -11120,7 +11120,7 @@ msgstr "একটি কম্পোনেন্ট নির্বাচন ক
 msgid "Select a content type"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1472
+#: packages/admin/src/components/MediaDetailPanel.tsx:1484
 msgid "Select a location"
 msgstr "একটি লোকেশন নির্বাচন করুন"
 
@@ -11626,7 +11626,7 @@ msgstr "আকার"
 msgid "Size is not applicable to folders"
 msgstr "ফোল্ডারের ক্ষেত্রে আকার প্রযোজ্য নয়"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1298
+#: packages/admin/src/components/MediaDetailPanel.tsx:1301
 msgid "Size:"
 msgstr "আকার:"
 
@@ -12524,9 +12524,9 @@ msgstr "এই ব্লকটি সম্পাদনা করা যাব�
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "ডাউনলোড শেষ না হওয়া পর্যন্ত এই ব্রাউজার পুরো প্যাকেজটি মেমরিতে রাখে। এত বড় এক্সপোর্টের জন্য একটি Chromium-ভিত্তিক ব্রাউজার ব্যবহার করুন, যা সরাসরি ডিস্কে সংরক্ষণ করে, অথবা CLI থেকে emdash site export চালান।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1919
-#: packages/admin/src/components/MediaDetailPanel.tsx:1955
-#: packages/admin/src/components/MediaDetailPanel.tsx:1989
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "This cannot be undone"
 msgstr "এটি পূর্বাবস্থায় ফেরানো যাবে না"
 
@@ -12659,7 +12659,7 @@ msgstr "এই ফোল্ডারটি খালি"
 msgid "This folder is empty."
 msgstr "এই ফোল্ডারটি খালি।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1739
+#: packages/admin/src/components/MediaDetailPanel.tsx:1751
 msgid "This image could not be loaded for cropping."
 msgstr "ক্রপ করার জন্য এই ছবিটি লোড করা যায়নি।"
 
@@ -13496,7 +13496,7 @@ msgstr "WordPress এক্সপোর্ট ফাইল আপলোড ক�
 msgid "Uploaded"
 msgstr "আপলোড হয়েছে"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1321
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Uploaded:"
 msgstr "আপলোড করা হয়েছে:"
 
@@ -13542,7 +13542,7 @@ msgstr "URL স্লাগ"
 msgid "URL-friendly identifier"
 msgstr "URL-বান্ধব শনাক্তকারী"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1360
 msgid "URL:"
 msgstr "URL:"
 
@@ -14342,7 +14342,7 @@ msgstr ""
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "আপনার Twitter/X হ্যান্ডেল (যেমন, @username)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1881
+#: packages/admin/src/components/MediaDetailPanel.tsx:1893
 msgid "Your unsaved media changes will be lost."
 msgstr "আপনার অসংরক্ষিত মিডিয়া পরিবর্তনগুলো হারিয়ে যাবে।"
 

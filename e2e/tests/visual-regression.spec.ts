@@ -231,7 +231,7 @@ async function openTableVisual(
 	}
 	await page.locator("#field-body [data-emdash-table-trigger]").click();
 	await page.locator('[role="menu"]:visible').getByRole("menuitem").first().click();
-	if (!header) await page.getByRole("switch").click();
+	if (!header) await page.getByRole("dialog").getByRole("switch").click();
 	await page
 		.getByRole("gridcell")
 		.nth((rows - 1) * 10 + columns - 1)

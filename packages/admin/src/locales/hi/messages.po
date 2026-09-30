@@ -27,19 +27,19 @@ msgid "-- Select --"
 msgstr "-- चुनें --"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1914
 msgid "\"{0}\" will be deleted from {providerName}."
-msgstr ""
+msgstr "\"{0}\" {providerName} से हटा दिया जाएगा."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1915
 msgid "\"{0}\" will be deleted from its media provider."
-msgstr ""
+msgstr "\"{0}\" अपने मीडिया प्रोवाइडर से हटा दिया जाएगा."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1916
 msgid "\"{0}\" will be permanently deleted."
-msgstr ""
+msgstr "\"{0}\" हमेशा के लिए हटा दिया जाएगा."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:608
 msgid "(pre-release)"
@@ -63,19 +63,19 @@ msgstr "{0, plural, one {(# आइटम)} other {(# आइटम)}}"
 #. placeholder {0}: bounds.max
 #: packages/admin/src/components/ContentEditor.tsx:2875
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
-msgstr ""
+msgstr "{0, plural, one {# में से {counted} अक्षर, कम से कम {min}} other {# में से {counted} अक्षर, कम से कम {min}}}"
 
 #. placeholder {0}: bounds.max
 #: packages/admin/src/components/ContentEditor.tsx:2880
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
-msgstr ""
+msgstr "{0, plural, one {# में से {counted} अक्षर} other {# में से {counted} अक्षर}}"
 
 #. placeholder {0}: 1
 #. placeholder {0}: value.bylineIds.length
 #: packages/admin/src/components/BylineFilter.tsx:105
 #: packages/admin/src/components/BylineFilter.tsx:106
 msgid "{0, plural, one {# byline} other {# bylines}}"
-msgstr ""
+msgstr "{0, plural, one {# बायलाइन} other {# बायलाइन}}"
 
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:219
@@ -115,19 +115,19 @@ msgstr ""
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
 #: packages/admin/src/components/MediaPickerModal.tsx:1607
 msgid "{0, plural, one {# file uploading} other {# files uploading}}"
-msgstr ""
+msgstr "{0, plural, one {# फ़ाइल अपलोड हो रही है} other {# फ़ाइलें अपलोड हो रही हैं}}"
 
 #. placeholder {0}: uploadQueue.overflowCount
 #: packages/admin/src/components/MediaPickerModal.tsx:1290
 msgid "{0, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
-msgstr ""
+msgstr "{0, plural, one {# फ़ाइल नहीं जोड़ी गई क्योंकि अपलोड सूची भर गई है।} other {# फ़ाइलें नहीं जोड़ी गईं क्योंकि अपलोड सूची भर गई है।}}"
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1496
+#: packages/admin/src/components/MediaDetailPanel.tsx:1508
 #: packages/admin/src/components/MediaLibrary.tsx:1002
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
-msgstr ""
+msgstr "{0, plural, one {# फ़ोल्डर लोड हुआ} other {# फ़ोल्डर लोड हुए}}"
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -139,12 +139,12 @@ msgstr "{0, plural, one {# आइटम} other {# आइटम}}"
 #: packages/admin/src/components/RelationList.tsx:215
 #: packages/admin/src/components/RelationsPanel.tsx:195
 msgid "{0, plural, one {# link} other {# links}}"
-msgstr ""
+msgstr "{0, plural, one {# लिंक} other {# लिंक}}"
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
 #: packages/admin/src/components/TaxonomyManager.tsx:1389
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
-msgstr ""
+msgstr "{0, plural, one {# मिलता हुआ टैग} other {# मिलते हुए टैग}}"
 
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:490
@@ -179,7 +179,7 @@ msgstr ""
 #. placeholder {0}: capabilities.length
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:226
 msgid "{0, plural, one {# permission requested} other {# permissions requested}}"
-msgstr ""
+msgstr "{0, plural, one {# अनुमति का अनुरोध किया गया} other {# अनुमतियों का अनुरोध किया गया}}"
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
@@ -205,12 +205,12 @@ msgstr "{0, plural, one {# पुनर्निर्देश एक लूप
 #. placeholder {0}: principal.references
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:335
 msgid "{0, plural, one {# reference} other {# references}}"
-msgstr ""
+msgstr "{0, plural, one {# संदर्भ} other {# संदर्भ}}"
 
 #. placeholder {0}: participating.length
 #: packages/admin/src/components/RelationsPanel.tsx:69
 msgid "{0, plural, one {# relation this content type takes part in} other {# relations this content type takes part in}}"
-msgstr ""
+msgstr "{0, plural, one {यह सामग्री प्रकार # संबंध में शामिल है} other {यह सामग्री प्रकार # संबंधों में शामिल है}}"
 
 #. placeholder {0}: controls.rows
 #. placeholder {0}: state.rows
@@ -220,7 +220,7 @@ msgstr ""
 #: packages/admin/src/components/editor/TableControls.tsx:243
 #: packages/admin/src/components/PortableTextEditor.tsx:4295
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
-msgstr ""
+msgstr "{0, plural, one {# पंक्ति} other {# पंक्तियाँ}} × {1, plural, one {# कॉलम} other {# कॉलम}} चयनित"
 
 #. placeholder {0}: counts.scheduled
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:103
@@ -255,7 +255,7 @@ msgstr ""
 #. placeholder {0}: uploadQueue.failedCount
 #: packages/admin/src/components/MediaPickerModal.tsx:1614
 msgid "{0, plural, one {# upload failed} other {# uploads failed}}"
-msgstr ""
+msgstr "{0, plural, one {# अपलोड असफल हुआ} other {# अपलोड असफल हुए}}"
 
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
@@ -265,22 +265,22 @@ msgstr ""
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:858
 msgid "{0, plural, one {Add # file} other {Add # files}}"
-msgstr ""
+msgstr "{0, plural, one {# फ़ाइल जोड़ें} other {# फ़ाइलें जोड़ें}}"
 
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:859
 msgid "{0, plural, one {Add # image} other {Add # images}}"
-msgstr ""
+msgstr "{0, plural, one {# छवि जोड़ें} other {# छवियाँ जोड़ें}}"
 
 #. placeholder {0}: bounds.min
 #: packages/admin/src/components/ContentEditor.tsx:2885
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
-msgstr ""
+msgstr "{0, plural, one {कम से कम # अक्षर} other {कम से कम # अक्षर}}"
 
 #. placeholder {0}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:250
 msgid "{0, plural, one {Column deleted} other {# columns deleted}}"
-msgstr ""
+msgstr "{0, plural, one {कॉलम हटा दिया गया} other {# कॉलम हटा दिए गए}}"
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:750
@@ -295,17 +295,17 @@ msgstr "{0, plural, one {मीडिया फ़ाइल} other {मीडि
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:211
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr ""
+msgstr "{0, plural, one {एक और ब्लॉक्ड एंट्री नहीं दिखाई गई है।} other {# और ब्लॉक्ड एंट्रीज़ नहीं दिखाई गई हैं।}}"
 
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:248
 msgid "{0, plural, one {Row deleted} other {# rows deleted}}"
-msgstr ""
+msgstr "{0, plural, one {पंक्ति हटा दी गई} other {# पंक्तियाँ हटा दी गईं}}"
 
 #. placeholder {0}: names.length - SCAFFOLD_NAMES_SHOWN
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:575
 msgid "{0, plural, one {Show # more} other {Show # more}}"
-msgstr ""
+msgstr "{0, plural, one {# और दिखाएँ} other {# और दिखाएँ}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:412
@@ -322,7 +322,7 @@ msgstr "{0} {1} आवश्यक - आपके पास {2} है।"
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:272
 msgid "{0} added to this post."
-msgstr ""
+msgstr "{0} को इस पोस्ट में जोड़ दिया गया।"
 
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:518
@@ -332,7 +332,7 @@ msgstr "{0} बैनर"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:440
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
-msgstr ""
+msgstr "{0} को यहाँ नहीं ले जाया जा सकता — इसके मूल पद का इस भाषा में अनुवाद नहीं है, इसलिए यह सूची उस समूह की नहीं है जिसमें यह शामिल है।"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1323
@@ -342,7 +342,7 @@ msgstr "{0} का पता चला"
 #. placeholder {0}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:620
 msgid "{0} fallback"
-msgstr ""
+msgstr "{0} फ़ॉलबैक"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:149
@@ -387,26 +387,26 @@ msgstr "{0} आइटम आयात किए जाएंगे"
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:123
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:427
 msgid "{0} of {1} files · {2} of {3}"
-msgstr ""
+msgstr "{1} में से {0} फ़ाइलें · {3} में से {2}"
 
 #. placeholder {0}: i18n.number(seedProgress.done)
 #. placeholder {1}: i18n.number(seedProgress.total)
 #: packages/admin/src/components/SetupWizard.tsx:210
 msgid "{0} of {1} items"
-msgstr ""
+msgstr "{1} में से {0} आइटम"
 
 #. placeholder {0}: i18n.number(matched)
 #. placeholder {1}: i18n.number(plan.principals.length)
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:308
 msgid "{0} of {1} matched by email"
-msgstr ""
+msgstr "{1} में से {0} का ईमेल से मैच हुआ"
 
 #. placeholder {0}: i18n.number(progress.done)
 #. placeholder {1}: i18n.number(progress.total)
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:353
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:480
 msgid "{0} of {1} steps"
-msgstr ""
+msgstr "{1} में से {0} चरण"
 
 #. placeholder {0}: i18n.number(progress.done)
 #. placeholder {1}: i18n.number(progress.total)
@@ -414,7 +414,7 @@ msgstr ""
 #. placeholder {3}: formatFileSize(progress.bytesTotal)
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:352
 msgid "{0} of {1} steps · {2} of {3}"
-msgstr ""
+msgstr "{1} में से {0} चरण · {3} में से {2}"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:657
@@ -435,7 +435,7 @@ msgstr "{total} में से {0} को अद्यतन नहीं क�
 #. placeholder {1}: formatFileSize(plan.bytes.records)
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:282
 msgid "{0} of media, {1} of records"
-msgstr ""
+msgstr "{0} मीडिया, {1} रिकॉर्ड"
 
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:213
@@ -450,7 +450,7 @@ msgstr "{0} पूर्वावलोकन"
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:632
 msgid "{0} removed from this post."
-msgstr ""
+msgstr "{0} को इस पोस्ट से हटा दिया गया।"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
@@ -467,12 +467,12 @@ msgstr "{0} अद्यतन किया गया"
 #. placeholder {0}: updated.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:375
 msgid "{0} updated everywhere it appears."
-msgstr ""
+msgstr "{0} जहाँ भी दिखाई देता है, वहाँ अपडेट कर दिया गया।"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:294
 msgid "{0} updated to v{installedVersion}"
-msgstr ""
+msgstr "{0} को v{installedVersion} में अपडेट किया गया"
 
 #. placeholder {0}: group.label
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:194
@@ -491,12 +491,12 @@ msgstr "{0}/160 अक्षर"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:427
 msgid "{added} posts updated"
-msgstr ""
+msgstr "{added} पोस्ट अपडेट की गईं"
 
 #. placeholder {0}: failed.length
 #: packages/admin/src/components/BulkTagDialog.tsx:424
 msgid "{added} updated · {0} failed"
-msgstr ""
+msgstr "{added} अपडेट हुईं · {0} असफल रहीं"
 
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:466
@@ -509,21 +509,21 @@ msgstr "{changedCount, plural, one {# अगले संशोधन से प
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2864
 msgid "{characters, plural, one {# character} other {# characters}}"
-msgstr ""
+msgstr "{characters, plural, one {# अक्षर} other {# अक्षर}}"
 
 #: packages/admin/src/components/editor/TableControls.tsx:219
 msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
-msgstr ""
+msgstr "{columns, plural, one {कॉलम हटा दिया गया} other {# कॉलम हटा दिए गए}}"
 
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:311
 msgid "{completedCount} of {0} complete"
-msgstr ""
+msgstr "{0} में से {completedCount} पूरे हुए"
 
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:196
 msgid "{completedCount} of {0} uploads complete"
-msgstr ""
+msgstr "{0} में से {completedCount} अपलोड पूरे हुए"
 
 #: packages/admin/src/components/WordPressImport.tsx:2092
 msgid "{count, plural, one {# file} other {# files}}"
@@ -547,11 +547,11 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
-msgstr ""
+msgstr "{failedCount, plural, one {# अपलोड असफल हुआ} other {# अपलोड असफल हुए}}"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:262
 msgid "{filesMissing, plural, one {# file still needs to be uploaded. Choose the same package file again to finish; files already uploaded are skipped.} other {# files still need to be uploaded. Choose the same package file again to finish; files already uploaded are skipped.}}"
-msgstr ""
+msgstr "{filesMissing, plural, one {# फ़ाइल अभी अपलोड करनी बाकी है। पूरा करने के लिए वही पैकेज फ़ाइल फिर से चुनें; पहले से अपलोड की गई फ़ाइलें छोड़ दी जाएँगी।} other {# फ़ाइलें अभी अपलोड करनी बाकी हैं। पूरा करने के लिए वही पैकेज फ़ाइल फिर से चुनें; पहले से अपलोड की गई फ़ाइलें छोड़ दी जाएँगी।}}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
@@ -569,7 +569,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaImportSummary.tsx:9
 msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
-msgstr ""
+msgstr "{importedFiles, plural, one {<count>#</count> फ़ाइल आयात की गई} other {<count>#</count> फ़ाइलें आयात की गईं}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:117
 msgid "{label} — no translation"
@@ -581,22 +581,22 @@ msgstr "{label} - अनुवाद देखें"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:261
 msgid "{label} in {menuName}"
-msgstr ""
+msgstr "{menuName} में {label}"
 
 #. placeholder {0}: newIndex + 1
 #. placeholder {1}: images.length
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:170
 msgid "{label} moved to position {0} of {1}."
-msgstr ""
+msgstr "{label} को {1} में से स्थान {0} पर ले जाया गया।"
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/BylineCreditsEditor.tsx:291
 msgid "{label} moved to position {0}."
-msgstr ""
+msgstr "{label} को स्थान {0} पर ले जाया गया।"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:533
 msgid "{label} options"
-msgstr ""
+msgstr "{label} के विकल्प"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:345
 msgid "{lateness} late"
@@ -616,59 +616,59 @@ msgstr "{totalCount} लेखकों में से {matchedCount} का �
 
 #: packages/admin/src/lib/content-validation-errors.ts:100
 msgid "{maximum, plural, one {{name} can have at most # character.} other {{name} can have at most # characters.}}"
-msgstr ""
+msgstr "{maximum, plural, one {{name} में अधिकतम # अक्षर हो सकता है।} other {{name} में अधिकतम # अक्षर हो सकते हैं।}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:106
 msgid "{maximum, plural, one {{name} can have at most # item.} other {{name} can have at most # items.}}"
-msgstr ""
+msgstr "{maximum, plural, one {{name} में अधिकतम # आइटम हो सकता है।} other {{name} में अधिकतम # आइटम हो सकते हैं।}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:81
 msgid "{minimum, plural, one {{name} needs at least # character.} other {{name} needs at least # characters.}}"
-msgstr ""
+msgstr "{minimum, plural, one {{name} में कम से कम # अक्षर होना चाहिए।} other {{name} में कम से कम # अक्षर होने चाहिए।}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:87
 msgid "{minimum, plural, one {{name} needs at least # item.} other {{name} needs at least # items.}}"
-msgstr ""
+msgstr "{minimum, plural, one {{name} में कम से कम # आइटम होना चाहिए।} other {{name} में कम से कम # आइटम होने चाहिए।}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
-msgstr ""
+msgstr "{name} आवश्यक फॉर्मेट से नहीं मिलता।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:73
 msgid "{name} has a value that is not one of its options."
-msgstr ""
+msgstr "{name} का वैल्यू उपलब्ध विकल्पों में से नहीं है।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:117
 msgid "{name} has an invalid value."
-msgstr ""
+msgstr "{name} का वैल्यू अमान्य है।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:69
 msgid "{name} is not a field in this collection."
-msgstr ""
+msgstr "{name} इस संग्रह का फ़ील्ड नहीं है।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:67
 msgid "{name} is required."
-msgstr ""
+msgstr "{name} आवश्यक है।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:71
 msgid "{name} links to an entry that does not exist or is in the trash."
-msgstr ""
+msgstr "{name} ऐसी एंट्री से जुड़ा है जो मौजूद नहीं है या कूड़ेदान में है।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:75
 msgid "{name} must be a valid URL."
-msgstr ""
+msgstr "{name} एक मान्य URL होना चाहिए।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:94
 msgid "{name} must be at least {bound}."
-msgstr ""
+msgstr "{name} का वैल्यू कम से कम {bound} होना चाहिए।"
 
 #: packages/admin/src/lib/content-validation-errors.ts:113
 msgid "{name} must be at most {bound}."
-msgstr ""
+msgstr "{name} का वैल्यू अधिकतम {bound} होना चाहिए।"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:101
 msgid "{name}: this site already has some"
-msgstr ""
+msgstr "{name}: इस साइट पर कुछ पहले से मौजूद हैं"
 
 #: packages/admin/src/components/WordPressImport.tsx:1899
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
@@ -680,15 +680,15 @@ msgstr "{needsNewFields, plural, one {फ़ील्ड्स को # मौ�
 
 #: packages/admin/src/components/Dashboard.tsx:151
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, one {एक निर्धारित आइटम का समय बीत चुका है और शेड्यूलर हार्टबीट पुरानी हो गई है। `npx emdash doctor` चलाएँ और Cron Trigger की जाँच करें।} other {# निर्धारित आइटम का समय बीत चुका है और शेड्यूलर हार्टबीट पुरानी हो गई है। `npx emdash doctor` चलाएँ और Cron Trigger की जाँच करें।}}"
 
 #: packages/admin/src/components/Dashboard.tsx:146
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, one {एक निर्धारित आइटम का समय बीत चुका है, लेकिन शेड्यूलर का कोई रन पूरा नहीं हुआ है। `npx emdash doctor` चलाएँ और Cron Trigger की जाँच करें।} other {# निर्धारित आइटम का समय बीत चुका है, लेकिन शेड्यूलर का कोई रन पूरा नहीं हुआ है। `npx emdash doctor` चलाएँ और Cron Trigger की जाँच करें।}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:287
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
-msgstr ""
+msgstr "{overflowCount, plural, one {# फ़ाइल नहीं जोड़ी गई क्योंकि अपलोड सूची भर गई है।} other {# फ़ाइलें नहीं जोड़ी गईं क्योंकि अपलोड सूची भर गई है।}}"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:115
 msgid "{pluginName} is requesting additional permissions:"
@@ -706,52 +706,52 @@ msgstr "{pluginName} सेटिंग्स"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:488
 msgid "{plural} go live now; draft edits stay unpublished."
-msgstr ""
+msgstr "{plural} अभी लाइव हों; ड्राफ़्ट में किए गए बदलाव पब्लिश नहीं होंगे।"
 
 #: packages/admin/src/components/Dashboard.tsx:165
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr ""
+msgstr "{policyRejected, plural, one {प्रभावित एंट्री खोलें, नीति के कारण आई बाधा दूर करें और इसे फिर से निर्धारित करें। सफलतापूर्वक निर्धारित या प्रकाशित होने पर यह सूचना हट जाती है।} other {प्रभावित एंट्रीज खोलें, नीति के कारण आई बाधाएँ दूर करें और उन्हें फिर से निर्धारित करें। सफलतापूर्वक निर्धारित या प्रकाशित होने पर संबंधित सूचना हट जाती है।}}"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:304
 msgid "{position} of {total}"
-msgstr ""
+msgstr "{total} में से {position}"
 
 #: packages/admin/src/components/editor/TableControls.tsx:142
 msgid "{previewRows} × {previewColumns} table"
-msgstr ""
+msgstr "{previewRows} × {previewColumns} टेबल"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2865
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
-msgstr ""
+msgstr "{readingTime, plural, one {पढ़ने में # मिनट} other {पढ़ने में # मिनट}}"
 
 #. placeholder {0}: results.length
 #: packages/admin/src/components/BulkTagDialog.tsx:439
 msgid "{ready} of {0} ready"
-msgstr ""
+msgstr "{0} में से {ready} तैयार"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:359
 msgid "{records, plural, one {# record written} other {# records written}}"
-msgstr ""
+msgstr "{records, plural, one {# रिकॉर्ड लिखा गया} other {# रिकॉर्ड लिखे गए}}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:924
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
-msgstr ""
+msgstr "{rejectedCount, plural, one {# फ़ाइल नहीं जोड़ी गई।} other {# फ़ाइलें नहीं जोड़ी गईं।}}"
 
 #: packages/admin/src/components/MediaImportSummary.tsx:11
 msgid "{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}"
-msgstr ""
+msgstr "{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> छवि URL {updatedContentItems, plural, one {<contentCount>#</contentCount> सामग्री आइटम में अपडेट किया गया} other {<contentCount>#</contentCount> सामग्री आइटम में अपडेट किया गया}}} other {<rewrittenCount>#</rewrittenCount> छवि URL {updatedContentItems, plural, one {<contentCount>#</contentCount> सामग्री आइटम में अपडेट किए गए} other {<contentCount>#</contentCount> सामग्री आइटम में अपडेट किए गए}}}}"
 
 #: packages/admin/src/components/editor/TableControls.tsx:162
 msgid "{row} × {column} table"
-msgstr ""
+msgstr "{row} × {column} टेबल"
 
 #: packages/admin/src/components/editor/TableControls.tsx:217
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
-msgstr ""
+msgstr "{rows, plural, one {पंक्ति हटा दी गई} other {# पंक्तियाँ हटा दी गईं}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3010
 msgid "{rows} × {columns} table pasted"
-msgstr ""
+msgstr "{rows} × {columns} टेबल पेस्ट की गई"
 
 #: packages/admin/src/components/ContentList.tsx:507
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
@@ -775,7 +775,7 @@ msgstr ""
 
 #: packages/admin/src/lib/content-validation-errors.ts:57
 msgid "{subLabel} ({label}, item {position})"
-msgstr ""
+msgstr "{subLabel} ({label}, आइटम {position})"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:196
 msgid "{title} is a draft again."
@@ -811,11 +811,11 @@ msgstr "{unchangedCount, plural, one {# अपरिवर्तित दिख
 
 #: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{widgetType} in {areaName}"
-msgstr ""
+msgstr "{areaName} में {widgetType}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2863
 msgid "{words, plural, one {# word} other {# words}}"
-msgstr ""
+msgstr "{words, plural, one {# शब्द} other {# शब्द}}"
 
 #: packages/admin/src/components/Redirects.tsx:144
 msgid "/new-page or /articles/[slug]"
@@ -845,23 +845,23 @@ msgstr "← वापस"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:418
 msgid "<0>{from}</0> becomes <1>{to}</1>"
-msgstr ""
+msgstr "<0>{from}</0> बदलकर <1>{to}</1> हो जाएगा"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:79
 msgid "<0>{name}</0> is editing this entry. Nothing you change here will be saved."
-msgstr ""
+msgstr "<0>{name}</0> इस एंट्री को संपादित कर रहे हैं। आप यहाँ जो भी बदलाव करेंगे, वे सहेजे नहीं जाएँगे।"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:44
 msgid "<0>{name}</0> is editing this entry. Open it read-only, or take over; they will be told the entry moved on."
-msgstr ""
+msgstr "<0>{name}</0> इस एंट्री को संपादित कर रहे हैं। इसे केवल पढ़ने के लिए खोलें या संपादन अपने हाथ में लें; उन्हें सूचित कर दिया जाएगा कि अब आप इसे संपादित कर रहे हैं।"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:74
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
-msgstr ""
+msgstr "इस एंट्री का संपादन अब <0>{name}</0> के नियंत्रण में है, इसलिए आपके बदलाव अब सहेजे नहीं जा रहे हैं। जारी रखने के लिए संपादन का नियंत्रण वापस लें।"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:426
 msgid "1 post updated"
-msgstr ""
+msgstr "1 पोस्ट अपडेट की गई"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:37
 msgid "1 year"
@@ -877,11 +877,11 @@ msgstr "1. अपने वर्डप्रेस एडमिन डैशब
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "16:9"
-msgstr ""
+msgstr "16:9"
 
 #: packages/admin/src/components/WordPressImport.tsx:76
 msgid "2. Go to <0>Tools → Export</0>"
-msgstr ""
+msgstr "2. <0>टूल्स → एक्सपोर्ट</0> पर जाएँ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1543
 msgid "2. Go to Users → Profile"
@@ -889,7 +889,7 @@ msgstr "2. उपयोगकर्ता → प्रोफ़ाइल पर
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "3:2"
-msgstr ""
+msgstr "3:2"
 
 #: packages/admin/src/components/WordPressImport.tsx:1544
 msgid "3. Scroll to \"Application Passwords\""
@@ -921,7 +921,7 @@ msgstr "308 स्थायी (सख्त)"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "4:3"
-msgstr ""
+msgstr "4:3"
 
 #: packages/admin/src/components/WordPressImport.tsx:1300
 msgid "4. Click \"Download Export File\""
@@ -965,19 +965,19 @@ msgstr "इस सामग्री प्रकार का संक्ष�
 
 #: packages/admin/src/components/settings/transfer/labels.ts:184
 msgid "A file does not match the package manifest. The package may be damaged."
-msgstr ""
+msgstr "एक फ़ाइल पैकेज मैनिफ़ेस्ट से मेल नहीं खाती। पैकेज डैमेज हो सकता है।"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "A file in the package does not match the manifest. The package may be damaged."
-msgstr ""
+msgstr "पैकेज की एक फ़ाइल मैनिफ़ेस्ट से मेल नहीं खाती। पैकेज डैमेज हो सकता है।"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "A file in the package is not the size the manifest declares."
-msgstr ""
+msgstr "पैकेज की एक फ़ाइल का आकार मैनिफ़ेस्ट में बताए गए आकार से अलग है।"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:185
 msgid "A file is not the size the package manifest declares. The package may be damaged."
-msgstr ""
+msgstr "एक फ़ाइल का आकार पैकेज मैनिफ़ेस्ट में बताए गए आकार से अलग है। पैकेज डैमेज हो सकता है।"
 
 #: packages/admin/src/components/Sections.tsx:224
 msgid "A full-width hero banner with heading, text, and CTA button"
@@ -985,53 +985,53 @@ msgstr "शीर्षक, पाठ और सीटीए बटन के �
 
 #: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "A media file is larger than this site accepts"
-msgstr ""
+msgstr "एक मीडिया फ़ाइल का आकार इस साइट की सीमा से अधिक है"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:131
 msgid "A media file is missing from the package"
-msgstr ""
+msgstr "पैकेज में एक मीडिया फ़ाइल गायब है"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:86
 msgid "A media folder with this name already exists"
-msgstr ""
+msgstr "इस नाम का मीडिया फ़ोल्डर पहले से मौजूद है"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "A number is too large for this site’s database"
-msgstr ""
+msgstr "एक संख्या इस साइट के डेटाबेस की सीमा से अधिक है"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:123
 msgid "A package file does not match the manifest"
-msgstr ""
+msgstr "पैकेज की एक फ़ाइल मैनिफ़ेस्ट से मेल नहीं खाती"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:122
 msgid "A package file is missing"
-msgstr ""
+msgstr "पैकेज की एक फ़ाइल गायब है"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:172
 #: packages/admin/src/components/ContentSettingsPanel.tsx:219
 #: packages/admin/src/components/ContentSettingsPanel.tsx:241
 msgid "A publication time has not been selected"
-msgstr ""
+msgstr "प्रकाशन का समय नहीं चुना गया है"
 
 #: packages/admin/src/components/ContentEditor.tsx:1200
 msgid "A publishing action is already in progress"
-msgstr ""
+msgstr "प्रकाशन की एक ऐक्शन पहले से चल रही है"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:124
 msgid "A record in the package is not valid"
-msgstr ""
+msgstr "पैकेज में एक रिकॉर्ड अमान्य है"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:128
 msgid "A record refers to something missing from the package"
-msgstr ""
+msgstr "एक रिकॉर्ड ऐसी चीज़ का संदर्भ देता है जो पैकेज में मौजूद नहीं है"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:87
 msgid "A relation defines how two content types link. Reference fields on either side then pick entries through it."
-msgstr ""
+msgstr "संबंध तय करता है कि दो सामग्री प्रकार कैसे जुड़ते हैं। दोनों ओर के संदर्भ फ़ील्ड इसी संबंध के ज़रिए एन्ट्रीज़ चुनते हैं।"
 
 #: packages/admin/src/components/FieldEditor.tsx:763
 msgid "A relationship is required"
-msgstr ""
+msgstr "एक संबंध आवश्यक है"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:272
 msgid "A short description of your site"
@@ -1039,37 +1039,37 @@ msgstr "आपकी साइट का संक्षिप्त विव�
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "A source and target locale are required"
-msgstr ""
+msgstr "सोर्स और टारगेट भाषा आवश्यक हैं"
 
 #. placeholder {0}: operation.errorCode
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:485
 msgid "A step failed and will be retried ({0})."
-msgstr ""
+msgstr "एक चरण असफल हुआ और फिर से कोशिश की जाएगी ({0})।"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:138
 msgid "A value does not fit this site’s database"
-msgstr ""
+msgstr "एक वैल्यू इस साइट के डेटाबेस में स्वीकार्य नहीं है"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:370
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:525
 msgid "Abandon import"
-msgstr ""
+msgstr "आयात छोड़ दें"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:368
 msgid "Abandon this import?"
-msgstr ""
+msgstr "यह आयात छोड़ दें?"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:371
 msgid "Abandoning…"
-msgstr ""
+msgstr "आयात छोड़ा जा रहा है…"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:525
 msgid "About focal point"
-msgstr ""
+msgstr "फ़ोकल पॉइंट के बारे में"
 
 #: packages/admin/src/components/BylineFilter.tsx:184
 msgid "About inferred bylines"
-msgstr ""
+msgstr "अनुमानित बायलाइन के बारे में"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:357
 msgid "Accept & Install"
@@ -1573,8 +1573,8 @@ msgid "Alt text"
 msgstr "वैकल्पिक पाठ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:742
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
-#: packages/admin/src/components/MediaDetailPanel.tsx:1581
+#: packages/admin/src/components/MediaDetailPanel.tsx:1576
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
 msgid "Alt Text"
 msgstr "ऑल्ट टेक्स्ट"
 
@@ -1680,7 +1680,7 @@ msgstr "निर्यात फ़ाइल का विश्लेषण �
 msgid "Analyzing WordPress site..."
 msgstr "वर्डप्रेस साइट का विश्लेषण किया जा रहा है..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1749
+#: packages/admin/src/components/MediaDetailPanel.tsx:1761
 msgid "Animated WebP files become still images when cropped."
 msgstr ""
 
@@ -1812,7 +1812,7 @@ msgstr "एक व्यवस्थापक के रूप में, आप
 msgid "Ask an administrator to complete this setup."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1703
 msgid "Aspect ratio"
 msgstr ""
 
@@ -1988,7 +1988,7 @@ msgstr "अवतार"
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:651
-#: packages/admin/src/components/MediaDetailPanel.tsx:1793
+#: packages/admin/src/components/MediaDetailPanel.tsx:1805
 #: packages/admin/src/components/MediaLibrary.tsx:811
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/WordPressImport.tsx:1530
@@ -2312,7 +2312,7 @@ msgstr "सामग्री देख सकते हैं"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1315
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1588
 #: packages/admin/src/components/MenuEditor.tsx:440
@@ -2391,7 +2391,7 @@ msgstr "क्षमता सहमति"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:527
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:750
 #: packages/admin/src/components/editor/ImageNode.tsx:302
-#: packages/admin/src/components/MediaDetailPanel.tsx:1592
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Caption"
 msgstr "कैप्शन"
 
@@ -2638,7 +2638,7 @@ msgstr ""
 msgid "Choose package file"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1824
+#: packages/admin/src/components/MediaDetailPanel.tsx:1836
 msgid "Choose replacement image"
 msgstr ""
 
@@ -2749,7 +2749,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:686
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:461
 #: packages/admin/src/components/MediaDetailPanel.tsx:1116
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaPickerModal.tsx:1001
 #: packages/admin/src/components/MediaPickerModal.tsx:1008
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
@@ -3120,7 +3120,7 @@ msgstr "सामग्री प्रकार"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1922
+#: packages/admin/src/components/MediaDetailPanel.tsx:1934
 msgid "Content using this media item may show a broken reference."
 msgstr ""
 
@@ -3220,7 +3220,7 @@ msgstr "टोकन कॉपी करें"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
-#: packages/admin/src/components/MediaDetailPanel.tsx:1355
+#: packages/admin/src/components/MediaDetailPanel.tsx:1367
 msgid "Copy URL"
 msgstr "URL कॉपी करें"
 
@@ -3460,7 +3460,7 @@ msgstr "बायलाइन बनाएं"
 msgid "Create Content Type"
 msgstr "सामग्री प्रकार बनाएँ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1856
+#: packages/admin/src/components/MediaDetailPanel.tsx:1868
 msgid "Create cropped copy"
 msgstr ""
 
@@ -3645,7 +3645,7 @@ msgstr ""
 msgid "Creating..."
 msgstr "बनाया जा रहा है..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1629
 msgid "Crop"
 msgstr ""
 
@@ -3655,7 +3655,7 @@ msgstr ""
 msgid "Crop area {0} by {1} pixels."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1724
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Crop output dimensions"
 msgstr ""
 
@@ -3812,8 +3812,8 @@ msgstr "कोड में परिभाषित"
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1908
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
 #: packages/admin/src/components/MenuEditor.tsx:555
 #: packages/admin/src/components/MenuList.tsx:233
 #: packages/admin/src/components/Redirects.tsx:612
@@ -3940,7 +3940,7 @@ msgstr "HTML ब्लॉक हटाएँ"
 msgid "Delete image"
 msgstr "छवि हटाएँ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1908
 msgid "Delete media?"
 msgstr ""
 
@@ -4033,8 +4033,8 @@ msgstr "Deleting \"{0}\" will also remove {1, plural, one {# संग्रह�
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:854
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1921
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Redirects.tsx:613
@@ -4088,7 +4088,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1584
+#: packages/admin/src/components/MediaDetailPanel.tsx:1596
 msgid "Describe this image for accessibility"
 msgstr "पहुंच के लिए इस छवि का वर्णन करें"
 
@@ -4154,7 +4154,7 @@ msgstr "अंतर"
 msgid "Differences from the source site"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1308
+#: packages/admin/src/components/MediaDetailPanel.tsx:1314
 msgid "Dimensions:"
 msgstr "आयाम:"
 
@@ -4202,7 +4202,7 @@ msgstr "<0>{0}</0> को अक्षम करने से उन्हें
 msgid "Disabling..."
 msgstr "अक्षम किया जा रहा है..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1882
+#: packages/admin/src/components/MediaDetailPanel.tsx:1894
 msgid "Discard"
 msgstr "खारिज करना"
 
@@ -4211,7 +4211,7 @@ msgstr "खारिज करना"
 msgid "Discard changes"
 msgstr "परिवर्तनों को निरस्त करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1880
+#: packages/admin/src/components/MediaDetailPanel.tsx:1892
 msgid "Discard changes?"
 msgstr "परिवर्तनों को निरस्त करें?"
 
@@ -4219,7 +4219,7 @@ msgstr "परिवर्तनों को निरस्त करें?"
 msgid "Discard draft changes?"
 msgstr "ड्राफ्ट परिवर्तन खारिज करें?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1883
+#: packages/admin/src/components/MediaDetailPanel.tsx:1895
 msgid "Discarding..."
 msgstr "त्याग रहा हूँ..."
 
@@ -4788,11 +4788,11 @@ msgstr ""
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "EmDash does not keep the previous image."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:2004
 msgid "EmDash does not keep the uncropped image."
 msgstr ""
 
@@ -4991,11 +4991,11 @@ msgstr ""
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1986
 msgid "Every place using this image will update to the cropped version."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1939
+#: packages/admin/src/components/MediaDetailPanel.tsx:1951
 msgid "Every place using this image will update to the selected version."
 msgstr ""
 
@@ -5248,11 +5248,11 @@ msgstr "सामग्री हटाने में विफल"
 msgid "Failed to delete field"
 msgstr "फ़ील्ड हटाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:681
+#: packages/admin/src/lib/api/media.ts:758
 msgid "Failed to delete from provider"
 msgstr "प्रदाता से हटाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:541
+#: packages/admin/src/lib/api/media.ts:618
 msgid "Failed to delete media"
 msgstr "मीडिया हटाने में विफल"
 
@@ -5400,7 +5400,7 @@ msgstr ""
 msgid "Failed to fetch media item"
 msgstr "मीडिया आइटम लाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:614
+#: packages/admin/src/lib/api/media.ts:691
 msgid "Failed to fetch media providers"
 msgstr "मीडिया प्रदाता लाने में विफल"
 
@@ -5421,7 +5421,7 @@ msgstr "प्लगइन सेटिंग लाने में विफ�
 msgid "Failed to fetch plugins"
 msgstr "प्लगइन्स लाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:644
+#: packages/admin/src/lib/api/media.ts:721
 msgid "Failed to fetch provider media"
 msgstr "प्रदाता मीडिया लाने में विफल"
 
@@ -5677,7 +5677,7 @@ msgstr "फ़ील्ड पुन: व्यवस्थित करने �
 msgid "Failed to reorder widgets"
 msgstr "विजेट्स को पुन: व्यवस्थित करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:529
+#: packages/admin/src/lib/api/media.ts:606
 msgid "Failed to replace media image"
 msgstr ""
 
@@ -5792,7 +5792,7 @@ msgstr "बायलाइन फ़ील्ड अपडेट करने �
 msgid "Failed to update domain"
 msgstr "डोमेन अद्यतन करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:565
+#: packages/admin/src/lib/api/media.ts:642
 msgid "Failed to update media"
 msgstr "मीडिया अपडेट करने में विफल"
 
@@ -5830,11 +5830,11 @@ msgstr ""
 msgid "Failed to upload file"
 msgstr "फ़ाइल अपलोड करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:470
+#: packages/admin/src/lib/api/media.ts:547
 msgid "Failed to upload media"
 msgstr "मीडिया अपलोड करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:669
+#: packages/admin/src/lib/api/media.ts:746
 msgid "Failed to upload to provider"
 msgstr "प्रदाता पर अपलोड करने में विफल"
 
@@ -5928,8 +5928,8 @@ msgstr "फ़ाइल {0}"
 msgid "File from media library"
 msgstr "मीडिया लाइब्रेरी से फ़ाइल"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1403
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1415
+#: packages/admin/src/components/MediaDetailPanel.tsx:1432
 #: packages/admin/src/components/MediaLibrary.tsx:1205
 msgid "Filename"
 msgstr "फ़ाइलनाम"
@@ -6019,8 +6019,8 @@ msgstr ""
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
-#: packages/admin/src/components/MediaDetailPanel.tsx:1633
+#: packages/admin/src/components/MediaDetailPanel.tsx:1634
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
 msgid "Focal point"
 msgstr ""
 
@@ -6066,7 +6066,7 @@ msgstr ""
 msgid "Folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1523
+#: packages/admin/src/components/MediaDetailPanel.tsx:1535
 #: packages/admin/src/components/MediaLibrary.tsx:1027
 #: packages/admin/src/components/MediaLibrary.tsx:1571
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
@@ -6089,7 +6089,7 @@ msgstr "ड्राफ्ट और सभी सामग्री सहि�
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1336
+#: packages/admin/src/components/MediaDetailPanel.tsx:1348
 msgid "Format:"
 msgstr ""
 
@@ -7260,7 +7260,7 @@ msgstr "और लोड करें"
 msgid "Load More"
 msgstr "और लोड करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1542
+#: packages/admin/src/components/MediaDetailPanel.tsx:1554
 #: packages/admin/src/components/MediaLibrary.tsx:1057
 #: packages/admin/src/components/MediaLibrary.tsx:1249
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
@@ -7320,7 +7320,7 @@ msgstr ""
 msgid "Loading folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Loading folders..."
 msgstr ""
 
@@ -7411,7 +7411,7 @@ msgstr "विजेट लोड हो रहे हैं..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
 #: packages/admin/src/components/MediaDetailPanel.tsx:612
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
-#: packages/admin/src/components/MediaDetailPanel.tsx:1729
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:2763
@@ -7453,10 +7453,10 @@ msgstr "स्थान"
 msgid "Locales will use this site’s capitalization"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1431
-#: packages/admin/src/components/MediaDetailPanel.tsx:1459
-#: packages/admin/src/components/MediaDetailPanel.tsx:1550
-#: packages/admin/src/components/MediaDetailPanel.tsx:1552
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
+#: packages/admin/src/components/MediaDetailPanel.tsx:1471
+#: packages/admin/src/components/MediaDetailPanel.tsx:1562
+#: packages/admin/src/components/MediaDetailPanel.tsx:1564
 msgid "Location"
 msgstr ""
 
@@ -7561,11 +7561,11 @@ msgstr "URL पुनर्निर्देश प्रबंधित कर
 msgid "Manage your passkeys and authentication"
 msgstr "अपनी पासकी और प्रमाणीकरण प्रबंधित करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1389
+#: packages/admin/src/components/MediaDetailPanel.tsx:1401
 msgid "Managed by {providerName}"
 msgstr "{providerName} द्वारा प्रबंधित"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1390
+#: packages/admin/src/components/MediaDetailPanel.tsx:1402
 msgid "Managed by an external media provider"
 msgstr "एक बाहरी मीडिया प्रदाता द्वारा प्रबंधित"
 
@@ -8448,7 +8448,7 @@ msgstr "तुलना करने के लिए कोई फ़ील्�
 msgid "No files added"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1502
+#: packages/admin/src/components/MediaDetailPanel.tsx:1514
 msgid "No folders found"
 msgstr ""
 
@@ -8590,7 +8590,7 @@ msgstr "इस रजिस्ट्री में अभी तक कोई 
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "कोई प्लगइन्स \"{debouncedQuery}\" से मेल नहीं खाता।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1370
 msgid "No public URL available"
 msgstr "कोई सार्वजनिक URL उपलब्ध नहीं है"
 
@@ -8883,7 +8883,7 @@ msgstr "वैकल्पिक कैप्शन"
 msgid "Optional caption displayed below the image"
 msgstr "छवि के नीचे वैकल्पिक कैप्शन प्रदर्शित किया गया है"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1595
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Optional caption for display"
 msgstr "प्रदर्शन के लिए वैकल्पिक कैप्शन"
 
@@ -8961,7 +8961,7 @@ msgstr ""
 msgid "Outline"
 msgstr "रूपरेखा"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1722
+#: packages/admin/src/components/MediaDetailPanel.tsx:1734
 msgid "Output size"
 msgstr ""
 
@@ -9434,7 +9434,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:453
 #: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:102
-#: packages/admin/src/components/MediaDetailPanel.tsx:1676
+#: packages/admin/src/components/MediaDetailPanel.tsx:1688
 #: packages/admin/src/components/MediaLibrary.tsx:1204
 msgid "Preview"
 msgstr "पूर्व दर्शन"
@@ -10132,23 +10132,23 @@ msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
-#: packages/admin/src/components/MediaDetailPanel.tsx:1943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 #: packages/admin/src/components/PortableTextEditor.tsx:4757
 msgid "Replace image"
 msgstr "छवि बदलें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
-#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
+#: packages/admin/src/components/MediaDetailPanel.tsx:1990
 msgid "Replace original"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1935
-#: packages/admin/src/components/MediaDetailPanel.tsx:1970
+#: packages/admin/src/components/MediaDetailPanel.tsx:1947
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "Replace original image?"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1734
+#: packages/admin/src/components/MediaDetailPanel.tsx:1746
 msgid "Replace original is available with the Original aspect ratio."
 msgstr ""
 
@@ -10165,13 +10165,13 @@ msgid "Replace with empty list"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:932
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1956
 msgid "Replacing image..."
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:951
-#: packages/admin/src/components/MediaDetailPanel.tsx:1979
-#: packages/admin/src/components/MediaDetailPanel.tsx:1999
+#: packages/admin/src/components/MediaDetailPanel.tsx:1991
+#: packages/admin/src/components/MediaDetailPanel.tsx:2011
 msgid "Replacing original..."
 msgstr ""
 
@@ -10233,8 +10233,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "{resendCooldown}s में पुनः भेजें"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:442
-#: packages/admin/src/components/MediaDetailPanel.tsx:1668
-#: packages/admin/src/components/MediaDetailPanel.tsx:1718
+#: packages/admin/src/components/MediaDetailPanel.tsx:1680
+#: packages/admin/src/components/MediaDetailPanel.tsx:1730
 msgid "Reset"
 msgstr ""
 
@@ -10242,7 +10242,7 @@ msgstr ""
 msgid "Reset column widths"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1703
+#: packages/admin/src/components/MediaDetailPanel.tsx:1715
 msgid "Reset crop"
 msgstr ""
 
@@ -10342,7 +10342,7 @@ msgstr ""
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:218
-#: packages/admin/src/components/MediaDetailPanel.tsx:1529
+#: packages/admin/src/components/MediaDetailPanel.tsx:1541
 #: packages/admin/src/components/MediaLibrary.tsx:1021
 #: packages/admin/src/components/MediaLibrary.tsx:1574
 #: packages/admin/src/components/MediaPickerModal.tsx:1208
@@ -10583,7 +10583,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:820
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/Redirects.tsx:193
@@ -10631,7 +10631,7 @@ msgstr ""
 msgid "Save name"
 msgstr "नाम सहेजें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1756
 msgid "Save or discard the other changes before cropping."
 msgstr ""
 
@@ -10666,7 +10666,7 @@ msgid "Saving a collection here turns this field into an entry picker. Its store
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:1329
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/PluginSettings.tsx:166
@@ -10893,8 +10893,8 @@ msgstr ""
 msgid "Search failed. Check your connection and try again."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1482
-#: packages/admin/src/components/MediaDetailPanel.tsx:1483
+#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Search folders"
 msgstr ""
 
@@ -11120,7 +11120,7 @@ msgstr "एक घटक चुनें..."
 msgid "Select a content type"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1472
+#: packages/admin/src/components/MediaDetailPanel.tsx:1484
 msgid "Select a location"
 msgstr ""
 
@@ -11626,7 +11626,7 @@ msgstr "आकार"
 msgid "Size is not applicable to folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1298
+#: packages/admin/src/components/MediaDetailPanel.tsx:1301
 msgid "Size:"
 msgstr "आकार:"
 
@@ -12524,9 +12524,9 @@ msgstr ""
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1919
-#: packages/admin/src/components/MediaDetailPanel.tsx:1955
-#: packages/admin/src/components/MediaDetailPanel.tsx:1989
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "This cannot be undone"
 msgstr ""
 
@@ -12659,7 +12659,7 @@ msgstr ""
 msgid "This folder is empty."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1739
+#: packages/admin/src/components/MediaDetailPanel.tsx:1751
 msgid "This image could not be loaded for cropping."
 msgstr ""
 
@@ -13496,7 +13496,7 @@ msgstr "वर्डप्रेस निर्यात फ़ाइल अप
 msgid "Uploaded"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1321
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Uploaded:"
 msgstr "अपलोड किया गया:"
 
@@ -13542,7 +13542,7 @@ msgstr ""
 msgid "URL-friendly identifier"
 msgstr "URL-अनुकूल पहचानकर्ता"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1360
 msgid "URL:"
 msgstr "URL:"
 
@@ -14342,7 +14342,7 @@ msgstr ""
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "आपका ट्विटर/एक्स हैंडल (जैसे, @उपयोगकर्ता नाम)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1881
+#: packages/admin/src/components/MediaDetailPanel.tsx:1893
 msgid "Your unsaved media changes will be lost."
 msgstr "आपके सहेजे न गए मीडिया परिवर्तन खो जाएंगे."
 
