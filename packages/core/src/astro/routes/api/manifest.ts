@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
+import { MediaRepository } from "#db/repositories/media.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 import { COMMIT, VERSION } from "../../../version.js";
@@ -53,15 +54,34 @@ export const GET: APIRoute = async ({ locals }) => {
 		if (emdash?.db) {
 			try {
 				const options = new OptionsRepository(emdash.db);
-				const titles = await options.getMany<string>([
+				const settings = await options.getMany<string|object>([
 					"site:title",
 					"emdash:site_title",
 					"site:timezone",
+					"site:logo",
 				]);
-				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
-				siteTimezone = titles.get("site:timezone") || "UTC";
-				if (!adminBranding?.siteName && siteTitle) {
+				const siteTitle = settings.get("site:title") || settings.get("emdash:site_title");
+				const timezone = settings.get("site:timezone");
+				if (typeof timezone === "string") siteTimezone = timezone;
+				if (!adminBranding?.siteName && typeof siteTitle === "string") {
 					adminBranding = { ...adminBranding, siteName: siteTitle };
+				}
+
+				const siteLogo = settings.get("site:logo");
+				if (
+					!adminBranding?.logo &&
+					typeof siteLogo === "object" &&
+					siteLogo !== null &&
+					"mediaId" in siteLogo &&
+					typeof siteLogo.mediaId === "string"
+				) {
+					const media = await new MediaRepository(emdash.db).findById(siteLogo.mediaId);
+					if (media) {
+						adminBranding = {
+							...adminBranding,
+							logo: `/_emdash/api/media/file/${media.storageKey}`,
+						};
+					}
 				}
 			} catch {
 				// options table may not exist yet (pre-setup) — keep the default.
