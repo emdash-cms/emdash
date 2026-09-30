@@ -90,7 +90,7 @@ msgstr ""
 #. placeholder {0}: result.affected
 #: packages/admin/src/router.tsx:2265
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
-msgstr ""
+msgstr "{0, plural, one {댓글 #개를 처리했습니다} other {댓글 #개를 처리했습니다}}"
 
 #. placeholder {0}: comments.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:369
@@ -394,17 +394,17 @@ msgstr ""
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:648
 msgid "{0} of {total} could not be deleted"
-msgstr ""
+msgstr "전체 {total}개 중 {0}개를 삭제하지 못했습니다"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:604
 msgid "{0} of {total} could not be published"
-msgstr ""
+msgstr "전체 {total}개 중 {0}개를 게시하지 못했습니다"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:627
 msgid "{0} of {total} could not be updated"
-msgstr ""
+msgstr "전체 {total}개 중 {0}개를 변경하지 못했습니다"
 
 #. placeholder {0}: formatFileSize(plan.bytes.media)
 #. placeholder {1}: formatFileSize(plan.bytes.records)
@@ -1013,7 +1013,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:2285
 msgid "Access Denied"
-msgstr ""
+msgstr "접근이 거부되었습니다"
 
 #: packages/admin/src/lib/api/marketplace.ts:433
 #: packages/admin/src/lib/api/marketplace.ts:443
@@ -1870,7 +1870,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1279
 msgid "Autosave failed"
-msgstr ""
+msgstr "자동 저장에 실패했습니다"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:457
 msgid "Available bylines"
@@ -2394,7 +2394,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1356
 msgid "Changes discarded"
-msgstr ""
+msgstr "변경 사항을 버렸습니다"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:478
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
@@ -2948,7 +2948,7 @@ msgstr "발견된 콘텐츠:"
 
 #: packages/admin/src/router.tsx:1415
 msgid "Content has been scheduled for publishing"
-msgstr ""
+msgstr "콘텐츠의 게시를 예약했습니다"
 
 #: packages/admin/src/components/RevisionHistory.tsx:130
 msgid "Content has been updated to the selected revision."
@@ -2960,7 +2960,7 @@ msgstr "콘텐츠 ID:"
 
 #: packages/admin/src/router.tsx:1310
 msgid "Content is now live"
-msgstr ""
+msgstr "콘텐츠를 게시했습니다"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1038
 msgid "Content language"
@@ -2985,11 +2985,11 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1334
 msgid "Content removed from public view"
-msgstr ""
+msgstr "콘텐츠가 더 이상 공개되지 않습니다"
 
 #: packages/admin/src/router.tsx:1434
 msgid "Content reverted to draft"
-msgstr ""
+msgstr "콘텐츠를 초안으로 되돌렸습니다"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:260
 msgid "Content search results"
@@ -3495,7 +3495,7 @@ msgstr "생성: {0}"
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
 #: packages/admin/src/router.tsx:1466
 msgid "Created {0} translation"
-msgstr ""
+msgstr "{0} 번역을 만들었습니다"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
 msgid "Created and updated"
@@ -4663,7 +4663,7 @@ msgstr ""
 #. placeholder {0}: status.current
 #: packages/admin/src/components/CoreUpdateBanner.tsx:67
 msgid "EmDash {latest} is available (you're running {0})"
-msgstr ""
+msgstr "EmDash {latest} 버전을 사용할 수 있습니다(현재 버전: {0})"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1958
 msgid "EmDash does not keep the previous image."
@@ -5085,7 +5085,7 @@ msgstr ""
 #: packages/admin/src/router.tsx:647
 #: packages/admin/src/router.tsx:1494
 msgid "Failed to delete"
-msgstr ""
+msgstr "삭제에 실패했습니다"
 
 #: packages/admin/src/lib/api/users.ts:345
 msgid "Failed to delete allowed domain"
@@ -5184,7 +5184,7 @@ msgstr "플러그인을 비활성화하지 못했습니다."
 
 #: packages/admin/src/lib/api/search.ts:32
 msgid "Failed to disable search"
-msgstr ""
+msgstr "검색을 비활성화하지 못했습니다"
 
 #: packages/admin/src/lib/api/users.ts:118
 msgid "Failed to disable user"
@@ -5192,7 +5192,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1363
 msgid "Failed to discard changes"
-msgstr ""
+msgstr "변경 사항을 버리지 못했습니다"
 
 #: packages/admin/src/components/Dashboard.tsx:215
 #: packages/admin/src/lib/api/dashboard.ts:71
@@ -5201,7 +5201,7 @@ msgstr "예약 게시 거부 알림을 닫지 못했습니다"
 
 #: packages/admin/src/components/WelcomeModal.tsx:76
 msgid "Failed to dismiss welcome"
-msgstr ""
+msgstr "환영 안내 창을 닫지 못했습니다"
 
 #: packages/admin/src/lib/api/transfer.ts:360
 msgid "Failed to download a package file"
@@ -5209,7 +5209,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:578
 msgid "Failed to duplicate"
-msgstr ""
+msgstr "복제에 실패했습니다"
 
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/lib/api/plugins.ts:146
@@ -5218,7 +5218,7 @@ msgstr "플러그인을 활성화하지 못했습니다."
 
 #: packages/admin/src/lib/api/search.ts:31
 msgid "Failed to enable search"
-msgstr ""
+msgstr "검색을 활성화하지 못했습니다"
 
 #: packages/admin/src/lib/api/users.ts:138
 msgid "Failed to enable user"
@@ -5230,7 +5230,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/client.ts:366
 msgid "Failed to fetch auth mode"
-msgstr ""
+msgstr "인증 모드를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/backups.ts:37
 msgid "Failed to fetch backup settings"
@@ -5243,7 +5243,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/dashboard.ts:56
 msgid "Failed to fetch dashboard stats"
-msgstr ""
+msgstr "대시보드 통계를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/email-settings.ts:34
 msgid "Failed to fetch email settings"
@@ -5255,7 +5255,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/client.ts:349
 msgid "Failed to fetch manifest"
-msgstr ""
+msgstr "매니페스트를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:169
 msgid "Failed to fetch media"
@@ -5325,7 +5325,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/core-update.ts:29
 msgid "Failed to fetch update status"
-msgstr ""
+msgstr "업데이트 상태를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
@@ -5379,7 +5379,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:375
 msgid "Failed to load admin"
-msgstr ""
+msgstr "관리자 화면을 불러오지 못했습니다"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:193
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:194
@@ -5489,7 +5489,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:2270
 msgid "Failed to perform bulk action"
-msgstr ""
+msgstr "일괄 작업에 실패했습니다"
 
 #: packages/admin/src/lib/api/content.ts:385
 msgid "Failed to permanently delete content"
@@ -5502,7 +5502,7 @@ msgstr ""
 #: packages/admin/src/router.tsx:603
 #: packages/admin/src/router.tsx:1315
 msgid "Failed to publish"
-msgstr ""
+msgstr "게시에 실패했습니다"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
@@ -5552,7 +5552,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:550
 msgid "Failed to restore"
-msgstr ""
+msgstr "복원에 실패했습니다"
 
 #: packages/admin/src/lib/api/content.ts:374
 msgid "Failed to restore content"
@@ -5594,7 +5594,7 @@ msgstr "설정을 저장하지 못했습니다."
 
 #: packages/admin/src/router.tsx:1421
 msgid "Failed to schedule"
-msgstr ""
+msgstr "게시 예약에 실패했습니다"
 
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
@@ -5634,15 +5634,15 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1339
 msgid "Failed to unpublish"
-msgstr ""
+msgstr "게시 취소에 실패했습니다"
 
 #: packages/admin/src/router.tsx:1440
 msgid "Failed to unschedule"
-msgstr ""
+msgstr "게시 예약 취소에 실패했습니다"
 
 #: packages/admin/src/router.tsx:626
 msgid "Failed to update"
-msgstr ""
+msgstr "변경에 실패했습니다"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
 #: packages/admin/src/components/TaxonomySidebar.tsx:686
@@ -5689,7 +5689,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:2229
 msgid "Failed to update status"
-msgstr ""
+msgstr "상태 변경에 실패했습니다"
 
 #: packages/admin/src/lib/api/transfer.ts:431
 msgid "Failed to upload a package file"
@@ -5903,7 +5903,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1899
 msgid "Folder no longer exists"
-msgstr ""
+msgstr "폴더가 더 이상 존재하지 않습니다"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:481
 msgid "Folder no longer exists. Returned to the main library."
@@ -6183,7 +6183,7 @@ msgstr ""
 
 #: packages/admin/src/components/Shell.tsx:86
 msgid "Hide toolbar"
-msgstr ""
+msgstr "도구 모음 숨기기"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1062
 msgid "Hierarchical (like categories, with parent/child relationships)"
@@ -7100,7 +7100,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:3113
 msgid "Loading"
-msgstr ""
+msgstr "불러오는 중"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:360
 msgid "Loading {pluralLower}…"
@@ -7130,7 +7130,7 @@ msgstr "댓글 로드 중..."
 #: packages/admin/src/router.tsx:3115
 #: packages/admin/src/router.tsx:3127
 msgid "Loading configuration..."
-msgstr ""
+msgstr "설정을 불러오는 중..."
 
 #: packages/admin/src/components/ContentPickerModal.tsx:270
 msgid "Loading content..."
@@ -7434,11 +7434,11 @@ msgstr "마켓플레이스"
 
 #: packages/admin/src/router.tsx:2524
 msgid "Marketplace browsing is no longer available."
-msgstr ""
+msgstr "더 이상 마켓플레이스를 탐색할 수 없습니다."
 
 #: packages/admin/src/router.tsx:2499
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
-msgstr ""
+msgstr "더 이상 마켓플레이스를 탐색할 수 없습니다. 설치된 플러그인은 플러그인 메뉴에서 관리하세요."
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:14
 msgid "Marketplace configuration is deprecated"
@@ -7872,11 +7872,11 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:623
 msgid "Moved {total} items to draft"
-msgstr ""
+msgstr "항목 {total}개를 초안으로 변경했습니다"
 
 #: packages/admin/src/router.tsx:644
 msgid "Moved {total} items to trash"
-msgstr ""
+msgstr "항목 {total}개를 휴지통으로 이동했습니다"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:632
@@ -7976,7 +7976,7 @@ msgstr "없음"
 
 #: packages/admin/src/router.tsx:1466
 msgid "new"
-msgstr ""
+msgstr "새"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:262
 msgid "NEW"
@@ -8768,7 +8768,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:3153
 msgid "Page Not Found"
-msgstr ""
+msgstr "페이지를 찾을 수 없습니다"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 #: packages/admin/src/components/MediaPickerModal.tsx:1548
@@ -9008,7 +9008,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/client.ts:68
 msgid "Plugin {pluginId} rejected the save: {reason}"
-msgstr ""
+msgstr "플러그인 {pluginId}에서 저장을 거부했습니다: {reason}"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:121
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:154
@@ -9098,7 +9098,7 @@ msgstr ""
 #: packages/admin/src/router.tsx:2459
 #: packages/admin/src/router.tsx:2490
 msgid "Plugin registry is not configured."
-msgstr ""
+msgstr "플러그인 레지스트리가 설정되지 않았습니다."
 
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:55
@@ -9347,7 +9347,7 @@ msgstr "게시일: {0}"
 
 #: packages/admin/src/router.tsx:600
 msgid "Published {total} items"
-msgstr ""
+msgstr "항목 {total}개를 게시했습니다"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:156
 msgid "Published At"
@@ -9670,7 +9670,7 @@ msgstr ""
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:75
 msgid "Release notes"
-msgstr ""
+msgstr "릴리스 노트"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
@@ -9927,7 +9927,7 @@ msgstr "새 링크 요청"
 
 #: packages/admin/src/lib/api/client.ts:337
 msgid "Request failed"
-msgstr ""
+msgstr "요청에 실패했습니다"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:508
 msgid "Require a slug before content can be published"
@@ -10136,7 +10136,7 @@ msgstr "모든 콘텐츠에 삽입할 수 있는 재사용 가능한 콘텐츠 �
 
 #: packages/admin/src/router.tsx:1357
 msgid "Reverted to published version"
-msgstr ""
+msgstr "게시된 버전으로 되돌렸습니다"
 
 #: packages/admin/src/components/WordPressImport.tsx:744
 msgid "Review"
@@ -11322,7 +11322,7 @@ msgstr "사이트 제목이 필요합니다"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:246
 msgid "Site Transfer"
-msgstr ""
+msgstr "사이트 이전"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:277
 msgid "Site URL"
@@ -11639,11 +11639,11 @@ msgstr ""
 
 #: packages/admin/src/components/ThemeToggle.tsx:19
 msgid "Switch to dark"
-msgstr ""
+msgstr "다크 모드로 전환"
 
 #: packages/admin/src/components/ThemeToggle.tsx:19
 msgid "Switch to light"
-msgstr ""
+msgstr "라이트 모드로 전환"
 
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
@@ -12076,7 +12076,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:3155
 msgid "The page you're looking for doesn't exist."
-msgstr ""
+msgstr "찾으시는 페이지가 존재하지 않습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:684
 msgid "The passkey is saved on your physical security key and can be used on compatible devices."
@@ -12939,7 +12939,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1334
 msgid "Unpublished"
-msgstr ""
+msgstr "게시 취소됨"
 
 #: packages/admin/src/components/ContentTypeList.tsx:153
 msgid "Unregistered Content Tables Found"
@@ -12955,7 +12955,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:1433
 msgid "Unscheduled"
-msgstr ""
+msgstr "게시 예약 취소됨"
 
 #: packages/admin/src/components/BlocksField.tsx:361
 #: packages/admin/src/components/ContentTypeEditor.tsx:938
@@ -13018,7 +13018,7 @@ msgstr "{0} 세부정보 업데이트"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:68
 msgid "Update the emdash package in your project and redeploy to get the latest fixes."
-msgstr ""
+msgstr "프로젝트의 emdash 패키지를 업데이트하고 다시 배포하여 최신 수정 사항을 적용하세요."
 
 #. placeholder {0}: selected.displayName
 #: packages/admin/src/routes/bylines.tsx:697
@@ -13833,7 +13833,7 @@ msgstr ""
 
 #: packages/admin/src/router.tsx:2286
 msgid "You need Editor permissions to moderate comments."
-msgstr ""
+msgstr "댓글을 관리하려면 편집자 권한이 필요합니다."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
 msgid "You no longer hold this entry"
