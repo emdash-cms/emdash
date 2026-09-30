@@ -176,7 +176,7 @@ describe("filterItems", () => {
 				at: "2026-10-02T09:00:00.000Z",
 			},
 		],
-		{ timeZone: "UTC", now, collectionOrder: ["posts", "pages"] },
+		{ timeZone: "UTC", loadedAt: now, collectionOrder: ["posts", "pages"] },
 	);
 	const ids = (list: typeof items) => list.map((item) => item.id);
 

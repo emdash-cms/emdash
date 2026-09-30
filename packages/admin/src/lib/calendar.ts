@@ -41,7 +41,7 @@ export interface CalendarItem extends CalendarEntry {
 	state: CalendarState;
 }
 
-/** A missed minute-sweep plus the calendar's own one-minute refresh. */
+/** Schedules publish at the next minute sweep; the grace allows for one more. */
 export const OVERDUE_GRACE_MS = 2 * 60_000;
 
 const DAY_MS = 86_400_000;
@@ -146,10 +146,13 @@ export function calendarState(
 /**
  * Places entries on site-zone days, in time order, then collection order,
  * locale, and title. Entries whose time does not parse are left out.
+ *
+ * States are judged at `loadedAt`, when the entries were fetched: a schedule
+ * that passed after that may already have published.
  */
 export function toCalendarItems(
 	entries: readonly CalendarEntry[],
-	options: { timeZone: string; now: number; collectionOrder: readonly string[] },
+	options: { timeZone: string; loadedAt: number; collectionOrder: readonly string[] },
 ): CalendarItem[] {
 	const rank = (slug: string) => {
 		const index = options.collectionOrder.indexOf(slug);
@@ -165,7 +168,7 @@ export function toCalendarItems(
 					key: calendarEntryKey(entry),
 					time,
 					day: dayKeyInZone(time, options.timeZone),
-					state: calendarState(entry, options.now),
+					state: calendarState(entry, options.loadedAt),
 				},
 			];
 		})

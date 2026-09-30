@@ -52,7 +52,7 @@ const busyDay = Array.from({ length: 6 }, (_, index) =>
 const days = groupByDay(
 	toCalendarItems([entry("late", "2026-10-13T20:00:00.000Z"), ...busyDay], {
 		timeZone,
-		now,
+		loadedAt: now,
 		collectionOrder: ["posts"],
 	}),
 );

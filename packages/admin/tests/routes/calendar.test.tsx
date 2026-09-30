@@ -1,7 +1,9 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
-import type { CalendarEntry } from "../../src/lib/api/calendar";
+import { calendarQueryOptions, type CalendarEntry } from "../../src/lib/api/calendar";
+import { fetchRange, monthGridDays } from "../../src/lib/calendar";
 import { CalendarPage } from "../../src/routes/calendar";
 import { render } from "../utils/render.tsx";
 
@@ -96,6 +98,37 @@ describe("CalendarPage", () => {
 		await expect
 			.element(screen.getByRole("list", { name: "Entries this month" }))
 			.not.toBeInTheDocument();
+	});
+
+	it("judges schedules by when the entries loaded, not by the current time", async () => {
+		router.search = { month: "2020-03", view: "agenda" };
+		const range = fetchRange(monthGridDays("2020-03", 0));
+		const queryClient = new QueryClient();
+		queryClient.setQueryData(
+			calendarQueryOptions(range.from, range.to).queryKey,
+			{
+				items: [
+					{
+						...entry("launch", "2020-03-05T09:00:30.000Z"),
+						status: "scheduled",
+						kind: "scheduled",
+					},
+				],
+				truncated: false,
+			},
+			{ updatedAt: Date.parse("2020-03-05T09:00:00.000Z") },
+		);
+		// The refresh never completes, so the page keeps the entries loaded before the schedule's time.
+		globalThis.fetch = vi.fn(() => new Promise<Response>(() => {}));
+
+		const screen = await render(<CalendarPage />, {
+			wrapper: ({ children }) => (
+				<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+			),
+		});
+
+		await expect.element(screen.getByRole("link", { name: /Entry launch/ })).toBeVisible();
+		expect(screen.getByText(/Overdue/).query()).toBeNull();
 	});
 
 	it("explains a permission error", async () => {

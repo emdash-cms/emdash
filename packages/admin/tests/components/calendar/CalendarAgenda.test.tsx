@@ -54,7 +54,7 @@ const days = groupByDay(
 			}),
 			entry({ id: "pricing", title: "Pricing", kind: "scheduled", at: "2026-10-20T10:00:00.000Z" }),
 		],
-		{ timeZone: "UTC", now, collectionOrder: ["posts", "pages"] },
+		{ timeZone: "UTC", loadedAt: now, collectionOrder: ["posts", "pages"] },
 	),
 );
 
@@ -95,7 +95,7 @@ describe("CalendarAgenda", () => {
 					entry({ id: "early", title: "Early", at: "2026-10-14T09:00:00.000Z" }),
 					entry({ id: "later", title: "Later", kind: "scheduled", at: "2026-10-20T09:00:00.000Z" }),
 				],
-				{ timeZone: "UTC", now, collectionOrder: ["posts"] },
+				{ timeZone: "UTC", loadedAt: now, collectionOrder: ["posts"] },
 			),
 		);
 		const screen = await render(
@@ -120,7 +120,7 @@ describe("CalendarAgenda", () => {
 		const past = groupByDay(
 			toCalendarItems([entry({ id: "early", title: "Early", at: "2026-10-14T09:00:00.000Z" })], {
 				timeZone: "UTC",
-				now,
+				loadedAt: now,
 				collectionOrder: ["posts"],
 			}),
 		);
@@ -136,7 +136,7 @@ describe("CalendarAgenda", () => {
 		const past = groupByDay(
 			toCalendarItems([entry({ id: "early", title: "Early", at: "2026-10-14T09:00:00.000Z" })], {
 				timeZone: "UTC",
-				now,
+				loadedAt: now,
 				collectionOrder: ["posts"],
 			}),
 		);
@@ -200,7 +200,7 @@ describe("CalendarAgenda", () => {
 						at: "2026-10-14T09:00:00.000Z",
 					}),
 				],
-				{ timeZone: "UTC", now, collectionOrder: ["posts"] },
+				{ timeZone: "UTC", loadedAt: now, collectionOrder: ["posts"] },
 			),
 		);
 		const screen = await render(

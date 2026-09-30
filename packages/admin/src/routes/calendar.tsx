@@ -161,11 +161,11 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			calendar.data
 				? toCalendarItems(calendar.data.items, {
 						timeZone: display.timeZone,
-						now,
+						loadedAt: calendar.dataUpdatedAt,
 						collectionOrder,
 					})
 				: [],
-		[calendar.data, display.timeZone, now, collectionOrder],
+		[calendar.data, calendar.dataUpdatedAt, display.timeZone, collectionOrder],
 	);
 	const visibleItems = React.useMemo(() => filterItems(items, filters), [items, filters]);
 	// Pages load oldest first, so a truncated range is complete before its last loaded day.
