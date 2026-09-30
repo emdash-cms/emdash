@@ -470,7 +470,7 @@ msgstr ""
 
 #: packages/admin/src/components/RevisionHistory.tsx:361
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
-msgstr "{changedCount, plural, one {다음 리비전과 다른 변경 #건} other {다음 리비전과 다른 변경 #건}}"
+msgstr "{changedCount, plural, one {다음 버전 대비 변경 #건} other {다음 버전 대비 변경 #건}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2849
 msgid "{characters, plural, one {# character} other {# characters}}"
@@ -514,7 +514,7 @@ msgstr ""
 #. placeholder {1}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:1274
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
-msgstr ""
+msgstr "{filteredCount, plural, one {#{0}개 항목} other {#{1}개 항목}}"
 
 #: packages/admin/src/components/MediaImportSummary.tsx:9
 msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
@@ -549,7 +549,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1263
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr ""
+msgstr "{matchCount, plural, one {\"{searchQuery}\"에 일치하는 항목 #개} other {\"{searchQuery}\"에 일치하는 항목 #개}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2493
 msgid "{matchedCount} of {totalCount} assigned"
@@ -700,11 +700,11 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:507
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {#개 선택됨} other {#개 선택됨}}"
 
 #: packages/admin/src/components/ContentList.tsx:581
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {항목 #개를 휴지통으로 이동하시겠어요? 나중에 복원할 수 있습니다.} other {항목 #개를 휴지통으로 이동하시겠어요? 나중에 복원할 수 있습니다.}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:57
 msgid "{subLabel} ({label}, item {position})"
@@ -712,7 +712,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1269
 msgid "{total, plural, one {# item} other {# items}}"
-msgstr ""
+msgstr "{total, plural, one {#개 항목} other {#개 항목}}"
 
 #: packages/admin/src/components/Dashboard.tsx:381
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
@@ -1262,7 +1262,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:555
 msgid "Add term"
-msgstr ""
+msgstr "분류 항목 추가"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1321
 #: packages/admin/src/components/TaxonomyManager.tsx:1337
@@ -1374,7 +1374,7 @@ msgstr "모두"
 #: packages/admin/src/components/ContentList.tsx:985
 #: packages/admin/src/components/ContentList.tsx:989
 msgid "All authors"
-msgstr ""
+msgstr "모든 작성자"
 
 #: packages/admin/src/components/BylineFilter.tsx:103
 #: packages/admin/src/routes/bylines.tsx:515
@@ -1691,7 +1691,7 @@ msgstr "자유 형식 JSON 데이터"
 #: packages/admin/src/components/ContentList.tsx:928
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
-msgstr ""
+msgstr "보관됨"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:68
 #: packages/admin/src/components/Widgets.tsx:158
@@ -2496,7 +2496,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:1111
 #: packages/admin/src/components/ContentList.tsx:1117
 msgid "Choose a date range"
-msgstr ""
+msgstr "날짜 범위 선택"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:230
 msgid "Choose a file from the library or upload a new one."
@@ -2580,7 +2580,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:616
 #: packages/admin/src/components/ContentList.tsx:1125
 msgid "Clear"
-msgstr ""
+msgstr "초기화"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:316
 msgid "Clear completed"
@@ -2592,7 +2592,7 @@ msgstr ""
 #: packages/admin/src/components/users/UserList.tsx:122
 #: packages/admin/src/routes/bylines.tsx:654
 msgid "Clear filters"
-msgstr ""
+msgstr "필터 초기화"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/MediaLibrary.tsx:1119
@@ -3626,7 +3626,7 @@ msgstr "날짜 및 시간 선택기"
 
 #: packages/admin/src/components/ContentList.tsx:1007
 msgid "Date field to filter on"
-msgstr ""
+msgstr "필터에 사용할 날짜 필드"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:420
 msgid "Date Format"
@@ -3634,7 +3634,7 @@ msgstr "날짜 형식"
 
 #: packages/admin/src/components/ContentList.tsx:1057
 msgid "Date range"
-msgstr ""
+msgstr "날짜 범위"
 
 #: packages/admin/src/components/FieldEditor.tsx:396
 msgid "Decimal number"
@@ -3899,7 +3899,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:832
 msgid "Deleted"
-msgstr "삭제됨"
+msgstr "삭제일"
 
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1548
@@ -4099,7 +4099,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:309
 msgid "Discard draft changes?"
-msgstr "초안 변경사항을 버리시겠습니까?"
+msgstr "초안 변경 사항을 버리시겠습니까?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1883
 msgid "Discarding..."
@@ -5813,7 +5813,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:981
 msgid "Filter by author"
-msgstr ""
+msgstr "작성자로 필터링"
 
 #: packages/admin/src/components/BylineFilter.tsx:116
 msgid "Filter by byline"
@@ -5829,7 +5829,7 @@ msgstr "컬렉션으로 필터링"
 
 #: packages/admin/src/components/ContentList.tsx:1103
 msgid "Filter by date range: {rangeLabel}"
-msgstr ""
+msgstr "날짜 범위로 필터링: {rangeLabel}"
 
 #: packages/admin/src/components/users/UserList.tsx:75
 msgid "Filter by role"
@@ -5842,7 +5842,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:963
 #: packages/admin/src/components/Redirects.tsx:392
 msgid "Filter by status"
-msgstr ""
+msgstr "상태로 필터링"
 
 #: packages/admin/src/components/MediaLibrary.tsx:990
 #: packages/admin/src/components/MediaPickerModal.tsx:1276
@@ -5960,7 +5960,7 @@ msgstr ""
 #. placeholder {0}: formatter.format(from)
 #: packages/admin/src/components/ContentList.tsx:1054
 msgid "From {0}"
-msgstr ""
+msgstr "{0}부터"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:628
 msgid "From the package (empty)"
@@ -6169,7 +6169,7 @@ msgstr ""
 #: packages/admin/src/components/SeoPanel.tsx:243
 #: packages/admin/src/components/SeoPanel.tsx:246
 msgid "Hide from search engines"
-msgstr "검색에서 숨기기"
+msgstr "검색 엔진에서 숨기기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
@@ -7840,7 +7840,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:574
 msgid "Move to trash"
-msgstr ""
+msgstr "휴지통으로 이동"
 
 #: packages/admin/src/components/ContentList.tsx:601
 #: packages/admin/src/components/ContentList.tsx:1451
@@ -8102,7 +8102,7 @@ msgstr ""
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
-msgstr "아니오"
+msgstr "아니요"
 
 #: packages/admin/src/routes/byline-schema.tsx:420
 msgid "No (shared across translations)"
@@ -8111,7 +8111,7 @@ msgstr ""
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
 #: packages/admin/src/components/ContentList.tsx:724
 msgid "No {0} yet."
-msgstr "아직 {0}이 없습니다."
+msgstr "아직 {0}이(가) 없습니다."
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #: packages/admin/src/components/TaxonomyManager.tsx:1399
@@ -8430,7 +8430,7 @@ msgstr "결과 없음"
 #: packages/admin/src/components/ContentList.tsx:721
 #: packages/admin/src/components/ContentList.tsx:740
 msgid "No results for \"{activeSearch}\""
-msgstr ""
+msgstr "\"{activeSearch}\" 검색 결과가 없습니다"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:178
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:152
@@ -8515,7 +8515,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:1473
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
-msgstr ""
+msgstr "설정되지 않음"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:520
 msgid "Nothing on this site changed."
@@ -8750,7 +8750,7 @@ msgstr "검색 결과에 표시되는 페이지 제목을 재정의합니다"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1073
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1076
 msgid "Ownership"
-msgstr "소유권"
+msgstr "작성자"
 
 #: packages/admin/src/components/PluginManager.tsx:648
 msgid "Package"
@@ -8920,7 +8920,7 @@ msgstr "보류 중"
 
 #: packages/admin/src/components/ContentStatusBadge.tsx:67
 msgid "Pending changes"
-msgstr "보류 중인 변경사항"
+msgstr "게시되지 않은 변경 사항"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:648
 msgid "People shown publicly on this post."
@@ -8936,7 +8936,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1620
 msgid "Permanently delete \"{title}\"? This cannot be undone."
-msgstr "\"{제목}\"을(를) 영구적으로 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+msgstr "\"{title}\"을(를) 영구적으로 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
 
 #: packages/admin/src/components/ContentList.tsx:1609
 msgid "Permanently delete {title}"
@@ -9708,7 +9708,7 @@ msgstr "제거"
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:458
 msgid "Remove {0}"
-msgstr "{0} 삭제"
+msgstr "{0} 제거"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:330
@@ -10820,7 +10820,7 @@ msgstr "{label} 선택"
 
 #: packages/admin/src/components/ContentList.tsx:1329
 msgid "Select {title}"
-msgstr ""
+msgstr "{title} 선택"
 
 #: packages/admin/src/components/FieldEditor.tsx:1014
 msgid "Select a collection"
@@ -10857,7 +10857,7 @@ msgstr "모두 선택"
 
 #: packages/admin/src/components/ContentList.tsx:653
 msgid "Select all on this page"
-msgstr ""
+msgstr "이 페이지의 모든 항목 선택"
 
 #: packages/admin/src/components/ContentEditor.tsx:2692
 msgid "Select at least one entry."
@@ -10937,7 +10937,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:560
 msgid "Select up to 50 posts at a time."
-msgstr ""
+msgstr "한 번에 최대 50개의 게시물을 선택하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1752
 msgid "Select which content types to import."
@@ -11072,7 +11072,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:529
 msgid "Set to draft"
-msgstr ""
+msgstr "초안으로 변경"
 
 #: packages/admin/src/components/MediaLibrary.tsx:879
 msgid "Set up media usage tracking"
@@ -12581,7 +12581,7 @@ msgstr "그러면 사이트에서 플러그인과 해당 번들이 제거됩니�
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:311
 msgid "This will revert to the published version. Your draft changes will be lost."
-msgstr "게시된 버전으로 되돌아갑니다. 초안 변경사항이 손실됩니다."
+msgstr "게시된 버전으로 되돌아갑니다. 초안 변경 사항이 손실됩니다."
 
 #: packages/admin/src/components/SetupWizard.tsx:152
 msgid "Thoughts, tutorials, and more"
@@ -12754,7 +12754,7 @@ msgstr ""
 #: packages/admin/src/components/ContentPickerModal.tsx:287
 #: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
-msgstr "검색을 조정해 보세요"
+msgstr "다른 검색어로 검색해 보세요"
 
 #: packages/admin/src/components/Sections.tsx:290
 msgid "Try adjusting your search or filters."
@@ -12970,7 +12970,7 @@ msgstr ""
 #. placeholder {0}: formatter.format(to)
 #: packages/admin/src/components/ContentList.tsx:1056
 msgid "Until {0}"
-msgstr ""
+msgstr "{0}까지"
 
 #: packages/admin/src/components/Dashboard.tsx:548
 #: packages/admin/src/components/MediaUsedIn.tsx:320
@@ -13038,7 +13038,7 @@ msgstr "v{0}로 업데이트"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:997
 #: packages/admin/src/components/RegistryPluginDetail.tsx:580
 msgid "Updated"
-msgstr ""
+msgstr "수정됨"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:150
 msgid "Updated At"
@@ -13243,7 +13243,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1130
 msgid "Use as end date"
-msgstr ""
+msgstr "종료일로 사용"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:314
 msgid "Use lowercase letters, numbers, and hyphens, starting with a letter."
@@ -13733,7 +13733,7 @@ msgstr "WordPress 사용자 이름"
 
 #: packages/admin/src/components/ContentList.tsx:506
 msgid "Working on {selectedCount} items…"
-msgstr ""
+msgstr "항목 {selectedCount}개 처리 중…"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:282
 msgid "Working…"
