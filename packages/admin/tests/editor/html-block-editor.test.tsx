@@ -500,10 +500,10 @@ describe("HTML block preview", () => {
 		const block: Block = {
 			_type: "htmlBlock",
 			_key: "inline",
-			html: '<img src="data:image/png;base64,AA" alt="x"><iframe src="//www.youtube.com/embed/abc"></iframe><table width="100%"><tbody><tr><td width="50">Cell</td></tr></tbody></table><video>Fallback</video><textarea>Hidden</textarea><a href="javascript:alert(1)">Link</a>',
+			html: '<img src="data:image/png;base64,AA" alt="x"><iframe src="//www.youtube.com/embed/abc"></iframe><table width="100%"><tbody><tr><td width="50">Cell</td></tr></tbody></table><video>Fallback</video><textarea>Hidden</textarea><noscript><p>No script</p></noscript><a href="javascript:alert(1)">Link</a>',
 		};
 		const site =
-			'<img alt="x" /><iframe src="//www.youtube.com/embed/abc"></iframe><table><tbody><tr><td>Cell</td></tr></tbody></table>Fallback<a>Link</a>';
+			'<img alt="x" /><iframe src="//www.youtube.com/embed/abc"></iframe><table><tbody><tr><td>Cell</td></tr></tbody></table>Fallback<p>No script</p><a>Link</a>';
 		await renderEditor({ value: [block] });
 
 		await vi.waitFor(() => expect(previewFrame()).not.toBeNull());

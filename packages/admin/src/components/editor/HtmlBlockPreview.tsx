@@ -72,7 +72,7 @@ function cleanInlineHtml(html: string): string {
 			.flat()
 			.filter((name) => name !== "data-*"),
 		ALLOW_DATA_ATTR: true,
-		FORBID_CONTENTS: ["script", "style", "textarea", "option", "noscript"],
+		FORBID_CONTENTS: ["script", "style", "textarea", "option"],
 	});
 }
 
