@@ -305,6 +305,14 @@ function CalendarMorePopover({
 /** Each day's entry states, read by the picker's day buttons. */
 const DayStatesContext = React.createContext<ReadonlyMap<string, CalendarState[]>>(new Map());
 
+/** Day buttons sized for touch, with today in the grid's red. */
+const PICKER_STYLE = {
+	"--rdp-day-height": "2.75rem",
+	"--rdp-day_button-height": "2.5rem",
+	"--rdp-day_button-width": "min(2.5rem, 100%)",
+	"--rdp-today-color": "var(--color-kumo-danger)",
+} as React.CSSProperties;
+
 function pad(value: number): string {
 	return String(value).padStart(2, "0");
 }
@@ -319,7 +327,7 @@ function localDateToDayKey(date: Date): string {
 	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function CalendarDayButton({ day, modifiers, children, ...props }: DayButtonProps) {
+function CalendarDayButton({ day, modifiers, children, className, ...props }: DayButtonProps) {
 	const { t } = useLingui();
 	const ref = React.useRef<HTMLButtonElement>(null);
 	const states = React.useContext(DayStatesContext).get(localDateToDayKey(day.date)) ?? [];
@@ -335,16 +343,35 @@ function CalendarDayButton({ day, modifiers, children, ...props }: DayButtonProp
 		<button
 			ref={ref}
 			{...props}
+			// Kumo's unlayered picker styles leave the button at the start of the wider column.
+			className={cn(
+				className,
+				"!mx-auto",
+				modifiers.today && modifiers.selected && "!bg-kumo-badge-red !text-white",
+			)}
 			aria-label={states.length > 0 ? t`${dayLabel}, ${entries}` : dayLabel || undefined}
 		>
 			<span className="flex flex-col items-center gap-0.5 leading-none">
 				{children}
 				<span aria-hidden="true" className="flex h-1.5 items-center gap-0.5">
 					{states.slice(0, MAX_DOTS).map((state, index) => (
-						<span key={index} className={cn("size-1.5 rounded-full", DOT_COLORS[state])} />
+						<span
+							key={index}
+							className={cn(
+								"size-1.5 rounded-full",
+								modifiers.selected ? "bg-current" : DOT_COLORS[state],
+							)}
+						/>
 					))}
 					{states.length > MAX_DOTS && (
-						<span className="text-[10px] leading-none font-semibold text-kumo-subtle">+</span>
+						<span
+							className={cn(
+								"text-[10px] leading-none font-semibold",
+								!modifiers.selected && "text-kumo-subtle",
+							)}
+						>
+							+
+						</span>
 					)}
 				</span>
 			</span>
@@ -399,6 +426,7 @@ function CalendarMonthPicker({
 					locale={getDayPickerLocale(i18n.locale)}
 					dir={getLocaleDir(i18n.locale)}
 					components={{ DayButton: CalendarDayButton }}
+					style={PICKER_STYLE}
 					className="w-full rounded-lg border border-kumo-line p-2"
 					classNames={{
 						month_caption: "sr-only",
