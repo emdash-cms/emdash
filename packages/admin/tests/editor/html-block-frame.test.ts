@@ -108,6 +108,15 @@ describe("HTML block frame", () => {
 		expect(await answer).toBe(240);
 	});
 
+	it("runs JavaScript that compares with a name starting with script", async () => {
+		const frame = mountFrame({
+			html: "<p>Hello</p>",
+			js: 'const scripts = ["ran"];\nfor (let i = 0; i<scripts.length; i++) parent.postMessage(scripts[i], "*");',
+		});
+
+		expect(await nextMessage(frame, (data) => data === "ran")).toBe("ran");
+	});
+
 	it("runs JavaScript that opens with a legacy HTML comment", async () => {
 		const frame = mountFrame({
 			html: "<p>Hello</p>",

@@ -167,8 +167,9 @@ const FRAME_SCRIPT = `(() => {
 
 const STYLE_END_RE = /<\/(style)/gi;
 // `</script` would end the element early, and `<script` after `<!--` would stop the real
-// `</script>` from ending it.
-const SCRIPT_TAG_RE = /<(?=\/?script)/gi;
+// `</script>` from ending it. Either needs whitespace, `/` or `>` after the name, so code
+// such as `i<scripts.length` is left alone.
+const SCRIPT_TAG_RE = /<(?=\/?script[\t\n\f\r />])/gi;
 
 export function buildHtmlBlockFrame({
 	html,
