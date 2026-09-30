@@ -1046,7 +1046,7 @@ msgstr "ACF ফিল্ড"
 #: packages/admin/src/components/ContentTypeList.tsx:210
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1410
-#: packages/admin/src/components/TaxonomyManager.tsx:1463
+#: packages/admin/src/components/TaxonomyManager.tsx:1464
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Actions"
@@ -1885,7 +1885,7 @@ msgstr "{0}-এ উপলব্ধ"
 msgid "Available Providers"
 msgstr "উপলব্ধ প্রোভাইডার"
 
-#: packages/admin/src/components/Widgets.tsx:466
+#: packages/admin/src/components/Widgets.tsx:467
 msgid "Available Widgets"
 msgstr "উপলব্ধ উইজেট"
 
@@ -2853,7 +2853,7 @@ msgstr "সম্পন্ন"
 msgid "Complete signup"
 msgstr "সাইন আপ সম্পন্ন করুন"
 
-#: packages/admin/src/components/Widgets.tsx:931
+#: packages/admin/src/components/Widgets.tsx:933
 msgid "Component"
 msgstr "কম্পোনেন্ট"
 
@@ -2925,7 +2925,7 @@ msgstr "কনটেন্ট"
 #: packages/admin/src/components/PortableTextEditor.tsx:3104
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:591
-#: packages/admin/src/components/Widgets.tsx:899
+#: packages/admin/src/components/Widgets.tsx:901
 msgid "Content"
 msgstr "কনটেন্ট"
 
@@ -3259,7 +3259,7 @@ msgid "Couldn't verify how many values reference \"{0}\". Deleting will still re
 msgstr "\"{0}\"-কে কতগুলো মান রেফারেন্স করে তা যাচাই করা যায়নি। মুছে ফেললেও এই ফিল্ডের সব সংরক্ষিত মান সরানো হবে — কিন্তু ওপরের সংখ্যাটি যাচাই করা যায়নি।"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1408
-#: packages/admin/src/components/TaxonomyManager.tsx:1462
+#: packages/admin/src/components/TaxonomyManager.tsx:1463
 msgid "Count"
 msgstr "সংখ্যা"
 
@@ -3701,9 +3701,9 @@ msgstr "কোডে নির্ধারিত"
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:367
-#: packages/admin/src/components/TaxonomyManager.tsx:1533
-#: packages/admin/src/components/TaxonomyManager.tsx:1549
-#: packages/admin/src/components/Widgets.tsx:716
+#: packages/admin/src/components/TaxonomyManager.tsx:1535
+#: packages/admin/src/components/TaxonomyManager.tsx:1551
+#: packages/admin/src/components/Widgets.tsx:718
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:847
 msgid "Delete"
@@ -3729,7 +3729,7 @@ msgstr "“{0}” মুছবেন?"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:327
 #: packages/admin/src/components/TaxonomyManager.tsx:492
-#: packages/admin/src/components/Widgets.tsx:817
+#: packages/admin/src/components/Widgets.tsx:819
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
 msgstr "{0} মুছুন"
@@ -3745,13 +3745,13 @@ msgid "Delete {0} menu"
 msgstr "{0} মেনু মুছুন"
 
 #. placeholder {0}: area.label
-#: packages/admin/src/components/Widgets.tsx:664
+#: packages/admin/src/components/Widgets.tsx:666
 msgid "Delete {0} widget area"
 msgstr "{0} উইজেট এরিয়া মুছুন"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1529
+#: packages/admin/src/components/TaxonomyManager.tsx:1531
 #: packages/admin/src/routes/bylines.tsx:874
 msgid "Delete {0}?"
 msgstr "{0} মুছবেন?"
@@ -3889,11 +3889,11 @@ msgstr "ট্যাগ {0} মুছুন"
 msgid "Delete taxonomy"
 msgstr "ট্যাক্সোনমি মুছুন"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1547
+#: packages/admin/src/components/TaxonomyManager.tsx:1549
 msgid "Delete Taxonomy"
 msgstr "ট্যাক্সোনমি মুছুন"
 
-#: packages/admin/src/components/Widgets.tsx:714
+#: packages/admin/src/components/Widgets.tsx:716
 msgid "Delete Widget Area?"
 msgstr "উইজেট এরিয়া মুছবেন?"
 
@@ -3902,7 +3902,7 @@ msgid "Deleted"
 msgstr "মুছে ফেলা হয়েছে"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1548
+#: packages/admin/src/components/TaxonomyManager.tsx:1550
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr "\"{0}\" মুছলে এর সব টার্মও সব ভাষায় মুছে যাবে, এবং এর অধীনে থাকা কনটেন্ট থেকে সেই টার্মগুলো সরিয়ে দেওয়া হবে। এন্ট্রিগুলো নিজেরা থেকে যাবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।"
 
@@ -3923,9 +3923,9 @@ msgstr "\"{0}\" মুছলে সব বাইলাইন থেকে {1, pl
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:368
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
-#: packages/admin/src/components/TaxonomyManager.tsx:1550
-#: packages/admin/src/components/Widgets.tsx:717
+#: packages/admin/src/components/TaxonomyManager.tsx:1536
+#: packages/admin/src/components/TaxonomyManager.tsx:1552
+#: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/bylines.tsx:877
 msgid "Deleting..."
 msgstr "মোছা হচ্ছে..."
@@ -4318,7 +4318,7 @@ msgstr "ফাইল এখানে টেনে এনে ছাড়ুন"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "টেনে এনে ছাড়ুন অথবা ব্রাউজ করতে ক্লিক করুন (.xml)"
 
-#: packages/admin/src/components/Widgets.tsx:700
+#: packages/admin/src/components/Widgets.tsx:702
 msgid "Drag here to add"
 msgstr "যোগ করতে এখানে টেনে আনুন"
 
@@ -4329,7 +4329,7 @@ msgstr "ক্রম পরিবর্তন করতে টানুন"
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:922
-#: packages/admin/src/components/Widgets.tsx:802
+#: packages/admin/src/components/Widgets.tsx:804
 msgid "Drag to reorder {0}"
 msgstr "{0}-এর ক্রম পরিবর্তন করতে টানুন"
 
@@ -4342,11 +4342,11 @@ msgstr "{label}-এর ক্রম পরিবর্তন করতে টা
 msgid "Drag to reorder block"
 msgstr "ব্লকের ক্রম পরিবর্তন করতে টানুন"
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:706
 msgid "Drag widgets here to add them"
 msgstr "উইজেট যোগ করতে এখানে টেনে আনুন"
 
-#: packages/admin/src/components/Widgets.tsx:467
+#: packages/admin/src/components/Widgets.tsx:468
 msgid "Drag widgets into an area to add them"
 msgstr "উইজেট যোগ করতে সেগুলো কোনো এরিয়ায় টেনে আনুন"
 
@@ -4366,7 +4366,7 @@ msgstr "আপলোড করতে ফাইল ছাড়ুন"
 msgid "Drop one image at a time."
 msgstr "একবারে একটি ছবি ছাড়ুন।"
 
-#: packages/admin/src/components/Widgets.tsx:700
+#: packages/admin/src/components/Widgets.tsx:702
 msgid "Drop to add widget"
 msgstr "উইজেট যোগ করতে ছাড়ুন"
 
@@ -4838,7 +4838,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:234
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1207
-#: packages/admin/src/components/Widgets.tsx:769
+#: packages/admin/src/components/Widgets.tsx:771
 #: packages/admin/src/router.tsx:3138
 msgid "Error"
 msgstr "ত্রুটি"
@@ -4855,7 +4855,7 @@ msgstr "উইজেটের ক্রম পরিবর্তন করতে
 msgid "Error saving section"
 msgstr "সেকশন সংরক্ষণ করতে ত্রুটি হয়েছে"
 
-#: packages/admin/src/components/Widgets.tsx:784
+#: packages/admin/src/components/Widgets.tsx:786
 msgid "Error updating widget"
 msgstr "উইজেট আপডেট করতে ত্রুটি হয়েছে"
 
@@ -7219,7 +7219,7 @@ msgid "Loading setup..."
 msgstr "সেটআপ লোড হচ্ছে..."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1396
-#: packages/admin/src/components/TaxonomyManager.tsx:1467
+#: packages/admin/src/components/TaxonomyManager.tsx:1468
 msgid "Loading terms..."
 msgstr "টার্ম লোড হচ্ছে..."
 
@@ -7578,7 +7578,7 @@ msgid "Medium section heading"
 msgstr "মাঝারি সেকশন হেডিং"
 
 #: packages/admin/src/components/Widgets.tsx:104
-#: packages/admin/src/components/Widgets.tsx:914
+#: packages/admin/src/components/Widgets.tsx:916
 msgid "Menu"
 msgstr "মেনু"
 
@@ -7933,7 +7933,7 @@ msgstr "আমার দারুণ ব্লগ"
 #: packages/admin/src/components/TaxonomyManager.tsx:781
 #: packages/admin/src/components/TaxonomyManager.tsx:1045
 #: packages/admin/src/components/TaxonomyManager.tsx:1407
-#: packages/admin/src/components/TaxonomyManager.tsx:1461
+#: packages/admin/src/components/TaxonomyManager.tsx:1462
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:430
@@ -8118,7 +8118,7 @@ msgstr "এখনও কোনো {0} নেই।"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #: packages/admin/src/components/TaxonomyManager.tsx:1399
-#: packages/admin/src/components/TaxonomyManager.tsx:1470
+#: packages/admin/src/components/TaxonomyManager.tsx:1471
 msgid "No {0} yet. Create one to get started."
 msgstr "এখনও কোনো {0} নেই। শুরু করতে একটি তৈরি করুন।"
 
@@ -8486,7 +8486,7 @@ msgstr "আপনার ফিল্টারের সাথে মেলে �
 msgid "No users yet."
 msgstr "এখনও কোনো ব্যবহারকারী নেই।"
 
-#: packages/admin/src/components/Widgets.tsx:504
+#: packages/admin/src/components/Widgets.tsx:505
 msgid "No widget areas yet. Create one to get started."
 msgstr "এখনও কোনো উইজেট এলাকা নেই। শুরু করতে একটি তৈরি করুন।"
 
@@ -10323,7 +10323,7 @@ msgstr "নমুনা কনটেন্ট"
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:32
-#: packages/admin/src/components/Widgets.tsx:983
+#: packages/admin/src/components/Widgets.tsx:985
 #: packages/admin/src/routes/bylines.tsx:859
 msgid "Save"
 msgstr "সংরক্ষণ করুন"
@@ -10411,7 +10411,7 @@ msgstr ""
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/TaxonomyManager.tsx:889
 #: packages/admin/src/components/users/UserDetail.tsx:311
-#: packages/admin/src/components/Widgets.tsx:983
+#: packages/admin/src/components/Widgets.tsx:985
 #: packages/admin/src/routes/bylines.tsx:859
 msgid "Saving..."
 msgstr "সংরক্ষণ করা হচ্ছে..."
@@ -10832,7 +10832,7 @@ msgstr "{title} নির্বাচন করুন"
 msgid "Select a collection"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:956
+#: packages/admin/src/components/Widgets.tsx:958
 msgid "Select a component..."
 msgstr "একটি কম্পোনেন্ট নির্বাচন করুন..."
 
@@ -10845,7 +10845,7 @@ msgstr ""
 msgid "Select a location"
 msgstr "একটি লোকেশন নির্বাচন করুন"
 
-#: packages/admin/src/components/Widgets.tsx:919
+#: packages/admin/src/components/Widgets.tsx:921
 msgid "Select a menu..."
 msgstr "একটি মেনু নির্বাচন করুন..."
 
@@ -11752,7 +11752,7 @@ msgstr ""
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "ট্যাক্সোনমি “{0}” এই সাইটের কনটেন্টে ব্যবহৃত হচ্ছে"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1561
+#: packages/admin/src/components/TaxonomyManager.tsx:1563
 msgid "Taxonomy created"
 msgstr "ট্যাক্সোনমি তৈরি হয়েছে"
 
@@ -11790,7 +11790,7 @@ msgstr "টেমপ্লেট:"
 #: packages/admin/src/components/TaxonomyManager.tsx:760
 #: packages/admin/src/components/TaxonomyManager.tsx:761
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
-#: packages/admin/src/components/TaxonomyManager.tsx:1529
+#: packages/admin/src/components/TaxonomyManager.tsx:1531
 msgid "Term"
 msgstr "টার্ম"
 
@@ -12559,7 +12559,7 @@ msgstr "এই আপডেটটি প্রমাণীকরণ ছাড়
 msgid "This version is not visible on the site"
 msgstr "এই সংস্করণটি সাইটে দৃশ্যমান নয়"
 
-#: packages/admin/src/components/Widgets.tsx:715
+#: packages/admin/src/components/Widgets.tsx:717
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "এটি উইজেট এরিয়া এবং এর সব উইজেট মুছে ফেলবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।"
 
@@ -12568,7 +12568,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "এটি আইটেমটিকে ট্র্যাশে সরিয়ে দেবে। পরে আপনি ট্র্যাশ থেকে এটি পুনরুদ্ধার করতে পারবেন।"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1531
+#: packages/admin/src/components/TaxonomyManager.tsx:1533
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "এটি \"{0}\" স্থায়ীভাবে মুছে ফেলবে এবং সব কনটেন্ট থেকে সরিয়ে দেবে।"
 
@@ -12606,7 +12606,7 @@ msgstr "টাইমজোন"
 #: packages/admin/src/components/ContentList.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
-#: packages/admin/src/components/Widgets.tsx:891
+#: packages/admin/src/components/Widgets.tsx:893
 msgid "Title"
 msgstr "শিরোনাম"
 
@@ -12987,8 +12987,8 @@ msgstr "শিরোনামহীন"
 msgid "Untitled file"
 msgstr "শিরোনামহীন ফাইল"
 
-#: packages/admin/src/components/Widgets.tsx:536
-#: packages/admin/src/components/Widgets.tsx:809
+#: packages/admin/src/components/Widgets.tsx:538
+#: packages/admin/src/components/Widgets.tsx:811
 msgid "Untitled Widget"
 msgstr "শিরোনামহীন উইজেট"
 
@@ -13653,8 +13653,8 @@ msgstr "এটি কেন গুরুত্বপূর্ণ?"
 msgid "Wide"
 msgstr "প্রশস্ত"
 
-#: packages/admin/src/components/Widgets.tsx:802
-#: packages/admin/src/components/Widgets.tsx:817
+#: packages/admin/src/components/Widgets.tsx:804
+#: packages/admin/src/components/Widgets.tsx:819
 msgid "widget"
 msgstr "উইজেট"
 
@@ -13666,7 +13666,7 @@ msgstr "উইজেট যোগ করা হয়েছে"
 msgid "Widget area created"
 msgstr "উইজেট এরিয়া তৈরি হয়েছে"
 
-#: packages/admin/src/components/Widgets.tsx:645
+#: packages/admin/src/components/Widgets.tsx:647
 msgid "Widget area deleted"
 msgstr "উইজেট এরিয়া মুছে ফেলা হয়েছে"
 
@@ -13674,15 +13674,15 @@ msgstr "উইজেট এরিয়া মুছে ফেলা হয়�
 msgid "Widget areas"
 msgstr "উইজেট এরিয়া"
 
-#: packages/admin/src/components/Widgets.tsx:765
+#: packages/admin/src/components/Widgets.tsx:767
 msgid "Widget deleted"
 msgstr "উইজেট মুছে ফেলা হয়েছে"
 
-#: packages/admin/src/components/Widgets.tsx:894
+#: packages/admin/src/components/Widgets.tsx:896
 msgid "Widget title"
 msgstr "উইজেটের শিরোনাম"
 
-#: packages/admin/src/components/Widgets.tsx:780
+#: packages/admin/src/components/Widgets.tsx:782
 msgid "Widget updated"
 msgstr "উইজেট আপডেট করা হয়েছে"
 
@@ -13745,7 +13745,7 @@ msgstr "{selectedCount}টি আইটেমে কাজ চলছে…"
 msgid "Working…"
 msgstr "কাজ চলছে…"
 
-#: packages/admin/src/components/Widgets.tsx:904
+#: packages/admin/src/components/Widgets.tsx:906
 msgid "Write widget content..."
 msgstr "উইজেটের কনটেন্ট লিখুন..."
 

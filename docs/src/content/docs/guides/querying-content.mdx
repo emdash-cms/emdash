@@ -183,7 +183,7 @@ import { getEmDashCollection } from "emdash";
 
 const parsedPage = Number(Astro.params.page ?? "1");
 if (!Number.isInteger(parsedPage) || parsedPage < 1) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 
 const perPage = 10;
@@ -221,7 +221,7 @@ import { decodeSlug, getEmDashEntry } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, isPreview, cacheHint } = await getEmDashEntry("posts", slug);
 
@@ -230,7 +230,7 @@ if (error) {
   return new Response("Unable to load post", { status: 500 });
 }
 
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
@@ -262,7 +262,7 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug, {
   references: { author: true, related_posts: { limit: 6 } },
 });
 
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 
 const author = post.references?.author.entries[0];
 ---
