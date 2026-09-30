@@ -144,7 +144,10 @@ describe("slug pattern attributes are valid v-flag regexes (issue #845)", () => 
 				<Widgets />
 			</Wrapper>,
 		);
-		await screen.getByText("Add Widget Area").click();
+		await screen
+			.getByRole("region", { name: "Widget areas" })
+			.getByRole("button", { name: "Add widget area" })
+			.click();
 		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
 		expectAllPatternsValidV();
 	});
