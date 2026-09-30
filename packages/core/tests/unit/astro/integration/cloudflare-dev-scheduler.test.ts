@@ -228,6 +228,22 @@ describe("Cloudflare dev scheduler", () => {
 		);
 	});
 
+	it.each(["/docs/", "/docs", "/nested/docs/"])("preserves the dev base path %s", async (base) => {
+		vi.useFakeTimers();
+		const httpServer = createServer(`https://dev.example.test:7443${base}`);
+		const fetchScheduled = vi.fn(async () => new Response(null, { status: 204 }));
+		startCloudflareDevScheduler(
+			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
+			{ warn: vi.fn() },
+			{ intervalMs: 1_000, fetch: fetchScheduled },
+		);
+		httpServer.emit("listening");
+		await vi.advanceTimersByTimeAsync(1_000);
+		expect(String(fetchScheduled.mock.calls[0]?.[0])).toBe(
+			`https://dev.example.test:7443${base.replace(/\/$/, "")}/_emdash/api/dev/scheduled-tasks`,
+		);
+	});
+
 	it("does not dispatch custom generalCron or unrelated application scheduled jobs", async () => {
 		vi.useFakeTimers();
 		const httpServer = createServer();

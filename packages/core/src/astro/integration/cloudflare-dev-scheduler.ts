@@ -96,7 +96,8 @@ export function startCloudflareDevScheduler(
 				return;
 			}
 
-			const url = new URL("/_emdash/api/dev/scheduled-tasks", origin);
+			const base = origin.endsWith("/") ? origin : `${origin}/`;
+			const url = new URL("_emdash/api/dev/scheduled-tasks", base);
 			const response = options.fetch
 				? await options.fetch(url, { method: "POST" })
 				: await postMaintenance(url, server.config?.server.https);
