@@ -115,6 +115,8 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 	const code = embed.src ? iframeEmbedToCode(embed) : "";
 	// Blocks from the API or clipboard skip the Code tab's checks.
 	const url = httpsUrl(embed.src);
+	// A frame reads its permissions only when it loads, so changing them reloads it.
+	const previewKey = `${url?.href} ${iframeAllow(embed.allow)} ${embed.allowFullscreen === true}`;
 	const errorId = React.useId();
 
 	const [tab, setTab] = React.useState(() => (embed.src ? "preview" : "code"));
@@ -202,7 +204,7 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 		>
 			{tab === "preview" ? (
 				url ? (
-					<IframePreview key={url.href} embed={embed} url={url} />
+					<IframePreview key={previewKey} embed={embed} url={url} />
 				) : (
 					<p className="py-6 text-center text-sm text-kumo-subtle">{t`Nothing to preview yet.`}</p>
 				)
