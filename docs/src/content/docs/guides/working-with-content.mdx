@@ -82,7 +82,8 @@ The block's menu sets how your site renders it:
 
 - **Isolated frame** runs the block's HTML, CSS and JavaScript in a sandboxed frame that grows with
   its content. The frame can't read your site's cookies, storage or pages, and your site's styles
-  don't reach it. New HTML blocks use this mode.
+  don't reach it. After a visitor clicks inside the frame, it can open other pages in the visitor's
+  tab or a new one. New HTML blocks use this mode.
 - **Inline** puts the HTML into the page, where it uses your site's styles. Your site removes
   scripts, `<style>` elements and `style` attributes, and empties iframes from sites other than
   YouTube and Vimeo, so an inline block has no **CSS** or **JS** tab.
@@ -92,8 +93,8 @@ matters for search in paragraphs or an inline block.
 
 <Aside>
 	In a deployed admin, previews follow the admin's security policy, which blocks scripts, styles,
-	fonts, frames and requests from other sites. A note below the preview says when this happens. Your
-	site can still load them.
+	fonts, frames and other resources from other sites, but not images. A note below the preview says
+	when this happens. Your site can still load them.
 </Aside>
 
 ## Save draft changes
