@@ -354,7 +354,6 @@ const PR_WEBHOOK_REFRESH_DELAY_MS = 15 * 1000;
 const LABEL_RECONCILE_INTERVAL_MS = 15 * 60 * 1000;
 const RECOVERY_RETRY_BASE_MS = 60_000;
 const RECOVERY_RETRY_MAX_MS = 60 * 60_000;
-const RECOVERY_RETRY_LIMIT = 8;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
@@ -515,7 +514,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			}
 
 			const entry = { id: crypto.randomUUID(), input } satisfies InboxEntry;
-			await transaction.put(STORAGE.inbox, [...(inbox ?? []), entry]);
+			await Promise.all([
+				transaction.put(STORAGE.inbox, [...(inbox ?? []), entry]),
+				transaction.delete(STORAGE.recoveryRetry),
+				transaction.delete(STORAGE.recoveryTerminal),
+			]);
 			return { outcome: { kind: "admitted", id: entry.id } as const, rearm: true };
 		});
 		if (rearm) await this.ctx.storage.setAlarm(Date.now());
@@ -1237,13 +1240,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 	private async processTick(): Promise<TickOutcome> {
 		const now = Date.now();
 		await this.ctx.storage.put(STORAGE.lastTickAt, now);
-		const [githubRetryAt, publicationRetryAt, recoveryTerminal] = await Promise.all([
+		const [githubRetryAt, publicationRetryAt] = await Promise.all([
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
 			this.ctx.storage.get<number>(STORAGE.publicationRetryAt),
-			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
 		]);
 		if (
-			recoveryTerminal ||
 			(githubRetryAt !== undefined && githubRetryAt > now) ||
 			(publicationRetryAt !== undefined && publicationRetryAt > now)
 		) {
@@ -1253,7 +1254,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				inboxError: null,
 				sentDeadlineWarning: false,
 				droppedStaleRun: false,
-				recoveryError: recoveryTerminal ? "recovery retry limit exhausted" : null,
+				recoveryError: null,
 				labelDrift: null,
 				expiredReporterWait: false,
 				previewPoll: "idle",
@@ -1444,21 +1445,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const nextAt =
 			now +
 			Math.min(RECOVERY_RETRY_MAX_MS, RECOVERY_RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1));
-		if (attempts >= RECOVERY_RETRY_LIMIT) {
-			await Promise.all([
-				this.ctx.storage.put<RecoveryTerminal>(STORAGE.recoveryTerminal, {
-					path,
-					attempts,
-					terminalAt: now,
-					errorKind: "recovery-error",
-				}),
-				this.ctx.storage.delete(STORAGE.recoveryRetry),
-				this.ctx.storage.delete(STORAGE.githubRetryAt),
-				this.ctx.storage.deleteAlarm(),
-			]);
-			console.error(JSON.stringify({ message: "orchestrator recovery exhausted", path, attempts }));
-			return nextAt;
-		}
 		await this.ctx.storage.put<RecoveryRetry>(STORAGE.recoveryRetry, { path, attempts, nextAt });
 		console.warn(
 			JSON.stringify({
@@ -1873,12 +1859,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<AnchorTerminal>(STORAGE.anchorTerminal),
 		]);
 		const now = Date.now();
-		if (recoveryTerminal || anchorTerminal) {
-			await this.cleanupSchedulingState(
-				recoveryTerminal ? "recovery-exhausted" : "anchor-terminal",
-			);
+		if (anchorTerminal) {
+			await this.cleanupSchedulingState("anchor-terminal");
 			return false;
 		}
+		if (recoveryTerminal) await this.ctx.storage.delete(STORAGE.recoveryTerminal);
 		const activeRun = run?.status === "running" ? run : null;
 		const runStartedAt = activeRun?.startedAt ?? legacyRunStartedAt;
 		const runMode = activeRun?.mode ?? legacyRunMode;
