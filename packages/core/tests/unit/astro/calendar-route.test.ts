@@ -72,4 +72,11 @@ describe("GET /_emdash/api/calendar", () => {
 			});
 		}
 	});
+
+	it("rejects a malformed cursor", async () => {
+		const response = await GET(context(Role.EDITOR, `${march}&cursor=not-a-cursor`));
+
+		expect(response.status).toBe(400);
+		await expect(response.json()).resolves.toMatchObject({ error: { code: "INVALID_CURSOR" } });
+	});
 });

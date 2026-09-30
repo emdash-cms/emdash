@@ -177,6 +177,9 @@ describeEachDialect("calendar handler", (dialect) => {
 			encodeCursor("2030-03-03T10:00:00.000Z", "id"),
 			encodeCursor("2030-03-03T10:00:00.000Z|post|draft", "id"),
 			encodeCursor("2030-03-03T10:00:00.000Z|Posts!|published", "id"),
+			encodeCursor("2030-03-03T10:00:00.000Z|post|published", ""),
+			encodeCursor("zzzz|post|published", "id"),
+			encodeCursor("2030-03-03T10:00:00Z|post|published", "id"),
 		];
 
 		for (const cursor of cursors) {

@@ -82,17 +82,26 @@ function isKind(value: string | undefined): value is CalendarEntryKind {
 	return value === "published" || value === "scheduled";
 }
 
+/** Stored timestamps are canonical `toISOString()` values. */
+function isCanonicalTime(value: string): boolean {
+	const time = Date.parse(value);
+	return !Number.isNaN(time) && new Date(time).toISOString() === value;
+}
+
 function encodeCalendarCursor(entry: CalendarEntry): string {
 	return encodeCursor(`${entry.at}|${entry.collection}|${entry.kind}`, entry.id);
 }
 
 function decodeCalendarCursor(cursor: string): CalendarCursor {
 	const { orderValue, id } = decodeCursor(cursor);
-	const parts = orderValue.split("|");
-	const kind = parts.pop();
-	const collection = parts.pop();
-	const at = parts.join("|");
-	if (!isKind(kind) || !collection || !SLUG_PATTERN.test(collection) || !at || !id) {
+	const [at = "", collection = "", kind, ...rest] = orderValue.split("|");
+	if (
+		rest.length > 0 ||
+		!isCanonicalTime(at) ||
+		!SLUG_PATTERN.test(collection) ||
+		!isKind(kind) ||
+		!id
+	) {
 		throw new InvalidCursorError(cursor);
 	}
 	return { at, collection, kind, id };
