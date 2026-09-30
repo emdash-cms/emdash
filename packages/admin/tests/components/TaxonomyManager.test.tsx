@@ -381,7 +381,9 @@ describe("TaxonomyManager", () => {
 
 	it("wraps the hierarchical term list in a horizontally scrollable container", async () => {
 		mockApiFetch(hierarchicalTermsResponse);
-		const screen = await render(<TaxonomyManager taxonomyName="categories" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
 
 		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
 
