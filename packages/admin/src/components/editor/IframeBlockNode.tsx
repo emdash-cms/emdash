@@ -133,16 +133,18 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 	const flush = React.useCallback((): boolean => {
 		window.clearTimeout(timer.current);
 		const text = pending.current;
-		pending.current = null;
 		if (text === null) return false;
 		const result = parseIframeInput(text);
 		valid.current = result.ok;
 		if (!result.ok) {
+			pending.current = null;
 			setError(result.reason);
 			return false;
 		}
 		setError(null);
+		// Input that can't be written now waits for the next flush.
 		if (editor.isDestroyed || !editor.isEditable || typeof getPos() !== "number") return false;
+		pending.current = null;
 		known.current = result.embed ? iframeEmbedToCode(result.embed) : "";
 		updateAttributes(iframeEmbedAttrs(result.embed));
 		return true;

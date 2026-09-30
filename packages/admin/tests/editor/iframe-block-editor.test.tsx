@@ -95,6 +95,19 @@ describe("Iframe block editor", () => {
 		);
 	});
 
+	it("saves a link that waited while the editor was read-only", async () => {
+		const { screen, editor, pm, latest } = await renderEditor();
+		await insertFromSlashMenu(pm);
+		await userEvent.keyboard("https://example.com/map");
+		editor.setEditable(false);
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		editor.setEditable(true);
+
+		await screen.getByRole("tab", { name: "Preview" }).click();
+
+		await vi.waitFor(() => expect(frames(latest())[0]?.src).toBe("https://example.com/map"));
+	});
+
 	it("shows why input is rejected and keeps the saved embed", async () => {
 		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
 		const { screen, latest } = await renderEditor({ value: [saved] });
