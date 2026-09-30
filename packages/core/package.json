@@ -57,6 +57,7 @@
     "./ui": "./src/ui.ts",
     "./ui/comments": "./src/ui-comments.ts",
     "./ui/search": "./src/components/LiveSearch.astro",
+    "./ui/webmcp-search": "./src/components/WebMcpSearch.astro",
     "./cli": {
       "types": "./dist/cli/index.d.mts",
       "default": "./dist/cli/index.mjs"
