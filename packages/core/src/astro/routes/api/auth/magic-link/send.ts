@@ -2,7 +2,9 @@
  * POST /_emdash/api/auth/magic-link/send
  *
  * Send a magic link email for passwordless authentication.
- * Always returns success to avoid revealing whether email exists.
+ * Returns success whether or not the email exists, to avoid revealing it.
+ * Returns 403 TURNSTILE_FAILED when Turnstile is enabled and the token is
+ * missing or invalid.
  *
  * Rate limited: 3 requests per 5 minutes per IP. Requires a Turnstile token
  * when `EMDASH_TURNSTILE_SITE_KEY` and a Turnstile secret key are set.
