@@ -2,7 +2,9 @@
  * POST /_emdash/api/auth/signup/request
  *
  * Request self-signup. Sends verification email if domain is allowed.
- * Always returns 200 to prevent email enumeration.
+ * Returns 200 whether or not the domain is allowed, to prevent email
+ * enumeration. Returns 403 TURNSTILE_FAILED when Turnstile is enabled and the
+ * token is missing or invalid.
  *
  * Rate limited: 3 requests per 5 minutes per IP. Mirrors magic-link/send,
  * including the Turnstile check.
