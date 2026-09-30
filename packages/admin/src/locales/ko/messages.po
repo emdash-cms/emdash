@@ -265,12 +265,12 @@ msgstr ""
 #. placeholder {0}: stats.mediaCount
 #: packages/admin/src/components/Dashboard.tsx:393
 msgid "{0, plural, one {Media file} other {Media files}}"
-msgstr ""
+msgstr "{0, plural, one {미디어 파일} other {미디어 파일}}"
 
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:206
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr ""
+msgstr "{0, plural, one {차단된 항목 1개가 더 있지만 표시되지 않습니다.} other {차단된 항목 #개가 더 있지만 표시되지 않습니다.}}"
 
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:248
@@ -285,7 +285,7 @@ msgstr ""
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:397
 msgid "{0, plural, one {User} other {Users}}"
-msgstr ""
+msgstr "{0, plural, one {사용자} other {사용자}}"
 
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
@@ -625,11 +625,11 @@ msgstr "{needsNewFields, plural, one {기존 컬렉션 #개에 필드가 추가�
 
 #: packages/admin/src/components/Dashboard.tsx:146
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, one {예약 항목 1개의 게시 예정 시각이 지났으며 스케줄러 하트비트가 오래 갱신되지 않았습니다. `npx emdash doctor`를 실행하고 배포된 Cron Trigger를 확인하세요.} other {예약 항목 #개의 게시 예정 시각이 지났으며 스케줄러 하트비트가 오래 갱신되지 않았습니다. `npx emdash doctor`를 실행하고 배포된 Cron Trigger를 확인하세요.}}"
 
 #: packages/admin/src/components/Dashboard.tsx:141
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, one {예약 항목 1개의 게시 예정 시각이 지났지만 스케줄러 실행이 한 번도 완료되지 않았습니다. `npx emdash doctor`를 실행하고 배포된 Cron Trigger를 확인하세요.} other {예약 항목 #개의 게시 예정 시각이 지났지만 스케줄러 실행이 한 번도 완료되지 않았습니다. `npx emdash doctor`를 실행하고 배포된 Cron Trigger를 확인하세요.}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:287
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
@@ -655,7 +655,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:160
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr ""
+msgstr "{policyRejected, plural, one {해당 항목을 열어 정책에 따라 차단된 원인을 해결한 뒤 다시 게시를 예약하세요. 예약하거나 게시하는 데 성공하면 이 알림이 사라집니다.} other {해당 항목들을 열어 정책에 따라 차단된 원인을 해결한 뒤 다시 게시를 예약하세요. 각 항목을 예약하거나 게시하는 데 성공하면 해당 알림이 사라집니다.}}"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:304
 msgid "{position} of {total}"
@@ -716,11 +716,11 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:381
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
-msgstr ""
+msgstr "{totalDrafts, plural, one {초안} other {초안}}"
 
 #: packages/admin/src/components/Dashboard.tsx:387
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
-msgstr ""
+msgstr "{totalScheduled, plural, one {예약됨} other {예약됨}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:373
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
@@ -2155,7 +2155,7 @@ msgstr ""
 
 #: packages/admin/src/components/Sidebar.tsx:462
 msgid "Byline Schema"
-msgstr ""
+msgstr "저자 정보 스키마"
 
 #: packages/admin/src/routes/bylines.tsx:372
 msgid "Byline updated"
@@ -3155,7 +3155,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:302
 msgid "Could not load dashboard data"
-msgstr ""
+msgstr "대시보드 데이터를 불러오지 못했습니다"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:662
 msgid "Could not load image from URL"
@@ -4110,7 +4110,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:107
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
-msgstr "무시"
+msgstr "닫기"
 
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:143
@@ -4119,7 +4119,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:286
 msgid "Dismiss import suggestion"
-msgstr ""
+msgstr "가져오기 제안 닫기"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3893
 msgid "Dismiss section error"
@@ -5197,7 +5197,7 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:215
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
-msgstr ""
+msgstr "예약 게시 거부 알림을 닫지 못했습니다"
 
 #: packages/admin/src/components/WelcomeModal.tsx:76
 msgid "Failed to dismiss welcome"
@@ -6385,7 +6385,7 @@ msgstr "{0} 가져오기"
 
 #: packages/admin/src/components/Dashboard.tsx:278
 msgid "Import a site package"
-msgstr ""
+msgstr "사이트 패키지 가져오기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
@@ -7904,7 +7904,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:268
 msgid "Moving from another EmDash site?"
-msgstr ""
+msgstr "다른 EmDash 사이트에서 이전하시나요?"
 
 #: packages/admin/src/components/FieldEditor.tsx:425
 msgid "Multi Select"
@@ -9294,7 +9294,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:159
 msgid "Publication policy blocked scheduled content"
-msgstr ""
+msgstr "게시 정책에 따라 예약된 콘텐츠가 차단되었습니다"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:19
@@ -9617,7 +9617,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:303
 msgid "Refresh the page or try again."
-msgstr ""
+msgstr "페이지를 새로고침하거나 다시 시도하세요."
 
 #: packages/admin/src/components/ContentTypeList.tsx:176
 msgid "Register"
@@ -10462,7 +10462,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:223
 msgid "Scheduled publishing needs attention"
-msgstr ""
+msgstr "예약 게시 상태를 확인해야 합니다"
 
 #: packages/admin/src/components/WordPressImport.tsx:2342
 msgid "Schema Changes"
@@ -11576,7 +11576,7 @@ msgstr "상태 코드"
 
 #: packages/admin/src/components/Dashboard.tsx:581
 msgid "Status: {status}"
-msgstr ""
+msgstr "상태: {status}"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:115
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:419
@@ -11619,7 +11619,7 @@ msgstr "하위 필드"
 #: packages/admin/src/components/users/roleDefinitions.ts:18
 #: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Subscriber"
-msgstr "뷰어"
+msgstr "열람자"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4197
 msgid "Subscript"
@@ -12519,7 +12519,7 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:269
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
-msgstr ""
+msgstr "이 사이트에는 아직 콘텐츠가 없으므로 다른 EmDash 사이트에서 내보낸 .emdash 패키지를 가져올 수 있습니다."
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:55
 msgid "This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs."
@@ -13788,7 +13788,7 @@ msgstr "본인의 콘텐츠를 작성하고 수정할 수 있습니다."
 
 #: packages/admin/src/components/WelcomeModal.tsx:48
 msgid "You can manage content, media, menus, and taxonomies."
-msgstr "콘텐츠, 미디어, 메뉴, 택소노미를 관리할 수 있습니다."
+msgstr "콘텐츠, 미디어, 메뉴, 분류를 관리할 수 있습니다."
 
 #: packages/admin/src/routes/bylines.tsx:812
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
@@ -13957,7 +13957,7 @@ msgstr "이름(선택 사항)"
 
 #: packages/admin/src/components/WelcomeModal.tsx:46
 msgid "Your Role"
-msgstr "내 권한"
+msgstr "내 역할"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
