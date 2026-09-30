@@ -21,6 +21,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { getLocaleDir } from "../../locales/config.js";
 import type { CodeEditorLanguage } from "./CodeEditor";
 import { HtmlBlockPreview } from "./HtmlBlockPreview";
 
@@ -141,7 +142,7 @@ function CodeEditorLoadError() {
 }
 
 function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }: NodeViewProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const editable = editor.isEditable;
 	const isolated = node.attrs.isolated === true;
 	const values: Record<Field, string> = {
@@ -309,7 +310,10 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 
 	return (
 		<NodeViewWrapper className="html-block not-prose my-3" contentEditable={false}>
+			{/* The editor's content takes its direction from the text; the card's
+			    controls follow the interface, as their arrow keys already do. */}
 			<div
+				dir={getLocaleDir(i18n.locale)}
 				ref={cardRef}
 				className={cn(
 					"overflow-hidden rounded-lg border border-kumo-line bg-kumo-base focus-within:border-kumo-brand",

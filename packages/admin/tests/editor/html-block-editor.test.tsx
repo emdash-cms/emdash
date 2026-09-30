@@ -3,6 +3,7 @@
  * block menu, placement at the top level, focus and delayed writes.
  */
 
+import { i18n } from "@lingui/core";
 import { GapCursor } from "@tiptap/pm/gapcursor";
 import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
@@ -283,6 +284,25 @@ describe("HTML block editor", () => {
 		await vi.waitFor(() => expect(htmlBlocks(latest())[0]?.html).toBe("one"));
 		await pause(400);
 		expect(htmlBlocks(latest())[0]?.html).toBe("one");
+	});
+
+	it("lays out its controls in the interface direction, not the content's", async () => {
+		const previousLocale = i18n.locale;
+		const previousDir = document.documentElement.dir;
+		i18n.load("ar", {});
+		i18n.activate("ar");
+		document.documentElement.dir = "rtl";
+		try {
+			const saved: Block = { _type: "htmlBlock", _key: "saved", html: "<p>Saved</p>" };
+			const { screen } = await renderEditor({ value: [paragraph("text", "English"), saved] });
+
+			await vi.waitFor(() =>
+				expect(getComputedStyle(screen.getByRole("tablist").element()).direction).toBe("rtl"),
+			);
+		} finally {
+			document.documentElement.dir = previousDir;
+			i18n.activate(previousLocale);
+		}
 	});
 
 	it("shows read-only code and no menu when the editor is read-only", async () => {
