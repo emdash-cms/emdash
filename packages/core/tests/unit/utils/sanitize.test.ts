@@ -1,3 +1,4 @@
+import sanitizeHtml from "sanitize-html";
 import { describe, expect, it } from "vitest";
 
 import { sanitizeContent } from "../../../src/utils/sanitize.js";
@@ -48,5 +49,28 @@ describe("sanitizeContent", () => {
 		expect(sanitizeContent(html)).toBe(
 			'<img alt="x" /><iframe src="//www.youtube.com/embed/abc"></iframe><table><tbody><tr><td>Cell</td></tr></tbody></table>Fallback<a>Link</a>',
 		);
+	});
+
+	it("keeps and removes the same markup as sanitize-html's defaults", () => {
+		const html =
+			'<h2 id="a" class="b">Title</h2><p>Text <strong>bold</strong> <a href="https://example.com/" target="_blank">link</a> <a href="javascript:alert(1)">bad</a> <a href="mailto:a@example.com">mail</a></p>' +
+			'<ul><li>One</li></ul><table><tbody><tr><td>Cell</td></tr></tbody></table><span data-id="1">Span</span>' +
+			'<img src="https://example.com/a.png" alt="A" loading="lazy"><img src="data:image/png;base64,AA" alt="B">' +
+			'<iframe src="https://www.youtube.com/embed/abc" allowfullscreen></iframe><iframe src="https://evil.example/"></iframe>' +
+			'<video src="https://example.com/v.mp4">Video</video><audio>Audio</audio><form><input value="x"><button>Go</button></form>' +
+			"<canvas>Canvas</canvas><details><summary>More</summary>Body</details>" +
+			'<p style="color: red" onclick="steal()">Handlers</p><script>steal()</script><style>p { color: red; }</style>';
+		const defaults = sanitizeHtml(html, {
+			allowedTags: [...sanitizeHtml.defaults.allowedTags, "img", "span", "iframe"],
+			allowedAttributes: {
+				...sanitizeHtml.defaults.allowedAttributes,
+				"*": ["class", "id", "data-*"],
+				iframe: ["src", "width", "height", "frameborder", "allow", "allowfullscreen"],
+				img: ["src", "srcset", "alt", "title", "width", "height", "loading"],
+			},
+			allowedIframeHostnames: ["www.youtube.com", "player.vimeo.com"],
+		});
+
+		expect(sanitizeContent(html)).toBe(defaults);
 	});
 });

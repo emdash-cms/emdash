@@ -41,8 +41,10 @@ export function htmlBlockFields(source: object): HtmlBlockFields {
 }
 
 /**
- * What the site's sanitizer keeps in inline HTML blocks. The admin's inline
- * preview removes the same things, so it shows what the site renders.
+ * What the site's sanitizer keeps in inline HTML blocks: sanitize-html's
+ * default tags plus `img`, `span` and `iframe`. Changing it changes how
+ * existing inline blocks render. The admin's inline preview removes the same
+ * things, so it shows what the site renders.
  */
 export const SITE_HTML_ALLOWED_TAGS: readonly string[] = [
 	"address",
