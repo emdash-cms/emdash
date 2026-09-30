@@ -5,6 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 
+import { commandsFrom, STATES } from "../../.flue/lib/machine.js";
 import type { CommentDecision, Decision } from "../../.flue/lib/router.js";
 import {
 	classifierCommands,
@@ -137,6 +138,70 @@ describe("router", () => {
 		expect(decision.to).toBe(to);
 		expect(decision.action).toBe(action);
 	});
+
+	test.each([
+		{ state: "needs_attention", retryMode: "triage", to: "triaging", action: "investigate.triage" },
+		{
+			state: "needs_attention",
+			retryMode: "investigate",
+			to: "investigating",
+			action: "investigate.diagnose",
+		},
+		{ state: "reproduced", retryMode: "work", to: "working", action: "investigate.work" },
+		{ state: "reproduced", retryMode: "fix", to: "working", action: "investigate.work" },
+		{
+			state: "diagnosed",
+			retryMode: "investigate",
+			to: "investigating",
+			action: "investigate.diagnose",
+		},
+		{
+			state: "not_reproduced",
+			retryMode: "investigate",
+			to: "investigating",
+			action: "investigate.diagnose",
+		},
+		{ state: "needs_info", retryMode: "triage", to: "triaging", action: "investigate.triage" },
+		{
+			state: "awaiting_approval",
+			retryMode: "triage",
+			to: "triaging",
+			action: "investigate.triage",
+		},
+		{ state: "blocked", retryMode: "work", to: "working", action: "investigate.work" },
+	] as const)(
+		"retry in $state re-runs the last $retryMode run",
+		({ state, retryMode, to, action }) => {
+			expect(commandsFrom(state)).toContain("retry");
+			const decision = resolve({
+				labels: ["bot:bug", STATES[state].label],
+				event: "retry",
+				actor: "maintainer",
+				retryMode,
+			});
+
+			assertTransition(decision);
+			expect(decision.to).toBe(to);
+			expect(decision.action).toBe(action);
+		},
+	);
+
+	test.each(["work", "triage", "revise"] as const)(
+		"retry on an open PR repairs the PR after a $retryMode run",
+		(retryMode) => {
+			expect(commandsFrom("in_review")).toContain("retry");
+			const decision = resolve({
+				labels: ["bot:bug", "bot:in-review"],
+				event: "retry",
+				actor: "maintainer",
+				retryMode,
+			});
+
+			assertTransition(decision);
+			expect(decision.to).toBe("in_review");
+			expect(decision.action).toBe("investigate.revise");
+		},
+	);
 
 	test("failed retry keeps the repro fallback for read modes", () => {
 		const decision = resolve({

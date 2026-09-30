@@ -343,6 +343,37 @@ describe("OrchestratorDO (workers-pool)", () => {
 		},
 	);
 
+	test("holds a retry sent during a run and applies it once the run settles", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "investigating",
+				"o:kind": "bug",
+			});
+		});
+		await stub.debugSetStaleRun("investigate-run", Date.now(), "investigate-42", "investigate");
+		await stub.enqueue(
+			makeEvent({ event: "retry", arg: null, anchorNumber: 42, deliveryId: "retry-during-run" }),
+		);
+		await stub.tick();
+		expect(await stub.getInboxDepth()).toBe(1);
+
+		await stub.applyAgentResult({
+			runId: "investigate-run",
+			result: { summary: "Sandbox crashed." },
+			pushed: false,
+			ok: false,
+		});
+		await stub.tick();
+
+		expect(await stub.getInboxDepth()).toBe(0);
+		expect((await stub.getPersistedState()).state).toBe("investigating");
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.deleteAlarm();
+		});
+	});
+
 	test("a revision before a PR exists still asks for reporter confirmation", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await runInDurableObject(stub, async (_instance, state) => {
@@ -1203,6 +1234,27 @@ describe("OrchestratorDO (workers-pool)", () => {
 		if (retry.kind === "transition") {
 			expect(retry.decision.action).toBe("investigate.work");
 		}
+	});
+
+	test("retry after a successful investigation re-runs the investigation", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: null, anchorNumber: 42 }));
+		await stub.debugSetStaleRun("investigate-run", Date.now(), undefined, "investigate");
+		await stub.applyAgentResult({
+			runId: "investigate-run",
+			result: { reproduced: true, summary: "The image field reads the wrong level." },
+			pushed: false,
+			ok: true,
+		});
+		expect((await stub.getPersistedState()).state).toBe("reproduced");
+
+		const retry = await stub.event(makeEvent({ event: "retry", arg: null, anchorNumber: 42 }));
+
+		expect(retry.kind).toBe("transition");
+		if (retry.kind === "transition") {
+			expect(retry.decision.action).toBe("investigate.diagnose");
+		}
+		expect((await stub.getPersistedState()).state).toBe("investigating");
 	});
 
 	test("a rejected implementation returns to a state where implement can be retried", async () => {

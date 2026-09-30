@@ -598,7 +598,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const retryMode =
 			previousRun?.status === "failed" || previousRun?.status === "timed_out"
 				? previousRun.mode
-				: failedRunMode;
+				: (failedRunMode ?? previousRun?.mode);
 		if (resolvedEvent === "retry" && resumableRun) resolvedEvent = "resume";
 
 		const decision = resolve({
@@ -1703,8 +1703,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			(candidate) =>
 				!(
 					runId &&
-					PR_FEEDBACK_EVENTS.has(candidate.input.event) &&
-					(candidate.input.pullRequestNumber || candidate.input.event === "needs_changes")
+					(candidate.input.event === "retry" ||
+						(PR_FEEDBACK_EVENTS.has(candidate.input.event) &&
+							(candidate.input.pullRequestNumber || candidate.input.event === "needs_changes")))
 				),
 		);
 		if (!entry) return false;

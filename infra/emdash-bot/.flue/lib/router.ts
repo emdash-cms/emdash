@@ -197,7 +197,7 @@ export interface ResolveInput {
 	retryMode?: InvestigationMode;
 }
 
-function failedWriteRetry(mode: InvestigationMode | undefined): {
+function lastRunRetry(mode: InvestigationMode | undefined): {
 	to: StateId;
 	action: string;
 } | null {
@@ -263,11 +263,10 @@ export function resolve({
 	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
-	const retry =
-		event === "retry" &&
-		(from === "failed" || (from === "needs_attention" && retryMode === "revise"))
-			? failedWriteRetry(retryMode)
-			: null;
+	// Only the legacy `failed` state re-runs legacy write modes; elsewhere they retry as `work`.
+	const isLegacyWrite = retryMode === "implement" || retryMode === "fix";
+	const effectiveRetryMode = isLegacyWrite && from !== "failed" ? "work" : retryMode;
+	const retry = event === "retry" && from !== "in_review" ? lastRunRetry(effectiveRetryMode) : null;
 	const to =
 		event === "resume" && resumeState
 			? resumeState

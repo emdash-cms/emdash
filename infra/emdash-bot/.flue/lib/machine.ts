@@ -211,7 +211,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Triage found useful work that needs a maintainer decision before the bot continues.",
 		terminal: false,
-		offeredCommands: ["work", "triage", "investigate", "decline", "take_over"],
+		offeredCommands: ["retry", "work", "triage", "investigate", "decline", "take_over"],
 	},
 	working: {
 		label: "bot:working",
@@ -253,7 +253,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
 		terminal: false,
-		offeredCommands: ["work", "decline", "take_over"],
+		offeredCommands: ["retry", "work", "decline", "take_over"],
 		defaultCommentEvent: "work",
 	},
 	human_owned: {
@@ -334,7 +334,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
 		terminal: false,
-		offeredCommands: ["work", "investigate", "decline", "take_over"],
+		offeredCommands: ["retry", "work", "investigate", "decline", "take_over"],
 	},
 	diagnosed: {
 		label: "bot:diagnosed",
@@ -344,7 +344,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
 		terminal: false,
-		offeredCommands: ["work", "investigate", "decline", "take_over"],
+		offeredCommands: ["retry", "work", "investigate", "decline", "take_over"],
 	},
 	not_reproduced: {
 		label: "bot:not-reproduced",
@@ -355,7 +355,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
 		terminal: false,
-		offeredCommands: ["triage", "investigate", "decline", "take_over"],
+		offeredCommands: ["retry", "triage", "investigate", "decline", "take_over"],
 	},
 	needs_info: {
 		label: "bot:needs-info",
@@ -366,7 +366,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
 		terminal: false,
-		offeredCommands: ["triage", "work", "investigate", "decline", "take_over"],
+		offeredCommands: ["retry", "triage", "work", "investigate", "decline", "take_over"],
 	},
 	fixing: {
 		label: "bot:fixing",
@@ -560,10 +560,8 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		defaultKind: "bug",
 		legacy: true,
 	},
-	// NB: `retry` is always wired to `investigate.repro` in the transition
-	// table (we don't persist the previous run's mode), so the user-facing
-	// description has to say what it actually does. After `implement`/`revise`,
-	// re-issue the original command verb instead.
+	// The router replaces a `retry` transition's target and action with the
+	// last run's mode when one is known; the table entries are the fallback.
 	retry: {
 		description: "Retry the last triage, investigation, work, or PR repair run.",
 		actors: ["maintainer"],
@@ -926,6 +924,13 @@ export const TRANSITIONS: Transition[] = [
 		action: "investigate.revise",
 		note: "reporter feedback on the issue updates the attached PR",
 	},
+	{
+		from: "in_review",
+		event: "retry",
+		to: "in_review",
+		action: "investigate.revise",
+		note: "the attached PR is the work to retry",
+	},
 	{ from: "in_review", event: "pr.updated", to: "in_review" },
 	{
 		from: "in_review",
@@ -1095,6 +1100,16 @@ export const TRANSITIONS: Transition[] = [
 		action: "investigate.diagnose",
 		note: "re-diagnose",
 	},
+	{ from: "reproduced", event: "retry", to: "working", action: "investigate.work" },
+	{ from: "diagnosed", event: "retry", to: "working", action: "investigate.work" },
+	{
+		from: "not_reproduced",
+		event: "retry",
+		to: "investigating",
+		action: "investigate.diagnose",
+	},
+	{ from: "needs_info", event: "retry", to: "investigating", action: "investigate.diagnose" },
+	{ from: "awaiting_approval", event: "retry", to: "triaging", action: "investigate.triage" },
 	{ from: "not_reproduced", event: "triage", to: "triaging", action: "investigate.triage" },
 	{ from: "not_reproduced", event: "decline", to: "declined" },
 	{ from: "not_reproduced", event: "take_over", to: "human_owned" },

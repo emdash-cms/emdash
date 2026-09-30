@@ -90,6 +90,7 @@
 			"description": "Triage found useful work that needs a maintainer decision before the bot continues.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"work",
 				"triage",
 				"investigate",
@@ -150,6 +151,7 @@
 			"description": "A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"work",
 				"decline",
 				"take_over"
@@ -245,6 +247,7 @@
 			"description": "Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"work",
 				"investigate",
 				"decline",
@@ -259,6 +262,7 @@
 			"description": "Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"work",
 				"investigate",
 				"decline",
@@ -274,6 +278,7 @@
 			"description": "Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"triage",
 				"investigate",
 				"decline",
@@ -289,6 +294,7 @@
 			"description": "Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"triage",
 				"work",
 				"investigate",
@@ -1048,6 +1054,13 @@
 		},
 		{
 			"from": "in_review",
+			"event": "retry",
+			"to": "in_review",
+			"action": "investigate.revise",
+			"note": "the attached PR is the work to retry"
+		},
+		{
+			"from": "in_review",
 			"event": "pr.updated",
 			"to": "in_review"
 		},
@@ -1391,6 +1404,36 @@
 			"to": "investigating",
 			"action": "investigate.diagnose",
 			"note": "re-diagnose"
+		},
+		{
+			"from": "reproduced",
+			"event": "retry",
+			"to": "working",
+			"action": "investigate.work"
+		},
+		{
+			"from": "diagnosed",
+			"event": "retry",
+			"to": "working",
+			"action": "investigate.work"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "retry",
+			"to": "investigating",
+			"action": "investigate.diagnose"
+		},
+		{
+			"from": "needs_info",
+			"event": "retry",
+			"to": "investigating",
+			"action": "investigate.diagnose"
+		},
+		{
+			"from": "awaiting_approval",
+			"event": "retry",
+			"to": "triaging",
+			"action": "investigate.triage"
 		},
 		{
 			"from": "not_reproduced",
