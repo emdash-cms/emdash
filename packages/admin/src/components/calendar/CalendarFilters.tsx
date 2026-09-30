@@ -136,7 +136,8 @@ export function CalendarFilters({
 			/>
 			<DropdownMenu.Content
 				align="end"
-				className="max-h-[min(32rem,var(--available-height))] w-[max(15rem,var(--anchor-width))] overflow-y-auto"
+				// Kumo's menu animates on Radix's data-state, which Base UI never sets, so this uses its popover transition.
+				className="max-h-[min(32rem,var(--available-height))] w-[max(15rem,var(--anchor-width))] origin-(--transform-origin) overflow-y-auto transition-[transform,scale,opacity] duration-150 data-ending-style:scale-90 data-ending-style:opacity-0 data-instant:duration-0 data-starting-style:scale-90 data-starting-style:opacity-0 motion-reduce:transition-none"
 			>
 				{groups.map((group, index) => {
 					const selected: readonly string[] = value[group.key];
