@@ -16,12 +16,13 @@ afterEach(() => {
 
 describe("Cloudflare dev scheduler", () => {
 	it.each([
+		{ matching: true, format: "unconfigured" },
 		{ matching: true, format: "pem" },
 		{ matching: false, format: "pem" },
 		{ matching: true, format: "pfx" },
 		{ matching: false, format: "pfx" },
 	])(
-		"verifies HTTPS against the configured $format dev certificate (matching: $matching)",
+		"handles HTTPS with $format certificate options (matching: $matching)",
 		async ({ matching, format }) => {
 			const root = mkdtempSync(join(tmpdir(), "emdash-dev-tls-"));
 			const configPath = join(root, "openssl.cnf");
@@ -100,7 +101,9 @@ describe("Cloudflare dev scheduler", () => {
 						https:
 							format === "pfx"
 								? { pfx: trusted.pfx, passphrase: "synthetic-test-only" }
-								: { cert: trusted.cert },
+								: format === "unconfigured"
+									? {}
+									: { cert: trusted.cert },
 					},
 				},
 			};
