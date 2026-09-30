@@ -169,6 +169,38 @@ describe("HTML block editor", () => {
 		);
 	});
 
+	it("adds a block right after the focused block when a table follows it", async () => {
+		const saved: Block = { _type: "htmlBlock", _key: "saved", html: "<p>Saved</p>" };
+		const table: Block = {
+			_type: "table",
+			_key: "table",
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "row",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "cell",
+							content: [{ _type: "span", _key: "cell-span", text: "Cell" }],
+						},
+					],
+				},
+			],
+		};
+		const { screen, latest } = await renderEditor({ value: [saved, table] });
+		await screen.getByRole("tab", { name: "HTML" }).click();
+		await vi.waitFor(() => expect(codeEditors()).toHaveLength(1));
+		await userEvent.click(codeEditors()[0]!);
+
+		await screen.getByRole("button", { name: "Insert HTML" }).click();
+		await waitForCodeEditorFocus(1);
+
+		await vi.waitFor(() =>
+			expect(latest().map((block) => block._type)).toEqual(["htmlBlock", "htmlBlock", "table"]),
+		);
+	});
+
 	it("places a block inserted from a list item after the list", async () => {
 		const listItem = { ...paragraph("item", "Item"), listItem: "bullet", level: 1 };
 		const { screen, editor, latest } = await renderEditor({ value: [listItem] });

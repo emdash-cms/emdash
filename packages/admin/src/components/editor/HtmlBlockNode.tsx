@@ -244,8 +244,10 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 		timer.current = window.setTimeout(flush, WRITE_DELAY_MS);
 	};
 
-	// Toolbar actions then insert beside the block instead of replacing it:
-	// a gap cursor before a following atom, or the start of the next text.
+	// Toolbar actions then insert beside the block instead of replacing it.
+	// The selection goes to a gap cursor before a following atom or table,
+	// since the toolbar disables inserts inside tables, or else to the start
+	// of the next text.
 	const moveSelectionAfterBlock = () => {
 		const pos = getPos();
 		if (typeof pos !== "number" || editor.isDestroyed) return;
@@ -253,10 +255,12 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 		const block = state.doc.nodeAt(pos);
 		if (!block) return;
 		const $after = state.doc.resolve(pos + block.nodeSize);
-		const selection = $after.nodeAfter?.isAtom
-			? new GapCursor($after)
-			: (Selection.findFrom($after, 1, true) ??
-				Selection.findFrom(state.doc.resolve(pos), -1, true));
+		const next = $after.nodeAfter;
+		const selection =
+			next && (next.isAtom || next.type.spec.isolating)
+				? new GapCursor($after)
+				: (Selection.findFrom($after, 1, true) ??
+					Selection.findFrom(state.doc.resolve(pos), -1, true));
 		if (selection && !selection.eq(state.selection)) {
 			editor.view.dispatch(state.tr.setSelection(selection));
 		}
