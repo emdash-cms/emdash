@@ -71,6 +71,20 @@ import { z } from "zod";
 // that support `$schema`-driven completion (VS Code, IntelliJ).
 // ──────────────────────────────────────────────────────────────────────────
 
+/** Grapheme caps on the short profile fields, mirroring `profile.json`. */
+const NAME_MAX_GRAPHEMES = 100;
+const DESCRIPTION_MAX_GRAPHEMES = 140;
+const AUTHOR_NAME_MAX_GRAPHEMES = 64;
+const KEYWORD_MAX_GRAPHEMES = 64;
+
+function maxGraphemes(label: string, max: number) {
+	return (value: string, ctx: z.RefinementCtx<string>) => {
+		if (countGraphemes(value) > max) {
+			ctx.addIssue({ code: "custom", message: `${label} must be <= ${max} graphemes` });
+		}
+	};
+}
+
 /**
  * SPDX license expression. The lexicon caps this at 256 chars. We don't
  * validate the SPDX grammar here — the registry aggregator does that and
@@ -102,7 +116,8 @@ export const AuthorSchema = z
 			.string()
 			.min(1, "author.name cannot be empty")
 			.max(256, "author.name must be <= 256 characters")
-			.meta({ description: "Display name." }),
+			.superRefine(maxGraphemes("author.name", AUTHOR_NAME_MAX_GRAPHEMES))
+			.meta({ description: `Display name (<= ${AUTHOR_NAME_MAX_GRAPHEMES} graphemes).` }),
 		url: z
 			.url("author.url must be a valid URL")
 			.max(1024, "author.url must be <= 1024 characters")
@@ -192,10 +207,10 @@ export const NameSchema = z
 	.string()
 	.min(1, "name cannot be empty when set")
 	.max(1024, "name must be <= 1024 characters")
+	.superRefine(maxGraphemes("name", NAME_MAX_GRAPHEMES))
 	.meta({
 		title: "Display name",
-		description:
-			"Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted.",
+		description: `Human-readable name shown in directory listings (<= ${NAME_MAX_GRAPHEMES} graphemes). Defaults to the plugin's \`id\` when omitted.`,
 	});
 
 /** Short description. Mirrors `profile.json#description`. */
@@ -203,21 +218,25 @@ export const DescriptionSchema = z
 	.string()
 	.min(1, "description cannot be empty when set")
 	.max(1024, "description must be <= 1024 characters")
+	.superRefine(maxGraphemes("description", DESCRIPTION_MAX_GRAPHEMES))
 	.meta({
 		title: "Description",
-		description:
-			"Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists.",
+		description: `Short description (<= ${DESCRIPTION_MAX_GRAPHEMES} graphemes).`,
 	});
 
 /** Search keywords. Mirrors `profile.json#keywords`. */
 export const KeywordsSchema = z
 	.array(
-		z.string().min(1, "keyword cannot be empty").max(128, "each keyword must be <= 128 characters"),
+		z
+			.string()
+			.min(1, "keyword cannot be empty")
+			.max(128, "each keyword must be <= 128 characters")
+			.superRefine(maxGraphemes("each keyword", KEYWORD_MAX_GRAPHEMES)),
 	)
 	.max(5, "keywords array must have <= 5 entries (FAIR convention)")
 	.meta({
 		title: "Keywords",
-		description: "Search keywords (<= 5 entries, FAIR convention).",
+		description: `Search keywords (<= 5 entries, FAIR convention; each <= ${KEYWORD_MAX_GRAPHEMES} graphemes).`,
 	});
 
 /**
@@ -358,6 +377,7 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",

@@ -224,6 +224,13 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Drag to reorder SEO" }))
+			.toBeInTheDocument();
+
+		const taxonomySection = screen.getByTestId("taxonomy-sidebar").element().closest("section");
+		const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
+		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
 	});
 
 	it("keeps URL and language fields outside the Publish section", async () => {

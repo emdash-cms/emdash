@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, describe, expect } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
@@ -86,6 +87,25 @@ describeEachDialect(
 			expect(saved.success).toBe(true);
 			if (!saved.success) return;
 			expect(Object.hasOwn(saved.data.item.data as Record<string, unknown>, "hits")).toBe(false);
+		});
+
+		it("publishes the existing draft without another save", async () => {
+			const before = await new ContentRepository(ctx.db).findById("posts", id);
+			const draftRevisionId = before?.draftRevisionId;
+			expect(draftRevisionId).toBeTruthy();
+
+			const published = await runtime.handleContentPublish("posts", id);
+			expect(published.success).toBe(true);
+			if (!published.success) return;
+			expect(published.data.item.status).toBe("published");
+			expect(published.data.item.liveRevisionId).toBe(draftRevisionId);
+			expect(published.data.item.draftRevisionId).toBeNull();
+			expect(Object.hasOwn(published.data.item.data as Record<string, unknown>, "hits")).toBe(
+				false,
+			);
+
+			const revision = await new RevisionRepository(ctx.db).findById(draftRevisionId!);
+			expect(revision?.data).toEqual({ title: "p1 draft", hits: 43 });
 		});
 
 		it("still refuses a key the entry does not already store", async () => {

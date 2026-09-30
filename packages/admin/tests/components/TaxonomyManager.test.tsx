@@ -1,4 +1,6 @@
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -40,6 +42,20 @@ const tagTaxonomyResponse = JSON.stringify({
 				labelSingular: "Tag",
 				hierarchical: false,
 				collections: ["posts", "pages"],
+			},
+		],
+	},
+});
+
+const topicsTaxonomyResponse = JSON.stringify({
+	data: {
+		taxonomies: [
+			{
+				id: "topics",
+				name: "topics",
+				label: "Schlagwörter",
+				hierarchical: false,
+				collections: ["posts"],
 			},
 		],
 	},
@@ -361,6 +377,19 @@ describe("TaxonomyManager", () => {
 		});
 
 		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
+	});
+
+	it("wraps the hierarchical term list in a horizontally scrollable container", async () => {
+		mockApiFetch(hierarchicalTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
+
+		const container = document.querySelector(".border.rounded-lg.overflow-x-auto");
+		expect(container).not.toBeNull();
+		expect(container!.firstElementChild).toHaveClass("min-w-[560px]");
 	});
 
 	it("keeps the two tag actions together and moves taxonomy creation into More", async () => {
@@ -950,5 +979,50 @@ describe("TaxonomyManager", () => {
 		});
 
 		await expect.element(screen.getByText(NO_CATEGORIES_REGEX)).toBeInTheDocument();
+	});
+
+	it("keeps the taxonomy label capitalized and falls back to the translated Term for a German admin", async () => {
+		mockApiFetch(JSON.stringify({ data: { terms: [] } }), undefined, topicsTaxonomyResponse);
+		const previousLocale = i18n.locale;
+		i18n.load("de", { [msg`Term`.id!]: "Begriff" });
+		i18n.activate("de");
+
+		try {
+			const screen = await render(<TaxonomyManager taxonomyName="topics" />, { wrapper: Wrapper });
+			await expect
+				.element(screen.getByText("Manage Schlagwörter for posts", { exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(
+					screen.getByText("No Schlagwörter yet. Create one to get started.", { exact: true }),
+				)
+				.toBeInTheDocument();
+
+			await screen.getByRole("button", { name: "Add Begriff", exact: true }).click();
+			await expect
+				.element(screen.getByText("Create a new Begriff", { exact: true }))
+				.toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
+	it("titles the delete confirmation with the translated Term for a taxonomy without a singular label", async () => {
+		mockApiFetch(undefined, undefined, topicsTaxonomyResponse);
+		const previousLocale = i18n.locale;
+		i18n.load("de", { [msg`Term`.id!]: "Begriff" });
+		i18n.activate("de");
+
+		try {
+			const screen = await render(<TaxonomyManager taxonomyName="topics" />, { wrapper: Wrapper });
+			await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+
+			await screen.getByRole("button", { name: "Delete Technology", exact: true }).click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Delete Begriff?", exact: true }))
+				.toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
 	});
 });

@@ -178,6 +178,38 @@ describe("package profile setup", () => {
 		}
 	});
 
+	it("names the failing field and its limit when the profile does not match the lexicon", async () => {
+		const fixture = publisher(null);
+		const error = await setupPackageProfile({
+			publisher: fixture.publisher,
+			slug: "gallery",
+			profile: { ...PROFILE_INPUT, description: "d".repeat(141) },
+			repository: REPOSITORY,
+			apply: true,
+		}).catch((caught: unknown) => caught);
+
+		expect(error).toMatchObject({ code: "PROFILE_INVALID" });
+		expect((error as Error).message).toContain('"path":["description"]');
+		expect((error as Error).message).toContain('"maxGraphemes":140');
+		expect(fixture.create).not.toHaveBeenCalled();
+	});
+
+	it("names the failing field and its limit when the release settings do not match the lexicon", async () => {
+		const fixture = publisher(null);
+		const error = await setupPackageProfile({
+			publisher: fixture.publisher,
+			slug: "gallery",
+			profile: PROFILE_INPUT,
+			repository: `https://github.com/example/${"r".repeat(1100)}`,
+			apply: true,
+		}).catch((caught: unknown) => caught);
+
+		expect(error).toMatchObject({ code: "PROFILE_EXTENSION_INVALID" });
+		expect((error as Error).message).toContain('"path":["repository"]');
+		expect((error as Error).message).toContain('"maxLength":1024');
+		expect(fixture.create).not.toHaveBeenCalled();
+	});
+
 	it("creates a missing profile from manifest metadata and a safe default release policy", async () => {
 		const fixture = publisher(null);
 		const result = await setupPackageProfile({

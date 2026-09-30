@@ -17,7 +17,7 @@ async function fixture() {
 		entrypoint: "emdash/db/sqlite",
 		config: { url: "file:./runtime.db", authToken: "runtime-only-secret" },
 		migrations: {
-			entrypoint: "emdash/db/sqlite-migrations",
+			entrypoint: "emdash/internal/db/sqlite-migrations",
 			manifestConfig: { url: "file:./data.db" },
 		},
 	};
@@ -47,7 +47,7 @@ describe("buildMigrationManifest", () => {
 			},
 			database: {
 				type: "sqlite",
-				executorEntrypoint: "emdash/db/sqlite-migrations",
+				executorEntrypoint: "emdash/internal/db/sqlite-migrations",
 				executorConfig: { url: "file:./data.db" },
 			},
 		});

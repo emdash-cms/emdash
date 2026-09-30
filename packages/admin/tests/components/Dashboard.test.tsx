@@ -165,6 +165,23 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("link", { name: "Scheduled" }))
+			.toHaveAttribute("href", "/calendar");
+	});
+
+	it("does not link the scheduled summary for subscribers, who cannot open the calendar", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 10 } });
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 5, published: 2, draft: 3, scheduled: 2 },
+			]),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Scheduled" })).not.toBeInTheDocument();
 	});
 
 	it("omits scheduled summary when only residual non-scheduled statuses exist", async () => {
@@ -377,20 +394,22 @@ describe("Dashboard", () => {
 			.toHaveAttribute("href", "/content/pages/new");
 	});
 
-	it("omits quick actions for hidden collections", async () => {
+	it("omits quick actions for hidden collections and those opting out", async () => {
 		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
-		const withHidden: AdminManifest = {
+		const withOptOuts: AdminManifest = {
 			...manifest,
 			collections: {
 				...manifest.collections,
 				sync_runs: { ...manifest.collections.pages!, labelSingular: "Sync run", hidden: true },
+				settings: { ...manifest.collections.pages!, labelSingular: "Setting", quickCreate: false },
 			},
 		};
 
-		const screen = await render(<Dashboard manifest={withHidden} />);
+		const screen = await render(<Dashboard manifest={withOptOuts} />);
 
 		await expect.element(screen.getByRole("link", { name: "Page" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("link", { name: "Sync run" })).not.toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Setting" })).not.toBeInTheDocument();
 	});
 
 	it("uses the same heading level for every dashboard card title", async () => {

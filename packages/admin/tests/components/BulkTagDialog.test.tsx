@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
@@ -8,6 +9,8 @@ import { ContentList } from "../../src/components/ContentList.js";
 import "../../dist/styles.css";
 import { render } from "../utils/render.tsx";
 
+const tags = [{ name: "tag", label: "Tags", labelSingular: "Tag" }];
+const genres = { name: "genre", label: "Genres", labelSingular: "Genre" };
 const link = "https://blog.example.com/posts/example";
 const source = { url: link };
 const entry = { collection: "posts", id: "post-1", title: "Internship experience", locale: "en" };
@@ -145,7 +148,7 @@ describe("bulk tag dialog", () => {
 	});
 
 	it("previews the exact title and language before applying the tag", async () => {
-		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await render(<BulkTagDialog taxonomies={tags} open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -178,8 +181,27 @@ describe("bulk tag dialog", () => {
 		});
 	});
 
+	it("assigns terms from whichever taxonomy the editor chooses", async () => {
+		await render(<BulkTagDialog taxonomies={[...tags, genres]} open onClose={() => undefined} />);
+		await page.getByRole("combobox", { name: "Taxonomy" }).click();
+		await page.getByRole("option", { name: "Genres" }).click();
+		await expect
+			.element(page.getByRole("heading", { name: "Add genre to posts" }))
+			.toBeInTheDocument();
+		await page.getByRole("combobox", { name: "Genre" }).click();
+		await page.getByRole("option", { name: "Internship Experience" }).click();
+		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
+		await page.getByRole("button", { name: "Review posts" }).click();
+		await page.getByRole("button", { name: "Add genre to 1 post" }).click();
+		expect(termRequests.at(-1)).toContain("/taxonomies/genre/terms?");
+		expect(requests).toEqual([
+			{ termId: "tag-1", apply: false, items: [source] },
+			{ termId: "tag-1", apply: true, items: [{ collection: "posts", id: "post-1" }] },
+		]);
+	});
+
 	it("keeps the chosen tag and pasted links when returning from review", async () => {
-		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await render(<BulkTagDialog taxonomies={tags} open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -204,7 +226,12 @@ describe("bulk tag dialog", () => {
 					<button type="button" onClick={() => setOpen(true)}>
 						Open bulk tagging
 					</button>
-					<BulkTagDialog open={open} onClose={() => setOpen(false)} onClosed={onClosed} />
+					<BulkTagDialog
+						taxonomies={tags}
+						open={open}
+						onClose={() => setOpen(false)}
+						onClosed={onClosed}
+					/>
 				</>
 			);
 		}
@@ -244,7 +271,7 @@ describe("bulk tag dialog", () => {
 						draftRevisionId: null,
 					},
 				]}
-				bulkTagEnabled
+				bulkTagTaxonomies={tags}
 				activeLocale="fr"
 				i18n={{ defaultLocale: "en", locales: ["en", "fr"] }}
 			/>,
@@ -270,7 +297,7 @@ describe("bulk tag dialog", () => {
 
 	it("retries failed writes without repeating the successful review", async () => {
 		failNextApply = true;
-		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await render(<BulkTagDialog taxonomies={tags} open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -288,14 +315,14 @@ describe("bulk tag dialog", () => {
 	});
 
 	it("keeps duplicate URL rows distinct and only applies the reviewed post once", async () => {
-		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await render(<BulkTagDialog taxonomies={tags} open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(`${link}\n${link}`);
 		await page.getByRole("button", { name: "Review posts" }).click();
 		await page.getByRole("button", { name: "Add tag to 1 post" }).click();
 		await expect.element(page.getByText("Added")).toBeInTheDocument();
-		await expect.element(page.getByText("Already tagged or duplicate")).toBeInTheDocument();
+		await expect.element(page.getByText("Already assigned or duplicate")).toBeInTheDocument();
 		expect(requests).toEqual([
 			{ termId: "tag-1", apply: false, items: [source, source] },
 			{ termId: "tag-1", apply: true, items: [{ collection: "posts", id: "post-1" }] },
@@ -304,7 +331,9 @@ describe("bulk tag dialog", () => {
 
 	it("creates and selects a new tag in a right-to-left dialog", async () => {
 		document.documentElement.dir = "rtl";
-		await render(<BulkTagDialog open defaultLocale="ar" onClose={() => undefined} />);
+		await render(
+			<BulkTagDialog taxonomies={tags} open defaultLocale="ar" onClose={() => undefined} />,
+		);
 		await page.getByRole("button", { name: "Create new tag" }).click();
 		await page.getByRole("textbox", { name: "New tag name" }).fill("تجربة التدريب");
 		await page.getByRole("button", { name: "Create tag" }).click();
@@ -315,8 +344,37 @@ describe("bulk tag dialog", () => {
 		expect(requests[0]).toMatchObject({ termId: "tag-2", apply: false });
 	});
 
+	it("keeps the taxonomy label capitalized for a German admin", async () => {
+		const previousLocale = i18n.locale;
+		i18n.load("de", {});
+		i18n.activate("de");
+
+		try {
+			await render(
+				<BulkTagDialog
+					taxonomies={[{ name: "tag", label: "Schlagwörter", labelSingular: "Schlagwort" }]}
+					open
+					onClose={() => undefined}
+				/>,
+			);
+			await expect
+				.element(page.getByText("Add Schlagwort to posts", { exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(page.getByText("Existing Schlagwörter stay in place.", { exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(page.getByRole("button", { name: "Create new Schlagwort", exact: true }))
+				.toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
 	it("prefers the configured language and skips unused term counts", async () => {
-		await render(<BulkTagDialog open defaultLocale="fr" onClose={() => undefined} />);
+		await render(
+			<BulkTagDialog taxonomies={tags} open defaultLocale="fr" onClose={() => undefined} />,
+		);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Expérience de stage" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -330,7 +388,13 @@ describe("bulk tag dialog", () => {
 
 	it("uses the active content language rather than the site default for tags", async () => {
 		await render(
-			<BulkTagDialog open activeLocale="fr" defaultLocale="en" onClose={() => undefined} />,
+			<BulkTagDialog
+				taxonomies={tags}
+				open
+				activeLocale="fr"
+				defaultLocale="en"
+				onClose={() => undefined}
+			/>,
 		);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await expect
@@ -346,7 +410,7 @@ describe("bulk tag dialog", () => {
 
 	it("shows tag loading failures and retries instead of offering to create a duplicate", async () => {
 		failTermFetch = true;
-		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await render(<BulkTagDialog taxonomies={tags} open onClose={() => undefined} />);
 		await expect.element(page.getByRole("alert")).toHaveTextContent("Could not load tags.");
 		await expect.element(page.getByRole("button", { name: "Create new tag" })).toBeDisabled();
 		failTermFetch = false;
@@ -360,7 +424,7 @@ describe("bulk tag dialog", () => {
 	it("shows committed results with a cache warning and allows refreshing without retagging", async () => {
 		failCacheRefresh = true;
 		skipOnCacheRetry = true;
-		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await render(<BulkTagDialog taxonomies={tags} open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -386,7 +450,7 @@ describe("bulk tag dialog", () => {
 	it("cache-only retry excludes an unmatched row with a preserved reviewed title", async () => {
 		failCacheRefresh = true;
 		unmatchedSecondOnApply = true;
-		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await render(<BulkTagDialog taxonomies={tags} open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page

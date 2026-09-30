@@ -234,13 +234,15 @@ export const taxonomyDefRecordSchema = z.strictObject({
 export const relationRecordSchema = z.strictObject({
 	kind: z.literal("relation"),
 	id: portableIdSchema,
-	name: shortString.min(1),
+	slug: shortString.min(1),
 	parentCollection: identifierSchema,
 	childCollection: identifierSchema,
 	parentLabel: shortString,
 	childLabel: shortString,
-	locale: localeSchema,
-	translationGroup: portableIdSchema,
+	parentLabelSingular: shortString.optional(),
+	childLabelSingular: shortString.optional(),
+	maxChildrenPerParent: integer.optional(),
+	maxParentsPerChild: integer.optional(),
 	createdAt: timestamp.optional(),
 	updatedAt: timestamp.optional(),
 });
@@ -394,7 +396,7 @@ export const contentBylineRecordSchema = z.strictObject({
 export const contentReferenceRecordSchema = z.strictObject({
 	kind: z.literal("content_reference"),
 	id: portableIdSchema,
-	relationGroup: portableIdSchema,
+	relationId: portableIdSchema,
 	parentGroup: portableIdSchema,
 	childGroup: portableIdSchema,
 	sortOrder: integer,
@@ -715,7 +717,7 @@ export const KIND_REFERENCES: Readonly<Record<RecordKind, readonly KindReference
 			{ property: "bylineGroup", targets: ["byline"], by: "group" },
 		],
 		content_reference: [
-			{ property: "relationGroup", targets: ["relation"], by: "group", soft: true },
+			{ property: "relationId", targets: ["relation"], by: "id", soft: true },
 			{ property: "parentGroup", targets: ["entry"], by: "group", soft: true },
 			{ property: "childGroup", targets: ["entry"], by: "group", soft: true },
 		],
@@ -761,6 +763,20 @@ export function blocksFieldTypeSlugs(record: FieldRecord): string[] {
 		for (const slug of list) if (typeof slug === "string") slugs.add(slug);
 	}
 	return [...slugs];
+}
+
+/**
+ * The relation slug a bound `reference` field names in `validation.relation`.
+ * An unbound reference field keeps a column and names no relation.
+ */
+export function referenceFieldRelationSlugs(record: FieldRecord): string[] {
+	const validation = record.validation;
+	if (record.type !== "reference" || typeof validation !== "object" || validation === null) {
+		return [];
+	}
+	if (Array.isArray(validation)) return [];
+	const relation = validation.relation;
+	return typeof relation === "string" && relation.length > 0 ? [relation] : [];
 }
 
 /**

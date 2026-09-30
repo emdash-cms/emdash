@@ -34,7 +34,9 @@ const featuredPost = visiblePosts.find((p) => p.data.featured_image);
 const featuredIndex = featuredPost ? visiblePosts.indexOf(featuredPost) : -1;
 
 // Get remaining posts (exclude featured if found, limit to 6 for grid)
-const gridPosts = visiblePosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
+const gridPosts = visiblePosts
+	.filter((_, i) => i !== featuredIndex)
+	.slice(0, 6);
 
 // Single batched query for tags across the featured post + grid posts.
 // Avoids the N+1 pattern of calling getEntryTerms() per entry.
@@ -77,7 +79,7 @@ function formatDate(date: Date | null | undefined) {
 	{
 		posts.length === 0 ? (
 			<section class="empty-state">
-				<h2>No posts yet</h2>
+				<h1>No posts yet</h1>
 				<p>Create your first post in the admin panel.</p>
 				<a href="/_emdash/admin/content/posts/new" class="btn">
 					Create a post
@@ -90,7 +92,7 @@ function formatDate(date: Date | null | undefined) {
 					<section class="featured-section">
 						<div class="featured-grid">
 							<a href={`/posts/${featuredPost.id}`} class="featured-image-link">
-								<div class="featured-image">
+								<div class="featured-image" {...featuredPost.edit.featured_image}>
 									<Image image={featuredPost.data.featured_image} />
 								</div>
 							</a>
@@ -137,10 +139,10 @@ function formatDate(date: Date | null | undefined) {
 									href={`/posts/${featuredPost.id}`}
 									class="featured-title-link"
 								>
-									<h1 class="featured-title">{featuredPost.data.title}</h1>
+									<h1 class="featured-title" {...featuredPost.edit.title}>{featuredPost.data.title}</h1>
 								</a>
 								{featuredPost.data.excerpt && (
-									<p class="featured-excerpt">{featuredPost.data.excerpt}</p>
+									<p class="featured-excerpt" {...featuredPost.edit.excerpt}>{featuredPost.data.excerpt}</p>
 								)}
 								{featuredTags.length > 0 && (
 									<div class="featured-tags">
@@ -178,6 +180,7 @@ function formatDate(date: Date | null | undefined) {
 									readingTime={getReadingTime(post.data.content)}
 									tags={tags}
 									bylines={bylines}
+									edit={post.edit}
 								/>
 							))}
 						</div>

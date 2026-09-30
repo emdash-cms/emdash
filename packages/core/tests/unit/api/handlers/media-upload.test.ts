@@ -20,11 +20,11 @@ const PNG_BASE64 =
 const PNG_BYTES = Uint8Array.from(atob(PNG_BASE64), (c) => c.charCodeAt(0));
 
 function createFakeStorage() {
-	const uploads = new Map<string, Uint8Array>();
+	const uploads = new Map<string, { body: Uint8Array; contentType: string }>();
 	const storage = {
 		uploads,
 		async upload(options: { key: string; body: Uint8Array; contentType: string }) {
-			uploads.set(options.key, options.body);
+			uploads.set(options.key, { body: options.body, contentType: options.contentType });
 			return { key: options.key, url: `/${options.key}`, size: options.body.byteLength };
 		},
 		async download(): Promise<never> {
@@ -66,6 +66,7 @@ describe("handleMediaUpload (#620)", () => {
 			base64: PNG_BASE64,
 			contentType: "image/png",
 			alt: "a pixel",
+			caption: "Photo: Jane Doe, CC BY 2.0",
 			authorId: "user_1",
 		});
 
@@ -75,12 +76,13 @@ describe("handleMediaUpload (#620)", () => {
 		expect(item.filename).toBe("pixel.png");
 		expect(item.mimeType).toBe("image/png");
 		expect(item.alt).toBe("a pixel");
+		expect(item.caption).toBe("Photo: Jane Doe, CC BY 2.0");
 		expect(item.authorId).toBe("user_1");
 		expect(item.width).toBe(1);
 		expect(item.height).toBe(1);
 		expect(item.storageKey).toMatch(/\.png$/);
 		expect(item.url).toBe(`/_emdash/api/media/file/${item.storageKey}`);
-		expect(storage.uploads.get(item.storageKey)).toEqual(PNG_BYTES);
+		expect(storage.uploads.get(item.storageKey)?.body).toEqual(PNG_BYTES);
 	});
 
 	it("deduplicates identical bytes by content hash", async () => {
@@ -152,6 +154,34 @@ describe("handleMediaUpload (#620)", () => {
 		expect(result.success).toBe(false);
 		if (!result.success) expect(result.error.code).toBe("INVALID_TYPE");
 		expect(storage.uploads.size).toBe(0);
+	});
+
+	it("accepts a .jxl file by deriving image/jxl from the filename extension", async () => {
+		const result = await handleMediaUpload(db, storage, {
+			filename: "photo.jxl",
+			base64: PNG_BASE64,
+			contentType: "application/octet-stream",
+		});
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.data.item.mimeType).toBe("image/jxl");
+		expect(result.data.item.storageKey).toMatch(/\.jxl$/);
+		const uploaded = storage.uploads.get(result.data.item.storageKey);
+		expect(uploaded?.body).toEqual(PNG_BYTES);
+		expect(uploaded?.contentType).toBe("image/jxl");
+	});
+
+	it("accepts image/jxl when specified directly", async () => {
+		const result = await handleMediaUpload(db, storage, {
+			filename: "photo.jxl",
+			base64: PNG_BASE64,
+			contentType: "image/jxl",
+		});
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.data.item.mimeType).toBe("image/jxl");
 	});
 
 	it("rejects payloads over the size limit", async () => {

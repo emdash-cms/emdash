@@ -15,10 +15,10 @@
  * - content lifecycle: create, read, update, soft-delete
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
 import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
 
 /**
@@ -195,7 +195,7 @@ async function runMigrations(db: Kysely<any>) {
 
 describe("Plugin integration: sandboxed-test plugin operations", () => {
 	let db: Kysely<any>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 
 	beforeEach(async () => {
 		const ctx = createTestDb();

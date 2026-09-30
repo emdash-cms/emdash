@@ -115,7 +115,7 @@ The object cache covers the reads that run on a typical page render:
 
 Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
 
-The object cache and an HTML edge cache solve different problems. A cache miss in the HTML layer still runs the Worker; the object cache can then prevent repeated content queries. A hit in the HTML layer does not run EmDash at all.
+The object cache and an HTML edge cache solve different problems. A hit in the HTML layer does not run EmDash. A miss runs the Worker, and a response that may fill Astro's route cache bypasses the object cache. Its content queries read from the database, which prevents a page purged after a content change from being rebuilt with an older KV snapshot.
 
 ## Freshness
 
@@ -125,7 +125,7 @@ Editing content through the admin panel or the REST API invalidates the affected
 Preview links and visual editing bypass the object cache, so editors previewing see the current content immediately. Other requests — including authenticated browsing outside edit mode — are served from the cache, which only ever stores published content.
 </Aside>
 
-For anonymous visitors, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
+For requests that are not route-cache fills, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
 
 ### Scheduled content
 

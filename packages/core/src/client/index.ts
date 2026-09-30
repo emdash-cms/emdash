@@ -1298,14 +1298,20 @@ export class EmDashClient {
 		return data.taxonomies;
 	}
 
-	/** List terms in a taxonomy */
+	/**
+	 * List terms in a taxonomy. Visible-usage counts are included by default.
+	 * Pass `includeCounts: false` to skip the aggregate; `count` is then omitted
+	 * from each term.
+	 */
 	async terms(
 		taxonomy: string,
-		options?: { limit?: number; cursor?: string },
+		options?: { limit?: number; cursor?: string; includeCounts?: boolean },
 	): Promise<ListResult<Term>> {
 		const params = new URLSearchParams();
 		if (options?.limit) params.set("limit", String(options.limit));
 		if (options?.cursor) params.set("cursor", options.cursor);
+		if (options?.includeCounts !== undefined)
+			params.set("includeCounts", String(options.includeCounts));
 
 		const qs = params.toString();
 		const data = await this.request<{ terms: Term[] }>(

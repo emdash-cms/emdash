@@ -75,6 +75,7 @@ jobs:
       - run: pnpm run --filter emdash-demo --filter @emdash-cms/demo-cloudflare typecheck
       - run: pnpm typecheck:templates
       - run: node scripts/typecheck-public-source.mjs
+      - run: node scripts/sync-skills-repo.mjs --check
       - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action typecheck
       - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action build
       - run: git diff --exit-code -- apps/release-action/dist/index.js
@@ -86,7 +87,7 @@ jobs:
       - name: Validate changesets
         run: |
           base=$(git merge-base origin/main HEAD)
-          added=$(git diff --name-only --diff-filter=d "$base" -- '.changeset/*.md' ':(exclude).changeset/README.md')
+          added=$(git diff --name-only --diff-filter=d "$base" -- ':(glob).changeset/*.md' ':(exclude).changeset/README.md')
           if [ -n "$added" ]; then
             pnpm changeset status --since=origin/main
           else

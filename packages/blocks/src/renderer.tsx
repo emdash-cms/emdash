@@ -39,7 +39,13 @@ function renderBlock(
 		case "fields":
 			return <FieldsBlockComponent block={block} />;
 		case "table":
-			return <TableBlockComponent block={block} onAction={onAction} />;
+			return (
+				<TableBlockComponent
+					block={block}
+					onAction={onAction}
+					resolveLinkTarget={resolveLinkTarget}
+				/>
+			);
 		case "actions":
 			return (
 				<ActionsBlockComponent

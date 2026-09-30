@@ -6,8 +6,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
-import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { consumerEnvironment } from "../../utils/consumer-environment.js";
 import { ensureBuilt } from "../server.js";
@@ -23,6 +24,7 @@ interface SiteCase {
 	frontendStatuses?: number[];
 	requireDoctype?: boolean;
 	verifyMcp?: boolean;
+	frontendExpectations?: Array<{ path: string; text: string }>;
 }
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
@@ -56,24 +58,34 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4612,
 		startupTimeoutMs: 60_000,
 		verifyMcp: true,
+		frontendExpectations: [{ path: "/", text: '<link rel="alternate" type="application/rss+xml"' }],
 	},
 	{
 		name: "templates/blog-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/blog-cloudflare"),
 		port: 4613,
 		startupTimeoutMs: 120_000,
+		frontendExpectations: [{ path: "/", text: '<link rel="alternate" type="application/rss+xml"' }],
 	},
 	{
 		name: "templates/marketing",
 		dir: resolve(WORKSPACE_ROOT, "templates/marketing"),
 		port: 4614,
 		startupTimeoutMs: 90_000,
+		frontendExpectations: [
+			{ path: "/", text: "Build products people actually want" },
+			{ path: "/pricing", text: "Simple, transparent pricing" },
+		],
 	},
 	{
 		name: "templates/marketing-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/marketing-cloudflare"),
 		port: 4615,
 		startupTimeoutMs: 120_000,
+		frontendExpectations: [
+			{ path: "/", text: "Build products people actually want" },
+			{ path: "/pricing", text: "Simple, transparent pricing" },
+		],
 	},
 	{
 		name: "templates/portfolio",
@@ -345,6 +357,11 @@ describe.sequential("Site runtime verification", () => {
 					if (requireDoctype) {
 						expect(body).toContain("<!DOCTYPE html>");
 					}
+					for (const expectation of site.frontendExpectations ?? []) {
+						const response = await fetchWithRetry(`${server.baseUrl}${expectation.path}`);
+						expect(response.status).toBe(200);
+						expect(await response.text()).toContain(expectation.text);
+					}
 					if (site.verifyMcp && mcpToken) {
 						await verifyCoreMcp(server.baseUrl, mcpToken);
 					}
@@ -522,7 +539,7 @@ describe.sequential("MCP endpoint verification", () => {
 					length: 5,
 				});
 
-				const db = new Database(join(PLUGIN_MCP_SITE.dir, "data.db"), { readonly: true });
+				const db = new Database(join(PLUGIN_MCP_SITE.dir, "data.db"), { readOnly: true });
 				try {
 					const auditRows = db
 						.prepare(

@@ -34,7 +34,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const denied = requirePerm(user, "plugins:read");
 	if (denied) return denied;
 
-	if (!getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry)) {
+	if (!getRegistryConfigInput(emdash.config.registry)) {
 		return apiError("REGISTRY_NOT_CONFIGURED", "Registry is not configured", 400);
 	}
 

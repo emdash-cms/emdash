@@ -1,0 +1,227 @@
+name: Env Types — Apply
+
+# Runs after the "Env Types" workflow finds stale emdash-env.d.ts files on a
+# PR. This job has elevated permissions to push back to the PR branch, but it
+# never executes code from the PR — it only downloads the inert patch
+# artifact, checks out the generated head SHA, and applies the diff.
+on:
+  workflow_run:
+    workflows: ["Env Types"]
+    types: [completed]
+
+permissions:
+  # actions:read is needed for listWorkflowRunArtifacts / downloadArtifact.
+  # pull-requests:read is needed for pulls.get in the Resolve PR step.
+  # contents:read is a safety default; the push-back steps use the app token.
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  apply:
+    name: Apply
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download patch artifact
+        id: download
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const artifact = data.artifacts.find((a) => a.name === 'env-types-patch');
+            if (!artifact) {
+              core.setOutput('found', 'false');
+              core.info('No patch artifact — nothing to apply.');
+              return;
+            }
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+            // Stage the artifact under RUNNER_TEMP, not GITHUB_WORKSPACE.
+            // GITHUB_WORKSPACE is wiped by the later actions/checkout step
+            // (clean: true is the default), which would delete the payload
+            // before the Apply step can reach it.
+            const outDir = path.join(process.env.RUNNER_TEMP, 'et-artifact');
+            fs.mkdirSync(outDir, { recursive: true });
+            fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
+            core.setOutput('found', 'true');
+
+      - name: Unpack artifact
+        if: steps.download.outputs.found == 'true'
+        run: |
+          cd "$RUNNER_TEMP/et-artifact"
+          unzip -o artifact.zip
+          ls -la
+
+      - name: Resolve PR
+        if: steps.download.outputs.found == 'true'
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const prNumber = Number(
+              fs.readFileSync(
+                path.join(process.env.RUNNER_TEMP, 'et-artifact', 'pr-number'),
+                'utf8',
+              ).trim(),
+            );
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
+              return;
+            }
+            // Cross-check: fetch the PR and verify its head SHA matches the
+            // workflow_run's head SHA, so a forged artifact can't redirect
+            // the push at an unrelated branch.
+            const headSha = context.payload.workflow_run.head_sha;
+            let pr;
+            try {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+              pr = data;
+            } catch (err) {
+              core.setFailed(`Failed to fetch PR #${prNumber}: ${err.message}`);
+              return;
+            }
+            if (pr.head.sha !== headSha) {
+              core.setFailed(
+                `PR #${prNumber} head SHA (${pr.head.sha}) does not match workflow_run head SHA (${headSha}). The branch has moved on; the next PR event will regenerate.`,
+              );
+              return;
+            }
+            core.setOutput('number', String(pr.number));
+            core.setOutput('ref', pr.head.ref);
+            // Push onto the exact commit that was generated from. If the
+            // branch has advanced since, the push fails non-fast-forward
+            // rather than applying a stale patch to a newer tree.
+            core.setOutput('sha', headSha);
+            core.setOutput('full_name', pr.head.repo.full_name);
+            const isFork = pr.head.repo.fork
+              || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
+            core.setOutput('is_fork', isFork.toString());
+
+      - name: Generate app token
+        if: steps.download.outputs.found == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Push the regenerated files back to the PR branch. Nothing else.
+          permission-contents: write
+
+      # --- Same-repo PRs: checkout the generated SHA and push directly ---
+
+      - name: Checkout (same-repo)
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'false'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          token: ${{ steps.app-token.outputs.token }}
+          # The same-repo push step below pushes the regenerated files back to
+          # the PR branch using this credential.
+          persist-credentials: true
+
+      # --- Fork PRs: checkout the fork at the generated SHA so we can push back ---
+
+      - name: Checkout (fork)
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ steps.pr.outputs.full_name }}
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
+          # Reviewed opt-in to checkout v7's fork guard: no code from the
+          # fork tree is ever executed here. The steps below only `git apply`
+          # the patch from the generate artifact and run git add/commit/push —
+          # no scripts, hooks, or tooling from the checked-out tree.
+          # Credentials are not persisted; the push uses a scoped app token
+          # via GIT_ASKPASS.
+          allow-unsafe-pr-checkout: true
+
+      - name: Apply patch
+        if: steps.download.outputs.found == 'true'
+        id: apply
+        run: |
+          patch="$RUNNER_TEMP/et-artifact/env-types.patch"
+          # The patch is produced by a job that ran PR code, so refuse to
+          # apply anything outside generated emdash-env.d.ts files.
+          unexpected="$(git apply --numstat "$patch" | cut -f3 | grep -Ev '(^|/)emdash-env\.d\.ts$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "::error::Patch touches files other than emdash-env.d.ts:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+          git apply "$patch"
+          git add -- '*emdash-env.d.ts'
+          if git diff --staged --quiet; then
+            echo "no_diff=true" >> "$GITHUB_OUTPUT"
+            echo "Patch is a no-op against the checked-out head — nothing to push."
+          else
+            echo "no_diff=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push (same-repo)
+        if: |
+          steps.download.outputs.found == 'true'
+          && steps.pr.outputs.is_fork == 'false'
+          && steps.apply.outputs.no_diff == 'false'
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -e
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "ci: regenerate emdash-env.d.ts files"
+          # Detached-HEAD push onto the PR branch. If the branch has advanced
+          # past the generated SHA, this fails non-fast-forward — the next PR
+          # event regenerates against the new head.
+          if ! git push origin "HEAD:$HEAD_REF"; then
+            echo "::error::Non-fast-forward push — the PR branch moved past the generated SHA $HEAD_SHA. The next PR event will regenerate." >&2
+            exit 1
+          fi
+
+      - name: Commit and push (fork)
+        if: |
+          steps.download.outputs.found == 'true'
+          && steps.pr.outputs.is_fork == 'true'
+          && steps.apply.outputs.no_diff == 'false'
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
+          FULL_NAME: ${{ steps.pr.outputs.full_name }}
+        run: |
+          set -e
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "ci: regenerate emdash-env.d.ts files"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          git remote add fork "https://x-access-token@github.com/$FULL_NAME.git"
+          # Fail the workflow if we can't push — most likely cause is
+          # "Allow edits by maintainers" being disabled on the fork PR.
+          if ! git push fork "HEAD:$HEAD_REF"; then
+            rm -f "$GIT_ASKPASS"
+            echo "::error::Failed to push regenerated files to fork. The contributor may have 'Allow edits by maintainers' disabled. They need to run 'pnpm build && pnpm env-types' locally and commit, or re-enable maintainer edits." >&2
+            exit 1
+          fi
+          rm -f "$GIT_ASKPASS"

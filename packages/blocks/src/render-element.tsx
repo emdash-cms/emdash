@@ -3,6 +3,7 @@ import { CheckboxElementComponent } from "./elements/checkbox.js";
 import { ComboboxElementComponent } from "./elements/combobox.js";
 import { DateInputElementComponent } from "./elements/date-input.js";
 import { LinkElementComponent } from "./elements/link.js";
+import { MenuElementComponent } from "./elements/menu.js";
 import { NumberInputElementComponent } from "./elements/number-input.js";
 import { RadioElementComponent } from "./elements/radio.js";
 import { SecretInputElementComponent } from "./elements/secret-input.js";
@@ -22,6 +23,8 @@ export function renderElement(
 			return <ButtonElementComponent element={element} onAction={onAction} />;
 		case "link":
 			return <LinkElementComponent element={element} resolveTarget={resolveLinkTarget} />;
+		case "menu":
+			return <MenuElementComponent element={element} onAction={onAction} />;
 		case "text_input":
 			return (
 				<TextInputElementComponent element={element} onAction={onAction} onChange={onChange} />

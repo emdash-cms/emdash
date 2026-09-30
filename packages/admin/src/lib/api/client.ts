@@ -151,8 +151,12 @@ export interface AdminManifest {
 			titleField?: string;
 			dateField?: string;
 			hidden?: boolean;
+			/** Phosphor icon name for the sidebar entry */
+			icon?: string;
 			/** Sidebar folder shared with other collections of the same group */
 			group?: string;
+			/** `false` omits the dashboard's "new entry" quick action */
+			quickCreate?: boolean;
 			listColumns?: string[];
 			fields: Record<
 				string,
@@ -283,6 +287,8 @@ export interface AdminManifest {
 	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry. Defaults to the hosted aggregator when
 	 * the plugin sandbox is enabled, or reflects an explicit registry config.
@@ -306,10 +312,7 @@ export interface AdminManifest {
 		field:
 			| "registry.aggregatorUrl"
 			| "registry.policy.minimumReleaseAge"
-			| "registry.policy.minimumReleaseAgeExclude"
-			| "experimental.registry.aggregatorUrl"
-			| "experimental.registry.policy.minimumReleaseAge"
-			| "experimental.registry.policy.minimumReleaseAgeExclude";
+			| "registry.policy.minimumReleaseAgeExclude";
 	};
 	/**
 	 * Admin branding overrides for white-labeling.
@@ -318,6 +321,7 @@ export interface AdminManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
 		favicon?: string;
 	};
 }

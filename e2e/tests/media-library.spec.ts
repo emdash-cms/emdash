@@ -388,9 +388,9 @@ test.describe("Media Library", () => {
 		await page.locator('input[type="search"]').fill(filename);
 		await page.getByRole("button", { name: filename, exact: true }).click();
 		const narrowDetails = page.getByRole("dialog").filter({ hasText: filename });
-		await narrowDetails.getByRole("tab", { name: "Edit image" }).click();
-		await narrowDetails.getByRole("tab", { name: "Crop" }).click();
-		await expect(narrowDetails.getByRole("button", { name: "Create cropped copy" })).toBeVisible();
+		await narrowDetails.getByRole("tab", { name: "تعديل الصورة" }).click();
+		await narrowDetails.getByRole("tab", { name: "قص" }).click();
+		await expect(narrowDetails.getByRole("button", { name: "إنشاء نسخة مقصوصة" })).toBeVisible();
 		expect(
 			await narrowDetails.evaluate((element) => element.scrollWidth <= element.clientWidth),
 		).toBe(true);

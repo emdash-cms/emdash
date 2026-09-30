@@ -104,9 +104,34 @@ pnpm wrangler deploy
 
 With the default `auto` migration mode, EmDash applies pending core migrations when the deployed Worker receives its first request. Use [Manage core database migrations](/deployment/core-migrations/) when a deployment pipeline must apply migrations before new code receives traffic or when you need to inspect, check, or recover a migration.
 
-If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
+Until the setup wizard has been completed, EmDash also applies the schema and structure of a seed file once, on the first request. Sample content from the seed is applied only when an administrator chooses it in the setup wizard. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
+
+## Scheduled publishing
+
+On Cloudflare, EmDash publishes scheduled entries only from the Worker's `scheduled` handler, which Cloudflare calls on the schedule of a [Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/). The deployed Worker needs both of the following:
+
+- A Cron Trigger in the `triggers.crons` list of `wrangler.jsonc`, as shown in [Configure bindings](#configure-bindings).
+- The `scheduled` handler from `@emdash-cms/cloudflare/worker`, exported from the Worker entry point that `main` points to, as shown in [Add the Worker entry point](#add-the-worker-entry-point).
+
+If either is missing, scheduled entries do not go live. In local development with `astro dev`, EmDash publishes scheduled entries on a timer, so a schedule that works locally does not confirm the deployed configuration.
+
+Run `emdash doctor` from the project root to check the Cron Trigger and the `scheduled` handler in the local project files:
+
+```bash
+pnpm emdash doctor
+```
+
+When `emdash doctor` finds both, the output includes a passing `scheduler wiring` check. A failed scheduler check describes the problem and prints the fix. The check recognizes the Worker entry point shown on this page and the one-line re-export it prints as a fix, so an entry point written another way can fail the check even when it works.
+
+If no scheduler check appears, `emdash doctor` found no Wrangler configuration in the current directory, or it found neither the Cron Trigger nor the `scheduled` handler. On a D1 project, the `database` check fails because it looks for a local SQLite file (`./data.db` by default). That failure does not affect the scheduler checks.
+
+Deploy after adding or changing the Cron Trigger or the `scheduled` handler. Cloudflare can take up to 15 minutes to start running a new or changed Cron Trigger. Once the trigger starts running, EmDash publishes entries whose scheduled time has already passed.
+
+To watch the trigger, run `pnpm wrangler tail`. Each run prints a line such as `"* * * * *" @ 9/29/2026, 10:01:00 AM - Ok`. `Ok` means the run ended without an uncaught error. EmDash catches and logs publishing errors, so `Ok` does not confirm that entries were published. A run that publishes entries also logs a message such as `[scheduled] Published 1 scheduled item(s)`, and errors from the run appear in the same output.
+
+After deployment, the admin dashboard shows **Scheduled publishing needs attention** when a scheduled entry is past its scheduled time and no scheduler run has completed in the last five minutes. If the Cron Trigger runs less often than every five minutes, the notice can also appear between runs until the next run publishes the entry.
 
 ## Place the Worker near D1
 
@@ -176,18 +201,7 @@ Two things to know before enabling it:
 1. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
 2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
 
-### Not the same as `cloudflareCache()` from `@emdash-cms/cloudflare`
-
-| | **Preferred: Workers Caching** | **Legacy: `cloudflareCache()`** |
-| --- | --- | --- |
-| Config | `"cache": { "enabled": true }` + `cacheCloudflare()` from `@astrojs/cloudflare/cache` | `cache: { provider: cloudflareCache() }` from `@emdash-cms/cloudflare` |
-| Storage | Platform Workers Caching | Cache API (`caches.open` / `put` / `match`) |
-| Purge | `cache.purge()` from `cloudflare:workers` | Zone REST `POST /zones/{id}/purge_cache` |
-| Secrets | None for purge | `CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN` |
-
-Use the preferred path for new sites. Keep `cloudflareCache()` only if you already depend on its Cache API behavior.
-
-Also do not confuse either of those with **object cache** (`objectCache: kvCache({ binding: "CACHE" })`), which caches database query results in KV — a separate layer under the Worker.
+Workers Caching is separate from the **object cache** (`objectCache: kvCache({ binding: "CACHE" })`), which caches database query results in KV under the Worker.
 
 ## Custom domains
 

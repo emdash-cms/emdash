@@ -44,6 +44,7 @@ The current isolated runtime dispatches these hooks to Cloudflare and Node/worke
 - `media:beforeUpload` and `media:afterUpload`
 - `email:beforeSend`, `email:deliver`, and `email:afterSend`
 - `comment:beforeCreate`, `comment:moderate`, `comment:afterCreate`, and `comment:afterModerate`
+- `byline:afterSave` and `byline:afterDelete`
 - `cron`
 - `page:metadata`
 
@@ -125,15 +126,15 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 	}
 
 	// Transform
-	if (content.slug) {
-		content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");
+	if (typeof content.title === "string") {
+		content.title = content.title.trim();
 	}
 
 	return content;
 }
 ```
 
-Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
+Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item. `content` holds field values only: the entry's slug is not part of it, and a `slug` key returned from the hook fails validation as an unknown field. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
 Returns: `Record<string, unknown> | SandboxHookErrorEnvelope | void`
 
 ### `content:afterSave`
@@ -439,6 +440,18 @@ Runs after the comment is stored. The event contains the stored comment, moderat
 
 Runs after an administrator or a plugin changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, the moderator's `{ id, name }`, and `origin`. Administrator changes use `{ source: "admin", userId }`; `ctx.comments.setStatus()` uses `{ source: "plugin", pluginId }`. A transition runs the hook once. Returns `void`.
 
+## Byline Hooks
+
+Both require `bylines:read` and run after the admin API or an MCP tool changes a byline, not for seeds or imports. The event's `byline` has the public fields returned by `ctx.bylines.get()`. Errors are logged and do not undo the change. Relinking a byline to another user can change inferred credits without a per-entry event.
+
+### `byline:afterSave`
+
+Runs after a byline or byline translation is created or updated. The event contains `byline` and `isNew`. Returns `void`.
+
+### `byline:afterDelete`
+
+Runs after a byline is deleted. The event contains the deleted `byline`. Returns `void`.
+
 ## Cron Hook
 
 ### `cron`
@@ -580,6 +593,8 @@ These policies apply to sandboxed and trusted hooks in the shared host pipeline.
 | `comment:moderate`        | Initial moderation   | `users:read`                                  | Moderation decision (exclusive)                         |
 | `comment:afterCreate`     | After comment save   | `users:read`                                  | `void`                                                  |
 | `comment:afterModerate`   | After status change  | `users:read`                                  | `void`                                                  |
+| `byline:afterSave`        | After byline save    | `bylines:read`                                | `void`                                                  |
+| `byline:afterDelete`      | After byline delete  | `bylines:read`                                | `void`                                                  |
 | `cron`                    | Scheduled task fires | —                                             | `void`                                                  |
 | `page:metadata`           | Page render          | —                                             | Metadata contributions                                  |
 | `page:fragments`          | Page render          | `hooks.page-fragments:register` (native only) | Fragment contributions                                  |

@@ -82,6 +82,10 @@ export interface ImageDetailPanelProps {
 	inline?: boolean;
 }
 
+function imageDimension(value: number | undefined): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 /**
  * Panel for editing image properties in the editor.
  * Renders as a fixed slide-out overlay by default, or inline within
@@ -136,13 +140,14 @@ export function ImageDetailPanel({
 	const assetEditor = useMediaAssetEditor(handleAssetItemChanged);
 
 	const [hasCustomSize, setHasCustomSize] = React.useState(
-		attributes.displayWidth != null || attributes.displayHeight != null,
+		imageDimension(attributes.displayWidth) != null ||
+			imageDimension(attributes.displayHeight) != null,
 	);
 	const [displayWidth, setDisplayWidth] = React.useState<number | undefined>(
-		attributes.displayWidth ?? undefined,
+		imageDimension(attributes.displayWidth),
 	);
 	const [displayHeight, setDisplayHeight] = React.useState<number | undefined>(
-		attributes.displayHeight ?? undefined,
+		imageDimension(attributes.displayHeight),
 	);
 	const [lockAspectRatio, setLockAspectRatio] = React.useState(true);
 	const [alignment, setAlignment] = React.useState<ImageAttributes["alignment"]>(
@@ -155,9 +160,12 @@ export function ImageDetailPanel({
 		setCaption(attributes.caption ?? "");
 		setTitle(attributes.title ?? "");
 		setAsset(attributes);
-		setHasCustomSize(attributes.displayWidth != null || attributes.displayHeight != null);
-		setDisplayWidth(attributes.displayWidth ?? undefined);
-		setDisplayHeight(attributes.displayHeight ?? undefined);
+		setHasCustomSize(
+			imageDimension(attributes.displayWidth) != null ||
+				imageDimension(attributes.displayHeight) != null,
+		);
+		setDisplayWidth(imageDimension(attributes.displayWidth));
+		setDisplayHeight(imageDimension(attributes.displayHeight));
 		setLockAspectRatio(true);
 		setAlignment(attributes.alignment);
 		setLinkHref(attributes.link?.href ?? "");
@@ -169,22 +177,24 @@ export function ImageDetailPanel({
 	const aspectRatio = asset.width && asset.height ? asset.width / asset.height : undefined;
 
 	const handleWidthChange = (value: string) => {
+		const parsedWidth = value ? parseInt(value, 10) : undefined;
+		if (parsedWidth !== undefined && imageDimension(parsedWidth) === undefined) return;
 		setHasCustomSize(true);
-		const newWidth = value ? parseInt(value, 10) : undefined;
-		setDisplayWidth(newWidth);
-		if (lockAspectRatio && aspectRatio && newWidth) {
-			setDisplayHeight(Math.round(newWidth / aspectRatio));
+		setDisplayWidth(parsedWidth);
+		if (lockAspectRatio && aspectRatio && parsedWidth) {
+			setDisplayHeight(Math.round(parsedWidth / aspectRatio));
 		} else if (!hasCustomSize) {
 			setDisplayHeight(asset.height);
 		}
 	};
 
 	const handleHeightChange = (value: string) => {
+		const parsedHeight = value ? parseInt(value, 10) : undefined;
+		if (parsedHeight !== undefined && imageDimension(parsedHeight) === undefined) return;
 		setHasCustomSize(true);
-		const newHeight = value ? parseInt(value, 10) : undefined;
-		setDisplayHeight(newHeight);
-		if (lockAspectRatio && aspectRatio && newHeight) {
-			setDisplayWidth(Math.round(newHeight * aspectRatio));
+		setDisplayHeight(parsedHeight);
+		if (lockAspectRatio && aspectRatio && parsedHeight) {
+			setDisplayWidth(Math.round(parsedHeight * aspectRatio));
 		} else if (!hasCustomSize) {
 			setDisplayWidth(asset.width);
 		}
@@ -244,10 +254,10 @@ export function ImageDetailPanel({
 		const trimmedHref = linkHref.trim();
 		onUpdate({
 			alt: alt || undefined,
-			caption: caption || undefined,
+			caption,
 			title: title || undefined,
-			displayWidth,
-			displayHeight,
+			displayWidth: imageDimension(displayWidth),
+			displayHeight: imageDimension(displayHeight),
 			alignment,
 			// Only touch `link` when one is being set or an existing one cleared, so
 			// images without links keep their update payload unchanged.

@@ -35,6 +35,15 @@ export interface LinkElement {
 
 export type NavigationElement = LinkElement;
 
+/** A button that opens a list of choices; picking one dispatches `action_id` with the item's value. */
+export interface MenuElement {
+	type: "menu";
+	action_id: string;
+	label: string;
+	items: Array<{ label: string; value: string }>;
+	style?: "primary" | "secondary";
+}
+
 export interface TextInputElement {
 	type: "text_input";
 	action_id: string;
@@ -180,7 +189,7 @@ export type Element =
 	| RepeaterElement
 	| MediaPickerElement;
 
-export type ActionElement = Element | NavigationElement;
+export type ActionElement = Element | NavigationElement | MenuElement;
 
 // ── Form Fields (elements + optional condition) ──────────────────────────────
 
@@ -208,7 +217,8 @@ export type FormField = (
 export interface TableColumn {
 	key: string;
 	label: string;
-	format?: "text" | "badge" | "relative_time" | "number" | "code";
+	/** `element`: each row holds a button, link, or menu element under this column's key. */
+	format?: "text" | "badge" | "relative_time" | "number" | "code" | "element";
 	sortable?: boolean;
 }
 

@@ -28,6 +28,16 @@ import {
 	handleMediaUpload as uploadMedia,
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
+import { resolveReferenceSelection } from "./api/handlers/relations.js";
+import {
+	liveReferenceSelection,
+	mergeStagedReferenceBaselines,
+	mergeStagedReferences,
+	STAGED_REFERENCES_BASELINE_KEY,
+	STAGED_REFERENCES_KEY,
+	type StagedReferenceBaselines,
+	type StagedReferences,
+} from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
 import { getSiteBaseUrl } from "./api/site-url.js";
 import type {
@@ -98,6 +108,7 @@ import type {
 import type {
 	ActorInfo,
 	ContentActionOrigin,
+	ContentSaveHookDetails,
 	ContentItem as PluginContentItem,
 	ResolvedPlugin,
 	MediaItem,
@@ -123,10 +134,12 @@ import type {
 	PluginContentCreateCallback,
 	VersionedContentItem,
 } from "./plugins/types.js";
-import { normalizePluginCapabilities } from "./plugins/types.js";
+import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
+import { isStoragelessField, isStoragelessFieldRow } from "./schema/types.js";
 import type { CollectionWithFields } from "./schema/types.js";
+import { AUTO_SEED_COMPLETE_OPTION } from "./seed/ownership.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
@@ -135,6 +148,7 @@ import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
 const LOCALE_CASING_REPAIR_OPTION = "emdash:repair_locale_casing";
+const SETUP_COMPLETE_OPTION = "emdash:setup_complete";
 
 const PLUGIN_COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
 
@@ -184,6 +198,7 @@ interface PageContributions {
 
 import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
+import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
 import {
@@ -269,11 +284,7 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
-import {
-	getRegistryConfigInput,
-	resolveManifestRegistryConfig,
-	resolveRegistryConfigForSandbox,
-} from "./registry/config.js";
+import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
@@ -286,6 +297,7 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 	"slug",
 	"locale",
 	"skipRevision",
+	"references",
 	"actor",
 	"migrateBlocks",
 	"replaceBlocks",
@@ -1155,7 +1167,7 @@ export class EmDashRuntime {
 	 * update, and uninstall handlers complete.
 	 */
 	async syncRegistryPlugins(): Promise<void> {
-		if (!getRegistryConfigInput(this.config.registry, this.config.experimental?.registry)) return;
+		if (!getRegistryConfigInput(this.config.registry)) return;
 		await this.syncSandboxedSourcePlugins("registry");
 	}
 
@@ -1443,6 +1455,7 @@ export class EmDashRuntime {
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
 						editorPanels: bundle.manifest.admin?.editorPanels,
 						editorActions: bundle.manifest.admin?.editorActions,
+						mcp: bundle.manifest.mcp,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -1533,9 +1546,11 @@ export class EmDashRuntime {
 					trailingSlash?: "always" | "never" | "ignore";
 			  }
 			| undefined;
-		// "Already set up" by default so a read failure (e.g. tables absent on a
+		// "Already complete" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
-		let seedGate = { collectionCount: 1, setupDone: true };
+		let seedComplete = true;
+		let setupDone = true;
+		let seedCollectionsReadable = false;
 
 		// Seeding must only touch the configured singleton, never a borrowed
 		// per-request db (playground / DO preview) or the loader-fallback db.
@@ -1582,17 +1597,26 @@ export class EmDashRuntime {
 		};
 
 		const readSiteInfo = async () => {
-			const siteOpts = await optionsRepo.getMany<string>([
+			const siteOpts = await optionsRepo.getMany([
 				"emdash:site_title",
 				"emdash:site_url",
 				"emdash:locale",
 				LOCALE_CASING_REPAIR_OPTION,
+				AUTO_SEED_COMPLETE_OPTION,
+				SETUP_COMPLETE_OPTION,
 			]);
-			storedLocaleCasingRepairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
+			const siteTitle = siteOpts.get("emdash:site_title");
+			const siteUrl = siteOpts.get("emdash:site_url");
+			const locale = siteOpts.get("emdash:locale");
+			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
+			storedLocaleCasingRepairVersion =
+				typeof repairVersion === "string" ? repairVersion : undefined;
+			seedComplete = siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true;
+			setupDone = siteOpts.get(SETUP_COMPLETE_OPTION) === true;
 			return {
-				siteName: deps.siteInfo?.name ?? siteOpts.get("emdash:site_title") ?? undefined,
-				siteUrl: deps.siteInfo?.url ?? siteOpts.get("emdash:site_url") ?? undefined,
-				locale: deps.siteInfo?.locale ?? siteOpts.get("emdash:locale") ?? undefined,
+				siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
+				siteUrl: deps.siteInfo?.url ?? (typeof siteUrl === "string" ? siteUrl : undefined),
+				locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
 				// trailingSlash is a build-time Astro routing decision, not a
 				// user-editable setting, so it comes from the Astro config
 				// (virtual:emdash/config), not the options table.
@@ -1630,27 +1654,16 @@ export class EmDashRuntime {
 						// Selecting the slugs instead of COUNT(*) costs the same
 						// round trip and primes the registered-collections cache,
 						// so the first render on this isolate skips its own lookup.
-						const [collectionRows, setupOption] = await Promise.all([
-							readDb.selectFrom("_emdash_collections").select("slug").execute(),
-							readDb
-								.selectFrom("options")
-								.select("value")
-								.where("name", "=", "emdash:setup_complete")
-								.executeTakeFirst(),
-						]);
+						const collectionRows = await readDb
+							.selectFrom("_emdash_collections")
+							.select("slug")
+							.execute();
 						primeRegisteredCollections(collectionRows.map((row) => row.slug));
-						const setupDone = (() => {
-							try {
-								return !!setupOption && JSON.parse(setupOption.value) === true;
-							} catch {
-								return false;
-							}
-						})();
-						seedGate = { collectionCount: collectionRows.length, setupDone };
+						seedCollectionsReadable = true;
 					} catch (error) {
 						captureMissingManualSchema(error);
-						// Leave the "already set up" default so a read failure never
-						// triggers a seed onto a half-built db.
+						// Leave collections unreadable so a read failure never triggers
+						// a seed onto a half-built db.
 					}
 				}),
 			);
@@ -1680,7 +1693,7 @@ export class EmDashRuntime {
 		// wizard (the wizard and dev-bypass apply seeds explicitly). Run under a
 		// per-isolate lock keyed by the configured db so a reclaimed-and-rerun
 		// create() can't apply the seed a second time concurrently.
-		if (seedGate.collectionCount === 0 && !seedGate.setupDone) {
+		if (seedCollectionsReadable && !seedComplete && !setupDone) {
 			try {
 				const activation = await activateMediaUsageCapture(db, { writersDrained: true });
 				if (activation.outcome !== "active") {
@@ -1703,14 +1716,15 @@ export class EmDashRuntime {
 
 						const seed = await loadSeed();
 						const validation = validateSeed(seed);
-						if (validation.valid) {
-							const seedResult = await applySeed(db, seed, { onConflict: "skip" });
-							console.log("Auto-seeded default collections");
-							if (seedResult.taxonomies.skipped > 0) {
-								console.warn(
-									`[auto-seed] Kept ${seedResult.taxonomies.skipped} existing taxonomy definition(s) instead of the seed's. Edit them in the admin, or run \`emdash seed <file> --on-conflict update\` to replace them (this also overwrites other seeded records).`,
-								);
-							}
+						if (!validation.valid) return false;
+
+						const seedResult = await applySeed(db, seed, { onConflict: "skip" });
+						await new OptionsRepository(db).set(AUTO_SEED_COMPLETE_OPTION, true);
+						console.log("Auto-seeded default collections");
+						if (seedResult.taxonomies.skipped > 0) {
+							console.warn(
+								`[auto-seed] Kept ${seedResult.taxonomies.skipped} existing taxonomy definition(s) instead of the seed's. Edit them in the admin, or run \`emdash seed <file> --on-conflict update\` to replace them (this also overwrites other seeded records).`,
+							);
 						}
 						seedHolder.done.add(seedKey);
 						return true;
@@ -1878,10 +1892,7 @@ export class EmDashRuntime {
 		}
 
 		// Cold-start: load registry-installed plugins from site R2
-		if (
-			getRegistryConfigInput(deps.config.registry, deps.config.experimental?.registry) &&
-			storage
-		) {
+		if (getRegistryConfigInput(deps.config.registry) && storage) {
 			installedTierPhases.push(
 				phase("rt.registry", "Registry plugins", () =>
 					EmDashRuntime.loadInstalledSandboxedPlugins(
@@ -2436,6 +2447,7 @@ export class EmDashRuntime {
 					fieldWidgets: entry.fieldWidgets,
 					editorPanels: entry.editorPanels,
 					editorActions: entry.editorActions,
+					mcp: entry.mcp,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -2548,6 +2560,7 @@ export class EmDashRuntime {
 								: undefined,
 					}),
 				);
+				warnDeprecatedPluginCapabilities(entry.id, entry.capabilities ?? []);
 				const capabilities = normalizePluginCapabilities(entry.capabilities ?? []);
 
 				// Build manifest from entry's declared config
@@ -2813,6 +2826,7 @@ export class EmDashRuntime {
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
 						editorPanels: bundle.manifest.admin?.editorPanels,
 						editorActions: bundle.manifest.admin?.editorActions,
+						mcp: bundle.manifest.mcp,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -3100,13 +3114,8 @@ export class EmDashRuntime {
 					}
 				: undefined;
 
-		const registryConfig = resolveRegistryConfigForSandbox({
-			registry: this.config.registry,
-			experimentalRegistry: this.config.experimental?.registry,
-		});
 		const { registry, error: registryConfigurationError } = resolveManifestRegistryConfig(
-			registryConfig.input,
-			{ fieldPrefix: registryConfig.fieldPrefix },
+			getRegistryConfigInput(this.config.registry),
 		);
 		if (registryConfigurationError) {
 			console.error(
@@ -3129,6 +3138,7 @@ export class EmDashRuntime {
 				implicit: i18nConfig === null,
 			},
 			marketplace: !!this.config.marketplace,
+			sandboxEnabled: this.runtimeDeps.sandboxEnabled && this.runtimeDeps.sandboxBypassed !== true,
 			registry,
 			registryConfigurationError,
 		};
@@ -3219,8 +3229,13 @@ export class EmDashRuntime {
 		return handleContentAuthors(this.db, collection);
 	}
 
-	async handleContentGet(collection: string, id: string, locale?: string) {
-		const result = await handleContentGet(this.db, collection, id, locale);
+	async handleContentGet(
+		collection: string,
+		id: string,
+		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
+	) {
+		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
 		return this.hydrateDraftData(result);
 	}
 
@@ -3317,6 +3332,7 @@ export class EmDashRuntime {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			actor?: ActorInfo;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
@@ -3353,11 +3369,18 @@ export class EmDashRuntime {
 				await this.db
 					.selectFrom("_emdash_fields as field")
 					.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
-					.select("field.slug")
+					.select(["field.slug", "field.type", "field.validation"])
 					.where("collection.slug", "=", collection)
 					.where("field.translatable", "=", 0)
 					.execute()
-			).map((field) => field.slug);
+			)
+				// A storage-less field has nothing in `data` worth sharing: its
+				// selection is keyed by translation group, so every translation
+				// already reads the same edges. What the source row does carry under
+				// that slug is the frozen column a field bound after the fact left
+				// behind, and copying it would send a key `data` no longer accepts.
+				.filter((field) => !isStoragelessFieldRow(field))
+				.map((field) => field.slug);
 			const siblings = await repo.findTranslations(
 				collection,
 				source.translationGroup ?? source.id,
@@ -3373,6 +3396,11 @@ export class EmDashRuntime {
 			}
 		}
 
+		const saveHookDetails = {
+			locale,
+			...(body.translationOf ? { translationOf: body.translationOf } : {}),
+		};
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
@@ -3383,6 +3411,7 @@ export class EmDashRuntime {
 					true,
 					undefined,
 					actor,
+					saveHookDetails,
 				);
 				processedData = hookResult.content;
 			} catch (error) {
@@ -3478,6 +3507,7 @@ export class EmDashRuntime {
 				true,
 				actor,
 				options.excludeAfterSavePluginId,
+				{ ...saveHookDetails, locale: result.data.item.locale ?? locale },
 			);
 		}
 
@@ -3501,6 +3531,7 @@ export class EmDashRuntime {
 				noIndex?: boolean;
 			};
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Replace the previous autosave revision after staging this save. */
@@ -3551,10 +3582,29 @@ export class EmDashRuntime {
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
-		const collectionInfo = bodyWithoutRev.data
-			? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
-			: null;
+		// A save carrying only a reference selection reaches the draft merge without any
+		// data, so it needs the collection loaded just the same.
+		const collectionInfo =
+			bodyWithoutRev.data || bodyWithoutRev.references
+				? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
+				: null;
 		const knownFieldSlugs = new Set((collectionInfo?.fields ?? []).map((f) => f.slug));
+
+		// A collection that keeps drafts merges `data` into a revision instead of
+		// writing columns, so a reference field's slug would land in the revision
+		// JSON and never reach the check the column writer's own path makes. Both
+		// operands are already in hand here, so the check costs nothing.
+		if (bodyWithoutRev.data && collectionInfo) {
+			const storageless = new Set(
+				collectionInfo.fields.filter(isStoragelessField).map((field) => field.slug),
+			);
+			const changed = changedStoragelessDataKeys(
+				storageless,
+				bodyWithoutRev.data,
+				resolvedItem?.data ?? {},
+			);
+			if (changed.length > 0) return storagelessDataKeyError(changed);
+		}
 
 		// Run beforeSave hooks if data is provided
 		let processedData = bodyWithoutRev.data;
@@ -3568,6 +3618,7 @@ export class EmDashRuntime {
 						false,
 						resolvedItem?.id,
 						actor,
+						resolvedItem?.locale ? { locale: resolvedItem.locale } : {},
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -3647,9 +3698,42 @@ export class EmDashRuntime {
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
-		if (processedData) {
+		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
+
+				// Resolve a pending selection to translation groups before it is
+				// staged, so a bad id or an over-long selection fails this save the
+				// way a direct link write would, and publication has nothing left to
+				// resolve.
+				let stagedReferences: StagedReferences | undefined;
+				let stagedReferenceBaselines: StagedReferenceBaselines | undefined;
+				if (bodyWithoutRev.references) {
+					stagedReferences = {};
+					let entryGroup: string | undefined;
+					for (const [fieldSlug, selectedIds] of Object.entries(bodyWithoutRev.references)) {
+						const resolved = await resolveReferenceSelection(
+							this.db,
+							collection,
+							resolvedId,
+							fieldSlug,
+							selectedIds,
+						);
+						if (!resolved.success) {
+							return { success: false as const, error: resolved.error };
+						}
+						stagedReferences[fieldSlug] = resolved.data.groups;
+						entryGroup = resolved.data.entryGroup;
+					}
+					if (entryGroup) {
+						const liveSelection = await liveReferenceSelection(this.db, collection, entryGroup);
+						stagedReferenceBaselines = {};
+						for (const fieldSlug of Object.keys(stagedReferences)) {
+							stagedReferenceBaselines[fieldSlug] = liveSelection[fieldSlug] ?? [];
+						}
+					}
+				}
+
 				const revisionRepo = new RevisionRepository(this.db);
 				let existing = await repo.findById(collection, resolvedId);
 
@@ -3661,12 +3745,12 @@ export class EmDashRuntime {
 					} else {
 						baseData = existing.data;
 					}
-					let attemptData = processedData;
+					let attemptData = processedData ?? {};
 					try {
 						attemptData = await normalizeBlocksData(
 							this.db,
 							collectionInfo,
-							processedData,
+							attemptData,
 							baseData,
 							blockWriteOptions,
 							true,
@@ -3703,6 +3787,15 @@ export class EmDashRuntime {
 						: { ...baseData, ...attemptData };
 					if (bodyWithoutRev.slug !== undefined) {
 						mergedData._slug = bodyWithoutRev.slug;
+					}
+					if (stagedReferences) {
+						mergedData[STAGED_REFERENCES_KEY] = mergeStagedReferences(baseData, stagedReferences);
+					}
+					if (stagedReferenceBaselines) {
+						mergedData[STAGED_REFERENCES_BASELINE_KEY] = mergeStagedReferenceBaselines(
+							baseData,
+							stagedReferenceBaselines,
+						);
 					}
 
 					const revision = await revisionRepo.create({
@@ -3795,13 +3888,19 @@ export class EmDashRuntime {
 						...bodyWithoutRev,
 						data: usesDraftRevisions ? undefined : processedData,
 						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
+						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,
 						authorId: bodyWithoutRev.authorId,
 						bylines: bodyWithoutRev.bylines,
 					});
 
 		const liveContentChanged = usesDraftRevisions
 			? liveMetaTouched
-			: Boolean(processedData || bodyWithoutRev.slug !== undefined || liveMetaTouched);
+			: Boolean(
+					processedData ||
+					bodyWithoutRev.slug !== undefined ||
+					bodyWithoutRev.references ||
+					liveMetaTouched,
+				);
 
 		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
 		// the same effective data the response surfaces — for revision-
@@ -3831,7 +3930,15 @@ export class EmDashRuntime {
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
-			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false, actor);
+			const savedLocale = hydrated.data.item.locale;
+			this.runAfterSaveHooks(
+				contentItemToRecord(hydrated.data.item),
+				collection,
+				false,
+				actor,
+				undefined,
+				savedLocale ? { locale: savedLocale } : {},
+			);
 		}
 
 		if (hydrated.success) {
@@ -4912,10 +5019,12 @@ export class EmDashRuntime {
 		// live, matching the documented tool contract.
 		try {
 			const contentRepo = new ContentRepository(this.db);
+			const restoredData = { ...revision.data };
+			delete restoredData[STAGED_REFERENCES_BASELINE_KEY];
 			const newDraftId = await contentRepo.restoreDraftRevision(
 				revision.collection,
 				revision.entryId,
-				revision.data,
+				restoredData,
 				callerUserId,
 			);
 			if (!newDraftId) {
@@ -5118,6 +5227,26 @@ export class EmDashRuntime {
 
 		const locale = resolveLocale(request);
 		return { context: { surface, locale, direction: getLocaleDir(locale) } };
+	}
+
+	/**
+	 * UI context for a configured plugin's Block Kit page or widget. An
+	 * undeclared surface yields no context and no error: configured plugins
+	 * are not held to their declarations, so rejecting here would break
+	 * configured plugins that serve undeclared pages.
+	 */
+	private resolveTrustedUiContext(
+		plugin: ResolvedPlugin,
+		routeKey: string,
+		body: unknown,
+		request: Request,
+	): PluginUiContext | undefined {
+		if (routeKey !== "admin") return undefined;
+		const surfaces = {
+			pages: (plugin.admin.pages ?? []).map((page) => normalizePluginPagePath(page.path)),
+			widgets: (plugin.admin.widgets ?? []).map((widget) => widget.id),
+		};
+		return this.resolvePluginUiContext(surfaces, body, request).context;
 	}
 
 	private validateSandboxedAdminResponse(
@@ -5383,7 +5512,10 @@ export class EmDashRuntime {
 				request,
 				body,
 				user: caller,
-				ui: editorDispatch?.ui ?? uiResult.context,
+				ui:
+					editorDispatch?.ui ??
+					uiResult.context ??
+					this.resolveTrustedUiContext(trustedPlugin, routeKey, body, request),
 			});
 			return editorDispatch
 				? this.validatePluginEditorExtensionResponse(pluginId, editorDispatch, result)
@@ -5827,12 +5959,20 @@ export class EmDashRuntime {
 		isNew: boolean,
 		actor?: ActorInfo,
 		excludePluginId?: string,
+		details?: ContentSaveHookDetails,
 	): void {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
 				try {
-					await this.hooks.runContentAfterSave(content, collection, isNew, actor, excludePluginId);
+					await this.hooks.runContentAfterSave(
+						content,
+						collection,
+						isNew,
+						actor,
+						excludePluginId,
+						details,
+					);
 				} catch (err) {
 					console.error("EmDash afterSave hook error:", err);
 				}

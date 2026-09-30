@@ -8,17 +8,17 @@
  * the workerd package installed).
  */
 
-import Database from "better-sqlite3";
 import {
 	ContentRepository,
 	createSandboxRouteError,
 	RevisionRepository,
 	SchemaRegistry,
 } from "emdash";
-import type { RuntimeDependencies } from "emdash/plugin-test-runtime";
+import { BylineRepository, type RuntimeDependencies } from "emdash/internal/plugin-test-runtime";
 import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
 vi.mock("virtual:emdash/config", () => ({ default: null }), { virtual: true });
@@ -414,7 +414,8 @@ export default {
 				item: await ctx.content.get("posts", route.input.id),
 				translations: await ctx.content.getTranslations("posts", route.input.id),
 				publicUrl: await ctx.content.getPublicUrl("posts", route.input.id),
-				revisions: await ctx.content.listRevisions("posts", route.input.id)
+				revisions: await ctx.content.listRevisions("posts", route.input.id),
+				credits: await ctx.bylines.getEntriesBylines("posts", [route.input.id])
 			})
 		},
 		"revisions": {
@@ -464,7 +465,7 @@ export default {
 
 describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	let db: Kysely<any>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let runner: WorkerdSandboxRunner;
 
 	beforeEach(async () => {
@@ -809,7 +810,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	}, 30_000);
 
 	it("runs an equivalent runtime content and cold-restart journey through workerd", async () => {
-		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
+		const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
 		const deps: RuntimeDependencies = {
 			config: {
@@ -955,7 +956,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	}, 30_000);
 
 	it("discovers schema, content identity, public URLs, and revisions through real workerd", async () => {
-		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
+		const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
 		const deps: RuntimeDependencies = {
 			config: {
@@ -976,7 +977,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					version: "1.0.0",
 					options: {},
 					code: CONTENT_DISCOVERY_PLUGIN,
-					capabilities: ["schema:read", "content:read", "content:revisions:read"],
+					capabilities: ["schema:read", "content:read", "content:revisions:read", "bylines:read"],
 					allowedHosts: [],
 					storage: {},
 					hooks: [],
@@ -1013,6 +1014,13 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				authorId: "author-1",
 				data: { title: "Hello" },
 			});
+			const byline = await new BylineRepository(runtime.db).create({
+				slug: "ada",
+				displayName: "Ada",
+			});
+			await new BylineRepository(runtime.db).setContentBylines("posts", post.id, [
+				{ bylineId: byline.id },
+			]);
 			const revision = await new RevisionRepository(runtime.db).create({
 				collection: "posts",
 				entryId: post.id,
@@ -1036,6 +1044,12 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					item: { id: post.id, authorId: "author-1", version: 1 },
 					publicUrl: "https://example.test/journal/hello/",
 					revisions: [{ data: { title: "Retained" } }],
+					credits: [
+						{
+							entryId: post.id,
+							bylines: [{ byline: { id: byline.id, displayName: "Ada" }, source: "explicit" }],
+						},
+					],
 				},
 			});
 			await new ContentRepository(runtime.db).delete("posts", post.id);
@@ -1058,7 +1072,8 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	}, 30_000);
 
 	it("runs runtime-owned taxonomy mutations through a real workerd isolate", async () => {
-		const { EmDashRuntime, TaxonomyRepository } = await import("emdash/plugin-test-runtime");
+		const { EmDashRuntime, TaxonomyRepository } =
+			await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
 		const deps: RuntimeDependencies = {
 			config: {

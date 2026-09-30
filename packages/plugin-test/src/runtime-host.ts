@@ -50,7 +50,7 @@ import {
 	validateEditorDraftPatch,
 	validateEditorDraftRequest,
 	type UserInfo,
-} from "emdash/plugin-test-runtime";
+} from "emdash/internal/plugin-test-runtime";
 import { Kysely } from "kysely";
 
 import type { PluginStorageTestEntry, PluginTestCollection, PluginTestRequest } from "./index.js";

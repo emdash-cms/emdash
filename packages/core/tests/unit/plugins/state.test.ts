@@ -7,9 +7,10 @@
  * - Timestamp tracking
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -17,7 +18,7 @@ import { PluginStateRepository } from "../../../src/plugins/state.js";
 
 describe("PluginStateRepository", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 	let repo: PluginStateRepository;
 
 	beforeEach(async () => {

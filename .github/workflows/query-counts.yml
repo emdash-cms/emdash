@@ -61,6 +61,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Test query normalization
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
+        run: node --test scripts/query-counts-normalize.test.mjs
       - if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         run: pnpm install --frozen-lockfile
       - if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'

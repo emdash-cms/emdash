@@ -207,9 +207,9 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 				</p>
 			</EditorHeader>
 
-			<div className="grid grid-cols-12 gap-6">
+			<div className="grid gap-6 xl:grid-cols-12">
 				{/* Main content */}
-				<div className="col-span-8 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-8">
 					{/* Content editor */}
 					<div className="rounded-lg border bg-kumo-base p-6">
 						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
@@ -236,7 +236,7 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 				</div>
 
 				{/* Sidebar */}
-				<div className="col-span-4 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-4">
 					{blockSidebarPanel?.type === "image" ? (
 						<ImageDetailPanel
 							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}

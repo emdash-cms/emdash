@@ -52,6 +52,7 @@ import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/conte
 import { SchemaRegistry } from "../schema/registry.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
+import { createBylineAccess } from "./byline-access.js";
 import { assertStorageKey } from "./conditional-storage.js";
 import { createContentAccess } from "./content-access.js";
 import { CronAccessImpl } from "./cron.js";
@@ -182,7 +183,9 @@ export function createKVAccess(
 			const includesSettings =
 				"settings:".startsWith(requestedPrefix) || requestedPrefix.startsWith("settings:");
 			const fullPrefix = `${prefix}${requestedPrefix}`;
-			const entriesMap = await optionsRepo.getByPrefix(fullPrefix);
+			const entriesMap = requestedPrefix.startsWith("settings:")
+				? new Map<string, unknown>()
+				: await optionsRepo.getByPrefix(fullPrefix);
 			const result: Array<{ key: string; value: unknown }> = [];
 			for (const [fullKey, value] of entriesMap) {
 				if (includesSettings && fullKey.startsWith(`${prefix}settings:`)) continue;
@@ -1761,6 +1764,8 @@ export class PluginContextFactory {
 			taxonomies = createTaxonomyAccess(db);
 		}
 
+		const bylines = capabilities.has("bylines:read") ? createBylineAccess(db) : undefined;
+
 		let redirects: RedirectAccess | RedirectAccessWithWrite | undefined;
 		if (capabilities.has("redirects:write")) {
 			redirects = createRedirectAccess(db, true);
@@ -1857,6 +1862,7 @@ export class PluginContextFactory {
 			content,
 			schema,
 			taxonomies,
+			bylines,
 			redirects,
 			media,
 			http,

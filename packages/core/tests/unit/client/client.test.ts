@@ -1622,6 +1622,136 @@ describe("EmDashClient", () => {
 			expect(result.items[1]!.slug).toBe("news");
 			expect(result.nextCursor).toBeUndefined();
 		});
+
+		it("sends includeCounts=false and does not synthesize a count", async () => {
+			let capturedUrl: URL | undefined;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/categories/terms",
+					handler: (request) => {
+						capturedUrl = new URL(request.url);
+						return jsonResponse({
+							terms: [{ id: "t1", slug: "news", label: "News" }],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.terms("categories", { includeCounts: false });
+
+			expect(capturedUrl?.search).toBe("?includeCounts=false");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				includeCounts: "false",
+			});
+			expect(result).toEqual({ items: [{ id: "t1", slug: "news", label: "News" }] });
+			expect(result.items[0]).not.toHaveProperty("count");
+			expect(result.nextCursor).toBeUndefined();
+		});
+
+		it("sends includeCounts=true when counts are requested explicitly", async () => {
+			let capturedUrl: URL | undefined;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/categories/terms",
+					handler: (request) => {
+						capturedUrl = new URL(request.url);
+						return jsonResponse({
+							terms: [{ id: "t1", slug: "news", label: "News", count: 4 }],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.terms("categories", { includeCounts: true });
+
+			expect(capturedUrl?.search).toBe("?includeCounts=true");
+			expect(result).toEqual({
+				items: [{ id: "t1", slug: "news", label: "News", count: 4 }],
+			});
+			expect(result.nextCursor).toBeUndefined();
+		});
+
+		it("omits includeCounts when the option is absent and keeps the terms envelope", async () => {
+			const searches: string[] = [];
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/categories/terms",
+					handler: (request) => {
+						searches.push(new URL(request.url).search);
+						return jsonResponse({
+							terms: [{ id: "t1", slug: "uncategorized", label: "Uncategorized", count: 3 }],
+						});
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const omitted = await client.terms("categories");
+			const empty = await client.terms("categories", {});
+			const explicitUndefined = await client.terms("categories", { includeCounts: undefined });
+
+			expect(searches).toEqual(["", "", ""]);
+			for (const result of [omitted, empty, explicitUndefined]) {
+				expect(result).toEqual({
+					items: [{ id: "t1", slug: "uncategorized", label: "Uncategorized", count: 3 }],
+				});
+				expect(result.nextCursor).toBeUndefined();
+			}
+		});
+
+		it("encodes includeCounts=false with limit and a cursor that contains reserved characters", async () => {
+			let capturedUrl: URL | undefined;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/",
+					handler: (request) => {
+						capturedUrl = new URL(request.url);
+						return jsonResponse({ terms: [] });
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.terms("news/world", {
+				limit: 25,
+				cursor: "after / term?a=1&b=2",
+				includeCounts: false,
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/taxonomies/news%2Fworld/terms");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				cursor: "after / term?a=1&b=2",
+				includeCounts: "false",
+			});
+			expect(result).toEqual({ items: [] });
+		});
 	});
 
 	describe("menus()", () => {

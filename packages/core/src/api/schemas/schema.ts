@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { MAX_COLLECTION_GROUP_LENGTH, MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import {
+	MAX_COLLECTION_GROUP_LENGTH,
+	MAX_COLLECTION_ICON_LENGTH,
+	MAX_COLLECTION_LIST_COLUMNS,
+} from "../../schema/types.js";
 import { compileUrlPattern } from "../../schema/url-pattern.js";
 import { slugPattern } from "./common.js";
 
@@ -30,10 +34,12 @@ const collectionAdminInputConfig = z.object({
 			`At most ${MAX_COLLECTION_LIST_COLUMNS} list columns are allowed`,
 		)
 		.optional(),
+	quickCreate: z.boolean().optional(),
 });
 
 const collectionAdminResponseConfig = z.object({
 	listColumns: collectionListColumns.optional(),
+	quickCreate: z.boolean().optional(),
 });
 
 const fieldTypeValues = z.enum([
@@ -79,10 +85,10 @@ const repeaterSubFieldSchema = z.object({
 const urlPatternValue = z.string().superRefine((pattern, ctx) => {
 	try {
 		compileUrlPattern(pattern);
-	} catch {
+	} catch (error) {
 		ctx.addIssue({
 			code: "custom",
-			message: "Invalid URL pattern",
+			message: error instanceof Error ? error.message : "Invalid URL pattern",
 		});
 	}
 });
@@ -108,6 +114,20 @@ const fieldValidation = z
 			.min(1, "allowedMimeTypes must not be empty — omit the field to allow all types")
 			.max(64, "allowedMimeTypes may contain at most 64 entries")
 			.optional(),
+		// Reference fields: the picker targets a collection and may allow more
+		// than one entry. Without these keys Zod strips them and the create
+		// handler rejects the field for a missing target collection.
+		targetCollection: z.string().min(1).optional(),
+		multiple: z.boolean().optional(),
+		// Reference fields: bind to an existing relation instead of creating one,
+		// and say which of its ends this collection sits on.
+		relation: z
+			.string()
+			.min(1)
+			.max(63)
+			.regex(slugPattern, "Invalid relation slug format")
+			.optional(),
+		relationSide: z.enum(["parent", "child"]).optional(),
 		allowedTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
 		retiredTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
 	})
@@ -153,7 +173,7 @@ export const createCollectionBody = z
 		label: z.string().min(1),
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
-		icon: z.string().optional(),
+		icon: z.string().trim().max(MAX_COLLECTION_ICON_LENGTH).optional(),
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
@@ -172,10 +192,10 @@ export const updateCollectionBody = z
 		label: z.string().min(1).optional(),
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
-		icon: z.string().optional(),
+		icon: z.string().trim().max(MAX_COLLECTION_ICON_LENGTH).optional(),
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
-		urlPattern: urlPatternValue.nullish(),
+		urlPattern: z.string().nullish(),
 		routable: z.boolean().optional(),
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),

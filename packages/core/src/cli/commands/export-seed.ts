@@ -33,10 +33,13 @@ import type {
 	SeedFile,
 	SeedCollection,
 	SeedField,
+	SeedRelation,
 	SeedTaxonomy,
 	SeedTaxonomyTerm,
 	SeedMenu,
 	SeedMenuItem,
+	SeedRedirect,
+	SeedSection,
 	SeedWidgetArea,
 	SeedWidget,
 	SeedContentEntry,
@@ -48,6 +51,8 @@ import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 
 const SETTINGS_PREFIX = "site:";
+
+const TRAILING_SLASHES = /\/+$/;
 
 export const exportSeedCommand = defineCommand({
 	meta: {
@@ -75,6 +80,11 @@ export const exportSeedCommand = defineCommand({
 			type: "boolean",
 			description: "Pretty print JSON output",
 			default: true,
+		},
+		"media-base-url": {
+			type: "string",
+			description: "Public URL of the site, used to write absolute media URLs",
+			required: false,
 		},
 	},
 	async run({ args }) {
@@ -108,7 +118,10 @@ export const exportSeedCommand = defineCommand({
 		}
 
 		try {
-			const seed = await exportSeed(db, args["with-content"]);
+			const seed = await exportSeed(db, args["with-content"], {
+				mediaBaseUrl: args["media-base-url"],
+				warn: (message) => process.stderr.write(`Warning: ${message}\n`),
+			});
 
 			// Output to stdout
 			const output = args.pretty ? JSON.stringify(seed, null, "\t") : JSON.stringify(seed);
@@ -124,10 +137,28 @@ export const exportSeedCommand = defineCommand({
 	},
 });
 
+export interface ExportSeedOptions {
+	/**
+	 * Public origin (optionally with a base path) of the site the database
+	 * belongs to. `$media` URLs are written relative to it; without it they are
+	 * site-relative paths, which `applySeed` cannot download.
+	 */
+	mediaBaseUrl?: string;
+	/** Receives messages about data the seed cannot carry. */
+	warn?: (message: string) => void;
+}
+
 /**
  * Export database to seed file format
  */
-export async function exportSeed(db: Kysely<Database>, withContent?: string): Promise<SeedFile> {
+export async function exportSeed(
+	db: Kysely<Database>,
+	withContent?: string,
+	options: ExportSeedOptions = {},
+): Promise<SeedFile> {
+	const warn = options.warn ?? (() => {});
+	const mediaUrlPrefix = mediaFileUrlPrefix(options.mediaBaseUrl);
+
 	const seed: SeedFile = {
 		$schema: "https://emdashcms.com/seed.schema.json",
 		version: "1",
@@ -146,38 +177,38 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 	// 3. Export collections and fields
 	seed.collections = await exportCollections(db);
 
+	// 3. Export the relations reference fields bind to. Emitted even when no
+	// field binds one: a relation outlives the fields that viewed it.
+	const relations = await exportRelations(db);
+	if (relations.length > 0) {
+		seed.relations = relations;
+	}
+
 	// Decide locale-awareness from the data. The runtime sets the i18n config via
 	// middleware, but the CLI never does, so `isI18nEnabled()` is always false
-	// under `emdash export-seed` (#1330). Detecting multiple locales in the data
+	// under `emdash export-seed`. Detecting multiple locales in the data
 	// keeps the export locale-aware without the runtime flag.
 	const { i18nEnabled, defaultLocale } = await detectLocaleInfo(db, seed.collections);
 
 	// Self-describe the default locale so a non-`en` single-locale project
 	// survives the round-trip: `emdash seed` runs outside the runtime and would
-	// otherwise backfill omitted locales as `en` (#1421).
+	// otherwise backfill omitted locales as `en`.
 	if (defaultLocale) seed.defaultLocale = defaultLocale;
 
-	// 3. Export taxonomy definitions and terms
+	// 4. Export taxonomy definitions and terms
 	seed.taxonomies = await exportTaxonomies(db, i18nEnabled);
 
-	// 4. Export menus
-	seed.menus = await exportMenus(db, i18nEnabled);
-
-	// 5. Export widget areas
-	seed.widgetAreas = await exportWidgetAreas(db);
-
-	// 6. Export byline profiles. The returned map (translation_group -> seed-local
-	// id) lets content credits below reference the same ids the root list emits.
+	// Byline profiles. The returned map (translation_group -> seed-local id)
+	// lets content credits reference the same ids the root list emits.
 	const { bylines, groupToSeedId } = await exportBylines(db);
-	if (bylines.length > 0) {
-		seed.bylines = bylines;
-	}
 
-	// 7. Export content (if requested)
+	// Content is read before menus so menu items can name their targets by
+	// seed id.
+	let exportedContent: ExportedContent | undefined;
 	if (withContent !== undefined) {
 		// Treat "all" as a synonym for the bare flag and "true". The args help
 		// text documents `all` as a valid value, but without this the literal
-		// string is read as a collection name and matches no collection (#1329).
+		// string is read as a collection name and matches no collection.
 		const includeAll = withContent === "" || withContent === "true" || withContent === "all";
 		const collections = includeAll
 			? null // all collections
@@ -186,16 +217,64 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 					.map((s) => s.trim())
 					.filter(Boolean);
 
-		seed.content = await exportContent(
+		exportedContent = await exportContent(
 			db,
 			seed.collections || [],
 			collections,
 			groupToSeedId,
 			i18nEnabled,
+			mediaUrlPrefix,
 		);
 	}
 
+	seed.menus = await exportMenus(db, i18nEnabled, exportedContent?.groupSeedIds ?? new Map());
+
+	const redirects = await exportRedirects(db, warn);
+	if (redirects.length > 0) {
+		seed.redirects = redirects;
+	}
+
+	seed.widgetAreas = await exportWidgetAreas(db);
+
+	const sections = await exportSections(db, warn);
+	if (sections.length > 0) {
+		seed.sections = sections;
+	}
+
+	if (bylines.length > 0) {
+		seed.bylines = bylines;
+	}
+
+	if (exportedContent) {
+		seed.content = exportedContent.content;
+		if (exportedContent.mediaCount > 0 && !options.mediaBaseUrl) {
+			warn(
+				`${exportedContent.mediaCount} media reference(s) use site-relative URLs, which \`emdash seed\` cannot download. Pass --media-base-url with the site's public URL to make them importable.`,
+			);
+		}
+	}
+
 	return seed;
+}
+
+const MEDIA_FILE_PATH = "/_emdash/api/media/file/";
+
+/**
+ * Prefix for `$media` URLs: the site's base URL (without a trailing slash)
+ * plus the public media route, or the bare route when no base is given.
+ */
+function mediaFileUrlPrefix(mediaBaseUrl: string | undefined): string {
+	if (mediaBaseUrl === undefined) return MEDIA_FILE_PATH;
+	let base: URL;
+	try {
+		base = new URL(mediaBaseUrl);
+	} catch {
+		throw new Error(`Invalid media base URL: ${mediaBaseUrl}`);
+	}
+	if (base.protocol !== "http:" && base.protocol !== "https:") {
+		throw new Error(`Media base URL must use http or https: ${mediaBaseUrl}`);
+	}
+	return `${base.origin}${base.pathname.replace(TRAILING_SLASHES, "")}${MEDIA_FILE_PATH}`;
 }
 
 /**
@@ -249,7 +328,7 @@ async function exportBylines(
  * Determine locale-awareness and the data's default locale for the export.
  *
  * The runtime initializes the i18n config in middleware, but the CLI never does,
- * so `isI18nEnabled()` is always false under `emdash export-seed` (#1330). When
+ * so `isI18nEnabled()` is always false under `emdash export-seed`. When
  * the flag is unset, fall back to the data: a project is multi-locale when its
  * i18n-aware tables hold rows in more than one distinct locale. `locale` is
  * NOT NULL (defaulting to the site's default locale), so a per-row presence
@@ -259,7 +338,7 @@ async function exportBylines(
  * per-locale suffix they need to avoid duplicate seed ids.
  *
  * `defaultLocale` self-describes the single-locale case so a non-`en` default
- * survives the round-trip (#1421). When more than one locale is present every
+ * survives the round-trip. When more than one locale is present every
  * row already carries its own `locale`, so no fallback is needed and we leave it
  * undefined rather than guess which locale is the "default" without the runtime
  * config.
@@ -360,6 +439,9 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 			hidden: collection.hidden || undefined,
 			sortOrder: collection.sortOrder,
 			group: collection.group,
+			commentsEnabled: collection.commentsEnabled || undefined,
+			titleField: collection.titleField,
+			dateField: collection.dateField,
 			fields: fields.map(
 				(field): SeedField => ({
 					slug: field.slug,
@@ -369,6 +451,7 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 					unique: field.unique || undefined,
 					searchable: field.searchable || undefined,
 					indexed: field.indexed || undefined,
+					translatable: field.translatable === false ? false : undefined,
 					defaultValue: field.defaultValue,
 					validation: field.validation ? { ...field.validation } : undefined,
 					widget: field.widget || undefined,
@@ -381,6 +464,43 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 	}
 
 	return result;
+}
+
+/**
+ * Export relations as root-level `relations[]`.
+ *
+ * A reference field's `validation.relation` names a relation by slug, and the
+ * field's validation is exported verbatim, so re-applying the seed binds the
+ * field to this relation rather than creating another one.
+ */
+async function exportRelations(db: Kysely<Database>): Promise<SeedRelation[]> {
+	const rows = await db
+		.selectFrom("_emdash_relations")
+		.select([
+			"slug",
+			"parent_collection",
+			"child_collection",
+			"parent_label",
+			"parent_label_singular",
+			"child_label",
+			"child_label_singular",
+			"max_children_per_parent",
+			"max_parents_per_child",
+		])
+		.orderBy("slug", "asc")
+		.execute();
+
+	return rows.map((row) => ({
+		slug: row.slug,
+		parentCollection: row.parent_collection,
+		childCollection: row.child_collection,
+		parentLabel: row.parent_label,
+		parentLabelSingular: row.parent_label_singular ?? undefined,
+		childLabel: row.child_label,
+		childLabelSingular: row.child_label_singular ?? undefined,
+		maxChildrenPerParent: row.max_children_per_parent,
+		maxParentsPerChild: row.max_parents_per_child,
+	}));
 }
 
 /**
@@ -487,7 +607,11 @@ async function exportTaxonomies(
 /**
  * Export menus with their items
  */
-async function exportMenus(db: Kysely<Database>, i18nEnabled: boolean): Promise<SeedMenu[]> {
+async function exportMenus(
+	db: Kysely<Database>,
+	i18nEnabled: boolean,
+	contentGroupSeedIds: ContentGroupSeedIds,
+): Promise<SeedMenu[]> {
 	const menus = await db
 		.selectFrom("_emdash_menus")
 		.selectAll()
@@ -522,6 +646,7 @@ async function exportMenus(db: Kysely<Database>, i18nEnabled: boolean): Promise<
 			menuLocale: menu.locale ?? null,
 			itemGroupToSeedId,
 			usedItemSeedIds,
+			contentGroupSeedIds,
 		});
 
 		const seedMenu: SeedMenu = {
@@ -579,6 +704,7 @@ function buildMenuItemTree(
 		// translation_group -> seed-local id of the anchor item in that group.
 		itemGroupToSeedId: Map<string, string>;
 		usedItemSeedIds: Set<string>;
+		contentGroupSeedIds: ContentGroupSeedIds;
 	},
 ): SeedMenuItem[] {
 	// Build parent -> children map
@@ -622,7 +748,14 @@ function buildMenuItemTree(
 			if (item.type === "custom") {
 				seedItem.url = item.custom_url || undefined;
 			} else {
-				seedItem.ref = item.reference_id || undefined;
+				// `reference_id` holds the target's translation_group. Content
+				// targets are named by the seed id `applySeed` maps back to a row;
+				// anything this export did not include keeps the stored value.
+				const contentSeedId =
+					item.type !== "taxonomy" && item.reference_id
+						? i18nCtx.contentGroupSeedIds.get(item.reference_id)
+						: undefined;
+				seedItem.ref = contentSeedId ?? (item.reference_id || undefined);
 				seedItem.collection = item.reference_collection || undefined;
 			}
 
@@ -722,14 +855,128 @@ async function exportWidgetAreas(db: Kysely<Database>): Promise<SeedWidgetArea[]
 	return result;
 }
 
+function isSeedRedirectType(type: number): type is NonNullable<SeedRedirect["type"]> {
+	return type === 301 || type === 302 || type === 307 || type === 308;
+}
+
+/**
+ * Export redirect rules. Terminal rules (410/451) have no seed representation
+ * and are reported through `warn` instead.
+ *
+ * Databases migrated from before the source guard can hold several rows for
+ * one source; only the guarded row is exported, since a seed rejects duplicate
+ * sources.
+ */
+async function exportRedirects(
+	db: Kysely<Database>,
+	warn: (message: string) => void,
+): Promise<SeedRedirect[]> {
+	const rows = await db
+		.selectFrom("_emdash_redirects")
+		.select(["source", "destination", "type", "enabled", "group_name", "source_guard"])
+		.orderBy("created_at")
+		.orderBy("id")
+		.execute();
+
+	const guardedRows = new Map<string, (typeof rows)[number]>();
+	for (const row of rows) {
+		const current = guardedRows.get(row.source);
+		if (!current || (row.source_guard === 1 && current.source_guard !== 1)) {
+			guardedRows.set(row.source, row);
+		}
+	}
+
+	const result: SeedRedirect[] = [];
+	for (const row of rows) {
+		if (guardedRows.get(row.source) !== row) {
+			warn(`Skipping duplicate rule for "${row.source}" -> "${row.destination}".`);
+			continue;
+		}
+		if (!isSeedRedirectType(row.type)) {
+			warn(`Skipping ${row.type} rule for "${row.source}": seeds only carry 301/302/307/308.`);
+			continue;
+		}
+		const redirect: SeedRedirect = {
+			source: row.source,
+			destination: row.destination,
+			type: row.type,
+		};
+		if (row.enabled === 0) redirect.enabled = false;
+		if (row.group_name) redirect.groupName = row.group_name;
+		result.push(redirect);
+	}
+	return result;
+}
+
+function isSeedSectionSource(source: string): source is NonNullable<SeedSection["source"]> {
+	return source === "theme" || source === "user" || source === "import";
+}
+
+/** Section slugs a seed accepts. The WordPress importer can store others. */
+const SEED_SECTION_SLUG_PATTERN = /^[a-z0-9-]+$/;
+
+async function exportSections(
+	db: Kysely<Database>,
+	warn: (message: string) => void,
+): Promise<SeedSection[]> {
+	const rows = await db
+		.selectFrom("_emdash_sections")
+		.select(["slug", "title", "description", "keywords", "content", "source"])
+		.orderBy("slug")
+		.execute();
+
+	const result: SeedSection[] = [];
+	for (const row of rows) {
+		if (!SEED_SECTION_SLUG_PATTERN.test(row.slug)) {
+			warn(
+				`Skipping section "${row.slug}": seed section slugs may only contain lowercase letters, digits, and hyphens.`,
+			);
+			continue;
+		}
+		const section: SeedSection = {
+			slug: row.slug,
+			title: row.title,
+			content: JSON.parse(row.content),
+		};
+		if (row.description) section.description = row.description;
+		if (row.keywords) section.keywords = JSON.parse(row.keywords);
+		if (isSeedSectionSource(row.source)) section.source = row.source;
+		result.push(section);
+	}
+	return result;
+}
+
 /** An entry read for export, paired with the seed id it will be written under. */
 interface CollectedEntry {
 	item: ContentItem;
 	seedId: string;
 }
 
-/** A reference field holds a single entry id or an array of them. */
-function referenceValues(value: unknown): string[] {
+/** A relation, by the slug a reference field addresses it under. */
+type RelationsBySlug = Map<
+	string,
+	{ id: string; childCollection: string; maxChildrenPerParent: number | null }
+>;
+
+async function loadRelations(db: Kysely<Database>): Promise<RelationsBySlug> {
+	const rows = await db
+		.selectFrom("_emdash_relations")
+		.select(["id", "slug", "child_collection", "max_children_per_parent"])
+		.execute();
+	return new Map(
+		rows.map((row) => [
+			row.slug,
+			{
+				id: row.id,
+				childCollection: row.child_collection,
+				maxChildrenPerParent: row.max_children_per_parent,
+			},
+		]),
+	);
+}
+
+/** A legacy reference column holds a single entry id or an array of them. */
+function legacyReferenceValues(value: unknown): string[] {
 	if (typeof value === "string") return [value];
 	if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
 	return [];
@@ -737,31 +984,52 @@ function referenceValues(value: unknown): string[] {
 
 /**
  * For each exported collection, the other exported collections its entries
- * point into. Read from the values rather than a field's declared target so a
- * `reference` field without `options.collection` is still accounted for.
+ * point into.
+ *
+ * A field bound to a relation names its target in the relation, and its links
+ * are not in `data` to be read. A field with no relation still holds entry ids
+ * in its own column; those are read from the values rather than from a declared
+ * target, so a field without `options.collection` is still accounted for.
  */
 function referenceTargets(
 	collected: Map<string, CollectedEntry[]>,
 	collectionsBySlug: Map<string, SeedCollection>,
 	entryIdToCollection: Map<string, string>,
+	relations: RelationsBySlug,
 ): Map<string, Set<string>> {
 	const targets = new Map<string, Set<string>>();
 
 	for (const [slug, items] of collected) {
-		const referenceFields = (collectionsBySlug.get(slug)?.fields ?? [])
-			.filter((field) => field.type === "reference")
-			.map((field) => field.slug);
+		const referenceFields = (collectionsBySlug.get(slug)?.fields ?? []).filter(
+			(field) => field.type === "reference",
+		);
 		if (referenceFields.length === 0) continue;
 
 		const found = new Set<string>();
-		for (const { item } of items) {
-			for (const fieldSlug of referenceFields) {
-				for (const value of referenceValues(item.data[fieldSlug])) {
-					const target = entryIdToCollection.get(value);
-					if (target && target !== slug) found.add(target);
+		const add = (target: string | undefined): void => {
+			if (target && target !== slug) found.add(target);
+		};
+
+		for (const field of referenceFields) {
+			const relationSlug = field.validation?.relation;
+			if (typeof relationSlug !== "string") continue;
+			if (field.validation?.relationSide === "child") continue;
+			add(relations.get(relationSlug)?.childCollection);
+		}
+
+		const columnFields = referenceFields
+			.filter((field) => typeof field.validation?.relation !== "string")
+			.map((field) => field.slug);
+		if (columnFields.length > 0) {
+			for (const { item } of items) {
+				for (const fieldSlug of columnFields) {
+					for (const value of legacyReferenceValues(item.data[fieldSlug])) {
+						add(entryIdToCollection.get(value));
+					}
 				}
 			}
 		}
+
 		if (found.size > 0) targets.set(slug, found);
 	}
 
@@ -799,6 +1067,23 @@ function orderByReferenceTargets(slugs: string[], targets: Map<string, Set<strin
 	return ordered;
 }
 
+/** translation_group -> seed id of the entry anchoring that group */
+type ContentGroupSeedIds = Map<string, string>;
+
+interface MediaInfo {
+	url: string;
+	filename: string;
+	alt?: string;
+	caption?: string;
+}
+
+interface ExportedContent {
+	content: Record<string, SeedContentEntry[]>;
+	groupSeedIds: ContentGroupSeedIds;
+	/** Number of `$media` references written. */
+	mediaCount: number;
+}
+
 /**
  * Export content from collections
  */
@@ -808,17 +1093,16 @@ async function exportContent(
 	includeCollections: string[] | null,
 	bylineGroupToSeedId: Map<string, string>,
 	i18nEnabled: boolean,
-): Promise<Record<string, SeedContentEntry[]>> {
+	mediaUrlPrefix: string,
+): Promise<ExportedContent> {
 	const content: Record<string, SeedContentEntry[]> = {};
+	const mediaCounter = { count: 0 };
 	const contentRepo = new ContentRepository(db);
 	const taxonomyRepo = new TaxonomyRepository(db);
 	const mediaRepo = new MediaRepository(db);
 
 	// Build media id -> info map for $media conversion
-	const mediaMap = new Map<
-		string,
-		{ url: string; filename: string; alt?: string; caption?: string }
-	>();
+	const mediaMap = new Map<string, MediaInfo>();
 	try {
 		let cursor: string | undefined;
 		do {
@@ -829,7 +1113,7 @@ async function exportContent(
 			});
 			for (const media of result.items) {
 				mediaMap.set(media.id, {
-					url: `/_emdash/api/media/file/${media.storageKey}`,
+					url: `${mediaUrlPrefix}${media.storageKey}`,
 					filename: media.filename,
 					alt: media.alt || undefined,
 					caption: media.caption || undefined,
@@ -841,13 +1125,18 @@ async function exportContent(
 		// Media table might not exist or be empty
 	}
 
-	// Read every entry and assign its seed id before processing any data. A
-	// `reference` value holds a row id whose target can sit in a collection this
-	// loop has not reached yet, so the row id -> seed id map has to be complete
-	// before the first conversion.
+	// Read every entry and assign its seed id before emitting any of them. A
+	// reference can point at a collection the emit loop has not reached yet, so
+	// both seed-id maps have to be complete before the first conversion — and the
+	// collection order itself is derived from what points where.
+	//
+	// Keyed two ways: links are keyed by translation group, while a legacy
+	// reference column holding one entry id is not.
 	const collected = new Map<string, CollectedEntry[]>();
 	const entryIdToSeedId = new Map<string, string>();
 	const entryIdToCollection = new Map<string, string>();
+	const groupToSeedId = new Map<string, string>();
+	const exported: ExportedEntry[] = [];
 
 	for (const collection of collections) {
 		// Skip if not in include list
@@ -876,6 +1165,10 @@ async function exportContent(
 				items.push({ item, seedId });
 				entryIdToSeedId.set(item.id, seedId);
 				entryIdToCollection.set(item.id, collection.slug);
+				// The first entry of a group is the one written without
+				// `translationOf`, so `applySeed` gives it the group's id.
+				const group = item.translationGroup ?? item.id;
+				if (!groupToSeedId.has(group)) groupToSeedId.set(group, seedId);
 			}
 
 			cursor = result.nextCursor;
@@ -884,10 +1177,11 @@ async function exportContent(
 		collected.set(collection.slug, items);
 	}
 
+	const relations = await loadRelations(db);
 	const collectionsBySlug = new Map(collections.map((c) => [c.slug, c]));
 	const orderedSlugs = orderByReferenceTargets(
 		[...collected.keys()],
-		referenceTargets(collected, collectionsBySlug, entryIdToCollection),
+		referenceTargets(collected, collectionsBySlug, entryIdToCollection, relations),
 	);
 
 	for (const slug of orderedSlugs) {
@@ -903,18 +1197,21 @@ async function exportContent(
 		const translationGroupToSeedId = new Map<string, string>();
 
 		for (const { item, seedId } of items) {
-			// Process data fields for $media and $ref conversion
+			// Process data fields for $media conversion
 			const processedData = processDataForExport(
 				item.data,
 				collection.fields,
 				mediaMap,
-				entryIdToSeedId,
+				mediaCounter,
 			);
 
 			const entry: SeedContentEntry = {
 				id: seedId,
 				slug: item.slug?.trim() ? item.slug : collection.routable === false ? undefined : item.id,
-				status: item.status === "published" || item.status === "draft" ? item.status : undefined,
+				// Seeds carry no schedule, and `applySeed` publishes an entry with
+				// no status, so every unpublished state (including scheduled) is a
+				// draft.
+				status: item.status === "published" ? "published" : "draft",
 				data: processedData,
 			};
 
@@ -950,6 +1247,13 @@ async function exportContent(
 				entry.bylines = bylines;
 			}
 
+			exported.push({
+				collection,
+				entry,
+				translationGroup: item.translationGroup ?? null,
+				referenceValues: item.data,
+			});
+
 			entries.push(entry);
 		}
 
@@ -968,62 +1272,179 @@ async function exportContent(
 		}
 	}
 
-	return content;
+	await addReferenceLinks(db, exported, relations, groupToSeedId, entryIdToSeedId);
+
+	return { content, groupSeedIds: groupToSeedId, mediaCount: mediaCounter.count };
+}
+
+interface ExportedEntry {
+	collection: SeedCollection;
+	entry: SeedContentEntry;
+	translationGroup: string | null;
+	/** The entry's stored `data`, which a reference field's column value is read from. */
+	referenceValues: Record<string, unknown>;
 }
 
 /**
- * Process content data for export, converting image fields to $media syntax
+ * Write each entry's reference selection into its `data` as `$ref:` values, which
+ * the seed's own content ids resolve on apply.
+ *
+ * A field bound to a relation takes its selection from the link table. Only the
+ * parent side is emitted: both sides view one link set, so a child-side field
+ * would restate links the parent side already carries, and `setReferenceChildren`
+ * accepts them only from the parent. A field with no relation takes the entry id
+ * in its column instead.
+ *
+ * Runs after every collection has been emitted, so the seed id of any target is
+ * known. A target that was not exported has none: a link is then dropped, since
+ * nothing in the seed owns it, while a column value keeps its `$ref:` prefix
+ * around the raw row id. Stripping the prefix there would write a row id that no
+ * restored row carries into the column, and the restore would report success.
+ */
+async function addReferenceLinks(
+	db: Kysely<Database>,
+	exported: ExportedEntry[],
+	relations: RelationsBySlug,
+	groupToSeedId: Map<string, string>,
+	entryIdToSeedId: Map<string, string>,
+): Promise<void> {
+	if (exported.length === 0) return;
+
+	// Relation id -> parent group -> ordered child groups.
+	const linksByRelation = new Map<string, Map<string, string[]>>();
+	if (relations.size > 0) {
+		const edges = await db
+			.selectFrom("_emdash_content_references")
+			.select(["relation_id", "parent_group", "child_group"])
+			.orderBy("sort_order", "asc")
+			.execute();
+		for (const edge of edges) {
+			const byParent = linksByRelation.get(edge.relation_id) ?? new Map<string, string[]>();
+			const children = byParent.get(edge.parent_group) ?? [];
+			children.push(edge.child_group);
+			byParent.set(edge.parent_group, children);
+			linksByRelation.set(edge.relation_id, byParent);
+		}
+	}
+
+	for (const { collection, entry, translationGroup, referenceValues } of exported) {
+		for (const field of collection.fields) {
+			if (field.type !== "reference") continue;
+			const slug = field.validation?.relation;
+
+			if (typeof slug !== "string") {
+				// No relation: the field keeps its own column, holding one entry id or
+				// a JSON array of them.
+				const stored = referenceValues[field.slug];
+				const ids = (Array.isArray(stored) ? stored : [stored]).filter(
+					(id): id is string => typeof id === "string" && id.length > 0,
+				);
+				const refs = ids.map((id) => `$ref:${entryIdToSeedId.get(id) ?? id}`);
+				if (refs.length === 0) continue;
+				entry.data[field.slug] = Array.isArray(stored) ? refs : refs[0];
+				continue;
+			}
+
+			if (field.validation?.relationSide === "child") continue;
+
+			const relation = relations.get(slug);
+			if (!relation || !translationGroup) continue;
+
+			const childGroups = linksByRelation.get(relation.id)?.get(translationGroup) ?? [];
+			const refs = childGroups
+				.map((group) => groupToSeedId.get(group))
+				.filter((seedId): seedId is string => seedId !== undefined)
+				.map((seedId) => `$ref:${seedId}`);
+			if (refs.length === 0) continue;
+
+			entry.data[field.slug] = relation.maxChildrenPerParent === 1 ? refs[0] : refs;
+		}
+	}
+}
+
+/**
+ * Convert a stored media value (image or file) to `$media` syntax. Values that
+ * don't point at a known media row are kept as they are.
+ */
+function toSeedMedia(
+	value: unknown,
+	mediaMap: Map<string, MediaInfo>,
+	mediaCounter: { count: number },
+): unknown {
+	if (!value || typeof value !== "object") return value;
+	const mediaValue = value as { id?: unknown; alt?: unknown };
+	const mediaInfo = typeof mediaValue.id === "string" ? mediaMap.get(mediaValue.id) : undefined;
+	if (!mediaInfo) return value;
+
+	mediaCounter.count++;
+	return {
+		$media: {
+			url: mediaInfo.url,
+			filename: mediaInfo.filename,
+			alt: (typeof mediaValue.alt === "string" && mediaValue.alt) || mediaInfo.alt,
+			caption: mediaInfo.caption,
+		},
+	};
+}
+
+/** Slugs of a repeater field's `image` sub-fields. */
+function repeaterImageSubFields(field: SeedField): Set<string> {
+	const subFields = field.validation?.subFields;
+	const slugs = new Set<string>();
+	if (!Array.isArray(subFields)) return slugs;
+	for (const subField of subFields) {
+		if (
+			subField &&
+			typeof subField === "object" &&
+			subField.type === "image" &&
+			typeof subField.slug === "string"
+		) {
+			slugs.add(subField.slug);
+		}
+	}
+	return slugs;
+}
+
+/**
+ * Process content data for export: media values become `$media` references
+ * and reference values become `$ref:` seed ids.
  */
 function processDataForExport(
 	data: Record<string, unknown>,
 	fields: SeedField[],
-	mediaMap: Map<string, { url: string; filename: string; alt?: string; caption?: string }>,
-	entryIdToSeedId: Map<string, string>,
+	mediaMap: Map<string, MediaInfo>,
+	mediaCounter: { count: number },
 ): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 
-	// Create field type lookup
-	const fieldTypes = new Map<string, FieldType>();
+	const fieldsBySlug = new Map<string, SeedField>();
 	for (const field of fields) {
-		fieldTypes.set(field.slug, field.type);
+		fieldsBySlug.set(field.slug, field);
 	}
 
 	for (const [key, value] of Object.entries(data)) {
-		const fieldType = fieldTypes.get(key);
+		const field = fieldsBySlug.get(key);
+		const fieldType: FieldType | undefined = field?.type;
 
-		if (fieldType === "image" && value && typeof value === "object") {
-			// Convert image field to $media syntax
-			const imageValue = value as { id?: string; src?: string; alt?: string };
-			if (imageValue.id) {
-				const mediaInfo = mediaMap.get(imageValue.id);
-				if (mediaInfo) {
-					result[key] = {
-						$media: {
-							url: mediaInfo.url,
-							filename: mediaInfo.filename,
-							alt: imageValue.alt || mediaInfo.alt,
-							caption: mediaInfo.caption,
-						},
-					};
-					continue;
+		if (fieldType === "image" || fieldType === "file") {
+			result[key] = toSeedMedia(value, mediaMap, mediaCounter);
+		} else if (field && fieldType === "repeater" && Array.isArray(value)) {
+			const imageSubFields = repeaterImageSubFields(field);
+			result[key] = value.map((row: unknown) => {
+				if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+				const exportedRow: Record<string, unknown> = {};
+				for (const [subKey, subValue] of Object.entries(row)) {
+					exportedRow[subKey] = imageSubFields.has(subKey)
+						? toSeedMedia(subValue, mediaMap, mediaCounter)
+						: subValue;
 				}
-			}
-			// Fallback: keep as-is if no media info found
-			result[key] = value;
-		} else if (fieldType === "reference" && typeof value === "string") {
-			// Convert reference to $ref syntax, naming the target by the seed id
-			// this export assigns it. The stored value is a row id, and `seed`
-			// renumbers rows on insert, so a row id matches nothing in the
-			// restored database and gets written to the column verbatim.
-			result[key] = `$ref:${entryIdToSeedId.get(value) ?? value}`;
-		} else if (Array.isArray(value)) {
-			// Process arrays (could contain references or images)
-			result[key] = value.map((item) => {
-				if (typeof item === "string" && fieldType === "reference") {
-					return `$ref:${entryIdToSeedId.get(item) ?? item}`;
-				}
-				return item;
+				return exportedRow;
 			});
+		} else if (fieldType === "reference") {
+			// Left for `addReferenceLinks`, which knows the seed id each entry was
+			// emitted under. A `$ref:` built here from a raw entry id resolves
+			// against nothing on apply.
+			continue;
 		} else {
 			result[key] = value;
 		}

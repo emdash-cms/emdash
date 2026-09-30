@@ -115,7 +115,7 @@ function makeContext(
 	return {
 		url: u,
 		locals: {
-			emdash: { db: {}, config: { experimental: { registry } } },
+			emdash: { db: {}, config: { registry } },
 			user,
 		},
 	} as unknown as APIContext;
@@ -273,7 +273,7 @@ describe("registry artifact proxy", () => {
 		for (const [key, value] of Object.entries(DEFAULT_PARAMS)) u.searchParams.set(key, value);
 		const ctx = {
 			url: u,
-			locals: { emdash: { db: {}, config: { experimental: {} } }, user: adminUser },
+			locals: { emdash: { db: {}, config: {} }, user: adminUser },
 		} as unknown as APIContext;
 		const res = await GET(ctx);
 		expect(res.status).toBe(400);

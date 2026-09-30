@@ -1,6 +1,6 @@
 ---
 title: Block Kit
-description: Declarative UI blocks for sandboxed plugin pages, widgets, and saved-entry extensions.
+description: Declarative UI blocks for plugin pages, widgets, and saved-entry extensions.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -8,7 +8,7 @@ import { Aside } from "@astrojs/starlight/components";
 EmDash's Block Kit lets sandboxed plugins describe their admin UI as JSON. The host renders the blocks — no plugin-supplied JavaScript ever runs in the browser.
 
 <Aside>
-	Native plugins can ship their own React components for admin pages. Block Kit is the admin UI system for sandboxed plugins, where shipping React would break sandbox isolation.
+	Native plugins can ship their own React components for admin pages. Block Kit is the admin UI system for sandboxed plugins, where shipping React would break sandbox isolation. Native plugins can use Block Kit too: see [Block Kit in native plugins](#block-kit-in-native-plugins).
 </Aside>
 
 <Aside type="tip">
@@ -113,7 +113,7 @@ export default plugin;
 
 The `admin` route is private by default. EmDash sends the correct CSRF header when the admin calls it. The handler still validates `routeCtx.input` because its TypeScript type is `unknown` and a caller can invoke a private plugin route outside the Block Kit page.
 
-EmDash validates every page and widget response before the admin renders it. An invalid block, unsafe URL, link to an undeclared plugin page, or response over the Block Kit limits fails the request instead of reaching the browser. A response can contain up to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string.
+EmDash validates every sandboxed page and widget response before the admin renders it. An invalid block, unsafe URL, link to an undeclared plugin page, or response over the Block Kit limits fails the request instead of reaching the browser. A response can contain up to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string.
 
 ## UI locale and direction
 
@@ -179,6 +179,43 @@ The available targets are:
 External links open in a new tab with `noopener noreferrer`. Link elements do not accept `action_id` and cannot appear as form fields. Use a button when the interaction must call the plugin route.
 
 Block images use the same browser-resource policy. Root-relative image URLs are allowed. An external image must use HTTPS and its hostname must appear in the plugin's `allowedHosts`. A plugin with `network:request:unrestricted` can load an HTTPS image from any hostname. Other external images cause the complete Block Kit response to be rejected.
+
+## Row actions in tables
+
+Set a table column's `format` to `element` to place a button, link, or menu in each row. Each row stores the element under the column's key; a row without a value leaves the cell empty. Use a `menu` element when a row offers several choices behind one button:
+
+```typescript title="src/plugin.ts"
+return {
+	blocks: [
+		{
+			type: "table",
+			page_action_id: "missing_page",
+			columns: [
+				{ key: "title", label: "Entry" },
+				{ key: "languages", label: "Missing" },
+				{ key: "action", label: "Actions", format: "element" },
+			],
+			rows: [
+				{
+					title: "Hello world",
+					languages: "French, Italian",
+					action: {
+						type: "menu",
+						action_id: "translate",
+						label: "Translate",
+						items: [
+							{ label: "French", value: "fr:01K5POSTEXAMPLE" },
+							{ label: "Italian", value: "it:01K5POSTEXAMPLE" },
+						],
+					},
+				},
+			],
+		},
+	],
+};
+```
+
+Choosing a menu item sends a `block_action` with the menu's `action_id` and the item's `value`. Item values must be unique within a menu. Element cells accept only `button`, `link`, and `menu` elements. A menu can also appear in an `actions` block, as a section accessory, or in empty-state actions, but not as a form field. The `elements.menu(actionId, label, items, { style })` builder returns the same shape.
 
 ## Saved-entry panels and actions
 
@@ -254,6 +291,39 @@ return {
 
 Use `refresh: true` to reload the entry, `navigate` with a structured link target, or `patch` to propose unsaved field changes. A response cannot combine terminal effects. EmDash rejects unknown commands, unsafe navigation, invalid or stale patches, and responses over the Block Kit limits before applying an effect.
 
+## Block Kit in native plugins
+
+A native plugin can render Block Kit pages and widgets without shipping React. Declare `admin.pages` or `admin.widgets` in `definePlugin()`, leave `admin.entry` unset, and add a route named `admin`:
+
+```typescript title="src/index.ts"
+import { definePlugin } from "emdash";
+
+export function createPlugin() {
+	return definePlugin({
+		id: "plugin-status",
+		version: "0.1.0",
+		routes: {
+			admin: {
+				handler: async (ctx) => {
+					// Validate ctx.input as in the sandboxed example above.
+					return { blocks: [{ type: "header", text: "Status" }] };
+				},
+			},
+		},
+		admin: {
+			pages: [{ path: "/status", label: "Status", icon: "gauge" }],
+		},
+	});
+}
+```
+
+A native plugin uses Block Kit when it declares pages, widgets, or editor extensions and no `admin.entry`. Setting `admin.entry` switches it to [React admin pages](/plugins/creating-native-plugins/react-admin/). Declare the `admin` route explicitly: the implicit `admin` route exists only for older sandboxed bundles. A native handler receives a single `RouteContext`, so the interaction arrives as `ctx.input`.
+
+Two behaviors described above currently apply only to sandboxed plugins on admin pages and dashboard widgets:
+
+- `ctx.ui` is `undefined` on a native plugin's page or widget, so the route cannot read the admin locale or text direction from it. Native editor panels and actions do receive `ctx.ui`.
+- EmDash does not validate a native plugin's page or widget response before the admin renders it. Keep native responses within the same block types, limits, and link and image rules, because the same renderer draws them.
+
 ## Block types
 
 | Type        | Description                                                                             |
@@ -283,6 +353,7 @@ Use `refresh: true` to reload the entry, `navigate` with a structured link targe
 | --------------- | -------------------------------------------- |
 | `button`        | Action button with optional confirmation dialog |
 | `link`          | Host-resolved internal or external navigation    |
+| `menu`          | Button that opens a list of choices; each choice dispatches an action |
 | `text_input`    | Single-line or multiline text input          |
 | `number_input`  | Numeric input with min/max                   |
 | `select`        | Dropdown select                              |
@@ -352,4 +423,4 @@ The `api_key` field only appears when `auth_enabled` is toggled on. Conditions a
 
 ## Try it
 
-Use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) to interactively build and test block layouts.
+Use the [Block Playground](https://blocks.emdashcms.com/) to interactively build and test block layouts.

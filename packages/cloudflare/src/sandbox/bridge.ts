@@ -35,7 +35,6 @@ import type {
 	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
-import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import type {
 	ContentItem,
 	ContentListOptions,
@@ -43,7 +42,8 @@ import type {
 	PaginatedResult,
 	PluginStorageRepository,
 	SettingField,
-} from "emdash/plugins/host";
+} from "emdash/internal/plugins/host";
+import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import {
 	createPluginSecretRedactor,
 	type PluginSecretRedactor,
@@ -115,11 +115,19 @@ let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
 const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-callbacks");
+const MEDIA_STORAGE_CALLBACK_KEY = Symbol.for("emdash:sandbox-media-storage-callback");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
-let mediaStorageCallback: Pick<Storage, "download"> | null = null;
 const httpFetchCallbacks = new Map<string, typeof fetch>();
+
+function getMediaStorageCallback(): Pick<Storage, "download"> | null {
+	const store = globalThis as Record<symbol, unknown>;
+	const callback = store[MEDIA_STORAGE_CALLBACK_KEY];
+	if (callback === undefined || callback === null) return null;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only the media storage callback set below
+	return callback as Pick<Storage, "download">;
+}
 
 function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	const store = globalThis as Record<symbol, unknown>;
@@ -215,7 +223,8 @@ export function setCommentModerateCallback(callback: SandboxCommentModerateCallb
 }
 
 export function setMediaStorageCallback(storage: Pick<Storage, "download"> | null): void {
-	mediaStorageCallback = storage;
+	const store = globalThis as Record<symbol, unknown>;
+	store[MEDIA_STORAGE_CALLBACK_KEY] = storage;
 }
 
 export function setTaxonomyWriteCallback(
@@ -1488,6 +1497,33 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (results.results ?? []).map(rowToTaxonomyTerm);
 	}
 
+	// =========================================================================
+	// Byline Operations - capability-gated
+	// =========================================================================
+
+	private async bylineAccess() {
+		this.requireCapability("bylines:read");
+		const { createBylineAccess } = await loadBridgeRuntime();
+		return createBylineAccess(await this.db());
+	}
+
+	async bylineGet(id: string) {
+		return (await this.bylineAccess()).get(id);
+	}
+
+	async bylineList(opts: { locale?: string; limit?: number; cursor?: string } = {}) {
+		return (await this.bylineAccess()).list(opts);
+	}
+
+	async bylineEntriesBylines(collection: string, entryIds: string[]) {
+		const access = await this.bylineAccess();
+		this.validateCollection(collection);
+		if (!Array.isArray(entryIds) || !entryIds.every((id) => typeof id === "string")) {
+			throw new Error("entryIds must be an array of strings");
+		}
+		return access.getEntriesBylines(collection, entryIds);
+	}
+
 	async taxonomyCreateTerm(
 		taxonomy: string,
 		input: Parameters<TaxonomyAccessWithWrite["createTerm"]>[1],
@@ -1622,7 +1658,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		const { D1Dialect, Kysely, readPluginMediaBytes } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return readPluginMediaBytes(db, mediaStorageCallback ?? undefined, id, { maxBytes });
+		return readPluginMediaBytes(db, getMediaStorageCallback() ?? undefined, id, { maxBytes });
 	}
 
 	async mediaUpdateMetadata(id: string, patch: unknown): Promise<PluginMediaItem> {

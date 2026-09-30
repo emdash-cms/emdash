@@ -2,7 +2,8 @@
  * EmDash Request Context Middleware
  *
  * Sets up AsyncLocalStorage-based request context for query functions.
- * Skips ALS entirely for logged-out users with no CMS signals (fast path).
+ * Skips ALS for logged-out users with no CMS signals unless a configured
+ * object cache must be fenced off during a route-cache render.
  *
  * Handles:
  * - Preview tokens: _preview query param with signed HMAC token
@@ -63,19 +64,31 @@ function optOutOfRouteCache(cache: RouteCache): void {
 	cache?.set(false);
 }
 
+function isHtmlResponse(response: Response): boolean {
+	return response.headers.get("content-type")?.includes("text/html") ?? false;
+}
+
 /**
  * Inject HTML before `</body>` if the response is an HTML page with a body
  * end tag. Does not touch cache headers — callers decide whether the result
- * is still shareable. `injected` tells the caller whether anything changed.
+ * is still shareable. `injected` tells the caller whether the result carries
+ * the injected HTML.
+ *
+ * `Astro.rewrite()` runs this middleware again for the rewritten route inside
+ * the original request, so the response can already contain the HTML; `marker`
+ * identifies it so it is injected only once.
  */
 async function injectBeforeBodyEnd(
 	response: Response,
 	htmlToInject: string,
+	marker: string,
 ): Promise<{ response: Response; injected: boolean }> {
-	const contentType = response.headers.get("content-type");
-	if (!contentType?.includes("text/html")) return { response, injected: false };
+	if (!isHtmlResponse(response)) return { response, injected: false };
 
 	const html = await response.text();
+	if (html.includes(marker)) {
+		return { response: new Response(html, response), injected: true };
+	}
 	if (!html.includes("</body>")) {
 		// Body already consumed — rebuild the response unchanged.
 		return { response: new Response(html, response), injected: false };
@@ -93,14 +106,21 @@ async function injectBeforeBodyEnd(
 
 /**
  * Inject toolbar HTML into a response if it's an HTML page.
- * Returns the original response if not HTML.
+ * Returns the original response if not HTML, without calling
+ * `renderToolbarHtml`, which loads labels and, for an editor, resolves the
+ * preview secret.
  */
 async function injectToolbar(
 	response: Response,
-	toolbarHtml: string,
+	renderToolbarHtml: () => Promise<string>,
 	routeCache: RouteCache,
 ): Promise<Response> {
-	const result = await injectBeforeBodyEnd(response, toolbarHtml);
+	if (!isHtmlResponse(response)) return response;
+	const result = await injectBeforeBodyEnd(
+		response,
+		await renderToolbarHtml(),
+		'id="emdash-toolbar"',
+	);
 	if (result.injected) {
 		// Toolbar-injected HTML is session-specific (its presence reveals an
 		// active editor session); it must never be stored in a shared CDN cache
@@ -120,7 +140,11 @@ async function injectToolbar(
  * stays fully shareable.
  */
 async function injectBootstrap(response: Response): Promise<Response> {
-	const result = await injectBeforeBodyEnd(response, renderToolbarBootstrap());
+	const result = await injectBeforeBodyEnd(
+		response,
+		renderToolbarBootstrap(),
+		"<!-- EmDash Toolbar Bootstrap -->",
+	);
 	return result.response;
 }
 
@@ -176,14 +200,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				if (!hasEditCookie || toolbarMode === false) return response;
 				// The Playground shows its own bar, so the editor toolbar is hidden and
 				// only provides inline editing.
-				const labels = await loadVisualEditingToolbarLabels(context.request);
-				const toolbarHtml = renderToolbar({
-					editMode: true,
-					isPreview: false,
-					labels,
-					hidden: true,
-				});
-				return injectToolbar(response, toolbarHtml, context.cache);
+				return injectToolbar(
+					response,
+					async () =>
+						renderToolbar({
+							editMode: true,
+							isPreview: false,
+							labels: await loadVisualEditingToolbarLabels(context.request),
+							hidden: true,
+						}),
+					context.cache,
+				);
 			},
 		);
 	}
@@ -209,13 +236,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	// No CMS signals and not an editor → skip everything (zero overhead in
-	// server mode; client mode injects the identical-for-everyone bootstrap)
+	// No CMS signals and not an editor. Route-cache renders get a context so
+	// object-cache reads cannot seed a fresh response with stale data; other
+	// requests retain the anonymous fast path.
 	if (!hasEditCookie && !hasPreviewToken && !isEditor) {
-		if (toolbarMode === "client") {
-			return injectBootstrap(await next());
+		const render = async () => {
+			const response = await next();
+			return toolbarMode === "client" ? injectBootstrap(response) : response;
+		};
+		if (virtualConfig?.objectCacheEnabled && context.cache?.enabled) {
+			const parent = getRequestContext();
+			return runWithContext({ ...parent, editMode: false, routeCacheFill: true }, render);
 		}
-		return next();
+		return render();
 	}
 
 	// Determine edit mode: cookie AND authenticated editor
@@ -282,11 +315,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// opt-out) in every toolbar mode, so the server toolbar is safe to
 			// inject here even in client mode.
 			if (isEditor && toolbarMode !== false) {
-				const toolbarHtml = await renderEditorToolbar(context, {
-					editMode,
-					isPreview: !!preview,
-				});
-				return injectToolbar(response, toolbarHtml, routeCache);
+				return injectToolbar(
+					response,
+					() => renderEditorToolbar(context, { editMode, isPreview: !!preview }),
+					routeCache,
+				);
 			}
 
 			// Stale edit cookie without a session (client mode): still serve the
@@ -317,11 +350,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// toolbar (response becomes `private, no-store` and route-cache
 		// opted out).
 		const response = await next();
-		const toolbarHtml = await renderEditorToolbar(context, {
-			editMode: false,
-			isPreview: false,
-		});
-		return injectToolbar(response, toolbarHtml, routeCache);
+		return injectToolbar(
+			response,
+			() => renderEditorToolbar(context, { editMode: false, isPreview: false }),
+			routeCache,
+		);
 	}
 
 	return next();

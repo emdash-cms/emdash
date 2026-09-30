@@ -439,7 +439,7 @@ export interface CollectionTable {
 	label_singular: string | null;
 	description: string | null;
 	icon: string | null;
-	admin_config: Generated<string | null>; // JSON: { listColumns?: string[] }
+	admin_config: Generated<string | null>; // JSON: { listColumns?: string[]; quickCreate?: boolean }
 	supports: string | null; // JSON array
 	source: string | null;
 	search_config: string | null; // JSON: SearchConfig
@@ -976,23 +976,32 @@ export interface BylineFieldGroupValueTable {
 // between content entries, linked by `translation_group` so they are
 // locale-agnostic — no foreign keys, mirroring `content_taxonomies`.
 
+/**
+ * A relation definition. Not localized — a relation joins the same two
+ * collections whatever language you read it in, and its role labels are
+ * single-valued like a collection's. See migration 086.
+ */
 export interface RelationTable {
 	id: string;
-	name: string;
+	slug: string;
 	parent_collection: string;
 	child_collection: string;
 	parent_label: string;
 	child_label: string;
-	locale: Generated<string>;
-	translation_group: string;
+	parent_label_singular: string | null;
+	child_label_singular: string | null;
+	/** How many children one parent may hold. NULL means unlimited. */
+	max_children_per_parent: number | null;
+	/** How many parents one child may hold. NULL means unlimited. */
+	max_parents_per_child: number | null;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
 
 export interface ContentReferenceTable {
 	id: string;
-	/** Stores `_emdash_relations.translation_group` (locale-agnostic). No FK. */
-	relation_group: string;
+	/** Stores `_emdash_relations.id`. No FK. */
+	relation_id: string;
 	/** Parent entry's `translation_group`. */
 	parent_group: string;
 	/** Child entry's `translation_group`. */

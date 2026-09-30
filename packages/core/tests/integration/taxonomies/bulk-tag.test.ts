@@ -339,6 +339,52 @@ describeEachDialect("bulk tag posts", (dialect) => {
 		]);
 	});
 
+	it("assigns terms from any taxonomy to the collections it applies to", async () => {
+		await ctx.db
+			.insertInto("_emdash_taxonomy_defs")
+			.values({
+				id: "genre-def",
+				name: "genre",
+				label: "Genres",
+				label_singular: "Genre",
+				hierarchical: 0,
+				collections: '["page"]',
+				locale: "en",
+				translation_group: "genre-def",
+			})
+			.execute();
+		const jazz = await taxonomy.create({ name: "genre", slug: "jazz", label: "Jazz" });
+		const post = await content.create({ type: "post", slug: "hello", data: { title: "Hello" } });
+		const page = await content.create({ type: "page", slug: "hello", data: { title: "A page" } });
+		const purged: string[][] = [];
+		const result = await handleBulkTag(
+			ctx.db,
+			origin,
+			{
+				termId: jazz.id,
+				apply: true,
+				items: [
+					{ collection: "post", id: post.id },
+					{ collection: "page", id: page.id },
+				],
+			},
+			async (tags) => {
+				purged.push(tags);
+			},
+		);
+		expect(result.success && result.data.results.map((item) => item.status)).toEqual([
+			"unmatched",
+			"added",
+		]);
+		expect(
+			(await taxonomy.getTermsForEntry("page", page.id, "genre")).map((term) => term.slug),
+		).toEqual(["jazz"]);
+		expect(purged.flat()).toEqual(
+			expect.arrayContaining(["page", page.id, "emdash:taxonomy:genre"]),
+		);
+		expect(purged.flat()).not.toContain("emdash:taxonomy:tag");
+	});
+
 	it("flags a URL shared by two collections instead of choosing one", async () => {
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({

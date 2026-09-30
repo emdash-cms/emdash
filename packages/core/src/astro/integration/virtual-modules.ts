@@ -295,6 +295,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					settingsSchema: descriptor.settingsSchema,
 					portableTextBlocks: descriptor.portableTextBlocks,
 					fieldWidgets: descriptor.fieldWidgets,
+					mcp: descriptor.mcp,
 				})})`,
 			);
 		} else {
@@ -306,7 +307,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 	});
 
 	const adapterImport = needsAdapter
-		? `import { adaptSandboxEntry } from "emdash/plugins/adapt-sandbox-entry";\n`
+		? `import { adaptSandboxEntry } from "emdash/internal/plugins/adapt-sandbox-entry";\n`
 		: "";
 
 	return `
@@ -414,7 +415,7 @@ export function generateMediaProvidersModule(descriptors: MediaProviderDescripto
 	// Add local provider first if not disabled
 	if (!localDisabled) {
 		imports.push(
-			`import { createMediaProvider as createLocalProvider } from "emdash/media/local-runtime";`,
+			`import { createMediaProvider as createLocalProvider } from "emdash/internal/media/local-runtime";`,
 		);
 		entries.push(`{
 	id: "local",

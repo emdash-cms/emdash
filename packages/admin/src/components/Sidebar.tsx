@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
 
+import { formatAdminVersion } from "../lib/admin-version.js";
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
@@ -36,6 +37,7 @@ export { resolveNavIcon, toPhosphorIconName };
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
 
 /**
  * Static invariants for nav entries that have AC-level visibility
@@ -86,7 +88,7 @@ export function visibleCollectionEntries<T extends { hidden?: boolean }>(
 
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string; hidden?: boolean; group?: string }>;
+		collections: Record<string, { label: string; hidden?: boolean; icon?: string; group?: string }>;
 		plugins: Record<
 			string,
 			{
@@ -120,6 +122,7 @@ export interface SidebarNavProps {
 		admin?: {
 			logo?: string;
 			siteName?: string;
+			footerLabel?: string | false;
 			favicon?: string;
 		};
 	};
@@ -246,7 +249,7 @@ export function NavFolderMenu({
 	onToggle: () => void;
 }) {
 	const { state } = useSidebar();
-	const Icon = ADMIN_NAV_ICONS.folder;
+	const Icon = resolveNavIcon(folder.iconName, ADMIN_NAV_ICONS.folder);
 	const members = folder.items.map((item) => {
 		const path = resolveItemPath(item);
 		return { item, path, active: isItemActive(path, currentPath) };
@@ -397,7 +400,8 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		contentItems.push({
 			to: "/content/$collection",
 			label: config.label,
-			icon: getCollectionNavIcon(name),
+			icon: getCollectionNavIcon(name, config.icon),
+			iconName: config.icon,
 			group: config.group,
 			groupRank: GROUP_RANK.collection,
 			params: { collection: name },
@@ -579,6 +583,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 							item={{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard }}
 							isActive={isItemActive("/", currentPath)}
 						/>
+						{userRole >= ROLE_CONTRIBUTOR && (
+							<NavMenuLink
+								item={{ to: "/calendar", label: t`Calendar`, icon: ADMIN_NAV_ICONS.calendar }}
+								isActive={isItemActive("/calendar", currentPath)}
+							/>
+						)}
 					</KumoSidebar.Menu>
 				</KumoSidebar.Group>
 
@@ -622,8 +632,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						data-testid="admin-version"
 						className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle"
 					>
-						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-						{manifest.commit && ` (${manifest.commit})`}
+						{formatAdminVersion(manifest.version, manifest.commit, manifest.admin?.footerLabel)}
 					</p>
 				</div>
 			</KumoSidebar.Footer>

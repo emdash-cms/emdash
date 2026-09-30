@@ -12,9 +12,10 @@
  * and, being stats-blind here, the plan is schema-driven — matching D1 exactly.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
@@ -29,7 +30,7 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let captured: CapturedQuery[];
 
@@ -80,7 +81,7 @@ afterEach(async () => {
 	await db.destroy();
 });
 
-/** better-sqlite3 only binds primitives; coerce the JS values Kysely captured. */
+/** Normalize application values captured from Kysely for direct driver binding. */
 function bindable(p: unknown): unknown {
 	if (typeof p === "boolean") return p ? 1 : 0;
 	if (p instanceof Date) return p.toISOString();
@@ -158,4 +159,23 @@ it("updated_at sort seeks the term via the pivot and does not full-scan the cont
 	expect(picked).toContain("content_taxonomies");
 	expect(picked).not.toContain("SCAN ct");
 	expect(plan).not.toContain("SCAN r");
+});
+
+it("keeps the pivot as the outer table for a temp sort, and frees it for an indexed sort", async () => {
+	// `EXPLAIN QUERY PLAN` differs between D1 and local SQLite for the same plain
+	// JOIN, so this test pins the join the builder emits as the stable contract.
+	const pickedJoin = () => {
+		const query = captured.find((q) => q.sql.includes("picked"));
+		expect(query, "expected the loader to emit a pivot-driven query").toBeDefined();
+		return /content_taxonomies ct\s+(CROSS JOIN|JOIN) "ec_post" AS r/.exec(query!.sql)?.[1];
+	};
+
+	await runLoad({ orderBy: { updated_at: "desc" } });
+	expect(pickedJoin()).toBe("CROSS JOIN");
+
+	await runLoad({ orderBy: { title: "asc" } });
+	expect(pickedJoin()).toBe("CROSS JOIN");
+
+	await runLoad({ orderBy: { published_at: "desc" } });
+	expect(pickedJoin()).toBe("JOIN");
 });

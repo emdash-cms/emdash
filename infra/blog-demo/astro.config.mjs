@@ -21,9 +21,7 @@ export default defineConfig({
 			plugins: [formsPlugin()],
 			sandboxed: [webhookNotifier],
 			sandboxRunner: sandbox(),
-			experimental: {
-				registry: "https://registry.emdashcms.com",
-			},
+			registry: "https://registry.emdashcms.com",
 		}),
 	],
 	fonts: [

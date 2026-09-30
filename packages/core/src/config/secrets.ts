@@ -34,6 +34,7 @@ import type { Kysely } from "kysely";
 
 import { after } from "../after.js";
 import { OptionsRepository } from "../database/repositories/options.js";
+import { isRequestScopedDb } from "../database/request-scoped.js";
 import type { Database } from "../database/types.js";
 import { decodeBase64url, encodeBase64url } from "../utils/base64.js";
 import {
@@ -382,17 +383,22 @@ export async function validateEncryptionKeyAtStartup(env?: SecretsEnv): Promise<
 }
 
 /**
- * Per-DB cache of resolved secrets, keyed by Kysely instance identity.
+ * Per-DB cache of resolved secrets. Request-scoped views of the configured
+ * database (see `database/request-scoped.ts`) share one entry; any other
+ * Kysely instance is keyed by its identity.
  *
  * The resolved values are stable for the lifetime of the deployment (env
  * vars don't change without a restart, and DB-stored values are written
  * once via `setIfAbsent`). Caching avoids one options-table read per
- * request on the hot paths (preview verification, comment hashing).
+ * request on the hot paths (preview verification, comment hashing). A
+ * deleted row is regenerated only by a process or isolate that has not
+ * cached the old value, so rotating a DB-stored secret needs a restart or
+ * redeploy.
  *
  * Lives on `globalThis` so module-duplication during SSR bundling can't
  * fragment the cache. See `request-context.ts` for the same pattern.
  *
- * Each db gets its own poison-immune single-flight cache (see
+ * Each entry is a poison-immune single-flight cache (see
  * `utils/single-flight-cache.ts`): the resolved *value* is cached, never an
  * in-flight promise, so a request cancelled mid-resolve can't strand later
  * preview/comment requests on the isolate.
@@ -405,9 +411,10 @@ const SECRETS_CACHE_KEY = Symbol.for("@emdash-cms/core/secrets-cache@2");
 
 interface SecretsCacheHolder {
 	cache: WeakMap<Kysely<Database>, SingleFlightCache<ResolvedSecrets>>;
+	requestScoped?: SingleFlightCache<ResolvedSecrets>;
 }
 
-function getSecretsCache(): WeakMap<Kysely<Database>, SingleFlightCache<ResolvedSecrets>> {
+function getSecretsCache(db: Kysely<Database>): SingleFlightCache<ResolvedSecrets> {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
 	const holder = globalThis as Record<symbol, SecretsCacheHolder | undefined>;
 	let entry = holder[SECRETS_CACHE_KEY];
@@ -415,7 +422,16 @@ function getSecretsCache(): WeakMap<Kysely<Database>, SingleFlightCache<Resolved
 		entry = { cache: new WeakMap() };
 		holder[SECRETS_CACHE_KEY] = entry;
 	}
-	return entry.cache;
+	if (isRequestScopedDb(db)) {
+		entry.requestScoped ??= createSingleFlightCache<ResolvedSecrets>();
+		return entry.requestScoped;
+	}
+	let cache = entry.cache.get(db);
+	if (!cache) {
+		cache = createSingleFlightCache<ResolvedSecrets>();
+		entry.cache.set(db, cache);
+	}
+	return cache;
 }
 
 /**
@@ -423,18 +439,14 @@ function getSecretsCache(): WeakMap<Kysely<Database>, SingleFlightCache<Resolved
  * paths (preview verification, comment IP hashing) so they don't reread
  * env / re-query options on every request.
  *
- * The cache is keyed by `Kysely` instance, so playground / per-DO / per-test
- * databases each get their own resolution. Concurrent cold callers coalesce
- * onto one resolution via the single-flight lock; a failed resolution
- * propagates to the caller and releases the lock so the next caller retries.
+ * Request-scoped views of the configured database share one resolution;
+ * playground / DO preview / per-test databases each get their own.
+ * Concurrent cold callers coalesce onto one resolution via the single-flight
+ * lock; a failed resolution propagates to the caller and releases the lock so
+ * the next caller retries.
  */
 export function resolveSecretsCached(db: Kysely<Database>): Promise<ResolvedSecrets> {
-	const caches = getSecretsCache();
-	let cache = caches.get(db);
-	if (!cache) {
-		cache = createSingleFlightCache<ResolvedSecrets>();
-		caches.set(db, cache);
-	}
+	const cache = getSecretsCache(db);
 	return singleFlightCached(cache, () => resolveSecrets({ db }), {
 		anchor: (promise) => after(() => promise),
 		ownerTimeoutMs: 30_000,

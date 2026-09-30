@@ -19,7 +19,12 @@ import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js"
 
 interface ManifestEnvelope {
 	data: {
-		admin?: { logo?: string; siteName?: string; favicon?: string };
+		admin?: {
+			logo?: string;
+			siteName?: string;
+			footerLabel?: string | false;
+			favicon?: string;
+		};
 		authMode: string;
 		signupEnabled?: boolean;
 		collections?: Record<string, unknown>;
@@ -31,7 +36,12 @@ interface ManifestEnvelope {
 }
 
 function makeContext(
-	adminBranding?: { logo?: string; siteName?: string; favicon?: string },
+	adminBranding?: {
+		logo?: string;
+		siteName?: string;
+		footerLabel?: string | false;
+		favicon?: string;
+	},
 	manifest?: unknown,
 ): Parameters<typeof getManifest>[0] {
 	const locals = {
@@ -52,6 +62,7 @@ describe("manifest route admin branding", () => {
 		const branding = {
 			logo: "/logo.png",
 			siteName: "My Site",
+			footerLabel: false,
 			favicon: "/favicon.ico",
 		};
 

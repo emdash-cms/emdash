@@ -11,9 +11,10 @@
  * Uses a real in-memory SQLite database and mock Storage/SandboxRunner/fetch.
  */
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import {
 	diffRouteVisibility,
@@ -24,7 +25,9 @@ import {
 	handleMarketplaceSearch,
 	handleMarketplaceGetPlugin,
 	diffCapabilities,
+	loadBundleFromR2,
 	rollbackPluginUpdate,
+	storeBundleInR2,
 } from "../../../src/api/handlers/marketplace.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -317,7 +320,7 @@ describe("Marketplace handlers", () => {
 		});
 	});
 	let db: Kysely<DbSchema>;
-	let sqliteDb: BetterSqlite3.Database;
+	let sqliteDb: BetterSqlite3;
 	let storage: Storage;
 	let sandboxRunner: ReturnType<typeof createMockSandboxRunner>;
 	let fetchSpy: ReturnType<typeof vi.fn>;
@@ -1453,5 +1456,31 @@ describe("Marketplace handlers", () => {
 
 			expect(result.success).toBe(true);
 		});
+	});
+});
+
+describe("stored bundles with deprecated capability names", () => {
+	it("loads the bundle and warns that the plugin should be updated", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		try {
+			const storage = createMockStorage();
+			await storeBundleInR2(storage, "legacy-stored-bundle", "1.0.0", {
+				manifest: {
+					...mockManifest("legacy-stored-bundle"),
+					capabilities: ["read:content", "network:fetch"],
+				},
+				backendCode: "export default {};",
+			});
+
+			const bundle = await loadBundleFromR2(storage, "legacy-stored-bundle", "1.0.0");
+
+			expect(bundle).not.toBeNull();
+			expect(warn).toHaveBeenCalledOnce();
+			const message = String(warn.mock.calls[0]?.[0]);
+			expect(message).toContain('"legacy-stored-bundle"');
+			expect(message).toContain("read:content → content:read");
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });

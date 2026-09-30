@@ -1,0 +1,17 @@
+---
+// The same entry as /related, read without the `references` option. A caller
+// that asks for no references must issue nothing extra — cold start included —
+// so this route's query count is the floor the paired one is measured against.
+import { getEmDashEntry } from "emdash";
+import Base from "../layouts/Base.astro";
+
+const { entry: post, cacheHint } = await getEmDashEntry(
+	"posts",
+	"designing-with-constraints",
+);
+Astro.cache.set(cacheHint);
+---
+
+<Base title="Related posts (baseline)" description="The same entry without its reference field">
+	<h1>{post?.data.title}</h1>
+</Base>

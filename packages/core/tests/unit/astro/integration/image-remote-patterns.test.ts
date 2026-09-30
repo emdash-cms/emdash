@@ -68,14 +68,14 @@ describe("resolveImageEndpoint", () => {
 				currentEntrypoint: undefined,
 				isCloudflare: false,
 			}),
-		).toEqual({ entrypoint: "emdash/image-endpoint" });
+		).toEqual({ entrypoint: "emdash/internal/image-endpoint" });
 		expect(
 			resolveImageEndpoint({
 				imagesDisabled: false,
 				currentEntrypoint: "astro/assets/endpoint/generic",
 				isCloudflare: false,
 			}),
-		).toEqual({ entrypoint: "emdash/image-endpoint" });
+		).toEqual({ entrypoint: "emdash/internal/image-endpoint" });
 	});
 
 	it("installs the Cloudflare endpoint under the Cloudflare adapter", () => {

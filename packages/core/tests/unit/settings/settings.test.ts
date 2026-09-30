@@ -1,6 +1,7 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/secrets.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -125,6 +126,37 @@ describe("Site Settings", () => {
 			const settings = await getSiteSettingsWithDb(db);
 			expect(settings.seo).toBeUndefined();
 			expect(await new OptionsRepository(db).exists("site:seo")).toBe(false);
+		});
+
+		it("keeps the other SEO fields when updating one of them", async () => {
+			await setSiteSettings(
+				{
+					seo: {
+						titleSeparator: " | ",
+						robotsTxt: "User-agent: *\nDisallow: /private/",
+						googleVerification: "google-code",
+					},
+				},
+				db,
+			);
+
+			await setSiteSettings({ seo: { googleVerification: "new-code" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.seo).toEqual({
+				titleSeparator: " | ",
+				robotsTxt: "User-agent: *\nDisallow: /private/",
+				googleVerification: "new-code",
+			});
+		});
+
+		it("keeps the other social links when updating one of them", async () => {
+			await setSiteSettings({ social: { twitter: "@handle", github: "user" } }, db);
+
+			await setSiteSettings({ social: { github: "new-user" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.social).toEqual({ twitter: "@handle", github: "new-user" });
 		});
 
 		it("rolls back updates when a media-setting deletion fails", async () => {

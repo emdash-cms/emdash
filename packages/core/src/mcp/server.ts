@@ -30,6 +30,8 @@ import {
 	updateTaxonomyDefBody,
 } from "#api/schemas.js";
 
+import { after } from "../after.js";
+import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
@@ -79,6 +81,17 @@ const REV_PARAM_DESCRIPTION =
  */
 const REV_MISSING_ERROR =
 	"_rev is required: call content_get for this item and pass back the _rev it returns.";
+
+/**
+ * Shared wording for the `overrideLock` parameter on write tools. Agents only
+ * see the tool schema, and re-reading never clears ENTRY_LOCKED, so when to
+ * override is stated here.
+ */
+const OVERRIDE_LOCK_PARAM_DESCRIPTION =
+	"Write even though someone else has this item open in the admin. Without it, " +
+	"the call fails with ENTRY_LOCKED and the error names who is editing; calling " +
+	"content_get again does not clear it. Tell the user who holds the item, and " +
+	"set this only if they ask you to write anyway.";
 
 const SHA256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const TRANSFER_OPERATION_ID_PATTERN = /^[0-9A-Za-z_-]{1,64}$/;
@@ -220,7 +233,7 @@ const schemaUpdateCollectionToolSchema = z.object({
 		"Complete feature list to enable; omit to preserve the current list",
 	),
 	urlPattern: updateCollectionBody.shape.urlPattern.describe(
-		"New public URL pattern; pass null to clear it",
+		"New public URL pattern such as /blog/{slug}, with at most one placeholder per path segment; pass null to clear it",
 	),
 	routable: updateCollectionBody.shape.routable.describe(
 		"Whether entries require a slug before they can be published",
@@ -797,6 +810,24 @@ function extractContentId(data: unknown): string | undefined {
 	return typeof item?.id === "string" ? item.id : undefined;
 }
 
+/**
+ * Refuses a write while another user holds the entry's edit lock. Resolves to
+ * `null` when the write may proceed, and extends the caller's own lease if they
+ * hold it.
+ */
+async function refuseLockedEntry(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	collection: string,
+	entryId: string,
+	overrideLock: boolean | undefined,
+): Promise<ErrorEnvelope | null> {
+	const { emdash, userId } = getExtra(extra);
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, entryId, userId, {
+		override: overrideLock,
+	});
+	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
+}
+
 /** Extract the `_rev` token from a content handler response. */
 function extractContentRev(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return undefined;
@@ -984,7 +1015,11 @@ export function createMcpServer(
 				orderBy: z
 					.string()
 					.optional()
-					.describe("Field to sort by (e.g. 'created_at', 'updated_at')"),
+					.describe(
+						"Field to sort by: 'createdAt' (default), 'updatedAt', 'publishedAt', 'scheduledAt', " +
+							"'slug', 'status', 'locale', or a field slug that is indexed or set as the " +
+							"collection's titleField or dateField",
+					),
 				order: z.enum(["asc", "desc"]).optional().describe("Sort direction (default 'desc')"),
 				locale: z
 					.string()
@@ -1293,6 +1328,7 @@ export function createMcpServer(
 					.optional()
 					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1328,9 +1364,15 @@ export function createMcpServer(
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 
+			if (args.status !== undefined) {
+				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+			}
+
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
 				let liveChanged = false;
 				if (
@@ -1371,7 +1413,6 @@ export function createMcpServer(
 			}
 
 			if (args.status === "draft") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
 				let liveChanged = false;
 				if (
@@ -1440,6 +1481,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1461,6 +1503,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
 				args.collection,
 				resolvedId,
@@ -1552,6 +1596,7 @@ export function createMcpServer(
 					.describe(
 						"Override publication timestamp (ISO 8601). Requires content:publish_any permission. Useful when importing content with original publish dates.",
 					),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1580,6 +1625,8 @@ export function createMcpServer(
 			}
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await emdash.handleContentPublish(args.collection, resolvedId, {
@@ -1605,6 +1652,7 @@ export function createMcpServer(
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1625,6 +1673,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentUnpublish(args.collection, resolvedId, {
@@ -1652,6 +1702,7 @@ export function createMcpServer(
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
 				),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1672,6 +1723,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
@@ -1695,6 +1748,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1714,6 +1768,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentUnschedule(args.collection, resolvedId),
@@ -1755,6 +1811,7 @@ export function createMcpServer(
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1776,6 +1833,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
@@ -1960,8 +2019,10 @@ export function createMcpServer(
 			description:
 				"Create a new byline (author/contributor credit). The slug must be unique " +
 				"and contain only lowercase letters, digits, and hyphens. Link the byline " +
-				"to a CMS user via userId, or leave it as a standalone guest credit. The " +
-				"returned id can then be passed to content_create/content_update bylines.",
+				"to a CMS user via userId, or leave it as a standalone guest credit. A " +
+				"translation created with translationOf keeps the source's userId unless " +
+				"you pass one; pass null to leave it unlinked. The returned id can then be " +
+				"passed to content_create/content_update bylines.",
 			inputSchema: z.object({ ...bylineCreateBody.shape }),
 			annotations: { destructiveHint: false },
 		},
@@ -1972,7 +2033,11 @@ export function createMcpServer(
 			try {
 				const { handleBylineCreate } = await import("../api/handlers/bylines.js");
 				const result = await handleBylineCreate(ec.db, args);
-				if (result.success) await invalidateBylines();
+				if (result.success) {
+					await invalidateBylines();
+					const byline = result.data;
+					after(() => ec.hooks.runBylineAfterSave(byline, true));
+				}
 				return unwrap(result);
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_CREATE_ERROR");
@@ -2000,7 +2065,11 @@ export function createMcpServer(
 				const { handleBylineUpdate } = await import("../api/handlers/bylines.js");
 				const { id, ...input } = args;
 				const result = await handleBylineUpdate(ec.db, id, input);
-				if (result.success) await invalidateBylines();
+				if (result.success) {
+					await invalidateBylines();
+					const byline = result.data;
+					after(() => ec.hooks.runBylineAfterSave(byline, false));
+				}
 				return unwrap(result);
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_UPDATE_ERROR");
@@ -2026,9 +2095,14 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { BylineRepository } = await import("../database/repositories/byline.js");
-				const deleted = await new BylineRepository(ec.db).delete(args.id);
+				const repo = new BylineRepository(ec.db);
+				const existing = ec.hooks.hasHooks("byline:afterDelete")
+					? await repo.findById(args.id)
+					: null;
+				const deleted = await repo.delete(args.id);
 				if (!deleted) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
 				await invalidateBylines();
+				if (existing) after(() => ec.hooks.runBylineAfterDelete(existing));
 				return jsonResult({ deleted: args.id });
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_DELETE_ERROR");
@@ -2242,7 +2316,7 @@ export function createMcpServer(
 				label: z.string().describe("Display name (plural, e.g. 'Blog Posts')"),
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
-				icon: z.string().optional().describe("Icon name for the admin UI"),
+				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
 					"Features to enable (default: ['drafts', 'revisions'])",
 				),
@@ -2591,6 +2665,10 @@ export function createMcpServer(
 					.regex(CONTENT_TYPE_RE, "Invalid content type")
 					.describe("MIME type (e.g. 'image/png')."),
 				alt: z.string().optional().describe("Alt text for accessibility"),
+				caption: z
+					.string()
+					.optional()
+					.describe("Caption stored on the media record, such as the credit"),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -2608,6 +2686,7 @@ export function createMcpServer(
 						base64: args.base64,
 						contentType: args.contentType,
 						alt: args.alt,
+						caption: args.caption,
 						authorId: userId,
 						maxUploadSize: emdash.config.maxUploadSize,
 					}),
@@ -3025,7 +3104,7 @@ export function createMcpServer(
 
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
 				const repo = new TaxonomyRepository(ec.db);
-				const limit = Math.min(args.limit ?? 50, 100);
+				const limit = Math.max(1, Math.min(args.limit ?? 50, 100));
 				let cursor: TaxonomyListCursor | undefined;
 				if (args.cursor) {
 					try {
@@ -3537,6 +3616,7 @@ export function createMcpServer(
 				"use content_publish afterward if needed.",
 			inputSchema: z.object({
 				revisionId: z.string().describe("Revision ID to restore"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -3568,6 +3648,14 @@ export function createMcpServer(
 				"content:edit_own",
 				"content:edit_any",
 			);
+
+			const locked = await refuseLockedEntry(
+				extra,
+				revItem.collection,
+				revItem.entryId,
+				args.overrideLock,
+			);
+			if (locked) return locked;
 
 			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
 		},
@@ -3608,7 +3696,9 @@ export function createMcpServer(
 			title: "Update Site Settings",
 			description:
 				"Update one or more site-wide settings. This is a partial update: only " +
-				"the fields provided are changed; omitted fields are left as-is. Returns " +
+				"the fields provided are changed; omitted fields are left as-is, including " +
+				"fields inside `seo` and `social`. Send an empty string to clear a text " +
+				"field. Returns " +
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +

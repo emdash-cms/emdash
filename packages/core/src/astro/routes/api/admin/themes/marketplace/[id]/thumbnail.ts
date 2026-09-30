@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError } from "#api/error.js";
+import { fetchWithinOrigin, MarketplaceError } from "#plugins/marketplace.js";
 
 export const prerender = false;
 
@@ -35,7 +36,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	if (width) target.searchParams.set("w", width);
 
 	try {
-		const resp = await fetch(target.href);
+		const resp = await fetchWithinOrigin(target.href, "Thumbnail fetch", "PROXY");
 		if (!resp.ok) {
 			// Allowlist: only forward Content-Type from upstream.
 			// Never copy all upstream headers (denylist approach leaks
@@ -55,7 +56,10 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 				"Cache-Control": "private, no-store",
 			},
 		});
-	} catch {
+	} catch (error) {
+		if (error instanceof MarketplaceError && error.code) {
+			return apiError(error.code, "Thumbnail redirect was not followed", 502);
+		}
 		return apiError("PROXY_ERROR", "Failed to fetch thumbnail", 502);
 	}
 };

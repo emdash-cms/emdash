@@ -8,7 +8,7 @@ description: Use the EmDash CLI to inspect and manage an EmDash instance from th
 The EmDash CLI (`emdash`, with the short alias `em`) manages EmDash CMS instances. Commands fall into two categories:
 
 - **Local commands** work with project files or a configured database: `init`, `doctor`, `seed`, `migrate`, `export-seed`, and `secrets`.
-- **Remote commands** talk to a running EmDash instance: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site`, and `plugin`.
+- **Remote commands** talk to a running EmDash instance: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, and `site`.
 
 Run `npx emdash --help` and `npx emdash <command> --help` for the installed version's exact commands and flags. Resolve the current target with a read command before a destructive or bulk mutation; examples in this skill do not authorize changing an instance the user did not place in scope.
 
@@ -21,7 +21,7 @@ Remote commands resolve auth automatically:
 3. Stored credentials from `emdash login`
 4. Dev bypass (localhost only — no token needed)
 
-For a localhost development server with the development bypass enabled, the client can authenticate automatically. For a remote instance, run `emdash login --url https://my-site.pages.dev` or provide a scoped token.
+For a localhost development server with the development bypass enabled, the client can authenticate automatically. For a remote instance, run `emdash login --url https://example.com` or provide a scoped token.
 
 ## Custom Headers & Reverse Proxies
 
@@ -33,7 +33,7 @@ Sites behind Cloudflare Access or other reverse proxies need auth headers on eve
 # Provide sensitive headers through the environment in CI.
 export EMDASH_HEADERS="CF-Access-Client-Id: xxx
 CF-Access-Client-Secret: yyy"
-npx emdash whoami --url https://my-site.pages.dev
+npx emdash whoami --url https://example.com
 ```
 
 `emdash login --header` persists custom headers to `~/.config/emdash/auth.json` for later commands. Prefer environment-provided headers in CI so a service secret is not written to the credential file or shell history.
@@ -64,7 +64,7 @@ npx emdash login --url https://example.com -H "X-API-Key: secret123"
 
 ### Database Setup
 
-For normal site startup, use the project's package script. The first request runs pending migrations and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts.
+For normal site startup, use the project's package script. The first request runs pending migrations and, before setup is completed, applies the bundled seed's schema and structure once; sample content comes from the setup wizard, `/_emdash/api/setup/dev-bypass`, or `emdash seed`. The Astro integration generates `emdash-env.d.ts` when the server starts.
 
 ```bash
 # Start the site with its package script
@@ -85,7 +85,7 @@ npx emdash export-seed --with-content=all > .emdash/seed.json
 npx emdash types
 
 # Generate from remote
-npx emdash types --url https://my-site.pages.dev
+npx emdash types --url https://example.com
 
 # Custom output path
 npx emdash types --output src/types/cms.ts
@@ -97,7 +97,7 @@ Writes `.emdash/types.ts` (TypeScript interfaces) and `.emdash/schema.json`.
 
 ```bash
 # Login (OAuth Device Flow)
-npx emdash login --url https://my-site.pages.dev
+npx emdash login --url https://example.com
 
 # Check current user
 npx emdash whoami

@@ -22,6 +22,9 @@ declare module "virtual:emdash/config" {
 		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
 		toolbar?: "server" | "client" | false;
+		/** Whether an object-cache adapter was configured at build time. */
+		objectCacheEnabled?: boolean;
+		updateCheck?: boolean | { minimumReleaseAge?: string | number };
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
@@ -78,6 +81,7 @@ declare module "virtual:emdash/dialect" {
 		lastContentWriteAt?: number;
 	}
 	export interface RequestScopedDb {
+		/** A per-request handle on the configured database, never a different one. */
 		db: Kysely<unknown>;
 		commit: () => void;
 		/**
