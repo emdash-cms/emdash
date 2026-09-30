@@ -46,8 +46,8 @@ interface CalendarMonthProps {
 	gridDays: readonly string[];
 	days: ReadonlyMap<string, CalendarItem[]>;
 	/**
-	 * Every loaded entry by day, before filters. Cells keep the room these
-	 * need, so filtering doesn't move the grid.
+	 * Every loaded entry by day, before filters. Cells keep room for any of
+	 * these a filter could show, so filtering doesn't move the grid.
 	 */
 	unfilteredDays?: ReadonlyMap<string, CalendarItem[]>;
 	today: string;
@@ -67,6 +67,17 @@ interface CalendarMonthProps {
 
 export function CalendarMonth(props: CalendarMonthProps) {
 	return props.compact ? <CalendarMonthPicker {...props} /> : <CalendarMonthGrid {...props} />;
+}
+
+/**
+ * The entries whose chips take the most room any filter could show at once:
+ * raised cards before flat ones, as many as a cell shows unfolded. A folded
+ * cell never needs more, since "+N more" is no taller than a flat chip.
+ */
+function roomiestEntries(items: readonly CalendarItem[]): CalendarItem[] {
+	return items
+		.toSorted((a, b) => Number(a.state === "published") - Number(b.state === "published"))
+		.slice(0, MAX_CHIPS);
 }
 
 function nowIndex(items: readonly CalendarItem[], now: number): number {
@@ -161,7 +172,7 @@ function CalendarMonthGrid({
 				</table>
 				{filteredEmpty &&
 					onClearFilters && (
-						// Laid over the grid rather than above it, so the grid stays put.
+						// An overlay, so showing it doesn't resize the grid.
 						<div className="absolute inset-0 flex items-center justify-center bg-radial from-kumo-base/90 via-kumo-base/60 to-kumo-base/30 p-4 backdrop-blur-xs transition-opacity duration-200 starting:opacity-0 motion-reduce:transition-none">
 							<CalendarFilteredNotice
 								cutOff={loadedThrough !== undefined}
@@ -177,7 +188,7 @@ function CalendarMonthGrid({
 interface CalendarMonthCellProps {
 	day: string;
 	items: readonly CalendarItem[];
-	/** The day's entries before filters, whose room the cell keeps. */
+	/** The day's entries before filters; the cell keeps room for any of them a filter could show. */
 	reservedItems?: readonly CalendarItem[];
 	inMonth: boolean;
 	/** False from the day the entry cap cut the range off, which may be only partly loaded. */
@@ -203,6 +214,10 @@ function CalendarMonthCell({
 }: CalendarMonthCellProps) {
 	const { t } = useLingui();
 	const isToday = day === today;
+	// Unfiltered, a cell showing every entry already takes that room.
+	const reserveRoom =
+		reservedItems !== undefined &&
+		(reservedItems.length > MAX_CHIPS || items.length < reservedItems.length);
 	const label = day.endsWith("-01") ? display.monthDayShort(day) : display.dayNumber(day);
 
 	return (
@@ -235,11 +250,11 @@ function CalendarMonthCell({
 					)}
 				</div>
 				<div className="grid min-w-0">
-					{reservedItems && reservedItems.length > 0 && (
+					{reserveRoom && (
 						<div className="invisible col-start-1 row-start-1 min-w-0">
 							<CalendarCellEntries
 								day={day}
-								items={reservedItems}
+								items={roomiestEntries(reservedItems)}
 								today={today}
 								now={now}
 								display={display}

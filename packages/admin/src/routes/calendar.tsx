@@ -187,8 +187,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const loadedThrough = calendar.data?.truncated ? items.at(-1)?.day : undefined;
 	const days = React.useMemo(() => groupByDay(visibleItems), [visibleItems]);
 	const unfilteredDays = React.useMemo(
-		() => (filtered ? groupByDay(items) : undefined),
-		[filtered, items],
+		() => (filtered ? groupByDay(items) : days),
+		[filtered, items, days],
 	);
 
 	const updateSearch = (patch: Partial<CalendarSearch>, options?: { push?: boolean }) => {

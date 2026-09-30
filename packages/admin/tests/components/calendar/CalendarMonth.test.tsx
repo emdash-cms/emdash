@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import "../../../dist/styles.css";
 import type { CalendarEntry } from "../../../src/lib/api/calendar";
 import {
 	createCalendarDisplay,
@@ -101,16 +102,24 @@ function renderMonth(options: Parameters<typeof month>[0] = {}) {
 }
 
 describe("CalendarMonth", () => {
-	it("keeps each week's height when filters hide its entries", async () => {
-		// October 20, with six entries, is in the grid's fourth week.
+	it("keeps each week's height whichever entries filters leave", async () => {
+		// October 20, in the grid's fourth week, has a published entry and four scheduled.
+		const toDays = (entries: CalendarEntry[]) =>
+			groupByDay(toCalendarItems(entries, { timeZone, loadedAt: now, collectionOrder: ["posts"] }));
+		const scheduled = busyDay.slice(1, 5);
+		const all = toDays([
+			{ ...entry("done", "2026-10-20T00:00:00.000Z"), status: "published", kind: "published" },
+			...scheduled,
+		]);
 		const busyWeek = () => document.querySelectorAll("tbody tr")[3]!.getBoundingClientRect().height;
-		const screen = await renderMonth();
+		const screen = await renderMonth({ shown: all, unfilteredDays: all });
 		const full = busyWeek();
 
-		await screen.rerender(month({ shown: new Map() }));
-		expect(busyWeek()).toBeLessThan(full);
+		// Four cards unfold where the whole day folds into three and "+2 more".
+		await screen.rerender(month({ shown: toDays(scheduled), unfilteredDays: all }));
+		expect(busyWeek()).toBe(full);
 
-		await screen.rerender(month({ shown: new Map(), unfilteredDays: days }));
+		await screen.rerender(month({ shown: new Map(), unfilteredDays: all }));
 		expect(busyWeek()).toBe(full);
 	});
 
