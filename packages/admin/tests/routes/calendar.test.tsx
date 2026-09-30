@@ -151,7 +151,7 @@ describe("CalendarPage", () => {
 		const panel = screen.getByRole("dialog", { name: "Entry launch" });
 		await expect.element(panel).toBeVisible();
 		await expect.element(panel.getByText("Thu, Mar 5, 9:00 AM UTC").first()).toBeVisible();
-		await expect.element(panel.getByRole("link", { name: "Open in editor" }).last()).toBeVisible();
+		await expect.element(panel.getByRole("link", { name: "Open in editor" })).toBeVisible();
 
 		// The panel came from the link, not from a history entry this page added.
 		await panel.getByRole("button", { name: "Close" }).click();

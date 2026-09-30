@@ -211,6 +211,12 @@ export function formatTimeAgo(ms: number, locale: string): string {
 	return new Intl.RelativeTimeFormat(locale, { numeric: "always" }).format(-value, unit);
 }
 
+/** How long until, such as "in 3 hours"; a time already past reads as a minute away. */
+export function formatTimeUntil(ms: number, locale: string): string {
+	const { value, unit } = durationParts(ms);
+	return new Intl.RelativeTimeFormat(locale, { numeric: "always" }).format(value, unit);
+}
+
 /** A short span, such as "12 min" or "3 hr". */
 export function formatShortDuration(ms: number, locale: string): string {
 	const { value, unit } = durationParts(ms);
