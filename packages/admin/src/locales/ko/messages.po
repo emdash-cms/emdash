@@ -830,11 +830,11 @@ msgstr "301 영구 이동"
 
 #: packages/admin/src/components/Redirects.tsx:159
 msgid "302 Temporary"
-msgstr "302 임시"
+msgstr "302 임시 이동"
 
 #: packages/admin/src/components/Redirects.tsx:160
 msgid "307 Temporary (Strict)"
-msgstr "307 임시(엄격)"
+msgstr "307 임시 이동(엄격)"
 
 #: packages/admin/src/components/Redirects.tsx:161
 msgid "308 Permanent (Strict)"
@@ -1275,7 +1275,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
-msgstr "소셜 미디어 프로필을 추가하세요. 사이트 테마에서 사용하여 헤더, 푸터 또는 작성자 소개에 표시할 수 있습니다."
+msgstr "소셜 미디어 프로필을 추가하세요. 사이트 테마에서 사용하여 헤더, 푸터 또는 저자 소개에 표시할 수 있습니다."
 
 #: packages/admin/src/components/BulkTagDialog.tsx:66
 msgid "Added"
@@ -1995,7 +1995,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:186
 msgid "Before send:"
-msgstr "보내기 전:"
+msgstr "발송 전:"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:590
 msgid "Before you continue:"
@@ -2008,7 +2008,7 @@ msgstr ""
 #: packages/admin/src/components/settings/SeoSettings.tsx:238
 #: packages/admin/src/components/settings/SeoSettings.tsx:252
 msgid "Bing Verification"
-msgstr "빙 확인"
+msgstr "Bing 인증"
 
 #: packages/admin/src/routes/bylines.tsx:741
 msgid "Bio"
@@ -2567,7 +2567,7 @@ msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:144
 msgid "Choose your preferred admin language"
-msgstr "선호하는 관리 언어를 선택하세요"
+msgstr "관리 화면에 사용할 언어를 선택하세요"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:333
 msgid "Choose…"
@@ -2908,7 +2908,7 @@ msgstr "WordPress 연결"
 #. placeholder {0}: new Date(account.createdAt).toLocaleDateString()
 #: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Connected {0}"
-msgstr "연결됨 {0}"
+msgstr "연결일: {0}"
 
 #: packages/admin/src/components/RelationList.tsx:93
 msgid "Connects"
@@ -3490,7 +3490,7 @@ msgstr ""
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
-msgstr "{0} 생성됨"
+msgstr "생성: {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
 #: packages/admin/src/router.tsx:1466
@@ -4198,7 +4198,7 @@ msgstr "도메인이 추가되었습니다."
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:120
 msgid "Domain removed"
-msgstr "도메인이 삭제됨"
+msgstr "도메인이 제거되었습니다."
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:103
 msgid "Domain updated"
@@ -4546,7 +4546,7 @@ msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:545
 msgid "Edit redirect"
-msgstr "리디렉션 수정"
+msgstr "리디렉션 편집"
 
 #: packages/admin/src/components/Redirects.tsx:108
 msgid "Edit Redirect"
@@ -4555,7 +4555,7 @@ msgstr "리디렉션 수정"
 #. placeholder {0}: r.source
 #: packages/admin/src/components/Redirects.tsx:546
 msgid "Edit redirect {0}"
-msgstr "리디렉션 수정 {0}"
+msgstr "리디렉션 {0} 편집"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:873
 msgid "Edit role"
@@ -4977,7 +4977,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:155
 msgid "Facebook"
-msgstr "페이스북"
+msgstr "Facebook"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:345
 msgid "Fail"
@@ -6062,7 +6062,7 @@ msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:169
 msgid "Group (optional)"
-msgstr "그룹(선택사항)"
+msgstr "그룹(선택 사항)"
 
 #: packages/admin/src/components/Widgets.tsx:162
 msgid "Group by"
@@ -6192,7 +6192,7 @@ msgstr "계층형(카테고리처럼 상위/하위 관계 지원)"
 #: packages/admin/src/components/Redirects.tsx:228
 #: packages/admin/src/components/Redirects.tsx:488
 msgid "Hits"
-msgstr "조회수"
+msgstr "접근 수"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:522
 msgid "Hold an entry while someone is editing it, and refuse other writers"
@@ -6651,7 +6651,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:163
 msgid "Instagram"
-msgstr "인스타그램"
+msgstr "Instagram"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:213
 #: packages/admin/src/components/RegistryPluginDetail.tsx:636
@@ -6660,7 +6660,7 @@ msgstr "설치"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:147
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
-msgstr "초대, 매직 링크, 비밀번호 복구와 같은 이메일 기능을 활성화하려면 이메일 공급자 플러그인을 설치하고 활성화하세요."
+msgstr "초대, 매직 링크, 비밀번호 복구 등 이메일 기능을 사용하려면 이메일 제공업체 플러그인을 설치하고 활성화하세요."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:207
 msgid "Install blocked"
@@ -6928,7 +6928,7 @@ msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:229
 msgid "Last seen"
-msgstr "마지막 조회"
+msgstr "마지막 접근"
 
 #: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Last updated"
@@ -6937,7 +6937,7 @@ msgstr "최근 수정"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
 #: packages/admin/src/components/settings/PasskeyItem.tsx:134
 msgid "Last used"
-msgstr "마지막으로 사용됨"
+msgstr "마지막 사용"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #: packages/admin/src/components/users/UserDetail.tsx:262
@@ -7023,7 +7023,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:171
 msgid "LinkedIn"
-msgstr "링크드인"
+msgstr "LinkedIn"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:62
 msgid "Linking content"
@@ -7655,7 +7655,7 @@ msgstr "Bing 웹마스터 도구 확인을 위한 메타태그 콘텐츠"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:247
 msgid "Meta tag content for Google Search Console verification"
-msgstr "Google Search Console 확인을 위한 메타태그 콘텐츠"
+msgstr "Google Search Console 소유권 확인용 메타 태그의 content 값"
 
 #: packages/admin/src/components/WordPressImport.tsx:1865
 msgid "Meta titles, descriptions, and social images"
@@ -8838,7 +8838,7 @@ msgstr "패스키가 성공적으로 등록되었습니다!"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:62
 msgid "Passkey removed"
-msgstr "패스키가 삭제되었습니다."
+msgstr "패스키가 제거되었습니다."
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:46
 msgid "Passkey renamed"
@@ -9279,7 +9279,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:167
 msgid "Provider:"
-msgstr "공급자:"
+msgstr "제공업체:"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "Public routes"
@@ -9775,7 +9775,7 @@ msgstr "패스키 제거"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:176
 msgid "Remove passkey?"
-msgstr "패스키를 삭제하시겠습니까?"
+msgstr "패스키를 제거하시겠습니까?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:587
 msgid "Remove schedule"
@@ -10199,7 +10199,7 @@ msgstr "버전 기록"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:208
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Revoke token"
-msgstr "토큰 취소"
+msgstr "토큰 폐기"
 
 #. placeholder {0}: token.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
@@ -10208,11 +10208,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
-msgstr "취소?"
+msgstr "토큰을 폐기하시겠습니까?"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:432
 msgid "Revoking..."
-msgstr "취소 중..."
+msgstr "폐기 중..."
 
 #: packages/admin/src/components/FieldEditor.tsx:431
 msgid "Rich Text"
@@ -10978,7 +10978,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:158
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:180
 msgid "Self-Signup Domains"
-msgstr "자체 가입 도메인"
+msgstr "가입 허용 도메인"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:98
 msgid "Send a test email through the full pipeline to verify your email configuration."
@@ -11963,7 +11963,7 @@ msgstr ""
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:179
 msgid "The invited user will have this role once they complete registration."
-msgstr "초대된 사용자는 등록을 완료하면 이 역할이 부여 됩니다."
+msgstr "초대된 사용자는 등록을 완료하면 이 역할이 부여됩니다."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:179
 msgid "The last export failed"
@@ -13301,7 +13301,7 @@ msgstr "사용자"
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
-msgstr "사용자 액세스는 외부 공급자({0})에 의해 관리됩니다. 외부 인증을 사용하는 경우 자체 가입 도메인 설정을 사용할 수 없습니다."
+msgstr "사용자 액세스는 외부 공급자({0})에 의해 관리됩니다. 외부 인증을 사용하는 경우 가입 허용 도메인 설정을 사용할 수 없습니다."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:109
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
@@ -13416,7 +13416,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:113
 #: packages/admin/src/components/settings/EmailSettings.tsx:59
 msgid "View email provider status and send test emails"
-msgstr "이메일 발송 상태 확인 및 테스트 이메일 전송"
+msgstr "이메일 제공업체 상태 확인 및 테스트 이메일 전송"
 
 #: packages/admin/src/components/MediaLibrary.tsx:932
 #: packages/admin/src/components/MediaPickerModal.tsx:1215
