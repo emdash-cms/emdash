@@ -357,8 +357,10 @@ export interface SignupVerifyResult {
 }
 
 /**
- * Request signup - send verification email
- * Always returns success to prevent enumeration
+ * Request signup - send verification email.
+ * Succeeds whether or not the domain is allowed, to prevent enumeration.
+ * Throws with TURNSTILE_FAILED when Turnstile is enabled and the token is
+ * missing or invalid.
  */
 export async function requestSignup(
 	email: string,
