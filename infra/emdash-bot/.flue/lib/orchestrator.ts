@@ -358,6 +358,7 @@ const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
 const INBOX_ENTRY_MAX_ATTEMPTS = 3;
+const SIDE_EFFECT_MAX_ATTEMPTS = 8;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
 const PR_FEEDBACK_EVENTS: ReadonlySet<EventId | null> = new Set([
 	"revise",
@@ -447,6 +448,7 @@ interface PendingSideEffect {
 	readonly commentMayExist: boolean;
 	/** Post the comment before flipping labels (fix-loop ask ordering). */
 	readonly commentFirst?: boolean;
+	readonly attempts?: number;
 }
 
 interface StoredWorkPlan {
@@ -3576,9 +3578,46 @@ export class OrchestratorDO extends DurableObject<Env> {
 			)
 				return settledRuns;
 
-			await this.flushPendingSideEffect(effect.id);
+			try {
+				await this.flushPendingSideEffect(effect.id);
+			} catch (error) {
+				if (error instanceof GitHubRateLimitError) throw error;
+				if (!(await this.recordSideEffectFailure(effect.id))) throw error;
+				const message = error instanceof Error ? error.message : String(error);
+				console.error("[orchestrator] dropped GitHub update after retry limit", {
+					anchorNumber: effect.anchorNumber,
+					deliveryId: effect.deliveryId,
+					error: message,
+				});
+			}
 			if (effect.settlesRun && effect.runId) settledRuns.add(effect.runId);
 		}
+	}
+
+	/**
+	 * Counts a failed flush and drops the effect once it reaches the retry limit.
+	 * Label drift left behind by a dropped effect is repaired by reconcileLabels.
+	 * Returns true when the effect was dropped.
+	 */
+	private async recordSideEffectFailure(id: string): Promise<boolean> {
+		const effect = (
+			(await this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? []
+		).find((candidate) => candidate.id === id);
+		if (!effect) return true;
+		const attempts = (effect.attempts ?? 0) + 1;
+		if (attempts >= SIDE_EFFECT_MAX_ATTEMPTS) {
+			await this.completePendingSideEffect(effect);
+			return true;
+		}
+		await this.ctx.storage.transaction(async (transaction) => {
+			const effects =
+				(await transaction.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? [];
+			await transaction.put(
+				STORAGE.pendingSideEffects,
+				effects.map((candidate) => (candidate.id === id ? { ...candidate, attempts } : candidate)),
+			);
+		});
+		return false;
 	}
 
 	private async confirmDispatchAdmission(runId: string): Promise<void> {

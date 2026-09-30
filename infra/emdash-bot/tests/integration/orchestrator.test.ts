@@ -669,6 +669,67 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments[0]).not.toContain("I couldn't map that request");
 	});
 
+	test("drops a GitHub update that keeps failing without discarding the command behind it", async () => {
+		const comments: string[] = [];
+		const rejected: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal(
+			"fetch",
+			(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				const method = (init?.method ?? "GET").toUpperCase();
+				if (method === "GET" && url.includes("/comments")) {
+					return Promise.resolve(new Response("[]", { status: 200 }));
+				}
+				if (method === "POST" && url.endsWith("/issues/41/comments")) {
+					const body = parseJsonBody(init?.body) as { body: string };
+					rejected.push(body.body);
+					return Promise.resolve(new Response("{}", { status: 422 }));
+				}
+				if (method === "POST" && url.endsWith("/comments")) {
+					const body = parseJsonBody(init?.body) as { body: string };
+					comments.push(body.body);
+					return Promise.resolve(new Response("{}", { status: 201 }));
+				}
+				return Promise.resolve(new Response("{}", { status: 200 }));
+			},
+		);
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.enqueue(
+			makeEvent({
+				event: "confirm",
+				arg: null,
+				actor: "maintainer",
+				anchorNumber: 41,
+				deliveryId: "rejected-feedback",
+				dryRun: false,
+			}),
+		);
+		await stub.enqueue(
+			makeEvent({
+				event: "confirm",
+				arg: null,
+				actor: "maintainer",
+				anchorNumber: 42,
+				deliveryId: "feedback-behind-rejected",
+				dryRun: false,
+			}),
+		);
+
+		for (let attempt = 0; attempt < 10; attempt += 1) await stub.tick();
+
+		expect(rejected.length).toBeGreaterThan(1);
+		expect(await stub.getPendingSideEffectCount()).toBe(0);
+		expect(await stub.getInboxDepth()).toBe(0);
+		expect(comments).toHaveLength(1);
+		expect(comments[0]).toContain("`@emdashbot confirm` isn't available");
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.deleteAlarm();
+		});
+	});
+
 	test("a failed command-feedback comment recovers without posting a duplicate", async () => {
 		let commentPosts = 0;
 		let allowSuccess = false;
