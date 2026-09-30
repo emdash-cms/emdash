@@ -313,12 +313,12 @@ export async function handleRedirectUpdate(
 				}
 			}
 
-			// Check for redirect loops if source or destination changed
+			// Check for redirect loops if the rule's edge changes or it becomes active
 			const willBeEnabled = input.enabled ?? existing.enabled;
 			if (
 				!terminal &&
 				willBeEnabled &&
-				(input.source !== undefined || input.destination !== undefined)
+				(input.source !== undefined || input.destination !== undefined || !existing.enabled)
 			) {
 				const edges = toEdges(await repo.findAllEnabled());
 				const loopPath = wouldCreateLoop(newSource, newDest, edges, id);
