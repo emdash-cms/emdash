@@ -1,11 +1,13 @@
 import { readFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { request as requestHttps, type ServerOptions } from "node:https";
+import { Socket } from "node:net";
+import { createSecureContext, TLSSocket } from "node:tls";
 
 import type { AstroIntegrationLogger } from "astro";
 
 const DEFAULT_INTERVAL_MS = 60_000;
-type DevHttpsOptions = Pick<ServerOptions, "cert" | "ca">;
+type DevHttpsOptions = Pick<ServerOptions, "cert" | "ca" | "pfx" | "passphrase">;
 
 interface DevServer {
 	httpServer: Pick<Server, "once"> | null;
@@ -22,8 +24,23 @@ async function postMaintenance(
 	url: URL,
 	https?: DevHttpsOptions,
 ): Promise<{ ok: boolean; status: number }> {
-	const certificate = https?.cert ?? https?.ca;
-	if (url.protocol !== "https:" || !certificate) return fetch(url, { method: "POST" });
+	if (url.protocol !== "https:") return fetch(url, { method: "POST" });
+	let certificate = https?.cert ?? https?.ca;
+	if (!certificate && https?.pfx) {
+		const pfx =
+			typeof https.pfx === "string" ? await readFile(https.pfx).catch(() => https.pfx) : https.pfx;
+		// Extract only the public certificate without opening a connection or
+		// forwarding the server's private key to the maintenance client.
+		const socket = new TLSSocket(new Socket(), {
+			secureContext: createSecureContext({ pfx, passphrase: https.passphrase }),
+		});
+		try {
+			certificate = socket.getX509Certificate()?.toString();
+		} finally {
+			socket.destroy();
+		}
+	}
+	if (!certificate) return fetch(url, { method: "POST" });
 
 	// Vite accepts either PEM contents or a certificate file path.
 	const ca =

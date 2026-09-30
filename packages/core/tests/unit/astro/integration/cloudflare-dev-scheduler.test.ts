@@ -15,9 +15,14 @@ afterEach(() => {
 });
 
 describe("Cloudflare dev scheduler", () => {
-	it.each([true, false])(
-		"verifies HTTPS against the configured dev certificate (matching: %s)",
-		async (matching) => {
+	it.each([
+		{ matching: true, format: "pem" },
+		{ matching: false, format: "pem" },
+		{ matching: true, format: "pfx" },
+		{ matching: false, format: "pfx" },
+	])(
+		"verifies HTTPS against the configured $format dev certificate (matching: $matching)",
+		async ({ matching, format }) => {
 			const root = mkdtempSync(join(tmpdir(), "emdash-dev-tls-"));
 			const configPath = join(root, "openssl.cnf");
 			writeFileSync(
@@ -52,21 +57,52 @@ describe("Cloudflare dev scheduler", () => {
 					],
 					{ stdio: "ignore" },
 				);
-				return { key: readFileSync(keyPath), cert: readFileSync(certPath) };
+				const pfxPath = join(root, `${name}.pfx`);
+				execFileSync(
+					"openssl",
+					[
+						"pkcs12",
+						"-export",
+						"-in",
+						certPath,
+						"-inkey",
+						keyPath,
+						"-out",
+						pfxPath,
+						"-passout",
+						"pass:synthetic-test-only",
+					],
+					{ stdio: "ignore" },
+				);
+				return {
+					key: readFileSync(keyPath),
+					cert: readFileSync(certPath),
+					pfx: readFileSync(pfxPath),
+				};
 			}
 			const served = certificate("served");
 			const trusted = matching ? served : certificate("other");
 			let maintenanceRequests = 0;
-			const httpServer = createHttpsServer(served, (request, response) => {
-				if (request.url === "/_emdash/api/dev/scheduled-tasks" && request.method === "POST") {
-					maintenanceRequests++;
-				}
-				response.writeHead(204).end();
-			});
+			const httpServer = createHttpsServer(
+				{ key: served.key, cert: served.cert },
+				(request, response) => {
+					if (request.url === "/_emdash/api/dev/scheduled-tasks" && request.method === "POST") {
+						maintenanceRequests++;
+					}
+					response.writeHead(204).end();
+				},
+			);
 			const server = {
 				httpServer,
 				resolvedUrls: { local: [] as string[], network: [] },
-				config: { server: { https: { cert: trusted.cert } } },
+				config: {
+					server: {
+						https:
+							format === "pfx"
+								? { pfx: trusted.pfx, passphrase: "synthetic-test-only" }
+								: { cert: trusted.cert },
+					},
+				},
 			};
 			const warn = vi.fn();
 			startCloudflareDevScheduler(server, { warn }, { intervalMs: 25 });
