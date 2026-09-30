@@ -88,7 +88,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {#件のコメントをインポート} other {#件のコメントをインポート}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2265
+#: packages/admin/src/router.tsx:2274
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {#件のコメントを更新} other {#件のコメントを更新}}"
 
@@ -106,6 +106,11 @@ msgstr "{0, plural, one {#件のコンテンツエラー} other {#件のコン�
 #: packages/admin/src/components/WordPressImport.tsx:2235
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {#件のコンテンツをインポート} other {#件のコンテンツをインポート}}"
+
+#. placeholder {0}: states.length
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:332
+msgid "{0, plural, one {# entry} other {# entries}}"
+msgstr ""
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
 #: packages/admin/src/components/MediaPickerModal.tsx:1607
@@ -166,6 +171,11 @@ msgstr "{0, plural, one {#件のメニューをインポート} other {#件の�
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {#件のメニューがインポートされます} other {#件のメニューがインポートされます}}"
 
+#. placeholder {0}: counts.overdue
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:105
+msgid "{0, plural, one {# overdue} other {# overdue}}"
+msgstr ""
+
 #. placeholder {0}: capabilities.length
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:226
 msgid "{0, plural, one {# permission requested} other {# permissions requested}}"
@@ -181,6 +191,11 @@ msgstr "{0, plural, one {#件の権限} other {#件の権限}}"
 #: packages/admin/src/components/WordPressImport.tsx:2506
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {#件の投稿} other {#件の投稿}}"
+
+#. placeholder {0}: counts.published
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:102
+msgid "{0, plural, one {# published} other {# published}}"
+msgstr ""
 
 #. placeholder {0}: loopRedirectIds.size
 #: packages/admin/src/components/Redirects.tsx:461
@@ -203,8 +218,13 @@ msgstr ""
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:210
 #: packages/admin/src/components/editor/TableControls.tsx:243
-#: packages/admin/src/components/PortableTextEditor.tsx:4296
+#: packages/admin/src/components/PortableTextEditor.tsx:4295
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
+msgstr ""
+
+#. placeholder {0}: counts.scheduled
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:103
+msgid "{0, plural, one {# scheduled} other {# scheduled}}"
 msgstr ""
 
 #. placeholder {0}: selected.size
@@ -226,6 +246,11 @@ msgstr "{0, plural, one {#件の分類項目を割り当て} other {#件の分�
 #: packages/admin/src/components/WordPressImport.tsx:2259
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {#件の分類グループを作成} other {#件の分類グループを作成}}"
+
+#. placeholder {0}: counts.update
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:104
+msgid "{0, plural, one {# update scheduled} other {# updates scheduled}}"
+msgstr ""
 
 #. placeholder {0}: uploadQueue.failedCount
 #: packages/admin/src/components/MediaPickerModal.tsx:1614
@@ -263,12 +288,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {フィールド} other {フィールド}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:393
+#: packages/admin/src/components/Dashboard.tsx:408
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr "{0, plural, one {メディアファイル} other {メディアファイル}}"
 
 #. placeholder {0}: policyRejected - policyRejections.length
-#: packages/admin/src/components/Dashboard.tsx:206
+#: packages/admin/src/components/Dashboard.tsx:211
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
 msgstr ""
 
@@ -283,7 +308,7 @@ msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:397
+#: packages/admin/src/components/Dashboard.tsx:412
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {ユーザー} other {ユーザー}}"
 
@@ -392,17 +417,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:648
+#: packages/admin/src/router.tsx:657
 msgid "{0} of {total} could not be deleted"
 msgstr "全{total}件中{0}件を削除できませんでした"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:604
+#: packages/admin/src/router.tsx:613
 msgid "{0} of {total} could not be published"
 msgstr "全{total}件中{0}件を公開できませんでした"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:627
+#: packages/admin/src/router.tsx:636
 msgid "{0} of {total} could not be updated"
 msgstr "全{total}件中{0}件を更新できませんでした"
 
@@ -449,6 +474,16 @@ msgstr ""
 msgid "{0} updated to v{installedVersion}"
 msgstr ""
 
+#. placeholder {0}: group.label
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:194
+msgid "{0}: {first}"
+msgstr ""
+
+#. placeholder {0}: group.label
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:193
+msgid "{0}: {first} +{more}"
+msgstr ""
+
 #. placeholder {0}: draft.description.length
 #: packages/admin/src/components/SeoPanel.tsx:215
 msgid "{0}/160 characters"
@@ -472,7 +507,7 @@ msgstr "{base}（接続先：{0}）"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {次の版との差分：#件} other {次の版との差分：#件}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2849
+#: packages/admin/src/components/PortableTextEditor.tsx:2864
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {#文字} other {#文字}}"
 
@@ -502,6 +537,14 @@ msgstr "{count, plural, one {#件} other {#件}}"
 msgid "{current} of {total}"
 msgstr "{current}/{total}"
 
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:338
+msgid "{dayLabel}, {entries}"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:120
+msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
+msgstr ""
+
 #: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {#件のアップロードに失敗} other {#件のアップロードに失敗}}"
@@ -515,6 +558,14 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:1274
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0}件} other {#{1}件}}"
+
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:272
+msgid "{hidden, plural, one {# more entry on {date}} other {# more entries on {date}}}"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:279
+msgid "{hidden, plural, one {+# more} other {+# more}}"
+msgstr ""
 
 #: packages/admin/src/components/MediaImportSummary.tsx:9
 msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
@@ -545,6 +596,10 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:533
 msgid "{label} options"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:345
+msgid "{lateness} late"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1263
@@ -623,11 +678,11 @@ msgstr "{needsNewCollections, plural, one {#件のコンテンツタイプが作
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {既存のコンテンツタイプ#件にフィールドを追加します} other {既存のコンテンツタイプ#件にフィールドを追加します}}"
 
-#: packages/admin/src/components/Dashboard.tsx:146
+#: packages/admin/src/components/Dashboard.tsx:151
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {1件のコンテンツが公開予定時刻を過ぎており、公開スケジュール処理の最終実行から時間がたっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {#件のコンテンツが公開予定時刻を過ぎており、公開スケジュール処理の最終実行から時間がたっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
 
-#: packages/admin/src/components/Dashboard.tsx:141
+#: packages/admin/src/components/Dashboard.tsx:146
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {1件のコンテンツが公開予定時刻を過ぎていますが、公開スケジュール処理はまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {#件のコンテンツが公開予定時刻を過ぎていますが、公開スケジュール処理はまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
 
@@ -653,7 +708,7 @@ msgstr "{pluginName}の設定"
 msgid "{plural} go live now; draft edits stay unpublished."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:160
+#: packages/admin/src/components/Dashboard.tsx:165
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr ""
 
@@ -665,7 +720,7 @@ msgstr ""
 msgid "{previewRows} × {previewColumns} table"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2850
+#: packages/admin/src/components/PortableTextEditor.tsx:2865
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr "{readingTime, plural, one {約#分で読めます} other {約#分で読めます}}"
 
@@ -694,7 +749,7 @@ msgstr ""
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2995
+#: packages/admin/src/components/PortableTextEditor.tsx:3010
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
@@ -706,19 +761,43 @@ msgstr "{selectedCount, plural, one {#件を選択中} other {#件を選択中}}
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {#件のコンテンツをゴミ箱に移動しますか？後で復元できます。} other {#件のコンテンツをゴミ箱に移動しますか？後で復元できます。}}"
 
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:88
+msgid "{siteZone} · Your time: {viewerZone}"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:266
+msgid "{state} · {when}"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:329
+msgid "{state}, {time}:"
+msgstr ""
+
 #: packages/admin/src/lib/content-validation-errors.ts:57
 msgid "{subLabel} ({label}, item {position})"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:196
+msgid "{title} is a draft again."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:182
+msgid "{title} is now live."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:208
+msgid "{title} now goes live {when}."
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1269
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {#件} other {#件}}"
 
-#: packages/admin/src/components/Dashboard.tsx:381
+#: packages/admin/src/components/Dashboard.tsx:395
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {下書き} other {下書き}}"
 
-#: packages/admin/src/components/Dashboard.tsx:387
+#: packages/admin/src/components/Dashboard.tsx:401
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {公開予定} other {公開予定}}"
 
@@ -734,7 +813,7 @@ msgstr "{unchangedCount, plural, one {変更のない#件を表示} other {変�
 msgid "{widgetType} in {areaName}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2848
+#: packages/admin/src/components/PortableTextEditor.tsx:2863
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {#語} other {#語}}"
 
@@ -1011,7 +1090,7 @@ msgstr "招待を承諾"
 msgid "Access denied"
 msgstr "アクセスが拒否されました"
 
-#: packages/admin/src/router.tsx:2285
+#: packages/admin/src/router.tsx:2294
 msgid "Access Denied"
 msgstr "アクセスが拒否されました"
 
@@ -1079,7 +1158,7 @@ msgstr "追加"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/ContentList.tsx:554
-#: packages/admin/src/components/PortableTextEditor.tsx:2459
+#: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/TaxonomyManager.tsx:756
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
 msgid "Add {0}"
@@ -1126,7 +1205,7 @@ msgid "Add byline"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
-#: packages/admin/src/components/PortableTextEditor.tsx:4309
+#: packages/admin/src/components/PortableTextEditor.tsx:4308
 msgid "Add column after"
 msgstr "後に列を追加"
 
@@ -1188,7 +1267,7 @@ msgstr "画像を追加"
 msgid "Add images to gallery"
 msgstr "ギャラリーに画像を追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2459
+#: packages/admin/src/components/PortableTextEditor.tsx:2474
 msgid "Add item"
 msgstr "項目を追加"
 
@@ -1196,7 +1275,8 @@ msgstr "項目を追加"
 msgid "Add Item"
 msgstr "項目を追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4221
+#: packages/admin/src/components/PortableTextEditor.tsx:4220
+#: packages/admin/src/components/PortableTextEditor.tsx:4722
 msgid "Add link"
 msgstr "リンクを追加"
 
@@ -1240,7 +1320,7 @@ msgid "Add row above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
-#: packages/admin/src/components/PortableTextEditor.tsx:4302
+#: packages/admin/src/components/PortableTextEditor.tsx:4301
 msgid "Add row below"
 msgstr ""
 
@@ -1303,12 +1383,12 @@ msgid "admin"
 msgstr "管理者"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:607
+#: packages/admin/src/components/Sidebar.tsx:614
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理者"
 
-#: packages/admin/src/components/Sidebar.tsx:555
+#: packages/admin/src/components/Sidebar.tsx:556
 msgid "Admin navigation"
 msgstr "管理ナビゲーション"
 
@@ -1337,6 +1417,10 @@ msgstr ""
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr ""
 
+#: packages/admin/src/routes/calendar.tsx:310
+msgid "Agenda"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:599
 msgid "Agent access"
 msgstr "エージェントアクセス"
@@ -1350,20 +1434,21 @@ msgstr "{0}のエージェントアクセスを更新しました"
 msgid "Agent-callable MCP tools"
 msgstr "エージェントから呼び出し可能なMCPツール"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4822
+#: packages/admin/src/components/PortableTextEditor.tsx:5268
 msgid "Align Center"
 msgstr "中央揃え"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4814
+#: packages/admin/src/components/PortableTextEditor.tsx:5260
 msgid "Align Left"
 msgstr "左揃え"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4830
+#: packages/admin/src/components/PortableTextEditor.tsx:5276
 msgid "Align Right"
 msgstr "右揃え"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:722
+#: packages/admin/src/components/PortableTextEditor.tsx:4703
 msgid "Alignment"
 msgstr "配置"
 
@@ -1481,8 +1566,9 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:514
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:518
-#: packages/admin/src/components/editor/ImageNode.tsx:288
 #: packages/admin/src/components/MediaLibrary.tsx:1208
+#: packages/admin/src/components/PortableTextEditor.tsx:4638
+#: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "Alt text"
 msgstr "代替テキスト"
 
@@ -1549,24 +1635,24 @@ msgstr ""
 #: packages/admin/src/components/TaxonomySidebar.tsx:687
 #: packages/admin/src/components/TaxonomySidebar.tsx:783
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:536
-#: packages/admin/src/router.tsx:551
-#: packages/admin/src/router.tsx:565
-#: packages/admin/src/router.tsx:579
-#: packages/admin/src/router.tsx:813
-#: packages/admin/src/router.tsx:1182
-#: packages/admin/src/router.tsx:1282
-#: packages/admin/src/router.tsx:1316
-#: packages/admin/src/router.tsx:1340
-#: packages/admin/src/router.tsx:1364
-#: packages/admin/src/router.tsx:1422
-#: packages/admin/src/router.tsx:1441
-#: packages/admin/src/router.tsx:1474
-#: packages/admin/src/router.tsx:1495
-#: packages/admin/src/router.tsx:2230
-#: packages/admin/src/router.tsx:2246
-#: packages/admin/src/router.tsx:2271
-#: packages/admin/src/router.tsx:2864
+#: packages/admin/src/router.tsx:545
+#: packages/admin/src/router.tsx:560
+#: packages/admin/src/router.tsx:574
+#: packages/admin/src/router.tsx:588
+#: packages/admin/src/router.tsx:822
+#: packages/admin/src/router.tsx:1191
+#: packages/admin/src/router.tsx:1291
+#: packages/admin/src/router.tsx:1325
+#: packages/admin/src/router.tsx:1349
+#: packages/admin/src/router.tsx:1373
+#: packages/admin/src/router.tsx:1431
+#: packages/admin/src/router.tsx:1450
+#: packages/admin/src/router.tsx:1483
+#: packages/admin/src/router.tsx:1504
+#: packages/admin/src/router.tsx:2239
+#: packages/admin/src/router.tsx:2255
+#: packages/admin/src/router.tsx:2280
+#: packages/admin/src/router.tsx:2873
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1631,7 +1717,7 @@ msgid "Application Password"
 msgstr "アプリケーションパスワード"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
-#: packages/admin/src/components/PortableTextEditor.tsx:4909
+#: packages/admin/src/components/PortableTextEditor.tsx:5355
 msgid "Apply"
 msgstr "適用"
 
@@ -1639,8 +1725,9 @@ msgstr "適用"
 msgid "Apply changes"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4142
-#: packages/admin/src/components/PortableTextEditor.tsx:4143
+#: packages/admin/src/components/PortableTextEditor.tsx:4146
+#: packages/admin/src/components/PortableTextEditor.tsx:4147
+#: packages/admin/src/components/PortableTextEditor.tsx:4675
 msgid "Apply link"
 msgstr "リンクを設定"
 
@@ -1868,7 +1955,7 @@ msgstr "自動バックアップ"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "自動バックアップにはストレージバックエンド（R2、S3、またはローカルストレージ）が必要です。有効にするにはEmDashの設定でストレージを構成してください。"
 
-#: packages/admin/src/router.tsx:1279
+#: packages/admin/src/router.tsx:1288
 msgid "Autosave failed"
 msgstr "自動保存に失敗しました"
 
@@ -2049,8 +2136,8 @@ msgstr ""
 msgid "Blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4169
-#: packages/admin/src/components/PortableTextEditor.tsx:4690
+#: packages/admin/src/components/PortableTextEditor.tsx:4170
+#: packages/admin/src/components/PortableTextEditor.tsx:5136
 msgid "Bold"
 msgstr "太字"
 
@@ -2106,8 +2193,8 @@ msgid "Build provenance verified"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1759
-#: packages/admin/src/components/PortableTextEditor.tsx:4739
+#: packages/admin/src/components/PortableTextEditor.tsx:1774
+#: packages/admin/src/components/PortableTextEditor.tsx:5185
 msgid "Bullet List"
 msgstr "箇条書きリスト"
 
@@ -2153,7 +2240,7 @@ msgstr ""
 msgid "Byline schema"
 msgstr "執筆者情報に追加する項目"
 
-#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:463
 msgid "Byline Schema"
 msgstr "執筆者情報に追加する項目"
 
@@ -2162,11 +2249,12 @@ msgid "Byline updated"
 msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:145
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1088
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1092
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:432
+#: packages/admin/src/components/Sidebar.tsx:433
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Bylines"
 msgstr "執筆者"
@@ -2183,7 +2271,10 @@ msgstr "C#"
 msgid "C++"
 msgstr "C++"
 
+#: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:558
+#: packages/admin/src/components/Sidebar.tsx:588
+#: packages/admin/src/routes/calendar.tsx:279
 msgid "Calendar"
 msgstr ""
 
@@ -2218,8 +2309,6 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1313
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:604
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:817
-#: packages/admin/src/components/editor/ImageNode.tsx:309
-#: packages/admin/src/components/editor/ImageNode.tsx:310
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1315
@@ -2230,7 +2319,9 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/MenuEditor.tsx:629
 #: packages/admin/src/components/MenuList.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:802
-#: packages/admin/src/components/PortableTextEditor.tsx:4893
+#: packages/admin/src/components/PortableTextEditor.tsx:4650
+#: packages/admin/src/components/PortableTextEditor.tsx:4672
+#: packages/admin/src/components/PortableTextEditor.tsx:5339
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2299,6 +2390,7 @@ msgstr "権限の同意"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:491
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:527
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:750
+#: packages/admin/src/components/editor/ImageNode.tsx:302
 #: packages/admin/src/components/MediaDetailPanel.tsx:1592
 msgid "Caption"
 msgstr "キャプション"
@@ -2311,7 +2403,7 @@ msgstr "キャプション / 字幕"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr "変更内容を記録する準備をしています。設定が完了するまでは、コンテンツを編集しないでください。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:196
+#: packages/admin/src/components/AdminCommandPalette.tsx:205
 #: packages/admin/src/components/Widgets.tsx:135
 msgid "Categories"
 msgstr "カテゴリー"
@@ -2338,6 +2430,7 @@ msgid "Cells merged"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
+#: packages/admin/src/components/PortableTextEditor.tsx:4320
 msgid "Center"
 msgstr "中央"
 
@@ -2392,7 +2485,7 @@ msgstr "更新履歴"
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1356
+#: packages/admin/src/router.tsx:1365
 msgid "Changes discarded"
 msgstr "変更を破棄しました"
 
@@ -2431,6 +2524,10 @@ msgstr "サイトを確認"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:476
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "サーバーログを確認したうえで、失敗した処理をメディア使用状況の復旧APIで再開してください。"
+
+#: packages/admin/src/routes/calendar.tsx:271
+msgid "Check your connection and try again."
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:102
 #: packages/admin/src/components/SignupPage.tsx:148
@@ -2586,6 +2683,9 @@ msgstr "選択を解除"
 msgid "Clear completed"
 msgstr "完了した項目を一覧から削除"
 
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:175
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:222
 #: packages/admin/src/components/ContentList.tsx:1030
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/Sections.tsx:298
@@ -2636,6 +2736,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
 #: packages/admin/src/components/BylineFieldEditor.tsx:222
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:278
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -2659,9 +2760,9 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:588
 #: packages/admin/src/components/MenuEditor.tsx:592
 #: packages/admin/src/components/MenuList.tsx:145
-#: packages/admin/src/components/PortableTextEditor.tsx:2234
-#: packages/admin/src/components/PortableTextEditor.tsx:2240
-#: packages/admin/src/components/PortableTextEditor.tsx:2244
+#: packages/admin/src/components/PortableTextEditor.tsx:2249
+#: packages/admin/src/components/PortableTextEditor.tsx:2255
+#: packages/admin/src/components/PortableTextEditor.tsx:2259
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
@@ -2717,14 +2818,14 @@ msgid "Close settings"
 msgstr "設定を閉じる"
 
 #: packages/admin/src/components/ContentTypeList.tsx:388
-#: packages/admin/src/components/PortableTextEditor.tsx:4211
+#: packages/admin/src/components/PortableTextEditor.tsx:4212
 #: packages/admin/src/components/Redirects.tsx:487
 msgid "Code"
 msgstr "コード"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1789
-#: packages/admin/src/components/PortableTextEditor.tsx:4781
+#: packages/admin/src/components/PortableTextEditor.tsx:1804
+#: packages/admin/src/components/PortableTextEditor.tsx:5227
 msgid "Code Block"
 msgstr "コードブロック"
 
@@ -2745,6 +2846,8 @@ msgstr "詳細を折りたたむ"
 msgid "colleague@example.com"
 msgstr "colleague@example.com"
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:331
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:99
 #: packages/admin/src/components/ContentPickerModal.tsx:261
 msgid "Collection"
 msgstr "コンテンツタイプ"
@@ -2777,7 +2880,7 @@ msgid "Collections created:"
 msgstr "作成したコンテンツタイプ："
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
-#: packages/admin/src/components/PortableTextEditor.tsx:4307
+#: packages/admin/src/components/PortableTextEditor.tsx:4306
 msgid "Column added after"
 msgstr ""
 
@@ -2793,7 +2896,7 @@ msgstr ""
 msgid "Column width increased"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2995
+#: packages/admin/src/components/PortableTextEditor.tsx:3010
 msgid "Column width resized"
 msgstr ""
 
@@ -2833,7 +2936,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeEditor.tsx:650
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:418
+#: packages/admin/src/components/Sidebar.tsx:419
 msgid "Comments"
 msgstr "コメント"
 
@@ -2918,13 +3021,13 @@ msgstr ""
 msgid "content"
 msgstr "コンテンツ"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:391
+#: packages/admin/src/components/AdminCommandPalette.tsx:400
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
-#: packages/admin/src/components/Dashboard.tsx:449
-#: packages/admin/src/components/PortableTextEditor.tsx:3104
+#: packages/admin/src/components/Dashboard.tsx:479
+#: packages/admin/src/components/PortableTextEditor.tsx:3119
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:591
+#: packages/admin/src/components/Sidebar.tsx:598
 #: packages/admin/src/components/Widgets.tsx:901
 msgid "Content"
 msgstr "コンテンツ"
@@ -2946,7 +3049,7 @@ msgstr "コンテンツエラー（{0}）"
 msgid "Content found:"
 msgstr "検出されたコンテンツ："
 
-#: packages/admin/src/router.tsx:1415
+#: packages/admin/src/router.tsx:1424
 msgid "Content has been scheduled for publishing"
 msgstr "コンテンツの公開を予約しました"
 
@@ -2958,7 +3061,7 @@ msgstr "選択した版の内容に更新しました。"
 msgid "Content ID:"
 msgstr "コンテンツID："
 
-#: packages/admin/src/router.tsx:1310
+#: packages/admin/src/router.tsx:1319
 msgid "Content is now live"
 msgstr "コンテンツを公開しました"
 
@@ -2983,11 +3086,11 @@ msgstr ""
 msgid "Content refers to media that is not in the package"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1334
+#: packages/admin/src/router.tsx:1343
 msgid "Content removed from public view"
 msgstr "コンテンツを公開表示から外しました"
 
-#: packages/admin/src/router.tsx:1434
+#: packages/admin/src/router.tsx:1443
 msgid "Content reverted to draft"
 msgstr "コンテンツを下書きに戻しました"
 
@@ -3007,9 +3110,9 @@ msgstr "インポートするコンテンツ"
 msgid "Content types"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:188
+#: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:131
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:459
 msgid "Content Types"
 msgstr "コンテンツタイプ"
 
@@ -3044,7 +3147,7 @@ msgstr "続行 →"
 msgid "Continue Import"
 msgstr "インポートを続行"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4756
+#: packages/admin/src/components/PortableTextEditor.tsx:5202
 msgid "Continue numbering"
 msgstr "番号を継続"
 
@@ -3145,7 +3248,7 @@ msgstr "自動的にコピーできませんでした。上のURLを選択して
 msgid "Could not create {singularLower}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3872
+#: packages/admin/src/components/PortableTextEditor.tsx:3892
 msgid "Could not insert section"
 msgstr "セクションを挿入できませんでした"
 
@@ -3153,7 +3256,7 @@ msgstr "セクションを挿入できませんでした"
 msgid "Could not load {pluralLower}."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:302
+#: packages/admin/src/components/Dashboard.tsx:307
 msgid "Could not load dashboard data"
 msgstr "ダッシュボードデータを読み込めませんでした"
 
@@ -3165,8 +3268,24 @@ msgstr "URLから画像を読み込めませんでした"
 msgid "Could not load media."
 msgstr ""
 
+#: packages/admin/src/routes/calendar.tsx:344
+msgid "Could not load the calendar"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:364
+msgid "Could not load this entry's details."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:1202
 msgid "Could not load this folder."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:185
+msgid "Could not publish"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:200
+msgid "Could not remove the schedule"
 msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:194
@@ -3300,7 +3419,7 @@ msgstr ""
 msgid "Create a block type before adding a blocks field."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1760
+#: packages/admin/src/components/PortableTextEditor.tsx:1775
 msgid "Create a bullet list"
 msgstr "箇条書きリストを作成"
 
@@ -3313,7 +3432,7 @@ msgstr "{0}を新規作成"
 msgid "Create a new {singularLabel}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1770
+#: packages/admin/src/components/PortableTextEditor.tsx:1785
 msgid "Create a numbered list"
 msgstr "番号付きリストを作成"
 
@@ -3493,7 +3612,7 @@ msgid "Created {0}"
 msgstr "作成日時：{0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1466
+#: packages/admin/src/router.tsx:1475
 msgid "Created {0} translation"
 msgstr "{0}の翻訳を作成しました"
 
@@ -3598,11 +3717,11 @@ msgstr "毎日自動でバックアップする"
 msgid "Dark mode variant"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:134
+#: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:390
-#: packages/admin/src/components/Dashboard.tsx:70
-#: packages/admin/src/components/Sidebar.tsx:396
-#: packages/admin/src/components/Sidebar.tsx:582
+#: packages/admin/src/components/Dashboard.tsx:71
+#: packages/admin/src/components/Sidebar.tsx:397
+#: packages/admin/src/components/Sidebar.tsx:583
 msgid "Dashboard"
 msgstr "ダッシュボード"
 
@@ -3817,8 +3936,7 @@ msgstr "ギャラリーを削除"
 msgid "Delete HTML block"
 msgstr "HTMLブロックを削除"
 
-#: packages/admin/src/components/editor/ImageNode.tsx:277
-#: packages/admin/src/components/editor/ImageNode.tsx:278
+#: packages/admin/src/components/PortableTextEditor.tsx:4734
 msgid "Delete image"
 msgstr "画像を削除"
 
@@ -3957,11 +4075,11 @@ msgid "Deny"
 msgstr "拒否"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:521
+#: packages/admin/src/components/PortableTextEditor.tsx:4639
 msgid "Describe the image"
 msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:488
-#: packages/admin/src/components/editor/ImageNode.tsx:295
 msgid "Describe the image..."
 msgstr "画像の説明を入力…"
 
@@ -4106,7 +4224,7 @@ msgid "Discarding..."
 msgstr "破棄中…"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:76
-#: packages/admin/src/components/Dashboard.tsx:196
+#: packages/admin/src/components/Dashboard.tsx:201
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:107
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
@@ -4117,15 +4235,15 @@ msgstr "閉じる"
 msgid "Dismiss completed {0}"
 msgstr "完了した{0}を閉じる"
 
-#: packages/admin/src/components/Dashboard.tsx:286
+#: packages/admin/src/components/Dashboard.tsx:291
 msgid "Dismiss import suggestion"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3893
+#: packages/admin/src/components/PortableTextEditor.tsx:3913
 msgid "Dismiss section error"
 msgstr "セクションエラーを閉じる"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3860
+#: packages/admin/src/components/PortableTextEditor.tsx:3880
 msgid "Dismiss table paste error"
 msgstr ""
 
@@ -4170,7 +4288,7 @@ msgstr "集中モード（⌘⇧\\）"
 msgid "Distribute columns evenly"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1807
+#: packages/admin/src/components/PortableTextEditor.tsx:1822
 msgid "Divider"
 msgstr "区切り線"
 
@@ -4283,6 +4401,7 @@ msgstr "ダウンロード中"
 msgid "Downloading the package"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:385
 #: packages/admin/src/components/ContentList.tsx:926
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -4302,7 +4421,7 @@ msgid "draft, published, or archived"
 msgstr "下書き、公開済み、またはアーカイブ済み"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:92
-#: packages/admin/src/components/Dashboard.tsx:483
+#: packages/admin/src/components/Dashboard.tsx:513
 msgid "Drafts"
 msgstr "下書き"
 
@@ -4322,7 +4441,7 @@ msgstr "XMLファイルをドラッグ＆ドロップするか、クリックし
 msgid "Drag here to add"
 msgstr "ここにドラッグして追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2635
+#: packages/admin/src/components/PortableTextEditor.tsx:2650
 msgid "Drag to reorder"
 msgstr "ドラッグして並べ替え"
 
@@ -4433,7 +4552,7 @@ msgstr "編集"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:364
-#: packages/admin/src/components/PortableTextEditor.tsx:2231
+#: packages/admin/src/components/PortableTextEditor.tsx:2246
 #: packages/admin/src/components/RelationFormPanel.tsx:83
 #: packages/admin/src/components/RelationList.tsx:221
 #: packages/admin/src/components/RelationsPanel.tsx:201
@@ -4514,7 +4633,8 @@ msgstr ""
 msgid "Edit image {0}"
 msgstr "画像{0}を編集"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4221
+#: packages/admin/src/components/PortableTextEditor.tsx:4220
+#: packages/admin/src/components/PortableTextEditor.tsx:4722
 msgid "Edit link"
 msgstr "リンクを編集"
 
@@ -4650,11 +4770,11 @@ msgid "Email verified!"
 msgstr "メールアドレスを確認しました。"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:3118
+#: packages/admin/src/components/PortableTextEditor.tsx:3133
 msgid "Embed a {0}"
 msgstr "{0}を埋め込む"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3121
+#: packages/admin/src/components/PortableTextEditor.tsx:3136
 msgid "Embeds"
 msgstr "埋め込み"
 
@@ -4820,6 +4940,10 @@ msgstr ""
 msgid "Entries that link to this one"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:112
+msgid "Entries this month"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:784
 #: packages/admin/src/components/FieldEditor.tsx:989
 msgid "Entries this one links to"
@@ -4839,7 +4963,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1207
 #: packages/admin/src/components/Widgets.tsx:771
-#: packages/admin/src/router.tsx:3138
+#: packages/admin/src/router.tsx:3148
 msgid "Error"
 msgstr "エラー"
 
@@ -5079,14 +5203,14 @@ msgid "Failed to create term"
 msgstr "分類項目の作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1471
+#: packages/admin/src/router.tsx:1480
 msgid "Failed to create translation"
 msgstr "翻訳の作成に失敗しました"
 
-#: packages/admin/src/router.tsx:535
-#: packages/admin/src/router.tsx:564
-#: packages/admin/src/router.tsx:647
-#: packages/admin/src/router.tsx:1494
+#: packages/admin/src/router.tsx:544
+#: packages/admin/src/router.tsx:573
+#: packages/admin/src/router.tsx:656
+#: packages/admin/src/router.tsx:1503
 msgid "Failed to delete"
 msgstr "削除に失敗しました"
 
@@ -5111,7 +5235,7 @@ msgid "Failed to delete collection"
 msgstr "コンテンツタイプの削除に失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2245
+#: packages/admin/src/router.tsx:2254
 msgid "Failed to delete comment"
 msgstr "コメントの削除に失敗しました"
 
@@ -5124,11 +5248,11 @@ msgstr "コンテンツの削除に失敗しました"
 msgid "Failed to delete field"
 msgstr "項目を削除できませんでした"
 
-#: packages/admin/src/lib/api/media.ts:679
+#: packages/admin/src/lib/api/media.ts:681
 msgid "Failed to delete from provider"
 msgstr "連携先からの削除に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:539
+#: packages/admin/src/lib/api/media.ts:541
 msgid "Failed to delete media"
 msgstr "メディアの削除に失敗しました"
 
@@ -5193,11 +5317,11 @@ msgstr "検索の無効化に失敗しました"
 msgid "Failed to disable user"
 msgstr "ユーザーの無効化に失敗しました"
 
-#: packages/admin/src/router.tsx:1363
+#: packages/admin/src/router.tsx:1372
 msgid "Failed to discard changes"
 msgstr "変更の破棄に失敗しました"
 
-#: packages/admin/src/components/Dashboard.tsx:215
+#: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr ""
@@ -5210,7 +5334,7 @@ msgstr "ウェルカム画面を閉じられませんでした"
 msgid "Failed to download a package file"
 msgstr ""
 
-#: packages/admin/src/router.tsx:578
+#: packages/admin/src/router.tsx:587
 msgid "Failed to duplicate"
 msgstr "複製に失敗しました"
 
@@ -5276,7 +5400,7 @@ msgstr "メディアフォルダーの一覧を取得できませんでした"
 msgid "Failed to fetch media item"
 msgstr "メディア項目の取得に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:612
+#: packages/admin/src/lib/api/media.ts:614
 msgid "Failed to fetch media providers"
 msgstr "メディア連携サービスの取得に失敗しました"
 
@@ -5297,7 +5421,7 @@ msgstr "プラグイン設定の取得に失敗しました"
 msgid "Failed to fetch plugins"
 msgstr "プラグイン一覧の取得に失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:642
+#: packages/admin/src/lib/api/media.ts:644
 msgid "Failed to fetch provider media"
 msgstr "連携先のメディア取得に失敗しました"
 
@@ -5333,8 +5457,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:1057
-#: packages/admin/src/router.tsx:2176
+#: packages/admin/src/router.tsx:1066
+#: packages/admin/src/router.tsx:2185
 msgid "Failed to fetch user"
 msgstr "ユーザーの取得に失敗しました"
 
@@ -5380,7 +5504,7 @@ msgstr "執筆者情報の項目一覧の取得に失敗しました"
 msgid "Failed to list files to upload"
 msgstr ""
 
-#: packages/admin/src/router.tsx:375
+#: packages/admin/src/router.tsx:377
 msgid "Failed to load admin"
 msgstr "管理画面の読み込みに失敗しました"
 
@@ -5465,6 +5589,10 @@ msgstr "変更履歴の読み込みに失敗しました"
 msgid "Failed to load setup"
 msgstr "セットアップの読み込みに失敗しました"
 
+#: packages/admin/src/lib/api/calendar.ts:49
+msgid "Failed to load the calendar"
+msgstr ""
+
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:89
 msgid "Failed to load theme"
 msgstr "テーマの読み込みに失敗しました"
@@ -5490,7 +5618,7 @@ msgstr "ウィジェットの読み込みに失敗しました"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2270
+#: packages/admin/src/router.tsx:2279
 msgid "Failed to perform bulk action"
 msgstr "一括操作に失敗しました"
 
@@ -5502,8 +5630,8 @@ msgstr "コンテンツの完全削除に失敗しました"
 msgid "Failed to prepare import"
 msgstr "インポートの準備に失敗しました"
 
-#: packages/admin/src/router.tsx:603
-#: packages/admin/src/router.tsx:1315
+#: packages/admin/src/router.tsx:612
+#: packages/admin/src/router.tsx:1324
 msgid "Failed to publish"
 msgstr "公開に失敗しました"
 
@@ -5549,11 +5677,11 @@ msgstr "項目を並べ替えられませんでした"
 msgid "Failed to reorder widgets"
 msgstr "ウィジェットの並べ替えに失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:527
+#: packages/admin/src/lib/api/media.ts:529
 msgid "Failed to replace media image"
 msgstr ""
 
-#: packages/admin/src/router.tsx:550
+#: packages/admin/src/router.tsx:559
 msgid "Failed to restore"
 msgstr "復元に失敗しました"
 
@@ -5574,9 +5702,9 @@ msgstr "APIトークンの取り消しに失敗しました"
 msgid "Failed to rewrite URLs"
 msgstr "URLの書き換えに失敗しました"
 
-#: packages/admin/src/router.tsx:808
-#: packages/admin/src/router.tsx:1179
-#: packages/admin/src/router.tsx:2863
+#: packages/admin/src/router.tsx:817
+#: packages/admin/src/router.tsx:1188
+#: packages/admin/src/router.tsx:2872
 msgid "Failed to save"
 msgstr "保存に失敗しました"
 
@@ -5595,7 +5723,7 @@ msgstr "項目を保存できませんでした"
 msgid "Failed to save settings"
 msgstr "設定の保存に失敗しました"
 
-#: packages/admin/src/router.tsx:1421
+#: packages/admin/src/router.tsx:1430
 msgid "Failed to schedule"
 msgstr "公開予約に失敗しました"
 
@@ -5635,15 +5763,15 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr "プラグインのアンインストールに失敗しました"
 
-#: packages/admin/src/router.tsx:1339
+#: packages/admin/src/router.tsx:1348
 msgid "Failed to unpublish"
 msgstr "非公開化に失敗しました"
 
-#: packages/admin/src/router.tsx:1440
+#: packages/admin/src/router.tsx:1449
 msgid "Failed to unschedule"
 msgstr "公開予約の解除に失敗しました"
 
-#: packages/admin/src/router.tsx:626
+#: packages/admin/src/router.tsx:635
 msgid "Failed to update"
 msgstr "更新に失敗しました"
 
@@ -5664,7 +5792,7 @@ msgstr "執筆者情報の項目の更新に失敗しました"
 msgid "Failed to update domain"
 msgstr "ドメインの設定を更新できませんでした"
 
-#: packages/admin/src/lib/api/media.ts:563
+#: packages/admin/src/lib/api/media.ts:565
 msgid "Failed to update media"
 msgstr "メディアの更新に失敗しました"
 
@@ -5690,7 +5818,7 @@ msgstr "セクションの更新に失敗しました"
 msgid "Failed to update settings"
 msgstr "設定の更新に失敗しました"
 
-#: packages/admin/src/router.tsx:2229
+#: packages/admin/src/router.tsx:2238
 msgid "Failed to update status"
 msgstr "ステータスの更新に失敗しました"
 
@@ -5698,15 +5826,15 @@ msgstr "ステータスの更新に失敗しました"
 msgid "Failed to upload a package file"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:397
+#: packages/admin/src/lib/api/media.ts:399
 msgid "Failed to upload file"
 msgstr "ファイルのアップロードに失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:468
+#: packages/admin/src/lib/api/media.ts:470
 msgid "Failed to upload media"
 msgstr "メディアのアップロードに失敗しました"
 
-#: packages/admin/src/lib/api/media.ts:667
+#: packages/admin/src/lib/api/media.ts:669
 msgid "Failed to upload to provider"
 msgstr "連携先へのアップロードに失敗しました"
 
@@ -5814,6 +5942,11 @@ msgstr "ファイル名はアップロード後に変更できません"
 msgid "Files upload as soon as you add them."
 msgstr "ファイルを追加すると、自動的にアップロードが始まります。"
 
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:155
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:157
+msgid "Filter"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:981
 msgid "Filter by author"
 msgstr "投稿者で絞り込む"
@@ -5856,6 +5989,10 @@ msgstr "種類で絞り込む"
 #: packages/admin/src/routes/bylines.tsx:511
 msgid "Filter byline type"
 msgstr "執筆者の種類で絞り込む"
+
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:155
+msgid "Filter: {activeCount} selected"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:592
 msgid "Finish any current edits."
@@ -5904,7 +6041,7 @@ msgstr "フォルダーを削除しました"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "フォルダー名は1～200文字で入力してください"
 
-#: packages/admin/src/router.tsx:1899
+#: packages/admin/src/router.tsx:1908
 msgid "Folder no longer exists"
 msgstr "フォルダーが見つかりません"
 
@@ -5995,7 +6132,7 @@ msgid "Full admin access"
 msgstr "管理者フルアクセス"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:3085
+#: packages/admin/src/components/PortableTextEditor.tsx:3100
 msgid "Gallery"
 msgstr "ギャラリー"
 
@@ -6040,10 +6177,18 @@ msgstr "後で識別しやすいように、このパスキーに名前を付け
 msgid "Go"
 msgstr "Go"
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
+msgid "Go live {time}"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2438
-#: packages/admin/src/router.tsx:3158
+#: packages/admin/src/router.tsx:3168
 msgid "Go to Dashboard"
 msgstr "ダッシュボードへ"
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
+msgid "Goes live"
+msgstr ""
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:238
 #: packages/admin/src/components/settings/SeoSettings.tsx:244
@@ -6113,37 +6258,37 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1699
+#: packages/admin/src/components/PortableTextEditor.tsx:1714
 msgid "Heading 1"
 msgstr "見出し 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1709
+#: packages/admin/src/components/PortableTextEditor.tsx:1724
 msgid "Heading 2"
 msgstr "見出し 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1719
+#: packages/admin/src/components/PortableTextEditor.tsx:1734
 msgid "Heading 3"
 msgstr "見出し 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1729
+#: packages/admin/src/components/PortableTextEditor.tsx:1744
 msgid "Heading 4"
 msgstr "見出し 4"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1739
+#: packages/admin/src/components/PortableTextEditor.tsx:1754
 msgid "Heading 5"
 msgstr "見出し 5"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:1749
+#: packages/admin/src/components/PortableTextEditor.tsx:1764
 msgid "Heading 6"
 msgstr "見出し 6"
 
@@ -6164,6 +6309,10 @@ msgstr "ヒーローバナー"
 #: packages/admin/src/components/SectionEditor.tsx:307
 msgid "hero, banner, cta"
 msgstr "ヒーロー, バナー, CTA"
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:119
+msgid "Hide earlier entries"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:582
 msgid "Hide from navigation"
@@ -6245,7 +6394,7 @@ msgstr "アプリケーションパスワードの作成方法"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1799
+#: packages/admin/src/components/PortableTextEditor.tsx:1814
 msgid "HTML"
 msgstr "HTML"
 
@@ -6305,7 +6454,7 @@ msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:437
 #: packages/admin/src/components/FieldEditor.tsx:1240
-#: packages/admin/src/components/PortableTextEditor.tsx:3070
+#: packages/admin/src/components/PortableTextEditor.tsx:3085
 msgid "Image"
 msgstr "画像"
 
@@ -6324,12 +6473,16 @@ msgstr "画像{0}"
 msgid "Image actions"
 msgstr ""
 
+#: packages/admin/src/components/PortableTextEditor.tsx:4606
+msgid "Image controls"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:438
 msgid "Image from media library"
 msgstr "メディアライブラリから画像"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4848
-#: packages/admin/src/components/PortableTextEditor.tsx:4863
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
 msgid "Image link"
 msgstr ""
 
@@ -6344,8 +6497,7 @@ msgid "Image replaced."
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:390
-#: packages/admin/src/components/editor/ImageNode.tsx:265
-#: packages/admin/src/components/editor/ImageNode.tsx:266
+#: packages/admin/src/components/PortableTextEditor.tsx:4727
 msgid "Image settings"
 msgstr "画像設定"
 
@@ -6374,9 +6526,9 @@ msgstr "画像URL"
 msgid "Images"
 msgstr "画像"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:230
+#: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:484
+#: packages/admin/src/components/Sidebar.tsx:485
 #: packages/admin/src/components/WordPressImport.tsx:758
 msgid "Import"
 msgstr "インポート"
@@ -6386,7 +6538,7 @@ msgstr "インポート"
 msgid "Import {0}"
 msgstr "{0}をインポート"
 
-#: packages/admin/src/components/Dashboard.tsx:278
+#: packages/admin/src/components/Dashboard.tsx:283
 msgid "Import a site package"
 msgstr ""
 
@@ -6560,49 +6712,49 @@ msgstr "確認中"
 msgid "Indexing existing content"
 msgstr "既存コンテンツを確認中"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:5164
 msgid "Inline Code"
 msgstr "インラインコード"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:2231
+#: packages/admin/src/components/PortableTextEditor.tsx:2246
 msgid "Insert {0}"
 msgstr "{0}を挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1780
+#: packages/admin/src/components/PortableTextEditor.tsx:1795
 msgid "Insert a blockquote"
 msgstr "引用を挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1790
+#: packages/admin/src/components/PortableTextEditor.tsx:1805
 msgid "Insert a code block"
 msgstr "コードブロックを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1808
+#: packages/admin/src/components/PortableTextEditor.tsx:1823
 msgid "Insert a horizontal rule"
 msgstr "水平線を挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3101
+#: packages/admin/src/components/PortableTextEditor.tsx:3116
 msgid "Insert a reusable section"
 msgstr "再利用可能なセクションを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1818
+#: packages/admin/src/components/PortableTextEditor.tsx:1833
 msgid "Insert a table"
 msgstr "テーブルを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3071
+#: packages/admin/src/components/PortableTextEditor.tsx:3086
 msgid "Insert an image"
 msgstr "画像を挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3086
+#: packages/admin/src/components/PortableTextEditor.tsx:3101
 msgid "Insert an image gallery"
 msgstr "画像ギャラリーを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2062
+#: packages/admin/src/components/PortableTextEditor.tsx:2077
 msgid "Insert block"
 msgstr "ブロックを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4670
-#: packages/admin/src/components/PortableTextEditor.tsx:4680
+#: packages/admin/src/components/PortableTextEditor.tsx:5116
+#: packages/admin/src/components/PortableTextEditor.tsx:5126
 msgid "Insert block after current block"
 msgstr "現在のブロックの後にブロックを挿入"
 
@@ -6610,20 +6762,20 @@ msgstr "現在のブロックの後にブロックを挿入"
 msgid "Insert block below"
 msgstr "下にブロックを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4795
+#: packages/admin/src/components/PortableTextEditor.tsx:5241
 msgid "Insert HTML"
 msgstr "HTMLを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3965
+#: packages/admin/src/components/PortableTextEditor.tsx:3991
 msgid "Insert image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4788
+#: packages/admin/src/components/PortableTextEditor.tsx:5234
 msgid "Insert Image"
 msgstr "画像を挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4848
-#: packages/admin/src/components/PortableTextEditor.tsx:4863
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
+#: packages/admin/src/components/PortableTextEditor.tsx:5309
 msgid "Insert Link"
 msgstr "リンクを挿入"
 
@@ -6639,7 +6791,7 @@ msgstr ""
 msgid "Insert paragraph before"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1800
+#: packages/admin/src/components/PortableTextEditor.tsx:1815
 msgid "Insert raw HTML"
 msgstr "HTMLを直接記述"
 
@@ -6763,13 +6915,13 @@ msgstr ""
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4176
-#: packages/admin/src/components/PortableTextEditor.tsx:4697
+#: packages/admin/src/components/PortableTextEditor.tsx:4177
+#: packages/admin/src/components/PortableTextEditor.tsx:5143
 msgid "Italic"
 msgstr "斜体"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2621
+#: packages/admin/src/components/PortableTextEditor.tsx:2636
 #: packages/admin/src/components/RepeaterField.tsx:247
 msgid "Item {0}"
 msgstr "項目{0}"
@@ -6908,9 +7060,17 @@ msgstr "横長"
 msgid "Language"
 msgstr "言語"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1700
+#: packages/admin/src/components/PortableTextEditor.tsx:1715
 msgid "Large section heading"
 msgstr "レベル1の見出し"
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:358
+msgid "Last edited"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
+msgid "Last edited {edited}"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:664
 msgid "Last enabled:"
@@ -6947,6 +7107,10 @@ msgstr "最終使用日時"
 msgid "Last used {0}"
 msgstr "最終使用日時：{0}"
 
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:147
+msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:81
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
 msgstr ""
@@ -6960,6 +7124,7 @@ msgid "Leave unassigned"
 msgstr "未割り当てのまま"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
+#: packages/admin/src/components/PortableTextEditor.tsx:4319
 msgid "Left"
 msgstr "左"
 
@@ -6980,7 +7145,7 @@ msgstr "ライセンス"
 msgid "Limit"
 msgstr "最大表示件数"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4874
+#: packages/admin/src/components/PortableTextEditor.tsx:5320
 msgid "Link"
 msgstr ""
 
@@ -7063,6 +7228,7 @@ msgstr ""
 msgid "List view"
 msgstr "リスト表示"
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:403
 #: packages/admin/src/components/ContentSettingsPanel.tsx:180
 #: packages/admin/src/components/ContentSettingsPanel.tsx:190
 #: packages/admin/src/components/ContentSettingsPanel.tsx:212
@@ -7101,7 +7267,8 @@ msgstr "さらに読み込む"
 msgid "Load more folders"
 msgstr "さらにフォルダーを読み込む"
 
-#: packages/admin/src/router.tsx:3113
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
+#: packages/admin/src/router.tsx:3123
 msgid "Loading"
 msgstr "読み込み中"
 
@@ -7130,8 +7297,8 @@ msgstr "コンテンツタイプを読み込み中…"
 msgid "Loading comments..."
 msgstr "コメントを読み込み中…"
 
-#: packages/admin/src/router.tsx:3115
-#: packages/admin/src/router.tsx:3127
+#: packages/admin/src/router.tsx:3125
+#: packages/admin/src/router.tsx:3137
 msgid "Loading configuration..."
 msgstr "設定を読み込み中…"
 
@@ -7139,7 +7306,7 @@ msgstr "設定を読み込み中…"
 msgid "Loading content..."
 msgstr "コンテンツを読み込み中…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3827
+#: packages/admin/src/components/PortableTextEditor.tsx:3843
 msgid "Loading editor..."
 msgstr "エディターを読み込み中…"
 
@@ -7247,7 +7414,7 @@ msgstr "ウィジェットを読み込み中…"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1729
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:245
-#: packages/admin/src/components/PortableTextEditor.tsx:2748
+#: packages/admin/src/components/PortableTextEditor.tsx:2763
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
@@ -7274,6 +7441,8 @@ msgstr "読み込み中…"
 msgid "Local time"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:335
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:110
 #: packages/admin/src/components/ContentList.tsx:685
 #: packages/admin/src/components/ContentList.tsx:828
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
@@ -7353,7 +7522,7 @@ msgstr "メインライブラリ"
 msgid "Main Sidebar"
 msgstr "メインサイドバー"
 
-#: packages/admin/src/components/Sidebar.tsx:599
+#: packages/admin/src/components/Sidebar.tsx:606
 msgid "Manage"
 msgstr "管理"
 
@@ -7435,11 +7604,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "マーケットプレイス"
 
-#: packages/admin/src/router.tsx:2524
+#: packages/admin/src/router.tsx:2533
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2499
+#: packages/admin/src/router.tsx:2508
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -7479,12 +7648,12 @@ msgstr "タグの最大数"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3074
 #: packages/admin/src/components/PortableTextEditor.tsx:3089
+#: packages/admin/src/components/PortableTextEditor.tsx:3104
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:409
+#: packages/admin/src/components/Sidebar.tsx:410
 #: packages/admin/src/components/WordPressImport.tsx:772
 #: packages/admin/src/components/WordPressImport.tsx:1167
 #: packages/admin/src/components/WordPressImport.tsx:1354
@@ -7521,7 +7690,7 @@ msgstr "メディアのインポートをスキップしました"
 msgid "Media in this folder will return to Main library. No files will be deleted."
 msgstr "このフォルダー内のメディアはメインライブラリに戻ります。ファイルは削除されません。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:157
+#: packages/admin/src/components/AdminCommandPalette.tsx:166
 #: packages/admin/src/components/MediaLibrary.tsx:819
 #: packages/admin/src/components/MediaLibrary.tsx:834
 msgid "Media Library"
@@ -7573,7 +7742,7 @@ msgstr "メディア使用状況の設定を確認してください"
 msgid "Media Write"
 msgstr "メディア書き込み"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1710
+#: packages/admin/src/components/PortableTextEditor.tsx:1725
 msgid "Medium section heading"
 msgstr "レベル2の見出し"
 
@@ -7626,10 +7795,10 @@ msgstr "メニューが見つかりません"
 msgid "Menu order has been updated."
 msgstr "メニューの順序を更新しました。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:164
+#: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:423
+#: packages/admin/src/components/Sidebar.tsx:424
 #: packages/admin/src/components/WordPressImport.tsx:1171
 msgid "Menus"
 msgstr "メニュー"
@@ -7688,7 +7857,7 @@ msgstr "最小値"
 msgid "Minimum blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1740
+#: packages/admin/src/components/PortableTextEditor.tsx:1755
 msgid "Minor section heading"
 msgstr "レベル5の見出し"
 
@@ -7711,6 +7880,10 @@ msgstr "コメントの判定情報"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:73
 msgid "Modify collection schemas"
 msgstr "コンテンツタイプの構造を変更する"
+
+#: packages/admin/src/routes/calendar.tsx:296
+msgid "Month"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Monthly"
@@ -7873,11 +8046,11 @@ msgstr ""
 msgid "Moved {filename} to position {0}."
 msgstr ""
 
-#: packages/admin/src/router.tsx:623
+#: packages/admin/src/router.tsx:632
 msgid "Moved {total} items to draft"
 msgstr "{total}件を下書きに移動しました"
 
-#: packages/admin/src/router.tsx:644
+#: packages/admin/src/router.tsx:653
 msgid "Moved {total} items to trash"
 msgstr "{total}件をゴミ箱に移動しました"
 
@@ -7905,7 +8078,7 @@ msgstr ""
 msgid "Moving {label} was cancelled."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:268
+#: packages/admin/src/components/Dashboard.tsx:273
 msgid "Moving from another EmDash site?"
 msgstr ""
 
@@ -7956,7 +8129,7 @@ msgstr ""
 msgid "Navigate"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:353
+#: packages/admin/src/components/AdminCommandPalette.tsx:362
 #: packages/admin/src/components/ContentTypeEditor.tsx:552
 msgid "Navigation"
 msgstr "ナビゲーション"
@@ -7977,7 +8150,7 @@ msgstr "対応が必要"
 msgid "Never"
 msgstr "ログイン履歴なし"
 
-#: packages/admin/src/router.tsx:1466
+#: packages/admin/src/router.tsx:1475
 msgid "new"
 msgstr "新規"
 
@@ -8047,7 +8220,7 @@ msgstr ""
 msgid "New section"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:492
+#: packages/admin/src/components/AdminCommandPalette.tsx:501
 msgid "new tab"
 msgstr "新しいタブ"
 
@@ -8079,6 +8252,10 @@ msgstr "ニュース"
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "次へ"
+
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:73
+msgid "Next month"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
 #: packages/admin/src/components/ContentList.tsx:799
@@ -8183,7 +8360,7 @@ msgstr "一致する執筆者はありません"
 msgid "No bylines yet"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:455
+#: packages/admin/src/components/Dashboard.tsx:485
 msgid "No collections configured"
 msgstr "コンテンツタイプが設定されていません"
 
@@ -8215,6 +8392,10 @@ msgstr "コンテンツタイプはまだありません。"
 msgid "No custom fields yet"
 msgstr "カスタムフィールドはまだありません"
 
+#: packages/admin/src/components/PortableTextEditor.tsx:4696
+msgid "No description yet"
+msgstr ""
+
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:285
 msgid "No detailed description available."
 msgstr "詳細な説明はありません。"
@@ -8238,6 +8419,10 @@ msgstr "メール送信サービスが設定されていません。このリン
 #: packages/admin/src/components/WordPressImport.tsx:2536
 msgid "No EmDash users found"
 msgstr "EmDashユーザーが見つかりません"
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:66
+msgid "No entries match these filters"
+msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:465
 msgid "No exact match on this site"
@@ -8283,7 +8468,7 @@ msgstr "インストール可能なリリースがありません"
 msgid "No invite token provided"
 msgstr "招待トークンが指定されていません"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2544
+#: packages/admin/src/components/PortableTextEditor.tsx:2559
 #: packages/admin/src/components/RepeaterField.tsx:167
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -8296,6 +8481,10 @@ msgstr "制限なし"
 #: packages/admin/src/routes/bylines.tsx:769
 msgid "No linked user"
 msgstr "リンク済みユーザーなし"
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:63
+msgid "No loaded entries match these filters"
+msgstr ""
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:314
 msgid "No matches"
@@ -8405,7 +8594,7 @@ msgstr "「{debouncedQuery}」に一致するプラグインはありません�
 msgid "No public URL available"
 msgstr "利用可能な公開URLがありません"
 
-#: packages/admin/src/components/Dashboard.tsx:534
+#: packages/admin/src/components/Dashboard.tsx:564
 msgid "No recent activity"
 msgstr "最近の更新はありません"
 
@@ -8425,7 +8614,7 @@ msgstr ""
 msgid "No relations yet."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2091
+#: packages/admin/src/components/PortableTextEditor.tsx:2106
 #: packages/admin/src/components/RepeaterField.tsx:398
 msgid "No results"
 msgstr "一致する項目はありません"
@@ -8440,7 +8629,7 @@ msgstr "「{activeSearch}」に一致する項目はありません"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "「{debouncedQuery}」の結果はありません。別の検索キーワードをお試しください。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:478
+#: packages/admin/src/components/AdminCommandPalette.tsx:487
 #: packages/admin/src/components/Settings.tsx:166
 msgid "No results found"
 msgstr "結果が見つかりませんでした"
@@ -8499,6 +8688,7 @@ msgid "Non-guest"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
+#: packages/admin/src/components/PortableTextEditor.tsx:4318
 msgid "None"
 msgstr "なし"
 
@@ -8511,6 +8701,10 @@ msgstr "なし（最上位）"
 msgid "Not compatible with this environment"
 msgstr "この環境には対応していません"
 
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:232
+msgid "Not loaded"
+msgstr ""
+
 #: packages/admin/src/components/BulkTagDialog.tsx:71
 msgid "Not matched"
 msgstr ""
@@ -8520,8 +8714,25 @@ msgstr ""
 msgid "Not set"
 msgstr "未設定"
 
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:143
+msgid "Nothing else is scheduled this month."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:443
+msgid "Nothing on this day."
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:520
 msgid "Nothing on this site changed."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:67
+msgid "Nothing published or scheduled in {monthTitle}"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:401
+msgid "Now · {time}"
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:395
@@ -8538,8 +8749,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "一覧表示でページあたりに表示する投稿数"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1769
-#: packages/admin/src/components/PortableTextEditor.tsx:4747
+#: packages/admin/src/components/PortableTextEditor.tsx:1784
+#: packages/admin/src/components/PortableTextEditor.tsx:5193
 msgid "Numbered List"
 msgstr "番号付きリスト"
 
@@ -8613,6 +8824,11 @@ msgstr "フォルダー「{0}」を開く"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:31
 msgid "visualEditing.openInAdmin"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:292
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
+msgid "Open in editor"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:554
@@ -8749,6 +8965,14 @@ msgstr "アウトライン"
 msgid "Output size"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:44
+msgid "Overdue"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:144
+msgid "Overdue · {lateness}"
+msgstr ""
+
 #: packages/admin/src/components/SeoPanel.tsx:174
 msgid "Overrides the page title in search engine results"
 msgstr "検索エンジンの結果でページタイトルを上書き"
@@ -8772,7 +8996,7 @@ msgstr ""
 msgid "Package downloaded"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3153
+#: packages/admin/src/router.tsx:3163
 msgid "Page Not Found"
 msgstr "ページが見つかりません"
 
@@ -9101,8 +9325,8 @@ msgstr "プラグインレジストリ"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2459
-#: packages/admin/src/router.tsx:2490
+#: packages/admin/src/router.tsx:2468
+#: packages/admin/src/router.tsx:2499
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -9134,12 +9358,12 @@ msgstr "プラグインを更新しました"
 msgid "Plugin widget error"
 msgstr "プラグインウィジェットエラー"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:222
+#: packages/admin/src/components/AdminCommandPalette.tsx:231
 #: packages/admin/src/components/PluginManager.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:192
-#: packages/admin/src/components/Sidebar.tsx:466
-#: packages/admin/src/components/Sidebar.tsx:615
+#: packages/admin/src/components/Sidebar.tsx:467
+#: packages/admin/src/components/Sidebar.tsx:622
 msgid "Plugins"
 msgstr "プラグイン"
 
@@ -9207,12 +9431,17 @@ msgstr "準備中…"
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:453
 #: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:102
 #: packages/admin/src/components/MediaDetailPanel.tsx:1676
 #: packages/admin/src/components/MediaLibrary.tsx:1204
 msgid "Preview"
 msgstr "プレビュー"
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:453
+msgid "Preview changes"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:103
 msgid "Preview content before publishing"
@@ -9234,6 +9463,10 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:308
 msgid "Previous"
 msgstr "前へ"
+
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:60
+msgid "Previous month"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
 #: packages/admin/src/components/ContentList.tsx:787
@@ -9298,7 +9531,7 @@ msgstr ""
 msgid "Publication date"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:159
+#: packages/admin/src/components/Dashboard.tsx:164
 msgid "Publication policy blocked scheduled content"
 msgstr ""
 
@@ -9326,6 +9559,7 @@ msgstr ""
 msgid "visualEditing.publishFailed"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:426
 #: packages/admin/src/components/ContentSettingsPanel.tsx:463
 msgid "Publish now"
 msgstr ""
@@ -9338,11 +9572,13 @@ msgstr ""
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:41
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:182
 #: packages/admin/src/components/ContentList.tsx:925
 #: packages/admin/src/components/ContentList.tsx:936
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:477
-#: packages/admin/src/router.tsx:1310
+#: packages/admin/src/components/Dashboard.tsx:507
+#: packages/admin/src/router.tsx:1319
 msgid "Published"
 msgstr "公開済み"
 
@@ -9351,9 +9587,21 @@ msgstr "公開済み"
 msgid "Published {0}"
 msgstr "公開日時：{0}"
 
-#: packages/admin/src/router.tsx:600
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:404
+msgid "Published {liveSince}"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:371
+msgid "Published {time}."
+msgstr ""
+
+#: packages/admin/src/router.tsx:609
 msgid "Published {total} items"
 msgstr "{total}件を公開しました"
+
+#: packages/admin/src/routes/calendar.tsx:280
+msgid "Published and scheduled entries across collections, in the site's time zone."
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:156
 msgid "Published At"
@@ -9377,6 +9625,14 @@ msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:195
 msgid "Publisher release policy"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
+msgid "Publishes {time}"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:368
+msgid "Publishing"
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:907
@@ -9408,14 +9664,9 @@ msgstr ""
 msgid "Quick create names the relationship after this field and this collection, takes how many entries it holds from the switch above, and puts no limit on how many entries link back the other way. <0>Create the relationship yourself</0> to set its slug, the name each side goes by, and both limits, then pick it above."
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageNode.tsx:253
-#: packages/admin/src/components/editor/ImageNode.tsx:254
-msgid "Quick edit alt text"
-msgstr "代替テキストをクイック編集"
-
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1779
-#: packages/admin/src/components/PortableTextEditor.tsx:4773
+#: packages/admin/src/components/PortableTextEditor.tsx:1794
+#: packages/admin/src/components/PortableTextEditor.tsx:5219
 msgid "Quote"
 msgstr "引用"
 
@@ -9521,7 +9772,7 @@ msgstr ""
 msgid "Receipt digest"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:528
+#: packages/admin/src/components/Dashboard.tsx:558
 msgid "Recent Activity"
 msgstr "最近の更新"
 
@@ -9575,7 +9826,7 @@ msgstr "ログインにリダイレクト中…"
 #: packages/admin/src/components/Redirects.tsx:416
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/Sidebar.tsx:427
 msgid "Redirects"
 msgstr "リダイレクト"
 
@@ -9583,7 +9834,7 @@ msgstr "リダイレクト"
 msgid "Redirects that loop will be imported turned off"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4932
+#: packages/admin/src/components/PortableTextEditor.tsx:5378
 msgid "Redo"
 msgstr "やり直す"
 
@@ -9621,7 +9872,7 @@ msgstr "ステータスを更新"
 msgid "Refresh status before continuing."
 msgstr "続行する前にステータスを更新してください。"
 
-#: packages/admin/src/components/Dashboard.tsx:303
+#: packages/admin/src/components/Dashboard.tsx:308
 msgid "Refresh the page or try again."
 msgstr "ページを再読み込みするか、もう一度お試しください。"
 
@@ -9648,7 +9899,7 @@ msgstr "登録がキャンセルされたかタイムアウトしました。も
 
 #: packages/admin/src/components/PluginManager.tsx:210
 #: packages/admin/src/components/PluginManager.tsx:447
-#: packages/admin/src/components/Sidebar.tsx:475
+#: packages/admin/src/components/Sidebar.tsx:476
 msgid "Registry"
 msgstr "レジストリ"
 
@@ -9696,7 +9947,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:368
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/PortableTextEditor.tsx:4905
+#: packages/admin/src/components/PortableTextEditor.tsx:5351
 #: packages/admin/src/components/settings/GeneralSettings.tsx:325
 #: packages/admin/src/components/settings/GeneralSettings.tsx:385
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -9765,13 +10016,14 @@ msgid "Remove image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2660
+#: packages/admin/src/components/PortableTextEditor.tsx:2675
 #: packages/admin/src/components/RepeaterField.tsx:283
 msgid "Remove item {0}"
 msgstr "項目{0}を削除"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4154
-#: packages/admin/src/components/PortableTextEditor.tsx:4155
+#: packages/admin/src/components/PortableTextEditor.tsx:4158
+#: packages/admin/src/components/PortableTextEditor.tsx:4159
+#: packages/admin/src/components/PortableTextEditor.tsx:4668
 msgid "Remove link"
 msgstr "リンクを解除"
 
@@ -9783,6 +10035,7 @@ msgstr "パスキーを削除"
 msgid "Remove passkey?"
 msgstr "パスキーを削除しますか？"
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
 #: packages/admin/src/components/ContentSettingsPanel.tsx:587
 msgid "Remove schedule"
 msgstr ""
@@ -9859,6 +10112,8 @@ msgstr "繰り返しフィールドグループ"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:412
 #: packages/admin/src/components/ImageFieldRenderer.tsx:583
 #: packages/admin/src/components/ImageFieldRenderer.tsx:586
+#: packages/admin/src/components/PortableTextEditor.tsx:4690
+#: packages/admin/src/components/PortableTextEditor.tsx:4758
 msgid "Replace"
 msgstr "置き換え"
 
@@ -9879,6 +10134,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/MediaDetailPanel.tsx:1815
 #: packages/admin/src/components/MediaDetailPanel.tsx:1943
+#: packages/admin/src/components/PortableTextEditor.tsx:4757
 msgid "Replace image"
 msgstr "画像を置き換え"
 
@@ -9960,6 +10216,14 @@ msgstr "アクセシビリティに必要です。スクリーンリーダー向
 msgid "Requires EmDash {0}"
 msgstr "EmDash {0}が必要です"
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:443
+msgid "Reschedule"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:208
+msgid "Rescheduled"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:171
 msgid "Resend email"
 msgstr "メールを再送信"
@@ -10030,7 +10294,7 @@ msgstr ""
 msgid "Resolving publisher handle..."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4763
+#: packages/admin/src/components/PortableTextEditor.tsx:5209
 msgid "Restart numbering"
 msgstr "番号を振り直す"
 
@@ -10090,8 +10354,9 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3141
+#: packages/admin/src/router.tsx:3151
 #: packages/admin/src/routes/byline-schema.tsx:280
+#: packages/admin/src/routes/calendar.tsx:348
 msgid "Retry"
 msgstr "再試行"
 
@@ -10140,7 +10405,7 @@ msgstr "再設定中…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "コンテンツに挿入して再利用できるセクションを管理"
 
-#: packages/admin/src/router.tsx:1357
+#: packages/admin/src/router.tsx:1366
 msgid "Reverted to published version"
 msgstr "公開版に戻しました"
 
@@ -10233,6 +10498,7 @@ msgid "Rich text editor"
 msgstr "リッチテキストエディタ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
+#: packages/admin/src/components/PortableTextEditor.tsx:4321
 msgid "Right"
 msgstr "右"
 
@@ -10286,7 +10552,7 @@ msgid "Row added above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
-#: packages/admin/src/components/PortableTextEditor.tsx:4300
+#: packages/admin/src/components/PortableTextEditor.tsx:4299
 msgid "Row added below"
 msgstr ""
 
@@ -10316,7 +10582,6 @@ msgid "Sample content"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:820
-#: packages/admin/src/components/editor/ImageNode.tsx:321
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
 #: packages/admin/src/components/MediaDetailPanel.tsx:1866
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
@@ -10332,7 +10597,7 @@ msgstr "保存"
 msgid "Save (Enter)"
 msgstr "保存（Enter）"
 
-#: packages/admin/src/components/editor/ImageNode.tsx:322
+#: packages/admin/src/components/PortableTextEditor.tsx:4653
 msgid "Save alt text"
 msgstr "代替テキストを保存"
 
@@ -10451,11 +10716,25 @@ msgstr ""
 msgid "Schedule publication"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:192
+msgid "Schedule removed"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:42
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:391
 #: packages/admin/src/components/ContentList.tsx:927
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1414
+#: packages/admin/src/router.tsx:1423
 msgid "Scheduled"
 msgstr "予約済み"
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:409
+msgid "Scheduled changes"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
+msgid "Scheduled entries appear here with their publish time."
+msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:141
 msgid "Scheduled for {formattedSchedule}"
@@ -10466,7 +10745,7 @@ msgstr ""
 msgid "Scheduled publication"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:223
+#: packages/admin/src/components/Dashboard.tsx:228
 msgid "Scheduled publishing needs attention"
 msgstr "公開予約を確認してください"
 
@@ -10641,7 +10920,7 @@ msgstr "メディアを検索"
 msgid "Search or type a URL"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:451
+#: packages/admin/src/components/AdminCommandPalette.tsx:460
 msgid "Search pages and content..."
 msgstr "ページやコンテンツを検索…"
 
@@ -10715,7 +10994,7 @@ msgstr "検索可能"
 msgid "Searching…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3100
+#: packages/admin/src/components/PortableTextEditor.tsx:3115
 msgid "Section"
 msgstr "セクション"
 
@@ -10743,11 +11022,11 @@ msgstr "セクションが見つかりません"
 msgid "Section title"
 msgstr "セクションタイトル"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:180
+#: packages/admin/src/components/AdminCommandPalette.tsx:189
 #: packages/admin/src/components/Sections.tsx:150
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:431
+#: packages/admin/src/components/Sidebar.tsx:432
 msgid "Sections"
 msgstr "セクション"
 
@@ -10797,7 +11076,7 @@ msgstr "セキュリティ連絡先"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "セキュリティ上の問題が発生しました。セキュアな接続でアクセスしていることを確認してください。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:254
+#: packages/admin/src/components/AdminCommandPalette.tsx:263
 #: packages/admin/src/components/Header.tsx:94
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:88
@@ -10903,13 +11182,13 @@ msgstr "ファビコンを選択"
 msgid "Select file"
 msgstr "ファイルを選択"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3979
+#: packages/admin/src/components/PortableTextEditor.tsx:4005
 msgid "Select gallery images"
 msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:558
 #: packages/admin/src/components/MediaPickerModal.tsx:228
-#: packages/admin/src/components/PortableTextEditor.tsx:3964
+#: packages/admin/src/components/PortableTextEditor.tsx:3990
 msgid "Select image"
 msgstr "画像を選択"
 
@@ -10950,7 +11229,7 @@ msgid "Select which content types to import."
 msgstr "インポートするコンテンツタイプを選択してください。"
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2755
+#: packages/admin/src/components/PortableTextEditor.tsx:2770
 #: packages/admin/src/components/RepeaterField.tsx:396
 msgid "Select..."
 msgstr "選択…"
@@ -10959,7 +11238,7 @@ msgstr "選択…"
 msgid "Selected {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2082
+#: packages/admin/src/components/PortableTextEditor.tsx:2097
 msgid "Selected {selectedItemTitle}"
 msgstr "{selectedItemTitle}を選択中"
 
@@ -11102,14 +11381,14 @@ msgstr "設定中"
 msgid "Setting up..."
 msgstr "セットアップ中…"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:238
+#: packages/admin/src/components/AdminCommandPalette.tsx:247
 #: packages/admin/src/components/ContentEditor.tsx:1717
 #: packages/admin/src/components/ContentEditor.tsx:2031
 #: packages/admin/src/components/ContentTypeEditor.tsx:460
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:530
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:488
+#: packages/admin/src/components/Sidebar.tsx:489
 #: packages/admin/src/components/WordPressImport.tsx:1831
 msgid "Settings"
 msgstr "設定"
@@ -11326,7 +11605,7 @@ msgstr "サイトタイトルとキャッチフレーズ"
 msgid "Site title is required"
 msgstr "サイトタイトルは必須です"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:246
+#: packages/admin/src/components/AdminCommandPalette.tsx:255
 msgid "Site Transfer"
 msgstr ""
 
@@ -11385,15 +11664,15 @@ msgstr "識別名をクリップボードにコピーしました"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "フィールドの作成後はスラッグを変更できません。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1720
+#: packages/admin/src/components/PortableTextEditor.tsx:1735
 msgid "Small section heading"
 msgstr "レベル3の見出し"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1730
+#: packages/admin/src/components/PortableTextEditor.tsx:1745
 msgid "Smaller section heading"
 msgstr "レベル4の見出し"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1750
+#: packages/admin/src/components/PortableTextEditor.tsx:1765
 msgid "Smallest section heading"
 msgstr "レベル6の見出し"
 
@@ -11544,8 +11823,8 @@ msgid "Start with the template’s example posts and pages. Recommended for new 
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:2258
-#: packages/admin/src/components/PortableTextEditor.tsx:2930
-#: packages/admin/src/components/PortableTextEditor.tsx:2931
+#: packages/admin/src/components/PortableTextEditor.tsx:2945
+#: packages/admin/src/components/PortableTextEditor.tsx:2946
 msgid "Start writing, or type '/' for commands"
 msgstr "本文を入力するか、「/」を入力してコマンドを表示"
 
@@ -11566,6 +11845,11 @@ msgstr ""
 msgid "Starting…"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:306
+#: packages/admin/src/components/calendar/CalendarFilters.tsx:131
+msgid "State"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentTypeEditor.tsx:138
 #: packages/admin/src/components/Redirects.tsx:489
@@ -11580,7 +11864,7 @@ msgstr "ステータス"
 msgid "Status code"
 msgstr "ステータスコード"
 
-#: packages/admin/src/components/Dashboard.tsx:581
+#: packages/admin/src/components/Dashboard.tsx:611
 msgid "Status: {status}"
 msgstr "ステータス：{status}"
 
@@ -11605,8 +11889,8 @@ msgstr "保存済みのバックアップ"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "言語ごとに保存され、執筆者の翻訳ごとに異なる値を設定できます。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4190
-#: packages/admin/src/components/PortableTextEditor.tsx:4711
+#: packages/admin/src/components/PortableTextEditor.tsx:4191
+#: packages/admin/src/components/PortableTextEditor.tsx:5157
 msgid "Strikethrough"
 msgstr "取り消し線"
 
@@ -11627,11 +11911,11 @@ msgstr "サブフィールド"
 msgid "Subscriber"
 msgstr "閲覧者"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4197
+#: packages/admin/src/components/PortableTextEditor.tsx:4198
 msgid "Subscript"
 msgstr "下付き文字"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4204
+#: packages/admin/src/components/PortableTextEditor.tsx:4205
 msgid "Superscript"
 msgstr "上付き文字"
 
@@ -11669,15 +11953,15 @@ msgstr "システムフィールド"
 
 #: packages/admin/src/components/editor/TableControls.tsx:35
 #: packages/admin/src/components/editor/TableControls.tsx:388
-#: packages/admin/src/components/PortableTextEditor.tsx:1817
+#: packages/admin/src/components/PortableTextEditor.tsx:1832
 msgid "Table"
 msgstr "テーブル"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3841
+#: packages/admin/src/components/PortableTextEditor.tsx:3857
 msgid "Table cells accept text, links, and formatting only."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4291
+#: packages/admin/src/components/PortableTextEditor.tsx:4290
 msgid "Table controls"
 msgstr "テーブル操作"
 
@@ -11686,7 +11970,7 @@ msgid "Table deleted"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:421
-#: packages/admin/src/components/PortableTextEditor.tsx:3724
+#: packages/admin/src/components/PortableTextEditor.tsx:3740
 msgid "Table inserted"
 msgstr ""
 
@@ -11694,7 +11978,7 @@ msgstr ""
 msgid "Table size"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3838
+#: packages/admin/src/components/PortableTextEditor.tsx:3854
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
@@ -11704,7 +11988,7 @@ msgstr ""
 msgid "Tagline"
 msgstr "キャッチフレーズ"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:205
+#: packages/admin/src/components/AdminCommandPalette.tsx:214
 #: packages/admin/src/components/Widgets.tsx:143
 msgid "Tags"
 msgstr "タグ"
@@ -11818,7 +12102,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4662
+#: packages/admin/src/components/PortableTextEditor.tsx:5108
 msgid "Text formatting"
 msgstr "テキスト書式"
 
@@ -11856,6 +12140,14 @@ msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:164
 msgid "The build provenance matches this release and its package."
+msgstr ""
+
+#: packages/admin/src/routes/calendar.tsx:359
+msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
+msgstr ""
+
+#: packages/admin/src/routes/calendar.tsx:360
+msgid "The calendar shows the first {maxEntries}."
 msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:338
@@ -12080,7 +12372,7 @@ msgstr ""
 msgid "The package’s file index is not valid."
 msgstr ""
 
-#: packages/admin/src/router.tsx:3155
+#: packages/admin/src/router.tsx:3165
 msgid "The page you're looking for doesn't exist."
 msgstr "お探しのページは存在しません。"
 
@@ -12114,6 +12406,10 @@ msgstr "サイトの公開URL（正規リンクとサイトマップに使用）
 msgid "The publisher identity cannot be verified."
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:71
+msgid "The range has more entries than the calendar can show."
+msgstr ""
+
 #: packages/admin/src/components/settings/SeoSettings.tsx:197
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "設定されている画像は利用できません。別の画像を選択するか、現在の設定を解除してください。"
@@ -12133,6 +12429,10 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:188
 msgid "The sample content added so far is kept. Continue to add the rest."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:195
+msgid "The scheduled changes to {title} stay as a draft."
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:817
@@ -12242,12 +12542,16 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "このコンテンツタイプはコードで定義されています。一部の設定はここでは変更できません。構造を変更するには、live.config.tsファイルを編集してください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3813
+#: packages/admin/src/components/PortableTextEditor.tsx:3829
 msgid "This content cannot be edited safely"
 msgstr "このコンテンツは安全に編集できません"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:469
 msgid "This content will be visible on the site immediately."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:442
+msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:370
@@ -12263,7 +12567,7 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1210
-#: packages/admin/src/router.tsx:983
+#: packages/admin/src/router.tsx:992
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
@@ -12279,6 +12583,10 @@ msgstr ""
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:376
+msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:224
 msgid "This export is large"
 msgstr ""
@@ -12287,11 +12595,11 @@ msgstr ""
 msgid "This field cannot be edited by this version of EmDash."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3796
+#: packages/admin/src/components/PortableTextEditor.tsx:3812
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3815
+#: packages/admin/src/components/PortableTextEditor.tsx:3831
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "このフィールドには、サポートされていないPortable Textマーク<0>{markList}</0>が含まれています。このコンテンツを編集または保存する前に、API経由で削除してください。"
 
@@ -12396,6 +12704,10 @@ msgstr ""
 msgid "This media item no longer exists."
 msgstr "このメディア項目が見つかりません。"
 
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:64
+msgid "This month wasn't loaded"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "This operation expired. Start again."
 msgstr ""
@@ -12412,7 +12724,7 @@ msgstr ""
 msgid "This passkey is already registered on this device."
 msgstr "このパスキーはこのデバイスに既に登録されています。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3834
+#: packages/admin/src/components/PortableTextEditor.tsx:3850
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr ""
 
@@ -12457,6 +12769,10 @@ msgstr ""
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr ""
 
+#: packages/admin/src/routes/calendar.tsx:356
+msgid "This range has more than {maxEntries} entries"
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:611
 msgid "This redirect rule will be permanently removed."
 msgstr "このリダイレクトルールは完全に削除されます。"
@@ -12481,12 +12797,12 @@ msgstr ""
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3875
+#: packages/admin/src/components/PortableTextEditor.tsx:3895
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr ""
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3877
+#: packages/admin/src/components/PortableTextEditor.tsx:3897
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "このセクションには、サポートされていないPortable Textマーク<0>{0}</0>が含まれています。挿入する前にセクションを更新してください。"
 
@@ -12523,7 +12839,7 @@ msgstr ""
 msgid "This site has no content yet, so it can receive an import. Choose a .emdash package file. It is checked in your browser and uploaded in parts; nothing on this site changes until you review and confirm the import."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:269
+#: packages/admin/src/components/Dashboard.tsx:274
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
 msgstr ""
 
@@ -12539,15 +12855,15 @@ msgstr ""
 msgid "This site was set up with starter content. It has no entries of its own, and the import deletes it before adding the package’s content."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3836
+#: packages/admin/src/components/PortableTextEditor.tsx:3852
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3794
+#: packages/admin/src/components/PortableTextEditor.tsx:3810
 msgid "This table cannot be edited safely"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3840
+#: packages/admin/src/components/PortableTextEditor.tsx:3856
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
@@ -12597,6 +12913,14 @@ msgstr "記事、チュートリアルなど"
 msgid "Time"
 msgstr ""
 
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:46
+msgid "Times are in {zoneName}."
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:45
+msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
 #: packages/admin/src/components/settings/GeneralSettings.tsx:434
 msgid "Timezone"
@@ -12618,7 +12942,7 @@ msgstr "タイトル（ツールチップ）"
 msgid "Title Separator"
 msgstr "タイトルの区切り文字"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:496
+#: packages/admin/src/components/AdminCommandPalette.tsx:505
 msgid "to close"
 msgstr "閉じる"
 
@@ -12626,9 +12950,15 @@ msgstr "閉じる"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:486
+#: packages/admin/src/components/AdminCommandPalette.tsx:495
 msgid "to select"
 msgstr "選択"
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:420
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:67
+msgid "Today"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:600
 msgid "Toggle"
@@ -12659,6 +12989,10 @@ msgstr "トークン名"
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:55
 msgid "TOML"
 msgstr "TOML"
+
+#: packages/admin/src/components/calendar/CalendarAgenda.tsx:193
+msgid "Tomorrow"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:535
 msgid "Tooltip text"
@@ -12712,7 +13046,7 @@ msgstr "翻訳中…"
 #: packages/admin/src/components/MenuEditor.tsx:144
 #: packages/admin/src/components/TaxonomyManager.tsx:1253
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1465
+#: packages/admin/src/router.tsx:1474
 msgid "Translation created"
 msgstr "翻訳を作成しました"
 
@@ -12720,6 +13054,10 @@ msgstr "翻訳を作成しました"
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "翻訳"
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:342
+msgid "Translations:"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:198
 msgid "trash"
@@ -12853,6 +13191,10 @@ msgstr ""
 msgid "Type"
 msgstr "種類"
 
+#: packages/admin/src/components/editor/ImageNode.tsx:303
+msgid "Type caption for image (optional)"
+msgstr ""
+
 #. placeholder {0}: status.existingType
 #: packages/admin/src/components/WordPressImport.tsx:2038
 msgid "Type mismatch ({0})"
@@ -12876,12 +13218,12 @@ msgstr "マーケットプレイスに接続できません"
 msgid "Unassigned"
 msgstr "未割り当て"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4183
-#: packages/admin/src/components/PortableTextEditor.tsx:4704
+#: packages/admin/src/components/PortableTextEditor.tsx:4184
+#: packages/admin/src/components/PortableTextEditor.tsx:5150
 msgid "Underline"
 msgstr "下線"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4925
+#: packages/admin/src/components/PortableTextEditor.tsx:5371
 msgid "Undo"
 msgstr "元に戻す"
 
@@ -12943,7 +13285,7 @@ msgstr "名前のないパスキー"
 msgid "Unpublish {itemLabel}"
 msgstr "{itemLabel}を非公開にする"
 
-#: packages/admin/src/router.tsx:1334
+#: packages/admin/src/router.tsx:1343
 msgid "Unpublished"
 msgstr "非公開"
 
@@ -12959,7 +13301,7 @@ msgstr "未解決の割り当て"
 msgid "Unsaved content may leave your site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1433
+#: packages/admin/src/router.tsx:1442
 msgid "Unscheduled"
 msgstr "予約なし"
 
@@ -12978,7 +13320,7 @@ msgstr "サポートされていないウィジェット要素タイプ：{0}"
 msgid "Until {0}"
 msgstr "{0}以前"
 
-#: packages/admin/src/components/Dashboard.tsx:548
+#: packages/admin/src/components/Dashboard.tsx:578
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "無題"
@@ -13000,6 +13342,7 @@ msgstr ""
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr "執筆者は最大{MAX_SELECTED}名まで選択できます"
 
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:146
 #: packages/admin/src/components/TaxonomyManager.tsx:891
 msgid "Update"
 msgstr "更新"
@@ -13007,6 +13350,10 @@ msgstr "更新"
 #: packages/admin/src/components/FieldEditor.tsx:1329
 msgid "Update Field"
 msgstr "フィールドを更新"
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:43
+msgid "Update scheduled"
+msgstr ""
 
 #. placeholder {0}: editingDomain?.domain
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:333
@@ -13116,7 +13463,7 @@ msgstr "ファイルをアップロード"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "画像、動画、ドキュメントをアップロードし、再利用できる素材を1か所で管理します。"
 
-#: packages/admin/src/components/Dashboard.tsx:343
+#: packages/admin/src/components/Dashboard.tsx:348
 msgid "Upload Media"
 msgstr "メディアをアップロード"
 
@@ -13326,8 +13673,8 @@ msgstr ""
 msgid "User not found"
 msgstr "ユーザーが見つかりません"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:214
-#: packages/admin/src/components/Sidebar.tsx:463
+#: packages/admin/src/components/AdminCommandPalette.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:464
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "ユーザー"
@@ -13424,6 +13771,10 @@ msgstr "動画"
 msgid "View email provider status and send test emails"
 msgstr "メール送信サービスの状態を確認し、テストメールを送信"
 
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:463
+msgid "View live"
+msgstr ""
+
 #: packages/admin/src/components/MediaLibrary.tsx:932
 #: packages/admin/src/components/MediaPickerModal.tsx:1215
 msgid "View mode"
@@ -13490,6 +13841,10 @@ msgstr "警告"
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:438
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:600
 msgid "Warnings"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:319
+msgid "Was due"
 msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:588
@@ -13686,11 +14041,11 @@ msgstr "ウィジェットのタイトル"
 msgid "Widget updated"
 msgstr "ウィジェットを更新しました"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:172
+#: packages/admin/src/components/AdminCommandPalette.tsx:181
 #: packages/admin/src/components/PluginManager.tsx:478
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:430
+#: packages/admin/src/components/Sidebar.tsx:431
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1179
 msgid "Widgets"
@@ -13821,6 +14176,10 @@ msgstr ""
 msgid "You don’t have permission to move this file."
 msgstr "このファイルを移動する権限がありません。"
 
+#: packages/admin/src/routes/calendar.tsx:269
+msgid "You don't have permission to view the calendar."
+msgstr ""
+
 #: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "ユーザー、設定、すべてのコンテンツを含む、サイト全体の管理権限があります。"
@@ -13837,7 +14196,7 @@ msgstr "メディアの使用状況を管理するには、管理者権限が必
 msgid "You need Admin permissions to transfer this site."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2286
+#: packages/admin/src/router.tsx:2295
 msgid "You need Editor permissions to moderate comments."
 msgstr "コメントを管理するには、編集者権限が必要です。"
 
@@ -13973,6 +14332,11 @@ msgstr ""
 #: packages/admin/src/components/RegistryPluginDetail.tsx:691
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "サイトの設定により、リリースは公開から少なくとも{0}経過するまでインストールできません。このリリースは後でインストール可能になります。"
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:268
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:327
+msgid "Your time: {viewerTime}"
+msgstr ""
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:142
 msgid "Your Twitter/X handle (e.g., @username)"

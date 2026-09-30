@@ -14,6 +14,7 @@
  * wasn't already matched by a redirect, log it.
  */
 
+import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
@@ -117,12 +118,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// No redirect matched -- proceed and check for 404
 		const response = await next();
 
+		// Keep a 404 out of the route cache: publishing the missing entry later
+		// purges content tags, not the missed path, so a cached 404 would outlive
+		// the fix. Astro has no cache handle for URLs that match no route, but a
+		// page answering a content miss with Astro.rewrite("/404") has one.
+		if (response.status === 404) {
+			const routeCache: APIContext["cache"] | undefined = context.cache;
+			routeCache?.set(false);
+		}
+
 		// Log misses (fire-and-forget) under the path the visitor requested.
-		// Two shapes count as a miss: an unmatched route rendering the error
-		// page with status 404, and a matched route answering a content miss
-		// with a redirect to /404 (the documented template pattern) — there the
-		// missed path exists only on this first pass, before the browser
-		// follows the redirect. The error page itself is never logged: /404
+		// Two shapes count as a miss: a 404 response (an unmatched route, or a
+		// page answering a content miss with Astro.rewrite("/404")), and a
+		// matched route answering a content miss with a redirect to /404 —
+		// there the missed path exists only on this first pass, before the
+		// browser follows the redirect. The error page itself is never logged: /404
 		// answers 404 by design and carries no path information.
 		const location = response.headers.get("location");
 		const missedByRedirect =

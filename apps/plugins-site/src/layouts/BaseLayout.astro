@@ -9,6 +9,7 @@ interface Props {
 	description?: string;
 	canonical?: string;
 	image?: string;
+	noindex?: boolean;
 }
 
 const {
@@ -16,6 +17,7 @@ const {
 	description = "Discover plugins for EmDash, the Astro-native content management system.",
 	canonical = Astro.url.pathname,
 	image,
+	noindex = false,
 } = Astro.props;
 const pageTitle =
 	title === "EmDash Plugins" ? title : `${title} · EmDash Plugins`;
@@ -28,6 +30,7 @@ const canonicalUrl = new URL(canonical, Astro.site ?? Astro.url.origin);
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="description" content={description} />
+		{noindex && <meta name="robots" content="noindex, follow" />}
 		<meta name="theme-color" content="#f9f9f9" />
 		<link rel="canonical" href={canonicalUrl} />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />

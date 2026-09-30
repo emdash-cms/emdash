@@ -108,6 +108,31 @@ Until the setup wizard has been completed, EmDash also applies the schema and st
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
+## Scheduled publishing
+
+On Cloudflare, EmDash publishes scheduled entries only from the Worker's `scheduled` handler, which Cloudflare calls on the schedule of a [Cron Trigger](https://developers.cloudflare.com/workers/configuration/cron-triggers/). The deployed Worker needs both of the following:
+
+- A Cron Trigger in the `triggers.crons` list of `wrangler.jsonc`, as shown in [Configure bindings](#configure-bindings).
+- The `scheduled` handler from `@emdash-cms/cloudflare/worker`, exported from the Worker entry point that `main` points to, as shown in [Add the Worker entry point](#add-the-worker-entry-point).
+
+If either is missing, scheduled entries do not go live. In local development with `astro dev`, EmDash publishes scheduled entries on a timer, so a schedule that works locally does not confirm the deployed configuration.
+
+Run `emdash doctor` from the project root to check the Cron Trigger and the `scheduled` handler in the local project files:
+
+```bash
+pnpm emdash doctor
+```
+
+When `emdash doctor` finds both, the output includes a passing `scheduler wiring` check. A failed scheduler check describes the problem and prints the fix. The check recognizes the Worker entry point shown on this page and the one-line re-export it prints as a fix, so an entry point written another way can fail the check even when it works.
+
+If no scheduler check appears, `emdash doctor` found no Wrangler configuration in the current directory, or it found neither the Cron Trigger nor the `scheduled` handler. On a D1 project, the `database` check fails because it looks for a local SQLite file (`./data.db` by default). That failure does not affect the scheduler checks.
+
+Deploy after adding or changing the Cron Trigger or the `scheduled` handler. Cloudflare can take up to 15 minutes to start running a new or changed Cron Trigger. Once the trigger starts running, EmDash publishes entries whose scheduled time has already passed.
+
+To watch the trigger, run `pnpm wrangler tail`. Each run prints a line such as `"* * * * *" @ 9/29/2026, 10:01:00 AM - Ok`. `Ok` means the run ended without an uncaught error. EmDash catches and logs publishing errors, so `Ok` does not confirm that entries were published. A run that publishes entries also logs a message such as `[scheduled] Published 1 scheduled item(s)`, and errors from the run appear in the same output.
+
+After deployment, the admin dashboard shows **Scheduled publishing needs attention** when a scheduled entry is past its scheduled time and no scheduler run has completed in the last five minutes. If the Cron Trigger runs less often than every five minutes, the notice can also appear between runs until the next run publishes the entry.
+
 ## Place the Worker near D1
 
 Cloudflare runs a Worker near the visitor by default. EmDash server-rendered requests make several D1 round trips, so use [Targeted Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/) to run the Worker near the D1 primary and make those requests faster.

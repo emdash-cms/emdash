@@ -94,13 +94,13 @@ import { Image } from "emdash/ui";
 const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 
 const { entry: post } = await getEmDashEntry("posts", slug);
 
 if (!post) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 ---
 

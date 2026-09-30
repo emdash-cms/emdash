@@ -231,6 +231,18 @@ function getBubbleMenu(): HTMLElement | null {
 	return document.querySelector<HTMLElement>("[data-emdash-inline-bubble-menu]");
 }
 
+async function waitForImageToolbar(): Promise<HTMLElement> {
+	let toolbar: HTMLElement | null = null;
+	await vi.waitFor(
+		() => {
+			toolbar = document.querySelector<HTMLElement>("[data-emdash-image-bubble-menu]");
+			expect(toolbar).toBeTruthy();
+		},
+		{ timeout: 3000 },
+	);
+	return toolbar!;
+}
+
 /** Wait for bubble menu to appear */
 async function waitForBubbleMenu(): Promise<HTMLElement> {
 	let menu: HTMLElement | null = null;
@@ -972,27 +984,25 @@ describe("Bubble Menu", () => {
 });
 
 // =============================================================================
-// Bubble Menu on a selected image
+// Image toolbar links
 // =============================================================================
 
-describe("Bubble Menu on a selected image", () => {
-	it("appears for an image selection and shows only the link control", async () => {
+describe("Image toolbar links", () => {
+	it("does not show the text formatting bubble for a selected image", async () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm);
 
-		const menu = await waitForBubbleMenu();
-		expect(getBubbleButton(menu, "Add link")).toBeTruthy();
-		// Text marks are meaningless on an image and must not be offered.
-		expect(getBubbleButton(menu, "Bold")).toBeNull();
-		expect(getBubbleButton(menu, "Italic")).toBeNull();
-		expect(getBubbleButton(menu, "Code")).toBeNull();
+		await waitForImageToolbar();
+		// Past the text bubble's 250 ms show delay.
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(getBubbleMenu()).toBeNull();
 	});
 
 	it("applies a link to the selected image", async () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm);
 
-		const menu = await waitForBubbleMenu();
+		const menu = await waitForImageToolbar();
 		getBubbleButton(menu, "Add link")!.click();
 		await vi.waitFor(() => {
 			expect(getLinkInput(menu)).toBeTruthy();
@@ -1010,7 +1020,7 @@ describe("Bubble Menu on a selected image", () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm, { href: "/old", blank: true });
 
-		const menu = await waitForBubbleMenu();
+		const menu = await waitForImageToolbar();
 		expect(getBubbleButton(menu, "Edit link")).toBeTruthy();
 		getBubbleButton(menu, "Edit link")!.click();
 		await vi.waitFor(() => {
@@ -1031,7 +1041,7 @@ describe("Bubble Menu on a selected image", () => {
 		const { editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm, { href: "https://example.com/promo" });
 
-		const menu = await waitForBubbleMenu();
+		const menu = await waitForImageToolbar();
 		getBubbleButton(menu, "Edit link")!.click();
 		await vi.waitFor(() => {
 			expect(getBubbleButton(menu, "Remove link")).toBeTruthy();
