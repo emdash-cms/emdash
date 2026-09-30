@@ -243,6 +243,12 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 	);
 }
 
+// Other pages and tabs can't know this, so blocks pasted from them render inline and
+// their scripts don't run on the site.
+const CLIPBOARD_TOKEN = Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) =>
+	n.toString(36),
+).join("");
+
 /**
  * TipTap extension: first-class HTML block.
  *
@@ -287,9 +293,9 @@ export const HtmlBlockExtension = Node.create({
 			},
 			isolated: {
 				default: false,
-				parseHTML: (element) => element.getAttribute("data-html-isolated") === "true",
+				parseHTML: (element) => element.getAttribute("data-html-isolated") === CLIPBOARD_TOKEN,
 				renderHTML: (attributes) =>
-					attributes.isolated === true ? { "data-html-isolated": "true" } : {},
+					attributes.isolated === true ? { "data-html-isolated": CLIPBOARD_TOKEN } : {},
 			},
 		};
 	},
