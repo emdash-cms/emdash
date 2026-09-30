@@ -26,6 +26,11 @@ const translations = {
 	const syncTheme = () => bubble?.setAttribute("theme", root.dataset.theme ?? "auto");
 	syncTheme();
 	new MutationObserver(syncTheme).observe(root, { attributeFilter: ["data-theme"] });
+
+	// Starlight traps focus in the open mobile menu by making the page inert; the bubble sits outside it.
+	document.getElementById("starlight__sidebar")?.addEventListener("toggle", (event) => {
+		bubble?.toggleAttribute("inert", (event as ToggleEvent).newState === "open");
+	});
 </script>
 
 <style is:global>
