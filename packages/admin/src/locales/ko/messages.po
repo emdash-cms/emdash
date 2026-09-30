@@ -4445,7 +4445,7 @@ msgstr "편집"
 #: packages/admin/src/routes/byline-schema.tsx:449
 #: packages/admin/src/routes/bylines.tsx:588
 msgid "Edit {0}"
-msgstr "{0} 수정"
+msgstr "{0} 편집"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:951
@@ -5756,11 +5756,11 @@ msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:1220
 msgid "Field label"
-msgstr "필드명"
+msgstr "필드 라벨"
 
 #: packages/admin/src/components/FieldEditor.tsx:811
 msgid "Field Label"
-msgstr "필드명"
+msgstr "필드 라벨"
 
 #: packages/admin/src/components/FieldEditor.tsx:823
 msgid "Field slugs cannot be changed after creation"
@@ -7458,7 +7458,7 @@ msgstr "최대 길이"
 
 #: packages/admin/src/components/FieldEditor.tsx:906
 msgid "Max Value"
-msgstr "최대값"
+msgstr "최댓값"
 
 #: packages/admin/src/components/RelationForm.tsx:416
 msgid "Maximum"
@@ -7679,7 +7679,7 @@ msgstr "최소 길이"
 
 #: packages/admin/src/components/FieldEditor.tsx:899
 msgid "Min Value"
-msgstr "최소값"
+msgstr "최솟값"
 
 #: packages/admin/src/components/FieldEditor.tsx:1153
 msgid "Minimum blocks"
@@ -7916,7 +7916,7 @@ msgstr "여러 줄 일반 텍스트"
 
 #: packages/admin/src/components/FieldEditor.tsx:426
 msgid "Multiple choices from options"
-msgstr "옵션의 다중 선택"
+msgstr "옵션 중 다중 선택"
 
 #: packages/admin/src/components/SetupWizard.tsx:141
 msgid "My Awesome Blog"
@@ -9840,7 +9840,7 @@ msgstr "반복 필드"
 
 #: packages/admin/src/components/FieldEditor.tsx:474
 msgid "Repeating group of fields"
-msgstr "필드 그룹 반복"
+msgstr "반복되는 필드 그룹"
 
 #: packages/admin/src/components/ContentEditor.tsx:3172
 #: packages/admin/src/components/ContentEditor.tsx:3209
@@ -11902,7 +11902,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:156
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
-msgstr "다음 테이블에는 콘텐츠가 포함되어 있지만 컬렉션으로 등록되지는 않았습니다. 관리자에서 이 콘텐츠를 관리하려면 등록하세요."
+msgstr "다음 테이블에는 콘텐츠가 포함되어 있지만 컬렉션으로 등록되지는 않았습니다. 관리 화면에서 이 콘텐츠를 관리하려면 등록하세요."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:184
 msgid "The image is in the Media Library, but this entry is now read-only."
@@ -13593,7 +13593,7 @@ msgstr "항목이 마지막으로 수정된 날짜"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:158
 msgid "When the entry was published"
-msgstr "항목이 게시되었을 때"
+msgstr "항목이 게시된 시기"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:246
 msgid "Where is it saved?"
