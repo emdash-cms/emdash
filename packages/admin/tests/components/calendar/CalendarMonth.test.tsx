@@ -66,6 +66,7 @@ function month({
 	loadedThrough,
 	onMonthChange = () => {},
 	onSelect,
+	onClearFilters,
 }: {
 	compact?: boolean;
 	today?: string;
@@ -75,6 +76,7 @@ function month({
 	loadedThrough?: string;
 	onMonthChange?: (month: string) => void;
 	onSelect?: (item: { key: string }, element: HTMLElement) => void;
+	onClearFilters?: () => void;
 } = {}) {
 	return (
 		<CalendarMonth
@@ -89,6 +91,7 @@ function month({
 			loadedThrough={loadedThrough}
 			onMonthChange={onMonthChange}
 			onSelect={onSelect}
+			onClearFilters={onClearFilters}
 		/>
 	);
 }
@@ -232,6 +235,18 @@ describe("CalendarMonth", () => {
 			)
 			.toBeVisible();
 		await expect.element(screen.getByText("Nothing on this day.")).not.toBeInTheDocument();
+	});
+
+	it("says no entries match on a phone when only next month was cut off", async () => {
+		const screen = await renderMonth({
+			compact: true,
+			shown: new Map(),
+			unfilteredDays: days,
+			loadedThrough: "2026-11-01",
+			onClearFilters: () => {},
+		});
+
+		await expect.element(screen.getByText("No entries match these filters")).toBeVisible();
 	});
 
 	it("moves to the next month when the arrow keys cross the last day", async () => {

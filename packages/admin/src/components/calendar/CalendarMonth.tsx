@@ -13,7 +13,12 @@ import { Funnel } from "@phosphor-icons/react";
 import * as React from "react";
 import type { DayButtonProps } from "react-day-picker";
 
-import type { CalendarDisplay, CalendarItem, CalendarState } from "../../lib/calendar.js";
+import {
+	isMonthCutOff,
+	type CalendarDisplay,
+	type CalendarItem,
+	type CalendarState,
+} from "../../lib/calendar.js";
 import { cn } from "../../lib/utils.js";
 import { getDayPickerLocale } from "../../locales/day-picker.js";
 import { getLocaleDir } from "../../locales/index.js";
@@ -558,7 +563,7 @@ function CalendarMonthPicker({
 				) : filteredEmpty && onClearFilters ? (
 					<div className="py-2">
 						<CalendarFilteredNotice
-							cutOff={loadedThrough !== undefined}
+							cutOff={isMonthCutOff(month, loadedThrough)}
 							onClearFilters={onClearFilters}
 						/>
 					</div>
