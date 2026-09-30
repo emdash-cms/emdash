@@ -40,7 +40,6 @@ async function postMaintenance(
 			socket.destroy();
 		}
 	}
-	if (!certificate) return fetch(url, { method: "POST" });
 
 	// Vite accepts either PEM contents or a certificate file path.
 	const ca =
@@ -48,10 +47,17 @@ async function postMaintenance(
 			? await readFile(certificate).catch(() => certificate)
 			: certificate;
 	return new Promise((resolve, reject) => {
-		// The configured server certificate may be a leaf rather than a CA.
+		// Generated dev certificates may not be exposed in Vite's config.
+		// Keep that exception local to this maintenance request.
 		const request = requestHttps(
 			url,
-			{ method: "POST", ca, allowPartialTrustChain: true, agent: false },
+			{
+				method: "POST",
+				ca,
+				allowPartialTrustChain: true,
+				rejectUnauthorized: Boolean(certificate),
+				agent: false,
+			},
 			(response) => {
 				const status = response.statusCode ?? 500;
 				response.once("error", reject);
