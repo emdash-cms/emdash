@@ -4152,7 +4152,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:666
 msgid "Display Size"
-msgstr "디스플레이 크기"
+msgstr "표시 크기"
 
 #: packages/admin/src/components/Widgets.tsx:144
 msgid "Display tag cloud"
@@ -4653,7 +4653,7 @@ msgstr "{0} 삽입"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3121
 msgid "Embeds"
-msgstr "삽입"
+msgstr "임베드"
 
 #. placeholder {0}: plan.origin.createdByEmDashVersion
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:269
@@ -7296,7 +7296,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
 msgid "Lock aspect ratio"
-msgstr "가로 세로 비율 잠금"
+msgstr "가로세로 비율 잠금"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:291
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
@@ -11381,7 +11381,7 @@ msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1720
 msgid "Small section heading"
-msgstr "소제목"
+msgstr "작은 섹션 제목"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1730
 msgid "Smaller section heading"
@@ -12926,7 +12926,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
 msgid "Unlock aspect ratio"
-msgstr "종횡비 잠금 해제"
+msgstr "가로세로 비율 잠금 해제"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:127
 #: packages/admin/src/components/users/UserDetail.tsx:254
