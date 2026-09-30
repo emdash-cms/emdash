@@ -40,7 +40,7 @@ const TABS: readonly EmbedBlockTab[] = [
 ];
 
 const REASONS: Record<"no-iframe" | "not-https", MessageDescriptor> = {
-	"no-iframe": msg`No iframe found in this code.`,
+	"no-iframe": msg`No iframe found in this code. For an embed that runs a script, use an HTML block.`,
 	"not-https": msg`Only https links can be embedded.`,
 };
 
