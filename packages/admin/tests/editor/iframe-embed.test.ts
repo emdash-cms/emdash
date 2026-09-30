@@ -33,6 +33,12 @@ describe("parseIframeInput", () => {
 		}
 	});
 
+	it("doesn't cut a longer YouTube path down to a video ID", () => {
+		const link = "https://www.youtube.com/shorts/dQw4w9WgXcQextra";
+
+		expect(parseIframeInput(link)).toEqual({ ok: true, embed: { src: link } });
+	});
+
 	it("turns a Vimeo link into the player", () => {
 		const result = parseIframeInput("https://vimeo.com/76979871");
 
