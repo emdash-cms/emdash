@@ -3261,7 +3261,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:1408
 #: packages/admin/src/components/TaxonomyManager.tsx:1462
 msgid "Count"
-msgstr "수"
+msgstr "개수"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:530
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
@@ -7218,7 +7218,7 @@ msgstr "설정 로드 중..."
 #: packages/admin/src/components/TaxonomyManager.tsx:1396
 #: packages/admin/src/components/TaxonomyManager.tsx:1467
 msgid "Loading terms..."
-msgstr "항목 불러오는 중..."
+msgstr "분류 항목 로드 중..."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:112
 msgid "Loading the import plan…"
@@ -11786,7 +11786,7 @@ msgstr "템플릿:"
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
 #: packages/admin/src/components/TaxonomyManager.tsx:1529
 msgid "Term"
-msgstr "항목"
+msgstr "분류 항목"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
@@ -11801,7 +11801,7 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1172
 msgid "Term deleted"
-msgstr "항목이 삭제되었습니다."
+msgstr "분류 항목이 삭제되었습니다."
 
 #: packages/admin/src/components/BulkTagDialog.tsx:112
 #: packages/admin/src/components/settings/transfer/labels.ts:18
