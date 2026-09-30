@@ -348,12 +348,12 @@ msgstr "{0}이(가) 활성화되었습니다"
 #. placeholder {1}: postType.suggestedCollection
 #: packages/admin/src/components/WordPressImport.tsx:1993
 msgid "{0} items → {1}"
-msgstr "{0}개 ​​항목 → {1}"
+msgstr "{0}개 항목 → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
 #: packages/admin/src/components/WordPressImport.tsx:1916
 msgid "{0} items will be imported"
-msgstr "{0}개 ​​항목을 가져옵니다"
+msgstr "{0}개 항목을 가져옵니다"
 
 #. placeholder {0}: i18n.number(progress.filesDone)
 #. placeholder {1}: i18n.number(progress.filesTotal)
@@ -500,7 +500,7 @@ msgstr "{count, plural, one {#개 항목} other {#개 항목}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2163
 msgid "{current} of {total}"
-msgstr "{total} 중 {current}"
+msgstr "{current}/{total}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
@@ -557,7 +557,7 @@ msgstr "{totalCount} 중 {matchedCount}개가 할당됨"
 
 #: packages/admin/src/components/WordPressImport.tsx:2481
 msgid "{matchedCount} of {totalCount} authors matched by email"
-msgstr "이메일로 일치하는 작성자 {totalCount}명 중 {matchedCount}명"
+msgstr "작성자 {totalCount}명 중 {matchedCount}명이 이메일로 일치했습니다"
 
 #: packages/admin/src/lib/content-validation-errors.ts:100
 msgid "{maximum, plural, one {{name} can have at most # character.} other {{name} can have at most # characters.}}"
@@ -790,7 +790,7 @@ msgstr "1년"
 
 #: packages/admin/src/components/WordPressImport.tsx:1542
 msgid "1. Log into your WordPress admin"
-msgstr "1. WordPress 관리자에 로그인하세요."
+msgstr "1. WordPress 관리자로 로그인하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1295
 msgid "1. Log into your WordPress admin dashboard"
@@ -806,7 +806,7 @@ msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1543
 msgid "2. Go to Users → Profile"
-msgstr "2. 사용자 → 프로필로 이동"
+msgstr "2. 사용자 → 프로필로 이동하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "3:2"
@@ -818,7 +818,7 @@ msgstr "3. \"애플리케이션 비밀번호\"로 스크롤하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1299
 msgid "3. Select \"All content\""
-msgstr "3. '모든 콘텐츠'를 선택하세요."
+msgstr "3. \"모든 콘텐츠\"를 선택하세요."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:35
 msgid "30 days"
@@ -1395,7 +1395,7 @@ msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2538
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
-msgstr "가져온 모든 콘텐츠가 할당 해제됩니다. 나중에 콘텐츠 편집기에서 작성자를 다시 할당할 수 있습니다."
+msgstr "가져온 모든 콘텐츠는 작성자가 할당되지 않은 상태가 됩니다. 나중에 콘텐츠 편집기에서 작성자를 다시 할당할 수 있습니다."
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:71
 msgid "All locales"
@@ -3368,7 +3368,7 @@ msgstr "새 토큰 만들기"
 
 #: packages/admin/src/components/WordPressImport.tsx:1521
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
-msgstr "WordPress에서 하나 만들기: 사용자 → 프로필 → 애플리케이션 비밀번호"
+msgstr "WordPress에서 만드세요: 사용자 → 프로필 → 애플리케이션 비밀번호"
 
 #: packages/admin/src/components/RelationsPanel.tsx:87
 msgid "Create one to let entries here link to entries in another content type."
@@ -4765,7 +4765,7 @@ msgstr "유효한 URL을 입력하세요 (예: https://example.com)"
 
 #: packages/admin/src/components/WordPressImport.tsx:1400
 msgid "Enter credentials manually"
-msgstr "자격 증명을 수동으로 입력하세요."
+msgstr "자격 증명 직접 입력"
 
 #: packages/admin/src/components/ContentEditor.tsx:1535
 msgid "Enter distraction-free mode"
@@ -5744,7 +5744,7 @@ msgstr "기능"
 
 #: packages/admin/src/components/WordPressImport.tsx:831
 msgid "Fetching content from the EmDash Exporter API."
-msgstr "EmDash 내보내기 API에서 콘텐츠를 가져오는 중입니다."
+msgstr "EmDash Exporter API에서 콘텐츠를 가져오는 중입니다."
 
 #: packages/admin/src/routes/byline-schema.tsx:95
 msgid "Field created"
@@ -6393,7 +6393,7 @@ msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1386
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
-msgstr "초안, 사용자 정의 게시물 유형, ACF 필드 및 SEO 데이터를 포함한 모든 콘텐츠를 직접 가져옵니다. 파일 다운로드가 필요하지 않습니다."
+msgstr "초안, 커스텀 게시물 유형, ACF 필드 및 SEO 데이터를 포함한 모든 콘텐츠를 직접 가져옵니다. 파일 다운로드가 필요하지 않습니다."
 
 #: packages/admin/src/components/SetupWizard.tsx:178
 msgid "Import an existing EmDash site"
@@ -6418,7 +6418,7 @@ msgstr "가져오기 완료"
 
 #: packages/admin/src/components/WordPressImport.tsx:2325
 msgid "Import Completed with Errors"
-msgstr "오류가 발생하여 가져오기가 완료되었습니다."
+msgstr "가져오기가 완료되었지만 오류가 있습니다"
 
 #: packages/admin/src/components/WordPressImport.tsx:1719
 msgid "Import failed"
@@ -6438,7 +6438,7 @@ msgstr "미디어 파일 가져오기"
 
 #: packages/admin/src/components/WordPressImport.tsx:713
 msgid "Import posts, pages, and custom post types from WordPress."
-msgstr "WordPress에서 게시물, 페이지 및 사용자 정의 게시물 유형을 가져옵니다."
+msgstr "WordPress에서 게시물, 페이지 및 커스텀 게시물 유형을 가져옵니다."
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:86
 msgid "Import requested by {requester}"
@@ -6493,7 +6493,7 @@ msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2159
 msgid "Importing Media"
-msgstr "미디어 가져오기"
+msgstr "미디어 가져오는 중"
 
 #: packages/admin/src/components/WordPressImport.tsx:925
 msgid "Importing menus and site settings..."
@@ -9943,7 +9943,7 @@ msgstr "필수"
 
 #: packages/admin/src/components/WordPressImport.tsx:2019
 msgid "Required fields:"
-msgstr "필수 입력 사항:"
+msgstr "필요한 필드:"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:746
 msgid "Required for accessibility. Describes the image for screen readers."
@@ -11314,7 +11314,7 @@ msgstr "사이트 제목"
 
 #: packages/admin/src/components/WordPressImport.tsx:1843
 msgid "Site title & tagline"
-msgstr "사이트 제목 및 태그라인"
+msgstr "사이트 제목 및 설명"
 
 #: packages/admin/src/components/SetupWizard.tsx:121
 msgid "Site title is required"
@@ -12800,7 +12800,7 @@ msgstr ""
 #: packages/admin/src/components/WordPressImport.tsx:1306
 #: packages/admin/src/components/WordPressImport.tsx:1428
 msgid "Try Another URL"
-msgstr "다른 URL을 시도해 보세요"
+msgstr "다른 URL 입력"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
