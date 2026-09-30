@@ -57,10 +57,12 @@ const days = groupByDay(
 	}),
 );
 
-function renderMonth({
+function month({
 	compact = false,
 	today = "2026-10-15",
 	at = now,
+	shown = days,
+	unfilteredDays,
 	loadedThrough,
 	onMonthChange = () => {},
 	onSelect,
@@ -68,15 +70,18 @@ function renderMonth({
 	compact?: boolean;
 	today?: string;
 	at?: number;
+	shown?: typeof days;
+	unfilteredDays?: typeof days;
 	loadedThrough?: string;
 	onMonthChange?: (month: string) => void;
 	onSelect?: (item: { key: string }, element: HTMLElement) => void;
 } = {}) {
-	return render(
+	return (
 		<CalendarMonth
 			month="2026-10"
 			gridDays={monthGridDays("2026-10", 0)}
-			days={days}
+			days={shown}
+			unfilteredDays={unfilteredDays}
 			today={today}
 			now={at}
 			display={display}
@@ -84,11 +89,28 @@ function renderMonth({
 			loadedThrough={loadedThrough}
 			onMonthChange={onMonthChange}
 			onSelect={onSelect}
-		/>,
+		/>
 	);
 }
 
+function renderMonth(options: Parameters<typeof month>[0] = {}) {
+	return render(month(options));
+}
+
 describe("CalendarMonth", () => {
+	it("keeps each week's height when filters hide its entries", async () => {
+		// October 20, with six entries, is in the grid's fourth week.
+		const busyWeek = () => document.querySelectorAll("tbody tr")[3]!.getBoundingClientRect().height;
+		const screen = await renderMonth();
+		const full = busyWeek();
+
+		await screen.rerender(month({ shown: new Map() }));
+		expect(busyWeek()).toBeLessThan(full);
+
+		await screen.rerender(month({ shown: new Map(), unfilteredDays: days }));
+		expect(busyWeek()).toBe(full);
+	});
+
 	it("places entries on site-zone days and folds a busy day into a popover", async () => {
 		const screen = await renderMonth();
 

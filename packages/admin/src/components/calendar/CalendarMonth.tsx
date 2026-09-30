@@ -2,12 +2,14 @@ import {
 	Badge,
 	Button,
 	DatePicker,
+	LayerCard,
 	Popover,
 	SkeletonLine,
 	TooltipProvider,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
+import { Funnel } from "@phosphor-icons/react";
 import * as React from "react";
 import type { DayButtonProps } from "react-day-picker";
 
@@ -38,6 +40,11 @@ interface CalendarMonthProps {
 	/** Every day the grid shows, whole weeks from the locale's first weekday. */
 	gridDays: readonly string[];
 	days: ReadonlyMap<string, CalendarItem[]>;
+	/**
+	 * Every loaded entry by day, before filters. Cells keep the room these
+	 * need, so filtering doesn't move the grid.
+	 */
+	unfilteredDays?: ReadonlyMap<string, CalendarItem[]>;
 	today: string;
 	now: number;
 	display: CalendarDisplay;
@@ -49,6 +56,8 @@ interface CalendarMonthProps {
 	selectedKey?: string;
 	onSelect?: CalendarSelectHandler;
 	onMonthChange: (month: string) => void;
+	/** Filters are on; when they hide every entry, a notice offers to clear them. */
+	onClearFilters?: () => void;
 }
 
 export function CalendarMonth(props: CalendarMonthProps) {
@@ -60,16 +69,40 @@ function nowIndex(items: readonly CalendarItem[], now: number): number {
 	return index === -1 ? items.length : index;
 }
 
+function CalendarFilteredNotice({
+	cutOff,
+	onClearFilters,
+}: {
+	cutOff: boolean;
+	onClearFilters: () => void;
+}) {
+	const { t } = useLingui();
+	return (
+		<LayerCard className="flex items-center gap-3 px-4 py-3 text-sm shadow-lg">
+			<Funnel aria-hidden="true" className="size-4 shrink-0 text-kumo-subtle" />
+			<span className="min-w-0">
+				{cutOff ? t`No loaded entries match these filters` : t`No entries match these filters`}
+			</span>
+			<Button variant="secondary" size="sm" onClick={onClearFilters} className="shrink-0">
+				{t`Clear filters`}
+			</Button>
+		</LayerCard>
+	);
+}
+
 function CalendarMonthGrid({
 	month,
 	gridDays,
 	days,
+	unfilteredDays,
 	today,
 	now,
 	display,
+	loading,
 	loadedThrough,
 	selectedKey,
 	onSelect,
+	onClearFilters,
 }: CalendarMonthProps) {
 	const weeks = React.useMemo(
 		() =>
@@ -78,10 +111,12 @@ function CalendarMonthGrid({
 			),
 		[gridDays],
 	);
+	const filteredEmpty =
+		Boolean(onClearFilters) && !loading && !gridDays.some((day) => days.has(day));
 
 	return (
 		<TooltipProvider delay={400}>
-			<div className="overflow-hidden rounded-lg border border-kumo-line bg-kumo-base">
+			<div className="relative overflow-hidden rounded-lg border border-kumo-line bg-kumo-base">
 				<table className="w-full table-fixed border-collapse">
 					<thead>
 						<tr>
@@ -105,6 +140,7 @@ function CalendarMonthGrid({
 										key={day}
 										day={day}
 										items={days.get(day) ?? []}
+										reservedItems={unfilteredDays?.get(day)}
 										inMonth={day.startsWith(month)}
 										loaded={loadedThrough === undefined || day < loadedThrough}
 										today={today}
@@ -118,6 +154,18 @@ function CalendarMonthGrid({
 						))}
 					</tbody>
 				</table>
+				{filteredEmpty &&
+					onClearFilters && (
+						// Laid over the grid rather than above it, so the grid stays put.
+						<div className="pointer-events-none absolute inset-x-0 top-16 flex justify-center px-4">
+							<div className="pointer-events-auto">
+								<CalendarFilteredNotice
+									cutOff={loadedThrough !== undefined}
+									onClearFilters={onClearFilters}
+								/>
+							</div>
+						</div>
+					)}
 			</div>
 		</TooltipProvider>
 	);
@@ -126,6 +174,8 @@ function CalendarMonthGrid({
 interface CalendarMonthCellProps {
 	day: string;
 	items: readonly CalendarItem[];
+	/** The day's entries before filters, whose room the cell keeps. */
+	reservedItems?: readonly CalendarItem[];
 	inMonth: boolean;
 	/** False from the day the entry cap cut the range off, which may be only partly loaded. */
 	loaded: boolean;
@@ -139,6 +189,7 @@ interface CalendarMonthCellProps {
 function CalendarMonthCell({
 	day,
 	items,
+	reservedItems,
 	inMonth,
 	loaded,
 	today,
@@ -149,21 +200,6 @@ function CalendarMonthCell({
 }: CalendarMonthCellProps) {
 	const { t } = useLingui();
 	const isToday = day === today;
-	const visible = items.length > MAX_CHIPS ? items.slice(0, MAX_CHIPS - 1) : items;
-	const nowAt = isToday ? nowIndex(items, now) : undefined;
-	// The line goes among the chips, or after "+N more" once every entry is past;
-	// when the present falls among the folded entries, only the popover shows it.
-	const lineAt =
-		nowAt === undefined || nowAt <= visible.length
-			? nowAt
-			: nowAt === items.length
-				? items.length
-				: undefined;
-	const nowLine = (
-		<li key="now" aria-hidden="true" className="px-0.5">
-			<CalendarNowLine />
-		</li>
-	);
 	const label = day.endsWith("-01") ? display.monthDayShort(day) : display.dayNumber(day);
 
 	return (
@@ -195,44 +231,105 @@ function CalendarMonthCell({
 						</span>
 					)}
 				</div>
-				{items.length > 0 && (
-					<ul aria-label={display.fullDate(day)} className="@container grid min-w-0 gap-1">
-						{visible.map((item, index) => (
-							<React.Fragment key={item.key}>
-								{index === lineAt && nowLine}
-								<li className="grid min-w-0">
-									<CalendarEntryChip
-										item={item}
-										display={display}
-										now={now}
-										selected={item.key === selectedKey}
-										onSelect={onSelect}
-									/>
-								</li>
-							</React.Fragment>
-						))}
-						{lineAt === visible.length && nowLine}
-						{visible.length < items.length && (
-							<li>
-								<CalendarMorePopover
-									day={day}
-									items={items}
-									display={display}
-									now={now}
-									nowAt={nowAt}
-									selectedKey={selectedKey}
-									onSelect={onSelect}
-								/>
-							</li>
+				<div className="grid min-w-0">
+					{reservedItems && reservedItems.length > 0 && (
+						<div className="invisible col-start-1 row-start-1 min-w-0">
+							<CalendarCellEntries
+								day={day}
+								items={reservedItems}
+								today={today}
+								now={now}
+								display={display}
+							/>
+						</div>
+					)}
+					<div className="col-start-1 row-start-1 min-w-0">
+						{items.length > 0 && (
+							<CalendarCellEntries
+								day={day}
+								items={items}
+								today={today}
+								now={now}
+								display={display}
+								selectedKey={selectedKey}
+								onSelect={onSelect}
+							/>
 						)}
-						{visible.length < items.length && lineAt === items.length && nowLine}
-					</ul>
-				)}
-				{items.length === 0 && !loaded && (
-					<p className="px-1 text-xs text-kumo-inactive">{t`Not loaded`}</p>
-				)}
+						{items.length === 0 && !loaded && (
+							<p className="px-1 text-xs text-kumo-inactive">{t`Not loaded`}</p>
+						)}
+					</div>
+				</div>
 			</div>
 		</td>
+	);
+}
+
+function CalendarCellEntries({
+	day,
+	items,
+	today,
+	now,
+	display,
+	selectedKey,
+	onSelect,
+}: {
+	day: string;
+	items: readonly CalendarItem[];
+	today: string;
+	now: number;
+	display: CalendarDisplay;
+	selectedKey?: string;
+	onSelect?: CalendarSelectHandler;
+}) {
+	const visible = items.length > MAX_CHIPS ? items.slice(0, MAX_CHIPS - 1) : items;
+	const nowAt = day === today ? nowIndex(items, now) : undefined;
+	// The line goes among the chips, or after "+N more" once every entry is past;
+	// when the present falls among the folded entries, only the popover shows it.
+	const lineAt =
+		nowAt === undefined || nowAt <= visible.length
+			? nowAt
+			: nowAt === items.length
+				? items.length
+				: undefined;
+	const nowLine = (
+		<li key="now" aria-hidden="true" className="px-0.5">
+			<CalendarNowLine />
+		</li>
+	);
+
+	return (
+		<ul aria-label={display.fullDate(day)} className="@container grid min-w-0 gap-1">
+			{visible.map((item, index) => (
+				<React.Fragment key={item.key}>
+					{index === lineAt && nowLine}
+					<li className="grid min-w-0">
+						<CalendarEntryChip
+							item={item}
+							display={display}
+							now={now}
+							selected={item.key === selectedKey}
+							onSelect={onSelect}
+						/>
+					</li>
+				</React.Fragment>
+			))}
+			{lineAt === visible.length && nowLine}
+			{visible.length < items.length && (
+				<li>
+					<CalendarMorePopover
+						day={day}
+						items={items}
+						display={display}
+						now={now}
+						nowAt={nowAt}
+						selectedKey={selectedKey}
+						onSelect={onSelect}
+					/>
+				</li>
+			)}
+			{visible.length < items.length && lineAt === items.length && nowLine}
+		</ul>
 	);
 }
 
@@ -383,6 +480,7 @@ function CalendarDayButton({ day, modifiers, children, className, ...props }: Da
 function CalendarMonthPicker({
 	month,
 	days,
+	unfilteredDays,
 	today,
 	now,
 	display,
@@ -391,6 +489,7 @@ function CalendarMonthPicker({
 	selectedKey,
 	onSelect,
 	onMonthChange,
+	onClearFilters,
 }: CalendarMonthProps) {
 	const { t, i18n } = useLingui();
 	const headingId = React.useId();
@@ -405,9 +504,12 @@ function CalendarMonthPicker({
 		() => new Map(Array.from(days, ([day, items]) => [day, items.map((item) => item.state)])),
 		[days],
 	);
-	const firstWithEntries = [...days.keys()].filter((day) => day.startsWith(month)).toSorted()[0];
-	const selected =
-		picked ?? (today.startsWith(month) ? today : (firstWithEntries ?? `${month}-01`));
+	const firstWithEntries = (map: ReadonlyMap<string, CalendarItem[]>) =>
+		[...map.keys()].filter((day) => day.startsWith(month)).toSorted()[0];
+	// The default day comes from every entry, so filtering doesn't move the selection.
+	const firstDay = firstWithEntries(unfilteredDays ?? days);
+	const selected = picked ?? (today.startsWith(month) ? today : (firstDay ?? `${month}-01`));
+	const filteredEmpty = Boolean(onClearFilters) && !loading && !firstWithEntries(days);
 	const items = days.get(selected) ?? [];
 
 	return (
@@ -454,6 +556,13 @@ function CalendarMonthPicker({
 					<div aria-hidden="true" className="grid gap-3 px-2 py-2">
 						<SkeletonLine minWidth={40} maxWidth={70} />
 						<SkeletonLine minWidth={30} maxWidth={60} />
+					</div>
+				) : filteredEmpty && onClearFilters ? (
+					<div className="py-2">
+						<CalendarFilteredNotice
+							cutOff={loadedThrough !== undefined}
+							onClearFilters={onClearFilters}
+						/>
 					</div>
 				) : items.length > 0 ? (
 					<CalendarDayList

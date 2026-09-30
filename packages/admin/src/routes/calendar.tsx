@@ -7,7 +7,7 @@
 
 import { Banner, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Funnel, GridFour, ListBullets, WarningCircle } from "@phosphor-icons/react";
+import { GridFour, ListBullets, WarningCircle } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import * as React from "react";
@@ -186,6 +186,10 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	// Pages load oldest first, so a truncated range is complete before its last loaded day.
 	const loadedThrough = calendar.data?.truncated ? items.at(-1)?.day : undefined;
 	const days = React.useMemo(() => groupByDay(visibleItems), [visibleItems]);
+	const unfilteredDays = React.useMemo(
+		() => (filtered ? groupByDay(items) : undefined),
+		[filtered, items],
+	);
 
 	const updateSearch = (patch: Partial<CalendarSearch>, options?: { push?: boolean }) => {
 		void navigate({
@@ -260,12 +264,6 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const maxEntries = new Intl.NumberFormat(i18n.locale).format(CALENDAR_MAX_ENTRIES);
 	const zoneTime = dayKeyToUTC(`${month}-15`) + 12 * 3_600_000;
 	const cutOffDay = loadedThrough && display.monthDay(loadedThrough);
-	const filteredGridEmpty =
-		view === "month" &&
-		filtered &&
-		Boolean(calendar.data) &&
-		// The phone picker hides the neighboring months' days.
-		!gridDays.some((day) => (!compact || day.startsWith(month)) && days.has(day));
 
 	return (
 		<div ref={containerRef} className="grid min-w-0 gap-6">
@@ -353,22 +351,6 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 					}
 				/>
 			)}
-			{filteredGridEmpty && (
-				<Banner
-					variant="secondary"
-					icon={<Funnel aria-hidden="true" />}
-					title={
-						loadedThrough
-							? t`No loaded entries match these filters`
-							: t`No entries match these filters`
-					}
-					action={
-						<Button variant="secondary" size="sm" onClick={clearFilters}>
-							{t`Clear filters`}
-						</Button>
-					}
-				/>
-			)}
 
 			{!(error && !calendar.data) &&
 				(view === "month" ? (
@@ -376,6 +358,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						month={month}
 						gridDays={gridDays}
 						days={days}
+						unfilteredDays={unfilteredDays}
 						today={today}
 						now={now}
 						display={display}
@@ -385,6 +368,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						selectedKey={selectedKey}
 						onSelect={openEntry}
 						onMonthChange={goToMonth}
+						onClearFilters={filtered ? clearFilters : undefined}
 					/>
 				) : (
 					<CalendarAgenda
