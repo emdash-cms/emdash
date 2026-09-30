@@ -380,7 +380,9 @@ pnpm wrangler preview --name my-branch \
   --var EMDASH_SITE_URL:https://my-branch-my-emdash-site.example.workers.dev
 ```
 
-Use the same preview name in `--name` and in the URL. A `siteUrl` in `astro.config.mjs` overrides `EMDASH_SITE_URL` and is built into every preview, so passkeys on the preview are bound to the production domain and neither setup nor sign-in works there. Set the production URL with `EMDASH_SITE_URL` in the top-level `vars` instead. If the Worker sets `workers_dev` to `false`, also set `"preview_urls": true` to serve previews on `workers.dev`.
+Use the same preview name in `--name` and in the URL. A `siteUrl` in `astro.config.mjs` overrides `EMDASH_SITE_URL` and is built into every preview, so passkeys on the preview are bound to the production domain and neither setup nor sign-in works there. Set the production URL with `EMDASH_SITE_URL` in the top-level `vars` instead.
+
+If the Worker sets `workers_dev` to `false`, previews have no URL until you set `"preview_urls": true` at the top level of `wrangler.jsonc` and run `wrangler deploy` once. `wrangler preview` does not apply this setting. `wrangler deploy` publishes the code in your current checkout to production, not only the setting, so commit the change and deploy from a clean checkout of your production branch. Then return to your branch and run `wrangler preview` again.
 
 Set a secret for one preview with `pnpm wrangler preview secret put <NAME> --name my-branch`. `pnpm wrangler preview base-config secret put <NAME>` sets a secret for previews created afterwards; existing previews keep their secrets.
 
