@@ -195,6 +195,28 @@ describe("Iframe block preview", () => {
 	});
 });
 
+describe("Iframe block with a plugin's iframe block", () => {
+	it("keeps the plugin's block and slash command", async () => {
+		const saved: Block = { _type: "iframe", _key: "plugin", src: "https://example.com/" };
+		const { pm } = await renderEditor({
+			value: [INTRO, saved],
+			pluginBlocks: [{ type: "iframe", pluginId: "maps", label: "Map embed" }],
+		});
+
+		await vi.waitFor(() => expect(document.querySelector(".plugin-block")).toBeTruthy());
+		expect(document.querySelector(".iframe-block")).toBeNull();
+		await userEvent.click(pm.querySelector("p")!);
+		await userEvent.keyboard("{End}{Enter}/iframe");
+		const menu = await vi.waitFor(() => {
+			const element = document.querySelector("[data-slash-command-menu]");
+			expect(element).toBeTruthy();
+			return element!;
+		});
+		expect(menu.textContent).toContain("Map embed");
+		expect(menu.textContent).not.toContain("Embed a page from another site");
+	});
+});
+
 describe("Iframe block conversion", () => {
 	it("round-trips every field and leaves a plugin's iframe block alone", () => {
 		const embed: Block = {

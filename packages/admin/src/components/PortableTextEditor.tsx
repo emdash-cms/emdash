@@ -1231,7 +1231,11 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
 }
 
 // Portable Text to ProseMirror converter
-function portableTextToProsemirror(blocks: PortableTextBlock[]): {
+/** `pluginTypes`: block types plugins register, which stay plugin blocks. */
+function portableTextToProsemirror(
+	blocks: PortableTextBlock[],
+	pluginTypes: ReadonlySet<string> = new Set(),
+): {
 	type: "doc";
 	content: unknown[];
 } {
@@ -1278,7 +1282,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 
 			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else {
-			const converted = convertPTBlock(block, `root:${i}`);
+			const converted = convertPTBlock(block, `root:${i}`, pluginTypes);
 			if (converted) {
 				content.push(converted);
 			}
@@ -1320,7 +1324,11 @@ function belongsToNestedGroup(
 	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
-function convertPTBlock(block: PortableTextBlock, path: string): unknown {
+function convertPTBlock(
+	block: PortableTextBlock,
+	path: string,
+	pluginTypes: ReadonlySet<string>,
+): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
@@ -1469,7 +1477,7 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 			};
 
 		case "iframe":
-			return isIframeBlock(block)
+			return isIframeBlock(block) && !pluginTypes.has("iframe")
 				? {
 						type: "iframeBlock",
 						attrs: attrsWithPortableTextKey({ ...iframeEmbedFromAttrs(block) }, block._key),
@@ -3168,13 +3176,22 @@ export function PortableTextEditor({
 		[],
 	);
 
+	const pluginBlockTypes = React.useMemo(
+		() => new Set(pluginBlocks.map((block) => block.type)),
+		[pluginBlocks],
+	);
+
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
 		const topLevelInserts: Record<string, typeof insertHtmlBlock> = {
 			htmlBlock: insertHtmlBlock,
 			iframe: insertIframeBlock,
 		};
-		const cmds: SlashCommandItem[] = defaultSlashCommands.map((item) => {
+		// A plugin's own iframe block replaces the built-in one.
+		const builtIns = defaultSlashCommands.filter(
+			(item) => item.id !== "iframe" || !pluginBlockTypes.has("iframe"),
+		);
+		const cmds: SlashCommandItem[] = builtIns.map((item) => {
 			const insert = topLevelInserts[item.id];
 			if (!insert) return item;
 			return {
@@ -3254,7 +3271,7 @@ export function PortableTextEditor({
 		}
 
 		return cmds;
-	}, [pluginBlocks, t]);
+	}, [pluginBlockTypes, pluginBlocks, t]);
 
 	// Filter commands by query — accessed via ref so the Suggestion plugin
 	// (created once) always sees the latest command list without needing
@@ -3295,7 +3312,10 @@ export function PortableTextEditor({
 			return { content: emptyDocument, tableError: null };
 		}
 		try {
-			return { content: portableTextToProsemirror(value || []), tableError: null };
+			return {
+				content: portableTextToProsemirror(value || [], pluginBlockTypes),
+				tableError: null,
+			};
 		} catch (error) {
 			if (error instanceof UnsafePortableTextTableError) {
 				return { content: emptyDocument, tableError: error };
@@ -3883,7 +3903,7 @@ export function PortableTextEditor({
 				: [];
 			let prosemirrorContent: unknown[];
 			try {
-				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
+				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent, pluginBlockTypes));
 			} catch (error) {
 				if (error instanceof UnsupportedPortableTextMarksError) {
 					setSectionInsertErrorMarks(error.marks);
@@ -3909,7 +3929,7 @@ export function PortableTextEditor({
 			}
 			pendingBlockInsertPosRef.current = null;
 		},
-		[editor],
+		[editor, pluginBlockTypes],
 	);
 
 	if (tableConversionError) {
