@@ -761,6 +761,7 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "triaging", event: "agent.by_design", to: "awaiting_approval" },
 	{ from: "triaging", event: "agent.skipped", to: "awaiting_approval" },
 	{ from: "triaging", event: "agent.failed", to: "needs_attention" },
+	{ from: "triaging", event: "resume", to: "triaging", action: "investigate.resume" },
 	{ from: "triaging", event: "work", to: "working", action: "investigate.work" },
 	{ from: "triaging", event: "take_over", to: "human_owned" },
 	{ from: "triaging", event: "decline", to: "declined" },
@@ -1075,6 +1076,7 @@ export const TRANSITIONS: Transition[] = [
 		note: "repro needs external/prod-only conditions",
 	},
 	{ from: "investigating", event: "agent.failed", to: "needs_attention" },
+	{ from: "investigating", event: "resume", to: "investigating", action: "investigate.resume" },
 
 	// --- verdict disposal edges (maintainer disposes; humans dispose) ---
 	{ from: "reproduced", event: "work", to: "working", action: "investigate.work" },

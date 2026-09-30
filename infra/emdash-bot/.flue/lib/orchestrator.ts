@@ -341,7 +341,7 @@ const STORAGE = {
 	workComments: "o:workComments",
 	currentRunDryRun: "o:currentRunDryRun",
 	githubRetryAt: "o:githubRetryAt",
-	publicationRetryAt: "o:publicationRetryAt",
+	rateLimitResumeAt: "o:publicationRetryAt",
 	recoveryRetry: "o:recoveryRetry",
 	recoveryTerminal: "o:recoveryTerminal",
 	labelReconcileNextAt: "o:labelReconcileNextAt",
@@ -1123,7 +1123,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		) {
 			event = "agent.revised";
 		}
-		const publicationRetryAt =
+		const rateLimitResumeAt =
 			typeof input.result.failureRetryAt === "number" &&
 			Number.isFinite(input.result.failureRetryAt) &&
 			input.result.failureRetryAt > Date.now()
@@ -1131,22 +1131,22 @@ export class OrchestratorDO extends DurableObject<Env> {
 				: null;
 		if (
 			event === "agent.failed" &&
-			input.result.failureStage === "publication" &&
-			publicationRetryAt &&
+			(input.result.failureStage === "publication" || input.result.failureStage === "workspace") &&
+			rateLimitResumeAt &&
 			currentRunMode &&
 			currentAgentId &&
 			state
 		) {
-			await this.pausePublication({
+			await this.pauseForRateLimit({
 				runId: input.runId,
 				agentId: currentAgentId,
 				mode: currentRunMode,
 				state,
-				retryAt: publicationRetryAt,
+				retryAt: rateLimitResumeAt,
 				attemptStartedAt: run?.startedAt ?? legacyRunStartedAt ?? Date.now(),
 				summary: input.result.summary ?? null,
 			});
-			return { kind: "publication-paused", runId: input.runId, retryAt: publicationRetryAt };
+			return { kind: "rate-limit-paused", runId: input.runId, retryAt: rateLimitResumeAt };
 		}
 		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
 		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
@@ -1251,13 +1251,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 	private async processTick(): Promise<TickOutcome> {
 		const now = Date.now();
 		await this.ctx.storage.put(STORAGE.lastTickAt, now);
-		const [githubRetryAt, publicationRetryAt] = await Promise.all([
+		const [githubRetryAt, rateLimitResumeAt] = await Promise.all([
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
-			this.ctx.storage.get<number>(STORAGE.publicationRetryAt),
+			this.ctx.storage.get<number>(STORAGE.rateLimitResumeAt),
 		]);
 		if (
 			(githubRetryAt !== undefined && githubRetryAt > now) ||
-			(publicationRetryAt !== undefined && publicationRetryAt > now)
+			(rateLimitResumeAt !== undefined && rateLimitResumeAt > now)
 		) {
 			return {
 				ranAt: now,
@@ -1271,13 +1271,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 				pullRequestPoll: "idle",
 			};
 		}
-		if (publicationRetryAt !== undefined) {
-			await this.ctx.storage.delete(STORAGE.publicationRetryAt);
+		if (rateLimitResumeAt !== undefined) {
+			await this.ctx.storage.delete(STORAGE.rateLimitResumeAt);
 			const labels = await this.projectLabels();
 			try {
 				await this.processEvent({
 					event: "resume",
-					arg: "Retry publication after GitHub's rate-limit window.",
+					arg: "Continue after GitHub's rate-limit window.",
 					actor: "system",
 					labels,
 					needsClassify: false,
@@ -1287,7 +1287,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					error instanceof GitHubRateLimitError
 						? error.retryAt
 						: Date.now() + RECOVERY_RETRY_BASE_MS;
-				await this.deferPublicationResume(retryAt);
+				await this.deferRateLimitResume(retryAt);
 				throw error;
 			}
 		}
@@ -1764,7 +1764,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				transaction.delete(STORAGE.previewPollNextAt),
 				transaction.delete(STORAGE.prPollNextAt),
 				transaction.delete(STORAGE.githubRetryAt),
-				transaction.delete(STORAGE.publicationRetryAt),
+				transaction.delete(STORAGE.rateLimitResumeAt),
 				transaction.delete(STORAGE.recoveryRetry),
 				transaction.delete(STORAGE.labelReconcileNextAt),
 				transaction.deleteAlarm(),
@@ -1802,7 +1802,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			prNumber,
 			prPollNextAt,
 			githubRetryAt,
-			publicationRetryAt,
+			rateLimitResumeAt,
 			recoveryRetry,
 			recoveryTerminal,
 			labelReconcileNextAt,
@@ -1826,7 +1826,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<number>(STORAGE.prNumber),
 			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
-			this.ctx.storage.get<number>(STORAGE.publicationRetryAt),
+			this.ctx.storage.get<number>(STORAGE.rateLimitResumeAt),
 			this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry),
 			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
 			this.ctx.storage.get<number>(STORAGE.labelReconcileNextAt),
@@ -1865,7 +1865,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			runAlarmAt !== null ||
 			hasPreviewWork ||
 			hasPullRequestWork ||
-			publicationRetryAt !== undefined;
+			rateLimitResumeAt !== undefined;
 		const hasRecoveryWork = recoveryRetry !== undefined && recoveryRetry.path !== "labels";
 		const terminalAtRest =
 			state !== undefined && STATES[state].terminal && !hasImmediateWork && runAlarmAt === null;
@@ -1895,8 +1895,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (reconcileLabels && labelReconcileNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, labelReconcileNextAt));
 		}
-		if (publicationRetryAt !== undefined) {
-			desired = Math.min(desired, Math.max(now + 1_000, publicationRetryAt));
+		if (rateLimitResumeAt !== undefined) {
+			desired = Math.min(desired, Math.max(now + 1_000, rateLimitResumeAt));
 		}
 		const retryAt = Math.max(githubRetryAt ?? 0, recoveryRetry?.nextAt ?? 0);
 		if (retryAt > now) desired = Math.max(desired, retryAt);
@@ -3246,7 +3246,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 						...preparedResume,
 						dryRun: input.dryRun === true,
 					} satisfies PendingResume),
-					transaction.delete(STORAGE.publicationRetryAt),
+					transaction.delete(STORAGE.rateLimitResumeAt),
 				);
 			}
 			if (
@@ -3259,7 +3259,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				puts.push(
 					transaction.delete(STORAGE.resumableRun),
 					transaction.delete(STORAGE.failedRunMode),
-					transaction.delete(STORAGE.publicationRetryAt),
+					transaction.delete(STORAGE.rateLimitResumeAt),
 					...(run?.status === "running"
 						? [transaction.put(STORAGE.runLifecycle, settleRunLifecycle(run, "cancelled", now))]
 						: []),
@@ -3418,7 +3418,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
-	private async pausePublication(input: {
+	private async pauseForRateLimit(input: {
 		runId: string;
 		agentId: string;
 		mode: InvestigationMode;
@@ -3440,7 +3440,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					timedOutAt: Date.now(),
 					summary: input.summary,
 				}),
-				transaction.put(STORAGE.publicationRetryAt, input.retryAt),
+				transaction.put(STORAGE.rateLimitResumeAt, input.retryAt),
 				...(run?.runId === input.runId
 					? [transaction.put(STORAGE.runLifecycle, pauseRunLifecycle(run))]
 					: []),
@@ -3459,11 +3459,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm(true);
 	}
 
-	private async deferPublicationResume(retryAt: number): Promise<void> {
+	private async deferRateLimitResume(retryAt: number): Promise<void> {
 		await this.ctx.storage.transaction(async (transaction) => {
 			const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
 			await Promise.all([
-				transaction.put(STORAGE.publicationRetryAt, retryAt),
+				transaction.put(STORAGE.rateLimitResumeAt, retryAt),
 				...(run ? [transaction.put(STORAGE.runLifecycle, pauseRunLifecycle(run))] : []),
 				transaction.delete(STORAGE.currentRunId),
 				transaction.delete(STORAGE.currentRunMode),
@@ -3815,7 +3815,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.recoveryRetry),
 					transaction.delete(STORAGE.recoveryTerminal),
 					transaction.delete(STORAGE.githubRetryAt),
-					transaction.delete(STORAGE.publicationRetryAt),
+					transaction.delete(STORAGE.rateLimitResumeAt),
 					...(input.clearInbox ? [transaction.delete(STORAGE.inbox)] : []),
 					transaction.put(STORAGE.operatorSettlement, {
 						anchorNumber,
@@ -4193,7 +4193,7 @@ export type EventOutcome =
 	| { kind: "stale-run"; runId: string; currentRunId: string | null }
 	| { kind: "inert"; state: StateId }
 	| { kind: "recovered" }
-	| { kind: "publication-paused"; runId: string; retryAt: number };
+	| { kind: "rate-limit-paused"; runId: string; retryAt: number };
 
 export type EnqueueOutcome =
 	| { kind: "admitted"; id: string }

@@ -48,6 +48,22 @@ describe("maintainer-facing lifecycle", () => {
 		).toBe("agent.failed");
 	});
 
+	test("resumes a paused triage or investigation run in place", () => {
+		for (const [label, state] of [
+			["bot:triaging", "triaging"],
+			["bot:investigating", "investigating"],
+		] as const) {
+			expect(
+				resolve({
+					labels: ["bot:bug", label],
+					event: "resume",
+					actor: "system",
+					resumeState: state,
+				}),
+			).toMatchObject({ kind: "transition", to: state, action: "investigate.resume" });
+		}
+	});
+
 	test("automatically escalates an eligible triage result into work", () => {
 		const decision = resolve({
 			labels: ["bot:task", "bot:triaging"],

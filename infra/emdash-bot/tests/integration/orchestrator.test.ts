@@ -1344,7 +1344,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 				pushed: false,
 				ok: true,
 			}),
-		).resolves.toEqual({ kind: "publication-paused", runId: "publication-run", retryAt });
+		).resolves.toEqual({ kind: "rate-limit-paused", runId: "publication-run", retryAt });
 
 		expect(await stub.getPersistedState()).toMatchObject({
 			state: "fixing",
@@ -1362,6 +1362,46 @@ describe("OrchestratorDO (workers-pool)", () => {
 		});
 		await runInDurableObject(stub, async (_instance, state) => {
 			expect(await state.storage.getAlarm()).toBeGreaterThanOrEqual(retryAt);
+		});
+	});
+
+	test("pauses a triage run whose workspace setup hit GitHub's rate limit", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const retryAt = Date.now() + 5 * 60_000;
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put("o:state", "triaging");
+			await state.storage.put("o:kind", "bug");
+			await state.storage.put("o:anchorNumber", 42);
+		});
+		await stub.debugSetStaleRun(
+			"workspace-run",
+			Date.now(),
+			"investigate-42-workspace-run",
+			"triage",
+		);
+
+		await expect(
+			stub.applyAgentResult({
+				runId: "workspace-run",
+				result: {
+					summary: "I couldn't prepare the investigation workspace: GitHub rate limit exceeded.",
+					failureStage: "workspace",
+					failureRetryAt: retryAt,
+				},
+				pushed: false,
+				ok: false,
+			}),
+		).resolves.toEqual({ kind: "rate-limit-paused", runId: "workspace-run", retryAt });
+
+		expect((await stub.getPersistedState()).state).toBe("triaging");
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "workspace-run",
+			mode: "triage",
+			state: "triaging",
+		});
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThanOrEqual(retryAt);
+			await state.storage.deleteAlarm();
 		});
 	});
 

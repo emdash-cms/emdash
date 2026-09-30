@@ -697,6 +697,12 @@
 		},
 		{
 			"from": "triaging",
+			"event": "resume",
+			"to": "triaging",
+			"action": "investigate.resume"
+		},
+		{
+			"from": "triaging",
 			"event": "work",
 			"to": "working",
 			"action": "investigate.work"
@@ -1342,6 +1348,12 @@
 			"from": "investigating",
 			"event": "agent.failed",
 			"to": "needs_attention"
+		},
+		{
+			"from": "investigating",
+			"event": "resume",
+			"to": "investigating",
+			"action": "investigate.resume"
 		},
 		{
 			"from": "reproduced",
