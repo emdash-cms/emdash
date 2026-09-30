@@ -85,4 +85,12 @@ describe("HtmlBlockExtension", () => {
 			target.destroy();
 		}
 	});
+
+	it("renders HTML blocks pasted from other pages inline", () => {
+		editor.commands.setContent(
+			'<div data-html-block data-html-content="&lt;p&gt;Hi&lt;/p&gt;" data-html-js="alert(1)" data-html-isolated="true"></div>',
+		);
+		const node = editor.getJSON().content?.find((n) => n.type === "htmlBlock");
+		expect(node?.attrs).toMatchObject({ html: "<p>Hi</p>", js: "alert(1)", isolated: false });
+	});
 });

@@ -91,7 +91,9 @@ The block's menu sets how your site renders it:
 - **Isolated frame** runs the block's HTML, CSS and JavaScript in a sandboxed frame that grows with
   its content. The frame can't read your site's cookies, storage or pages, and your site's styles
   don't reach it. After a visitor clicks inside the frame, it can open other pages in the visitor's
-  tab or a new one. New HTML blocks use this mode.
+  tab or a new one. New HTML blocks use this mode, but blocks pasted from another website or
+  browser tab don't. Don't size content to the frame's viewport, as with `height: 100vh`: the frame
+  grows to fit it, which makes the content taller again, until the frame reaches 20,000 pixels.
 - **Inline** puts the HTML into the page, where it uses your site's styles. Your site keeps text
   formatting, links, lists, tables, images and iframes, and removes other markup, such as scripts,
   `<style>` elements, `style` attributes, media and form controls. Iframes from sites other than
