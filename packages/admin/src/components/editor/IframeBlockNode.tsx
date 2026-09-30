@@ -177,7 +177,8 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 		if (focused) return;
 		// Runs after the blur's own flush. Leaving the window keeps the text and caret.
 		queueMicrotask(() => {
-			if (!document.hasFocus() || !valid.current) return;
+			// Text still waiting to be written stays until it is.
+			if (!document.hasFocus() || !valid.current || pending.current !== null) return;
 			if (typed.current === null || typed.current === known.current) return;
 			typed.current = null;
 			setRevision((current) => current + 1);

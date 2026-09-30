@@ -25,6 +25,14 @@ type Block = { _type: string; _key: string; [key: string]: unknown };
 
 const YOUTUBE_EMBED = "https://www.youtube.com/embed/dQw4w9WgXcQ";
 
+const INTRO: Block = {
+	_type: "block",
+	_key: "intro",
+	style: "normal",
+	markDefs: [],
+	children: [{ _type: "span", _key: "intro-span", text: "Intro", marks: [] }],
+};
+
 async function renderEditor(props: Partial<PortableTextEditorProps> = {}) {
 	let editor: Editor | null = null;
 	const changes: Block[][] = [];
@@ -108,6 +116,20 @@ describe("Iframe block editor", () => {
 		await vi.waitFor(() => expect(frames(latest())[0]?.src).toBe("https://example.com/map"));
 	});
 
+	it("keeps showing a link that waits for the editor when the code editor loses focus", async () => {
+		const { editor, pm, latest } = await renderEditor({ value: [INTRO] });
+		await insertFromSlashMenu(pm);
+		await userEvent.keyboard("https://example.com/map");
+		editor.setEditable(false);
+		await new Promise((resolve) => setTimeout(resolve, 400));
+
+		await userEvent.click(pm.querySelector("p")!);
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		expect(codeEditor()?.textContent).toContain("https://example.com/map");
+		expect(frames(latest())[0]?.src).toBe("");
+	});
+
 	it("shows why input is rejected and keeps the saved embed", async () => {
 		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
 		const { screen, latest } = await renderEditor({ value: [saved] });
@@ -123,17 +145,7 @@ describe("Iframe block editor", () => {
 	});
 
 	it("replaces a link with the saved embed code when the code editor loses focus", async () => {
-		const { pm } = await renderEditor({
-			value: [
-				{
-					_type: "block",
-					_key: "intro",
-					style: "normal",
-					markDefs: [],
-					children: [{ _type: "span", _key: "intro-span", text: "Intro", marks: [] }],
-				},
-			],
-		});
+		const { pm } = await renderEditor({ value: [INTRO] });
 		await insertFromSlashMenu(pm);
 		await userEvent.keyboard("https://youtu.be/dQw4w9WgXcQ");
 
