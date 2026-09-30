@@ -134,7 +134,7 @@ msgstr "{0, plural, one {#개 항목} other {#개 항목}}"
 #: packages/admin/src/components/RelationList.tsx:215
 #: packages/admin/src/components/RelationsPanel.tsx:195
 msgid "{0, plural, one {# link} other {# links}}"
-msgstr ""
+msgstr "{0, plural, one {연결 #개} other {연결 #개}}"
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
 #: packages/admin/src/components/TaxonomyManager.tsx:1389
@@ -195,7 +195,7 @@ msgstr ""
 #. placeholder {0}: participating.length
 #: packages/admin/src/components/RelationsPanel.tsx:69
 msgid "{0, plural, one {# relation this content type takes part in} other {# relations this content type takes part in}}"
-msgstr ""
+msgstr "{0, plural, one {이 콘텐츠 유형에 연결된 관계 #개} other {이 콘텐츠 유형에 연결된 관계 #개}}"
 
 #. placeholder {0}: controls.rows
 #. placeholder {0}: state.rows
@@ -948,7 +948,7 @@ msgstr ""
 
 #: packages/admin/src/components/RelationFormPanel.tsx:87
 msgid "A relation defines how two content types link. Reference fields on either side then pick entries through it."
-msgstr ""
+msgstr "관계는 두 콘텐츠 유형이 연결되는 방식을 정의합니다. 양쪽의 참조 필드에서 이 관계를 통해 항목을 선택합니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:763
 msgid "A relationship is required"
@@ -1613,7 +1613,7 @@ msgstr ""
 #: packages/admin/src/components/RelationForm.tsx:354
 #: packages/admin/src/components/RelationForm.tsx:363
 msgid "Any number"
-msgstr ""
+msgstr "제한 없음"
 
 #: packages/admin/src/components/Settings.tsx:99
 #: packages/admin/src/components/Settings.tsx:103
@@ -1751,7 +1751,7 @@ msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:410
 msgid "At most…"
-msgstr ""
+msgstr "최대 개수 지정…"
 
 #: packages/admin/src/routes/bylines.tsx:752
 msgid "Attribution"
@@ -2062,7 +2062,7 @@ msgstr "불리언"
 
 #: packages/admin/src/components/RelationForm.tsx:347
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
-msgstr ""
+msgstr "이 관계에 연결된 양쪽 참조 필드는 이 제한 설정을 공유하므로, 같은 연결을 양쪽에서 서로 다른 설정으로 처리하지 않습니다."
 
 #: packages/admin/src/components/SeoPanel.tsx:195
 msgid "Brief summary shown below the title in search results"
@@ -2912,7 +2912,7 @@ msgstr "연결일: {0}"
 
 #: packages/admin/src/components/RelationList.tsx:93
 msgid "Connects"
-msgstr ""
+msgstr "연결된 콘텐츠 유형"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:438
 msgid "content"
@@ -3005,7 +3005,7 @@ msgstr "가져올 콘텐츠"
 
 #: packages/admin/src/components/RelationForm.tsx:265
 msgid "Content types"
-msgstr ""
+msgstr "콘텐츠 유형"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:188
 #: packages/admin/src/components/ContentTypeList.tsx:131
@@ -3372,7 +3372,7 @@ msgstr "WordPress에서 만드세요: 사용자 → 프로필 → 애플리케�
 
 #: packages/admin/src/components/RelationsPanel.tsx:87
 msgid "Create one to let entries here link to entries in another content type."
-msgstr ""
+msgstr "관계를 생성하면 이 콘텐츠 유형의 항목을 다른 콘텐츠 유형의 항목과 연결할 수 있습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:741
 msgid "Create passkey"
@@ -3404,7 +3404,7 @@ msgstr "관계 만들기"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:110
 msgid "Create Relation"
-msgstr ""
+msgstr "관계 생성"
 
 #: packages/admin/src/components/WordPressImport.tsx:1941
 msgid "Create Schema & Import"
@@ -3676,7 +3676,7 @@ msgstr ""
 
 #: packages/admin/src/components/RelationList.tsx:70
 msgid "Define how content types link to each other"
-msgstr ""
+msgstr "콘텐츠 유형 간 연결 방식을 정의합니다"
 
 #: packages/admin/src/components/ContentTypeList.tsx:133
 msgid "Define the structure of your content"
@@ -3712,7 +3712,7 @@ msgstr "삭제"
 #. placeholder {0}: relation.slug
 #: packages/admin/src/components/RelationDeleteDialog.tsx:38
 msgid "Delete \"{0}\"?"
-msgstr ""
+msgstr "\"{0}\" 관계를 삭제하시겠습니까?"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaFolderDialog.tsx:182
@@ -4408,11 +4408,11 @@ msgstr "예: 맥북 프로, 아이폰"
 
 #: packages/admin/src/components/RelationForm.tsx:361
 msgid "Each {linkedSideName} is linked from"
-msgstr ""
+msgstr "각 {linkedSideName}에 연결되는 항목 수"
 
 #: packages/admin/src/components/RelationForm.tsx:352
 msgid "Each {linkingSideName} links to"
-msgstr ""
+msgstr "각 {linkingSideName}에서 연결하는 항목 수"
 
 #. placeholder {0}: "/{year}/{slug}"
 #: packages/admin/src/components/ContentTypeEditor.tsx:543
@@ -4824,11 +4824,11 @@ msgstr "이 항목이 연결하는 항목"
 
 #: packages/admin/src/components/RelationForm.tsx:259
 msgid "entry on the linked side"
-msgstr ""
+msgstr "연결되는 쪽 항목"
 
 #: packages/admin/src/components/RelationForm.tsx:258
 msgid "entry on the linking side"
-msgstr ""
+msgstr "연결하는 쪽 항목"
 
 #: packages/admin/src/components/MenuEditor.tsx:156
 #: packages/admin/src/components/MenuEditor.tsx:194
@@ -6234,7 +6234,7 @@ msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "How many"
-msgstr ""
+msgstr "연결 개수"
 
 #: packages/admin/src/components/WordPressImport.tsx:1540
 msgid "How to create an Application Password"
@@ -7006,15 +7006,15 @@ msgstr "연결된 계정({0})"
 #. placeholder {0}: relation.parentLabel
 #: packages/admin/src/components/RelationsPanel.tsx:176
 msgid "Linked from {0}"
-msgstr ""
+msgstr "연결 출처: {0}"
 
 #: packages/admin/src/components/RelationForm.tsx:310
 msgid "Linked side (plural)"
-msgstr ""
+msgstr "연결되는 쪽(복수형)"
 
 #: packages/admin/src/components/RelationForm.tsx:316
 msgid "Linked side (singular)"
-msgstr ""
+msgstr "연결되는 쪽(단수형)"
 
 #: packages/admin/src/routes/bylines.tsx:565
 #: packages/admin/src/routes/bylines.tsx:758
@@ -7031,11 +7031,11 @@ msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:298
 msgid "Linking side (plural)"
-msgstr ""
+msgstr "연결하는 쪽(복수형)"
 
 #: packages/admin/src/components/RelationForm.tsx:304
 msgid "Linking side (singular)"
-msgstr ""
+msgstr "연결하는 쪽(단수형)"
 
 #: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:210
@@ -7044,16 +7044,16 @@ msgstr "링크"
 
 #: packages/admin/src/components/RelationForm.tsx:270
 msgid "Links from"
-msgstr ""
+msgstr "연결하는 콘텐츠 유형"
 
 #: packages/admin/src/components/RelationForm.tsx:279
 msgid "Links to"
-msgstr ""
+msgstr "연결되는 콘텐츠 유형"
 
 #. placeholder {0}: relation.childLabel
 #: packages/admin/src/components/RelationsPanel.tsx:174
 msgid "Links to {0}"
-msgstr ""
+msgstr "연결 대상: {0}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:954
 #: packages/admin/src/components/MediaPickerModal.tsx:1242
@@ -7197,7 +7197,7 @@ msgstr ""
 #: packages/admin/src/components/RelationList.tsx:110
 #: packages/admin/src/components/RelationsPanel.tsx:68
 msgid "Loading relations..."
-msgstr ""
+msgstr "관계를 불러오는 중..."
 
 #: packages/admin/src/components/SectionPickerModal.tsx:95
 #: packages/admin/src/components/Sections.tsx:275
@@ -7327,7 +7327,7 @@ msgstr "긴 텍스트"
 
 #: packages/admin/src/components/RelationForm.tsx:337
 msgid "Lowercase letters, numbers and underscores. Reference fields store this."
-msgstr ""
+msgstr "영문 소문자, 숫자, 밑줄을 사용합니다. 참조 필드에 이 슬러그가 저장됩니다."
 
 #: packages/admin/src/components/Sections.tsx:214
 msgid "Lowercase letters, numbers, and hyphens only"
@@ -7462,7 +7462,7 @@ msgstr "최댓값"
 
 #: packages/admin/src/components/RelationForm.tsx:416
 msgid "Maximum"
-msgstr ""
+msgstr "최대 개수"
 
 #: packages/admin/src/components/FieldEditor.tsx:1161
 msgid "Maximum blocks"
@@ -8034,7 +8034,7 @@ msgstr "새 리디렉션"
 #: packages/admin/src/components/RelationList.tsx:75
 #: packages/admin/src/components/RelationsPanel.tsx:77
 msgid "New Relation"
-msgstr ""
+msgstr "새 관계"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:519
 msgid "New reusable profile"
@@ -8246,11 +8246,11 @@ msgstr "만료 없음"
 
 #: packages/admin/src/components/RelationsPanel.tsx:180
 msgid "No field on this content type uses it yet"
-msgstr ""
+msgstr "이 콘텐츠 유형에는 아직 이 관계를 사용하는 필드가 없습니다"
 
 #: packages/admin/src/components/RelationList.tsx:196
 msgid "No fields"
-msgstr ""
+msgstr "필드 없음"
 
 #: packages/admin/src/components/RevisionHistory.tsx:351
 msgid "No fields to compare"
@@ -8416,11 +8416,11 @@ msgstr ""
 
 #: packages/admin/src/components/RelationsPanel.tsx:85
 msgid "No relations yet"
-msgstr ""
+msgstr "아직 관계가 없습니다"
 
 #: packages/admin/src/components/RelationList.tsx:116
 msgid "No relations yet."
-msgstr ""
+msgstr "아직 관계가 없습니다."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2091
 #: packages/admin/src/components/RepeaterField.tsx:398
@@ -8560,7 +8560,7 @@ msgstr "설정을 완료한 후 다른 EmDash 사이트에서 내보낸 .emdash 
 #: packages/admin/src/components/RelationForm.tsx:353
 #: packages/admin/src/components/RelationForm.tsx:362
 msgid "One"
-msgstr ""
+msgstr "최대 1개"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
@@ -8970,7 +8970,7 @@ msgstr "이 항목이 연결하는 항목을 선택하면 편집자가 드래그
 #: packages/admin/src/components/RelationList.tsx:206
 #: packages/admin/src/components/RelationList.tsx:207
 msgid "picks {0}"
-msgstr ""
+msgstr "{0} 항목 선택"
 
 #: packages/admin/src/components/Widgets.tsx:154
 msgid "Placeholder text"
@@ -10265,7 +10265,7 @@ msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:291
 msgid "Roles"
-msgstr ""
+msgstr "역할 이름"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:506
 msgid "Routable"
@@ -10369,7 +10369,7 @@ msgstr ""
 
 #: packages/admin/src/components/RelationFormPanel.tsx:113
 msgid "Save Relation"
-msgstr ""
+msgstr "관계 저장"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Save schedule"
@@ -10836,7 +10836,7 @@ msgstr ""
 #: packages/admin/src/components/RelationForm.tsx:275
 #: packages/admin/src/components/RelationForm.tsx:284
 msgid "Select a content type"
-msgstr ""
+msgstr "콘텐츠 유형 선택"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1472
 msgid "Select a location"
@@ -11823,13 +11823,13 @@ msgstr ""
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:59
 msgid "the {0} field on {1}, which lists entries that link to it"
-msgstr ""
+msgstr "{1} 컬렉션의 {0} 필드: 이 항목에 연결되는 항목을 표시합니다"
 
 #. placeholder {0}: bound.fieldSlug
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:58
 msgid "the {0} field on {1}, which picks entries it links to"
-msgstr ""
+msgstr "{1} 컬렉션의 {0} 필드: 이 항목이 연결하는 항목을 선택합니다"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:200
 msgid "the Android passkey prompt"
@@ -11857,11 +11857,11 @@ msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:338
 msgid "The content types and slug cannot be changed after a relation is created."
-msgstr ""
+msgstr "관계를 만든 후에는 콘텐츠 유형과 슬러그를 변경할 수 없습니다."
 
 #: packages/admin/src/components/RelationFormPanel.tsx:88
 msgid "The content types and the slug are fixed. What each side is called and how many entries it holds are not."
-msgstr ""
+msgstr "콘텐츠 유형과 슬러그는 변경할 수 없습니다. 각 쪽의 이름과 담을 수 있는 항목 수는 변경할 수 있습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
@@ -12468,7 +12468,7 @@ msgstr ""
 
 #: packages/admin/src/components/RelationDeleteDialog.tsx:39
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
-msgstr ""
+msgstr "이 관계와 관계에 저장된 모든 연결, 관계를 사용하는 참조 필드가 삭제됩니다:"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:466
 msgid "This removes the schedule and publishes immediately."
@@ -13539,7 +13539,7 @@ msgstr "EmDash에 오신 것을 환영합니다!"
 
 #: packages/admin/src/components/RelationForm.tsx:293
 msgid "What each side is called. These name the fields bound to this relationship."
-msgstr ""
+msgstr "관계의 각 쪽에 사용할 이름입니다. 이 이름은 이 관계에 연결된 필드의 이름으로 사용됩니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:642
 msgid "What happens next?"
