@@ -31,7 +31,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `awaiting_approval` | `verdict` | `bot:awaiting-approval` | Awaiting approval | no | no | `retry`, `work`, `triage`, `investigate`, `decline`, `take_over` |
 | `working` | `evidence` | `bot:working` | Working | no | yes | `status` |
 | `blocked` | `candidate` | `bot:blocked` | Blocked | no | no | `triage`, `work`, `investigate`, `retry`, `decline`, `take_over` |
-| `in_review` | `review` | `bot:in-review` | In review | no | no | `retry`, `work`, `decline`, `take_over` |
+| `in_review` | `review` | `bot:in-review` | In review | no | no | `accept`, `needs_changes`, `retry`, `work`, `decline`, `take_over` |
 | `human_owned` | `review` | `bot:human-owned` | Human owned | no | no | `hand_back` |
 | `done` | `complete` | `bot:done` | Done | yes | no | `reopen` |
 | `declined` | `complete` | `bot:declined` | Declined | yes | no | `reopen` |
@@ -42,7 +42,6 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `not_reproduced` | `verdict` | `bot:not-reproduced` | Not reproduced | no | no | `retry`, `triage`, `investigate`, `decline`, `take_over` |
 | `needs_info` | `verdict` | `bot:needs-info` | Needs info | no | no | `retry`, `triage`, `work`, `investigate`, `decline`, `take_over` |
 | `preview_building` | `preview` | `bot:preview-building` | Building preview | no | yes | `status` |
-| `awaiting_reporter` | `confirmation` | `bot:awaiting-reporter` | Awaiting reporter | no | no | `accept`, `needs_changes`, `decline`, `take_over` |
 
 ### Events
 
@@ -50,7 +49,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | --- | --- | --- | --- | --- |
 | `triage` | command | maintainer, system | `directive` | Classify the issue, apply useful labels, ask for missing information, and proceed automatically only when the work is clear and low risk. |
 | `work` | command | maintainer | `directive` | Take the issue as far as a verified candidate release, reproducing bugs when appropriate. |
-| `accept` | command | reporter, maintainer | — | Confirm the candidate works and open its draft pull request. |
+| `accept` | command | reporter, maintainer | — | Confirm the candidate change works. |
 | `needs_changes` | command | reporter, maintainer | `feedback` | Explain what is still wrong so the bot can revise the candidate. |
 | `investigate` | command | maintainer | `directive` | Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix. |
 | `retry` | command | maintainer | — | Retry the last triage, investigation, work, or PR repair run. |
@@ -81,7 +80,6 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `pr.approved` | pr lifecycle | system | — | A reviewer approved the PR (review sub-state). |
 | `preview.ready` | preview | system | — | The preview deploy for the candidate change is live; link ready to post. |
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
-| `expire` | timer | system | — | The reporter-confirmation window elapsed without a reply. |
 
 ### Transitions
 
@@ -143,6 +141,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `in_review` | `work` | `in_review` | `investigate.revise` |
 | `in_review` | `needs_changes` | `in_review` | `investigate.revise` |
 | `in_review` | `retry` | `in_review` | `investigate.revise` |
+| `in_review` | `accept` | `in_review` | — |
 | `in_review` | `pr.updated` | `in_review` | — |
 | `in_review` | `pr.problems` | `in_review` | `investigate.revise` |
 | `in_review` | `pr.green` | `in_review` | — |
@@ -198,20 +197,13 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `needs_info` | `work` | `working` | `investigate.work` |
 | `needs_info` | `decline` | `declined` | — |
 | `needs_info` | `take_over` | `human_owned` | — |
-| `preview_building` | `preview.ready` | `awaiting_reporter` | — |
-| `preview_building` | `preview.failed` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | — |
-| `awaiting_reporter` | `accept` | `in_review` | `openDraftPr` |
-| `awaiting_reporter` | `needs_changes` | `working` | `investigate.revise` |
-| `awaiting_reporter` | `work` | `working` | `investigate.revise` |
-| `awaiting_reporter` | `expire` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | `reapBranch` |
-| `awaiting_reporter` | `take_over` | `human_owned` | — |
-| `awaiting_reporter` | `decline` | `declined` | `reapBranch` |
+| `preview_building` | `preview.ready` | `in_review` | `openPr` |
+| `preview_building` | `preview.failed` | `in_review` | `openPr` |
 | `investigating` | `reset` | `triage` | — |
 | `reproduced` | `reset` | `triage` | — |
 | `not_reproduced` | `reset` | `triage` | — |
 | `needs_info` | `reset` | `triage` | — |
 | `preview_building` | `reset` | `triage` | — |
-| `awaiting_reporter` | `reset` | `triage` | — |
 | `triaging` | `reset` | `triage` | — |
 | `awaiting_approval` | `reset` | `triage` | — |
 | `needs_attention` | `reset` | `triage` | — |
@@ -277,6 +269,7 @@ stateDiagram-v2
     in_review --> in_review: work / investigate.revise
     in_review --> in_review: needs_changes / investigate.revise
     in_review --> in_review: retry / investigate.revise
+    in_review --> in_review: accept
     in_review --> in_review: pr.updated
     in_review --> in_review: pr.problems / investigate.revise
     in_review --> in_review: pr.green
@@ -332,22 +325,13 @@ stateDiagram-v2
     needs_info --> working: work / investigate.work
     needs_info --> declined: decline
     needs_info --> human_owned: take_over
-    preview_building --> awaiting_reporter: preview.ready
-    preview_building --> reproduced: preview.failed [default]
-    preview_building --> blocked: preview.failed [enhancement, task]
-    awaiting_reporter --> in_review: accept / openDraftPr
-    awaiting_reporter --> working: needs_changes / investigate.revise
-    awaiting_reporter --> working: work / investigate.revise
-    awaiting_reporter --> reproduced: expire [default] / reapBranch
-    awaiting_reporter --> blocked: expire [enhancement, task] / reapBranch
-    awaiting_reporter --> human_owned: take_over
-    awaiting_reporter --> declined: decline / reapBranch
+    preview_building --> in_review: preview.ready / openPr
+    preview_building --> in_review: preview.failed / openPr
     investigating --> triage: reset
     reproduced --> triage: reset
     not_reproduced --> triage: reset
     needs_info --> triage: reset
     preview_building --> triage: reset
-    awaiting_reporter --> triage: reset
     triaging --> triage: reset
     awaiting_approval --> triage: reset
     needs_attention --> triage: reset

@@ -199,7 +199,7 @@ describe("orchestrator alarm recovery", () => {
 		expect(log).toHaveBeenCalledWith(expect.stringContaining('"anchorNumber":42'));
 	});
 
-	test("sleeps until reporter expiry without periodic label reconciliation", async () => {
+	test("a parked reporter wait has no timer and stops waking", async () => {
 		const stub = env.Orchestrator.getByName(`issue-reporter-${crypto.randomUUID()}`);
 		const now = Date.now();
 		await runInDurableObject(stub, async (_instance, state) => {
@@ -215,7 +215,7 @@ describe("orchestrator alarm recovery", () => {
 
 		expect(await runDurableObjectAlarm(stub)).toBe(true);
 		await runInDurableObject(stub, async (_instance, state) => {
-			expect(await state.storage.getAlarm()).toBeGreaterThan(now + 13 * 24 * 60 * 60_000);
+			expect(await state.storage.getAlarm()).toBeNull();
 			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
 		});
 	});

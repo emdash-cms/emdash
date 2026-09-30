@@ -253,7 +253,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
 		terminal: false,
-		offeredCommands: ["retry", "work", "decline", "take_over"],
+		offeredCommands: ["accept", "needs_changes", "retry", "work", "decline", "take_over"],
 		defaultCommentEvent: "work",
 	},
 	human_owned: {
@@ -385,7 +385,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		tone: "active",
 		boardColumn: "Building preview",
 		description:
-			"The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
+			"The candidate change is published; a preview is building, then the PR opens and the reporter is asked to try it.",
 		terminal: false,
 		transient: true,
 		offeredCommands: ["status"],
@@ -396,8 +396,9 @@ export const STATES: Record<StateId, StateMeta> = {
 		tone: "waiting",
 		boardColumn: "Awaiting reporter",
 		description:
-			"Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
+			"Preview link posted; waiting for the reporter to confirm the change before a PR opens. On confirm the PR opens; on denial the branch is reaped.",
 		terminal: false,
+		legacy: true,
 		offeredCommands: ["accept", "needs_changes", "decline", "take_over"],
 	},
 };
@@ -474,10 +475,7 @@ export type PreviewEvent =
 	| "preview.ready" // deploy succeeded; link ready to post
 	| "preview.failed"; // deploy errored; no link
 
-// Timer/alarm events, emitted by the DO cleanup alarm.
-export type TimerEvent = "expire"; // reporter silence window elapsed
-
-export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent | TimerEvent;
+export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent;
 
 export interface EventMeta {
 	description: string;
@@ -519,7 +517,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		defaultKind: "task",
 	},
 	accept: {
-		description: "Confirm the candidate works and open its draft pull request.",
+		description: "Confirm the candidate change works.",
 		actors: ["reporter", "maintainer"],
 	},
 	needs_changes: {
@@ -708,11 +706,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "The preview deploy failed to build.",
 		actors: ["system"],
 	},
-	// --- timers (next-generation cleanup alarm) ---
-	expire: {
-		description: "The reporter-confirmation window elapsed without a reply.",
-		actors: ["system"],
-	},
 };
 
 // ---------------------------------------------------------------------------
@@ -733,7 +726,6 @@ export type ActionId =
 	// --- next-generation actions ---
 	| "investigate.diagnose" // bug repro -> diagnose only, no fix; emits a verdict
 	| "investigate.fix" // build candidate fix on bot/fix-<n>, push, kick preview
-	| "openDraftPr" // open a DRAFT PR from the reporter-confirmed fix branch
 	| "reapBranch"; // delete the unvalidated bot/fix-<n> branch
 
 // ---------------------------------------------------------------------------
@@ -748,6 +740,8 @@ export interface Transition {
 	toByKind?: Partial<Record<Kind, StateId>>;
 	/** Agent action the router dispatches on this transition, if any. */
 	action?: ActionId;
+	/** Labels added alongside the destination state's label. */
+	addLabels?: string[];
 	/** Human-readable note for the generated table. */
 	note?: string;
 }
@@ -865,7 +859,7 @@ export const TRANSITIONS: Transition[] = [
 		from: "working",
 		event: "agent.fix_ready",
 		to: "preview_building",
-		note: "executor pushes bot/fix-<n>; orchestrator asks the reporter to confirm. PR opens on confirm, not here.",
+		note: "executor pushes bot/fix-<n>; the PR opens once the preview settles",
 	},
 	{ from: "working", event: "agent.revised", to: "in_review" },
 	{ from: "working", event: "agent.failed", to: "needs_attention" },
@@ -930,6 +924,20 @@ export const TRANSITIONS: Transition[] = [
 		to: "in_review",
 		action: "investigate.revise",
 		note: "the attached PR is the work to retry",
+	},
+	{
+		from: "in_review",
+		event: "accept",
+		to: "in_review",
+		addLabels: ["triage/verified"],
+		note: "reporter confirmation labels the issue and thanks them",
+	},
+	{
+		from: "in_review",
+		event: "confirm",
+		to: "in_review",
+		addLabels: ["triage/verified"],
+		note: "reporter confirmation labels the issue and thanks them",
 	},
 	{ from: "in_review", event: "pr.updated", to: "in_review" },
 	{
@@ -1119,8 +1127,8 @@ export const TRANSITIONS: Transition[] = [
 
 	// =======================================================================
 	// Next-generation: fix loop (maintainer-triggered).
-	// candidate fix (fixing) -> preview build (preview_building) -> reporter
-	// confirmation (awaiting_reporter) -> draft PR (in_review) or reap.
+	// candidate fix (fixing) -> preview build (preview_building) -> PR
+	// (in_review), where the reporter is asked to try the preview.
 	// =======================================================================
 	{ from: "fixing", event: "agent.fix_ready", to: "preview_building" },
 	{ from: "fixing", event: "agent.failed", to: "needs_attention" },
@@ -1138,17 +1146,17 @@ export const TRANSITIONS: Transition[] = [
 		note: "fix run skipped rather than building a candidate; rest in blocked for a maintainer",
 	},
 
-	{ from: "preview_building", event: "preview.ready", to: "awaiting_reporter" },
+	{ from: "preview_building", event: "preview.ready", to: "in_review", action: "openPr" },
 	{
 		from: "preview_building",
 		event: "preview.failed",
-		to: "reproduced",
-		toByKind: { enhancement: "blocked", task: "blocked" },
-		note: "bugs return to the reproduced verdict; directed changes rest in blocked so implement can retry",
+		to: "in_review",
+		action: "openPr",
+		note: "the PR's checks show whether the candidate builds",
 	},
 
-	{ from: "awaiting_reporter", event: "confirm", to: "in_review", action: "openDraftPr" },
-	{ from: "awaiting_reporter", event: "accept", to: "in_review", action: "openDraftPr" },
+	{ from: "awaiting_reporter", event: "confirm", to: "in_review", action: "openPr" },
+	{ from: "awaiting_reporter", event: "accept", to: "in_review", action: "openPr" },
 	{
 		from: "awaiting_reporter",
 		event: "needs_changes",
@@ -1170,14 +1178,6 @@ export const TRANSITIONS: Transition[] = [
 		toByKind: { enhancement: "blocked", task: "blocked" },
 		action: "reapBranch",
 		note: "denial reaps the unvalidated branch; directed changes remain retryable through implement",
-	},
-	{
-		from: "awaiting_reporter",
-		event: "expire",
-		to: "reproduced",
-		toByKind: { enhancement: "blocked", task: "blocked" },
-		action: "reapBranch",
-		note: "14-day silence reaps the branch; bugs retain their verdict and directed changes remain retryable",
 	},
 	{ from: "awaiting_reporter", event: "take_over", to: "human_owned" },
 	{

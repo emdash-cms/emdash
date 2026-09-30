@@ -14,9 +14,10 @@ import {
 	type PreviewScreenshot,
 	renderAgentComment,
 	renderCommandFeedback,
-	renderDraftPrBody,
 	renderPullRequestTitle,
 	renderPreviewReadyAsk,
+	renderPullRequestBody,
+	renderVerifiedThanks,
 	renderReadonlyReply,
 	shouldPostReadonlyReply,
 } from "./comments.js";
@@ -157,6 +158,11 @@ export interface NormalizedEvent {
 	readonly needsClassify: boolean;
 	/** Raw mention text, for the classifier prompt. */
 	readonly classifyText?: string | null;
+	/**
+	 * True for a plain comment that didn't mention the bot. When the classifier
+	 * finds no command in it, the bot stays quiet instead of replying.
+	 */
+	readonly unaddressed?: boolean;
 	/** Exact human comment that caused this event, retained for agent context. */
 	readonly triggeringComment?: TriggeringComment;
 	readonly pullRequestNumber?: number;
@@ -185,7 +191,7 @@ export interface NormalizedEvent {
 	readonly agentLabels?: readonly string[];
 	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
 	readonly agentScreenshots?: readonly PreviewScreenshot[];
-	/** Reviewer-facing copy carried through preview confirmation into the draft PR. */
+	/** Reviewer-facing copy carried through the preview build into the PR. */
 	readonly agentPullRequest?: PullRequestCopy;
 	/**
 	 * Precomposed comment body that replaces the default `renderComment` output
@@ -194,9 +200,14 @@ export interface NormalizedEvent {
 	 */
 	readonly commentBodyOverride?: string;
 	/**
+	 * Inputs for the preview-ready ask. It renders once the transition's PR has
+	 * opened, so the ask can link it.
+	 */
+	readonly previewAsk?: PreviewAsk;
+	/**
 	 * Post the comment BEFORE flipping labels for this transition. The fix-loop
 	 * ask must land first: a failed comment post must not leave the issue labeled
-	 * awaiting-reporter with no ask for the reporter to act on.
+	 * in review with no ask for the reporter to act on.
 	 */
 	readonly commentFirst?: boolean;
 	/** Internal callback metadata: this event's projection completes the run. */
@@ -315,7 +326,6 @@ const STORAGE = {
 	inbox: "o:inbox",
 	pendingDispatch: "o:pendingDispatch",
 	pendingSideEffects: "o:pendingSideEffects",
-	awaitingReporterSince: "o:awaitingReporterSince",
 	previewBuildDeadline: "o:previewBuildDeadline",
 	previewPollNextAt: "o:previewPollNextAt",
 	previewNotes: "o:previewNotes",
@@ -340,9 +350,6 @@ const STORAGE = {
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
-/** Reporter-confirmation window for the fix loop. After this, the alarm fires
- * `expire`, which reaps the candidate branch and falls back to `reproduced`. */
-const REPORTER_SILENCE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 /** Overall budget for a candidate preview to publish on pkg.pr.new before we
  * give up and fire `preview.failed`. Publishing normally lands within ~60s. */
 const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
@@ -450,6 +457,8 @@ interface PendingSideEffect {
 	readonly commentFirst?: boolean;
 	readonly attempts?: number;
 }
+
+type PreviewAsk = Omit<Parameters<typeof renderPreviewReadyAsk>[0], "pullRequestNumber">;
 
 interface StoredWorkPlan {
 	readonly runId: string;
@@ -573,7 +582,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				throw new ClassifierProcessingError(classifyResult.reason);
 			}
 			if (classifyResult.kind === "noop") {
-				await this.postCommandFeedback(input);
+				if (!input.unaddressed) await this.postCommandFeedback(input);
 				if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 				return classifyResult;
 			}
@@ -1258,7 +1267,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 				droppedStaleRun: false,
 				recoveryError: null,
 				labelDrift: null,
-				expiredReporterWait: false,
 				previewPoll: "idle",
 				pullRequestPoll: "idle",
 			};
@@ -1341,18 +1349,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, recoveryError);
 			}
 		}
-		let expiredReporterWait = false;
-		try {
-			expiredReporterWait = await this.reapExpiredReporterWait(now);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			recoveryError ??= message;
-			await this.recordRecoveryFailure("reporter-wait", error, now);
-			console.error("[orchestrator] reporter-wait expiry failed", { error: message });
-			if (error instanceof GitHubRateLimitError) {
-				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, message);
-			}
-		}
 		let previewPoll: PreviewPollOutcome = "idle";
 		try {
 			previewPoll = await this.pollPreviewBuild(now);
@@ -1404,7 +1400,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			droppedStaleRun,
 			recoveryError,
 			labelDrift,
-			expiredReporterWait,
 			previewPoll,
 			pullRequestPoll,
 		};
@@ -1424,7 +1419,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			droppedStaleRun: false,
 			recoveryError,
 			labelDrift: null,
-			expiredReporterWait: false,
 			previewPoll: "idle",
 			pullRequestPoll: "idle",
 		};
@@ -1564,9 +1558,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 	/**
 	 * Poll pkg.pr.new for the candidate change's preview while the item sits in
 	 * `preview_building`. One probe per alarm tick (the alarm cadence IS the
-	 * poll interval -- no unbounded loop in the DO). A 200 fires `preview.ready`
-	 * and advances to the reporter ask; exhausting the overall budget fires
-	 * `preview.failed`, which retains the branch for inspection.
+	 * poll interval -- no unbounded loop in the DO). A 200 fires `preview.ready`,
+	 * which opens the PR and asks the reporter to try the preview; exhausting the
+	 * overall budget fires `preview.failed`, which opens the PR without one.
 	 */
 	private async pollPreviewBuild(now: number): Promise<PreviewPollOutcome> {
 		const [state, deadline, nextAt] = await Promise.all([
@@ -1589,7 +1583,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.firePreviewEvent(
 				anchorNumber,
 				"preview.failed",
-				"The preview package configuration is invalid. The candidate branch was retained for inspection.",
+				"The preview package configuration is invalid, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.",
 			);
 			return "failed";
 		}
@@ -1617,7 +1611,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const labels = await this.projectLabels();
 		const creds = readAppCreds(this.env);
 		const repo = readRepoContext(this.env);
-		let override: string | undefined;
+		let previewAsk: PreviewAsk | undefined;
 		if (creds && repo) {
 			const [notes, screenshots] = await Promise.all([
 				this.ctx.storage.get<string>(STORAGE.previewNotes),
@@ -1630,7 +1624,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			} catch (err) {
 				console.error("[orchestrator] preview ask: reporter lookup failed", err);
 			}
-			override = renderPreviewReadyAsk({
+			previewAsk = {
 				owner: repo.owner,
 				repo: repo.repo,
 				issueNumber: anchorNumber,
@@ -1639,7 +1633,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				notes,
 				...(screenshots ? { screenshots } : {}),
 				reporterLogin,
-			});
+			};
 		}
 		await this.processEvent({
 			event: "preview.ready",
@@ -1647,7 +1641,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			actor: "system",
 			labels,
 			needsClassify: false,
-			...(override ? { commentBodyOverride: override, commentFirst: true } : {}),
+			...(previewAsk ? { previewAsk, commentFirst: true } : {}),
 		});
 	}
 
@@ -1660,7 +1654,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const commentBodyOverride =
 			event === "preview.failed"
 				? (failureComment ??
-					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The candidate branch was retained for inspection.`)
+					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.`)
 				: undefined;
 		await this.processEvent({
 			event,
@@ -1671,29 +1665,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			anchorNumber,
 			...(commentBodyOverride ? { commentBodyOverride } : {}),
 		});
-	}
-
-	/**
-	 * Fire the fix loop's `expire` timer when the reporter has been silent past
-	 * the confirmation window. The transition reaps the candidate branch and
-	 * falls back to the `reproduced` verdict.
-	 */
-	private async reapExpiredReporterWait(now: number): Promise<boolean> {
-		const [state, since] = await Promise.all([
-			this.ctx.storage.get<StateId>(STORAGE.state),
-			this.ctx.storage.get<number>(STORAGE.awaitingReporterSince),
-		]);
-		if (state !== "awaiting_reporter" || since === undefined) return false;
-		if (now - since < REPORTER_SILENCE_WINDOW_MS) return false;
-		const labels = await this.projectLabels();
-		await this.processEvent({
-			event: "expire",
-			arg: null,
-			actor: "system",
-			labels,
-			needsClassify: false,
-		});
-		return true;
 	}
 
 	private async processInboxHead(): Promise<boolean> {
@@ -1788,7 +1759,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		]);
 		await this.ctx.storage.transaction(async (transaction) => {
 			await Promise.all([
-				transaction.delete(STORAGE.awaitingReporterSince),
 				transaction.delete(STORAGE.deadlineWarningRetryAt),
 				transaction.delete(STORAGE.previewBuildDeadline),
 				transaction.delete(STORAGE.previewPollNextAt),
@@ -1827,7 +1797,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			pendingSideEffects,
 			workComments,
 			pendingResume,
-			awaitingReporterSince,
 			previewBuildDeadline,
 			previewPollNextAt,
 			prNumber,
@@ -1852,7 +1821,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
 			this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments),
 			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
-			this.ctx.storage.get<number>(STORAGE.awaitingReporterSince),
 			this.ctx.storage.get<number>(STORAGE.previewBuildDeadline),
 			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.prNumber),
@@ -1892,16 +1860,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			prNumber !== undefined &&
 			prPollNextAt !== undefined &&
 			(state === "in_review" || state === "needs_attention");
-		const reporterExpiryAt =
-			state === "awaiting_reporter" && awaitingReporterSince !== undefined
-				? awaitingReporterSince + REPORTER_SILENCE_WINDOW_MS
-				: null;
 		const hasAutomationWork =
 			hasImmediateWork ||
 			runAlarmAt !== null ||
 			hasPreviewWork ||
 			hasPullRequestWork ||
-			reporterExpiryAt !== null ||
 			publicationRetryAt !== undefined;
 		const hasRecoveryWork = recoveryRetry !== undefined && recoveryRetry.path !== "labels";
 		const terminalAtRest =
@@ -1916,16 +1879,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (!reconcileLabels && labelReconcileNextAt !== undefined) {
 			await this.ctx.storage.delete(STORAGE.labelReconcileNextAt);
 		}
-		const needsPeriodicTick =
-			hasImmediateWork ||
-			runAlarmAt !== null ||
-			hasPreviewWork ||
-			hasPullRequestWork ||
-			publicationRetryAt !== undefined ||
-			hasRecoveryWork;
-		let desired = needsPeriodicTick
-			? now + TICK_INTERVAL_MS
-			: Math.max(now + 1_000, reporterExpiryAt ?? now + TICK_INTERVAL_MS);
+		let desired = now + TICK_INTERVAL_MS;
 		if (hasImmediateWork) {
 			desired = Math.min(desired, now + INBOX_RETRY_MS);
 		}
@@ -1940,9 +1894,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		if (reconcileLabels && labelReconcileNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, labelReconcileNextAt));
-		}
-		if (reporterExpiryAt !== null) {
-			desired = Math.min(desired, Math.max(now + 1_000, reporterExpiryAt));
 		}
 		if (publicationRetryAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, publicationRetryAt));
@@ -2420,9 +2371,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (decision.action === "openPr") {
 			return this.runOpenPr(creds, repo, anchorNumber);
 		}
-		if (decision.action === "openDraftPr") {
-			return this.runOpenPr(creds, repo, anchorNumber, true);
-		}
 		if (decision.action === "closePr") {
 			return this.runClosePr(creds, repo);
 		}
@@ -2762,14 +2710,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 		creds: GitHubAppCreds,
 		repo: Parameters<typeof createPullRequest>[1],
 		anchorNumber: number,
-		draft = false,
 	): Promise<string | null> {
 		const token = await this.getInstallationToken(creds);
 		const headBranch = `bot/fix-${anchorNumber}`;
 		const kind = (await this.ctx.storage.get<Kind>(STORAGE.kind)) ?? "bug";
-		const pullRequestCopy = draft
-			? await this.ctx.storage.get<PullRequestCopy>(STORAGE.candidatePullRequest)
-			: undefined;
+		const pullRequestCopy = await this.ctx.storage.get<PullRequestCopy>(
+			STORAGE.candidatePullRequest,
+		);
 		try {
 			const created =
 				(await getOpenPullRequest(token, repo, headBranch)) ??
@@ -2777,17 +2724,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 					headBranch,
 					baseBranch: "main",
 					title: pullRequestCopy?.title || renderPullRequestTitle(anchorNumber, kind),
-					body: draft
-						? renderDraftPrBody({
-								issueNumber: anchorNumber,
-								kind,
-								description:
-									pullRequestCopy?.description ||
-									`Automated candidate change for issue #${anchorNumber}.`,
-								previewPackage: this.env.PREVIEW_PACKAGE,
-							})
-						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
-					draft,
+					body: renderPullRequestBody({
+						issueNumber: anchorNumber,
+						kind,
+						description:
+							pullRequestCopy?.description ||
+							`Automated candidate change for issue #${anchorNumber}.`,
+						previewPackage: this.env.PREVIEW_PACKAGE,
+					}),
+					draft: false,
 				}));
 			const headSha = await getBranchSha(token, repo, headBranch);
 			await Promise.all([
@@ -2798,7 +2743,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 								number: created.number,
 								url: created.htmlUrl,
 								state: "open",
-								draft,
+								draft: false,
 								headSha,
 								mergeability: "unknown",
 								review: "review-required",
@@ -2819,7 +2764,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	/**
 	 * Reap the fix loop's bot branches. The artifacts branch is always deleted;
 	 * the fix branch is spared when an open PR references it (deleting the ref
-	 * would silently close that PR). Shared by the reject/expire/decline reap
+	 * would silently close that PR). Shared by the reject/decline reap
 	 * edges and the issue-close cleanup path.
 	 */
 	private async runReapBranch(
@@ -3064,7 +3009,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			current = await this.postSideEffectComment(token, repo, current);
 		};
 		// The fix-loop ask posts first: if it fails, the labels stay put so the
-		// item never advertises awaiting-reporter without an ask on the thread.
+		// item never advertises in-review without an ask on the thread.
 		if (current.commentFirst) {
 			await postComment();
 			await applyLabels();
@@ -3154,9 +3099,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const puts: Promise<unknown>[] = [
 				transaction.put(STORAGE.state, decision.to),
 				transaction.put(STORAGE.eventLog, eventLog),
-				decision.to === "awaiting_reporter"
-					? transaction.put(STORAGE.awaitingReporterSince, now)
-					: transaction.delete(STORAGE.awaitingReporterSince),
 			];
 			if (input.settlesDeliveryId) {
 				const seen = (await transaction.get<string[]>(STORAGE.seenDeliveries)) ?? [];
@@ -3345,9 +3287,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 					: undefined);
 			const linkedPrNumber =
 				input.pullRequestNumber ?? (await transaction.get<number>(STORAGE.prNumber));
-			const handoffComment =
-				decision.action === "openDraftPr" && linkedPrNumber
-					? `Candidate accepted. I opened [draft PR #${linkedPrNumber}](https://github.com/${this.env.GITHUB_OWNER}/${this.env.GITHUB_REPO}/pull/${linkedPrNumber}). Further implementation and review updates will be posted on the PR.`
+			const pullRequestLink = linkedPrNumber ? { pullRequestNumber: linkedPrNumber } : {};
+			const transitionComment = input.previewAsk
+				? renderPreviewReadyAsk({ ...input.previewAsk, ...pullRequestLink })
+				: decision.from === "in_review" &&
+					  (decision.event === "accept" || decision.event === "confirm")
+					? renderVerifiedThanks({
+							owner: this.env.GITHUB_OWNER,
+							repo: this.env.GITHUB_REPO,
+							...pullRequestLink,
+						})
 					: undefined;
 			const effectRunId =
 				preparedInvestigation?.runId ?? preparedResume?.checkpoint.runId ?? input.settlesRunId;
@@ -3383,7 +3332,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 							commentBody: input.operatorCommand
 								? ""
 								: (input.commentBodyOverride ??
-									handoffComment ??
+									transitionComment ??
 									renderComment(
 										decision,
 										anchorNumber,
@@ -4079,11 +4028,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return { ...schedule, warningSentRunId: warningSentRunId ?? null };
 	}
 
-	/** Test-only: backdate the reporter-confirmation window to force expiry. */
-	async debugBackdateReporterWait(since: number): Promise<void> {
-		await this.ctx.storage.put(STORAGE.awaitingReporterSince, since);
-	}
-
 	/** Test-only: force the preview-poll schedule so a tick probes immediately. */
 	async debugSetPreviewPoll(deadline: number, nextAt: number): Promise<void> {
 		await Promise.all([
@@ -4274,7 +4218,6 @@ export interface TickOutcome {
 	droppedStaleRun: boolean;
 	recoveryError: string | null;
 	labelDrift: { added: number; removed: number } | null;
-	expiredReporterWait: boolean;
 	previewPoll: PreviewPollOutcome;
 	pullRequestPoll: PullRequestPollOutcome;
 }
