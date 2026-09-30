@@ -24,17 +24,7 @@ import {
 } from "./media/useMediaUploadQueue.js";
 
 export const LOCAL_MEDIA_UPLOAD_ACCEPT =
-	"image/png,image/jpeg,image/gif,image/webp,image/avif,image/bmp,video/*,audio/*,application/pdf";
-
-const MAX_PREVIEW_BYTES = 8 * 1024 * 1024;
-const PREVIEW_MIME_TYPES = new Set([
-	"image/jpeg",
-	"image/png",
-	"image/gif",
-	"image/webp",
-	"image/avif",
-	"image/bmp",
-]);
+	"image/png,image/jpeg,image/gif,image/webp,image/avif,image/bmp,image/jxl,.jxl,video/*,audio/*,application/pdf";
 
 export interface MediaUploadDialogProps {
 	open: boolean;

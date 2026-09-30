@@ -276,7 +276,7 @@ import { Image } from "emdash/ui";
 
 const { entry: post, error } = await getEmDashEntry("posts", Astro.params.slug);
 if (error) return new Response("Unable to load post", { status: 500 });
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 ---
 
 {post.data.featured_image && (

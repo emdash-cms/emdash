@@ -24,6 +24,19 @@ describe("buildNavItems", () => {
 		expect(items.find((item) => item.id === "import")?.icon).toBe(Download);
 	});
 
+	it("offers the calendar to contributors and above", () => {
+		const manifest = { collections: {}, plugins: {} };
+
+		expect(
+			buildNavItems(manifest, 20, (id) => id).find((item) => item.id === "calendar"),
+		).toMatchObject({
+			to: "/calendar",
+		});
+		expect(buildNavItems(manifest, 10, (id) => id).some((item) => item.id === "calendar")).toBe(
+			false,
+		);
+	});
+
 	it("leaves hidden collections out of the navigation links", () => {
 		const items = buildNavItems(
 			{

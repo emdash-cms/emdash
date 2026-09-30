@@ -58,12 +58,14 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4612,
 		startupTimeoutMs: 60_000,
 		verifyMcp: true,
+		frontendExpectations: [{ path: "/", text: '<link rel="alternate" type="application/rss+xml"' }],
 	},
 	{
 		name: "templates/blog-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/blog-cloudflare"),
 		port: 4613,
 		startupTimeoutMs: 120_000,
+		frontendExpectations: [{ path: "/", text: '<link rel="alternate" type="application/rss+xml"' }],
 	},
 	{
 		name: "templates/marketing",
