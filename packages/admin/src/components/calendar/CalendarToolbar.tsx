@@ -11,7 +11,7 @@ interface CalendarToolbarProps {
 	title: string;
 	display: CalendarDisplay;
 	loading: boolean;
-	/** Entries per state in the month, shown as a legend; omitted while loading. */
+	/** Entries per state in the month, shown as a legend; omitted until the whole month has loaded. */
 	counts?: Record<CalendarState, number>;
 	onPrevious: () => void;
 	onNext: () => void;

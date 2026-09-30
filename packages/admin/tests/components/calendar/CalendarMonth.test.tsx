@@ -156,6 +156,16 @@ describe("CalendarMonth", () => {
 		await expect.poll(() => list.getByRole("link").elements()).toHaveLength(6);
 	});
 
+	it("marks the grid's empty days from the cut-off onward as not loaded", async () => {
+		const screen = await renderMonth({ loadedThrough: "2026-10-20" });
+
+		// October 21 to 31; the 20th has entries, and the Sunday-first grid ends on the 31st.
+		expect(screen.getByText("Not loaded").elements()).toHaveLength(11);
+		await expect
+			.element(screen.getByRole("list", { name: "Tuesday, October 20, 2026" }))
+			.toBeVisible();
+	});
+
 	it("says a day past the loaded entries was not loaded instead of empty", async () => {
 		const screen = await renderMonth({
 			compact: true,

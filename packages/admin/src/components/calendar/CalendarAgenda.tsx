@@ -4,7 +4,12 @@ import { useLingui } from "@lingui/react/macro";
 import { CalendarBlank, CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
-import { shiftDay, type CalendarDisplay, type CalendarItem } from "../../lib/calendar.js";
+import {
+	isMonthCutOff,
+	shiftDay,
+	type CalendarDisplay,
+	type CalendarItem,
+} from "../../lib/calendar.js";
 import { CaretNext } from "../ArrowIcons.js";
 import { CalendarDayList, CalendarNowLine } from "./CalendarEntry.js";
 
@@ -40,6 +45,7 @@ export function CalendarAgenda({
 
 	if (loading) return <CalendarAgendaSkeleton />;
 
+	const cutOff = isMonthCutOff(month, loadedThrough);
 	const keys = [...days.keys()].filter((day) => day.startsWith(month)).toSorted();
 	if (keys.length === 0) {
 		const monthTitle = display.monthTitle(month);
@@ -48,12 +54,20 @@ export function CalendarAgenda({
 				size="sm"
 				icon={<CalendarBlank size={32} aria-hidden="true" />}
 				title={
-					onClearFilters
-						? t`No entries match these filters`
-						: t`Nothing published or scheduled in ${monthTitle}`
+					cutOff
+						? onClearFilters
+							? t`No loaded entries match these filters`
+							: t`This month wasn't loaded`
+						: onClearFilters
+							? t`No entries match these filters`
+							: t`Nothing published or scheduled in ${monthTitle}`
 				}
 				description={
-					onClearFilters ? undefined : t`Scheduled entries appear here with their publish time.`
+					cutOff
+						? t`The range has more entries than the calendar can show.`
+						: onClearFilters
+							? undefined
+							: t`Scheduled entries appear here with their publish time.`
 				}
 				contents={
 					onClearFilters ? (
@@ -80,7 +94,7 @@ export function CalendarAgenda({
 	const nextDay = isCurrentMonth && !todayItems ? shown.find((day) => day > today) : undefined;
 	const nothingAfterNow =
 		isCurrentMonth &&
-		!loadedThrough &&
+		!cutOff &&
 		!keys.some((day) => days.get(day)?.some((item) => item.time > now));
 	const time = display.formatTime(now);
 	const standaloneNowLine = <CalendarNowLine label={t`Now · ${time}`} className="px-2" />;
@@ -121,6 +135,11 @@ export function CalendarAgenda({
 			{isCurrentMonth && !todayItems && !nextDay && standaloneNowLine}
 			{nothingAfterNow && (
 				<p className="px-2 text-sm text-kumo-subtle">{t`Nothing else is scheduled this month.`}</p>
+			)}
+			{cutOff && (
+				<p className="px-2 text-sm text-kumo-subtle">
+					{t`Later entries weren't loaded. The range has more entries than the calendar can show.`}
+				</p>
 			)}
 		</div>
 	);

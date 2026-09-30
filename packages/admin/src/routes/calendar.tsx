@@ -27,6 +27,7 @@ import {
 	filterItems,
 	groupByDay,
 	isCalendarState,
+	isMonthCutOff,
 	isMonthKey,
 	monthGridDays,
 	readList,
@@ -167,11 +168,12 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		[calendar.data, display.timeZone, now, collectionOrder],
 	);
 	const visibleItems = React.useMemo(() => filterItems(items, filters), [items, filters]);
-	// Pages load oldest first, so a truncated range is complete up to its last loaded day.
+	// Pages load oldest first, so a truncated range is complete before its last loaded day.
 	const loadedThrough = calendar.data?.truncated ? items.at(-1)?.day : undefined;
+	const monthCutOff = isMonthCutOff(month, loadedThrough);
 	const days = React.useMemo(() => groupByDay(visibleItems), [visibleItems]);
 	const counts = React.useMemo(() => {
-		if (!calendar.data) return undefined;
+		if (!calendar.data || monthCutOff) return undefined;
 		const result: Record<CalendarState, number> = {
 			published: 0,
 			scheduled: 0,
@@ -180,7 +182,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		};
 		for (const item of visibleItems) if (item.day.startsWith(month)) result[item.state] += 1;
 		return result;
-	}, [calendar.data, visibleItems, month]);
+	}, [calendar.data, monthCutOff, visibleItems, month]);
 
 	const updateSearch = (patch: Partial<CalendarSearch>) => {
 		void navigate({
@@ -216,6 +218,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				: error.message
 			: t`Check your connection and try again.`;
 	const maxEntries = new Intl.NumberFormat(i18n.locale).format(CALENDAR_MAX_ENTRIES);
+	const cutOffDay = loadedThrough && display.monthDay(loadedThrough);
 
 	return (
 		<div ref={containerRef} className="grid min-w-0 gap-6">
@@ -295,7 +298,12 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			{calendar.data?.truncated && (
 				<Banner
 					variant="alert"
-					title={t`This range has more than ${maxEntries} entries. The calendar shows the first ${maxEntries}.`}
+					title={t`This range has more than ${maxEntries} entries`}
+					description={
+						cutOffDay
+							? t`The calendar shows the first ${maxEntries}, which end on ${cutOffDay}.`
+							: t`The calendar shows the first ${maxEntries}.`
+					}
 				/>
 			)}
 

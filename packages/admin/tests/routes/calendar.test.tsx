@@ -74,6 +74,30 @@ describe("CalendarPage", () => {
 			.toBeVisible();
 	});
 
+	it("says where a range cut off at the entry cap ends", async () => {
+		router.search = { month: "2020-03", view: "agenda" };
+		serveCalendar((request) =>
+			Response.json({
+				data: {
+					items: [
+						entry(`day-${request}`, `2020-03-${String(request).padStart(2, "0")}T09:00:00.000Z`),
+					],
+					nextCursor: `cursor-${request}`,
+				},
+			}),
+		);
+
+		const screen = await render(<CalendarPage />);
+
+		await expect
+			.element(screen.getByText("The calendar shows the first 1,000, which end on March 10."))
+			.toBeVisible();
+		await expect.element(screen.getByText(/^Later entries weren't loaded\./)).toBeVisible();
+		await expect
+			.element(screen.getByRole("list", { name: "Entries this month" }))
+			.not.toBeInTheDocument();
+	});
+
 	it("explains a permission error", async () => {
 		serveCalendar(() =>
 			Response.json(

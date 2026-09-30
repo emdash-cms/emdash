@@ -77,6 +77,15 @@ export function isMonthKey(value: unknown): value is string {
 	return year >= 1970 && year <= 9999 && month >= 1 && month <= 12;
 }
 
+/**
+ * Whether a range cut off at the entry cap stopped before the month's end.
+ * `loadedThrough` is the day of the last loaded entry, which may itself be
+ * only partly loaded.
+ */
+export function isMonthCutOff(month: string, loadedThrough: string | undefined): boolean {
+	return loadedThrough !== undefined && loadedThrough.slice(0, 7) <= month;
+}
+
 export function shiftDay(day: string, delta: number): string {
 	return utcDayKey(dayKeyToUTC(day) + delta * DAY_MS);
 }

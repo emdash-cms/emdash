@@ -155,6 +155,37 @@ describe("CalendarAgenda", () => {
 		await expect
 			.element(screen.getByText("Nothing else is scheduled this month."))
 			.not.toBeInTheDocument();
+		await expect.element(screen.getByText(/^Later entries weren't loaded\./)).toBeVisible();
+	});
+
+	it("does not call a month empty when the range was cut off before its entries", async () => {
+		const screen = await render(
+			<CalendarAgenda
+				month="2026-10"
+				days={new Map()}
+				today="2026-10-15"
+				now={now}
+				display={display}
+				loadedThrough="2026-09-29"
+			/>,
+		);
+
+		await expect.element(screen.getByText("This month wasn't loaded")).toBeVisible();
+
+		await screen.rerender(
+			<CalendarAgenda
+				month="2026-10"
+				days={new Map()}
+				today="2026-10-15"
+				now={now}
+				display={display}
+				loadedThrough="2026-10-20"
+				onClearFilters={() => {}}
+			/>,
+		);
+
+		await expect.element(screen.getByText("No loaded entries match these filters")).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
 	});
 
 	it("keeps earlier days open while one of them holds an overdue entry", async () => {

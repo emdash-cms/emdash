@@ -53,7 +53,15 @@ function nowIndex(items: readonly CalendarItem[], now: number): number {
 	return index === -1 ? items.length : index;
 }
 
-function CalendarMonthGrid({ month, gridDays, days, today, now, display }: CalendarMonthProps) {
+function CalendarMonthGrid({
+	month,
+	gridDays,
+	days,
+	today,
+	now,
+	display,
+	loadedThrough,
+}: CalendarMonthProps) {
 	const weeks = React.useMemo(
 		() =>
 			Array.from({ length: Math.ceil(gridDays.length / 7) }, (_, week) =>
@@ -89,6 +97,7 @@ function CalendarMonthGrid({ month, gridDays, days, today, now, display }: Calen
 										day={day}
 										items={days.get(day) ?? []}
 										inMonth={day.startsWith(month)}
+										loaded={loadedThrough === undefined || day < loadedThrough}
 										today={today}
 										now={now}
 										display={display}
@@ -107,12 +116,23 @@ interface CalendarMonthCellProps {
 	day: string;
 	items: readonly CalendarItem[];
 	inMonth: boolean;
+	/** False from the day the entry cap cut the range off, which may be only partly loaded. */
+	loaded: boolean;
 	today: string;
 	now: number;
 	display: CalendarDisplay;
 }
 
-function CalendarMonthCell({ day, items, inMonth, today, now, display }: CalendarMonthCellProps) {
+function CalendarMonthCell({
+	day,
+	items,
+	inMonth,
+	loaded,
+	today,
+	now,
+	display,
+}: CalendarMonthCellProps) {
+	const { t } = useLingui();
 	const isToday = day === today;
 	const visible = items.length > MAX_CHIPS ? items.slice(0, MAX_CHIPS - 1) : items;
 	const nowAt = isToday ? nowIndex(items, now) : undefined;
@@ -184,6 +204,9 @@ function CalendarMonthCell({ day, items, inMonth, today, now, display }: Calenda
 						)}
 						{visible.length < items.length && lineAt === items.length && nowLine}
 					</ul>
+				)}
+				{items.length === 0 && !loaded && (
+					<p className="px-1 text-xs text-kumo-inactive">{t`Not loaded`}</p>
 				)}
 			</div>
 		</td>
