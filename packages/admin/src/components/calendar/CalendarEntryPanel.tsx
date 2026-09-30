@@ -489,7 +489,9 @@ function PanelProperty({
 	return (
 		<>
 			<dt className="flex items-start gap-2 text-kumo-subtle">
-				<PropertyIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+				<span className="flex h-lh shrink-0 items-center">
+					<PropertyIcon aria-hidden="true" className="size-4" />
+				</span>
 				<span className="min-w-0">{label}</span>
 			</dt>
 			<dd className="min-w-0 break-words">{children}</dd>
