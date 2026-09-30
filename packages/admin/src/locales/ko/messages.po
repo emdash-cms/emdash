@@ -1003,7 +1003,7 @@ msgstr "동의 및 업데이트"
 #: packages/admin/src/components/InviteAcceptPage.tsx:239
 #: packages/admin/src/locales/emails.ts:48
 msgid "Accept Invite"
-msgstr ""
+msgstr "초대 수락"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:305
 #: packages/admin/src/components/settings/TransferSettings.tsx:69
@@ -1026,7 +1026,7 @@ msgstr "계정"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
-msgstr ""
+msgstr "이미 계정이 있습니다"
 
 #: packages/admin/src/components/SignupPage.tsx:278
 msgid "Account exists"
@@ -1476,7 +1476,7 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
-msgstr ""
+msgstr "추가로 요청했지만 현재 역할에는 허용되지 않는 권한:"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:514
@@ -1515,7 +1515,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:236
 msgid "An encrypted digital key you unlock using your fingerprint, face, PIN, or device password."
-msgstr ""
+msgstr "지문, 얼굴 인식, PIN 또는 기기 비밀번호로 잠금을 해제하는 암호화된 디지털 키입니다."
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
@@ -1584,7 +1584,7 @@ msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:250
 msgid "An unknown error occurred"
-msgstr ""
+msgstr "알 수 없는 오류가 발생했습니다"
 
 #: packages/admin/src/components/WordPressImport.tsx:1595
 msgid "Analyzing export file..."
@@ -1670,7 +1670,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
 msgid "Approve with that device's face, fingerprint, PIN, or passcode."
-msgstr ""
+msgstr "해당 기기의 얼굴 인식, 지문, PIN 또는 암호로 승인하세요."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:195
 msgid "approved"
@@ -1775,7 +1775,7 @@ msgstr "인증 오류: {error}"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:251
 msgid "Authentication failed"
-msgstr ""
+msgstr "인증에 실패했습니다"
 
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/SecuritySettings.tsx:111
@@ -1805,7 +1805,7 @@ msgstr "승인이 거부되었습니다."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:152
 msgid "Authorization failed"
-msgstr ""
+msgstr "기기 승인에 실패했습니다"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorize"
@@ -2448,7 +2448,7 @@ msgstr "인증 확인 중..."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:340
 msgid "Checking code..."
-msgstr ""
+msgstr "코드를 확인하는 중..."
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:362
@@ -2477,7 +2477,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:493
 msgid "Checking this device for passkey support..."
-msgstr ""
+msgstr "이 기기의 패스키 지원 여부를 확인하는 중..."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:55
 msgid "Checking this site"
@@ -2491,7 +2491,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
 msgid "Choose a credential manager on this device, another device, or a security key."
-msgstr ""
+msgstr "이 기기의 자격 증명 관리자, 다른 기기 또는 보안 키를 선택하세요."
 
 #: packages/admin/src/components/ContentList.tsx:1111
 #: packages/admin/src/components/ContentList.tsx:1117
@@ -2525,7 +2525,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:567
 msgid "Choose another option"
-msgstr ""
+msgstr "다른 방법 선택"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:671
 #: packages/admin/src/components/BylineCreditsEditor.tsx:686
@@ -2551,7 +2551,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
-msgstr ""
+msgstr "Touch ID 또는 사용할 수 있는 다른 자격 증명 관리자를 선택한 다음, 지문이나 Mac 비밀번호로 확인하세요."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
 msgid "Choose when these changes replace the live version."
@@ -2563,7 +2563,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
-msgstr ""
+msgstr "Windows Hello 또는 사용할 수 있는 다른 자격 증명 관리자를 선택한 다음, PIN, 지문 또는 얼굴 인식으로 확인하세요."
 
 #: packages/admin/src/components/Settings.tsx:144
 msgid "Choose your preferred admin language"
@@ -2610,11 +2610,11 @@ msgstr ""
 
 #: packages/admin/src/locales/emails.ts:47
 msgid "Click the button below to create your account:"
-msgstr ""
+msgstr "계정을 만들려면 아래 버튼을 클릭하세요:"
 
 #: packages/admin/src/locales/emails.ts:55
 msgid "Click the button below to sign in:"
-msgstr ""
+msgstr "로그인하려면 아래 버튼을 클릭하세요:"
 
 #: packages/admin/src/components/SignupPage.tsx:155
 msgid "Click the link in the email to continue setting up your account."
@@ -2626,11 +2626,11 @@ msgstr "이메일에 있는 링크를 클릭하여 로그인하세요."
 
 #: packages/admin/src/locales/emails.ts:46
 msgid "Click this link to create your account:"
-msgstr ""
+msgstr "계정을 만들려면 이 링크를 클릭하세요:"
 
 #: packages/admin/src/locales/emails.ts:54
 msgid "Click this link to sign in to {siteName}:"
-msgstr ""
+msgstr "{siteName}에 로그인하려면 이 링크를 클릭하세요:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
@@ -2867,15 +2867,15 @@ msgstr "확인"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
-msgstr ""
+msgstr "기기나 자격 증명 관리자가 표시하는 보안 안내 창에서 확인하세요."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:194
 msgid "Confirm with Face ID, Touch ID, or your device passcode."
-msgstr ""
+msgstr "Face ID, Touch ID 또는 기기 암호로 확인하세요."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:201
 msgid "Confirm with your fingerprint, face, or PIN."
-msgstr ""
+msgstr "지문, 얼굴 인식 또는 PIN으로 확인하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:721
 #: packages/admin/src/components/WordPressImport.tsx:1076
@@ -3050,7 +3050,7 @@ msgstr ""
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:72
 msgid "Continue to finish signing in. The link works only once."
-msgstr ""
+msgstr "계속 진행하여 로그인을 완료하세요. 이 링크는 한 번만 사용할 수 있습니다."
 
 #: packages/admin/src/components/SetupWizard.tsx:355
 msgid "Continue to import"
@@ -3058,11 +3058,11 @@ msgstr "계속해서 가져오기"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
 msgid "Continue with another device"
-msgstr ""
+msgstr "다른 기기로 계속"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:710
 msgid "Continue with security key"
-msgstr ""
+msgstr "보안 키로 계속"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -3131,11 +3131,11 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:111
 msgid "Could not check this code"
-msgstr ""
+msgstr "이 코드를 확인하지 못했습니다"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:346
 msgid "Could not check this code."
-msgstr ""
+msgstr "이 코드를 확인하지 못했습니다."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:136
 msgid "Could not copy automatically. Please select the URL above and copy manually."
@@ -3376,7 +3376,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:741
 msgid "Create passkey"
-msgstr ""
+msgstr "패스키 만들기"
 
 #: packages/admin/src/components/Settings.tsx:104
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
@@ -4537,7 +4537,7 @@ msgstr "메뉴 항목 편집"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:30
 msgid "visualEditing.editMode"
-msgstr ""
+msgstr "편집 모드"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:881
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
@@ -4581,7 +4581,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:21
 msgid "visualEditing.sessionExpired"
-msgstr ""
+msgstr "편집 세션이 만료되었습니다. 계속하려면 페이지를 새로고침하세요."
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -4683,7 +4683,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:744
 msgid "EmDash never receives your PIN, password, or biometric information."
-msgstr ""
+msgstr "EmDash는 사용자의 PIN, 비밀번호 또는 생체 정보를 전달받지 않습니다."
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:39
 msgid "EmDash site package"
@@ -5345,11 +5345,11 @@ msgstr "미리보기 URL을 생성하지 못했습니다."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:173
 msgid "Failed to get authentication options"
-msgstr ""
+msgstr "인증 옵션을 가져오지 못했습니다"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:336
 msgid "Failed to get registration options"
-msgstr ""
+msgstr "등록 옵션을 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:346
 msgid "Failed to get upload URL"
@@ -5612,7 +5612,7 @@ msgstr "테스트 이메일을 보내지 못했습니다."
 
 #: packages/admin/src/components/SignupPage.tsx:367
 msgid "Failed to send verification email"
-msgstr ""
+msgstr "인증 이메일을 보내지 못했습니다"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:179
 msgid "Failed to set entry terms"
@@ -5709,7 +5709,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:245
 msgid "Failed to verify authentication"
-msgstr ""
+msgstr "인증을 검증하지 못했습니다"
 
 #: packages/admin/src/lib/api/registry.ts:734
 msgid "Failed to verify plugin"
@@ -5717,7 +5717,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:412
 msgid "Failed to verify registration"
-msgstr ""
+msgstr "등록을 검증하지 못했습니다"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:895
 msgid "FAQ"
@@ -6179,7 +6179,7 @@ msgstr "토큰 숨기기"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:32
 msgid "visualEditing.hideToolbar"
-msgstr ""
+msgstr "도구 모음 숨기기"
 
 #: packages/admin/src/components/Shell.tsx:86
 msgid "Hide toolbar"
@@ -6277,7 +6277,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:554
 msgid "I've set it up — check again"
-msgstr ""
+msgstr "설정 완료, 다시 확인"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:567
 msgid "Icon"
@@ -6298,7 +6298,7 @@ msgstr "<0>{email}</0>에 대한 계정이 존재하는 경우 로그인 링크�
 
 #: packages/admin/src/locales/emails.ts:58
 msgid "If you didn't request this, you can safely ignore this email."
-msgstr ""
+msgstr "직접 요청하지 않으셨다면 이 이메일을 무시하셔도 됩니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:437
 #: packages/admin/src/components/FieldEditor.tsx:1240
@@ -6517,7 +6517,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:536
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
-msgstr ""
+msgstr "Windows 설정에서 계정, 로그인 옵션 순서로 이동하여 PIN을 설정하세요. 지문과 얼굴 인식은 선택 사항입니다."
 
 #: packages/admin/src/components/BlocksField.tsx:359
 msgid "Inactive version"
@@ -6626,7 +6626,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:691
 msgid "Insert or tap your security key when the browser asks."
-msgstr ""
+msgstr "브라우저에서 요청하면 보안 키를 연결하거나 터치하세요."
 
 #: packages/admin/src/components/editor/TableControls.tsx:34
 msgid "Insert paragraph after"
@@ -6709,7 +6709,7 @@ msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
-msgstr ""
+msgstr "유효하지 않은 초대 링크"
 
 #: packages/admin/src/components/ContentEditor.tsx:3021
 msgid "Invalid JSON"
@@ -6721,11 +6721,11 @@ msgstr "잘못된 링크"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:240
 msgid "Invite Error"
-msgstr ""
+msgstr "초대 오류"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
-msgstr ""
+msgstr "초대의 유효기간이 만료되었습니다"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:79
 msgid "Invite Link Created"
@@ -6746,7 +6746,7 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
-msgstr ""
+msgstr "{pluginId} 플러그인의 MCP 도구 호출"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:532
 msgid "Invoke only this plugin's enabled MCP tools"
@@ -6754,7 +6754,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
-msgstr ""
+msgstr "보안 시스템 안내 창에서 선택한 인증기나 자격 증명 관리자에 저장됩니다."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:459
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
@@ -8091,12 +8091,12 @@ msgstr "다음 스크린샷"
 #. placeholder {0}: platformCopy.name
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:726
 msgid "Next, {0} will open"
-msgstr ""
+msgstr "다음 단계에서 {0}이 열립니다"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:652
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:689
 msgid "Next, the browser's passkey window will open"
-msgstr ""
+msgstr "다음 단계에서 브라우저의 패스키 창이 열립니다"
 
 #: packages/admin/src/components/ContentList.tsx:1474
 #: packages/admin/src/components/users/UserDetail.tsx:236
@@ -8150,7 +8150,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:585
 msgid "No built-in passkey authenticator found"
-msgstr ""
+msgstr "내장 패스키 인증기를 찾을 수 없습니다"
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
@@ -8278,7 +8278,7 @@ msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:192
 msgid "No invite token provided"
-msgstr ""
+msgstr "초대 토큰이 제공되지 않았습니다"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2544
 #: packages/admin/src/components/RepeaterField.tsx:167
@@ -8489,7 +8489,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
 msgid "No Windows Hello authenticator found"
-msgstr ""
+msgstr "Windows Hello 인증기를 찾을 수 없습니다"
 
 #: packages/admin/src/routes/bylines.tsx:517
 msgid "Non-guest"
@@ -8610,7 +8610,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:31
 msgid "visualEditing.openInAdmin"
-msgstr ""
+msgstr "관리자 화면에서 열기"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:554
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:575
@@ -8639,7 +8639,7 @@ msgstr "대시보드 열기"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
 msgid "Open Windows settings"
-msgstr ""
+msgstr "Windows 설정 열기"
 
 #: packages/admin/src/components/WordPressImport.tsx:1554
 msgid "Open WordPress Profile"
@@ -8821,7 +8821,7 @@ msgstr "패스키가 성공적으로 추가되었습니다"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:505
 msgid "Passkey created"
-msgstr ""
+msgstr "패스키가 만들어졌습니다"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:103
 #: packages/admin/src/components/settings/PasskeyItem.tsx:104
@@ -8865,7 +8865,7 @@ msgstr "여기서는 패스키를 사용할 수 없습니다"
 
 #: packages/admin/src/components/auth/PasskeyContextMessage.tsx:5
 msgid "Passkeys require a <0>secure context</0>: use <1>HTTPS</1>, or open the admin at <2>http://localhost</2> (with your dev port). Plain <3>http://</3> on a custom hostname is not treated as secure, even on loopback."
-msgstr ""
+msgstr "패스키에는 <0>보안 컨텍스트</0>가 필요합니다. <1>HTTPS</1>를 사용하거나, 개발 서버의 포트를 지정한 <2>http://localhost</2> 주소로 관리자 화면을 여세요. 사용자 지정 호스트 이름의 일반 <3>http://</3> 주소는 루프백으로 연결해도 보안 연결로 간주되지 않습니다."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:155
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
@@ -8984,7 +8984,7 @@ msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
-msgstr ""
+msgstr "관리자에게 새 초대를 보내 달라고 요청하세요."
 
 #: packages/admin/src/components/SetupWizard.tsx:244
 msgid "Please enter a valid email"
@@ -9059,7 +9059,7 @@ msgstr ""
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
-msgstr ""
+msgstr "플러그인 MCP 도구"
 
 #: packages/admin/src/lib/api/marketplace.ts:109
 msgid "Plugin MCP tools require explicit consent"
@@ -9299,7 +9299,7 @@ msgstr "게시 정책에 따라 예약된 콘텐츠가 차단되었습니다"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:19
 msgid "visualEditing.publish"
-msgstr ""
+msgstr "게시"
 
 #: packages/admin/src/components/ContentList.tsx:518
 #: packages/admin/src/components/ContentSettingsPanel.tsx:900
@@ -9318,7 +9318,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:26
 msgid "visualEditing.publishFailed"
-msgstr ""
+msgstr "게시에 실패했습니다. 권한을 확인한 후 다시 시도하세요."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:463
 msgid "Publish now"
@@ -9380,7 +9380,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:20
 msgid "visualEditing.publishing"
-msgstr ""
+msgstr "게시 중…"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
 msgid "Python"
@@ -9605,7 +9605,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:25
 msgid "visualEditing.refreshPage"
-msgstr ""
+msgstr "페이지 새로고침"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:337
 msgid "Refresh status"
@@ -9634,7 +9634,7 @@ msgstr "등록된 사용자"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:419
 msgid "Registration failed"
-msgstr ""
+msgstr "등록에 실패했습니다"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:426
 msgid "Registration was cancelled or timed out. Please try again."
@@ -10425,7 +10425,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:645
 msgid "Scan it with a nearby phone or tablet."
-msgstr ""
+msgstr "근처의 휴대전화나 태블릿으로 스캔하세요."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:570
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
@@ -11081,7 +11081,7 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:534
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:602
 msgid "Set up Windows Hello"
-msgstr ""
+msgstr "Windows Hello 설정"
 
 #: packages/admin/src/components/SetupWizard.tsx:626
 msgid "Set up your site"
@@ -11211,7 +11211,7 @@ msgstr "로그인하기"
 
 #: packages/admin/src/locales/emails.ts:53
 msgid "Sign in to {siteName}"
-msgstr ""
+msgstr "{siteName}에 로그인"
 
 #: packages/admin/src/components/LoginPage.tsx:234
 msgid "Sign in to your site"
@@ -11249,7 +11249,7 @@ msgstr ""
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:56
 msgid "Signing in failed. Please try again."
-msgstr ""
+msgstr "로그인에 실패했습니다. 다시 시도하세요."
 
 #: packages/admin/src/components/FieldEditor.tsx:420
 msgid "Single choice from options"
@@ -11830,7 +11830,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:200
 msgid "the Android passkey prompt"
-msgstr ""
+msgstr "Android 패스키 창"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:159
 msgid "The assistant can start one export of this site, within 15 minutes. The package includes all content and authors’ names and email addresses."
@@ -11842,11 +11842,11 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:654
 msgid "The browser controls the exact prompt and may offer another compatible method."
-msgstr ""
+msgstr "표시되는 안내 창은 브라우저가 결정하며, 호환되는 다른 방법을 제시할 수도 있습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:644
 msgid "The browser will usually show a QR code."
-msgstr ""
+msgstr "일반적으로 브라우저에 QR 코드가 표시됩니다."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:164
 msgid "The build provenance matches this release and its package."
@@ -11862,7 +11862,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
-msgstr ""
+msgstr "선택한 휴대전화나 태블릿의 자격 증명 관리자가 패스키를 저장합니다. EmDash는 패스키를 전달받지 않습니다."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "The cropped image could not be created."
@@ -11980,7 +11980,7 @@ msgstr "링크는 15분 후에 만료됩니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:186
 msgid "the macOS passkey prompt"
-msgstr ""
+msgstr "macOS 패스키 창"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:179
 msgid "The marketplace is empty. Check back later for new plugins."
@@ -12080,7 +12080,7 @@ msgstr "찾으시는 페이지가 존재하지 않습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:684
 msgid "The passkey is saved on your physical security key and can be used on compatible devices."
-msgstr ""
+msgstr "패스키는 물리적 보안 키에 저장되며, 호환되는 기기에서 사용할 수 있습니다."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:451
 msgid "The plan was changed somewhere else, such as from the command line or an AI assistant, after this page loaded it. Review it again, then start the import."
@@ -12171,7 +12171,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:179
 msgid "the Windows passkey prompt"
-msgstr ""
+msgstr "Windows 패스키 창"
 
 #: packages/admin/src/components/Sections.tsx:58
 msgid "Theme"
@@ -12226,11 +12226,11 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
-msgstr ""
+msgstr "이 코드의 유효기간이 만료되었습니다. 새 코드를 받으려면 터미널에서 로그인을 다시 시작하세요."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:348
 msgid "This code is invalid or has already been used."
-msgstr ""
+msgstr "이 코드는 유효하지 않거나 이미 사용되었습니다."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:449
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
@@ -12246,7 +12246,7 @@ msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
-msgstr ""
+msgstr "이 기기에서 다음 권한을 요청합니다:"
 
 #: packages/admin/src/components/WordPressImport.tsx:1081
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
@@ -12367,7 +12367,7 @@ msgstr ""
 
 #: packages/admin/src/locales/emails.ts:57
 msgid "This link expires in 15 minutes."
-msgstr ""
+msgstr "이 링크는 15분 후 만료됩니다."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
@@ -12375,7 +12375,7 @@ msgstr "이 링크는 7일 후에 만료되며 한 번만 사용할 수 있습�
 
 #: packages/admin/src/locales/emails.ts:49
 msgid "This link expires in 7 days."
-msgstr ""
+msgstr "이 링크는 7일 후 만료됩니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:943
 msgid "This may take a while for large exports."
@@ -12494,11 +12494,11 @@ msgstr "다른 시스템에서 가져온 섹션입니다."
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:51
 msgid "This sign-in link has expired. Request a new one from the login page."
-msgstr ""
+msgstr "이 로그인 링크의 유효기간이 만료되었습니다. 로그인 페이지에서 새 링크를 요청하세요."
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:53
 msgid "This sign-in link is invalid or has already been used. Request a new one from the login page."
-msgstr ""
+msgstr "이 로그인 링크는 유효하지 않거나 이미 사용되었습니다. 로그인 페이지에서 새 링크를 요청하세요."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:112
 #: packages/admin/src/components/settings/transfer/labels.ts:133
@@ -12523,7 +12523,7 @@ msgstr "이 사이트에는 아직 콘텐츠가 없으므로 다른 EmDash 사�
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:55
 msgid "This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs."
-msgstr ""
+msgstr "이 사이트에는 세션 저장소가 설정되지 않아 로그인을 완료할 수 없습니다. 사이트 관리자에게 astro.config.mjs에서 session.driver를 설정해 달라고 요청하세요."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:320
 msgid "This site holds partial data from an earlier import"
@@ -13231,7 +13231,7 @@ msgstr "패턴 일치를 위해 경로에 [param] 또는 [...rest]를 사용하�
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
 msgid "Use a security key"
-msgstr ""
+msgstr "보안 키 사용"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:639
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
@@ -13239,7 +13239,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:613
 msgid "Use another device"
-msgstr ""
+msgstr "다른 기기 사용"
 
 #: packages/admin/src/components/ContentList.tsx:1130
 msgid "Use as end date"
@@ -13375,7 +13375,7 @@ msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:227
 msgid "Verifying your invite..."
-msgstr ""
+msgstr "초대를 확인하는 중..."
 
 #: packages/admin/src/components/SignupPage.tsx:404
 msgid "Verifying your link..."
@@ -13488,7 +13488,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:588
 msgid "We checked before opening the browser's passkey prompt so you can choose what happens next."
-msgstr ""
+msgstr "다음 방법을 선택할 수 있도록 브라우저의 패스키 창을 열기 전에 지원 여부를 확인했습니다."
 
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1286
@@ -13505,7 +13505,7 @@ msgstr "비밀번호 없이 로그인할 수 있는 링크를 이메일로 보�
 
 #: packages/admin/src/components/SignupPage.tsx:26
 msgid "We've sent a verification link to <0>{email}</0>"
-msgstr ""
+msgstr "<0>{email}</0> 주소로 인증 링크를 보냈습니다"
 
 #: packages/admin/src/components/FieldEditor.tsx:468
 msgid "Web address"
@@ -13540,7 +13540,7 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:642
 msgid "What happens next?"
-msgstr ""
+msgstr "다음에는 무엇을 하나요?"
 
 #: packages/admin/src/components/WordPressImport.tsx:2111
 msgid "What happens when you import:"
@@ -13548,7 +13548,7 @@ msgstr "가져오면 어떻게 되나요?"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:234
 msgid "What is a passkey?"
-msgstr ""
+msgstr "패스키란 무엇인가요?"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:107
 msgid "What it leaves out"
@@ -13597,7 +13597,7 @@ msgstr "항목이 게시된 시기"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:246
 msgid "Where is it saved?"
-msgstr ""
+msgstr "어디에 저장되나요?"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1071
 msgid "Which content types can use this taxonomy"
@@ -13709,15 +13709,15 @@ msgstr "생성 예정"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:558
 msgid "Windows Hello still isn't available to this browser. You can try another device or a security key instead."
-msgstr ""
+msgstr "이 브라우저에서는 아직 Windows Hello를 사용할 수 없습니다. 대신 다른 기기나 보안 키를 사용해 보세요."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
 msgid "Windows will show which credential manager will save it before creating it."
-msgstr ""
+msgstr "Windows는 패스키를 만들기 전에 저장할 자격 증명 관리자를 표시합니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:224
 msgid "With a passkey, you don’t need to remember complex passwords"
-msgstr ""
+msgstr "패스키를 사용하면 복잡한 비밀번호를 기억할 필요가 없습니다"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
@@ -13800,7 +13800,7 @@ msgstr "사이트를 열람하고 기여할 수 있습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:511
 msgid "You can view, rename, or add more passkeys later in Security settings."
-msgstr ""
+msgstr "나중에 보안 설정에서 패스키를 확인하거나 이름을 바꾸고, 패스키를 더 추가할 수 있습니다."
 
 #: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
@@ -13851,7 +13851,7 @@ msgstr "더 이상 이 패스키를 사용하여 로그인할 수 없습니다. 
 #. placeholder {0}: inviteData.roleName
 #: packages/admin/src/components/InviteAcceptPage.tsx:56
 msgid "You'll be joining as <0>{0}</0>"
-msgstr ""
+msgstr "<0>{0}</0> 역할로 참여하게 됩니다"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:801
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
@@ -13863,7 +13863,7 @@ msgstr "연결을 승인하기 위해 WordPress로 이동합니다."
 
 #: packages/admin/src/components/SignupPage.tsx:35
 msgid "You'll be signing up as <0>{roleName}</0>"
-msgstr ""
+msgstr "<0>{roleName}</0> 역할로 가입하게 됩니다"
 
 #: packages/admin/src/components/SetupWizard.tsx:631
 msgid "You're signed in via Cloudflare Access"
@@ -13871,15 +13871,15 @@ msgstr "Cloudflare Access로 로그인되어 있습니다"
 
 #: packages/admin/src/locales/emails.ts:44
 msgid "You've been invited to {siteName}"
-msgstr ""
+msgstr "{siteName}에 초대되었습니다"
 
 #: packages/admin/src/locales/emails.ts:45
 msgid "You've been invited to join {siteName}."
-msgstr ""
+msgstr "{siteName}에 참여하도록 초대받으셨습니다."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"
-msgstr ""
+msgstr "초대받으셨습니다!"
 
 #: packages/admin/src/components/SignupPage.tsx:88
 msgid "you@company.com"
@@ -13900,12 +13900,12 @@ msgstr "브라우저가 패스키를 지원하지 않습니다. Chrome, Safari, 
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
 msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
-msgstr ""
+msgstr "Google 비밀번호 관리자와 같은 자격 증명 관리자가 패스키를 저장하며, 다른 기기와 동기화할 수도 있습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:188
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:195
 msgid "Your credential manager, such as iCloud Keychain, saves it and may sync it to your other devices."
-msgstr ""
+msgstr "iCloud 키체인과 같은 자격 증명 관리자가 패스키를 저장하며, 다른 기기와 동기화할 수도 있습니다."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:264
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:432
@@ -13914,12 +13914,12 @@ msgstr "기기가 필수 보안 기능을 지원하지 않습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:209
 msgid "Your device's credential manager saves it and will show you where before creating it."
-msgstr ""
+msgstr "기기의 자격 증명 관리자가 패스키를 저장하며, 패스키를 만들기 전에 저장 위치를 표시합니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:193
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:207
 msgid "your device's passkey prompt"
-msgstr ""
+msgstr "기기의 패스키 창"
 
 #: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
@@ -13961,7 +13961,7 @@ msgstr "내 역할"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
-msgstr ""
+msgstr "현재 역할로는 이 기기에서 요청한 권한을 하나도 사용할 수 없습니다."
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:691
