@@ -1143,7 +1143,7 @@ msgstr "콘텐츠 추가"
 #: packages/admin/src/components/MenuEditor.tsx:399
 #: packages/admin/src/components/MenuEditor.tsx:502
 msgid "Add Custom Link"
-msgstr "맞춤 링크 추가"
+msgstr "커스텀 링크 추가"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Add dark mode variant"
@@ -12192,7 +12192,7 @@ msgstr "테마 섹션"
 
 #: packages/admin/src/components/Sections.tsx:341
 msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
-msgstr "테마가 제공되는 섹션은 삭제할 수 없습니다. 섹션을 편집하여 사용자 지정 복사본을 만든 다음 삭제하세요."
+msgstr "테마에서 제공하는 섹션은 삭제할 수 없습니다. 섹션을 편집해 커스텀 사본을 만든 다음 그 사본을 삭제하세요."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
