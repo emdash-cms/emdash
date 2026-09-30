@@ -195,6 +195,24 @@ describe("Iframe block preview", () => {
 	});
 });
 
+describe("Iframe block clipboard", () => {
+	it("keeps iframes copied on this page and empties those from other pages", async () => {
+		const { editor } = await renderEditor({
+			value: [{ _type: "iframe", _key: "saved", src: "https://example.com/map", title: "Map" }],
+		});
+		const iframeAttrs = () =>
+			editor.getJSON().content?.find((node) => node.type === "iframeBlock")?.attrs;
+
+		editor.commands.setContent(editor.getHTML());
+		expect(iframeAttrs()).toMatchObject({ src: "https://example.com/map", title: "Map" });
+
+		editor.commands.setContent(
+			'<div data-iframe-block data-iframe-src="https://example.com/login" data-iframe-title="Map"></div>',
+		);
+		expect(iframeAttrs()).toMatchObject({ src: "", title: "" });
+	});
+});
+
 describe("Iframe block with a plugin's iframe block", () => {
 	it("keeps the plugin's block and slash command", async () => {
 		const saved: Block = { _type: "iframe", _key: "plugin", src: "https://example.com/" };

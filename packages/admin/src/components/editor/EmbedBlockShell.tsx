@@ -23,6 +23,14 @@ import type { CodeEditorProps } from "./CodeEditor";
 const CodeEditor = React.lazy(() => import("./CodeEditor"));
 
 /**
+ * Written into the clipboard HTML of embed blocks. Other pages and tabs can't
+ * know it, so blocks pasted from them can be told apart.
+ */
+export const CLIPBOARD_TOKEN = Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) =>
+	n.toString(36),
+).join("");
+
+/**
  * Document node that also accepts `topBlock` nodes. Quotes, list items and
  * table cells accept only `block`, so ProseMirror can't nest a top-level
  * block there, where the Portable Text converters would drop it.

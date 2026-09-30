@@ -17,6 +17,7 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils";
 import {
+	CLIPBOARD_TOKEN,
 	EmbedBlockCard,
 	EmbedCodeEditor,
 	embedBlockKeyboardShortcuts,
@@ -255,10 +256,15 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 	);
 }
 
+// Iframes pasted from other pages arrive empty, so a page can't put its own embed on the site.
+const copiedHere = (element: HTMLElement) =>
+	element.getAttribute("data-iframe-token") === CLIPBOARD_TOKEN;
+
 function textAttribute(name: string) {
 	return {
 		default: "",
-		parseHTML: (element: HTMLElement) => element.getAttribute(`data-iframe-${name}`) ?? "",
+		parseHTML: (element: HTMLElement) =>
+			(copiedHere(element) && element.getAttribute(`data-iframe-${name}`)) || "",
 		renderHTML: (attributes: Record<string, unknown>) =>
 			typeof attributes[name] === "string" && attributes[name]
 				? { [`data-iframe-${name}`]: attributes[name] }
@@ -270,6 +276,7 @@ function numberAttribute(name: string) {
 	return {
 		default: null,
 		parseHTML: (element: HTMLElement) => {
+			if (!copiedHere(element)) return null;
 			const value = Number(element.getAttribute(`data-iframe-${name}`));
 			return Number.isInteger(value) && value > 0 ? value : null;
 		},
@@ -301,7 +308,8 @@ export const IframeBlockExtension = Node.create({
 			allow: textAttribute("allow"),
 			allowFullscreen: {
 				default: false,
-				parseHTML: (element: HTMLElement) => element.hasAttribute("data-iframe-allowfullscreen"),
+				parseHTML: (element: HTMLElement) =>
+					copiedHere(element) && element.hasAttribute("data-iframe-allowfullscreen"),
 				renderHTML: (attributes: Record<string, unknown>) =>
 					attributes.allowFullscreen === true ? { "data-iframe-allowfullscreen": "" } : {},
 			},
@@ -313,7 +321,13 @@ export const IframeBlockExtension = Node.create({
 	},
 
 	renderHTML({ HTMLAttributes }) {
-		return ["div", mergeAttributes(HTMLAttributes, { "data-iframe-block": "" })];
+		return [
+			"div",
+			mergeAttributes(HTMLAttributes, {
+				"data-iframe-block": "",
+				"data-iframe-token": CLIPBOARD_TOKEN,
+			}),
+		];
 	},
 
 	addNodeView() {
