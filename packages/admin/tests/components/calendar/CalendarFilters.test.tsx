@@ -17,7 +17,7 @@ const display = createCalendarDisplay({
 });
 
 describe("CalendarFilters", () => {
-	it("summarizes each filter and adds or removes the chosen option", async () => {
+	it("names each active filter on its button and adds or removes the chosen option", async () => {
 		const onChange = vi.fn();
 		const screen = await render(
 			<CalendarFilters
@@ -29,8 +29,8 @@ describe("CalendarFilters", () => {
 			/>,
 		);
 
-		await expect.element(screen.getByRole("button", { name: "Locale: All locales" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "State: 2 states" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Locale", exact: true })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "State: Published +1" })).toBeVisible();
 
 		await screen.getByRole("button", { name: "Collection: Posts" }).click();
 		await screen.getByRole("menuitemcheckbox", { name: "Pages" }).click();
@@ -38,5 +38,27 @@ describe("CalendarFilters", () => {
 
 		await screen.getByRole("menuitemcheckbox", { name: "Posts" }).click();
 		expect(onChange).toHaveBeenLastCalledWith({ collections: [] });
+	});
+
+	it("puts every filter in one menu on narrow layouts", async () => {
+		const onChange = vi.fn();
+		const screen = await render(
+			<CalendarFilters
+				display={display}
+				collections={collections}
+				locales={["en", "fr"]}
+				value={{ collections: [], locales: ["fr"], states: [] }}
+				onChange={onChange}
+				compact
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Filter: 1 selected" }).click();
+		await screen.getByRole("menuitemcheckbox", { name: "Overdue" }).click();
+		expect(onChange).toHaveBeenLastCalledWith({ states: ["overdue"] });
+
+		await expect.element(screen.getByRole("menuitemcheckbox", { name: "Pages" })).toBeVisible();
+		await screen.getByRole("menuitem", { name: "Clear filters" }).click();
+		expect(onChange).toHaveBeenLastCalledWith({ collections: [], locales: [], states: [] });
 	});
 });

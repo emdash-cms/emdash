@@ -1,99 +1,87 @@
-import { Button, DropdownMenu } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import { Badge, Button, DropdownMenu } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { CaretDown, X } from "@phosphor-icons/react";
+import { CaretDown, Funnel, X } from "@phosphor-icons/react";
 import type * as React from "react";
 
 import {
 	CALENDAR_STATES,
 	type CalendarDisplay,
 	type CalendarFilterValues,
-	type CalendarState,
 } from "../../lib/calendar.js";
 import { getLocaleLabel } from "../../locales/index.js";
 import {
 	CALENDAR_STATE_LABELS,
-	CalendarCollectionDot,
+	CalendarCollectionTag,
 	CalendarStateIcon,
 } from "./CalendarEntry.js";
 
-export interface CalendarFilterOption {
+type FilterKey = keyof CalendarFilterValues;
+
+interface CalendarFilterOption {
 	value: string;
+	/** The plain name, for the trigger's summary. */
 	label: string;
-	/** A small visual cue before the label, such as a color dot or an icon. */
-	swatch?: React.ReactNode;
+	/** What the menu shows for the option, such as a tag or an icon with the name. */
+	content: React.ReactNode;
 }
 
-interface CalendarFilterMenuProps {
-	/** What the menu filters, announced before the summary ("Collection: 2 collections"). */
+interface CalendarFilterGroup {
+	key: FilterKey;
 	label: string;
-	/** The trigger text, describing the current selection. */
-	summary: string;
 	options: readonly CalendarFilterOption[];
-	/** Selected values; an empty selection means all. */
-	selected: readonly string[];
-	onChange: (selected: string[]) => void;
-}
-
-/** A multi-select dropdown whose trigger summarizes the selection. */
-export function CalendarFilterMenu({
-	label,
-	summary,
-	options,
-	selected,
-	onChange,
-}: CalendarFilterMenuProps) {
-	const { t } = useLingui();
-	return (
-		<DropdownMenu>
-			<DropdownMenu.Trigger
-				render={
-					<Button
-						variant="secondary"
-						size="sm"
-						className="gap-1 px-3 font-normal"
-						aria-label={t`${label}: ${summary}`}
-					>
-						<span className="max-w-40 truncate">{summary}</span>
-						<CaretDown aria-hidden="true" className="size-3 shrink-0" />
-					</Button>
-				}
-			/>
-			<DropdownMenu.Content align="start" className="min-w-52">
-				<DropdownMenu.Group>
-					<DropdownMenu.Label>{label}</DropdownMenu.Label>
-					{options.map((option) => (
-						<DropdownMenu.CheckboxItem
-							key={option.value}
-							checked={selected.includes(option.value)}
-							closeOnClick={false}
-							onCheckedChange={(checked) =>
-								onChange(
-									checked
-										? [...selected, option.value]
-										: selected.filter((value) => value !== option.value),
-								)
-							}
-						>
-							<span className="flex min-w-0 items-center gap-2">
-								{option.swatch}
-								<span className="truncate">{option.label}</span>
-							</span>
-						</DropdownMenu.CheckboxItem>
-					))}
-				</DropdownMenu.Group>
-			</DropdownMenu.Content>
-		</DropdownMenu>
-	);
 }
 
 interface CalendarFiltersProps {
 	display: CalendarDisplay;
 	collections: ReadonlyArray<{ slug: string; label: string }>;
-	/** Content locales; the locale menu shows only when there is more than one. */
+	/** Content locales; the locale filter shows only when there is more than one. */
 	locales: readonly string[];
 	value: CalendarFilterValues;
 	onChange: (value: Partial<CalendarFilterValues>) => void;
+	/** Narrow layouts put every filter in one menu. */
+	compact?: boolean;
+}
+
+const NO_FILTERS: CalendarFilterValues = { collections: [], locales: [], states: [] };
+
+/** The checkbox groups a filter menu lists; an empty selection means all. */
+function CalendarFilterOptions({
+	groups,
+	value,
+	onChange,
+}: {
+	groups: readonly CalendarFilterGroup[];
+	value: CalendarFilterValues;
+	onChange: (value: Partial<CalendarFilterValues>) => void;
+}) {
+	return groups.map((group) => {
+		const selected: readonly string[] = value[group.key];
+		return (
+			<DropdownMenu.Group key={group.key}>
+				<DropdownMenu.Label>{group.label}</DropdownMenu.Label>
+				{group.options.map((option) => (
+					<DropdownMenu.CheckboxItem
+						key={option.value}
+						checked={selected.includes(option.value)}
+						closeOnClick={false}
+						onCheckedChange={(checked) => {
+							const next = checked
+								? [...selected, option.value]
+								: selected.filter((entry) => entry !== option.value);
+							// Menu order keeps the URL stable however the options were picked.
+							onChange({
+								[group.key]: group.options
+									.map((entry) => entry.value)
+									.filter((entry) => next.includes(entry)),
+							});
+						}}
+					>
+						<span className="flex min-w-0 items-center gap-2">{option.content}</span>
+					</DropdownMenu.CheckboxItem>
+				))}
+			</DropdownMenu.Group>
+		);
+	});
 }
 
 export function CalendarFilters({
@@ -102,71 +90,134 @@ export function CalendarFilters({
 	locales,
 	value,
 	onChange,
+	compact,
 }: CalendarFiltersProps) {
 	const { t } = useLingui();
-	const active = value.collections.length + value.locales.length + value.states.length > 0;
+	const groups: CalendarFilterGroup[] = [
+		{
+			key: "collections",
+			label: t`Collection`,
+			options: collections.map((collection) => ({
+				value: collection.slug,
+				label: collection.label,
+				content: <CalendarCollectionTag slug={collection.slug} display={display} />,
+			})),
+		},
+		...(locales.length > 1
+			? [
+					{
+						key: "locales" as const,
+						label: t`Locale`,
+						options: locales.map((locale) => ({
+							value: locale,
+							label: getLocaleLabel(locale),
+							content: (
+								<>
+									<span
+										aria-hidden="true"
+										className="w-7 shrink-0 rounded-sm bg-kumo-fill py-0.5 text-center text-[10px] leading-4 font-semibold tracking-wide text-kumo-subtle uppercase"
+									>
+										{locale}
+									</span>
+									<span className="truncate">{getLocaleLabel(locale)}</span>
+								</>
+							),
+						})),
+					},
+				]
+			: []),
+		{
+			key: "states",
+			label: t`State`,
+			options: CALENDAR_STATES.map((state) => ({
+				value: state,
+				label: t(CALENDAR_STATE_LABELS[state]),
+				content: (
+					<>
+						<CalendarStateIcon state={state} />
+						<span className="truncate">{t(CALENDAR_STATE_LABELS[state])}</span>
+					</>
+				),
+			})),
+		},
+	];
+	const activeCount = value.collections.length + value.locales.length + value.states.length;
 
-	const collectionSummary =
-		value.collections.length === 0
-			? t`All collections`
-			: value.collections.length === 1
-				? display.collection(value.collections[0] ?? "").label
-				: plural(value.collections.length, { one: "# collection", other: "# collections" });
-	const localeSummary =
-		value.locales.length === 0
-			? t`All locales`
-			: value.locales.length === 1
-				? getLocaleLabel(value.locales[0] ?? "")
-				: plural(value.locales.length, { one: "# locale", other: "# locales" });
-	const firstState = value.states[0];
-	const stateSummary =
-		value.states.length === 0
-			? t`All states`
-			: value.states.length === 1 && firstState
-				? t(CALENDAR_STATE_LABELS[firstState])
-				: plural(value.states.length, { one: "# state", other: "# states" });
+	if (compact) {
+		return (
+			<DropdownMenu>
+				<DropdownMenu.Trigger
+					render={
+						<Button
+							variant={activeCount > 0 ? "secondary" : "ghost"}
+							size="sm"
+							icon={<Funnel aria-hidden="true" />}
+							aria-label={activeCount > 0 ? t`Filter: ${activeCount} selected` : t`Filter`}
+						>
+							{t`Filter`}
+							{activeCount > 0 && (
+								<Badge variant="blue" className="min-w-5 justify-center px-1 tabular-nums">
+									{activeCount}
+								</Badge>
+							)}
+						</Button>
+					}
+				/>
+				<DropdownMenu.Content align="end" className="max-h-[70dvh] min-w-60 overflow-y-auto">
+					<CalendarFilterOptions groups={groups} value={value} onChange={onChange} />
+					{activeCount > 0 && (
+						<>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item
+								icon={<X aria-hidden="true" className="me-1.5 size-3.5" />}
+								onClick={() => onChange(NO_FILTERS)}
+							>
+								{t`Clear filters`}
+							</DropdownMenu.Item>
+						</>
+					)}
+				</DropdownMenu.Content>
+			</DropdownMenu>
+		);
+	}
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
-			<CalendarFilterMenu
-				label={t`Collection`}
-				summary={collectionSummary}
-				selected={value.collections}
-				onChange={(selected) => onChange({ collections: selected })}
-				options={collections.map((collection) => ({
-					value: collection.slug,
-					label: collection.label,
-					swatch: <CalendarCollectionDot color={display.collection(collection.slug).color} />,
-				}))}
-			/>
-			{locales.length > 1 && (
-				<CalendarFilterMenu
-					label={t`Locale`}
-					summary={localeSummary}
-					selected={value.locales}
-					onChange={(selected) => onChange({ locales: selected })}
-					options={locales.map((locale) => ({ value: locale, label: getLocaleLabel(locale) }))}
-				/>
-			)}
-			<CalendarFilterMenu
-				label={t`State`}
-				summary={stateSummary}
-				selected={value.states}
-				onChange={(selected) =>
-					onChange({ states: CALENDAR_STATES.filter((state) => selected.includes(state)) })
-				}
-				options={CALENDAR_STATES.map((state: CalendarState) => ({
-					value: state,
-					label: t(CALENDAR_STATE_LABELS[state]),
-					swatch: <CalendarStateIcon state={state} />,
-				}))}
-			/>
-			{active && (
+		<div className="flex flex-wrap items-center justify-end gap-1">
+			{groups.map((group) => {
+				const selected: readonly string[] = value[group.key];
+				const first = group.options.find((option) => option.value === selected[0])?.label;
+				const more = selected.length - 1;
+				const summary = !first
+					? group.label
+					: more > 0
+						? t`${group.label}: ${first} +${more}`
+						: t`${group.label}: ${first}`;
+				return (
+					<DropdownMenu key={group.key}>
+						<DropdownMenu.Trigger
+							render={
+								<Button
+									variant={first ? "secondary" : "ghost"}
+									size="sm"
+									className="gap-1 font-normal"
+								>
+									<span className="max-w-48 truncate">{summary}</span>
+									<CaretDown aria-hidden="true" className="size-3 shrink-0" />
+								</Button>
+							}
+						/>
+						<DropdownMenu.Content align="end" className="min-w-56">
+							<CalendarFilterOptions groups={[group]} value={value} onChange={onChange} />
+						</DropdownMenu.Content>
+					</DropdownMenu>
+				);
+			})}
+			{activeCount > 0 && (
 				<Button
 					variant="ghost"
 					size="sm"
 					icon={<X aria-hidden="true" />}
-					onClick={() => onChange({ collections: [], locales: [], states: [] })}
+					onClick={() => onChange(NO_FILTERS)}
 				>
 					{t`Clear filters`}
 				</Button>

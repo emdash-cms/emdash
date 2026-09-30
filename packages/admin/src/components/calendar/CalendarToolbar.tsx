@@ -10,6 +10,8 @@ import { CalendarStateIcon } from "./CalendarEntry.js";
 interface CalendarToolbarProps {
 	title: string;
 	display: CalendarDisplay;
+	/** An instant in the shown month, for zone names that change with daylight saving time. */
+	zoneTime: number;
 	loading: boolean;
 	/** Entries per state in the month, shown as a legend; omitted until the whole month has loaded. */
 	counts?: Record<CalendarState, number>;
@@ -24,6 +26,7 @@ interface CalendarToolbarProps {
 export function CalendarToolbar({
 	title,
 	display,
+	zoneTime,
 	loading,
 	counts,
 	onPrevious,
@@ -33,7 +36,14 @@ export function CalendarToolbar({
 	onPreviewNext,
 }: CalendarToolbarProps) {
 	const { t } = useLingui();
-	const viewerZone = display.viewerZoneName;
+	const siteZone = display.zoneShortName(zoneTime);
+	const viewerZone = display.viewerZoneShortName(zoneTime);
+	const showViewerZone = display.viewerZoneDiffers && viewerZone !== siteZone;
+	const zoneName = display.zoneName;
+	const viewerZoneName = display.viewerZoneName;
+	const zoneDescription = showViewerZone
+		? t`Times are in ${zoneName}. Your browser uses ${viewerZoneName}.`
+		: t`Times are in ${zoneName}.`;
 
 	return (
 		<div className="grid gap-2">
@@ -69,15 +79,15 @@ export function CalendarToolbar({
 				</div>
 			</div>
 			<div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-				<p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-kumo-subtle">
+				<p
+					title={zoneDescription}
+					className="flex items-center gap-1.5 text-sm text-kumo-subtle tabular-nums"
+				>
 					<Globe aria-hidden="true" className="size-4 shrink-0" />
-					<span>{display.zoneName}</span>
-					{display.viewerZoneDiffers && (
-						<>
-							<span aria-hidden="true">·</span>
-							<span>{t`Your browser uses ${viewerZone}`}</span>
-						</>
-					)}
+					<span aria-hidden="true">
+						{showViewerZone ? t`${siteZone} · Your time: ${viewerZone}` : siteZone}
+					</span>
+					<span className="sr-only">{zoneDescription}</span>
 				</p>
 				{counts && <CalendarLegend counts={counts} />}
 			</div>

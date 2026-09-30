@@ -72,7 +72,7 @@ describe("CalendarPage", () => {
 
 		await expect.element(screen.getByRole("link", { name: /Entry launch/ })).toBeVisible();
 		await expect
-			.element(screen.getByRole("button", { name: "Collection: All collections" }))
+			.element(screen.getByRole("button", { name: "Collection", exact: true }))
 			.toBeVisible();
 	});
 

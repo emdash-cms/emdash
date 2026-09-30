@@ -193,13 +193,25 @@ export function groupByDay(items: readonly CalendarItem[]): Map<string, Calendar
 	return days;
 }
 
-export function formatLateness(ms: number, locale: string): string {
-	const format = new Intl.RelativeTimeFormat(locale, { numeric: "always" });
+/** The largest whole unit of a span: minutes under an hour, hours under two days, then days. */
+function durationParts(ms: number): { value: number; unit: "minute" | "hour" | "day" } {
 	const minutes = Math.max(1, Math.round(ms / 60_000));
-	if (minutes < 60) return format.format(-minutes, "minute");
+	if (minutes < 60) return { value: minutes, unit: "minute" };
 	const hours = Math.round(ms / 3_600_000);
-	if (hours < 48) return format.format(-hours, "hour");
-	return format.format(-Math.round(ms / DAY_MS), "day");
+	if (hours < 48) return { value: hours, unit: "hour" };
+	return { value: Math.round(ms / DAY_MS), unit: "day" };
+}
+
+/** How long ago, such as "12 minutes ago". */
+export function formatTimeAgo(ms: number, locale: string): string {
+	const { value, unit } = durationParts(ms);
+	return new Intl.RelativeTimeFormat(locale, { numeric: "always" }).format(-value, unit);
+}
+
+/** A short span, such as "12 min" or "3 hr". */
+export function formatShortDuration(ms: number, locale: string): string {
+	const { value, unit } = durationParts(ms);
+	return new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "short" }).format(value);
 }
 
 export function isCalendarState(value: string): value is CalendarState {
@@ -254,7 +266,12 @@ export interface CalendarDisplay {
 	viewerZoneDiffers: boolean;
 	zoneName: string;
 	viewerZoneName: string;
+	/** Short zone names such as "UTC" or "GMT+1", which depend on the date for zones with DST. */
+	zoneShortName(time: number): string;
+	viewerZoneShortName(time: number): string;
 	showLocale: boolean;
+	/** Whether the day falls on the admin locale's weekend. */
+	isWeekend(day: string): boolean;
 	formatTime(time: number): string;
 	/** Browser-zone time, prefixed with the weekday when its date differs from the site's. */
 	formatViewerTime(time: number): string;
@@ -300,6 +317,29 @@ function zoneDisplayName(locale: string, timeZone: string): string {
 	return part?.value ?? timeZone;
 }
 
+function shortZoneNameFormatter(locale: string, timeZone: string) {
+	const formatter = new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: "short" });
+	return (time: number) =>
+		formatter.formatToParts(time).find((entry) => entry.type === "timeZoneName")?.value ?? timeZone;
+}
+
+type LocaleWithWeekInfo = Intl.Locale & {
+	getWeekInfo?: () => { weekend?: number[] };
+	weekInfo?: { weekend?: number[] };
+};
+
+/** The locale's weekend as `getUTCDay` numbers, or Saturday and Sunday where `Intl` can't tell. */
+function weekendDays(locale: string): ReadonlySet<number> {
+	let weekend: number[] | undefined;
+	try {
+		const info = new Intl.Locale(locale) as LocaleWithWeekInfo;
+		weekend = (info.getWeekInfo?.() ?? info.weekInfo)?.weekend;
+	} catch {
+		weekend = undefined;
+	}
+	return new Set(weekend?.length ? weekend.map((day) => day % 7) : [6, 0]);
+}
+
 /** Formatters for day keys: pinned to UTC and the Gregorian calendar the grid uses. */
 function dayFormatter(locale: string, options: Intl.DateTimeFormatOptions) {
 	const formatter = new Intl.DateTimeFormat(locale, {
@@ -321,6 +361,7 @@ export function createCalendarDisplay(options: CalendarDisplayOptions): Calendar
 			: timeZone;
 	const zoneName = zoneDisplayName(locale, timeZone);
 	const viewerZoneName = zoneDisplayName(locale, viewerTimeZone);
+	const weekend = weekendDays(locale);
 
 	const time = new Intl.DateTimeFormat(locale, { timeZone, hour: "numeric", minute: "2-digit" });
 	const dateTime = new Intl.DateTimeFormat(locale, {
@@ -369,7 +410,10 @@ export function createCalendarDisplay(options: CalendarDisplayOptions): Calendar
 		viewerZoneDiffers: viewerTimeZone !== timeZone && viewerZoneName !== zoneName,
 		zoneName,
 		viewerZoneName,
+		zoneShortName: shortZoneNameFormatter(locale, timeZone),
+		viewerZoneShortName: shortZoneNameFormatter(locale, viewerTimeZone),
 		showLocale,
+		isWeekend: (day) => weekend.has(new Date(dayKeyToUTC(day)).getUTCDay()),
 		formatTime: (value) => time.format(value),
 		formatViewerTime: (value) =>
 			dayKeyInZone(value, viewerTimeZone) === dayKeyInZone(value, timeZone)

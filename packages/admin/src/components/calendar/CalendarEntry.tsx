@@ -13,7 +13,8 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
-	formatLateness,
+	formatShortDuration,
+	formatTimeAgo,
 	type CalendarDisplay,
 	type CalendarItem,
 	type CalendarState,
@@ -51,6 +52,14 @@ const COLLECTION_DOTS: Record<CollectionColor, string> = {
 	neutral: "bg-kumo-badge-neutral",
 };
 
+const COLLECTION_TINTS: Record<CollectionColor, string> = {
+	blue: "bg-kumo-badge-blue/15",
+	purple: "bg-kumo-badge-purple/15",
+	teal: "bg-kumo-badge-teal/15",
+	green: "bg-kumo-badge-green/15",
+	neutral: "bg-kumo-fill",
+};
+
 export function CalendarStateIcon({
 	state,
 	className,
@@ -82,17 +91,22 @@ export function CalendarCollectionDot({
 	);
 }
 
+/** A collection's name on its tint, the way the grid colors its dots. */
 export function CalendarCollectionTag({
 	slug,
 	display,
+	className,
 }: {
 	slug: string;
 	display: CalendarDisplay;
+	className?: string;
 }) {
 	const { label, color } = display.collection(slug);
 	return (
-		<Badge variant="secondary" className="max-w-40 gap-1.5">
-			<CalendarCollectionDot color={color} />
+		<Badge
+			variant="secondary"
+			className={cn("max-w-40 rounded-sm text-kumo-default", COLLECTION_TINTS[color], className)}
+		>
 			<span className="truncate">{label}</span>
 		</Badge>
 	);
@@ -111,7 +125,7 @@ export function CalendarLocaleChip({ locale }: { locale: string }) {
 function useStateNote(item: CalendarItem, display: CalendarDisplay, now: number): string | null {
 	const { t } = useLingui();
 	if (item.state === "overdue") {
-		const lateness = formatLateness(now - item.time, display.locale);
+		const lateness = formatTimeAgo(now - item.time, display.locale);
 		return t`Overdue · ${lateness}`;
 	}
 	if (item.state === "update") return t`Update`;
@@ -152,13 +166,13 @@ export function CalendarEntryRow({ item, display, now }: CalendarEntryRowProps) 
 			params={{ collection: item.collection, id: item.id }}
 			search={{ locale: item.locale }}
 			className={cn(
-				"grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand motion-reduce:transition-none",
+				"grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand motion-reduce:transition-none",
 				display.viewerZoneDiffers
 					? "@lg:grid-cols-[8.5rem_minmax(0,1fr)_auto]"
 					: "@lg:grid-cols-[5rem_minmax(0,1fr)_auto]",
 			)}
 		>
-			<span className="row-span-2 self-start text-sm leading-5 text-kumo-subtle tabular-nums @lg:row-span-1 @lg:self-center">
+			<span className="row-span-2 self-start leading-5 text-kumo-subtle tabular-nums @lg:row-span-1 @lg:self-center">
 				{display.formatTime(item.time)}
 				{viewerTime && <span className="hidden text-xs leading-4 @lg:block">{viewerTime}</span>}
 			</span>
@@ -232,9 +246,11 @@ function CalendarEntryDetails({ item, display }: { item: CalendarItem; display: 
 export function CalendarEntryChip({
 	item,
 	display,
+	now,
 }: {
 	item: CalendarItem;
 	display: CalendarDisplay;
+	now: number;
 }) {
 	const { t } = useLingui();
 	const { label, color } = display.collection(item.collection);
@@ -242,6 +258,7 @@ export function CalendarEntryChip({
 	const time = display.formatTime(item.time);
 	const flat = item.state === "published";
 	const overdue = item.state === "overdue";
+	const lateness = overdue ? formatShortDuration(now - item.time, display.locale) : "";
 
 	const link = (
 		<Link
@@ -276,7 +293,10 @@ export function CalendarEntryChip({
 						<CalendarStateIcon state={item.state} className="size-3.5" />
 						<span className="shrink-0 tabular-nums">{time}</span>
 						{overdue ? (
-							<span className="truncate font-medium text-kumo-warning">{state}</span>
+							<>
+								<span className="sr-only">{state}</span>
+								<span className="truncate font-medium text-kumo-warning">{t`${lateness} late`}</span>
+							</>
 						) : (
 							<>
 								<span className="sr-only">{state}</span>

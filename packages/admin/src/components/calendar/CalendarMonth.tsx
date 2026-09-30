@@ -156,7 +156,7 @@ function CalendarMonthCell({
 			aria-current={isToday ? "date" : undefined}
 			className={cn(
 				"border-s border-t border-kumo-line p-1 align-top first:border-s-0",
-				!inMonth && "bg-kumo-elevated",
+				(!inMonth || display.isWeekend(day)) && "bg-kumo-elevated",
 			)}
 		>
 			<div className="flex min-h-28 min-w-0 flex-col gap-1">
@@ -186,7 +186,7 @@ function CalendarMonthCell({
 							<React.Fragment key={item.key}>
 								{index === lineAt && nowLine}
 								<li className="grid min-w-0">
-									<CalendarEntryChip item={item} display={display} />
+									<CalendarEntryChip item={item} display={display} now={now} />
 								</li>
 							</React.Fragment>
 						))}

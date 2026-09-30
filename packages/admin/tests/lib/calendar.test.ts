@@ -7,6 +7,7 @@ import {
 	dayKeyInZone,
 	fetchRange,
 	filterItems,
+	formatShortDuration,
 	monthGridDays,
 	parseCalendarSearch,
 	toCalendarItems,
@@ -59,6 +60,16 @@ describe("dayKeyInZone and fetchRange", () => {
 
 describe("createCalendarDisplay", () => {
 	const options = { locale: "en", collections: [], showLocale: false };
+
+	it("shades the admin locale's weekend", () => {
+		const english = createCalendarDisplay({ ...options, timeZone: "UTC" });
+		const arabic = createCalendarDisplay({ ...options, locale: "ar", timeZone: "UTC" });
+		// October 16 to 18, 2026 run Friday to Sunday.
+		const days = ["2026-10-16", "2026-10-17", "2026-10-18"];
+
+		expect(days.map((day) => english.isWeekend(day))).toEqual([false, true, true]);
+		expect(days.map((day) => arabic.isWeekend(day))).toEqual([true, true, false]);
+	});
 
 	it("shows the browser's time, with its weekday when the date differs", () => {
 		const display = createCalendarDisplay({
@@ -154,6 +165,14 @@ describe("parseCalendarSearch", () => {
 				month: undefined,
 			});
 		}
+	});
+});
+
+describe("formatShortDuration", () => {
+	it("uses the largest whole unit", () => {
+		expect(formatShortDuration(12 * 60_000, "en")).toBe("12 min");
+		expect(formatShortDuration(3 * 3_600_000, "en")).toBe("3 hr");
+		expect(formatShortDuration(3 * 86_400_000, "en")).toBe("3 days");
 	});
 });
 

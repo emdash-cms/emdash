@@ -23,6 +23,7 @@ import { ApiResponseError, fetchManifest, type AdminManifest } from "../lib/api/
 import {
 	createCalendarDisplay,
 	dayKeyInZone,
+	dayKeyToUTC,
 	fetchRange,
 	filterItems,
 	groupByDay,
@@ -218,6 +219,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				: error.message
 			: t`Check your connection and try again.`;
 	const maxEntries = new Intl.NumberFormat(i18n.locale).format(CALENDAR_MAX_ENTRIES);
+	const zoneTime = dayKeyToUTC(`${month}-15`) + 12 * 3_600_000;
 	const cutOffDay = loadedThrough && display.monthDay(loadedThrough);
 
 	return (
@@ -266,6 +268,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						locales={locales}
 						value={filters}
 						onChange={setFilters}
+						compact={compact}
 					/>
 				}
 			/>
@@ -273,6 +276,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			<CalendarToolbar
 				title={display.monthTitle(month)}
 				display={display}
+				zoneTime={zoneTime}
 				loading={calendar.isPending && calendar.isFetching}
 				counts={counts}
 				onPrevious={() => goToMonth(shiftMonth(month, -1))}
