@@ -108,9 +108,36 @@ describe("CalendarPage", () => {
 		const screen = await renderPage();
 
 		await expect.element(screen.getByRole("link", { name: /Entry launch/ })).toBeVisible();
-		await expect
-			.element(screen.getByRole("button", { name: "Collection", exact: true }))
-			.toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Filter", exact: true })).toBeVisible();
+	});
+
+	it("says when filters hide every entry in the month grid", async () => {
+		router.search = { month: "2020-03", view: "month", states: "scheduled" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+
+		const screen = await renderPage();
+
+		await expect.element(screen.getByText("No entries match these filters")).toBeVisible();
+		await screen.getByRole("button", { name: "Clear filters" }).click();
+		expect(navigatedSearch(router.navigate.mock.lastCall).search).toMatchObject({
+			collections: undefined,
+			locales: undefined,
+			states: undefined,
+		});
+	});
+
+	it("counts only the month's own days on a phone, where the picker hides the rest", async () => {
+		await page.viewport(375, 800);
+		router.search = { month: "2020-03", view: "month", states: "published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("april", "2020-04-02T09:00:00.000Z")] } }),
+		);
+
+		const screen = await renderPage();
+
+		await expect.element(screen.getByText("No entries match these filters")).toBeVisible();
 	});
 
 	it("opens the entry named in the URL in the side panel", async () => {

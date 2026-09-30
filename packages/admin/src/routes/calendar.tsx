@@ -7,7 +7,7 @@
 
 import { Banner, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { GridFour, ListBullets, WarningCircle } from "@phosphor-icons/react";
+import { Funnel, GridFour, ListBullets, WarningCircle } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import * as React from "react";
@@ -253,6 +253,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			...(patch.states && { states: toListParam(patch.states) }),
 		});
 	};
+	const clearFilters = () => setFilters({ collections: [], locales: [], states: [] });
 	const prefetchMonth = (target: string) => {
 		if (!isMonthKey(target)) return;
 		const targetRange = fetchRange(monthGridDays(target, weekStartsOn));
@@ -272,6 +273,12 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const maxEntries = new Intl.NumberFormat(i18n.locale).format(CALENDAR_MAX_ENTRIES);
 	const zoneTime = dayKeyToUTC(`${month}-15`) + 12 * 3_600_000;
 	const cutOffDay = loadedThrough && display.monthDay(loadedThrough);
+	const filteredGridEmpty =
+		view === "month" &&
+		filtered &&
+		Boolean(calendar.data) &&
+		// The phone picker hides the neighboring months' days.
+		!gridDays.some((day) => (!compact || day.startsWith(month)) && days.has(day));
 
 	return (
 		<div ref={containerRef} className="grid min-w-0 gap-6">
@@ -319,7 +326,6 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						locales={locales}
 						value={filters}
 						onChange={setFilters}
-						compact={compact}
 					/>
 				}
 			/>
@@ -361,6 +367,22 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 					}
 				/>
 			)}
+			{filteredGridEmpty && (
+				<Banner
+					variant="secondary"
+					icon={<Funnel aria-hidden="true" />}
+					title={
+						loadedThrough
+							? t`No loaded entries match these filters`
+							: t`No entries match these filters`
+					}
+					action={
+						<Button variant="secondary" size="sm" onClick={clearFilters}>
+							{t`Clear filters`}
+						</Button>
+					}
+				/>
+			)}
 
 			{!(error && !calendar.data) &&
 				(view === "month" ? (
@@ -388,9 +410,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						display={display}
 						loading={!calendar.data}
 						loadedThrough={loadedThrough}
-						onClearFilters={
-							filtered ? () => setFilters({ collections: [], locales: [], states: [] }) : undefined
-						}
+						onClearFilters={filtered ? clearFilters : undefined}
 						selectedKey={selectedKey}
 						onSelect={openEntry}
 					/>
