@@ -66,7 +66,7 @@ migrations: {
 }
 ```
 
-`auto` checks and applies pending migrations, `check` returns 503 when migrations known to the running build are pending, and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
+`auto` checks and applies pending migrations, `check` returns 503 when migrations known to the running build are pending (except for requests to the image endpoint EmDash installs), and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
 
 ### `storage`
 
@@ -105,7 +105,7 @@ See [Storage Options](/deployment/storage/) for details.
 
 **Optional.** Controls whether EmDash integrates stored media with Astro's image optimization. The default is `true`.
 
-When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
+When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
 
 ```js
 emdash({

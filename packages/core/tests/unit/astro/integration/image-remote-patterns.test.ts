@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import type { AstroIntegration } from "astro";
+import { describe, expect, it, vi } from "vitest";
 
 import {
 	buildImageRemotePatterns,
+	emdash,
+	type EmDashConfig,
+	imageEndpointRoutePattern,
 	resolveImageEndpoint,
 } from "../../../../src/astro/integration/index.js";
+import { RESOLVED_VIRTUAL_CONFIG_ID } from "../../../../src/astro/integration/virtual-modules.js";
 
 const s3 = (publicUrl?: string) => ({ entrypoint: "x", config: { publicUrl } });
 const localStorage = { entrypoint: "x", config: { directory: "./uploads" } };
@@ -116,5 +121,63 @@ describe("resolveImageEndpoint", () => {
 		});
 		expect(result.entrypoint).toBeUndefined();
 		expect(result.warn).toMatch(/custom image\.endpoint/);
+	});
+});
+
+describe("imageEndpointRoutePattern", () => {
+	it("drops the trailing slash of a trailingSlash: always endpoint route", () => {
+		expect(imageEndpointRoutePattern("/_image/")).toBe("/_image");
+	});
+});
+
+/** Runs `astro:config:setup` and returns the config module the runtime would import. */
+async function runtimeConfigFor(
+	config: EmDashConfig,
+	image: { endpoint?: { entrypoint?: string; route?: string } } = {},
+) {
+	const setup = emdash(config).hooks["astro:config:setup"] as NonNullable<
+		AstroIntegration["hooks"]["astro:config:setup"]
+	>;
+	const updateConfig = vi.fn();
+	const root = new URL("file:///tmp/emdash-image-endpoint-route/");
+	await setup({
+		command: "build",
+		config: {
+			root,
+			srcDir: new URL("src/", root),
+			security: {},
+			trailingSlash: "ignore",
+			integrations: [{ name: "@astrojs/react", hooks: {} }],
+			image,
+		},
+		logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+		injectRoute: vi.fn(),
+		addMiddleware: vi.fn(),
+		updateConfig,
+	} as never);
+	const plugins = updateConfig.mock.calls.flatMap(([update]) => update?.vite?.plugins ?? []);
+	const virtualModules = plugins.find(
+		(plugin: { name?: string }) => plugin?.name === "emdash-virtual-modules",
+	);
+	const source = String(virtualModules.load(RESOLVED_VIRTUAL_CONFIG_ID));
+	return JSON.parse(source.replace(/^export default /, "").replace(/;$/, "")) as {
+		imageEndpointRoute?: string;
+	};
+}
+
+describe("image endpoint route in the runtime config", () => {
+	it("records the route of the endpoint EmDash installs", async () => {
+		expect((await runtimeConfigFor({})).imageEndpointRoute).toBe("/_image");
+		expect(
+			(await runtimeConfigFor({}, { endpoint: { route: "/media-transform/" } })).imageEndpointRoute,
+		).toBe("/media-transform");
+	});
+
+	it("records no route when EmDash does not install its endpoint", async () => {
+		expect((await runtimeConfigFor({ images: false })).imageEndpointRoute).toBeUndefined();
+		expect(
+			(await runtimeConfigFor({}, { endpoint: { entrypoint: "./src/my-endpoint.ts" } }))
+				.imageEndpointRoute,
+		).toBeUndefined();
 	});
 });

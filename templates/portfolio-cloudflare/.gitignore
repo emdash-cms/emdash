@@ -10,7 +10,7 @@ node_modules/
 
 # local data
 data.db
-data.db-journal
+data.db-*
 uploads/
 .wrangler/
 
