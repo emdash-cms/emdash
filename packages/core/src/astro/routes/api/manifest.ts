@@ -54,7 +54,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		if (emdash?.db) {
 			try {
 				const options = new OptionsRepository(emdash.db);
-				const settings = await options.getMany<string|object>([
+				const settings = await options.getMany<string | object>([
 					"site:title",
 					"emdash:site_title",
 					"site:timezone",
