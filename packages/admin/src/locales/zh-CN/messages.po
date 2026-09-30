@@ -1046,7 +1046,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeList.tsx:210
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1410
-#: packages/admin/src/components/TaxonomyManager.tsx:1463
+#: packages/admin/src/components/TaxonomyManager.tsx:1464
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Actions"
@@ -1885,7 +1885,7 @@ msgstr ""
 msgid "Available Providers"
 msgstr "可用提供商"
 
-#: packages/admin/src/components/Widgets.tsx:466
+#: packages/admin/src/components/Widgets.tsx:467
 msgid "Available Widgets"
 msgstr "可用小部件"
 
@@ -2853,7 +2853,7 @@ msgstr ""
 msgid "Complete signup"
 msgstr "完成注册"
 
-#: packages/admin/src/components/Widgets.tsx:931
+#: packages/admin/src/components/Widgets.tsx:933
 msgid "Component"
 msgstr "组件"
 
@@ -2925,7 +2925,7 @@ msgstr ""
 #: packages/admin/src/components/PortableTextEditor.tsx:3104
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:591
-#: packages/admin/src/components/Widgets.tsx:899
+#: packages/admin/src/components/Widgets.tsx:901
 msgid "Content"
 msgstr "内容"
 
@@ -3259,7 +3259,7 @@ msgid "Couldn't verify how many values reference \"{0}\". Deleting will still re
 msgstr "无法验证有多少值引用了 \"{0}\"。删除仍将移除此字段的所有存储值 — 但上方的计数无法被检查。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1408
-#: packages/admin/src/components/TaxonomyManager.tsx:1462
+#: packages/admin/src/components/TaxonomyManager.tsx:1463
 msgid "Count"
 msgstr "数量"
 
@@ -3701,9 +3701,9 @@ msgstr "代码定义"
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
 #: packages/admin/src/components/settings/BackupSettings.tsx:367
-#: packages/admin/src/components/TaxonomyManager.tsx:1533
-#: packages/admin/src/components/TaxonomyManager.tsx:1549
-#: packages/admin/src/components/Widgets.tsx:716
+#: packages/admin/src/components/TaxonomyManager.tsx:1535
+#: packages/admin/src/components/TaxonomyManager.tsx:1551
+#: packages/admin/src/components/Widgets.tsx:718
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:847
 msgid "Delete"
@@ -3729,7 +3729,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:327
 #: packages/admin/src/components/TaxonomyManager.tsx:492
-#: packages/admin/src/components/Widgets.tsx:817
+#: packages/admin/src/components/Widgets.tsx:819
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
 msgstr "删除 {0}"
@@ -3745,13 +3745,13 @@ msgid "Delete {0} menu"
 msgstr "删除 {0} 菜单"
 
 #. placeholder {0}: area.label
-#: packages/admin/src/components/Widgets.tsx:664
+#: packages/admin/src/components/Widgets.tsx:666
 msgid "Delete {0} widget area"
 msgstr "删除 {0} 小部件区域"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/TaxonomyManager.tsx:1529
+#: packages/admin/src/components/TaxonomyManager.tsx:1531
 #: packages/admin/src/routes/bylines.tsx:874
 msgid "Delete {0}?"
 msgstr "删除 {0}？"
@@ -3889,11 +3889,11 @@ msgstr ""
 msgid "Delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1547
+#: packages/admin/src/components/TaxonomyManager.tsx:1549
 msgid "Delete Taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:714
+#: packages/admin/src/components/Widgets.tsx:716
 msgid "Delete Widget Area?"
 msgstr "删除小部件区域？"
 
@@ -3902,7 +3902,7 @@ msgid "Deleted"
 msgstr "已删除"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1548
+#: packages/admin/src/components/TaxonomyManager.tsx:1550
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr ""
 
@@ -3923,9 +3923,9 @@ msgstr "删除 \"{0}\" 将同时移除所有署名中的 {1, plural, one {# 个�
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
 #: packages/admin/src/components/settings/BackupSettings.tsx:368
-#: packages/admin/src/components/TaxonomyManager.tsx:1534
-#: packages/admin/src/components/TaxonomyManager.tsx:1550
-#: packages/admin/src/components/Widgets.tsx:717
+#: packages/admin/src/components/TaxonomyManager.tsx:1536
+#: packages/admin/src/components/TaxonomyManager.tsx:1552
+#: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/bylines.tsx:877
 msgid "Deleting..."
 msgstr "删除中..."
@@ -4318,7 +4318,7 @@ msgstr ""
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "拖放或点击浏览 (.xml)"
 
-#: packages/admin/src/components/Widgets.tsx:700
+#: packages/admin/src/components/Widgets.tsx:702
 msgid "Drag here to add"
 msgstr "拖动到此处添加"
 
@@ -4329,7 +4329,7 @@ msgstr "拖动以重新排序"
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:922
-#: packages/admin/src/components/Widgets.tsx:802
+#: packages/admin/src/components/Widgets.tsx:804
 msgid "Drag to reorder {0}"
 msgstr "拖动以重新排序 {0}"
 
@@ -4342,11 +4342,11 @@ msgstr ""
 msgid "Drag to reorder block"
 msgstr "拖动以重新排序块"
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:706
 msgid "Drag widgets here to add them"
 msgstr "将小部件拖动到此处添加"
 
-#: packages/admin/src/components/Widgets.tsx:467
+#: packages/admin/src/components/Widgets.tsx:468
 msgid "Drag widgets into an area to add them"
 msgstr "将小部件拖动到区域中以添加它们"
 
@@ -4366,7 +4366,7 @@ msgstr ""
 msgid "Drop one image at a time."
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:700
+#: packages/admin/src/components/Widgets.tsx:702
 msgid "Drop to add widget"
 msgstr "放置以添加小部件"
 
@@ -4838,7 +4838,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:234
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1207
-#: packages/admin/src/components/Widgets.tsx:769
+#: packages/admin/src/components/Widgets.tsx:771
 #: packages/admin/src/router.tsx:3138
 msgid "Error"
 msgstr "错误"
@@ -4855,7 +4855,7 @@ msgstr "重新排序小部件时出错"
 msgid "Error saving section"
 msgstr "保存区块时出错"
 
-#: packages/admin/src/components/Widgets.tsx:784
+#: packages/admin/src/components/Widgets.tsx:786
 msgid "Error updating widget"
 msgstr "更新小部件时出错"
 
@@ -7219,7 +7219,7 @@ msgid "Loading setup..."
 msgstr "正在加载设置..."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1396
-#: packages/admin/src/components/TaxonomyManager.tsx:1467
+#: packages/admin/src/components/TaxonomyManager.tsx:1468
 msgid "Loading terms..."
 msgstr "正在加载词条..."
 
@@ -7578,7 +7578,7 @@ msgid "Medium section heading"
 msgstr "中章节标题"
 
 #: packages/admin/src/components/Widgets.tsx:104
-#: packages/admin/src/components/Widgets.tsx:914
+#: packages/admin/src/components/Widgets.tsx:916
 msgid "Menu"
 msgstr "菜单"
 
@@ -7933,7 +7933,7 @@ msgstr "我的精彩博客"
 #: packages/admin/src/components/TaxonomyManager.tsx:781
 #: packages/admin/src/components/TaxonomyManager.tsx:1045
 #: packages/admin/src/components/TaxonomyManager.tsx:1407
-#: packages/admin/src/components/TaxonomyManager.tsx:1461
+#: packages/admin/src/components/TaxonomyManager.tsx:1462
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:430
@@ -8118,7 +8118,7 @@ msgstr "暂无 {0}。"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.label, lingui.locale)
 #: packages/admin/src/components/TaxonomyManager.tsx:1399
-#: packages/admin/src/components/TaxonomyManager.tsx:1470
+#: packages/admin/src/components/TaxonomyManager.tsx:1471
 msgid "No {0} yet. Create one to get started."
 msgstr "暂无{0}。创建一个以开始使用。"
 
@@ -8486,7 +8486,7 @@ msgstr "未找到匹配您筛选条件的用户。"
 msgid "No users yet."
 msgstr "尚无用户。"
 
-#: packages/admin/src/components/Widgets.tsx:504
+#: packages/admin/src/components/Widgets.tsx:505
 msgid "No widget areas yet. Create one to get started."
 msgstr "暂无小部件区域。创建一个以开始使用。"
 
@@ -10323,7 +10323,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:32
-#: packages/admin/src/components/Widgets.tsx:983
+#: packages/admin/src/components/Widgets.tsx:985
 #: packages/admin/src/routes/bylines.tsx:859
 msgid "Save"
 msgstr "保存"
@@ -10411,7 +10411,7 @@ msgstr ""
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/TaxonomyManager.tsx:889
 #: packages/admin/src/components/users/UserDetail.tsx:311
-#: packages/admin/src/components/Widgets.tsx:983
+#: packages/admin/src/components/Widgets.tsx:985
 #: packages/admin/src/routes/bylines.tsx:859
 msgid "Saving..."
 msgstr "保存中..."
@@ -10832,7 +10832,7 @@ msgstr ""
 msgid "Select a collection"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:956
+#: packages/admin/src/components/Widgets.tsx:958
 msgid "Select a component..."
 msgstr "选择组件..."
 
@@ -10845,7 +10845,7 @@ msgstr ""
 msgid "Select a location"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:919
+#: packages/admin/src/components/Widgets.tsx:921
 msgid "Select a menu..."
 msgstr "选择菜单..."
 
@@ -11752,7 +11752,7 @@ msgstr ""
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1561
+#: packages/admin/src/components/TaxonomyManager.tsx:1563
 msgid "Taxonomy created"
 msgstr "分类已创建"
 
@@ -11790,7 +11790,7 @@ msgstr "模板："
 #: packages/admin/src/components/TaxonomyManager.tsx:760
 #: packages/admin/src/components/TaxonomyManager.tsx:761
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
-#: packages/admin/src/components/TaxonomyManager.tsx:1529
+#: packages/admin/src/components/TaxonomyManager.tsx:1531
 msgid "Term"
 msgstr "词条"
 
@@ -12559,7 +12559,7 @@ msgstr "此更新暴露了以下无需身份验证的路由："
 msgid "This version is not visible on the site"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:715
+#: packages/admin/src/components/Widgets.tsx:717
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "这将删除小部件区域及其所有小部件。此操作无法撤销。"
 
@@ -12568,7 +12568,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "这将把项目移至回收站。您可以稍后从回收站恢复它。"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1531
+#: packages/admin/src/components/TaxonomyManager.tsx:1533
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "这将永久删除「{0}」并将其从所有内容中移除。"
 
@@ -12606,7 +12606,7 @@ msgstr "时区"
 #: packages/admin/src/components/ContentList.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
-#: packages/admin/src/components/Widgets.tsx:891
+#: packages/admin/src/components/Widgets.tsx:893
 msgid "Title"
 msgstr "标题"
 
@@ -12987,8 +12987,8 @@ msgstr "无标题"
 msgid "Untitled file"
 msgstr "无标题文件"
 
-#: packages/admin/src/components/Widgets.tsx:536
-#: packages/admin/src/components/Widgets.tsx:809
+#: packages/admin/src/components/Widgets.tsx:538
+#: packages/admin/src/components/Widgets.tsx:811
 msgid "Untitled Widget"
 msgstr "无标题小部件"
 
@@ -13653,8 +13653,8 @@ msgstr ""
 msgid "Wide"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:802
-#: packages/admin/src/components/Widgets.tsx:817
+#: packages/admin/src/components/Widgets.tsx:804
+#: packages/admin/src/components/Widgets.tsx:819
 msgid "widget"
 msgstr "小部件"
 
@@ -13666,7 +13666,7 @@ msgstr "小部件已添加"
 msgid "Widget area created"
 msgstr "小部件区域已创建"
 
-#: packages/admin/src/components/Widgets.tsx:645
+#: packages/admin/src/components/Widgets.tsx:647
 msgid "Widget area deleted"
 msgstr "小部件区域已删除"
 
@@ -13674,15 +13674,15 @@ msgstr "小部件区域已删除"
 msgid "Widget areas"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:765
+#: packages/admin/src/components/Widgets.tsx:767
 msgid "Widget deleted"
 msgstr "小部件已删除"
 
-#: packages/admin/src/components/Widgets.tsx:894
+#: packages/admin/src/components/Widgets.tsx:896
 msgid "Widget title"
 msgstr "小部件标题"
 
-#: packages/admin/src/components/Widgets.tsx:780
+#: packages/admin/src/components/Widgets.tsx:782
 msgid "Widget updated"
 msgstr "小部件已更新"
 
@@ -13745,7 +13745,7 @@ msgstr ""
 msgid "Working…"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:904
+#: packages/admin/src/components/Widgets.tsx:906
 msgid "Write widget content..."
 msgstr "编写小部件内容..."
 

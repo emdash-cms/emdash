@@ -379,6 +379,19 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
 	});
 
+	it("wraps the hierarchical term list in a horizontally scrollable container", async () => {
+		mockApiFetch(hierarchicalTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
+
+		const container = document.querySelector(".border.rounded-lg.overflow-x-auto");
+		expect(container).not.toBeNull();
+		expect(container!.firstElementChild).toHaveClass("min-w-[560px]");
+	});
+
 	it("keeps the two tag actions together and moves taxonomy creation into More", async () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
