@@ -384,12 +384,14 @@ async function uploadToSignedUrl(
 	uploadInfo: UploadUrlResponse,
 	options?: MediaUploadOptions,
 ): Promise<void> {
+	const headers = { ...uploadInfo.headers };
+	if (file.type) {
+		headers["Content-Type"] = file.type;
+	}
+
 	const response = await fetch(uploadInfo.uploadUrl, {
 		method: uploadInfo.method,
-		headers: {
-			...uploadInfo.headers,
-			"Content-Type": file.type,
-		},
+		headers,
 		body: file,
 		signal: options?.signal,
 	});

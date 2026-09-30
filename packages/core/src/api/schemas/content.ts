@@ -189,6 +189,22 @@ export const contentListQuery = cursorPaginationQuery
 	}))
 	.meta({ id: "ContentListQuery" });
 
+const MAX_CALENDAR_RANGE_MS = 62 * 24 * 60 * 60 * 1000;
+
+/** Canonical UTC form, so bounds compare as text against stored timestamps. */
+const calendarBound = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.transform((value) => new Date(value).toISOString());
+
+/** Calendar range: `from` inclusive, `to` exclusive, at most 62 days apart. */
+export const calendarQuery = cursorPaginationQuery
+	.extend({ from: calendarBound, to: calendarBound })
+	.refine((query) => query.from < query.to, { message: "to must be after from", path: ["to"] })
+	.refine((query) => Date.parse(query.to) - Date.parse(query.from) <= MAX_CALENDAR_RANGE_MS, {
+		message: "the range can span at most 62 days",
+		path: ["to"],
+	});
+
 /** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
 const contentDateOverride = contentDateTime.nullish();
 
