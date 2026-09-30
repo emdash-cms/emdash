@@ -6,10 +6,11 @@
  * `{ _type: "iframe", _key, src, title?, width?, height?, allow?, allowFullscreen? }`.
  */
 
+import { Button } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Code, Eye } from "@phosphor-icons/react";
+import { Code, Eye, Play } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import * as React from "react";
@@ -120,6 +121,9 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 	const errorId = React.useId();
 
 	const [tab, setTab] = React.useState(() => (embed.src ? "preview" : "code"));
+	// As with HTML blocks, a saved block waits for Load preview before the admin
+	// loads someone else's page. Addresses written here load right away.
+	const [loadable, setLoadable] = React.useState<string | null>(null);
 	const [revision, setRevision] = React.useState(0);
 	const [error, setError] = React.useState<keyof typeof REASONS | null>(null);
 	const pending = React.useRef<string | null>(null);
@@ -147,6 +151,7 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 		pending.current = null;
 		known.current = result.embed ? iframeEmbedToCode(result.embed) : "";
 		updateAttributes(iframeEmbedAttrs(result.embed));
+		setLoadable(result.embed?.src ?? null);
 		return true;
 	}, [editor, getPos, updateAttributes]);
 
@@ -206,8 +211,23 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 			focus={focus}
 		>
 			{tab === "preview" ? (
-				url ? (
+				url && loadable === embed.src ? (
 					<IframePreview key={previewKey} embed={embed} url={url} />
+				) : url ? (
+					<div className="flex flex-col items-center gap-3 py-6 text-sm text-kumo-subtle">
+						{t`This block embeds a page from ${url.host}.`}
+						<Button
+							type="button"
+							size="sm"
+							icon={<Play className="size-4" aria-hidden="true" />}
+							onClick={() => {
+								setLoadable(embed.src);
+								focus.panelRef.current?.focus();
+							}}
+						>
+							{t`Load preview`}
+						</Button>
+					</div>
 				) : (
 					<p className="py-6 text-center text-sm text-kumo-subtle">{t`Nothing to preview yet.`}</p>
 				)

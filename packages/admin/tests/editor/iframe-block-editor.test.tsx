@@ -163,7 +163,13 @@ describe("Iframe block preview", () => {
 			{ _type: "iframe", _key: "relative", src: "/" },
 			{ _type: "iframe", _key: "own", src: `https://${window.location.host}/page` },
 		];
-		await renderEditor({ value: blocks });
+		const { screen } = await renderEditor({ value: blocks });
+
+		await expect
+			.element(screen.getByText(`This block embeds a page from ${window.location.host}.`))
+			.toBeVisible();
+		expect(document.querySelector(".iframe-block iframe")).toBeNull();
+		await screen.getByRole("button", { name: "Load preview" }).click();
 
 		await vi.waitFor(() =>
 			expect(document.querySelectorAll(".iframe-block iframe")).toHaveLength(1),
