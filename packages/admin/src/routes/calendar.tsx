@@ -30,7 +30,6 @@ import {
 	filterItems,
 	groupByDay,
 	isCalendarState,
-	isMonthCutOff,
 	isMonthKey,
 	monthGridDays,
 	readList,
@@ -40,7 +39,6 @@ import {
 	type CalendarFilterValues,
 	type CalendarItem,
 	type CalendarSearch,
-	type CalendarState,
 	type CalendarView,
 } from "../lib/calendar.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
@@ -186,19 +184,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const visibleItems = React.useMemo(() => filterItems(items, filters), [items, filters]);
 	// Pages load oldest first, so a truncated range is complete before its last loaded day.
 	const loadedThrough = calendar.data?.truncated ? items.at(-1)?.day : undefined;
-	const monthCutOff = isMonthCutOff(month, loadedThrough);
 	const days = React.useMemo(() => groupByDay(visibleItems), [visibleItems]);
-	const counts = React.useMemo(() => {
-		if (!calendar.data || monthCutOff) return undefined;
-		const result: Record<CalendarState, number> = {
-			published: 0,
-			scheduled: 0,
-			update: 0,
-			overdue: 0,
-		};
-		for (const item of visibleItems) if (item.day.startsWith(month)) result[item.state] += 1;
-		return result;
-	}, [calendar.data, monthCutOff, visibleItems, month]);
 
 	const updateSearch = (patch: Partial<CalendarSearch>, options?: { push?: boolean }) => {
 		void navigate({
@@ -335,7 +321,6 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				display={display}
 				zoneTime={zoneTime}
 				loading={calendar.isPending && calendar.isFetching}
-				counts={counts}
 				onPrevious={() => goToMonth(shiftMonth(month, -1))}
 				onNext={() => goToMonth(shiftMonth(month, 1))}
 				onToday={() => goToMonth(undefined)}

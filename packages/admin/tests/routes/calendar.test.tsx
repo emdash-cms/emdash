@@ -242,9 +242,6 @@ describe("CalendarPage", () => {
 			.element(screen.getByText("The calendar shows the first 1,000, which end on March 10."))
 			.toBeVisible();
 		await expect.element(screen.getByText(/^Later entries weren't loaded\./)).toBeVisible();
-		await expect
-			.element(screen.getByRole("list", { name: "Entries this month" }))
-			.not.toBeInTheDocument();
 	});
 
 	it("judges schedules by when the entries loaded, not by the current time", async () => {
