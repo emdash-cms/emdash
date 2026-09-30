@@ -1050,7 +1050,7 @@ msgstr ""
 #: packages/admin/src/routes/byline-schema.tsx:249
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Actions"
-msgstr "기능"
+msgstr "작업"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
@@ -1387,7 +1387,7 @@ msgstr "모든 권한"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:152
 msgid "All collections"
-msgstr "전체 항목"
+msgstr "모든 컬렉션"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:84
 msgid "All comments require approval"
@@ -8912,11 +8912,11 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
 msgid "pending"
-msgstr "보류 중"
+msgstr "승인 대기"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:202
 msgid "Pending"
-msgstr "보류 중"
+msgstr "승인 대기"
 
 #: packages/admin/src/components/ContentStatusBadge.tsx:67
 msgid "Pending changes"
@@ -9915,7 +9915,7 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:117
 msgid "Reply to:"
-msgstr "답글:"
+msgstr "상위 댓글:"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:220
 msgid "Repository"
