@@ -11,7 +11,7 @@ import {
 	type CalendarItem,
 } from "../../lib/calendar.js";
 import { CaretNext } from "../ArrowIcons.js";
-import { CalendarDayList, CalendarNowLine } from "./CalendarEntry.js";
+import { CalendarDayList, CalendarNowLine, type CalendarSelectHandler } from "./CalendarEntry.js";
 
 interface CalendarAgendaProps {
 	month: string;
@@ -24,6 +24,8 @@ interface CalendarAgendaProps {
 	loadedThrough?: string;
 	/** Filters are hiding entries; the empty state offers to clear them. */
 	onClearFilters?: () => void;
+	selectedKey?: string;
+	onSelect?: CalendarSelectHandler;
 }
 
 /**
@@ -39,6 +41,8 @@ export function CalendarAgenda({
 	loading,
 	loadedThrough,
 	onClearFilters,
+	selectedKey,
+	onSelect,
 }: CalendarAgendaProps) {
 	const { t } = useLingui();
 	const [showEarlier, setShowEarlier] = React.useState<boolean>();
@@ -129,6 +133,8 @@ export function CalendarAgenda({
 						nowAt={day === today ? nowAt : undefined}
 						now={now}
 						display={display}
+						selectedKey={selectedKey}
+						onSelect={onSelect}
 					/>
 				</React.Fragment>
 			))}
@@ -152,9 +158,20 @@ interface CalendarAgendaDayProps {
 	nowAt?: number;
 	now: number;
 	display: CalendarDisplay;
+	selectedKey?: string;
+	onSelect?: CalendarSelectHandler;
 }
 
-function CalendarAgendaDay({ day, items, relative, nowAt, now, display }: CalendarAgendaDayProps) {
+function CalendarAgendaDay({
+	day,
+	items,
+	relative,
+	nowAt,
+	now,
+	display,
+	selectedKey,
+	onSelect,
+}: CalendarAgendaDayProps) {
 	const { t } = useLingui();
 	const headingId = React.useId();
 
@@ -183,6 +200,8 @@ function CalendarAgendaDay({ day, items, relative, nowAt, now, display }: Calend
 				now={now}
 				label={display.fullDate(day)}
 				nowAt={nowAt}
+				selectedKey={selectedKey}
+				onSelect={onSelect}
 				className="mt-1"
 			/>
 		</section>

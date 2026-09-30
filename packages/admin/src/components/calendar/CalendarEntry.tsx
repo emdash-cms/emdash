@@ -60,6 +60,21 @@ const COLLECTION_TINTS: Record<CollectionColor, string> = {
 	neutral: "bg-kumo-fill",
 };
 
+/**
+ * Whether a click on an entry link should open the side panel. Clicks with a
+ * modifier key keep the link's default, so they open the editor in a new tab.
+ */
+export function isPlainClick(event: React.MouseEvent): boolean {
+	return (
+		!event.defaultPrevented &&
+		event.button === 0 &&
+		!event.metaKey &&
+		!event.ctrlKey &&
+		!event.shiftKey &&
+		!event.altKey
+	);
+}
+
 export function CalendarStateIcon({
 	state,
 	className,
@@ -147,14 +162,28 @@ export function CalendarNowLine({ label, className }: { label?: string; classNam
 	);
 }
 
+/**
+ * Opens an entry in the side panel; the entry links stay real links to the
+ * editor. `element` is where focus returns when the panel closes.
+ */
+export type CalendarSelectHandler = (item: CalendarItem, element: HTMLElement) => void;
+
 interface CalendarEntryRowProps {
 	item: CalendarItem;
 	display: CalendarDisplay;
 	now: number;
+	selected?: boolean;
+	onSelect?: CalendarSelectHandler;
 }
 
 /** An agenda row: time, state, title, collection, and locale, linking to the editor. */
-export function CalendarEntryRow({ item, display, now }: CalendarEntryRowProps) {
+export function CalendarEntryRow({
+	item,
+	display,
+	now,
+	selected,
+	onSelect,
+}: CalendarEntryRowProps) {
 	const { t } = useLingui();
 	const note = useStateNote(item, display, now);
 	const published = item.state === "published";
@@ -165,8 +194,15 @@ export function CalendarEntryRow({ item, display, now }: CalendarEntryRowProps) 
 			to="/content/$collection/$id"
 			params={{ collection: item.collection, id: item.id }}
 			search={{ locale: item.locale }}
+			aria-haspopup={onSelect ? "dialog" : undefined}
+			aria-current={selected ? "true" : undefined}
+			onClick={(event) => {
+				if (!onSelect || !isPlainClick(event)) return;
+				event.preventDefault();
+				onSelect(item, event.currentTarget);
+			}}
 			className={cn(
-				"grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand motion-reduce:transition-none",
+				"grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand aria-[current=true]:bg-kumo-tint motion-reduce:transition-none",
 				display.viewerZoneDiffers
 					? "@lg:grid-cols-[8.5rem_minmax(0,1fr)_auto]"
 					: "@lg:grid-cols-[5rem_minmax(0,1fr)_auto]",
@@ -247,10 +283,14 @@ export function CalendarEntryChip({
 	item,
 	display,
 	now,
+	selected,
+	onSelect,
 }: {
 	item: CalendarItem;
 	display: CalendarDisplay;
 	now: number;
+	selected?: boolean;
+	onSelect?: CalendarSelectHandler;
 }) {
 	const { t } = useLingui();
 	const { label, color } = display.collection(item.collection);
@@ -265,11 +305,18 @@ export function CalendarEntryChip({
 			to="/content/$collection/$id"
 			params={{ collection: item.collection, id: item.id }}
 			search={{ locale: item.locale }}
+			aria-haspopup={onSelect ? "dialog" : undefined}
+			aria-current={selected ? "true" : undefined}
+			onClick={(event) => {
+				if (!onSelect || !isPlainClick(event)) return;
+				event.preventDefault();
+				onSelect(item, event.currentTarget);
+			}}
 			className={cn(
 				"min-w-0 text-xs transition-[background-color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand motion-reduce:transition-none",
 				flat
-					? "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-kumo-subtle hover:bg-kumo-tint"
-					: "grid gap-0.5 overflow-hidden rounded-md px-2 py-1.5 shadow-xs ring-1 hover:shadow-sm",
+					? "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-kumo-subtle hover:bg-kumo-tint aria-[current=true]:bg-kumo-tint"
+					: "grid gap-0.5 overflow-hidden rounded-md px-2 py-1.5 shadow-xs ring-1 hover:shadow-sm aria-[current=true]:ring-2 aria-[current=true]:ring-kumo-brand",
 				!flat &&
 					(overdue
 						? "bg-kumo-warning-tint ring-kumo-warning/30 hover:ring-kumo-warning/50"
@@ -331,6 +378,8 @@ interface CalendarDayListProps {
 	label: string;
 	/** Draws the now line before the item at this index (or after the last). */
 	nowAt?: number;
+	selectedKey?: string;
+	onSelect?: CalendarSelectHandler;
 	className?: string;
 }
 
@@ -340,6 +389,8 @@ export function CalendarDayList({
 	now,
 	label,
 	nowAt,
+	selectedKey,
+	onSelect,
 	className,
 }: CalendarDayListProps) {
 	const { t } = useLingui();
@@ -357,7 +408,13 @@ export function CalendarDayList({
 				<React.Fragment key={item.key}>
 					{index === nowAt && nowLine}
 					<li>
-						<CalendarEntryRow item={item} display={display} now={now} />
+						<CalendarEntryRow
+							item={item}
+							display={display}
+							now={now}
+							selected={item.key === selectedKey}
+							onSelect={onSelect}
+						/>
 					</li>
 				</React.Fragment>
 			))}

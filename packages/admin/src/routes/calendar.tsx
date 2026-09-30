@@ -9,10 +9,11 @@ import { Banner, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { GridFour, ListBullets, WarningCircle } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { CalendarAgenda } from "../components/calendar/CalendarAgenda.js";
+import { CalendarEntryPanel } from "../components/calendar/CalendarEntryPanel.js";
 import { CalendarFilters } from "../components/calendar/CalendarFilters.js";
 import { CalendarMonth } from "../components/calendar/CalendarMonth.js";
 import { CalendarToolbar } from "../components/calendar/CalendarToolbar.js";
@@ -20,6 +21,7 @@ import { PageHeader } from "../components/PageHeader.js";
 import { visibleCollectionEntries } from "../components/Sidebar.js";
 import { CALENDAR_MAX_ENTRIES, calendarQueryOptions } from "../lib/api/calendar.js";
 import { ApiResponseError, fetchManifest, type AdminManifest } from "../lib/api/client.js";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import {
 	createCalendarDisplay,
 	dayKeyInZone,
@@ -36,6 +38,7 @@ import {
 	toCalendarItems,
 	toListParam,
 	type CalendarFilterValues,
+	type CalendarItem,
 	type CalendarSearch,
 	type CalendarState,
 	type CalendarView,
@@ -101,7 +104,9 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const { t, i18n } = useLingui();
 	const search = useSearch({ from: "/_admin/calendar" });
 	const navigate = useNavigate();
+	const router = useRouter();
 	const queryClient = useQueryClient();
+	const { data: user } = useCurrentUser();
 	const now = useNow();
 	const containerRef = React.useRef<HTMLDivElement>(null);
 	const compact = useNarrow(containerRef, COMPACT_WIDTH);
@@ -117,6 +122,16 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const collectionOrder = React.useMemo(
 		() => collections.map((collection) => collection.slug),
 		[collections],
+	);
+	const urlPatterns = React.useMemo(
+		() =>
+			Object.fromEntries(
+				Object.entries(manifest.collections).map(([slug, collection]) => [
+					slug,
+					collection.urlPattern,
+				]),
+			),
+		[manifest.collections],
 	);
 	const locales = manifest.i18n?.locales ?? NO_LOCALES;
 	const showLocale = locales.length > 1;
@@ -185,13 +200,49 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		return result;
 	}, [calendar.data, monthCutOff, visibleItems, month]);
 
-	const updateSearch = (patch: Partial<CalendarSearch>) => {
+	const updateSearch = (patch: Partial<CalendarSearch>, options?: { push?: boolean }) => {
 		void navigate({
 			to: "/calendar",
 			search: (previous) => ({ ...previous, ...patch }),
-			replace: true,
+			replace: !options?.push,
 		});
 	};
+
+	// Opening the panel adds a history entry, so Back closes it; switching entries replaces it.
+	const selectedKey = search.entry;
+	const searchWithoutEntry = JSON.stringify({ ...search, entry: undefined });
+	// The search the panel's own history entry was added over; closing goes back to it when nothing else changed.
+	const pushedFromRef = React.useRef<string | null>(null);
+	const returnFocusRef = React.useRef<HTMLElement | null>(null);
+	React.useEffect(() => {
+		if (selectedKey === undefined) pushedFromRef.current = null;
+	}, [selectedKey]);
+	const openEntry = (item: CalendarItem, element: HTMLElement) => {
+		returnFocusRef.current = element;
+		if (selectedKey === undefined) pushedFromRef.current = searchWithoutEntry;
+		updateSearch({ entry: item.key }, { push: selectedKey === undefined });
+	};
+	const closeEntry = () => {
+		const pushedFrom = pushedFromRef.current;
+		pushedFromRef.current = null;
+		if (pushedFrom === searchWithoutEntry) router.history.back();
+		else updateSearch({ entry: undefined });
+	};
+	// A refetch after an action can briefly lack the entry, so the panel keeps the last copy until data settles.
+	const found = selectedKey ? items.find((item) => item.key === selectedKey) : undefined;
+	const [lastSelected, setLastSelected] = React.useState<CalendarItem>();
+	if (found && found !== lastSelected) setLastSelected(found);
+	const selectedItem = found ?? (lastSelected?.key === selectedKey ? lastSelected : undefined);
+	const settled = Boolean(calendar.data) && !calendar.isFetching;
+	const entryMissing = Boolean(selectedKey) && !found && settled;
+	React.useEffect(() => {
+		if (!entryMissing) return;
+		void navigate({
+			to: "/calendar",
+			search: (previous) => ({ ...previous, entry: undefined }),
+			replace: true,
+		});
+	}, [entryMissing, navigate]);
 	const goToMonth = (next: string | undefined) => {
 		if (next === undefined || isMonthKey(next)) updateSearch({ month: next });
 	};
@@ -323,6 +374,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						loading={!calendar.data}
 						loadedThrough={loadedThrough}
 						compact={compact}
+						selectedKey={selectedKey}
+						onSelect={openEntry}
 						onMonthChange={goToMonth}
 					/>
 				) : (
@@ -338,8 +391,26 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						onClearFilters={
 							filtered ? () => setFilters({ collections: [], locales: [], states: [] }) : undefined
 						}
+						selectedKey={selectedKey}
+						onSelect={openEntry}
 					/>
 				))}
+
+			<CalendarEntryPanel
+				item={selectedItem}
+				display={display}
+				now={now}
+				compact={compact}
+				i18n={manifest.i18n}
+				urlPatterns={urlPatterns}
+				user={user}
+				returnFocus={returnFocusRef}
+				onClose={closeEntry}
+				onRescheduled={(_item, scheduledAt) => {
+					const target = dayKeyInZone(Date.parse(scheduledAt), display.timeZone).slice(0, 7);
+					if (target !== month) goToMonth(target);
+				}}
+			/>
 		</div>
 	);
 }

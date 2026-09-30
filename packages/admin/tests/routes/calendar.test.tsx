@@ -1,4 +1,6 @@
+import { Toast } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
@@ -7,12 +9,17 @@ import { fetchRange, monthGridDays } from "../../src/lib/calendar";
 import { CalendarPage } from "../../src/routes/calendar";
 import { render } from "../utils/render.tsx";
 
-const router = vi.hoisted(() => ({ search: {} as Record<string, unknown> }));
+const router = vi.hoisted(() => ({
+	search: {} as Record<string, unknown>,
+	navigate: vi.fn(),
+	back: vi.fn(),
+}));
 
 vi.mock("@tanstack/react-router", async () => ({
 	...(await vi.importActual("@tanstack/react-router")),
 	useSearch: () => router.search,
-	useNavigate: () => vi.fn(),
+	useNavigate: () => router.navigate,
+	useRouter: () => ({ history: { back: router.back } }),
 	Link: ({ children, params: _params, search: _search, to: _to, ...props }: any) => (
 		<a href="#entry" {...props}>
 			{children}
@@ -32,6 +39,10 @@ vi.mock("../../src/lib/api/client.js", async () => ({
 	}),
 }));
 
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({ data: { id: "editor", email: "editor@example.com", role: 40 } }),
+}));
+
 const originalFetch = globalThis.fetch;
 
 function entry(id: string, at: string): CalendarEntry {
@@ -46,16 +57,42 @@ function entry(id: string, at: string): CalendarEntry {
 	};
 }
 
-/** Serves calendar pages; `respond` gets the 1-based number of the request. */
+/** Serves calendar pages; `respond` gets the 1-based number of the calendar request. Other requests fail. */
 function serveCalendar(respond: (request: number) => Response) {
 	let request = 0;
-	globalThis.fetch = vi.fn(async () => respond(++request));
+	globalThis.fetch = vi.fn(async (input: string | URL | Request) =>
+		(input instanceof Request ? input.url : input.toString()).includes("/calendar?")
+			? respond(++request)
+			: Response.json({ error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 }),
+	);
+}
+
+function renderPage(wrapper?: React.ComponentType<React.PropsWithChildren>) {
+	const Inner = wrapper ?? React.Fragment;
+	return render(<CalendarPage />, {
+		wrapper: ({ children }) => (
+			<Toast.Provider>
+				<Inner>{children}</Inner>
+			</Toast.Provider>
+		),
+	});
 }
 
 describe("CalendarPage", () => {
 	beforeEach(() => {
 		router.search = {};
+		router.navigate.mockReset();
+		router.back.mockReset();
 	});
+
+	/** The search a navigate call would produce from the current one. */
+	function navigatedSearch(call: unknown[] | undefined) {
+		const options = call?.[0] as {
+			replace?: boolean;
+			search: (previous: Record<string, unknown>) => Record<string, unknown>;
+		};
+		return { replace: options.replace, search: options.search(router.search) };
+	}
 
 	afterEach(async () => {
 		globalThis.fetch = originalFetch;
@@ -68,12 +105,95 @@ describe("CalendarPage", () => {
 			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
 		);
 
-		const screen = await render(<CalendarPage />);
+		const screen = await renderPage();
 
 		await expect.element(screen.getByRole("link", { name: /Entry launch/ })).toBeVisible();
 		await expect
 			.element(screen.getByRole("button", { name: "Collection", exact: true }))
 			.toBeVisible();
+	});
+
+	it("opens the entry named in the URL in the side panel", async () => {
+		router.search = { month: "2020-03", view: "agenda", entry: "posts:launch:published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+
+		const screen = await renderPage();
+
+		const panel = screen.getByRole("dialog", { name: "Entry launch" });
+		await expect.element(panel).toBeVisible();
+		await expect.element(panel.getByText("Thu, Mar 5, 9:00 AM UTC").first()).toBeVisible();
+		await expect.element(panel.getByRole("link", { name: "Open in editor" }).last()).toBeVisible();
+
+		// The panel came from the link, not from a history entry this page added.
+		await panel.getByRole("button", { name: "Close" }).click();
+		expect(router.back).not.toHaveBeenCalled();
+		expect(navigatedSearch(router.navigate.mock.lastCall)).toMatchObject({
+			replace: true,
+			search: { entry: undefined },
+		});
+	});
+
+	it("adds a history entry for the panel and goes back to close it", async () => {
+		router.search = { month: "2020-03", view: "agenda" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+		const screen = await renderPage();
+
+		await screen.getByRole("link", { name: /Entry launch/ }).click();
+		const opened = navigatedSearch(router.navigate.mock.lastCall);
+		expect(opened).toMatchObject({ replace: false, search: { entry: "posts:launch:published" } });
+
+		router.search = opened.search;
+		await screen.rerender(<CalendarPage />);
+		await screen
+			.getByRole("dialog", { name: "Entry launch" })
+			.getByRole("button", { name: "Close" })
+			.click();
+
+		expect(router.back).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the panel while another month loads and closes it if the entry isn't there", async () => {
+		const key = "posts:launch:published";
+		const april = fetchRange(monthGridDays("2020-04", 0)).from;
+		let resolveApril: (response: Response) => void = () => {};
+		globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input instanceof Request ? input.url : input.toString(), location.origin);
+			if (!url.pathname.endsWith("/calendar")) {
+				return Response.json(
+					{ error: { code: "NOT_FOUND", message: "Not found" } },
+					{ status: 404 },
+				);
+			}
+			if (url.searchParams.get("from") === april) {
+				return new Promise<Response>((resolve) => {
+					resolveApril = resolve;
+				});
+			}
+			return Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } });
+		});
+		router.search = { month: "2020-03", view: "agenda", entry: key };
+		const screen = await renderPage();
+		await expect.element(screen.getByRole("dialog", { name: "Entry launch" })).toBeVisible();
+
+		router.search = { month: "2020-04", view: "agenda", entry: key };
+		await screen.rerender(<CalendarPage />);
+		await expect.poll(() => vi.mocked(globalThis.fetch).mock.calls.length).toBeGreaterThan(1);
+
+		// A closing panel stays visible while it slides out, so check that it is still open.
+		await expect
+			.element(screen.getByRole("dialog", { name: "Entry launch" }))
+			.toHaveAttribute("data-open");
+		expect(router.navigate).not.toHaveBeenCalled();
+
+		resolveApril(Response.json({ data: { items: [] } }));
+
+		await expect
+			.poll(() => router.navigate.mock.lastCall && navigatedSearch(router.navigate.mock.lastCall))
+			.toMatchObject({ replace: true, search: { entry: undefined } });
 	});
 
 	it("says where a range cut off at the entry cap ends", async () => {
@@ -89,7 +209,7 @@ describe("CalendarPage", () => {
 			}),
 		);
 
-		const screen = await render(<CalendarPage />);
+		const screen = await renderPage();
 
 		await expect
 			.element(screen.getByText("The calendar shows the first 1,000, which end on March 10."))
@@ -121,11 +241,9 @@ describe("CalendarPage", () => {
 		// The refresh never completes, so the page keeps the entries loaded before the schedule's time.
 		globalThis.fetch = vi.fn(() => new Promise<Response>(() => {}));
 
-		const screen = await render(<CalendarPage />, {
-			wrapper: ({ children }) => (
-				<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-			),
-		});
+		const screen = await renderPage(({ children }) => (
+			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+		));
 
 		await expect.element(screen.getByRole("link", { name: /Entry launch/ })).toBeVisible();
 		expect(screen.getByText(/Overdue/).query()).toBeNull();
@@ -139,7 +257,7 @@ describe("CalendarPage", () => {
 			),
 		);
 
-		const screen = await render(<CalendarPage />);
+		const screen = await renderPage();
 
 		await expect
 			.element(screen.getByText("You don't have permission to view the calendar."))
@@ -153,7 +271,7 @@ describe("CalendarPage", () => {
 			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
 		);
 
-		const screen = await render(<CalendarPage />);
+		const screen = await renderPage();
 
 		await expect
 			.element(screen.getByRole("tab", { name: "Agenda" }))

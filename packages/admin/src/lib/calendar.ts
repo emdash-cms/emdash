@@ -26,6 +26,8 @@ export interface CalendarSearch {
 	collections?: string;
 	locales?: string;
 	states?: string;
+	/** The entry open in the side panel, as its `CalendarItem.key`. */
+	entry?: string;
 }
 
 export interface CalendarFilterValues {
@@ -52,6 +54,7 @@ const MIN_YEAR = 1000;
 const MAX_YEAR = 9999;
 const MAX_TIME = Date.UTC(MAX_YEAR, 11, 31, 23, 59, 59, 999);
 const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
+const ENTRY_KEY_PATTERN = /^[a-z][a-z0-9_]*:[^:\s]{1,128}:(published|scheduled)$/;
 const MAX_LIST_VALUES = 50;
 const MAX_LIST_VALUE_LENGTH = 64;
 
@@ -234,6 +237,10 @@ export function toListParam(values: readonly string[]): string | undefined {
 	return values.length > 0 ? values.join(",") : undefined;
 }
 
+export function isEntryKey(value: unknown): value is string {
+	return typeof value === "string" && ENTRY_KEY_PATTERN.test(value);
+}
+
 export function parseCalendarSearch(search: Record<string, unknown>): CalendarSearch {
 	return {
 		view: search.view === "month" || search.view === "agenda" ? search.view : undefined,
@@ -241,6 +248,7 @@ export function parseCalendarSearch(search: Record<string, unknown>): CalendarSe
 		collections: toListParam(readList(search.collections)),
 		locales: toListParam(readList(search.locales)),
 		states: toListParam(readList(search.states).filter(isCalendarState)),
+		entry: isEntryKey(search.entry) ? search.entry : undefined,
 	};
 }
 

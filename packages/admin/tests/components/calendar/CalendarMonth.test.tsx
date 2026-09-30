@@ -63,12 +63,14 @@ function renderMonth({
 	at = now,
 	loadedThrough,
 	onMonthChange = () => {},
+	onSelect,
 }: {
 	compact?: boolean;
 	today?: string;
 	at?: number;
 	loadedThrough?: string;
 	onMonthChange?: (month: string) => void;
+	onSelect?: (item: { key: string }, element: HTMLElement) => void;
 } = {}) {
 	return render(
 		<CalendarMonth
@@ -81,6 +83,7 @@ function renderMonth({
 			compact={compact}
 			loadedThrough={loadedThrough}
 			onMonthChange={onMonthChange}
+			onSelect={onSelect}
 		/>,
 	);
 }
@@ -105,6 +108,32 @@ describe("CalendarMonth", () => {
 		const popover = screen.getByRole("dialog");
 		await expect.element(popover.getByText("Tuesday, October 20, 2026")).toBeVisible();
 		expect(popover.getByRole("link").elements()).toHaveLength(6);
+	});
+
+	it("opens an entry card, or one from a busy day's popover, in the panel", async () => {
+		const onSelect = vi.fn();
+		const screen = await renderMonth({ onSelect });
+
+		await screen.getByRole("link", { name: /Entry late/ }).click();
+		expect(onSelect).toHaveBeenLastCalledWith(
+			expect.objectContaining({ key: "posts:late:scheduled" }),
+			expect.any(HTMLElement),
+		);
+
+		const more = screen.getByRole("button", {
+			name: "3 more entries on Tuesday, October 20, 2026",
+		});
+		await more.click();
+		await screen
+			.getByRole("dialog")
+			.getByRole("link", { name: /Entry busy-6/ })
+			.click();
+
+		expect(onSelect).toHaveBeenLastCalledWith(
+			expect.objectContaining({ key: "posts:busy-6:scheduled" }),
+			more.element(),
+		);
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 	});
 
 	it("draws the present in the popover when it falls among folded entries", async () => {

@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CalendarEntry } from "../../../src/lib/api/calendar";
@@ -17,6 +18,7 @@ vi.mock("@tanstack/react-router", async () => ({
 }));
 
 const { CalendarAgenda } = await import("../../../src/components/calendar/CalendarAgenda");
+const { isPlainClick } = await import("../../../src/components/calendar/CalendarEntry");
 
 const now = Date.parse("2026-10-15T12:00:00.000Z");
 const display = createCalendarDisplay({
@@ -86,6 +88,41 @@ describe("CalendarAgenda", () => {
 		await expect
 			.element(screen.getByRole("link", { name: /Welcome back/ }))
 			.toHaveAttribute("href", "/content/posts/welcome?locale=en");
+	});
+
+	it("opens an entry on a plain click and leaves modified clicks to the editor link", async () => {
+		const onSelect = vi.fn();
+		const screen = await render(
+			<CalendarAgenda
+				month="2026-10"
+				days={days}
+				today="2026-10-15"
+				now={now}
+				display={display}
+				onSelect={onSelect}
+			/>,
+		);
+
+		await screen.getByRole("link", { name: /Launch/ }).click();
+		expect(onSelect).toHaveBeenCalledWith(
+			expect.objectContaining({ key: "posts:launch:scheduled" }),
+			expect.any(HTMLElement),
+		);
+
+		const click = (init: Partial<React.MouseEvent>) =>
+			({
+				defaultPrevented: false,
+				button: 0,
+				metaKey: false,
+				ctrlKey: false,
+				shiftKey: false,
+				altKey: false,
+				...init,
+			}) as React.MouseEvent;
+		expect(isPlainClick(click({}))).toBe(true);
+		expect(isPlainClick(click({ metaKey: true }))).toBe(false);
+		expect(isPlainClick(click({ ctrlKey: true }))).toBe(false);
+		expect(isPlainClick(click({ button: 1 }))).toBe(false);
 	});
 
 	it("marks the present between days and says when nothing follows it", async () => {

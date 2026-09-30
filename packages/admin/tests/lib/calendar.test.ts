@@ -166,6 +166,21 @@ describe("parseCalendarSearch", () => {
 			});
 		}
 	});
+
+	it("keeps an entry key only in its collection, id, and kind form", () => {
+		expect(parseCalendarSearch({ entry: "posts:01J9Z:scheduled" }).entry).toBe(
+			"posts:01J9Z:scheduled",
+		);
+		for (const entry of [
+			"posts:01J9Z",
+			"Posts:01J9Z:published",
+			"posts:01J9Z:draft",
+			"posts::published",
+			42,
+		]) {
+			expect(parseCalendarSearch({ entry }).entry).toBeUndefined();
+		}
+	});
 });
 
 describe("formatShortDuration", () => {

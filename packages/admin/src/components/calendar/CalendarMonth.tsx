@@ -15,7 +15,12 @@ import type { CalendarDisplay, CalendarItem, CalendarState } from "../../lib/cal
 import { cn } from "../../lib/utils.js";
 import { getDayPickerLocale } from "../../locales/day-picker.js";
 import { getLocaleDir } from "../../locales/index.js";
-import { CalendarDayList, CalendarEntryChip, CalendarNowLine } from "./CalendarEntry.js";
+import {
+	CalendarDayList,
+	CalendarEntryChip,
+	CalendarNowLine,
+	type CalendarSelectHandler,
+} from "./CalendarEntry.js";
 
 /** A cell shows every entry up to this many; past it, one fewer plus "+N more". */
 const MAX_CHIPS = 4;
@@ -41,6 +46,8 @@ interface CalendarMonthProps {
 	loadedThrough?: string;
 	/** Phones get a date picker with the chosen day's entries below it. */
 	compact?: boolean;
+	selectedKey?: string;
+	onSelect?: CalendarSelectHandler;
 	onMonthChange: (month: string) => void;
 }
 
@@ -61,6 +68,8 @@ function CalendarMonthGrid({
 	now,
 	display,
 	loadedThrough,
+	selectedKey,
+	onSelect,
 }: CalendarMonthProps) {
 	const weeks = React.useMemo(
 		() =>
@@ -101,6 +110,8 @@ function CalendarMonthGrid({
 										today={today}
 										now={now}
 										display={display}
+										selectedKey={selectedKey}
+										onSelect={onSelect}
 									/>
 								))}
 							</tr>
@@ -121,6 +132,8 @@ interface CalendarMonthCellProps {
 	today: string;
 	now: number;
 	display: CalendarDisplay;
+	selectedKey?: string;
+	onSelect?: CalendarSelectHandler;
 }
 
 function CalendarMonthCell({
@@ -131,6 +144,8 @@ function CalendarMonthCell({
 	today,
 	now,
 	display,
+	selectedKey,
+	onSelect,
 }: CalendarMonthCellProps) {
 	const { t } = useLingui();
 	const isToday = day === today;
@@ -186,7 +201,13 @@ function CalendarMonthCell({
 							<React.Fragment key={item.key}>
 								{index === lineAt && nowLine}
 								<li className="grid min-w-0">
-									<CalendarEntryChip item={item} display={display} now={now} />
+									<CalendarEntryChip
+										item={item}
+										display={display}
+										now={now}
+										selected={item.key === selectedKey}
+										onSelect={onSelect}
+									/>
 								</li>
 							</React.Fragment>
 						))}
@@ -199,6 +220,8 @@ function CalendarMonthCell({
 									display={display}
 									now={now}
 									nowAt={nowAt}
+									selectedKey={selectedKey}
+									onSelect={onSelect}
 								/>
 							</li>
 						)}
@@ -219,17 +242,30 @@ interface CalendarMorePopoverProps {
 	display: CalendarDisplay;
 	now: number;
 	nowAt?: number;
+	selectedKey?: string;
+	onSelect?: CalendarSelectHandler;
 }
 
-function CalendarMorePopover({ day, items, display, now, nowAt }: CalendarMorePopoverProps) {
+function CalendarMorePopover({
+	day,
+	items,
+	display,
+	now,
+	nowAt,
+	selectedKey,
+	onSelect,
+}: CalendarMorePopoverProps) {
+	const [open, setOpen] = React.useState(false);
+	const triggerRef = React.useRef<HTMLButtonElement>(null);
 	const hidden = items.length - (MAX_CHIPS - 1);
 	const date = display.fullDate(day);
 
 	return (
-		<Popover>
+		<Popover open={open} onOpenChange={setOpen}>
 			<Popover.Trigger
 				render={
 					<Button
+						ref={triggerRef}
 						variant="ghost"
 						size="xs"
 						className="w-full justify-start px-1.5 text-kumo-subtle"
@@ -250,6 +286,15 @@ function CalendarMorePopover({ day, items, display, now, nowAt }: CalendarMorePo
 					now={now}
 					label={date}
 					nowAt={nowAt}
+					selectedKey={selectedKey}
+					onSelect={
+						onSelect &&
+						((item, element) => {
+							setOpen(false);
+							// The popover's entries unmount with it, so focus returns to "+N more".
+							onSelect(item, triggerRef.current ?? element);
+						})
+					}
 					className="max-h-80 overflow-y-auto"
 				/>
 			</Popover.Content>
@@ -315,6 +360,8 @@ function CalendarMonthPicker({
 	display,
 	loading,
 	loadedThrough,
+	selectedKey,
+	onSelect,
 	onMonthChange,
 }: CalendarMonthProps) {
 	const { t, i18n } = useLingui();
@@ -386,6 +433,8 @@ function CalendarMonthPicker({
 						now={now}
 						label={display.fullDate(selected)}
 						nowAt={selected === today ? nowIndex(items, now) : undefined}
+						selectedKey={selectedKey}
+						onSelect={onSelect}
 					/>
 				) : (
 					<p className="px-2 py-3 text-sm text-kumo-subtle">
