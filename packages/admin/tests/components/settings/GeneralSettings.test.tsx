@@ -4,10 +4,16 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { MediaItem, SiteSettings, SiteSettingsUpdate } from "../../../src/lib/api";
+import type {
+	AdminManifest,
+	MediaItem,
+	SiteSettings,
+	SiteSettingsUpdate,
+} from "../../../src/lib/api";
 import { render } from "../../utils/render";
 
 const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
+const mockFetchManifest = vi.fn<() => Promise<AdminManifest>>();
 const mockUpdateSettings =
 	vi.fn<(settings: SiteSettingsUpdate) => Promise<Partial<SiteSettings>>>();
 
@@ -28,6 +34,7 @@ vi.mock("../../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchSettings: () => mockFetchSettings(),
+		fetchManifest: () => mockFetchManifest(),
 		updateSettings: (settings: SiteSettingsUpdate) => mockUpdateSettings(settings),
 	};
 });
@@ -90,11 +97,23 @@ async function renderGeneralSettings() {
 	return render(<GeneralSettings />, { wrapper: Wrapper });
 }
 
+const manifest = {
+	version: "test",
+	hash: "test",
+	collections: {},
+	plugins: {},
+	authMode: "passkey",
+} as AdminManifest;
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockFetchSettings.mockResolvedValue(defaultSettings);
+	mockFetchManifest.mockResolvedValue(manifest);
 	mockUpdateSettings.mockImplementation(async (settings) => {
 		mockFetchSettings.mockResolvedValue(settings);
+		if (settings.staging !== undefined) {
+			mockFetchManifest.mockResolvedValue({ ...manifest, staging: settings.staging });
+		}
 		return settings;
 	});
 });
@@ -329,5 +348,28 @@ describe("GeneralSettings", () => {
 				expect.objectContaining({ logo: null, favicon: null }),
 			);
 		});
+	});
+
+	it("shows a site without the staging setting as live", async () => {
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("Visible to search engines")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Switch back to staging" }))
+			.toBeInTheDocument();
+	});
+
+	it("goes live without saving or discarding unsaved form edits", async () => {
+		mockFetchManifest.mockResolvedValue({ ...manifest, staging: true });
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText("Hidden from search engines")).toBeInTheDocument();
+		await screen.getByLabelText("Tagline").fill("Not saved yet");
+
+		await screen.getByRole("button", { name: "Go live" }).click();
+
+		await expect.element(screen.getByText("Your site is live")).toBeInTheDocument();
+		await expect.element(screen.getByText("Visible to search engines")).toBeInTheDocument();
+		expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ staging: false });
+		await expect.element(screen.getByLabelText("Tagline")).toHaveValue("Not saved yet");
 	});
 });

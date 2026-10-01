@@ -3721,6 +3721,10 @@ export function createMcpServer(
 					])
 					.optional()
 					.describe("Canonical site URL (http or https). Empty string clears it."),
+				staging: z
+					.boolean()
+					.optional()
+					.describe("true hides the site from search engines; false makes it live"),
 				postsPerPage: z
 					.number()
 					.int()

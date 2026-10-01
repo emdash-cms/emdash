@@ -17,6 +17,7 @@ import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeedWithinBudget, type SeedApplyBudget } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
+import { invalidateSiteSettingsCache } from "#settings/index.js";
 
 /**
  * What one setup request may spend on the seed before the rest continues in
@@ -128,6 +129,7 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 			// on a later call during the wizard window must not be able to
 			// replace the first value.
 			await options.setIfAbsent("emdash:site_url", siteUrl);
+			if (await options.setIfAbsent("site:staging", true)) invalidateSiteSettingsCache();
 
 			if (seedComplete) {
 				if (useExternalAuth) {
