@@ -592,6 +592,72 @@ function pushMetricsTimings(
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
 
+function isImageEndpointRequest(context: APIContext): boolean {
+	const route = virtualConfig?.imageEndpointRoute;
+	return typeof route === "string" && context.routePattern === route;
+}
+
+/** The runtime's storage adapter, or null when none is configured or it cannot be created. */
+function tryGetStorage(config: EmDashConfig, migrationMode: RuntimeMigrationMode): Storage | null {
+	try {
+		return EmDashRuntime.getStorage(buildDependencies(config, migrationMode));
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Run an image endpoint request on the adapter's request-scoped db. Anything
+ * on its path that queries (host middleware, the redirect middleware under a
+ * custom endpoint route) must not fall back to the per-isolate singleton: a
+ * request-bound connection (pg over Hyperdrive) reused by another request fails
+ * or hangs on workerd's cross-request I/O guard. A signed-in request also gets
+ * the db as `locals.emdash.db`, which the auth middleware resolves `locals.user`
+ * with.
+ *
+ * The adapter's `commit()` is skipped: on D1 it sets the bookmark cookie, and a
+ * response that sets a cookie is never stored by Workers Cache. This assumes
+ * nothing on the image path writes data the client must read back; the
+ * bookmark it sent still covers its earlier writes.
+ */
+async function runImageRequest(
+	config: EmDashConfig,
+	context: APIContext,
+	imageLocals: EmDashHandlers,
+	signedIn: boolean,
+	metrics: RequestMetrics,
+	next: () => Promise<Response>,
+): Promise<Response> {
+	const scoped = createRequestScopedDb({
+		config: config.database?.config,
+		isAuthenticated: signedIn,
+		isWrite: false,
+		canUseCachedBinding: false,
+		cookies: context.cookies,
+		url: context.url,
+	});
+	if (!scoped) {
+		if (signedIn) {
+			try {
+				const { getDb } = await import("../loader.js");
+				imageLocals.db = await getDb();
+			} catch (error) {
+				console.error("[emdash] image request could not open the database:", error);
+			}
+		}
+		return finalizeResponse(await next());
+	}
+	if (signedIn) imageLocals.db = scoped.db;
+	const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({ ...scoped, commit: () => {} });
+	const parent = getRequestContext();
+	const ctx = parent
+		? { ...parent, db: scoped.db, deferredTasks }
+		: { editMode: false, db: scoped.db, metrics, deferredTasks };
+	return runWithContext(ctx, () =>
+		finishScoped(lifecycle, async () => finalizeResponse(await next())),
+	);
+}
+
 /**
  * Ask the configured database adapter for a per-request scoped Kysely. The
  * adapter encapsulates any per-request semantics (D1 sessions, read-replica
@@ -623,6 +689,10 @@ const buildDate = virtualBuildTime ? new Date(virtualBuildTime) : null;
  * returning visitor's conditional request with 304, leaving them on HTML whose
  * assets 404.
  *
+ * Only a route that set a content validator gets the build dimension. The build
+ * alone does not move when content is published, so as a page's only validator
+ * it would answer every returning visitor with 304 until the next deploy.
+ *
  * Prerendered pages are served by the host's static layer, which manages its
  * own validators — only on-demand responses need the build dimension.
  *
@@ -630,13 +700,14 @@ const buildDate = virtualBuildTime ? new Date(virtualBuildTime) : null;
  * different, so after a rollback the earlier build still answers a conditional
  * request with 304 and the browser stays on the newer build's HTML.
  *
- * Must run before next(): Astro keeps the later of two dates, so a route's own
- * hint still wins when content is newer, and a route that opts out with
- * `Astro.cache.set(false)` stays opted out — calling set() afterwards would
- * clear that opt-out.
+ * Must run after next(), once the route has set its hint. Astro keeps the later
+ * of two dates, so a route's own hint still wins when content is newer.
+ * `Astro.cache.set(false)` also clears `lastModified`, so for an opted-out
+ * route the guard skips the build `set()` below, which would re-enable caching.
  */
 function applyBuildValidator(context: APIContext): void {
 	if (context.isPrerendered || !buildDate || !context.cache?.enabled) return;
+	if (!context.cache.options.lastModified) return;
 	context.cache.set({ lastModified: buildDate });
 }
 
@@ -657,8 +728,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			return finalizeResponse(await next());
 		}
 	}
-
-	applyBuildValidator(context);
 
 	const queryRecorder = isInstrumentationEnabled()
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
@@ -697,6 +766,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const hasSessionCookie = cookies.get("astro-session") !== undefined;
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
+
+		// The image endpoint EmDash installed reads media bytes from storage and
+		// nothing else, so it needs neither the setup probe nor runtime init.
+		const imageStorage =
+			config && !playgroundDb && isImageEndpointRequest(context)
+				? tryGetStorage(config, migrationMode)
+				: null;
+		if (imageStorage) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; the image endpoint reads only storage, the auth middleware db
+			const imageLocals = { storage: imageStorage } as EmDashHandlers;
+			locals.emdash = imageLocals;
+			return runImageRequest(config, context, imageLocals, !!sessionUser, metrics, next);
+		}
 
 		// Credentialed API requests (API tokens `ec_pat_*`, OAuth tokens
 		// `ec_oat_*`, and other Bearer credentials) carry no `astro-session`
@@ -782,9 +864,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
-							// Exposed so the wrapped image endpoint (`/_image`) can read media
-							// bytes from storage on the anonymous fast path -- public `<img>`
-							// requests carry no session.
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
@@ -1121,7 +1200,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	};
 
 	try {
-		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		const response = await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		applyBuildValidator(context);
+		return response;
 	} finally {
 		// Streamed responses defer the flush to stream end (see
 		// wrapBodyForStreamMetrics) so the log captures queries issued while

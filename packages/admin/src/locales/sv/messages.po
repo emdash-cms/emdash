@@ -27,17 +27,17 @@ msgid "-- Select --"
 msgstr "-- Välj --"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1914
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "”{0}” tas bort från {providerName}."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1915
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "”{0}” tas bort från sin medieleverantör."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1916
 msgid "\"{0}\" will be permanently deleted."
 msgstr "”{0}” tas bort permanent."
 
@@ -124,7 +124,7 @@ msgstr "{0, plural, one {# fil lades inte till eftersom uppladdningslistan är f
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1496
+#: packages/admin/src/components/MediaDetailPanel.tsx:1508
 #: packages/admin/src/components/MediaLibrary.tsx:1002
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {# mapp inläst} other {# mappar inlästa}}"
@@ -1573,8 +1573,8 @@ msgid "Alt text"
 msgstr "Alt-text"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:742
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
-#: packages/admin/src/components/MediaDetailPanel.tsx:1581
+#: packages/admin/src/components/MediaDetailPanel.tsx:1576
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
 msgid "Alt Text"
 msgstr "Alt-text"
 
@@ -1680,7 +1680,7 @@ msgstr "Analyserar exportfil …"
 msgid "Analyzing WordPress site..."
 msgstr "Analyserar WordPress-webbplats …"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1749
+#: packages/admin/src/components/MediaDetailPanel.tsx:1761
 msgid "Animated WebP files become still images when cropped."
 msgstr "Animerade WebP-filer blir stillbilder när de beskärs."
 
@@ -1812,7 +1812,7 @@ msgstr "Som administratör kan du bjuda in andra användare från avsnittet Anv�
 msgid "Ask an administrator to complete this setup."
 msgstr "Be en administratör att slutföra konfigurationen."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1703
 msgid "Aspect ratio"
 msgstr "Bildförhållande"
 
@@ -1988,7 +1988,7 @@ msgstr "Avatar"
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:651
-#: packages/admin/src/components/MediaDetailPanel.tsx:1793
+#: packages/admin/src/components/MediaDetailPanel.tsx:1805
 #: packages/admin/src/components/MediaLibrary.tsx:811
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/WordPressImport.tsx:1530
@@ -2312,7 +2312,7 @@ msgstr "Kan visa innehåll"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1315
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1588
 #: packages/admin/src/components/MenuEditor.tsx:440
@@ -2391,7 +2391,7 @@ msgstr "Samtycke till behörigheter"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:527
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:750
 #: packages/admin/src/components/editor/ImageNode.tsx:302
-#: packages/admin/src/components/MediaDetailPanel.tsx:1592
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Caption"
 msgstr "Bildtext"
 
@@ -2638,7 +2638,7 @@ msgstr "Välj filer att ladda upp"
 msgid "Choose package file"
 msgstr "Välj paketfil"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1824
+#: packages/admin/src/components/MediaDetailPanel.tsx:1836
 msgid "Choose replacement image"
 msgstr "Välj ersättningsbild"
 
@@ -2749,7 +2749,7 @@ msgstr "Klicka på den här länken för att logga in på {siteName}:"
 #: packages/admin/src/components/FieldEditor.tsx:686
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:461
 #: packages/admin/src/components/MediaDetailPanel.tsx:1116
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaPickerModal.tsx:1001
 #: packages/admin/src/components/MediaPickerModal.tsx:1008
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
@@ -3120,7 +3120,7 @@ msgstr "Innehållstyper"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "Innehållstyper i samma grupp delar en hopfällbar mapp i sidofältet"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1922
+#: packages/admin/src/components/MediaDetailPanel.tsx:1934
 msgid "Content using this media item may show a broken reference."
 msgstr "Innehåll som använder mediefilen kan visa en trasig referens."
 
@@ -3220,7 +3220,7 @@ msgstr "Kopiera token"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
-#: packages/admin/src/components/MediaDetailPanel.tsx:1355
+#: packages/admin/src/components/MediaDetailPanel.tsx:1367
 msgid "Copy URL"
 msgstr "Kopiera URL"
 
@@ -3460,7 +3460,7 @@ msgstr "Skapa skribent"
 msgid "Create Content Type"
 msgstr "Skapa innehållstyp"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1856
+#: packages/admin/src/components/MediaDetailPanel.tsx:1868
 msgid "Create cropped copy"
 msgstr "Skapa beskuren kopia"
 
@@ -3645,7 +3645,7 @@ msgstr "Skapar beskuren kopia …"
 msgid "Creating..."
 msgstr "Skapar …"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1629
 msgid "Crop"
 msgstr "Beskär"
 
@@ -3655,7 +3655,7 @@ msgstr "Beskär"
 msgid "Crop area {0} by {1} pixels."
 msgstr "Beskärningsområde {0} × {1} pixlar."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1724
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Crop output dimensions"
 msgstr "Mått efter beskärning"
 
@@ -3812,8 +3812,8 @@ msgstr "Definierad i kod"
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1908
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
 #: packages/admin/src/components/MenuEditor.tsx:555
 #: packages/admin/src/components/MenuList.tsx:233
 #: packages/admin/src/components/Redirects.tsx:612
@@ -3940,7 +3940,7 @@ msgstr "Ta bort HTML-block"
 msgid "Delete image"
 msgstr "Ta bort bild"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1908
 msgid "Delete media?"
 msgstr "Ta bort mediefil?"
 
@@ -4033,8 +4033,8 @@ msgstr "Om du tar bort ”{0}” försvinner även {1, plural, one {# sparat vä
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:854
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1921
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Redirects.tsx:613
@@ -4088,7 +4088,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "Beskriv bildens syfte och relevanta detaljer för personer som inte kan se den."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1584
+#: packages/admin/src/components/MediaDetailPanel.tsx:1596
 msgid "Describe this image for accessibility"
 msgstr "Beskriv bilden för skärmläsare och andra hjälpmedel"
 
@@ -4154,7 +4154,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr "Skillnader mot källwebbplatsen"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1308
+#: packages/admin/src/components/MediaDetailPanel.tsx:1314
 msgid "Dimensions:"
 msgstr "Dimensioner:"
 
@@ -4202,7 +4202,7 @@ msgstr "Om du inaktiverar <0>{0}</0> kan personen inte logga in förrän kontot 
 msgid "Disabling..."
 msgstr "Inaktiverar …"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1882
+#: packages/admin/src/components/MediaDetailPanel.tsx:1894
 msgid "Discard"
 msgstr "Kassera"
 
@@ -4211,7 +4211,7 @@ msgstr "Kassera"
 msgid "Discard changes"
 msgstr "Kassera ändringar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1880
+#: packages/admin/src/components/MediaDetailPanel.tsx:1892
 msgid "Discard changes?"
 msgstr "Kassera ändringar?"
 
@@ -4219,7 +4219,7 @@ msgstr "Kassera ändringar?"
 msgid "Discard draft changes?"
 msgstr "Kassera ändringar i utkastet?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1883
+#: packages/admin/src/components/MediaDetailPanel.tsx:1895
 msgid "Discarding..."
 msgstr "Kasserar …"
 
@@ -4788,11 +4788,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} finns tillgänglig (du kör {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash sparar inte den tidigare bilden."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:2004
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash sparar inte den obeskurna bilden."
 
@@ -4991,11 +4991,11 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "Varje importerad post och mediefil lästes tillbaka och stämde med paketet. Spara kvittot som dokumentation av flytten."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1986
 msgid "Every place using this image will update to the cropped version."
 msgstr "Alla ställen som använder bilden uppdateras till den beskurna versionen."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1939
+#: packages/admin/src/components/MediaDetailPanel.tsx:1951
 msgid "Every place using this image will update to the selected version."
 msgstr "Alla ställen som använder bilden uppdateras till den valda versionen."
 
@@ -5248,11 +5248,11 @@ msgstr "Det gick inte att ta bort innehållet"
 msgid "Failed to delete field"
 msgstr "Det gick inte att ta bort fältet"
 
-#: packages/admin/src/lib/api/media.ts:681
+#: packages/admin/src/lib/api/media.ts:758
 msgid "Failed to delete from provider"
 msgstr "Det gick inte att ta bort från leverantören"
 
-#: packages/admin/src/lib/api/media.ts:541
+#: packages/admin/src/lib/api/media.ts:618
 msgid "Failed to delete media"
 msgstr "Det gick inte att ta bort media"
 
@@ -5400,7 +5400,7 @@ msgstr "Det gick inte att hämta mediemappar"
 msgid "Failed to fetch media item"
 msgstr "Det gick inte att hämta mediefilen"
 
-#: packages/admin/src/lib/api/media.ts:614
+#: packages/admin/src/lib/api/media.ts:691
 msgid "Failed to fetch media providers"
 msgstr "Det gick inte att hämta medieleverantörer"
 
@@ -5421,7 +5421,7 @@ msgstr "Det gick inte att hämta inställningar för tillägget"
 msgid "Failed to fetch plugins"
 msgstr "Det gick inte att hämta tillägg"
 
-#: packages/admin/src/lib/api/media.ts:644
+#: packages/admin/src/lib/api/media.ts:721
 msgid "Failed to fetch provider media"
 msgstr "Det gick inte att hämta media från leverantören"
 
@@ -5677,7 +5677,7 @@ msgstr "Det gick inte att ändra ordning på fält"
 msgid "Failed to reorder widgets"
 msgstr "Det gick inte att ändra ordning på widgetar"
 
-#: packages/admin/src/lib/api/media.ts:529
+#: packages/admin/src/lib/api/media.ts:606
 msgid "Failed to replace media image"
 msgstr "Det gick inte att ersätta bilden"
 
@@ -5792,7 +5792,7 @@ msgstr "Det gick inte att uppdatera skribentfältet"
 msgid "Failed to update domain"
 msgstr "Det gick inte att uppdatera domänen"
 
-#: packages/admin/src/lib/api/media.ts:565
+#: packages/admin/src/lib/api/media.ts:642
 msgid "Failed to update media"
 msgstr "Det gick inte att uppdatera media"
 
@@ -5830,11 +5830,11 @@ msgstr "Det gick inte att ladda upp en paketfil"
 msgid "Failed to upload file"
 msgstr "Det gick inte att ladda upp filen"
 
-#: packages/admin/src/lib/api/media.ts:470
+#: packages/admin/src/lib/api/media.ts:547
 msgid "Failed to upload media"
 msgstr "Det gick inte att ladda upp media"
 
-#: packages/admin/src/lib/api/media.ts:669
+#: packages/admin/src/lib/api/media.ts:746
 msgid "Failed to upload to provider"
 msgstr "Det gick inte att ladda upp till leverantören"
 
@@ -5928,8 +5928,8 @@ msgstr "Fil {0}"
 msgid "File from media library"
 msgstr "Fil från mediebibliotek"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1403
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1415
+#: packages/admin/src/components/MediaDetailPanel.tsx:1432
 #: packages/admin/src/components/MediaLibrary.tsx:1205
 msgid "Filename"
 msgstr "Filnamn"
@@ -6019,8 +6019,8 @@ msgstr "Rätta ogiltiga fält innan du ändrar publiceringsdatumet"
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Rätta ogiltiga fält innan du ändrar schemaläggningen"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
-#: packages/admin/src/components/MediaDetailPanel.tsx:1633
+#: packages/admin/src/components/MediaDetailPanel.tsx:1634
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
 msgid "Focal point"
 msgstr "Fokuspunkt"
 
@@ -6066,7 +6066,7 @@ msgstr "Mappen är inte tillgänglig"
 msgid "Folders"
 msgstr "Mappar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1523
+#: packages/admin/src/components/MediaDetailPanel.tsx:1535
 #: packages/admin/src/components/MediaLibrary.tsx:1027
 #: packages/admin/src/components/MediaLibrary.tsx:1571
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
@@ -6089,7 +6089,7 @@ msgstr "För en fullständig import inklusive utkast och allt innehåll, exporte
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "För bästa importresultat installerar du tillägget <0>EmDash Exporter</0> på din WordPress-webbplats."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1336
+#: packages/admin/src/components/MediaDetailPanel.tsx:1348
 msgid "Format:"
 msgstr "Format:"
 
@@ -7260,7 +7260,7 @@ msgstr "Läs in mer"
 msgid "Load More"
 msgstr "Läs in mer"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1542
+#: packages/admin/src/components/MediaDetailPanel.tsx:1554
 #: packages/admin/src/components/MediaLibrary.tsx:1057
 #: packages/admin/src/components/MediaLibrary.tsx:1249
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
@@ -7320,7 +7320,7 @@ msgstr "Läser in exporter …"
 msgid "Loading folders"
 msgstr "Läser in mappar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Loading folders..."
 msgstr "Läser in mappar …"
 
@@ -7411,7 +7411,7 @@ msgstr "Läser in widgetar …"
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
 #: packages/admin/src/components/MediaDetailPanel.tsx:612
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
-#: packages/admin/src/components/MediaDetailPanel.tsx:1729
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:2763
@@ -7453,10 +7453,10 @@ msgstr "Språk"
 msgid "Locales will use this site’s capitalization"
 msgstr "Språkkoder anpassas till den här webbplatsens versaler och gemener"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1431
-#: packages/admin/src/components/MediaDetailPanel.tsx:1459
-#: packages/admin/src/components/MediaDetailPanel.tsx:1550
-#: packages/admin/src/components/MediaDetailPanel.tsx:1552
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
+#: packages/admin/src/components/MediaDetailPanel.tsx:1471
+#: packages/admin/src/components/MediaDetailPanel.tsx:1562
+#: packages/admin/src/components/MediaDetailPanel.tsx:1564
 msgid "Location"
 msgstr "Plats"
 
@@ -7561,11 +7561,11 @@ msgstr "Hantera URL-omdirigeringar och visa 404-fel."
 msgid "Manage your passkeys and authentication"
 msgstr "Hantera dina passkeys och autentisering"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1389
+#: packages/admin/src/components/MediaDetailPanel.tsx:1401
 msgid "Managed by {providerName}"
 msgstr "Hanteras av {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1390
+#: packages/admin/src/components/MediaDetailPanel.tsx:1402
 msgid "Managed by an external media provider"
 msgstr "Hanteras av en extern medieleverantör"
 
@@ -8448,7 +8448,7 @@ msgstr "Inga fält att jämföra"
 msgid "No files added"
 msgstr "Inga filer tillagda"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1502
+#: packages/admin/src/components/MediaDetailPanel.tsx:1514
 msgid "No folders found"
 msgstr "Inga mappar hittades"
 
@@ -8590,7 +8590,7 @@ msgstr "Inga tillägg har publicerats i det här registret ännu."
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "Inga tillägg matchar ”{debouncedQuery}”."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1370
 msgid "No public URL available"
 msgstr "Ingen offentlig URL tillgänglig"
 
@@ -8883,7 +8883,7 @@ msgstr "Valfri bildtext"
 msgid "Optional caption displayed below the image"
 msgstr "Valfri bildtext som visas under bilden"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1595
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Optional caption for display"
 msgstr "Valfri bildtext för visning"
 
@@ -8961,7 +8961,7 @@ msgstr "Övrigt"
 msgid "Outline"
 msgstr "Disposition"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1722
+#: packages/admin/src/components/MediaDetailPanel.tsx:1734
 msgid "Output size"
 msgstr "Slutlig storlek"
 
@@ -9434,7 +9434,7 @@ msgstr "Tryck på blanksteg för att plocka upp en bild. Flytta den med piltange
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:453
 #: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:102
-#: packages/admin/src/components/MediaDetailPanel.tsx:1676
+#: packages/admin/src/components/MediaDetailPanel.tsx:1688
 #: packages/admin/src/components/MediaLibrary.tsx:1204
 msgid "Preview"
 msgstr "Förhandsgranskning"
@@ -10132,23 +10132,23 @@ msgstr "Byt variant för mörkt läge i {label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
-#: packages/admin/src/components/MediaDetailPanel.tsx:1943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 #: packages/admin/src/components/PortableTextEditor.tsx:4757
 msgid "Replace image"
 msgstr "Byt bild"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
-#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
+#: packages/admin/src/components/MediaDetailPanel.tsx:1990
 msgid "Replace original"
 msgstr "Ersätt original"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1935
-#: packages/admin/src/components/MediaDetailPanel.tsx:1970
+#: packages/admin/src/components/MediaDetailPanel.tsx:1947
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "Replace original image?"
 msgstr "Ersätt originalbilden?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1734
+#: packages/admin/src/components/MediaDetailPanel.tsx:1746
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Ersätt original går att använda med bildförhållandet Original."
 
@@ -10165,13 +10165,13 @@ msgid "Replace with empty list"
 msgstr "Ersätt med tom lista"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:932
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1956
 msgid "Replacing image..."
 msgstr "Ersätter bild …"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:951
-#: packages/admin/src/components/MediaDetailPanel.tsx:1979
-#: packages/admin/src/components/MediaDetailPanel.tsx:1999
+#: packages/admin/src/components/MediaDetailPanel.tsx:1991
+#: packages/admin/src/components/MediaDetailPanel.tsx:2011
 msgid "Replacing original..."
 msgstr "Ersätter originalet …"
 
@@ -10233,8 +10233,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "Skicka igen om {resendCooldown} s"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:442
-#: packages/admin/src/components/MediaDetailPanel.tsx:1668
-#: packages/admin/src/components/MediaDetailPanel.tsx:1718
+#: packages/admin/src/components/MediaDetailPanel.tsx:1680
+#: packages/admin/src/components/MediaDetailPanel.tsx:1730
 msgid "Reset"
 msgstr "Återställ"
 
@@ -10242,7 +10242,7 @@ msgstr "Återställ"
 msgid "Reset column widths"
 msgstr "Återställ kolumnbredder"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1703
+#: packages/admin/src/components/MediaDetailPanel.tsx:1715
 msgid "Reset crop"
 msgstr "Återställ beskärning"
 
@@ -10342,7 +10342,7 @@ msgstr "Utfasad"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:218
-#: packages/admin/src/components/MediaDetailPanel.tsx:1529
+#: packages/admin/src/components/MediaDetailPanel.tsx:1541
 #: packages/admin/src/components/MediaLibrary.tsx:1021
 #: packages/admin/src/components/MediaLibrary.tsx:1574
 #: packages/admin/src/components/MediaPickerModal.tsx:1208
@@ -10583,7 +10583,7 @@ msgstr "Exempelinnehåll"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:820
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/Redirects.tsx:193
@@ -10631,7 +10631,7 @@ msgstr "Spara datum"
 msgid "Save name"
 msgstr "Spara namn"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1756
 msgid "Save or discard the other changes before cropping."
 msgstr "Spara eller kassera de andra ändringarna innan du beskär."
 
@@ -10666,7 +10666,7 @@ msgid "Saving a collection here turns this field into an entry picker. Its store
 msgstr "Om du sparar en samling här blir fältet en postväljare. De lagrade post-ID:na flyttas till relationen och det går inte längre att söka eller filtrera på fältet."
 
 #: packages/admin/src/components/FieldEditor.tsx:1329
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/PluginSettings.tsx:166
@@ -10893,8 +10893,8 @@ msgstr "Sökningen misslyckades"
 msgid "Search failed. Check your connection and try again."
 msgstr "Sökningen misslyckades. Kontrollera anslutningen och försök igen."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1482
-#: packages/admin/src/components/MediaDetailPanel.tsx:1483
+#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Search folders"
 msgstr "Sök mappar"
 
@@ -11120,7 +11120,7 @@ msgstr "Välj en komponent …"
 msgid "Select a content type"
 msgstr "Välj en innehållstyp"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1472
+#: packages/admin/src/components/MediaDetailPanel.tsx:1484
 msgid "Select a location"
 msgstr "Välj en plats"
 
@@ -11626,7 +11626,7 @@ msgstr "Storlek"
 msgid "Size is not applicable to folders"
 msgstr "Storlek gäller inte för mappar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1298
+#: packages/admin/src/components/MediaDetailPanel.tsx:1301
 msgid "Size:"
 msgstr "Storlek:"
 
@@ -12524,9 +12524,9 @@ msgstr "Blocket kan inte redigeras eftersom dess lagrade definition inte är til
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "Den här webbläsaren håller hela paketet i minnet tills nedladdningen är klar. För en export av den här storleken bör du använda en Chromium-baserad webbläsare (som sparar direkt till disk) eller köra emdash site export från kommandoraden."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1919
-#: packages/admin/src/components/MediaDetailPanel.tsx:1955
-#: packages/admin/src/components/MediaDetailPanel.tsx:1989
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "This cannot be undone"
 msgstr "Det går inte att ångra"
 
@@ -12659,7 +12659,7 @@ msgstr "Mappen är tom"
 msgid "This folder is empty."
 msgstr "Mappen är tom."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1739
+#: packages/admin/src/components/MediaDetailPanel.tsx:1751
 msgid "This image could not be loaded for cropping."
 msgstr "Bilden kunde inte läsas in för beskärning."
 
@@ -13496,7 +13496,7 @@ msgstr "Ladda upp WordPress-exportfil"
 msgid "Uploaded"
 msgstr "Uppladdat"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1321
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Uploaded:"
 msgstr "Uppladdad:"
 
@@ -13542,7 +13542,7 @@ msgstr "URL-slug"
 msgid "URL-friendly identifier"
 msgstr "URL-vänlig identifierare"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1360
 msgid "URL:"
 msgstr "URL:"
 
@@ -14342,7 +14342,7 @@ msgstr ""
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Ditt Twitter/X-användarnamn (t.ex. @användarnamn)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1881
+#: packages/admin/src/components/MediaDetailPanel.tsx:1893
 msgid "Your unsaved media changes will be lost."
 msgstr "Dina osparade ändringar av media går förlorade."
 

@@ -27,17 +27,17 @@ msgid "-- Select --"
 msgstr "-- اختر --"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1914
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "سيُحذف \"{0}\" من {providerName}."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1915
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "سيُحذف \"{0}\" من مزوّد الوسائط الخاص به."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1916
 msgid "\"{0}\" will be permanently deleted."
 msgstr "سيُحذف \"{0}\" نهائيًا."
 
@@ -124,7 +124,7 @@ msgstr "{0, plural, one {لم يُضف ملف واحد لأن قائمة الر�
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1496
+#: packages/admin/src/components/MediaDetailPanel.tsx:1508
 #: packages/admin/src/components/MediaLibrary.tsx:1002
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, zero {لم يُحمّل أي مجلد} one {حُمّل مجلد واحد} two {حُمّل مجلدان} few {حُمّلت # مجلدات} many {حُمّل # مجلدًا} other {حُمّل # مجلد}}"
@@ -1573,8 +1573,8 @@ msgid "Alt text"
 msgstr "النص البديل"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:742
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
-#: packages/admin/src/components/MediaDetailPanel.tsx:1581
+#: packages/admin/src/components/MediaDetailPanel.tsx:1576
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
 msgid "Alt Text"
 msgstr "النص البديل"
 
@@ -1680,7 +1680,7 @@ msgstr "جاري تحليل ملف التصدير..."
 msgid "Analyzing WordPress site..."
 msgstr "جاري تحليل موقع WordPress..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1749
+#: packages/admin/src/components/MediaDetailPanel.tsx:1761
 msgid "Animated WebP files become still images when cropped."
 msgstr "تصبح ملفات WebP المتحركة صورًا ثابتة عند قصّها."
 
@@ -1812,7 +1812,7 @@ msgstr "كمسؤول، يمكنك دعوة مستخدمين آخرين من من
 msgid "Ask an administrator to complete this setup."
 msgstr "اطلب من مسؤول إكمال هذا الإعداد."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1703
 msgid "Aspect ratio"
 msgstr "نسبة العرض إلى الارتفاع"
 
@@ -1988,7 +1988,7 @@ msgstr "الصورة الرمزية"
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:651
-#: packages/admin/src/components/MediaDetailPanel.tsx:1793
+#: packages/admin/src/components/MediaDetailPanel.tsx:1805
 #: packages/admin/src/components/MediaLibrary.tsx:811
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/WordPressImport.tsx:1530
@@ -2312,7 +2312,7 @@ msgstr "يمكنه عرض المحتوى"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1315
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1588
 #: packages/admin/src/components/MenuEditor.tsx:440
@@ -2391,7 +2391,7 @@ msgstr "الموافقة على الصلاحية"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:527
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:750
 #: packages/admin/src/components/editor/ImageNode.tsx:302
-#: packages/admin/src/components/MediaDetailPanel.tsx:1592
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Caption"
 msgstr "التسمية التوضيحية"
 
@@ -2638,7 +2638,7 @@ msgstr "اختر ملفات لرفعها"
 msgid "Choose package file"
 msgstr "اختيار ملف الحزمة"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1824
+#: packages/admin/src/components/MediaDetailPanel.tsx:1836
 msgid "Choose replacement image"
 msgstr "اختيار صورة بديلة"
 
@@ -2749,7 +2749,7 @@ msgstr "انقر على هذا الرابط لتسجيل الدخول إلى {si
 #: packages/admin/src/components/FieldEditor.tsx:686
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:461
 #: packages/admin/src/components/MediaDetailPanel.tsx:1116
-#: packages/admin/src/components/MediaDetailPanel.tsx:1835
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaPickerModal.tsx:1001
 #: packages/admin/src/components/MediaPickerModal.tsx:1008
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
@@ -3120,7 +3120,7 @@ msgstr "أنواع المحتوى"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "تتشارك أنواع المحتوى ذات المجموعة نفسها مجلدًا قابلًا للطي في الشريط الجانبي"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1922
+#: packages/admin/src/components/MediaDetailPanel.tsx:1934
 msgid "Content using this media item may show a broken reference."
 msgstr "قد يظهر مرجع معطّل في المحتوى الذي يستخدم عنصر الوسائط هذا."
 
@@ -3220,7 +3220,7 @@ msgstr "نسخ الرمز"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
-#: packages/admin/src/components/MediaDetailPanel.tsx:1355
+#: packages/admin/src/components/MediaDetailPanel.tsx:1367
 msgid "Copy URL"
 msgstr "نسخ الرابط"
 
@@ -3460,7 +3460,7 @@ msgstr "إنشاء كاتب"
 msgid "Create Content Type"
 msgstr "إنشاء نوع محتوى"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1856
+#: packages/admin/src/components/MediaDetailPanel.tsx:1868
 msgid "Create cropped copy"
 msgstr "إنشاء نسخة مقصوصة"
 
@@ -3645,7 +3645,7 @@ msgstr "جارٍ إنشاء نسخة مقصوصة..."
 msgid "Creating..."
 msgstr "جاري الإنشاء..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1629
 msgid "Crop"
 msgstr "قص"
 
@@ -3655,7 +3655,7 @@ msgstr "قص"
 msgid "Crop area {0} by {1} pixels."
 msgstr "منطقة القص {0} × {1} بكسل."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1724
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Crop output dimensions"
 msgstr "أبعاد ناتج القص"
 
@@ -3812,8 +3812,8 @@ msgstr "مُعرَّف في الكود"
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1908
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
 #: packages/admin/src/components/MenuEditor.tsx:555
 #: packages/admin/src/components/MenuList.tsx:233
 #: packages/admin/src/components/Redirects.tsx:612
@@ -3940,7 +3940,7 @@ msgstr "حذف كتلة HTML"
 msgid "Delete image"
 msgstr "حذف الصورة"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1908
 msgid "Delete media?"
 msgstr "حذف الوسائط؟"
 
@@ -4033,8 +4033,8 @@ msgstr "سيؤدي حذف \"{0}\" أيضًا إلى إزالة {1, plural, one {
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:854
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1804
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
+#: packages/admin/src/components/MediaDetailPanel.tsx:1921
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Redirects.tsx:613
@@ -4088,7 +4088,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "صِف الغرض من الصورة والتفاصيل ذات الصلة للأشخاص الذين لا يستطيعون رؤيتها."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1584
+#: packages/admin/src/components/MediaDetailPanel.tsx:1596
 msgid "Describe this image for accessibility"
 msgstr "قم بوصف هذه الصورة لإمكانية الوصول"
 
@@ -4154,7 +4154,7 @@ msgstr "الفروق"
 msgid "Differences from the source site"
 msgstr "الاختلافات عن الموقع المصدر"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1308
+#: packages/admin/src/components/MediaDetailPanel.tsx:1314
 msgid "Dimensions:"
 msgstr "الأبعاد:"
 
@@ -4202,7 +4202,7 @@ msgstr "تعطيل <0>{0}</0> سيحول دون تسجيل دخولهم حتى �
 msgid "Disabling..."
 msgstr "جارٍ التعطيل..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1882
+#: packages/admin/src/components/MediaDetailPanel.tsx:1894
 msgid "Discard"
 msgstr "تجاهل"
 
@@ -4211,7 +4211,7 @@ msgstr "تجاهل"
 msgid "Discard changes"
 msgstr "التخلي عن التغييرات"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1880
+#: packages/admin/src/components/MediaDetailPanel.tsx:1892
 msgid "Discard changes?"
 msgstr "تجاهل التغييرات؟"
 
@@ -4219,7 +4219,7 @@ msgstr "تجاهل التغييرات؟"
 msgid "Discard draft changes?"
 msgstr "التخلي عن تغييرات المسودة؟"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1883
+#: packages/admin/src/components/MediaDetailPanel.tsx:1895
 msgid "Discarding..."
 msgstr "جارٍ التجاهل..."
 
@@ -4788,11 +4788,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "الإصدار EmDash {latest} متاح (أنت تستخدم {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "EmDash does not keep the previous image."
 msgstr "لا يحتفظ EmDash بالصورة السابقة."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:2004
 msgid "EmDash does not keep the uncropped image."
 msgstr "لا يحتفظ EmDash بالصورة غير المقصوصة."
 
@@ -4991,11 +4991,11 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "قُرئ كل سجل وملف وسائط مستورد مرة أخرى وطابق الحزمة. احتفظ بهذا الإيصال كسجل لعملية النقل."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1986
 msgid "Every place using this image will update to the cropped version."
 msgstr "سيُحدَّث كل مكان يستخدم هذه الصورة إلى النسخة المقصوصة."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1939
+#: packages/admin/src/components/MediaDetailPanel.tsx:1951
 msgid "Every place using this image will update to the selected version."
 msgstr "سيُحدَّث كل مكان يستخدم هذه الصورة إلى النسخة المحددة."
 
@@ -5248,11 +5248,11 @@ msgstr "فشل حذف المحتوى"
 msgid "Failed to delete field"
 msgstr "فشل حذف الحقل"
 
-#: packages/admin/src/lib/api/media.ts:681
+#: packages/admin/src/lib/api/media.ts:758
 msgid "Failed to delete from provider"
 msgstr "فشل الحذف من المزوّد"
 
-#: packages/admin/src/lib/api/media.ts:541
+#: packages/admin/src/lib/api/media.ts:618
 msgid "Failed to delete media"
 msgstr "فشل حذف الوسائط"
 
@@ -5400,7 +5400,7 @@ msgstr "فشل جلب مجلدات الوسائط"
 msgid "Failed to fetch media item"
 msgstr "فشل جلب عنصر الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:614
+#: packages/admin/src/lib/api/media.ts:691
 msgid "Failed to fetch media providers"
 msgstr "فشل جلب مزوّدي الوسائط"
 
@@ -5421,7 +5421,7 @@ msgstr "فشل جلب إعدادات الإضافة"
 msgid "Failed to fetch plugins"
 msgstr "فشل جلب الإضافات"
 
-#: packages/admin/src/lib/api/media.ts:644
+#: packages/admin/src/lib/api/media.ts:721
 msgid "Failed to fetch provider media"
 msgstr "فشل جلب وسائط المزوّد"
 
@@ -5677,7 +5677,7 @@ msgstr "فشل إعادة ترتيب الحقول"
 msgid "Failed to reorder widgets"
 msgstr "فشل إعادة ترتيب عناصر الواجهة"
 
-#: packages/admin/src/lib/api/media.ts:529
+#: packages/admin/src/lib/api/media.ts:606
 msgid "Failed to replace media image"
 msgstr "فشل استبدال صورة الوسائط"
 
@@ -5792,7 +5792,7 @@ msgstr "فشل تحديث حقل الكاتب"
 msgid "Failed to update domain"
 msgstr "فشل في تحديث النطاق"
 
-#: packages/admin/src/lib/api/media.ts:565
+#: packages/admin/src/lib/api/media.ts:642
 msgid "Failed to update media"
 msgstr "فشل تحديث الوسائط"
 
@@ -5830,11 +5830,11 @@ msgstr "فشل رفع ملف من الحزمة"
 msgid "Failed to upload file"
 msgstr "فشل رفع الملف"
 
-#: packages/admin/src/lib/api/media.ts:470
+#: packages/admin/src/lib/api/media.ts:547
 msgid "Failed to upload media"
 msgstr "فشل رفع الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:669
+#: packages/admin/src/lib/api/media.ts:746
 msgid "Failed to upload to provider"
 msgstr "فشل الرفع إلى المزوّد"
 
@@ -5928,8 +5928,8 @@ msgstr "الملف {0}"
 msgid "File from media library"
 msgstr "ملف من مكتبة الوسائط"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1403
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1415
+#: packages/admin/src/components/MediaDetailPanel.tsx:1432
 #: packages/admin/src/components/MediaLibrary.tsx:1205
 msgid "Filename"
 msgstr "اسم الملف"
@@ -6019,8 +6019,8 @@ msgstr "أصلح الحقول غير الصالحة قبل تغيير تاريخ
 msgid "Fix invalid fields before changing the schedule"
 msgstr "أصلح الحقول غير الصالحة قبل تغيير الجدول الزمني"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
-#: packages/admin/src/components/MediaDetailPanel.tsx:1633
+#: packages/admin/src/components/MediaDetailPanel.tsx:1634
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
 msgid "Focal point"
 msgstr "نقطة التركيز"
 
@@ -6066,7 +6066,7 @@ msgstr "المجلد غير متاح"
 msgid "Folders"
 msgstr "المجلدات"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1523
+#: packages/admin/src/components/MediaDetailPanel.tsx:1535
 #: packages/admin/src/components/MediaLibrary.tsx:1027
 #: packages/admin/src/components/MediaLibrary.tsx:1571
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
@@ -6089,7 +6089,7 @@ msgstr "للاستيراد الكامل بما في ذلك المسودات وج
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "للحصول على أفضل تجربة استيراد، ثبّت إضافة <0>EmDash Exporter</0> على موقع WordPress الخاص بك."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1336
+#: packages/admin/src/components/MediaDetailPanel.tsx:1348
 msgid "Format:"
 msgstr "التنسيق:"
 
@@ -7260,7 +7260,7 @@ msgstr "تحميل المزيد"
 msgid "Load More"
 msgstr "تحميل المزيد"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1542
+#: packages/admin/src/components/MediaDetailPanel.tsx:1554
 #: packages/admin/src/components/MediaLibrary.tsx:1057
 #: packages/admin/src/components/MediaLibrary.tsx:1249
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
@@ -7320,7 +7320,7 @@ msgstr "جارٍ تحميل عمليات التصدير…"
 msgid "Loading folders"
 msgstr "جارٍ تحميل المجلدات"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Loading folders..."
 msgstr "جارٍ تحميل المجلدات..."
 
@@ -7411,7 +7411,7 @@ msgstr "جارٍ تحميل عناصر الواجهة..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
 #: packages/admin/src/components/MediaDetailPanel.tsx:612
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
-#: packages/admin/src/components/MediaDetailPanel.tsx:1729
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:2763
@@ -7453,10 +7453,10 @@ msgstr "المَحلية"
 msgid "Locales will use this site’s capitalization"
 msgstr "ستستخدم اللغات حالة الأحرف الخاصة بهذا الموقع"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1431
-#: packages/admin/src/components/MediaDetailPanel.tsx:1459
-#: packages/admin/src/components/MediaDetailPanel.tsx:1550
-#: packages/admin/src/components/MediaDetailPanel.tsx:1552
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
+#: packages/admin/src/components/MediaDetailPanel.tsx:1471
+#: packages/admin/src/components/MediaDetailPanel.tsx:1562
+#: packages/admin/src/components/MediaDetailPanel.tsx:1564
 msgid "Location"
 msgstr "الموقع"
 
@@ -7561,11 +7561,11 @@ msgstr "إدارة إعادات توجيه الروابط وعرض أخطاء 40
 msgid "Manage your passkeys and authentication"
 msgstr "إدارة مفاتيح مرورك والمصادقة"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1389
+#: packages/admin/src/components/MediaDetailPanel.tsx:1401
 msgid "Managed by {providerName}"
 msgstr "يديره {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1390
+#: packages/admin/src/components/MediaDetailPanel.tsx:1402
 msgid "Managed by an external media provider"
 msgstr "يديره مزوّد وسائط خارجي"
 
@@ -8448,7 +8448,7 @@ msgstr "لا توجد حقول للمقارنة"
 msgid "No files added"
 msgstr "لم تُضف أي ملفات"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1502
+#: packages/admin/src/components/MediaDetailPanel.tsx:1514
 msgid "No folders found"
 msgstr "لم يُعثر على مجلدات"
 
@@ -8590,7 +8590,7 @@ msgstr "لم تُنشر أي إضافة في هذا السجل بعد."
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "لا توجد إضافات تطابق \"{debouncedQuery}\"."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1370
 msgid "No public URL available"
 msgstr "لا يوجد عنوان URL عام متاح"
 
@@ -8883,7 +8883,7 @@ msgstr "تعليق توضيحي اختياري"
 msgid "Optional caption displayed below the image"
 msgstr "تسمية توضيحية اختيارية تُعرض أسفل الصورة"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1595
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Optional caption for display"
 msgstr "تسمية توضيحية اختيارية للعرض"
 
@@ -8961,7 +8961,7 @@ msgstr "أخرى"
 msgid "Outline"
 msgstr "مخطط المستند"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1722
+#: packages/admin/src/components/MediaDetailPanel.tsx:1734
 msgid "Output size"
 msgstr "حجم الناتج"
 
@@ -9434,7 +9434,7 @@ msgstr "اضغط Space لالتقاط صورة. استخدم مفاتيح الأ
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:453
 #: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:102
-#: packages/admin/src/components/MediaDetailPanel.tsx:1676
+#: packages/admin/src/components/MediaDetailPanel.tsx:1688
 #: packages/admin/src/components/MediaLibrary.tsx:1204
 msgid "Preview"
 msgstr "معاينة"
@@ -10132,23 +10132,23 @@ msgstr "استبدال نسخة الوضع الداكن لـ {label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
-#: packages/admin/src/components/MediaDetailPanel.tsx:1943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 #: packages/admin/src/components/PortableTextEditor.tsx:4757
 msgid "Replace image"
 msgstr "استبدال الصورة"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
-#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
+#: packages/admin/src/components/MediaDetailPanel.tsx:1990
 msgid "Replace original"
 msgstr "استبدال الأصلية"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1935
-#: packages/admin/src/components/MediaDetailPanel.tsx:1970
+#: packages/admin/src/components/MediaDetailPanel.tsx:1947
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "Replace original image?"
 msgstr "استبدال الصورة الأصلية؟"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1734
+#: packages/admin/src/components/MediaDetailPanel.tsx:1746
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "يتوفر خيار استبدال الأصلية مع نسبة العرض إلى الارتفاع الأصلية."
 
@@ -10165,13 +10165,13 @@ msgid "Replace with empty list"
 msgstr "الاستبدال بقائمة فارغة"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:932
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1956
 msgid "Replacing image..."
 msgstr "جارٍ استبدال الصورة..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:951
-#: packages/admin/src/components/MediaDetailPanel.tsx:1979
-#: packages/admin/src/components/MediaDetailPanel.tsx:1999
+#: packages/admin/src/components/MediaDetailPanel.tsx:1991
+#: packages/admin/src/components/MediaDetailPanel.tsx:2011
 msgid "Replacing original..."
 msgstr "جارٍ استبدال الأصلية..."
 
@@ -10233,8 +10233,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "إعادة الإرسال بعد {resendCooldown}ث"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:442
-#: packages/admin/src/components/MediaDetailPanel.tsx:1668
-#: packages/admin/src/components/MediaDetailPanel.tsx:1718
+#: packages/admin/src/components/MediaDetailPanel.tsx:1680
+#: packages/admin/src/components/MediaDetailPanel.tsx:1730
 msgid "Reset"
 msgstr "إعادة تعيين"
 
@@ -10242,7 +10242,7 @@ msgstr "إعادة تعيين"
 msgid "Reset column widths"
 msgstr "إعادة تعيين عرض الأعمدة"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1703
+#: packages/admin/src/components/MediaDetailPanel.tsx:1715
 msgid "Reset crop"
 msgstr "إعادة تعيين القص"
 
@@ -10342,7 +10342,7 @@ msgstr "متقاعد"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:218
-#: packages/admin/src/components/MediaDetailPanel.tsx:1529
+#: packages/admin/src/components/MediaDetailPanel.tsx:1541
 #: packages/admin/src/components/MediaLibrary.tsx:1021
 #: packages/admin/src/components/MediaLibrary.tsx:1574
 #: packages/admin/src/components/MediaPickerModal.tsx:1208
@@ -10583,7 +10583,7 @@ msgstr "محتوى نموذجي"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:820
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/Redirects.tsx:193
@@ -10631,7 +10631,7 @@ msgstr "حفظ التاريخ"
 msgid "Save name"
 msgstr "حفظ الاسم"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1756
 msgid "Save or discard the other changes before cropping."
 msgstr "احفظ التغييرات الأخرى أو تجاهلها قبل القص."
 
@@ -10666,7 +10666,7 @@ msgid "Saving a collection here turns this field into an entry picker. Its store
 msgstr "يؤدي حفظ مجموعة هنا إلى تحويل هذا الحقل إلى أداة لاختيار الإدخالات. تنتقل معرّفات الإدخالات المخزنة إلى العلاقة، ولا يعود من الممكن البحث في الحقل أو التصفية حسبه."
 
 #: packages/admin/src/components/FieldEditor.tsx:1329
-#: packages/admin/src/components/MediaDetailPanel.tsx:1866
+#: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
 #: packages/admin/src/components/PluginSettings.tsx:166
@@ -10893,8 +10893,8 @@ msgstr "فشل البحث"
 msgid "Search failed. Check your connection and try again."
 msgstr "فشل البحث. تحقق من اتصالك وحاول مرة أخرى."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1482
-#: packages/admin/src/components/MediaDetailPanel.tsx:1483
+#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Search folders"
 msgstr "البحث في المجلدات"
 
@@ -11120,7 +11120,7 @@ msgstr "اختر مكوّنًا..."
 msgid "Select a content type"
 msgstr "اختر نوع محتوى"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1472
+#: packages/admin/src/components/MediaDetailPanel.tsx:1484
 msgid "Select a location"
 msgstr "اختر موقعًا"
 
@@ -11626,7 +11626,7 @@ msgstr "الحجم"
 msgid "Size is not applicable to folders"
 msgstr "الحجم لا ينطبق على المجلدات"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1298
+#: packages/admin/src/components/MediaDetailPanel.tsx:1301
 msgid "Size:"
 msgstr "الحجم:"
 
@@ -12524,9 +12524,9 @@ msgstr "لا يمكن تعديل هذه الكتلة لأن تعريفها ال�
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "يحتفظ هذا المتصفح بالحزمة كاملة في الذاكرة حتى ينتهي التنزيل. لتصدير بهذا الحجم، استخدم متصفحًا مبنيًا على Chromium يحفظ مباشرة على القرص، أو شغّل emdash site export من سطر الأوامر."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1919
-#: packages/admin/src/components/MediaDetailPanel.tsx:1955
-#: packages/admin/src/components/MediaDetailPanel.tsx:1989
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "This cannot be undone"
 msgstr "لا يمكن التراجع عن هذا الإجراء"
 
@@ -12659,7 +12659,7 @@ msgstr "هذا المجلد فارغ"
 msgid "This folder is empty."
 msgstr "هذا المجلد فارغ."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1739
+#: packages/admin/src/components/MediaDetailPanel.tsx:1751
 msgid "This image could not be loaded for cropping."
 msgstr "تعذّر تحميل هذه الصورة لقصّها."
 
@@ -13496,7 +13496,7 @@ msgstr "رفع ملف تصدير WordPress"
 msgid "Uploaded"
 msgstr "تم الرفع"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1321
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Uploaded:"
 msgstr "تم الرفع:"
 
@@ -13542,7 +13542,7 @@ msgstr "جزء الرابط في عنوان URL"
 msgid "URL-friendly identifier"
 msgstr "معرف مناسب للروابط"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1360
 msgid "URL:"
 msgstr "عنوان URL:"
 
@@ -14342,7 +14342,7 @@ msgstr ""
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "معرّف Twitter/X الخاص بك (مثال: @username)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1881
+#: packages/admin/src/components/MediaDetailPanel.tsx:1893
 msgid "Your unsaved media changes will be lost."
 msgstr "ستُفقد تغييرات الوسائط غير المحفوظة."
 

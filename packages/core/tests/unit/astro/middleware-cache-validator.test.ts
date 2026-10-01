@@ -68,6 +68,12 @@ vi.mock("../../../src/loader.js", () => ({
 
 import onRequest from "../../../src/astro/middleware.js";
 
+interface CacheInput {
+	maxAge?: number;
+	lastModified?: Date;
+	tags?: string[];
+}
+
 /**
  * Stand-in for Astro's `AstroCache`, mirroring the accumulation rules the real
  * one applies in `core/cache/runtime/cache.js`: `lastModified` keeps the later
@@ -75,17 +81,19 @@ import onRequest from "../../../src/astro/middleware.js";
  */
 function createCache(enabled = true) {
 	let disabled = false;
-	const options: { lastModified?: Date; tags?: string[] } = {};
+	const options: CacheInput = {};
 	return {
 		enabled,
-		set(input: { lastModified?: Date; tags?: string[] } | false) {
+		set(input: CacheInput | false) {
 			if (input === false) {
 				disabled = true;
+				delete options.maxAge;
 				delete options.lastModified;
 				delete options.tags;
 				return;
 			}
 			disabled = false;
+			if (input.maxAge !== undefined) options.maxAge = input.maxAge;
 			if (
 				input.lastModified &&
 				(!options.lastModified || input.lastModified > options.lastModified)
@@ -119,7 +127,7 @@ function anonymousPublicPageContext(cache: TestCache) {
 }
 
 /** A page rendering with `Astro.cache.set(cacheHint)`, as the demos do. */
-function pageSetting(cache: TestCache, hint: { lastModified?: Date; tags?: string[] } | false) {
+function pageSetting(cache: TestCache, hint: CacheInput | false) {
 	return async () => {
 		cache.set(hint);
 		return new Response("<html></html>", { headers: { "content-type": "text/html" } });
@@ -141,6 +149,30 @@ describe("astro middleware cache validator", () => {
 		);
 
 		expect(cache.options.lastModified?.getTime()).toBe(BUILD_TIME);
+	});
+
+	it("does not give a page with only a route rule a validator that publishing cannot move", async () => {
+		const cache = createCache();
+		cache.set({ maxAge: 300 });
+
+		await onRequest(
+			anonymousPublicPageContext(cache) as Parameters<typeof onRequest>[0],
+			async () => new Response("<html></html>", { headers: { "content-type": "text/html" } }),
+		);
+
+		expect(cache.options.lastModified).toBeUndefined();
+	});
+
+	it("does not give a page with only tag hints a validator that publishing cannot move", async () => {
+		const cache = createCache();
+		cache.set({ maxAge: 300 });
+
+		await onRequest(
+			anonymousPublicPageContext(cache) as Parameters<typeof onRequest>[0],
+			pageSetting(cache, { tags: ["site-settings"] }),
+		);
+
+		expect(cache.options.lastModified).toBeUndefined();
 	});
 
 	it("leaves a route that opts out of caching opted out", async () => {
