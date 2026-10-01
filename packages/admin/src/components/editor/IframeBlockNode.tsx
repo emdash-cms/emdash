@@ -101,6 +101,7 @@ function IframePreview({ embed, url }: { embed: IframeEmbed; url: URL }) {
 					sandbox={sandbox.join(" ")}
 					allow={iframeAllow(embed.allow) || undefined}
 					allowFullScreen={embed.allowFullscreen === true}
+					// Players such as YouTube's refuse to play without a referrer.
 					referrerPolicy="strict-origin-when-cross-origin"
 					style={{ height: "100%" }}
 					className={cn("block w-full border-0", dragging && "pointer-events-none")}

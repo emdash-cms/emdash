@@ -109,6 +109,8 @@ const allow = (typeof node.allow === "string" ? node.allow : "")
 // `</body>` by searching the page's text could then match one in an author's
 // title and break the tag, dropping its sandbox.
 const escape = (value: string) => value.replace(MARKUP_RE, (char) => ENTITIES[char] ?? char);
+// Overrides a stricter site policy on purpose: YouTube and Vimeo players refuse
+// to play without a referrer. Only the site's origin is sent.
 const attributes = [
 	`src="${escape(src.href)}"`,
 	`title="${escape(node.title || "Embedded content")}"`,
