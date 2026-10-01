@@ -561,55 +561,55 @@ msgstr "작성자 {totalCount}명 중 {matchedCount}명이 이메일로 일치�
 
 #: packages/admin/src/lib/content-validation-errors.ts:100
 msgid "{maximum, plural, one {{name} can have at most # character.} other {{name} can have at most # characters.}}"
-msgstr ""
+msgstr "{maximum, plural, one {{name}: #자 이하로 입력해 주세요.} other {{name}: #자 이하로 입력해 주세요.}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:106
 msgid "{maximum, plural, one {{name} can have at most # item.} other {{name} can have at most # items.}}"
-msgstr ""
+msgstr "{maximum, plural, one {{name}: 항목 수는 #개 이하여야 합니다.} other {{name}: 항목 수는 #개 이하여야 합니다.}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:81
 msgid "{minimum, plural, one {{name} needs at least # character.} other {{name} needs at least # characters.}}"
-msgstr ""
+msgstr "{minimum, plural, one {{name}: #자 이상 입력해 주세요.} other {{name}: #자 이상 입력해 주세요.}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:87
 msgid "{minimum, plural, one {{name} needs at least # item.} other {{name} needs at least # items.}}"
-msgstr ""
+msgstr "{minimum, plural, one {{name}: 항목 수는 #개 이상이어야 합니다.} other {{name}: 항목 수는 #개 이상이어야 합니다.}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
-msgstr ""
+msgstr "{name}: 값이 지정된 형식과 일치하지 않습니다."
 
 #: packages/admin/src/lib/content-validation-errors.ts:73
 msgid "{name} has a value that is not one of its options."
-msgstr ""
+msgstr "{name}: 선택지에 없는 값이 포함되어 있습니다."
 
 #: packages/admin/src/lib/content-validation-errors.ts:117
 msgid "{name} has an invalid value."
-msgstr ""
+msgstr "{name}: 값이 유효하지 않습니다."
 
 #: packages/admin/src/lib/content-validation-errors.ts:69
 msgid "{name} is not a field in this collection."
-msgstr ""
+msgstr "{name}: 이 컬렉션에 없는 필드입니다."
 
 #: packages/admin/src/lib/content-validation-errors.ts:67
 msgid "{name} is required."
-msgstr ""
+msgstr "{name}: 필수 항목입니다."
 
 #: packages/admin/src/lib/content-validation-errors.ts:71
 msgid "{name} links to an entry that does not exist or is in the trash."
-msgstr ""
+msgstr "{name}: 존재하지 않거나 휴지통에 있는 항목을 참조합니다."
 
 #: packages/admin/src/lib/content-validation-errors.ts:75
 msgid "{name} must be a valid URL."
-msgstr ""
+msgstr "{name}: 유효한 URL을 입력해 주세요."
 
 #: packages/admin/src/lib/content-validation-errors.ts:94
 msgid "{name} must be at least {bound}."
-msgstr ""
+msgstr "{name}: 값은 {bound} 이상이어야 합니다."
 
 #: packages/admin/src/lib/content-validation-errors.ts:113
 msgid "{name} must be at most {bound}."
-msgstr ""
+msgstr "{name}: 값은 {bound} 이하여야 합니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:101
 msgid "{name}: this site already has some"
@@ -708,7 +708,7 @@ msgstr "{selectedCount, plural, one {항목 #개를 휴지통으로 이동하시
 
 #: packages/admin/src/lib/content-validation-errors.ts:57
 msgid "{subLabel} ({label}, item {position})"
-msgstr ""
+msgstr "{subLabel} ({label}, {position}번째 항목)"
 
 #: packages/admin/src/components/ContentList.tsx:1269
 msgid "{total, plural, one {# item} other {# items}}"
@@ -1233,7 +1233,7 @@ msgstr "참조 추가"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:215
 msgid "Add references"
-msgstr ""
+msgstr "참조 추가"
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
 msgid "Add row above"
@@ -1246,7 +1246,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentPickerModal.tsx:390
 msgid "Add selected"
-msgstr ""
+msgstr "선택한 항목 추가"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:639
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
@@ -2747,7 +2747,7 @@ msgstr "colleague@example.com"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:261
 msgid "Collection"
-msgstr ""
+msgstr "컬렉션"
 
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:104
@@ -3195,7 +3195,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentPickerModal.tsx:276
 msgid "Couldn't load content."
-msgstr ""
+msgstr "콘텐츠를 불러오지 못했습니다."
 
 #: packages/admin/src/routes/bylines.tsx:810
 msgid "Couldn't load custom fields."
@@ -10877,7 +10877,7 @@ msgstr "{0}의 댓글 선택"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:215
 msgid "Select content"
-msgstr ""
+msgstr "콘텐츠 선택"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:575
 msgid "Select dark mode variant for {label}"
