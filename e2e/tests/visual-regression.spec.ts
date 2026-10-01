@@ -17,6 +17,9 @@
  *   EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots
  *   # subsequent runs diff against them
  *   EMDASH_VISUAL=1 pnpm exec playwright test visual-regression
+ *
+ * CI regenerates baselines for the failed tests only, so a test's screenshot
+ * must not depend on data that an earlier test in the run wrote.
  */
 
 import { test, expect, type AdminPage, type ServerInfo } from "../fixtures";
