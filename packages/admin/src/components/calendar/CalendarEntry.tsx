@@ -22,6 +22,8 @@ import {
 } from "../../lib/calendar.js";
 import { cn } from "../../lib/utils.js";
 import { getLocaleLabel } from "../../locales/index.js";
+import { getCollectionNavIcon } from "../admin-navigation-icons.js";
+import { NavIcon } from "../Sidebar.js";
 
 const STATE_ICONS: Record<CalendarState, Icon> = {
 	published: CheckCircle,
@@ -42,14 +44,6 @@ export const CALENDAR_STATE_LABELS: Record<CalendarState, MessageDescriptor> = {
 	scheduled: msg`Scheduled`,
 	update: msg`Update scheduled`,
 	overdue: msg`Overdue`,
-};
-
-const COLLECTION_DOTS: Record<CollectionColor, string> = {
-	blue: "bg-kumo-badge-blue",
-	purple: "bg-kumo-badge-purple",
-	teal: "bg-kumo-badge-teal",
-	green: "bg-kumo-badge-green",
-	neutral: "bg-kumo-badge-neutral",
 };
 
 const COLLECTION_TINTS: Record<CollectionColor, string> = {
@@ -91,23 +85,8 @@ export function CalendarStateIcon({
 	);
 }
 
-export function CalendarCollectionDot({
-	color,
-	className,
-}: {
-	color: CollectionColor;
-	className?: string;
-}) {
-	return (
-		<span
-			aria-hidden="true"
-			className={cn("size-1.5 shrink-0 rounded-full", COLLECTION_DOTS[color], className)}
-		/>
-	);
-}
-
-/** A collection's name on its tint, the way the grid colors its dots. */
-export function CalendarCollectionTag({
+/** The collection's icon from the sidebar. */
+export function CalendarCollectionIcon({
 	slug,
 	display,
 	className,
@@ -116,13 +95,45 @@ export function CalendarCollectionTag({
 	display: CalendarDisplay;
 	className?: string;
 }) {
+	return (
+		<NavIcon
+			icon={getCollectionNavIcon(slug, display.collection(slug).icon)}
+			isActive={false}
+			className={cn("size-3.5 shrink-0", className)}
+		/>
+	);
+}
+
+/**
+ * A collection's icon and name on its tint. `labelClassName` can hide the
+ * name where space is short, leaving the icon.
+ */
+export function CalendarCollectionTag({
+	slug,
+	display,
+	size = "base",
+	className,
+	labelClassName,
+}: {
+	slug: string;
+	display: CalendarDisplay;
+	size?: "sm" | "base";
+	className?: string;
+	labelClassName?: string;
+}) {
 	const { label, color } = display.collection(slug);
 	return (
 		<Badge
 			variant="secondary"
-			className={cn("max-w-40 rounded-sm text-kumo-default", COLLECTION_TINTS[color], className)}
+			className={cn(
+				"max-w-40 gap-1 rounded-sm ps-1.5 text-kumo-default",
+				size === "sm" && "py-0 ps-1 pe-1",
+				COLLECTION_TINTS[color],
+				className,
+			)}
 		>
-			<span className="truncate">{label}</span>
+			<CalendarCollectionIcon slug={slug} display={display} />
+			<span className={cn("truncate", size === "sm" && "pe-0.5", labelClassName)}>{label}</span>
 		</Badge>
 	);
 }
@@ -251,7 +262,7 @@ export function CalendarEntryRow({
 
 function CalendarEntryDetails({ item, display }: { item: CalendarItem; display: CalendarDisplay }) {
 	const { t } = useLingui();
-	const { label, color } = display.collection(item.collection);
+	const { label } = display.collection(item.collection);
 	const state = t(CALENDAR_STATE_LABELS[item.state]);
 	const when = display.formatDateTime(item.time);
 	const viewerTime = display.formatViewerTime(item.time);
@@ -267,7 +278,7 @@ function CalendarEntryDetails({ item, display }: { item: CalendarItem; display: 
 			</span>
 			{display.viewerZoneDiffers && <span>{t`Your time: ${viewerTime}`}</span>}
 			<span className="flex items-center gap-1.5">
-				<CalendarCollectionDot color={color} />
+				<CalendarCollectionIcon slug={item.collection} display={display} />
 				{label}
 				{display.showLocale && <CalendarLocaleChip locale={item.locale} />}
 			</span>
@@ -293,7 +304,6 @@ export function CalendarEntryChip({
 	onSelect?: CalendarSelectHandler;
 }) {
 	const { t } = useLingui();
-	const { label, color } = display.collection(item.collection);
 	const state = t(CALENDAR_STATE_LABELS[item.state]);
 	const time = display.formatTime(item.time);
 	const flat = item.state === "published";
@@ -333,28 +343,31 @@ export function CalendarEntryChip({
 				</>
 			) : (
 				<>
-					<span dir="auto" className="truncate font-medium text-kumo-default">
-						{item.title}
-					</span>
-					<span className="flex min-w-0 items-center gap-1 text-kumo-subtle">
-						<CalendarStateIcon state={item.state} className="size-3.5" />
-						<span className="shrink-0 tabular-nums">{time}</span>
-						{overdue ? (
-							<>
-								<span className="sr-only">{state}</span>
-								<span className="truncate font-medium text-kumo-warning">{t`${lateness} late`}</span>
-							</>
-						) : (
-							<>
-								<span className="sr-only">{state}</span>
-								<CalendarCollectionDot color={color} className="ms-0.5" />
-								<span className="hidden truncate @min-[8.5rem]:inline">{label}</span>
-							</>
-						)}
+					<span className="flex min-w-0 items-center gap-1.5">
+						<span dir="auto" className="truncate font-medium text-kumo-default">
+							{item.title}
+						</span>
 						{display.showLocale && (
 							<span className="ms-auto">
 								<CalendarLocaleChip locale={item.locale} />
 							</span>
+						)}
+					</span>
+					<span className="flex min-w-0 items-center gap-1 text-kumo-subtle">
+						<CalendarStateIcon state={item.state} className="size-3.5" />
+						<span className="shrink-0 tabular-nums">{time}</span>
+						<span className="sr-only">{state}</span>
+						{overdue ? (
+							<span className="truncate font-medium text-kumo-warning">{t`${lateness} late`}</span>
+						) : (
+							// The tag shows its icon once the cell has room, and its name once it has more.
+							<CalendarCollectionTag
+								slug={item.collection}
+								display={display}
+								size="sm"
+								className="ms-auto hidden min-w-0 shrink @min-[7.5rem]:inline-flex"
+								labelClassName="hidden @min-[9.5rem]:inline"
+							/>
 						)}
 					</span>
 				</>

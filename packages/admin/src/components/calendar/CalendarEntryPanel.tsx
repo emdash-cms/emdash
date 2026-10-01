@@ -14,7 +14,6 @@ import {
 	PaperPlaneTilt,
 	PencilSimple,
 	Signature,
-	Tag,
 	Translate,
 	WarningCircle,
 	X,
@@ -35,6 +34,7 @@ import {
 import type { CurrentUser } from "../../lib/api/current-user.js";
 import {
 	formatTimeAgo,
+	formatTimeUntil,
 	type CalendarDisplay,
 	type CalendarItem,
 	type CalendarState,
@@ -47,7 +47,6 @@ import { PublishingScheduleDialog } from "../PublishingDateTimeEditor.js";
 import { RouterLinkButton } from "../RouterLinkButton.js";
 import {
 	CALENDAR_STATE_LABELS,
-	CalendarCollectionDot,
 	CalendarCollectionTag,
 	CalendarStateIcon,
 } from "./CalendarEntry.js";
@@ -158,7 +157,6 @@ function CalendarEntryPanelContent({
 	);
 	const scheduled = item.kind === "scheduled";
 	const title = item.title;
-	const collection = display.collection(item.collection);
 	const editorLink = {
 		to: "/content/$collection/$id",
 		params: { collection: item.collection, id: item.id },
@@ -251,6 +249,7 @@ function CalendarEntryPanelContent({
 	const time = display.formatDateTime(item.time);
 	const viewerTime = display.formatViewerTime(item.time);
 	const lateness = formatTimeAgo(now - item.time, display.locale);
+	const countdown = formatTimeUntil(item.time - now, display.locale);
 	const updatedAt = entry ? Date.parse(entry.updatedAt) : Number.NaN;
 	const edited = Number.isNaN(updatedAt)
 		? undefined
@@ -268,7 +267,8 @@ function CalendarEntryPanelContent({
 					className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-kumo-fill"
 				/>
 			)}
-			<div className="flex shrink-0 items-center gap-1 px-3 py-2">
+			<div className="flex shrink-0 items-center justify-between gap-3 ps-5 pe-3 pt-3 sm:ps-6">
+				<CalendarCollectionTag slug={item.collection} display={display} />
 				<Dialog.Close
 					render={
 						<Button
@@ -280,21 +280,9 @@ function CalendarEntryPanelContent({
 						/>
 					}
 				/>
-				<p className="flex min-w-0 flex-1 items-center gap-1.5 px-1 text-sm text-kumo-subtle">
-					<CalendarCollectionDot color={collection.color} />
-					<span className="truncate">{collection.label}</span>
-				</p>
-				<RouterLinkButton
-					{...editorLink}
-					variant="ghost"
-					shape="square"
-					size="sm"
-					aria-label={t`Open in editor`}
-					icon={<ArrowSquareOut aria-hidden="true" className="rtl:-scale-x-100" />}
-				/>
 			</div>
 
-			<div className="flex-1 overflow-y-auto px-5 pt-2 pb-6 sm:px-6">
+			<div className="flex-1 overflow-y-auto px-5 pt-3 pb-6 sm:px-6">
 				<Dialog.Title
 					dir="auto"
 					className="text-2xl leading-tight font-semibold tracking-tight break-words"
@@ -327,9 +315,6 @@ function CalendarEntryPanelContent({
 								{t`Your time: ${viewerTime}`}
 							</span>
 						)}
-					</PanelProperty>
-					<PanelProperty icon={Tag} label={t`Collection`}>
-						<CalendarCollectionTag slug={item.collection} display={display} />
 					</PanelProperty>
 					{display.showLocale && (
 						<PanelProperty icon={Translate} label={t`Locale`}>
@@ -364,68 +349,88 @@ function CalendarEntryPanelContent({
 					<p className="mt-4 text-sm text-kumo-danger">{t`Could not load this entry's details.`}</p>
 				)}
 
-				<hr className="my-6 border-kumo-line" />
-				<h3 className="mb-4 text-sm font-semibold">{t`Publishing`}</h3>
-				{item.state === "published" && (
-					<PanelNote icon={CheckCircle} tone="neutral">
-						{t`Published ${time}.`}
-					</PanelNote>
-				)}
-				{item.state === "overdue" && (
-					<PanelNote icon={WarningCircle} tone="warning">
-						{t`This entry was due ${lateness} but hasn't published. Scheduled publishing may not be running.`}
-					</PanelNote>
-				)}
-				{item.state === "scheduled" && (
-					<PanelTimeline
-						steps={[
-							{
-								icon: CircleDashed,
-								tone: "neutral",
-								title: t`Draft`,
-								detail: edited && t`Last edited ${edited}`,
-							},
-							{
-								icon: CalendarDots,
-								tone: "info",
-								title: t`Scheduled`,
-								detail: t`Publishes ${time}`,
-							},
-						]}
-					/>
-				)}
-				{item.state === "update" && (
-					<PanelTimeline
-						steps={[
-							{
-								icon: CheckCircle,
-								tone: "success",
-								title: t`Live version`,
-								detail: liveSince && t`Published ${liveSince}`,
-							},
-							{
-								icon: ArrowsClockwise,
-								tone: "info",
-								title: t`Scheduled changes`,
-								detail: t`Go live ${time}`,
-							},
-						]}
-					/>
+				{scheduled && (
+					<>
+						<hr className="my-6 border-kumo-line" />
+						<h3 className="mb-4 text-sm font-semibold">{t`Publishing`}</h3>
+						{item.state === "overdue" && (
+							<p className="flex gap-2.5 rounded-md bg-kumo-warning-tint px-3 py-2.5 text-sm leading-5">
+								<WarningCircle
+									aria-hidden="true"
+									className="mt-0.5 size-4 shrink-0 text-kumo-warning"
+								/>
+								<span>
+									{t`This entry was due ${lateness} but hasn't published. Scheduled publishing may not be running.`}
+								</span>
+							</p>
+						)}
+						{item.state === "scheduled" && (
+							<PanelTimeline
+								steps={[
+									{ icon: CircleDashed, tone: "neutral", title: t`Draft` },
+									{
+										icon: CalendarDots,
+										tone: "info",
+										title: t`Scheduled`,
+										detail: t`Goes live ${countdown}`,
+									},
+								]}
+							/>
+						)}
+						{item.state === "update" && (
+							<PanelTimeline
+								steps={[
+									{
+										icon: CheckCircle,
+										tone: "success",
+										title: t`Live version`,
+										detail: liveSince && t`Published ${liveSince}`,
+									},
+									{
+										icon: ArrowsClockwise,
+										tone: "info",
+										title: t`Scheduled changes`,
+										detail: t`Go live ${countdown}`,
+									},
+								]}
+							/>
+						)}
+						{canPublish && (
+							<div className="mt-5 flex flex-wrap gap-2">
+								{item.state === "overdue" && (
+									<Button
+										variant="primary"
+										icon={<PaperPlaneTilt aria-hidden="true" className="rtl:-scale-x-100" />}
+										loading={publish.isPending}
+										disabled={unschedule.isPending}
+										onClick={() => publish.mutate()}
+									>
+										{t`Publish now`}
+									</Button>
+								)}
+								<Button
+									variant="secondary"
+									icon={<CalendarDots aria-hidden="true" />}
+									disabled={publish.isPending || unschedule.isPending}
+									onClick={() => setScheduleOpen(true)}
+								>
+									{t`Reschedule`}
+								</Button>
+								<Button
+									variant="secondary-destructive"
+									loading={unschedule.isPending}
+									disabled={publish.isPending}
+									onClick={() => unschedule.mutate()}
+								>
+									{t`Remove schedule`}
+								</Button>
+							</div>
+						)}
+					</>
 				)}
 			</div>
 
 			<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-kumo-line px-5 py-3 sm:px-6">
-				{item.state === "overdue" && canPublish && (
-					<Button
-						variant="primary"
-						icon={<PaperPlaneTilt aria-hidden="true" className="rtl:-scale-x-100" />}
-						loading={publish.isPending}
-						disabled={unschedule.isPending}
-						onClick={() => publish.mutate()}
-					>
-						{t`Publish now`}
-					</Button>
-				)}
 				<RouterLinkButton
 					{...editorLink}
 					variant="secondary"
@@ -433,16 +438,6 @@ function CalendarEntryPanelContent({
 				>
 					{t`Open in editor`}
 				</RouterLinkButton>
-				{scheduled && canPublish && (
-					<Button
-						variant="secondary"
-						icon={<CalendarDots aria-hidden="true" />}
-						disabled={publish.isPending || unschedule.isPending}
-						onClick={() => setScheduleOpen(true)}
-					>
-						{t`Reschedule`}
-					</Button>
-				)}
 				{scheduled && (
 					<Button
 						variant="secondary"
@@ -462,17 +457,6 @@ function CalendarEntryPanelContent({
 					>
 						{t`View live`}
 					</LinkButton>
-				)}
-				{scheduled && canPublish && (
-					<Button
-						variant="secondary-destructive"
-						className="ms-auto"
-						loading={unschedule.isPending}
-						disabled={publish.isPending}
-						onClick={() => unschedule.mutate()}
-					>
-						{t`Remove schedule`}
-					</Button>
 				)}
 			</div>
 
@@ -505,7 +489,9 @@ function PanelProperty({
 	return (
 		<>
 			<dt className="flex items-start gap-2 text-kumo-subtle">
-				<PropertyIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+				<span className="flex h-lh shrink-0 items-center">
+					<PropertyIcon aria-hidden="true" className="size-4" />
+				</span>
 				<span className="min-w-0">{label}</span>
 			</dt>
 			<dd className="min-w-0 break-words">{children}</dd>
@@ -524,41 +510,13 @@ function LocaleCode({ locale }: { locale: string }) {
 	);
 }
 
-type PanelTone = "neutral" | "info" | "success" | "warning";
+type PanelTone = "neutral" | "info" | "success";
 
 const TONE_TINTS: Record<PanelTone, string> = {
 	neutral: "bg-kumo-fill text-kumo-subtle",
 	info: "bg-kumo-info-tint text-kumo-info",
 	success: "bg-kumo-success-tint text-kumo-success",
-	warning: "bg-kumo-warning-tint text-kumo-warning",
 };
-
-function PanelNote({
-	icon: NoteIcon,
-	tone,
-	children,
-}: {
-	icon: Icon;
-	tone: "neutral" | "warning";
-	children: React.ReactNode;
-}) {
-	return (
-		<p
-			className={cn(
-				"flex gap-2.5 rounded-md px-3 py-2.5 text-sm leading-5",
-				tone === "warning"
-					? "bg-kumo-warning-tint text-kumo-default"
-					: "bg-kumo-tint text-kumo-subtle",
-			)}
-		>
-			<NoteIcon
-				aria-hidden="true"
-				className={cn("mt-0.5 size-4 shrink-0", tone === "warning" && "text-kumo-warning")}
-			/>
-			<span>{children}</span>
-		</p>
-	);
-}
 
 function PanelTimeline({
 	steps,
