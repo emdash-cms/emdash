@@ -24,7 +24,7 @@ msgstr " (새 창에서 열립니다)"
 
 #: packages/admin/src/routes/bylines.tsx:958
 msgid "-- Select --"
-msgstr ""
+msgstr "선택하세요."
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1902
@@ -297,7 +297,7 @@ msgstr ""
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:272
 msgid "{0} added to this post."
-msgstr ""
+msgstr "{0}이(가) 이 게시물에 추가되었습니다."
 
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:518
@@ -425,7 +425,7 @@ msgstr "{0} 미리보기"
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:632
 msgid "{0} removed from this post."
-msgstr ""
+msgstr "{0}이(가) 이 게시물에서 제거되었습니다."
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
@@ -442,7 +442,7 @@ msgstr "{0} 업데이트됨"
 #. placeholder {0}: updated.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:375
 msgid "{0} updated everywhere it appears."
-msgstr ""
+msgstr "{0}이(가) 표시되는 모든 곳에 변경 사항이 적용되었습니다."
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:294
@@ -541,7 +541,7 @@ msgstr ""
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/BylineCreditsEditor.tsx:291
 msgid "{label} moved to position {0}."
-msgstr ""
+msgstr "{label}이(가) {0}번째 위치로 이동했습니다."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:533
 msgid "{label} options"
@@ -1103,11 +1103,11 @@ msgstr "새 패스키 추가"
 
 #: packages/admin/src/routes/bylines.tsx:700
 msgid "Add a person or team to credit on your content."
-msgstr ""
+msgstr "콘텐츠에 이름을 표시할 사람이나 팀을 추가하세요."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:571
 msgid "Add another byline"
-msgstr ""
+msgstr "저자 정보 더 추가"
 
 #: packages/admin/src/components/BlocksField.tsx:272
 msgid "Add at least {minItems} blocks."
@@ -1123,7 +1123,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:420
 msgid "Add byline"
-msgstr ""
+msgstr "저자 정보 추가"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
 #: packages/admin/src/components/PortableTextEditor.tsx:4309
@@ -1296,7 +1296,7 @@ msgstr "가져올 추가 데이터입니다."
 
 #: packages/admin/src/routes/bylines.tsx:789
 msgid "Additional details"
-msgstr ""
+msgstr "추가 세부정보"
 
 #: packages/admin/src/components/WordPressImport.tsx:1503
 msgid "admin"
@@ -1318,7 +1318,7 @@ msgstr "관리자"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:995
 msgid "Advanced"
-msgstr ""
+msgstr "고급"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:67
 msgid "After"
@@ -1755,7 +1755,7 @@ msgstr "최대 개수 지정…"
 
 #: packages/admin/src/routes/bylines.tsx:752
 msgid "Attribution"
-msgstr ""
+msgstr "사용자 연결"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 #: packages/admin/src/components/MediaLibrary.tsx:987
@@ -1856,7 +1856,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:654
 msgid "Automatic"
-msgstr ""
+msgstr "자동"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:219
 #: packages/admin/src/components/settings/BackupSettings.tsx:275
@@ -1874,7 +1874,7 @@ msgstr "자동 저장에 실패했습니다"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:457
 msgid "Available bylines"
-msgstr ""
+msgstr "사용 가능한 저자 정보"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:846
@@ -1892,7 +1892,7 @@ msgstr ""
 #: packages/admin/src/components/BylineAvatarField.tsx:46
 #: packages/admin/src/components/BylineAvatarField.tsx:71
 msgid "Avatar"
-msgstr ""
+msgstr "아바타"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:628
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
@@ -2012,7 +2012,7 @@ msgstr "Bing 인증"
 
 #: packages/admin/src/routes/bylines.tsx:741
 msgid "Bio"
-msgstr ""
+msgstr "소개"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlocksField.tsx:406
@@ -2113,16 +2113,16 @@ msgstr "글머리 기호 목록"
 
 #: packages/admin/src/routes/bylines.tsx:874
 msgid "byline"
-msgstr ""
+msgstr "저자 정보"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:290
 #: packages/admin/src/routes/bylines.tsx:529
 msgid "Byline"
-msgstr ""
+msgstr "저자 정보"
 
 #: packages/admin/src/routes/bylines.tsx:334
 msgid "Byline created"
-msgstr ""
+msgstr "저자 정보가 생성되었습니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:25
 #: packages/admin/src/components/settings/transfer/labels.ts:83
@@ -2131,7 +2131,7 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:383
 msgid "Byline deleted"
-msgstr ""
+msgstr "저자 정보가 삭제되었습니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:21
 msgid "Byline field group values"
@@ -2151,7 +2151,7 @@ msgstr ""
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:492
 msgid "Byline schema"
-msgstr ""
+msgstr "저자 정보 스키마"
 
 #: packages/admin/src/components/Sidebar.tsx:462
 msgid "Byline Schema"
@@ -2159,7 +2159,7 @@ msgstr "저자 정보 스키마"
 
 #: packages/admin/src/routes/bylines.tsx:372
 msgid "Byline updated"
-msgstr ""
+msgstr "저자 정보가 업데이트되었습니다."
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1088
@@ -2390,7 +2390,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:980
 msgid "Changes apply everywhere this byline appears."
-msgstr ""
+msgstr "이 저자 정보가 표시되는 모든 곳에 변경 사항이 적용됩니다."
 
 #: packages/admin/src/router.tsx:1356
 msgid "Changes discarded"
@@ -2530,7 +2530,7 @@ msgstr "다른 방법 선택"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:671
 #: packages/admin/src/components/BylineCreditsEditor.tsx:686
 msgid "Choose bylines"
-msgstr ""
+msgstr "저자 정보 선택"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1094
 msgid "Choose files to upload"
@@ -2575,7 +2575,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:660
 msgid "Choosing a byline replaces this automatic credit."
-msgstr ""
+msgstr "저자 정보를 선택하면 자동으로 표시되던 저자 정보가 대체됩니다."
 
 #: packages/admin/src/components/ContentList.tsx:616
 #: packages/admin/src/components/ContentList.tsx:1125
@@ -2694,7 +2694,7 @@ msgstr "닫기"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:430
 msgid "Close byline search"
-msgstr ""
+msgstr "저자 정보 검색 닫기"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:683
 msgid "Close comments after (days)"
@@ -3199,7 +3199,7 @@ msgstr "콘텐츠를 불러오지 못했습니다."
 
 #: packages/admin/src/routes/bylines.tsx:810
 msgid "Couldn't load custom fields."
-msgstr ""
+msgstr "커스텀 필드를 로드하지 못했습니다."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:157
 msgid "Couldn’t load exports"
@@ -3239,7 +3239,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:472
 msgid "Couldn’t search bylines."
-msgstr ""
+msgstr "저자 정보를 검색하지 못했습니다."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:139
 msgid "Couldn’t start the export"
@@ -3276,7 +3276,7 @@ msgstr "생성"
 #. placeholder {0}: option.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:516
 msgid "Create “{0}”"
-msgstr ""
+msgstr "“{0}” 생성"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:584
 msgid "Create \"{trimmedInput}\""
@@ -3285,7 +3285,7 @@ msgstr ""
 #. placeholder {0}: option.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:527
 msgid "Create {0}"
-msgstr ""
+msgstr "{0} 생성"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:857
@@ -3319,11 +3319,11 @@ msgstr "번호 매기기 목록 만들기"
 
 #: packages/admin/src/routes/bylines.tsx:639
 msgid "Create a profile for someone credited on your content."
-msgstr ""
+msgstr "콘텐츠에 이름을 표시할 사람의 프로필을 생성하세요."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:979
 msgid "Create a reusable public profile, then add it to this post."
-msgstr ""
+msgstr "재사용할 수 있는 공개 프로필을 생성한 다음 이 게시물에 추가하세요."
 
 #: packages/admin/src/components/SignupPage.tsx:417
 msgid "Create an account"
@@ -3331,7 +3331,7 @@ msgstr "계정 만들기"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1024
 msgid "Create and add"
-msgstr ""
+msgstr "생성 후 추가"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
 msgid "Create byline"
@@ -3347,7 +3347,7 @@ msgstr "잘린 복사본 생성"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Create field"
-msgstr ""
+msgstr "필드 생성"
 
 #: packages/admin/src/components/MenuList.tsx:131
 msgid "Create menu"
@@ -3767,12 +3767,12 @@ msgstr ""
 #: packages/admin/src/routes/bylines.tsx:614
 #: packages/admin/src/routes/bylines.tsx:876
 msgid "Delete byline"
-msgstr ""
+msgstr "저자 정보 삭제"
 
 #. placeholder {0}: item.displayName
 #: packages/admin/src/routes/bylines.tsx:611
 msgid "Delete byline {0}"
-msgstr ""
+msgstr "{0} 저자 정보 삭제"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
@@ -4476,11 +4476,11 @@ msgstr "미디어 편집"
 
 #: packages/admin/src/routes/bylines.tsx:693
 msgid "Edit byline"
-msgstr ""
+msgstr "저자 정보 편집"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
-msgstr ""
+msgstr "저자 정보 필드 편집"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:425
 msgid "Edit dark mode asset"
@@ -4542,7 +4542,7 @@ msgstr "편집 모드"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:881
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
 msgid "Edit name and slug"
-msgstr ""
+msgstr "이름 및 슬러그 편집"
 
 #: packages/admin/src/components/Redirects.tsx:545
 msgid "Edit redirect"
@@ -4559,7 +4559,7 @@ msgstr "리디렉션 {0} 편집"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:873
 msgid "Edit role"
-msgstr ""
+msgstr "기여 역할 편집"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
@@ -4593,7 +4593,7 @@ msgid ""
 "Editor\n"
 "Reporter\n"
 "Photographer"
-msgstr ""
+msgstr "편집자\n기자\n사진가"
 
 #: packages/admin/src/components/FieldEditor.tsx:1305
 msgid "Editors can select a second image that the site shows in dark mode."
@@ -4748,7 +4748,7 @@ msgstr "콘텐츠 언어가 설정되지 않아 영어가 사용됩니다. 콘�
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:312
 msgid "Enter a name."
-msgstr ""
+msgstr "이름을 입력하세요."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:447
 msgid "Enter a recognized timezone to save"
@@ -5097,7 +5097,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
-msgstr ""
+msgstr "저자 정보를 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
@@ -5397,7 +5397,7 @@ msgstr ""
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:428
 msgid "Failed to load bylines: {0}"
-msgstr ""
+msgstr "저자 정보를 로드하지 못했습니다: {0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:80
 #: packages/admin/src/components/settings/EmailSettings.tsx:81
@@ -5768,7 +5768,7 @@ msgstr "필드 슬러그는 생성 후에 변경할 수 없습니다."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:268
 msgid "Field type cannot be changed after creation."
-msgstr ""
+msgstr "필드 유형은 생성 후 변경할 수 없습니다."
 
 #: packages/admin/src/routes/byline-schema.tsx:115
 msgid "Field updated"
@@ -5852,7 +5852,7 @@ msgstr "유형으로 필터링"
 
 #: packages/admin/src/routes/bylines.tsx:511
 msgid "Filter byline type"
-msgstr ""
+msgstr "저자 정보 유형으로 필터링"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:592
 msgid "Finish any current edits."
@@ -5972,7 +5972,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:657
 msgid "From the post owner"
-msgstr ""
+msgstr "게시물 작성자의 정보 사용"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:363
 msgid "From URL"
@@ -6011,7 +6011,7 @@ msgstr "일반 설정"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1002
 msgid "Generated automatically."
-msgstr ""
+msgstr "자동으로 생성됩니다."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1039
 msgid "Genres"
@@ -6070,15 +6070,15 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:565
 msgid "Guest"
-msgstr ""
+msgstr "게스트"
 
 #: packages/admin/src/routes/bylines.tsx:775
 msgid "Guest byline"
-msgstr ""
+msgstr "게스트 저자 정보"
 
 #: packages/admin/src/routes/bylines.tsx:516
 msgid "Guest only"
-msgstr ""
+msgstr "게스트만"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
@@ -6803,11 +6803,11 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:235
 msgid "Job title"
-msgstr ""
+msgstr "직책"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:246
 msgid "job_title"
-msgstr ""
+msgstr "job_title"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:41
 #: packages/admin/src/components/FieldEditor.tsx:455
@@ -6861,7 +6861,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:541
 msgid "Keep typing to narrow the list."
-msgstr ""
+msgstr "계속 입력하여 목록을 좁히세요."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:314
 #: packages/admin/src/components/SectionEditor.tsx:304
@@ -6987,7 +6987,7 @@ msgstr "링크가 만료되었습니다"
 
 #: packages/admin/src/routes/bylines.tsx:754
 msgid "Link this byline to a user or mark it as a guest profile."
-msgstr ""
+msgstr "이 저자 정보를 사용자와 연결하거나 게스트 프로필로 표시하세요."
 
 #: packages/admin/src/components/FieldEditor.tsx:450
 msgid "Link to another content item"
@@ -7019,7 +7019,7 @@ msgstr "연결되는 쪽(단수형)"
 #: packages/admin/src/routes/bylines.tsx:565
 #: packages/admin/src/routes/bylines.tsx:758
 msgid "Linked user"
-msgstr ""
+msgstr "연결된 사용자"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:171
 msgid "LinkedIn"
@@ -7300,7 +7300,7 @@ msgstr "가로세로 비율 잠금"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:291
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
-msgstr ""
+msgstr "이 필드에 저장된 값이 있어 변경할 수 없습니다. 변경하려면 값이나 필드를 삭제하세요."
 
 #: packages/admin/src/components/Header.tsx:110
 msgid "Log out"
@@ -7318,7 +7318,7 @@ msgstr "로고 및 파비콘"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:53
 msgid "Long text"
-msgstr ""
+msgstr "긴 텍스트"
 
 #: packages/admin/src/components/FieldEditor.tsx:389
 #: packages/admin/src/components/FieldEditor.tsx:1233
@@ -7362,7 +7362,7 @@ msgstr "{1}에 대한 {0} 관리"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:703
 msgid "Manage bylines in {entryLocale}"
-msgstr ""
+msgstr "{entryLocale} 저자 정보 관리"
 
 #: packages/admin/src/components/Widgets.tsx:390
 msgid "Manage content widgets in your widget areas"
@@ -7378,7 +7378,7 @@ msgstr "사이트의 탐색 메뉴를 관리합니다"
 
 #: packages/admin/src/routes/bylines.tsx:474
 msgid "Manage the people and teams credited on your content."
-msgstr ""
+msgstr "콘텐츠에 이름이 표시되는 사람과 팀을 관리하세요."
 
 #: packages/admin/src/components/Redirects.tsx:366
 msgid "Manage URL redirects and view 404 errors."
@@ -7726,7 +7726,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:1349
 #: packages/admin/src/routes/bylines.tsx:600
 msgid "More actions for {0}"
-msgstr ""
+msgstr "{0} 추가 작업"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:510
 msgid "More information about {label}"
@@ -7994,11 +7994,11 @@ msgstr ""
 #: packages/admin/src/routes/bylines.tsx:654
 #: packages/admin/src/routes/bylines.tsx:693
 msgid "New byline"
-msgstr ""
+msgstr "새 저자 정보"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
-msgstr ""
+msgstr "새 저자 정보 필드"
 
 #: packages/admin/src/components/WordPressImport.tsx:2002
 msgid "New collection"
@@ -8038,7 +8038,7 @@ msgstr "새 관계"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:519
 msgid "New reusable profile"
-msgstr ""
+msgstr "재사용할 수 있는 새 프로필"
 
 #: packages/admin/src/components/Sections.tsx:159
 msgid "New section"
@@ -8166,11 +8166,11 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:695
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
-msgstr ""
+msgstr "{entryLocale}에서 사용할 수 있는 저자 정보가 없습니다. 이 콘텐츠에 저자 정보를 표시하려면 먼저 저자 정보 페이지에서 해당 언어의 저자 정보를 생성하세요."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:549
 msgid "No bylines available."
-msgstr ""
+msgstr "사용 가능한 저자 정보가 없습니다."
 
 #: packages/admin/src/components/BylineFilter.tsx:150
 msgid "No bylines found"
@@ -8178,7 +8178,7 @@ msgstr "저자 정보를 찾을 수 없습니다."
 
 #: packages/admin/src/routes/bylines.tsx:634
 msgid "No bylines yet"
-msgstr ""
+msgstr "아직 저자 정보가 없습니다."
 
 #: packages/admin/src/components/Dashboard.tsx:455
 msgid "No collections configured"
@@ -8292,7 +8292,7 @@ msgstr "제한 없음"
 
 #: packages/admin/src/routes/bylines.tsx:769
 msgid "No linked user"
-msgstr ""
+msgstr "연결된 사용자 없음"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:314
 msgid "No matches"
@@ -8308,11 +8308,11 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:634
 msgid "No matching bylines"
-msgstr ""
+msgstr "일치하는 저자 정보가 없습니다."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:549
 msgid "No matching bylines."
-msgstr ""
+msgstr "일치하는 저자 정보가 없습니다."
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:310
 msgid "No matching content found."
@@ -8493,7 +8493,7 @@ msgstr "Windows Hello 인증기를 찾을 수 없습니다"
 
 #: packages/admin/src/routes/bylines.tsx:517
 msgid "Non-guest"
-msgstr ""
+msgstr "게스트 제외"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
 msgid "None"
@@ -8927,7 +8927,7 @@ msgstr "게시되지 않은 변경 사항"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:648
 msgid "People shown publicly on this post."
-msgstr ""
+msgstr "이 게시물에 공개적으로 표시되는 사람입니다."
 
 #: packages/admin/src/components/MediaLibrary.tsx:1333
 msgid "Per page"
@@ -9744,7 +9744,7 @@ msgstr "도메인을 제거하시겠습니까?"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:891
 msgid "Remove from post"
-msgstr ""
+msgstr "게시물에서 제거"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:593
 #: packages/admin/src/components/ImageFieldRenderer.tsx:313
@@ -9835,7 +9835,7 @@ msgstr "순서 변경"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:836
 #: packages/admin/src/components/ContentTypeList.tsx:310
 msgid "Reorder {0}"
-msgstr ""
+msgstr "{0} 순서 변경"
 
 #: packages/admin/src/components/FieldEditor.tsx:473
 msgid "Repeater"
@@ -10256,12 +10256,12 @@ msgstr "역할 {role}"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:906
 msgid "Role on this post (optional)"
-msgstr ""
+msgstr "이 게시물의 기여 역할(선택 사항)"
 
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:618
 msgid "Role updated for {0}."
-msgstr ""
+msgstr "{0}의 기여 역할이 업데이트되었습니다."
 
 #: packages/admin/src/components/RelationForm.tsx:291
 msgid "Roles"
@@ -10340,7 +10340,7 @@ msgstr "계속 저장"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1024
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Save changes"
-msgstr ""
+msgstr "변경 사항 저장"
 
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Save Changes"
@@ -10415,7 +10415,7 @@ msgstr "저장 중..."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Saving…"
-msgstr ""
+msgstr "저장 중…"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:561
 msgid "SBOM"
@@ -10576,7 +10576,7 @@ msgstr "저자 정보 검색"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:440
 msgid "Search bylines to add…"
-msgstr ""
+msgstr "추가할 저자 정보 검색…"
 
 #: packages/admin/src/components/BylineFilter.tsx:129
 msgid "Search bylines…"
@@ -10654,7 +10654,7 @@ msgstr "플러그인 검색..."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:421
 msgid "Search reusable public profiles."
-msgstr ""
+msgstr "재사용할 수 있는 공개 프로필을 검색하세요."
 
 #: packages/admin/src/components/SectionPickerModal.tsx:82
 #: packages/admin/src/components/Sections.tsx:143
@@ -10710,7 +10710,7 @@ msgstr "검색 가능"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:466
 #: packages/admin/src/components/BylineCreditsEditor.tsx:555
 msgid "Searching…"
-msgstr ""
+msgstr "검색 중…"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3100
 msgid "Section"
@@ -11067,7 +11067,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:873
 msgid "Set role"
-msgstr ""
+msgstr "기여 역할 설정"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:694
 msgid "Set to 0 to never close comments automatically."
@@ -11139,11 +11139,11 @@ msgstr "초대된 사용자와 이 링크를 공유하세요"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:294
 msgid "Shared across all translations of the same byline."
-msgstr ""
+msgstr "동일한 저자 정보의 모든 번역에서 공유됩니다."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:52
 msgid "Short text"
-msgstr ""
+msgstr "짧은 텍스트"
 
 #: packages/admin/src/components/FieldEditor.tsx:383
 #: packages/admin/src/components/FieldEditor.tsx:1232
@@ -11380,7 +11380,7 @@ msgstr "슬러그가 클립보드에 복사되었습니다."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:251
 msgid "Slugs cannot be changed after the field is created."
-msgstr ""
+msgstr "필드를 생성한 후에는 슬러그를 변경할 수 없습니다."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1720
 msgid "Small section heading"
@@ -11600,7 +11600,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
-msgstr ""
+msgstr "언어별로 저장됩니다. 저자 정보의 각 번역에 별도의 값이 저장됩니다."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4190
 #: packages/admin/src/components/PortableTextEditor.tsx:4711
@@ -12464,7 +12464,7 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:875
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-msgstr ""
+msgstr "저자 정보 프로필이 삭제됩니다. 콘텐츠와 저자 정보의 연결이 제거되고 대표 저자 정보 설정이 해제됩니다."
 
 #: packages/admin/src/components/RelationDeleteDialog.tsx:39
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
@@ -12682,7 +12682,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:287
 #: packages/admin/src/routes/byline-schema.tsx:243
 msgid "Translatable"
-msgstr ""
+msgstr "번역 가능"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:357
 #: packages/admin/src/components/TaxonomyManager.tsx:478
@@ -12752,7 +12752,7 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:638
 msgid "Try a different search or filter."
-msgstr ""
+msgstr "다른 검색어나 필터를 사용해 보세요."
 
 #: packages/admin/src/components/ContentPickerModal.tsx:287
 #: packages/admin/src/components/SectionPickerModal.tsx:103
@@ -12924,7 +12924,7 @@ msgstr "알 수 없는 역할"
 
 #: packages/admin/src/routes/bylines.tsx:565
 msgid "Unlinked"
-msgstr ""
+msgstr "연결되지 않음"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
@@ -13026,7 +13026,7 @@ msgstr "프로젝트의 emdash 패키지를 업데이트하고 다시 배포하�
 #. placeholder {0}: selected.displayName
 #: packages/admin/src/routes/bylines.tsx:697
 msgid "Update the profile for {0}."
-msgstr ""
+msgstr "{0}의 프로필을 업데이트하세요."
 
 #: packages/admin/src/components/Redirects.tsx:112
 msgid "Update this redirect rule."
@@ -13185,7 +13185,7 @@ msgstr "URL 패턴"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1001
 msgid "URL slug"
-msgstr ""
+msgstr "URL 슬러그"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:134
 #: packages/admin/src/components/FieldEditor.tsx:462
@@ -13250,7 +13250,7 @@ msgstr "종료일로 사용"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:314
 msgid "Use lowercase letters, numbers, and hyphens, starting with a letter."
-msgstr ""
+msgstr "영문 소문자로 시작하고 영문 소문자, 숫자, 하이픈만 사용하세요."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1140
 msgid "Use URL"
@@ -13527,7 +13527,7 @@ msgstr "웹사이트"
 
 #: packages/admin/src/routes/bylines.tsx:736
 msgid "Website URL"
-msgstr ""
+msgstr "웹사이트 URL"
 
 #: packages/admin/src/components/WelcomeModal.tsx:102
 msgid "Welcome to EmDash, {firstName}!"
@@ -13795,7 +13795,7 @@ msgstr "콘텐츠, 미디어, 메뉴, 분류를 관리할 수 있습니다."
 
 #: packages/admin/src/routes/bylines.tsx:812
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
-msgstr ""
+msgstr "위의 기본 필드는 계속 편집할 수 있습니다. 저장해도 저장된 커스텀 필드 값은 변경되지 않습니다."
 
 #: packages/admin/src/components/WelcomeModal.tsx:50
 msgid "You can view and contribute to the site."
