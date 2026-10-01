@@ -4,9 +4,10 @@
  * Public endpoint that returns the active authentication mode.
  * Used by the login page to determine which login UI to render.
  *
- * Unlike the full manifest endpoint, this is intentionally public
- * and returns only the auth mode — no collection schemas, plugin
- * info, or other internal details.
+ * Unlike the full manifest endpoint, this is public and returns only
+ * what the login page needs: the auth mode, signup and provider options,
+ * and the Turnstile site key. No collection schemas, plugin info, or
+ * other internal details.
  */
 
 import type { APIRoute } from "astro";
