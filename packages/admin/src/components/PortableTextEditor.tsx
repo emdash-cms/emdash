@@ -69,6 +69,14 @@ import {
 	TextAlignLeft,
 	TextAlignCenter,
 	TextAlignRight,
+	AlignLeft,
+	AlignCenterHorizontal,
+	AlignRight,
+	Check,
+	ImageSquare,
+	Rows,
+	SlidersHorizontal,
+	TextAa,
 	Minus,
 	LinkBreak,
 	ArrowSquareOut,
@@ -85,8 +93,8 @@ import {
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Extension, Mark, type Range } from "@tiptap/core";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Extension, Mark, type EditorEvents, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -95,7 +103,13 @@ import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { AllSelection, NodeSelection, Plugin, TextSelection } from "@tiptap/pm/state";
+import {
+	AllSelection,
+	NodeSelection,
+	Plugin,
+	TextSelection,
+	type EditorState,
+} from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -105,7 +119,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
-import { uploadMedia } from "../lib/api/media.js";
+import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
 import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
@@ -130,7 +144,7 @@ import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
-import { ImageExtension } from "./editor/ImageNode";
+import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
 import { LinkDestinationInput } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -168,6 +182,7 @@ import { SectionPickerModal } from "./SectionPickerModal";
 
 const INLINE_BUBBLE_MENU_KEY = "emdashInlineBubbleMenu";
 const TABLE_BUBBLE_MENU_KEY = "emdashTableBubbleMenu";
+const IMAGE_BUBBLE_MENU_KEY = "emdashImageBubbleMenu";
 
 type BubbleMenuCollisionOptions = () => {
 	rootBoundary: { x: number; y: number; width: number; height: number };
@@ -3513,7 +3528,8 @@ export function PortableTextEditor({
 			editor.view.dispatch(
 				editor.state.tr
 					.setMeta(INLINE_BUBBLE_MENU_KEY, "updatePosition")
-					.setMeta(TABLE_BUBBLE_MENU_KEY, "updatePosition"),
+					.setMeta(TABLE_BUBBLE_MENU_KEY, "updatePosition")
+					.setMeta(IMAGE_BUBBLE_MENU_KEY, "updatePosition"),
 			);
 		};
 
@@ -3841,7 +3857,11 @@ export function PortableTextEditor({
 						: t`Table cells accept text, links, and formatting only.`;
 
 	return (
-		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
+		<div
+			ref={floatingRootRef}
+			className="group/editor relative min-w-0"
+			data-emdash-editor-floating-root
+		>
 			<div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
 				{tableAnnouncement && <span key={tableAnnouncement.id}>{tableAnnouncement.text}</span>}
 			</div>
@@ -3900,6 +3920,12 @@ export function PortableTextEditor({
 				editor={editor}
 				appendTo={appendBubbleMenu}
 				getCollisionOptions={getBubbleMenuCollisionOptions}
+			/>
+			<ImageBubbleMenu
+				editor={editor}
+				appendTo={appendBubbleMenu}
+				getCollisionOptions={getBubbleMenuCollisionOptions}
+				canOpenSettings={Boolean(onBlockSidebarOpen)}
 			/>
 			{!minimal && (
 				<TableBubbleMenu
@@ -4033,18 +4059,12 @@ function EditorBubbleMenu({
 			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
-			image: activeEditor.isActive("image"),
-			imageLink:
-				activeEditor.isActive("image") && Boolean(activeEditor.getAttributes("image").link),
 		}),
 	});
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
 		if (showLinkInput) {
-			const existingUrl = editor.isActive("image")
-				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
-				: editor.getAttributes("link").href || "";
-			setLinkUrl(existingUrl);
+			setLinkUrl(editor.getAttributes("link").href || "");
 		}
 	}, [showLinkInput, editor]);
 
@@ -4054,9 +4074,7 @@ function EditorBubbleMenu({
 	};
 
 	const handleSetLink = () => {
-		if (editor.isActive("image")) {
-			setSelectedImageLink(editor, linkUrl);
-		} else if (linkUrl.trim() === "") {
+		if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			setSelectedTextLink(editor, linkUrl.trim());
@@ -4065,20 +4083,12 @@ function EditorBubbleMenu({
 	};
 
 	const applyLinkHref = (href: string) => {
-		if (editor.isActive("image")) {
-			setSelectedImageLink(editor, href);
-		} else {
-			setSelectedTextLink(editor, href);
-		}
+		setSelectedTextLink(editor, href);
 		closeLinkInput();
 	};
 
 	const handleRemoveLink = () => {
-		if (editor.isActive("image")) {
-			setSelectedImageLink(editor, null);
-		} else {
-			editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		}
+		editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		closeLinkInput();
 	};
 
@@ -4104,16 +4114,10 @@ function EditorBubbleMenu({
 			}}
 			shouldShow={({ editor: activeEditor, element, state, view }) => {
 				const { selection } = state;
-				// A selected image is a NodeSelection, not a TextSelection: let it
-				// through so the link controls below are reachable for images.
-				const isImageSelection =
-					selection instanceof NodeSelection && selection.node.type.name === "image";
 				return (
 					activeEditor.isEditable &&
-					(selection instanceof TextSelection ||
-						selection instanceof AllSelection ||
-						isImageSelection) &&
-					(!selection.empty || isImageSelection) &&
+					(selection instanceof TextSelection || selection instanceof AllSelection) &&
+					!selection.empty &&
 					(view.hasFocus() || element.contains(document.activeElement))
 				);
 			}}
@@ -4144,7 +4148,7 @@ function EditorBubbleMenu({
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
-					{(activeMarks.link || activeMarks.imageLink) && (
+					{activeMarks.link && (
 						<Button
 							type="button"
 							variant="ghost"
@@ -4160,65 +4164,60 @@ function EditorBubbleMenu({
 				</div>
 			) : (
 				<>
-					{/* Text marks are meaningless on a selected image: show only the link control. */}
-					{!activeMarks.image && (
-						<>
-							<BubbleButton
-								onClick={() => editor.chain().focus().toggleBold().run()}
-								active={activeMarks.bold}
-								title={t`Bold`}
-							>
-								<TextB className="h-4 w-4" />
-							</BubbleButton>
-							<BubbleButton
-								onClick={() => editor.chain().focus().toggleItalic().run()}
-								active={activeMarks.italic}
-								title={t`Italic`}
-							>
-								<TextItalic className="h-4 w-4" />
-							</BubbleButton>
-							<BubbleButton
-								onClick={() => editor.chain().focus().toggleUnderline().run()}
-								active={activeMarks.underline}
-								title={t`Underline`}
-							>
-								<TextUnderline className="h-4 w-4" />
-							</BubbleButton>
-							<BubbleButton
-								onClick={() => editor.chain().focus().toggleStrike().run()}
-								active={activeMarks.strike}
-								title={t`Strikethrough`}
-							>
-								<TextStrikethrough className="h-4 w-4" />
-							</BubbleButton>
-							<BubbleButton
-								onClick={() => editor.chain().focus().toggleSubscript().run()}
-								active={activeMarks.subscript}
-								title={t`Subscript`}
-							>
-								<TextSubscript className="h-4 w-4" />
-							</BubbleButton>
-							<BubbleButton
-								onClick={() => editor.chain().focus().toggleSuperscript().run()}
-								active={activeMarks.superscript}
-								title={t`Superscript`}
-							>
-								<TextSuperscript className="h-4 w-4" />
-							</BubbleButton>
-							<BubbleButton
-								onClick={() => editor.chain().focus().toggleCode().run()}
-								active={activeMarks.code}
-								title={t`Code`}
-							>
-								<Code className="h-4 w-4" />
-							</BubbleButton>
-							<div className="w-px h-6 bg-kumo-line mx-1" />
-						</>
-					)}
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleBold().run()}
+						active={activeMarks.bold}
+						title={t`Bold`}
+					>
+						<TextB className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleItalic().run()}
+						active={activeMarks.italic}
+						title={t`Italic`}
+					>
+						<TextItalic className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleUnderline().run()}
+						active={activeMarks.underline}
+						title={t`Underline`}
+					>
+						<TextUnderline className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleStrike().run()}
+						active={activeMarks.strike}
+						title={t`Strikethrough`}
+					>
+						<TextStrikethrough className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSubscript().run()}
+						active={activeMarks.subscript}
+						title={t`Subscript`}
+					>
+						<TextSubscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSuperscript().run()}
+						active={activeMarks.superscript}
+						title={t`Superscript`}
+					>
+						<TextSuperscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleCode().run()}
+						active={activeMarks.code}
+						title={t`Code`}
+					>
+						<Code className="h-4 w-4" />
+					</BubbleButton>
+					<div className="w-px h-6 bg-kumo-line mx-1" />
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
-						active={activeMarks.link || activeMarks.imageLink}
-						title={activeMarks.link || activeMarks.imageLink ? t`Edit link` : t`Add link`}
+						active={activeMarks.link}
+						title={activeMarks.link ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -4312,6 +4311,453 @@ function TableBubbleMenu({
 			</BubbleButton>
 			<TableMoreMenu editor={editor} editable={editable} onRun={onRun} />
 		</BubbleMenu>
+	);
+}
+
+const IMAGE_ALIGNMENTS: { value: string | null; label: MessageDescriptor; Icon: Icon }[] = [
+	{ value: null, label: msg`None`, Icon: Rows },
+	{ value: "left", label: msg`Left`, Icon: AlignLeft },
+	{ value: "center", label: msg`Center`, Icon: AlignCenterHorizontal },
+	{ value: "right", label: msg`Right`, Icon: AlignRight },
+];
+
+function getSelectedImage(state: EditorState): NodeSelection | null {
+	const { selection } = state;
+	return selection instanceof NodeSelection && selection.node.type.name === "image"
+		? selection
+		: null;
+}
+
+/**
+ * Image Bubble Menu - appears above a selected image.
+ * Replace, alt text, alignment, link, settings and delete.
+ */
+function ImageBubbleMenu({
+	editor,
+	appendTo,
+	getCollisionOptions,
+	canOpenSettings,
+}: {
+	editor: Editor;
+	appendTo: () => HTMLElement;
+	getCollisionOptions: BubbleMenuCollisionOptions;
+	canOpenSettings: boolean;
+}) {
+	const { t } = useLingui();
+	const menuRef = React.useRef<HTMLDivElement>(null);
+	const altInputRef = React.useRef<HTMLInputElement>(null);
+	const [mode, setMode] = React.useState<"controls" | "alt" | "link">("controls");
+	const [draft, setDraft] = React.useState("");
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+	// Remounting the controls when the toolbar hides closes any hint left open on them.
+	const [controlsKey, setControlsKey] = React.useState(0);
+	// Holds the toolbar in place while the Replace picker has focus and until it
+	// hands focus back, so its focus return can land on the Replace button.
+	const pickerRef = React.useRef<"idle" | "open" | "closing">("idle");
+	// Position of the image the open alt or link draft belongs to.
+	const editingPosRef = React.useRef<number | null>(null);
+	const editSessionRef = React.useRef(0);
+	const image = useEditorState({
+		editor,
+		selector: ({ editor: activeEditor }) => {
+			const attrs = getSelectedImage(activeEditor.state)?.node.attrs;
+			return {
+				alt: typeof attrs?.alt === "string" ? attrs.alt : "",
+				alignment: (attrs?.alignment as string | null | undefined) ?? null,
+				link: (attrs?.link as { href?: string } | null | undefined)?.href ?? "",
+				mediaId:
+					typeof attrs?.mediaId === "string" &&
+					attrs.mediaId &&
+					canonicalMediaProviderId(attrs.provider as string | undefined) === "local"
+						? attrs.mediaId
+						: null,
+			};
+		},
+	});
+	const queryClient = useQueryClient();
+	// Reads the image node view's cached media item; the toolbar never fetches it.
+	const { data: media } = useQuery({
+		queryKey: ["media", image.mediaId],
+		queryFn: ({ signal }) => fetchMediaItem(image.mediaId!, { signal }),
+		enabled: false,
+	});
+	// A file name is what uploads fall back to, so it doesn't count as a description,
+	// and a Media Library image can't be checked until its media item has loaded.
+	const described =
+		Boolean(image.alt.trim()) &&
+		(image.mediaId === null || (media !== undefined && image.alt !== media.filename));
+
+	const getSelectedCaption = React.useCallback(() => {
+		const selection = getSelectedImage(editor.state);
+		const node = selection && editor.view.nodeDOM(selection.from);
+		return node instanceof HTMLElement ? node.querySelector("textarea") : null;
+	}, [editor]);
+	const showControls = React.useCallback(() => {
+		editingPosRef.current = null;
+		setMode("controls");
+	}, []);
+	const updatePosition = React.useCallback(() => {
+		if (editor.isDestroyed) return;
+		editor.view.dispatch(editor.state.tr.setMeta(IMAGE_BUBBLE_MENU_KEY, "updatePosition"));
+	}, [editor]);
+	// A quick fade and scale in, played when the toolbar appears or moves to another image.
+	const playEntrance = React.useCallback(() => {
+		const menu = menuRef.current;
+		const toolbar = menu?.firstElementChild;
+		if (!menu?.isConnected || menu.hidden || !(toolbar instanceof HTMLElement)) return;
+		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		for (const animation of toolbar.getAnimations()) animation.cancel();
+		toolbar.animate(
+			reduceMotion
+				? [{ opacity: 0 }, { opacity: 1 }]
+				: [
+						{ opacity: 0, transform: "scale(0.97)" },
+						{ opacity: 1, transform: "none" },
+					],
+			{ duration: 150, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+		);
+	}, []);
+
+	// Replay the entrance when the selection moves to another image, and drop a
+	// draft once its image is no longer the selection.
+	React.useEffect(() => {
+		let selectedPos = getSelectedImage(editor.state)?.from ?? null;
+		const onTransaction = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
+			const map = (position: number) =>
+				[transaction, ...appendedTransactions].reduce((pos, tr) => tr.mapping.map(pos), position);
+			const current = getSelectedImage(editor.state)?.from ?? null;
+			if (current !== null && selectedPos !== null && current !== map(selectedPos)) playEntrance();
+			selectedPos = current;
+			if (editingPosRef.current === null) return;
+			editingPosRef.current = map(editingPosRef.current);
+			if (current !== editingPosRef.current) showControls();
+		};
+		editor.on("transaction", onTransaction);
+		return () => {
+			editor.off("transaction", onTransaction);
+		};
+	}, [editor, playEntrance, showControls]);
+
+	React.useEffect(() => {
+		const menu = menuRef.current;
+		if (!menu) return;
+		const dom = editor.view.dom;
+		const isInside = (target: EventTarget | null) =>
+			target instanceof Node && (dom.contains(target) || menu.contains(target));
+		// TipTap re-checks visibility only on editor events, so it misses focus
+		// leaving the toolbar itself for another field.
+		const hide = () => {
+			if (menu.hidden || !menu.isConnected) return;
+			menu.hidden = true;
+			setControlsKey((key) => key + 1);
+		};
+		const onFocusIn = (event: FocusEvent) => {
+			if (pickerRef.current === "open") return;
+			if (!isInside(event.target)) {
+				// A closing picker can park focus on its dialog before handing it back.
+				const inDialog = event.target instanceof Element && event.target.closest('[role="dialog"]');
+				if (pickerRef.current === "closing" && inDialog) return;
+				pickerRef.current = "idle";
+				hide();
+				return;
+			}
+			pickerRef.current = "idle";
+			if (!menu.hidden) return;
+			menu.hidden = false;
+			updatePosition();
+			playEntrance();
+		};
+		const onFocusOut = (event: FocusEvent) => {
+			if (pickerRef.current !== "idle" || isInside(event.relatedTarget)) return;
+			// Switching windows returns focus to the same place afterwards.
+			if (!event.relatedTarget && !document.hasFocus()) return;
+			// A link search pick disables its input while it resolves.
+			if (event.target instanceof HTMLInputElement && event.target.disabled) return;
+			hide();
+		};
+		// Tab moves image -> caption -> toolbar; Shift+Tab and Escape go back.
+		const onKeyDown = (event: KeyboardEvent) => {
+			if ((event.key !== "Tab" && event.key !== "Escape") || event.altKey || event.metaKey) return;
+			if (event.defaultPrevented || event.isComposing || !editor.isEditable) return;
+			const caption = getSelectedCaption();
+			const forward = event.key === "Tab" && !event.shiftKey;
+			let next: HTMLElement | null = null;
+			if (event.target === dom && forward) {
+				next = caption;
+			} else if (event.target === caption && forward) {
+				if (menu.isConnected && !menu.hidden) next = menu.querySelector("button, input");
+			} else if (event.target === caption) {
+				next = dom;
+				event.stopPropagation();
+			}
+			if (!next) return;
+			event.preventDefault();
+			if (next === dom) editor.view.focus();
+			else next.focus();
+		};
+		document.addEventListener("focusin", onFocusIn);
+		document.addEventListener("focusout", onFocusOut);
+		dom.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("focusin", onFocusIn);
+			document.removeEventListener("focusout", onFocusOut);
+			dom.removeEventListener("keydown", onKeyDown);
+		};
+	}, [editor, getSelectedCaption, playEntrance, updatePosition]);
+
+	// A new row or label changes the toolbar's width, so center it over the image again.
+	React.useEffect(updatePosition, [mode, updatePosition]);
+	React.useEffect(() => {
+		if (mode !== "alt") return;
+		altInputRef.current?.focus();
+		altInputRef.current?.select();
+	}, [mode]);
+
+	const startEditing = (next: "alt" | "link") => {
+		editingPosRef.current = getSelectedImage(editor.state)?.from ?? null;
+		if (editingPosRef.current === null) return;
+		// Hold focus in the toolbar while the focused button unmounts, or the focus gate hides it.
+		if (menuRef.current?.contains(document.activeElement)) {
+			menuRef.current.focus({ preventScroll: true });
+		}
+		editSessionRef.current += 1;
+		setDraft(next === "alt" ? image.alt : image.link);
+		setMode(next);
+	};
+	// Focus the editor before the edit row unmounts, so focus never drops to the page.
+	const returnToEditor = () => {
+		editor.view.focus();
+		showControls();
+	};
+	const saveAlt = () => {
+		if (editingPosRef.current !== null && draft.trim() !== image.alt) {
+			editor.chain().updateAttributes("image", { alt: draft.trim() }).run();
+		}
+		returnToEditor();
+	};
+	// A link search pick can resolve after its row closed, or once another edit began.
+	const applyLink = (href: string | null, session = editSessionRef.current) => {
+		if (editingPosRef.current === null || session !== editSessionRef.current) return;
+		editor.view.focus();
+		setSelectedImageLink(editor, href);
+		showControls();
+	};
+	const toggleSettings = () => {
+		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
+		const position = getSelectedImage(editor.state)?.from;
+		for (const handle of (storage?.settingsHandles as Set<ImageSettingsHandle> | undefined) ?? []) {
+			if (handle.getPos() === position) handle.toggle();
+		}
+	};
+
+	const editSession = editSessionRef.current;
+	const separator = <div className="w-px h-6 bg-kumo-line mx-1" />;
+	// On phones the controls wrap onto two rows, breaking here.
+	const rowBreak = (
+		<div className="w-px h-6 bg-kumo-line mx-1 max-[30rem]:mx-0 max-[30rem]:h-0 max-[30rem]:basis-full" />
+	);
+	// Below the sm breakpoint these buttons show only their icons.
+	const textButtonClass =
+		"h-8 gap-1.5 px-2 text-sm pointer-coarse:h-11 max-sm:w-8 max-sm:justify-center max-sm:px-0 max-sm:pointer-coarse:w-11";
+
+	return (
+		<>
+			<BubbleMenu
+				ref={menuRef}
+				editor={editor}
+				pluginKey={IMAGE_BUBBLE_MENU_KEY}
+				appendTo={appendTo}
+				updateDelay={0}
+				options={{
+					strategy: "absolute",
+					placement: "top",
+					offset: 8,
+					flip: getCollisionOptions,
+					shift: getCollisionOptions,
+					size: () => ({
+						...getCollisionOptions(),
+						apply: ({ availableWidth, elements, placement }) => {
+							elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
+							elements.floating.style.setProperty(
+								"--transform-origin",
+								placement.startsWith("bottom") ? "top" : "bottom",
+							);
+						},
+					}),
+					onShow: playEntrance,
+					onHide: () => {
+						showControls();
+						setControlsKey((key) => key + 1);
+					},
+				}}
+				shouldShow={({ editor: activeEditor, element, state, view }) => {
+					const selection = getSelectedImage(state);
+					return (
+						activeEditor.isEditable &&
+						selection !== null &&
+						(pickerRef.current !== "idle" ||
+							view.hasFocus() ||
+							element.contains(document.activeElement) ||
+							Boolean(view.nodeDOM(selection.from)?.contains(document.activeElement)))
+					);
+				}}
+				data-emdash-image-bubble-menu
+				role="group"
+				aria-label={t`Image controls`}
+				className={cn(
+					"z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg",
+					"origin-[var(--transform-origin)]",
+					mode === "controls" && "flex-wrap justify-center",
+				)}
+				onMouseDown={(event) => {
+					if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+				}}
+				// Capture, so an open hint can't stop Escape before the toolbar sees it.
+				onKeyDownCapture={(event) => {
+					if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
+					event.stopPropagation();
+					returnToEditor();
+				}}
+				onKeyDown={(event) => {
+					if (event.nativeEvent.isComposing) return;
+					if (
+						event.key === "Tab" &&
+						event.shiftKey &&
+						event.target === menuRef.current?.querySelector("button, input")
+					) {
+						event.preventDefault();
+						(getSelectedCaption() ?? editor.view).focus();
+					}
+				}}
+			>
+				<TooltipProvider key={controlsKey} delay={200}>
+					{mode === "alt" ? (
+						<>
+							<Input
+								ref={altInputRef}
+								aria-label={t`Alt text`}
+								placeholder={t`Describe the image`}
+								value={draft}
+								onChange={(event) => setDraft(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+									if (event.keyCode === 229) return;
+									event.preventDefault();
+									saveAlt();
+								}}
+								className="h-8 w-72 min-w-0 text-sm"
+							/>
+							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+								<X className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+							<BubbleButton onClick={saveAlt} title={t`Save alt text`}>
+								<Check className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+						</>
+					) : mode === "link" ? (
+						<div className="flex min-w-0 items-start gap-0.5">
+							<LinkDestinationInput
+								className="w-72 min-w-0"
+								value={draft}
+								onValueChange={setDraft}
+								onSubmit={() => applyLink(draft)}
+								onPick={(href) => applyLink(href, editSession)}
+								onEscape={returnToEditor}
+							/>
+							{image.link && (
+								<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
+									<LinkBreak className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
+								</BubbleButton>
+							)}
+							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+								<X className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+							<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
+								<Check className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+						</div>
+					) : (
+						<>
+							<Button
+								variant="ghost"
+								className={textButtonClass}
+								icon={<ImageSquare className="h-4 w-4" aria-hidden="true" />}
+								onClick={() => {
+									pickerRef.current = "open";
+									setPickerOpen(true);
+								}}
+							>
+								<span className="max-sm:sr-only">{t`Replace`}</span>
+							</Button>
+							<Button
+								variant="ghost"
+								className={cn(textButtonClass, described && "bg-kumo-tint text-kumo-default")}
+								icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
+								title={described ? image.alt : t`No description yet`}
+								aria-pressed={described}
+								onClick={() => startEditing("alt")}
+							>
+								<span className="max-sm:sr-only">{t`Alt text`}</span>
+							</Button>
+							{separator}
+							<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
+								{IMAGE_ALIGNMENTS.map(({ value, label, Icon }) => (
+									<BubbleButton
+										key={value ?? "none"}
+										active={image.alignment === value}
+										title={t(label)}
+										onClick={() => {
+											if (image.alignment === value) return;
+											editor.chain().updateAttributes("image", { alignment: value }).run();
+										}}
+									>
+										<Icon className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								))}
+							</div>
+							{rowBreak}
+							<BubbleButton
+								onClick={() => startEditing("link")}
+								active={Boolean(image.link)}
+								title={image.link ? t`Edit link` : t`Add link`}
+							>
+								<LinkIcon className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+							{canOpenSettings && (
+								<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
+									<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							)}
+							{separator}
+							<BubbleButton
+								onClick={() => editor.chain().focus().deleteSelection().run()}
+								title={t`Delete image`}
+							>
+								<Trash className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+						</>
+					)}
+				</TooltipProvider>
+			</BubbleMenu>
+			<MediaPickerModal
+				open={pickerOpen}
+				onOpenChange={(open) => {
+					pickerRef.current = open ? "open" : "closing";
+					setPickerOpen(open);
+				}}
+				onSelect={(item) => {
+					if (!getSelectedImage(editor.state)) return;
+					if (canonicalMediaProviderId(item.provider) === "local") {
+						queryClient.setQueryData(["media", item.id], item);
+					}
+					const attrs = { ...mediaItemToImageAttrs(item), caption: undefined, title: undefined };
+					editor.chain().updateAttributes("image", attrs).run();
+				}}
+				mimeTypeFilter="image/"
+				title={t`Replace image`}
+				confirmLabel={t`Replace`}
+			/>
+		</>
 	);
 }
 

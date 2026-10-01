@@ -142,7 +142,7 @@ const category = slug
   : null;
 
 if (!category) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 
 const { entries: posts } = await getEmDashCollection("posts", {

@@ -188,6 +188,18 @@ describe("Editor image alignment", () => {
 		});
 	});
 
+	it("keeps a centered image's width when the caption placeholder is wider", async () => {
+		const { image } = await renderImage({
+			alignment: "center",
+			displayWidth: 120,
+			displayHeight: 80,
+		});
+		const block = image.closest<HTMLElement>("[data-node-view-wrapper]")!;
+		const caption = block.querySelector("textarea")!;
+		expect(block.getBoundingClientRect().width).toBeCloseTo(120, 0);
+		expect(caption.getBoundingClientRect().width).toBeCloseTo(120, 0);
+	});
+
 	it.each(["left", "right"] as const)("unfloats %s images on narrow screens", async (alignment) => {
 		const { image, host } = await renderImage({ alignment });
 		const block = image.closest<HTMLElement>("[data-node-view-wrapper]")!;

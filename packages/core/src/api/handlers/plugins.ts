@@ -187,32 +187,7 @@ export async function handlePluginList(
 			if (state.source !== "marketplace" && state.source !== "registry") continue;
 			if (configuredIds.has(state.pluginId)) continue;
 
-			items.push({
-				id: state.pluginId,
-				name: state.displayName || state.pluginId,
-				version: state.marketplaceVersion ?? state.version,
-				enabled: state.status === "active",
-				status: state.status,
-				source: state.source,
-				marketplaceVersion: state.marketplaceVersion ?? undefined,
-				registryPublisherDid: state.registryPublisherDid ?? undefined,
-				registrySlug: state.registrySlug ?? undefined,
-				capabilities: [],
-				hasAdminPages: false,
-				hasDashboardWidgets: false,
-				hasHooks: false,
-				hasSettings: Object.keys(runtimeSettingsSchemaLookup?.(state.pluginId) ?? {}).length > 0,
-				installedAt: state.installedAt?.toISOString(),
-				activatedAt: state.activatedAt?.toISOString() ?? undefined,
-				deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
-				description: state.description ?? undefined,
-				iconUrl:
-					state.source === "marketplace" && marketplaceUrl
-						? marketplaceIconUrl(marketplaceUrl, state.pluginId)
-						: undefined,
-				mcpToolsEnabled: state.mcpToolsEnabled,
-				mcpTools: [],
-			});
+			items.push(buildStateOnlyPluginInfo(state, marketplaceUrl, runtimeSettingsSchemaLookup));
 		}
 
 		return {
@@ -239,6 +214,7 @@ export async function handlePluginGet(
 	sandboxedPluginEntries: SandboxedPluginEntry[],
 	pluginId: string,
 	marketplaceUrl?: string,
+	runtimeSettingsSchemaLookup?: (pluginId: string) => Record<string, unknown> | null,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -258,6 +234,16 @@ export async function handlePluginGet(
 			return {
 				success: true,
 				data: { item: buildSandboxedPluginInfo(sandboxed, state) },
+			};
+		}
+
+		const state = await stateRepo.get(pluginId);
+		if (state && (state.source === "marketplace" || state.source === "registry")) {
+			return {
+				success: true,
+				data: {
+					item: buildStateOnlyPluginInfo(state, marketplaceUrl, runtimeSettingsSchemaLookup),
+				},
 			};
 		}
 
@@ -284,11 +270,13 @@ export async function handlePluginGet(
  * `_plugin_state` row (marketplace or registry install), with no
  * matching `configuredPlugins` entry. Runtime-installed plugins don't
  * have ResolvedPlugin metadata until they're loaded into the sandbox,
- * so the enable/disable response surfaces the state-row view as a
- * stable shape the admin UI already understands.
+ * so the list, single-plugin, and enable/disable responses surface the
+ * state-row view as a stable shape the admin UI already understands.
  */
 function buildStateOnlyPluginInfo(
 	state: NonNullable<Awaited<ReturnType<PluginStateRepository["get"]>>>,
+	marketplaceUrl?: string,
+	runtimeSettingsSchemaLookup?: (pluginId: string) => Record<string, unknown> | null,
 ): PluginInfo {
 	return {
 		id: state.pluginId,
@@ -304,11 +292,15 @@ function buildStateOnlyPluginInfo(
 		hasAdminPages: false,
 		hasDashboardWidgets: false,
 		hasHooks: false,
-		hasSettings: false,
+		hasSettings: Object.keys(runtimeSettingsSchemaLookup?.(state.pluginId) ?? {}).length > 0,
 		installedAt: state.installedAt?.toISOString(),
 		activatedAt: state.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
 		description: state.description ?? undefined,
+		iconUrl:
+			state.source === "marketplace" && marketplaceUrl
+				? marketplaceIconUrl(marketplaceUrl, state.pluginId)
+				: undefined,
 		mcpToolsEnabled: state.mcpToolsEnabled,
 		mcpTools: [],
 	};

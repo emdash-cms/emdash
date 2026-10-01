@@ -459,65 +459,67 @@ export function Widgets() {
 						</Dialog.Root>
 					</div>
 
-					<div className="grid grid-cols-12 gap-6">
-						{/* Available Widgets (draggable palette) */}
-						<div className="col-span-4">
-							<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-								<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
-								<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
-								<div className="space-y-2">
-									{BUILTIN_WIDGETS.map((item) => (
-										<DraggablePaletteItem
-											key={item.id}
-											id={item.id}
-											label={t(item.label)}
-											description={t(item.description)}
-											widgetInput={{ ...item.input, title: t(item.label) }}
-										/>
-									))}
-									{components.map((comp) => {
-										const meta = CORE_WIDGET_META[comp.id];
-										const label = meta ? t(meta.label) : comp.label;
-										const description = meta ? t(meta.description) : comp.description;
-										return (
+					<div className="overflow-x-auto">
+						<div className="min-w-[768px] grid grid-cols-12 gap-6">
+							{/* Available Widgets (draggable palette) */}
+							<div className="col-span-4">
+								<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
+									<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
+									<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
+									<div className="space-y-2">
+										{BUILTIN_WIDGETS.map((item) => (
 											<DraggablePaletteItem
-												key={`palette-comp-${comp.id}`}
-												id={`palette-comp-${comp.id}`}
-												label={label}
-												description={description}
-												widgetInput={{
-													type: "component",
-													title: label,
-													componentId: comp.id,
-												}}
+												key={item.id}
+												id={item.id}
+												label={t(item.label)}
+												description={t(item.description)}
+												widgetInput={{ ...item.input, title: t(item.label) }}
 											/>
-										);
-									})}
+										))}
+										{components.map((comp) => {
+											const meta = CORE_WIDGET_META[comp.id];
+											const label = meta ? t(meta.label) : comp.label;
+											const description = meta ? t(meta.description) : comp.description;
+											return (
+												<DraggablePaletteItem
+													key={`palette-comp-${comp.id}`}
+													id={`palette-comp-${comp.id}`}
+													label={label}
+													description={description}
+													widgetInput={{
+														type: "component",
+														title: label,
+														componentId: comp.id,
+													}}
+												/>
+											);
+										})}
+									</div>
 								</div>
 							</div>
-						</div>
 
-						{/* Widget Areas (droppable + sortable) */}
-						<div className="col-span-8 space-y-4">
-							{areas.length === 0 ? (
-								<div className="rounded-lg border bg-kumo-base p-12 text-center">
-									<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
-								</div>
-							) : (
-								areas.map((area) => (
-									<WidgetAreaPanel
-										key={area.id}
-										area={area}
-										expandedWidgets={expandedWidgets}
-										onToggleWidget={toggleWidget}
-										isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
-										components={components}
-										pluginBlocks={pluginBlocks}
-										onBlockSidebarOpen={handleBlockSidebarOpen}
-										onBlockSidebarClose={handleBlockSidebarClose}
-									/>
-								))
-							)}
+							{/* Widget Areas (droppable + sortable) */}
+							<div className="col-span-8 space-y-4">
+								{areas.length === 0 ? (
+									<div className="rounded-lg border bg-kumo-base p-12 text-center">
+										<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
+									</div>
+								) : (
+									areas.map((area) => (
+										<WidgetAreaPanel
+											key={area.id}
+											area={area}
+											expandedWidgets={expandedWidgets}
+											onToggleWidget={toggleWidget}
+											isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
+											components={components}
+											pluginBlocks={pluginBlocks}
+											onBlockSidebarOpen={handleBlockSidebarOpen}
+											onBlockSidebarClose={handleBlockSidebarClose}
+										/>
+									))
+								)}
+							</div>
 						</div>
 					</div>
 				</div>

@@ -32,6 +32,7 @@ export function SelectElementComponent({
 			label={element.label}
 			defaultValue={element.initial_value}
 			onValueChange={handleValueChange}
+			items={element.options}
 		>
 			{element.options.map((opt) => (
 				<Select.Option key={opt.value} value={opt.value}>
