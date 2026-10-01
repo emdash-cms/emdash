@@ -740,11 +740,11 @@ msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:144
 msgid "/new-page or /articles/[slug]"
-msgstr ""
+msgstr "/new-page 또는 /articles/[slug]"
 
 #: packages/admin/src/components/Redirects.tsx:135
 msgid "/old-page or /blog/[slug]"
-msgstr ""
+msgstr "/old-page 또는 /blog/[slug]"
 
 #: packages/admin/src/components/WordPressImport.tsx:2113
 msgid "• Files are downloaded from your WordPress site"
@@ -858,11 +858,11 @@ msgstr "404 오류"
 
 #: packages/admin/src/components/Redirects.tsx:162
 msgid "410 Content Deleted (Gone)"
-msgstr ""
+msgstr "410 콘텐츠 삭제됨(Gone)"
 
 #: packages/admin/src/components/Redirects.tsx:163
 msgid "451 Unavailable for legal reasons"
-msgstr ""
+msgstr "451 법적 사유로 이용 불가"
 
 #: packages/admin/src/components/WordPressImport.tsx:1546
 msgid "5. Copy the generated password"
@@ -1861,12 +1861,12 @@ msgstr "자동"
 #: packages/admin/src/components/settings/BackupSettings.tsx:219
 #: packages/admin/src/components/settings/BackupSettings.tsx:275
 msgid "Automatic Backups"
-msgstr ""
+msgstr "자동 백업"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:276
 #: packages/admin/src/components/settings/BackupSettings.tsx:294
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
-msgstr ""
+msgstr "자동 백업에는 스토리지 백엔드(R2, S3 또는 로컬 스토리지)가 필요합니다. 자동 백업을 사용하려면 EmDash 설정에서 스토리지를 구성하세요."
 
 #: packages/admin/src/router.tsx:1279
 msgid "Autosave failed"
@@ -1961,29 +1961,29 @@ msgstr "테마로 돌아가기"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:229
 msgid "Back up now"
-msgstr ""
+msgstr "지금 백업"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:229
 msgid "Backing up..."
-msgstr ""
+msgstr "백업 중..."
 
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:116
 msgid "Backup created: {0}"
-msgstr ""
+msgstr "백업 생성됨: {0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:99
 msgid "Backup settings saved"
-msgstr ""
+msgstr "백업 설정이 저장되었습니다."
 
 #: packages/admin/src/components/Settings.tsx:118
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
 msgid "Backups"
-msgstr ""
+msgstr "백업"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:253
 msgid "Backups to keep"
-msgstr ""
+msgstr "보관할 백업 수"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:28
 msgid "Bash"
@@ -2353,7 +2353,7 @@ msgstr "변경"
 #. placeholder {2}: getRoleLabel(pendingSaveData?.role ?? 0)
 #: packages/admin/src/routes/users.tsx:296
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
-msgstr ""
+msgstr "<0>{0}</0>의 역할을 <1>{1}</1>에서 <2>{2}</2>(으)로 변경하시겠습니까? 상위 역할의 기능에 접근할 수 없게 됩니다."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:376
 msgid "Change Favicon"
@@ -2361,7 +2361,7 @@ msgstr "파비콘 변경"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:208
 msgid "Change Image"
-msgstr ""
+msgstr "이미지 변경"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:316
 msgid "Change Logo"
@@ -2513,7 +2513,7 @@ msgstr "파일 크기가 0이 아닌 {0} 이미지를 선택하세요."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:443
 msgid "Choose a recognized timezone for reliable date display."
-msgstr ""
+msgstr "날짜가 정확하게 표시되도록 인식 가능한 시간대를 선택하세요."
 
 #: packages/admin/src/components/BulkTagDialog.tsx:184
 msgid "Choose a term and enter between 1 and 50 posts."
@@ -3591,7 +3591,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Daily automatic backups"
-msgstr ""
+msgstr "매일 자동 백업"
 
 #: packages/admin/src/components/FieldEditor.tsx:1302
 #: packages/admin/src/components/ImageFieldRenderer.tsx:396
@@ -3659,7 +3659,7 @@ msgstr "기본 역할:"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:186
 msgid "Default social image"
-msgstr ""
+msgstr "기본 소셜 이미지"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:46
 #: packages/admin/src/components/settings/SeoSettings.tsx:177
@@ -3758,7 +3758,7 @@ msgstr "{0}을(를) 삭제하시겠습니까?"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:365
 msgid "Delete backup?"
-msgstr ""
+msgstr "백업을 삭제하시겠습니까?"
 
 #: packages/admin/src/components/BlocksField.tsx:382
 msgid "Delete block"
@@ -3941,15 +3941,15 @@ msgstr "데모"
 
 #: packages/admin/src/routes/users.tsx:303
 msgid "Demote User"
-msgstr ""
+msgstr "사용자 역할 낮추기"
 
 #: packages/admin/src/routes/users.tsx:294
 msgid "Demote User?"
-msgstr ""
+msgstr "사용자 역할을 낮추시겠습니까?"
 
 #: packages/admin/src/routes/users.tsx:304
 msgid "Demoting..."
-msgstr ""
+msgstr "역할 낮추는 중..."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:304
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
@@ -4058,11 +4058,11 @@ msgstr "리디렉션 비활성화"
 
 #: packages/admin/src/routes/users.tsx:279
 msgid "Disable User"
-msgstr ""
+msgstr "사용자 비활성화"
 
 #: packages/admin/src/routes/users.tsx:272
 msgid "Disable User?"
-msgstr ""
+msgstr "사용자를 비활성화하시겠습니까?"
 
 #: packages/admin/src/components/PluginManager.tsx:445
 #: packages/admin/src/components/Redirects.tsx:391
@@ -4078,11 +4078,11 @@ msgstr "비활성화:"
 #. placeholder {0}: selectedUser?.name || selectedUser?.email
 #: packages/admin/src/routes/users.tsx:274
 msgid "Disabling <0>{0}</0> will prevent them from logging in until re-enabled. Their content will be preserved."
-msgstr ""
+msgstr "<0>{0}</0>을(를) 비활성화하면 다시 활성화할 때까지 로그인할 수 없습니다. 해당 사용자의 콘텐츠는 유지됩니다."
 
 #: packages/admin/src/routes/users.tsx:280
 msgid "Disabling..."
-msgstr ""
+msgstr "비활성화 중..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1882
 msgid "Discard"
@@ -4224,15 +4224,15 @@ msgstr "완료"
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:319
 msgid "Download {0}"
-msgstr ""
+msgstr "{0} 다운로드"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:192
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
-msgstr ""
+msgstr "사이트의 전체 백업을 다운로드합니다. 모든 콘텐츠(초안과 휴지통 포함), 컬렉션, 분류, 메뉴, 위젯, 미디어 메타데이터, 사이트 설정이 포함됩니다. 사용자 계정과 비밀 정보는 절대 포함되지 않습니다."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
 msgid "Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access."
-msgstr ""
+msgstr "초안, 미디어, 설정, 작성자 이메일 주소를 포함한 사이트 전체 사본을 다운로드합니다. 관리자 권한 범위에도 이 권한이 포함됩니다. 에이전트에 더 제한된 접근 권한을 부여하려면 관리자 대신 이 권한 범위를 선택하세요."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:212
 msgid "Download as one file"
@@ -4240,16 +4240,16 @@ msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:196
 msgid "Download backup"
-msgstr ""
+msgstr "백업 다운로드"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:188
 msgid "Download Backup"
-msgstr ""
+msgstr "백업 다운로드"
 
 #: packages/admin/src/components/Settings.tsx:119
 #: packages/admin/src/components/settings/BackupSettings.tsx:145
 msgid "Download backups and schedule automatic backups to storage"
-msgstr ""
+msgstr "백업 다운로드 및 스토리지 자동 백업 예약"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:280
 msgid "Download export from {created}"
@@ -4396,7 +4396,7 @@ msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:170
 msgid "e.g. import, blog"
-msgstr ""
+msgstr "예: import, blog"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:499
 msgid "e.g., CI/CD Pipeline"
@@ -4752,7 +4752,7 @@ msgstr "이름을 입력하세요."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:447
 msgid "Enter a recognized timezone to save"
-msgstr ""
+msgstr "저장하려면 인식 가능한 시간대를 입력하세요."
 
 #: packages/admin/src/components/MenuEditor.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:607
@@ -4882,11 +4882,11 @@ msgstr "이 콘텐츠 유형에 연결된 모든 관계도 함께 삭제됩니�
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Example: {pattern} → {preview}"
-msgstr ""
+msgstr "예: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:294
 msgid "example.com"
-msgstr ""
+msgstr "example.com"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:266
 msgid "Existing {pluralLower} stay in place."
@@ -5003,7 +5003,7 @@ msgstr "도메인을 추가하지 못했습니다."
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:175
 msgid "Failed to add passkey"
-msgstr ""
+msgstr "패스키를 추가하지 못했습니다."
 
 #: packages/admin/src/lib/api/transfer.ts:442
 msgid "Failed to analyze import"
@@ -5049,7 +5049,7 @@ msgstr "관리자를 생성하지 못했습니다"
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/lib/api/backups.ts:51
 msgid "Failed to create backup"
-msgstr ""
+msgstr "백업을 생성하지 못했습니다."
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
@@ -5089,11 +5089,11 @@ msgstr "삭제에 실패했습니다"
 
 #: packages/admin/src/lib/api/users.ts:345
 msgid "Failed to delete allowed domain"
-msgstr ""
+msgstr "허용된 도메인을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/backups.ts:58
 msgid "Failed to delete backup"
-msgstr ""
+msgstr "백업을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
@@ -5143,11 +5143,11 @@ msgstr "메뉴 항목을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/users.ts:256
 msgid "Failed to delete passkey"
-msgstr ""
+msgstr "패스키를 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/redirects.ts:111
 msgid "Failed to delete redirect"
-msgstr ""
+msgstr "리디렉션을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/relations.ts:146
 msgid "Failed to delete relation"
@@ -5188,7 +5188,7 @@ msgstr "검색을 비활성화하지 못했습니다"
 
 #: packages/admin/src/lib/api/users.ts:118
 msgid "Failed to disable user"
-msgstr ""
+msgstr "사용자를 비활성화하지 못했습니다."
 
 #: packages/admin/src/router.tsx:1363
 msgid "Failed to discard changes"
@@ -5222,7 +5222,7 @@ msgstr "검색을 활성화하지 못했습니다"
 
 #: packages/admin/src/lib/api/users.ts:138
 msgid "Failed to enable user"
-msgstr ""
+msgstr "사용자를 활성화하지 못했습니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:360
 msgid "Failed to execute import"
@@ -5234,7 +5234,7 @@ msgstr "인증 모드를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/backups.ts:37
 msgid "Failed to fetch backup settings"
-msgstr ""
+msgstr "백업 설정을 가져오지 못했습니다."
 
 #: packages/admin/src/lib/api/schema.ts:342
 #: packages/admin/src/lib/api/schema.ts:346
@@ -5313,7 +5313,7 @@ msgstr "섹션 목록을 불러오지 못했습니다."
 
 #: packages/admin/src/lib/api/settings.ts:60
 msgid "Failed to fetch settings"
-msgstr ""
+msgstr "설정을 가져오지 못했습니다."
 
 #: packages/admin/src/components/SetupWizard.tsx:501
 msgid "Failed to fetch setup status"
@@ -5333,7 +5333,7 @@ msgstr "업데이트 상태를 가져오지 못했습니다"
 #: packages/admin/src/router.tsx:1057
 #: packages/admin/src/router.tsx:2176
 msgid "Failed to fetch user"
-msgstr ""
+msgstr "사용자 정보를 가져오지 못했습니다."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:263
 msgid "Failed to generate preview"
@@ -5392,7 +5392,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:166
 msgid "Failed to load backup settings"
-msgstr ""
+msgstr "백업 설정을 로드하지 못했습니다."
 
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:428
@@ -5472,12 +5472,12 @@ msgstr ""
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:84
 msgid "Failed to load transfer settings"
-msgstr ""
+msgstr "이전 설정을 로드하지 못했습니다."
 
 #. placeholder {0}: usersQuery.error.message
 #: packages/admin/src/routes/users.tsx:205
 msgid "Failed to load users: {0}"
-msgstr ""
+msgstr "사용자 목록을 로드하지 못했습니다: {0}"
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:58
 msgid "Failed to load widget"
@@ -5579,7 +5579,7 @@ msgstr "저장하지 못했습니다."
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 msgid "Failed to save backup settings"
-msgstr ""
+msgstr "백업 설정을 저장하지 못했습니다."
 
 #: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Failed to save field"
@@ -5603,7 +5603,7 @@ msgstr "매직 링크를 보내지 못했습니다."
 
 #: packages/admin/src/lib/api/users.ts:128
 msgid "Failed to send recovery link"
-msgstr ""
+msgstr "계정 복구 링크를 보내지 못했습니다."
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:44
 #: packages/admin/src/lib/api/email-settings.ts:45
@@ -5651,7 +5651,7 @@ msgstr "{0}을(를) 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/backups.ts:46
 msgid "Failed to update backup settings"
-msgstr ""
+msgstr "백업 설정을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
@@ -5685,7 +5685,7 @@ msgstr "섹션을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/settings.ts:72
 msgid "Failed to update settings"
-msgstr ""
+msgstr "설정을 업데이트하지 못했습니다."
 
 #: packages/admin/src/router.tsx:2229
 msgid "Failed to update status"
@@ -5833,7 +5833,7 @@ msgstr "날짜 범위로 필터링: {rangeLabel}"
 
 #: packages/admin/src/components/users/UserList.tsx:75
 msgid "Filter by role"
-msgstr ""
+msgstr "역할별 필터링"
 
 #: packages/admin/src/components/Sections.tsx:262
 msgid "Filter by source"
@@ -6389,7 +6389,7 @@ msgstr "사이트 패키지 가져오기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
-msgstr ""
+msgstr "이 사이트가 비어 있을 때 사이트 패키지를 가져와 초기 설정을 덮어씁니다. 관리자 권한 범위에도 이 권한이 포함됩니다. 에이전트에 더 제한된 접근 권한을 부여하려면 관리자 대신 이 권한 범위를 선택하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1386
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
@@ -6738,11 +6738,11 @@ msgstr "사용자 초대"
 
 #: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
-msgstr ""
+msgstr "첫 팀원 초대"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:98
 msgid "Invoke MCP tools from all enabled plugins"
-msgstr ""
+msgstr "활성화된 모든 플러그인의 MCP 도구 호출"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
@@ -6750,7 +6750,7 @@ msgstr "{pluginId} 플러그인의 MCP 도구 호출"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:532
 msgid "Invoke only this plugin's enabled MCP tools"
-msgstr ""
+msgstr "이 플러그인의 활성화된 MCP 도구만 호출"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
@@ -6919,7 +6919,7 @@ msgstr "마지막 로그인"
 
 #: packages/admin/src/components/users/UserList.tsx:100
 msgid "Last Login"
-msgstr ""
+msgstr "마지막 로그인"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1317
 #: packages/admin/src/components/MediaPickerModal.tsx:1547
@@ -6950,7 +6950,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
 msgid "Learn more"
-msgstr ""
+msgstr "자세히 알아보기"
 
 #: packages/admin/src/components/WordPressImport.tsx:2517
 msgid "Leave unassigned"
@@ -7184,7 +7184,7 @@ msgstr "플러그인 로드 중..."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:425
 msgid "Loading preview…"
-msgstr ""
+msgstr "미리보기 로드 중…"
 
 #: packages/admin/src/components/Redirects.tsx:473
 msgid "Loading redirects..."
@@ -7413,11 +7413,11 @@ msgstr ""
 #. placeholder {0}: item.path
 #: packages/admin/src/components/Redirects.tsx:258
 msgid "Mark {0} as Gone (410)"
-msgstr ""
+msgstr "{0}을(를) 삭제됨(Gone, 410)으로 표시"
 
 #: packages/admin/src/components/Redirects.tsx:257
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
-msgstr ""
+msgstr "삭제됨(Gone, 410)으로 표시: 영구적으로 삭제되었음을 검색 엔진에 알립니다."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:526
 msgid "Mark as spam"
@@ -7836,7 +7836,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:47
 msgid "Move this site to another EmDash installation, or import a site package into this one."
-msgstr ""
+msgstr "이 사이트를 다른 EmDash 설치 환경으로 이전하거나, 사이트 패키지를 이 사이트로 가져옵니다."
 
 #: packages/admin/src/components/ContentList.tsx:574
 msgid "Move to trash"
@@ -8333,7 +8333,7 @@ msgstr "일치하는 태그가 없습니다."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 msgid "No matching timezones"
-msgstr ""
+msgstr "일치하는 시간대가 없습니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:880
 #: packages/admin/src/components/FieldEditor.tsx:910
@@ -8477,11 +8477,11 @@ msgstr "아직 표시할 사용 현황이 없습니다"
 
 #: packages/admin/src/components/users/UserList.tsx:113
 msgid "No users found matching your filters."
-msgstr ""
+msgstr "필터 조건에 맞는 사용자가 없습니다."
 
 #: packages/admin/src/components/users/UserList.tsx:127
 msgid "No users yet."
-msgstr ""
+msgstr "아직 사용자가 없습니다."
 
 #: packages/admin/src/components/Widgets.tsx:504
 msgid "No widget areas yet. Create one to get started."
@@ -9112,7 +9112,7 @@ msgstr ""
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:527
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:530
 msgid "Plugin tools: {0}"
-msgstr ""
+msgstr "플러그인 도구: {0}"
 
 #: packages/admin/src/components/PluginManager.tsx:384
 msgid "Plugin uninstalled"
@@ -9142,7 +9142,7 @@ msgstr "플러그인"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:342
 msgid "Point-in-Time Restore"
-msgstr ""
+msgstr "특정 시점으로 복원"
 
 #: packages/admin/src/components/SeoPanel.tsx:221
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
@@ -9226,7 +9226,7 @@ msgstr "{0} 미리보기"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:427
 msgid "Preview unavailable for this format"
-msgstr ""
+msgstr "이 형식의 미리보기를 표시할 수 없습니다."
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:308
 msgid "Previous"
@@ -9603,7 +9603,7 @@ msgstr "참조할 컬렉션을 선택하세요"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:365
 msgid "Referenced favicon unavailable."
-msgstr ""
+msgstr "참조된 파비콘을 사용할 수 없습니다."
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:25
@@ -10207,7 +10207,7 @@ msgstr "토큰 폐기"
 #. placeholder {0}: token.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
 msgid "Revoke token {0}"
-msgstr ""
+msgstr "{0} 토큰 폐기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
@@ -10241,7 +10241,7 @@ msgstr "위험 점수: {0}/100"
 #: packages/admin/src/components/settings/SeoSettings.tsx:260
 #: packages/admin/src/components/settings/SeoSettings.tsx:263
 msgid "robots.txt"
-msgstr ""
+msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:164
 #: packages/admin/src/components/users/UserDetail.tsx:169
@@ -10565,7 +10565,7 @@ msgstr "파일 이름으로 검색..."
 
 #: packages/admin/src/components/users/UserList.tsx:63
 msgid "Search by name or email..."
-msgstr ""
+msgstr "이름 또는 이메일 주소로 검색..."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:439
 #: packages/admin/src/components/BylineFilter.tsx:128
@@ -10622,7 +10622,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:440
 msgid "Search for an IANA timezone (e.g., Europe/London)"
-msgstr ""
+msgstr "IANA 시간대를 검색하세요(예: Europe/London)"
 
 #: packages/admin/src/components/Widgets.tsx:152
 msgid "Search form"
@@ -10683,7 +10683,7 @@ msgstr "테마 검색..."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:451
 msgid "Search timezones…"
-msgstr ""
+msgstr "시간대 검색…"
 
 #: packages/admin/src/components/BylineFilter.tsx:169
 msgid "Search to narrow the list"
@@ -10691,7 +10691,7 @@ msgstr "검색하여 목록을 좁혀 보세요."
 
 #: packages/admin/src/components/users/UserList.tsx:66
 msgid "Search users"
-msgstr ""
+msgstr "사용자 검색"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:167
 msgid "Search will be turned off for some collections"
@@ -10885,11 +10885,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:289
 msgid "Select default social image"
-msgstr ""
+msgstr "기본 소셜 이미지 선택"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:490
 msgid "Select favicon"
-msgstr ""
+msgstr "파비콘 선택"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:397
 msgid "Select Favicon"
@@ -10916,7 +10916,7 @@ msgstr "이미지 선택"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:482
 msgid "Select logo"
-msgstr ""
+msgstr "로고 선택"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:337
 msgid "Select Logo"
@@ -11269,7 +11269,7 @@ msgstr "사이트"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
 msgid "Site Export"
-msgstr ""
+msgstr "사이트 내보내기"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:365
 msgid "Site identity"
@@ -11290,11 +11290,11 @@ msgstr "사이트 기본 정보, 로고, 파비콘, 읽기 설정"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:112
 msgid "Site Import"
-msgstr ""
+msgstr "사이트 가져오기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:107
 msgid "Site Import Analysis"
-msgstr ""
+msgstr "사이트 가져오기 분석"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:36
 msgid "Site settings"
@@ -11333,7 +11333,7 @@ msgstr "사이트 URL"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:345
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
-msgstr ""
+msgstr "Cloudflare D1을 사용하는 사이트는 D1 Time Travel로 최근 30일 이내의 어느 시점으로든 데이터베이스를 분 단위로 복원할 수도 있습니다. 이 기능은 항상 켜져 있으며 별도 설정이 필요하지 않습니다."
 
 #: packages/admin/src/components/MediaLibrary.tsx:1207
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
@@ -11592,11 +11592,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:220
 msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
-msgstr ""
+msgstr "사이트의 스토리지 버킷에 매일 백업을 저장합니다. 오래된 백업은 자동으로 제거됩니다."
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:285
 msgid "Stored Backups"
-msgstr ""
+msgstr "저장된 백업"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
@@ -12113,11 +12113,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:197
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "참조된 이미지를 더 이상 사용할 수 없습니다. 새 이미지를 선택하거나 참조를 제거하세요."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:305
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "참조된 로고를 더 이상 사용할 수 없습니다. 새 로고를 선택하거나 참조를 제거하세요."
 
 #: packages/admin/src/components/FieldEditor.tsx:953
 msgid "The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship."
@@ -12416,7 +12416,7 @@ msgstr ""
 #. placeholder {0}: archiveToDelete?.name ?? ""
 #: packages/admin/src/components/settings/BackupSettings.tsx:366
 msgid "This permanently deletes {0} from storage."
-msgstr ""
+msgstr "스토리지에서 {0}을(를) 영구적으로 삭제합니다."
 
 #: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
@@ -12476,7 +12476,7 @@ msgstr "예약을 취소하고 즉시 게시합니다."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:442
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
-msgstr ""
+msgstr "저장된 시간대를 인식할 수 없습니다. 날짜가 정확하게 표시되도록 추천 항목에서 선택하세요."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3875
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
@@ -12621,7 +12621,7 @@ msgstr "닫기"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:203
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
-msgstr ""
+msgstr "사이트를 다른 EmDash 설치 환경으로 이전하려면 <0>이전</0>을 사용하세요."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:486
 msgid "to select"
@@ -12677,7 +12677,7 @@ msgstr "콘텐츠 전반에서 미디어가 사용된 위치를 추적합니다.
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
 msgid "Transfer"
-msgstr ""
+msgstr "이전"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:287
 #: packages/admin/src/routes/byline-schema.tsx:243
@@ -13127,7 +13127,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
 msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
-msgstr ""
+msgstr "사이트 패키지를 업로드하고 가져올 수 있는지 확인합니다. 관리자 권한 범위에도 이 권한이 포함됩니다. 에이전트에 더 제한된 접근 권한을 부여하려면 관리자 대신 이 권한 범위를 선택하세요."
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:751
@@ -13266,7 +13266,7 @@ msgstr "등록된 패스키를 사용하여 안전하게 로그인하세요."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:178
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
-msgstr ""
+msgstr "페이지에 Open Graph 이미지가 없을 때 대신 사용됩니다. 권장 크기: 1200×630."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1057
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
@@ -13335,7 +13335,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:38
 msgid "Users from <0>{domain}</0> will no longer be able to sign up without an invite. Existing users are not affected."
-msgstr ""
+msgstr "<0>{domain}</0> 도메인의 이메일 주소를 가진 사용자는 더 이상 초대 없이 가입할 수 없습니다. 기존 사용자에게는 영향이 없습니다."
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:205
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
@@ -13832,7 +13832,7 @@ msgstr "미디어 사용 현황 추적을 관리하려면 관리자 권한이 �
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:70
 msgid "You need Admin permissions to transfer this site."
-msgstr ""
+msgstr "이 사이트를 이전하려면 관리자 권한이 필요합니다."
 
 #: packages/admin/src/router.tsx:2286
 msgid "You need Editor permissions to moderate comments."
