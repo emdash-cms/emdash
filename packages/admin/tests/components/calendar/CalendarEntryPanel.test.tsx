@@ -121,7 +121,7 @@ describe("CalendarEntryPanel", () => {
 
 		await expect.element(panel.getByText("Tue, Oct 20, 9:00 AM UTC").first()).toBeVisible();
 		await expect.element(panel.getByText("Maya Chen")).toBeVisible();
-		await expect.element(panel.getByText("Publishes Tue, Oct 20, 9:00 AM UTC")).toBeVisible();
+		await expect.element(panel.getByText("Goes live in 5 days")).toBeVisible();
 
 		await panel.getByRole("button", { name: "Remove schedule" }).click();
 
@@ -149,7 +149,7 @@ describe("CalendarEntryPanel", () => {
 		const panel = (await screen).getByRole("dialog", { name: "Launch" });
 
 		await expect.element(panel.getByText("Maya Chen")).toBeVisible();
-		await expect.element(panel.getByRole("link", { name: "Open in editor" }).last()).toBeVisible();
+		await expect.element(panel.getByRole("link", { name: "Open in editor" })).toBeVisible();
 		expect(panel.getByRole("button", { name: "Publish now" }).query()).toBeNull();
 		expect(panel.getByRole("button", { name: "Reschedule" }).query()).toBeNull();
 		expect(panel.getByRole("button", { name: "Remove schedule" }).query()).toBeNull();

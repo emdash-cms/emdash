@@ -105,9 +105,25 @@ matters for search in paragraphs or an inline block.
 
 <Aside>
 	In a deployed admin, previews follow the admin's security policy, which blocks scripts, styles,
-	fonts, frames and other resources from other sites, but not images. A note below the preview says
-	when this happens. Your site can still load them.
+	fonts and other resources from other sites, but not images or https frames. A note below the
+	preview says when this happens. Your site can still load them.
 </Aside>
+
+### Embed a page from another site
+
+An iframe block shows a page from another site, such as a video, a map or a form. Type `/iframe`,
+then paste the site's embed code or a link into the **Code** tab. YouTube and Vimeo links become
+their players, and any other https link is embedded as it is. **Preview** shows the embedded page.
+When you open an entry, a saved block waits until you select **Load preview**, so the admin doesn't
+load other sites' pages until you ask. Iframe blocks pasted from another website or browser tab
+arrive empty.
+
+Only https pages can be embedded, and the block keeps only the parts of an embed code it needs: the
+address, the title, the size, full-screen support and the permissions players use. Some sites refuse
+to appear inside another site's page; their preview stays blank or shows an error from that site.
+
+An embed code that runs a script instead of an iframe, such as some social media posts, belongs in
+an [HTML block](#add-html-css-and-javascript).
 
 ## Save draft changes
 
@@ -196,13 +212,13 @@ entry (Authors for their own entries, and Editors and higher roles for any entry
 reschedule it, remove its schedule, or publish an overdue entry now. On a phone, the panel opens as a
 sheet at the bottom of the screen.
 
-The collection and state filters, and the locale filter on multilingual sites, narrow both views. On
-narrow screens they share one **Filter** menu. The filters, the view, the month, and the open entry
-are kept in the page URL, so you can bookmark or share it.
+Use **Filter** to narrow both views by collection and state, and by locale on multilingual sites. The
+filters, the view, the month, and the open entry are kept in the page URL, so you can bookmark or
+share it.
 
-Entries are placed on days in the site's time zone, which the calendar names above the view. If your
-browser uses a different time zone, the calendar says so, and entry times also appear in your own
-time zone.
+Entries are placed on days in the site's time zone, which the calendar names beside the month. If
+your browser uses a different time zone, the calendar says so, and entry times also appear in your
+own time zone.
 
 The calendar shows:
 

@@ -39,6 +39,7 @@ import type {
 	PortableTextImageBlock,
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
+	PortableTextIframeBlock,
 } from "./types.js";
 
 function generateKey(): string {
@@ -223,6 +224,35 @@ function isGalleryBlock(block: PortableTextBlock): block is PortableTextGalleryB
 	return block._type === "gallery" && "images" in block && Array.isArray(block.images);
 }
 
+const isString = (value: unknown) => typeof value === "string";
+const isFrameDimension = (value: unknown) =>
+	typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000;
+
+const IFRAME_BLOCK_FIELDS = new Map<string, (value: unknown) => boolean>([
+	["_type", () => true],
+	["_key", () => true],
+	["src", isString],
+	["title", isString],
+	["width", isFrameDimension],
+	["height", isFrameDimension],
+	["allow", isString],
+	["allowFullscreen", (value) => typeof value === "boolean"],
+]);
+
+/**
+ * An `iframe` block with other fields, or with values of other types, belongs
+ * to a plugin and stays a generic block.
+ */
+function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
+	return (
+		block._type === "iframe" &&
+		typeof block.src === "string" &&
+		Object.entries(block).every(
+			([key, value]) => value === undefined || (IFRAME_BLOCK_FIELDS.get(key)?.(value) ?? false),
+		)
+	);
+}
+
 /**
  * Type guard for code blocks
  */
@@ -269,6 +299,10 @@ function convertBlock(
 			type: "htmlBlock",
 			attrs: identityAttrs({ ...htmlBlockFields(block) }, block._key, preserveIdentity),
 		};
+	}
+	if (isIframeBlock(block)) {
+		const { _type, _key, ...attrs } = block;
+		return { type: "iframeBlock", attrs: identityAttrs(attrs, _key, preserveIdentity) };
 	}
 	if (block._type === "break") {
 		return {

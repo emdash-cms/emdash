@@ -90,6 +90,7 @@
 			"description": "Triage found useful work that needs a maintainer decision before the bot continues.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"work",
 				"triage",
 				"investigate",
@@ -150,6 +151,9 @@
 			"description": "A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
 			"terminal": false,
 			"offeredCommands": [
+				"accept",
+				"needs_changes",
+				"retry",
 				"work",
 				"decline",
 				"take_over"
@@ -245,6 +249,7 @@
 			"description": "Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"work",
 				"investigate",
 				"decline",
@@ -259,6 +264,7 @@
 			"description": "Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"work",
 				"investigate",
 				"decline",
@@ -274,6 +280,7 @@
 			"description": "Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"triage",
 				"investigate",
 				"decline",
@@ -289,6 +296,7 @@
 			"description": "Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
 			"terminal": false,
 			"offeredCommands": [
+				"retry",
 				"triage",
 				"work",
 				"investigate",
@@ -314,7 +322,7 @@
 			"phase": "preview",
 			"tone": "active",
 			"boardColumn": "Building preview",
-			"description": "The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
+			"description": "The candidate change is published; a preview is building, then the PR opens and the reporter is asked to try it.",
 			"terminal": false,
 			"transient": true,
 			"offeredCommands": [
@@ -326,8 +334,9 @@
 			"phase": "confirmation",
 			"tone": "waiting",
 			"boardColumn": "Awaiting reporter",
-			"description": "Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
+			"description": "Preview link posted; waiting for the reporter to confirm the change before a PR opens. On confirm the PR opens; on denial the branch is reaped.",
 			"terminal": false,
+			"legacy": true,
 			"offeredCommands": [
 				"accept",
 				"needs_changes",
@@ -355,7 +364,7 @@
 			"defaultKind": "task"
 		},
 		"accept": {
-			"description": "Confirm the candidate works and open its draft pull request.",
+			"description": "Confirm the candidate change works.",
 			"actors": [
 				"reporter",
 				"maintainer"
@@ -613,12 +622,6 @@
 			"actors": [
 				"system"
 			]
-		},
-		"expire": {
-			"description": "The reporter-confirmation window elapsed without a reply.",
-			"actors": [
-				"system"
-			]
 		}
 	},
 	"transitions": [
@@ -691,6 +694,12 @@
 			"from": "triaging",
 			"event": "agent.failed",
 			"to": "needs_attention"
+		},
+		{
+			"from": "triaging",
+			"event": "resume",
+			"to": "triaging",
+			"action": "investigate.resume"
 		},
 		{
 			"from": "triaging",
@@ -913,7 +922,7 @@
 			"from": "working",
 			"event": "agent.fix_ready",
 			"to": "preview_building",
-			"note": "executor pushes bot/fix-<n>; orchestrator asks the reporter to confirm. PR opens on confirm, not here."
+			"note": "executor pushes bot/fix-<n>; the PR opens once the preview settles"
 		},
 		{
 			"from": "working",
@@ -1045,6 +1054,31 @@
 			"to": "in_review",
 			"action": "investigate.revise",
 			"note": "reporter feedback on the issue updates the attached PR"
+		},
+		{
+			"from": "in_review",
+			"event": "retry",
+			"to": "in_review",
+			"action": "investigate.revise",
+			"note": "the attached PR is the work to retry"
+		},
+		{
+			"from": "in_review",
+			"event": "accept",
+			"to": "in_review",
+			"addLabels": [
+				"triage/verified"
+			],
+			"note": "reporter confirmation labels the issue and thanks them"
+		},
+		{
+			"from": "in_review",
+			"event": "confirm",
+			"to": "in_review",
+			"addLabels": [
+				"triage/verified"
+			],
+			"note": "reporter confirmation labels the issue and thanks them"
 		},
 		{
 			"from": "in_review",
@@ -1316,6 +1350,12 @@
 			"to": "needs_attention"
 		},
 		{
+			"from": "investigating",
+			"event": "resume",
+			"to": "investigating",
+			"action": "investigate.resume"
+		},
+		{
 			"from": "reproduced",
 			"event": "work",
 			"to": "working",
@@ -1393,6 +1433,36 @@
 			"note": "re-diagnose"
 		},
 		{
+			"from": "reproduced",
+			"event": "retry",
+			"to": "working",
+			"action": "investigate.work"
+		},
+		{
+			"from": "diagnosed",
+			"event": "retry",
+			"to": "working",
+			"action": "investigate.work"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "retry",
+			"to": "investigating",
+			"action": "investigate.diagnose"
+		},
+		{
+			"from": "needs_info",
+			"event": "retry",
+			"to": "investigating",
+			"action": "investigate.diagnose"
+		},
+		{
+			"from": "awaiting_approval",
+			"event": "retry",
+			"to": "triaging",
+			"action": "investigate.triage"
+		},
+		{
 			"from": "not_reproduced",
 			"event": "triage",
 			"to": "triaging",
@@ -1455,29 +1525,27 @@
 		{
 			"from": "preview_building",
 			"event": "preview.ready",
-			"to": "awaiting_reporter"
+			"to": "in_review",
+			"action": "openPr"
 		},
 		{
 			"from": "preview_building",
 			"event": "preview.failed",
-			"to": "reproduced",
-			"toByKind": {
-				"enhancement": "blocked",
-				"task": "blocked"
-			},
-			"note": "bugs return to the reproduced verdict; directed changes rest in blocked so implement can retry"
+			"to": "in_review",
+			"action": "openPr",
+			"note": "the PR's checks show whether the candidate builds"
 		},
 		{
 			"from": "awaiting_reporter",
 			"event": "confirm",
 			"to": "in_review",
-			"action": "openDraftPr"
+			"action": "openPr"
 		},
 		{
 			"from": "awaiting_reporter",
 			"event": "accept",
 			"to": "in_review",
-			"action": "openDraftPr"
+			"action": "openPr"
 		},
 		{
 			"from": "awaiting_reporter",
@@ -1503,17 +1571,6 @@
 			},
 			"action": "reapBranch",
 			"note": "denial reaps the unvalidated branch; directed changes remain retryable through implement"
-		},
-		{
-			"from": "awaiting_reporter",
-			"event": "expire",
-			"to": "reproduced",
-			"toByKind": {
-				"enhancement": "blocked",
-				"task": "blocked"
-			},
-			"action": "reapBranch",
-			"note": "14-day silence reaps the branch; bugs retain their verdict and directed changes remain retryable"
 		},
 		{
 			"from": "awaiting_reporter",

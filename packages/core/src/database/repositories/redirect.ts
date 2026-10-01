@@ -428,13 +428,16 @@ export class RedirectRepository {
 
 	/**
 	 * Fetch all enabled redirects (for loop detection graph building).
-	 * Not paginated — returns the full set.
+	 * Not paginated — returns the full set. Ordered oldest first: the earliest
+	 * matching pattern rule wins, so this order is match precedence.
 	 */
 	async findAllEnabled(): Promise<Redirect[]> {
 		const rows = await this.db
 			.selectFrom("_emdash_redirects")
 			.selectAll()
 			.where("enabled", "=", 1)
+			.orderBy("created_at", (order) => order.asc().nullsFirst())
+			.orderBy("id", "asc")
 			.execute();
 		return rows.map(rowToRedirect);
 	}
@@ -458,6 +461,8 @@ export class RedirectRepository {
 			.selectAll()
 			.where("enabled", "=", 1)
 			.where("is_pattern", "=", 1)
+			.orderBy("created_at", (order) => order.asc().nullsFirst())
+			.orderBy("id", "asc")
 			.execute();
 		return rows.map(rowToRedirect);
 	}

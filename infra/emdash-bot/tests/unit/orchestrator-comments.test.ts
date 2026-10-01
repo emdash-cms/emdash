@@ -4,8 +4,9 @@ import {
 	fillPullRequestTemplate,
 	renderAgentComment,
 	renderCommandFeedback,
-	renderDraftPrBody,
 	renderPreviewReadyAsk,
+	renderPullRequestBody,
+	renderVerifiedThanks,
 	renderReadonlyReply,
 	shouldPostReadonlyReply,
 } from "../../.flue/lib/comments.js";
@@ -132,6 +133,18 @@ describe("renderPreviewReadyAsk", () => {
 		expect(ask({ screenshots: [] })).not.toContain("**Screenshots:**");
 	});
 
+	test("links the open pull request without calling it a draft", () => {
+		const body = ask({ pullRequestNumber: 91 });
+		expect(body).toContain("[PR #91](https://github.com/emdash-cms/emdash/pull/91)");
+		expect(body).not.toMatch(/draft/i);
+	});
+
+	test("still reads as an opened pull request when its number is unknown", () => {
+		const body = ask();
+		expect(body).toContain("I opened a pull request");
+		expect(body).not.toMatch(/draft/i);
+	});
+
 	test("does not describe a directed implementation as a reproduced bug", () => {
 		const body = ask({ notes: "Added the requested export." });
 		expect(body).toContain("candidate change");
@@ -139,7 +152,7 @@ describe("renderPreviewReadyAsk", () => {
 	});
 });
 
-describe("renderDraftPrBody", () => {
+describe("renderPullRequestBody", () => {
 	test("tolerates normal wording changes in the pull request template", () => {
 		const template = [
 			"## TYPE OF CHANGE",
@@ -178,7 +191,7 @@ describe("renderDraftPrBody", () => {
 	});
 
 	test("fills the GitHub PR template with the bot description and preview", () => {
-		const body = renderDraftPrBody({
+		const body = renderPullRequestBody({
 			issueNumber: 77,
 			kind: "bug",
 			description: "Preserves the requested locale when the loader resolves content.",
@@ -194,6 +207,25 @@ describe("renderDraftPrBody", () => {
 		expect(body).toContain("- [x] This PR includes AI-generated code");
 		expect(body).toContain("## Screenshots / test output");
 		expect(body).not.toContain("<!-- Describe the change");
+		expect(body).not.toMatch(/draft|confirmed/i);
+	});
+});
+
+describe("renderVerifiedThanks", () => {
+	test("thanks the reporter and points at the pull request under review", () => {
+		const body = renderVerifiedThanks({
+			owner: "emdash-cms",
+			repo: "emdash",
+			pullRequestNumber: 91,
+		});
+		expect(body).toContain("Thanks for confirming");
+		expect(body).toContain("[PR #91](https://github.com/emdash-cms/emdash/pull/91)");
+	});
+
+	test("still thanks the reporter when the pull request number is unknown", () => {
+		const body = renderVerifiedThanks({ owner: "emdash-cms", repo: "emdash" });
+		expect(body).toContain("Thanks for confirming");
+		expect(body).not.toContain("PR #");
 	});
 });
 

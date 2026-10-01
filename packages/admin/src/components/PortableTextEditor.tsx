@@ -81,6 +81,7 @@ import {
 	LinkBreak,
 	ArrowSquareOut,
 	BracketsAngle,
+	FrameCorners,
 	CodeBlock,
 	Stack,
 	Table as TableIcon,
@@ -142,10 +143,13 @@ import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { TopBlockDocument } from "./editor/EmbedBlockShell";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
-import { HtmlBlockExtension, TopBlockDocument } from "./editor/HtmlBlockNode";
+import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
+import { iframeEmbedFromAttrs, isBuiltInIframeBlock } from "./editor/iframe-embed";
+import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
 import { LinkDestinationInput } from "./editor/LinkDestinationInput";
@@ -256,11 +260,23 @@ interface PortableTextHtmlBlock {
 	isolated?: boolean;
 }
 
+interface PortableTextIframeBlock {
+	_type: "iframe";
+	_key: string;
+	src: string;
+	title?: string;
+	width?: number;
+	height?: number;
+	allow?: string;
+	allowFullscreen?: boolean;
+}
+
 type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
+	| PortableTextIframeBlock
 	| { _type: string; _key: string; [key: string]: unknown };
 
 // Generate unique key
@@ -514,6 +530,7 @@ const PortableTextIdentityExtension = Extension.create({
 					"blockquote",
 					"codeBlock",
 					"htmlBlock",
+					"iframeBlock",
 					"image",
 					"horizontalRule",
 					"gallery",
@@ -861,6 +878,13 @@ function convertPMNode(
 				...htmlBlockFields(node.attrs ?? {}),
 			};
 
+		case "iframeBlock":
+			return {
+				_type: "iframe",
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				...iframeEmbedFromAttrs(node.attrs ?? {}),
+			};
+
 		case "image": {
 			const attrs = node.attrs ?? {};
 			const provider = attrStr(attrs.provider);
@@ -1192,6 +1216,11 @@ function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
 	return block._type === "block";
 }
 
+/** A built-in `iframe` block. Any other belongs to a plugin and stays a plugin block. */
+function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
+	return block._type === "iframe" && isBuiltInIframeBlock(block);
+}
+
 function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock {
 	const asset = "asset" in block ? block.asset : undefined;
 	return block._type === "image" && typeof asset === "object" && asset !== null;
@@ -1202,7 +1231,11 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
 }
 
 // Portable Text to ProseMirror converter
-function portableTextToProsemirror(blocks: PortableTextBlock[]): {
+/** `pluginTypes`: block types plugins register, which stay plugin blocks. */
+function portableTextToProsemirror(
+	blocks: PortableTextBlock[],
+	pluginTypes: ReadonlySet<string> = new Set(),
+): {
 	type: "doc";
 	content: unknown[];
 } {
@@ -1249,7 +1282,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 
 			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else {
-			const converted = convertPTBlock(block, `root:${i}`);
+			const converted = convertPTBlock(block, `root:${i}`, pluginTypes);
 			if (converted) {
 				content.push(converted);
 			}
@@ -1291,7 +1324,11 @@ function belongsToNestedGroup(
 	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
-function convertPTBlock(block: PortableTextBlock, path: string): unknown {
+function convertPTBlock(
+	block: PortableTextBlock,
+	path: string,
+	pluginTypes: ReadonlySet<string>,
+): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
@@ -1438,6 +1475,14 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 				type: "htmlBlock",
 				attrs: attrsWithPortableTextKey({ ...htmlBlockFields(block) }, block._key),
 			};
+
+		case "iframe":
+			return isIframeBlock(block) && !pluginTypes.has("iframe")
+				? {
+						type: "iframeBlock",
+						attrs: attrsWithPortableTextKey({ ...iframeEmbedFromAttrs(block) }, block._key),
+					}
+				: convertCustomBlock(block);
 
 		case "table": {
 			const result = portableTextTableToProseMirror(block, {
@@ -1701,17 +1746,21 @@ interface SlashCommandItem {
 }
 
 /**
- * Insert an HTML block at the top level: at `position` when given, in place
- * of an empty top-level paragraph, before the top-level block whose start
- * holds the cursor, and otherwise after it. The new block's node view takes
- * focus itself.
+ * Insert a top-level block: at `position` when given, in place of an empty
+ * top-level paragraph, before the top-level block whose start holds the
+ * cursor, and otherwise after it. The new block is node-selected; its node
+ * view takes focus itself.
  */
-function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
+function insertTopLevelBlock(
+	editor: Editor,
+	block: ProseMirrorNode,
+	range?: Range,
+	position?: number,
+) {
 	const tr = closeHistory(editor.state.tr);
 	if (range) tr.delete(range.from, range.to);
 	const { selection } = tr;
 	const { $from } = selection;
-	const block = editor.schema.nodes.htmlBlock!.create({ isolated: true });
 	const atBlockStart =
 		$from.parentOffset === 0 &&
 		Array.from({ length: $from.depth - 1 }, (_, depth) => $from.index(depth + 1)).every(
@@ -1734,6 +1783,19 @@ function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
 	}
 	tr.setSelection(NodeSelection.create(tr.doc, at));
 	editor.view.dispatch(tr.scrollIntoView());
+}
+
+function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
+	insertTopLevelBlock(editor, editor.schema.nodes.iframeBlock!.create(), range, position);
+}
+
+function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
+	insertTopLevelBlock(
+		editor,
+		editor.schema.nodes.htmlBlock!.create({ isolated: true }),
+		range,
+		position,
+	);
 }
 
 /**
@@ -1847,6 +1909,14 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		icon: BracketsAngle,
 		aliases: ["html", "raw", "markup"],
 		command: ({ editor, range }) => insertHtmlBlock(editor, range),
+	},
+	{
+		id: "iframe",
+		title: msg`Iframe`,
+		description: msg`Embed a page from another site`,
+		icon: FrameCorners,
+		aliases: ["embed", "youtube", "vimeo", "video", "map"],
+		command: ({ editor, range }) => insertIframeBlock(editor, range),
 	},
 	{
 		id: "divider",
@@ -3106,23 +3176,36 @@ export function PortableTextEditor({
 		[],
 	);
 
+	const pluginBlockTypes = React.useMemo(
+		() => new Set(pluginBlocks.map((block) => block.type)),
+		[pluginBlocks],
+	);
+
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
-		const cmds: SlashCommandItem[] = defaultSlashCommands.map((item) =>
-			item.id === "htmlBlock"
-				? {
-						...item,
-						// From the gutter, insert at its position in the same undo step.
-						deferInsertion: true,
-						command: ({ editor, range }) => {
-							const position = pendingBlockInsertPosRef.current;
-							pendingBlockInsertPosRef.current = null;
-							if (position === null) insertHtmlBlock(editor, range);
-							else insertHtmlBlock(editor, undefined, position);
-						},
-					}
-				: item,
+		const topLevelInserts: Record<string, typeof insertHtmlBlock> = {
+			htmlBlock: insertHtmlBlock,
+			iframe: insertIframeBlock,
+		};
+		// A plugin's own iframe block replaces the built-in one.
+		const builtIns = defaultSlashCommands.filter(
+			(item) => item.id !== "iframe" || !pluginBlockTypes.has("iframe"),
 		);
+		const cmds: SlashCommandItem[] = builtIns.map((item) => {
+			const insert = topLevelInserts[item.id];
+			if (!insert) return item;
+			return {
+				...item,
+				// From the gutter, insert at its position in the same undo step.
+				deferInsertion: true,
+				command: ({ editor, range }) => {
+					const position = pendingBlockInsertPosRef.current;
+					pendingBlockInsertPosRef.current = null;
+					if (position === null) insert(editor, range);
+					else insert(editor, undefined, position);
+				},
+			};
+		});
 
 		// Add image command
 		cmds.push({
@@ -3188,7 +3271,7 @@ export function PortableTextEditor({
 		}
 
 		return cmds;
-	}, [pluginBlocks, t]);
+	}, [pluginBlockTypes, pluginBlocks, t]);
 
 	// Filter commands by query — accessed via ref so the Suggestion plugin
 	// (created once) always sees the latest command list without needing
@@ -3229,7 +3312,10 @@ export function PortableTextEditor({
 			return { content: emptyDocument, tableError: null };
 		}
 		try {
-			return { content: portableTextToProsemirror(value || []), tableError: null };
+			return {
+				content: portableTextToProsemirror(value || [], pluginBlockTypes),
+				tableError: null,
+			};
 		} catch (error) {
 			if (error instanceof UnsafePortableTextTableError) {
 				return { content: emptyDocument, tableError: error };
@@ -3281,6 +3367,7 @@ export function PortableTextEditor({
 			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			IframeBlockExtension,
 			GalleryExtension,
 			ImageExtension,
 			ImageUploadExtension.configure({
@@ -3816,7 +3903,7 @@ export function PortableTextEditor({
 				: [];
 			let prosemirrorContent: unknown[];
 			try {
-				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
+				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent, pluginBlockTypes));
 			} catch (error) {
 				if (error instanceof UnsupportedPortableTextMarksError) {
 					setSectionInsertErrorMarks(error.marks);
@@ -3842,7 +3929,7 @@ export function PortableTextEditor({
 			}
 			pendingBlockInsertPosRef.current = null;
 		},
-		[editor],
+		[editor, pluginBlockTypes],
 	);
 
 	if (tableConversionError) {

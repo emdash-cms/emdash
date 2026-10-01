@@ -164,6 +164,23 @@ export interface PortableTextHtmlBlock {
 }
 
 /**
+ * Iframe block (a page from another site)
+ */
+export interface PortableTextIframeBlock {
+	_type: "iframe";
+	_key: string;
+	/** An absolute https URL. */
+	src: string;
+	title?: string;
+	/** Whole numbers from 1 to 10000. With both set, they give the aspect ratio. */
+	width?: number;
+	height?: number;
+	/** Permissions policy features for the embedded page. */
+	allow?: string;
+	allowFullscreen?: boolean;
+}
+
+/**
  * Unknown/custom block (preserved for plugin compatibility)
  */
 export interface PortableTextUnknownBlock {
@@ -181,6 +198,7 @@ export type PortableTextBlock =
 	| PortableTextGalleryBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
+	| PortableTextIframeBlock
 	| PortableTextTableBlock
 	| PortableTextUnknownBlock;
 
