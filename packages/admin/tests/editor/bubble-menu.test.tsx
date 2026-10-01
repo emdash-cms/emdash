@@ -732,9 +732,15 @@ describe("Bubble Menu", () => {
 			const link = pm.querySelector("a");
 			expect(link).toBeTruthy();
 			expect(link!.getAttribute("href")).toBe("https://example.com");
+			expect(document.activeElement).toBe(pm);
 		});
 
-		await userEvent.keyboard("{ArrowLeft}{End} for more information");
+		await userEvent.keyboard("{ArrowLeft}{End}");
+		await vi.waitFor(() => {
+			expect(editor.state.selection.empty).toBe(true);
+			expect(editor.state.selection.to).toBe(editor.state.doc.content.size - 1);
+		});
+		await userEvent.keyboard(" for more information");
 
 		await vi.waitFor(() => {
 			expect(pm.textContent).toBe("Hello world for more information");
