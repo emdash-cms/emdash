@@ -215,6 +215,8 @@ The first deployment receives a `workers.dev` URL. The custom domain must alread
 
 Deploy again and verify both addresses. Keeping the `workers.dev` address available while testing DNS helps distinguish a routing problem from an application problem.
 
+Without `siteUrl`, `EMDASH_SITE_URL`, or `SITE_URL`, setup records the address it runs on as the site's origin, and passkeys created during setup only work on that address. Run setup on the production domain, or set `EMDASH_SITE_URL` to it before setup. Setting `EMDASH_SITE_URL` to another domain after setup moves sign-in to that domain, and passkeys created on the old address stop working there.
+
 ## Public R2 access
 
 By default, media is served through EmDash's authenticated media route. If the bucket has a public custom domain, set that origin as `publicUrl` so generated media URLs use it:

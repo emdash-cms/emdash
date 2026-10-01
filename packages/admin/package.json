@@ -37,6 +37,10 @@
     "./portable-text-table": {
       "types": "./dist/portable-text-table.d.ts",
       "default": "./dist/portable-text-table.js"
+    },
+    "./html-block": {
+      "types": "./dist/html-block.d.ts",
+      "default": "./dist/html-block.js"
     }
   },
   "scripts": {
@@ -53,6 +57,14 @@
   "dependencies": {
     "@atcute/lexicons": "catalog:",
     "@cloudflare/kumo": "catalog:",
+    "@codemirror/autocomplete": "catalog:",
+    "@codemirror/commands": "catalog:",
+    "@codemirror/lang-css": "catalog:",
+    "@codemirror/lang-html": "catalog:",
+    "@codemirror/lang-javascript": "catalog:",
+    "@codemirror/language": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@codemirror/view": "catalog:",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -62,6 +74,7 @@
     "@emdash-cms/registry-lexicons": "workspace:*",
     "@floating-ui/react": "^0.27.16",
     "date-fns": "^4.1.0",
+    "@lezer/highlight": "catalog:",
     "@lingui/core": "catalog:",
     "@lingui/react": "catalog:",
     "@phosphor-icons/react": "catalog:",

@@ -155,6 +155,12 @@ export interface PortableTextHtmlBlock {
 	_type: "htmlBlock";
 	_key: string;
 	html: string;
+	/** Styles for the isolated frame. Not used when the block renders inline. */
+	css?: string;
+	/** Script for the isolated frame. Not used when the block renders inline. */
+	js?: string;
+	/** Render in a sandboxed frame instead of as inline, sanitized HTML. */
+	isolated?: boolean;
 }
 
 /**

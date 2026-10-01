@@ -4,6 +4,7 @@
  * Converts TipTap's ProseMirror JSON format to Portable Text for storage.
  */
 
+import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import {
 	UnsafePortableTextTableError,
 	proseMirrorTableToPortableText,
@@ -351,11 +352,10 @@ function convertCodeBlock(node: ProseMirrorNode): PortableTextCodeBlock {
  * Convert HTML block to Portable Text
  */
 function convertHtmlBlock(node: ProseMirrorNode): PortableTextHtmlBlock {
-	const rawHtml = node.attrs?.html;
 	return {
 		_type: "htmlBlock",
 		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-		html: typeof rawHtml === "string" ? rawHtml : "",
+		...htmlBlockFields(node.attrs ?? {}),
 	};
 }
 
