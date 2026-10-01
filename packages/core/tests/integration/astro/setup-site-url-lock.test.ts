@@ -71,6 +71,7 @@ describe("POST /setup — site_url write-once lock", () => {
 
 	afterEach(async () => {
 		vi.unstubAllEnvs();
+		vi.unstubAllGlobals();
 		await teardownTestDatabase(db);
 	});
 
@@ -99,6 +100,37 @@ describe("POST /setup — site_url write-once lock", () => {
 
 		const options = new OptionsRepository(db);
 		expect(await options.get("emdash:site_url")).toBe("http://127.0.0.1:4321");
+	});
+
+	it("stores the HTTPS request origin on Cloudflare Workers", async () => {
+		vi.stubEnv("DEV", false);
+		vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+		const res = await postSetup(
+			buildContext(
+				db,
+				buildRequest("my-site.example.workers.dev:8080", {
+					title: "My Site",
+					includeContent: false,
+				}),
+			),
+		);
+		expect(res.status).toBe(200);
+
+		const options = new OptionsRepository(db);
+		expect(await options.get("emdash:site_url")).toBe("https://my-site.example.workers.dev");
+	});
+
+	it("rejects a public Host in development on workerd", async () => {
+		vi.stubEnv("DEV", true);
+		vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+		const res = await postSetup(
+			buildContext(db, buildRequest("evil.example", { title: "My Site", includeContent: false })),
+		);
+
+		expect(res.status).toBe(500);
+		expect(await res.json()).toMatchObject({
+			error: { code: "SITE_URL_REQUIRED" },
+		});
 	});
 
 	it("rejects a spoofed loopback Host in production", async () => {

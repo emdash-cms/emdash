@@ -102,6 +102,7 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import { closeHistory } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import {
 	AllSelection,
@@ -117,6 +118,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
 
+import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
@@ -143,7 +145,7 @@ import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
-import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
+import { HtmlBlockExtension, TopBlockDocument } from "./editor/HtmlBlockNode";
 import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
 import { LinkDestinationInput } from "./editor/LinkDestinationInput";
@@ -249,6 +251,9 @@ interface PortableTextHtmlBlock {
 	_type: "htmlBlock";
 	_key: string;
 	html: string;
+	css?: string;
+	js?: string;
+	isolated?: boolean;
 }
 
 type PortableTextBlock =
@@ -849,14 +854,12 @@ function convertPMNode(
 			};
 		}
 
-		case "htmlBlock": {
-			const rawHtml = node.attrs?.html;
+		case "htmlBlock":
 			return {
 				_type: "htmlBlock",
 				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				html: typeof rawHtml === "string" ? rawHtml : "",
+				...htmlBlockFields(node.attrs ?? {}),
 			};
-		}
 
 		case "image": {
 			const attrs = node.attrs ?? {};
@@ -1430,13 +1433,11 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 			};
 		}
 
-		case "htmlBlock": {
-			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
+		case "htmlBlock":
 			return {
 				type: "htmlBlock",
-				attrs: attrsWithPortableTextKey({ html: htmlBlock.html || "" }, htmlBlock._key),
+				attrs: attrsWithPortableTextKey({ ...htmlBlockFields(block) }, block._key),
 			};
-		}
 
 		case "table": {
 			const result = portableTextTableToProseMirror(block, {
@@ -1699,10 +1700,40 @@ interface SlashCommandItem {
 	category?: MessageDescriptor | string;
 }
 
-function insertHtmlBlock(editor: Editor, range?: Range) {
-	const chain = editor.chain().focus();
-	if (range) chain.deleteRange(range);
-	chain.insertContent({ type: "htmlBlock", attrs: { html: "" } }).run();
+/**
+ * Insert an HTML block at the top level: at `position` when given, in place
+ * of an empty top-level paragraph, before the top-level block whose start
+ * holds the cursor, and otherwise after it. The new block's node view takes
+ * focus itself.
+ */
+function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
+	const tr = closeHistory(editor.state.tr);
+	if (range) tr.delete(range.from, range.to);
+	const { selection } = tr;
+	const { $from } = selection;
+	const block = editor.schema.nodes.htmlBlock!.create({ isolated: true });
+	const atBlockStart =
+		$from.parentOffset === 0 &&
+		Array.from({ length: $from.depth - 1 }, (_, depth) => $from.index(depth + 1)).every(
+			(index) => index === 0,
+		);
+	let at: number;
+	if (position !== undefined) {
+		at = position;
+		tr.insert(at, block);
+	} else if (
+		$from.depth === 1 &&
+		$from.parent.type.name === "paragraph" &&
+		!$from.parent.childCount
+	) {
+		at = $from.before(1);
+		tr.replaceWith(at, $from.after(1), block);
+	} else {
+		at = $from.depth === 0 ? selection.to : atBlockStart ? $from.before(1) : $from.after(1);
+		tr.insert(at, block);
+	}
+	tr.setSelection(NodeSelection.create(tr.doc, at));
+	editor.view.dispatch(tr.scrollIntoView());
 }
 
 /**
@@ -3077,7 +3108,21 @@ export function PortableTextEditor({
 
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
-		const cmds: SlashCommandItem[] = [...defaultSlashCommands];
+		const cmds: SlashCommandItem[] = defaultSlashCommands.map((item) =>
+			item.id === "htmlBlock"
+				? {
+						...item,
+						// From the gutter, insert at its position in the same undo step.
+						deferInsertion: true,
+						command: ({ editor, range }) => {
+							const position = pendingBlockInsertPosRef.current;
+							pendingBlockInsertPosRef.current = null;
+							if (position === null) insertHtmlBlock(editor, range);
+							else insertHtmlBlock(editor, undefined, position);
+						},
+					}
+				: item,
+		);
 
 		// Add image command
 		cmds.push({
@@ -3206,6 +3251,8 @@ export function PortableTextEditor({
 			PortableTextSpanIdentity,
 			LinkBoundaryExit,
 			StarterKit.configure({
+				// Replaced with TopBlockDocument so top-level-only blocks can't be nested.
+				document: false,
 				heading: {
 					levels: [1, 2, 3, 4, 5, 6],
 				},
@@ -3229,6 +3276,7 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			TopBlockDocument,
 			EmDashOrderedList,
 			CodeMarkExtension,
 			CodeBlockExtension,

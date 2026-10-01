@@ -100,7 +100,7 @@ export interface EmDashRequestContext {
 	 */
 	dbIsIsolated?: boolean;
 	/**
-	 * Query recorder attached by middleware when EMDASH_QUERY_LOG_FILE is set.
+	 * Query recorder attached by middleware when EMDASH_QUERY_LOG=1 is set.
 	 * The Kysely `log` hook appends an event per query; middleware flushes
 	 * to NDJSON after the response.
 	 */
