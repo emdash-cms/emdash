@@ -1,0 +1,59 @@
+---
+const AI_SEARCH_ENDPOINT = "https://489e01e7-ef28-414f-9fec-15e1736fd9b2.search.ai.cloudflare.com/";
+
+const translations = {
+	chatTitle: "Ask the docs",
+	chatEmptyTitle: "Ask a question about EmDash",
+	chatEmptyDescription:
+		"Answers are generated from the EmDash documentation and can be wrong. Check the linked pages.",
+};
+---
+
+<chat-bubble-snippet
+	api-url={AI_SEARCH_ENDPOINT}
+	placeholder="Ask about EmDash…"
+	translations={JSON.stringify(translations)}></chat-bubble-snippet>
+
+<script>
+	import * as aiSearchSnippet from "@cloudflare/ai-search-snippet/chat";
+
+	void aiSearchSnippet;
+
+	const bubble = document.querySelector("chat-bubble-snippet");
+	const root = document.documentElement;
+
+	// The snippet only knows prefers-color-scheme; Starlight's theme picker sets data-theme.
+	const syncTheme = () => bubble?.setAttribute("theme", root.dataset.theme ?? "auto");
+	syncTheme();
+	new MutationObserver(syncTheme).observe(root, { attributeFilter: ["data-theme"] });
+
+	// Starlight traps focus in the open mobile menu by making the page inert; the bubble sits outside it.
+	document.getElementById("starlight__sidebar")?.addEventListener("toggle", (event) => {
+		bubble?.toggleAttribute("inert", (event as ToggleEvent).newState === "open");
+	});
+</script>
+
+<style is:global>
+	chat-bubble-snippet {
+		--search-snippet-primary-color: var(--sl-color-accent);
+		--search-snippet-primary-hover: color-mix(in srgb, var(--sl-color-accent) 85%, black);
+		--search-snippet-background: var(--sl-color-bg);
+		--search-snippet-surface: var(--sl-color-bg-nav);
+		--search-snippet-hover-background: var(--sl-color-gray-6);
+		--search-snippet-text-color: var(--sl-color-white);
+		--search-snippet-text-secondary: var(--sl-color-gray-3);
+		--search-snippet-text-description: var(--sl-color-gray-2);
+		--search-snippet-border-color: var(--sl-color-hairline-light);
+		--search-snippet-focus-ring: var(--sl-color-accent-low);
+		--search-snippet-user-message-bg: var(--sl-color-accent);
+		--search-snippet-user-message-text: var(--sl-color-text-invert);
+		--search-snippet-assistant-message-bg: var(--sl-color-bg-inline-code);
+		--search-snippet-assistant-message-text: var(--sl-color-white);
+		--search-snippet-font-family: var(--sl-font);
+		--search-snippet-font-family-mono: var(--sl-font-mono);
+		--search-snippet-border-radius: 0.75rem;
+		--chat-bubble-button-size: 3.25rem;
+		--chat-bubble-button-icon-size: 1.5rem;
+		--chat-bubble-button-icon-color: var(--sl-color-text-invert);
+	}
+</style>

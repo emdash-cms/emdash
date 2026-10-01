@@ -17,7 +17,7 @@ npm install emdash
 
 Run commands with `npx emdash` or add scripts to `package.json`. The binary is also available as `em` for brevity.
 
-Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed.
+Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and, before setup is completed, applies the bundled seed's schema and structure once. Sample content from the seed is applied only when an administrator chooses it in the setup wizard.
 
 ## Authentication
 
@@ -172,7 +172,7 @@ npx emdash types [options]
 npx emdash types
 
 # Generate from remote instance
-npx emdash types --url https://my-site.pages.dev
+npx emdash types --url https://example.com
 
 # Custom output path
 npx emdash types --output src/types/emdash.ts

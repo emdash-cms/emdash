@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type RawBuilder } from "kysely";
 import { ulid } from "ulidx";
 
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
@@ -11,7 +11,7 @@ import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
-import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
+import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -80,7 +80,7 @@ function sameStoredValue(left: unknown, right: unknown): boolean {
 function matchesPublication(
 	observed: ContentItem,
 	existing: ContentItem,
-	revision: { data: Record<string, unknown> },
+	revisionData: Record<string, unknown>,
 	revisionId: string,
 	slug: string | null,
 	publishedAt: string,
@@ -99,7 +99,7 @@ function matchesPublication(
 		return false;
 	}
 
-	return Object.entries(revision.data).every(
+	return Object.entries(revisionData).every(
 		([key, value]) =>
 			SYSTEM_COLUMNS.has(key) || key.startsWith("_") || sameStoredValue(observed.data[key], value),
 	);
@@ -154,35 +154,42 @@ interface ResolvedOrderField {
 	indexedCustomField: boolean;
 }
 
-type IndexedOrderValue = string | number | null;
+type NullableOrderValue = string | number | null;
 
-interface IndexedFieldCursorPayload {
+interface NullableOrderCursorPayload {
 	version: 1;
 	field: string;
-	value: IndexedOrderValue;
+	value: NullableOrderValue;
 }
 
-function encodeIndexedFieldCursor(field: string, value: IndexedOrderValue, id: string): string {
-	const payload: IndexedFieldCursorPayload = { version: 1, field, value };
+function encodeNullableOrderCursor(field: string, value: NullableOrderValue, id: string): string {
+	const payload: NullableOrderCursorPayload = { version: 1, field, value };
 	return encodeCursor(JSON.stringify(payload), id);
 }
 
-function decodeIndexedFieldCursor(
+/**
+ * `acceptPlain` also accepts the plain `{ orderValue, id }` cursor that
+ * built-in and collection sort fields were paged with before, which wrote a
+ * NULL as "".
+ */
+function decodeNullableOrderCursor(
 	cursor: string,
 	field: string,
-): { value: IndexedOrderValue; id: string } {
+	{ acceptPlain = false } = {},
+): { value: NullableOrderValue; id: string } {
 	const { orderValue, id } = decodeCursor(cursor);
 	let payload: unknown;
 	try {
 		payload = JSON.parse(orderValue);
 	} catch {
-		throw new InvalidCursorError(cursor);
+		payload = undefined;
 	}
 
 	if (payload === null || typeof payload !== "object") {
+		if (acceptPlain) return { value: orderValue === "" ? null : orderValue, id };
 		throw new InvalidCursorError(cursor);
 	}
-	const candidate = payload as Partial<IndexedFieldCursorPayload>;
+	const candidate = payload as Partial<NullableOrderCursorPayload>;
 	const validValue =
 		candidate.value === null ||
 		typeof candidate.value === "string" ||
@@ -191,7 +198,34 @@ function decodeIndexedFieldCursor(
 		throw new InvalidCursorError(cursor);
 	}
 
-	return { value: candidate.value as IndexedOrderValue, id };
+	return { value: candidate.value as NullableOrderValue, id };
+}
+
+/**
+ * Keyset condition for the rows after (`value`, `cursorId`) in a sort by the
+ * nullable `column`, then `id`. The ORDER BY keeps each dialect's own NULL
+ * position, lowest on SQLite and highest on Postgres, so the condition follows
+ * it.
+ */
+function nullableOrderCondition(
+	db: Kysely<Database>,
+	column: string,
+	direction: "ASC" | "DESC",
+	value: NullableOrderValue,
+	cursorId: string,
+): RawBuilder<boolean> {
+	const sort = sql.ref(column);
+	const id = sql.ref("id");
+	const cmp = direction === "ASC" ? sql.raw(">") : sql.raw("<");
+	const nullsFirst = (direction === "ASC") !== isPostgres(db);
+	if (value === null) {
+		return nullsFirst
+			? sql<boolean>`(${sort} IS NOT NULL OR ${id} ${cmp} ${cursorId})`
+			: sql<boolean>`(${sort} IS NULL AND ${id} ${cmp} ${cursorId})`;
+	}
+	// The row value, unlike the equivalent OR, lets SQLite keep reading the index in order.
+	const past = sql<boolean>`(${sort}, ${id}) ${cmp} (${value}, ${cursorId})`;
+	return nullsFirst ? past : sql<boolean>`(${past} OR ${sort} IS NULL)`;
 }
 
 /**
@@ -223,6 +257,13 @@ const ORDER_FIELD_COLUMNS: Record<string, string> = {
 	status: "status",
 	locale: "locale",
 };
+
+/**
+ * Order columns every row has a value for. Their cursors keep the plain
+ * `{ orderValue, id }` shape; a cursor for any other order column records a
+ * NULL explicitly.
+ */
+const NON_NULL_ORDER_COLUMNS = new Set(["created_at", "updated_at", "status", "locale"]);
 
 /** True when `field` maps to a system column and needs no per-collection resolution. */
 export function isSystemOrderField(field: string): boolean {
@@ -806,6 +847,8 @@ export class ContentRepository {
 			options.sortableExtras,
 		);
 		const dbField = resolvedOrderField.column;
+		const nullableOrder =
+			resolvedOrderField.indexedCustomField || !NON_NULL_ORDER_COLUMNS.has(dbField);
 		const resolvedFieldFilters = await this.resolveFieldFilters(type, options.where?.fieldFilters);
 
 		// Validate order direction to prevent injection
@@ -841,15 +884,17 @@ export class ContentRepository {
 		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
 			if (resolvedOrderField.indexedCustomField) {
-				const { value, id: cursorId } = decodeIndexedFieldCursor(options.cursor, orderField);
+				const { value, id: cursorId } = decodeNullableOrderCursor(options.cursor, orderField);
 				const isPresent = sql<boolean>`${sql.ref(dbField)} IS NOT NULL`;
 				const falseLiteral = sql<boolean>`FALSE`;
 				const trueLiteral = sql<boolean>`TRUE`;
 				if (safeOrderDirection === "ASC" && value === null) {
-					query = query.where(sql<boolean>`
+					// Kysely joins a raw condition to the others with a bare AND, so the
+					// OR must carry its own parentheses to stay under every filter.
+					query = query.where(sql<boolean>`(
 						(${isPresent}) > ${falseLiteral}
 						OR ((${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} > ${cursorId})
-					`);
+					)`);
 				} else if (safeOrderDirection === "DESC" && value === null) {
 					query = query.where(sql<boolean>`
 						(${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} < ${cursorId}
@@ -865,6 +910,13 @@ export class ContentRepository {
 							< (${trueLiteral}, ${value}, ${cursorId})
 					`);
 				}
+			} else if (nullableOrder) {
+				const { value, id: cursorId } = decodeNullableOrderCursor(options.cursor, orderField, {
+					acceptPlain: true,
+				});
+				query = query.where(
+					nullableOrderCondition(this.db, dbField, safeOrderDirection, value, cursorId),
+				);
 			} else {
 				const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
@@ -928,15 +980,15 @@ export class ContentRepository {
 		if (hasMore && items.length > 0) {
 			const lastRow = items.at(-1) as Record<string, unknown>;
 			const lastOrderValue = lastRow[dbField];
-			if (resolvedOrderField.indexedCustomField) {
+			if (nullableOrder) {
 				if (
 					lastOrderValue !== null &&
 					typeof lastOrderValue !== "string" &&
 					typeof lastOrderValue !== "number"
 				) {
-					throw new EmDashValidationError(`Invalid indexed value for order field: ${orderField}`);
+					throw new EmDashValidationError(`Invalid value for order field: ${orderField}`);
 				}
-				mappedResult.nextCursor = encodeIndexedFieldCursor(
+				mappedResult.nextCursor = encodeNullableOrderCursor(
 					orderField,
 					lastOrderValue,
 					String(lastRow.id),
@@ -1873,10 +1925,10 @@ export class ContentRepository {
 		// of translation groups — at the locale the list is scoped to. Matching
 		// the locale is what keeps the filter agreeing with the list: an
 		// inferred credit renders only when the author's byline has a row at
-		// that locale (`hydrateBylinesMany` -> `findByUserIds`), and byline
-		// translations start life with a null `user_id`, so a group translated
-		// into the locale but not re-linked resolves to no credit. `locale`
-		// falls back to each entry's own when the list spans locales.
+		// that locale (`hydrateBylinesMany` -> `findByUserIds`), so a group
+		// whose translation at the locale has no linked user resolves to no
+		// credit. `locale` falls back to each entry's own when the list spans
+		// locales.
 		const authorHasByline = (eb: any, bylineIds?: string[]) => {
 			let sub = eb
 				.selectFrom("_emdash_bylines as b")
@@ -2526,6 +2578,9 @@ export class ContentRepository {
 				throw new EmDashValidationError("Revision does not belong to the specified content item");
 			}
 
+			const writableFieldSlugs = await this.datetimes.writableFieldSlugs(type);
+			const revisionData = keepKnownFields(revision.data, writableFieldSlugs);
+
 			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
 			const intendedSlug = stagedSlug ?? existing.slug;
 			if (requireSlug && !intendedSlug?.trim()) {
@@ -2545,7 +2600,7 @@ export class ContentRepository {
 
 			const assignments: ReturnType<typeof sql>[] = [];
 			if (stagedSlug !== null) assignments.push(sql`slug = ${stagedSlug}`);
-			for (const [key, value] of Object.entries(revision.data)) {
+			for (const [key, value] of Object.entries(revisionData)) {
 				if (SYSTEM_COLUMNS.has(key) || key.startsWith("_")) continue;
 				validateIdentifier(key, "content field name");
 				assignments.push(sql`${sql.ref(key)} = ${serializeValue(value)}`);
@@ -2603,7 +2658,7 @@ export class ContentRepository {
 				promoted = matchesPublication(
 					observed,
 					existing,
-					revision,
+					revisionData,
 					revisionToPublish,
 					intendedSlug,
 					intendedPublishedAt,

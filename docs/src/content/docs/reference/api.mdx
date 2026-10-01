@@ -132,7 +132,7 @@ if (error) {
 
 ### `getEmDashEntry()`
 
-Fetch a single entry by slug or ID. The following example loads a post and redirects when it is missing:
+Fetch a single entry by slug or ID. The following example loads a post and renders the site's 404 page when it is missing:
 
 ```ts
 import { getEmDashEntry } from "emdash";
@@ -140,7 +140,7 @@ import { getEmDashEntry } from "emdash";
 const { entry: post, error } = await getEmDashEntry("posts", "my-post-slug");
 
 if (!post) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 ```
 
@@ -189,7 +189,7 @@ if (error) {
 	return new Response("Server error", { status: 500 });
 }
 if (!entry) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 ```
 
@@ -725,7 +725,7 @@ if (error) {
 }
 
 if (!entry) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 ```
 

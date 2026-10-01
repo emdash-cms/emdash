@@ -17,6 +17,7 @@ export default defineConfig({
 			disable404Route: true,
 			components: {
 				SkipLink: "./src/components/SkipLink.astro",
+				PageFrame: "./src/components/PageFrame.astro",
 			},
 			logo: {
 				light: "./src/assets/logo-light.svg",
@@ -82,6 +83,7 @@ export default defineConfig({
 						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
+						{ label: "Built-in SEO Features", slug: "guides/seo" },
 						{ label: "Authentication", slug: "guides/authentication" },
 						{ label: "Email Setup", slug: "guides/email" },
 						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },

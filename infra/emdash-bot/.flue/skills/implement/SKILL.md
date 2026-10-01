@@ -53,4 +53,4 @@ After a resume, use the saved checkpoint and candidate. Complete listed metadata
 - No drive-by refactors or broad cleanup.
 - Do not weaken a test to make it pass.
 
-The candidate preview and draft-PR lifecycle remain owned by the orchestrator.
+The candidate preview and PR lifecycle remain owned by the orchestrator.

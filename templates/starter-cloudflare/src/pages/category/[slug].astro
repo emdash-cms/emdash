@@ -14,7 +14,7 @@ const termsResult = await getTaxonomyTermsWithCacheHint("category", {
 const term = slug ? termsResult.data.find((item) => item.slug === slug) : null;
 
 if (!term) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 const cursor = Astro.url.searchParams.get("cursor") || undefined;

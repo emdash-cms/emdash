@@ -176,9 +176,7 @@ To reject a save from the sandbox, return a versioned hook result with a `SAVE_R
 		};
 	}
 
-	if (typeof content.slug === "string") {
-		content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");
-	}
+	content.title = content.title.trim();
 
 	return content;
 },
@@ -188,7 +186,7 @@ Do not put HTML in `reason`. The admin renders the value as text.
 
 From the host process, throw `ContentSaveRejectedError` (exported from `emdash`) instead. The API returns `SAVE_REJECTED` with your message. Any other exception from either execution mode fails the save with a generic `CONTENT_HOOK_ERROR` response.
 
-**Event:** `{ content, collection, isNew, id, actor }` — **Returns:** modified content, a sandbox hook error result, or `void`. On an update, `id` is the ID of the existing item and `content` holds only the submitted field values; load the stored item with `ctx.content.get(event.collection, event.id)`. Authenticated REST, visual editing, and MCP saves include `actor.id` and the numeric `actor.role`. Internal writes without an authenticated user omit `actor`.
+**Event:** `{ content, collection, isNew, id, actor }` — **Returns:** modified content, a sandbox hook error result, or `void`. On an update, `id` is the ID of the existing item and `content` holds only the submitted field values; load the stored item with `ctx.content.get(event.collection, event.id)`. The entry's slug is not part of `content`, and a `slug` key returned from the hook fails validation as an unknown field. Authenticated REST, visual editing, and MCP saves include `actor.id` and the numeric `actor.role`. Internal writes without an authenticated user omit `actor`.
 
 ### `content:afterSave`
 

@@ -16,7 +16,7 @@ const { entry: post } = slug
 	: { entry: null };
 
 if (!post) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 const title = post.data.title;

@@ -16,6 +16,7 @@ import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
+import { isRecord } from "../plugin-utils.js";
 import {
 	PluginSettingEncryptionError,
 	decryptPluginSetting,
@@ -43,6 +44,9 @@ import type {
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
+
+/** Settings stored as one object whose fields are updated individually. */
+const NESTED_SETTING_KEYS = new Set(["seo", "social"]);
 
 function isPluginSettingEnvelopeRecord(value: unknown): value is Record<string, unknown> {
 	return (
@@ -336,7 +340,8 @@ export async function getSiteSettingsWithDb(
 /**
  * Set site settings (internal function used by admin API)
  *
- * Merges provided settings with existing ones. Only provided fields are updated.
+ * Merges provided settings with existing ones. Only provided fields are updated,
+ * including fields inside `seo` and `social`; `seo.defaultOgImage: null` removes the default image.
  * Media references should include just the mediaId; URLs are resolved on read.
  *
  * @param settings - Partial settings object with values to update
@@ -361,11 +366,12 @@ export async function setSiteSettings(
 ): Promise<void> {
 	const updates: Record<string, unknown> = {};
 	const deletions: string[] = [];
-	const seo = settings.seo;
+	const nestedPatches: [key: string, patch: Record<string, unknown>][] = [];
 
 	for (const [key, value] of Object.entries(settings)) {
-		if (value === undefined || (key === "seo" && seo?.defaultOgImage === null)) continue;
+		if (value === undefined) continue;
 		if (value === null) deletions.push(`${SETTINGS_PREFIX}${key}`);
+		else if (NESTED_SETTING_KEYS.has(key) && isRecord(value)) nestedPatches.push([key, value]);
 		else updates[`${SETTINGS_PREFIX}${key}`] = value;
 	}
 
@@ -375,16 +381,15 @@ export async function setSiteSettings(
 			await transactionOptions.setMany(updates);
 			await transactionOptions.deleteMany(deletions);
 
-			if (seo?.defaultOgImage === null) {
-				const existingSeo =
-					(await transactionOptions.get<SeoSettings>(`${SETTINGS_PREFIX}seo`)) ?? {};
-				const nextSeo = { ...existingSeo, ...seo };
-				delete nextSeo.defaultOgImage;
-				if (Object.keys(nextSeo).length === 0) {
-					await transactionOptions.delete(`${SETTINGS_PREFIX}seo`);
-				} else {
-					await transactionOptions.set(`${SETTINGS_PREFIX}seo`, nextSeo);
+			for (const [key, patch] of nestedPatches) {
+				const optionName = `${SETTINGS_PREFIX}${key}`;
+				const next = { ...(await transactionOptions.get<Record<string, unknown>>(optionName)) };
+				for (const [field, fieldValue] of Object.entries(patch)) {
+					if (fieldValue === null) delete next[field];
+					else if (fieldValue !== undefined) next[field] = fieldValue;
 				}
+				if (Object.keys(next).length === 0) await transactionOptions.delete(optionName);
+				else await transactionOptions.set(optionName, next);
 			}
 		});
 	} finally {

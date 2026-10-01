@@ -182,11 +182,34 @@ describe("Editor image drop targets", () => {
 		},
 	);
 
+	it.each(["featured", "og"] as const)(
+		"announces only the upload status while %s uploads",
+		async (kind) => {
+			vi.mocked(uploadMedia).mockImplementation(() => new Promise(() => {}));
+			const screen = await render(<Target kind={kind} />);
+			const button = screen.getByRole("button", {
+				name:
+					kind === "featured"
+						? "Drop an image here or browse for Featured image"
+						: "Drop an image here or browse for OG Image",
+				exact: true,
+			});
+
+			dropFiles(button.element(), [imageFile()]);
+
+			await expect.element(button).toBeDisabled();
+			const announced = [...document.querySelectorAll("[role='status']")].filter(
+				(element) => !element.closest("[aria-hidden='true']"),
+			);
+			expect(announced.map((element) => element.textContent)).toEqual(["Uploading image…"]);
+		},
+	);
+
 	it.each([
 		{
 			files: [new File(["text"], "note.txt", { type: "text/plain" })],
 			allowed: undefined,
-			message: "Only image files can be dropped here.",
+			message: "Only image files can be uploaded here.",
 		},
 		{ files: [imageFile(), imageFile()], allowed: undefined, message: "Drop one image at a time." },
 		{

@@ -126,7 +126,14 @@ export {
 	type StateStore,
 	type OAuthConsumerConfig,
 } from "./oauth/consumer.js";
-export type { OAuthProvider, OAuthConfig, OAuthProfile, OAuthState } from "./oauth/types.js";
+export { isValidMicrosoftTenant } from "./oauth/providers/microsoft.js";
+export type {
+	OAuthProvider,
+	OAuthConfig,
+	MicrosoftOAuthConfig,
+	OAuthProfile,
+	OAuthState,
+} from "./oauth/types.js";
 
 // Email types (implementations moved to plugin email pipeline)
 export type { EmailAdapter, EmailMessage } from "./types.js";

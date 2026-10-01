@@ -166,7 +166,7 @@ export function renderAgentComment(
 			// pipeline posts a deployed-preview link on preview.ready; a pkg.pr.new
 			// install line is the legacy awaiting_feedback lane only.
 			if (decision.to === "preview_building")
-				return `${summary}\n\nBuilding a preview so you can try the change before I open a PR.`;
+				return `${summary}\n\nBuilding a preview so you can try the change, then I'll open a pull request.`;
 			return [
 				summary,
 				"",
@@ -230,6 +230,7 @@ export function renderPreviewReadyAsk(input: {
 	notes?: string | null;
 	screenshots?: readonly PreviewScreenshot[];
 	reporterLogin?: string | null;
+	pullRequestNumber?: number;
 }): string {
 	const shots = (input.screenshots ?? [])
 		.filter((shot) => SCREENSHOT_FILENAME_RE.test(shot.filename))
@@ -242,7 +243,9 @@ export function renderPreviewReadyAsk(input: {
 		: "Could the reporter please try this? Reply naturally to say whether it works or explain what still needs to change.";
 	return [
 		`<!-- bot-ask: ${input.at} -->`,
-		"A candidate change is ready to preview.",
+		input.pullRequestNumber
+			? `I opened ${pullRequestLink(input.owner, input.repo, input.pullRequestNumber)} with a candidate change.`
+			: "I opened a pull request with a candidate change.",
 		"",
 		input.notes?.trim() ?? "",
 		"",
@@ -259,7 +262,7 @@ export function renderPreviewReadyAsk(input: {
 		...(shots.length > 0 ? ["**Screenshots:**", "", shots.join("\n\n"), ""] : []),
 		reporterAsk,
 		"",
-		"<sub>A maintainer can accept on the reporter's behalf. Acceptance opens a draft PR; requested changes start another candidate revision.</sub>",
+		"<sub>A maintainer reviews the pull request before merge; requested changes start another candidate revision.</sub>",
 		"",
 		`Fix branch: \`${fixBranch(input.issueNumber)}\` · Artifacts branch: \`${artifactsBranch(input.issueNumber)}\``,
 	]
@@ -304,11 +307,10 @@ export function fillPullRequestTemplate(template: string, kind: Kind): string {
 }
 
 /**
- * Body for the draft PR opened when the reporter confirms the change. References
- * the issue (so merging closes it), points at the preview the reporter just
- * verified, and fills the repository's pull request template.
+ * Body for the candidate PR. References the issue (so merging closes it),
+ * points at the preview build, and fills the repository's pull request template.
  */
-export function renderDraftPrBody(input: {
+export function renderPullRequestBody(input: {
 	issueNumber: number;
 	kind: Kind;
 	description: string;
@@ -322,16 +324,32 @@ export function renderDraftPrBody(input: {
 		"",
 		`Closes #${input.issueNumber}.`,
 		"",
-		"A candidate change the reporter confirmed against their own site via the preview build:",
+		"Try the candidate against your own site with the preview build:",
 		"",
 		"```bash",
 		previewInstallCommand(input.issueNumber, input.previewPackage),
 		"```",
 		"",
-		"<sub>Opened automatically by emdashbot as a draft. A maintainer must review before merge.</sub>",
+		"<sub>Opened automatically by emdashbot. A maintainer must review before merge.</sub>",
 		"",
 		completedTemplate,
 	].join("\n");
+}
+
+/** Reply to a reporter who confirmed the candidate works. */
+export function renderVerifiedThanks(input: {
+	owner: string;
+	repo: string;
+	pullRequestNumber?: number;
+}): string {
+	const target = input.pullRequestNumber
+		? pullRequestLink(input.owner, input.repo, input.pullRequestNumber)
+		: "the pull request";
+	return `Thanks for confirming the change works! I've marked the issue as verified, and a maintainer will review ${target}.`;
+}
+
+function pullRequestLink(owner: string, repo: string, pullRequestNumber: number): string {
+	return `[PR #${pullRequestNumber}](https://github.com/${owner}/${repo}/pull/${pullRequestNumber})`;
 }
 
 export function renderPullRequestTitle(issueNumber: number, kind: Kind): string {

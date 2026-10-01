@@ -131,6 +131,7 @@ export type {
 	PortableTextImageBlock,
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
+	PortableTextIframeBlock,
 	PortableTextTableAlignment,
 	PortableTextTableBlock,
 	PortableTextTableCell,

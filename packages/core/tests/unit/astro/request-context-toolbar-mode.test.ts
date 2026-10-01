@@ -320,3 +320,34 @@ describe("toolbar: Playground", () => {
 		expect(context.cache.set).not.toHaveBeenCalled();
 	});
 });
+
+describe("toolbar: rewritten pages", () => {
+	// Astro.rewrite() runs the middleware again for the target route inside the
+	// original request, so the outer pass receives HTML the inner pass already
+	// injected into.
+	const rewriteTo404 = (onRequest: Middleware, context: ReturnType<typeof buildContext>) => () =>
+		Promise.resolve(
+			onRequest({ ...context, url: new URL("https://example.com/404") }, async () =>
+				htmlResponse(),
+			),
+		);
+
+	it("injects the editor toolbar once and keeps the page uncacheable", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ pathname: "/posts/missing", user: EDITOR });
+
+		const res = await onRequest(context, rewriteTo404(onRequest, context));
+
+		expect((await res.text()).match(/id="emdash-toolbar"/g)).toHaveLength(1);
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+	});
+
+	it("injects the client bootstrap once", async () => {
+		const onRequest = await loadMiddleware("client");
+		const context = buildContext({ pathname: "/posts/missing" });
+
+		const res = await onRequest(context, rewriteTo404(onRequest, context));
+
+		expect((await res.text()).match(/<!-- EmDash Toolbar Bootstrap -->/g)).toHaveLength(1);
+	});
+});
