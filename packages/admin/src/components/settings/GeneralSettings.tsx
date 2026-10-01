@@ -278,7 +278,7 @@ export function GeneralSettings() {
 							type="url"
 							value={formData.url ?? ""}
 							onChange={(e) => handleChange("url", e.target.value)}
-							description={t`The public URL of your site (used for canonical links and sitemaps)`}
+							description={t`The public URL of your site, used for canonical links and sitemaps, and for links in emails unless the deployment configures a site URL`}
 						/>
 					</SettingRow>
 
