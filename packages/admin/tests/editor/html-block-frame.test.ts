@@ -129,6 +129,29 @@ describe("HTML block frame", () => {
 		expect(await height).toBe(240);
 	});
 
+	it("doesn't show its JavaScript the page's path, query or fragment", async () => {
+		const page = location.href;
+		history.replaceState(null, "", "/posts/draft?_preview=secret#token=secret");
+		try {
+			const frame = mountFrame({
+				html: '<a href="docs">Docs</a>',
+				js: 'parent.postMessage({ base: document.baseURI, link: document.querySelector("a").href }, "*");',
+			});
+
+			expect(
+				await nextMessage(
+					frame,
+					(data) => typeof data === "object" && data !== null && "base" in data,
+				),
+			).toEqual({
+				base: `${location.origin}/`,
+				link: `${location.origin}/docs`,
+			});
+		} finally {
+			history.replaceState(null, "", page);
+		}
+	});
+
 	it("runs JavaScript that opens with a legacy HTML comment", async () => {
 		const frame = mountFrame({
 			html: "<p>Hello</p>",
