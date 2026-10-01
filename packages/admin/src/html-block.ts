@@ -142,6 +142,10 @@ export const SITE_HTML_IFRAME_HOSTS: readonly string[] = ["www.youtube.com", "pl
 
 const BASE_STYLE = "body{margin:0;font-family:system-ui,sans-serif;line-height:1.5}";
 
+// Without a base, the frame's base URL would be the page's full URL, query and
+// fragment included, and the author's JavaScript could read it.
+const BASE = '<base href="/" target="_top">';
+
 // Runs before the author's markup so an unclosed comment or tag can't swallow it.
 // The parent can ask for a height report by posting the message type to the frame.
 // A root pinned to the viewport (`html { height: 100% }`) only shows its real height
@@ -185,7 +189,7 @@ export function buildHtmlBlockFrame({
 	const style = css.trim() ? `<style>${css.replace(STYLE_END_RE, "<\\/$1")}</style>` : "";
 	const script = js.trim() ? `<script>${js.replace(SCRIPT_TAG_RE, "\\x3c")}</script>` : "";
 	return (
-		`<!doctype html><html><head><meta charset="utf-8"><base target="_top">` +
+		`<!doctype html><html><head><meta charset="utf-8">${BASE}` +
 		`<style>${BASE_STYLE}</style><script>${FRAME_SCRIPT}</script>${style}</head>` +
 		`<body>${html}${script}</body></html>`
 	);
