@@ -1394,7 +1394,7 @@ const TRAILING_SLASH_RE = /\/$/;
 export interface SiteInfoOptions {
 	/** Site name from options table */
 	siteName?: string;
-	/** Site URL from options table or Astro config */
+	/** Site URL, resolved by the runtime in the same order as links in emails */
 	siteUrl?: string;
 	/** Site locale from options table */
 	locale?: string;
@@ -1403,12 +1403,8 @@ export interface SiteInfoOptions {
 }
 
 /**
- * Create site info from config and settings.
- *
- * Resolution order for URL:
- * 1. options table (emdash:site_url)
- * 2. Astro `site` config
- * 3. fallback to empty string
+ * Create site info from config and settings. A missing URL becomes an
+ * empty string.
  */
 export function createSiteInfo(options: SiteInfoOptions): SiteInfo {
 	return {

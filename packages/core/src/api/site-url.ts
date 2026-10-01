@@ -18,12 +18,29 @@ import { getConfiguredOrigin, type SiteUrlConfig } from "./public-url.js";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /** Sign-in tokens travel in these links, so plain HTTP is only accepted for loopback hosts. */
-function originOf(value: unknown): string | undefined {
+function siteUrlSettingOrigin(value: unknown): string | undefined {
 	if (typeof value !== "string" || !URL.canParse(value)) return undefined;
 	const url = new URL(value);
 	if (url.protocol === "https:") return url.origin;
 	if (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname)) return url.origin;
 	return undefined;
+}
+
+/**
+ * The site's public origin for outbound links, in the precedence order
+ * described above. `siteUrlSetting` and `setupUrl` are the stored
+ * `site:url` and `emdash:site_url` option values.
+ */
+export function resolveSiteOrigin(
+	config: SiteUrlConfig | undefined,
+	siteUrlSetting: unknown,
+	setupUrl: unknown,
+): string | undefined {
+	return (
+		getConfiguredOrigin(config) ??
+		siteUrlSettingOrigin(siteUrlSetting) ??
+		(typeof setupUrl === "string" && setupUrl ? setupUrl : undefined)
+	);
 }
 
 export async function getSiteBaseUrl(
@@ -37,8 +54,12 @@ export async function getSiteBaseUrl(
 	}
 	const options = new OptionsRepository(db);
 	const stored = await options.getMany(["site:url", "emdash:site_url"]);
-	const storedUrl = originOf(stored.get("site:url")) ?? stored.get("emdash:site_url");
-	if (typeof storedUrl === "string" && storedUrl) {
+	const storedUrl = resolveSiteOrigin(
+		config,
+		stored.get("site:url"),
+		stored.get("emdash:site_url"),
+	);
+	if (storedUrl) {
 		return `${storedUrl}/_emdash`;
 	}
 	// Fallback: derive from request (only reached before setup completes)

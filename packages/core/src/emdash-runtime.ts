@@ -39,7 +39,7 @@ import {
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
-import { getSiteBaseUrl } from "./api/site-url.js";
+import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
 	EmDashConfig,
 	PluginAdminPage,
@@ -1599,6 +1599,7 @@ export class EmDashRuntime {
 		const readSiteInfo = async () => {
 			const siteOpts = await optionsRepo.getMany([
 				"emdash:site_title",
+				"site:url",
 				"emdash:site_url",
 				"emdash:locale",
 				LOCALE_CASING_REPAIR_OPTION,
@@ -1606,7 +1607,11 @@ export class EmDashRuntime {
 				SETUP_COMPLETE_OPTION,
 			]);
 			const siteTitle = siteOpts.get("emdash:site_title");
-			const siteUrl = siteOpts.get("emdash:site_url");
+			const siteUrl = resolveSiteOrigin(
+				deps.config,
+				siteOpts.get("site:url"),
+				siteOpts.get("emdash:site_url"),
+			);
 			const locale = siteOpts.get("emdash:locale");
 			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			storedLocaleCasingRepairVersion =
@@ -1615,7 +1620,7 @@ export class EmDashRuntime {
 			setupDone = siteOpts.get(SETUP_COMPLETE_OPTION) === true;
 			return {
 				siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
-				siteUrl: deps.siteInfo?.url ?? (typeof siteUrl === "string" ? siteUrl : undefined),
+				siteUrl: deps.siteInfo?.url ?? siteUrl,
 				locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
 				// trailingSlash is a build-time Astro routing decision, not a
 				// user-editable setting, so it comes from the Astro config
