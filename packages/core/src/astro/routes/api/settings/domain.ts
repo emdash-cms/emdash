@@ -2,8 +2,9 @@
  * Site domain endpoint
  *
  * GET  /_emdash/api/settings/domain - The site URL set by the deployment
- *      configuration, if any. It takes precedence over the Site URL for links
- *      in emails and plugins.
+ *      configuration, if any, which takes precedence over the Site URL for
+ *      links in emails and plugins, and `siteOrigin`, the origin sign-in
+ *      handover links to (null until a Site URL or `siteUrl` is set).
  * POST /_emdash/api/settings/domain - Verify a new domain and store it as the
  *      Site URL.
  */
@@ -16,6 +17,7 @@ import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { handleSiteDomainChange } from "#api/handlers/site-domain.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { getConfiguredOrigin } from "#api/public-url.js";
+import { getChosenSiteOrigin } from "#api/site-url.js";
 import { siteSettingsTag } from "#cache/chrome-tags.js";
 
 export const prerender = false;
@@ -24,14 +26,19 @@ const siteDomainBody = z.object({ domain: z.string().min(1).max(253) });
 
 export const GET: APIRoute = async ({ locals }) => {
 	const { emdash, user } = locals;
-	if (!emdash) {
+	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	const denied = requirePerm(user, "settings:read");
 	if (denied) return denied;
 
-	return apiSuccess({ configuredUrl: getConfiguredOrigin(emdash.config) ?? null });
+	try {
+		const siteOrigin = (await getChosenSiteOrigin(emdash.db, emdash.config)) ?? null;
+		return apiSuccess({ configuredUrl: getConfiguredOrigin(emdash.config) ?? null, siteOrigin });
+	} catch (error) {
+		return handleError(error, "Failed to read the site domain", "SITE_DOMAIN_ERROR");
+	}
 };
 
 export const POST: APIRoute = async ({ request, locals, cache }) => {

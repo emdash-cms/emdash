@@ -43,6 +43,21 @@ export function resolveSiteOrigin(
 	);
 }
 
+/**
+ * The origin chosen for the site: the configured origin, then the **Site URL**.
+ * Unlike `getSiteBaseUrl`, it never falls back to the origin recorded during
+ * setup, which may be an address the site has since moved away from.
+ */
+export async function getChosenSiteOrigin(
+	db: Kysely<Database>,
+	config?: SiteUrlConfig,
+): Promise<string | undefined> {
+	return (
+		getConfiguredOrigin(config) ??
+		siteUrlSettingOrigin(await new OptionsRepository(db).get("site:url"))
+	);
+}
+
 export async function getSiteBaseUrl(
 	db: Kysely<Database>,
 	request: Request,

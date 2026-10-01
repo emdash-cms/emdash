@@ -7,13 +7,15 @@
 
 import { Autocomplete, Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { WarningCircle, Upload, X } from "@phosphor-icons/react";
+import { ArrowSquareOut, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, type Locale } from "date-fns";
 import { enUS } from "date-fns/locale/en-US";
 import * as React from "react";
 
 import {
+	createSignInHandover,
+	fetchManifest,
 	fetchSettings,
 	fetchSiteDomain,
 	updateSettings,
@@ -106,6 +108,17 @@ export function GeneralSettings() {
 		queryKey: ["site-domain"],
 		queryFn: fetchSiteDomain,
 	});
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	const handoverHost =
+		siteDomain?.siteOrigin &&
+		manifest &&
+		(!manifest.authMode || manifest.authMode === "passkey") &&
+		siteDomain.siteOrigin !== window.location.origin
+			? new URL(siteDomain.siteOrigin).host
+			: null;
 
 	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
 	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
@@ -173,6 +186,19 @@ export function GeneralSettings() {
 		},
 	});
 
+	const handoverMutation = useMutation({
+		mutationFn: createSignInHandover,
+		onSuccess: ({ url }) => window.location.assign(url),
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to create a sign-in link`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
+			});
+		},
+	});
+
 	const pattern = formData.dateFormat ?? "MMMM d, yyyy";
 	const previewLoading = previewLocale.code !== i18n.locale;
 	const preview =
@@ -216,6 +242,7 @@ export function GeneralSettings() {
 		setFormData((prev) => ({ ...prev, url }));
 		// Refetching now would reset unsaved edits in this form.
 		void queryClient.invalidateQueries({ queryKey: ["settings"], refetchType: "none" });
+		void queryClient.invalidateQueries({ queryKey: ["site-domain"] });
 		toastManager.add({
 			title: checked ? t`Domain changed to ${url}` : t`Site URL set to ${url}`,
 			description: t`Passkeys only work at the address where they were created.`,
@@ -320,6 +347,24 @@ export function GeneralSettings() {
 								</Button>
 							</div>
 						</div>
+						{handoverHost && (
+							<Banner
+								className="mt-4"
+								title={t`You're signed in at ${window.location.host}`}
+								description={t`Passkeys only work at the address where they were created. Continue on ${handoverHost} to sign in there without a passkey, then add one for that address.`}
+								action={
+									<Button
+										type="button"
+										size="sm"
+										icon={<ArrowSquareOut />}
+										loading={handoverMutation.isPending || handoverMutation.isSuccess}
+										onClick={() => handoverMutation.mutate()}
+									>
+										{t`Continue on ${handoverHost}`}
+									</Button>
+								}
+							/>
+						)}
 					</SettingRow>
 
 					<SettingRow>

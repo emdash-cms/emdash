@@ -72,15 +72,27 @@ export async function updateSettings(settings: SiteSettingsUpdate): Promise<Part
 	return parseApiResponse<Partial<SiteSettings>>(response, i18n._(msg`Failed to update settings`));
 }
 
+export interface SiteDomain {
+	/** Site URL set by the deployment configuration, if any */
+	configuredUrl: string | null;
+	/** Origin that sign-in handover links to, once a Site URL or `siteUrl` is set */
+	siteOrigin: string | null;
+}
+
 /**
- * Fetch the site URL set by the deployment configuration, if any
+ * Fetch the configured site URL and the origin sign-in handover links to
  */
-export async function fetchSiteDomain(): Promise<{ configuredUrl: string | null }> {
+export async function fetchSiteDomain(): Promise<SiteDomain> {
 	const response = await apiFetch(`${API_BASE}/settings/domain`);
-	return parseApiResponse<{ configuredUrl: string | null }>(
-		response,
-		i18n._(msg`Failed to fetch the site domain`),
-	);
+	return parseApiResponse<SiteDomain>(response, i18n._(msg`Failed to fetch the site domain`));
+}
+
+/**
+ * Create a single-use link that signs the current user in at the site's address
+ */
+export async function createSignInHandover(): Promise<{ url: string }> {
+	const response = await apiFetch(`${API_BASE}/auth/handover`, { method: "POST" });
+	return parseApiResponse<{ url: string }>(response, i18n._(msg`Failed to create a sign-in link`));
 }
 
 /**

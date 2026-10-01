@@ -46,10 +46,19 @@ The old address keeps serving the site until you remove it from your host. To se
 
 ## Sign in after the move
 
-A passkey only works at the address where it was created. After the move, passkeys created at the old address do not work at the new one.
+A passkey only works at the address where it was created. After the move, passkeys created at the old address do not work at the new one. Move your own sign-in to the new address while you are still signed in at the old one:
 
-- Keep signing in at the old address while it still serves the site.
-- At the new address, sign in with a [magic link](/guides/authentication/#log-in-with-a-magic-link) when [email](/guides/email/) is set up. Then [add a passkey](/guides/authentication/#manage-passkeys) for the new address.
+<Steps>
+
+1. In **Settings > General**, select **Continue on www.example.com** below **Site URL**. The button appears when you are signed in at an address other than the **Site URL**. When `siteUrl` is configured, it compares against that address instead.
+
+2. Select **Continue** on the sign-in page that opens at the new address. The link works once and expires after 5 minutes.
+
+3. **Settings > Security** opens with the passkey form. Select **Register Passkey** to create a passkey for the new address.
+
+</Steps>
+
+This works without [email](/guides/email/). Other users can sign in at the new address with a [magic link](/guides/authentication/#log-in-with-a-magic-link) when email is set up, then [add a passkey](/guides/authentication/#manage-passkeys) there. Until then, they keep signing in at the old address while it still serves the site.
 
 <Aside type="caution">
 	Before you remove the old address from your host, make sure every administrator can sign in at the new address, either with email or with a passkey created there.

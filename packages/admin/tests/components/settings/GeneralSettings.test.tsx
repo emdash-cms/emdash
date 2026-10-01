@@ -4,14 +4,22 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { MediaItem, SiteSettings, SiteSettingsUpdate } from "../../../src/lib/api";
+import type {
+	AdminManifest,
+	MediaItem,
+	SiteDomain,
+	SiteSettings,
+	SiteSettingsUpdate,
+} from "../../../src/lib/api";
 import { render } from "../../utils/render";
 
 const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
 const mockUpdateSettings =
 	vi.fn<(settings: SiteSettingsUpdate) => Promise<Partial<SiteSettings>>>();
-const mockFetchSiteDomain = vi.fn<() => Promise<{ configuredUrl: string | null }>>();
+const mockFetchSiteDomain = vi.fn<() => Promise<SiteDomain>>();
 const mockChangeSiteDomain = vi.fn<(domain: string) => Promise<{ url: string }>>();
+const mockFetchManifest = vi.fn<() => Promise<Partial<AdminManifest>>>();
+const mockCreateSignInHandover = vi.fn<() => Promise<{ url: string }>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -33,6 +41,8 @@ vi.mock("../../../src/lib/api", async () => {
 		updateSettings: (settings: SiteSettingsUpdate) => mockUpdateSettings(settings),
 		fetchSiteDomain: () => mockFetchSiteDomain(),
 		changeSiteDomain: (domain: string) => mockChangeSiteDomain(domain),
+		fetchManifest: () => mockFetchManifest(),
+		createSignInHandover: () => mockCreateSignInHandover(),
 	};
 });
 
@@ -97,7 +107,12 @@ async function renderGeneralSettings() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockFetchSettings.mockResolvedValue(defaultSettings);
-	mockFetchSiteDomain.mockResolvedValue({ configuredUrl: null });
+	mockFetchSiteDomain.mockResolvedValue({
+		configuredUrl: null,
+		siteOrigin: window.location.origin,
+	});
+	mockFetchManifest.mockResolvedValue({ authMode: "passkey" });
+	mockCreateSignInHandover.mockReturnValue(new Promise(() => undefined));
 	mockUpdateSettings.mockImplementation(async (settings) => {
 		mockFetchSettings.mockResolvedValue(settings);
 		return settings;
@@ -380,7 +395,10 @@ describe("GeneralSettings", () => {
 	});
 
 	it("names the configured address that emails use while keeping the Site URL changeable", async () => {
-		mockFetchSiteDomain.mockResolvedValue({ configuredUrl: "https://configured.example" });
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: "https://configured.example",
+			siteOrigin: window.location.origin,
+		});
 		const screen = await renderGeneralSettings();
 
 		await expect
@@ -397,5 +415,42 @@ describe("GeneralSettings", () => {
 				screen.getByText(/Links in emails and plugins keep using https:\/\/configured\.example/),
 			)
 			.toBeInTheDocument();
+	});
+
+	it("offers to continue signed in at the new domain after changing it", async () => {
+		mockChangeSiteDomain.mockImplementation(async () => {
+			mockFetchSiteDomain.mockResolvedValue({
+				configuredUrl: null,
+				siteOrigin: "https://new.example",
+			});
+			return { url: "https://new.example" };
+		});
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText("Site URL", { exact: true })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Continue on/ }).query()).toBeNull();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("new.example");
+		await userEvent.keyboard("{Enter}");
+
+		const continueButton = screen.getByRole("button", { name: "Continue on new.example" });
+		await expect.element(continueButton).toBeInTheDocument();
+		await userEvent.click(continueButton);
+		expect(mockCreateSignInHandover).toHaveBeenCalledOnce();
+	});
+
+	it("does not offer sign-in handover with external authentication", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: null,
+			siteOrigin: "https://new.example",
+		});
+		mockFetchManifest.mockResolvedValue({ authMode: "cloudflare-access" });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await vi.waitFor(() => expect(mockFetchManifest).toHaveBeenCalled());
+		await mockFetchManifest.mock.results[0]?.value;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: /Continue on/ }).query()).toBeNull();
 	});
 });

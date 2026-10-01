@@ -1215,6 +1215,11 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/auth/magic-link/verify.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/auth/handover",
+		entrypoint: resolveRoute("api/auth/handover.ts"),
+	});
+
 	// OAuth routes
 	injectRoute({
 		pattern: "/_emdash/api/auth/oauth/[provider]",
