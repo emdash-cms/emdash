@@ -10,6 +10,8 @@ import { render } from "../../utils/render";
 const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
 const mockUpdateSettings =
 	vi.fn<(settings: SiteSettingsUpdate) => Promise<Partial<SiteSettings>>>();
+const mockFetchSiteDomain = vi.fn<() => Promise<{ configuredUrl: string | null }>>();
+const mockChangeSiteDomain = vi.fn<(domain: string) => Promise<{ url: string }>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -29,6 +31,8 @@ vi.mock("../../../src/lib/api", async () => {
 		...actual,
 		fetchSettings: () => mockFetchSettings(),
 		updateSettings: (settings: SiteSettingsUpdate) => mockUpdateSettings(settings),
+		fetchSiteDomain: () => mockFetchSiteDomain(),
+		changeSiteDomain: (domain: string) => mockChangeSiteDomain(domain),
 	};
 });
 
@@ -93,6 +97,7 @@ async function renderGeneralSettings() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockFetchSettings.mockResolvedValue(defaultSettings);
+	mockFetchSiteDomain.mockResolvedValue({ configuredUrl: null });
 	mockUpdateSettings.mockImplementation(async (settings) => {
 		mockFetchSettings.mockResolvedValue(settings);
 		return settings;
@@ -148,10 +153,8 @@ describe("GeneralSettings", () => {
 
 		await userEvent.click(dirtyButtons[0]);
 		await vi.waitFor(() => {
-			expect(mockUpdateSettings).toHaveBeenCalledWith({
-				...defaultSettings,
-				title: "A better blog",
-			});
+			const { url: _url, ...withoutUrl } = defaultSettings;
+			expect(mockUpdateSettings).toHaveBeenCalledWith({ ...withoutUrl, title: "A better blog" });
 		});
 		await expect.element(screen.getByText("Settings saved successfully")).toBeInTheDocument();
 
@@ -329,5 +332,70 @@ describe("GeneralSettings", () => {
 				expect.objectContaining({ logo: null, favicon: null }),
 			);
 		});
+	});
+
+	it("changes the domain without discarding unsaved edits", async () => {
+		mockChangeSiteDomain.mockImplementation(async () => {
+			mockFetchSettings.mockResolvedValue({ ...defaultSettings, url: "https://new.example" });
+			return { url: "https://new.example" };
+		});
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("Unsaved tagline");
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("new.example");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(mockChangeSiteDomain).toHaveBeenCalledWith("new.example"));
+		await expect
+			.element(screen.getByText("Domain changed to https://new.example"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Tagline")).toHaveValue("Unsaved tagline");
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ tagline: "Unsaved tagline" }),
+			),
+		);
+		expect(mockUpdateSettings.mock.lastCall?.[0]).not.toHaveProperty("url");
+	});
+
+	it("offers to use an address without the check when the check fails", async () => {
+		mockChangeSiteDomain.mockRejectedValue(new Error("Enter a domain such as example.com"));
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("http://localhost:4321/");
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Enter a domain such as");
+		screen.getByRole("button", { name: "Use http://localhost:4321 anyway" }).element().click();
+
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith({ url: "http://localhost:4321" }),
+		);
+		await expect
+			.element(screen.getByText("Site URL set to http://localhost:4321"))
+			.toBeInTheDocument();
+	});
+
+	it("names the configured address that emails use while keeping the Site URL changeable", async () => {
+		mockFetchSiteDomain.mockResolvedValue({ configuredUrl: "https://configured.example" });
+		const screen = await renderGeneralSettings();
+
+		await expect
+			.element(
+				screen.getByText(
+					"Links in emails and plugins use https://configured.example, set by the deployment configuration.",
+				),
+			)
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await expect
+			.element(
+				screen.getByText(/Links in emails and plugins keep using https:\/\/configured\.example/),
+			)
+			.toBeInTheDocument();
 	});
 });

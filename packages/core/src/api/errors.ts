@@ -28,6 +28,7 @@ export const ErrorCode = {
 	NOT_IMPLEMENTED: "NOT_IMPLEMENTED",
 	NOT_SUPPORTED: "NOT_SUPPORTED",
 	MISSING_PARAM: "MISSING_PARAM",
+	DOMAIN_CHECK_FAILED: "DOMAIN_CHECK_FAILED",
 	CSRF_REJECTED: "CSRF_REJECTED",
 
 	// Content
@@ -543,6 +544,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.CHECKSUM_MISMATCH:
 		case ErrorCode.INVALID_BUNDLE:
 		case ErrorCode.BUNDLE_EXTRACT_FAILED:
+		case ErrorCode.DOMAIN_CHECK_FAILED:
 			return 422;
 
 		// 429 Too Many Requests

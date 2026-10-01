@@ -143,6 +143,8 @@ export {
 	type SiteSettingsUpdate,
 	fetchSettings,
 	updateSettings,
+	fetchSiteDomain,
+	changeSiteDomain,
 } from "./settings.js";
 
 // Users, passkeys, allowed domains

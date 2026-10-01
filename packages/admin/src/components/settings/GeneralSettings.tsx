@@ -15,6 +15,7 @@ import * as React from "react";
 
 import {
 	fetchSettings,
+	fetchSiteDomain,
 	updateSettings,
 	type MediaItem,
 	type SiteSettings,
@@ -22,6 +23,7 @@ import {
 } from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
+import { ChangeDomainDialog } from "./ChangeDomainDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
 const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
@@ -78,7 +80,6 @@ function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
 		title: settings.title ?? "",
 		tagline: settings.tagline ?? "",
-		url: settings.url ?? "",
 		logo: settings.logo ?? null,
 		favicon: settings.favicon ?? null,
 		postsPerPage: settings.postsPerPage ?? 10,
@@ -101,11 +102,16 @@ export function GeneralSettings() {
 		queryFn: fetchSettings,
 		staleTime: Infinity,
 	});
+	const { data: siteDomain } = useQuery({
+		queryKey: ["site-domain"],
+		queryFn: fetchSiteDomain,
+	});
 
 	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
 	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
+	const [domainDialogOpen, setDomainDialogOpen] = React.useState(false);
 	const [showTimezoneError, setShowTimezoneError] = React.useState(false);
 	const [previewLocale, setPreviewLocale] = React.useState<{ code: string; value: Locale | null }>({
 		code: "en",
@@ -180,7 +186,9 @@ export function GeneralSettings() {
 		e.preventDefault();
 		setShowTimezoneError(true);
 		if (!canSaveTimezone) return;
-		saveMutation.mutate(formData);
+		// The Change domain dialog owns the Site URL.
+		const { url: _url, ...withoutUrl } = formData;
+		saveMutation.mutate(withoutUrl);
 	};
 
 	const handleChange = (key: keyof SiteSettings, value: unknown) => {
@@ -201,6 +209,19 @@ export function GeneralSettings() {
 			favicon: { mediaId: media.id, url: media.url },
 		}));
 		setFaviconPickerOpen(false);
+	};
+
+	const handleDomainChanged = (url: string, checked: boolean) => {
+		setDomainDialogOpen(false);
+		setFormData((prev) => ({ ...prev, url }));
+		// Refetching now would reset unsaved edits in this form.
+		void queryClient.invalidateQueries({ queryKey: ["settings"], refetchType: "none" });
+		toastManager.add({
+			title: checked ? t`Domain changed to ${url}` : t`Site URL set to ${url}`,
+			description: t`Passkeys only work at the address where they were created.`,
+			variant: "success",
+			timeout: 8000,
+		});
 	};
 
 	const handleLogoRemove = () => {
@@ -273,13 +294,32 @@ export function GeneralSettings() {
 						/>
 					</SettingRow>
 					<SettingRow>
-						<Input
-							label={t`Site URL`}
-							type="url"
-							value={formData.url ?? ""}
-							onChange={(e) => handleChange("url", e.target.value)}
-							description={t`The public URL of your site, used for canonical links and sitemaps, and for links in emails unless the deployment configures a site URL`}
-						/>
+						<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+							<div className="grid gap-1">
+								<div className="text-base font-medium">{t`Site URL`}</div>
+								<p className="text-sm text-kumo-subtle">
+									{t`The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata`}
+								</p>
+								{siteDomain?.configuredUrl && (
+									<p className="text-sm text-kumo-subtle">
+										{t`Links in emails and plugins use ${siteDomain.configuredUrl}, set by the deployment configuration.`}
+									</p>
+								)}
+							</div>
+							<div className="flex min-w-0 flex-wrap items-center gap-3 sm:justify-end">
+								<span className="min-w-0 break-all font-mono text-sm" dir="ltr" translate="no">
+									{formData.url || t`Not set`}
+								</span>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => setDomainDialogOpen(true)}
+								>
+									{t`Change domain`}
+								</Button>
+							</div>
+						</div>
 					</SettingRow>
 
 					<SettingRow>
@@ -488,6 +528,13 @@ export function GeneralSettings() {
 				mimeTypeFilter="image/"
 				localOnly
 				title={t`Select favicon`}
+			/>
+			<ChangeDomainDialog
+				open={domainDialogOpen}
+				currentUrl={formData.url || undefined}
+				configuredUrl={siteDomain?.configuredUrl ?? undefined}
+				onClose={() => setDomainDialogOpen(false)}
+				onChanged={handleDomainChanged}
 			/>
 		</SettingsFrame>
 	);

@@ -71,3 +71,26 @@ export async function updateSettings(settings: SiteSettingsUpdate): Promise<Part
 	});
 	return parseApiResponse<Partial<SiteSettings>>(response, i18n._(msg`Failed to update settings`));
 }
+
+/**
+ * Fetch the site URL set by the deployment configuration, if any
+ */
+export async function fetchSiteDomain(): Promise<{ configuredUrl: string | null }> {
+	const response = await apiFetch(`${API_BASE}/settings/domain`);
+	return parseApiResponse<{ configuredUrl: string | null }>(
+		response,
+		i18n._(msg`Failed to fetch the site domain`),
+	);
+}
+
+/**
+ * Check that a domain serves this site, then store it as the Site URL
+ */
+export async function changeSiteDomain(domain: string): Promise<{ url: string }> {
+	const response = await apiFetch(`${API_BASE}/settings/domain`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ domain }),
+	});
+	return parseApiResponse<{ url: string }>(response, i18n._(msg`Failed to change the domain`));
+}
