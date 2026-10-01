@@ -5,7 +5,8 @@
  *
  * If a custom robots.txt is configured in SEO settings, that is returned.
  * Otherwise generates a default that allows all crawlers and references
- * the sitemap.
+ * the sitemap. While the site is in staging, returns an uncached
+ * disallow-all instead.
  */
 
 import type { APIRoute } from "astro";
@@ -35,6 +36,13 @@ export const GET: APIRoute = async ({ locals, url }) => {
 			"",
 		);
 		const sitemapUrl = `${siteUrl}/sitemap.xml`;
+
+		if (settings.staging) {
+			return new Response("User-agent: *\nDisallow: /\n", {
+				status: 200,
+				headers: { "Content-Type": "text/plain; charset=utf-8" },
+			});
+		}
 
 		// Use custom robots.txt if configured
 		if (settings.seo?.robotsTxt) {

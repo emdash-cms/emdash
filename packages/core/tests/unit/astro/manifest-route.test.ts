@@ -32,6 +32,7 @@ interface ManifestEnvelope {
 		taxonomies?: unknown[];
 		version?: string;
 		timezone?: string;
+		staging?: boolean;
 	};
 }
 
@@ -117,6 +118,36 @@ describe("manifest route admin branding", () => {
 			const response = await getManifest(context);
 			const body = (await response.json()) as ManifestEnvelope;
 			expect(body.data.timezone).toBe("Asia/Tokyo");
+		} finally {
+			await teardownTestDatabase(db);
+		}
+	});
+
+	it("reports whether the site is in staging", async () => {
+		const db = await setupTestDatabase();
+		try {
+			const options = new OptionsRepository(db);
+			const context = {
+				locals: {
+					emdash: {
+						db,
+						config: {},
+						getManifest: async () => ({
+							version: "test",
+							hash: "test",
+							collections: {},
+							plugins: {},
+							taxonomies: [],
+						}),
+					},
+				},
+			} as unknown as APIContext;
+			const staging = async () =>
+				((await (await getManifest(context)).json()) as ManifestEnvelope).data.staging;
+
+			expect(await staging()).toBe(false);
+			await options.set("site:staging", true);
+			expect(await staging()).toBe(true);
 		} finally {
 			await teardownTestDatabase(db);
 		}
