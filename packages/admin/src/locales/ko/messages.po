@@ -235,7 +235,7 @@ msgstr "{0, plural, one {업로드 #건 실패} other {업로드 #건 실패}}"
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
 msgid "{0, plural, one {+# more} other {+# more}}"
-msgstr ""
+msgstr "{0, plural, one {+#개 더} other {+#개 더}}"
 
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:858
@@ -902,7 +902,7 @@ msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:224
 msgid "A full-width hero banner with heading, text, and CTA button"
-msgstr ""
+msgstr "제목, 텍스트, CTA 버튼이 있는 전체 너비의 히어로 배너"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "A media file is larger than this site accepts"
@@ -1271,7 +1271,7 @@ msgstr "게시물에 추가"
 
 #: packages/admin/src/components/Widgets.tsx:403
 msgid "Add Widget Area"
-msgstr ""
+msgstr "위젯 영역 추가"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
@@ -1408,7 +1408,7 @@ msgstr "전체 역할"
 
 #: packages/admin/src/components/Sections.tsx:257
 msgid "All sources"
-msgstr ""
+msgstr "모든 소스"
 
 #: packages/admin/src/components/ContentList.tsx:924
 #: packages/admin/src/components/Redirects.tsx:391
@@ -1624,7 +1624,7 @@ msgstr "API 토큰"
 
 #: packages/admin/src/components/Widgets.tsx:440
 msgid "Appears on posts and pages"
-msgstr ""
+msgstr "게시물과 페이지에 표시됩니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:1510
 msgid "Application Password"
@@ -1696,7 +1696,7 @@ msgstr "보관됨"
 #: packages/admin/src/components/AllowedTypesEditor.tsx:68
 #: packages/admin/src/components/Widgets.tsx:158
 msgid "Archives"
-msgstr ""
+msgstr "아카이브"
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:375
@@ -1852,7 +1852,7 @@ msgstr "이름에서 자동 생성됨(수정 가능)"
 
 #: packages/admin/src/components/Sections.tsx:217
 msgid "Auto-generated from the title. You can change it."
-msgstr ""
+msgstr "제목에서 자동으로 생성됩니다. 변경할 수 있습니다."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:654
 msgid "Automatic"
@@ -1887,7 +1887,7 @@ msgstr "이용 가능한 제공업체"
 
 #: packages/admin/src/components/Widgets.tsx:466
 msgid "Available Widgets"
-msgstr ""
+msgstr "추가 가능한 위젯"
 
 #: packages/admin/src/components/BylineAvatarField.tsx:46
 #: packages/admin/src/components/BylineAvatarField.tsx:71
@@ -1938,7 +1938,7 @@ msgstr "마켓플레이스로 돌아가기"
 
 #: packages/admin/src/components/MenuEditor.tsx:365
 msgid "Back to menus"
-msgstr ""
+msgstr "메뉴로 돌아가기"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
 #: packages/admin/src/components/RegistryPluginDetail.tsx:908
@@ -2855,7 +2855,7 @@ msgstr "회원가입 완료"
 
 #: packages/admin/src/components/Widgets.tsx:931
 msgid "Component"
-msgstr ""
+msgstr "컴포넌트"
 
 #: packages/admin/src/components/FieldEditor.tsx:673
 msgid "Configure Field"
@@ -3351,7 +3351,7 @@ msgstr "필드 생성"
 
 #: packages/admin/src/components/MenuList.tsx:131
 msgid "Create menu"
-msgstr ""
+msgstr "메뉴 만들기"
 
 #: packages/admin/src/components/MenuList.tsx:119
 #: packages/admin/src/components/MenuList.tsx:208
@@ -3414,7 +3414,7 @@ msgstr "스키마 생성 및 가져오기"
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/Sections.tsx:312
 msgid "Create section"
-msgstr ""
+msgstr "섹션 만들기"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:110
 msgid "Create sections in the Sections library to use them here"
@@ -3436,7 +3436,7 @@ msgstr "토큰 만들기"
 
 #: packages/admin/src/components/Widgets.tsx:410
 msgid "Create Widget Area"
-msgstr ""
+msgstr "위젯 영역 만들기"
 
 #: packages/admin/src/components/SetupWizard.tsx:627
 msgid "Create your account"
@@ -3747,7 +3747,7 @@ msgstr "{0} 메뉴 삭제"
 #. placeholder {0}: area.label
 #: packages/admin/src/components/Widgets.tsx:664
 msgid "Delete {0} widget area"
-msgstr ""
+msgstr "위젯 영역 {0} 삭제"
 
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
@@ -3828,7 +3828,7 @@ msgstr "미디어를 삭제할까요?"
 
 #: packages/admin/src/components/MenuList.tsx:231
 msgid "Delete menu"
-msgstr ""
+msgstr "메뉴 삭제"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Delete permanently"
@@ -3866,7 +3866,7 @@ msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:469
 msgid "Delete section"
-msgstr ""
+msgstr "섹션 삭제"
 
 #: packages/admin/src/components/Sections.tsx:337
 msgid "Delete Section?"
@@ -3895,7 +3895,7 @@ msgstr "분류 삭제"
 
 #: packages/admin/src/components/Widgets.tsx:714
 msgid "Delete Widget Area?"
-msgstr ""
+msgstr "위젯 영역을 삭제하시겠습니까?"
 
 #: packages/admin/src/components/ContentList.tsx:832
 msgid "Deleted"
@@ -4131,7 +4131,7 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:127
 msgid "Display a list of recent posts"
-msgstr ""
+msgstr "최근 게시물 목록 표시"
 
 #: packages/admin/src/components/Widgets.tsx:105
 msgid "Display a navigation menu"
@@ -4139,7 +4139,7 @@ msgstr "탐색 메뉴 표시"
 
 #: packages/admin/src/components/Widgets.tsx:136
 msgid "Display category list"
-msgstr ""
+msgstr "카테고리 목록 표시"
 
 #: packages/admin/src/routes/bylines.tsx:724
 msgid "Display name"
@@ -4156,7 +4156,7 @@ msgstr "표시 크기"
 
 #: packages/admin/src/components/Widgets.tsx:144
 msgid "Display tag cloud"
-msgstr ""
+msgstr "태그 클라우드 표시"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:754
 msgid "Displayed below the image as a visible caption."
@@ -4320,7 +4320,7 @@ msgstr "끌어서 놓거나 클릭하여 찾아보세요(.xml)."
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drag here to add"
-msgstr ""
+msgstr "여기로 드래그하여 추가하세요."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2635
 msgid "Drag to reorder"
@@ -4344,11 +4344,11 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:704
 msgid "Drag widgets here to add them"
-msgstr ""
+msgstr "위젯을 여기로 드래그하여 추가하세요."
 
 #: packages/admin/src/components/Widgets.tsx:467
 msgid "Drag widgets into an area to add them"
-msgstr ""
+msgstr "위젯을 영역으로 드래그하여 추가하세요."
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:136
 msgid "Drop an image here or <0>browse</0>"
@@ -4368,7 +4368,7 @@ msgstr "이미지는 한 번에 하나씩 놓으세요."
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drop to add widget"
-msgstr ""
+msgstr "놓아서 위젯을 추가하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1608
 msgid "Drop your WordPress export file here"
@@ -4842,11 +4842,11 @@ msgstr "오류"
 
 #: packages/admin/src/components/Widgets.tsx:236
 msgid "Error adding widget"
-msgstr ""
+msgstr "위젯을 추가하는 중에 오류가 발생했습니다."
 
 #: packages/admin/src/components/Widgets.tsx:297
 msgid "Error reordering widgets"
-msgstr ""
+msgstr "위젯 순서를 변경하는 중에 오류가 발생했습니다."
 
 #: packages/admin/src/components/SectionEditor.tsx:71
 msgid "Error saving section"
@@ -4854,7 +4854,7 @@ msgstr "섹션을 저장하는 중에 오류가 발생했습니다."
 
 #: packages/admin/src/components/Widgets.tsx:784
 msgid "Error updating widget"
-msgstr ""
+msgstr "위젯을 업데이트하는 중에 오류가 발생했습니다."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:604
 msgid "Esc"
@@ -5065,7 +5065,7 @@ msgstr "미디어 폴더 생성에 실패했습니다"
 
 #: packages/admin/src/lib/api/sections.ts:88
 msgid "Failed to create section"
-msgstr ""
+msgstr "섹션을 생성하지 못했습니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:1734
 msgid "Failed to create some collections"
@@ -5135,11 +5135,11 @@ msgstr "미디어 폴더 삭제에 실패했습니다"
 
 #: packages/admin/src/lib/api/menus.ts:163
 msgid "Failed to delete menu"
-msgstr ""
+msgstr "메뉴를 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/menus.ts:217
 msgid "Failed to delete menu item"
-msgstr ""
+msgstr "메뉴 항목을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/users.ts:256
 msgid "Failed to delete passkey"
@@ -5155,7 +5155,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/sections.ts:110
 msgid "Failed to delete section"
-msgstr ""
+msgstr "섹션을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/taxonomies.ts:176
 msgid "Failed to delete taxonomy"
@@ -5167,11 +5167,11 @@ msgstr "분류 항목을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/widgets.ts:146
 msgid "Failed to delete widget"
-msgstr ""
+msgstr "위젯을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/widgets.ts:108
 msgid "Failed to delete widget area"
-msgstr ""
+msgstr "위젯 영역을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/transfer.ts:526
 msgid "Failed to deny request"
@@ -5305,11 +5305,11 @@ msgstr ""
 
 #: packages/admin/src/lib/api/sections.ts:76
 msgid "Failed to fetch section"
-msgstr ""
+msgstr "섹션을 불러오지 못했습니다."
 
 #: packages/admin/src/lib/api/sections.ts:68
 msgid "Failed to fetch sections"
-msgstr ""
+msgstr "섹션 목록을 불러오지 못했습니다."
 
 #: packages/admin/src/lib/api/settings.ts:60
 msgid "Failed to fetch settings"
@@ -5544,7 +5544,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/widgets.ts:158
 msgid "Failed to reorder widgets"
-msgstr ""
+msgstr "위젯 순서를 변경하지 못했습니다."
 
 #: packages/admin/src/lib/api/media.ts:527
 msgid "Failed to replace media image"
@@ -5681,7 +5681,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
-msgstr ""
+msgstr "섹션을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/settings.ts:72
 msgid "Failed to update settings"
@@ -5837,7 +5837,7 @@ msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:262
 msgid "Filter by source"
-msgstr ""
+msgstr "소스로 필터링"
 
 #: packages/admin/src/components/ContentList.tsx:963
 #: packages/admin/src/components/Redirects.tsx:392
@@ -6027,7 +6027,7 @@ msgstr "GitHub"
 
 #: packages/admin/src/components/MenuList.tsx:134
 msgid "Give this navigation a label and a site identifier."
-msgstr ""
+msgstr "이 탐색 메뉴의 라벨과 사이트에서 사용할 식별자를 입력하세요."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:769
 msgid "Give this passkey a name to help you identify it later."
@@ -6066,7 +6066,7 @@ msgstr "그룹(선택 사항)"
 
 #: packages/admin/src/components/Widgets.tsx:162
 msgid "Group by"
-msgstr ""
+msgstr "묶음 기준"
 
 #: packages/admin/src/routes/bylines.tsx:565
 msgid "Guest"
@@ -6156,11 +6156,11 @@ msgstr "높이"
 
 #: packages/admin/src/components/Sections.tsx:200
 msgid "Hero Banner"
-msgstr ""
+msgstr "히어로 배너"
 
 #: packages/admin/src/components/SectionEditor.tsx:307
 msgid "hero, banner, cta"
-msgstr ""
+msgstr "히어로, 배너, CTA"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:582
 msgid "Hide from navigation"
@@ -6975,7 +6975,7 @@ msgstr "라이선스"
 
 #: packages/admin/src/components/Widgets.tsx:165
 msgid "Limit"
-msgstr ""
+msgstr "최대 표시 개수"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4874
 msgid "Link"
@@ -7230,7 +7230,7 @@ msgstr "사용 현황을 불러오는 중"
 
 #: packages/admin/src/components/Widgets.tsx:372
 msgid "Loading widgets..."
-msgstr ""
+msgstr "위젯 로드 중..."
 
 #: packages/admin/src/components/ContentList.tsx:713
 #: packages/admin/src/components/ContentList.tsx:811
@@ -7348,7 +7348,7 @@ msgstr "메인 라이브러리"
 
 #: packages/admin/src/components/Widgets.tsx:436
 msgid "Main Sidebar"
-msgstr ""
+msgstr "메인 사이드바"
 
 #: packages/admin/src/components/Sidebar.tsx:599
 msgid "Manage"
@@ -7366,7 +7366,7 @@ msgstr "{entryLocale} 저자 정보 관리"
 
 #: packages/admin/src/components/Widgets.tsx:390
 msgid "Manage content widgets in your widget areas"
-msgstr ""
+msgstr "위젯 영역에 배치할 콘텐츠 위젯을 관리합니다."
 
 #: packages/admin/src/components/PluginManager.tsx:194
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
@@ -7470,7 +7470,7 @@ msgstr "최대 블록 수"
 
 #: packages/admin/src/components/Widgets.tsx:147
 msgid "Maximum tags"
-msgstr ""
+msgstr "최대 태그 수"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:46
 msgid "MDX"
@@ -7583,7 +7583,7 @@ msgstr "메뉴"
 #. placeholder {1}: translated.locale.toUpperCase()
 #: packages/admin/src/components/MenuEditor.tsx:145
 msgid "Menu \"{0}\" ({1}) created."
-msgstr ""
+msgstr "메뉴 \"{0}\"({1})이 생성되었습니다."
 
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:52
@@ -7711,11 +7711,11 @@ msgstr "컬렉션 스키마 수정"
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Monthly"
-msgstr ""
+msgstr "월별"
 
 #: packages/admin/src/components/Widgets.tsx:159
 msgid "Monthly/yearly archives"
-msgstr ""
+msgstr "월별·연도별 아카이브"
 
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: item.displayName
@@ -7947,7 +7947,7 @@ msgstr "이름은 문자로 시작해야 하며 소문자, 숫자, 밑줄만 포
 
 #: packages/admin/src/components/Sections.tsx:174
 msgid "Name your section, then add its content in the editor."
-msgstr ""
+msgstr "섹션 이름을 입력한 다음 편집기에서 콘텐츠를 추가하세요."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:594
 msgid "Navigate"
@@ -8042,7 +8042,7 @@ msgstr "재사용할 수 있는 새 프로필"
 
 #: packages/admin/src/components/Sections.tsx:159
 msgid "New section"
-msgstr ""
+msgstr "새 섹션"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:492
 msgid "new tab"
@@ -8368,7 +8368,7 @@ msgstr "검토 안 함(모두 자동 승인)"
 
 #: packages/admin/src/components/MenuEditor.tsx:330
 msgid "No parent (top level)"
-msgstr ""
+msgstr "상위 항목 없음(최상위)"
 
 #: packages/admin/src/components/users/UserDetail.tsx:248
 msgid "No passkeys registered"
@@ -8485,7 +8485,7 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:504
 msgid "No widget areas yet. Create one to get started."
-msgstr ""
+msgstr "아직 위젯 영역이 없습니다. 시작하려면 영역을 만드세요."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
 msgid "No Windows Hello authenticator found"
@@ -8528,7 +8528,7 @@ msgstr "숫자"
 
 #: packages/admin/src/components/Widgets.tsx:129
 msgid "Number of posts"
-msgstr ""
+msgstr "표시할 게시물 수"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:415
 msgid "Number of posts to show per page on list views"
@@ -8974,7 +8974,7 @@ msgstr "{0} 항목 선택"
 
 #: packages/admin/src/components/Widgets.tsx:154
 msgid "Placeholder text"
-msgstr ""
+msgstr "플레이스홀더 텍스트"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:26
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:122
@@ -9222,7 +9222,7 @@ msgstr "초안 미리보기"
 #. placeholder {0}: section.title
 #: packages/admin/src/components/Sections.tsx:381
 msgid "Preview of {0}"
-msgstr ""
+msgstr "{0} 미리보기"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:427
 msgid "Preview unavailable for this format"
@@ -9245,11 +9245,11 @@ msgstr "이전 스크린샷"
 
 #: packages/admin/src/components/MenuList.tsx:166
 msgid "primary"
-msgstr ""
+msgstr "primary"
 
 #: packages/admin/src/components/MenuList.tsx:156
 msgid "Primary navigation"
-msgstr ""
+msgstr "기본 탐색 메뉴"
 
 #: packages/admin/src/components/ContentStatusBadge.tsx:69
 msgid "Private"
@@ -9528,7 +9528,7 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:126
 msgid "Recent Posts"
-msgstr ""
+msgstr "최근 게시물"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:43
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:35
@@ -10626,7 +10626,7 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:152
 msgid "Search form"
-msgstr ""
+msgstr "검색 폼"
 
 #: packages/admin/src/components/MediaLibrary.tsx:967
 #: packages/admin/src/components/MediaPickerModal.tsx:1257
@@ -10750,7 +10750,7 @@ msgstr "섹션"
 
 #: packages/admin/src/components/Sections.tsx:279
 msgid "Sections could not be loaded."
-msgstr ""
+msgstr "섹션을 불러오지 못했습니다."
 
 #: packages/admin/src/components/SetupWizard.tsx:628
 msgid "Secure your account"
@@ -10831,7 +10831,7 @@ msgstr "컬렉션 선택"
 
 #: packages/admin/src/components/Widgets.tsx:956
 msgid "Select a component..."
-msgstr ""
+msgstr "컴포넌트를 선택하세요..."
 
 #: packages/admin/src/components/RelationForm.tsx:275
 #: packages/admin/src/components/RelationForm.tsx:284
@@ -10844,7 +10844,7 @@ msgstr "저장 위치 선택"
 
 #: packages/admin/src/components/Widgets.tsx:919
 msgid "Select a menu..."
-msgstr ""
+msgstr "메뉴를 선택하세요..."
 
 #: packages/admin/src/components/FieldEditor.tsx:762
 msgid "Select a relationship"
@@ -11152,23 +11152,23 @@ msgstr "짧은 텍스트"
 
 #: packages/admin/src/components/Widgets.tsx:146
 msgid "Show count"
-msgstr ""
+msgstr "개수 표시"
 
 #: packages/admin/src/components/Widgets.tsx:131
 msgid "Show date"
-msgstr ""
+msgstr "날짜 표시"
 
 #: packages/admin/src/components/Widgets.tsx:139
 msgid "Show hierarchy"
-msgstr ""
+msgstr "계층 구조 표시"
 
 #: packages/admin/src/components/Widgets.tsx:138
 msgid "Show post count"
-msgstr ""
+msgstr "게시물 수 표시"
 
 #: packages/admin/src/components/Widgets.tsx:130
 msgid "Show thumbnails"
-msgstr ""
+msgstr "썸네일 표시"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
@@ -11184,7 +11184,7 @@ msgstr "전체 {0}개 중 {pageShowingRange} 표시"
 
 #: packages/admin/src/components/MenuList.tsx:158
 msgid "Shown in the admin menu list."
-msgstr ""
+msgstr "관리 화면의 메뉴 목록에 표시됩니다."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1097
 msgid "Shown to readers in this order."
@@ -11517,7 +11517,7 @@ msgstr "정사각형 (1:1)"
 
 #: packages/admin/src/components/MenuList.tsx:171
 msgid "Stable identifier for your site, such as primary or footer."
-msgstr ""
+msgstr "primary 또는 footer처럼 사이트에서 사용할 고정 식별자입니다."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:529
 msgid "Start a new import"
@@ -12558,7 +12558,7 @@ msgstr "이 버전은 사이트에 표시되지 않습니다"
 
 #: packages/admin/src/components/Widgets.tsx:715
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
-msgstr ""
+msgstr "위젯 영역과 그 안의 모든 위젯이 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1307
 msgid "This will move the item to trash. You can restore it later from the trash."
@@ -12987,7 +12987,7 @@ msgstr "제목 없는 파일"
 #: packages/admin/src/components/Widgets.tsx:536
 #: packages/admin/src/components/Widgets.tsx:809
 msgid "Untitled Widget"
-msgstr ""
+msgstr "제목 없는 위젯"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:154
 msgid "Unused references were left out"
@@ -13653,19 +13653,19 @@ msgstr ""
 #: packages/admin/src/components/Widgets.tsx:802
 #: packages/admin/src/components/Widgets.tsx:817
 msgid "widget"
-msgstr ""
+msgstr "위젯"
 
 #: packages/admin/src/components/Widgets.tsx:232
 msgid "Widget added"
-msgstr ""
+msgstr "위젯이 추가되었습니다."
 
 #: packages/admin/src/components/Widgets.tsx:220
 msgid "Widget area created"
-msgstr ""
+msgstr "위젯 영역이 생성되었습니다."
 
 #: packages/admin/src/components/Widgets.tsx:645
 msgid "Widget area deleted"
-msgstr ""
+msgstr "위젯 영역이 삭제되었습니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:30
 msgid "Widget areas"
@@ -13673,15 +13673,15 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:765
 msgid "Widget deleted"
-msgstr ""
+msgstr "위젯이 삭제되었습니다."
 
 #: packages/admin/src/components/Widgets.tsx:894
 msgid "Widget title"
-msgstr ""
+msgstr "위젯 제목"
 
 #: packages/admin/src/components/Widgets.tsx:780
 msgid "Widget updated"
-msgstr ""
+msgstr "위젯이 업데이트되었습니다."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:172
 #: packages/admin/src/components/PluginManager.tsx:478
@@ -13744,7 +13744,7 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:904
 msgid "Write widget content..."
-msgstr ""
+msgstr "위젯 콘텐츠를 입력하세요..."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:50
 msgid "Writing the file index"
@@ -13768,7 +13768,7 @@ msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Yearly"
-msgstr ""
+msgstr "연도별"
 
 #: packages/admin/src/components/ContentList.tsx:1476
 #: packages/admin/src/components/users/UserDetail.tsx:236
