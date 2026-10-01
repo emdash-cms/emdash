@@ -75,7 +75,7 @@ msgstr "{0, plural, one {최대 #자 중 {counted}자 입력} other {최대 #자
 #: packages/admin/src/components/BylineFilter.tsx:105
 #: packages/admin/src/components/BylineFilter.tsx:106
 msgid "{0, plural, one {# byline} other {# bylines}}"
-msgstr ""
+msgstr "{0, plural, one {저자 정보 #개} other {저자 정보 #개}}"
 
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:219
@@ -990,7 +990,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:184
 msgid "About inferred bylines"
-msgstr ""
+msgstr "작성자에 연결된 저자 정보 안내"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:357
 msgid "Accept & Install"
@@ -1379,7 +1379,7 @@ msgstr "모든 작성자"
 #: packages/admin/src/components/BylineFilter.tsx:103
 #: packages/admin/src/routes/bylines.tsx:515
 msgid "All bylines"
-msgstr ""
+msgstr "모든 저자 정보"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:110
 msgid "All capabilities"
@@ -1472,7 +1472,7 @@ msgstr "이 필드가 사용하는 관계도 삭제"
 
 #: packages/admin/src/components/BylineFilter.tsx:183
 msgid "Also match the byline linked to an entry's author when it has none assigned."
-msgstr ""
+msgstr "콘텐츠에 저자 정보가 설정되어 있지 않으면 작성자에 연결된 저자 정보도 필터에 포함합니다."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
@@ -5817,7 +5817,7 @@ msgstr "작성자로 필터링"
 
 #: packages/admin/src/components/BylineFilter.tsx:116
 msgid "Filter by byline"
-msgstr ""
+msgstr "저자 정보로 필터링"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
@@ -6530,7 +6530,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
-msgstr ""
+msgstr "작성자에 연결된 저자 정보 포함"
 
 #: packages/admin/src/components/WordPressImport.tsx:2000
 msgid "Incompatible"
@@ -7265,7 +7265,7 @@ msgstr "로드 중..."
 #: packages/admin/src/components/BylineFilter.tsx:147
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 msgid "Loading…"
-msgstr ""
+msgstr "로드 중…"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:110
 msgid "Local time"
@@ -8154,11 +8154,11 @@ msgstr "내장 패스키 인증기를 찾을 수 없습니다"
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
-msgstr ""
+msgstr "저자 정보 없음"
 
 #: packages/admin/src/components/BylineFilter.tsx:138
 msgid "No byline assigned"
-msgstr ""
+msgstr "저자 정보가 설정되지 않음"
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
@@ -8174,7 +8174,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:150
 msgid "No bylines found"
-msgstr ""
+msgstr "저자 정보를 찾을 수 없습니다."
 
 #: packages/admin/src/routes/bylines.tsx:634
 msgid "No bylines yet"
@@ -9253,7 +9253,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentStatusBadge.tsx:69
 msgid "Private"
-msgstr ""
+msgstr "비공개"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:183
 msgid "Profile CID"
@@ -10572,7 +10572,7 @@ msgstr ""
 #: packages/admin/src/routes/bylines.tsx:504
 #: packages/admin/src/routes/bylines.tsx:505
 msgid "Search bylines"
-msgstr ""
+msgstr "저자 정보 검색"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:440
 msgid "Search bylines to add…"
@@ -10580,7 +10580,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:129
 msgid "Search bylines…"
-msgstr ""
+msgstr "저자 정보 검색…"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:175
 msgid "Search comments"
@@ -10687,7 +10687,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:169
 msgid "Search to narrow the list"
-msgstr ""
+msgstr "검색하여 목록을 좁혀 보세요."
 
 #: packages/admin/src/components/users/UserList.tsx:66
 msgid "Search users"
@@ -12995,7 +12995,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
-msgstr ""
+msgstr "저자 정보는 최대 {MAX_SELECTED}개까지 선택할 수 있습니다."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:891
 msgid "Update"
