@@ -29,17 +29,17 @@ msgstr ""
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1902
 msgid "\"{0}\" will be deleted from {providerName}."
-msgstr ""
+msgstr "\"{0}\" 파일이 {providerName}에서 삭제됩니다."
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "\"{0}\" will be deleted from its media provider."
-msgstr ""
+msgstr "\"{0}\" 파일이 해당 미디어 제공자에서 삭제됩니다."
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "\"{0}\" will be permanently deleted."
-msgstr ""
+msgstr "\"{0}\" 파일이 영구적으로 삭제됩니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:608
 msgid "(pre-release)"
@@ -110,19 +110,19 @@ msgstr "{0, plural, one {#개 콘텐츠 항목 가져옴} other {#개 콘텐츠 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
 #: packages/admin/src/components/MediaPickerModal.tsx:1607
 msgid "{0, plural, one {# file uploading} other {# files uploading}}"
-msgstr ""
+msgstr "{0, plural, one {파일 #개 업로드 중} other {파일 #개 업로드 중}}"
 
 #. placeholder {0}: uploadQueue.overflowCount
 #: packages/admin/src/components/MediaPickerModal.tsx:1290
 msgid "{0, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
-msgstr ""
+msgstr "{0, plural, one {업로드 목록이 가득 차 파일 #개를 추가하지 못했습니다.} other {업로드 목록이 가득 차 파일 #개를 추가하지 못했습니다.}}"
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1496
 #: packages/admin/src/components/MediaLibrary.tsx:1002
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
-msgstr ""
+msgstr "{0, plural, one {폴더 #개 로드됨} other {폴더 #개 로드됨}}"
 
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MenuCard.tsx:46
@@ -230,7 +230,7 @@ msgstr ""
 #. placeholder {0}: uploadQueue.failedCount
 #: packages/admin/src/components/MediaPickerModal.tsx:1614
 msgid "{0, plural, one {# upload failed} other {# uploads failed}}"
-msgstr ""
+msgstr "{0, plural, one {업로드 #건 실패} other {업로드 #건 실패}}"
 
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
@@ -240,12 +240,12 @@ msgstr ""
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:858
 msgid "{0, plural, one {Add # file} other {Add # files}}"
-msgstr ""
+msgstr "{0, plural, one {파일 #개 추가} other {파일 #개 추가}}"
 
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:859
 msgid "{0, plural, one {Add # image} other {Add # images}}"
-msgstr ""
+msgstr "{0, plural, one {이미지 #개 추가} other {이미지 #개 추가}}"
 
 #. placeholder {0}: bounds.min
 #: packages/admin/src/components/ContentEditor.tsx:2885
@@ -483,12 +483,12 @@ msgstr ""
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:311
 msgid "{completedCount} of {0} complete"
-msgstr ""
+msgstr "총 {0}개 중 {completedCount}개 완료"
 
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:196
 msgid "{completedCount} of {0} uploads complete"
-msgstr ""
+msgstr "총 {0}건 중 {completedCount}건 업로드 완료"
 
 #: packages/admin/src/components/WordPressImport.tsx:2092
 msgid "{count, plural, one {# file} other {# files}}"
@@ -504,7 +504,7 @@ msgstr "{current}/{total}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
-msgstr ""
+msgstr "{failedCount, plural, one {업로드 #건 실패} other {업로드 #건 실패}}"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:262
 msgid "{filesMissing, plural, one {# file still needs to be uploaded. Choose the same package file again to finish; files already uploaded are skipped.} other {# files still need to be uploaded. Choose the same package file again to finish; files already uploaded are skipped.}}"
@@ -518,7 +518,7 @@ msgstr "{filteredCount, plural, one {#{0}개 항목} other {#{1}개 항목}}"
 
 #: packages/admin/src/components/MediaImportSummary.tsx:9
 msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
-msgstr ""
+msgstr "{importedFiles, plural, one {파일 <count>#</count>개를 가져왔습니다.} other {파일 <count>#</count>개를 가져왔습니다.}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:117
 msgid "{label} — no translation"
@@ -633,7 +633,7 @@ msgstr "{overdueCount, plural, one {예약 항목 1개의 게시 예정 시각�
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:287
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
-msgstr ""
+msgstr "{overflowCount, plural, one {업로드 목록이 가득 차 파일 #개를 추가하지 못했습니다.} other {업로드 목록이 가득 차 파일 #개를 추가하지 못했습니다.}}"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:115
 msgid "{pluginName} is requesting additional permissions:"
@@ -659,7 +659,7 @@ msgstr "{policyRejected, plural, one {해당 항목을 열어 정책에 따라 �
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:304
 msgid "{position} of {total}"
-msgstr ""
+msgstr "총 {total}개 중 {position}번째"
 
 #: packages/admin/src/components/editor/TableControls.tsx:142
 msgid "{previewRows} × {previewColumns} table"
@@ -680,11 +680,11 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:924
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
-msgstr ""
+msgstr "{rejectedCount, plural, one {파일 #개를 추가하지 못했습니다.} other {파일 #개를 추가하지 못했습니다.}}"
 
 #: packages/admin/src/components/MediaImportSummary.tsx:11
 msgid "{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}"
-msgstr ""
+msgstr "{rewrittenUrls, plural, one {{updatedContentItems, plural, one {콘텐츠 <contentCount>#</contentCount>개에서} other {콘텐츠 <contentCount>#</contentCount>개에서}} 이미지 URL <rewrittenCount>#</rewrittenCount>개를 업데이트했습니다.} other {{updatedContentItems, plural, one {콘텐츠 <contentCount>#</contentCount>개에서} other {콘텐츠 <contentCount>#</contentCount>개에서}} 이미지 URL <rewrittenCount>#</rewrittenCount>개를 업데이트했습니다.}}"
 
 #: packages/admin/src/components/editor/TableControls.tsx:162
 msgid "{row} × {column} table"
@@ -798,7 +798,7 @@ msgstr "1. WordPress 관리 대시보드에 로그인하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "16:9"
-msgstr ""
+msgstr "16:9"
 
 #: packages/admin/src/components/WordPressImport.tsx:76
 msgid "2. Go to <0>Tools → Export</0>"
@@ -810,7 +810,7 @@ msgstr "2. 사용자 → 프로필로 이동하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "3:2"
-msgstr ""
+msgstr "3:2"
 
 #: packages/admin/src/components/WordPressImport.tsx:1544
 msgid "3. Scroll to \"Application Passwords\""
@@ -842,7 +842,7 @@ msgstr "308 영구 이동(엄격)"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "4:3"
-msgstr ""
+msgstr "4:3"
 
 #: packages/admin/src/components/WordPressImport.tsx:1300
 msgid "4. Click \"Download Export File\""
@@ -914,7 +914,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:86
 msgid "A media folder with this name already exists"
-msgstr ""
+msgstr "같은 이름의 미디어 폴더가 이미 있습니다"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "A number is too large for this site’s database"
@@ -986,7 +986,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:525
 msgid "About focal point"
-msgstr ""
+msgstr "초점 안내"
 
 #: packages/admin/src/components/BylineFilter.tsx:184
 msgid "About inferred bylines"
@@ -1009,7 +1009,7 @@ msgstr "초대 수락"
 #: packages/admin/src/components/settings/TransferSettings.tsx:69
 #: packages/admin/src/routes/byline-schema.tsx:174
 msgid "Access denied"
-msgstr ""
+msgstr "접근이 거부되었습니다"
 
 #: packages/admin/src/router.tsx:2285
 msgid "Access Denied"
@@ -1054,7 +1054,7 @@ msgstr "작업"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
-msgstr ""
+msgstr "활성화 여부를 확인할 수 없습니다. 편집을 계속 중단한 상태로 두고 상태를 새로고침하세요."
 
 #: packages/admin/src/components/users/UserDetail.tsx:206
 #: packages/admin/src/components/users/UserList.tsx:210
@@ -1216,7 +1216,7 @@ msgstr "추가"
 #: packages/admin/src/components/MediaLibrary.tsx:852
 #: packages/admin/src/components/MediaLibrary.tsx:857
 msgid "Add new folder"
-msgstr ""
+msgstr "새 폴더 추가"
 
 #: packages/admin/src/components/SeoPanel.tsx:240
 msgid "Add noindex meta tag"
@@ -1423,7 +1423,7 @@ msgstr "모든 유형"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:200
 msgid "All uploads finished"
-msgstr ""
+msgstr "모든 업로드가 완료되었습니다"
 
 #: packages/admin/src/components/PluginManager.tsx:601
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
@@ -1484,7 +1484,7 @@ msgstr "추가로 요청했지만 현재 역할에는 허용되지 않는 권한
 #: packages/admin/src/components/editor/ImageNode.tsx:288
 #: packages/admin/src/components/MediaLibrary.tsx:1208
 msgid "Alt text"
-msgstr ""
+msgstr "대체 텍스트"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:742
 #: packages/admin/src/components/MediaDetailPanel.tsx:1564
@@ -1494,7 +1494,7 @@ msgstr "대체 텍스트"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1559
 msgid "Alt text is not applicable to folders"
-msgstr ""
+msgstr "폴더에는 대체 텍스트가 적용되지 않습니다"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1787
 #: packages/admin/src/components/MediaLibrary.tsx:1844
@@ -1596,7 +1596,7 @@ msgstr "WordPress 사이트 분석 중..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1749
 msgid "Animated WebP files become still images when cropped."
-msgstr ""
+msgstr "애니메이션 WebP 파일을 자르면 정지 이미지가 됩니다."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:27
 msgid "Another editor"
@@ -1723,11 +1723,11 @@ msgstr "관리자는 사용자 섹션에서 다른 사용자를 초대할 수 �
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:307
 msgid "Ask an administrator to complete this setup."
-msgstr ""
+msgstr "관리자에게 이 설정을 완료해 달라고 요청하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1691
 msgid "Aspect ratio"
-msgstr ""
+msgstr "가로세로 비율"
 
 #: packages/admin/src/components/WordPressImport.tsx:2476
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
@@ -1761,7 +1761,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaPickerModal.tsx:385
 msgid "Audio"
-msgstr ""
+msgstr "오디오"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:274
@@ -1929,7 +1929,7 @@ msgstr "로그인으로 돌아가기"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Back to Main library"
-msgstr ""
+msgstr "메인 라이브러리로 돌아가기"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:136
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:416
@@ -1999,7 +1999,7 @@ msgstr "발송 전:"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:590
 msgid "Before you continue:"
-msgstr ""
+msgstr "계속하기 전에 다음 사항을 확인하세요:"
 
 #: packages/admin/src/components/ContentEditor.tsx:2902
 msgid "Between {min} and {max}"
@@ -2082,7 +2082,7 @@ msgstr "사이트를 확장하려면 플러그인을 찾아보고 설치하세�
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:268
 msgid "Browse files"
-msgstr ""
+msgstr "파일 선택"
 
 #: packages/admin/src/components/WordPressImport.tsx:1146
 #: packages/admin/src/components/WordPressImport.tsx:1614
@@ -2091,7 +2091,7 @@ msgstr "파일 찾아보기"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:277
 msgid "Browse files to upload"
-msgstr ""
+msgstr "업로드할 파일 선택"
 
 #: packages/admin/src/components/PluginManager.tsx:67
 msgid "Browse the <0>registry</0> to install plugins."
@@ -2256,7 +2256,7 @@ msgstr ""
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:141
 msgid "Cancel {0}"
-msgstr ""
+msgstr "{0} 업로드 취소"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:215
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:355
@@ -2265,7 +2265,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:331
 msgid "Cancel remaining"
-msgstr ""
+msgstr "남은 업로드 취소"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:121
 msgid "Cancel rename"
@@ -2309,7 +2309,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:461
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
-msgstr ""
+msgstr "변경 사항 기록을 준비하고 있습니다. 설정이 완료될 때까지 편집을 중단하세요."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:196
 #: packages/admin/src/components/Widgets.tsx:135
@@ -2430,7 +2430,7 @@ msgstr "사이트 확인"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:476
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
-msgstr ""
+msgstr "서버 로그를 확인한 다음, 미디어 사용 현황 복구 API로 실패한 작업을 처리하세요."
 
 #: packages/admin/src/components/LoginPage.tsx:102
 #: packages/admin/src/components/SignupPage.tsx:148
@@ -2500,7 +2500,7 @@ msgstr "날짜 범위 선택"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:230
 msgid "Choose a file from the library or upload a new one."
-msgstr ""
+msgstr "라이브러리에서 파일을 선택하거나 새 파일을 업로드하세요."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
 msgid "Choose a new publication time for this draft."
@@ -2509,7 +2509,7 @@ msgstr "이 초안의 새 게시 시간을 선택하세요."
 #. placeholder {0}: formatFileFormat(item.mimeType)
 #: packages/admin/src/components/MediaDetailPanel.tsx:907
 msgid "Choose a non-empty {0} image."
-msgstr ""
+msgstr "파일 크기가 0이 아닌 {0} 이미지를 선택하세요."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:443
 msgid "Choose a recognized timezone for reliable date display."
@@ -2521,7 +2521,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:231
 msgid "Choose an image from the library or upload a new one."
-msgstr ""
+msgstr "라이브러리에서 이미지를 선택하거나 새 이미지를 업로드하세요."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:567
 msgid "Choose another option"
@@ -2534,7 +2534,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1094
 msgid "Choose files to upload"
-msgstr ""
+msgstr "업로드할 파일 선택"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:269
@@ -2543,7 +2543,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1824
 msgid "Choose replacement image"
-msgstr ""
+msgstr "교체할 이미지 선택"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:261
 msgid "Choose the same package file again to finish uploading it."
@@ -2584,7 +2584,7 @@ msgstr "초기화"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:316
 msgid "Clear completed"
-msgstr ""
+msgstr "완료한 항목 지우기"
 
 #: packages/admin/src/components/ContentList.tsx:1030
 #: packages/admin/src/components/MediaLibrary.tsx:1084
@@ -2598,7 +2598,7 @@ msgstr "필터 초기화"
 #: packages/admin/src/components/MediaLibrary.tsx:1119
 #: packages/admin/src/components/TaxonomyManager.tsx:1433
 msgid "Clear search"
-msgstr ""
+msgstr "검색 초기화"
 
 #: packages/admin/src/components/PluginSettings.tsx:354
 msgid "Clear stored value"
@@ -2847,7 +2847,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:68
 msgid "Complete"
-msgstr ""
+msgstr "완료"
 
 #: packages/admin/src/components/SignupPage.tsx:419
 msgid "Complete signup"
@@ -3019,7 +3019,7 @@ msgstr "같은 그룹의 콘텐츠 유형은 사이드바에서 접고 펼칠 �
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1922
 msgid "Content using this media item may show a broken reference."
-msgstr ""
+msgstr "이 미디어를 사용하는 콘텐츠에서 참조가 깨질 수 있습니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "Content was skipped because it already exists"
@@ -3119,7 +3119,7 @@ msgstr "토큰 복사"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
 #: packages/admin/src/components/MediaDetailPanel.tsx:1355
 msgid "Copy URL"
-msgstr ""
+msgstr "URL 복사"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:59
 msgid "Copying media"
@@ -3163,11 +3163,11 @@ msgstr "URL에서 이미지를 로드할 수 없습니다."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1390
 msgid "Could not load media."
-msgstr ""
+msgstr "미디어를 로드하지 못했습니다."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1202
 msgid "Could not load this folder."
-msgstr ""
+msgstr "이 폴더를 로드하지 못했습니다."
 
 #: packages/admin/src/components/BulkTagDialog.tsx:194
 msgid "Could not review posts"
@@ -3175,7 +3175,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:816
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
-msgstr ""
+msgstr "미디어 항목이나 선택한 폴더가 아직 존재하는지 확인하지 못했습니다. 다시 시도하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1284
 msgid "Couldn't detect WordPress"
@@ -3211,11 +3211,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:349
 msgid "Couldn’t load media usage tracking settings."
-msgstr ""
+msgstr "미디어 사용 현황 추적 설정을 불러오지 못했습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:236
 msgid "Couldn’t load more usage."
-msgstr ""
+msgstr "사용 현황을 추가로 불러오지 못했습니다."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:123
 msgid "Couldn’t load the import plan"
@@ -3223,7 +3223,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:274
 msgid "Couldn’t load usage."
-msgstr ""
+msgstr "사용 현황을 불러오지 못했습니다."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -3231,7 +3231,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:639
 msgid "Couldn’t move file"
-msgstr ""
+msgstr "파일을 이동하지 못했습니다"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:467
 msgid "Couldn’t reload the import plan"
@@ -3343,7 +3343,7 @@ msgstr "콘텐츠 유형 만들기"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1856
 msgid "Create cropped copy"
-msgstr ""
+msgstr "잘린 복사본 생성"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Create field"
@@ -3515,7 +3515,7 @@ msgstr "컬렉션 및 필드 생성 중..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:951
 msgid "Creating cropped copy..."
-msgstr ""
+msgstr "잘린 복사본 생성 중..."
 
 #: packages/admin/src/components/MenuList.tsx:185
 #: packages/admin/src/components/Redirects.tsx:191
@@ -3528,26 +3528,26 @@ msgstr "생성 중..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1617
 msgid "Crop"
-msgstr ""
+msgstr "자르기"
 
 #. placeholder {0}: pixels.width
 #. placeholder {1}: pixels.height
 #: packages/admin/src/components/MediaImageCropper.tsx:113
 msgid "Crop area {0} by {1} pixels."
-msgstr ""
+msgstr "자르기 영역: 가로 {0}픽셀, 세로 {1}픽셀."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Crop output dimensions"
-msgstr ""
+msgstr "자른 이미지의 크기"
 
 #: packages/admin/src/components/MediaImageCropper.tsx:93
 msgid "Crop selection. Use the Arrow keys to move it."
-msgstr ""
+msgstr "자르기 선택 영역. 방향키로 이동하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:761
 #: packages/admin/src/components/MediaLibrary.tsx:1393
 msgid "Cropped copy created."
-msgstr ""
+msgstr "잘린 복사본이 생성되었습니다."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:32
 msgid "CSS"
@@ -3664,7 +3664,7 @@ msgstr ""
 #: packages/admin/src/components/MediaUsedIn.tsx:46
 #: packages/admin/src/components/settings/SeoSettings.tsx:177
 msgid "Default Social Image"
-msgstr ""
+msgstr "기본 소셜 공유 이미지"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1016
 msgid "Define a new taxonomy for classifying content"
@@ -3717,7 +3717,7 @@ msgstr "\"{0}\" 관계를 삭제하시겠습니까?"
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaFolderDialog.tsx:182
 msgid "Delete “{0}”?"
-msgstr ""
+msgstr "“{0}” 폴더를 삭제할까요?"
 
 #. placeholder {0}: archive.name
 #. placeholder {0}: collection.label
@@ -3805,7 +3805,7 @@ msgstr "필드를 삭제하시겠습니까?"
 #: packages/admin/src/components/MediaFolderDialog.tsx:167
 #: packages/admin/src/components/MediaFolderDialog.tsx:184
 msgid "Delete folder"
-msgstr ""
+msgstr "폴더 삭제"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:311
 #: packages/admin/src/components/editor/GalleryNode.tsx:254
@@ -3824,7 +3824,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1896
 msgid "Delete media?"
-msgstr ""
+msgstr "미디어를 삭제할까요?"
 
 #: packages/admin/src/components/MenuList.tsx:231
 msgid "Delete menu"
@@ -4006,7 +4006,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1144
 #: packages/admin/src/components/MediaDetailPanel.tsx:1186
 msgid "Details"
-msgstr ""
+msgstr "상세 정보"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:218
 msgid "Device authorized"
@@ -4086,7 +4086,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1882
 msgid "Discard"
-msgstr ""
+msgstr "변경 사항 버리기"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:304
 #: packages/admin/src/components/ContentSettingsPanel.tsx:324
@@ -4095,7 +4095,7 @@ msgstr "변경사항 버리기"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1880
 msgid "Discard changes?"
-msgstr ""
+msgstr "변경 사항을 버릴까요?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:309
 msgid "Discard draft changes?"
@@ -4103,7 +4103,7 @@ msgstr "초안 변경 사항을 버리시겠습니까?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1883
 msgid "Discarding..."
-msgstr ""
+msgstr "변경 사항 버리는 중..."
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:76
 #: packages/admin/src/components/Dashboard.tsx:196
@@ -4115,7 +4115,7 @@ msgstr "닫기"
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:143
 msgid "Dismiss completed {0}"
-msgstr ""
+msgstr "업로드가 완료된 {0} 항목 지우기"
 
 #: packages/admin/src/components/Dashboard.tsx:286
 msgid "Dismiss import suggestion"
@@ -4186,7 +4186,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:988
 #: packages/admin/src/components/MediaPickerModal.tsx:386
 msgid "Documents"
-msgstr ""
+msgstr "문서"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:293
 msgid "Domain"
@@ -4312,7 +4312,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:256
 msgid "Drag and drop files here"
-msgstr ""
+msgstr "파일을 여기로 끌어다 놓으세요"
 
 #: packages/admin/src/components/WordPressImport.tsx:1141
 msgid "Drag and drop or click to browse (.xml)"
@@ -4352,19 +4352,19 @@ msgstr ""
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:136
 msgid "Drop an image here or <0>browse</0>"
-msgstr ""
+msgstr "이미지를 여기로 끌어다 놓거나 <0>선택하세요</0>"
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:118
 msgid "Drop an image here or browse for {label}"
-msgstr ""
+msgstr "이미지를 여기로 끌어다 놓거나 {label} 이미지를 선택하세요"
 
 #: packages/admin/src/components/MediaLibrary.tsx:791
 msgid "Drop files to upload"
-msgstr ""
+msgstr "파일을 끌어다 놓아 업로드하세요"
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:48
 msgid "Drop one image at a time."
-msgstr ""
+msgstr "이미지는 한 번에 하나씩 놓으세요."
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drop to add widget"
@@ -4472,7 +4472,7 @@ msgstr "{title} 편집"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
-msgstr ""
+msgstr "미디어 편집"
 
 #: packages/admin/src/routes/bylines.tsx:693
 msgid "Edit byline"
@@ -4496,18 +4496,18 @@ msgstr "필드 편집"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
 msgid "Edit folder"
-msgstr ""
+msgstr "폴더 편집"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:1474
 #: packages/admin/src/components/MediaLibrary.tsx:1541
 msgid "Edit folder {0}"
-msgstr ""
+msgstr "“{0}” 폴더 편집"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1149
 #: packages/admin/src/components/MediaDetailPanel.tsx:1189
 msgid "Edit image"
-msgstr ""
+msgstr "이미지 편집"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryNode.tsx:215
@@ -4667,11 +4667,11 @@ msgstr "EmDash {latest} 버전을 사용할 수 있습니다(현재 버전: {0})
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1958
 msgid "EmDash does not keep the previous image."
-msgstr ""
+msgstr "EmDash는 이전 이미지를 보관하지 않습니다."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "EmDash does not keep the uncropped image."
-msgstr ""
+msgstr "EmDash는 자르기 전 이미지를 보관하지 않습니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:1327
 msgid "EmDash Exporter plugin detected! You can import directly."
@@ -4679,7 +4679,7 @@ msgstr "EmDash Exporter 플러그인이 감지되었습니다! 직접 가져올 
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:487
 msgid "EmDash is scanning existing content."
-msgstr ""
+msgstr "EmDash가 기존 콘텐츠를 검사하고 있습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:744
 msgid "EmDash never receives your PIN, password, or biometric information."
@@ -4691,11 +4691,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:575
 msgid "EmDash will continue setup and resume scanning existing content."
-msgstr ""
+msgstr "EmDash가 설정을 계속 진행하고 기존 콘텐츠 검사를 재개합니다."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:576
 msgid "EmDash will scan existing content to show where media is used."
-msgstr ""
+msgstr "EmDash가 기존 콘텐츠를 검사하여 미디어가 사용된 위치를 표시합니다."
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:197
 msgid "Empty gallery — open settings to add images"
@@ -4731,11 +4731,11 @@ msgstr "리디렉션 활성화"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
-msgstr ""
+msgstr "추적 활성화"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:454
 msgid "Enable tracking to index existing content and keep references up to date."
-msgstr ""
+msgstr "추적을 활성화하면 기존 콘텐츠를 색인하고 참조를 최신 상태로 유지합니다."
 
 #: packages/admin/src/components/Redirects.tsx:178
 #: packages/admin/src/components/Redirects.tsx:391
@@ -4866,11 +4866,11 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1974
 msgid "Every place using this image will update to the cropped version."
-msgstr ""
+msgstr "이 이미지를 사용하는 모든 곳에 잘린 이미지가 적용됩니다."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1939
 msgid "Every place using this image will update to the selected version."
-msgstr ""
+msgstr "이 이미지를 사용하는 모든 곳에 선택한 이미지가 적용됩니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:675
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
@@ -4894,7 +4894,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:478
 msgid "Existing content is indexed. New changes are tracked automatically."
-msgstr ""
+msgstr "기존 콘텐츠의 색인이 완료되었습니다. 새로운 변경 사항은 자동으로 추적됩니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:2030
 msgid "Exists"
@@ -5027,7 +5027,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/media.ts:374
 msgid "Failed to confirm upload"
-msgstr ""
+msgstr "업로드 완료 확인에 실패했습니다"
 
 #: packages/admin/src/lib/api/transfer.ts:324
 msgid "Failed to continue export"
@@ -5061,7 +5061,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/media.ts:247
 msgid "Failed to create media folder"
-msgstr ""
+msgstr "미디어 폴더 생성에 실패했습니다"
 
 #: packages/admin/src/lib/api/sections.ts:88
 msgid "Failed to create section"
@@ -5123,15 +5123,15 @@ msgstr ""
 
 #: packages/admin/src/lib/api/media.ts:679
 msgid "Failed to delete from provider"
-msgstr ""
+msgstr "미디어 제공자에서 삭제하는 데 실패했습니다"
 
 #: packages/admin/src/lib/api/media.ts:539
 msgid "Failed to delete media"
-msgstr ""
+msgstr "미디어 삭제에 실패했습니다"
 
 #: packages/admin/src/lib/api/media.ts:269
 msgid "Failed to delete media folder"
-msgstr ""
+msgstr "미디어 폴더 삭제에 실패했습니다"
 
 #: packages/admin/src/lib/api/menus.ts:163
 msgid "Failed to delete menu"
@@ -5259,27 +5259,27 @@ msgstr "매니페스트를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:169
 msgid "Failed to fetch media"
-msgstr ""
+msgstr "미디어 목록을 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:234
 msgid "Failed to fetch media folder"
-msgstr ""
+msgstr "미디어 폴더를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:226
 msgid "Failed to fetch media folders"
-msgstr ""
+msgstr "미디어 폴더 목록을 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:187
 msgid "Failed to fetch media item"
-msgstr ""
+msgstr "미디어 항목을 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:612
 msgid "Failed to fetch media providers"
-msgstr ""
+msgstr "미디어 제공자 목록을 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:210
 msgid "Failed to fetch media usage details"
-msgstr ""
+msgstr "미디어 사용 현황 상세 정보를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/plugins.ts:70
 #: packages/admin/src/lib/api/plugins.ts:74
@@ -5296,7 +5296,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/media.ts:642
 msgid "Failed to fetch provider media"
-msgstr ""
+msgstr "미디어 제공자의 미디어를 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/content.ts:629
 #: packages/admin/src/lib/api/content.ts:634
@@ -5353,7 +5353,7 @@ msgstr "등록 옵션을 가져오지 못했습니다"
 
 #: packages/admin/src/lib/api/media.ts:346
 msgid "Failed to get upload URL"
-msgstr ""
+msgstr "업로드 URL을 가져오지 못했습니다"
 
 #: packages/admin/src/components/WordPressImport.tsx:456
 msgid "Failed to import from WordPress"
@@ -5415,7 +5415,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:646
 msgid "Failed to load image"
-msgstr ""
+msgstr "이미지를 로드하지 못했습니다"
 
 #: packages/admin/src/lib/api/transfer.ts:388
 msgid "Failed to load import"
@@ -5523,7 +5523,7 @@ msgstr "패스키를 제거하지 못했습니다."
 
 #: packages/admin/src/lib/api/media.ts:260
 msgid "Failed to rename media folder"
-msgstr ""
+msgstr "미디어 폴더 이름 변경에 실패했습니다"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:50
 msgid "Failed to rename passkey"
@@ -5548,7 +5548,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/media.ts:527
 msgid "Failed to replace media image"
-msgstr ""
+msgstr "미디어 이미지 교체에 실패했습니다"
 
 #: packages/admin/src/router.tsx:550
 msgid "Failed to restore"
@@ -5663,7 +5663,7 @@ msgstr "도메인을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/media.ts:563
 msgid "Failed to update media"
-msgstr ""
+msgstr "미디어 업데이트에 실패했습니다"
 
 #: packages/admin/src/components/PluginManager.tsx:326
 #: packages/admin/src/lib/api/marketplace.ts:370
@@ -5697,15 +5697,15 @@ msgstr ""
 
 #: packages/admin/src/lib/api/media.ts:397
 msgid "Failed to upload file"
-msgstr ""
+msgstr "파일 업로드에 실패했습니다"
 
 #: packages/admin/src/lib/api/media.ts:468
 msgid "Failed to upload media"
-msgstr ""
+msgstr "미디어 업로드에 실패했습니다"
 
 #: packages/admin/src/lib/api/media.ts:667
 msgid "Failed to upload to provider"
-msgstr ""
+msgstr "미디어 제공자에 업로드하는 데 실패했습니다"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:245
 msgid "Failed to verify authentication"
@@ -5809,7 +5809,7 @@ msgstr "업로드 후에는 파일 이름을 변경할 수 없습니다."
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:228
 msgid "Files upload as soon as you add them."
-msgstr ""
+msgstr "파일을 추가하면 바로 업로드가 시작됩니다."
 
 #: packages/admin/src/components/ContentList.tsx:981
 msgid "Filter by author"
@@ -5848,7 +5848,7 @@ msgstr "상태로 필터링"
 #: packages/admin/src/components/MediaPickerModal.tsx:1276
 #: packages/admin/src/components/Redirects.tsx:399
 msgid "Filter by type"
-msgstr ""
+msgstr "유형으로 필터링"
 
 #: packages/admin/src/routes/bylines.tsx:511
 msgid "Filter byline type"
@@ -5856,12 +5856,12 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:592
 msgid "Finish any current edits."
-msgstr ""
+msgstr "현재 진행 중인 편집을 모두 완료하세요."
 
 #: packages/admin/src/components/MediaLibrary.tsx:1314
 #: packages/admin/src/components/MediaPickerModal.tsx:1544
 msgid "First page"
-msgstr ""
+msgstr "첫 페이지"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:171
 msgid "First publication"
@@ -5882,24 +5882,24 @@ msgstr "게시 예약을 변경하기 전에 유효하지 않은 필드를 수�
 #: packages/admin/src/components/MediaDetailPanel.tsx:1622
 #: packages/admin/src/components/MediaDetailPanel.tsx:1633
 msgid "Focal point"
-msgstr ""
+msgstr "초점"
 
 #: packages/admin/src/components/FocalPointEditor.tsx:205
 msgid "Focal point. Use arrow keys to move it."
-msgstr ""
+msgstr "초점. 방향키로 이동하세요."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1196
 msgid "Folder"
-msgstr ""
+msgstr "폴더"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:67
 msgid "Folder deleted"
-msgstr ""
+msgstr "폴더를 삭제했습니다"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:84
 #: packages/admin/src/components/MediaFolderDialog.tsx:96
 msgid "Folder name must be between 1 and 200 characters"
-msgstr ""
+msgstr "폴더 이름은 1~200자로 입력하세요"
 
 #: packages/admin/src/router.tsx:1899
 msgid "Folder no longer exists"
@@ -5907,35 +5907,35 @@ msgstr "폴더가 더 이상 존재하지 않습니다"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:481
 msgid "Folder no longer exists. Returned to the main library."
-msgstr ""
+msgstr "폴더가 더 이상 존재하지 않아 메인 라이브러리로 돌아왔습니다."
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:50
 msgid "Folder successfully created"
-msgstr ""
+msgstr "폴더를 생성했습니다"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:50
 msgid "Folder successfully edited"
-msgstr ""
+msgstr "폴더를 수정했습니다"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:62
 msgid "Folder unavailable"
-msgstr ""
+msgstr "폴더를 사용할 수 없습니다"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaPickerModal.tsx:1314
 msgid "Folders"
-msgstr ""
+msgstr "폴더"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1523
 #: packages/admin/src/components/MediaLibrary.tsx:1027
 #: packages/admin/src/components/MediaLibrary.tsx:1571
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
 msgid "Folders could not be loaded."
-msgstr ""
+msgstr "폴더를 로드할 수 없습니다."
 
 #: packages/admin/src/components/MediaLibrary.tsx:822
 msgid "Folders navigation"
-msgstr ""
+msgstr "폴더 탐색"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:72
 msgid "Fonts"
@@ -5951,11 +5951,11 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1336
 msgid "Format:"
-msgstr ""
+msgstr "형식:"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:529
 msgid "Freeform"
-msgstr ""
+msgstr "자유 비율"
 
 #. placeholder {0}: formatter.format(from)
 #: packages/admin/src/components/ContentList.tsx:1054
@@ -5976,7 +5976,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:363
 msgid "From URL"
-msgstr ""
+msgstr "URL로 선택"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:279
 #: packages/admin/src/components/WordPressImport.tsx:1177
@@ -6218,7 +6218,7 @@ msgstr "훅"
 #. placeholder {1}: Math.round(next.focalY * 100)
 #: packages/admin/src/components/FocalPointEditor.tsx:118
 msgid "Horizontal {0}%, vertical {1}%"
-msgstr ""
+msgstr "가로 {0}%, 세로 {1}%"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:192
 msgid "Hour"
@@ -6265,7 +6265,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1121
 msgid "https://example.com/image.jpg"
-msgstr ""
+msgstr "https://example.com/image.jpg"
 
 #: packages/admin/src/components/WordPressImport.tsx:1111
 msgid "https://yoursite.com"
@@ -6273,7 +6273,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:604
 msgid "I’ve completed these steps and understand tracking can’t be turned off."
-msgstr ""
+msgstr "위 단계를 완료했으며, 추적을 활성화하면 끌 수 없다는 점을 이해했습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:554
 msgid "I've set it up — check again"
@@ -6334,11 +6334,11 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:473
 #: packages/admin/src/components/ImageFieldRenderer.tsx:525
 msgid "Image not found"
-msgstr ""
+msgstr "이미지를 찾을 수 없습니다"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:707
 msgid "Image replaced."
-msgstr ""
+msgstr "이미지가 교체되었습니다."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:390
 #: packages/admin/src/components/editor/ImageNode.tsx:265
@@ -6357,7 +6357,7 @@ msgstr "이 페이지가 소셜 미디어에 공유되면 표시되는 이미지
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:225
 #: packages/admin/src/components/media/ImageDropTarget.tsx:72
 msgid "Image upload failed. Try again."
-msgstr ""
+msgstr "이미지 업로드에 실패했습니다. 다시 시도하세요."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1110
 #: packages/admin/src/components/MediaPickerModal.tsx:1120
@@ -6369,7 +6369,7 @@ msgstr "이미지 URL"
 #: packages/admin/src/components/MediaLibrary.tsx:985
 #: packages/admin/src/components/MediaPickerModal.tsx:383
 msgid "Images"
-msgstr ""
+msgstr "이미지"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:230
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
@@ -6513,7 +6513,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:355
 msgid "In trash"
-msgstr ""
+msgstr "휴지통에 있음"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:536
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
@@ -6542,7 +6542,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:886
 msgid "Index existing content and keep Used in results up to date."
-msgstr ""
+msgstr "기존 콘텐츠를 색인하고 사용처 정보를 최신 상태로 유지하세요."
 
 #: packages/admin/src/components/FieldEditor.tsx:856
 #: packages/admin/src/components/RegistryPluginDetail.tsx:585
@@ -6551,11 +6551,11 @@ msgstr "인덱스 사용"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:495
 msgid "Indexing"
-msgstr ""
+msgstr "색인 중"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:472
 msgid "Indexing existing content"
-msgstr ""
+msgstr "기존 콘텐츠 색인 중"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4718
 msgid "Inline Code"
@@ -6825,11 +6825,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:316
 msgid "Keep editing paused and deploy a compatible EmDash version before continuing."
-msgstr ""
+msgstr "편집을 계속 중단한 상태로 두고, 계속하기 전에 호환되는 EmDash 버전을 배포하세요."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:460
 msgid "Keep editing paused, fix the server issue, then retry setup."
-msgstr ""
+msgstr "편집을 계속 중단한 상태로 두고 서버 문제를 해결한 다음 설정을 다시 시도하세요."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:356
 msgid "Keep importing"
@@ -6837,7 +6837,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:598
 msgid "Keep this page open until setup finishes. If you leave, return to continue where it stopped."
-msgstr ""
+msgstr "설정이 끝날 때까지 이 페이지를 열어 두세요. 페이지를 나갔다면 돌아와서 중단된 지점부터 계속 진행하세요."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:431
 msgid "Keep this page open while files upload. If the upload stops, choose the same file again to continue where it left off."
@@ -6895,7 +6895,7 @@ msgstr "라벨(단수형)"
 
 #: packages/admin/src/components/FocalPointEditor.tsx:52
 msgid "Landscape"
-msgstr ""
+msgstr "가로형"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:276
 #: packages/admin/src/components/LoginPage.tsx:347
@@ -6924,7 +6924,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:1317
 #: packages/admin/src/components/MediaPickerModal.tsx:1547
 msgid "Last page"
-msgstr ""
+msgstr "마지막 페이지"
 
 #: packages/admin/src/components/Redirects.tsx:229
 msgid "Last seen"
@@ -7096,7 +7096,7 @@ msgstr "더 보기"
 #: packages/admin/src/components/MediaLibrary.tsx:1249
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
 msgid "Load more folders"
-msgstr ""
+msgstr "폴더 더 보기"
 
 #: packages/admin/src/router.tsx:3113
 msgid "Loading"
@@ -7148,11 +7148,11 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1337
 msgid "Loading folders"
-msgstr ""
+msgstr "폴더 로드 중"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1494
 msgid "Loading folders..."
-msgstr ""
+msgstr "폴더 로드 중..."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:224
 msgid "Loading imports…"
@@ -7160,11 +7160,11 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1385
 msgid "Loading media"
-msgstr ""
+msgstr "미디어 로드 중"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:619
 msgid "Loading media usage tracking settings…"
-msgstr ""
+msgstr "미디어 사용 현황 추적 설정을 불러오는 중…"
 
 #: packages/admin/src/components/MenuEditor.tsx:343
 msgid "Loading menu..."
@@ -7226,7 +7226,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:137
 msgid "Loading usage"
-msgstr ""
+msgstr "사용 현황을 불러오는 중"
 
 #: packages/admin/src/components/Widgets.tsx:372
 msgid "Loading widgets..."
@@ -7286,12 +7286,12 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1550
 #: packages/admin/src/components/MediaDetailPanel.tsx:1552
 msgid "Location"
-msgstr ""
+msgstr "저장 위치"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:597
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
 msgid "Location unavailable"
-msgstr ""
+msgstr "저장 위치를 확인할 수 없습니다"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
@@ -7344,7 +7344,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:565
 #: packages/admin/src/components/MediaPickerModal.tsx:1190
 msgid "Main library"
-msgstr ""
+msgstr "메인 라이브러리"
 
 #: packages/admin/src/components/Widgets.tsx:436
 msgid "Main Sidebar"
@@ -7391,11 +7391,11 @@ msgstr "패스키 및 인증 관리"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1389
 msgid "Managed by {providerName}"
-msgstr ""
+msgstr "{providerName}에서 관리"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1390
 msgid "Managed by an external media provider"
-msgstr ""
+msgstr "외부 미디어 제공자에서 관리"
 
 #: packages/admin/src/components/Redirects.tsx:398
 msgid "Manual"
@@ -7490,7 +7490,7 @@ msgstr "미디어"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1109
 msgid "Media details"
-msgstr ""
+msgstr "미디어 상세 정보"
 
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2420
@@ -7516,7 +7516,7 @@ msgstr "미디어 가져오기를 건너뛰었습니다."
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:183
 msgid "Media in this folder will return to Main library. No files will be deleted."
-msgstr ""
+msgstr "이 폴더의 미디어는 메인 라이브러리로 돌아갑니다. 파일은 삭제되지 않습니다."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:157
 #: packages/admin/src/components/MediaLibrary.tsx:819
@@ -7531,7 +7531,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:1313
 #: packages/admin/src/components/MediaPickerModal.tsx:1543
 msgid "Media pagination"
-msgstr ""
+msgstr "미디어 페이지 탐색"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
 msgid "Media Read"
@@ -7539,32 +7539,32 @@ msgstr "미디어 읽기"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1376
 msgid "Media results"
-msgstr ""
+msgstr "미디어 결과"
 
 #: packages/admin/src/components/Settings.tsx:76
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
 msgid "Media usage tracking"
-msgstr ""
+msgstr "미디어 사용 현황 추적"
 
 #: packages/admin/src/components/MediaLibrary.tsx:883
 msgid "Media usage tracking is indexing existing content"
-msgstr ""
+msgstr "미디어 사용 현황 추적을 위해 기존 콘텐츠를 색인 중입니다"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:453
 msgid "Media usage tracking is off"
-msgstr ""
+msgstr "미디어 사용 현황 추적이 꺼져 있습니다"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:469
 msgid "Media usage tracking is ready"
-msgstr ""
+msgstr "미디어 사용 현황 추적 준비가 완료되었습니다"
 
 #: packages/admin/src/components/MediaLibrary.tsx:884
 msgid "Media usage tracking is setting up"
-msgstr ""
+msgstr "미디어 사용 현황 추적 설정 중입니다"
 
 #: packages/admin/src/components/MediaLibrary.tsx:881
 msgid "Media usage tracking needs attention"
-msgstr ""
+msgstr "미디어 사용 현황 추적 상태를 확인하세요"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
 msgid "Media Write"
@@ -7787,12 +7787,12 @@ msgstr ""
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:313
 msgid "Move {0} earlier"
-msgstr ""
+msgstr "{0} 순서 앞으로 이동"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:322
 msgid "Move {0} later"
-msgstr ""
+msgstr "{0} 순서 뒤로 이동"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
@@ -7824,11 +7824,11 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Move media here from Media Details."
-msgstr ""
+msgstr "미디어 상세 정보에서 이 폴더로 미디어를 이동하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:524
 msgid "Move the focal point to choose what stays visible in cropped images."
-msgstr ""
+msgstr "초점을 이동해 이미지를 자를 때 남겨 둘 부분을 선택하세요."
 
 #: packages/admin/src/components/Settings.tsx:126
 msgid "Move this site to another EmDash installation, or import a site package"
@@ -7868,7 +7868,7 @@ msgstr ""
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:693
 msgid "Moved {filename} to position {0}."
-msgstr ""
+msgstr "{filename} 순서를 {0}번째로 이동했습니다."
 
 #: packages/admin/src/router.tsx:623
 msgid "Moved {total} items to draft"
@@ -7881,7 +7881,7 @@ msgstr "항목 {total}개를 휴지통으로 이동했습니다"
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:632
 msgid "Moved to {0}"
-msgstr ""
+msgstr "“{0}” 폴더로 이동했습니다"
 
 #: packages/admin/src/components/editor/TableControls.tsx:256
 msgid "Moved to paragraph after table"
@@ -7967,7 +7967,7 @@ msgstr "탐색"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:505
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:507
 msgid "Needs attention"
-msgstr ""
+msgstr "조치 필요"
 
 #: packages/admin/src/components/users/UserDetail.tsx:231
 #: packages/admin/src/components/users/UserList.tsx:178
@@ -8015,7 +8015,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:856
 msgid "New folder"
-msgstr ""
+msgstr "새 폴더"
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:15
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
@@ -8258,11 +8258,11 @@ msgstr "비교할 필드가 없습니다."
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:311
 msgid "No files added"
-msgstr ""
+msgstr "추가한 파일 없음"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1502
 msgid "No folders found"
-msgstr ""
+msgstr "폴더를 찾을 수 없습니다"
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:214
 msgid "No headings in document"
@@ -8321,7 +8321,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:1076
 #: packages/admin/src/components/MediaLibrary.tsx:1115
 msgid "No matching media"
-msgstr ""
+msgstr "조건에 맞는 미디어가 없습니다"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:261
 msgid "No matching passkey found for this account."
@@ -8342,7 +8342,7 @@ msgstr "최대값 없음"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1138
 msgid "No media available from this provider."
-msgstr ""
+msgstr "이 미디어 제공자에서 사용할 수 있는 미디어가 없습니다."
 
 #: packages/admin/src/components/MediaLibrary.tsx:1137
 #: packages/admin/src/components/MediaPickerModal.tsx:1406
@@ -8400,7 +8400,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1358
 msgid "No public URL available"
-msgstr ""
+msgstr "사용 가능한 공개 URL이 없습니다"
 
 #: packages/admin/src/components/Dashboard.tsx:534
 msgid "No recent activity"
@@ -8469,11 +8469,11 @@ msgstr "테마를 찾을 수 없습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:212
 msgid "No tracked references found"
-msgstr ""
+msgstr "추적된 참조를 찾을 수 없습니다"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:212
 msgid "No usage to show yet"
-msgstr ""
+msgstr "아직 표시할 사용 현황이 없습니다"
 
 #: packages/admin/src/components/users/UserList.tsx:113
 msgid "No users found matching your filters."
@@ -8546,7 +8546,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:455
 msgid "Off"
-msgstr ""
+msgstr "꺼짐"
 
 #: packages/admin/src/components/SeoImageField.tsx:47
 #: packages/admin/src/components/SeoImageField.tsx:75
@@ -8572,12 +8572,12 @@ msgstr "허용된 도메인의 이메일 주소만 가입할 수 있습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:216
 msgid "Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked."
-msgstr ""
+msgstr "이미지 및 파일 필드, 리치 텍스트의 이미지, 사이트 설정만 추적됩니다. 커스텀 리치 텍스트 블록과 템플릿 코드는 검사하지 않습니다."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:212
 #: packages/admin/src/components/media/ImageDropTarget.tsx:53
 msgid "Only image files can be uploaded here."
-msgstr ""
+msgstr "여기에는 이미지 파일만 업로드할 수 있습니다."
 
 #: packages/admin/src/components/MenuList.tsx:168
 msgid "Only lowercase letters, numbers, and hyphens"
@@ -8593,7 +8593,7 @@ msgstr "오류가 발생했습니다!"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:388
 msgid "Open"
-msgstr ""
+msgstr "열기"
 
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:2729
@@ -8605,7 +8605,7 @@ msgstr "{0} 새 탭에서 열기"
 #: packages/admin/src/components/MediaLibrary.tsx:1458
 #: packages/admin/src/components/MediaLibrary.tsx:1529
 msgid "Open folder {0}"
-msgstr ""
+msgstr "“{0}” 폴더 열기"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:31
@@ -8629,7 +8629,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "Open setup"
-msgstr ""
+msgstr "설정 열기"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:83
 #: packages/admin/src/components/SetupWizard.tsx:355
@@ -8687,7 +8687,7 @@ msgstr "옵션(한 줄에 하나씩)"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:258
 msgid "Or browse files from your computer"
-msgstr ""
+msgstr "또는 컴퓨터에서 파일을 선택하세요"
 
 #: packages/admin/src/components/WordPressImport.tsx:1610
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
@@ -8721,11 +8721,11 @@ msgstr "순서를 지정해 페이지를 구성하는 블록"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:528
 msgid "Original"
-msgstr ""
+msgstr "원본 비율"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:775
 msgid "Original image cropped."
-msgstr ""
+msgstr "원본 이미지가 잘렸습니다."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:478
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:418
@@ -8744,7 +8744,7 @@ msgstr "개요"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1722
 msgid "Output size"
-msgstr ""
+msgstr "출력 크기"
 
 #: packages/admin/src/components/SeoPanel.tsx:174
 msgid "Overrides the page title in search engine results"
@@ -8776,12 +8776,12 @@ msgstr "페이지를 찾을 수 없습니다"
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 #: packages/admin/src/components/MediaPickerModal.tsx:1548
 msgid "Page number"
-msgstr ""
+msgstr "페이지 번호"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1319
 #: packages/admin/src/components/MediaPickerModal.tsx:1549
 msgid "Page size"
-msgstr ""
+msgstr "페이지당 항목 수"
 
 #: packages/admin/src/components/PluginManager.tsx:472
 #: packages/admin/src/components/WordPressImport.tsx:1348
@@ -8907,7 +8907,7 @@ msgstr "패턴에 {0} 플레이스홀더를 포함해야 합니다"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:593
 msgid "Pause other tools that update content."
-msgstr ""
+msgstr "콘텐츠를 업데이트하는 다른 도구를 일시 중지하세요."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "PDF"
@@ -8931,7 +8931,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1333
 msgid "Per page"
-msgstr ""
+msgstr "페이지당"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Period"
@@ -9150,7 +9150,7 @@ msgstr "다른 URL과 중복된 페이지인 경우, 검색 엔진에 원본 페
 
 #: packages/admin/src/components/FocalPointEditor.tsx:50
 msgid "Portrait"
-msgstr ""
+msgstr "세로형"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:466
 #: packages/admin/src/components/RelationForm.tsx:307
@@ -9391,7 +9391,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:80
 msgid "Queued"
-msgstr ""
+msgstr "대기 중"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:595
 msgid "Quick action on the dashboard"
@@ -9612,11 +9612,11 @@ msgstr "페이지 새로고침"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:337
 msgid "Refresh status"
-msgstr ""
+msgstr "상태 새로고침"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:506
 msgid "Refresh status before continuing."
-msgstr ""
+msgstr "계속하기 전에 상태를 새로고침하세요."
 
 #: packages/admin/src/components/Dashboard.tsx:303
 msgid "Refresh the page or try again."
@@ -9677,7 +9677,7 @@ msgstr "릴리스 노트"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
-msgstr ""
+msgstr "EmDash를 업데이트한 뒤 페이지를 새로고침하고 다시 시도하세요."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:489
 msgid "Reloading the plan…"
@@ -9716,7 +9716,7 @@ msgstr "{0} 제거"
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:330
 msgid "Remove {0} from selection"
-msgstr ""
+msgstr "선택 목록에서 {0} 제거"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:148
 msgid "Remove {entry}"
@@ -9795,7 +9795,7 @@ msgstr "문서에서 이 이미지를 삭제하시겠습니까?"
 #. placeholder {0}: selected.item.filename
 #: packages/admin/src/components/MediaPickerModal.tsx:698
 msgid "Removed {0} from selection."
-msgstr ""
+msgstr "선택 목록에서 {0} 항목을 제거했습니다."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:584
 msgid "Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins"
@@ -9877,21 +9877,21 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1815
 #: packages/admin/src/components/MediaDetailPanel.tsx:1943
 msgid "Replace image"
-msgstr ""
+msgstr "이미지 교체"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1846
 #: packages/admin/src/components/MediaDetailPanel.tsx:1978
 msgid "Replace original"
-msgstr ""
+msgstr "원본 교체"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1935
 #: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "Replace original image?"
-msgstr ""
+msgstr "원본 이미지를 교체할까요?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1734
 msgid "Replace original is available with the Original aspect ratio."
-msgstr ""
+msgstr "가로세로 비율을 ‘원본 비율’로 선택해야 원본을 교체할 수 있습니다."
 
 #: packages/admin/src/components/ContentEditor.tsx:2797
 msgid "Replace reference"
@@ -9908,13 +9908,13 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:932
 #: packages/admin/src/components/MediaDetailPanel.tsx:1944
 msgid "Replacing image..."
-msgstr ""
+msgstr "이미지 교체 중..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:951
 #: packages/admin/src/components/MediaDetailPanel.tsx:1979
 #: packages/admin/src/components/MediaDetailPanel.tsx:1999
 msgid "Replacing original..."
-msgstr ""
+msgstr "원본 교체 중..."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:117
 msgid "Reply to:"
@@ -9969,7 +9969,7 @@ msgstr "{resendCooldown}초 후에 재전송"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1668
 #: packages/admin/src/components/MediaDetailPanel.tsx:1718
 msgid "Reset"
-msgstr ""
+msgstr "초기화"
 
 #: packages/admin/src/components/editor/TableControls.tsx:33
 msgid "Reset column widths"
@@ -9977,7 +9977,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1703
 msgid "Reset crop"
-msgstr ""
+msgstr "자르기 초기화"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:674
 msgid "Reset to original"
@@ -9985,35 +9985,35 @@ msgstr "원본으로 재설정"
 
 #: packages/admin/src/components/MediaImageCropper.tsx:99
 msgid "Resize crop from bottom edge. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 아래쪽 가장자리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/MediaImageCropper.tsx:100
 msgid "Resize crop from bottom-left corner. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 왼쪽 아래 모서리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/MediaImageCropper.tsx:98
 msgid "Resize crop from bottom-right corner. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 오른쪽 아래 모서리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/MediaImageCropper.tsx:101
 msgid "Resize crop from left edge. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 왼쪽 가장자리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/MediaImageCropper.tsx:97
 msgid "Resize crop from right edge. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 오른쪽 가장자리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/MediaImageCropper.tsx:95
 msgid "Resize crop from top edge. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 위쪽 가장자리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/MediaImageCropper.tsx:94
 msgid "Resize crop from top-left corner. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 왼쪽 위 모서리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/MediaImageCropper.tsx:96
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
-msgstr ""
+msgstr "자르기 영역의 오른쪽 위 모서리 크기 조절. 방향키로 크기를 조절하세요."
 
 #: packages/admin/src/components/ContentEditor.tsx:1867
 msgid "Resize settings panel"
@@ -10097,7 +10097,7 @@ msgstr "재시도"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaUploadDialog.tsx:130
 msgid "Retry {0}"
-msgstr ""
+msgstr "{0} 재시도"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:541
 msgid "Retry cache refresh"
@@ -10110,7 +10110,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:326
 msgid "Retry failed"
-msgstr ""
+msgstr "실패한 업로드 재시도"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:522
 msgid "Retry failures"
@@ -10123,15 +10123,15 @@ msgstr ""
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Retry setup"
-msgstr ""
+msgstr "설정 재시도"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:572
 msgid "Retry setup?"
-msgstr ""
+msgstr "설정을 다시 시도할까요?"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Retrying…"
-msgstr ""
+msgstr "재시도 중…"
 
 #: packages/admin/src/components/Sections.tsx:152
 msgid "Reusable content blocks you can insert into any content"
@@ -10365,7 +10365,7 @@ msgstr "이름 저장"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1744
 msgid "Save or discard the other changes before cropping."
-msgstr ""
+msgstr "이미지를 자르기 전에 다른 변경 사항을 저장하거나 버리세요."
 
 #: packages/admin/src/components/RelationFormPanel.tsx:113
 msgid "Save Relation"
@@ -10561,7 +10561,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:966
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
 msgid "Search by filename..."
-msgstr ""
+msgstr "파일 이름으로 검색..."
 
 #: packages/admin/src/components/users/UserList.tsx:63
 msgid "Search by name or email..."
@@ -10614,7 +10614,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1482
 #: packages/admin/src/components/MediaDetailPanel.tsx:1483
 msgid "Search folders"
-msgstr ""
+msgstr "폴더 검색"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:290
 msgid "Search for a language…"
@@ -10804,7 +10804,7 @@ msgstr "보안 설정"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:173
 msgid "See where this file is used."
-msgstr ""
+msgstr "이 파일이 사용된 위치를 확인하세요."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:56
 #: packages/admin/src/components/FieldEditor.tsx:419
@@ -10840,7 +10840,7 @@ msgstr "콘텐츠 유형 선택"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1472
 msgid "Select a location"
-msgstr ""
+msgstr "저장 위치 선택"
 
 #: packages/admin/src/components/Widgets.tsx:919
 msgid "Select a menu..."
@@ -10924,7 +10924,7 @@ msgstr "로고 선택"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:131
 msgid "Select media"
-msgstr ""
+msgstr "미디어 선택"
 
 #: packages/admin/src/components/SeoImageField.tsx:85
 msgid "Select OG image"
@@ -10967,7 +10967,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:937
 msgid "Selected media"
-msgstr ""
+msgstr "선택한 미디어"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:379
 msgid "Selected posts"
@@ -11079,7 +11079,7 @@ msgstr "초안으로 변경"
 
 #: packages/admin/src/components/MediaLibrary.tsx:879
 msgid "Set up media usage tracking"
-msgstr ""
+msgstr "미디어 사용 현황 추적 설정"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:534
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:602
@@ -11093,7 +11093,7 @@ msgstr "사이트 설정"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:458
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:462
 msgid "Setting up"
-msgstr ""
+msgstr "설정 중"
 
 #: packages/admin/src/components/SetupWizard.tsx:201
 msgid "Setting up..."
@@ -11126,7 +11126,7 @@ msgstr "설정이 성공적으로 저장되었습니다."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
-msgstr ""
+msgstr "설정을 계속 진행하지 못했습니다. 다시 시도하세요."
 
 #: packages/admin/src/components/SetupWizard.tsx:527
 #: packages/admin/src/components/SetupWizard.tsx:530
@@ -11180,7 +11180,7 @@ msgstr "토큰 표시"
 #: packages/admin/src/components/MediaLibrary.tsx:1324
 #: packages/admin/src/components/MediaPickerModal.tsx:1554
 msgid "Showing {pageShowingRange} of {0}"
-msgstr ""
+msgstr "전체 {0}개 중 {pageShowingRange} 표시"
 
 #: packages/admin/src/components/MenuList.tsx:158
 msgid "Shown in the admin menu list."
@@ -11342,7 +11342,7 @@ msgstr "크기"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1555
 msgid "Size is not applicable to folders"
-msgstr ""
+msgstr "폴더에는 파일 크기가 적용되지 않습니다"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1298
 msgid "Size:"
@@ -11423,7 +11423,7 @@ msgstr ""
 #: packages/admin/src/components/MediaUsedIn.tsx:119
 #: packages/admin/src/components/MediaUsedIn.tsx:217
 msgid "Some content may not appear here yet."
-msgstr ""
+msgstr "일부 콘텐츠는 아직 여기에 표시되지 않을 수 있습니다."
 
 #: packages/admin/src/components/WordPressImport.tsx:1880
 msgid "Some content types cannot be imported"
@@ -11509,11 +11509,11 @@ msgstr ""
 
 #: packages/admin/src/components/FocalPointEditor.tsx:51
 msgid "Square"
-msgstr ""
+msgstr "정사각형"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:530
 msgid "Square (1:1)"
-msgstr ""
+msgstr "정사각형 (1:1)"
 
 #: packages/admin/src/components/MenuList.tsx:171
 msgid "Stable identifier for your site, such as primary or footer."
@@ -11869,7 +11869,7 @@ msgstr "선택한 휴대전화나 태블릿의 자격 증명 관리자가 패스
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "The cropped image could not be created."
-msgstr ""
+msgstr "자른 이미지를 생성할 수 없습니다."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:230
 msgid "The device will not be granted access."
@@ -11901,7 +11901,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:642
 msgid "The file or folder no longer exists."
-msgstr ""
+msgstr "파일 또는 폴더가 더 이상 존재하지 않습니다."
 
 #: packages/admin/src/components/ContentTypeList.tsx:156
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
@@ -11974,7 +11974,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1298
 msgid "The latest media request failed. Showing the previous page."
-msgstr ""
+msgstr "최근 미디어 요청에 실패했습니다. 이전에 표시한 페이지를 보여 드립니다."
 
 #: packages/admin/src/components/LoginPage.tsx:114
 #: packages/admin/src/components/SignupPage.tsx:156
@@ -12134,11 +12134,11 @@ msgstr "지금까지 추가된 샘플 콘텐츠는 유지됩니다. 계속해서
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:817
 msgid "The selected folder no longer exists. Choose another location and save again."
-msgstr ""
+msgstr "선택한 폴더가 더 이상 존재하지 않습니다. 다른 저장 위치를 선택한 뒤 다시 저장하세요."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:914
 msgid "The selected image could not be read."
-msgstr ""
+msgstr "선택한 이미지를 읽을 수 없습니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:194
 msgid "The server was updated while this ran. Reload the page and try again."
@@ -12225,7 +12225,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1955
 #: packages/admin/src/components/MediaDetailPanel.tsx:1989
 msgid "This cannot be undone"
-msgstr ""
+msgstr "이 작업은 되돌릴 수 없습니다"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
@@ -12295,11 +12295,11 @@ msgstr ""
 #. placeholder {0}: file.type
 #: packages/admin/src/components/media/ImageDropTarget.tsx:57
 msgid "This field does not accept {0} files."
-msgstr ""
+msgstr "이 필드에는 {0} 유형의 파일을 사용할 수 없습니다."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:643
 msgid "This field does not accept {mimeType} files."
-msgstr ""
+msgstr "이 필드에는 {mimeType} 유형의 파일을 사용할 수 없습니다."
 
 #: packages/admin/src/components/NonListFieldValue.tsx:27
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
@@ -12342,15 +12342,15 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "This folder is empty"
-msgstr ""
+msgstr "이 폴더는 비어 있습니다"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1411
 msgid "This folder is empty."
-msgstr ""
+msgstr "이 폴더는 비어 있습니다."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1739
 msgid "This image could not be loaded for cropping."
-msgstr ""
+msgstr "자르기에 사용할 이미지를 로드할 수 없습니다."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:458
 msgid "This import has already started"
@@ -12386,12 +12386,12 @@ msgstr "대규모 내보내기의 경우 시간이 걸릴 수 있습니다."
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:83
 msgid "This media item could not be loaded. Try again."
-msgstr ""
+msgstr "이 미디어 항목을 로드할 수 없습니다. 다시 시도하세요."
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:81
 #: packages/admin/src/components/MediaDetailPanel.tsx:811
 msgid "This media item no longer exists."
-msgstr ""
+msgstr "이 미디어 항목이 더 이상 존재하지 않습니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "This operation expired. Start again."
@@ -12671,7 +12671,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:300
 msgid "Track where media is used across your content."
-msgstr ""
+msgstr "콘텐츠 전반에서 미디어가 사용된 위치를 추적합니다."
 
 #: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
@@ -12744,7 +12744,7 @@ msgstr "참/거짓 토글"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "Try a broader media type or clear your filters."
-msgstr ""
+msgstr "더 넓은 범위의 미디어 유형을 선택하거나 필터를 초기화하세요."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:581
 msgid "Try a different search or collection filter."
@@ -12773,7 +12773,7 @@ msgstr "검색이나 필터를 조정해 보세요."
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:460
 #: packages/admin/src/routes/users.tsx:210
 msgid "Try again"
-msgstr ""
+msgstr "다시 시도"
 
 #: packages/admin/src/components/WordPressImport.tsx:1602
 msgid "Try Again"
@@ -12781,7 +12781,7 @@ msgstr "다시 시도"
 
 #: packages/admin/src/components/MediaLibrary.tsx:649
 msgid "Try again."
-msgstr ""
+msgstr "다시 시도하세요."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:182
 msgid "Try again. If it keeps failing, check the server logs."
@@ -12794,11 +12794,11 @@ msgstr "다른 코드 입력"
 #: packages/admin/src/components/MediaLibrary.tsx:1116
 #: packages/admin/src/components/MediaPickerModal.tsx:1409
 msgid "Try another filename or clear your search."
-msgstr ""
+msgstr "다른 파일 이름으로 검색하거나 검색을 초기화하세요."
 
 #: packages/admin/src/components/MediaLibrary.tsx:1079
 msgid "Try another filename, or clear your search and filters."
-msgstr ""
+msgstr "다른 파일 이름으로 검색하거나 검색과 필터를 초기화하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1306
 #: packages/admin/src/components/WordPressImport.tsx:1428
@@ -12820,15 +12820,15 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Turn on"
-msgstr ""
+msgstr "켜기"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:572
 msgid "Turn on media usage tracking?"
-msgstr ""
+msgstr "미디어 사용 현황 추적을 켤까요?"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Turning on…"
-msgstr ""
+msgstr "활성화 중…"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Twitter"
@@ -12857,7 +12857,7 @@ msgstr "유형 불일치({0})"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1551
 msgid "Type: Folder"
-msgstr ""
+msgstr "유형: 폴더"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:57
 msgid "TypeScript"
@@ -13057,7 +13057,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:138
 msgid "Updating usage"
-msgstr ""
+msgstr "사용 현황을 업데이트하는 중"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:353
 #: packages/admin/src/components/PluginManager.tsx:522
@@ -13070,7 +13070,7 @@ msgstr "업로드"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1413
 msgid "Upload a file to get started"
-msgstr ""
+msgstr "시작하려면 파일을 업로드하세요"
 
 #: packages/admin/src/components/WordPressImport.tsx:1411
 msgid "Upload an export file"
@@ -13097,11 +13097,11 @@ msgstr "내보내기 파일 업로드"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:209
 #: packages/admin/src/components/MediaUploadDialog.tsx:76
 msgid "Upload failed"
-msgstr ""
+msgstr "업로드 실패"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1075
 msgid "Upload files"
-msgstr ""
+msgstr "파일 업로드"
 
 #: packages/admin/src/components/MediaLibrary.tsx:750
 #: packages/admin/src/components/MediaLibrary.tsx:1106
@@ -13111,7 +13111,7 @@ msgstr "파일 업로드"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
-msgstr ""
+msgstr "이미지, 동영상, 문서를 업로드해 재사용할 자료를 한곳에서 관리하세요."
 
 #: packages/admin/src/components/Dashboard.tsx:343
 msgid "Upload Media"
@@ -13119,7 +13119,7 @@ msgstr "미디어 업로드"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
-msgstr ""
+msgstr "미디어를 업로드해 재사용할 자료를 한곳에서 관리하세요."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:258
 msgid "Upload not finished"
@@ -13136,7 +13136,7 @@ msgstr "{0}에 업로드"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:225
 msgid "Upload to {providerName}"
-msgstr ""
+msgstr "{providerName}에 업로드"
 
 #: packages/admin/src/components/WordPressImport.tsx:1140
 msgid "Upload WordPress export file"
@@ -13160,7 +13160,7 @@ msgstr "업로드 중"
 #: packages/admin/src/components/media/ImageDropTarget.tsx:134
 #: packages/admin/src/components/media/ImageDropTarget.tsx:147
 msgid "Uploading image…"
-msgstr ""
+msgstr "이미지 업로드 중…"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:416
 msgid "Uploading the package"
@@ -13194,39 +13194,39 @@ msgstr "URL용 식별자"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1348
 msgid "URL:"
-msgstr ""
+msgstr "URL:"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:129
 msgid "Usage completeness couldn’t be verified."
-msgstr ""
+msgstr "사용 현황이 모두 확인되었는지 검증하지 못했습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:181
 msgid "Usage details aren’t available for your account."
-msgstr ""
+msgstr "현재 계정으로는 사용 현황 상세 정보를 확인할 수 없습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:136
 msgid "Usage details unavailable"
-msgstr ""
+msgstr "사용 현황 상세 정보를 확인할 수 없음"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:124
 msgid "Usage indexing couldn’t finish."
-msgstr ""
+msgstr "사용 현황 색인을 완료하지 못했습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:109
 msgid "Usage indexing hasn’t started."
-msgstr ""
+msgstr "사용 현황 색인이 아직 시작되지 않았습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:98
 msgid "Usage is updating. Some content may not appear here yet."
-msgstr ""
+msgstr "사용 현황을 업데이트하고 있습니다. 일부 콘텐츠는 아직 여기에 표시되지 않을 수 있습니다."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:140
 msgid "Usage loaded"
-msgstr ""
+msgstr "사용 현황을 불러왔습니다"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:114
 msgid "Usage may be out of date."
-msgstr ""
+msgstr "사용 현황이 최신 상태가 아닐 수 있습니다."
 
 #: packages/admin/src/components/Redirects.tsx:113
 msgid "Use [param] or [...rest] in paths for pattern matching."
@@ -13238,7 +13238,7 @@ msgstr "보안 키 사용"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:639
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
-msgstr ""
+msgstr ".jpg 또는 .png처럼 인식할 수 있는 이미지 확장자로 끝나는 URL을 사용하세요."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:613
 msgid "Use another device"
@@ -13254,7 +13254,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1140
 msgid "Use URL"
-msgstr ""
+msgstr "URL 사용"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:333
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
@@ -13284,7 +13284,7 @@ msgstr "스크린 리더에서 사용되며, 이미지가 로드되지 않을 �
 #: packages/admin/src/components/MediaDetailPanel.tsx:1188
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
-msgstr ""
+msgstr "사용처"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
 msgid "Used in URLs and API endpoints"
@@ -13414,7 +13414,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:986
 #: packages/admin/src/components/MediaPickerModal.tsx:384
 msgid "Video"
-msgstr ""
+msgstr "동영상"
 
 #: packages/admin/src/components/Settings.tsx:113
 #: packages/admin/src/components/settings/EmailSettings.tsx:59
@@ -13432,7 +13432,7 @@ msgstr "게시된 {title} 보기"
 
 #: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "View setup"
-msgstr ""
+msgstr "설정 보기"
 
 #: packages/admin/src/components/Header.tsx:60
 msgid "View Site"
@@ -13473,7 +13473,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:594
 msgid "Wait for updates already in progress to finish."
-msgstr ""
+msgstr "이미 진행 중인 업데이트가 완료될 때까지 기다리세요."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:177
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:340
@@ -13579,7 +13579,7 @@ msgstr "입력한 내용은 그대로 유지됩니다. 저장하면 최신 버�
 
 #: packages/admin/src/components/MediaUsedIn.tsx:226
 msgid "What’s tracked"
-msgstr ""
+msgstr "추적 대상"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:548
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:773
@@ -13616,7 +13616,7 @@ msgstr "저자 정보가 이 순서로 표시되는 이유"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:521
 msgid "Why can't this be changed?"
-msgstr ""
+msgstr "변경할 수 없는 이유"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1056
 msgid "Why English is used"
@@ -13644,7 +13644,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:523
 msgid "Why is this important?"
-msgstr ""
+msgstr "대체 텍스트가 중요한 이유"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
 msgid "Wide"
@@ -13812,11 +13812,11 @@ msgstr "자신의 역할을 변경할 수 없습니다."
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:70
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:79
 msgid "You do not have permission to edit this asset."
-msgstr ""
+msgstr "이 미디어를 편집할 권한이 없습니다."
 
 #: packages/admin/src/components/MediaLibrary.tsx:647
 msgid "You don’t have permission to move this file."
-msgstr ""
+msgstr "이 파일을 이동할 권한이 없습니다."
 
 #: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "You have full access to manage this site, including users, settings, and all content."
@@ -13828,7 +13828,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:306
 msgid "You need Admin permissions to manage media usage tracking."
-msgstr ""
+msgstr "미디어 사용 현황 추적을 관리하려면 관리자 권한이 필요합니다."
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:70
 msgid "You need Admin permissions to transfer this site."
@@ -13947,7 +13947,7 @@ msgstr "LinkedIn 프로필 사용자 이름"
 #: packages/admin/src/components/MediaLibrary.tsx:1102
 #: packages/admin/src/components/MediaLibrary.tsx:1126
 msgid "Your media library is empty"
-msgstr ""
+msgstr "미디어 라이브러리가 비어 있습니다"
 
 #: packages/admin/src/components/SetupWizard.tsx:272
 msgid "Your Name"
@@ -13977,7 +13977,7 @@ msgstr "Twitter/X 핸들 (예: @username)"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1881
 msgid "Your unsaved media changes will be lost."
-msgstr ""
+msgstr "저장하지 않은 미디어 변경 사항이 사라집니다."
 
 #. placeholder {0}: attachments.count
 #: packages/admin/src/components/WordPressImport.tsx:2082
