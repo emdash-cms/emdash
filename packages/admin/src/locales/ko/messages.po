@@ -43,7 +43,7 @@ msgstr "\"{0}\" 파일이 영구적으로 삭제됩니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:608
 msgid "(pre-release)"
-msgstr ""
+msgstr "(사전 릴리스)"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:131
 msgid "(synced)"
@@ -51,7 +51,7 @@ msgstr "(동기화됨)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:611
 msgid "(too new)"
-msgstr ""
+msgstr "(공개 후 대기 기간 미충족)"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
@@ -144,7 +144,7 @@ msgstr "{0, plural, one {일치하는 태그 #개} other {일치하는 태그 #�
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:490
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
-msgstr ""
+msgstr "{0, plural, one {MCP 도구 #개} other {MCP 도구 #개}}"
 
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2299
@@ -169,7 +169,7 @@ msgstr "{0, plural, one {#개 메뉴를 가져옵니다} other {#개 메뉴를 �
 #. placeholder {0}: capabilities.length
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:226
 msgid "{0, plural, one {# permission requested} other {# permissions requested}}"
-msgstr ""
+msgstr "{0, plural, one {권한 #개 요청됨} other {권한 #개 요청됨}}"
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
@@ -292,7 +292,7 @@ msgstr "{0, plural, one {사용자} other {사용자}}"
 #. placeholder {2}: m.host
 #: packages/admin/src/components/RegistryPluginDetail.tsx:715
 msgid "{0} {1} required — you have {2}."
-msgstr ""
+msgstr "{0} {1}이(가) 필요합니다. 현재 버전은 {2}입니다."
 
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:272
@@ -302,7 +302,7 @@ msgstr "{0}이(가) 이 게시물에 추가되었습니다."
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:518
 msgid "{0} banner"
-msgstr ""
+msgstr "{0} 배너"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:440
@@ -332,7 +332,7 @@ msgstr "{0}이(가) 제거되었습니다"
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:530
 msgid "{0} icon"
-msgstr ""
+msgstr "{0} 아이콘"
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:223
@@ -447,7 +447,7 @@ msgstr "{0}이(가) 표시되는 모든 곳에 변경 사항이 적용되었습�
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:294
 msgid "{0} updated to v{installedVersion}"
-msgstr ""
+msgstr "{0}이(가) v{installedVersion}(으)로 업데이트되었습니다."
 
 #. placeholder {0}: draft.description.length
 #: packages/admin/src/components/SeoPanel.tsx:215
@@ -466,7 +466,7 @@ msgstr ""
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:466
 msgid "{base} to: {0}"
-msgstr ""
+msgstr "{base} — 연결 대상: {0}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:361
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
@@ -647,7 +647,7 @@ msgstr "{pluginName}에는 다음 권한이 필요합니다."
 #: packages/admin/src/components/PluginSettings.tsx:142
 #: packages/admin/src/components/PluginSettings.tsx:170
 msgid "{pluginName} Settings"
-msgstr ""
+msgstr "{pluginName} 설정"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:488
 msgid "{plural} go live now; draft edits stay unpublished."
@@ -1018,7 +1018,7 @@ msgstr "접근이 거부되었습니다"
 #: packages/admin/src/lib/api/marketplace.ts:433
 #: packages/admin/src/lib/api/marketplace.ts:443
 msgid "Access your media library"
-msgstr ""
+msgstr "미디어 라이브러리에 접근"
 
 #: packages/admin/src/components/SetupWizard.tsx:408
 msgid "Account"
@@ -1330,25 +1330,25 @@ msgstr "발송 후:"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:136
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to external websites without a host restriction."
-msgstr ""
+msgstr "이 플러그인을 직접 호출하면 저장하지 않은 편집기 콘텐츠 중 선택된 내용을 호스트 제한 없이 외부 웹사이트로 전송할 수 있습니다."
 
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:135
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
-msgstr ""
+msgstr "이 플러그인을 직접 호출하면 저장하지 않은 편집기 콘텐츠 중 선택된 내용을 다음 대상으로 전송할 수 있습니다: {0}"
 
 #: packages/admin/src/components/PluginManager.tsx:599
 msgid "Agent access"
-msgstr ""
+msgstr "에이전트 접근"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:396
 msgid "Agent access for {0} has been updated"
-msgstr ""
+msgstr "{0}의 에이전트 접근 설정이 업데이트되었습니다."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "Agent-callable MCP tools"
-msgstr ""
+msgstr "에이전트가 호출할 수 있는 MCP 도구"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4822
 msgid "Align Center"
@@ -1427,7 +1427,7 @@ msgstr "모든 업로드가 완료되었습니다"
 
 #: packages/admin/src/components/PluginManager.tsx:601
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
-msgstr ""
+msgstr "플러그인 도구 권한 범위가 있는 MCP 토큰이 이 라우트를 호출하도록 허용합니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:1025
 msgid "Allow multiple references"
@@ -1658,7 +1658,7 @@ msgstr "승인"
 
 #: packages/admin/src/lib/api/marketplace.ts:423
 msgid "Approve comments and mark them as pending or spam"
-msgstr ""
+msgstr "댓글을 승인하고 승인 대기 또는 스팸으로 표시"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:155
 msgid "Approve this export?"
@@ -1817,7 +1817,7 @@ msgstr "기기 승인"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:208
 msgid "Authorized approvers"
-msgstr ""
+msgstr "승인 권한이 있는 승인자"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorizing..."
@@ -1943,7 +1943,7 @@ msgstr "메뉴로 돌아가기"
 #: packages/admin/src/components/PluginSettings.tsx:118
 #: packages/admin/src/components/RegistryPluginDetail.tsx:908
 msgid "Back to plugins"
-msgstr ""
+msgstr "플러그인으로 돌아가기"
 
 #: packages/admin/src/components/SectionEditor.tsx:92
 #: packages/admin/src/components/SectionEditor.tsx:195
@@ -2074,7 +2074,7 @@ msgstr "끊어진 참조가 제거되었습니다"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:106
 msgid "Browse and install plugins published to the decentralized registry."
-msgstr ""
+msgstr "분산형 레지스트리에 공개된 플러그인을 찾아보고 설치하세요."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:89
 msgid "Browse and install plugins to extend your site."
@@ -2095,7 +2095,7 @@ msgstr "업로드할 파일 선택"
 
 #: packages/admin/src/components/PluginManager.tsx:67
 msgid "Browse the <0>registry</0> to install plugins."
-msgstr ""
+msgstr "<0>레지스트리</0>에서 설치할 플러그인을 찾아보세요."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -2103,7 +2103,7 @@ msgstr "테마를 찾아보고 자신만의 콘텐츠로 미리 보세요."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:159
 msgid "Build provenance verified"
-msgstr ""
+msgstr "빌드 출처 검증됨"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
 #: packages/admin/src/components/PortableTextEditor.tsx:1759
@@ -2382,11 +2382,11 @@ msgstr "예약 변경"
 
 #: packages/admin/src/lib/api/marketplace.ts:432
 msgid "Change where visitors are sent"
-msgstr ""
+msgstr "방문자가 이동할 대상 변경"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:896
 msgid "Changelog"
-msgstr ""
+msgstr "변경 이력"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:980
 msgid "Changes apply everywhere this byline appears."
@@ -2410,19 +2410,19 @@ msgstr "업데이트 확인"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:23
 msgid "Check registry in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjs에서 registry 설정을 확인한 다음 EmDash를 다시 시작하세요."
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:14
 msgid "Check registry.aggregatorUrl in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjs에서 registry.aggregatorUrl 설정을 확인한 다음 EmDash를 다시 시작하세요."
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:17
 msgid "Check registry.policy.minimumReleaseAge in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjs에서 registry.policy.minimumReleaseAge 설정을 확인한 다음 EmDash를 다시 시작하세요."
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:20
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "astro.config.mjs에서 registry.policy.minimumReleaseAgeExclude 설정을 확인한 다음 EmDash를 다시 시작하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1117
 msgid "Check Site"
@@ -2602,11 +2602,11 @@ msgstr "검색 초기화"
 
 #: packages/admin/src/components/PluginSettings.tsx:354
 msgid "Clear stored value"
-msgstr ""
+msgstr "저장된 값 지우기"
 
 #: packages/admin/src/components/PluginSettings.tsx:352
 msgid "Clear stored value for {fieldKey}"
-msgstr ""
+msgstr "{fieldKey}의 저장된 값 지우기"
 
 #: packages/admin/src/locales/emails.ts:47
 msgid "Click the button below to create your account:"
@@ -2894,12 +2894,12 @@ msgstr "{0}에 연결"
 #: packages/admin/src/lib/api/marketplace.ts:439
 #: packages/admin/src/lib/api/marketplace.ts:447
 msgid "Connect to any network host and load external plugin admin images (unrestricted)"
-msgstr ""
+msgstr "모든 네트워크 호스트에 연결하고 플러그인 관리 화면에서 외부 이미지 로드(제한 없음)"
 
 #: packages/admin/src/lib/api/marketplace.ts:438
 #: packages/admin/src/lib/api/marketplace.ts:446
 msgid "Connect to network hosts and load external plugin admin images"
-msgstr ""
+msgstr "네트워크 호스트에 연결하고 플러그인 관리 화면에서 외부 이미지 로드"
 
 #: packages/admin/src/components/WordPressImport.tsx:1393
 msgid "Connect with WordPress"
@@ -3427,7 +3427,7 @@ msgstr "분류 만들기"
 
 #: packages/admin/src/lib/api/marketplace.ts:429
 msgid "Create taxonomy terms and change content classifications"
-msgstr ""
+msgstr "분류 항목을 만들고 콘텐츠 분류 변경"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:253
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
@@ -3461,7 +3461,7 @@ msgstr "시작하려면 첫 번째 재사용 가능한 콘텐츠 섹션을 만�
 #: packages/admin/src/lib/api/marketplace.ts:419
 #: packages/admin/src/lib/api/marketplace.ts:442
 msgid "Create, update, and delete content"
-msgstr ""
+msgstr "콘텐츠 생성, 업데이트 및 삭제"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:83
 msgid "Create, update, and delete navigation menus"
@@ -3567,7 +3567,7 @@ msgstr "현재 셀"
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
-msgstr ""
+msgstr "이미 설정됨 — 변경하려면 새 값을 입력하세요"
 
 #: packages/admin/src/components/Sections.tsx:59
 msgid "Custom"
@@ -3642,7 +3642,7 @@ msgstr "소수"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:829
 msgid "Declared permissions"
-msgstr ""
+msgstr "선언된 권한"
 
 #: packages/admin/src/components/editor/TableControls.tsx:33
 msgid "Decrease column width"
@@ -4001,7 +4001,7 @@ msgstr "대상 경로"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:309
 #: packages/admin/src/components/PluginManager.tsx:620
 msgid "Destructive"
-msgstr ""
+msgstr "파괴적 작업"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1144
 #: packages/admin/src/components/MediaDetailPanel.tsx:1186
@@ -4050,7 +4050,7 @@ msgstr "플러그인 비활성화"
 
 #: packages/admin/src/components/PluginManager.tsx:610
 msgid "Disable plugin MCP tools"
-msgstr ""
+msgstr "플러그인 MCP 도구 비활성화"
 
 #: packages/admin/src/components/Redirects.tsx:522
 msgid "Disable redirect"
@@ -4265,7 +4265,7 @@ msgstr "\"패키지 다운로드\"는 내보낸 파일을 하나씩 받아 각�
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:571
 msgid "Download SBOM"
-msgstr ""
+msgstr "SBOM 다운로드"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:99
 msgid "Download this site as a single .emdash package file that another EmDash site can import."
@@ -4524,7 +4524,7 @@ msgstr "편집 잠금"
 
 #: packages/admin/src/lib/api/marketplace.ts:435
 msgid "Edit media alt text, captions, and focal points"
-msgstr ""
+msgstr "미디어 대체 텍스트, 캡션 및 초점 편집"
 
 #: packages/admin/src/components/MenuEditor.tsx:579
 msgid "Edit Menu Item"
@@ -4723,7 +4723,7 @@ msgstr "플러그인 활성화"
 
 #: packages/admin/src/components/PluginManager.tsx:611
 msgid "Enable plugin MCP tools"
-msgstr ""
+msgstr "플러그인 MCP 도구 활성화"
 
 #: packages/admin/src/components/Redirects.tsx:522
 msgid "Enable redirect"
@@ -4874,7 +4874,7 @@ msgstr "이 이미지를 사용하는 모든 곳에 선택한 이미지가 적�
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:675
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
-msgstr ""
+msgstr "이 플러그인의 공개된 릴리스가 모두 철회되었거나 검증되지 않았습니다. 나중에 다시 확인하거나 게시자에게 문의하세요."
 
 #: packages/admin/src/components/ContentTypeList.tsx:270
 msgid "Every relationship this content type takes part in goes too:"
@@ -5023,7 +5023,7 @@ msgstr "가져오기를 취소하지 못했습니다"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:74
 msgid "Failed to communicate with plugin"
-msgstr ""
+msgstr "플러그인과 통신하지 못했습니다."
 
 #: packages/admin/src/lib/api/media.ts:374
 msgid "Failed to confirm upload"
@@ -5284,15 +5284,15 @@ msgstr "미디어 사용 현황 상세 정보를 가져오지 못했습니다"
 #: packages/admin/src/lib/api/plugins.ts:70
 #: packages/admin/src/lib/api/plugins.ts:74
 msgid "Failed to fetch plugin"
-msgstr ""
+msgstr "플러그인을 가져오지 못했습니다."
 
 #: packages/admin/src/lib/api/plugins.ts:114
 msgid "Failed to fetch plugin settings"
-msgstr ""
+msgstr "플러그인 설정을 가져오지 못했습니다."
 
 #: packages/admin/src/lib/api/plugins.ts:56
 msgid "Failed to fetch plugins"
-msgstr ""
+msgstr "플러그인 목록을 가져오지 못했습니다."
 
 #: packages/admin/src/lib/api/media.ts:642
 msgid "Failed to fetch provider media"
@@ -5367,7 +5367,7 @@ msgstr "미디어를 가져오지 못했습니다"
 #: packages/admin/src/lib/api/marketplace.ts:344
 #: packages/admin/src/lib/api/registry.ts:789
 msgid "Failed to install plugin"
-msgstr ""
+msgstr "플러그인을 설치하지 못했습니다."
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
@@ -5443,7 +5443,7 @@ msgstr "플러그인을 로드하지 못했습니다."
 
 #: packages/admin/src/components/PluginSettings.tsx:146
 msgid "Failed to load plugin settings"
-msgstr ""
+msgstr "플러그인 설정을 로드하지 못했습니다."
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/PluginManager.tsx:183
@@ -5452,7 +5452,7 @@ msgstr "플러그인을 로드하지 못했습니다: {0}"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:131
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
-msgstr ""
+msgstr "플러그인을 로드하지 못했습니다. 레지스트리 집계 서버에 접속할 수 없는 상태일 수 있습니다."
 
 #: packages/admin/src/components/RevisionHistory.tsx:200
 msgid "Failed to load revisions"
@@ -5481,7 +5481,7 @@ msgstr "사용자 목록을 로드하지 못했습니다: {0}"
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:58
 msgid "Failed to load widget"
-msgstr ""
+msgstr "위젯을 로드하지 못했습니다."
 
 #: packages/admin/src/lib/api/entry-lock.ts:51
 msgid "Failed to lock the entry"
@@ -5630,7 +5630,7 @@ msgstr "가져오기를 시작하지 못했습니다"
 #: packages/admin/src/lib/api/marketplace.ts:387
 #: packages/admin/src/lib/api/registry.ts:1003
 msgid "Failed to uninstall plugin"
-msgstr ""
+msgstr "플러그인을 제거하지 못했습니다."
 
 #: packages/admin/src/router.tsx:1339
 msgid "Failed to unpublish"
@@ -5669,15 +5669,15 @@ msgstr "미디어 업데이트에 실패했습니다"
 #: packages/admin/src/lib/api/marketplace.ts:370
 #: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
-msgstr ""
+msgstr "플러그인을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/plugins.ts:172
 msgid "Failed to update plugin MCP access"
-msgstr ""
+msgstr "플러그인 MCP 접근 설정을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/plugins.ts:133
 msgid "Failed to update plugin settings"
-msgstr ""
+msgstr "플러그인 설정을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
@@ -5713,7 +5713,7 @@ msgstr "인증을 검증하지 못했습니다"
 
 #: packages/admin/src/lib/api/registry.ts:734
 msgid "Failed to verify plugin"
-msgstr ""
+msgstr "플러그인을 검증하지 못했습니다."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:412
 msgid "Failed to verify registration"
@@ -5721,7 +5721,7 @@ msgstr "등록을 검증하지 못했습니다"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:895
 msgid "FAQ"
-msgstr ""
+msgstr "자주 묻는 질문"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
 #: packages/admin/src/components/settings/GeneralSettings.tsx:347
@@ -6082,7 +6082,7 @@ msgstr "게스트만"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
-msgstr ""
+msgstr "핸들을 확인할 수 없음"
 
 #: packages/admin/src/components/editor/TableControls.tsx:254
 msgid "Header column added"
@@ -6672,11 +6672,11 @@ msgstr "WordPress 사이트에 EmDash Exporter 플러그인을 설치하고 도�
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:894
 msgid "Installation"
-msgstr ""
+msgstr "설치"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:226
 msgid "Installation is unavailable."
-msgstr ""
+msgstr "설치할 수 없습니다."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:263
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:194
@@ -6705,7 +6705,7 @@ msgstr "정수"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:79
 msgid "INVALID HANDLE"
-msgstr ""
+msgstr "잘못된 핸들"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
@@ -6785,7 +6785,7 @@ msgstr "항목이 업데이트되었습니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:489
 msgid "Its listing has not been approved for display. Check back later."
-msgstr ""
+msgstr "이 플러그인의 목록 표시가 아직 승인되지 않았습니다. 나중에 다시 확인하세요."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:70
 #: packages/admin/src/components/SetupWizard.tsx:276
@@ -6946,7 +6946,7 @@ msgstr "마지막 사용: {0}"
 
 #: packages/admin/src/components/PluginManager.tsx:81
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
-msgstr ""
+msgstr "<0>문서<1/></0>에서 플러그인 설치 방법을 알아보세요."
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
 msgid "Learn more"
@@ -7176,7 +7176,7 @@ msgstr "메뉴 로드 중..."
 
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:259
 msgid "Loading plugin panel"
-msgstr ""
+msgstr "플러그인 패널 로드 중"
 
 #: packages/admin/src/components/PluginManager.tsx:174
 msgid "Loading plugins..."
@@ -7442,7 +7442,7 @@ msgstr "더 이상 마켓플레이스를 탐색할 수 없습니다. 설치된 �
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:14
 msgid "Marketplace configuration is deprecated"
-msgstr ""
+msgstr "마켓플레이스 설정은 더 이상 권장되지 않습니다"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:339
 msgid "Matched by email"
@@ -7663,7 +7663,7 @@ msgstr "메타 제목, 설명, 소셜 이미지"
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:18
 msgid "Migration guide"
-msgstr ""
+msgstr "전환 안내"
 
 #: packages/admin/src/components/WordPressImport.tsx:1073
 msgid "Migration key"
@@ -7754,7 +7754,7 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
-msgstr ""
+msgstr "인기순"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:439
@@ -8019,11 +8019,11 @@ msgstr "새 폴더"
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:15
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
-msgstr ""
+msgstr "새 플러그인을 찾을 때는 레지스트리를 사용합니다. 전환하는 동안에도 기존 마켓플레이스 플러그인은 업데이트하거나 제거할 수 있습니다."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "New public routes"
-msgstr ""
+msgstr "새 공개 라우트"
 
 #: packages/admin/src/components/Redirects.tsx:108
 #: packages/admin/src/components/Redirects.tsx:373
@@ -8066,7 +8066,7 @@ msgstr "새 창"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:36
 msgid "Newest"
-msgstr ""
+msgstr "최신순"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:784
 msgid "News"
@@ -8194,7 +8194,7 @@ msgstr ""
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:96
 msgid "No content"
-msgstr ""
+msgstr "콘텐츠 없음"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:286
 msgid "No content found"
@@ -8274,7 +8274,7 @@ msgstr "이 갤러리에는 아직 이미지가 없습니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:673
 msgid "No installable releases"
-msgstr ""
+msgstr "설치 가능한 릴리스 없음"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:192
 msgid "No invite token provided"
@@ -8392,11 +8392,11 @@ msgstr "플러그인을 찾을 수 없습니다"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:153
 msgid "No plugins have been published to this registry yet."
-msgstr ""
+msgstr "이 레지스트리에는 아직 공개된 플러그인이 없습니다."
 
 #: packages/admin/src/components/RegistryBrowse.tsx:152
 msgid "No plugins match \"{debouncedQuery}\"."
-msgstr ""
+msgstr "\"{debouncedQuery}\"와(과) 일치하는 플러그인이 없습니다."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1358
 msgid "No public URL available"
@@ -8506,7 +8506,7 @@ msgstr "없음(최상위 수준)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:708
 msgid "Not compatible with this environment"
-msgstr ""
+msgstr "이 환경과 호환되지 않음"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:71
 msgid "Not matched"
@@ -9007,7 +9007,7 @@ msgstr "플러그인"
 
 #: packages/admin/src/lib/api/plugins.ts:68
 msgid "Plugin \"{pluginId}\" not found"
-msgstr ""
+msgstr "플러그인 \"{pluginId}\"을(를) 찾을 수 없습니다."
 
 #: packages/admin/src/lib/api/client.ts:68
 msgid "Plugin {pluginId} rejected the save: {reason}"
@@ -9016,11 +9016,11 @@ msgstr "플러그인 {pluginId}에서 저장을 거부했습니다: {reason}"
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:121
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:154
 msgid "Plugin action failed"
-msgstr ""
+msgstr "플러그인 작업을 수행하지 못했습니다"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:242
 msgid "Plugin actions"
-msgstr ""
+msgstr "플러그인 작업"
 
 #: packages/admin/src/components/ContentEditor.tsx:1628
 msgid "Plugin changes were not applied"
@@ -9032,7 +9032,7 @@ msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:841
 msgid "Plugin details"
-msgstr ""
+msgstr "플러그인 상세 정보"
 
 #: packages/admin/src/components/PluginManager.tsx:148
 msgid "Plugin disabled"
@@ -9044,20 +9044,20 @@ msgstr "플러그인 활성화됨"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:114
 msgid "Plugin Error"
-msgstr ""
+msgstr "플러그인 오류"
 
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:48
 msgid "Plugin error ({0})"
-msgstr ""
+msgstr "플러그인 오류({0})"
 
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
-msgstr ""
+msgstr "플러그인 설치에는 명시적인 동의가 필요합니다"
 
 #: packages/admin/src/components/PluginManager.tsx:395
 msgid "Plugin MCP access updated"
-msgstr ""
+msgstr "플러그인 MCP 접근 설정이 업데이트되었습니다"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
@@ -9066,7 +9066,7 @@ msgstr "플러그인 MCP 도구"
 
 #: packages/admin/src/lib/api/marketplace.ts:109
 msgid "Plugin MCP tools require explicit consent"
-msgstr ""
+msgstr "플러그인 MCP 도구에는 명시적인 동의가 필요합니다"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:133
 msgid "Plugin not found"
@@ -9074,11 +9074,11 @@ msgstr "플러그인을 찾을 수 없습니다"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:504
 msgid "Plugin not found. The publisher or slug may be incorrect."
-msgstr ""
+msgstr "플러그인을 찾을 수 없습니다. 게시자 또는 슬러그가 올바르지 않을 수 있습니다."
 
 #: packages/admin/src/components/PluginManager.tsx:541
 msgid "Plugin pages"
-msgstr ""
+msgstr "플러그인 페이지"
 
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:265
 #: packages/admin/src/lib/content-editor-panels.tsx:192
@@ -9091,12 +9091,12 @@ msgstr "플러그인 권한"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
 msgid "Plugin Registry"
-msgstr ""
+msgstr "플러그인 레지스트리"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:30
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:31
 msgid "Plugin registry configuration error"
-msgstr ""
+msgstr "플러그인 레지스트리 설정 오류"
 
 #: packages/admin/src/router.tsx:2459
 #: packages/admin/src/router.tsx:2490
@@ -9106,7 +9106,7 @@ msgstr "플러그인 레지스트리가 설정되지 않았습니다."
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:55
 msgid "Plugin responded with {0}: {text}"
-msgstr ""
+msgstr "플러그인이 {0} 응답을 반환했습니다: {text}"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:527
@@ -9121,7 +9121,7 @@ msgstr "플러그인이 제거되었습니다."
 #: packages/admin/src/lib/api/marketplace.ts:232
 #: packages/admin/src/lib/api/registry.ts:918
 msgid "Plugin update requires re-consent"
-msgstr ""
+msgstr "플러그인 업데이트에는 다시 동의해야 합니다"
 
 #: packages/admin/src/components/PluginManager.tsx:293
 msgid "Plugin updated"
@@ -9129,7 +9129,7 @@ msgstr "플러그인이 업데이트되었습니다."
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:34
 msgid "Plugin widget error"
-msgstr ""
+msgstr "플러그인 위젯 오류"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:222
 #: packages/admin/src/components/PluginManager.tsx:173
@@ -9177,7 +9177,7 @@ msgstr "페이지당 게시물 수"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Pre-release"
-msgstr ""
+msgstr "사전 릴리스"
 
 #: packages/admin/src/components/WordPressImport.tsx:918
 msgid "Preparing categories and tags..."
@@ -9257,7 +9257,7 @@ msgstr "비공개"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:183
 msgid "Profile CID"
-msgstr ""
+msgstr "프로필 CID"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:347
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:477
@@ -9270,15 +9270,15 @@ msgstr "진행 중단됨"
 
 #: packages/admin/src/lib/api/marketplace.ts:426
 msgid "Propose unsaved changes to selected editor fields for your review"
-msgstr ""
+msgstr "선택된 편집기 필드에 대한 저장되지 않은 변경 사항을 검토용으로 제안"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:199
 msgid "Provenance optional"
-msgstr ""
+msgstr "빌드 출처 선택 사항"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:198
 msgid "Provenance required"
-msgstr ""
+msgstr "빌드 출처 필수"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:167
 msgid "Provider:"
@@ -9286,7 +9286,7 @@ msgstr "제공업체:"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "Public routes"
-msgstr ""
+msgstr "공개 라우트"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:932
 #: packages/admin/src/components/ContentSettingsPanel.tsx:937
@@ -9333,7 +9333,7 @@ msgstr "지금 게시하시겠습니까?"
 
 #: packages/admin/src/lib/api/marketplace.ts:420
 msgid "Publish, unpublish, schedule, and unschedule content"
-msgstr ""
+msgstr "콘텐츠 게시, 게시 취소, 예약 및 예약 취소"
 
 #: packages/admin/src/components/ContentList.tsx:925
 #: packages/admin/src/components/ContentList.tsx:936
@@ -9358,23 +9358,23 @@ msgstr "게시 날짜"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:549
 msgid "Published by <0/>"
-msgstr ""
+msgstr "게시자: <0/>"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:202
 msgid "Publisher approval required for every delegated release"
-msgstr ""
+msgstr "위임된 모든 릴리스에 게시자 승인 필요"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:203
 msgid "Publisher approval required only for permission escalation"
-msgstr ""
+msgstr "권한 확대 시에만 게시자 승인 필요"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:658
 msgid "Publisher handle verification failed"
-msgstr ""
+msgstr "게시자 핸들 검증 실패"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:195
 msgid "Publisher release policy"
-msgstr ""
+msgstr "게시자 릴리스 정책"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:907
 msgid "Publishing summary"
@@ -9422,11 +9422,11 @@ msgstr "원본 메타데이터"
 
 #: packages/admin/src/lib/api/marketplace.ts:421
 msgid "Read and restore trashed content"
-msgstr ""
+msgstr "휴지통의 콘텐츠 읽기 및 복원"
 
 #: packages/admin/src/lib/api/marketplace.ts:424
 msgid "Read collection and field definitions"
-msgstr ""
+msgstr "컬렉션 및 필드 정의 읽기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
@@ -9434,7 +9434,7 @@ msgstr "컬렉션 스키마 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:422
 msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
-msgstr ""
+msgstr "댓글 본문, 작성자 이메일 주소, 가명 처리된 IP 해시, 사용자 에이전트 및 댓글 관리 메타데이터 읽기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
@@ -9442,7 +9442,7 @@ msgstr "콘텐츠 항목 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:434
 msgid "Read media file contents"
-msgstr ""
+msgstr "미디어 파일 내용 읽기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
@@ -9450,19 +9450,19 @@ msgstr "미디어 파일 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:430
 msgid "Read public byline profiles and content credits"
-msgstr ""
+msgstr "공개 저자 정보 프로필 및 콘텐츠 기여 정보 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:431
 msgid "Read redirect rules"
-msgstr ""
+msgstr "리디렉션 규칙 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:418
 msgid "Read retained content revision history"
-msgstr ""
+msgstr "보관된 콘텐츠 버전 기록 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:425
 msgid "Read selected unsaved editor content after you explicitly invoke the plugin"
-msgstr ""
+msgstr "플러그인을 직접 호출한 후 저장하지 않은 편집기 콘텐츠 중 선택된 내용 읽기"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
@@ -9471,16 +9471,16 @@ msgstr "사이트 설정 읽기"
 #: packages/admin/src/lib/api/marketplace.ts:437
 #: packages/admin/src/lib/api/marketplace.ts:445
 msgid "Read user accounts"
-msgstr ""
+msgstr "사용자 계정 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:417
 #: packages/admin/src/lib/api/marketplace.ts:441
 msgid "Read your content"
-msgstr ""
+msgstr "콘텐츠 읽기"
 
 #: packages/admin/src/lib/api/marketplace.ts:428
 msgid "Read your taxonomies and terms"
-msgstr ""
+msgstr "분류 및 분류 항목 읽기"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
 msgid "Read-only"
@@ -9533,7 +9533,7 @@ msgstr "최근 게시물"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:43
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:35
 msgid "Recently Updated"
-msgstr ""
+msgstr "최근 업데이트순"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:107
 msgid "Recipient email"
@@ -9665,11 +9665,11 @@ msgstr "관계"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:189
 msgid "Release CID"
-msgstr ""
+msgstr "릴리스 CID"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:689
 msgid "Release is too new to install"
-msgstr ""
+msgstr "공개 후 대기 기간이 지나지 않아 설치할 수 없습니다"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:75
 msgid "Release notes"
@@ -10025,7 +10025,7 @@ msgstr "계속하려면 진행 차단 사유를 해결하세요."
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
-msgstr ""
+msgstr "게시자 핸들 확인 중..."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4763
 msgid "Restart numbering"
@@ -10147,7 +10147,7 @@ msgstr "검토"
 
 #: packages/admin/src/lib/api/marketplace.ts:427
 msgid "Review and block publishing, scheduling, and unpublishing content"
-msgstr ""
+msgstr "콘텐츠 게시, 예약 및 게시 취소를 검토하고 차단"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Review and moderate comments across your content."
@@ -10172,15 +10172,15 @@ msgstr "가져오기 검토"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:113
 msgid "Review the independently verified release evidence and permissions for {pluginName} before continuing."
-msgstr ""
+msgstr "계속하기 전에 {pluginName}의 독립적으로 검증된 릴리스 증거와 권한을 검토하세요."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:106
 msgid "Review Verified Plugin"
-msgstr ""
+msgstr "검증된 플러그인 검토"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:105
 msgid "Review Verified Update"
-msgstr ""
+msgstr "검증된 업데이트 검토"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:573
 msgid "Reviewing…"
@@ -10276,7 +10276,7 @@ msgstr "라우팅 가능"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:305
 #: packages/admin/src/components/PluginManager.tsx:624
 msgid "Route: {0} · Permission: {1}"
-msgstr ""
+msgstr "라우트: {0} · 권한: {1}"
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
 msgid "Row added above"
@@ -10349,7 +10349,7 @@ msgstr "변경 사항 저장"
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:226
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:245
 msgid "Save changes before running plugin actions"
-msgstr ""
+msgstr "플러그인 작업을 실행하기 전에 변경 사항을 저장하세요"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:93
 msgid "Save content as draft before publishing"
@@ -10419,12 +10419,12 @@ msgstr "저장 중…"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:561
 msgid "SBOM"
-msgstr ""
+msgstr "SBOM"
 
 #. placeholder {0}: sbom.format
 #: packages/admin/src/components/RegistryPluginDetail.tsx:559
 msgid "SBOM · {0}"
-msgstr ""
+msgstr "SBOM · {0}"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:645
 msgid "Scan it with a nearby phone or tablet."
@@ -10519,7 +10519,7 @@ msgstr "스크린샷"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:234
 msgid "Scroll to review all"
-msgstr ""
+msgstr "스크롤하여 모두 검토하세요"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:51
 msgid "SCSS"
@@ -10645,7 +10645,7 @@ msgstr "페이지 및 콘텐츠 검색..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:103
 #: packages/admin/src/components/RegistryBrowse.tsx:120
 msgid "Search plugins"
-msgstr ""
+msgstr "플러그인 검색"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:99
 #: packages/admin/src/components/RegistryBrowse.tsx:116
@@ -10675,7 +10675,7 @@ msgstr "태그 검색…"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
-msgstr ""
+msgstr "테마 검색"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:89
 msgid "Search themes..."
@@ -10787,7 +10787,7 @@ msgstr "보안 감사 통과"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:797
 msgid "Security contacts"
-msgstr ""
+msgstr "보안 연락처"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:267
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:435
@@ -10852,7 +10852,7 @@ msgstr "관계 선택"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:400
 msgid "Select a release before verifying it"
-msgstr ""
+msgstr "검증하기 전에 릴리스를 선택하세요"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:321
 msgid "Select all"
@@ -11248,7 +11248,7 @@ msgstr "{0}(으)로 로그인됨"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:160
 msgid "Signed release verified"
-msgstr ""
+msgstr "서명된 릴리스 검증됨"
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:56
 msgid "Signing in failed. Please try again."
@@ -11775,7 +11775,7 @@ msgstr "기술 세부 정보"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:172
 msgid "Technical verification details"
-msgstr ""
+msgstr "기술 검증 상세 정보"
 
 #: packages/admin/src/components/SetupWizard.tsx:218
 msgid "Template:"
@@ -11853,7 +11853,7 @@ msgstr "일반적으로 브라우저에 QR 코드가 표시됩니다."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:164
 msgid "The build provenance matches this release and its package."
-msgstr ""
+msgstr "빌드 출처가 이 릴리스 및 해당 패키지와 일치합니다."
 
 #: packages/admin/src/components/RelationForm.tsx:338
 msgid "The content types and slug cannot be changed after a relation is created."
@@ -12091,7 +12091,7 @@ msgstr "이 페이지가 계획을 불러온 후 명령줄이나 AI 어시스턴
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
-msgstr ""
+msgstr "플러그인 필드 위젯을 표시하지 못했습니다."
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:53
 msgid "The plugin has not saved these changes. Review them before updating the editor."
@@ -12109,7 +12109,7 @@ msgstr "사이트의 공개 URL(표준 링크 및 사이트맵에 사용됨)"
 #: packages/admin/src/components/RegistryBrowse.tsx:219
 #: packages/admin/src/components/RegistryPluginDetail.tsx:543
 msgid "The publisher identity cannot be verified."
-msgstr ""
+msgstr "게시자의 신원을 검증할 수 없습니다."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:197
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
@@ -12146,7 +12146,7 @@ msgstr "작업 중 서버가 업데이트되었습니다. 페이지를 새로고
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:165
 msgid "The signed publisher records and package are valid. Build provenance was not provided."
-msgstr ""
+msgstr "서명된 게시자 기록과 패키지가 유효합니다. 빌드 출처는 제공되지 않았습니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:179
 msgid "The site kept changing while it was exported. Try again when editing is quieter."
@@ -12207,7 +12207,7 @@ msgstr "리디렉션이 너무 많아 가져오기 전에 순환 여부를 확�
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:297
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
-msgstr ""
+msgstr "이 도구는 설치 후에도 에이전트 접근을 명시적으로 활성화할 때까지 비활성화된 상태로 유지됩니다."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:876
 msgid "This also removes:"
@@ -12420,27 +12420,27 @@ msgstr "스토리지에서 {0}을(를) 영구적으로 삭제합니다."
 
 #: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
-msgstr ""
+msgstr "게시자 프로필에 유효한 검증 메타데이터가 없어 이 플러그인을 설치할 수 없습니다. 게시자에게 최신 EmDash 플러그인 CLI로 다시 공개하도록 요청하세요."
 
 #: packages/admin/src/lib/api/registry.ts:756
 msgid "This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release."
-msgstr ""
+msgstr "릴리스의 빌드 출처를 검증할 수 없어 이 플러그인을 설치할 수 없습니다. 게시자에게 검증된 새 릴리스를 공개하도록 요청하세요."
 
 #: packages/admin/src/lib/api/registry.ts:760
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
-msgstr ""
+msgstr "서명된 게시자 기록의 검증에 실패하여 이 플러그인을 설치할 수 없습니다. 게시자에게 수정된 릴리스를 공개하도록 요청하세요."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:281
 msgid "This plugin exposes the following routes without authentication:"
-msgstr ""
+msgstr "이 플러그인은 다음 라우트를 인증 없이 공개합니다:"
 
 #: packages/admin/src/components/PluginSettings.tsx:177
 msgid "This plugin has no configurable settings."
-msgstr ""
+msgstr "이 플러그인에는 설정할 수 있는 항목이 없습니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:487
 msgid "This plugin is not available yet"
-msgstr ""
+msgstr "이 플러그인은 아직 사용할 수 없습니다"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:297
 msgid "This plugin requires no special permissions."
@@ -12448,11 +12448,11 @@ msgstr "이 플러그인에는 특별한 권한이 필요하지 않습니다."
 
 #: packages/admin/src/components/PluginManager.tsx:457
 msgid "This publisher identity no longer resolves."
-msgstr ""
+msgstr "이 게시자의 신원을 더 이상 확인할 수 없습니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:660
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
-msgstr ""
+msgstr "이 게시자의 핸들이 해당 신원과 연결되지 않습니다. 게시자가 핸들을 수정할 때까지 설치할 수 없습니다."
 
 #: packages/admin/src/components/Redirects.tsx:611
 msgid "This redirect rule will be permanently removed."
@@ -12460,7 +12460,7 @@ msgstr "이 리디렉션 규칙은 영구적으로 삭제됩니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:710
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
-msgstr ""
+msgstr "이 릴리스에는 현재 사이트의 실행 환경보다 최신 환경이 필요합니다. 설치하기 전에 업그레이드하세요."
 
 #: packages/admin/src/routes/bylines.tsx:875
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
@@ -12550,7 +12550,7 @@ msgstr "이 표에는 지원되지 않는 셀 서식, 병합된 셀 또는 열 �
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:280
 msgid "This update exposes the following routes without authentication:"
-msgstr ""
+msgstr "이 업데이트는 다음 라우트를 인증 없이 공개합니다:"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:163
 msgid "This version is not visible on the site"
@@ -12954,7 +12954,7 @@ msgstr "표시할 번역이 없는 항목 지정"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Unsaved content may leave your site"
-msgstr ""
+msgstr "저장하지 않은 콘텐츠가 사이트 외부로 전송될 수 있습니다"
 
 #: packages/admin/src/router.tsx:1433
 msgid "Unscheduled"
@@ -13087,7 +13087,7 @@ msgstr "미디어 업로드 및 삭제"
 #: packages/admin/src/lib/api/marketplace.ts:436
 #: packages/admin/src/lib/api/marketplace.ts:444
 msgid "Upload and manage media"
-msgstr ""
+msgstr "미디어 업로드 및 관리"
 
 #: packages/admin/src/components/WordPressImport.tsx:1304
 #: packages/admin/src/components/WordPressImport.tsx:1425
@@ -13366,11 +13366,11 @@ msgstr "검증됨"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:68
 msgid "Verified publisher"
-msgstr ""
+msgstr "검증된 게시자"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:417
 msgid "Verify the plugin before installing it"
-msgstr ""
+msgstr "설치하기 전에 플러그인을 검증하세요"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:65
 msgid "Verifying the import"
@@ -13440,11 +13440,11 @@ msgstr "사이트 보기"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:755
 msgid "View source"
-msgstr ""
+msgstr "소스 보기"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:1000
 msgid "View the {license} license on spdx.org"
-msgstr ""
+msgstr "spdx.org에서 {license} 라이선스 보기"
 
 #: packages/admin/src/components/Redirects.tsx:465
 msgid "Visitors hitting these paths will see an error."
@@ -13704,7 +13704,7 @@ msgstr "너비"
 
 #: packages/admin/src/components/PluginSettings.tsx:338
 msgid "Will be cleared on save"
-msgstr ""
+msgstr "저장 시 지워집니다"
 
 #: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Will create"
@@ -13740,7 +13740,7 @@ msgstr "항목 {selectedCount}개 처리 중…"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:282
 msgid "Working…"
-msgstr ""
+msgstr "작업 중…"
 
 #: packages/admin/src/components/Widgets.tsx:904
 msgid "Write widget content..."
@@ -13969,7 +13969,7 @@ msgstr "현재 역할로는 이 기기에서 요청한 권한을 하나도 사�
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:691
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
-msgstr ""
+msgstr "사이트 설정에 따라 릴리스는 공개 후 최소 {0}이(가) 지나야 설치할 수 있습니다. 이 릴리스는 나중에 설치할 수 있게 됩니다."
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:142
 msgid "Your Twitter/X handle (e.g., @username)"
