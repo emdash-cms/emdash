@@ -536,7 +536,7 @@ msgstr "{menuName}의 {label}"
 #. placeholder {1}: images.length
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:170
 msgid "{label} moved to position {0} of {1}."
-msgstr ""
+msgstr "{label} 항목이 전체 {1}개 중 {0}번째 위치로 이동했습니다."
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/BylineCreditsEditor.tsx:291
@@ -770,15 +770,15 @@ msgstr "<0>{from}</0>에서 <1>{to}</1>(으)로 변경됨"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:79
 msgid "<0>{name}</0> is editing this entry. Nothing you change here will be saved."
-msgstr ""
+msgstr "<0>{name}</0> 님이 이 항목을 편집 중입니다. 여기서 변경하는 내용은 저장되지 않습니다."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:44
 msgid "<0>{name}</0> is editing this entry. Open it read-only, or take over; they will be told the entry moved on."
-msgstr ""
+msgstr "<0>{name}</0> 님이 이 항목을 편집 중입니다. 읽기 전용으로 열거나 편집을 넘겨받으세요. 편집을 넘겨받으면 상대방에게 알림이 표시됩니다."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:74
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
-msgstr ""
+msgstr "<0>{name}</0> 님이 현재 이 항목의 편집 잠금을 보유하고 있어 변경 사항이 더 이상 저장되지 않습니다. 계속하려면 편집을 다시 넘겨받으세요."
 
 #: packages/admin/src/components/BulkTagDialog.tsx:426
 msgid "1 post updated"
@@ -1066,7 +1066,7 @@ msgstr "활성"
 #: packages/admin/src/components/BlockTypeList.tsx:32
 #: packages/admin/src/components/FieldEditor.tsx:1140
 msgid "Active v{0}"
-msgstr ""
+msgstr "활성 v{0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:174
 #: packages/admin/src/components/BylineCreditsEditor.tsx:506
@@ -1111,7 +1111,7 @@ msgstr "저자 정보 더 추가"
 
 #: packages/admin/src/components/BlocksField.tsx:272
 msgid "Add at least {minItems} blocks."
-msgstr ""
+msgstr "블록을 최소 {minItems}개 추가하세요."
 
 #: packages/admin/src/components/FieldEditor.tsx:1197
 msgid "Add at least one sub-field to define the repeater structure."
@@ -1119,7 +1119,7 @@ msgstr "반복 필드 구조를 정의하려면 하위 필드를 하나 이상 �
 
 #: packages/admin/src/components/BlocksField.tsx:173
 msgid "Add block"
-msgstr ""
+msgstr "블록 추가"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:420
 msgid "Add byline"
@@ -1147,7 +1147,7 @@ msgstr "커스텀 링크 추가"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Add dark mode variant"
-msgstr ""
+msgstr "다크 모드용 대체 이미지 추가"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:220
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
@@ -1182,11 +1182,11 @@ msgstr "첫 번째 항목 추가"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:265
 msgid "Add Images"
-msgstr ""
+msgstr "이미지 추가"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:321
 msgid "Add images to gallery"
-msgstr ""
+msgstr "갤러리에 이미지 추가"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2459
 msgid "Add item"
@@ -1206,7 +1206,7 @@ msgstr "탐색 메뉴에 링크를 추가하여 구성하세요."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:165
 msgid "Add MIME type or extension"
-msgstr ""
+msgstr "MIME 유형 또는 확장자 추가"
 
 #: packages/admin/src/components/ContentList.tsx:445
 msgid "Add New"
@@ -1322,7 +1322,7 @@ msgstr "고급"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:67
 msgid "After"
-msgstr ""
+msgstr "변경 후"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:191
 msgid "After send:"
@@ -1365,7 +1365,7 @@ msgstr "오른쪽 정렬"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:722
 msgid "Alignment"
-msgstr ""
+msgstr "정렬"
 
 #: packages/admin/src/components/ContentList.tsx:457
 msgid "All"
@@ -1452,7 +1452,7 @@ msgstr "허용된 도메인"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:105
 msgid "Allowed types"
-msgstr ""
+msgstr "허용할 유형"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:68
 msgid "Already assigned or duplicate"
@@ -1600,7 +1600,7 @@ msgstr "애니메이션 WebP 파일을 자르면 정지 이미지가 됩니다."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:27
 msgid "Another editor"
-msgstr ""
+msgstr "다른 편집자"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "Another import is already using this package."
@@ -1608,7 +1608,7 @@ msgstr "다른 가져오기가 이미 이 패키지를 사용하고 있습니다
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:108
 msgid "Any media type allowed (subject to global limits)."
-msgstr ""
+msgstr "모든 미디어 유형을 허용합니다(사이트 전체 제한은 적용됩니다)."
 
 #: packages/admin/src/components/RelationForm.tsx:354
 #: packages/admin/src/components/RelationForm.tsx:363
@@ -1637,7 +1637,7 @@ msgstr "적용"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:81
 msgid "Apply changes"
-msgstr ""
+msgstr "변경 사항 적용"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4142
 #: packages/admin/src/components/PortableTextEditor.tsx:4143
@@ -1991,7 +1991,7 @@ msgstr "Bash"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:61
 msgid "Before"
-msgstr ""
+msgstr "변경 전"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:186
 msgid "Before send:"
@@ -2017,7 +2017,7 @@ msgstr "소개"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlocksField.tsx:406
 msgid "Block {0}"
-msgstr ""
+msgstr "블록 {0}"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:188
 msgid "Block actions - drag to reorder, click for menu"
@@ -2251,7 +2251,7 @@ msgstr "취소"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:405
 msgid "Cancel (Esc)"
-msgstr ""
+msgstr "취소(Esc)"
 
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:141
@@ -2305,7 +2305,7 @@ msgstr "캡션"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:71
 msgid "Captions / Subtitles"
-msgstr ""
+msgstr "캡션 / 자막"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:461
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
@@ -2339,7 +2339,7 @@ msgstr "셀 병합됨"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
 msgid "Center"
-msgstr ""
+msgstr "가운데"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
@@ -2702,11 +2702,11 @@ msgstr "댓글 작성 허용 기간(일)"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:242
 msgid "Close gallery settings"
-msgstr ""
+msgstr "갤러리 설정 닫기"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:107
 msgid "Close image settings"
-msgstr ""
+msgstr "이미지 설정 닫기"
 
 #: packages/admin/src/components/users/UserDetail.tsx:121
 msgid "Close panel"
@@ -2734,7 +2734,7 @@ msgstr "코드 블록 작업"
 
 #: packages/admin/src/components/BlocksField.tsx:347
 msgid "Collapse block"
-msgstr ""
+msgstr "블록 접기"
 
 #: packages/admin/src/components/PluginManager.tsx:558
 #: packages/admin/src/components/PluginManager.tsx:563
@@ -3227,7 +3227,7 @@ msgstr "사용 현황을 불러오지 못했습니다."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
-msgstr ""
+msgstr "\"{draft}\"에 해당하는 MIME 유형을 찾을 수 없습니다. MIME 유형을 직접 입력하세요."
 
 #: packages/admin/src/components/MediaLibrary.tsx:639
 msgid "Couldn’t move file"
@@ -3608,7 +3608,7 @@ msgstr "대시보드"
 
 #: packages/admin/src/components/BlockTypeList.tsx:18
 msgid "Database-owned definitions available to blocks fields."
-msgstr ""
+msgstr "블록 필드에서 사용할 수 있는, 데이터베이스에서 관리하는 정의입니다."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
 #: packages/admin/src/components/ContentList.tsx:692
@@ -3762,7 +3762,7 @@ msgstr "백업을 삭제하시겠습니까?"
 
 #: packages/admin/src/components/BlocksField.tsx:382
 msgid "Delete block"
-msgstr ""
+msgstr "블록 삭제"
 
 #: packages/admin/src/routes/bylines.tsx:614
 #: packages/admin/src/routes/bylines.tsx:876
@@ -3796,7 +3796,7 @@ msgstr "콘텐츠 유형을 삭제하시겠습니까?"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:379
 msgid "Delete embed"
-msgstr ""
+msgstr "임베드 삭제"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:847
 msgid "Delete Field?"
@@ -3811,7 +3811,7 @@ msgstr "폴더 삭제"
 #: packages/admin/src/components/editor/GalleryNode.tsx:254
 #: packages/admin/src/components/editor/GalleryNode.tsx:255
 msgid "Delete gallery"
-msgstr ""
+msgstr "갤러리 삭제"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:131
 msgid "Delete HTML block"
@@ -3820,7 +3820,7 @@ msgstr "HTML 블록 삭제"
 #: packages/admin/src/components/editor/ImageNode.tsx:277
 #: packages/admin/src/components/editor/ImageNode.tsx:278
 msgid "Delete image"
-msgstr ""
+msgstr "이미지 삭제"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1896
 msgid "Delete media?"
@@ -3958,16 +3958,16 @@ msgstr "거부"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:521
 msgid "Describe the image"
-msgstr ""
+msgstr "이미지를 설명하세요"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:488
 #: packages/admin/src/components/editor/ImageNode.tsx:295
 msgid "Describe the image..."
-msgstr ""
+msgstr "이미지를 설명하세요..."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:509
 msgid "Describe the image's purpose and relevant details for people who cannot see it."
-msgstr ""
+msgstr "이미지를 볼 수 없는 사람을 위해 이미지의 목적과 관련 세부 정보를 설명하세요."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
 #: packages/admin/src/components/MediaDetailPanel.tsx:1584
@@ -4148,7 +4148,7 @@ msgstr "표시 이름"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:438
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:446
 msgid "Display size"
-msgstr ""
+msgstr "표시 크기"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:666
 msgid "Display Size"
@@ -4336,11 +4336,11 @@ msgstr "드래그하여 {0} 순서 변경"
 #: packages/admin/src/components/SortableContentSettingsSections.tsx:220
 #: packages/admin/src/components/SortableContentSettingsSections.tsx:221
 msgid "Drag to reorder {label}"
-msgstr ""
+msgstr "{label} 항목을 드래그하여 순서 변경"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:355
 msgid "Drag to reorder block"
-msgstr ""
+msgstr "블록을 드래그하여 순서 변경"
 
 #: packages/admin/src/components/Widgets.tsx:704
 msgid "Drag widgets here to add them"
@@ -4376,7 +4376,7 @@ msgstr "WordPress 내보내기 파일을 여기에 드롭하세요."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:309
 msgid "Duplicate"
-msgstr ""
+msgstr "복제"
 
 #: packages/admin/src/components/ContentList.tsx:1417
 msgid "Duplicate {title}"
@@ -4384,7 +4384,7 @@ msgstr "{title} 복제"
 
 #: packages/admin/src/components/BlocksField.tsx:373
 msgid "Duplicate block"
-msgstr ""
+msgstr "블록 복제"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:156
 msgid "Duplicate redirects were left out"
@@ -4392,7 +4392,7 @@ msgstr "중복 리디렉션이 제외되었습니다"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:164
 msgid "e.g. application/zip or .pdf"
-msgstr ""
+msgstr "예: application/zip 또는 .pdf"
 
 #: packages/admin/src/components/Redirects.tsx:170
 msgid "e.g. import, blog"
@@ -4484,7 +4484,7 @@ msgstr "저자 정보 필드 편집"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:425
 msgid "Edit dark mode asset"
-msgstr ""
+msgstr "다크 모드용 미디어 편집"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:330
 msgid "Edit Domain"
@@ -4512,7 +4512,7 @@ msgstr "이미지 편집"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryNode.tsx:215
 msgid "Edit image {0}"
-msgstr ""
+msgstr "이미지 {0} 편집"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4221
 msgid "Edit link"
@@ -4564,7 +4564,7 @@ msgstr "기여 역할 편집"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 msgid "Edit URL"
-msgstr ""
+msgstr "URL 편집"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
@@ -4699,7 +4699,7 @@ msgstr "EmDash가 기존 콘텐츠를 검사하여 미디어가 사용된 위치
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:197
 msgid "Empty gallery — open settings to add images"
-msgstr ""
+msgstr "갤러리가 비어 있습니다. 설정을 열어 이미지를 추가하세요"
 
 #: packages/admin/src/components/SetupWizard.tsx:173
 msgid "Empty site"
@@ -4794,7 +4794,7 @@ msgstr "터미널에 표시된 코드를 입력하세요"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:123
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:132
 msgid "Enter URL..."
-msgstr ""
+msgstr "URL을 입력하세요..."
 
 #: packages/admin/src/components/LoginPage.tsx:327
 msgid "Enter your handle to sign in."
@@ -4910,7 +4910,7 @@ msgstr "집중 모드 종료 (⌘⇧\\)"
 
 #: packages/admin/src/components/BlocksField.tsx:347
 msgid "Expand block"
-msgstr ""
+msgstr "블록 펼치기"
 
 #: packages/admin/src/components/PluginManager.tsx:558
 #: packages/admin/src/components/PluginManager.tsx:563
@@ -5485,7 +5485,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/entry-lock.ts:51
 msgid "Failed to lock the entry"
-msgstr ""
+msgstr "항목의 편집 잠금에 실패했습니다"
 
 #: packages/admin/src/router.tsx:2270
 msgid "Failed to perform bulk action"
@@ -5510,7 +5510,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/entry-lock.ts:70
 msgid "Failed to release the entry lock"
-msgstr ""
+msgstr "항목의 편집 잠금 해제에 실패했습니다"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:124
 msgid "Failed to remove domain"
@@ -5939,7 +5939,7 @@ msgstr "폴더 탐색"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:72
 msgid "Fonts"
-msgstr ""
+msgstr "글꼴"
 
 #: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "For a complete import including drafts and all content, export from WordPress."
@@ -5999,7 +5999,7 @@ msgstr "갤러리"
 #: packages/admin/src/components/editor/GalleryNode.tsx:242
 #: packages/admin/src/components/editor/GalleryNode.tsx:243
 msgid "Gallery settings"
-msgstr ""
+msgstr "갤러리 설정"
 
 #: packages/admin/src/components/Settings.tsx:54
 msgid "General"
@@ -6257,7 +6257,7 @@ msgstr "https://example.com 또는 /about"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:547
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:772
 msgid "https://example.com or /page"
-msgstr ""
+msgstr "https://example.com 또는 /page"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:404
 msgid "https://example.com/blog/my-post"
@@ -6314,12 +6314,12 @@ msgstr "이미지"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:174
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:368
 msgid "Image {0}"
-msgstr ""
+msgstr "이미지 {0}"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:322
 #: packages/admin/src/components/ImageFieldRenderer.tsx:336
 msgid "Image actions"
-msgstr ""
+msgstr "이미지 작업"
 
 #: packages/admin/src/components/FieldEditor.tsx:438
 msgid "Image from media library"
@@ -6344,7 +6344,7 @@ msgstr "이미지가 교체되었습니다."
 #: packages/admin/src/components/editor/ImageNode.tsx:265
 #: packages/admin/src/components/editor/ImageNode.tsx:266
 msgid "Image settings"
-msgstr ""
+msgstr "이미지 설정"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:622
 msgid "Image Settings"
@@ -6521,7 +6521,7 @@ msgstr "Windows 설정에서 계정, 로그인 옵션 순서로 이동하여 PIN
 
 #: packages/admin/src/components/BlocksField.tsx:359
 msgid "Inactive version"
-msgstr ""
+msgstr "비활성 버전"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:116
 msgid "Include comments"
@@ -6821,7 +6821,7 @@ msgstr "JSX"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:461
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:462
 msgid "Keep aspect ratio"
-msgstr ""
+msgstr "가로세로 비율 유지"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:316
 msgid "Keep editing paused and deploy a compatible EmDash version before continuing."
@@ -6958,7 +6958,7 @@ msgstr "할당되지 않은 상태로 두기"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
 msgid "Left"
-msgstr ""
+msgstr "왼쪽"
 
 #: packages/admin/src/components/MediaLibrary.tsx:319
 #: packages/admin/src/components/MediaLibrary.tsx:478
@@ -6996,7 +6996,7 @@ msgstr "다른 콘텐츠 항목에 대한 링크"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:543
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:768
 msgid "Link URL"
-msgstr ""
+msgstr "링크 URL"
 
 #. placeholder {0}: user.oauthAccounts.length
 #: packages/admin/src/components/users/UserDetail.tsx:276
@@ -7113,7 +7113,7 @@ msgstr "승인 요청 불러오는 중…"
 #: packages/admin/src/components/BlockTypeList.tsx:22
 #: packages/admin/src/components/FieldEditor.tsx:1059
 msgid "Loading block types…"
-msgstr ""
+msgstr "블록 유형 불러오는 중…"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
@@ -7730,15 +7730,15 @@ msgstr "{0} 추가 작업"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:510
 msgid "More information about {label}"
-msgstr ""
+msgstr "{label} 항목에 대한 자세한 정보"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:512
 msgid "More information about Alt text"
-msgstr ""
+msgstr "대체 텍스트에 대한 자세한 정보"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:436
 msgid "More information about Display size"
-msgstr ""
+msgstr "표시 크기에 대한 자세한 정보"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "More issues were found than are listed"
@@ -7895,12 +7895,12 @@ msgstr "표 앞 문단으로 이동됨"
 #. placeholder {1}: images.length
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:156
 msgid "Moving {label} to position {0} of {1}."
-msgstr ""
+msgstr "{label} 항목을 전체 {1}개 중 {0}번째 위치로 이동 중입니다."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:169
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:175
 msgid "Moving {label} was cancelled."
-msgstr ""
+msgstr "{label} 항목 이동이 취소되었습니다."
 
 #: packages/admin/src/components/Dashboard.tsx:268
 msgid "Moving from another EmDash site?"
@@ -8142,11 +8142,11 @@ msgstr "아직 승인된 댓글이 없습니다."
 
 #: packages/admin/src/components/BlockTypeList.tsx:24
 msgid "No block types defined"
-msgstr ""
+msgstr "정의된 블록 유형이 없습니다"
 
 #: packages/admin/src/components/BlocksField.tsx:226
 msgid "No blocks yet"
-msgstr ""
+msgstr "아직 블록이 없습니다"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:585
 msgid "No built-in passkey authenticator found"
@@ -8270,7 +8270,7 @@ msgstr "문서에 제목이 없습니다."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:271
 msgid "No images in this gallery yet."
-msgstr ""
+msgstr "이 갤러리에는 아직 이미지가 없습니다."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:673
 msgid "No installable releases"
@@ -8304,7 +8304,7 @@ msgstr "일치하는 항목이 없습니다. Enter 키를 누르면 “{freeForm
 
 #: packages/admin/src/components/BlocksField.tsx:217
 msgid "No matching block types"
-msgstr ""
+msgstr "일치하는 블록 유형이 없습니다"
 
 #: packages/admin/src/routes/bylines.tsx:634
 msgid "No matching bylines"
@@ -8497,7 +8497,7 @@ msgstr "게스트 제외"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
 msgid "None"
-msgstr ""
+msgstr "없음"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:821
 #: packages/admin/src/components/TaxonomyManager.tsx:830
@@ -8585,7 +8585,7 @@ msgstr "소문자, 숫자, 하이픈만 가능"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:109
 msgid "Only the listed MIME types will be accepted for this field."
-msgstr ""
+msgstr "이 필드에는 목록에 있는 MIME 유형만 허용됩니다."
 
 #: packages/admin/src/components/SignupPage.tsx:420
 msgid "Oops!"
@@ -8625,7 +8625,7 @@ msgstr "새 탭에서 열기"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:51
 msgid "Open read-only"
-msgstr ""
+msgstr "읽기 전용으로 열기"
 
 #: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "Open setup"
@@ -8658,7 +8658,7 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:494
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:530
 msgid "Optional caption"
-msgstr ""
+msgstr "캡션(선택 사항)"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
 msgid "Optional caption displayed below the image"
@@ -8674,7 +8674,7 @@ msgstr "설명(선택 사항)"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:538
 msgid "Optional hover text"
-msgstr ""
+msgstr "마우스를 올리면 표시되는 텍스트(선택 사항)"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:762
 msgid "Optional tooltip on hover"
@@ -8735,7 +8735,7 @@ msgstr "원본:"
 
 #: packages/admin/src/components/BlocksField.tsx:146
 msgid "Other"
-msgstr ""
+msgstr "기타"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1259
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
@@ -8911,7 +8911,7 @@ msgstr "콘텐츠를 업데이트하는 다른 도구를 일시 중지하세요.
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "PDF"
-msgstr ""
+msgstr "PDF"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
 msgid "pending"
@@ -8959,7 +8959,7 @@ msgstr "PHP"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
-msgstr ""
+msgstr "{label} 항목을 이동할 수 있도록 집었습니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:1384
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
@@ -9083,7 +9083,7 @@ msgstr ""
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:265
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
-msgstr ""
+msgstr "플러그인 패널을 사용할 수 없습니다."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:109
 msgid "Plugin Permissions"
@@ -9202,7 +9202,7 @@ msgstr "준비 중..."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:179
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
-msgstr ""
+msgstr "Space 키를 눌러 이미지를 집으세요. 방향키로 이동한 뒤 Space 키를 다시 눌러 놓으세요."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:102
@@ -9408,7 +9408,7 @@ msgstr "빠르게 만들면 이 필드와 이 컬렉션의 이름을 바탕으�
 #: packages/admin/src/components/editor/ImageNode.tsx:253
 #: packages/admin/src/components/editor/ImageNode.tsx:254
 msgid "Quick edit alt text"
-msgstr ""
+msgstr "대체 텍스트 빠른 편집"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
 #: packages/admin/src/components/PortableTextEditor.tsx:1779
@@ -9484,7 +9484,7 @@ msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
 msgid "Read-only"
-msgstr ""
+msgstr "읽기 전용"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:406
 msgid "Reading"
@@ -9720,7 +9720,7 @@ msgstr "선택 목록에서 {0} 제거"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:148
 msgid "Remove {entry}"
-msgstr ""
+msgstr "{entry} 제거"
 
 #: packages/admin/src/components/ContentEditor.tsx:3180
 msgid "Remove {label}"
@@ -9732,7 +9732,7 @@ msgstr "항목 지정 해제"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:437
 msgid "Remove dark mode variant"
-msgstr ""
+msgstr "다크 모드용 대체 이미지 삭제"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:383
 msgid "Remove Domain"
@@ -9755,11 +9755,11 @@ msgstr "이미지 삭제"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:392
 msgid "Remove image {0}"
-msgstr ""
+msgstr "이미지 {0} 삭제"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:355
 msgid "Remove image?"
-msgstr ""
+msgstr "이미지를 삭제할까요?"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:2660
@@ -9866,11 +9866,11 @@ msgstr "{label} 교체"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:410
 msgid "Replace dark mode image"
-msgstr ""
+msgstr "다크 모드용 이미지 교체"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:574
 msgid "Replace dark mode variant for {label}"
-msgstr ""
+msgstr "{label} 항목의 다크 모드용 대체 이미지 교체"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
@@ -9903,7 +9903,7 @@ msgstr "다른 EmDash 사이트에서 내보낸 패키지로 이 사이트의 �
 
 #: packages/admin/src/components/NonListFieldValue.tsx:30
 msgid "Replace with empty list"
-msgstr ""
+msgstr "빈 목록으로 교체"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:932
 #: packages/admin/src/components/MediaDetailPanel.tsx:1944
@@ -10068,7 +10068,7 @@ msgstr ""
 #: packages/admin/src/components/BlocksField.tsx:360
 #: packages/admin/src/components/FieldEditor.tsx:1096
 msgid "Retired"
-msgstr ""
+msgstr "사용 중단됨"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:475
 #: packages/admin/src/components/ContentEditor.tsx:2778
@@ -10164,7 +10164,7 @@ msgstr ""
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:51
 msgid "Review proposed changes"
-msgstr ""
+msgstr "제안된 변경 사항 검토"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:249
 msgid "Review the import"
@@ -10231,7 +10231,7 @@ msgstr "리치 텍스트 편집기"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
 msgid "Right"
-msgstr ""
+msgstr "오른쪽"
 
 #. placeholder {0}: latest.audit.riskScore
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:332
@@ -10327,11 +10327,11 @@ msgstr "저장"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:416
 msgid "Save (Enter)"
-msgstr ""
+msgstr "저장(Enter)"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:322
 msgid "Save alt text"
-msgstr ""
+msgstr "대체 텍스트 저장"
 
 #: packages/admin/src/components/ContentEditor.tsx:1654
 msgid "Save anyway"
@@ -10552,11 +10552,11 @@ msgstr "{label} 검색…"
 
 #: packages/admin/src/components/BlocksField.tsx:181
 msgid "Search block types"
-msgstr ""
+msgstr "블록 유형 검색"
 
 #: packages/admin/src/components/BlocksField.tsx:184
 msgid "Search blocks"
-msgstr ""
+msgstr "블록 검색"
 
 #: packages/admin/src/components/MediaLibrary.tsx:966
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
@@ -10881,7 +10881,7 @@ msgstr "콘텐츠 선택"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:575
 msgid "Select dark mode variant for {label}"
-msgstr ""
+msgstr "{label} 항목의 다크 모드용 대체 이미지 선택"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:289
 msgid "Select default social image"
@@ -10963,7 +10963,7 @@ msgstr "{selectedItemTitle} 선택됨"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:250
 #: packages/admin/src/components/ImageFieldRenderer.tsx:265
 msgid "Selected image"
-msgstr ""
+msgstr "선택한 이미지"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:937
 msgid "Selected media"
@@ -11055,7 +11055,7 @@ msgstr "이 이미지의 표시 크기를 직접 지정합니다."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:433
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
-msgstr ""
+msgstr "문서에 있는 이 이미지의 너비와 높이를 직접 지정합니다. 초기화하면 원본 미디어의 크기가 적용됩니다. 원본 미디어 파일은 변경되지 않습니다."
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Set language"
@@ -11501,7 +11501,7 @@ msgstr "병합된 셀 분할"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Spreadsheets"
-msgstr ""
+msgstr "스프레드시트"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:52
 msgid "SQL"
@@ -11714,12 +11714,12 @@ msgstr "태그({0})"
 #: packages/admin/src/components/EntryLockNotice.tsx:54
 #: packages/admin/src/components/EntryLockNotice.tsx:92
 msgid "Take over"
-msgstr ""
+msgstr "편집 넘겨받기"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:54
 #: packages/admin/src/components/EntryLockNotice.tsx:92
 msgid "Taking over..."
-msgstr ""
+msgstr "편집 넘겨받는 중..."
 
 #: packages/admin/src/components/MenuEditor.tsx:429
 #: packages/admin/src/components/MenuEditor.tsx:612
@@ -11909,7 +11909,7 @@ msgstr "다음 테이블에는 콘텐츠가 포함되어 있지만 컬렉션으�
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:184
 msgid "The image is in the Media Library, but this entry is now read-only."
-msgstr ""
+msgstr "이미지는 미디어 라이브러리에 있지만, 이 항목은 이제 읽기 전용입니다."
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:439
 msgid "The import can go ahead, but check these first."
@@ -12095,7 +12095,7 @@ msgstr ""
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:53
 msgid "The plugin has not saved these changes. Review them before updating the editor."
-msgstr ""
+msgstr "플러그인이 이 변경 사항을 저장하지 않았습니다. 편집기에 적용하기 전에 검토하세요."
 
 #: packages/admin/src/components/ContentEditor.tsx:927
 #: packages/admin/src/components/ContentEditor.tsx:943
@@ -12162,7 +12162,7 @@ msgstr "위에 나열된 초기 콘텐츠가 삭제되고 패키지의 콘텐츠
 
 #: packages/admin/src/components/NonListFieldValue.tsx:26
 msgid "The stored value doesn't match this field's type"
-msgstr ""
+msgstr "저장된 값이 이 필드의 유형과 일치하지 않습니다"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -12215,7 +12215,7 @@ msgstr "다음 항목도 삭제됩니다:"
 
 #: packages/admin/src/components/BlocksField.tsx:394
 msgid "This block cannot be edited because its stored definition is unavailable."
-msgstr ""
+msgstr "저장된 정의를 사용할 수 없어 이 블록을 편집할 수 없습니다."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
@@ -12270,7 +12270,7 @@ msgstr "이 항목은 게시되기 전까지 URL이 없습니다. 대신 URL을 
 
 #: packages/admin/src/components/EntryLockNotice.tsx:41
 msgid "This entry is open somewhere else"
-msgstr ""
+msgstr "이 항목이 다른 곳에서 열려 있습니다"
 
 #: packages/admin/src/components/ContentEditor.tsx:1637
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
@@ -12303,7 +12303,7 @@ msgstr "이 필드에는 {mimeType} 유형의 파일을 사용할 수 없습니�
 
 #: packages/admin/src/components/NonListFieldValue.tsx:27
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
-msgstr ""
+msgstr "이 필드에는 목록이 필요합니다. 빈 목록으로 교체하기 전까지 저장된 값은 그대로 유지되며, 교체하면 기존 값이 삭제됩니다. 먼저 필요한 내용을 복사하세요."
 
 #: packages/admin/src/components/ContentEditor.tsx:3212
 #: packages/admin/src/components/ImageFieldRenderer.tsx:597
@@ -12659,7 +12659,7 @@ msgstr "TOML"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:535
 msgid "Tooltip text"
-msgstr ""
+msgstr "툴팁 텍스트"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:98
 msgid "Track content history"
@@ -12816,7 +12816,7 @@ msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:297
 msgid "Turn into"
-msgstr ""
+msgstr "변환"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Turn on"
@@ -12963,12 +12963,12 @@ msgstr "게시 예약 취소됨"
 #: packages/admin/src/components/BlocksField.tsx:361
 #: packages/admin/src/components/ContentTypeEditor.tsx:938
 msgid "Unsupported"
-msgstr ""
+msgstr "지원되지 않음"
 
 #. placeholder {0}: (element as { type: string }).type
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:128
 msgid "Unsupported widget element type: {0}"
-msgstr ""
+msgstr "지원되지 않는 위젯 요소 유형: {0}"
 
 #. placeholder {0}: formatter.format(to)
 #: packages/admin/src/components/ContentList.tsx:1056
@@ -13403,12 +13403,12 @@ msgstr "버전"
 #: packages/admin/src/components/BlockTypeList.tsx:42
 #: packages/admin/src/components/RegistryPluginDetail.tsx:556
 msgid "Version {0}"
-msgstr ""
+msgstr "버전 {0}"
 
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:41
 msgid "Version {0} (active)"
-msgstr ""
+msgstr "버전 {0}(활성)"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
 #: packages/admin/src/components/MediaLibrary.tsx:986
@@ -13584,7 +13584,7 @@ msgstr "추적 대상"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:548
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:773
 msgid "When set, the image becomes a clickable link to this URL."
-msgstr ""
+msgstr "설정하면 이미지를 클릭할 때 이 URL로 이동합니다."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:146
 msgid "When the entry was created"
@@ -13648,7 +13648,7 @@ msgstr "대체 텍스트가 중요한 이유"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
 msgid "Wide"
-msgstr ""
+msgstr "넓게"
 
 #: packages/admin/src/components/Widgets.tsx:802
 #: packages/admin/src/components/Widgets.tsx:817
@@ -13840,7 +13840,7 @@ msgstr "댓글을 관리하려면 편집자 권한이 필요합니다."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
 msgid "You no longer hold this entry"
-msgstr ""
+msgstr "이 항목의 편집 잠금을 더 이상 보유하고 있지 않습니다"
 
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/settings/PasskeyItem.tsx:179
