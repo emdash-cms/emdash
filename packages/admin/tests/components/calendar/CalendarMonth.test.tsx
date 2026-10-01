@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import "../../../dist/styles.css";
 import type { CalendarEntry } from "../../../src/lib/api/calendar";
 import {
 	createCalendarDisplay,
@@ -57,26 +58,33 @@ const days = groupByDay(
 	}),
 );
 
-function renderMonth({
+function month({
 	compact = false,
 	today = "2026-10-15",
 	at = now,
+	shown = days,
+	unfilteredDays,
 	loadedThrough,
 	onMonthChange = () => {},
 	onSelect,
+	onClearFilters,
 }: {
 	compact?: boolean;
 	today?: string;
 	at?: number;
+	shown?: typeof days;
+	unfilteredDays?: typeof days;
 	loadedThrough?: string;
 	onMonthChange?: (month: string) => void;
 	onSelect?: (item: { key: string }, element: HTMLElement) => void;
+	onClearFilters?: () => void;
 } = {}) {
-	return render(
+	return (
 		<CalendarMonth
 			month="2026-10"
 			gridDays={monthGridDays("2026-10", 0)}
-			days={days}
+			days={shown}
+			unfilteredDays={unfilteredDays}
 			today={today}
 			now={at}
 			display={display}
@@ -84,11 +92,37 @@ function renderMonth({
 			loadedThrough={loadedThrough}
 			onMonthChange={onMonthChange}
 			onSelect={onSelect}
-		/>,
+			onClearFilters={onClearFilters}
+		/>
 	);
 }
 
+function renderMonth(options: Parameters<typeof month>[0] = {}) {
+	return render(month(options));
+}
+
 describe("CalendarMonth", () => {
+	it("keeps each week's height whichever entries filters leave", async () => {
+		// October 20, in the grid's fourth week, has a published entry and four scheduled.
+		const toDays = (entries: CalendarEntry[]) =>
+			groupByDay(toCalendarItems(entries, { timeZone, loadedAt: now, collectionOrder: ["posts"] }));
+		const scheduled = busyDay.slice(1, 5);
+		const all = toDays([
+			{ ...entry("done", "2026-10-20T00:00:00.000Z"), status: "published", kind: "published" },
+			...scheduled,
+		]);
+		const busyWeek = () => document.querySelectorAll("tbody tr")[3]!.getBoundingClientRect().height;
+		const screen = await renderMonth({ shown: all, unfilteredDays: all });
+		const full = busyWeek();
+
+		// Four cards unfold where the whole day folds into three and "+2 more".
+		await screen.rerender(month({ shown: toDays(scheduled), unfilteredDays: all }));
+		expect(busyWeek()).toBe(full);
+
+		await screen.rerender(month({ shown: new Map(), unfilteredDays: all }));
+		expect(busyWeek()).toBe(full);
+	});
+
 	it("places entries on site-zone days and folds a busy day into a popover", async () => {
 		const screen = await renderMonth();
 
@@ -210,6 +244,18 @@ describe("CalendarMonth", () => {
 			)
 			.toBeVisible();
 		await expect.element(screen.getByText("Nothing on this day.")).not.toBeInTheDocument();
+	});
+
+	it("says no entries match on a phone when only next month was cut off", async () => {
+		const screen = await renderMonth({
+			compact: true,
+			shown: new Map(),
+			unfilteredDays: days,
+			loadedThrough: "2026-11-01",
+			onClearFilters: () => {},
+		});
+
+		await expect.element(screen.getByText("No entries match these filters")).toBeVisible();
 	});
 
 	it("moves to the next month when the arrow keys cross the last day", async () => {

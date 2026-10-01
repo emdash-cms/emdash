@@ -5,6 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 
+import { commandsFrom, STATES } from "../../.flue/lib/machine.js";
 import type { CommentDecision, Decision } from "../../.flue/lib/router.js";
 import {
 	classifierCommands,
@@ -137,6 +138,70 @@ describe("router", () => {
 		expect(decision.to).toBe(to);
 		expect(decision.action).toBe(action);
 	});
+
+	test.each([
+		{ state: "needs_attention", retryMode: "triage", to: "triaging", action: "investigate.triage" },
+		{
+			state: "needs_attention",
+			retryMode: "investigate",
+			to: "investigating",
+			action: "investigate.diagnose",
+		},
+		{ state: "reproduced", retryMode: "work", to: "working", action: "investigate.work" },
+		{ state: "reproduced", retryMode: "fix", to: "working", action: "investigate.work" },
+		{
+			state: "diagnosed",
+			retryMode: "investigate",
+			to: "investigating",
+			action: "investigate.diagnose",
+		},
+		{
+			state: "not_reproduced",
+			retryMode: "investigate",
+			to: "investigating",
+			action: "investigate.diagnose",
+		},
+		{ state: "needs_info", retryMode: "triage", to: "triaging", action: "investigate.triage" },
+		{
+			state: "awaiting_approval",
+			retryMode: "triage",
+			to: "triaging",
+			action: "investigate.triage",
+		},
+		{ state: "blocked", retryMode: "work", to: "working", action: "investigate.work" },
+	] as const)(
+		"retry in $state re-runs the last $retryMode run",
+		({ state, retryMode, to, action }) => {
+			expect(commandsFrom(state)).toContain("retry");
+			const decision = resolve({
+				labels: ["bot:bug", STATES[state].label],
+				event: "retry",
+				actor: "maintainer",
+				retryMode,
+			});
+
+			assertTransition(decision);
+			expect(decision.to).toBe(to);
+			expect(decision.action).toBe(action);
+		},
+	);
+
+	test.each(["work", "triage", "revise"] as const)(
+		"retry on an open PR repairs the PR after a $retryMode run",
+		(retryMode) => {
+			expect(commandsFrom("in_review")).toContain("retry");
+			const decision = resolve({
+				labels: ["bot:bug", "bot:in-review"],
+				event: "retry",
+				actor: "maintainer",
+				retryMode,
+			});
+
+			assertTransition(decision);
+			expect(decision.to).toBe("in_review");
+			expect(decision.action).toBe("investigate.revise");
+		},
+	);
 
 	test("failed retry keeps the repro fallback for read modes", () => {
 		const decision = resolve({
@@ -618,7 +683,7 @@ describe("router: investigation + fix loop", () => {
 		expect(d.addLabels).toContain("bot:bug");
 	});
 
-	test("the fix loop advances through preview to the reporter wait", () => {
+	test("the fix loop opens a ready-for-review PR once the preview publishes", () => {
 		const fixReady = resolve({
 			labels: ["bot:bug", "bot:fixing"],
 			event: "agent.fix_ready",
@@ -633,7 +698,8 @@ describe("router: investigation + fix loop", () => {
 			actor: "system",
 		});
 		assertTransition(previewReady);
-		expect(previewReady.to).toBe("awaiting_reporter");
+		expect(previewReady.to).toBe("in_review");
+		expect(previewReady.action).toBe("openPr");
 	});
 
 	test("a fix run that skips rests in blocked rather than wedging in fixing", () => {
@@ -646,67 +712,62 @@ describe("router: investigation + fix loop", () => {
 		expect(d.to).toBe("blocked");
 	});
 
-	test("a preview failure falls back to the reproduced verdict", () => {
-		const d = resolve({
-			labels: ["bot:bug", "bot:preview-building"],
-			event: "preview.failed",
-			actor: "system",
-		});
-		assertTransition(d);
-		expect(d.to).toBe("reproduced");
-	});
+	test.each(["bug", "enhancement", "task"] as const)(
+		"a preview failure still opens the %s PR",
+		(kind) => {
+			const d = resolve({
+				labels: [`bot:${kind}`, "bot:preview-building"],
+				event: "preview.failed",
+				actor: "system",
+			});
+			assertTransition(d);
+			expect(d.to).toBe("in_review");
+			expect(d.action).toBe("openPr");
+		},
+	);
 
-	test("enhancement delivery failures return to a retryable implementation state", () => {
-		const previewFailed = resolve({
-			labels: ["bot:enhancement", "bot:preview-building"],
-			event: "preview.failed",
-			actor: "system",
-		});
-		assertTransition(previewFailed);
-		expect(previewFailed.to).toBe("blocked");
-
-		for (const event of ["reject", "expire"] as const) {
+	test("a candidate parked for the reporter opens its PR on accept", () => {
+		for (const event of ["accept", "confirm"] as const) {
 			const decision = resolve({
-				labels: ["bot:enhancement", "bot:awaiting-reporter"],
+				labels: ["bot:bug", "bot:awaiting-reporter"],
 				event,
-				actor: event === "reject" ? "reporter" : "system",
+				actor: "reporter",
 			});
 			assertTransition(decision);
-			expect(decision.to).toBe("blocked");
-			expect(decision.action).toBe("reapBranch");
+			expect(decision.to).toBe("in_review");
+			expect(decision.action).toBe("openPr");
 		}
 
-		const commands = new Set(classifierCommands("blocked").map((command) => command.event));
-		expect(commands.has("work")).toBe(true);
-	});
-
-	test("confirm opens a draft PR; reject and expire reap the branch", () => {
-		const confirm = resolve({
-			labels: ["bot:bug", "bot:awaiting-reporter"],
-			event: "confirm",
-			actor: "reporter",
-		});
-		assertTransition(confirm);
-		expect(confirm.to).toBe("in_review");
-		expect(confirm.action).toBe("openDraftPr");
-
 		const reject = resolve({
-			labels: ["bot:bug", "bot:awaiting-reporter"],
+			labels: ["bot:enhancement", "bot:awaiting-reporter"],
 			event: "reject",
 			actor: "reporter",
 		});
 		assertTransition(reject);
-		expect(reject.to).toBe("reproduced");
+		expect(reject.to).toBe("blocked");
 		expect(reject.action).toBe("reapBranch");
+	});
 
-		const expire = resolve({
-			labels: ["bot:bug", "bot:awaiting-reporter"],
-			event: "expire",
-			actor: "system",
-		});
-		assertTransition(expire);
-		expect(expire.to).toBe("reproduced");
-		expect(expire.action).toBe("reapBranch");
+	test.each(["accept", "confirm"] as const)(
+		"a reporter's %s on an open PR marks the issue verified",
+		(event) => {
+			const d = resolve({
+				labels: ["bot:bug", "bot:in-review"],
+				event,
+				actor: "reporter",
+			});
+			assertTransition(d);
+			expect(d.to).toBe("in_review");
+			expect(d.action).toBeNull();
+			expect(d.addLabels).toContain("triage/verified");
+			expect(d.removeLabels).toEqual([]);
+		},
+	);
+
+	test("the classifier can hear a reporter's verdict on an open PR", () => {
+		const events = new Set(classifierCommands("in_review").map((c) => c.event));
+		expect(events.has("accept")).toBe(true);
+		expect(events.has("needs_changes")).toBe(true);
 	});
 
 	test("work is offered to the classifier from a reproduced verdict", () => {
