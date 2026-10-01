@@ -139,7 +139,7 @@ msgstr "{0, plural, one {연결 #개} other {연결 #개}}"
 #. placeholder {0}: tagMatches?.matchCount ?? 0
 #: packages/admin/src/components/TaxonomyManager.tsx:1389
 msgid "{0, plural, one {# matching tag} other {# matching tags}}"
-msgstr ""
+msgstr "{0, plural, one {일치하는 태그 #개} other {일치하는 태그 #개}}"
 
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:490
@@ -307,7 +307,7 @@ msgstr ""
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:440
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
-msgstr ""
+msgstr "{0}은(는) 여기에서 이동할 수 없습니다. 상위 항목에 이 언어의 번역이 없어 이 목록은 해당 항목이 속한 그룹이 아닙니다."
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1323
@@ -317,7 +317,7 @@ msgstr "{0} 감지"
 #. placeholder {0}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:620
 msgid "{0} fallback"
-msgstr ""
+msgstr "{0} 대체 표시"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:149
@@ -545,7 +545,7 @@ msgstr "{label}이(가) {0}번째 위치로 이동했습니다."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:533
 msgid "{label} options"
-msgstr ""
+msgstr "{label} 옵션"
 
 #: packages/admin/src/components/ContentList.tsx:1263
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
@@ -960,7 +960,7 @@ msgstr "사이트에 대한 간단한 설명"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "A source and target locale are required"
-msgstr ""
+msgstr "번역 원본 언어와 대상 언어가 필요합니다."
 
 #. placeholder {0}: operation.errorCode
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:485
@@ -1258,7 +1258,7 @@ msgstr "하위 필드 추가"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1314
 msgid "Add tag"
-msgstr ""
+msgstr "태그 추가"
 
 #: packages/admin/src/components/ContentList.tsx:555
 msgid "Add term"
@@ -1267,7 +1267,7 @@ msgstr "분류 항목 추가"
 #: packages/admin/src/components/TaxonomyManager.tsx:1321
 #: packages/admin/src/components/TaxonomyManager.tsx:1337
 msgid "Add to posts"
-msgstr ""
+msgstr "게시물에 추가"
 
 #: packages/admin/src/components/Widgets.tsx:403
 msgid "Add Widget Area"
@@ -1879,7 +1879,7 @@ msgstr "사용 가능한 저자 정보"
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:846
 msgid "Available in {0}"
-msgstr ""
+msgstr "{0}에서 사용 가능"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:202
 msgid "Available Providers"
@@ -2487,7 +2487,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
 #: packages/admin/src/components/TaxonomySidebar.tsx:489
 msgid "Choose {label}"
-msgstr ""
+msgstr "{label} 선택"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
 msgid "Choose a credential manager on this device, another device, or a security key."
@@ -3280,7 +3280,7 @@ msgstr "“{0}” 생성"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:584
 msgid "Create \"{trimmedInput}\""
-msgstr ""
+msgstr "\"{trimmedInput}\" 생성"
 
 #. placeholder {0}: option.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:527
@@ -3290,7 +3290,7 @@ msgstr "{0} 생성"
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:857
 msgid "Create {0} translation"
-msgstr ""
+msgstr "{0} 번역 생성"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:321
 msgid "Create {singularLower}"
@@ -3311,7 +3311,7 @@ msgstr "새 {0} 만들기"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:584
 msgid "Create a new {singularLabel}"
-msgstr ""
+msgstr "새 {singularLabel} 생성"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1770
 msgid "Create a numbered list"
@@ -3878,20 +3878,20 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:366
 msgid "Delete tag"
-msgstr ""
+msgstr "태그 삭제"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:363
 msgid "Delete tag {0}"
-msgstr ""
+msgstr "{0} 태그 삭제"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1370
 msgid "Delete taxonomy"
-msgstr ""
+msgstr "분류 삭제"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1547
 msgid "Delete Taxonomy"
-msgstr ""
+msgstr "분류 삭제"
 
 #: packages/admin/src/components/Widgets.tsx:714
 msgid "Delete Widget Area?"
@@ -3904,7 +3904,7 @@ msgstr "삭제일"
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1548
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
-msgstr ""
+msgstr "\"{0}\"을(를) 삭제하면 해당 분류의 모든 언어의 모든 항목이 삭제되고, 해당 항목이 지정된 콘텐츠에서 항목 지정이 해제됩니다. 콘텐츠 자체는 유지됩니다. 이 작업은 되돌릴 수 없습니다."
 
 #. placeholder {0}: deletingField.label
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
@@ -4459,7 +4459,7 @@ msgstr "{itemLabel} 편집"
 #: packages/admin/src/components/TaxonomySidebar.tsx:415
 #: packages/admin/src/components/TaxonomySidebar.tsx:424
 msgid "Edit {label}"
-msgstr ""
+msgstr "{label} 편집"
 
 #: packages/admin/src/components/ContentList.tsx:1409
 msgid "Edit {title}"
@@ -4858,7 +4858,7 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:604
 msgid "Esc"
-msgstr ""
+msgstr "Esc"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:566
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
@@ -5040,7 +5040,7 @@ msgstr ""
 #. placeholder {0}: failedLabels.join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:753
 msgid "Failed to create {0}"
-msgstr ""
+msgstr "{0}을(를) 생성하지 못했습니다."
 
 #: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Failed to create admin"
@@ -5078,7 +5078,7 @@ msgstr "분류 항목을 생성하지 못했습니다."
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
 #: packages/admin/src/router.tsx:1471
 msgid "Failed to create translation"
-msgstr ""
+msgstr "번역을 생성하지 못했습니다."
 
 #: packages/admin/src/router.tsx:535
 #: packages/admin/src/router.tsx:564
@@ -5159,11 +5159,11 @@ msgstr ""
 
 #: packages/admin/src/lib/api/taxonomies.ts:176
 msgid "Failed to delete taxonomy"
-msgstr ""
+msgstr "분류를 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/taxonomies.ts:267
 msgid "Failed to delete term"
-msgstr ""
+msgstr "분류 항목을 삭제하지 못했습니다."
 
 #: packages/admin/src/lib/api/widgets.ts:146
 msgid "Failed to delete widget"
@@ -5251,7 +5251,7 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:160
 msgid "Failed to fetch entry terms"
-msgstr ""
+msgstr "콘텐츠에 지정된 분류 항목을 가져오지 못했습니다."
 
 #: packages/admin/src/lib/api/client.ts:349
 msgid "Failed to fetch manifest"
@@ -5321,7 +5321,7 @@ msgstr "설정 상태를 불러오지 못했습니다"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:144
 msgid "Failed to fetch terms"
-msgstr ""
+msgstr "분류 항목을 가져오지 못했습니다."
 
 #: packages/admin/src/lib/api/core-update.ts:29
 msgid "Failed to fetch update status"
@@ -5616,7 +5616,7 @@ msgstr "인증 이메일을 보내지 못했습니다"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:179
 msgid "Failed to set entry terms"
-msgstr ""
+msgstr "콘텐츠에 분류 항목을 지정하지 못했습니다."
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
@@ -6015,7 +6015,7 @@ msgstr "자동으로 생성됩니다."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1039
 msgid "Genres"
-msgstr ""
+msgstr "장르"
 
 #: packages/admin/src/components/WelcomeModal.tsx:154
 msgid "Get Started"
@@ -6230,7 +6230,7 @@ msgstr "어떻게 시작하시겠어요?"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:794
 msgid "How is the slug generated?"
-msgstr ""
+msgstr "슬러그는 어떻게 생성되나요?"
 
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "How many"
@@ -7782,7 +7782,7 @@ msgstr "{0} 아래로 이동"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:462
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr ""
+msgstr "{0} 아래로 이동 불가: 상위 항목에 이 언어의 번역이 없습니다."
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:313
@@ -7806,7 +7806,7 @@ msgstr "{0} 위로 이동"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:449
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr ""
+msgstr "{0} 위로 이동 불가: 상위 항목에 이 언어의 번역이 없습니다."
 
 #: packages/admin/src/components/ContentList.tsx:1429
 msgid "Move {title} to trash"
@@ -7820,7 +7820,7 @@ msgstr "아래로 이동"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:343
 msgid "Move down {0}"
-msgstr ""
+msgstr "{0} 아래로 이동"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Move media here from Media Details."
@@ -7863,7 +7863,7 @@ msgstr "위로 이동"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:335
 msgid "Move up {0}"
-msgstr ""
+msgstr "{0} 위로 이동"
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:693
@@ -7951,7 +7951,7 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:594
 msgid "Navigate"
-msgstr ""
+msgstr "목록 탐색"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:353
 #: packages/admin/src/components/ContentTypeEditor.tsx:552
@@ -8050,7 +8050,7 @@ msgstr "새 탭"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1360
 msgid "New taxonomy"
-msgstr ""
+msgstr "새 분류"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1327
 msgid "New Taxonomy"
@@ -8070,7 +8070,7 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:784
 msgid "News"
-msgstr ""
+msgstr "뉴스"
 
 #: packages/admin/src/components/FieldEditor.tsx:1318
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
@@ -8121,7 +8121,7 @@ msgstr "아직 {0}이(가) 없습니다. 하나를 생성하여 시작하세요.
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:568
 msgid "No {label} found."
-msgstr ""
+msgstr "{label}을(를) 찾을 수 없습니다."
 
 #: packages/admin/src/components/Redirects.tsx:220
 msgid "No 404 errors recorded yet."
@@ -8329,7 +8329,7 @@ msgstr "이 계정과 일치하는 패스키를 찾을 수 없습니다."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1424
 msgid "No matching tags"
-msgstr ""
+msgstr "일치하는 태그가 없습니다."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 msgid "No matching timezones"
@@ -9728,7 +9728,7 @@ msgstr "{label} 제거"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:866
 msgid "Remove assignment"
-msgstr ""
+msgstr "항목 지정 해제"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:437
 msgid "Remove dark mode variant"
@@ -10391,7 +10391,7 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:681
 msgid "Saved immediately; term changes do not wait for Publish changes."
-msgstr ""
+msgstr "즉시 저장되었습니다. 분류 항목 변경은 콘텐츠 변경 사항 게시와 별개로 저장됩니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:1019
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
@@ -10544,11 +10544,11 @@ msgstr "{0} 검색..."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:500
 msgid "Search {label}"
-msgstr ""
+msgstr "{label} 검색"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:520
 msgid "Search {label}…"
-msgstr ""
+msgstr "{label} 검색…"
 
 #: packages/admin/src/components/BlocksField.tsx:181
 msgid "Search block types"
@@ -10667,11 +10667,11 @@ msgstr "소스 또는 대상 검색..."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1383
 msgid "Search tags"
-msgstr ""
+msgstr "태그 검색"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1382
 msgid "Search tags…"
-msgstr ""
+msgstr "태그 검색…"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
@@ -10954,7 +10954,7 @@ msgstr "선택..."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:429
 msgid "Selected {label}"
-msgstr ""
+msgstr "선택된 {label}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2082
 msgid "Selected {selectedItemTitle}"
@@ -11728,7 +11728,7 @@ msgstr "열기 방식"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:566
 msgid "Target locale"
-msgstr ""
+msgstr "번역 대상 언어"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1159
 #: packages/admin/src/components/settings/transfer/labels.ts:13
@@ -11755,11 +11755,11 @@ msgstr "분류가 생성되었습니다."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1194
 msgid "Taxonomy deleted"
-msgstr ""
+msgstr "분류가 삭제되었습니다."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:67
 msgid "Taxonomy not found: {taxonomyName}"
-msgstr ""
+msgstr "분류를 찾을 수 없습니다: {taxonomyName}"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:75
 msgid "Taxonomy terms"
@@ -11767,7 +11767,7 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:553
 msgid "Taxonomy: {taxonomyName}"
-msgstr ""
+msgstr "분류: {taxonomyName}"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:678
 msgid "Technical details"
@@ -11795,7 +11795,7 @@ msgstr "분류 항목"
 #. placeholder {1}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomyManager.tsx:1254
 msgid "Term \"{0}\" created in {1}."
-msgstr ""
+msgstr "{1}에 분류 항목 \"{0}\"이(가) 생성되었습니다."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:24
 #: packages/admin/src/components/settings/transfer/labels.ts:76
@@ -12629,7 +12629,7 @@ msgstr "선택"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:600
 msgid "Toggle"
-msgstr ""
+msgstr "선택/해제"
 
 #: packages/admin/src/components/editor/TableControls.tsx:31
 msgid "Toggle header column"
@@ -12694,24 +12694,24 @@ msgstr "번역"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:550
 msgid "Translate \"{0}\""
-msgstr ""
+msgstr "\"{0}\" 번역"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:475
 msgid "Translate {0}"
-msgstr ""
+msgstr "{0} 번역"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:588
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translating..."
-msgstr ""
+msgstr "번역 중..."
 
 #: packages/admin/src/components/MenuEditor.tsx:144
 #: packages/admin/src/components/TaxonomyManager.tsx:1253
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1465
 msgid "Translation created"
-msgstr ""
+msgstr "번역이 생성되었습니다."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1137
 #: packages/admin/src/components/TranslationsPanel.tsx:60
@@ -12950,7 +12950,7 @@ msgstr "등록되지 않은 콘텐츠 테이블이 발견되었습니다."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:844
 msgid "Unresolved assignment"
-msgstr ""
+msgstr "표시할 번역이 없는 항목 지정"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Unsaved content may leave your site"
