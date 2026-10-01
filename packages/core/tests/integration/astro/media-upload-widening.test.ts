@@ -235,6 +235,74 @@ describe("POST /media — upload widening via fieldId", () => {
 });
 
 // ---------------------------------------------------------------------------
+// MIME fallback from filename extension
+// ---------------------------------------------------------------------------
+
+describe("POST /media — extension MIME fallback", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("accepts a .jxl file when the browser sends an empty file type", async () => {
+		const { storage, store } = createMemoryStorage();
+		const jxlFile = new File([new Uint8Array([0x00, 0x01, 0x02])], "photo.jxl", { type: "" });
+
+		const req = buildUploadRequest({ file: jxlFile });
+		const res = await postMedia(buildContext({ db, request: req, storage }));
+
+		expect(res.status).toBe(201);
+		const body = (await res.json()) as {
+			data?: { item?: { mimeType: string; storageKey: string } };
+			error?: { code: string };
+		};
+		expect(body.error).toBeUndefined();
+		expect(body.data?.item?.mimeType).toBe("image/jxl");
+		const entry = body.data?.item ? store.get(body.data.item.storageKey) : undefined;
+		expect(entry?.contentType).toBe("image/jxl");
+	});
+
+	it("accepts a .jxl file when the browser sends image/jxl", async () => {
+		const { storage, store } = createMemoryStorage();
+		const jxlFile = new File([new Uint8Array([0x00, 0x01, 0x02])], "photo.jxl", {
+			type: "image/jxl",
+		});
+
+		const req = buildUploadRequest({ file: jxlFile });
+		const res = await postMedia(buildContext({ db, request: req, storage }));
+
+		expect(res.status).toBe(201);
+		const body = (await res.json()) as {
+			data?: { item?: { mimeType: string; storageKey: string } };
+			error?: { code: string };
+		};
+		expect(body.error).toBeUndefined();
+		expect(body.data?.item?.mimeType).toBe("image/jxl");
+		const entry = body.data?.item ? store.get(body.data.item.storageKey) : undefined;
+		expect(entry?.contentType).toBe("image/jxl");
+	});
+
+	it("rejects an unknown extension with an empty file type", async () => {
+		const { storage } = createMemoryStorage();
+		const unknownFile = new File([new Uint8Array([0x00, 0x01, 0x02])], "photo.unknown", {
+			type: "",
+		});
+
+		const req = buildUploadRequest({ file: unknownFile });
+		const res = await postMedia(buildContext({ db, request: req, storage }));
+
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error?: { code: string } };
+		expect(body.error?.code).toBe("INVALID_TYPE");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // upload-url storage stub (returns a proper SignedUploadUrl object)
 // ---------------------------------------------------------------------------
 

@@ -1015,7 +1015,11 @@ export function createMcpServer(
 				orderBy: z
 					.string()
 					.optional()
-					.describe("Field to sort by (e.g. 'created_at', 'updated_at')"),
+					.describe(
+						"Field to sort by: 'createdAt' (default), 'updatedAt', 'publishedAt', 'scheduledAt', " +
+							"'slug', 'status', 'locale', or a field slug that is indexed or set as the " +
+							"collection's titleField or dateField",
+					),
 				order: z.enum(["asc", "desc"]).optional().describe("Sort direction (default 'desc')"),
 				locale: z
 					.string()
@@ -3692,7 +3696,9 @@ export function createMcpServer(
 			title: "Update Site Settings",
 			description:
 				"Update one or more site-wide settings. This is a partial update: only " +
-				"the fields provided are changed; omitted fields are left as-is. Returns " +
+				"the fields provided are changed; omitted fields are left as-is, including " +
+				"fields inside `seo` and `social`. Send an empty string to clear a text " +
+				"field. Returns " +
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +

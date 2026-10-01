@@ -54,8 +54,20 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		const configuredSiteUrl = getConfiguredOrigin(emdash.config);
 		const loopbackHost =
 			url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
-		const siteUrl =
-			configuredSiteUrl ?? (import.meta.env.DEV && loopbackHost ? url.origin : undefined);
+		// On Cloudflare's network a Worker only receives requests for hostnames bound
+		// to it, each with an edge TLS certificate. `astro dev` runs in workerd
+		// without that guarantee, so development keeps the loopback-only rule.
+		const onCloudflareWorkers =
+			typeof navigator !== "undefined" &&
+			typeof navigator.userAgent === "string" &&
+			navigator.userAgent.includes("Cloudflare-Workers");
+		let requestOrigin: string | undefined;
+		if (import.meta.env.DEV) {
+			if (loopbackHost) requestOrigin = url.origin;
+		} else if (onCloudflareWorkers) {
+			requestOrigin = `https://${url.hostname}`;
+		}
+		const siteUrl = configuredSiteUrl ?? requestOrigin;
 		if (!siteUrl) {
 			return apiError(
 				"SITE_URL_REQUIRED",

@@ -263,8 +263,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Verify preview token if present.
 	// The preview secret is resolved via `resolveSecretsCached`: env wins,
 	// otherwise a DB-stored value is read (or generated on first need).
-	// `emdash.db` is set by the runtime middleware which runs first; the
-	// only path where it's missing is a runtime-init failure.
+	// `emdash.db` is set by the runtime middleware which runs first; it is
+	// missing after a runtime-init failure and on signed-out requests to the
+	// image endpoint EmDash installs, which skip runtime init.
 	let preview: { collection: string; id: string } | undefined;
 	if (hasPreviewToken) {
 		const db = context.locals.emdash?.db;
