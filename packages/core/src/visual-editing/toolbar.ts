@@ -584,6 +584,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   var visualActionRefreshTimer = null;
 
   function showVisualActionRecovery() {
+    waitingForPublish = false;
     if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
     visualActionRefreshTimer = null;
     statusEl.innerHTML = ${inlineScriptJson(recoveryBadge)};
@@ -592,6 +593,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   function showPublishError(message) {
+    waitingForPublish = false;
     statusEl.textContent = message || toolbarLabels.publishFailed;
     publishBtn.disabled = false;
     publishBtn.textContent = toolbarLabels.publish;
@@ -660,6 +662,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   var saveState = "idle"; // idle | unsaved | saving | saved | error
   var saveHideTimer = null;
   var pendingSaves = [];
+  var waitingForPublish = false;
 
   function trackSave(save) {
     var settled = save.then(untrack, untrack);
@@ -770,6 +773,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Publish action
   function publish(collection, id) {
+    waitingForPublish = true;
     publishBtn.disabled = true;
     publishBtn.textContent = toolbarLabels.publishing;
 
@@ -806,6 +810,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       }
     })
     .catch(function(err) {
+      waitingForPublish = false;
       publishBtn.disabled = false;
       publishBtn.textContent = toolbarLabels.publish;
       console.error("Publish failed:", err);
@@ -892,8 +897,10 @@ export function renderToolbar(config: ToolbarConfig): string {
   function showUnpublishedChanges(collection, id) {
     statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--pending">Unpublished changes</span>';
     publishBtn.style.display = "";
-    publishBtn.disabled = false;
-    publishBtn.textContent = "Publish";
+    if (!waitingForPublish) {
+      publishBtn.disabled = false;
+      publishBtn.textContent = "Publish";
+    }
     publishBtn.onclick = function() { publish(collection, id); };
   }
 

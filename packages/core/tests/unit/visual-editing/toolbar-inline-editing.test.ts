@@ -216,15 +216,24 @@ describe("toolbar Publish while a save is in flight", () => {
 
 	let root: Root;
 	let requests: string[];
-	let heldField: string;
-	let releaseHeldSave: (status: number) => void;
+	let heldSaves: Map<string, Promise<number>>;
+
+	/** Holds the save of `field` until the returned function answers it with a status. */
+	function holdSave(field: string): (status: number) => void {
+		let answer!: (status: number) => void;
+		heldSaves.set(
+			field,
+			new Promise<number>((resolve) => {
+				answer = resolve;
+			}),
+		);
+		return answer;
+	}
 
 	beforeEach(() => {
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 		requests = [];
-		const heldSave = new Promise<number>((resolve) => {
-			releaseHeldSave = resolve;
-		});
+		heldSaves = new Map();
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async (url: string, init?: RequestInit) => {
@@ -236,7 +245,8 @@ describe("toolbar Publish while a save is in flight", () => {
 				if (init?.method === "PUT" && typeof init.body === "string") {
 					const [field] = Object.keys(JSON.parse(init.body).data);
 					requests.push(`save ${field}`);
-					if (field === heldField) {
+					const heldSave = heldSaves.get(field);
+					if (heldSave) {
 						const status = await heldSave;
 						requests.push(`${field} answered ${status}`);
 						return new Response(null, { status });
@@ -248,7 +258,7 @@ describe("toolbar Publish while a save is in flight", () => {
 	});
 
 	afterEach(async () => {
-		await act(async () => root.unmount());
+		await act(async () => root?.unmount());
 		delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	});
 
@@ -304,7 +314,7 @@ describe("toolbar Publish while a save is in flight", () => {
 		["a save of a text field", "title", editTitle, 200],
 		["a failed save of the Portable Text body", "body", () => editBody(publishButton()), 500],
 	])("publishes only after %s has finished", async (_, field, edit, status) => {
-		heldField = field;
+		const answerSave = holdSave(field);
 		await mountEntry();
 
 		await edit();
@@ -312,26 +322,50 @@ describe("toolbar Publish while a save is in flight", () => {
 		await nextTask();
 		expect(requests).toEqual([`save ${field}`]);
 
-		releaseHeldSave(status);
+		answerSave(status);
 		await vi.waitFor(() => expect(requests).toContain("publish"));
 		expect(requests).toEqual([`save ${field}`, `${field} answered ${status}`, "publish"]);
 	});
 
 	it("publishes once when Publish is clicked again while it waits", async () => {
-		heldField = "body";
+		const answerBody = holdSave("body");
 		await mountEntry();
 
 		await editBody(publishButton());
 		publishButton().click();
 		publishButton().click();
-		releaseHeldSave(200);
+		answerBody(200);
 		await vi.waitFor(() => expect(requests).toContain("publish"));
 		await nextTask();
 		expect(requests).toEqual(["save body", "body answered 200", "publish"]);
 	});
 
+	it("publishes once when another save finishes while Publish waits", async () => {
+		const answerBody = holdSave("body");
+		const answerTitle = holdSave("title");
+		await mountEntry();
+
+		await editBody(document.querySelector("h1")!);
+		await editTitle();
+		publishButton().click();
+		answerTitle(200);
+		await vi.waitFor(() => expect(requests).toContain("title answered 200"));
+		await nextTask();
+		publishButton().click();
+		answerBody(200);
+		await vi.waitFor(() => expect(requests).toContain("publish"));
+		await nextTask();
+		expect(requests).toEqual([
+			"save body",
+			"save title",
+			"title answered 200",
+			"body answered 200",
+			"publish",
+		]);
+	});
+
 	it("waits for a body save that a later field save finished before", async () => {
-		heldField = "body";
+		const answerBody = holdSave("body");
 		await mountEntry();
 
 		await editBody(document.querySelector("h1")!);
@@ -342,7 +376,7 @@ describe("toolbar Publish while a save is in flight", () => {
 		await nextTask();
 		expect(requests).toEqual(["save body", "save title"]);
 
-		releaseHeldSave(200);
+		answerBody(200);
 		await vi.waitFor(() => expect(requests).toContain("publish"));
 		expect(requests).toEqual(["save body", "save title", "body answered 200", "publish"]);
 	});
