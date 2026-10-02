@@ -676,6 +676,7 @@ export async function executeWordPressImport(
 			continue;
 		}
 
+		const importedBefore = stats.imported;
 		try {
 			const converted = convertPostWithConfig(post, mapping.collection, config, mediaMap);
 
@@ -730,7 +731,7 @@ export async function executeWordPressImport(
 		}
 
 		// Save progress periodically (every 50 items)
-		if (!options.dryRun && stats.imported % 50 === 0) {
+		if (!options.dryRun && stats.imported > importedBefore && stats.imported % 50 === 0) {
 			progress.updatedAt = new Date().toISOString();
 			await writeFile(progressPath, JSON.stringify(progress, null, 2));
 			if (redirects.size > 0) {
@@ -874,11 +875,15 @@ function importCommandLine(
 	options: { outputDir: string; configPath: string },
 	flags: string,
 ): string {
-	let command = `emdash import wordpress ${filePath} -o ${options.outputDir}`;
+	let command = `emdash import wordpress ${shellQuote(filePath)} -o ${shellQuote(options.outputDir)}`;
 	if (options.configPath !== join(options.outputDir, "migration-config.json")) {
-		command += ` --config ${options.configPath}`;
+		command += ` --config ${shellQuote(options.configPath)}`;
 	}
 	return `${command} ${flags}`;
+}
+
+function shellQuote(arg: string): string {
+	return /^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`;
 }
 
 function createFreshProgress(sourceFile: string, configFile: string): ImportProgress {

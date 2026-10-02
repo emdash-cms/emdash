@@ -96,12 +96,12 @@ describe("emdash import wordpress", () => {
 	});
 
 	it("prints next-step commands that keep a custom output dir and config", () => {
-		const configPath = join(dir, "custom-config.json");
+		const configPath = join(dir, "custom config.json");
 		const prepare = runCli("import", "wordpress", FIXTURE, "-o", outputDir, "--config", configPath);
 
 		expect(prepare.status).toBe(0);
 		expect(prepare.output).toContain(
-			`emdash import wordpress ${FIXTURE} -o ${outputDir} --config ${configPath} --execute`,
+			`emdash import wordpress ${FIXTURE} -o ${outputDir} --config '${configPath}' --execute`,
 		);
 	});
 
