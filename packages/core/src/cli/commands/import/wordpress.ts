@@ -637,7 +637,24 @@ export async function executeWordPressImport(
 		errors: 0,
 		byCollection: new Map<string, number>(),
 	};
+	const redirectPath = join(options.outputDir, "_redirects.json");
 	const redirects = new Map<string, string>();
+	if (options.resume) {
+		try {
+			const existing: unknown = JSON.parse(await readFile(redirectPath, "utf-8"));
+			if (isRecord(existing)) {
+				for (const [from, to] of Object.entries(existing)) {
+					if (typeof to === "string") redirects.set(from, to);
+				}
+			}
+		} catch {
+			// No redirect map from an earlier run
+		}
+	}
+
+	if (!options.dryRun) {
+		await mkdir(options.outputDir, { recursive: true });
+	}
 
 	// Process posts
 	for (const post of wxr.posts) {
@@ -773,7 +790,6 @@ export async function executeWordPressImport(
 	}
 
 	// Write redirects
-	const redirectPath = join(options.outputDir, "_redirects.json");
 	if (redirects.size > 0) {
 		if (options.dryRun) {
 			result.files.push({ path: redirectPath, action: "would_create" });
@@ -832,7 +848,7 @@ export async function executeWordPressImport(
 		];
 	} else {
 		result.nextSteps = [
-			`Verify import: emdash migrate:verify --source ${filePath}`,
+			`Review the converted files in: ${options.outputDir}`,
 			`Progress saved to: ${progressPath}`,
 		];
 	}
