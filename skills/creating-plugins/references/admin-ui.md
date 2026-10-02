@@ -208,4 +208,6 @@ definePlugin({
 });
 ```
 
+A schema field selects a `fields` entry with `widget: "<plugin-id>:<widget-name>"`. The component receives `value`, `onChange(value)`, `label`, `id`, and optionally `required`, `options` (the field's schema `options`), `validation`, and `minimal`. The host renders no label around the widget, so render `label` yourself. A missing widget name falls back to the default editor for the field type.
+
 Native admin code must follow the repository's Kumo, localization, accessibility, and RTL rules. It runs with the site's authority and is not registry-installable.
