@@ -63,6 +63,7 @@ jobs:
               },
             };
             const stateNames = Object.keys(stateLabels);
+            const reviewerBots = ['emdashbot[bot]', 'ask-bonk[bot]'];
 
             // --- Ensure the four labels exist (mirrors pr-sweep.yml) ---
             const existingLabels = new Set();
@@ -152,7 +153,7 @@ jobs:
                   review.user &&
                   review.user.login !== pr.user.login &&
                   (
-                    review.user.type === 'Bot' ||
+                    reviewerBots.includes(review.user.login) ||
                     ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(review.author_association)
                   ) &&
                   ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED'].includes(review.state)
