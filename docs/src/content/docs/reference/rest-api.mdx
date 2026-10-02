@@ -559,7 +559,9 @@ While an import is executing, and after it fails or is cancelled until it is aba
 
 ## Pagination
 
-List operations describe their pagination parameters in OpenAPI. Most cursor-paginated operations accept an opaque `cursor` and a `limit` from 1 to 100, defaulting to 50. Return the previous response's `nextCursor` unchanged; do not inspect or construct it. Some media operations also support numbered pages, and some specialized lists use different limits, so generated clients should follow each operation's schema.
+List operations describe their pagination parameters in OpenAPI. Most cursor-paginated operations accept an opaque `cursor` and a `limit` from 1 to 100, defaulting to 50. Return the previous response's `nextCursor` unchanged; do not inspect or construct it. Some specialized lists use different limits, so generated clients should follow each operation's schema.
+
+`GET /media`, `GET /content/{collection}`, and `GET /content/{collection}/trash` also accept a 1-based `page` instead of `cursor`. A numbered page has no `nextCursor` and reports how many items match: `totalCount` for media, `total` for content. Sending both `page` and `cursor` returns a `400` validation error.
 
 ## Search tokenizers
 

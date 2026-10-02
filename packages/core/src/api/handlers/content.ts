@@ -869,6 +869,23 @@ function resolveBylineFilter(
 }
 
 /**
+ * Rows to skip for a numbered page, or `null` when the page can't be served
+ * (combined with a cursor, or past the safe-integer range).
+ */
+function pageOffset(params: { page: number; limit: number; cursor?: string }): number | null {
+	const offset = (params.page - 1) * params.limit;
+	if (
+		params.cursor !== undefined ||
+		!Number.isSafeInteger(params.page) ||
+		params.page < 1 ||
+		!Number.isSafeInteger(offset)
+	) {
+		return null;
+	}
+	return offset;
+}
+
+/**
  * Create content list handler
  */
 export async function handleContentList(
@@ -876,6 +893,7 @@ export async function handleContentList(
 	collection: string,
 	params: {
 		cursor?: string;
+		page?: number;
 		limit?: number;
 		status?: string;
 		orderBy?: string;
@@ -893,6 +911,18 @@ export async function handleContentList(
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
+		const limit = Math.max(1, Math.min(params.limit || 50, 100));
+		const offset =
+			params.page === undefined
+				? undefined
+				: pageOffset({ page: params.page, limit, cursor: params.cursor });
+		if (offset === null) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: "Invalid content page" },
+			};
+		}
+
 		const repo = new ContentRepository(db);
 		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
@@ -940,7 +970,8 @@ export async function handleContentList(
 
 		const result = await repo.findMany(collection, {
 			cursor: params.cursor,
-			limit: params.limit || 50,
+			offset,
+			limit,
 			where: Object.keys(where).length > 0 ? where : undefined,
 			orderBy: params.orderBy
 				? { field: params.orderBy, direction: params.order || "desc" }
@@ -2033,15 +2064,32 @@ export async function handleContentPermanentDelete(
 export async function handleContentListTrashed(
 	db: Kysely<Database>,
 	collection: string,
-	options: { limit?: number; cursor?: string; locale?: string } = {},
-): Promise<ApiResult<{ items: TrashedContentItem[]; nextCursor?: string }>> {
+	options: { limit?: number; cursor?: string; page?: number; locale?: string } = {},
+): Promise<ApiResult<{ items: TrashedContentItem[]; nextCursor?: string; total?: number }>> {
 	try {
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		const offset =
+			options.page === undefined
+				? undefined
+				: pageOffset({ page: options.page, limit, cursor: options.cursor });
+		if (offset === null) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: "Invalid content page" },
+			};
+		}
+
 		const repo = new ContentRepository(db);
-		const result = await repo.findTrashed(collection, {
-			limit: options.limit,
-			cursor: options.cursor,
-			where: { locale: options.locale },
-		});
+		const where = { locale: options.locale };
+		// Settled like findMany's count, so a rejection can't leave the other
+		// query holding a pooled connection.
+		const [rowsResult, countResult] = await Promise.allSettled([
+			repo.findTrashed(collection, { limit, cursor: options.cursor, offset, where }),
+			offset === undefined ? undefined : repo.countTrashed(collection, where),
+		]);
+		if (rowsResult.status === "rejected") throw rowsResult.reason;
+		if (countResult.status === "rejected") throw countResult.reason;
+		const result = rowsResult.value;
 
 		return {
 			success: true,
@@ -2061,6 +2109,7 @@ export async function handleContentListTrashed(
 					deletedAt: item.deletedAt,
 				})),
 				nextCursor: result.nextCursor,
+				total: countResult.value,
 			},
 		};
 	} catch (error) {
