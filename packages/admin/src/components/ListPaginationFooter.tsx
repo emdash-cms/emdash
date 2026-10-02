@@ -60,9 +60,10 @@ export function ListPaginationFooter({ pagination, pageSizes, label }: ListPagin
 		rememberRequest("page-size");
 		pagination.onPageSizeChange(nextPerPage);
 	};
-	// The controls are inert while a page loads, which drops focus from them.
-	// Return it once the requested page settles, unless the user has moved it.
-	// Page changes also run this, so a request served without loading (a
+	// Focus leaves the controls while they are inert during a load, and the
+	// page reached can disable the button that was pressed (Previous on page 2).
+	// Once the requested page settles, put focus back unless the user has moved
+	// it. Page changes also run this, so a request served without loading (a
 	// cached page) is dropped instead of claiming a later, unrelated load.
 	React.useEffect(() => {
 		const request = requestRef.current;
@@ -72,17 +73,17 @@ export function ListPaginationFooter({ pagination, pageSizes, label }: ListPagin
 			return;
 		}
 		requestRef.current = null;
-		const focusLost = !document.activeElement || document.activeElement === document.body;
-		if (!request.sawPending || !focusLost) return;
-		let focusTarget = request.focusTarget;
-		if (!focusTarget?.isConnected || focusTarget.matches(":disabled")) {
-			const slot =
-				request.fallback === "page-size" ? "pagination-page-size" : "pagination-controls";
-			focusTarget =
-				paginationRootRef.current?.querySelector<HTMLElement>(
+		const target = request.focusTarget;
+		const targetUsable = !!target?.isConnected && !target.matches(":disabled");
+		const active = document.activeElement;
+		const focusMoved = !!active && active !== document.body && active !== target;
+		if (focusMoved || (targetUsable && !request.sawPending)) return;
+		const slot = request.fallback === "page-size" ? "pagination-page-size" : "pagination-controls";
+		const focusTarget = targetUsable
+			? target
+			: paginationRootRef.current?.querySelector<HTMLElement>(
 					`[data-slot="${slot}"] [role="combobox"], [data-slot="${slot}"] input, [data-slot="${slot}"] button:not(:disabled)`,
-				) ?? null;
-		}
+				);
 		focusTarget?.focus({ preventScroll: true });
 	}, [pagination.page, pagination.perPage, pagination.isPending]);
 
