@@ -660,6 +660,8 @@ export {
 	reconcileManifestAccess,
 } from "./manifest-schema.js";
 export type { ValidatedPluginManifest } from "./manifest-schema.js";
+export { CAPABILITY_DESCRIPTIONS, describeCapability } from "./capability-descriptions.js";
+export type { CapabilityDescription } from "./capability-descriptions.js";
 export {
 	canonicalizeDeclaredAccess,
 	declaredAccessDigestInput,

@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { after } from "../../after.js";
 import type { ContentFieldFilters } from "../../content-list-query.js";
 import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
@@ -46,6 +47,7 @@ import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
 } from "../../plugins/content-policy.js";
+import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { requestCached } from "../../request-cache.js";
 import { isStoragelessFieldRow } from "../../schema/types.js";
@@ -779,7 +781,7 @@ async function createSlugChangeRedirect(
 	contentId: string,
 	oldPublishedAt: string | null,
 	newPublishedAt: string | null,
-): Promise<void> {
+): Promise<boolean> {
 	// A URL pattern has no locale token, so every locale variant of an entry
 	// generates the same URL, and slugs are unique per (slug, locale) — a
 	// translation may still hold the old slug. Redirecting away from a URL
@@ -787,7 +789,7 @@ async function createSlugChangeRedirect(
 	// middleware runs `order: "pre"`, so routing never gets a chance.
 	// Any surviving row counts, published or not: a draft that publishes later
 	// would otherwise be shadowed by the redirect.
-	if (await slugStillTaken(db, collection, oldSlug, contentId)) return;
+	if (await slugStillTaken(db, collection, oldSlug, contentId)) return false;
 
 	const collectionRow = await db
 		.selectFrom("_emdash_collections")
@@ -796,7 +798,7 @@ async function createSlugChangeRedirect(
 		.executeTakeFirst();
 
 	const redirectRepo = new RedirectRepository(db);
-	await redirectRepo.createAutoRedirect(
+	const redirect = await redirectRepo.createAutoRedirect(
 		collection,
 		oldSlug,
 		newSlug,
@@ -806,6 +808,7 @@ async function createSlugChangeRedirect(
 		newPublishedAt,
 	);
 	invalidateRedirectCache();
+	return redirect !== null;
 }
 
 /** Whether a row other than `contentId` still holds `slug` in this collection. */
@@ -1508,6 +1511,7 @@ export async function handleContentUpdate(
 		// Wrap content + SEO writes in a transaction for atomicity.
 		// The _rev check is inside the transaction so the read-then-write
 		// is atomic -- no concurrent write can slip between the check and update.
+		let redirectCreated = false;
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
@@ -1597,7 +1601,7 @@ export async function handleContentUpdate(
 			// pre-update date (the URL that was actually live) and the new URL
 			// the post-update one.
 			if (oldSlug && body.slug) {
-				await createSlugChangeRedirect(
+				redirectCreated = await createSlugChangeRedirect(
 					trx,
 					collection,
 					oldSlug,
@@ -1652,6 +1656,7 @@ export async function handleContentUpdate(
 
 			return updated;
 		});
+		if (redirectCreated) after(() => publishRedirectChanges(db));
 
 		return {
 			success: true,
@@ -2298,6 +2303,7 @@ export async function handleContentPublish(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const expectedRevision = decodeRevisionPrecondition(options._rev);
+		let redirectCreated = false;
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
@@ -2417,7 +2423,7 @@ export async function handleContentPublish(
 				published.slug &&
 				existing.slug !== published.slug
 			) {
-				await createSlugChangeRedirect(
+				redirectCreated = await createSlugChangeRedirect(
 					trx,
 					collection,
 					existing.slug,
@@ -2430,6 +2436,7 @@ export async function handleContentPublish(
 
 			return published;
 		});
+		if (redirectCreated) after(() => publishRedirectChanges(db));
 
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);

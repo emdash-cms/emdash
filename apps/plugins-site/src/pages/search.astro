@@ -8,7 +8,11 @@ import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
 const query = Astro.url.searchParams.get("q")?.trim() ?? "";
 if (!query) return Astro.redirect("/");
 
-const result = await getLiveCollection("plugins", { q: query, limit: 100 });
+const result = await getLiveCollection("plugins", {
+	q: query,
+	limit: 100,
+	includeLatestRelease: true,
+});
 const entries = result.entries ?? [];
 const hasError = Boolean(result.error);
 if (!hasError) Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
@@ -18,6 +22,7 @@ if (!hasError) Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
 	title={`Search results for ${query}`}
 	description={`Search results for “${query}” in the EmDash plugin registry.`}
 	canonical={`/search?q=${encodeURIComponent(query)}`}
+	noindex
 >
 	<section class="search-hero shell">
 		<a class="back-link" href="/">← All plugins</a>

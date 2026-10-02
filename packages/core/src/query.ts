@@ -24,11 +24,12 @@
  * import resolves there at typecheck time without our help.
  */
 
-import { encodeCursor, type ContentSeo } from "./database/repositories/types.js";
+import type { ContentSeo } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import {
 	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
+	encodeSortCursor,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
 	FOLDED_TERMS,
@@ -692,12 +693,9 @@ const ENTRY_DATA_KEY_MAP: Record<string, string> = {
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * Encode a `nextCursor` from a content entry, mirroring the loader's
- * encoding scheme: `(orderValue, id)` where `orderValue` is the primary
- * sort field's stringified value. For date columns, reads the raw DB
- * string the loader stashed via CURSOR_RAW_VALUES — round-tripping the
- * parsed Date through `toISOString()` would lose precision for stored
- * values that aren't already ISO-with-milliseconds.
+ * Encode a `nextCursor` from a content entry, as the loader encodes one from
+ * the entry's row. Reads the sort column's raw DB value the loader stashed via
+ * CURSOR_RAW_VALUES, since `entry.data` can't reproduce it for every column.
  */
 function encodeEntryCursor<D>(
 	entry: ContentEntry<D>,
@@ -718,28 +716,13 @@ function encodeEntryCursor<D>(
 		}
 	}
 
-	// Date columns: prefer the raw stored string captured by the loader so
-	// the cursor matches what a direct loader fetch would emit, regardless
-	// of how the DB stored the timestamp.
-	const rawDateValuesRaw = Reflect.get(data, CURSOR_RAW_VALUES);
-	if (rawDateValuesRaw !== null && typeof rawDateValuesRaw === "object") {
-		const raw = Reflect.get(rawDateValuesRaw, dbField);
-		if (typeof raw === "string") return encodeCursor(raw, id);
+	const rawValues = Reflect.get(data, CURSOR_RAW_VALUES);
+	if (rawValues !== null && typeof rawValues === "object" && Object.hasOwn(rawValues, dbField)) {
+		return encodeSortCursor(dbField, Reflect.get(rawValues, dbField), id);
 	}
 
-	const dataKey = ENTRY_DATA_KEY_MAP[dbField] ?? dbField;
-	const value = data[dataKey];
-	let orderValue: string;
-	if (value instanceof Date) {
-		orderValue = value.toISOString();
-	} else if (typeof value === "string" || typeof value === "number") {
-		orderValue = String(value);
-	} else {
-		// Match the loader's empty-string fallback for null/undefined order
-		// values so cursor decoding stays valid even at the boundary.
-		orderValue = "";
-	}
-	return encodeCursor(orderValue, id);
+	// Entries from a cache snapshot written by an earlier version have no stashed sort value.
+	return encodeSortCursor(dbField, data[ENTRY_DATA_KEY_MAP[dbField] ?? dbField], id);
 }
 
 /**
@@ -813,7 +796,7 @@ function dataSnapshot(data: Record<string, unknown>): Record<string, unknown> {
 function reviveData(raw: Record<string, unknown>): Record<string, unknown> {
 	const data: Record<string, unknown> = { ...raw };
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- snapshot field written by dataSnapshot
-	const rawCursor = (data[CURSOR_RAW_FIELD] as Record<string, string> | undefined) ?? {};
+	const rawCursor = (data[CURSOR_RAW_FIELD] as Record<string, unknown> | undefined) ?? {};
 	delete data[CURSOR_RAW_FIELD];
 	Object.defineProperty(data, CURSOR_RAW_VALUES, {
 		value: rawCursor,
@@ -997,7 +980,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
  *
  * // Simple usage — preview just works via middleware
  * const { entry: post, isPreview, error } = await getEmDashEntry("posts", "my-slug");
- * if (!post) return Astro.redirect("/404");
+ * if (!post) return Astro.rewrite("/404");
  * ```
  *
  * @example

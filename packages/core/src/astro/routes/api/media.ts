@@ -25,7 +25,7 @@ import {
 } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
-import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
+import { matchesMimeAllowlist, resolveUploadMimeType } from "#media/mime.js";
 import { computeContentHash } from "#utils/hash.js";
 
 import type { MediaItem } from "../../types.js";
@@ -187,7 +187,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId) : null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
-		if (!matchesMimeAllowlist(file.type, allowlist)) {
+		// Browsers that don't know a format (e.g. `.jxl`) may send an empty or
+		// generic type; fall back to the extension map so allowed uploads aren't
+		// rejected just because the client can't identify them.
+		const mimeType = resolveUploadMimeType(file.name, file.type);
+		if (!mimeType || !matchesMimeAllowlist(mimeType, allowlist)) {
 			return apiError("INVALID_TYPE", "File type not allowed", 400);
 		}
 
@@ -226,7 +230,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		await emdash.storage.upload({
 			key: storageKey,
 			body: buffer,
-			contentType: file.type,
+			contentType: mimeType,
 		});
 
 		// Get image dimensions from form data (sent by client)
@@ -242,7 +246,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// (avoids OOM on large originals on memory-constrained runtimes).
 		const thumbnailEntry = formData.get("thumbnail");
 		const thumbnail = thumbnailEntry instanceof File ? thumbnailEntry : null;
-		const enriched = await enrichImageMetadata(buffer, file.type, {
+		const enriched = await enrichImageMetadata(buffer, mimeType, {
 			knownDimensions: width != null && height != null ? { width, height } : undefined,
 			placeholder: thumbnail
 				? { bytes: new Uint8Array(await thumbnail.arrayBuffer()), contentType: thumbnail.type }
@@ -252,7 +256,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Create media record
 		const result = await emdash.handleMediaCreate({
 			filename,
-			mimeType: normalizeMime(file.type),
+			mimeType,
 			size: file.size,
 			// Client dimensions win over server header dimensions: the browser's
 			// naturalWidth/Height apply EXIF orientation, while image-size reports
