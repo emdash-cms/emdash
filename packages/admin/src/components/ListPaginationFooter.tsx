@@ -74,16 +74,22 @@ export function ListPaginationFooter({ pagination, pageSizes, label }: ListPagin
 		}
 		requestRef.current = null;
 		const target = request.focusTarget;
-		const targetUsable = !!target?.isConnected && !target.matches(":disabled");
+		// A dropdown pick saves its popup option, which sits outside the footer.
+		const targetUsable =
+			!!target && !!paginationRootRef.current?.contains(target) && !target.matches(":disabled");
 		const active = document.activeElement;
 		const focusMoved = !!active && active !== document.body && active !== target;
 		if (focusMoved || (targetUsable && !request.sawPending)) return;
 		const slot = request.fallback === "page-size" ? "pagination-page-size" : "pagination-controls";
 		const focusTarget = targetUsable
 			? target
-			: paginationRootRef.current?.querySelector<HTMLElement>(
-					`[data-slot="${slot}"] [role="combobox"], [data-slot="${slot}"] input, [data-slot="${slot}"] button:not(:disabled)`,
-				);
+			: ['[role="combobox"]', "input", "button:not(:disabled)"]
+					.map((control) =>
+						paginationRootRef.current?.querySelector<HTMLElement>(
+							`[data-slot="${slot}"] ${control}`,
+						),
+					)
+					.find((control) => control);
 		focusTarget?.focus({ preventScroll: true });
 	}, [pagination.page, pagination.perPage, pagination.isPending]);
 

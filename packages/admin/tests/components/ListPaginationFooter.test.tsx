@@ -1,5 +1,6 @@
 import * as React from "react";
 import { describe, expect, it } from "vitest";
+import { page as browser } from "vitest/browser";
 
 import { ListPaginationFooter } from "../../src/components/ListPaginationFooter";
 import { render } from "../utils/render.tsx";
@@ -13,6 +14,7 @@ const SEARCH_LOAD_MS = 50;
  */
 function Harness({ pageLoadMs, initialPage = 1 }: { pageLoadMs?: number; initialPage?: number }) {
 	const [page, setPage] = React.useState(initialPage);
+	const [perPage, setPerPage] = React.useState(20);
 	const [isPending, setIsPending] = React.useState(false);
 	const [loads, setLoads] = React.useState(0);
 	const load = (ms: number) => {
@@ -34,14 +36,18 @@ function Harness({ pageLoadMs, initialPage = 1 }: { pageLoadMs?: number; initial
 				pageSizes={[20, 50]}
 				pagination={{
 					page,
-					perPage: 20,
+					perPage,
 					totalCount: 60,
 					isPending,
 					onPageChange(nextPage) {
 						setPage(nextPage);
 						if (pageLoadMs !== undefined) load(pageLoadMs);
 					},
-					onPageSizeChange() {},
+					onPageSizeChange(nextPerPage) {
+						setPerPage(nextPerPage);
+						setPage(1);
+						if (pageLoadMs !== undefined) load(pageLoadMs);
+					},
 				}}
 			/>
 		</>
@@ -74,6 +80,23 @@ describe("ListPaginationFooter", () => {
 		await settle();
 		expect(document.activeElement).toBe(search.element());
 	});
+
+	it.each([
+		["Page number", "3"],
+		["Page size", "50"],
+	])(
+		"returns focus to the %s dropdown after the page picked from it loads",
+		async (name, option) => {
+			const screen = await render(<Harness pageLoadMs={50} />);
+			const dropdown = screen.getByRole("combobox", { name });
+
+			await dropdown.click();
+			await browser.getByRole("option", { name: option, exact: true }).click();
+
+			await expect.element(screen.getByText("Loads finished: 1")).toBeInTheDocument();
+			await expect.poll(() => document.activeElement).toBe(dropdown.element());
+		},
+	);
 
 	it("moves focus to the page picker when the page reached disables the pressed button", async () => {
 		const screen = await render(<Harness initialPage={2} />);
