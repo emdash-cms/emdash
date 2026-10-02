@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Updated Spanish admin translations: added missing strings, removed deprecated ones, corrected wrong and inconsistent translations, and standardized on the informal tone.
+Updates Spanish (Spain) admin translations to add missing strings, remove deprecated ones, correct wrong and inconsistent translations, and switch to the informal "tú" tone.
