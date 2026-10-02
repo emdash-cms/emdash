@@ -391,6 +391,7 @@ async function exportSettings(db: Kysely<Database>): Promise<SeedFile["settings"
 
 	const settings: Record<string, unknown> = {};
 	for (const [key, value] of allOptions) {
+		if (key === "site:staging") continue;
 		const settingKey = key.replace(SETTINGS_PREFIX, "");
 		settings[settingKey] = value;
 	}

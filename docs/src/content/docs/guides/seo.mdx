@@ -14,6 +14,7 @@ EmDash provides search engine optimization (SEO) features for content entries, p
 | [Structured data](#structured-data) | JSON-LD `BlogPosting` or `WebSite` | `<EmDashHead>` in the page head |
 | [Sitemaps](#sitemaps) | `/sitemap.xml` and `/sitemap-{collection}.xml` | SEO enabled on the collection |
 | [`robots.txt`](#robotstxt) | `/robots.txt` with a sitemap reference | Nothing |
+| [Staging](#hide-a-site-until-it-goes-live) | `noindex` on every page and a disallow-all `robots.txt` | A site created with the setup wizard; `<EmDashHead>` for the tag |
 | [Site-wide settings](#site-wide-seo-settings) | Verification tags, default social image, title separator | Values in **Settings > SEO** |
 | [Translations](#translated-content) | `hreflang` links in the head and the sitemap | Astro i18n configured |
 | [Redirects and 404 log](#redirects-and-the-404-log) | Redirect and gone rules, a log of missed URLs | Nothing |
@@ -152,6 +153,21 @@ To replace the default, enter custom content in **Settings > SEO > robots.txt**.
 
 <Aside>
 To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts`, or `src/pages/sitemap-[collection].xml.ts`. EmDash serves your route for that path and keeps its routes for the others.
+</Aside>
+
+## Hide a site until it goes live
+
+A site created with the setup wizard starts in staging. Visitors can open it, but search engines are asked not to index it:
+
+- `<EmDashHead>` renders `<meta name="robots" content="noindex, nofollow">` on every page, overriding robots values from the SEO panel and plugin metadata contributions.
+- `/robots.txt` disallows all crawlers, replacing the default and any custom content.
+
+The admin header shows a **Staging** badge while the site is in staging. When the site is ready, open **Settings > General** and select **Go live** under **Site Status**. Without the admin, send `{ "staging": false }` to `POST /_emdash/api/settings` or use the MCP `settings_update` tool. **Switch back to staging** hides the site again, for example during a relaunch. Responses cached before the switch, such as a live `robots.txt` (up to a day) or edge-cached pages, show the previous state until they expire.
+
+Sites set up before staging existed, and sites without the setting, are live. Site transfer and `emdash export-seed` don't copy the staging status: an import target keeps its own status, so select **Go live** after importing into a new site.
+
+<Aside type="caution">
+Staging is not access control. Anyone with the address can still open the site. Pages that don't render `<EmDashHead>` don't get the `noindex` tag, and a custom `robots.txt` route replaces EmDash's, so staging doesn't affect it.
 </Aside>
 
 ## Site-wide SEO settings

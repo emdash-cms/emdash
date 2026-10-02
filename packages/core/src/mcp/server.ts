@@ -3671,7 +3671,7 @@ export function createMcpServer(
 			title: "Get Site Settings",
 			description:
 				"Get all site-wide settings (title, tagline, logo, favicon, URL, " +
-				"date/time formatting, social links, SEO defaults). Media references " +
+				"date/time formatting, social links, SEO defaults, and staging status). Media references " +
 				"(logo, favicon, defaultOgImage) include resolved URLs. Unset values " +
 				"are omitted from the response.",
 			inputSchema: z.object({}),
@@ -3721,6 +3721,10 @@ export function createMcpServer(
 					])
 					.optional()
 					.describe("Canonical site URL (http or https). Empty string clears it."),
+				staging: z
+					.boolean()
+					.optional()
+					.describe("true hides the site from search engines; false makes it live"),
 				postsPerPage: z
 					.number()
 					.int()
