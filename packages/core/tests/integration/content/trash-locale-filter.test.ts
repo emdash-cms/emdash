@@ -80,6 +80,30 @@ describeEachDialect("trashed content locale scoping", (dialect) => {
 		expect(result.data.items[0]?.locale).toBe("de");
 	});
 
+	it("totals numbered trash pages within the requested locale", async () => {
+		const scoped = await handleContentListTrashed(ctx.db, "posts", {
+			page: 1,
+			limit: 1,
+			locale: "fr",
+		});
+		const pages = await Promise.all(
+			[1, 2, 3].map((page) => handleContentListTrashed(ctx.db, "posts", { page, limit: 1 })),
+		);
+
+		expect(scoped.success && scoped.data).toMatchObject({ total: 1, nextCursor: undefined });
+		expect(
+			new Set(pages.map((result) => (result.success ? result.data.items[0]?.slug : undefined))),
+		).toEqual(new Set(["hello-en", "hello-fr", "hallo-de"]));
+		expect(pages.map((result) => result.success && result.data.total)).toEqual([3, 3, 3]);
+	});
+
+	it("rejects a trash page combined with a cursor", async () => {
+		const result = await handleContentListTrashed(ctx.db, "posts", { page: 2, cursor: "cursor" });
+
+		expect(result.success).toBe(false);
+		expect(!result.success && result.error.code).toBe("VALIDATION_ERROR");
+	});
+
 	it("counts only the trashed entries in the requested locale", async () => {
 		const scoped = await handleContentCountTrashed(ctx.db, "posts", { locale: "en" });
 		const all = await handleContentCountTrashed(ctx.db, "posts");

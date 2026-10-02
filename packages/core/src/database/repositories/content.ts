@@ -299,6 +299,16 @@ function getTableName(type: string): string {
 	return `ec_${type}`;
 }
 
+function assertPageOffset(offset: number | undefined, cursor: string | undefined): void {
+	if (offset === undefined) return;
+	if (cursor !== undefined) {
+		throw new EmDashValidationError("cursor and offset cannot be used together");
+	}
+	if (!Number.isSafeInteger(offset) || offset < 0) {
+		throw new EmDashValidationError("offset must be a non-negative integer");
+	}
+}
+
 /**
  * Serialize a value for database storage
  * Objects/arrays are JSON-stringified
@@ -837,6 +847,7 @@ export class ContentRepository {
 	): Promise<FindManyResult<ContentItem>> {
 		const tableName = getTableName(type);
 		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		assertPageOffset(options.offset, options.cursor);
 
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
@@ -951,7 +962,11 @@ export class ContentRepository {
 		if (indexedOrderFilter?.kind !== "null") {
 			query = query.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc");
 		}
-		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc").limit(limit + 1);
+		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc");
+		query =
+			options.offset === undefined
+				? query.limit(limit + 1)
+				: query.limit(limit).offset(options.offset);
 
 		// Run the page fetch and the unbounded count together — the UI needs
 		// both to render a stable denominator (kept on every page intentionally),
@@ -1694,6 +1709,7 @@ export class ContentRepository {
 	): Promise<FindManyResult<ContentItem & { deletedAt: string }>> {
 		const tableName = getTableName(type);
 		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		assertPageOffset(options.offset, options.cursor);
 
 		// Determine ordering - default to most recently deleted
 		const orderField = options.orderBy?.field || "deletedAt";
@@ -1734,8 +1750,11 @@ export class ContentRepository {
 
 		query = query
 			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
-			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
-			.limit(limit + 1);
+			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc");
+		query =
+			options.offset === undefined
+				? query.limit(limit + 1)
+				: query.limit(limit).offset(options.offset);
 
 		const rows = await query.execute();
 		const hasMore = rows.length > limit;

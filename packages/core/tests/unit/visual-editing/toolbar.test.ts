@@ -185,7 +185,7 @@ describe("renderToolbar", () => {
 			setTimeout,
 			clearTimeout,
 			console,
-			pendingSavePromise: null,
+			pendingSaves: [],
 		});
 		runInContext(script.slice(refreshStart, refreshEnd), context);
 		runInContext(`${script.slice(publishStart, publishEnd)}\npublish("posts", "post-1");`, context);
