@@ -78,6 +78,7 @@ export {
 	Columns,
 	Break,
 	HtmlBlock,
+	Iframe,
 	// Marks
 	Superscript,
 	Subscript,

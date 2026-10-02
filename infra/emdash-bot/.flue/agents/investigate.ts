@@ -323,10 +323,14 @@ export function Investigate({ id }: AgentProps) {
 					title: "Workspace setup failed",
 					detail: "The investigation workspace could not be prepared",
 				});
-				const result = failedResult(
-					`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
-					"workspace",
-				);
+				const retryAt = await rateLimitRetryAt(error);
+				const result = {
+					...failedResult(
+						`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
+						"workspace",
+					),
+					...(retryAt ? { failureRetryAt: retryAt } : {}),
+				};
 				await applyInvestigationResult(input, result, false, false);
 				log.error("workspace setup failed", { error: errorMessage(error) });
 			},
@@ -536,7 +540,7 @@ export function Investigate({ id }: AgentProps) {
 						});
 						return { output: published };
 					} catch (error) {
-						const retryAt = await publicationRetryAt(error);
+						const retryAt = await rateLimitRetryAt(error);
 						setLastFailure({
 							stage: "publication",
 							message: safeFailureMessage(error),
@@ -1134,7 +1138,7 @@ function withRunFailure<T extends InvestigationResult | ImplementationResult>(
 	};
 }
 
-async function publicationRetryAt(error: unknown): Promise<number | undefined> {
+async function rateLimitRetryAt(error: unknown): Promise<number | undefined> {
 	if (!isGitHubRateLimitFailure(error)) return undefined;
 	const fallback = Date.now() + 60_000;
 	try {

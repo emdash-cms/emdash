@@ -9,6 +9,7 @@
  * Auto-saves on blur, dispatches custom events for toolbar integration.
  */
 
+import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react";
 import { Extension, Node, mergeAttributes, type JSONContent, type Range } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
@@ -263,14 +264,12 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 				language: attrStrOpt(node.attrs, "language"),
 			};
 		}
-		case "htmlBlock": {
-			const rawHtml = node.attrs?.html;
+		case "htmlBlock":
 			return {
 				_type: "htmlBlock",
 				_key: k(),
-				html: typeof rawHtml === "string" ? rawHtml : "",
+				...htmlBlockFields(node.attrs ?? {}),
 			};
-		}
 		case "image": {
 			const provider = attrStrOpt(node.attrs, "provider");
 			const blurhash = attrStrOpt(node.attrs, "blurhash");
@@ -569,10 +568,9 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return { type: "horizontalRule" };
 	}
 	if (block._type === "htmlBlock") {
-		const hb = block as PTBlock & { html?: string };
 		return {
 			type: "htmlBlock",
-			attrs: { html: hb.html || "" },
+			attrs: { ...htmlBlockFields(block) },
 		};
 	}
 	if (block._type === "image") {
@@ -1056,7 +1054,7 @@ const slashCommands: SlashCommandItem[] = [
 				.chain()
 				.focus()
 				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.insertContent({ type: "htmlBlock", attrs: { html: "", isolated: true } })
 				.run();
 		},
 	},
@@ -1118,6 +1116,9 @@ const HtmlBlockNode = Node.create({
 		const noDom = { rendered: false, parseHTML: () => null };
 		return {
 			html: { default: "", ...noDom },
+			css: { default: "", ...noDom },
+			js: { default: "", ...noDom },
+			isolated: { default: false, ...noDom },
 		};
 	},
 

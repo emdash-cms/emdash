@@ -128,6 +128,37 @@ describe("Site Settings", () => {
 			expect(await new OptionsRepository(db).exists("site:seo")).toBe(false);
 		});
 
+		it("keeps the other SEO fields when updating one of them", async () => {
+			await setSiteSettings(
+				{
+					seo: {
+						titleSeparator: " | ",
+						robotsTxt: "User-agent: *\nDisallow: /private/",
+						googleVerification: "google-code",
+					},
+				},
+				db,
+			);
+
+			await setSiteSettings({ seo: { googleVerification: "new-code" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.seo).toEqual({
+				titleSeparator: " | ",
+				robotsTxt: "User-agent: *\nDisallow: /private/",
+				googleVerification: "new-code",
+			});
+		});
+
+		it("keeps the other social links when updating one of them", async () => {
+			await setSiteSettings({ social: { twitter: "@handle", github: "user" } }, db);
+
+			await setSiteSettings({ social: { github: "new-user" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.social).toEqual({ twitter: "@handle", github: "new-user" });
+		});
+
 		it("rolls back updates when a media-setting deletion fails", async () => {
 			await setSiteSettings({ title: "Original", logo: { mediaId: "med_logo" } }, db);
 			await sql`

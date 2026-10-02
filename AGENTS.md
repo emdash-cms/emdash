@@ -55,12 +55,12 @@ To place an image at a specific point in the body, add `![descriptive alt text](
 
 ## Architecture
 
-EmDash is an Astro-native CMS on Cloudflare (D1 + R2 + Workers) or Node + SQLite.
+EmDash is an Astro-native CMS that deploys to Cloudflare Workers or Node.js. The database is SQLite, libSQL, or PostgreSQL on Node.js, and D1 or PostgreSQL via Hyperdrive on Workers. Media storage is an R2 binding on Workers, and S3-compatible storage or the local filesystem on Node.js.
 
 - **Schema in the database.** `_emdash_collections` and `_emdash_fields` are the source of truth. Each collection gets a real SQL table (`ec_posts`, `ec_products`) with typed columns -- not EAV.
 - **Middleware chain:** runtime init -> setup check -> auth -> request context (ALS). Auth middleware checks authentication only; routes check authorization.
 - **Handler layer** (`packages/core/src/api/handlers/*.ts`) holds business logic and returns `ApiResult<T>` (`{ success: true, data } | { success: false, error: { code, message, details? } }`). Route files are thin wrappers.
-- **Storage abstraction:** `Storage` interface with `upload/download/delete/exists/list/getSignedUploadUrl`. `LocalStorage` for dev, `S3Storage` for R2/AWS. Access via `emdash.storage` from locals.
+- **Storage abstraction:** `Storage` interface with `upload/download/delete/exists/list/getSignedUploadUrl/getPublicUrl`. `LocalStorage` for a local directory, `S3Storage` for S3-compatible services (including R2's S3 API), `R2Storage` (in `@emdash-cms/cloudflare`) for R2 bindings. Access via `emdash.storage` from locals.
 
 Key files:
 
@@ -204,7 +204,7 @@ When adding content-table features, ask: per-locale (display fields) or per-tran
 
 ## Performance: Caching and Query Patterns
 
-EmDash runs on D1 with the Sessions API. Anonymous reads go to the nearest replica; writes and authenticated reads route to the primary. Every round-trip matters.
+On D1, EmDash can use the Sessions API (`session: "auto"`; the default is `"disabled"`). With sessions on, anonymous reads go to the nearest replica; writes and authenticated reads route to the primary. Every round-trip matters.
 
 **The logged-out hot path only ratchets down.** Anonymous page renders are what visitors actually hit; their query count is the product's performance envelope. Any change that adds a query to a logged-out route needs a _really_ good reason -- including queries that only run on cold start or first request. Before accepting a new round-trip, look for a way to piggyback on an existing query, batch, defer with `after()`, or cache.
 

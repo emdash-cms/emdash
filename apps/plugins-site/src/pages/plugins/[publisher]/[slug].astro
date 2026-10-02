@@ -20,14 +20,14 @@ import {
 
 const publisher = Astro.params.publisher;
 const slug = Astro.params.slug;
-if (!publisher || !slug) return Astro.redirect("/404");
+if (!publisher || !slug) return Astro.rewrite("/404");
 
 const result = await getLiveEntry("plugins", { publisher, slug });
 if (!result.entry) {
 	if (result.error && !isLiveEntryNotFoundError(result.error)) {
 		return Astro.redirect("/?registry=unavailable");
 	}
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 const data = result.entry.data;

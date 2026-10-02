@@ -808,6 +808,9 @@ export interface Database {
 	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
 	_emdash_redirect_write_lock: RedirectWriteLockTable;
+	_emdash_redirect_state: RedirectStateTable;
+	_emdash_redirect_artifacts: RedirectArtifactTable;
+	_emdash_redirect_generation_artifacts: RedirectGenerationArtifactTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
@@ -870,6 +873,26 @@ export interface RedirectWriteLockTable {
 	token: string;
 	expires_at: number;
 	generation: number;
+}
+
+export interface RedirectStateTable {
+	id: number;
+	revision: Generated<number>;
+	generation: string | null;
+	generation_revision: Generated<number>;
+	repair_expires_at: Generated<number>;
+}
+
+export interface RedirectArtifactTable {
+	digest: string;
+	kind: string;
+	payload: string;
+}
+
+export interface RedirectGenerationArtifactTable {
+	generation: string;
+	position: number;
+	digest: string;
 }
 
 export interface NotFoundLogTable {

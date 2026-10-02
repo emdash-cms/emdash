@@ -14,9 +14,10 @@ import {
 	type PreviewScreenshot,
 	renderAgentComment,
 	renderCommandFeedback,
-	renderDraftPrBody,
 	renderPullRequestTitle,
 	renderPreviewReadyAsk,
+	renderPullRequestBody,
+	renderVerifiedThanks,
 	renderReadonlyReply,
 	shouldPostReadonlyReply,
 } from "./comments.js";
@@ -157,6 +158,11 @@ export interface NormalizedEvent {
 	readonly needsClassify: boolean;
 	/** Raw mention text, for the classifier prompt. */
 	readonly classifyText?: string | null;
+	/**
+	 * True for a plain comment that didn't mention the bot. When the classifier
+	 * finds no command in it, the bot stays quiet instead of replying.
+	 */
+	readonly unaddressed?: boolean;
 	/** Exact human comment that caused this event, retained for agent context. */
 	readonly triggeringComment?: TriggeringComment;
 	readonly pullRequestNumber?: number;
@@ -185,7 +191,7 @@ export interface NormalizedEvent {
 	readonly agentLabels?: readonly string[];
 	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
 	readonly agentScreenshots?: readonly PreviewScreenshot[];
-	/** Reviewer-facing copy carried through preview confirmation into the draft PR. */
+	/** Reviewer-facing copy carried through the preview build into the PR. */
 	readonly agentPullRequest?: PullRequestCopy;
 	/**
 	 * Precomposed comment body that replaces the default `renderComment` output
@@ -194,9 +200,14 @@ export interface NormalizedEvent {
 	 */
 	readonly commentBodyOverride?: string;
 	/**
+	 * Inputs for the preview-ready ask. It renders once the transition's PR has
+	 * opened, so the ask can link it.
+	 */
+	readonly previewAsk?: PreviewAsk;
+	/**
 	 * Post the comment BEFORE flipping labels for this transition. The fix-loop
 	 * ask must land first: a failed comment post must not leave the issue labeled
-	 * awaiting-reporter with no ask for the reporter to act on.
+	 * in review with no ask for the reporter to act on.
 	 */
 	readonly commentFirst?: boolean;
 	/** Internal callback metadata: this event's projection completes the run. */
@@ -315,7 +326,6 @@ const STORAGE = {
 	inbox: "o:inbox",
 	pendingDispatch: "o:pendingDispatch",
 	pendingSideEffects: "o:pendingSideEffects",
-	awaitingReporterSince: "o:awaitingReporterSince",
 	previewBuildDeadline: "o:previewBuildDeadline",
 	previewPollNextAt: "o:previewPollNextAt",
 	previewNotes: "o:previewNotes",
@@ -331,7 +341,7 @@ const STORAGE = {
 	workComments: "o:workComments",
 	currentRunDryRun: "o:currentRunDryRun",
 	githubRetryAt: "o:githubRetryAt",
-	publicationRetryAt: "o:publicationRetryAt",
+	rateLimitResumeAt: "o:publicationRetryAt",
 	recoveryRetry: "o:recoveryRetry",
 	recoveryTerminal: "o:recoveryTerminal",
 	labelReconcileNextAt: "o:labelReconcileNextAt",
@@ -340,9 +350,6 @@ const STORAGE = {
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
-/** Reporter-confirmation window for the fix loop. After this, the alarm fires
- * `expire`, which reaps the candidate branch and falls back to `reproduced`. */
-const REPORTER_SILENCE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 /** Overall budget for a candidate preview to publish on pkg.pr.new before we
  * give up and fire `preview.failed`. Publishing normally lands within ~60s. */
 const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
@@ -354,11 +361,11 @@ const PR_WEBHOOK_REFRESH_DELAY_MS = 15 * 1000;
 const LABEL_RECONCILE_INTERVAL_MS = 15 * 60 * 1000;
 const RECOVERY_RETRY_BASE_MS = 60_000;
 const RECOVERY_RETRY_MAX_MS = 60 * 60_000;
-const RECOVERY_RETRY_LIMIT = 8;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
-const CLASSIFIER_MAX_ATTEMPTS = 3;
+const INBOX_ENTRY_MAX_ATTEMPTS = 3;
+const SIDE_EFFECT_MAX_ATTEMPTS = 8;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
 const PR_FEEDBACK_EVENTS: ReadonlySet<EventId | null> = new Set([
 	"revise",
@@ -448,7 +455,10 @@ interface PendingSideEffect {
 	readonly commentMayExist: boolean;
 	/** Post the comment before flipping labels (fix-loop ask ordering). */
 	readonly commentFirst?: boolean;
+	readonly attempts?: number;
 }
+
+type PreviewAsk = Omit<Parameters<typeof renderPreviewReadyAsk>[0], "pullRequestNumber">;
 
 interface StoredWorkPlan {
 	readonly runId: string;
@@ -515,7 +525,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			}
 
 			const entry = { id: crypto.randomUUID(), input } satisfies InboxEntry;
-			await transaction.put(STORAGE.inbox, [...(inbox ?? []), entry]);
+			await Promise.all([
+				transaction.put(STORAGE.inbox, [...(inbox ?? []), entry]),
+				transaction.delete(STORAGE.recoveryRetry),
+				transaction.delete(STORAGE.recoveryTerminal),
+			]);
 			return { outcome: { kind: "admitted", id: entry.id } as const, rearm: true };
 		});
 		if (rearm) await this.ctx.storage.setAlarm(Date.now());
@@ -554,7 +568,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "recovered" };
 		}
 		if (await this.hasPendingSideEffects()) {
-			throw new Error("an earlier GitHub projection is still pending");
+			throw new ProjectionPendingError("an earlier GitHub projection is still pending");
 		}
 		if (input.anchorNumber !== undefined) {
 			await this.ctx.storage.put(STORAGE.anchorNumber, input.anchorNumber);
@@ -568,7 +582,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				throw new ClassifierProcessingError(classifyResult.reason);
 			}
 			if (classifyResult.kind === "noop") {
-				await this.postCommandFeedback(input);
+				if (!input.unaddressed) await this.postCommandFeedback(input);
 				if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 				return classifyResult;
 			}
@@ -593,7 +607,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const retryMode =
 			previousRun?.status === "failed" || previousRun?.status === "timed_out"
 				? previousRun.mode
-				: failedRunMode;
+				: (failedRunMode ?? previousRun?.mode);
 		if (resolvedEvent === "retry" && resumableRun) resolvedEvent = "resume";
 
 		const decision = resolve({
@@ -1109,7 +1123,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		) {
 			event = "agent.revised";
 		}
-		const publicationRetryAt =
+		const rateLimitResumeAt =
 			typeof input.result.failureRetryAt === "number" &&
 			Number.isFinite(input.result.failureRetryAt) &&
 			input.result.failureRetryAt > Date.now()
@@ -1117,22 +1131,22 @@ export class OrchestratorDO extends DurableObject<Env> {
 				: null;
 		if (
 			event === "agent.failed" &&
-			input.result.failureStage === "publication" &&
-			publicationRetryAt &&
+			(input.result.failureStage === "publication" || input.result.failureStage === "workspace") &&
+			rateLimitResumeAt &&
 			currentRunMode &&
 			currentAgentId &&
 			state
 		) {
-			await this.pausePublication({
+			await this.pauseForRateLimit({
 				runId: input.runId,
 				agentId: currentAgentId,
 				mode: currentRunMode,
 				state,
-				retryAt: publicationRetryAt,
+				retryAt: rateLimitResumeAt,
 				attemptStartedAt: run?.startedAt ?? legacyRunStartedAt ?? Date.now(),
 				summary: input.result.summary ?? null,
 			});
-			return { kind: "publication-paused", runId: input.runId, retryAt: publicationRetryAt };
+			return { kind: "rate-limit-paused", runId: input.runId, retryAt: rateLimitResumeAt };
 		}
 		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
 		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
@@ -1237,15 +1251,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 	private async processTick(): Promise<TickOutcome> {
 		const now = Date.now();
 		await this.ctx.storage.put(STORAGE.lastTickAt, now);
-		const [githubRetryAt, publicationRetryAt, recoveryTerminal] = await Promise.all([
+		const [githubRetryAt, rateLimitResumeAt] = await Promise.all([
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
-			this.ctx.storage.get<number>(STORAGE.publicationRetryAt),
-			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
+			this.ctx.storage.get<number>(STORAGE.rateLimitResumeAt),
 		]);
 		if (
-			recoveryTerminal ||
 			(githubRetryAt !== undefined && githubRetryAt > now) ||
-			(publicationRetryAt !== undefined && publicationRetryAt > now)
+			(rateLimitResumeAt !== undefined && rateLimitResumeAt > now)
 		) {
 			return {
 				ranAt: now,
@@ -1253,20 +1265,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 				inboxError: null,
 				sentDeadlineWarning: false,
 				droppedStaleRun: false,
-				recoveryError: recoveryTerminal ? "recovery retry limit exhausted" : null,
+				recoveryError: null,
 				labelDrift: null,
-				expiredReporterWait: false,
 				previewPoll: "idle",
 				pullRequestPoll: "idle",
 			};
 		}
-		if (publicationRetryAt !== undefined) {
-			await this.ctx.storage.delete(STORAGE.publicationRetryAt);
+		if (rateLimitResumeAt !== undefined) {
+			await this.ctx.storage.delete(STORAGE.rateLimitResumeAt);
 			const labels = await this.projectLabels();
 			try {
 				await this.processEvent({
 					event: "resume",
-					arg: "Retry publication after GitHub's rate-limit window.",
+					arg: "Continue after GitHub's rate-limit window.",
 					actor: "system",
 					labels,
 					needsClassify: false,
@@ -1276,7 +1287,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					error instanceof GitHubRateLimitError
 						? error.retryAt
 						: Date.now() + RECOVERY_RETRY_BASE_MS;
-				await this.deferPublicationResume(retryAt);
+				await this.deferRateLimitResume(retryAt);
 				throw error;
 			}
 		}
@@ -1338,18 +1349,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, recoveryError);
 			}
 		}
-		let expiredReporterWait = false;
-		try {
-			expiredReporterWait = await this.reapExpiredReporterWait(now);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			recoveryError ??= message;
-			await this.recordRecoveryFailure("reporter-wait", error, now);
-			console.error("[orchestrator] reporter-wait expiry failed", { error: message });
-			if (error instanceof GitHubRateLimitError) {
-				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, message);
-			}
-		}
 		let previewPoll: PreviewPollOutcome = "idle";
 		try {
 			previewPoll = await this.pollPreviewBuild(now);
@@ -1401,7 +1400,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			droppedStaleRun,
 			recoveryError,
 			labelDrift,
-			expiredReporterWait,
 			previewPoll,
 			pullRequestPoll,
 		};
@@ -1421,7 +1419,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			droppedStaleRun: false,
 			recoveryError,
 			labelDrift: null,
-			expiredReporterWait: false,
 			previewPoll: "idle",
 			pullRequestPoll: "idle",
 		};
@@ -1444,21 +1441,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const nextAt =
 			now +
 			Math.min(RECOVERY_RETRY_MAX_MS, RECOVERY_RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1));
-		if (attempts >= RECOVERY_RETRY_LIMIT) {
-			await Promise.all([
-				this.ctx.storage.put<RecoveryTerminal>(STORAGE.recoveryTerminal, {
-					path,
-					attempts,
-					terminalAt: now,
-					errorKind: "recovery-error",
-				}),
-				this.ctx.storage.delete(STORAGE.recoveryRetry),
-				this.ctx.storage.delete(STORAGE.githubRetryAt),
-				this.ctx.storage.deleteAlarm(),
-			]);
-			console.error(JSON.stringify({ message: "orchestrator recovery exhausted", path, attempts }));
-			return nextAt;
-		}
 		await this.ctx.storage.put<RecoveryRetry>(STORAGE.recoveryRetry, { path, attempts, nextAt });
 		console.warn(
 			JSON.stringify({
@@ -1576,9 +1558,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 	/**
 	 * Poll pkg.pr.new for the candidate change's preview while the item sits in
 	 * `preview_building`. One probe per alarm tick (the alarm cadence IS the
-	 * poll interval -- no unbounded loop in the DO). A 200 fires `preview.ready`
-	 * and advances to the reporter ask; exhausting the overall budget fires
-	 * `preview.failed`, which retains the branch for inspection.
+	 * poll interval -- no unbounded loop in the DO). A 200 fires `preview.ready`,
+	 * which opens the PR and asks the reporter to try the preview; exhausting the
+	 * overall budget fires `preview.failed`, which opens the PR without one.
 	 */
 	private async pollPreviewBuild(now: number): Promise<PreviewPollOutcome> {
 		const [state, deadline, nextAt] = await Promise.all([
@@ -1601,7 +1583,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.firePreviewEvent(
 				anchorNumber,
 				"preview.failed",
-				"The preview package configuration is invalid. The candidate branch was retained for inspection.",
+				"The preview package configuration is invalid, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.",
 			);
 			return "failed";
 		}
@@ -1629,7 +1611,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const labels = await this.projectLabels();
 		const creds = readAppCreds(this.env);
 		const repo = readRepoContext(this.env);
-		let override: string | undefined;
+		let previewAsk: PreviewAsk | undefined;
 		if (creds && repo) {
 			const [notes, screenshots] = await Promise.all([
 				this.ctx.storage.get<string>(STORAGE.previewNotes),
@@ -1642,7 +1624,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			} catch (err) {
 				console.error("[orchestrator] preview ask: reporter lookup failed", err);
 			}
-			override = renderPreviewReadyAsk({
+			previewAsk = {
 				owner: repo.owner,
 				repo: repo.repo,
 				issueNumber: anchorNumber,
@@ -1651,7 +1633,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				notes,
 				...(screenshots ? { screenshots } : {}),
 				reporterLogin,
-			});
+			};
 		}
 		await this.processEvent({
 			event: "preview.ready",
@@ -1659,7 +1641,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			actor: "system",
 			labels,
 			needsClassify: false,
-			...(override ? { commentBodyOverride: override, commentFirst: true } : {}),
+			...(previewAsk ? { previewAsk, commentFirst: true } : {}),
 		});
 	}
 
@@ -1672,7 +1654,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const commentBodyOverride =
 			event === "preview.failed"
 				? (failureComment ??
-					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The candidate branch was retained for inspection.`)
+					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.`)
 				: undefined;
 		await this.processEvent({
 			event,
@@ -1685,29 +1667,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
-	/**
-	 * Fire the fix loop's `expire` timer when the reporter has been silent past
-	 * the confirmation window. The transition reaps the candidate branch and
-	 * falls back to the `reproduced` verdict.
-	 */
-	private async reapExpiredReporterWait(now: number): Promise<boolean> {
-		const [state, since] = await Promise.all([
-			this.ctx.storage.get<StateId>(STORAGE.state),
-			this.ctx.storage.get<number>(STORAGE.awaitingReporterSince),
-		]);
-		if (state !== "awaiting_reporter" || since === undefined) return false;
-		if (now - since < REPORTER_SILENCE_WINDOW_MS) return false;
-		const labels = await this.projectLabels();
-		await this.processEvent({
-			event: "expire",
-			arg: null,
-			actor: "system",
-			labels,
-			needsClassify: false,
-		});
-		return true;
-	}
-
 	private async processInboxHead(): Promise<boolean> {
 		const inbox = (await this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
 		const runId = await this.ctx.storage.get<string>(STORAGE.currentRunId);
@@ -1715,8 +1674,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			(candidate) =>
 				!(
 					runId &&
-					PR_FEEDBACK_EVENTS.has(candidate.input.event) &&
-					(candidate.input.pullRequestNumber || candidate.input.event === "needs_changes")
+					(candidate.input.event === "retry" ||
+						(PR_FEEDBACK_EVENTS.has(candidate.input.event) &&
+							(candidate.input.pullRequestNumber || candidate.input.event === "needs_changes")))
 				),
 		);
 		if (!entry) return false;
@@ -1724,12 +1684,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 		try {
 			await this.processEvent(entry.input);
 		} catch (error) {
-			if (!(error instanceof ClassifierProcessingError)) throw error;
+			if (error instanceof GitHubRateLimitError || error instanceof ProjectionPendingError) {
+				throw error;
+			}
 			const attempts = (entry.attempts ?? 0) + 1;
 			await this.ctx.storage.transaction(async (transaction) => {
 				const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
 				if (!current.some((candidate) => candidate.id === entry.id)) return;
-				if (attempts < CLASSIFIER_MAX_ATTEMPTS) {
+				if (attempts < INBOX_ENTRY_MAX_ATTEMPTS) {
 					await transaction.put(
 						STORAGE.inbox,
 						current.map((candidate) =>
@@ -1754,11 +1716,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 						current.filter((candidate) => candidate.id !== entry.id),
 					);
 			});
-			if (attempts >= CLASSIFIER_MAX_ATTEMPTS) {
-				console.error("[orchestrator] discarded classifier entry after retry limit", {
+			if (attempts >= INBOX_ENTRY_MAX_ATTEMPTS) {
+				console.error("[orchestrator] discarded inbox entry after retry limit", {
 					deliveryId: entry.input.deliveryId,
-					error: error.message,
+					error: error instanceof Error ? error.message : String(error),
 				});
+				await this.postDiscardedEntryNotice(entry.input);
 				return true;
 			}
 			throw error;
@@ -1796,13 +1759,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 		]);
 		await this.ctx.storage.transaction(async (transaction) => {
 			await Promise.all([
-				transaction.delete(STORAGE.awaitingReporterSince),
 				transaction.delete(STORAGE.deadlineWarningRetryAt),
 				transaction.delete(STORAGE.previewBuildDeadline),
 				transaction.delete(STORAGE.previewPollNextAt),
 				transaction.delete(STORAGE.prPollNextAt),
 				transaction.delete(STORAGE.githubRetryAt),
-				transaction.delete(STORAGE.publicationRetryAt),
+				transaction.delete(STORAGE.rateLimitResumeAt),
 				transaction.delete(STORAGE.recoveryRetry),
 				transaction.delete(STORAGE.labelReconcileNextAt),
 				transaction.deleteAlarm(),
@@ -1835,13 +1797,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 			pendingSideEffects,
 			workComments,
 			pendingResume,
-			awaitingReporterSince,
 			previewBuildDeadline,
 			previewPollNextAt,
 			prNumber,
 			prPollNextAt,
 			githubRetryAt,
-			publicationRetryAt,
+			rateLimitResumeAt,
 			recoveryRetry,
 			recoveryTerminal,
 			labelReconcileNextAt,
@@ -1860,25 +1821,23 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
 			this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments),
 			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
-			this.ctx.storage.get<number>(STORAGE.awaitingReporterSince),
 			this.ctx.storage.get<number>(STORAGE.previewBuildDeadline),
 			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.prNumber),
 			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
-			this.ctx.storage.get<number>(STORAGE.publicationRetryAt),
+			this.ctx.storage.get<number>(STORAGE.rateLimitResumeAt),
 			this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry),
 			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
 			this.ctx.storage.get<number>(STORAGE.labelReconcileNextAt),
 			this.ctx.storage.get<AnchorTerminal>(STORAGE.anchorTerminal),
 		]);
 		const now = Date.now();
-		if (recoveryTerminal || anchorTerminal) {
-			await this.cleanupSchedulingState(
-				recoveryTerminal ? "recovery-exhausted" : "anchor-terminal",
-			);
+		if (anchorTerminal) {
+			await this.cleanupSchedulingState("anchor-terminal");
 			return false;
 		}
+		if (recoveryTerminal) await this.ctx.storage.delete(STORAGE.recoveryTerminal);
 		const activeRun = run?.status === "running" ? run : null;
 		const runStartedAt = activeRun?.startedAt ?? legacyRunStartedAt;
 		const runMode = activeRun?.mode ?? legacyRunMode;
@@ -1901,17 +1860,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 			prNumber !== undefined &&
 			prPollNextAt !== undefined &&
 			(state === "in_review" || state === "needs_attention");
-		const reporterExpiryAt =
-			state === "awaiting_reporter" && awaitingReporterSince !== undefined
-				? awaitingReporterSince + REPORTER_SILENCE_WINDOW_MS
-				: null;
 		const hasAutomationWork =
 			hasImmediateWork ||
 			runAlarmAt !== null ||
 			hasPreviewWork ||
 			hasPullRequestWork ||
-			reporterExpiryAt !== null ||
-			publicationRetryAt !== undefined;
+			rateLimitResumeAt !== undefined;
 		const hasRecoveryWork = recoveryRetry !== undefined && recoveryRetry.path !== "labels";
 		const terminalAtRest =
 			state !== undefined && STATES[state].terminal && !hasImmediateWork && runAlarmAt === null;
@@ -1925,16 +1879,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (!reconcileLabels && labelReconcileNextAt !== undefined) {
 			await this.ctx.storage.delete(STORAGE.labelReconcileNextAt);
 		}
-		const needsPeriodicTick =
-			hasImmediateWork ||
-			runAlarmAt !== null ||
-			hasPreviewWork ||
-			hasPullRequestWork ||
-			publicationRetryAt !== undefined ||
-			hasRecoveryWork;
-		let desired = needsPeriodicTick
-			? now + TICK_INTERVAL_MS
-			: Math.max(now + 1_000, reporterExpiryAt ?? now + TICK_INTERVAL_MS);
+		let desired = now + TICK_INTERVAL_MS;
 		if (hasImmediateWork) {
 			desired = Math.min(desired, now + INBOX_RETRY_MS);
 		}
@@ -1950,11 +1895,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (reconcileLabels && labelReconcileNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, labelReconcileNextAt));
 		}
-		if (reporterExpiryAt !== null) {
-			desired = Math.min(desired, Math.max(now + 1_000, reporterExpiryAt));
-		}
-		if (publicationRetryAt !== undefined) {
-			desired = Math.min(desired, Math.max(now + 1_000, publicationRetryAt));
+		if (rateLimitResumeAt !== undefined) {
+			desired = Math.min(desired, Math.max(now + 1_000, rateLimitResumeAt));
 		}
 		const retryAt = Math.max(githubRetryAt ?? 0, recoveryRetry?.nextAt ?? 0);
 		if (retryAt > now) desired = Math.max(desired, retryAt);
@@ -2429,9 +2371,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (decision.action === "openPr") {
 			return this.runOpenPr(creds, repo, anchorNumber);
 		}
-		if (decision.action === "openDraftPr") {
-			return this.runOpenPr(creds, repo, anchorNumber, true);
-		}
 		if (decision.action === "closePr") {
 			return this.runClosePr(creds, repo);
 		}
@@ -2771,14 +2710,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 		creds: GitHubAppCreds,
 		repo: Parameters<typeof createPullRequest>[1],
 		anchorNumber: number,
-		draft = false,
 	): Promise<string | null> {
 		const token = await this.getInstallationToken(creds);
 		const headBranch = `bot/fix-${anchorNumber}`;
 		const kind = (await this.ctx.storage.get<Kind>(STORAGE.kind)) ?? "bug";
-		const pullRequestCopy = draft
-			? await this.ctx.storage.get<PullRequestCopy>(STORAGE.candidatePullRequest)
-			: undefined;
+		const pullRequestCopy = await this.ctx.storage.get<PullRequestCopy>(
+			STORAGE.candidatePullRequest,
+		);
 		try {
 			const created =
 				(await getOpenPullRequest(token, repo, headBranch)) ??
@@ -2786,17 +2724,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 					headBranch,
 					baseBranch: "main",
 					title: pullRequestCopy?.title || renderPullRequestTitle(anchorNumber, kind),
-					body: draft
-						? renderDraftPrBody({
-								issueNumber: anchorNumber,
-								kind,
-								description:
-									pullRequestCopy?.description ||
-									`Automated candidate change for issue #${anchorNumber}.`,
-								previewPackage: this.env.PREVIEW_PACKAGE,
-							})
-						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
-					draft,
+					body: renderPullRequestBody({
+						issueNumber: anchorNumber,
+						kind,
+						description:
+							pullRequestCopy?.description ||
+							`Automated candidate change for issue #${anchorNumber}.`,
+						previewPackage: this.env.PREVIEW_PACKAGE,
+					}),
+					draft: false,
 				}));
 			const headSha = await getBranchSha(token, repo, headBranch);
 			await Promise.all([
@@ -2807,7 +2743,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 								number: created.number,
 								url: created.htmlUrl,
 								state: "open",
-								draft,
+								draft: false,
 								headSha,
 								mergeability: "unknown",
 								review: "review-required",
@@ -2828,7 +2764,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	/**
 	 * Reap the fix loop's bot branches. The artifacts branch is always deleted;
 	 * the fix branch is spared when an open PR references it (deleting the ref
-	 * would silently close that PR). Shared by the reject/expire/decline reap
+	 * would silently close that PR). Shared by the reject/decline reap
 	 * edges and the issue-close cleanup path.
 	 */
 	private async runReapBranch(
@@ -2892,7 +2828,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
-			throw new Error("readonly reply is queued behind an earlier GitHub projection");
+			throw new ProjectionPendingError(
+				"readonly reply is queued behind an earlier GitHub projection",
+			);
 		}
 	}
 
@@ -2919,7 +2857,28 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
-			throw new Error("command feedback is queued behind an earlier GitHub projection");
+			throw new ProjectionPendingError(
+				"command feedback is queued behind an earlier GitHub projection",
+			);
+		}
+	}
+
+	private async postDiscardedEntryNotice(input: NormalizedEvent): Promise<void> {
+		if (input.dryRun === true || (input.actor !== "maintainer" && input.actor !== "reporter")) {
+			return;
+		}
+		try {
+			const anchorNumber =
+				input.anchorNumber ?? (await this.ctx.storage.get<number>(STORAGE.anchorNumber));
+			if (anchorNumber === undefined) return;
+			await this.persistStandaloneSideEffect({
+				anchorNumber,
+				commentBody:
+					"I couldn't act on this comment after several attempts. Please try again, or comment `@emdashbot retry`.",
+			});
+			await this.armAlarm();
+		} catch (error) {
+			console.error("[orchestrator] failed to queue discarded-entry notice", error);
 		}
 	}
 
@@ -2939,7 +2898,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
-			throw new Error("resume reply is queued behind an earlier GitHub projection");
+			throw new ProjectionPendingError(
+				"resume reply is queued behind an earlier GitHub projection",
+			);
 		}
 	}
 
@@ -3048,7 +3009,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			current = await this.postSideEffectComment(token, repo, current);
 		};
 		// The fix-loop ask posts first: if it fails, the labels stay put so the
-		// item never advertises awaiting-reporter without an ask on the thread.
+		// item never advertises in-review without an ask on the thread.
 		if (current.commentFirst) {
 			await postComment();
 			await applyLabels();
@@ -3138,9 +3099,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const puts: Promise<unknown>[] = [
 				transaction.put(STORAGE.state, decision.to),
 				transaction.put(STORAGE.eventLog, eventLog),
-				decision.to === "awaiting_reporter"
-					? transaction.put(STORAGE.awaitingReporterSince, now)
-					: transaction.delete(STORAGE.awaitingReporterSince),
 			];
 			if (input.settlesDeliveryId) {
 				const seen = (await transaction.get<string[]>(STORAGE.seenDeliveries)) ?? [];
@@ -3288,7 +3246,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 						...preparedResume,
 						dryRun: input.dryRun === true,
 					} satisfies PendingResume),
-					transaction.delete(STORAGE.publicationRetryAt),
+					transaction.delete(STORAGE.rateLimitResumeAt),
 				);
 			}
 			if (
@@ -3301,7 +3259,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				puts.push(
 					transaction.delete(STORAGE.resumableRun),
 					transaction.delete(STORAGE.failedRunMode),
-					transaction.delete(STORAGE.publicationRetryAt),
+					transaction.delete(STORAGE.rateLimitResumeAt),
 					...(run?.status === "running"
 						? [transaction.put(STORAGE.runLifecycle, settleRunLifecycle(run, "cancelled", now))]
 						: []),
@@ -3329,9 +3287,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 					: undefined);
 			const linkedPrNumber =
 				input.pullRequestNumber ?? (await transaction.get<number>(STORAGE.prNumber));
-			const handoffComment =
-				decision.action === "openDraftPr" && linkedPrNumber
-					? `Candidate accepted. I opened [draft PR #${linkedPrNumber}](https://github.com/${this.env.GITHUB_OWNER}/${this.env.GITHUB_REPO}/pull/${linkedPrNumber}). Further implementation and review updates will be posted on the PR.`
+			const pullRequestLink = linkedPrNumber ? { pullRequestNumber: linkedPrNumber } : {};
+			const transitionComment = input.previewAsk
+				? renderPreviewReadyAsk({ ...input.previewAsk, ...pullRequestLink })
+				: decision.from === "in_review" &&
+					  (decision.event === "accept" || decision.event === "confirm")
+					? renderVerifiedThanks({
+							owner: this.env.GITHUB_OWNER,
+							repo: this.env.GITHUB_REPO,
+							...pullRequestLink,
+						})
 					: undefined;
 			const effectRunId =
 				preparedInvestigation?.runId ?? preparedResume?.checkpoint.runId ?? input.settlesRunId;
@@ -3367,7 +3332,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 							commentBody: input.operatorCommand
 								? ""
 								: (input.commentBodyOverride ??
-									handoffComment ??
+									transitionComment ??
 									renderComment(
 										decision,
 										anchorNumber,
@@ -3453,7 +3418,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
-	private async pausePublication(input: {
+	private async pauseForRateLimit(input: {
 		runId: string;
 		agentId: string;
 		mode: InvestigationMode;
@@ -3475,7 +3440,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					timedOutAt: Date.now(),
 					summary: input.summary,
 				}),
-				transaction.put(STORAGE.publicationRetryAt, input.retryAt),
+				transaction.put(STORAGE.rateLimitResumeAt, input.retryAt),
 				...(run?.runId === input.runId
 					? [transaction.put(STORAGE.runLifecycle, pauseRunLifecycle(run))]
 					: []),
@@ -3494,11 +3459,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm(true);
 	}
 
-	private async deferPublicationResume(retryAt: number): Promise<void> {
+	private async deferRateLimitResume(retryAt: number): Promise<void> {
 		await this.ctx.storage.transaction(async (transaction) => {
 			const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
 			await Promise.all([
-				transaction.put(STORAGE.publicationRetryAt, retryAt),
+				transaction.put(STORAGE.rateLimitResumeAt, retryAt),
 				...(run ? [transaction.put(STORAGE.runLifecycle, pauseRunLifecycle(run))] : []),
 				transaction.delete(STORAGE.currentRunId),
 				transaction.delete(STORAGE.currentRunMode),
@@ -3563,9 +3528,46 @@ export class OrchestratorDO extends DurableObject<Env> {
 			)
 				return settledRuns;
 
-			await this.flushPendingSideEffect(effect.id);
+			try {
+				await this.flushPendingSideEffect(effect.id);
+			} catch (error) {
+				if (error instanceof GitHubRateLimitError) throw error;
+				if (!(await this.recordSideEffectFailure(effect.id))) throw error;
+				const message = error instanceof Error ? error.message : String(error);
+				console.error("[orchestrator] dropped GitHub update after retry limit", {
+					anchorNumber: effect.anchorNumber,
+					deliveryId: effect.deliveryId,
+					error: message,
+				});
+			}
 			if (effect.settlesRun && effect.runId) settledRuns.add(effect.runId);
 		}
+	}
+
+	/**
+	 * Counts a failed flush and drops the effect once it reaches the retry limit.
+	 * Label drift left behind by a dropped effect is repaired by reconcileLabels.
+	 * Returns true when the effect was dropped.
+	 */
+	private async recordSideEffectFailure(id: string): Promise<boolean> {
+		const effect = (
+			(await this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? []
+		).find((candidate) => candidate.id === id);
+		if (!effect) return true;
+		const attempts = (effect.attempts ?? 0) + 1;
+		if (attempts >= SIDE_EFFECT_MAX_ATTEMPTS) {
+			await this.completePendingSideEffect(effect);
+			return true;
+		}
+		await this.ctx.storage.transaction(async (transaction) => {
+			const effects =
+				(await transaction.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? [];
+			await transaction.put(
+				STORAGE.pendingSideEffects,
+				effects.map((candidate) => (candidate.id === id ? { ...candidate, attempts } : candidate)),
+			);
+		});
+		return false;
 	}
 
 	private async confirmDispatchAdmission(runId: string): Promise<void> {
@@ -3813,7 +3815,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.recoveryRetry),
 					transaction.delete(STORAGE.recoveryTerminal),
 					transaction.delete(STORAGE.githubRetryAt),
-					transaction.delete(STORAGE.publicationRetryAt),
+					transaction.delete(STORAGE.rateLimitResumeAt),
 					...(input.clearInbox ? [transaction.delete(STORAGE.inbox)] : []),
 					transaction.put(STORAGE.operatorSettlement, {
 						anchorNumber,
@@ -4026,11 +4028,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return { ...schedule, warningSentRunId: warningSentRunId ?? null };
 	}
 
-	/** Test-only: backdate the reporter-confirmation window to force expiry. */
-	async debugBackdateReporterWait(since: number): Promise<void> {
-		await this.ctx.storage.put(STORAGE.awaitingReporterSince, since);
-	}
-
 	/** Test-only: force the preview-poll schedule so a tick probes immediately. */
 	async debugSetPreviewPoll(deadline: number, nextAt: number): Promise<void> {
 		await Promise.all([
@@ -4196,7 +4193,7 @@ export type EventOutcome =
 	| { kind: "stale-run"; runId: string; currentRunId: string | null }
 	| { kind: "inert"; state: StateId }
 	| { kind: "recovered" }
-	| { kind: "publication-paused"; runId: string; retryAt: number };
+	| { kind: "rate-limit-paused"; runId: string; retryAt: number };
 
 export type EnqueueOutcome =
 	| { kind: "admitted"; id: string }
@@ -4221,7 +4218,6 @@ export interface TickOutcome {
 	droppedStaleRun: boolean;
 	recoveryError: string | null;
 	labelDrift: { added: number; removed: number } | null;
-	expiredReporterWait: boolean;
 	previewPoll: PreviewPollOutcome;
 	pullRequestPoll: PullRequestPollOutcome;
 }
@@ -4230,6 +4226,13 @@ export type CleanupOutcome =
 	| { kind: "reaped" }
 	| { kind: "skipped"; reason: string }
 	| { kind: "error"; error: string };
+
+class ProjectionPendingError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "ProjectionPendingError";
+	}
+}
 
 class ClassifierProcessingError extends Error {
 	constructor(reason: string) {
