@@ -30,6 +30,7 @@ import pc from "picocolors";
 
 import { BundleError, bundlePlugin } from "../bundle/api.js";
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
+import { isFlagSet } from "../cli-args.js";
 import { redirectConsolaToStderr } from "../cli-output.js";
 import { probeEnvironment } from "../init/environment.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
@@ -552,6 +553,8 @@ type PublishArgs = {
 	"security-url"?: string;
 	/** citty parses `--no-manifest` as `false`. */
 	manifest?: string | false;
+	/** Undocumented spelling of `--no-manifest`. */
+	noManifest?: unknown;
 	"allow-overwrite"?: boolean;
 	json?: boolean;
 };
@@ -589,7 +592,12 @@ async function loadManifestBootstrap(
 	args: PublishArgs,
 	log: { info(m: string): void; warn(m: string): void },
 ): Promise<ManifestLoadOutcome | null> {
-	if (args.manifest === false || args.manifest === "false" || args.manifest === "") {
+	if (
+		args.manifest === false ||
+		args.manifest === "false" ||
+		args.manifest === "" ||
+		isFlagSet(args.noManifest)
+	) {
 		// `--no-manifest` is a power-user escape hatch (CI, debugging),
 		// but silently skipping a manifest at the default path defeats
 		// the publisher-pin safety story. If the file exists, warn that

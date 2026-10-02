@@ -419,6 +419,10 @@ describe("release submit command", () => {
 	it.each([
 		{ command: "release submit", state: "published", statusReads: 1 },
 		{ command: "release submit --no-wait", state: "received", statusReads: 0 },
+		{ command: "release submit --wait=false", state: "received", statusReads: 0 },
+		{ command: "release submit --noWait", state: "received", statusReads: 0 },
+		{ command: "release submit --noWait=true", state: "received", statusReads: 0 },
+		{ command: "release submit --noWait=false", state: "published", statusReads: 1 },
 	])("$command prints the $state intent", async ({ command, state, statusReads }) => {
 		const reads: string[] = [];
 		vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {

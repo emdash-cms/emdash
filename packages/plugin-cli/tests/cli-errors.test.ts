@@ -40,6 +40,9 @@ it.each([
 	{ command: "publish", output: "Manifest validation failed" },
 	{ command: "publish --no-manifest", output: "Not logged in" },
 	{ command: "publish --manifest=false", output: "Not logged in" },
+	{ command: "publish --noManifest", output: "Not logged in" },
+	{ command: "publish --noManifest=true", output: "Not logged in" },
+	{ command: "publish --noManifest=false", output: "Manifest validation failed" },
 ])("$command reads the manifest unless it is skipped", async ({ command, output }) => {
 	const dir = await mkdtemp(join(tmpdir(), "emdash-publish-manifest-"));
 	try {
