@@ -4713,6 +4713,8 @@ export class EmDashRuntime {
 		size?: number;
 		width?: number;
 		height?: number;
+		alt?: string;
+		caption?: string;
 		storageKey: string;
 		contentHash?: string;
 		blurhash?: string;
