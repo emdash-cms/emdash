@@ -62,7 +62,7 @@ The dialog shows why the check failed:
 - **`www.example.com does not resolve to a public address`:** the domain has no public DNS record yet, or it points to a private network. Finish the DNS setup and try again.
 - **`Could not reach https://www.example.com`:** the request timed out or the connection failed, for example because the certificate is not ready yet. Wait a few minutes and try again.
 - **`https://example.com redirects to https://www.example.com. Enter that address instead.`:** the domain redirects. Enter the address it redirects to.
-- **`https://www.example.com does not serve this site yet`:** the domain answers, but not with this site. It may still point to a previous host, or a login page such as Cloudflare Access may be in front of it. On Cloudflare, add the domain on the Worker's **Domains** tab as a Custom Domain. A route on the same zone as the Worker cannot be checked.
+- **`https://www.example.com does not serve this site yet`:** the domain answers, but not with this site. It may still point to a previous host, or a login page such as Cloudflare Access may be in front of it. On Cloudflare, add the domain on the Worker's **Domains** tab as a Custom Domain. A route does not work for the check: Cloudflare does not run a Worker for requests that the Worker sends to its own route on the same zone.
 
 ### Use an address without the check
 
