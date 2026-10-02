@@ -36,6 +36,7 @@ interface NoulQuestion {
 }
 
 type CategoryQuestions = Readonly<Record<ModerationFindingCategory, NoulQuestion>>;
+type ImageCategoryQuestions = Omit<CategoryQuestions, "malicious-or-deceptive-link">;
 
 const SHARED_CATEGORY_QUESTIONS: CategoryQuestions = {
 	"explicit-sexual-content": {
@@ -115,8 +116,12 @@ const SHARED_CATEGORY_QUESTIONS: CategoryQuestions = {
 
 export const CLEF_TEXT_QUESTIONS: CategoryQuestions = SHARED_CATEGORY_QUESTIONS;
 
-export const CLEF_IMAGE_QUESTIONS: CategoryQuestions = {
-	...SHARED_CATEGORY_QUESTIONS,
+const { "malicious-or-deceptive-link": _textOnlyQuestion, ...IMAGE_SHARED_QUESTIONS } =
+	SHARED_CATEGORY_QUESTIONS;
+
+// Screenshots of spam filters and link checkers depict links as data; listing links are assessed as text.
+export const CLEF_IMAGE_QUESTIONS: ImageCategoryQuestions = {
+	...IMAGE_SHARED_QUESTIONS,
 	"explicit-sexual-content": {
 		type: "noul",
 		instructions: `${UNTRUSTED_STATE} Does the image show nudity, partial nudity, or sexual or sexually suggestive content, such as exposed buttocks, breasts, or genitals, underwear or lingerie presented sexually, or a sexualized pose?`,
@@ -250,12 +255,19 @@ async function runClef(
 	ai: WorkersAiBinding,
 	config: ClefAdapterConfig,
 	identity: ModerationModelIdentity,
-	input: { state: unknown; questions: CategoryQuestions; images?: readonly unknown[] },
+	input: {
+		state: unknown;
+		questions: Readonly<Partial<Record<ModerationFindingCategory, NoulQuestion>>>;
+		images?: readonly unknown[];
+	},
 	evidenceRefs: readonly string[],
 ): Promise<ModerationInferenceResult> {
+	const asked = MODERATION_FINDING_CATEGORIES.filter(
+		(category) => input.questions[category] !== undefined,
+	);
 	const batches: ModerationFindingCategory[][] = config.separateQuestions
-		? MODERATION_FINDING_CATEGORIES.map((category) => [category])
-		: [[...MODERATION_FINDING_CATEGORIES]];
+		? asked.map((category) => [category])
+		: [asked];
 	const signal = AbortSignal.timeout(config.timeoutMs ?? 20_000);
 	const started = performance.now();
 	const answered = await Promise.all(
