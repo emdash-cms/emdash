@@ -26,6 +26,7 @@ export const REVIEW_STATE_LABELS = [
 export type ReviewStateLabel = (typeof REVIEW_STATE_LABELS)[number];
 
 const REVIEWER_ASSOCIATIONS: ReadonlySet<string> = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+const REVIEWER_BOTS: ReadonlySet<string> = new Set(["emdashbot[bot]", "ask-bonk[bot]"]);
 const COUNTED_REVIEW_STATES: ReadonlySet<string> = new Set([
 	"APPROVED",
 	"CHANGES_REQUESTED",
@@ -52,7 +53,8 @@ export function decideReviewState(
 			review.submittedAt !== null &&
 			review.authorLogin !== null &&
 			review.authorLogin !== authorLogin &&
-			(review.authorType === "Bot" || REVIEWER_ASSOCIATIONS.has(review.authorAssociation ?? "")) &&
+			(REVIEWER_BOTS.has(review.authorLogin) ||
+				REVIEWER_ASSOCIATIONS.has(review.authorAssociation ?? "")) &&
 			COUNTED_REVIEW_STATES.has(review.state),
 	);
 	const lastReview = latest(counted);

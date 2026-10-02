@@ -223,6 +223,8 @@ export interface FindManyOptions {
 	sortableExtras?: string[];
 	limit?: number;
 	cursor?: string; // Base64-encoded JSON: {orderValue: string, id: string}
+	/** Rows to skip before the page, for numbered pages. Cannot be combined with `cursor`. */
+	offset?: number;
 }
 
 export interface FindManyResult<T> {
