@@ -5,22 +5,23 @@ description: Move an existing site to a new EmDash release, from reading the rel
 
 import { Steps } from "@astrojs/starlight/components";
 
-This guide is for site operators: people who run a site built on EmDash and want it on a newer release. It covers the `emdash` package and `@emdash-cms/cloudflare`. Plugin packages have their own guide, [Upgrading plugins on your site](/plugins/upgrading-sites/), and changes to your own collections and fields are covered in [Evolving a Deployed Site](/deployment/schema-evolution/).
+This guide is for site operators: people who run a site built on EmDash and want it on a newer release. The updater covers every direct `emdash` and `@emdash-cms/*` dependency in the project. Changes to your own collections and fields are covered in [Evolving a Deployed Site](/deployment/schema-evolution/).
 
-## Releases and version numbers
+## Release compatibility
 
-EmDash is released before version 1.0, and its version numbers follow two rules:
+EmDash follows semantic versioning:
 
-- A patch release, for example 0.35.0 to 0.35.1, carries bug fixes and small improvements.
-- A minor release, for example 0.35 to 0.36, carries new features and any breaking change. A breaking change is marked **Breaking** in its release entry, and the entry states the action it requires from you.
+- A patch release carries backwards-compatible fixes and small improvements.
+- A minor release carries backwards-compatible features.
+- A major release can require changes to an existing project. Its release entries identify affected projects and the required actions.
 
 `emdash` and `@emdash-cms/cloudflare` are released together and share one version number. `@emdash-cms/cloudflare` depends on the exact matching `emdash` version, so update the two packages in one step. Plugin packages such as `@emdash-cms/plugin-forms` have their own version numbers and declare the minimum `emdash` version they need.
 
-The [releases page](https://github.com/emdash-cms/emdash/releases) has one entry per package and version. Before an update, read the `emdash` entries between your installed version and the target, and the same range for `@emdash-cms/cloudflare` if the site runs on Cloudflare.
+The [releases page](https://github.com/emdash-cms/emdash/releases) has one entry per package and version. `upgrade-emdash` fetches the changelog range for each direct package from its exact GitHub release tag. It removes generated dependency-bump entries, preserves the complete authored major, minor, and patch entries, and deduplicates entries repeated across packages.
 
 ## Template files are not updated
 
-Creating a site from a template copies the template's files, such as layouts, components, styles, and `astro.config.mjs`, into your project. An update changes the installed packages only and leaves these files as they are. Later changes to a template apply to new sites only. To adopt one in an existing site, compare your files with the current version in the [`templates` directory](https://github.com/emdash-cms/emdash/tree/main/templates) and copy the changes you want.
+Creating a site from a template copies the template's files, such as layouts, components, styles, and `astro.config.mjs`, into your project. The updater changes direct EmDash dependencies and refreshes the EmDash agent skills. It leaves the site's application and configuration files for the project owner or an agent to change from the upgrade work order. Later changes to a template apply to new sites only. To adopt one in an existing site, compare your files with the current version in the [`templates` directory](https://github.com/emdash-cms/emdash/tree/main/templates) and copy the changes you want.
 
 ## Before you update
 
@@ -28,29 +29,35 @@ Take a restorable database backup and a separate media-storage backup. EmDash's 
 
 Check the Node.js version on the machine that builds the site and, for a Node.js deployment, on the server. [Getting Started](/getting-started/#prerequisites) lists the supported versions.
 
-## Update the packages
+## Plan and apply the update
 
-The commands below use pnpm and a site created from a Cloudflare template. For a Node.js deployment, leave out `@emdash-cms/cloudflare`.
+Run the updater from the site's project directory. It reads the installed package versions and core migration identity, then resolves the selected npm dist-tag separately for every direct EmDash package. The default tag is `latest`; use `--to next`, `--to beta`, or another dist-tag to select a release channel. `--to` does not accept an exact version.
 
 <Steps>
 
-1. Check the installed versions and the latest release.
+1. Inspect the update without changing files.
 
    ```bash
-   pnpm outdated emdash @emdash-cms/cloudflare
+   npx upgrade-emdash@latest --dry-run
    ```
 
-2. Move both packages to the latest release.
+   The plan reports the exact target for each direct package and the authored changelog entries crossed by the update. The target migration delta is calculated after the packages are installed. Run `npx upgrade-emdash@latest --json` when another tool needs the pre-install plan as structured data.
 
-   A template-generated `package.json` lists the packages with a caret range such as `^0.35.0`. For versions below 1.0, a caret range admits patch releases only (0.35.1, not 0.36.0), and `pnpm up` without further options stays inside the range. The `--latest` flag rewrites the range to the newest release and installs it.
+2. Apply the dependency and skill updates.
 
    ```bash
-   pnpm up --latest emdash @emdash-cms/cloudflare
+   npx upgrade-emdash@latest
    ```
 
-   Add the plugin packages from your `package.json` to the same command.
+   The command preserves each dependency's existing caret, tilde, or exact version style and runs the project's package manager. Package versions can differ: each direct package receives the exact version published under the selected tag.
 
-3. Build the site.
+   It then runs `npx skills add emdash-cms/skills` in the project and compares the installed core migration identity with the identity captured before installation. It does not apply a migration.
+
+3. Open `.emdash/UPGRADE.md` and complete its project actions.
+
+   The work order includes the filtered changelog entries, added core migration names, and the project's exact build and migration commands. The synced `upgrading-emdash` skill tells an agent where to find the file and how to complete it. The agent should assess every entry against the project rather than adopting unrelated new features.
+
+4. Build the site.
 
    ```bash
    pnpm build
@@ -58,7 +65,7 @@ The commands below use pnpm and a site created from a Cloudflare template. For a
 
    The build writes the migration manifest for the installed version. If the build fails, see [If the site breaks after an update](#if-the-site-breaks-after-an-update).
 
-4. Start the site locally and open the admin at `/_emdash/admin`.
+5. Start the site locally and open the admin at `/_emdash/admin`.
 
    ```bash
    pnpm dev
