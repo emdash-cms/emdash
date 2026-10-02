@@ -28,6 +28,38 @@ const maintainer = { login: "alice", association: "MEMBER" };
 const contributor = { login: "bob", association: "CONTRIBUTOR" };
 
 describe("decideReviewState", () => {
+	test.each([
+		{
+			reviewer: "Copilot",
+			author: {
+				login: "copilot-pull-request-reviewer[bot]",
+				type: "Bot",
+				association: "CONTRIBUTOR",
+			},
+			expected: "review/needs-review",
+		},
+		{
+			reviewer: "code scanning",
+			author: { login: "github-advanced-security[bot]", type: "Bot" },
+			expected: "review/needs-review",
+		},
+		{ reviewer: "EmDashBot", author: bot, expected: "review/awaiting-author" },
+		{
+			reviewer: "Bonk",
+			author: { login: "ask-bonk[bot]", type: "Bot", association: "CONTRIBUTOR" },
+			expected: "review/awaiting-author",
+		},
+		{ reviewer: "a maintainer", author: maintainer, expected: "review/awaiting-author" },
+	])("a comment review from $reviewer alone gives $expected", ({ author, expected }) => {
+		expect(
+			decideReviewState(
+				"contributor",
+				[review("COMMENTED", "2026-09-14T10:00:00Z", author)],
+				[commit("2026-09-14T09:00:00Z")],
+			),
+		).toBe(expected);
+	});
+
 	test("ignores dismissed reviews, the author's own and contributors' reviews", () => {
 		const commits = [commit("2026-09-14T09:00:00Z")];
 		const ignored = [

@@ -2193,6 +2193,12 @@ export function InlinePortableTextEditor({
 			const blocks = getBlocks();
 
 			savingRef.current = true;
+			let settle = () => {};
+			const done = new Promise<void>((resolve) => {
+				settle = () => resolve();
+			});
+			// The visual-editing toolbar holds Publish until `done` settles.
+			document.dispatchEvent(new CustomEvent("emdash:save-pending", { detail: { done } }));
 			try {
 				const res = await fetch(
 					`/_emdash/api/content/${encodeURIComponent(collection)}/${encodeURIComponent(entryId)}`,
@@ -2223,6 +2229,7 @@ export function InlinePortableTextEditor({
 				console.error("Save failed:", err);
 			} finally {
 				savingRef.current = false;
+				settle();
 			}
 		},
 		[collection, entryId, field, getBlocks],

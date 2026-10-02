@@ -604,6 +604,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   var visualActionRefreshTimer = null;
 
   function showVisualActionRecovery() {
+    waitingForPublish = false;
     if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
     visualActionRefreshTimer = null;
     statusEl.innerHTML = ${inlineScriptJson(recoveryBadge)};
@@ -612,6 +613,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   function showPublishError(message) {
+    waitingForPublish = false;
     statusEl.textContent = message || toolbarLabels.publishFailed;
     publishBtn.disabled = false;
     publishBtn.textContent = toolbarLabels.publish;
@@ -679,7 +681,16 @@ export function renderToolbar(config: ToolbarConfig): string {
   // --- Save status tracking ---
   var saveState = "idle"; // idle | unsaved | saving | saved | error
   var saveHideTimer = null;
-  var pendingSavePromise = null;
+  var pendingSaves = [];
+  var waitingForPublish = false;
+
+  function trackSave(save) {
+    var settled = save.then(untrack, untrack);
+    function untrack() {
+      pendingSaves = pendingSaves.filter(function(pending) { return pending !== settled; });
+    }
+    pendingSaves.push(settled);
+  }
 
   function badgeHtml(kind, label) {
     return '<span class="emdash-tb-badge emdash-tb-badge--' + kind + '">' + escapeAttr(label) + '</span>';
@@ -720,6 +731,14 @@ export function renderToolbar(config: ToolbarConfig): string {
     var detail = e.detail || {};
     if (detail.state) {
       setSaveState(detail.state);
+    }
+  });
+
+  // The inline Portable Text editor sends its own save requests and reports
+  // each one here, so publish() can wait for it.
+  document.addEventListener("emdash:save-pending", function(e) {
+    if (e.detail && e.detail.done) {
+      trackSave(e.detail.done);
     }
   });
 
@@ -778,13 +797,14 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Publish action
   function publish(collection, id) {
-    if (pendingSavePromise) {
-      pendingSavePromise.then(function() { publish(collection, id); });
-      return;
-    }
-
+    waitingForPublish = true;
     publishBtn.disabled = true;
     publishBtn.textContent = toolbarLabels.publishing;
+
+    if (pendingSaves.length) {
+      Promise.all(pendingSaves).then(function() { publish(collection, id); });
+      return;
+    }
 
     ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
       method: "POST",
@@ -814,6 +834,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       }
     })
     .catch(function(err) {
+      waitingForPublish = false;
       publishBtn.disabled = false;
       publishBtn.textContent = toolbarLabels.publish;
       console.error("Publish failed:", err);
@@ -871,7 +892,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   // succeeded, after the save badge already shows the outcome.
   function saveField(collection, id, field, value) {
     setSaveState("saving");
-    return ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
+    var saved = ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
       method: "PUT",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
@@ -893,13 +914,17 @@ export function renderToolbar(config: ToolbarConfig): string {
       console.error("Save failed:", err);
       return false;
     });
+    trackSave(saved);
+    return saved;
   }
 
   function showUnpublishedChanges(collection, id) {
     statusEl.innerHTML = badgeHtml("pending", toolbarLabels.unpublishedChanges);
     publishBtn.style.display = "";
-    publishBtn.disabled = false;
-    publishBtn.textContent = toolbarLabels.publish;
+    if (!waitingForPublish) {
+      publishBtn.disabled = false;
+      publishBtn.textContent = toolbarLabels.publish;
+    }
     publishBtn.onclick = function() { publish(collection, id); };
   }
 
@@ -968,11 +993,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
       var newValue = readText().trim();
       if (newValue !== originalText.trim()) {
-        pendingSavePromise = saveField(annotation.collection, annotation.id, annotation.field, newValue).then(function() {
-          pendingSavePromise = null;
-        }, function() {
-          pendingSavePromise = null;
-        });
+        saveField(annotation.collection, annotation.id, annotation.field, newValue);
       } else {
         setSaveState("idle");
       }
