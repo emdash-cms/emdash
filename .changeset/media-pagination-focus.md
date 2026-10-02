@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes the Media Library moving keyboard focus to its pagination controls when the library reloads after a search or filter change. Focus returns to those controls only after a page they requested finishes loading, and stays wherever you moved it during the load.
+Fixes keyboard focus in the Media Library pagination controls. Focus no longer jumps to those controls when the library reloads after a search or filter change; it returns to them only after a page they requested finishes loading, and stays wherever you moved it during the load. When the page reached disables the button you pressed, such as Previous on the first page, focus moves to the page picker instead of being lost.
