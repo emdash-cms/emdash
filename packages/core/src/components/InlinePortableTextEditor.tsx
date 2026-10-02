@@ -28,6 +28,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { resolveImageMedia } from "../content/converters/gallery.js";
+import { normalizeImageLink } from "../content/converters/image-link.js";
 import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
@@ -172,6 +173,18 @@ function attrDimension(
 	return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+type ImageAlignment = "left" | "center" | "right" | "wide" | "full";
+
+function imageAlignment(value: unknown): ImageAlignment | undefined {
+	return value === "left" ||
+		value === "center" ||
+		value === "right" ||
+		value === "wide" ||
+		value === "full"
+		? value
+		: undefined;
+}
+
 function canonicalMediaProviderId(provider: string | undefined): string | undefined {
 	return provider === "external-url" ? "external" : provider;
 }
@@ -300,6 +313,8 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 				...(dominantColor ? { dominantColor } : {}),
 				displayWidth: attrDimension(node.attrs, "displayWidth"),
 				displayHeight: attrDimension(node.attrs, "displayHeight"),
+				alignment: imageAlignment(node.attrs?.alignment),
+				link: normalizeImageLink(node.attrs?.link) ?? undefined,
 			};
 		}
 		case "horizontalRule":
@@ -592,6 +607,9 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			dominantColor?: string;
 			displayWidth?: number;
 			displayHeight?: number;
+			alignment?: unknown;
+			/** `{ href, blank? }`, or a bare string on WordPress-imported content */
+			link?: unknown;
 		};
 		const meta = ib.asset?.meta;
 		const { asset, alt, width, height } = resolveImageMedia(ib);
@@ -623,6 +641,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 				dominantColor,
 				displayWidth: ib.displayWidth,
 				displayHeight: ib.displayHeight,
+				alignment: imageAlignment(ib.alignment) ?? null,
+				link: normalizeImageLink(ib.link),
 			},
 		};
 	}
@@ -2280,6 +2300,8 @@ export function InlinePortableTextEditor({
 						caption: { default: null },
 						blurhash: { default: null },
 						dominantColor: { default: null },
+						alignment: { default: null, rendered: false },
+						link: { default: null, rendered: false },
 					};
 				},
 			}),
