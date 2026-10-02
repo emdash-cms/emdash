@@ -439,6 +439,9 @@ Use `tab` to group related blocks into labelled panels:
 A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill its dropdown from one of the plugin's own routes. It also works for a `select` nested in a `repeater` in those fields.
 
 ```typescript
+// storage
+cards: { indexes: ["title"] },
+
 // routes
 "cards/list": {
 	handler: async (ctx) => {
@@ -451,7 +454,7 @@ A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill it
 { type: "select", action_id: "cardId", label: "Card", options: [], optionsRoute: "cards/list" }
 ```
 
-- The admin calls `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>` when the block's edit dialog opens, with `X-EmDash-Request: 1` and a `{}` body.
+- Each `select` with `optionsRoute` calls `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>` when it renders, so every field instance and repeater item sends its own request. The request has `X-EmDash-Request: 1` and a `{}` body.
 - It is an ordinary plugin route: it needs `plugins:manage` unless the route declares another `permission`.
 - The route returns `{ items: Array<{ id: string; name: string }> }`. `id` becomes the stored value and `name` the label. Other item properties are ignored.
 - The field shows a loading state while the request runs. A failed request, a non-OK response, or a response without an `items` array falls back to the static `options`.

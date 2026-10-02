@@ -374,6 +374,9 @@ A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill it
 definePlugin({
 	id: "plugin-cards",
 	version: "0.1.0",
+	storage: {
+		cards: { indexes: ["title"] },
+	},
 	routes: {
 		"cards/list": {
 			handler: async (ctx) => {
@@ -404,7 +407,7 @@ definePlugin({
 });
 ```
 
-When the block's edit dialog opens, the admin calls the route once with `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>`. The request carries the `X-EmDash-Request: 1` header and an empty JSON object as its body. The route is a normal plugin route, so it needs the `plugins:manage` permission unless it declares another `permission`.
+Each `select` with `optionsRoute` calls the route when it renders, so a block with two such fields, or a repeater with several items, sends one request for each. Collapsing and reopening a repeater item sends the request again. The request is `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>`. The request carries the `X-EmDash-Request: 1` header and an empty JSON object as its body. The route is a normal plugin route, so it needs the `plugins:manage` permission unless it declares another `permission`.
 
 The route returns `{ items: Array<{ id: string; name: string }> }`. The admin shows each item as an option with `id` as the stored value and `name` as the label. Extra properties on an item are ignored.
 
