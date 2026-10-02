@@ -556,7 +556,7 @@ type PublishArgs = {
 	"author-email"?: string;
 	"security-email"?: string;
 	"security-url"?: string;
-	manifest?: string;
+	manifest?: string | false;
 	"no-manifest"?: boolean;
 	"allow-overwrite"?: boolean;
 	json?: boolean;
@@ -595,8 +595,14 @@ async function loadManifestBootstrap(
 	args: PublishArgs,
 	log: { info(m: string): void; warn(m: string): void },
 ): Promise<ManifestLoadOutcome | null> {
+	// citty parses `--no-manifest` as `manifest: false` rather than
+	// setting the declared `no-manifest` boolean to true, so we also
+	// treat a boolean `false` value as an explicit opt-out.
 	const optedOut =
-		args["no-manifest"] === true || args.manifest === "false" || args.manifest === "";
+		args["no-manifest"] === true ||
+		args.manifest === false ||
+		args.manifest === "false" ||
+		args.manifest === "";
 	if (optedOut) {
 		// `--no-manifest` is a power-user escape hatch (CI, debugging),
 		// but silently skipping a manifest at the default path defeats
@@ -614,8 +620,9 @@ async function loadManifestBootstrap(
 		}
 		return null;
 	}
-	const explicit = args.manifest !== undefined && args.manifest.length > 0;
-	const path = args.manifest ?? `./${MANIFEST_FILENAME}`;
+	const manifestPath = typeof args.manifest === "string" ? args.manifest : undefined;
+	const explicit = manifestPath !== undefined && manifestPath.length > 0;
+	const path = manifestPath ?? `./${MANIFEST_FILENAME}`;
 	try {
 		const { manifest, path: resolvedPath } = await loadManifest(path);
 		// Manifest `version` is optional; reconcile with

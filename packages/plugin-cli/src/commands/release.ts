@@ -225,7 +225,10 @@ export const releaseSubmitCommand = defineCommand({
 			...target,
 			releaseFile: args["release-file"],
 			idempotencyKey: args["idempotency-key"],
-			wait: !args["no-wait"],
+			// citty parses `--no-wait` as `wait: false`; `--noWait` is the
+			// camelCase alias of the declared `no-wait` arg and sets it
+			// to true. Treat either form as disabling the polling wait.
+			wait: !(args.wait === false || args["no-wait"] === true || args.noWait === true),
 			waitForApproval: args["wait-for-approval"],
 			pollIntervalMs:
 				positiveInteger(args["poll-interval-seconds"], "poll-interval-seconds", 300) * 1000,
