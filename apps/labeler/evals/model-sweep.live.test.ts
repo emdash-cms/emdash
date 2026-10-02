@@ -5,6 +5,15 @@ import { fileURLToPath } from "node:url";
 
 import { afterAll, describe, expect, it } from "vitest";
 
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	clefImagePromptHash,
+	clefTextPromptHash,
+	createClefImageAdapter,
+	createClefTextAdapter,
+	isClefModelId,
+} from "../src/ai/clef.js";
 import { sha256Hex } from "../src/ai/hash.js";
 import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
 import type {
@@ -15,7 +24,6 @@ import type {
 } from "../src/ai/types.js";
 import { createUnanimousTextModerationAdapter, unanimousTextModelId } from "../src/ai/unanimous.js";
 import { createWorkersAiImageAdapter, createWorkersAiTextAdapter } from "../src/ai/workers-ai.js";
-import { createClefImageAdapter, createClefTextAdapter, isClefModelId } from "./clef.js";
 import { loadEvalDataset } from "./dataset.js";
 import { calculateEvalMetrics, evaluateBudgets, runEvaluation } from "./harness.js";
 import { loadRecordedBaseline } from "./recordings.js";
@@ -42,7 +50,9 @@ const disableThinkingModels = new Set(parseModels(process.env.MODEL_SWEEP_DISABL
 const imageMaxDimension = parseOptionalInteger(process.env.MODEL_SWEEP_IMAGE_MAX_DIMENSION);
 const maxCompletionTokens = parseOptionalInteger(process.env.MODEL_SWEEP_MAX_COMPLETION_TOKENS);
 const reasoningEffort = parseReasoningEffort(process.env.MODEL_SWEEP_REASONING_EFFORT);
-const clefThreshold = Number(process.env.MODEL_SWEEP_CLEF_THRESHOLD ?? "0.5");
+const clefThreshold = process.env.MODEL_SWEEP_CLEF_THRESHOLD
+	? Number(process.env.MODEL_SWEEP_CLEF_THRESHOLD)
+	: undefined;
 
 describe("live Workers AI model sweep", () => {
 	it("evaluates production adapters against the canonical corpus", async () => {
@@ -80,6 +90,16 @@ describe("live Workers AI model sweep", () => {
 		});
 		const textPromptHash = await sha256Hex(TEXT_SYSTEM_PROMPT);
 		const imagePromptHash = await sha256Hex(IMAGE_SYSTEM_PROMPT);
+		const clefText = {
+			...CLEF_TEXT_ASSESSMENT_SETTINGS,
+			...(clefThreshold === undefined ? {} : { threshold: clefThreshold }),
+		};
+		const clefImage = {
+			...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+			...(clefThreshold === undefined ? {} : { threshold: clefThreshold }),
+		};
+		const clefTextHash = await clefTextPromptHash(clefText);
+		const clefImageHash = await clefImagePromptHash(clefImage);
 		const runnerCommit = execFileSync("git", ["rev-parse", "HEAD"], {
 			encoding: "utf8",
 		}).trim();
@@ -118,8 +138,9 @@ describe("live Workers AI model sweep", () => {
 				const image =
 					lane === "image" && isClefModelId(model)
 						? createClefImageAdapter(ai, {
+								...clefImage,
 								modelId: model,
-								threshold: clefThreshold,
+								promptHash: clefImageHash,
 								configuredUnits: 1,
 							})
 						: createWorkersAiImageAdapter(ai, {
@@ -161,8 +182,9 @@ describe("live Workers AI model sweep", () => {
 			function textAdapter(modelId: string): TextModerationAdapter {
 				if (isClefModelId(modelId)) {
 					return createClefTextAdapter(ai, {
+						...clefText,
 						modelId,
-						threshold: clefThreshold,
+						promptHash: clefTextHash,
 						configuredUnits: 1,
 					});
 				}
@@ -189,7 +211,7 @@ describe("live Workers AI model sweep", () => {
 			imageMaxDimension,
 			maxCompletionTokens,
 			reasoningEffort,
-			clefThreshold,
+			clef: { text: clefText, image: clefImage },
 			repeatCount,
 			caseConcurrency,
 			liveFixtureIds: [...liveFixtureIds],

@@ -15,7 +15,10 @@ const model = process.env.LOCAL_IMAGE_EVAL_MODEL;
 const threshold = process.env.LOCAL_IMAGE_EVAL_THRESHOLD
 	? Number(process.env.LOCAL_IMAGE_EVAL_THRESHOLD)
 	: undefined;
-const separateQuestions = process.env.LOCAL_IMAGE_EVAL_SEPARATE_QUESTIONS === "1";
+const separateQuestions =
+	process.env.LOCAL_IMAGE_EVAL_SEPARATE_QUESTIONS === undefined
+		? undefined
+		: process.env.LOCAL_IMAGE_EVAL_SEPARATE_QUESTIONS === "1";
 const inputs = process.argv.slice(2).filter((value) => value !== "--");
 if (inputs.length === 0) {
 	console.error("Usage: pnpm --dir apps/labeler eval:image:local -- <image-or-directory> [...]");
@@ -70,7 +73,7 @@ async function evaluateImage(path, endpoint) {
 				base64: bytes.toString("base64"),
 				...(model ? { model } : {}),
 				...(threshold === undefined ? {} : { threshold }),
-				...(separateQuestions ? { separateQuestions } : {}),
+				...(separateQuestions === undefined ? {} : { separateQuestions }),
 			}),
 		});
 	} catch (error) {
