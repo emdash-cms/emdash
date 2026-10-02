@@ -423,7 +423,6 @@ describe("Comment Hooks with HookPipeline", () => {
 			isActive: () => true,
 			getOption: async () => null,
 			setOption: async () => {},
-			deleteOption: async () => {},
 		});
 
 		const moderateEvent: CommentModerateEvent = {
@@ -473,7 +472,6 @@ describe("Comment Hooks with HookPipeline", () => {
 			isActive: () => true,
 			getOption: async () => null,
 			setOption: async () => {},
-			deleteOption: async () => {},
 		});
 
 		const selection = pipeline.getExclusiveSelection("comment:moderate");
