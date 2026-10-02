@@ -1118,6 +1118,15 @@ export function createMcpServer(
 			if (result.success && args.markdown && result.data?.item) {
 				await applyReadMarkdown(ec, args.collection, [result.data.item]);
 			}
+			// content_update, content_publish, content_unpublish and content_discard_draft
+			// all require the `_rev` token this tool documents as returning. The write
+			// tools read it back via extractContentRev, so it has to be surfaced here.
+			if (result.success && result.data) {
+				const rev = extractContentRev(result.data);
+				if (rev) {
+					(result.data as Record<string, unknown>)._rev = rev;
+				}
+			}
 			return unwrap(result);
 		},
 	);
