@@ -671,7 +671,7 @@ function ContentListPage() {
 
 	// Keep every hook above the early returns below — a render that takes a
 	// guard (e.g. `error`) must run the same number of hooks as a full render,
-	// or React throws #300 "Rendered fewer hooks than expected".
+	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
 	if (!manifest) {
 		return <LoadingScreen />;
 	}

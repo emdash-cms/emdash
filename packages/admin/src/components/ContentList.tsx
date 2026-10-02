@@ -414,6 +414,7 @@ export function ContentList({
 
 	const clearSelection = React.useCallback(() => setSelectedIds(new Set()), []);
 	const rememberRows = (rows: readonly ContentItem[]) => {
+		if (!paged) return;
 		for (const row of rows) selectedRowsRef.current.set(row.id, row);
 	};
 	const toggleOne = (id: string) => {
@@ -603,8 +604,8 @@ export function ContentList({
 											setBulkTagSelection(
 												Array.from(selectedIds, (id) => {
 													const item =
-														selectedRowsRef.current.get(id) ??
-														items.find((candidate) => candidate.id === id);
+														items.find((candidate) => candidate.id === id) ??
+														selectedRowsRef.current.get(id);
 													return {
 														collection,
 														id,
