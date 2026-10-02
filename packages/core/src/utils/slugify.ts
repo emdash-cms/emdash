@@ -8,5 +8,10 @@ export { slugify } from "@emdash-cms/admin/slugify";
  * Call this on `Astro.params.slug` before using it in database lookups.
  */
 export function decodeSlug(raw: string | undefined): string | undefined {
-	return raw ? decodeURIComponent(raw) : undefined;
+	if (!raw) return undefined;
+	try {
+		return decodeURIComponent(raw);
+	} catch {
+		return undefined;
+	}
 }

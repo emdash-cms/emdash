@@ -84,4 +84,51 @@ describe("HTML block round-trip (core converters)", () => {
 		expect((pt[1] as PortableTextHtmlBlock).html).toBe("<hr><p>Injected</p>");
 		expect(pt[2]._type).toBe("block");
 	});
+
+	it("preserves css, js and isolated through PT → PM → PT", () => {
+		const block: PortableTextHtmlBlock = {
+			_type: "htmlBlock",
+			_key: "html004",
+			html: '<button id="go">Go</button>',
+			css: "button { color: red; }",
+			js: "document.getElementById('go').addEventListener('click', () => {});",
+			isolated: true,
+		};
+
+		const pt = prosemirrorToPortableText(
+			portableTextToProsemirror([block], { preserveIdentity: true }),
+		);
+
+		expect(pt).toStrictEqual([block]);
+	});
+
+	it("round-trips a legacy block to identical JSON", () => {
+		const block: PortableTextHtmlBlock = {
+			_type: "htmlBlock",
+			_key: "html005",
+			html: "<p>Legacy</p>",
+		};
+
+		const pt = prosemirrorToPortableText(
+			portableTextToProsemirror([block], { preserveIdentity: true }),
+		);
+
+		expect(pt).toStrictEqual([block]);
+	});
+
+	it("omits empty css and js and a false isolated flag", () => {
+		const pt = prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "htmlBlock",
+					attrs: { html: "<p>Legacy</p>", css: "", js: "", isolated: false },
+				},
+			],
+		});
+
+		expect(pt).toStrictEqual([
+			{ _type: "htmlBlock", _key: expect.any(String), html: "<p>Legacy</p>" },
+		]);
+	});
 });

@@ -1,7 +1,11 @@
 ---
 import type { RegistryEntryData } from "@emdash-cms/registry-loader";
 
-import { pluginPath, publisherHandle } from "../lib/registry.js";
+import {
+	listingImageUrl,
+	pluginPath,
+	publisherHandle,
+} from "../lib/registry.js";
 
 interface Props {
 	entry: RegistryEntryData;
@@ -13,6 +17,7 @@ const profile = plugin.profile;
 const name = profile?.name || plugin.slug;
 const handle = publisherHandle(plugin);
 const href = pluginPath(plugin);
+const icon = listingImageUrl(entry, "icon");
 const hue =
 	[...plugin.slug].reduce(
 		(sum, character) => sum + character.charCodeAt(0),
@@ -27,7 +32,23 @@ const initials = name
 ---
 
 <a class="plugin-card" href={href} style={`--card-angle: ${128 + hue}deg`}>
-	<div class="plugin-icon" aria-hidden="true"><span>{initials}</span></div>
+	{
+		icon ? (
+			<img
+				class="plugin-icon"
+				src={icon}
+				alt=""
+				width="52"
+				height="52"
+				decoding="async"
+				referrerpolicy="no-referrer"
+			/>
+		) : (
+			<div class="plugin-icon" aria-hidden="true">
+				<span>{initials}</span>
+			</div>
+		)
+	}
 	<div class="plugin-card-body">
 		<p class="package-reference">
 			{handle && <span>@{handle}</span>}<span class="package-slug"
@@ -106,6 +127,10 @@ const initials = name
 		font-size: 0.88rem;
 		font-weight: 700;
 		letter-spacing: -0.03em;
+	}
+
+	img.plugin-icon {
+		object-fit: cover;
 	}
 
 	:global([data-theme="dark"]) .plugin-icon {

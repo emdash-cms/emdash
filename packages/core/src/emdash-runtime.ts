@@ -2366,7 +2366,7 @@ export class EmDashRuntime {
 	/**
 	 * Get or create storage instance
 	 */
-	private static getStorage(deps: RuntimeDependencies): Storage | null {
+	static getStorage(deps: RuntimeDependencies): Storage | null {
 		const storageConfig = deps.config.storage;
 		if (!storageConfig || !deps.createStorage) {
 			return null;

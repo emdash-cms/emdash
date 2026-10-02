@@ -197,7 +197,7 @@ export interface ResolveInput {
 	retryMode?: InvestigationMode;
 }
 
-function failedWriteRetry(mode: InvestigationMode | undefined): {
+function lastRunRetry(mode: InvestigationMode | undefined): {
 	to: StateId;
 	action: string;
 } | null {
@@ -263,11 +263,10 @@ export function resolve({
 	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
-	const retry =
-		event === "retry" &&
-		(from === "failed" || (from === "needs_attention" && retryMode === "revise"))
-			? failedWriteRetry(retryMode)
-			: null;
+	// Only the legacy `failed` state re-runs legacy write modes; elsewhere they retry as `work`.
+	const isLegacyWrite = retryMode === "implement" || retryMode === "fix";
+	const effectiveRetryMode = isLegacyWrite && from !== "failed" ? "work" : retryMode;
+	const retry = event === "retry" && from !== "in_review" ? lastRunRetry(effectiveRetryMode) : null;
 	const to =
 		event === "resume" && resumeState
 			? resumeState
@@ -281,7 +280,7 @@ export function resolve({
 	// stale kind from a previous lifecycle. If the issue carries no kind, apply
 	// the event's defaultKind. If it carries a DIFFERENT kind than the verb
 	// implies, the verb wins: drop the mismatched kind and apply the verb's.
-	const addLabels: string[] = [toLabel];
+	const addLabels: string[] = [toLabel, ...(t.addLabels ?? [])];
 	const isEntry = (from === "unmanaged" || from === "triage") && meta.defaultKind;
 	if (isEntry && meta.defaultKind) {
 		const existingKind = currentKind(labels);
@@ -425,9 +424,9 @@ export function outcomeFromResult({
 		if (result.reproduced === true) return "agent.reproduced";
 		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
 	}
-	if (effectiveMode === "fix" || effectiveMode === "work") {
+	if (effectiveMode === "fix" || effectiveMode === "work" || effectiveMode === "revise") {
 		const delivered =
-			result.fixed === true || (effectiveMode === "work" && result.implemented === true);
+			result.fixed === true || (effectiveMode !== "fix" && result.implemented === true);
 		return delivered && pushed === true ? "agent.fix_ready" : "agent.failed";
 	}
 	if (effectiveMode === "implement") {

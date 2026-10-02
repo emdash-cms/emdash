@@ -165,6 +165,23 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("link", { name: "Scheduled" }))
+			.toHaveAttribute("href", "/calendar");
+	});
+
+	it("does not link the scheduled summary for subscribers, who cannot open the calendar", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 10 } });
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 5, published: 2, draft: 3, scheduled: 2 },
+			]),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Scheduled" })).not.toBeInTheDocument();
 	});
 
 	it("omits scheduled summary when only residual non-scheduled statuses exist", async () => {
