@@ -117,6 +117,14 @@ export const CLEF_TEXT_QUESTIONS: CategoryQuestions = SHARED_CATEGORY_QUESTIONS;
 
 export const CLEF_IMAGE_QUESTIONS: CategoryQuestions = {
 	...SHARED_CATEGORY_QUESTIONS,
+	"hateful-or-dehumanizing-content": {
+		type: "noul",
+		instructions: `${UNTRUSTED_STATE} Does the image display a hate symbol or extremist iconography, such as a flag, emblem, unit insignia, rune, tattoo, or gesture associated with Nazi, SS, neo-Nazi, white-supremacist, or other hate movements, or otherwise attack or dehumanize people based on protected traits? A symbol counts when shown alone, with no caption or accompanying text.`,
+		criteria: {
+			true: "A recognizable hate or extremist symbol, flag, insignia, or gesture is shown, or the image attacks people based on a protected trait.",
+			false: "No hate symbol or extremist iconography and no attack on a protected trait.",
+		},
+	},
 	"phishing-or-credential-solicitation": {
 		type: "noul",
 		instructions: `${UNTRUSTED_STATE} A screenshot of a sign-in, password, token, key, or payment form is ordinary passive UI and is not phishing. Beyond merely showing such a form, does the image deceive the viewer into supplying credentials, for example by imitating a named service, using a lookalike destination, or urging the viewer to confirm or verify an account?`,
