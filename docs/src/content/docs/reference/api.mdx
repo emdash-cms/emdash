@@ -305,7 +305,7 @@ The result also carries a `cacheHint` naming the rows the page read. A route tha
 
 ### `decodeSlug()` and `slugify()`
 
-Use `decodeSlug()` on a dynamic route parameter before passing it to a content query. It returns `undefined` for a missing parameter and otherwise applies `decodeURIComponent()`, which throws for malformed percent encoding:
+Use `decodeSlug()` on a dynamic route parameter before passing it to a content query. It returns `undefined` for a missing parameter or a malformed percent-encoded string, and otherwise returns the decoded slug:
 
 ```ts
 function decodeSlug(raw: string | undefined): string | undefined;
