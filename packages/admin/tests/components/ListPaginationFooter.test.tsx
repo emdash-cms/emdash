@@ -120,6 +120,24 @@ describe("ListPaginationFooter", () => {
 		expect(document.activeElement).toBe(document.body);
 	});
 
+	it.each([
+		["a cached page", undefined],
+		["a page that loads", 50],
+	])(
+		"leaves focus outside the footer alone when %s is requested without moving it",
+		async (_case, pageLoadMs) => {
+			const screen = await render(<Harness pageLoadMs={pageLoadMs} />);
+			const search = screen.getByRole("textbox", { name: "Search" }).element() as HTMLElement;
+			search.focus();
+
+			(screen.getByRole("button", { name: "Next page" }).element() as HTMLElement).click();
+
+			await expect.element(screen.getByText("Showing 21-40 of 60")).toBeInTheDocument();
+			await settle();
+			expect(document.activeElement).toBe(search);
+		},
+	);
+
 	it("leaves focus where it was moved while the requested page loads", async () => {
 		const screen = await render(<Harness pageLoadMs={500} />);
 

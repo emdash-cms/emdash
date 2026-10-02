@@ -74,9 +74,9 @@ export function ListPaginationFooter({ pagination, pageSizes, label }: ListPagin
 		}
 		requestRef.current = null;
 		const target = request.focusTarget;
-		// A dropdown pick saves its popup option, which sits outside the footer.
+		// A dropdown pick saves its popup option, which never takes focus back.
 		const targetUsable =
-			!!target && !!paginationRootRef.current?.contains(target) && !target.matches(":disabled");
+			!!target?.isConnected && !target.matches(":disabled") && !target.closest('[role="listbox"]');
 		const active = document.activeElement;
 		const focusMoved = !!active && active !== document.body && active !== target;
 		if (focusMoved || (targetUsable && !request.sawPending)) return;
