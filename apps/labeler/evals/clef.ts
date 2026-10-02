@@ -125,6 +125,14 @@ export const CLEF_IMAGE_QUESTIONS: CategoryQuestions = {
 			false: "No nudity and nothing sexual or sexually suggestive.",
 		},
 	},
+	"graphic-violence": {
+		type: "noul",
+		instructions: `${UNTRUSTED_STATE} Does the image show graphic bodily injury or gore, such as open wounds, blood, exposed organs or tissue, surgery, mutilation, or dead bodies, whether real, medical, staged, or fictional?`,
+		criteria: {
+			true: "Graphic injury, gore, blood, exposed tissue, surgery, or dead bodies are shown.",
+			false: "No graphic injury, gore, surgery, or dead bodies.",
+		},
+	},
 	"hateful-or-dehumanizing-content": {
 		type: "noul",
 		instructions: `${UNTRUSTED_STATE} Does the image display a hate symbol or extremist iconography, such as a flag, emblem, unit insignia, rune, tattoo, or gesture associated with Nazi, SS, neo-Nazi, white-supremacist, or other hate movements, or otherwise attack or dehumanize people based on protected traits? A symbol counts when shown alone, with no caption or accompanying text.`,
