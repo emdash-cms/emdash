@@ -3206,6 +3206,7 @@ export class EmDashRuntime {
 		collection: string,
 		params: {
 			cursor?: string;
+			page?: number;
 			limit?: number;
 			status?: string;
 			orderBy?: string;
@@ -3985,7 +3986,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number; locale?: string } = {},
+		params: { cursor?: string; page?: number; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -4713,6 +4714,8 @@ export class EmDashRuntime {
 		size?: number;
 		width?: number;
 		height?: number;
+		alt?: string;
+		caption?: string;
 		storageKey: string;
 		contentHash?: string;
 		blurhash?: string;

@@ -1398,23 +1398,19 @@ describe("MediaLibrary", () => {
 				const [page, setPage] = React.useState(1);
 				const [isPending, setIsPending] = React.useState(false);
 				return (
-					<>
-						<MediaLibrary
-							items={[makeMediaItem({ id: String(page), filename: `page-${page}.jpg` })]}
-							pagination={makePagination({
-								page,
-								totalCount: 90,
-								isPending,
-								onPageChange(nextPage) {
-									setPage(nextPage);
-									setIsPending(true);
-								},
-							})}
-						/>
-						<button type="button" onClick={() => setIsPending(false)}>
-							Finish page request
-						</button>
-					</>
+					<MediaLibrary
+						items={[makeMediaItem({ id: String(page), filename: `page-${page}.jpg` })]}
+						pagination={makePagination({
+							page,
+							totalCount: 90,
+							isPending,
+							onPageChange(nextPage) {
+								setPage(nextPage);
+								setIsPending(true);
+								setTimeout(setIsPending, 50, false);
+							},
+						})}
+					/>
 				);
 			}
 
@@ -1426,7 +1422,6 @@ describe("MediaLibrary", () => {
 
 			const nextPage = screen.getByRole("button", { name: "Next page" });
 			await nextPage.click();
-			await screen.getByRole("button", { name: "Finish page request" }).click();
 
 			await vi.waitFor(() => {
 				expect(document.activeElement).toBe(nextPage.element());

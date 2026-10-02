@@ -88,7 +88,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2274
+#: packages/admin/src/router.tsx:2266
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# yorum güncellendi} other {# yorum güncellendi}}"
 
@@ -125,7 +125,7 @@ msgstr ""
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1508
-#: packages/admin/src/components/MediaLibrary.tsx:1002
+#: packages/admin/src/components/MediaLibrary.tsx:938
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr ""
 
@@ -397,17 +397,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:657
+#: packages/admin/src/router.tsx:661
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:613
+#: packages/admin/src/router.tsx:617
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:636
+#: packages/admin/src/router.tsx:640
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -481,6 +481,10 @@ msgstr "{changedCount, plural, one {sonraki revizyondan # değişiklik} other {s
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:895
+msgid "{collectionLabel} pagination"
+msgstr ""
+
 #: packages/admin/src/components/editor/TableControls.tsx:219
 msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
 msgstr ""
@@ -525,7 +529,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1274
+#: packages/admin/src/components/ContentList.tsx:1369
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} öğe} other {#{1} öğe}}"
 
@@ -572,7 +576,7 @@ msgstr ""
 msgid "{lateness} late"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1263
+#: packages/admin/src/components/ContentList.tsx:1358
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {\"{searchQuery}\" ile eşleşen # öğe} other {\"{searchQuery}\" ile eşleşen # öğe}}"
 
@@ -682,7 +686,7 @@ msgstr ""
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr ""
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:304
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:303
 msgid "{position} of {total}"
 msgstr ""
 
@@ -723,11 +727,11 @@ msgstr ""
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:507
+#: packages/admin/src/components/ContentList.tsx:572
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:581
+#: packages/admin/src/components/ContentList.tsx:648
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
@@ -759,7 +763,7 @@ msgstr ""
 msgid "{title} now goes live {when}."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1269
+#: packages/admin/src/components/ContentList.tsx:1364
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# öğe} other {# öğe}}"
 
@@ -1060,7 +1064,7 @@ msgstr "Daveti Kabul Et"
 msgid "Access denied"
 msgstr "Erişim engellendi"
 
-#: packages/admin/src/router.tsx:2294
+#: packages/admin/src/router.tsx:2286
 msgid "Access Denied"
 msgstr "Erişim engellendi"
 
@@ -1090,8 +1094,8 @@ msgid "ACF Fields"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:703
-#: packages/admin/src/components/ContentList.tsx:835
+#: packages/admin/src/components/ContentList.tsx:774
+#: packages/admin/src/components/ContentList.tsx:918
 #: packages/admin/src/components/ContentTypeList.tsx:210
 #: packages/admin/src/components/RelationList.tsx:102
 #: packages/admin/src/components/TaxonomyManager.tsx:1410
@@ -1127,7 +1131,7 @@ msgstr "Ekle"
 #. placeholder {0}: inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
-#: packages/admin/src/components/ContentList.tsx:554
+#: packages/admin/src/components/ContentList.tsx:621
 #: packages/admin/src/components/PortableTextEditor.tsx:2575
 #: packages/admin/src/components/TaxonomyManager.tsx:756
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
@@ -1258,13 +1262,13 @@ msgstr "Gezinme menünüzü oluşturmak için bağlantılar ekleyin"
 msgid "Add MIME type or extension"
 msgstr "MIME türü veya uzantısı ekleyin"
 
-#: packages/admin/src/components/ContentList.tsx:445
+#: packages/admin/src/components/ContentList.tsx:510
 msgid "Add New"
 msgstr "Yeni Ekle"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
-#: packages/admin/src/components/MediaLibrary.tsx:852
-#: packages/admin/src/components/MediaLibrary.tsx:857
+#: packages/admin/src/components/MediaLibrary.tsx:788
+#: packages/admin/src/components/MediaLibrary.tsx:793
 msgid "Add new folder"
 msgstr ""
 
@@ -1315,7 +1319,7 @@ msgstr "Alt Alan Ekle"
 msgid "Add tag"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:555
+#: packages/admin/src/components/ContentList.tsx:622
 msgid "Add term"
 msgstr ""
 
@@ -1427,12 +1431,12 @@ msgstr "Sağa Hizala"
 msgid "Alignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:457
+#: packages/admin/src/components/ContentList.tsx:522
 msgid "All"
 msgstr "Tüm"
 
-#: packages/admin/src/components/ContentList.tsx:985
-#: packages/admin/src/components/ContentList.tsx:989
+#: packages/admin/src/components/ContentList.tsx:1080
+#: packages/admin/src/components/ContentList.tsx:1084
 msgid "All authors"
 msgstr "Tüm yazarlar"
 
@@ -1470,12 +1474,12 @@ msgstr "Tüm roller"
 msgid "All sources"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:924
+#: packages/admin/src/components/ContentList.tsx:1019
 #: packages/admin/src/components/Redirects.tsx:391
 msgid "All statuses"
 msgstr "Tüm durumlar"
 
-#: packages/admin/src/components/MediaLibrary.tsx:984
+#: packages/admin/src/components/MediaLibrary.tsx:920
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/Redirects.tsx:398
 msgid "All types"
@@ -1541,7 +1545,7 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:514
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:518
-#: packages/admin/src/components/MediaLibrary.tsx:1208
+#: packages/admin/src/components/MediaLibrary.tsx:1144
 #: packages/admin/src/components/PortableTextEditor.tsx:4773
 #: packages/admin/src/components/PortableTextEditor.tsx:4835
 msgid "Alt text"
@@ -1553,12 +1557,12 @@ msgstr "Alternatif metin"
 msgid "Alt Text"
 msgstr "Alternatif Metin"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1559
+#: packages/admin/src/components/MediaLibrary.tsx:1455
 msgid "Alt text is not applicable to folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1787
-#: packages/admin/src/components/MediaLibrary.tsx:1844
+#: packages/admin/src/components/MediaLibrary.tsx:1683
+#: packages/admin/src/components/MediaLibrary.tsx:1740
 msgid "Alt text set"
 msgstr "Alternatif metin seti"
 
@@ -1610,24 +1614,24 @@ msgstr ""
 #: packages/admin/src/components/TaxonomySidebar.tsx:687
 #: packages/admin/src/components/TaxonomySidebar.tsx:783
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:545
-#: packages/admin/src/router.tsx:560
-#: packages/admin/src/router.tsx:574
-#: packages/admin/src/router.tsx:588
-#: packages/admin/src/router.tsx:822
-#: packages/admin/src/router.tsx:1191
-#: packages/admin/src/router.tsx:1291
-#: packages/admin/src/router.tsx:1325
-#: packages/admin/src/router.tsx:1349
-#: packages/admin/src/router.tsx:1373
-#: packages/admin/src/router.tsx:1431
-#: packages/admin/src/router.tsx:1450
-#: packages/admin/src/router.tsx:1483
-#: packages/admin/src/router.tsx:1504
-#: packages/admin/src/router.tsx:2239
-#: packages/admin/src/router.tsx:2255
-#: packages/admin/src/router.tsx:2280
-#: packages/admin/src/router.tsx:2873
+#: packages/admin/src/router.tsx:549
+#: packages/admin/src/router.tsx:564
+#: packages/admin/src/router.tsx:578
+#: packages/admin/src/router.tsx:592
+#: packages/admin/src/router.tsx:814
+#: packages/admin/src/router.tsx:1183
+#: packages/admin/src/router.tsx:1283
+#: packages/admin/src/router.tsx:1317
+#: packages/admin/src/router.tsx:1341
+#: packages/admin/src/router.tsx:1365
+#: packages/admin/src/router.tsx:1423
+#: packages/admin/src/router.tsx:1442
+#: packages/admin/src/router.tsx:1475
+#: packages/admin/src/router.tsx:1496
+#: packages/admin/src/router.tsx:2231
+#: packages/admin/src/router.tsx:2247
+#: packages/admin/src/router.tsx:2272
+#: packages/admin/src/router.tsx:2865
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1750,7 +1754,7 @@ msgstr ""
 msgid "Arbitrary JSON data"
 msgstr "Rastgele JSON verileri"
 
-#: packages/admin/src/components/ContentList.tsx:928
+#: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "Arşivlendi"
@@ -1820,7 +1824,7 @@ msgid "Attribution"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
-#: packages/admin/src/components/MediaLibrary.tsx:987
+#: packages/admin/src/components/MediaLibrary.tsx:923
 #: packages/admin/src/components/MediaPickerModal.tsx:385
 msgid "Audio"
 msgstr "Ses"
@@ -1930,7 +1934,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1288
+#: packages/admin/src/router.tsx:1280
 msgid "Autosave failed"
 msgstr "Otomatik kaydetme başarısız oldu"
 
@@ -1964,7 +1968,7 @@ msgstr "avatar"
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:651
 #: packages/admin/src/components/MediaDetailPanel.tsx:1805
-#: packages/admin/src/components/MediaLibrary.tsx:811
+#: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:367
 #: packages/admin/src/components/WordPressImport.tsx:1533
 #: packages/admin/src/components/WordPressImport.tsx:2550
@@ -1989,7 +1993,7 @@ msgstr "İçerik Türlerine Geri Dön"
 msgid "Back to login"
 msgstr "Girişe geri dön"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1095
+#: packages/admin/src/components/MediaLibrary.tsx:1031
 msgid "Back to Main library"
 msgstr ""
 
@@ -2275,9 +2279,9 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:348
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:590
-#: packages/admin/src/components/ContentList.tsx:1444
-#: packages/admin/src/components/ContentList.tsx:1626
+#: packages/admin/src/components/ContentList.tsx:657
+#: packages/admin/src/components/ContentList.tsx:1539
+#: packages/admin/src/components/ContentList.tsx:1721
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
@@ -2460,7 +2464,7 @@ msgstr "Değişiklik günlüğü"
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1365
+#: packages/admin/src/router.tsx:1357
 msgid "Changes discarded"
 msgstr "Değişiklikler iptal edildi"
 
@@ -2565,8 +2569,8 @@ msgstr ""
 msgid "Choose a credential manager on this device, another device, or a security key."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1111
-#: packages/admin/src/components/ContentList.tsx:1117
+#: packages/admin/src/components/ContentList.tsx:1206
+#: packages/admin/src/components/ContentList.tsx:1212
 msgid "Choose a date range"
 msgstr ""
 
@@ -2649,8 +2653,8 @@ msgstr ""
 msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:616
-#: packages/admin/src/components/ContentList.tsx:1125
+#: packages/admin/src/components/ContentList.tsx:683
+#: packages/admin/src/components/ContentList.tsx:1220
 msgid "Clear"
 msgstr ""
 
@@ -2661,16 +2665,16 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:186
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:103
-#: packages/admin/src/components/ContentList.tsx:1030
-#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/ContentList.tsx:1125
+#: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/Sections.tsx:298
 #: packages/admin/src/components/users/UserList.tsx:122
 #: packages/admin/src/routes/bylines.tsx:654
 msgid "Clear filters"
 msgstr "Filtreleri temizle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1084
-#: packages/admin/src/components/MediaLibrary.tsx:1119
+#: packages/admin/src/components/MediaLibrary.tsx:1020
+#: packages/admin/src/components/MediaLibrary.tsx:1055
 #: packages/admin/src/components/TaxonomyManager.tsx:1433
 msgid "Clear search"
 msgstr ""
@@ -3024,7 +3028,7 @@ msgstr "İçerik Hataları ({0})"
 msgid "Content found:"
 msgstr "Bulunan içerik:"
 
-#: packages/admin/src/router.tsx:1424
+#: packages/admin/src/router.tsx:1416
 msgid "Content has been scheduled for publishing"
 msgstr "İçeriğin yayınlanması planlandı"
 
@@ -3036,7 +3040,7 @@ msgstr "İçerik seçilen revizyona güncellendi."
 msgid "Content ID:"
 msgstr "İçerik Kimliği:"
 
-#: packages/admin/src/router.tsx:1319
+#: packages/admin/src/router.tsx:1311
 msgid "Content is now live"
 msgstr "İçerik artık yayında"
 
@@ -3061,11 +3065,11 @@ msgstr ""
 msgid "Content refers to media that is not in the package"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1343
+#: packages/admin/src/router.tsx:1335
 msgid "Content removed from public view"
 msgstr "İçerik herkese açık görünümden kaldırıldı"
 
-#: packages/admin/src/router.tsx:1443
+#: packages/admin/src/router.tsx:1435
 msgid "Content reverted to draft"
 msgstr "İçerik taslağa geri döndürüldü"
 
@@ -3323,7 +3327,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "\"{draft}\" bir MIME türüyle eşlenemedi. MIME'yi doğrudan yazın."
 
-#: packages/admin/src/components/MediaLibrary.tsx:639
+#: packages/admin/src/components/MediaLibrary.tsx:575
 msgid "Couldn’t move file"
 msgstr ""
 
@@ -3544,7 +3548,7 @@ msgstr ""
 msgid "Create your first navigation menu to get started"
 msgstr "Başlamak için ilk gezinme menünüzü oluşturun"
 
-#: packages/admin/src/components/ContentList.tsx:731
+#: packages/admin/src/components/ContentList.tsx:805
 msgid "Create your first one"
 msgstr "İlkini oluştur"
 
@@ -3569,7 +3573,7 @@ msgstr "Sınıflandırma terimlerini oluşturma, güncelleme ve silme"
 msgid "Create, update, delete content"
 msgstr "İçerik oluşturma, güncelleme, silme"
 
-#: packages/admin/src/components/ContentList.tsx:934
+#: packages/admin/src/components/ContentList.tsx:1029
 #: packages/admin/src/components/ContentSettingsPanel.tsx:990
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:219
@@ -3587,7 +3591,7 @@ msgid "Created {0}"
 msgstr "{0} oluşturuldu"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1475
+#: packages/admin/src/router.tsx:1467
 msgid "Created {0} translation"
 msgstr "{0} çevirisi oluşturuldu"
 
@@ -3639,7 +3643,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:761
-#: packages/admin/src/components/MediaLibrary.tsx:1393
+#: packages/admin/src/components/MediaLibrary.tsx:1289
 msgid "Cropped copy created."
 msgstr ""
 
@@ -3710,7 +3714,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:692
+#: packages/admin/src/components/ContentList.tsx:763
 msgid "Date"
 msgstr "Tarih"
 
@@ -3723,7 +3727,7 @@ msgstr "Tarih ve Saat"
 msgid "Date and time picker"
 msgstr "Tarih ve saat seçici"
 
-#: packages/admin/src/components/ContentList.tsx:1007
+#: packages/admin/src/components/ContentList.tsx:1102
 msgid "Date field to filter on"
 msgstr "Filtrelenecek tarih alanı"
 
@@ -3731,7 +3735,7 @@ msgstr "Filtrelenecek tarih alanı"
 msgid "Date Format"
 msgstr "Tarih Formatı"
 
-#: packages/admin/src/components/ContentList.tsx:1057
+#: packages/admin/src/components/ContentList.tsx:1152
 msgid "Date range"
 msgstr ""
 
@@ -3929,11 +3933,11 @@ msgid "Delete permanently"
 msgstr "Kalıcı olarak sil"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1637
+#: packages/admin/src/components/ContentList.tsx:1732
 msgid "Delete Permanently"
 msgstr "Kalıcı Olarak Sil"
 
-#: packages/admin/src/components/ContentList.tsx:1617
+#: packages/admin/src/components/ContentList.tsx:1712
 msgid "Delete Permanently?"
 msgstr "Kalıcı Olarak Silinsin mi?"
 
@@ -3991,7 +3995,7 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr "Widget Alanı Silinsin mi?"
 
-#: packages/admin/src/components/ContentList.tsx:832
+#: packages/admin/src/components/ContentList.tsx:915
 msgid "Deleted"
 msgstr "Silindi"
 
@@ -4282,7 +4286,7 @@ msgid "Document"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:988
+#: packages/admin/src/components/MediaLibrary.tsx:924
 #: packages/admin/src/components/MediaPickerModal.tsx:386
 msgid "Documents"
 msgstr "Belgeler"
@@ -4313,7 +4317,7 @@ msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:504
 #: packages/admin/src/components/BylineCreditsEditor.tsx:920
-#: packages/admin/src/components/ContentList.tsx:1133
+#: packages/admin/src/components/ContentList.tsx:1228
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2151
@@ -4383,7 +4387,7 @@ msgid "Downloading the package"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
-#: packages/admin/src/components/ContentList.tsx:926
+#: packages/admin/src/components/ContentList.tsx:1021
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "Taslak"
@@ -4458,7 +4462,7 @@ msgstr ""
 msgid "Drop an image here or browse for {label}"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:791
+#: packages/admin/src/components/MediaLibrary.tsx:727
 msgid "Drop files to upload"
 msgstr ""
 
@@ -4478,7 +4482,7 @@ msgstr "WordPress dışa aktarma dosyanızı buraya bırakın"
 msgid "Duplicate"
 msgstr "Çoğalt"
 
-#: packages/admin/src/components/ContentList.tsx:1417
+#: packages/admin/src/components/ContentList.tsx:1512
 msgid "Duplicate {title}"
 msgstr "{title}'i çoğaltın"
 
@@ -4561,7 +4565,7 @@ msgstr ""
 msgid "Edit {label}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1409
+#: packages/admin/src/components/ContentList.tsx:1504
 msgid "Edit {title}"
 msgstr "{title}'i düzenleyin"
 
@@ -4599,8 +4603,8 @@ msgid "Edit folder"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1474
-#: packages/admin/src/components/MediaLibrary.tsx:1541
+#: packages/admin/src/components/MediaLibrary.tsx:1370
+#: packages/admin/src/components/MediaLibrary.tsx:1437
 msgid "Edit folder {0}"
 msgstr ""
 
@@ -4949,7 +4953,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1207
 #: packages/admin/src/components/Widgets.tsx:771
-#: packages/admin/src/router.tsx:3148
+#: packages/admin/src/router.tsx:3140
 msgid "Error"
 msgstr "Hata"
 
@@ -5189,14 +5193,14 @@ msgid "Failed to create term"
 msgstr "Terim oluşturulamadı"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1480
+#: packages/admin/src/router.tsx:1472
 msgid "Failed to create translation"
 msgstr "Çeviri oluşturulamadı"
 
-#: packages/admin/src/router.tsx:544
-#: packages/admin/src/router.tsx:573
-#: packages/admin/src/router.tsx:656
-#: packages/admin/src/router.tsx:1503
+#: packages/admin/src/router.tsx:548
+#: packages/admin/src/router.tsx:577
+#: packages/admin/src/router.tsx:660
+#: packages/admin/src/router.tsx:1495
 msgid "Failed to delete"
 msgstr "Silinemedi"
 
@@ -5221,11 +5225,11 @@ msgid "Failed to delete collection"
 msgstr "Koleksiyon silinemedi"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2254
+#: packages/admin/src/router.tsx:2246
 msgid "Failed to delete comment"
 msgstr "Yorum silinemedi"
 
-#: packages/admin/src/lib/api/content.ts:340
+#: packages/admin/src/lib/api/content.ts:343
 msgid "Failed to delete content"
 msgstr "İçerik silinemedi"
 
@@ -5303,7 +5307,7 @@ msgstr "Arama devre dışı bırakılamadı"
 msgid "Failed to disable user"
 msgstr "Kullanıcı devre dışı bırakılamadı"
 
-#: packages/admin/src/router.tsx:1372
+#: packages/admin/src/router.tsx:1364
 msgid "Failed to discard changes"
 msgstr "Değişiklikler silinemedi"
 
@@ -5320,7 +5324,7 @@ msgstr "Hoş geldiniz reddedilemedi"
 msgid "Failed to download a package file"
 msgstr ""
 
-#: packages/admin/src/router.tsx:587
+#: packages/admin/src/router.tsx:591
 msgid "Failed to duplicate"
 msgstr "Kopyalanamadı"
 
@@ -5411,8 +5415,8 @@ msgstr "Eklentiler getirilemedi"
 msgid "Failed to fetch provider media"
 msgstr "Sağlayıcı medyası getirilemedi"
 
-#: packages/admin/src/lib/api/content.ts:629
-#: packages/admin/src/lib/api/content.ts:634
+#: packages/admin/src/lib/api/content.ts:635
+#: packages/admin/src/lib/api/content.ts:640
 msgid "Failed to fetch revision"
 msgstr "Revizyon getirilemedi"
 
@@ -5443,8 +5447,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:1066
-#: packages/admin/src/router.tsx:2185
+#: packages/admin/src/router.tsx:1058
+#: packages/admin/src/router.tsx:2177
 msgid "Failed to fetch user"
 msgstr "Kullanıcı getirilemedi"
 
@@ -5490,7 +5494,7 @@ msgstr "Yazar bilgisi alanları listelenemedi"
 msgid "Failed to list files to upload"
 msgstr ""
 
-#: packages/admin/src/router.tsx:377
+#: packages/admin/src/router.tsx:379
 msgid "Failed to load admin"
 msgstr "Yönetici yüklenemedi"
 
@@ -5604,11 +5608,11 @@ msgstr "Widget yüklenemedi"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2279
+#: packages/admin/src/router.tsx:2271
 msgid "Failed to perform bulk action"
 msgstr "Toplu işlem gerçekleştirilemedi"
 
-#: packages/admin/src/lib/api/content.ts:385
+#: packages/admin/src/lib/api/content.ts:391
 msgid "Failed to permanently delete content"
 msgstr "İçerik kalıcı olarak silinemedi"
 
@@ -5616,8 +5620,8 @@ msgstr "İçerik kalıcı olarak silinemedi"
 msgid "Failed to prepare import"
 msgstr "İçe aktarma hazırlanamadı"
 
-#: packages/admin/src/router.tsx:612
-#: packages/admin/src/router.tsx:1324
+#: packages/admin/src/router.tsx:616
+#: packages/admin/src/router.tsx:1316
 msgid "Failed to publish"
 msgstr "Yayınlanamadı"
 
@@ -5667,16 +5671,16 @@ msgstr "Widget'lar yeniden sıralanamadı"
 msgid "Failed to replace media image"
 msgstr ""
 
-#: packages/admin/src/router.tsx:559
+#: packages/admin/src/router.tsx:563
 msgid "Failed to restore"
 msgstr "Geri yüklenemedi"
 
-#: packages/admin/src/lib/api/content.ts:374
+#: packages/admin/src/lib/api/content.ts:380
 msgid "Failed to restore content"
 msgstr "İçerik geri yüklenemedi"
 
-#: packages/admin/src/lib/api/content.ts:651
-#: packages/admin/src/lib/api/content.ts:656
+#: packages/admin/src/lib/api/content.ts:657
+#: packages/admin/src/lib/api/content.ts:662
 msgid "Failed to restore revision"
 msgstr "Revizyon geri yüklenemedi"
 
@@ -5688,9 +5692,9 @@ msgstr "API belirteci iptal edilemedi"
 msgid "Failed to rewrite URLs"
 msgstr "URL'ler yeniden yazılamadı"
 
-#: packages/admin/src/router.tsx:817
-#: packages/admin/src/router.tsx:1188
-#: packages/admin/src/router.tsx:2872
+#: packages/admin/src/router.tsx:809
+#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/router.tsx:2864
 msgid "Failed to save"
 msgstr "Kaydedilemedi"
 
@@ -5709,7 +5713,7 @@ msgstr "Alan kaydedilemedi"
 msgid "Failed to save settings"
 msgstr "Ayarlar kaydedilemedi"
 
-#: packages/admin/src/router.tsx:1430
+#: packages/admin/src/router.tsx:1422
 msgid "Failed to schedule"
 msgstr "Planlama başarısız oldu"
 
@@ -5749,15 +5753,15 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr "Eklenti kaldırılamadı"
 
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1340
 msgid "Failed to unpublish"
 msgstr "Yayından kaldırılamadı"
 
-#: packages/admin/src/router.tsx:1449
+#: packages/admin/src/router.tsx:1441
 msgid "Failed to unschedule"
 msgstr "Planlama iptal edilemedi"
 
-#: packages/admin/src/router.tsx:635
+#: packages/admin/src/router.tsx:639
 msgid "Failed to update"
 msgstr ""
 
@@ -5804,7 +5808,7 @@ msgstr "Bölüm güncellenemedi"
 msgid "Failed to update settings"
 msgstr "Ayarlar güncellenemedi"
 
-#: packages/admin/src/router.tsx:2238
+#: packages/admin/src/router.tsx:2230
 msgid "Failed to update status"
 msgstr "Durum güncellenemedi"
 
@@ -5916,7 +5920,7 @@ msgstr "Medya kitaplığından dosya"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1415
 #: packages/admin/src/components/MediaDetailPanel.tsx:1432
-#: packages/admin/src/components/MediaLibrary.tsx:1205
+#: packages/admin/src/components/MediaLibrary.tsx:1141
 msgid "Filename"
 msgstr "Dosya adı"
 
@@ -5932,7 +5936,7 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:981
+#: packages/admin/src/components/ContentList.tsx:1076
 msgid "Filter by author"
 msgstr "Yazara göre filtrele"
 
@@ -5948,7 +5952,7 @@ msgstr "Yeteneğe göre filtrele"
 msgid "Filter by collection"
 msgstr "Koleksiyona göre filtrele"
 
-#: packages/admin/src/components/ContentList.tsx:1103
+#: packages/admin/src/components/ContentList.tsx:1198
 msgid "Filter by date range: {rangeLabel}"
 msgstr ""
 
@@ -5960,12 +5964,12 @@ msgstr "Role göre filtrele"
 msgid "Filter by source"
 msgstr "Kaynağa göre filtrele"
 
-#: packages/admin/src/components/ContentList.tsx:963
+#: packages/admin/src/components/ContentList.tsx:1058
 #: packages/admin/src/components/Redirects.tsx:392
 msgid "Filter by status"
 msgstr "Duruma göre filtrele"
 
-#: packages/admin/src/components/MediaLibrary.tsx:990
+#: packages/admin/src/components/MediaLibrary.tsx:926
 #: packages/admin/src/components/MediaPickerModal.tsx:1276
 #: packages/admin/src/components/Redirects.tsx:399
 msgid "Filter by type"
@@ -5983,7 +5987,7 @@ msgstr ""
 msgid "Finish any current edits."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1314
+#: packages/admin/src/components/ListPaginationFooter.tsx:109
 #: packages/admin/src/components/MediaPickerModal.tsx:1544
 msgid "First page"
 msgstr ""
@@ -6026,7 +6030,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1908
+#: packages/admin/src/router.tsx:1900
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -6046,19 +6050,19 @@ msgstr ""
 msgid "Folder unavailable"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1017
+#: packages/admin/src/components/MediaLibrary.tsx:953
 #: packages/admin/src/components/MediaPickerModal.tsx:1314
 msgid "Folders"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1535
-#: packages/admin/src/components/MediaLibrary.tsx:1027
-#: packages/admin/src/components/MediaLibrary.tsx:1571
+#: packages/admin/src/components/MediaLibrary.tsx:963
+#: packages/admin/src/components/MediaLibrary.tsx:1467
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
 msgid "Folders could not be loaded."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:822
+#: packages/admin/src/components/MediaLibrary.tsx:758
 msgid "Folders navigation"
 msgstr ""
 
@@ -6083,7 +6087,7 @@ msgid "Freeform"
 msgstr ""
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:1054
+#: packages/admin/src/components/ContentList.tsx:1149
 msgid "From {0}"
 msgstr ""
 
@@ -6167,7 +6171,7 @@ msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2441
-#: packages/admin/src/router.tsx:3168
+#: packages/admin/src/router.tsx:3160
 msgid "Go to Dashboard"
 msgstr "Kontrol Paneline Git"
 
@@ -6188,7 +6192,7 @@ msgstr "Google Doğrulaması"
 msgid "GraphQL"
 msgstr "GrafikQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:945
+#: packages/admin/src/components/MediaLibrary.tsx:881
 #: packages/admin/src/components/MediaPickerModal.tsx:1232
 msgid "Grid view"
 msgstr "Izgara görünümü"
@@ -6530,7 +6534,7 @@ msgstr "Görsel URL'si"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:64
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:985
+#: packages/admin/src/components/MediaLibrary.tsx:921
 #: packages/admin/src/components/MediaPickerModal.tsx:383
 msgid "Images"
 msgstr "Görseller"
@@ -6704,7 +6708,7 @@ msgstr "Uyumsuz"
 msgid "Increase column width"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:886
+#: packages/admin/src/components/MediaLibrary.tsx:822
 msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
@@ -7109,7 +7113,7 @@ msgstr "Son giriş"
 msgid "Last Login"
 msgstr "Son Giriş"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1317
+#: packages/admin/src/components/ListPaginationFooter.tsx:112
 #: packages/admin/src/components/MediaPickerModal.tsx:1547
 msgid "Last page"
 msgstr ""
@@ -7153,10 +7157,10 @@ msgstr "Atanmamış olarak bırak"
 msgid "Left"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:319
-#: packages/admin/src/components/MediaLibrary.tsx:478
-#: packages/admin/src/components/MediaLibrary.tsx:751
-#: packages/admin/src/components/MediaLibrary.tsx:1359
+#: packages/admin/src/components/MediaLibrary.tsx:304
+#: packages/admin/src/components/MediaLibrary.tsx:414
+#: packages/admin/src/components/MediaLibrary.tsx:687
+#: packages/admin/src/components/MediaLibrary.tsx:1255
 #: packages/admin/src/components/MediaPickerModal.tsx:358
 #: packages/admin/src/components/MediaPickerModal.tsx:375
 msgid "Library"
@@ -7248,7 +7252,7 @@ msgstr ""
 msgid "Links to {0}"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:954
+#: packages/admin/src/components/MediaLibrary.tsx:890
 #: packages/admin/src/components/MediaPickerModal.tsx:1242
 msgid "List view"
 msgstr "Liste görünümü"
@@ -7278,16 +7282,16 @@ msgstr "Canlı Görünüm"
 msgid "Load more"
 msgstr "Daha fazlasını yükle"
 
-#: packages/admin/src/components/ContentList.tsx:811
-#: packages/admin/src/components/ContentList.tsx:875
-#: packages/admin/src/components/MediaLibrary.tsx:1352
+#: packages/admin/src/components/ContentList.tsx:885
+#: packages/admin/src/components/ContentList.tsx:961
+#: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
 msgstr "Daha Fazla Yükle"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1554
-#: packages/admin/src/components/MediaLibrary.tsx:1057
-#: packages/admin/src/components/MediaLibrary.tsx:1249
+#: packages/admin/src/components/MediaLibrary.tsx:993
+#: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
 msgid "Load more folders"
 msgstr ""
@@ -7297,7 +7301,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3123
+#: packages/admin/src/router.tsx:3115
 msgid "Loading"
 msgstr ""
 
@@ -7326,8 +7330,8 @@ msgstr "Koleksiyonlar yükleniyor..."
 msgid "Loading comments..."
 msgstr "Yorumlar yükleniyor..."
 
-#: packages/admin/src/router.tsx:3125
-#: packages/admin/src/router.tsx:3137
+#: packages/admin/src/router.tsx:3117
+#: packages/admin/src/router.tsx:3129
 msgid "Loading configuration..."
 msgstr "Yapılandırma yükleniyor..."
 
@@ -7343,8 +7347,8 @@ msgstr "Editör yükleniyor..."
 msgid "Loading exports…"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1001
-#: packages/admin/src/components/MediaLibrary.tsx:1217
+#: packages/admin/src/components/MediaLibrary.tsx:937
+#: packages/admin/src/components/MediaLibrary.tsx:1153
 #: packages/admin/src/components/MediaPickerModal.tsx:1337
 msgid "Loading folders"
 msgstr ""
@@ -7431,17 +7435,17 @@ msgstr ""
 msgid "Loading widgets..."
 msgstr "Widget'lar yükleniyor..."
 
-#: packages/admin/src/components/ContentList.tsx:713
-#: packages/admin/src/components/ContentList.tsx:811
-#: packages/admin/src/components/ContentList.tsx:845
-#: packages/admin/src/components/ContentList.tsx:875
+#: packages/admin/src/components/ContentList.tsx:787
+#: packages/admin/src/components/ContentList.tsx:885
+#: packages/admin/src/components/ContentList.tsx:931
+#: packages/admin/src/components/ContentList.tsx:961
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
 #: packages/admin/src/components/MediaDetailPanel.tsx:612
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
 #: packages/admin/src/components/MediaDetailPanel.tsx:1741
-#: packages/admin/src/components/MediaLibrary.tsx:1352
+#: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:2864
 #: packages/admin/src/components/Redirects.tsx:569
@@ -7472,8 +7476,8 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
-#: packages/admin/src/components/ContentList.tsx:685
-#: packages/admin/src/components/ContentList.tsx:828
+#: packages/admin/src/components/ContentList.tsx:756
+#: packages/admin/src/components/ContentList.tsx:911
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "Yerel ayar"
@@ -7633,11 +7637,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Pazar yeri"
 
-#: packages/admin/src/router.tsx:2533
+#: packages/admin/src/router.tsx:2525
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2508
+#: packages/admin/src/router.tsx:2500
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -7720,8 +7724,8 @@ msgid "Media in this folder will return to Main library. No files will be delete
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:166
-#: packages/admin/src/components/MediaLibrary.tsx:819
-#: packages/admin/src/components/MediaLibrary.tsx:834
+#: packages/admin/src/components/MediaLibrary.tsx:755
+#: packages/admin/src/components/MediaLibrary.tsx:770
 msgid "Media Library"
 msgstr "Medya Kitaplığı"
 
@@ -7729,7 +7733,7 @@ msgstr "Medya Kitaplığı"
 msgid "Media links were made relative"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1313
+#: packages/admin/src/components/MediaLibrary.tsx:1241
 #: packages/admin/src/components/MediaPickerModal.tsx:1543
 msgid "Media pagination"
 msgstr ""
@@ -7747,7 +7751,7 @@ msgstr ""
 msgid "Media usage tracking"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:883
+#: packages/admin/src/components/MediaLibrary.tsx:819
 msgid "Media usage tracking is indexing existing content"
 msgstr ""
 
@@ -7759,11 +7763,11 @@ msgstr ""
 msgid "Media usage tracking is ready"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaLibrary.tsx:820
 msgid "Media usage tracking is setting up"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:881
+#: packages/admin/src/components/MediaLibrary.tsx:817
 msgid "Media usage tracking needs attention"
 msgstr ""
 
@@ -7971,7 +7975,7 @@ msgstr "\"{0}\"i aşağı taşı"
 msgid "Move \"{0}\" up"
 msgstr "\"{0}\"i yukarı taşı"
 
-#: packages/admin/src/components/ContentList.tsx:1438
+#: packages/admin/src/components/ContentList.tsx:1533
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "\"{title}\" çöp kutusuna taşınsın mı? Daha sonra geri yükleyebilirsiniz."
 
@@ -7990,12 +7994,12 @@ msgid "Move {0} down — unavailable, its parent has no translation in this loca
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:313
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:312
 msgid "Move {0} earlier"
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:322
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:321
 msgid "Move {0} later"
 msgstr ""
 
@@ -8013,7 +8017,7 @@ msgstr ""
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1429
+#: packages/admin/src/components/ContentList.tsx:1524
 msgid "Move {title} to trash"
 msgstr "{title}'i çöp kutusuna taşıyın"
 
@@ -8027,7 +8031,7 @@ msgstr "Aşağı taşı"
 msgid "Move down {0}"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1092
+#: packages/admin/src/components/MediaLibrary.tsx:1028
 msgid "Move media here from Media Details."
 msgstr ""
 
@@ -8043,19 +8047,19 @@ msgstr ""
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:574
+#: packages/admin/src/components/ContentList.tsx:641
 msgid "Move to trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:601
-#: packages/admin/src/components/ContentList.tsx:1451
+#: packages/admin/src/components/ContentList.tsx:668
+#: packages/admin/src/components/ContentList.tsx:1546
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1300
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1320
 msgid "Move to Trash"
 msgstr "Çöp Kutusuna Taşı"
 
-#: packages/admin/src/components/ContentList.tsx:579
-#: packages/admin/src/components/ContentList.tsx:1436
+#: packages/admin/src/components/ContentList.tsx:646
+#: packages/admin/src/components/ContentList.tsx:1531
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1305
 msgid "Move to Trash?"
 msgstr "Çöp Kutusu'na taşınsın mı?"
@@ -8075,16 +8079,16 @@ msgstr ""
 msgid "Moved {filename} to position {0}."
 msgstr ""
 
-#: packages/admin/src/router.tsx:632
+#: packages/admin/src/router.tsx:636
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:653
+#: packages/admin/src/router.tsx:657
 msgid "Moved {total} items to trash"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:632
+#: packages/admin/src/components/MediaLibrary.tsx:568
 msgid "Moved to {0}"
 msgstr ""
 
@@ -8179,7 +8183,7 @@ msgstr ""
 msgid "Never"
 msgstr "Asla"
 
-#: packages/admin/src/router.tsx:1475
+#: packages/admin/src/router.tsx:1467
 msgid "new"
 msgstr "yeni"
 
@@ -8218,7 +8222,7 @@ msgstr "Yeni İçerik Türü"
 msgid "New field"
 msgstr "Yeni alan"
 
-#: packages/admin/src/components/MediaLibrary.tsx:856
+#: packages/admin/src/components/MediaLibrary.tsx:792
 msgid "New folder"
 msgstr ""
 
@@ -8287,8 +8291,8 @@ msgid "Next month"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:799
-#: packages/admin/src/components/MediaLibrary.tsx:1316
+#: packages/admin/src/components/ContentList.tsx:873
+#: packages/admin/src/components/ListPaginationFooter.tsx:111
 #: packages/admin/src/components/MediaPickerModal.tsx:1546
 msgid "Next page"
 msgstr "Sonraki sayfa"
@@ -8307,7 +8311,7 @@ msgstr ""
 msgid "Next, the browser's passkey window will open"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1474
+#: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -8318,7 +8322,7 @@ msgid "No (shared across translations)"
 msgstr "Hayır (çevirilerde paylaşılır)"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:724
+#: packages/admin/src/components/ContentList.tsx:798
 msgid "No {0} yet."
 msgstr "Henüz {0} yok."
 
@@ -8336,8 +8340,8 @@ msgstr ""
 msgid "No 404 errors recorded yet."
 msgstr "Henüz 404 hatası kaydedilmedi."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1787
-#: packages/admin/src/components/MediaLibrary.tsx:1844
+#: packages/admin/src/components/MediaLibrary.tsx:1683
+#: packages/admin/src/components/MediaLibrary.tsx:1740
 msgid "No alt text"
 msgstr "Alternatif metin yok"
 
@@ -8545,8 +8549,8 @@ msgstr "Eşleşen yazar bilgisi yok."
 msgid "No matching content found."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1076
-#: packages/admin/src/components/MediaLibrary.tsx:1115
+#: packages/admin/src/components/MediaLibrary.tsx:1012
+#: packages/admin/src/components/MediaLibrary.tsx:1051
 msgid "No matching media"
 msgstr ""
 
@@ -8567,11 +8571,11 @@ msgstr ""
 msgid "No maximum"
 msgstr "Maksimum yok"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1138
+#: packages/admin/src/components/MediaLibrary.tsx:1074
 msgid "No media available from this provider."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1137
+#: packages/admin/src/components/MediaLibrary.tsx:1073
 #: packages/admin/src/components/MediaPickerModal.tsx:1406
 msgid "No media found"
 msgstr "Medya bulunamadı"
@@ -8654,8 +8658,8 @@ msgstr ""
 msgid "No results"
 msgstr "Sonuç yok"
 
-#: packages/admin/src/components/ContentList.tsx:721
-#: packages/admin/src/components/ContentList.tsx:740
+#: packages/admin/src/components/ContentList.tsx:795
+#: packages/admin/src/components/ContentList.tsx:814
 msgid "No results for \"{activeSearch}\""
 msgstr "\"{activeSearch}\" için sonuç yok"
 
@@ -8744,7 +8748,7 @@ msgstr ""
 msgid "Not matched"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1473
+#: packages/admin/src/components/ContentList.tsx:1568
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr ""
@@ -8863,9 +8867,9 @@ msgid "Open {0} in a new tab"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:183
-#: packages/admin/src/components/MediaLibrary.tsx:1458
-#: packages/admin/src/components/MediaLibrary.tsx:1529
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:182
+#: packages/admin/src/components/MediaLibrary.tsx:1354
+#: packages/admin/src/components/MediaLibrary.tsx:1425
 msgid "Open folder {0}"
 msgstr ""
 
@@ -8893,7 +8897,7 @@ msgstr "Yeni sekmede aç"
 msgid "Open read-only"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:889
+#: packages/admin/src/components/MediaLibrary.tsx:825
 msgid "Open setup"
 msgstr ""
 
@@ -9043,16 +9047,16 @@ msgstr ""
 msgid "Package downloaded"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3163
+#: packages/admin/src/router.tsx:3155
 msgid "Page Not Found"
 msgstr "Sayfa Bulunamadı"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1318
+#: packages/admin/src/components/ListPaginationFooter.tsx:113
 #: packages/admin/src/components/MediaPickerModal.tsx:1548
 msgid "Page number"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1319
+#: packages/admin/src/components/ListPaginationFooter.tsx:114
 #: packages/admin/src/components/MediaPickerModal.tsx:1549
 msgid "Page size"
 msgstr ""
@@ -9207,7 +9211,7 @@ msgstr "Bekleyen değişiklikler"
 msgid "People shown publicly on this post."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1333
+#: packages/admin/src/components/ListPaginationFooter.tsx:128
 msgid "Per page"
 msgstr ""
 
@@ -9215,11 +9219,11 @@ msgstr ""
 msgid "Period"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1620
+#: packages/admin/src/components/ContentList.tsx:1715
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "\"{title}\" kalıcı olarak silinsin mi? Bu geri alınamaz."
 
-#: packages/admin/src/components/ContentList.tsx:1609
+#: packages/admin/src/components/ContentList.tsx:1704
 msgid "Permanently delete {title}"
 msgstr "{title}'i kalıcı olarak sil"
 
@@ -9376,8 +9380,8 @@ msgstr "Eklenti Kayıt Deposu"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2468
-#: packages/admin/src/router.tsx:2499
+#: packages/admin/src/router.tsx:2460
+#: packages/admin/src/router.tsx:2491
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -9492,7 +9496,7 @@ msgstr ""
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
 #: packages/admin/src/components/MediaDetailPanel.tsx:1688
-#: packages/admin/src/components/MediaLibrary.tsx:1204
+#: packages/admin/src/components/MediaLibrary.tsx:1140
 msgid "Preview"
 msgstr "Önizleme"
 
@@ -9526,8 +9530,8 @@ msgid "Previous month"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:787
-#: packages/admin/src/components/MediaLibrary.tsx:1315
+#: packages/admin/src/components/ContentList.tsx:861
+#: packages/admin/src/components/ListPaginationFooter.tsx:110
 #: packages/admin/src/components/MediaPickerModal.tsx:1545
 msgid "Previous page"
 msgstr "Önceki sayfa"
@@ -9597,7 +9601,7 @@ msgstr ""
 msgid "visualEditing.publish"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:518
+#: packages/admin/src/components/ContentList.tsx:583
 #: packages/admin/src/components/ContentSettingsPanel.tsx:900
 #: packages/admin/src/components/ContentSettingsPanel.tsx:903
 msgid "Publish"
@@ -9631,11 +9635,11 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
-#: packages/admin/src/components/ContentList.tsx:925
-#: packages/admin/src/components/ContentList.tsx:936
+#: packages/admin/src/components/ContentList.tsx:1020
+#: packages/admin/src/components/ContentList.tsx:1031
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:507
-#: packages/admin/src/router.tsx:1319
+#: packages/admin/src/router.tsx:1311
 msgid "Published"
 msgstr "Yayınlandı"
 
@@ -9648,7 +9652,7 @@ msgstr "{0} yayınlandı"
 msgid "Published {liveSince}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:609
+#: packages/admin/src/router.tsx:613
 msgid "Published {total} items"
 msgstr ""
 
@@ -10004,7 +10008,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:315
 #: packages/admin/src/components/ImageFieldRenderer.tsx:368
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:221
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
 #: packages/admin/src/components/settings/GeneralSettings.tsx:325
 #: packages/admin/src/components/settings/GeneralSettings.tsx:385
@@ -10018,7 +10022,7 @@ msgstr "Kaldır"
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/ContentEditor.tsx:2764
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:220
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
 #: packages/admin/src/components/TaxonomySidebar.tsx:458
@@ -10026,7 +10030,7 @@ msgid "Remove {0}"
 msgstr "{0}'i kaldırın"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:330
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:329
 msgid "Remove {0} from selection"
 msgstr ""
 
@@ -10360,7 +10364,7 @@ msgstr ""
 msgid "Restore"
 msgstr "Geri yükle"
 
-#: packages/admin/src/components/ContentList.tsx:1597
+#: packages/admin/src/components/ContentList.tsx:1692
 msgid "Restore {title}"
 msgstr "{title}'i geri yükle"
 
@@ -10399,10 +10403,10 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:2778
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:218
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
 #: packages/admin/src/components/MediaDetailPanel.tsx:1541
-#: packages/admin/src/components/MediaLibrary.tsx:1021
-#: packages/admin/src/components/MediaLibrary.tsx:1574
+#: packages/admin/src/components/MediaLibrary.tsx:957
+#: packages/admin/src/components/MediaLibrary.tsx:1470
 #: packages/admin/src/components/MediaPickerModal.tsx:1208
 #: packages/admin/src/components/MediaPickerModal.tsx:1304
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
@@ -10412,7 +10416,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3151
+#: packages/admin/src/router.tsx:3143
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:344
 msgid "Retry"
@@ -10420,7 +10424,7 @@ msgstr "Yeniden dene"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:217
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:216
 #: packages/admin/src/components/MediaUploadDialog.tsx:130
 msgid "Retry {0}"
 msgstr ""
@@ -10463,7 +10467,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Herhangi bir içeriğe ekleyebileceğiniz yeniden kullanılabilir içerik blokları"
 
-#: packages/admin/src/router.tsx:1366
+#: packages/admin/src/router.tsx:1358
 msgid "Reverted to published version"
 msgstr "Yayınlanan sürüme geri dönüldü"
 
@@ -10788,9 +10792,9 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
-#: packages/admin/src/components/ContentList.tsx:927
+#: packages/admin/src/components/ContentList.tsx:1022
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1423
+#: packages/admin/src/router.tsx:1415
 msgid "Scheduled"
 msgstr "Zamanlandı"
 
@@ -10881,12 +10885,12 @@ msgid "Search"
 msgstr "Ara"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:479
+#: packages/admin/src/components/ContentList.tsx:544
 msgid "Search {0}"
 msgstr "{0}'te arama yapın"
 
 #. placeholder {0}: inlineLabel(collectionLabel, lingui.locale)
-#: packages/admin/src/components/ContentList.tsx:478
+#: packages/admin/src/components/ContentList.tsx:543
 msgid "Search {0}..."
 msgstr "{0}'i arayın..."
 
@@ -10906,7 +10910,7 @@ msgstr ""
 msgid "Search blocks"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:966
+#: packages/admin/src/components/MediaLibrary.tsx:902
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
 msgid "Search by filename..."
 msgstr "Dosya adına göre ara..."
@@ -10976,7 +10980,7 @@ msgstr ""
 msgid "Search form"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:967
+#: packages/admin/src/components/MediaLibrary.tsx:903
 #: packages/admin/src/components/MediaPickerModal.tsx:1257
 msgid "Search media"
 msgstr "Medya ara"
@@ -11045,7 +11049,7 @@ msgstr "Kullanıcıları ara"
 msgid "Search will be turned off for some collections"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:966
+#: packages/admin/src/components/MediaLibrary.tsx:902
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
 msgid "Search..."
 msgstr "Ara..."
@@ -11169,7 +11173,7 @@ msgstr "Seç"
 msgid "Select {label}"
 msgstr "{label}'i seçin"
 
-#: packages/admin/src/components/ContentList.tsx:1329
+#: packages/admin/src/components/ContentList.tsx:1424
 msgid "Select {title}"
 msgstr ""
 
@@ -11206,7 +11210,7 @@ msgstr ""
 msgid "Select all"
 msgstr "Tümünü seç"
 
-#: packages/admin/src/components/ContentList.tsx:653
+#: packages/admin/src/components/ContentList.tsx:724
 msgid "Select all on this page"
 msgstr ""
 
@@ -11286,7 +11290,7 @@ msgstr ""
 msgid "Select table"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:560
+#: packages/admin/src/components/ContentList.tsx:627
 msgid "Select up to 50 posts at a time."
 msgstr ""
 
@@ -11425,11 +11429,11 @@ msgstr ""
 msgid "Set to 0 to never close comments automatically."
 msgstr "Yorumların hiçbir zaman otomatik olarak kapanmaması için 0 olarak ayarlayın."
 
-#: packages/admin/src/components/ContentList.tsx:529
+#: packages/admin/src/components/ContentList.tsx:594
 msgid "Set to draft"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:879
+#: packages/admin/src/components/MediaLibrary.tsx:815
 msgid "Set up media usage tracking"
 msgstr ""
 
@@ -11529,7 +11533,7 @@ msgstr "Belirteci göster"
 
 #. placeholder {0}: count ?? 0
 #. placeholder {0}: totalCount ?? 0
-#: packages/admin/src/components/MediaLibrary.tsx:1324
+#: packages/admin/src/components/ListPaginationFooter.tsx:119
 #: packages/admin/src/components/MediaPickerModal.tsx:1554
 msgid "Showing {pageShowingRange} of {0}"
 msgstr ""
@@ -11687,12 +11691,12 @@ msgstr "Site URL'si"
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1207
+#: packages/admin/src/components/MediaLibrary.tsx:1143
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:280
 msgid "Size"
 msgstr "Boyut"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1555
+#: packages/admin/src/components/MediaLibrary.tsx:1451
 msgid "Size is not applicable to folders"
 msgstr ""
 
@@ -11920,7 +11924,7 @@ msgstr ""
 msgid "State"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:678
+#: packages/admin/src/components/ContentList.tsx:749
 #: packages/admin/src/components/ContentTypeEditor.tsx:138
 #: packages/admin/src/components/Redirects.tsx:489
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -12272,7 +12276,7 @@ msgstr ""
 msgid "The file is not a valid EmDash site package."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:642
+#: packages/admin/src/components/MediaLibrary.tsx:578
 msgid "The file or folder no longer exists."
 msgstr ""
 
@@ -12450,7 +12454,7 @@ msgstr ""
 msgid "The package’s file index is not valid."
 msgstr ""
 
-#: packages/admin/src/router.tsx:3165
+#: packages/admin/src/router.tsx:3157
 msgid "The page you're looking for doesn't exist."
 msgstr "Aradığınız sayfa mevcut değil."
 
@@ -12654,7 +12658,7 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1210
-#: packages/admin/src/router.tsx:992
+#: packages/admin/src/router.tsx:984
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
@@ -12738,7 +12742,7 @@ msgstr ""
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1091
+#: packages/admin/src/components/MediaLibrary.tsx:1027
 msgid "This folder is empty"
 msgstr ""
 
@@ -13013,8 +13017,8 @@ msgstr ""
 msgid "Timezone"
 msgstr "Saat dilimi"
 
-#: packages/admin/src/components/ContentList.tsx:663
-#: packages/admin/src/components/ContentList.tsx:824
+#: packages/admin/src/components/ContentList.tsx:734
+#: packages/admin/src/components/ContentList.tsx:907
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
 #: packages/admin/src/components/Widgets.tsx:893
@@ -13133,7 +13137,7 @@ msgstr "Çeviri..."
 #: packages/admin/src/components/MenuEditor.tsx:144
 #: packages/admin/src/components/TaxonomyManager.tsx:1253
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1474
+#: packages/admin/src/router.tsx:1466
 msgid "Translation created"
 msgstr "Çeviri oluşturuldu"
 
@@ -13154,11 +13158,11 @@ msgstr "çöp"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:463
+#: packages/admin/src/components/ContentList.tsx:528
 msgid "Trash"
 msgstr "Çöp"
 
-#: packages/admin/src/components/ContentList.tsx:852
+#: packages/admin/src/components/ContentList.tsx:938
 msgid "Trash is empty"
 msgstr "Çöp kutusu boş"
 
@@ -13166,11 +13170,15 @@ msgstr "Çöp kutusu boş"
 msgid "Trash is empty."
 msgstr "Çöp kutusu boş."
 
+#: packages/admin/src/components/ContentList.tsx:971
+msgid "Trash pagination"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:408
 msgid "True/false toggle"
 msgstr "Doğru/yanlış anahtarı"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1080
+#: packages/admin/src/components/MediaLibrary.tsx:1016
 msgid "Try a broader media type or clear your filters."
 msgstr ""
 
@@ -13207,7 +13215,7 @@ msgstr "Tekrar deneyin"
 msgid "Try Again"
 msgstr "Tekrar deneyin"
 
-#: packages/admin/src/components/MediaLibrary.tsx:649
+#: packages/admin/src/components/MediaLibrary.tsx:585
 msgid "Try again."
 msgstr ""
 
@@ -13219,12 +13227,12 @@ msgstr ""
 msgid "Try another code"
 msgstr "Başka bir kod deneyin"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1116
+#: packages/admin/src/components/MediaLibrary.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1409
 msgid "Try another filename or clear your search."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1079
+#: packages/admin/src/components/MediaLibrary.tsx:1015
 msgid "Try another filename, or clear your search and filters."
 msgstr ""
 
@@ -13272,7 +13280,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:1224
-#: packages/admin/src/components/MediaLibrary.tsx:1206
+#: packages/admin/src/components/MediaLibrary.tsx:1142
 #: packages/admin/src/routes/byline-schema.tsx:240
 #: packages/admin/src/routes/bylines.tsx:530
 msgid "Type"
@@ -13287,7 +13295,7 @@ msgstr ""
 msgid "Type mismatch ({0})"
 msgstr "Tür uyuşmazlığı ({0})"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1551
+#: packages/admin/src/components/MediaLibrary.tsx:1447
 msgid "Type: Folder"
 msgstr ""
 
@@ -13372,7 +13380,7 @@ msgstr "Adsız geçiş anahtarı"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1343
+#: packages/admin/src/router.tsx:1335
 msgid "Unpublished"
 msgstr "Yayımlanmamış"
 
@@ -13388,7 +13396,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1442
+#: packages/admin/src/router.tsx:1434
 msgid "Unscheduled"
 msgstr "Zamanlanmamış"
 
@@ -13403,7 +13411,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "Desteklenmeyen widget öğesi türü: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:1056
+#: packages/admin/src/components/ContentList.tsx:1151
 msgid "Until {0}"
 msgstr ""
 
@@ -13474,7 +13482,7 @@ msgstr "Bu yönlendirme kuralını güncelleyin."
 msgid "Update to v{0}"
 msgstr "v{0}'e güncelleme"
 
-#: packages/admin/src/components/ContentList.tsx:935
+#: packages/admin/src/components/ContentList.tsx:1030
 #: packages/admin/src/components/ContentSettingsPanel.tsx:997
 #: packages/admin/src/components/RegistryPluginDetail.tsx:580
 msgid "Updated"
@@ -13501,7 +13509,7 @@ msgstr ""
 msgid "Updating..."
 msgstr "Güncelleniyor..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:868
+#: packages/admin/src/components/MediaLibrary.tsx:804
 msgid "Upload"
 msgstr "Yükle"
 
@@ -13531,7 +13539,7 @@ msgstr "Medyayı yükleyin ve yönetin"
 msgid "Upload Export File"
 msgstr "Dışa Aktarma Dosyasını Yükle"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:209
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:76
 msgid "Upload failed"
 msgstr ""
@@ -13540,13 +13548,13 @@ msgstr ""
 msgid "Upload files"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:750
-#: packages/admin/src/components/MediaLibrary.tsx:1106
-#: packages/admin/src/components/MediaLibrary.tsx:1130
+#: packages/admin/src/components/MediaLibrary.tsx:686
+#: packages/admin/src/components/MediaLibrary.tsx:1042
+#: packages/admin/src/components/MediaLibrary.tsx:1066
 msgid "Upload Files"
 msgstr "Dosyaları Yükle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1103
+#: packages/admin/src/components/MediaLibrary.tsx:1039
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
@@ -13554,7 +13562,7 @@ msgstr ""
 msgid "Upload Media"
 msgstr "Medya Yükle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1127
+#: packages/admin/src/components/MediaLibrary.tsx:1063
 msgid "Upload media to keep reusable assets in one place."
 msgstr ""
 
@@ -13567,7 +13575,7 @@ msgid "Upload site packages and check whether they can be imported. Admin includ
 msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:751
+#: packages/admin/src/components/MediaLibrary.tsx:687
 msgid "Upload to {0}"
 msgstr "{0}'e yükle"
 
@@ -13587,7 +13595,7 @@ msgstr ""
 msgid "Uploaded:"
 msgstr "Yüklendi:"
 
-#: packages/admin/src/components/media/MediaBrowserItems.tsx:209
+#: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
 #: packages/admin/src/components/WordPressImport.tsx:2150
 msgid "Uploading"
@@ -13681,7 +13689,7 @@ msgstr ""
 msgid "Use another device"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1130
+#: packages/admin/src/components/ContentList.tsx:1225
 msgid "Use as end date"
 msgstr ""
 
@@ -13848,7 +13856,7 @@ msgid "Version {0} (active)"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
-#: packages/admin/src/components/MediaLibrary.tsx:986
+#: packages/admin/src/components/MediaLibrary.tsx:922
 #: packages/admin/src/components/MediaPickerModal.tsx:384
 msgid "Video"
 msgstr "Video"
@@ -13862,16 +13870,16 @@ msgstr "E-posta sağlayıcı durumunu görüntüleyin ve test e-postaları gönd
 msgid "View live"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:932
+#: packages/admin/src/components/MediaLibrary.tsx:868
 #: packages/admin/src/components/MediaPickerModal.tsx:1215
 msgid "View mode"
 msgstr "Görünüm modu"
 
-#: packages/admin/src/components/ContentList.tsx:1401
+#: packages/admin/src/components/ContentList.tsx:1496
 msgid "View published {title}"
 msgstr "Yayınlanan {title}'i görüntüle"
 
-#: packages/admin/src/components/MediaLibrary.tsx:889
+#: packages/admin/src/components/MediaLibrary.tsx:825
 msgid "View setup"
 msgstr ""
 
@@ -14179,7 +14187,7 @@ msgstr ""
 msgid "WordPress Username"
 msgstr "WordPress Kullanıcı Adı"
 
-#: packages/admin/src/components/ContentList.tsx:506
+#: packages/admin/src/components/ContentList.tsx:571
 msgid "Working on {selectedCount} items…"
 msgstr ""
 
@@ -14231,7 +14239,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1476
+#: packages/admin/src/components/ContentList.tsx:1571
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -14275,7 +14283,7 @@ msgstr "Kendi rolünüzü değiştiremezsiniz"
 msgid "You do not have permission to edit this asset."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:647
+#: packages/admin/src/components/MediaLibrary.tsx:583
 msgid "You don’t have permission to move this file."
 msgstr ""
 
@@ -14299,7 +14307,7 @@ msgstr ""
 msgid "You need Admin permissions to transfer this site."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2295
+#: packages/admin/src/router.tsx:2287
 msgid "You need Editor permissions to moderate comments."
 msgstr "Yorumları denetlemek için Editör izinlerine ihtiyacınız var."
 
@@ -14409,8 +14417,8 @@ msgstr "Instagram kullanıcı adınız"
 msgid "Your LinkedIn profile username"
 msgstr "LinkedIn profil kullanıcı adınız"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1102
-#: packages/admin/src/components/MediaLibrary.tsx:1126
+#: packages/admin/src/components/MediaLibrary.tsx:1038
+#: packages/admin/src/components/MediaLibrary.tsx:1062
 msgid "Your media library is empty"
 msgstr ""
 

@@ -363,6 +363,8 @@ describe("CLI Integration", () => {
 				tmpFile,
 				"--alt",
 				"CLI test image",
+				"--caption",
+				"CLI test caption",
 			);
 			expect(uploaded.id).toBeDefined();
 			expect(uploaded.filename).toBe("emdash-cli-test.png");
@@ -373,8 +375,15 @@ describe("CLI Integration", () => {
 			expect(ids).toContain(uploaded.id);
 
 			// Get
-			const fetched = await cliJson<{ id: string; filename: string }>("media", "get", uploaded.id);
+			const fetched = await cliJson<{
+				id: string;
+				filename: string;
+				alt: string | null;
+				caption: string | null;
+			}>("media", "get", uploaded.id);
 			expect(fetched.id).toBe(uploaded.id);
+			expect(fetched.alt).toBe("CLI test image");
+			expect(fetched.caption).toBe("CLI test caption");
 
 			// Delete
 			await cli("media", "delete", uploaded.id);

@@ -22,6 +22,7 @@ import {
 	mediaListQuery,
 	mediaUploadDeduplicateForm,
 	mediaUploadEnsureUniqueFilenameForm,
+	mediaUploadMetadataForm,
 } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
@@ -178,6 +179,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				folderId = folderResult.data;
 			}
 		}
+		const metadataResult = mediaUploadMetadataForm.safeParse({
+			alt: formData.get("alt") ?? undefined,
+			caption: formData.get("caption") ?? undefined,
+		});
+		if (!metadataResult.success) {
+			return apiError("VALIDATION_ERROR", "Invalid request data", 400, {
+				issues: metadataResult.error.issues.map((issue) => ({
+					path: issue.path.join("."),
+					message: issue.message,
+				})),
+			});
+		}
 
 		// Validate file type — widen the allowlist when a field-specific list is configured
 		const fieldIdEntry = formData.get("fieldId");
@@ -258,6 +271,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			filename,
 			mimeType,
 			size: file.size,
+			alt: metadataResult.data.alt,
+			caption: metadataResult.data.caption,
 			// Client dimensions win over server header dimensions: the browser's
 			// naturalWidth/Height apply EXIF orientation, while image-size reports
 			// raw (pre-orientation) header dims — swapped for 90°/270° JPEGs.
