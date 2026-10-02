@@ -96,6 +96,17 @@ export async function createSignInHandover(): Promise<{ url: string }> {
 }
 
 /**
+ * Email every other active user a link to the sign-in page at the site's address
+ */
+export async function notifyUsersOfDomain(): Promise<{ sent: number; failed: number }> {
+	const response = await apiFetch(`${API_BASE}/settings/domain/notify`, { method: "POST" });
+	return parseApiResponse<{ sent: number; failed: number }>(
+		response,
+		i18n._(msg`Failed to email users`),
+	);
+}
+
+/**
  * Check that a domain serves this site, then store it as the Site URL
  */
 export async function changeSiteDomain(domain: string): Promise<{ url: string }> {

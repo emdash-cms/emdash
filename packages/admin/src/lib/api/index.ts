@@ -147,6 +147,7 @@ export {
 	fetchSiteDomain,
 	changeSiteDomain,
 	createSignInHandover,
+	notifyUsersOfDomain,
 } from "./settings.js";
 
 // Users, passkeys, allowed domains

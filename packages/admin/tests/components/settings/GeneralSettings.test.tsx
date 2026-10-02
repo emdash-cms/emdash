@@ -6,6 +6,7 @@ import { userEvent } from "vitest/browser";
 
 import type {
 	AdminManifest,
+	EmailSettings,
 	MediaItem,
 	SiteDomain,
 	SiteSettings,
@@ -20,6 +21,8 @@ const mockFetchSiteDomain = vi.fn<() => Promise<SiteDomain>>();
 const mockChangeSiteDomain = vi.fn<(domain: string) => Promise<{ url: string }>>();
 const mockFetchManifest = vi.fn<() => Promise<Partial<AdminManifest>>>();
 const mockCreateSignInHandover = vi.fn<() => Promise<{ url: string }>>();
+const mockFetchEmailSettings = vi.fn<() => Promise<Partial<EmailSettings>>>();
+const mockNotifyUsersOfDomain = vi.fn<() => Promise<{ sent: number; failed: number }>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -43,6 +46,8 @@ vi.mock("../../../src/lib/api", async () => {
 		changeSiteDomain: (domain: string) => mockChangeSiteDomain(domain),
 		fetchManifest: () => mockFetchManifest(),
 		createSignInHandover: () => mockCreateSignInHandover(),
+		fetchEmailSettings: () => mockFetchEmailSettings(),
+		notifyUsersOfDomain: () => mockNotifyUsersOfDomain(),
 	};
 });
 
@@ -113,6 +118,7 @@ beforeEach(() => {
 	});
 	mockFetchManifest.mockResolvedValue({ authMode: "passkey" });
 	mockCreateSignInHandover.mockReturnValue(new Promise(() => undefined));
+	mockFetchEmailSettings.mockResolvedValue({ available: true });
 	mockUpdateSettings.mockImplementation(async (settings) => {
 		mockFetchSettings.mockResolvedValue(settings);
 		return settings;
@@ -452,5 +458,46 @@ describe("GeneralSettings", () => {
 		await mockFetchManifest.mock.results[0]?.value;
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		expect(screen.getByRole("button", { name: /Continue on/ }).query()).toBeNull();
+	});
+
+	it("emails users where to sign in after confirming", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: null,
+			siteOrigin: "https://new.example",
+		});
+		mockNotifyUsersOfDomain.mockResolvedValue({ sent: 3, failed: 1 });
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Email users" }));
+		await expect.element(screen.getByText(/now at new\.example/)).toBeInTheDocument();
+		expect(mockNotifyUsersOfDomain).not.toHaveBeenCalled();
+		screen.getByRole("button", { name: "Send emails" }).element().click();
+
+		await vi.waitFor(() => expect(mockNotifyUsersOfDomain).toHaveBeenCalledOnce());
+		await expect.element(screen.getByText("Emailed 3 users")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("1 email could not be sent. Check the email provider."))
+			.toBeInTheDocument();
+	});
+
+	it("does not offer to email users without an email provider", async () => {
+		mockFetchEmailSettings.mockResolvedValue({ available: false });
+		const screen = await renderGeneralSettings();
+
+		await expect
+			.element(screen.getByText("Set up an email provider in Email settings to email users."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Email users" })).toBeDisabled();
+	});
+
+	it("does not offer to email users with external authentication", async () => {
+		mockFetchManifest.mockResolvedValue({ authMode: "cloudflare-access" });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await vi.waitFor(() => expect(mockFetchManifest).toHaveBeenCalled());
+		await mockFetchManifest.mock.results[0]?.value;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: "Email users" }).query()).toBeNull();
 	});
 });

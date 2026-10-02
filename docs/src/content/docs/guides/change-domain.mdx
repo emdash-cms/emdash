@@ -60,6 +60,20 @@ A passkey only works at the address where it was created. After the move, passke
 
 This works without [email](/guides/email/). Other users can sign in at the new address with a [magic link](/guides/authentication/#log-in-with-a-magic-link) when email is set up, then [add a passkey](/guides/authentication/#manage-passkeys) there. Until then, they keep signing in at the old address while it still serves the site.
 
+### Tell other users
+
+When [email](/guides/email/) is set up and users sign in with passkeys, administrators can tell every other user where to sign in now:
+
+<Steps>
+
+1. In **Settings > General**, select **Email users** below **Site URL**.
+
+2. Select **Send emails**.
+
+</Steps>
+
+Every user whose account is not disabled, except you, gets an email that the site has moved to the configured `siteUrl`, or the **Site URL** when none is set, with a button to the sign-in page there. The email does not sign anyone in. It explains that passkeys from the old address don't work there and that users sign in with an email link first. A message then shows how many emails were sent, and how many the email provider rejected. The emails can be sent 3 times per hour per site.
+
 <Aside type="caution">
 	Before you remove the old address from your host, make sure every administrator can sign in at the new address, either with email or with a passkey created there.
 </Aside>

@@ -6,6 +6,7 @@
  */
 
 import { Autocomplete, Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowSquareOut, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,14 +16,17 @@ import * as React from "react";
 
 import {
 	createSignInHandover,
+	fetchEmailSettings,
 	fetchManifest,
 	fetchSettings,
 	fetchSiteDomain,
+	notifyUsersOfDomain,
 	updateSettings,
 	type MediaItem,
 	type SiteSettings,
 	type SiteSettingsUpdate,
 } from "../../lib/api";
+import { ConfirmDialog } from "../ConfirmDialog.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { ChangeDomainDialog } from "./ChangeDomainDialog.js";
@@ -112,19 +116,22 @@ export function GeneralSettings() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
-	const handoverHost =
-		siteDomain?.siteOrigin &&
-		manifest &&
-		(!manifest.authMode || manifest.authMode === "passkey") &&
-		siteDomain.siteOrigin !== window.location.origin
+	const { data: emailSettings } = useQuery({
+		queryKey: ["email-settings"],
+		queryFn: fetchEmailSettings,
+	});
+	const siteHost =
+		siteDomain?.siteOrigin && manifest && (!manifest.authMode || manifest.authMode === "passkey")
 			? new URL(siteDomain.siteOrigin).host
 			: null;
+	const handoverHost = siteDomain?.siteOrigin !== window.location.origin ? siteHost : null;
 
 	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
 	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
 	const [domainDialogOpen, setDomainDialogOpen] = React.useState(false);
+	const [notifyDialogOpen, setNotifyDialogOpen] = React.useState(false);
 	const [showTimezoneError, setShowTimezoneError] = React.useState(false);
 	const [previewLocale, setPreviewLocale] = React.useState<{ code: string; value: Locale | null }>({
 		code: "en",
@@ -195,6 +202,25 @@ export function GeneralSettings() {
 				description: error instanceof Error ? error.message : t`An error occurred`,
 				variant: "error",
 				timeout: 3000,
+			});
+		},
+	});
+
+	const notifyMutation = useMutation({
+		mutationFn: notifyUsersOfDomain,
+		onSuccess: ({ sent, failed }) => {
+			setNotifyDialogOpen(false);
+			toastManager.add({
+				title: plural(sent, { one: "Emailed # user", other: "Emailed # users" }),
+				description:
+					failed > 0
+						? plural(failed, {
+								one: "# email could not be sent. Check the email provider.",
+								other: "# emails could not be sent. Check the email provider.",
+							})
+						: undefined,
+				variant: failed > 0 ? "warning" : "success",
+				timeout: 8000,
 			});
 		},
 	});
@@ -364,6 +390,27 @@ export function GeneralSettings() {
 									</Button>
 								}
 							/>
+						)}
+						{siteHost && (
+							<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-kumo-line pt-4">
+								<div className="grid min-w-0 gap-1">
+									<div className="text-sm font-medium">{t`Tell users where to sign in`}</div>
+									<p className="text-sm text-kumo-subtle">
+										{emailSettings?.available === false
+											? t`Set up an email provider in Email settings to email users.`
+											: t`Email every other user a link to the sign-in page at ${siteHost}.`}
+									</p>
+								</div>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={!emailSettings?.available}
+									onClick={() => setNotifyDialogOpen(true)}
+								>
+									{t`Email users`}
+								</Button>
+							</div>
 						)}
 					</SettingRow>
 
@@ -581,6 +628,24 @@ export function GeneralSettings() {
 				onClose={() => setDomainDialogOpen(false)}
 				onChanged={handleDomainChanged}
 			/>
+			{siteHost && (
+				<ConfirmDialog
+					open={notifyDialogOpen}
+					onClose={() => {
+						setNotifyDialogOpen(false);
+						notifyMutation.reset();
+					}}
+					variant="primary"
+					title={t`Email all users?`}
+					description={t`Every other user with an active account gets an email saying the site is now at ${siteHost}, with a link to sign in there. Passkeys from another address don't work at ${siteHost}, so users sign in with an email link and add a new passkey.`}
+					confirmLabel={t`Send emails`}
+					pendingLabel={t`Sending...`}
+					preventCloseWhilePending
+					isPending={notifyMutation.isPending}
+					error={notifyMutation.error}
+					onConfirm={() => notifyMutation.mutate()}
+				/>
+			)}
 		</SettingsFrame>
 	);
 }

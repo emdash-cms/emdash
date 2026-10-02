@@ -491,6 +491,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/settings/domain/notify",
+		entrypoint: resolveRoute("api/settings/domain-notify.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/site/domain-proof",
 		entrypoint: resolveRoute("api/site/domain-proof.ts"),
 	});

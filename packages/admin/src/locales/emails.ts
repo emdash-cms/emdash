@@ -1,5 +1,5 @@
 /**
- * Localized copy for system emails (invite, magic link / recovery).
+ * Localized copy for system emails (invite, magic link / recovery, domain move).
  *
  * The email builders live in `@emdash-cms/auth`, which has no i18n
  * machinery — they take final display strings and fall back to English.
@@ -37,6 +37,15 @@ export interface MagicLinkEmailStrings {
 	ignoreNote: string;
 }
 
+/** Copy for the email that tells users the site moved to a new address. */
+export interface DomainMoveEmailStrings {
+	subject: string;
+	intro: string;
+	instruction: string;
+	buttonLabel: string;
+	passkeyNote: string;
+}
+
 // Module-scope descriptors (msg) so Lingui extraction picks them up;
 // resolved per call with the requested locale's catalog. The {siteName}
 // placeholder is ICU MessageFormat, interpolated at resolve time.
@@ -58,6 +67,17 @@ const MAGIC_LINK: Record<keyof MagicLinkEmailStrings, MessageDescriptor> = {
 	ignoreNote: msg({ message: "If you didn't request this, you can safely ignore this email." }),
 };
 
+const DOMAIN_MOVE: Record<keyof DomainMoveEmailStrings, MessageDescriptor> = {
+	subject: msg({ message: "{siteName} has moved to {siteHost}" }),
+	intro: msg({ message: "{siteName} is now at {siteHost}. Sign in there from now on." }),
+	instruction: msg({ message: "Open the sign-in page at the new address:" }),
+	buttonLabel: msg({ message: "Go to sign-in" }),
+	passkeyNote: msg({
+		message:
+			"Passkeys from the old address don't work there. Sign in with an email link, then add a passkey in Security settings.",
+	}),
+};
+
 /**
  * Build a standalone i18n instance for one resolution. The shared `i18n`
  * singleton holds the admin SPA's active locale; activating a different
@@ -70,9 +90,9 @@ async function i18nFor(locale: string): Promise<I18n> {
 	return setupI18n({ locale, messages: { [locale]: messages } });
 }
 
-function resolver(i18n: I18n, siteName: string) {
+function resolver(i18n: I18n, values: Record<string, string>) {
 	return (descriptor: MessageDescriptor): string =>
-		i18n._(descriptor.id, { siteName }, { message: descriptor.message });
+		i18n._(descriptor.id, values, { message: descriptor.message });
 }
 
 /** Localized copy for the invite email, in the given locale. */
@@ -80,7 +100,7 @@ export async function getInviteEmailStrings(
 	locale: string,
 	siteName: string,
 ): Promise<InviteEmailStrings> {
-	const resolve = resolver(await i18nFor(locale), siteName);
+	const resolve = resolver(await i18nFor(locale), { siteName });
 	return {
 		subject: resolve(INVITE.subject),
 		textIntro: resolve(INVITE.textIntro),
@@ -96,7 +116,7 @@ export async function getMagicLinkEmailStrings(
 	locale: string,
 	siteName: string,
 ): Promise<MagicLinkEmailStrings> {
-	const resolve = resolver(await i18nFor(locale), siteName);
+	const resolve = resolver(await i18nFor(locale), { siteName });
 	return {
 		subject: resolve(MAGIC_LINK.subject),
 		textLinkInstruction: resolve(MAGIC_LINK.textLinkInstruction),
@@ -104,5 +124,21 @@ export async function getMagicLinkEmailStrings(
 		buttonLabel: resolve(MAGIC_LINK.buttonLabel),
 		expiryNote: resolve(MAGIC_LINK.expiryNote),
 		ignoreNote: resolve(MAGIC_LINK.ignoreNote),
+	};
+}
+
+/** Localized copy for the email announcing a move to `siteHost`. */
+export async function getDomainMoveEmailStrings(
+	locale: string,
+	siteName: string,
+	siteHost: string,
+): Promise<DomainMoveEmailStrings> {
+	const resolve = resolver(await i18nFor(locale), { siteName, siteHost });
+	return {
+		subject: resolve(DOMAIN_MOVE.subject),
+		intro: resolve(DOMAIN_MOVE.intro),
+		instruction: resolve(DOMAIN_MOVE.instruction),
+		buttonLabel: resolve(DOMAIN_MOVE.buttonLabel),
+		passkeyNote: resolve(DOMAIN_MOVE.passkeyNote),
 	};
 }
