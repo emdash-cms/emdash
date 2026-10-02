@@ -38,6 +38,7 @@ const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
 
 const SITE_IMPORT_HINT_DISMISSED_KEY = "emdash:dashboard:site-import-hint-dismissed";
 
@@ -81,7 +82,11 @@ export function Dashboard({ manifest }: DashboardProps) {
 					{stats && (
 						<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
 					)}
-					<SummaryMetrics stats={stats} loading={isLoading} />
+					<SummaryMetrics
+						stats={stats}
+						loading={isLoading}
+						linkCalendar={(user?.role ?? 0) >= ROLE_CONTRIBUTOR}
+					/>
 
 					{/* Collections + Recent activity */}
 					<div className="grid gap-6 lg:grid-cols-2">
@@ -348,7 +353,16 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 
 // --- Summary metrics ---
 
-function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: boolean }) {
+function SummaryMetrics({
+	stats,
+	loading,
+	linkCalendar,
+}: {
+	stats?: DashboardStats;
+	loading: boolean;
+	/** Link the Scheduled count to the calendar, for roles that can open it. */
+	linkCalendar: boolean;
+}) {
 	if (loading) {
 		return (
 			<div className="grid gap-4 sm:grid-cols-3">
@@ -376,7 +390,7 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 	const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
 	const hasScheduledContent = totalScheduled > 0;
 
-	const metrics: Array<{ label: string; value: number }> = [
+	const metrics: Array<{ label: string; value: number; calendar?: boolean }> = [
 		{
 			label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
 			value: totalDrafts,
@@ -386,6 +400,7 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 					{
 						label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
 						value: totalScheduled,
+						calendar: linkCalendar,
 					},
 				]
 			: []),
@@ -409,7 +424,22 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 		>
 			{metrics.map((metric) => (
 				<LayerCard key={metric.label} data-testid="dashboard-metric">
-					<DashboardCardHeading>{metric.label}</DashboardCardHeading>
+					<DashboardCardHeading>
+						{metric.calendar ? (
+							<Link
+								to="/calendar"
+								className="group inline-flex items-center gap-1 rounded-sm hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+							>
+								{metric.label}
+								<ArrowNext
+									aria-hidden="true"
+									className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
+								/>
+							</Link>
+						) : (
+							metric.label
+						)}
+					</DashboardCardHeading>
 					<LayerCard.Primary className="text-3xl font-semibold leading-none tabular-nums">
 						<DashboardCardInset data-testid="dashboard-metric-value">
 							{metric.value}

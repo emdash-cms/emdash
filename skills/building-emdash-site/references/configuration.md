@@ -160,7 +160,7 @@ Auto-generated at the project root when the dev server starts. Provides TypeScri
 ```typescript
 /// <reference types="emdash/locals" />
 
-import type { PortableTextBlock } from "emdash";
+import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
 export interface Post {
 	id: string;
@@ -179,6 +179,9 @@ export interface Post {
 	createdAt: Date;
 	updatedAt: Date;
 	publishedAt: Date | null;
+	byline?: BylineSummary | null;
+	bylines?: ContentBylineCredit[];
+	terms?: Record<string, TaxonomyTerm[]>;
 }
 
 declare module "emdash" {
@@ -193,11 +196,11 @@ The dev server regenerates this file automatically when schema changes. You can 
 ## Type Generation
 
 ```bash
-# From local dev server (writes emdash-env.d.ts at project root)
+# From local dev server (writes .emdash/types.ts; the dev server itself writes emdash-env.d.ts)
 npx emdash types
 
 # From remote instance
-npx emdash types --url https://my-site.pages.dev
+npx emdash types --url https://example.com
 
 # Custom output path
 npx emdash types --output src/types/cms.ts
@@ -213,9 +216,9 @@ Key dependencies for a Node.js site:
 {
 	"dependencies": {
 		"astro": "^7.0.0",
-		"emdash": "workspace:*",
-		"@astrojs/node": "^11.0.0",
-		"@astrojs/react": "^4.0.0",
+		"emdash": "^1.0.0",
+		"@astrojs/node": "^11.1.5",
+		"@astrojs/react": "^6.0.5",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0"
 	}
@@ -231,4 +234,4 @@ pnpm dev                    # Start the Astro dev server
 npx emdash types            # Refresh types from the running site
 ```
 
-The runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`. On first run, you'll go through setup to create an admin account.
+The runtime runs pending migrations on the first request and, before setup is completed, applies the seed's schema and structure once. Sample content needs an explicit step; see [Applying Seeds](schema-and-seed.md#applying-seeds). The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`. On first run, you'll go through setup to create an admin account.

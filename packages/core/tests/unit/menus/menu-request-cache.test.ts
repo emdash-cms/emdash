@@ -8,14 +8,18 @@ import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
+vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+
 // Mock loader.getDb so the runtime menu functions read from our test db.
 vi.mock("../../../src/loader.js", () => ({
 	getDb: vi.fn(),
 }));
 
 import { prefetchLayoutData } from "../../../src/astro/prefetch.js";
+import { MenuRepository } from "../../../src/database/repositories/menu.js";
 import { getDb } from "../../../src/loader.js";
 import { getMenu } from "../../../src/menus/index.js";
+import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
 import { runWithContext } from "../../../src/request-context.js";
 
 /** SQL of every query executed against the test database. */
@@ -137,4 +141,51 @@ describe("getMenu collection-pattern request cache", () => {
 			expect(queries).toHaveLength(0);
 		});
 	});
+
+	describe("with an object cache backend", () => {
+		beforeEach(() => {
+			const store = new Map<string, string>();
+			__setObjectCacheBackendForTests(
+				{
+					get: (k) => Promise.resolve(store.get(k) ?? null),
+					set: (k, v) => {
+						store.set(k, v);
+						return Promise.resolve();
+					},
+					delete: (k) => {
+						store.delete(k);
+						return Promise.resolve();
+					},
+				},
+				{ revalidate: 60_000, defaultTtl: 3600 },
+			);
+		});
+
+		afterEach(() => {
+			__setObjectCacheBackendForTests(null);
+		});
+
+		const menuNameQueries = () =>
+			queries.filter((q) => q.includes('"_emdash_menus"') && q.includes("distinct"));
+
+		it("serves discovered menu names from the object cache until a menu is created", async () => {
+			const prefetch = () => runWithContext({ editMode: false, db }, () => prefetchLayoutData());
+
+			await prefetch();
+			await flush();
+			queries = [];
+			await prefetch();
+			expect(menuNameQueries()).toHaveLength(0);
+
+			await new MenuRepository(db).create({ name: "social", label: "Social" });
+			await flush();
+			queries = [];
+			await prefetch();
+			expect(menuNameQueries()).toHaveLength(1);
+		});
+	});
 });
+
+async function flush(): Promise<void> {
+	await new Promise((r) => setTimeout(r, 0));
+}

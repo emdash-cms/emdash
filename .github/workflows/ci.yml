@@ -75,6 +75,7 @@ jobs:
       - run: pnpm run --filter emdash-demo --filter @emdash-cms/demo-cloudflare typecheck
       - run: pnpm typecheck:templates
       - run: node scripts/typecheck-public-source.mjs
+      - run: node scripts/sync-skills-repo.mjs --check
       - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action typecheck
       - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action build
       - run: git diff --exit-code -- apps/release-action/dist/index.js

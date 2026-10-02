@@ -42,7 +42,7 @@ import { getEmDashEntry } from "emdash";
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
 
 if (!post) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 ```
 
@@ -224,10 +224,10 @@ import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 const { slug } = Astro.params;
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
@@ -267,7 +267,7 @@ import Base from "../../layouts/Base.astro";
 const { slug } = Astro.params;
 const termsResult = await getTaxonomyTermsWithCacheHint("category", { includeCounts: false });
 const term = slug ? termsResult.data.find((item) => item.slug === slug) : null;
-if (!term) return Astro.redirect("/404");
+if (!term) return Astro.rewrite("/404");
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	where: { category: term.slug },
