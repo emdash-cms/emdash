@@ -51,7 +51,7 @@ if (error) {
 }
 
 if (!entry) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 ---
 
@@ -300,7 +300,7 @@ if (error) {
 }
 
 if (!entry) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 ---
 

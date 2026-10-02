@@ -65,41 +65,49 @@ describeEachDialect("taxonomy structure after a site import", (dialect) => {
 		return target;
 	}
 
-	it("reads the structure the package declares for a taxonomy the target's scaffold also had", async () => {
-		const { db } = await importOriginInto();
+	it(
+		"reads the structure the package declares for a taxonomy the target's scaffold also had",
+		{ timeout: 300_000 },
+		async () => {
+			const { db } = await importOriginInto();
 
-		expect(await findTaxonomyStructure(db, "category")).toMatchObject({
-			hierarchical: false,
-			collections: ["posts", "pages"],
-		});
-	});
+			expect(await findTaxonomyStructure(db, "category")).toMatchObject({
+				hierarchical: false,
+				collections: ["posts", "pages"],
+			});
+		},
+	);
 
-	it("creates a taxonomy that only the target's scaffold had with the structure the request sends", async () => {
-		const { db } = await importOriginInto({
-			targetSeed: {
-				...defaultSeed,
-				taxonomies: [
-					...(defaultSeed.taxonomies ?? []),
-					{ name: "genre", label: "Genres", hierarchical: true, collections: ["posts"] },
-				],
-			},
-		});
+	it(
+		"creates a taxonomy that only the target's scaffold had with the structure the request sends",
+		{ timeout: 300_000 },
+		async () => {
+			const { db } = await importOriginInto({
+				targetSeed: {
+					...defaultSeed,
+					taxonomies: [
+						...(defaultSeed.taxonomies ?? []),
+						{ name: "genre", label: "Genres", hierarchical: true, collections: ["posts"] },
+					],
+				},
+			});
 
-		const created = await handleTaxonomyCreate(db, {
-			name: "genre",
-			label: "Genres",
-			hierarchical: false,
-			collections: ["posts"],
-		});
+			const created = await handleTaxonomyCreate(db, {
+				name: "genre",
+				label: "Genres",
+				hierarchical: false,
+				collections: ["posts"],
+			});
 
-		expect(created.success).toBe(true);
-		expect(await findTaxonomyStructure(db, "genre")).toMatchObject({
-			hierarchical: false,
-			collections: ["posts"],
-		});
-	});
+			expect(created.success).toBe(true);
+			expect(await findTaxonomyStructure(db, "genre")).toMatchObject({
+				hierarchical: false,
+				collections: ["posts"],
+			});
+		},
+	);
 
-	it("merges a taxonomy whose locales disagree in the package", async () => {
+	it("merges a taxonomy whose locales disagree in the package", { timeout: 300_000 }, async () => {
 		const { db } = await importOriginInto({
 			rewriteSource: async (sourceDb) => {
 				await sourceDb
@@ -122,24 +130,28 @@ describeEachDialect("taxonomy structure after a site import", (dialect) => {
 		expect(structure?.collections.toSorted()).toEqual(["pages", "posts"]);
 	});
 
-	it("gives a taxonomy its own structure when the package links it to another taxonomy's group", async () => {
-		const { db } = await importOriginInto({
-			rewriteSource: async (sourceDb) => {
-				await sourceDb
-					.updateTable("_emdash_taxonomy_defs")
-					.set({ translation_group: "taxdef_tag" })
-					.where("name", "=", "category")
-					.execute();
-			},
-		});
+	it(
+		"gives a taxonomy its own structure when the package links it to another taxonomy's group",
+		{ timeout: 300_000 },
+		async () => {
+			const { db } = await importOriginInto({
+				rewriteSource: async (sourceDb) => {
+					await sourceDb
+						.updateTable("_emdash_taxonomy_defs")
+						.set({ translation_group: "taxdef_tag" })
+						.where("name", "=", "category")
+						.execute();
+				},
+			});
 
-		expect(await findTaxonomyStructure(db, "category")).toMatchObject({
-			hierarchical: false,
-			collections: ["posts", "pages"],
-		});
-		expect(await findTaxonomyStructure(db, "tag")).toMatchObject({
-			hierarchical: false,
-			collections: ["posts"],
-		});
-	});
+			expect(await findTaxonomyStructure(db, "category")).toMatchObject({
+				hierarchical: false,
+				collections: ["posts", "pages"],
+			});
+			expect(await findTaxonomyStructure(db, "tag")).toMatchObject({
+				hierarchical: false,
+				collections: ["posts"],
+			});
+		},
+	);
 });

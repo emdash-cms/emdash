@@ -7,6 +7,15 @@ export default defineConfig({
 	optimizeDeps: {
 		include: [
 			"@cloudflare/kumo/primitives/scroll-area",
+			"@codemirror/autocomplete",
+			"@codemirror/commands",
+			"@codemirror/lang-css",
+			"@codemirror/lang-html",
+			"@codemirror/lang-javascript",
+			"@codemirror/language",
+			"@codemirror/state",
+			"@codemirror/view",
+			"@lezer/highlight",
 			"react-image-crop",
 			"date-fns",
 			"date-fns/locale/en-US",

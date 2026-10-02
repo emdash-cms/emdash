@@ -1,5 +1,79 @@
 # @emdash-cms/admin
 
+## 1.1.0
+
+### Minor Changes
+
+- [#3680](https://github.com/emdash-cms/emdash/pull/3680) [`75de9a4`](https://github.com/emdash-cms/emdash/commit/75de9a4b4bdb3a8298456b4b730aee31c86897fd) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a publishing calendar to the admin. It shows published entries on their publication date, and scheduled entries and scheduled updates on their scheduled date, across every visible collection and locale. Contributors and higher roles open it from **Calendar** in the sidebar, the command palette, or the dashboard's **Scheduled** count.
+  
+  **Month** shows a grid of days and **Agenda** lists entries by day; phones and other narrow screens open the agenda and show the month as a date picker. Both views place entries in the site's time zone, show browser-zone times when the viewer's zone differs, mark schedules that missed their time as **Overdue**, filter by collection, locale, and state, and keep the view, month, filters, and open entry in the URL. When a month's grid holds more than 1,000 entries, the calendar shows the first 1,000 and marks the days it didn't load.
+  
+  Selecting an entry opens a side panel with its details, a link to the editor, and a preview or live link. Users who can publish the entry can also reschedule it, remove its schedule, or publish an overdue entry immediately. Ctrl-click or Cmd-click opens the entry in the editor instead.
+
+- [#3687](https://github.com/emdash-cms/emdash/pull/3687) [`76b06d4`](https://github.com/emdash-cms/emdash/commit/76b06d4e40a9d37ab44ec7109e75339af7aeef85) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds CSS and JavaScript to HTML blocks, and changes how new HTML blocks render on the site.
+  
+  Previously, every HTML block rendered inline, and the site sanitized its HTML, removing scripts and styles. HTML blocks created in the admin editor, or with `/html` in visual editing, now render in a sandboxed iframe that runs their HTML, CSS and JavaScript. Anyone who can edit content (Contributor and up, and sandboxed plugins with `content:write`) can add JavaScript that runs for visitors once the entry is published. The iframe can't read the site's cookies, storage or pages, and the site's styles don't apply inside it. Relative links in it resolve from the site's root. After a visitor clicks inside the iframe, it can open other pages in the visitor's tab or a new one. There is no site-wide setting for this; to render a block the previous way, choose **Inline** in its menu.
+  
+  Existing HTML blocks, and blocks created through imports, REST or MCP, keep rendering inline unless they set `isolated: true`.
+  
+  In the editor, an HTML block has HTML, CSS and JS tabs with a code editor, and a Preview tab that shows the block as the site renders it. A saved block that runs JavaScript waits for **Run preview**. The admin editor no longer nests HTML blocks in quotes, lists or table cells, where saving dropped them. HTML blocks pasted from another website or browser tab render inline.
+  
+  #### New fields
+  
+  `htmlBlock` gains optional `css` and `js` strings and an `isolated` flag. They're written only when set, so existing content is unchanged when it's opened and saved.
+  
+  #### What should I do?
+  
+  - If your site replaces the `htmlBlock` renderer, pass blocks with `isolated: true` to `HtmlBlock` from `emdash/ui`, or render them in an iframe whose `sandbox` omits `allow-same-origin`. Otherwise isolated blocks render without their CSS and JavaScript.
+  - If you render Portable Text outside EmDash's components, handle `isolated` blocks the same way.
+  - With Astro's content security policy turned on, the browser blocks the styles and scripts inside isolated blocks, so they render without their CSS, JavaScript or automatic height.
+
+- [#3688](https://github.com/emdash-cms/emdash/pull/3688) [`a880323`](https://github.com/emdash-cms/emdash/commit/a88032398d25a93c8159392e4bad4c495f5cd89a) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds an iframe block for embedding pages from other sites. In the editor, type `/iframe` and paste an embed code or a link into the Code tab; YouTube and Vimeo links become their players, and the Preview tab shows the embedded page. When an entry opens, a saved block waits for **Load preview**. Iframe blocks pasted from another website or browser tab arrive empty. On the site, `Iframe` from `emdash/ui` renders the `iframe` block as a responsive, lazy-loading iframe.
+  
+  The iframe is sandboxed and sends a `strict-origin-when-cross-origin` referrer. Only https sources render, pages on the site's own host lose same-origin access, and only the permissions video and map players need (such as autoplay, fullscreen and picture-in-picture) reach the embedded page.
+  
+  The admin's content security policy now allows https frames (`frame-src 'self' https:`), so previews can load embedded pages, including frames inside HTML block previews.
+  
+  #### What should I do?
+  
+  - If a plugin already defines an `iframe` block, the editor keeps using the plugin's block and doesn't offer the built-in one. On the site, the plugin's renderer still wins; a plugin without one gets `Iframe` for blocks that have only the built-in fields. In TypeScript, narrowing `PortableTextBlock` on `_type === "iframe"` now gives `PortableTextIframeBlock | PortableTextUnknownBlock`, so reading the plugin's own fields needs a check such as `"theme" in block`.
+  - With Astro's content security policy turned on, allow the embedded hosts in `frame-src`. Iframe blocks also lose their custom size under that policy.
+
+- [#3594](https://github.com/emdash-cms/emdash/pull/3594) [`5346dc8`](https://github.com/emdash-cms/emdash/commit/5346dc80750d8d3e25338e058597890fe79724d6) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds image drag-and-drop and paste to the Portable Text editor. Dropped image files and pasted images or screenshots upload to the Media Library and are inserted between blocks, with a preview shown while each upload runs and the upload error shown in place if it fails. Pasting rich content from apps such as Word is unchanged.
+
+- [#3657](https://github.com/emdash-cms/emdash/pull/3657) [`2288fa6`](https://github.com/emdash-cms/emdash/commit/2288fa6715310ea76907a83c6fe33a08eeda1fbf) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a toolbar above a selected image in the Portable Text editor, replacing the buttons in the image's corner.
+  
+  - **Toolbar:** Replace, Alt text, alignment (None, Left, Center, Right), Link, Image settings, and Delete.
+  - **Captions:** typed directly under the image. An empty caption shows a placeholder, and Enter starts a new paragraph after the image.
+  - **Alt text:** the button is highlighted once an image has a description, and hovering it shows the description. Alt text that is only a Media Library image's file name doesn't count.
+  - **Image settings:** the panel now closes when the image is changed outside it, discarding edits that weren't applied, so **Apply** no longer overwrites those changes.
+
+### Patch Changes
+
+- [#3655](https://github.com/emdash-cms/emdash/pull/3655) [`aa2f87e`](https://github.com/emdash-cms/emdash/commit/aa2f87ec16701402561efee529bcf8517f627031) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes admin date pickers showing English month and day names and a Sunday week start when the admin language is Danish or Georgian. The publish scheduling and publication date dialogs and the content list's date range filter now display the calendar in the admin language, with weeks starting on Monday.
+
+- [#3676](https://github.com/emdash-cms/emdash/pull/3676) [`90d71f9`](https://github.com/emdash-cms/emdash/commit/90d71f92f1e9e73e150e555923a1b666b2496980) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes mobile layout overflow on the Widgets and hierarchical taxonomy management screens.
+
+- [#3581](https://github.com/emdash-cms/emdash/pull/3581) [`253b6f9`](https://github.com/emdash-cms/emdash/commit/253b6f91b5c6780635fd6bc83f18dc7ecb2f6111) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text on the Sections page, in the content type navigation settings (icon, hiding from navigation and the dashboard quick action) and in the plugin permission for reading bylines. The full-width image alignment now reads "Volle Breite" instead of "Voll".
+
+- [#3704](https://github.com/emdash-cms/emdash/pull/3704) [`fc90e27`](https://github.com/emdash-cms/emdash/commit/fc90e276ead6e35246051e662cd1f9e1401f33c1) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Adds missing Hindi translations for validation messages, media uploads, imports, publishing notices, and editing locks in the admin UI.
+
+- [#3630](https://github.com/emdash-cms/emdash/pull/3630) [`e811952`](https://github.com/emdash-cms/emdash/commit/e8119527d3832f5a0fe3c4a74b74226647eaae55) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the Portable Text editor so text typed after a newly applied link remains plain instead of extending the link.
+
+- [#3583](https://github.com/emdash-cms/emdash/pull/3583) [`7f4064c`](https://github.com/emdash-cms/emdash/commit/7f4064c63d0c4979ca6aa7b499ff533930007cc8) Thanks [@leostera](https://github.com/leostera)! - Fixes Reading settings so the date format example updates as you type and displays month names in the admin language. Formats the preview cannot render can still be saved for use by themes. Adds searchable timezone suggestions and rejects newly entered unrecognized values while allowing unchanged existing timezone settings to be saved.
+
+- [#3624](https://github.com/emdash-cms/emdash/pull/3624) [`998ce63`](https://github.com/emdash-cms/emdash/commit/998ce63d8412ab400f02d0915785aa75b7edfc9d) Thanks [@kegren](https://github.com/kegren)! - Updates the Swedish admin translation to cover every string and renames "Bylines" to "Skribenter" in the Swedish admin.
+
+- [#3609](https://github.com/emdash-cms/emdash/pull/3609) [`fc019e4`](https://github.com/emdash-cms/emdash/commit/fc019e4ee5ac9ca09418bd97735c0f0890e4813d) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes a broken preview while uploading images the browser can't display, such as HEIC or TIFF files, dropped or pasted into the Portable Text editor. The editor now follows the Media Library upload list: files over 8 MB, or in formats other than JPEG, PNG, GIF, WebP and AVIF, upload with a plain placeholder instead of a preview. The featured and Open Graph image fields now use the same "Only image files can be uploaded here." message as the editor. Screen readers no longer hear an extra "Loading" announcement while an image uploads into those fields.
+
+- [#3685](https://github.com/emdash-cms/emdash/pull/3685) [`1942b3a`](https://github.com/emdash-cms/emdash/commit/1942b3aae0ba09d074afc424d738767b676651f8) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes media uploads so supported video files (.mp4, .webm, .mov) report width and height, and prevents the Media Library details panel from truncating the Uploaded date when dimensions are absent.
+  
+  Videos now have their display dimensions extracted via the browser's `<video>` element and sent through both the direct upload form and the signed-URL confirmation payload, so the detail panel can show a Dimensions row for them just like images. Audio and other non-dimensional files continue to omit dimensions cleanly.
+  
+  The details grid also keeps the Uploaded row in the wider left column when no dimensions row is present, so the full upload date remains readable.
+- Updated dependencies [[`85ab50c`](https://github.com/emdash-cms/emdash/commit/85ab50c60e325b564b427d2d7ffde7e903c2dbf7), [`3a00448`](https://github.com/emdash-cms/emdash/commit/3a00448c05604eab26c4ad2b851d33b2de8bc605)]:
+  - @emdash-cms/blocks@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes

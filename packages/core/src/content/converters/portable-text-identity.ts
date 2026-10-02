@@ -70,6 +70,7 @@ export const PortableTextIdentityExtension = Extension.create({
 					"blockquote",
 					"codeBlock",
 					"htmlBlock",
+					"iframeBlock",
 					"image",
 					"horizontalRule",
 					"gallery",

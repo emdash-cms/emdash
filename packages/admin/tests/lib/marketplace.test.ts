@@ -394,6 +394,29 @@ describe("describeCapability", () => {
 		expect(describeCapability("hooks.content-policy:register")).toBe(
 			"Review and block publishing, scheduling, and unpublishing content",
 		);
+		expect(describeCapability("email:send")).toBe("Send email through your site");
+		expect(describeCapability("hooks.email-events:register")).toBe(
+			"Read and change email your site sends",
+		);
+		expect(describeCapability("hooks.email-transport:register")).toBe(
+			"Deliver all email your site sends",
+		);
+		expect(describeCapability("hooks.page-fragments:register")).toBe(
+			"Add scripts and styles to your site's pages",
+		);
+	});
+
+	it("labels legacy hook capability names like their replacements", () => {
+		expect(describeCapability("email:intercept")).toBe(
+			describeCapability("hooks.email-events:register"),
+		);
+		expect(describeCapability("email:provide")).toBe(
+			describeCapability("hooks.email-transport:register"),
+		);
+		expect(describeCapability("page:inject")).toBe(
+			describeCapability("hooks.page-fragments:register"),
+		);
+		expect(describeCapability("page:inject")).not.toBe("page:inject");
 	});
 
 	it("returns raw capability string for unknown capabilities", () => {
@@ -448,6 +471,10 @@ describe("CAPABILITY_LABELS", () => {
 			"users:read",
 			"network:request",
 			"network:request:unrestricted",
+			"email:send",
+			"hooks.email-events:register",
+			"hooks.email-transport:register",
+			"hooks.page-fragments:register",
 			// Legacy aliases
 			"read:content",
 			"write:content",
@@ -456,6 +483,9 @@ describe("CAPABILITY_LABELS", () => {
 			"read:users",
 			"network:fetch",
 			"network:fetch:any",
+			"email:intercept",
+			"email:provide",
+			"page:inject",
 		]);
 	});
 });

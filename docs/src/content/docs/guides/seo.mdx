@@ -64,10 +64,10 @@ import { createPublicPageContext } from "emdash/page";
 import { EmDashHead } from "emdash/ui";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post } = await getEmDashEntry("posts", slug);
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 
 const settings = await getSiteSettings();
 const seo = getSeoMeta(post, {

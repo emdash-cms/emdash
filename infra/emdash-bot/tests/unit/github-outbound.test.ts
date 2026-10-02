@@ -75,3 +75,56 @@ describe("GitHub sandbox outbound authentication", () => {
 		expect((forwarded as Request).headers.has("authorization")).toBe(false);
 	});
 });
+
+describe("GitHub sandbox outbound rate limiting", () => {
+	function gate(permit: GitHubRateLimitGate["permit"]) {
+		return {
+			permit: vi.fn(permit),
+			record: vi.fn(async () => undefined),
+			inspect: vi.fn(async () => null),
+			getInstallationToken: vi.fn(async () => "token"),
+		};
+	}
+
+	test("forwards Git traffic without consuming the REST API budget", async () => {
+		const rateLimitGate = gate(async () => ({ allowed: false, retryAt: Date.now() + 60_000 }));
+		const upstream = vi.fn<typeof fetch>().mockResolvedValue(new Response("git response"));
+
+		const response = await forwardGithubRequest(
+			new Request(gitInfoRefs),
+			context(async () => "token", rateLimitGate),
+			upstream,
+		);
+
+		expect(response.status).toBe(200);
+		expect(upstream).toHaveBeenCalledOnce();
+		expect(rateLimitGate.permit).not.toHaveBeenCalled();
+		expect(rateLimitGate.record).not.toHaveBeenCalled();
+	});
+
+	test("waits out a short API backoff instead of failing the sandbox request", async () => {
+		vi.useFakeTimers();
+		try {
+			const releaseAt = Date.now() + 20_000;
+			const rateLimitGate = gate(async () =>
+				Date.now() >= releaseAt
+					? { allowed: true, retryAt: Date.now() }
+					: { allowed: false, retryAt: releaseAt },
+			);
+			const upstream = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}"));
+
+			const pending = forwardGithubRequest(
+				new Request(`https://api.github.com/repos/${OWNER}/${REPO}/issues/1`),
+				context(async () => "token", rateLimitGate),
+				upstream,
+			);
+			await vi.advanceTimersByTimeAsync(20_000);
+			const response = await pending;
+
+			expect(response.status).toBe(200);
+			expect(upstream).toHaveBeenCalledOnce();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});
