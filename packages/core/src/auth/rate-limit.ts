@@ -13,6 +13,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { after } from "../after.js";
 import { apiError } from "../api/error.js";
 import type { Database } from "../database/types.js";
 
@@ -75,8 +76,12 @@ export async function checkRateLimit(
 
 	// Piggyback cleanup: 1% chance per request to clean expired entries
 	if (Math.random() < 0.01) {
-		cleanupExpiredRateLimits(db).catch(() => {
-			// Swallow errors — cleanup is best-effort
+		after(async () => {
+			try {
+				await cleanupExpiredRateLimits(db);
+			} catch (error) {
+				console.error("[rate-limit] failed to delete expired entries:", error);
+			}
 		});
 	}
 
