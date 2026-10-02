@@ -9,7 +9,7 @@ export interface CapabilityDescription {
 
 export const CAPABILITY_DESCRIPTIONS: Readonly<
 	Record<CurrentPluginCapability, CapabilityDescription>
-> = Object.freeze({
+> = {
 	"content:read": {
 		label: "Read content",
 		description: "Read entries from your site’s content collections.",
@@ -119,7 +119,7 @@ export const CAPABILITY_DESCRIPTIONS: Readonly<
 		label: "Read user accounts",
 		description: "Read user records from your site.",
 	},
-});
+};
 
 /**
  * Look up the copy for a capability. Deprecated names resolve to their
