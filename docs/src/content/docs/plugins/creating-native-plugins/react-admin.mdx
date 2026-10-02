@@ -338,14 +338,14 @@ interface FieldWidgetProps {
 	label: string;
 	id: string;
 	required?: boolean;
-	options?: Record<string, unknown>;
+	options?: Record<string, unknown> | Array<{ value: string; label: string }>;
 	validation?: Record<string, unknown>;
 	minimal?: boolean;
 }
 
 function RatingField({ value, onChange, label, id, options }: FieldWidgetProps) {
 	const { i18n } = useLingui();
-	const max = typeof options?.max === "number" ? options.max : 5;
+	const max = !Array.isArray(options) && typeof options?.max === "number" ? options.max : 5;
 	const rating = typeof value === "number" ? value : 0;
 
 	return (
@@ -405,7 +405,7 @@ The component receives the following props:
 | `label` | `string` | The field's label. The host does not render one around a plugin widget, so render it yourself. |
 | `id` | `string` | A DOM ID for the field, in the form `field-<slug>`. |
 | `required` | `boolean` (optional) | The field's required setting. |
-| `options` | `object` (optional) | The field's `options` from the schema, passed through unchanged. Use it for per-field configuration such as `max` above. |
+| `options` | `object` or `Array<{ value, label }>` (optional) | The field's `options` from the schema, passed through unchanged. Use it for per-field configuration such as `max` above. When the field has `validation.options` (`select` and `multiSelect` fields), the host passes those instead, as a list of `{ value, label }` items. |
 | `validation` | `object` (optional) | The field's `validation` rules from the schema. |
 | `minimal` | `boolean` (optional) | `true` when the host asks for a compact rendering without surrounding label chrome. |
 
