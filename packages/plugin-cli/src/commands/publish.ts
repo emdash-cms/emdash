@@ -119,12 +119,6 @@ export const publishCommand = defineCommand({
 			type: "string",
 			description: `Path to emdash-plugin.jsonc, or the directory containing it. Defaults to ./${MANIFEST_FILENAME}. Pass --no-manifest (or set to "false") to disable manifest loading and rely entirely on flags.`,
 		},
-		"no-manifest": {
-			type: "boolean",
-			description:
-				"Disable manifest loading and rely entirely on flags. Useful in CI where the manifest lives elsewhere or shouldn't be implicitly consumed.",
-			default: false,
-		},
 		"allow-overwrite": {
 			type: "boolean",
 			description:
@@ -556,8 +550,8 @@ type PublishArgs = {
 	"author-email"?: string;
 	"security-email"?: string;
 	"security-url"?: string;
-	manifest?: string;
-	"no-manifest"?: boolean;
+	/** citty parses `--no-manifest` as `false`. */
+	manifest?: string | false;
 	"allow-overwrite"?: boolean;
 	json?: boolean;
 };
@@ -595,9 +589,7 @@ async function loadManifestBootstrap(
 	args: PublishArgs,
 	log: { info(m: string): void; warn(m: string): void },
 ): Promise<ManifestLoadOutcome | null> {
-	const optedOut =
-		args["no-manifest"] === true || args.manifest === "false" || args.manifest === "";
-	if (optedOut) {
+	if (args.manifest === false || args.manifest === "false" || args.manifest === "") {
 		// `--no-manifest` is a power-user escape hatch (CI, debugging),
 		// but silently skipping a manifest at the default path defeats
 		// the publisher-pin safety story. If the file exists, warn that

@@ -197,9 +197,11 @@ export const releaseSubmitCommand = defineCommand({
 			type: "string",
 			description: "Stable submission key (defaults to the GitHub run identity)",
 		},
-		"no-wait": {
+		wait: {
 			type: "boolean",
-			description: "Return after the service accepts the intent",
+			description: "Wait for publication or an approval request",
+			negativeDescription: "Return after the service accepts the intent",
+			default: true,
 		},
 		"wait-for-approval": {
 			type: "boolean",
@@ -225,7 +227,7 @@ export const releaseSubmitCommand = defineCommand({
 			...target,
 			releaseFile: args["release-file"],
 			idempotencyKey: args["idempotency-key"],
-			wait: !args["no-wait"],
+			wait: args.wait,
 			waitForApproval: args["wait-for-approval"],
 			pollIntervalMs:
 				positiveInteger(args["poll-interval-seconds"], "poll-interval-seconds", 300) * 1000,
