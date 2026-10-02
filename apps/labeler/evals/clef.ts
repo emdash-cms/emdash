@@ -117,6 +117,14 @@ export const CLEF_TEXT_QUESTIONS: CategoryQuestions = SHARED_CATEGORY_QUESTIONS;
 
 export const CLEF_IMAGE_QUESTIONS: CategoryQuestions = {
 	...SHARED_CATEGORY_QUESTIONS,
+	"explicit-sexual-content": {
+		type: "noul",
+		instructions: `${UNTRUSTED_STATE} Does the image show nudity, partial nudity, or sexual or sexually suggestive content, such as exposed buttocks, breasts, or genitals, underwear or lingerie presented sexually, or a sexualized pose?`,
+		criteria: {
+			true: "Nudity, partial nudity, or sexual or sexually suggestive imagery is present.",
+			false: "No nudity and nothing sexual or sexually suggestive.",
+		},
+	},
 	"hateful-or-dehumanizing-content": {
 		type: "noul",
 		instructions: `${UNTRUSTED_STATE} Does the image display a hate symbol or extremist iconography, such as a flag, emblem, unit insignia, rune, tattoo, or gesture associated with Nazi, SS, neo-Nazi, white-supremacist, or other hate movements, or otherwise attack or dehumanize people based on protected traits? A symbol counts when shown alone, with no caption or accompanying text.`,
