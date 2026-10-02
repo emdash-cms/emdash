@@ -162,7 +162,7 @@ async function moderateManualImage(value: unknown, env: Env): Promise<Response> 
 
 export function parseManualImageClefOptions(
 	value: unknown,
-): { modelId: ClefModelId; threshold: number } | undefined {
+): { modelId: ClefModelId; threshold: number; separateQuestions: boolean } | undefined {
 	if (!isRecord(value) || value["model"] === undefined) return undefined;
 	const modelId = value["model"];
 	if (typeof modelId !== "string" || !isClefModelId(modelId)) {
@@ -172,7 +172,7 @@ export function parseManualImageClefOptions(
 	if (typeof threshold !== "number") {
 		throw new TypeError("manual image threshold must be a number");
 	}
-	return { modelId, threshold };
+	return { modelId, threshold, separateQuestions: value["separateQuestions"] === true };
 }
 
 export function createManualImageModerationAdapter(

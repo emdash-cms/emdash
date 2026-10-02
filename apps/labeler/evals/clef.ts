@@ -165,6 +165,8 @@ export interface ClefAdapterConfig {
 	threshold: number;
 	configuredUnits?: number;
 	timeoutMs?: number;
+	/** Send each category in its own request so one question's wording cannot shift another's answer. */
+	separateQuestions?: boolean;
 	onProbabilities?: (probabilities: readonly ClefCategoryProbability[]) => void;
 }
 
@@ -236,7 +238,11 @@ function clefIdentity(
 		modelId: config.modelId,
 		promptVersion,
 		promptHash,
-		parameters: { threshold: config.threshold, timeoutMs: config.timeoutMs ?? 20_000 },
+		parameters: {
+			threshold: config.threshold,
+			timeoutMs: config.timeoutMs ?? 20_000,
+			separateQuestions: config.separateQuestions ?? false,
+		},
 	};
 }
 
@@ -247,22 +253,55 @@ async function runClef(
 	input: { state: unknown; questions: CategoryQuestions; images?: readonly unknown[] },
 	evidenceRefs: readonly string[],
 ): Promise<ModerationInferenceResult> {
+	const batches: ModerationFindingCategory[][] = config.separateQuestions
+		? MODERATION_FINDING_CATEGORIES.map((category) => [category])
+		: [[...MODERATION_FINDING_CATEGORIES]];
+	const signal = AbortSignal.timeout(config.timeoutMs ?? 20_000);
 	const started = performance.now();
-	const response = await ai.run(
-		config.modelId,
-		{ model: CLEF_MODEL_IDS[config.modelId], ...input },
-		{ signal: AbortSignal.timeout(config.timeoutMs ?? 20_000) },
+	const answered = await Promise.all(
+		batches.map(async (categories) => {
+			const response = await ai.run(
+				config.modelId,
+				{
+					model: CLEF_MODEL_IDS[config.modelId],
+					...input,
+					questions: Object.fromEntries(
+						categories.map((category) => [category, input.questions[category]]),
+					),
+				},
+				{ signal },
+			);
+			return {
+				probabilities: parseClefNoulAnswers(response, categories),
+				usage: parseClefUsage(response),
+			};
+		}),
 	);
 	const latencyMs = performance.now() - started;
-	const probabilities = parseClefNoulAnswers(response);
+	const probabilities = answered.flatMap((answer) => answer.probabilities);
 	config.onProbabilities?.(probabilities);
 	return {
 		findings: clefFindings(probabilities, config.threshold, evidenceRefs),
 		coveredEvidenceRefs: [...evidenceRefs],
 		identity,
 		latencyMs,
-		usage: parseClefUsage(response, config.configuredUnits),
+		usage: sumClefUsage(
+			answered.map((answer) => answer.usage),
+			config.configuredUnits,
+		),
 	};
+}
+
+function sumClefUsage(
+	usages: readonly ModerationUsage[],
+	configuredUnits?: number,
+): ModerationUsage {
+	const total: ModerationUsage = { configuredUnits };
+	if (usages.some((usage) => usage.totalTokens === undefined)) return total;
+	total.inputTokens = usages.reduce((sum, usage) => sum + (usage.inputTokens ?? 0), 0);
+	total.outputTokens = usages.reduce((sum, usage) => sum + (usage.outputTokens ?? 0), 0);
+	total.totalTokens = total.inputTokens + total.outputTokens;
+	return total;
 }
 
 export interface ClefCategoryProbability {
@@ -270,12 +309,15 @@ export interface ClefCategoryProbability {
 	probability: number;
 }
 
-export function parseClefNoulAnswers(response: unknown): ClefCategoryProbability[] {
+export function parseClefNoulAnswers(
+	response: unknown,
+	categories: readonly ModerationFindingCategory[] = MODERATION_FINDING_CATEGORIES,
+): ClefCategoryProbability[] {
 	if (!isObject(response) || !isObject(response["answers"])) {
 		throw new ModelOutputError("invalid-schema", "Clef response is missing answers");
 	}
 	const answers = response["answers"];
-	return MODERATION_FINDING_CATEGORIES.map((category) => {
+	return categories.map((category) => {
 		const answer = answers[category];
 		if (!isObject(answer) || answer["type"] !== "noul") {
 			throw new ModelOutputError("invalid-schema", `Clef answer for ${category} is missing`);
@@ -312,8 +354,8 @@ export function clefFindings(
 		}));
 }
 
-function parseClefUsage(response: unknown, configuredUnits?: number): ModerationUsage {
-	const usage: ModerationUsage = { configuredUnits };
+function parseClefUsage(response: unknown): ModerationUsage {
+	const usage: ModerationUsage = {};
 	if (!isObject(response) || !isObject(response["usage"])) return usage;
 	const input = response["usage"]["input_tokens"];
 	const output = response["usage"]["output_tokens"];

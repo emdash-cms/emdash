@@ -86,6 +86,31 @@ describe("Clef moderation adapter", () => {
 		});
 	});
 
+	it("merges one request per category into a single result when questions are separated", async () => {
+		const ai: WorkersAiBinding = {
+			async run(_model, input) {
+				const [category] = Object.keys(input["questions"] as Record<string, unknown>);
+				return {
+					model: "clef",
+					answers: {
+						[category!]: { type: "noul", noul: category === "graphic-violence" ? 0.9 : 0.02 },
+					},
+					usage: { input_tokens: 100, output_tokens: 0 },
+				};
+			},
+		};
+		const adapter = createClefTextAdapter(ai, {
+			modelId: "@cf/cloudflare/clef",
+			threshold: 0.5,
+			separateQuestions: true,
+		});
+
+		const result = await adapter.moderate(REQUEST);
+
+		expect(result.findings.map(({ category }) => category)).toEqual(["graphic-violence"]);
+		expect(result.usage.inputTokens).toBe(100 * MODERATION_FINDING_CATEGORIES.length);
+	});
+
 	it("selects the flash model through the request body", async () => {
 		const calls: Array<{ model: string; input: Record<string, unknown> }> = [];
 		const adapter = createClefTextAdapter(binding(clefResponse(), calls), {
