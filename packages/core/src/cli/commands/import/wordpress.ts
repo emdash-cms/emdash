@@ -25,6 +25,7 @@ const NON_ALPHANUMERIC_UNDERSCORE_PATTERN = /[^a-zA-Z0-9_]/g;
 const TRAILING_SLASH_PATTERN = /\/$/;
 const PHP_STRING_PATTERN = /s:\d+:"(.*)";/;
 const PHP_ARRAY_PATTERN = /s:(\d+):"([^"]+)";(?:s:(\d+):"([^"]+)"|i:(\d+)|b:([01]))/g;
+const SHELL_SAFE_ARG_PATTERN = /^[\w@%+=:,./-]+$/;
 
 /** Type guard for Record<string, unknown> */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -883,7 +884,7 @@ function importCommandLine(
 }
 
 function shellQuote(arg: string): string {
-	return /^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`;
+	return SHELL_SAFE_ARG_PATTERN.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`;
 }
 
 function createFreshProgress(sourceFile: string, configFile: string): ImportProgress {
