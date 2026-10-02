@@ -95,6 +95,16 @@ describe("emdash import wordpress", () => {
 		});
 	});
 
+	it("prints next-step commands that keep a custom output dir and config", () => {
+		const configPath = join(dir, "custom-config.json");
+		const prepare = runCli("import", "wordpress", FIXTURE, "-o", outputDir, "--config", configPath);
+
+		expect(prepare.status).toBe(0);
+		expect(prepare.output).toContain(
+			`emdash import wordpress ${FIXTURE} -o ${outputDir} --config ${configPath} --execute`,
+		);
+	});
+
 	it("resumes an interrupted run without dropping earlier redirects", () => {
 		runCli("import", "wordpress", FIXTURE, "-o", outputDir);
 		runCli("import", "wordpress", FIXTURE, "-o", outputDir, "--execute", "--skip-media");

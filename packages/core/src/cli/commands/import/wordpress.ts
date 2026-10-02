@@ -236,7 +236,7 @@ export async function prepareWordPressImport(
 		`Review and edit: ${options.configPath}`,
 		`Review suggested config: ${liveConfigPath}`,
 		"Copy relevant parts to your src/live.config.ts",
-		`Run: emdash import wordpress ${filePath} --execute`,
+		`Run: ${importCommandLine(filePath, options, "--execute")}`,
 	];
 
 	log(pc.cyan("\n=== Next Steps ===\n"));
@@ -733,6 +733,9 @@ export async function executeWordPressImport(
 		if (!options.dryRun && stats.imported % 50 === 0) {
 			progress.updatedAt = new Date().toISOString();
 			await writeFile(progressPath, JSON.stringify(progress, null, 2));
+			if (redirects.size > 0) {
+				await writeFile(redirectPath, JSON.stringify(Object.fromEntries(redirects), null, 2));
+			}
 		}
 	}
 
@@ -839,12 +842,12 @@ export async function executeWordPressImport(
 	if (options.dryRun) {
 		result.nextSteps = [
 			`Run without --dry-run to perform the import`,
-			`emdash import wordpress ${filePath} --execute`,
+			importCommandLine(filePath, options, "--execute"),
 		];
 	} else if (stats.errors > 0) {
 		result.nextSteps = [
 			`Fix errors and run with --resume to continue`,
-			`emdash import wordpress ${filePath} --execute --resume`,
+			importCommandLine(filePath, options, "--execute --resume"),
 		];
 	} else {
 		result.nextSteps = [
@@ -864,6 +867,18 @@ export async function executeWordPressImport(
 	}
 
 	return result;
+}
+
+function importCommandLine(
+	filePath: string,
+	options: { outputDir: string; configPath: string },
+	flags: string,
+): string {
+	let command = `emdash import wordpress ${filePath} -o ${options.outputDir}`;
+	if (options.configPath !== join(options.outputDir, "migration-config.json")) {
+		command += ` --config ${options.configPath}`;
+	}
+	return `${command} ${flags}`;
 }
 
 function createFreshProgress(sourceFile: string, configFile: string): ImportProgress {
