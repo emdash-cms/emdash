@@ -177,6 +177,8 @@ export interface AdminManifest {
 					unsupportedType?: { type: string; path: string };
 					blockTypes?: import("./schema.js").BlockType[];
 					blockTypeFingerprint?: string;
+					/** Set on `integer` fields, which share the `number` kind. */
+					integer?: boolean;
 				}
 			>;
 		}

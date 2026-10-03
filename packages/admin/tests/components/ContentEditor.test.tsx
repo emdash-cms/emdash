@@ -753,6 +753,23 @@ describe("ContentEditor", () => {
 			);
 		});
 
+		it("rejects a decimal in an integer field", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Test" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					seats: { kind: "number", label: "Seats", integer: true },
+				},
+			});
+
+			const input = screen.getByLabelText("Seats", { exact: true });
+			await input.fill("44.5");
+			await expect.element(input).not.toBeValid();
+			await input.fill("44");
+			await expect.element(input).toBeValid();
+		});
+
 		it("keeps URL values left-to-right inside an RTL editor", async () => {
 			document.documentElement.dir = "rtl";
 			try {

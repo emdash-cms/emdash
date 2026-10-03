@@ -74,6 +74,8 @@ export interface ManifestFieldDescriptor extends FieldDescriptor {
 	unsupportedType?: { type: string; path: string };
 	blockTypes?: BlockType[];
 	blockTypeFingerprint?: string;
+	/** Set on `integer` fields, which share the `number` kind. */
+	integer?: boolean;
 }
 
 export interface FieldDescriptor {
