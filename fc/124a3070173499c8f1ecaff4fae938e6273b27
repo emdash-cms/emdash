@@ -1,0 +1,35 @@
+.github/scripts/test-plan.mjs
+  s_871d7d7d37412b::t_a73e502f60c82a 148-153
+.github/scripts/test-plan.test.mjs
+  s_871d7d7d37412b::t_d2a525ed88e07a 81-93
+e2e/tests/plugin-fixture-image.spec.ts
+  s_5764de537fe6d7::t_5fd179957caebc 1-28
+packages/plugins/marketplace-test/src/plugin.ts
+  s_5764de537fe6d7::t_debab98354e33a 29
+playwright.table.config.ts
+  s_871d7d7d37412b::t_b4d96b4fc65fa2 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fc124a3070173499c8f1ecaff4fae938e6273b27",
+  "prompts": {},
+  "sessions": {
+    "s_5764de537fe6d7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a102b3-ee09-78a1-8c5a-1b8533b05fbe",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
