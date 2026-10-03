@@ -171,6 +171,26 @@ describe("emdash import wordpress", () => {
 		});
 	});
 
+	it("reports a failed attachment and points to --resume", () => {
+		const exportPath = join(dir, "export.xml");
+		writeFileSync(
+			exportPath,
+			readFileSync(FIXTURE, "utf8").replaceAll(
+				"https://example.com/wp-content/uploads/2025/01/hero.jpg",
+				"http://127.0.0.1/hero.jpg",
+			),
+		);
+		runCli("import", "wordpress", exportPath, "-o", outputDir);
+
+		const result = runCli("import", "wordpress", exportPath, "-o", outputDir, "--execute");
+		const json = runCli("import", "wordpress", exportPath, "-o", outputDir, "--execute", "--json");
+
+		expect(result.status).toBe(1);
+		expect(result.output).toContain("Errors: 1");
+		const { nextSteps } = JSON.parse(json.stdout) as { nextSteps: string[] };
+		expect(nextSteps.join("\n")).toContain("--execute --resume");
+	});
+
 	it("fails when the export file does not exist", () => {
 		const result = runCli("import", "wordpress", join(dir, "missing.xml"), "-o", outputDir);
 

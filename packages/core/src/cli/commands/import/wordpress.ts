@@ -635,7 +635,6 @@ export async function executeWordPressImport(
 		imported: 0,
 		skipped: 0,
 		resumed: 0,
-		errors: 0,
 		byCollection: new Map<string, number>(),
 	};
 	const redirectPath = join(options.outputDir, "_redirects.json");
@@ -715,7 +714,6 @@ export async function executeWordPressImport(
 				redirects.set(post.link, `/${converted.collection}/${converted.slug}`);
 			}
 		} catch (error) {
-			stats.errors++;
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			result.errors.push({
 				id: post.id,
@@ -827,8 +825,8 @@ export async function executeWordPressImport(
 		log(`Resumed (skipped): ${pc.blue(stats.resumed.toString())}`);
 	}
 	log(`Skipped (disabled): ${pc.yellow(stats.skipped.toString())}`);
-	if (stats.errors > 0) {
-		log(`Errors: ${pc.red(stats.errors.toString())}`);
+	if (result.errors.length > 0) {
+		log(`Errors: ${pc.red(result.errors.length.toString())}`);
 	}
 
 	log(pc.bold("\nBy collection:"));
@@ -846,7 +844,7 @@ export async function executeWordPressImport(
 			`Run without --dry-run to perform the import`,
 			importCommandLine(filePath, options, "--execute"),
 		];
-	} else if (stats.errors > 0) {
+	} else if (result.errors.length > 0) {
 		result.nextSteps = [
 			`Fix errors and run with --resume to continue`,
 			importCommandLine(filePath, options, "--execute --resume"),
