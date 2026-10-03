@@ -9,6 +9,7 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { after, PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
+import { buildContentEntry } from "../content-mapping.js";
 import { formatSubmissionText, formatWebhookPayload } from "../format.js";
 import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
@@ -219,6 +220,25 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		submissionCount,
 		lastSubmissionAt: new Date().toISOString(),
 	});
+
+	// Create a content entry from the mapping after the response. The submission is
+	// already stored, so a failed create is logged rather than thrown.
+	if (settings.contentMapping && ctx.content?.create) {
+		const mapping = settings.contentMapping;
+		const { content, log } = ctx;
+		after(async () => {
+			try {
+				const entry = buildContentEntry(mapping, result.data);
+				await content.create!(mapping.collection, entry);
+			} catch (err: unknown) {
+				log.error("Failed to create content entry from submission", {
+					error: String(err),
+					submissionId,
+					collection: mapping.collection,
+				});
+			}
+		});
+	}
 
 	// 7. Immediate email notifications (not digest)
 	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {

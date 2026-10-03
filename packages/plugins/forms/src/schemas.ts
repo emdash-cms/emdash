@@ -87,6 +87,22 @@ const autoresponderSchema = z
 	})
 	.optional();
 
+const contentFieldMappingSchema = z.union([
+	z.string().min(1),
+	z.object({
+		field: z.string().min(1),
+		transform: z.enum(["portableText", "string", "number", "date"]).optional(),
+	}),
+]);
+
+const contentMappingSchema = z.object({
+	collection: z.string().min(1),
+	fieldMappings: z
+		.record(z.string().min(1), contentFieldMappingSchema)
+		.refine((m) => Object.keys(m).length > 0, "At least one field mapping is required"),
+	metadata: z.record(z.string().min(1), z.unknown()).optional(),
+});
+
 /**
  * The settings shape, declared once WITHOUT defaults so the update schema can reuse it.
  *
@@ -108,6 +124,8 @@ const formSettingsShape = {
 	submitLabel: z.string().min(1),
 	nextLabel: z.string().optional(),
 	prevLabel: z.string().optional(),
+	// null clears the mapping on update
+	contentMapping: contentMappingSchema.nullable().optional(),
 };
 
 /** Create: a missing setting takes its default. */
