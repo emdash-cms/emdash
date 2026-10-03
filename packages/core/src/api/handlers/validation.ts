@@ -150,7 +150,7 @@ export async function validateContentData(
 	db: Kysely<Database>,
 	collection: string,
 	data: Record<string, unknown>,
-	options: { partial?: boolean } = {},
+	options: { partial?: boolean; ignoreUnknownFields?: boolean } = {},
 ): Promise<ValidationResult> {
 	const registry = new SchemaRegistry(db);
 	const collectionWithFields = await registry.getCollectionWithFields(collection);
@@ -183,7 +183,7 @@ export async function validateContentData(
 	// fields; skip them.
 	const knownFields = new Set(collectionWithFields.fields.map((f) => f.slug));
 	for (const key of Object.keys(data)) {
-		if (key.startsWith("_")) continue;
+		if (options.ignoreUnknownFields || key.startsWith("_")) continue;
 		if (!knownFields.has(key)) {
 			issues.push({
 				path: key,

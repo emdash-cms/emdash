@@ -82,13 +82,16 @@ import {
 	referenceFieldConstraints,
 	validateRequiredReferencesPresent,
 } from "./validate-references.js";
+import { validateContentData } from "./validation.js";
 
 /**
  * Narrow a caught error to one carrying a structured `apiError` discriminant.
  * Used by transaction callbacks that want to surface a specific error code
  * through the standard Error throwing path.
  */
-function hasApiError(error: unknown): error is Error & { apiError: { code: string } } {
+function hasApiError(
+	error: unknown,
+): error is Error & { apiError: { code: string; details?: Record<string, unknown> } } {
 	if (!(error instanceof Error) || !("apiError" in error)) return false;
 	const { apiError } = error;
 	return (
@@ -267,6 +270,16 @@ async function getCollectionPublishConfig(
 			routable: row?.routable !== 0,
 		};
 	});
+}
+
+async function validatePublicationData(
+	db: Kysely<Database>,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<ApiResult<true>> {
+	const validation = await validateContentData(db, collection, data, { ignoreUnknownFields: true });
+	if (!validation.ok) return { success: false, error: validation.error };
+	return validateMediaFields(db, collection, data);
 }
 
 function requireRoutablePublishSlug(routable: boolean, slug: string | null | undefined): void {
@@ -1576,6 +1589,7 @@ export async function handleContentUpdate(
 				oldSlug = existing.slug;
 			}
 
+			let publicationRevision: ContentRevisionPrecondition | undefined;
 			const resultingStatus = body.status ?? existing?.status;
 			if (resultingStatus === "published") {
 				if (!existing) {
@@ -1586,6 +1600,18 @@ export async function handleContentUpdate(
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
 				const intendedSlug = body.slug !== undefined ? body.slug : existing.slug;
 				requireRoutablePublishSlug(publishConfig.routable, intendedSlug);
+				if (body.status === "published") {
+					const validation = await validatePublicationData(trx, collection, {
+						...existing.data,
+						...body.data,
+					});
+					if (!validation.success) {
+						throw Object.assign(new Error(validation.error.message), {
+							apiError: validation.error,
+						});
+					}
+					publicationRevision = { version: existing.version, updatedAt: existing.updatedAt };
+				}
 			}
 
 			// Resolve the whole selection before the update, for the reason the
@@ -1593,6 +1619,7 @@ export async function handleContentUpdate(
 			// bylines and SEO below are committed one statement at a time, and a
 			// reference rejected after them cannot take them back.
 			const referenceWrites: ReferenceSelectionWrite[] = [];
+			const referenceSelections: StagedReferences = {};
 			if (body.references) {
 				for (const [fieldSlug, selectedIds] of Object.entries(body.references)) {
 					const resolved = await resolveReferenceSelection(
@@ -1608,6 +1635,19 @@ export async function handleContentUpdate(
 						});
 					}
 					referenceWrites.push(resolved.data);
+					referenceSelections[fieldSlug] = resolved.data.groups;
+				}
+			}
+
+			if (body.status === "published" && existing?.translationGroup) {
+				const validation = await validateStagedReferences(
+					trx,
+					collection,
+					referenceSelections,
+					existing.translationGroup,
+				);
+				if (!validation.success) {
+					throw Object.assign(new Error(validation.error.message), { apiError: validation.error });
 				}
 			}
 
@@ -1623,7 +1663,7 @@ export async function handleContentUpdate(
 					draftRevisionId: writeOptions.draftRevisionId,
 				},
 				writeOptions.expectedRevision ??
-					(body._rev ? (decodeRev(body._rev) ?? undefined) : undefined),
+					(body._rev ? (decodeRev(body._rev) ?? undefined) : publicationRevision),
 			);
 
 			if (body.bylines !== undefined) {
@@ -1707,7 +1747,11 @@ export async function handleContentUpdate(
 		if (hasApiError(error)) {
 			return {
 				success: false,
-				error: { code: error.apiError.code, message: error.message },
+				error: {
+					code: error.apiError.code,
+					message: error.message,
+					...(error.apiError.details !== undefined && { details: error.apiError.details }),
+				},
 			};
 		}
 		if (isMissingTableError(error)) {
@@ -2375,6 +2419,13 @@ export async function handleContentPublish(
 			// passes through handleContentUpdate, where slug-change auto-redirects
 			// are normally created.
 			const existing = await repo.findById(collection, resolvedId);
+			if (existing && options._rev) {
+				const revCheck = validateRev(options._rev, existing);
+				if (!revCheck.valid) throw new ContentMutationConflictError(revCheck.message);
+			}
+			const publicationRevision =
+				expectedRevision ??
+				(existing ? { version: existing.version, updatedAt: existing.updatedAt } : undefined);
 
 			// A selection staged in the draft becomes the live one here. Validate
 			// before the publishing statement rather than after: `withTransaction`
@@ -2384,6 +2435,28 @@ export async function handleContentPublish(
 				publishConfig.supportsRevisions && existing?.draftRevisionId
 					? await new RevisionRepository(trx).findById(existing.draftRevisionId)
 					: undefined;
+			const effectiveRevision =
+				draftRevision ??
+				(publishConfig.supportsRevisions && !existing?.draftRevisionId && existing?.liveRevisionId
+					? await new RevisionRepository(trx).findById(existing.liveRevisionId)
+					: undefined);
+			if (
+				effectiveRevision &&
+				(effectiveRevision.collection !== collection || effectiveRevision.entryId !== resolvedId)
+			) {
+				throw new EmDashValidationError("Revision does not belong to the specified content item");
+			}
+			if (existing) {
+				const validation = await validatePublicationData(trx, collection, {
+					...existing.data,
+					...effectiveRevision?.data,
+				});
+				if (!validation.success) {
+					throw Object.assign(new Error(validation.error.message), {
+						apiError: validation.error,
+					});
+				}
+			}
 			const stagedReferences = draftRevision ? readStagedReferences(draftRevision.data) : undefined;
 			const stagedReferenceBaselines = draftRevision
 				? readStagedReferenceBaselines(draftRevision.data)
@@ -2422,7 +2495,7 @@ export async function handleContentPublish(
 						requireSlug: publishConfig.routable,
 						requireDue: options.requireScheduledDue,
 						expectedScheduledAt: options.expectedScheduledAt,
-						expectedRevision,
+						expectedRevision: publicationRevision,
 					});
 					await applyStagedReferences(
 						trx,
@@ -2442,7 +2515,7 @@ export async function handleContentPublish(
 				options.expectedScheduledAt,
 				publishConfig.supportsRevisions,
 				publishConfig.routable,
-				expectedRevision,
+				publicationRevision,
 				options.currentTime,
 			);
 
@@ -2509,7 +2582,11 @@ export async function handleContentPublish(
 		if (hasApiError(error)) {
 			return {
 				success: false,
-				error: { code: error.apiError.code, message: error.message },
+				error: {
+					code: error.apiError.code,
+					message: error.message,
+					...(error.apiError.details !== undefined && { details: error.apiError.details }),
+				},
 			};
 		}
 		if (error instanceof ContentMutationConflictError) {
