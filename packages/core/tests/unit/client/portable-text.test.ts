@@ -599,6 +599,10 @@ describe("blocks Portable Text conversion", () => {
 		},
 	];
 
+	it("does not add an omitted blocks field on read", () => {
+		expect(convertDataForRead({ title: "Example" }, fields)).toStrictEqual({ title: "Example" });
+	});
+
 	it("does not add an omitted blocks field to a partial write", () => {
 		expect(convertDataForWrite({ title: "Updated" }, fields)).toStrictEqual({ title: "Updated" });
 	});
