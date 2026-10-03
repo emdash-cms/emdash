@@ -179,7 +179,7 @@ export async function handleSitemapIndexData(
 					SELECT p.page AS page, MAX(p.updated_at) AS lastmod
 					FROM (
 						SELECT c.updated_at,
-							(ROW_NUMBER() OVER (ORDER BY c.id) - 1) / ${sql.lit(pageSize)} AS page
+							(ROW_NUMBER() OVER (ORDER BY c.id) - 1) / CAST(${pageSize} AS INTEGER) AS page
 						${indexableRows(col.slug)}
 					) p
 					GROUP BY p.page
