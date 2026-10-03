@@ -154,7 +154,7 @@ const { entries: posts } = await getEmDashCollection("posts");
 
 ## Status
 
-EmDash is in **beta preview**. We welcome contributions, feedback, plugins, themes, and ideas.
+EmDash is **stable** as of 1.0 and ready for production sites. We welcome contributions, feedback, plugins, themes, and ideas.
 
 ```bash
 npm create emdash@latest
