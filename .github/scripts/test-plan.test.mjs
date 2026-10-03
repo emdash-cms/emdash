@@ -1,9 +1,34 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { createTestPlan, formatGitHubOutput, TEST_LANES } from "./test-plan.mjs";
+
+const REPOSITORY_ROOT = new URL("../../", import.meta.url);
+const PACKAGES_OUTSIDE_THE_PACKAGE_JOB = new Map([
+	["emdash", "runs in the core test shards"],
+	["@emdash-cms/admin", "runs in the browser job"],
+	[
+		"@emdash-cms/plugins-site",
+		"its prebuild cleans and rebuilds workspace packages during the job's own build",
+	],
+]);
+
+function packagesWithTests() {
+	const packages = [];
+	for (const parent of ["packages/", "packages/plugins/", "apps/"]) {
+		for (const entry of readdirSync(new URL(parent, REPOSITORY_ROOT), { withFileTypes: true })) {
+			const dir = `${parent}${entry.name}/`;
+			const manifestUrl = new URL(`${dir}package.json`, REPOSITORY_ROOT);
+			if (!entry.isDirectory() || !existsSync(manifestUrl)) continue;
+			const manifest = JSON.parse(readFileSync(manifestUrl, "utf8"));
+			if (manifest.scripts?.test) packages.push({ dir, name: manifest.name });
+		}
+	}
+	return packages;
+}
 
 describe("test plan", () => {
 	it("does not run test lanes for documentation-only changes", () => {
@@ -109,6 +134,18 @@ describe("test plan", () => {
 		assert.ok(plan.unit_packages.includes("@emdash-cms/registry-verification"));
 		assert.ok(plan.unit_packages.includes("@emdash-cms/plugin-forms"));
 		assert.ok(plan.unit_packages.includes("@emdash-cms/release-service"));
+	});
+
+	it("runs the tests of each package under packages/ and apps/ when a file in it changes, or names why not", () => {
+		const missed = packagesWithTests()
+			.filter(({ name }) => !PACKAGES_OUTSIDE_THE_PACKAGE_JOB.has(name))
+			.filter(({ dir, name }) => {
+				const plan = createTestPlan([`${dir}package.json`]);
+				return !plan.unit || !plan.unit_packages.includes(name);
+			})
+			.map(({ name }) => name);
+
+		assert.deepEqual(missed, []);
 	});
 
 	it("marks a union that selects every lane as full", () => {

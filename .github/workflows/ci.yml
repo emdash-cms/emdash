@@ -69,6 +69,8 @@ jobs:
           cache: pnpm
       - name: Check package versions
         run: node .github/scripts/check-no-major.mjs
+      - name: Test the test plan
+        run: node --test .github/scripts/test-plan.test.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
