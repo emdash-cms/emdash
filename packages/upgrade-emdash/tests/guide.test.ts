@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderUpgradeGuide } from "../src/guide.js";
+import { migrationBackupWarning, renderUpgradeGuide } from "../src/guide.js";
 import type { UpgradePlan } from "../src/types.js";
 
 describe("agent upgrade work order", () => {
@@ -57,10 +57,47 @@ describe("agent upgrade work order", () => {
 		expect(guide).toContain("emdash@1.1.0");
 		expect(guide).toContain("`002_added`");
 		expect(guide).toContain("restorable database backup");
+		expect(guide).toContain("https://docs.emdashcms.com/guides/backups/");
 		expect(guide).toContain("pnpm build\npnpm exec emdash migrate --status");
 		expect(guide).toContain("pnpm exec emdash migrate\n```");
 		expect(guide).toContain("pnpm deploy");
 		expect(guide).toContain("pnpm exec emdash migrate --check");
 		expect(guide).toContain("upgrading-emdash");
+		expect(migrationBackupWarning(plan)).toContain("Before starting or deploying");
+	});
+
+	it("does not require an upgrade backup when no core migrations were added", () => {
+		const plan: UpgradePlan = {
+			projectRoot: "/site",
+			packageManager: "pnpm",
+			tag: "latest",
+			dependencies: [],
+			changelog: [],
+			migrations: {
+				currentVersion: "1.1.0",
+				current: ["001_initial"],
+				targetVersion: "1.1.1",
+				target: ["001_initial"],
+				added: [],
+			},
+			guidePath: "/site/.emdash/UPGRADE.md",
+			commands: {
+				install: "pnpm install",
+				build: "pnpm build",
+				deploy: "pnpm deploy",
+				migrationStatus: "pnpm exec emdash migrate --status",
+				migrationApply: "pnpm exec emdash migrate",
+				migrationCheck: "pnpm exec emdash migrate --check",
+				syncSkills: "npx --yes skills add emdash-cms/skills -y",
+			},
+		};
+
+		const guide = renderUpgradeGuide(plan);
+		expect(guide).toContain("No core migrations were added by this upgrade.");
+		expect(guide).toContain("pnpm build\npnpm exec emdash migrate --status");
+		expect(guide).toContain("If the status reports pending migrations");
+		expect(guide).toContain("pnpm exec emdash migrate\n```");
+		expect(guide).not.toContain("Before starting or deploying the upgraded build");
+		expect(migrationBackupWarning(plan)).toBeUndefined();
 	});
 });

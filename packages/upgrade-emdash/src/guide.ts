@@ -4,6 +4,11 @@ function codeBlock(commands: readonly string[]): string {
 	return `\`\`\`sh\n${commands.join("\n")}\n\`\`\``;
 }
 
+export function migrationBackupWarning(plan: UpgradePlan): string | undefined {
+	if ((plan.migrations.added?.length ?? 0) === 0) return undefined;
+	return "Before starting or deploying the upgraded build, create and verify a restorable database backup. A JSON backup is not a recovery point: https://docs.emdashcms.com/guides/backups/";
+}
+
 function renderEntry(entry: ChangelogEntry, index: number): string {
 	const appliesTo = [
 		...new Set(
@@ -21,6 +26,61 @@ Applies to: ${appliesTo}${sources.length > 0 ? `  \nSource: ${sources.join(", ")
 ${entry.body}`;
 }
 
+function renderMigrationGuide(plan: UpgradePlan): string {
+	const added = plan.migrations.added ?? [];
+	const deploy = plan.commands.deploy
+		? `Deploy the same build artifact:\n\n${codeBlock([plan.commands.deploy])}`
+		: "Deploy the same build artifact with the project's deployment workflow.";
+	const status = `Build the upgraded project and inspect the exact database target:\n\n${codeBlock([
+		plan.commands.build,
+		plan.commands.migrationStatus,
+	])}`;
+	const check = `Verify the deployed database against that artifact:\n\n${codeBlock([
+		plan.commands.migrationCheck,
+	])}`;
+
+	if (added.length === 0) {
+		return `## Core database migrations
+
+Installed EmDash changed from \`${plan.migrations.currentVersion}\` to \`${plan.migrations.targetVersion}\`.
+
+No core migrations were added by this upgrade.
+
+${status}
+
+If the status reports pending migrations, stop before starting or deploying the upgraded application. Follow [Backups and recovery](https://docs.emdashcms.com/guides/backups/) to create a restorable recovery point. A JSON backup is not a recovery point. After a human has reviewed the target and backup, apply the pending migrations:
+
+${codeBlock([plan.commands.migrationApply])}
+
+${deploy}
+
+${check}`;
+	}
+
+	const migrations = added.map((migration) => `- \`${migration}\``).join("\n");
+	return `## Core database migrations
+
+Installed EmDash changed from \`${plan.migrations.currentVersion}\` to \`${plan.migrations.targetVersion}\`.
+
+The target package adds these core migrations:
+
+${migrations}
+
+Do not apply migrations until the application changes compile and the target build has generated \`.emdash/migrations.json\`. Before starting or deploying the upgraded build, follow [Backups and recovery](https://docs.emdashcms.com/guides/backups/) to create a restorable database backup, back up media storage separately, and retain the \`EMDASH_ENCRYPTION_KEY\` rotation list. A JSON backup is not a recovery point. Apply migrations from the same build artifact that will be deployed.
+
+${status}
+
+After a human has reviewed the target and backup, apply pending migrations:
+
+${codeBlock([plan.commands.migrationApply])}
+
+${deploy}
+
+${check}
+
+Do not run migration \`down()\` functions or delete migration records to roll back. Restore the matching pre-migration database, media, keys, and application artifact together if recovery is required.`;
+}
+
 export function renderUpgradeGuide(plan: UpgradePlan): string {
 	const packages =
 		plan.dependencies.length > 0
@@ -35,11 +95,6 @@ export function renderUpgradeGuide(plan: UpgradePlan): string {
 		plan.changelog.length > 0
 			? plan.changelog.map(renderEntry).join("\n\n")
 			: "No authored changelog entries were crossed by this update.";
-	const migrations =
-		plan.migrations.added && plan.migrations.added.length > 0
-			? plan.migrations.added.map((migration) => `- \`${migration}\``).join("\n")
-			: "No core migrations were added beyond the previously installed migration set.";
-
 	return `# EmDash upgrade work order
 
 This file is the handoff for upgrading the project at \`${plan.projectRoot}\` to the npm \`${plan.tag}\` release. The updater resolved the direct packages, changed and installed them where needed, refreshed the project EmDash skills, and compared the installed core migration manifests. It did not edit application code, apply a database migration, or deploy the site.
@@ -62,35 +117,7 @@ ${codeBlock([plan.commands.syncSkills])}
 
 Use the refreshed \`upgrading-emdash\` skill for this work order. If the skills command reported a conflict or failure, resolve that before continuing.
 
-## Core database migrations
-
-Installed EmDash changed from \`${plan.migrations.currentVersion}\` to \`${plan.migrations.targetVersion}\`.
-
-The target package adds these core migrations:
-
-${migrations}
-
-Do not apply migrations until the application changes compile and the target build has generated \`.emdash/migrations.json\`. Create a restorable database backup, back up media storage separately, and retain the \`EMDASH_ENCRYPTION_KEY\` rotation list. Apply migrations from the same build artifact that will be deployed.
-
-Build the upgraded project and inspect the exact database target:
-
-${codeBlock([plan.commands.build, plan.commands.migrationStatus])}
-
-After a human has reviewed the target and backup, apply pending migrations:
-
-${codeBlock([plan.commands.migrationApply])}
-
-${
-	plan.commands.deploy
-		? `Deploy the same build artifact:\n\n${codeBlock([plan.commands.deploy])}`
-		: "Deploy the same build artifact with the project's deployment workflow."
-}
-
-Verify the deployed database against that artifact:
-
-${codeBlock([plan.commands.migrationCheck])}
-
-Do not run migration \`down()\` functions or delete migration records to roll back. Restore the matching pre-migration database, media, keys, and application artifact together if recovery is required.
+${renderMigrationGuide(plan)}
 
 ## Verification
 

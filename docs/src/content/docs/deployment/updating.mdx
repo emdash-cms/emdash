@@ -25,7 +25,9 @@ Creating a site from a template copies the template's files, such as layouts, co
 
 ## Before you update
 
-Take a restorable database backup and a separate media-storage backup. EmDash's JSON export cannot restore a site, and core migrations have no operational undo step. [Backups and recovery](/guides/backups/) describes the usable recovery point for each database.
+The updater changes project files and installed packages without connecting to the site's database, so it does not require an upgrade-specific backup before it runs. After installation, `.emdash/UPGRADE.md` identifies any added core migrations.
+
+Before starting or deploying the upgraded application, create a recovery point when the work order lists added migrations, `emdash migrate --status` reports an earlier pending migration, or a release entry requires a data-changing project action. Follow [Backups and recovery](/guides/backups/) for the configured database. EmDash's JSON backup cannot restore a site.
 
 Check the Node.js version on the machine that builds the site and, for a Node.js deployment, on the server. [Getting Started](/getting-started/#prerequisites) lists the supported versions.
 
@@ -55,7 +57,7 @@ Run the updater from the site's project directory. It reads the installed packag
 
 3. Open `.emdash/UPGRADE.md` and complete its project actions.
 
-   The work order includes the filtered changelog entries, added core migration names, and the project's exact build and migration commands. The synced `upgrading-emdash` skill tells an agent where to find the file and how to complete it. The agent should assess every entry against the project rather than adopting unrelated new features.
+   The work order includes the filtered changelog entries, added core migration names, and the project's exact build and migration commands. When the upgrade adds core migrations, it requires a verified recovery point before the upgraded application starts or deploys. The synced `upgrading-emdash` skill tells an agent where to find the file and how to complete it. The agent should assess every entry against the project rather than adopting unrelated new features.
 
 4. Build the site.
 
@@ -71,7 +73,7 @@ Run the updater from the site's project directory. It reads the installed packag
    pnpm dev
    ```
 
-   The EmDash integration generates `emdash-env.d.ts` when the dev server starts. Pending core migrations run on the first request.
+   The EmDash integration generates `emdash-env.d.ts` when the dev server starts. Pending core migrations run on the first request. If this environment connects to a database with pending migrations, complete the work order's backup requirement before opening the site.
 
 </Steps>
 
@@ -83,7 +85,7 @@ Deploy the build the same way as any other change. The following command deploys
 pnpm wrangler deploy
 ```
 
-With the default runtime migration mode, `auto`, the deployed site applies pending core migrations on its first request. To apply them before the new code receives traffic, and to verify the deployed database afterwards, follow [Manage Core Database Migrations](/deployment/core-migrations/). Its `emdash migrate --check` command exits non-zero when the deployed database has pending or unknown migrations for the installed version.
+With the default runtime migration mode, `auto`, the deployed site applies pending core migrations on its first request. Do not deploy a build with pending migrations until the required recovery point exists. To apply migrations before the new code receives traffic, and to verify the deployed database afterwards, follow [Manage Core Database Migrations](/deployment/core-migrations/). Its `emdash migrate --check` command exits non-zero when the deployed database has pending or unknown migrations for the installed version.
 
 After the deploy, open the admin, load at least one public page, edit and publish a disposable entry, and upload and retrieve a disposable media file. If the site uses scheduled tasks or sandboxed plugins, verify those paths too.
 

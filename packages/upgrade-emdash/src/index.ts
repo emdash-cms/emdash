@@ -5,7 +5,7 @@ import * as p from "@clack/prompts";
 import pc from "picocolors";
 
 import { HELP, parseArgs } from "./args.js";
-import { renderUpgradeGuide } from "./guide.js";
+import { migrationBackupWarning, renderUpgradeGuide } from "./guide.js";
 import { createUpgradePlan, withTargetMigrations } from "./plan.js";
 import { loadProject, run, writeDependenciesAndInstall } from "./project.js";
 import type { UpgradePlan } from "./types.js";
@@ -106,6 +106,8 @@ async function main(): Promise<void> {
 
 	const completedPlan = await applyPlan(plan);
 	const migrationCount = completedPlan.migrations.added?.length ?? 0;
+	const backupWarning = migrationBackupWarning(completedPlan);
+	if (backupWarning) p.log.warn(backupWarning);
 	p.outro(
 		`Upgrade prepared with ${migrationCount} added core migration${migrationCount === 1 ? "" : "s"}. Give an agent this work order: ${pc.cyan(completedPlan.guidePath)}`,
 	);

@@ -21,7 +21,7 @@ For each package, the updater preserves the existing caret, tilde, or exact depe
 
 The work order contains all authored major, minor, and patch entries crossed by the project's direct EmDash packages. It also contains the added core migrations and the project's build, migration status, migration apply, deploy, and migration check commands.
 
-The updater does not edit application code, apply database migrations, or deploy. Review the work order, build the project, inspect the migration target, and create restorable backups before authorizing any database change.
+The updater does not edit application code, apply database migrations, or deploy. Review the work order, build the project, and inspect the migration target. Create a restorable recovery point before starting or deploying the upgraded application when the work order lists added migrations, the status command finds an earlier pending migration, or a release entry requires another data-changing action. A package update with no database-changing work does not require an upgrade-specific backup.
 
 Inspect without changing files:
 
