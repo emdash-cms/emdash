@@ -109,6 +109,50 @@ export interface PortableTextBlock {
 	[key: string]: unknown;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function isPortableTextBlock(value: unknown): value is PortableTextBlock {
+	return isRecord(value) && typeof value._type === "string";
+}
+
+/**
+ * Replace `holder[key]` with its imported URL when the map knows the URL it holds.
+ * Returns whether it did.
+ */
+function rewriteUrlField(
+	holder: Record<string, unknown>,
+	key: string,
+	exactMap: Record<string, string>,
+	baseMap: Map<string, string>,
+): boolean {
+	const value = holder[key];
+	if (typeof value !== "string" || !value) return false;
+	const newUrl = findMatchingUrl(value, exactMap, baseMap);
+	if (!newUrl) return false;
+	holder[key] = newUrl;
+	return true;
+}
+
+/**
+ * Rewrite the `href` of each mark definition. An ordinary hyperlink in imported
+ * content ("Download the brochure") is a `link` mark definition on its text
+ * block, not a block of its own (`gutenberg-to-portable-text` `inline.ts`).
+ */
+function rewriteMarkDefUrls(
+	markDefs: unknown,
+	exactMap: Record<string, string>,
+	baseMap: Map<string, string>,
+): number {
+	if (!Array.isArray(markDefs)) return 0;
+	let rewritten = 0;
+	for (const def of markDefs) {
+		if (isRecord(def) && rewriteUrlField(def, "href", exactMap, baseMap)) rewritten++;
+	}
+	return rewritten;
+}
+
 /**
  * Rewrite URLs in a Portable Text array, returning whether any changes were made
  */
@@ -146,6 +190,51 @@ export function rewritePortableTextUrls(
 				changed = true;
 				urlsRewritten++;
 			}
+		}
+
+		// Handle hyperlinks: the `href` of each mark definition, on a text block and
+		// on each cell of a table (a cell carries its own mark definitions).
+		let linksRewritten = rewriteMarkDefUrls(block.markDefs, exactMap, baseMap);
+		if (block._type === "table" && Array.isArray(block.rows)) {
+			for (const row of block.rows) {
+				if (!isRecord(row) || !Array.isArray(row.cells)) continue;
+				for (const cell of row.cells) {
+					if (!isRecord(cell)) continue;
+					linksRewritten += rewriteMarkDefUrls(cell.markDefs, exactMap, baseMap);
+				}
+			}
+		}
+
+		// Handle a file download block, a button, and the buttons of a buttons block
+		if (
+			(block._type === "file" || block._type === "button") &&
+			rewriteUrlField(block, "url", exactMap, baseMap)
+		) {
+			linksRewritten++;
+		}
+		if (block._type === "buttons" && Array.isArray(block.buttons)) {
+			for (const button of block.buttons) {
+				if (isRecord(button) && rewriteUrlField(button, "url", exactMap, baseMap)) linksRewritten++;
+			}
+		}
+
+		// Handle a cover block's background and the content drawn over it
+		if (block._type === "cover") {
+			for (const key of ["backgroundImage", "backgroundVideo"]) {
+				if (rewriteUrlField(block, key, exactMap, baseMap)) linksRewritten++;
+			}
+			if (Array.isArray(block.content)) {
+				const content: unknown[] = block.content;
+				linksRewritten += rewritePortableTextUrls(
+					content.filter(isPortableTextBlock),
+					exactMap,
+					baseMap,
+				).urlsRewritten;
+			}
+		}
+		if (linksRewritten) {
+			changed = true;
+			urlsRewritten += linksRewritten;
 		}
 
 		// Handle gallery blocks with nested images
