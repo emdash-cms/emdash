@@ -1,5 +1,6 @@
 import { sql, type Kysely } from "kysely";
 
+import { after } from "../after.js";
 import { apiError, apiSuccess, handleError } from "../api/error.js";
 import { hashIp } from "../api/handlers/comments.js";
 import { isParseError, parseBody } from "../api/parse.js";
@@ -174,17 +175,23 @@ export async function submitPublicComment(
 					: { status: "pending", reason: "Invalid moderation result" };
 			},
 			fireAfterCreate: (event) => {
-				void runtime.hooks
-					.runCommentAfterCreate(event)
-					.catch((error) =>
-						console.error(
-							"[comments] afterCreate error:",
-							error instanceof Error ? error.message : error,
+				// Deferred through after() so the host's waitUntil keeps the hooks
+				// alive: on Workers, work left running after the response is sent
+				// can be cancelled (sandboxed plugins never got past their first
+				// bridge call).
+				after(() =>
+					runtime.hooks
+						.runCommentAfterCreate(event)
+						.catch((error) =>
+							console.error(
+								"[comments] afterCreate error:",
+								error instanceof Error ? error.message : error,
+							),
 						),
-					);
+				);
 			},
 			fireAfterModerate: (event) => {
-				void runtime.hooks
+				return runtime.hooks
 					.runCommentAfterModerate(event)
 					.catch((error) =>
 						console.error(
