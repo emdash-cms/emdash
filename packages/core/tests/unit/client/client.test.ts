@@ -1554,6 +1554,62 @@ describe("EmDashClient", () => {
 			expect(capturedData!.title).toBe("Hello");
 			expect(Array.isArray(capturedData!.body)).toBe(true);
 		});
+
+		it.each([false, true])(
+			"converts nested Markdown for a single-type block with a preloaded schema: %s",
+			async (preloadSchema) => {
+				let capturedData: Record<string, unknown> | undefined;
+				const backend = createMockBackend([
+					{
+						method: "GET",
+						path: "/schema/collections/posts",
+						handler: () =>
+							jsonResponse({
+								item: {
+									slug: "posts",
+									fields: [
+										{
+											slug: "layout",
+											type: "blocks",
+											validation: { allowedTypes: ["hero"] },
+											blockTypes: [
+												{
+													slug: "hero",
+													currentVersion: 1,
+													versions: [
+														{ version: 1, fields: [{ slug: "body", type: "portableText" }] },
+													],
+												},
+											],
+										},
+									],
+								},
+							}),
+					},
+					{
+						method: "POST",
+						path: "/content/posts",
+						handler: async (request) => {
+							const body = (await request.json()) as { data: Record<string, unknown> };
+							capturedData = body.data;
+							return jsonResponse({ item: { id: "new1", data: {} } });
+						},
+					},
+				]);
+				const client = new EmDashClient({
+					baseUrl: "http://localhost:4321",
+					token: "test",
+					interceptors: [backend],
+				});
+				if (preloadSchema) await client.collection("posts");
+				await client.create("posts", { data: { layout: [{ body: "**Welcome**" }] } });
+				expect(capturedData).toBeDefined();
+				const block = (capturedData!.layout as Array<Record<string, unknown>>)[0]!;
+				expect(block.body).toMatchObject([
+					{ _type: "block", children: [{ text: "Welcome", marks: ["strong"] }] },
+				]);
+			},
+		);
 	});
 
 	// -----------------------------------------------------------------------

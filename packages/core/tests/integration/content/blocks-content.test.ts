@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
+import { normalizeBlocksData } from "../../../src/schema/block-values.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
@@ -75,6 +76,103 @@ describeEachDialect("blocks content semantics", (dialect) => {
 		]);
 	});
 
+	it("infers the only allowed type and assigns its defaults on create", async () => {
+		const result = await runtime.handleContentCreate("pages", {
+			slug: "inferred",
+			data: { layout: [{ heading: "Hello" }] },
+		});
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.data.item.data.layout).toEqual([
+			expect.objectContaining({
+				_type: "hero",
+				_version: 1,
+				_key: expect.stringMatching(/^[0-9A-Z]{26}$/),
+				heading: "Hello",
+				alignment: "start",
+			}),
+		]);
+	});
+
+	it("preserves an existing block's identity when its type is omitted", async () => {
+		const created = await runtime.handleContentCreate("pages", {
+			slug: "home",
+			data: { layout: [{ _type: "hero", heading: "Before" }] },
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+		const original = (created.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+		const edited: Record<string, unknown> = { ...original, heading: "After" };
+		delete edited._type;
+		const updated = await runtime.handleContentUpdate("pages", created.data.item.id, {
+			data: { layout: [edited] },
+		});
+		expect(updated.success).toBe(true);
+		if (updated.success) {
+			expect(updated.data.item.data.layout).toEqual([{ ...original, heading: "After" }]);
+		}
+	});
+
+	it.each([null, ""])("rejects an explicitly invalid block type: %j", async (blockType) => {
+		const result = await runtime.handleContentCreate("pages", {
+			slug: "invalid-type",
+			data: { layout: [{ _type: blockType, heading: "Hello" }] },
+		});
+		expect(result).toMatchObject({
+			success: false,
+			error: { code: "VALIDATION_ERROR", message: "layout[0]._type: must be a block type slug" },
+		});
+	});
+
+	it("requires an explicit type when several types are allowed", async () => {
+		await schema.updateField("pages", "layout", {
+			validation: { allowedTypes: ["hero", "banner"] },
+		});
+		const result = await runtime.handleContentCreate("pages", {
+			slug: "ambiguous",
+			data: { layout: [{ heading: "Hello" }] },
+		});
+		expect(result).toMatchObject({
+			success: false,
+			error: { code: "VALIDATION_ERROR", message: "layout[0]._type: must be a block type slug" },
+		});
+	});
+
+	it("requires an explicit type when restoring blocks", async () => {
+		const collection = await schema.getCollectionWithFields("pages");
+		expect(collection).not.toBeNull();
+		await expect(
+			normalizeBlocksData(
+				ctx.db,
+				collection!,
+				{ layout: [{ heading: "Restored" }] },
+				{},
+				{ restoreBlocks: true },
+			),
+		).rejects.toThrow("layout[0]._type: must be a block type slug");
+	});
+
+	it("does not infer a new allowed type for an existing retired block", async () => {
+		const created = await runtime.handleContentCreate("pages", {
+			slug: "home",
+			data: { layout: [{ _type: "hero", heading: "Before" }] },
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+		const original = (created.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+		await schema.updateField("pages", "layout", { validation: { allowedTypes: ["banner"] } });
+		const updated = await runtime.handleContentUpdate("pages", created.data.item.id, {
+			data: { layout: [{ _key: original._key, text: "Different type" }] },
+		});
+		expect(updated).toMatchObject({
+			success: false,
+			error: { code: "VALIDATION_ERROR", message: "layout[0]._type: must be a block type slug" },
+		});
+		const read = await runtime.handleContentGet("pages", created.data.item.id);
+		expect(read.success).toBe(true);
+		if (read.success) expect(read.data.item.data.layout).toEqual([original]);
+	});
+
 	it("writes the empty default when omitted and enforces a positive minimum", async () => {
 		const empty = await runtime.handleContentCreate("pages", {
 			slug: "empty",
@@ -116,30 +214,34 @@ describeEachDialect("blocks content semantics", (dialect) => {
 		}
 	});
 
-	it("preserves identity and requires explicit intent for keyless replacement", async () => {
-		const created = await runtime.handleContentCreate("pages", {
-			slug: "home",
-			data: { layout: [{ _type: "hero", heading: "Before" }] },
-		});
-		expect(created.success).toBe(true);
-		if (!created.success) return;
-		const original = (created.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+	it.each([true, false])(
+		"preserves identity and requires replacement intent (explicit type: %s)",
+		async (explicitType) => {
+			const created = await runtime.handleContentCreate("pages", {
+				slug: "home",
+				data: { layout: [{ _type: "hero", heading: "Before" }] },
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+			const original = (created.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+			const data = { layout: [{ ...(explicitType ? { _type: "hero" } : {}), heading: "After" }] };
 
-		const keyless = await runtime.handleContentUpdate("pages", created.data.item.id, {
-			data: { layout: [{ _type: "hero", heading: "After" }] },
-		});
-		expect(keyless).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+			const keyless = await runtime.handleContentUpdate("pages", created.data.item.id, {
+				data,
+			});
+			expect(keyless).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
 
-		const replaced = await runtime.handleContentUpdate("pages", created.data.item.id, {
-			data: { layout: [{ _type: "hero", heading: "After" }] },
-			replaceBlocks: true,
-		});
-		expect(replaced.success).toBe(true);
-		if (!replaced.success) return;
-		const replacement = (replaced.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
-		expect(replacement._key).not.toBe(original._key);
-		expect(replacement).toMatchObject({ _type: "hero", _version: 1, heading: "After" });
-	});
+			const replaced = await runtime.handleContentUpdate("pages", created.data.item.id, {
+				data,
+				replaceBlocks: true,
+			});
+			expect(replaced.success).toBe(true);
+			if (!replaced.success) return;
+			const replacement = (replaced.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+			expect(replacement._key).not.toBe(original._key);
+			expect(replacement).toMatchObject({ _type: "hero", _version: 1, heading: "After" });
+		},
+	);
 
 	it("normalizes blocks for collections without draft revisions", async () => {
 		await schema.createCollection({ slug: "plain_pages", label: "Plain pages", supports: [] });
