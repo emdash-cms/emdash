@@ -37,7 +37,7 @@ import type {
 	RelationDef,
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
-import { cn } from "../lib/utils";
+import { cn, slugifyIdentifier } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EditorHeader } from "./EditorHeader";
@@ -46,10 +46,6 @@ import { RelationImpact } from "./RelationImpact.js";
 import { RelationsPanel } from "./RelationsPanel.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
-
-// Regex patterns for slug generation
-const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
-const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g;
 
 const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/;
 
@@ -230,6 +226,11 @@ export function ContentTypeEditor({
 	const urlPatternValid =
 		!urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment);
 
+	const slugError =
+		isNew && !slug && label.trim().length > 0
+			? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
+
 	// Track whether form has unsaved changes
 	const hasChanges = React.useMemo(() => {
 		if (isNew) return slug && label;
@@ -279,12 +280,7 @@ export function ContentTypeEditor({
 	const handleLabelChange = (value: string) => {
 		setLabel(value);
 		if (isNew) {
-			setSlug(
-				value
-					.toLowerCase()
-					.replace(SLUG_INVALID_CHARS_PATTERN, "_")
-					.replace(SLUG_LEADING_TRAILING_PATTERN, ""),
-			);
+			setSlug(slugifyIdentifier(value));
 		}
 	};
 
@@ -483,6 +479,7 @@ export function ContentTypeEditor({
 										onChange={(e) => setSlug(e.target.value)}
 										placeholder="posts"
 										disabled={!isNew}
+										error={slugError}
 									/>
 									<p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p>
 								</div>

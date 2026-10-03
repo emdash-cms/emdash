@@ -52,7 +52,7 @@ import {
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
 import { inlineLabel } from "../lib/inline-label.js";
-import { slugify } from "../lib/utils";
+import { slugify, slugifyIdentifier } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -74,8 +74,6 @@ interface TaxonomyManagerProps {
 }
 
 // Regex patterns for taxonomy name generation and validation (module-scoped per lint rules)
-const NON_ALPHANUMERIC_PATTERN = /[^a-z0-9]+/g;
-const LEADING_TRAILING_UNDERSCORE_PATTERN = /^_|_$/g;
 const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 /**
@@ -934,12 +932,7 @@ function CreateTaxonomyDialog({
 	// Auto-generate name from label
 	React.useEffect(() => {
 		if (autoName && label) {
-			setName(
-				label
-					.toLowerCase()
-					.replace(NON_ALPHANUMERIC_PATTERN, "_")
-					.replace(LEADING_TRAILING_UNDERSCORE_PATTERN, ""),
-			);
+			setName(slugifyIdentifier(label));
 		}
 	}, [label, autoName]);
 
@@ -963,6 +956,11 @@ function CreateTaxonomyDialog({
 		setError(null);
 		createMutation.reset();
 	};
+
+	const nameError =
+		autoName && label.trim().length > 0 && !name
+			? t`A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -1052,6 +1050,7 @@ function CreateTaxonomyDialog({
 								required
 								pattern="[a-z][a-z0-9_]*"
 								title={t`Lowercase letters, numbers, and underscores only, starting with a letter`}
+								error={nameError}
 							/>
 							<p className="text-xs text-kumo-subtle mt-1">
 								{t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}

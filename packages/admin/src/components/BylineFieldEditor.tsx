@@ -33,13 +33,8 @@ import type {
 	CreateBylineFieldInput,
 	UpdateBylineFieldInput,
 } from "../lib/api/byline-fields.js";
+import { slugifyIdentifier } from "../lib/utils";
 import { DialogError, getMutationError } from "./DialogError.js";
-
-// Slug auto-generation: lowercase + replace non-alphanumeric with `_` +
-// trim leading/trailing `_`. Mirrors `FieldEditor`'s rule so editors who
-// switch between content fields and byline fields see consistent behaviour.
-const SLUG_INVALID_CHARS_REGEX = /[^a-z0-9]+/g;
-const SLUG_LEADING_TRAILING_REGEX = /^_|_$/g;
 
 /**
  * The five v1 byline field types. Kept in lock-step with the server-side
@@ -137,13 +132,7 @@ export function BylineFieldEditor({
 		// slug post-create is rejected by the registry; preserving the
 		// stored slug on edit avoids confusing the editor.
 		if (!isEdit) {
-			setField(
-				"slug",
-				value
-					.toLowerCase()
-					.replace(SLUG_INVALID_CHARS_REGEX, "_")
-					.replace(SLUG_LEADING_TRAILING_REGEX, ""),
-			);
+			setField("slug", slugifyIdentifier(value));
 		}
 	};
 
@@ -201,6 +190,11 @@ export function BylineFieldEditor({
 		(isEdit || state.slug.trim().length > 0) &&
 		(state.type !== "select" || parsedSelectOptions.length > 0);
 
+	const slugError =
+		!isEdit && !state.slug && state.label.trim().length > 0
+			? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
+
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
 			<Dialog className="p-6 max-w-xl" size="lg">
@@ -245,6 +239,7 @@ export function BylineFieldEditor({
 								// uniformly, so the catalog extractor sees it.
 								placeholder={t`job_title`}
 								disabled={isEdit}
+								error={slugError}
 							/>
 							{isEdit && (
 								<p className="text-xs text-kumo-subtle mt-2">
