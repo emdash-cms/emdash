@@ -254,7 +254,8 @@ describe("toolbar inline editing", () => {
 		await vi.waitFor(() =>
 			expect(openMock).toHaveBeenCalledWith(
 				"/_emdash/admin/content/posts/post-1?field=excerpt",
-				"emdash-admin",
+				// One window per entry (#3278), so this entry's admin tab is reused and no other entry's is replaced.
+				"emdash-admin-posts-post-1",
 			),
 		);
 		expect(excerpt.hasAttribute("data-emdash-editing")).toBe(false);
