@@ -251,6 +251,43 @@ describe("linguiMacroPlugin path handling", () => {
 		expect(resolvedPath).toBe(resolve(adminDistPath, "locales", "de", "messages.mjs"));
 	});
 
+	it.each([
+		["./es-419/messages.mjs", "es-419"],
+		["./sr-Latn/messages.mjs", "sr-Latn"],
+		["./zh-CN/messages.mjs", "zh-CN"],
+		["./en-GB/messages.mjs", "en-GB"],
+		["./pseudo/messages.mjs", "pseudo"],
+		["./locales/de/messages.mjs", "de"],
+	])("redirects %s to the compiled dist catalog", (source, locale) => {
+		const plugin = linguiMacroPlugin("/workspace/emdash/packages/admin/src", adminDistPath);
+		const resolveId = unwrapHook(plugin.resolveId);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the hook does not use its Rollup context.
+		const resolved = resolveId.call(
+			{} as never,
+			source,
+			"/workspace/emdash/packages/admin/src/locales/loadMessages.ts",
+			{ attributes: {}, isEntry: false },
+		);
+
+		const resolvedPath = typeof resolved === "string" ? resolved : (resolved as { id: string })?.id;
+		expect(resolvedPath).toBe(resolve(adminDistPath, "locales", locale, "messages.mjs"));
+	});
+
+	it("strips query/hash before matching locale catalog imports", () => {
+		const plugin = linguiMacroPlugin("/workspace/emdash/packages/admin/src", adminDistPath);
+		const resolveId = unwrapHook(plugin.resolveId);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the hook does not use its Rollup context.
+		const resolved = resolveId.call(
+			{} as never,
+			"./de/messages.mjs?import",
+			"/workspace/emdash/packages/admin/src/locales/loadMessages.ts",
+			{ attributes: {}, isEntry: false },
+		);
+
+		const resolvedPath = typeof resolved === "string" ? resolved : (resolved as { id: string })?.id;
+		expect(resolvedPath).toBe(resolve(adminDistPath, "locales", "de", "messages.mjs"));
+	});
+
 	it("does not transform files outside admin source", async () => {
 		const plugin = linguiMacroPlugin("C:\\workspace\\emdash\\packages\\admin\\src", adminDistPath);
 		const hook = unwrapHook(plugin.transform);

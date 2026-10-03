@@ -34,6 +34,7 @@ import {
 } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
+import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
@@ -43,7 +44,7 @@ import {
 	injectMcpRoute,
 } from "./routes.js";
 import type { EmDashConfig } from "./runtime.js";
-import { createViteConfig } from "./vite-config.js";
+import { createViteConfig, resolveAdminDist } from "./vite-config.js";
 
 // Re-export runtime types and functions
 export type {
@@ -528,6 +529,14 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					`To sandbox this plugin, convert it to the standard format.`,
 			);
 		}
+	}
+
+	if (config.admin?.locales !== undefined) {
+		const manifest = readAdminLocaleManifest(resolveAdminDist());
+		resolvedConfig.admin = {
+			...config.admin,
+			locales: resolveAdminLocales(config.admin.locales, Object.keys(manifest)),
+		};
 	}
 
 	// Resolved plugins (populated at build time by importing entrypoints)

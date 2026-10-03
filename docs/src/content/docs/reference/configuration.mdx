@@ -616,7 +616,7 @@ Uploads that exceed the configured limit are rejected with a `413 Payload Too La
 
 ### `admin`
 
-**Optional.** Replaces EmDash branding in the admin interface. These values do not change the public site's title, logo, or favicon.
+**Optional.** Replaces EmDash branding in the admin interface and limits which admin languages the build includes. The branding values do not change the public site's title, logo, or favicon.
 
 ```js
 emdash({
@@ -635,6 +635,7 @@ emdash({
 | `siteName`    | `string`          | Name shown in the sidebar header and browser title                             |
 | `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
 | `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
+| `locales`     | `string[]`        | Admin languages to include, such as `["en", "de"]`. Catalogs for other languages are left out of the admin bundle, and only the listed languages appear in the language switcher. Users whose preferred languages are not listed see English. `en` is always included as the fallback, even if you omit it, so `admin: { locales: ["en-GB"] }` ships both English and British English. An unknown code fails the build and the error lists the available codes. |
 
 ### `updateCheck`
 
