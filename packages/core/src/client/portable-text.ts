@@ -413,8 +413,9 @@ function convertNestedBlockPortableText(
 }
 
 /**
- * Convert content data for reading: PT fields -> markdown strings.
- * Only converts fields with type "portableText" that contain arrays.
+ * Convert content data for reading: Portable Text arrays -> Markdown strings.
+ * Converts top-level `portableText` arrays and nested `portableText` arrays
+ * inside `blocks` arrays.
  */
 export function convertDataForRead(
 	data: Record<string, unknown>,
@@ -427,7 +428,7 @@ export function convertDataForRead(
 	for (const field of fields) {
 		if (field.type === "portableText" && Array.isArray(result[field.slug])) {
 			result[field.slug] = portableTextToMarkdown(result[field.slug] as PortableTextBlock[]);
-		} else if (field.type === "blocks") {
+		} else if (field.type === "blocks" && Array.isArray(result[field.slug])) {
 			result[field.slug] = convertNestedBlockPortableText(result[field.slug], field, "read");
 		}
 	}
@@ -435,8 +436,9 @@ export function convertDataForRead(
 }
 
 /**
- * Convert content data for writing: markdown strings -> PT arrays.
- * Only converts fields with type "portableText" that contain strings.
+ * Convert content data for writing: Markdown strings -> Portable Text arrays.
+ * Converts top-level `portableText` strings and nested Markdown strings
+ * in `portableText` fields inside `blocks` arrays.
  */
 export function convertDataForWrite(
 	data: Record<string, unknown>,
