@@ -1,5 +1,6 @@
 import { escapeHtml } from "../api/escape.js";
 import { VISUAL_ACTION_TOKEN_INVALID } from "./action-token.js";
+import { getVisualEditingWriteSession } from "./write-session.js";
 
 /**
  * EmDash Visual Editing Toolbar
@@ -34,6 +35,8 @@ export interface ToolbarLabels {
 	saving: string;
 	saved: string;
 	saveFailed: string;
+	saveConflict?: string;
+	entryLocked?: string;
 	image: string;
 	noImageSelected: string;
 	altText: string;
@@ -601,6 +604,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   var visualActionToken = ${inlineScriptJson(actionToken)};
   var visualActionTokenErrorCode = ${inlineScriptJson(VISUAL_ACTION_TOKEN_INVALID)};
   var toolbarLabels = ${inlineScriptJson(labels)};
+  var getWriteSession = (${getVisualEditingWriteSession.toString()});
   var visualActionRefreshTimer = null;
 
   function showVisualActionRecovery() {
@@ -696,7 +700,13 @@ export function renderToolbar(config: ToolbarConfig): string {
     return '<span class="emdash-tb-badge emdash-tb-badge--' + kind + '">' + escapeAttr(label) + '</span>';
   }
 
-  function setSaveState(state) {
+  function saveErrorLabel(code) {
+    if (code === "CONFLICT") return toolbarLabels.saveConflict || toolbarLabels.saveFailed;
+    if (code === "ENTRY_LOCKED") return toolbarLabels.entryLocked || toolbarLabels.saveFailed;
+    return toolbarLabels.saveFailed;
+  }
+
+  function setSaveState(state, code) {
     saveState = state;
     clearTimeout(saveHideTimer);
 
@@ -715,11 +725,7 @@ export function renderToolbar(config: ToolbarConfig): string {
         }, 2000);
         break;
       case "error":
-        saveStatusEl.innerHTML = badgeHtml("error", toolbarLabels.saveFailed);
-        saveHideTimer = setTimeout(function() {
-          saveStatusEl.innerHTML = "";
-          saveState = "idle";
-        }, 3000);
+        saveStatusEl.innerHTML = badgeHtml("error", saveErrorLabel(code));
         break;
       default:
         saveStatusEl.innerHTML = "";
@@ -730,7 +736,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   document.addEventListener("emdash:save", function(e) {
     var detail = e.detail || {};
     if (detail.state) {
-      setSaveState(detail.state);
+      setSaveState(detail.state, detail.code);
     }
   });
 
@@ -769,6 +775,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     try {
       var ref = JSON.parse(first.getAttribute("data-emdash-ref"));
       entryRef = ref;
+      getWriteSession(ref.collection, ref.id, ref._rev);
       if (!ref.status) return;
 
       // Show admin link
@@ -796,28 +803,67 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   // Publish action
-  function publish(collection, id) {
+  function publish(collection, id, flushed) {
+    if (!flushed) {
+      if (currentlyEditing) endCurrentEdit();
+      document.dispatchEvent(new CustomEvent("emdash:before-publish"));
+    }
     waitingForPublish = true;
     publishBtn.disabled = true;
     publishBtn.textContent = toolbarLabels.publishing;
 
     if (pendingSaves.length) {
-      Promise.all(pendingSaves).then(function() { publish(collection, id); });
+      Promise.all(pendingSaves).then(function() {
+        var session = getWriteSession(collection, id);
+        publish(collection, id, !!session.errors.size || !session.dirty.size);
+      });
       return;
     }
 
-    ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
+    var session = getWriteSession(collection, id);
+    session.enqueue(async function() {
+    if (session.dirty.size || session.errors.size) {
+      waitingForPublish = false;
+      publishBtn.disabled = false;
+      publishBtn.textContent = toolbarLabels.publish;
+      setSaveState("error", session.errors.values().next().value);
+      return Promise.resolve();
+    }
+
+    if (!session.rev) {
+      try {
+        var readResponse = await ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), { credentials: "same-origin" });
+        var readBody = await readResponse.json();
+        if (!readResponse.ok || !readBody || !readBody.success || !readBody.data || typeof readBody.data._rev !== "string") {
+          var readCode = readBody && readBody.error && readBody.error.code;
+          setSaveState("error", readCode);
+          showPublishError(saveErrorLabel(readCode));
+          return;
+        }
+        session.rev = readBody.data._rev;
+      } catch (error) {
+        setSaveState("error");
+        showPublishError(toolbarLabels.saveFailed);
+        return;
+      }
+    }
+
+    return ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
       method: "POST",
       credentials: "same-origin",
-      headers: { "X-EmDash-Visual-Action": visualActionToken },
+      headers: { "Content-Type": "application/json", "X-EmDash-Visual-Action": visualActionToken },
+      body: JSON.stringify({ _rev: session.rev }),
     })
     .then(function(res) {
       if (res.ok) {
+        return res.json().catch(function() { return null; }).then(function(body) {
+        if (body && body.data && body.data._rev) session.rev = body.data._rev;
         if (document.startViewTransition) {
           document.startViewTransition(function() { location.reload(); });
         } else {
           location.reload();
         }
+        });
       } else {
         if (res.status === 401) {
           showVisualActionRecovery();
@@ -828,7 +874,14 @@ export function renderToolbar(config: ToolbarConfig): string {
             showVisualActionRecovery();
             return;
           }
-          showPublishError(body && body.error && body.error.message);
+          var code = body && body.error && body.error.code;
+          if (code === "CONFLICT" || code === "ENTRY_LOCKED") {
+            session.errors.set("publish", code);
+            setSaveState("error", code);
+            showPublishError(saveErrorLabel(code));
+          } else {
+            showPublishError(body && body.error && body.error.message);
+          }
           console.error("Publish failed:", res.status);
         });
       }
@@ -838,7 +891,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       publishBtn.disabled = false;
       publishBtn.textContent = toolbarLabels.publish;
       console.error("Publish failed:", err);
-    });
+    }); });
   }
 
   // Edit mode toggle
@@ -890,30 +943,54 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Save a single field value. Never rejects: resolves to whether the save
   // succeeded, after the save badge already shows the outcome.
-  function saveField(collection, id, field, value) {
+  function saveField(collection, id, field, value, annotation) {
+    var session = getWriteSession(collection, id);
+    session.dirty.add(field);
     setSaveState("saving");
-    var saved = ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
+    var saved = session.enqueue(function() {
+    if (annotation && annotation.fieldRevision !== session.fieldRevisions.get(field)) {
+      session.errors.set(field, "CONFLICT");
+      setSaveState("error", "CONFLICT");
+      return Promise.resolve(false);
+    }
+    if (!session.rev) {
+      session.errors.set(field, "CONFLICT");
+      setSaveState("error", "CONFLICT");
+      return Promise.resolve(false);
+    }
+    return ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
       method: "PUT",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: { [field]: value } }),
+      body: JSON.stringify({ data: { [field]: value }, _rev: session.rev }),
     })
     .then(function(res) {
-      if (res.ok) {
-        setSaveState("saved");
+      return res.json().catch(function() { return null; }).then(function(body) {
+      if (res.ok && body && body.data && typeof body.data._rev === "string") {
+        session.rev = body.data._rev;
+        session.fieldRevisions.set(field, session.rev);
+        if (annotation) annotation.fieldRevision = session.rev;
+        session.dirty.delete(field);
+        session.errors.delete(field);
+        if (session.errors.size) setSaveState("error", session.errors.values().next().value);
+        else setSaveState(session.dirty.size ? "unsaved" : "saved");
         // A save creates/updates a draft — show unpublished changes
         showUnpublishedChanges(collection, id);
         return true;
       }
-      setSaveState("error");
+      var code = body && body.error && body.error.code;
+      session.errors.set(field, code || "SAVE_FAILED");
+      setSaveState("error", code);
       console.error("Save failed:", res.status);
       return false;
+      });
     })
     .catch(function(err) {
+      session.errors.set(field, "SAVE_FAILED");
       setSaveState("error");
       console.error("Save failed:", err);
       return false;
-    });
+    }); });
     trackSave(saved);
     return saved;
   }
@@ -961,6 +1038,8 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     currentlyEditing = element;
     var originalText = readText();
+    var session = getWriteSession(annotation.collection, annotation.id, annotation._rev);
+    annotation.fieldRevision = session.fieldRevisions.get(annotation.field);
 
     element.setAttribute("data-emdash-editing", "");
     element.contentEditable = "plaintext-only";
@@ -977,8 +1056,10 @@ export function renderToolbar(config: ToolbarConfig): string {
     function handleInput() {
       var current = readText().trim();
       if (current !== originalText.trim()) {
+        session.dirty.add(annotation.field);
         setSaveState("unsaved");
       } else {
+        if (!session.errors.has(annotation.field)) session.dirty.delete(annotation.field);
         setSaveState("idle");
       }
     }
@@ -993,8 +1074,9 @@ export function renderToolbar(config: ToolbarConfig): string {
 
       var newValue = readText().trim();
       if (newValue !== originalText.trim()) {
-        saveField(annotation.collection, annotation.id, annotation.field, newValue);
+        saveField(annotation.collection, annotation.id, annotation.field, newValue, annotation);
       } else {
+        if (!session.errors.has(annotation.field)) session.dirty.delete(annotation.field);
         setSaveState("idle");
       }
     }
@@ -1025,28 +1107,46 @@ export function renderToolbar(config: ToolbarConfig): string {
   // Text fields are often rendered transformed (Markdown to HTML, truncated
   // excerpts). Saving the page text over the stored value would lose content,
   // so they are edited in place only when the page shows the stored text.
-  function startTextEditIfShownAsStored(element, annotation) {
+  function startTextEditIfShownAsStored(element, annotation, multiline) {
+    if (currentlyEditing && currentlyEditing !== element) endCurrentEdit();
     // Rendered markup means the text was transformed. Open the admin before the
     // lookup, while the click still lets popup blockers allow window.open().
     if (element.children.length > 0) {
       openAdmin(annotation);
       return;
     }
-    ecFetch("/_emdash/api/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id), {
+    var session = getWriteSession(annotation.collection, annotation.id, annotation._rev);
+    session.pending.then(function() { return ecFetch("/_emdash/api/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id), {
       credentials: "same-origin"
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(body) {
+    }); })
+    .then(function(response) { return response.json().then(function(body) { return { ok: response.ok, body: body }; }); })
+    .then(function(result) {
+      var body = result.body;
+      if (!result.ok || !body || !body.success || !body.data || typeof body.data._rev !== "string") {
+        var code = body && body.error && body.error.code || "SAVE_FAILED";
+        session.errors.set(annotation.field, code);
+        setSaveState("error", code);
+        return;
+      }
       var item = body && body.data && body.data.item;
+      var rev = body && body.data && body.data._rev;
+      if (session.rev && session.rev !== rev) {
+        session.errors.set(annotation.field, "CONFLICT");
+        setSaveState("error", "CONFLICT");
+        return;
+      }
       var stored = item && item.data ? item.data[annotation.field] : null;
       if (typeof stored === "string" && stored.trim() === (element.textContent || "").trim()) {
-        startTextEdit(element, annotation, true);
+        session.rev = rev;
+        session.errors.delete(annotation.field);
+        startTextEdit(element, annotation, multiline);
       } else {
         openAdmin(annotation);
       }
     })
     .catch(function() {
-      openAdmin(annotation);
+      session.errors.set(annotation.field, "SAVE_FAILED");
+      setSaveState("error");
     });
   }
 
@@ -1080,22 +1180,30 @@ export function renderToolbar(config: ToolbarConfig): string {
     var collection = annotation.collection;
     var id = annotation.id;
     var field = annotation.field;
+    var session = getWriteSession(collection, id, annotation._rev);
 
     // Find img element inside the annotated container (or the element itself if it's an img)
     var imgEl = element.tagName === "IMG" ? element : element.querySelector("img");
 
     // Fetch current field value from the content API
-    ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
+    session.pending.then(function() { return ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
       credentials: "same-origin"
-    })
+    }); })
     .then(function(r) { return r.json(); })
     .then(function(body) {
       if (!body || !body.success) throw new Error("Failed to load entry");
+      var rev = body.data && body.data._rev;
+      if (typeof rev !== "string" || (session.rev && session.rev !== rev)) {
+        session.errors.set(field, "CONFLICT");
+        setSaveState("error", "CONFLICT");
+        return;
+      }
+      session.rev = rev;
+      annotation.fieldRevision = session.fieldRevisions.get(field);
       showImagePopover(element, imgEl, annotation, body.data.item.data[field]);
     })
     .catch(function() {
-      // If fetch fails, still show popover with what we can infer from DOM
-      showImagePopover(element, imgEl, annotation, null);
+      setSaveState("error");
     });
   }
 
@@ -1201,7 +1309,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     var removeBtn = popover.querySelector('[data-action="remove"]');
     if (removeBtn) {
       removeBtn.addEventListener("click", function() {
-        saveField(collection, id, field, null).then(function(saved) {
+        saveField(collection, id, field, null, annotation).then(function(saved) {
           if (saved && imgEl) {
             imgEl.style.display = "none";
           }
@@ -1219,7 +1327,7 @@ export function renderToolbar(config: ToolbarConfig): string {
         var newAlt = altInput.value;
         if (currentValue) {
           var updated = Object.assign({}, currentValue, { alt: newAlt });
-          saveField(collection, id, field, updated).then(function(saved) {
+          saveField(collection, id, field, updated, annotation).then(function(saved) {
             if (saved && imgEl) imgEl.alt = newAlt;
           });
         }
@@ -1373,7 +1481,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       if (newValue[k] === undefined) delete newValue[k];
     });
 
-    saveField(collection, id, field, newValue).then(function(saved) {
+    saveField(collection, id, field, newValue, annotation).then(function(saved) {
       // Update the image in the DOM
       if (saved && imgEl) {
         replacePageImageSource(imgEl, itemUrl);
@@ -1539,9 +1647,9 @@ export function renderToolbar(config: ToolbarConfig): string {
               e.preventDefault();
               e.stopPropagation();
               if (kind === "string" || kind === "text") {
-                startTextEdit(target, annotation);
+                startTextEditIfShownAsStored(target, annotation, false);
               } else if (kind === "richText") {
-                startTextEditIfShownAsStored(target, annotation);
+                startTextEditIfShownAsStored(target, annotation, true);
               } else if (kind === "image") {
                 startImageEdit(target, annotation);
               } else {

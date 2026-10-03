@@ -28,6 +28,7 @@ describe("inline Portable Text media picker", () => {
 		await act(async () => root.unmount());
 		container.remove();
 		delete actGlobal.IS_REACT_ACT_ENVIRONMENT;
+		Reflect.deleteProperty(window, Symbol.for("emdash.visualEditing.writeSessions"));
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
 	});
@@ -90,7 +91,13 @@ describe("inline Portable Text media picker", () => {
 					return Response.json({ data: { items: [] } });
 				}
 				if (url === "/_emdash/api/content/posts/post-1") {
-					return new Response(null, { status: 204 });
+					return Response.json({
+						success: true,
+						data: {
+							item: { data: { body: [] } },
+							_rev: init?.method === "PUT" ? "saved-provider-rev" : "initial-provider-rev",
+						},
+					});
 				}
 				throw new Error(`Unexpected request: ${url}`);
 			}),
@@ -132,7 +139,8 @@ describe("inline Portable Text media picker", () => {
 
 		const saved = await vi.waitFor(() => {
 			const request = requests.find(
-				(candidate) => candidate.url === "/_emdash/api/content/posts/post-1",
+				(candidate) =>
+					candidate.url === "/_emdash/api/content/posts/post-1" && candidate.init?.method === "PUT",
 			);
 			expect(request).not.toBeUndefined();
 			return request!;

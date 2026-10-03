@@ -206,8 +206,13 @@ describe("renderToolbar", () => {
 			clearTimeout,
 			console,
 			pendingSaves: [],
+			currentlyEditing: null,
+			document: { dispatchEvent: () => {} },
+			CustomEvent,
+			window: {},
 		});
 		runInContext(script.slice(refreshStart, refreshEnd), context);
+		runInContext('getWriteSession("posts", "post-1", "rev-1");', context);
 		runInContext(`${script.slice(publishStart, publishEnd)}\npublish("posts", "post-1");`, context);
 		await vi.advanceTimersByTimeAsync(0);
 

@@ -7,6 +7,7 @@
 export interface CMSAnnotation {
 	collection: string;
 	id: string;
+	_rev?: string;
 	field?: string;
 	/** Entry status — only present on entry-level annotations (not field-level) */
 	status?: string;
@@ -20,6 +21,7 @@ export interface FieldAnnotation {
 }
 
 export interface EditableOptions {
+	_rev?: string;
 	/** Entry status: "draft", "published", "scheduled" */
 	status?: string;
 	/** true when draftRevisionId exists and differs from liveRevisionId */
@@ -42,6 +44,7 @@ export function createEditable(
 	const base: CMSAnnotation = {
 		collection,
 		id,
+		...(options?._rev && { _rev: options._rev }),
 		...(options?.status && { status: options.status }),
 		...(options?.hasDraft && { hasDraft: true }),
 	};

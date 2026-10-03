@@ -75,12 +75,16 @@ function mountEditablePage(
 function stubApi(
 	stored: Record<string, unknown> = {},
 	manifest: Promise<Response> = Promise.resolve(Response.json(MANIFEST)),
-	save: () => Promise<Response> = async () => Response.json({ success: true, data: {} }),
+	save: () => Promise<Response> = async () =>
+		Response.json({ success: true, data: { _rev: "rev-2" } }),
 ) {
 	const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
 		if (url === "/_emdash/api/manifest") return manifest;
 		if (init?.method === "PUT") return save();
-		return Response.json({ success: true, data: { item: { data: stored } } });
+		return Response.json({
+			success: true,
+			data: { item: { data: { title: "Hello", ...stored } }, _rev: "rev-1" },
+		});
 	});
 	vi.stubGlobal("fetch", fetchMock);
 	return fetchMock;
@@ -90,7 +94,7 @@ function expectSaved(fetchMock: ReturnType<typeof stubApi>, data: Record<string,
 	return vi.waitFor(() =>
 		expect(fetchMock).toHaveBeenCalledWith(
 			"/_emdash/api/content/posts/post-1",
-			expect.objectContaining({ method: "PUT", body: JSON.stringify({ data }) }),
+			expect.objectContaining({ method: "PUT", body: JSON.stringify({ data, _rev: "rev-1" }) }),
 		),
 	);
 }
@@ -111,6 +115,7 @@ async function editInPlace(element: HTMLElement, text: string): Promise<void> {
 const documentListeners: Parameters<typeof document.addEventListener>[] = [];
 
 beforeEach(() => {
+	Reflect.deleteProperty(window, Symbol.for("emdash.visualEditing.writeSessions"));
 	const addListener = document.addEventListener.bind(document);
 	vi.spyOn(document, "addEventListener").mockImplementation((...args) => {
 		documentListeners.push(args);
@@ -137,13 +142,13 @@ describe("toolbar language", () => {
 	/** Stubs the API with a content save that stays in flight until it is answered. */
 	function holdSave(): (status: number) => void {
 		let answer!: (status: number) => void;
-		stubApi(
-			{},
-			undefined,
-			() =>
-				new Promise<Response>((resolve) => {
-					answer = (status) => resolve(new Response(null, { status }));
-				}),
+		const response = new Promise<number>((resolve) => {
+			answer = resolve;
+		});
+		stubApi({}, undefined, () =>
+			response.then((status) =>
+				Response.json({ success: status === 200, data: { _rev: "rev-2" } }, { status }),
+			),
 		);
 		return (status) => answer(status);
 	}
@@ -322,6 +327,7 @@ describe("toolbar Publish while a save is in flight", () => {
 		id: "post-1",
 		status: "published",
 		hasDraft: true,
+		_rev: "rev-1",
 	});
 	const storedBody = [
 		{
@@ -353,6 +359,8 @@ describe("toolbar Publish while a save is in flight", () => {
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 		requests = [];
 		heldSaves = new Map();
+		let revision = 1;
+		const data = { title: "Hello", body: structuredClone(storedBody) };
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async (url: string, init?: RequestInit) => {
@@ -362,16 +370,21 @@ describe("toolbar Publish while a save is in flight", () => {
 					return new Promise<Response>(() => {});
 				}
 				if (init?.method === "PUT" && typeof init.body === "string") {
-					const [field] = Object.keys(JSON.parse(init.body).data);
+					const saved = JSON.parse(init.body);
+					const [field] = Object.keys(saved.data);
+					expect(saved._rev).toBe(`rev-${revision}`);
 					requests.push(`save ${field}`);
 					const heldSave = heldSaves.get(field);
 					if (heldSave) {
 						const status = await heldSave;
 						requests.push(`${field} answered ${status}`);
-						return new Response(null, { status });
+						if (status !== 200)
+							return Response.json({ success: false, error: { code: "SAVE_FAILED" } }, { status });
 					}
+					Object.assign(data, saved.data);
+					revision++;
 				}
-				return Response.json({ success: true, data: {} });
+				return Response.json({ success: true, data: { item: { data }, _rev: `rev-${revision}` } });
 			}),
 		);
 	});
@@ -431,7 +444,6 @@ describe("toolbar Publish while a save is in flight", () => {
 	it.each([
 		["a save of the Portable Text body", "body", () => editBody(publishButton()), 200],
 		["a save of a text field", "title", editTitle, 200],
-		["a failed save of the Portable Text body", "body", () => editBody(publishButton()), 500],
 	])("publishes only after %s has finished", async (_, field, edit, status) => {
 		const answerSave = holdSave(field);
 		await mountEntry();
@@ -444,6 +456,20 @@ describe("toolbar Publish while a save is in flight", () => {
 		answerSave(status);
 		await vi.waitFor(() => expect(requests).toContain("publish"));
 		expect(requests).toEqual([`save ${field}`, `${field} answered ${status}`, "publish"]);
+	});
+
+	it.each(["body", "title"])("never publishes after a failed %s save", async (field) => {
+		const answerSave = holdSave(field);
+		await mountEntry();
+		if (field === "body") await editBody(publishButton());
+		else await editTitle();
+		publishButton().click();
+		answerSave(500);
+		await vi.waitFor(() =>
+			expect(document.getElementById("emdash-tb-save-status")!.textContent).toBe(LABELS.saveFailed),
+		);
+		await nextTask();
+		expect(requests).toEqual([`save ${field}`, `${field} answered 500`]);
 	});
 
 	it("publishes once when Publish is clicked again while it waits", async () => {
@@ -459,44 +485,44 @@ describe("toolbar Publish while a save is in flight", () => {
 		expect(requests).toEqual(["save body", "body answered 200", "publish"]);
 	});
 
-	it("publishes once when another save finishes while Publish waits", async () => {
+	it("serializes a text save after a pending body save before publishing", async () => {
 		const answerBody = holdSave("body");
 		const answerTitle = holdSave("title");
 		await mountEntry();
 
 		await editBody(document.querySelector("h1")!);
-		await editTitle();
+		const titleEdit = editTitle();
+		await nextTask();
+		expect(requests).toEqual(["save body"]);
+		answerBody(200);
+		await titleEdit;
+		await vi.waitFor(() => expect(requests).toContain("save title"));
 		publishButton().click();
 		answerTitle(200);
-		await vi.waitFor(() => expect(requests).toContain("title answered 200"));
-		await nextTask();
-		publishButton().click();
-		answerBody(200);
 		await vi.waitFor(() => expect(requests).toContain("publish"));
 		await nextTask();
 		expect(requests).toEqual([
 			"save body",
+			"body answered 200",
 			"save title",
 			"title answered 200",
-			"body answered 200",
 			"publish",
 		]);
 	});
 
-	it("waits for a body save that a later field save finished before", async () => {
+	it("advances the token before a later text save and publication", async () => {
 		const answerBody = holdSave("body");
 		await mountEntry();
 
 		await editBody(document.querySelector("h1")!);
-		await editTitle();
-		await vi.waitFor(() => expect(requests).toContain("save title"));
+		const titleEdit = editTitle();
 		await nextTask();
-		publishButton().click();
-		await nextTask();
-		expect(requests).toEqual(["save body", "save title"]);
+		expect(requests).toEqual(["save body"]);
 
 		answerBody(200);
+		await titleEdit;
+		publishButton().click();
 		await vi.waitFor(() => expect(requests).toContain("publish"));
-		expect(requests).toEqual(["save body", "save title", "body answered 200", "publish"]);
+		expect(requests).toEqual(["save body", "body answered 200", "save title", "publish"]);
 	});
 });

@@ -13,10 +13,11 @@ export interface Props {
 	collection: string;
 	entryId: string;
 	field: string;
+	_rev?: string;
 	tablePlaceholder?: string;
 }
 
-const { value, collection, entryId, field, tablePlaceholder } = Astro.props;
+const { value, collection, entryId, field, _rev, tablePlaceholder } = Astro.props;
 ---
 
 <InlinePortableTextEditor
@@ -25,5 +26,6 @@ const { value, collection, entryId, field, tablePlaceholder } = Astro.props;
 	collection={collection}
 	entryId={entryId}
 	field={field}
+	_rev={_rev}
 	tablePlaceholder={tablePlaceholder}
 />

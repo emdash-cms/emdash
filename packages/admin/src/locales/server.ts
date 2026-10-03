@@ -20,6 +20,8 @@ export interface VisualEditingToolbarLabels {
 	saving: string;
 	saved: string;
 	saveFailed: string;
+	saveConflict?: string;
+	entryLocked?: string;
 	image: string;
 	noImageSelected: string;
 	altText: string;
@@ -60,6 +62,14 @@ const TOOLBAR_MESSAGES = {
 	saving: msg({ id: "visualEditing.saving", message: "Saving…" }),
 	saved: msg({ id: "visualEditing.saved", message: "Saved" }),
 	saveFailed: msg({ id: "visualEditing.saveFailed", message: "Save failed" }),
+	saveConflict: msg({
+		id: "visualEditing.saveConflict",
+		message: "Content changed. Copy your edits, then refresh the page before saving.",
+	}),
+	entryLocked: msg({
+		id: "visualEditing.entryLocked",
+		message: "Someone else is editing this entry. Open it in the admin to resolve the lock.",
+	}),
 	image: msg({ id: "visualEditing.image", message: "Image" }),
 	noImageSelected: msg({ id: "visualEditing.noImageSelected", message: "No image selected" }),
 	altText: msg({ id: "visualEditing.altText", message: "Alt text" }),
@@ -112,6 +122,8 @@ export function translateVisualEditingToolbarLabels(
 		saving: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.saving),
 		saved: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.saved),
 		saveFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.saveFailed),
+		saveConflict: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.saveConflict),
+		entryLocked: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.entryLocked),
 		image: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.image),
 		noImageSelected: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.noImageSelected),
 		altText: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.altText),

@@ -38,8 +38,12 @@ describe("inline Portable Text editor saves", () => {
 	let container: HTMLDivElement;
 	let root: Root;
 	let puts: Array<{ url: string; body: unknown }>;
+	let serverValue: PortableTextValue;
+	let revision: number;
 
 	beforeEach(() => {
+		Reflect.deleteProperty(window, Symbol.for("emdash.visualEditing.writeSessions"));
+		revision = 1;
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 		container = document.createElement("div");
 		document.body.append(container);
@@ -51,12 +55,20 @@ describe("inline Portable Text editor saves", () => {
 				const url =
 					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 				if (init?.method === "PUT") {
+					if (typeof init.body !== "string") throw new Error("Expected serialized content data");
+					const saved = JSON.parse(init.body);
+					expect(saved._rev).toBe(`rev-${revision}`);
+					serverValue = saved.data.body;
+					revision++;
 					puts.push({
 						url,
 						body: typeof init.body === "string" ? JSON.parse(init.body) : init.body,
 					});
 				}
-				return Response.json({ data: {} });
+				return Response.json({
+					success: true,
+					data: { _rev: `rev-${revision}`, item: { data: { body: serverValue } } },
+				});
 			}),
 		);
 	});
@@ -70,6 +82,7 @@ describe("inline Portable Text editor saves", () => {
 	});
 
 	async function mount(value: PortableTextValue = storedBody) {
+		serverValue = structuredClone(value);
 		await act(async () => {
 			root.render(
 				React.createElement(InlinePortableTextEditor, {

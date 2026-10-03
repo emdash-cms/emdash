@@ -29,6 +29,7 @@ import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js
 import {
 	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
+	ENTRY_REV,
 	encodeSortCursor,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
@@ -399,6 +400,7 @@ export interface EditFieldMeta {
 	collection: string;
 	id: string;
 	field: string;
+	_rev?: string;
 }
 
 /** Type guard for EditFieldMeta */
@@ -431,6 +433,7 @@ export function getEditMeta(value: unknown): EditFieldMeta | undefined {
  * A PT array is identified by: is an array, first element has _type property.
  */
 function tagEditableFields(data: Record<string, unknown>, collection: string, id: string): void {
+	const rev: unknown = Reflect.get(data, ENTRY_REV);
 	for (const [field, value] of Object.entries(data)) {
 		if (
 			Array.isArray(value) &&
@@ -440,7 +443,12 @@ function tagEditableFields(data: Record<string, unknown>, collection: string, id
 			"_type" in value[0]
 		) {
 			Object.defineProperty(value, EMDASH_EDIT, {
-				value: { collection, id, field } satisfies EditFieldMeta,
+				value: {
+					collection,
+					id,
+					field,
+					...(typeof rev === "string" && { _rev: rev }),
+				} satisfies EditFieldMeta,
 				enumerable: false,
 				configurable: true,
 			});
@@ -477,7 +485,8 @@ function entryEditOptions(entry: { data?: unknown }): EditableOptions {
 	const draftRevisionId = dataStr(data, "draftRevisionId") || undefined;
 	const liveRevisionId = dataStr(data, "liveRevisionId") || undefined;
 	const hasDraft = !!draftRevisionId && draftRevisionId !== liveRevisionId;
-	return { status, hasDraft };
+	const rev: unknown = Reflect.get(data, ENTRY_REV);
+	return { status, hasDraft, ...(typeof rev === "string" && { _rev: rev }) };
 }
 
 function stripRevisionMetadata(entry: { data?: unknown }): void {

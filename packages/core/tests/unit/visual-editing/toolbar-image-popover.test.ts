@@ -157,6 +157,7 @@ function mountEditablePage(
 	routes: Routes,
 	{ pageShowsImage = true, responsive, labels = LABELS }: PageOptions = {},
 ) {
+	Reflect.deleteProperty(window, Symbol.for("emdash.visualEditing.writeSessions"));
 	const doc = document.implementation.createHTMLDocument("Post");
 	const hero = doc.createElement("div");
 	hero.setAttribute(
@@ -401,16 +402,18 @@ describe("toolbar image popover", () => {
 		expect(popover.querySelector('[data-action="remove"]')).not.toBeNull();
 	});
 
-	it("falls back to the page's image when the entry cannot be loaded", async () => {
+	it("refuses image editing when the stored entry cannot be loaded", async () => {
 		const page = mountEditablePage({
 			...entryRoutes,
 			[`GET ${ENTRY_URL}`]: () => apiError("NOT_FOUND", "Content item not found: post-1", 404),
 		});
-		const popover = await openImagePopover(page);
-
-		expect(popover.querySelector(".emdash-img-preview")?.getAttribute("src")).toBe(HERO_SRC);
-		expect(popover.querySelector<HTMLInputElement>("#emdash-img-alt")?.value).toBe(STORED_HERO.alt);
-		expect(popover.querySelector('[data-action="remove"]')).not.toBeNull();
+		page.hero.click();
+		await vi.waitFor(() =>
+			expect(page.doc.getElementById("emdash-tb-save-status")!.textContent).toBe(LABELS.saveFailed),
+		);
+		expect(page.doc.querySelector(".emdash-img-popover")).toBeNull();
+		expect(page.requests.some((request) => request.method === "PUT")).toBe(false);
+		expect(page.heroImg.getAttribute("src")).toBe(HERO_SRC);
 	});
 
 	it("shows an empty image field as having no image", async () => {

@@ -14,6 +14,7 @@
 import type { LiveLoader } from "astro/loaders";
 import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 
+import { encodeRev } from "./api/rev.js";
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
@@ -27,6 +28,25 @@ import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+export const ENTRY_REV = Symbol.for("emdash.entryRev");
+
+function stashEntryRev(
+	data: Record<string, unknown>,
+	row: Record<string, unknown>,
+	revisionId?: string,
+): void {
+	if (!getRequestContext()?.editMode) return;
+	const draftId = row.draft_revision_id;
+	if (revisionId) {
+		if (revisionId !== (draftId || row.live_revision_id)) return;
+	} else if (draftId && draftId !== row.live_revision_id) {
+		return;
+	}
+	const version = Number(row.version);
+	const updatedAt = rowStr(row, "updated_at");
+	if (!Number.isInteger(version) || !updatedAt) return;
+	Object.defineProperty(data, ENTRY_REV, { value: encodeRev({ version, updatedAt }) });
+}
 
 /**
  * SEO columns folded into the single-entry query as a single JSON column
@@ -574,6 +594,7 @@ function mapRowToData(
 		configurable: false,
 		writable: false,
 	});
+	stashEntryRev(data, row);
 
 	return data;
 }
@@ -1985,6 +2006,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							slug,
 							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
 						};
+						stashEntryRev(revEntryData, row, revisionId);
 						const revSeo = extractSeo(row);
 						if (revSeo) {
 							revEntryData.seo = revSeo;

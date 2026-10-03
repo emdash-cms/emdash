@@ -1,12 +1,12 @@
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { handleContentCreate } from "../../src/api/index.js";
+import { handleContentCreate, handleContentUpdate } from "../../src/api/index.js";
 import { BylineRepository } from "../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, ENTRY_REV } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -31,6 +31,30 @@ describe("Loader revision preview", () => {
 		if (!result.success) throw new Error("Failed to create post");
 		return result.data!.item;
 	}
+
+	it("carries a usable edit token without exposing it on public entry data", async () => {
+		const post = await createPublishedPost("Original title");
+		const loader = emdashLoader();
+		const load = () => loader.loadEntry!({ filter: { type: "post", id: post.slug! } });
+		const rendered = await runWithContext({ editMode: true, db }, load);
+		const data = (rendered as { data: Record<string, unknown> }).data;
+		const rev = Reflect.get(data, ENTRY_REV);
+		expect(typeof rev).toBe("string");
+		const saved = await handleContentUpdate(db, "post", post.id, {
+			data: { title: "Newer title" },
+			_rev: rev,
+		});
+		expect(saved.success).toBe(true);
+		const stale = await handleContentUpdate(db, "post", post.id, {
+			data: { title: "Stale rendered title" },
+			_rev: rev,
+		});
+		expect(stale).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		const publicEntry = await runWithContext({ editMode: false, db }, load);
+		const publicData = (publicEntry as { data: Record<string, unknown> }).data;
+		expect(Reflect.get(publicData, ENTRY_REV)).toBeUndefined();
+		expect(JSON.stringify(data)).not.toContain(rev);
+	});
 
 	it("should return Date objects for system date fields in revision preview", async () => {
 		const post = await createPublishedPost("Test Post");

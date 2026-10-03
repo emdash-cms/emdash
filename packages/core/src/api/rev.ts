@@ -16,7 +16,7 @@ import { encodeBase64, decodeBase64 } from "../utils/base64.js";
 /**
  * Generate a _rev token from a content item's version and updatedAt.
  */
-export function encodeRev(item: ContentItem): string {
+export function encodeRev(item: Pick<ContentItem, "version" | "updatedAt">): string {
 	return encodeBase64(`${item.version}:${item.updatedAt}`);
 }
 
