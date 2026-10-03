@@ -350,7 +350,7 @@ export interface SandboxedPluginEntry {
 	/** Hook declarations this plugin implements */
 	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
-	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+	adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
 	/** Saved-entry Block Kit panels. */
@@ -2425,6 +2425,7 @@ export class EmDashRuntime {
 					path: p.path,
 					label: p.label ?? p.path,
 					icon: p.icon,
+					group: p.group,
 				}));
 				const adminWidgets:
 					| Array<{
@@ -2554,6 +2555,7 @@ export class EmDashRuntime {
 					path: page.path,
 					label: page.label ?? page.path,
 					icon: page.icon,
+					group: page.group,
 				}));
 				const adminWidgets: PluginDashboardWidget[] | undefined = entry.adminWidgets?.map(
 					(widget) => ({
@@ -2945,7 +2947,7 @@ export class EmDashRuntime {
 				enabled?: boolean;
 				sandboxed?: boolean;
 				adminMode?: "react" | "blocks" | "none";
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 				dashboardWidgets?: Array<{
 					id: string;
 					title?: string;
