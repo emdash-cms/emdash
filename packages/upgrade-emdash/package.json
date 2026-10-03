@@ -1,0 +1,42 @@
+{
+  "name": "upgrade-emdash",
+  "version": "0.0.0",
+  "description": "Upgrade an EmDash project and prepare its migration work",
+  "type": "module",
+  "bin": "./dist/index.mjs",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsgo --noEmit",
+    "check": "publint"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.4.0",
+    "jsonc-parser": "catalog:",
+    "picocolors": "^1.1.1",
+    "semver": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/semver": "catalog:",
+    "publint": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "keywords": [
+    "emdash",
+    "upgrade",
+    "migration"
+  ],
+  "author": "Matt Kane",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emdash-cms/emdash.git",
+    "directory": "packages/upgrade-emdash"
+  }
+}
