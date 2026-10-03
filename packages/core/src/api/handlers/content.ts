@@ -1501,6 +1501,10 @@ export async function handleContentUpdate(
 		references?: Record<string, string[]>;
 		publishedAt?: string | null;
 	},
+	writeOptions: {
+		expectedRevision?: ContentRevisionPrecondition;
+		draftRevisionId?: string;
+	} = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1539,9 +1543,6 @@ export async function handleContentUpdate(
 			}
 		}
 
-		// Wrap content + SEO writes in a transaction for atomicity.
-		// The _rev check is inside the transaction so the read-then-write
-		// is atomic -- no concurrent write can slip between the check and update.
 		let redirectCreated = false;
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
@@ -1610,13 +1611,20 @@ export async function handleContentUpdate(
 				}
 			}
 
-			const updated = await trxRepo.update(collection, resolvedId, {
-				data: body.data,
-				slug: body.slug,
-				status: body.status,
-				authorId: body.authorId,
-				publishedAt: body.publishedAt,
-			});
+			const updated = await trxRepo.update(
+				collection,
+				resolvedId,
+				{
+					data: body.data,
+					slug: body.slug,
+					status: body.status,
+					authorId: body.authorId,
+					publishedAt: body.publishedAt,
+					draftRevisionId: writeOptions.draftRevisionId,
+				},
+				writeOptions.expectedRevision ??
+					(body._rev ? (decodeRev(body._rev) ?? undefined) : undefined),
+			);
 
 			if (body.bylines !== undefined) {
 				const credits = await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
@@ -1735,6 +1743,9 @@ export async function handleContentUpdate(
 					message: "Unique constraint violation",
 				},
 			};
+		}
+		if (error instanceof ContentMutationConflictError) {
+			return { success: false, error: { code: "CONFLICT", message: error.message } };
 		}
 		console.error("Content update error:", error);
 		return {

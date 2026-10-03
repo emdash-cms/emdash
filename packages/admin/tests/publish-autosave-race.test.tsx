@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
-import type { AdminManifest, ContentItem } from "../src/lib/api";
+import type { AdminManifest, ContentItem, ContentSeoInput } from "../src/lib/api";
 import { createAdminRouter } from "../src/router";
 import { render } from "./utils/render.tsx";
 import { createTestQueryClient } from "./utils/test-helpers.tsx";
@@ -66,6 +66,7 @@ interface RecordedRequest {
 }
 
 interface MockServerOptions {
+	hasSeo?: boolean;
 	initialBylines?: ContentItem["bylines"];
 	initialScheduledAt?: string;
 	omitScheduleChangeRevision?: boolean;
@@ -112,7 +113,14 @@ function createMockServer(options: MockServerOptions = {}) {
 		requests.push(request);
 
 		if (method === "GET" && url === "/_emdash/api/manifest") {
-			return jsonResponse({ data: MANIFEST });
+			return jsonResponse({
+				data: options.hasSeo
+					? {
+							...MANIFEST,
+							collections: { posts: { ...MANIFEST.collections.posts, hasSeo: true } },
+						}
+					: MANIFEST,
+			});
 		}
 		if (method === "GET" && url === "/_emdash/api/auth/me") {
 			return jsonResponse({ data: { id: "user_1", role: 40 } });
@@ -858,7 +866,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 	});
 });
 
-describe("ContentEditPage actions during a save conflict", () => {
+describe("ContentEditPage save sequencing and conflicts", () => {
 	const conflictRefusal =
 		"This entry changed somewhere else. Save anyway, or reload to get the newer version.";
 	let server: ReturnType<typeof createSharedEntryServer> | undefined;
@@ -877,19 +885,37 @@ describe("ContentEditPage actions during a save conflict", () => {
 	// handler. A save without a token is a blind write and goes through.
 	function createSharedEntryServer(
 		overrides: Partial<RevisionedContentItem> = {},
-		options: { holdFirstSave?: Promise<unknown> } = {},
+		options: {
+			holdFirstSave?: Promise<unknown>;
+			holdPublishedAtSave?: Promise<unknown>;
+			hasSeo?: boolean;
+		} = {},
 	) {
+		const initialItem = makeItem(overrides);
 		const entry = {
-			rev: "rev-initial",
-			data: { title: "Draft title", website: "" } as Record<string, unknown>,
+			rev: initialItem._rev,
+			data: initialItem.data,
+			authorId: initialItem.authorId,
+			seo: initialItem.seo,
+			publishedAt: initialItem.publishedAt,
 		};
 		let saves = 0;
-		const storedItem = () => makeItem({ ...overrides, _rev: entry.rev, data: entry.data });
+		const storedItem = () =>
+			makeItem({
+				...overrides,
+				_rev: entry.rev,
+				data: entry.data,
+				authorId: entry.authorId,
+				seo: entry.seo,
+				publishedAt: entry.publishedAt,
+			});
 		const mock = createMockServer({
+			hasSeo: options.hasSeo,
 			onContentGet: () => contentResponse(storedItem()),
 			onPut: async (request, index) => {
 				if (index === 0) await options.holdFirstSave;
 				const body = request.body ?? {};
+				if (body.publishedAt) await options.holdPublishedAtSave;
 				if (body._rev && body._rev !== entry.rev) {
 					return errorResponse(
 						"CONFLICT",
@@ -898,6 +924,19 @@ describe("ContentEditPage actions during a save conflict", () => {
 					);
 				}
 				if (body.data) entry.data = body.data as Record<string, unknown>;
+				if ("authorId" in body) entry.authorId = body.authorId as string | null;
+				if ("publishedAt" in body) entry.publishedAt = body.publishedAt as string | null;
+				if (body.seo) {
+					entry.seo = {
+						title: null,
+						description: null,
+						image: null,
+						canonical: null,
+						noIndex: false,
+						...entry.seo,
+						...(body.seo as ContentSeoInput),
+					};
+				}
 				entry.rev = `rev-save-${++saves}`;
 				return contentResponse(storedItem());
 			},
@@ -915,7 +954,7 @@ describe("ContentEditPage actions during a save conflict", () => {
 							collection: "posts",
 							entryId: "post_1",
 							data: entry.data,
-							authorId: null,
+							authorId: entry.authorId,
 							createdAt: "2026-01-02T00:00:00Z",
 						},
 					},
@@ -975,6 +1014,135 @@ describe("ContentEditPage actions during a save conflict", () => {
 			(request) => request.method === "POST" && request.url.includes("/publish"),
 		);
 	}
+
+	it.each(["author", "SEO"] as const)(
+		"queues %s changes behind an in-flight autosave without losing either edit",
+		async (field) => {
+			const autosave = deferredResponse();
+			server = createSharedEntryServer(
+				{},
+				{ holdFirstSave: autosave.promise, hasSeo: field === "SEO" },
+			);
+			if (field === "author") serveOneOtherUser();
+			const screen = await renderEditPage();
+			const title = screen.getByRole("textbox", { name: "Title", exact: true });
+
+			await title.fill("Autosave title");
+			await vi.advanceTimersByTimeAsync(2000);
+			expect(contentMutations(server.requests)).toHaveLength(1);
+			expect(contentMutations(server.requests)[0]?.body).toMatchObject({
+				data: { title: "Autosave title" },
+				skipRevision: true,
+				_rev: "rev-initial",
+			});
+
+			if (field === "author") {
+				await screen.getByRole("combobox", { name: "Author" }).click();
+				await vi.advanceTimersByTimeAsync(150);
+				await page.getByRole("option", { name: /Other Writer/ }).click();
+			} else {
+				await screen.getByRole("textbox", { name: "SEO Title", exact: true }).fill("Queued SEO");
+			}
+			await vi.advanceTimersByTimeAsync(1000);
+			expect(contentMutations(server.requests)).toHaveLength(1);
+
+			autosave.resolve(new Response());
+			await vi.waitFor(() => expect(server!.entry.rev).toBe("rev-save-2"));
+			await vi.advanceTimersByTimeAsync(2500);
+
+			const changes =
+				field === "author" ? { authorId: "user_2" } : { seo: { title: "Queued SEO" } };
+			const mutations = contentMutations(server.requests);
+			expect(mutations).toHaveLength(2);
+			expect(mutations[1]?.body).toMatchObject({ ...changes, _rev: "rev-save-1" });
+			expect(server.entry).toMatchObject({ ...changes, data: { title: "Autosave title" } });
+			await expect.element(title).toHaveValue("Autosave title");
+			await expect
+				.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+				.not.toBeInTheDocument();
+		},
+	);
+
+	it.each(["author", "SEO"] as const)(
+		"keeps queued %s edits when the preceding autosave conflicts without overwriting content",
+		async (field) => {
+			const autosave = deferredResponse();
+			server = createSharedEntryServer(
+				{},
+				{ holdFirstSave: autosave.promise, hasSeo: field === "SEO" },
+			);
+			if (field === "author") serveOneOtherUser();
+			const screen = await renderEditPage();
+			await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
+			await vi.advanceTimersByTimeAsync(2000);
+			if (field === "author") {
+				await screen.getByRole("combobox", { name: "Author" }).click();
+				await vi.advanceTimersByTimeAsync(150);
+				await page.getByRole("option", { name: /Other Writer/ }).click();
+			} else {
+				await screen.getByRole("textbox", { name: "SEO Title", exact: true }).fill("Queued SEO");
+			}
+			await vi.advanceTimersByTimeAsync(1000);
+			server.otherWriterSaves({ title: "Other writer", website: "" });
+			autosave.resolve(new Response());
+			await vi.waitFor(() => {
+				if (field === "author") expect(server!.entry.authorId).toBe("user_2");
+				else expect(server!.entry.seo?.title).toBe("Queued SEO");
+			});
+			expect(server.entry.data.title).toBe("Other writer");
+			await expect
+				.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+				.toBeVisible();
+			await expect
+				.element(screen.getByRole("textbox", { name: "Title", exact: true }))
+				.toHaveValue("Writer copy");
+		},
+	);
+
+	it("keeps a publication-date write queued with its form flush ahead of a pending SEO save", async () => {
+		const dateSave = deferredResponse();
+		server = createSharedEntryServer({}, { hasSeo: true, holdPublishedAtSave: dateSave.promise });
+		const screen = await renderEditPage();
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Publication title");
+		await screen.getByRole("textbox", { name: "SEO Title", exact: true }).fill("Publication SEO");
+		await screen.getByRole("button", { name: /Change publication date/ }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await vi.waitFor(() => expect(contentMutations(server!.requests)).toHaveLength(2));
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(contentMutations(server.requests)).toHaveLength(2);
+
+		dateSave.resolve(new Response());
+		await vi.waitFor(() => expect(server!.entry.rev).toBe("rev-save-3"));
+		await vi.advanceTimersByTimeAsync(2500);
+
+		const mutations = contentMutations(server.requests);
+		expect(mutations).toHaveLength(3);
+		expect(mutations[0]?.body).toMatchObject({
+			data: { title: "Publication title" },
+			_rev: "rev-initial",
+		});
+		expect(mutations[1]?.body).toMatchObject({
+			publishedAt: expect.any(String),
+			_rev: "rev-save-1",
+		});
+		expect(mutations[2]?.body).toMatchObject({
+			seo: { title: "Publication SEO" },
+			_rev: "rev-save-2",
+		});
+		expect(server.entry).toMatchObject({
+			data: { title: "Publication title" },
+			seo: { title: "Publication SEO" },
+			publishedAt: mutations[1]?.body?.publishedAt,
+		});
+		await expect.element(dialog).not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.not.toBeInTheDocument();
+	});
 
 	it("refuses a publication date change and keeps the other writer's version", async () => {
 		server = createSharedEntryServer();
@@ -1085,6 +1253,7 @@ describe("ContentEditPage actions during a save conflict", () => {
 		await page.getByRole("option", { name: /Other Writer/ }).click();
 		await vi.advanceTimersByTimeAsync(5000);
 
+		expect(server.entry.authorId).toBe("user_2");
 		await expect
 			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
 			.toBeVisible();

@@ -1548,14 +1548,18 @@ function ContentEditPage() {
 	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
-			updateMutation.mutate({
-				targetId: id,
-				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "auxiliary",
-				changes: { authorId },
-			});
+			void serializeEditorSave(
+				() =>
+					updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "auxiliary",
+						changes: { authorId },
+					}),
+				{ allowConflict: true },
+			).catch(() => undefined);
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, serializeEditorSave, updateMutation.mutateAsync],
 	);
 	const handlePublishedAtChange = React.useCallback(
 		async (
@@ -1568,17 +1572,18 @@ function ContentEditPage() {
 		) => {
 			await serializeEditorSave(
 				async () => {
-					if (!payload) return;
-					return updateMutation.mutateAsync({
-						targetId: id,
-						targetLocale: rawItem?.locale ?? activeLocale,
-						source: "editor",
-						changes: payload,
-					});
+					if (payload) {
+						await updateMutation.mutateAsync({
+							targetId: id,
+							targetLocale: rawItem?.locale ?? activeLocale,
+							source: "editor",
+							changes: payload,
+						});
+					}
+					await publishedAtMutation.mutateAsync(publishedAt);
 				},
 				{ allowConflict: !payload },
 			);
-			await publishedAtMutation.mutateAsync(publishedAt);
 		},
 		[
 			activeLocale,
@@ -1592,14 +1597,18 @@ function ContentEditPage() {
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
-			updateMutation.mutate({
-				targetId: id,
-				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "auxiliary",
-				changes: { seo },
-			});
+			void serializeEditorSave(
+				() =>
+					updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "auxiliary",
+						changes: { seo },
+					}),
+				{ allowConflict: true },
+			).catch(() => undefined);
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, serializeEditorSave, updateMutation.mutateAsync],
 	);
 
 	const handlePublish = React.useCallback(

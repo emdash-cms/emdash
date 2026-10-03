@@ -41,6 +41,7 @@ export interface UpdateContentInput {
 	/** Revision author, separate from entry ownership. */
 	revisionAuthorId?: string | null;
 	primaryBylineId?: string | null;
+	draftRevisionId?: string;
 }
 
 /** SEO fields for content items */

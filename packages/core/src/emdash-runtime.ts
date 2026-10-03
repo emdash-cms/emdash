@@ -3628,9 +3628,6 @@ export class EmDashRuntime {
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
 
-		// Validate _rev early — before draft revision writes which modify updated_at.
-		// After validation, strip _rev so the handler doesn't double-check against
-		// the now-modified timestamp.
 		if (body._rev) {
 			if (!resolvedItem) {
 				return {
@@ -3773,6 +3770,7 @@ export class EmDashRuntime {
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
+		let draftUpdateResult: Awaited<ReturnType<typeof handleContentUpdate>> | undefined;
 		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
@@ -3813,6 +3811,13 @@ export class EmDashRuntime {
 				let existing = await repo.findById(collection, resolvedId);
 
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+					const revCheck = validateRev(body._rev, existing);
+					if (!revCheck.valid) {
+						return {
+							success: false as const,
+							error: { code: "CONFLICT", message: revCheck.message },
+						};
+					}
 					let baseData: Record<string, unknown>;
 					if (existing.draftRevisionId) {
 						const draftRevision = await revisionRepo.findById(existing.draftRevisionId);
@@ -3880,9 +3885,20 @@ export class EmDashRuntime {
 						authorId: actor?.id,
 					});
 
-					let staged: boolean;
+					let stagedUpdate: Awaited<ReturnType<typeof handleContentUpdate>>;
 					try {
-						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
+						stagedUpdate = await handleContentUpdate(
+							this.db,
+							collection,
+							resolvedId,
+							{
+								...bodyWithoutRev,
+								data: undefined,
+								slug: undefined,
+								references: undefined,
+							},
+							{ expectedRevision: existing, draftRevisionId: revision.id },
+						);
 					} catch (error) {
 						try {
 							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
@@ -3895,7 +3911,14 @@ export class EmDashRuntime {
 						throw error;
 					}
 
-					if (!staged) {
+					const committedItem = stagedUpdate.success
+						? undefined
+						: await repo.findById(collection, resolvedId);
+					if (
+						!stagedUpdate.success &&
+						committedItem?.draftRevisionId !== revision.id &&
+						committedItem?.liveRevisionId !== revision.id
+					) {
 						try {
 							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
 						} catch (cleanupError) {
@@ -3904,18 +3927,19 @@ export class EmDashRuntime {
 								cleanupError,
 							);
 						}
-						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
-							const error = new ContentMutationConflictError();
-							return {
-								success: false as const,
-								error: { code: "CONFLICT", message: error.message },
-							};
+						if (
+							stagedUpdate.error.code !== "CONFLICT" ||
+							body._rev ||
+							attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1
+						) {
+							return stagedUpdate;
 						}
 						existing = await repo.findById(collection, resolvedId);
 						continue;
 					}
 
 					draftStorageChanged = true;
+					draftUpdateResult = stagedUpdate;
 					processedData = attemptData;
 
 					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
@@ -3957,16 +3981,14 @@ export class EmDashRuntime {
 		// - If collection uses draft revisions: only update metadata (no data fields, no slug)
 		// - Otherwise: update everything as before
 		const result =
-			usesDraftRevisions && !liveMetaTouched
+			draftUpdateResult ??
+			(usesDraftRevisions
 				? await handleContentGet(this.db, collection, resolvedId)
 				: await handleContentUpdate(this.db, collection, resolvedId, {
 						...bodyWithoutRev,
-						data: usesDraftRevisions ? undefined : processedData,
-						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
-						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,
-						authorId: bodyWithoutRev.authorId,
-						bylines: bodyWithoutRev.bylines,
-					});
+						data: processedData,
+						_rev: body._rev,
+					}));
 
 		const liveContentChanged = usesDraftRevisions
 			? liveMetaTouched
