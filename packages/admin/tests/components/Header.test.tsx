@@ -54,6 +54,7 @@ const { Header } = await import("../../src/components/Header");
 // ---------------------------------------------------------------------------
 
 const THEME_BUTTON_REGEX = /Switch to (light|dark)/;
+const ACCOUNT_GROUP_NAME_REGEX = /Matt Kane.*matt@test\.com/;
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -94,6 +95,21 @@ describe("Header", () => {
 		);
 		// User data loads async via react-query
 		await expect.element(screen.getByText("Matt Kane")).toBeInTheDocument();
+	});
+
+	it("opens the account menu from the user name", async () => {
+		const screen = await render(
+			<TestWrapper>
+				<Header />
+			</TestWrapper>,
+		);
+		await screen.getByRole("button", { name: "Matt Kane" }).click();
+
+		const menu = screen.getByRole("menu");
+		await expect.element(menu.getByRole("group", { name: ACCOUNT_GROUP_NAME_REGEX })).toBeVisible();
+		await expect.element(menu.getByRole("menuitem", { name: "Security" })).toBeVisible();
+		await expect.element(menu.getByRole("menuitem", { name: "Settings" })).toBeVisible();
+		await expect.element(menu.getByRole("menuitem", { name: "Log out" })).toBeVisible();
 	});
 
 	it("View Site link is present", async () => {

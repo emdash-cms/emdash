@@ -19,7 +19,8 @@ import { test, expect } from "../fixtures";
 const LOGIN_URL_PATTERN = /\/login/;
 const ADMIN_URL_PATTERN = /\/_emdash\/admin\/?$/;
 const USERS_URL_PATTERN = /\/users/;
-const SECURITY_SETTINGS_URL_PATTERN = /\/settings\/security/;
+const SECURITY_SETTINGS_URL_PATTERN = /\/_emdash\/admin\/settings\/security\/?$/;
+const SETTINGS_URL_PATTERN = /\/_emdash\/admin\/settings\/?$/;
 const LOGIN_OR_ADMIN_URL_PATTERN = /\/(login|admin)/;
 const SECURITY_MENUITEM_REGEX = /Security/i;
 const ADD_PASSKEY_REGEX = /Add Passkey/i;
@@ -128,13 +129,13 @@ test.describe("Authentication", () => {
 			await admin.goto("/");
 			await admin.waitForShell();
 
-			// Click the user menu trigger (shows "Dev Admin" text)
-			await admin.page.getByText("Dev Admin").click();
+			await admin.page.getByRole("button", { name: "Dev Admin" }).click();
 
-			// Should show menu options
-			await expect(admin.page.locator("text=Log out")).toBeVisible();
-			await expect(admin.page.locator("text=Security Settings")).toBeVisible();
-			await expect(admin.page.locator("text=Settings").last()).toBeVisible();
+			const menu = admin.page.getByRole("menu");
+			await expect(menu.getByText("Dev Admin")).toBeVisible();
+			await expect(menu.getByRole("menuitem", { name: "Security" })).toBeVisible();
+			await expect(menu.getByRole("menuitem", { name: "Settings" })).toBeVisible();
+			await expect(menu.getByRole("menuitem", { name: "Log out" })).toBeVisible();
 		});
 
 		test("security settings link navigates correctly", async ({ admin }) => {
@@ -142,15 +143,36 @@ test.describe("Authentication", () => {
 			await admin.goto("/");
 			await admin.waitForShell();
 
-			// Open user menu
-			await admin.page.getByText("Dev Admin").click();
+			await admin.page.getByRole("button", { name: "Dev Admin" }).click();
+			await admin.page.getByRole("menuitem", { name: SECURITY_MENUITEM_REGEX }).click();
 
-			// Click security settings (if present in menu)
-			const securityLink = admin.page.getByRole("menuitem", { name: SECURITY_MENUITEM_REGEX });
-			if (await securityLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-				await securityLink.click();
-				await expect(admin.page).toHaveURL(SECURITY_SETTINGS_URL_PATTERN);
-			}
+			await expect(admin.page).toHaveURL(SECURITY_SETTINGS_URL_PATTERN);
+			await expect(admin.page.getByRole("menu")).toBeHidden();
+		});
+
+		test("settings link navigates to the settings page", async ({ admin }) => {
+			await admin.devBypassAuth();
+			await admin.goto("/");
+			await admin.waitForShell();
+
+			await admin.page.getByRole("button", { name: "Dev Admin" }).click();
+			await admin.page.getByRole("menuitem", { name: "Settings" }).click();
+
+			await expect(admin.page).toHaveURL(SETTINGS_URL_PATTERN);
+			await admin.expectPageTitle("Settings");
+		});
+
+		test("log out ends the session", async ({ admin }) => {
+			await admin.devBypassAuth();
+			await admin.goto("/");
+			await admin.waitForShell();
+
+			await admin.page.getByRole("button", { name: "Dev Admin" }).click();
+			await admin.page.getByRole("menuitem", { name: "Log out" }).click();
+			await expect(admin.page).toHaveURL(LOGIN_URL_PATTERN);
+
+			await admin.page.goto("/_emdash/admin/");
+			await expect(admin.page).toHaveURL(LOGIN_URL_PATTERN);
 		});
 	});
 });

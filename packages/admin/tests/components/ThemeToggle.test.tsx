@@ -45,7 +45,46 @@ describe("ThemeToggle", () => {
 		const screen = await render(<TestThemeToggle />);
 		const button = screen.getByRole("button");
 		await expect.element(button).toBeInTheDocument();
-		await expect.element(button).toHaveAttribute("aria-label", "Switch to dark");
+		await expect.element(button).toHaveAttribute("aria-label", "Light theme. Switch to dark");
+	});
+
+	it("labels the button with the current theme", async () => {
+		mockSystemTheme("dark");
+		const screen = await render(<TestThemeToggle />);
+		const button = screen.getByRole("button");
+		await expect.element(button).toHaveTextContent("Dark");
+		await button.click();
+		await expect.element(button).toHaveTextContent("Light");
+	});
+
+	it("follows operating system theme changes by default", async () => {
+		let prefersDark = false;
+		let onChange: ((event: MediaQueryListEvent) => void) | undefined;
+		vi.spyOn(window, "matchMedia").mockImplementation(
+			(query) =>
+				({
+					matches: query === "(prefers-color-scheme: dark)" && prefersDark,
+					media: query,
+					onchange: null,
+					addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => {
+						onChange = listener;
+					},
+					removeEventListener: vi.fn(),
+					dispatchEvent: vi.fn(),
+					addListener: vi.fn(),
+					removeListener: vi.fn(),
+				}) as unknown as MediaQueryList,
+		);
+		const screen = await render(<TestThemeToggle />);
+		const button = screen.getByRole("button");
+		await expect.element(button).toHaveTextContent("Light");
+
+		prefersDark = true;
+		onChange?.({ matches: true } as MediaQueryListEvent);
+
+		await expect.element(button).toHaveTextContent("Dark");
+		await expect.element(document.documentElement).toHaveAttribute("data-mode", "dark");
+		expect(localStorage.getItem("emdash-theme")).toBeNull();
 	});
 
 	it("switches from the light system theme to a dark override", async () => {
@@ -80,6 +119,6 @@ describe("ThemeToggle", () => {
 		mockSystemTheme("light");
 		const screen = await render(<TestThemeToggle defaultTheme="light" />);
 		const button = screen.getByRole("button");
-		await expect.element(button).toHaveAttribute("aria-label", "Switch to dark");
+		await expect.element(button).toHaveAttribute("aria-label", "Light theme. Switch to dark");
 	});
 });

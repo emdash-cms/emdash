@@ -4,7 +4,15 @@ import { Sun, Moon } from "@phosphor-icons/react";
 
 import { useTheme } from "./ThemeProvider";
 
-export function ThemeToggle() {
+export function ThemeToggle({
+	className,
+	iconClassName,
+	labelClassName,
+}: {
+	className?: string;
+	iconClassName?: string;
+	labelClassName?: string;
+}) {
 	const { t } = useLingui();
 	const { setTheme, resolvedTheme } = useTheme();
 
@@ -16,19 +24,20 @@ export function ThemeToggle() {
 		setTheme(nextTheme === systemTheme ? "system" : nextTheme);
 	};
 
-	const label = resolvedTheme === "light" ? t`Switch to dark` : t`Switch to light`;
+	const isLight = resolvedTheme === "light";
+	const label = isLight ? t`Light theme. Switch to dark` : t`Dark theme. Switch to light`;
+	const Icon = isLight ? Sun : Moon;
 
 	return (
 		<Button
 			variant="ghost"
-			shape="square"
-			size="sm"
+			className={className}
 			aria-label={label}
-			onClick={toggleTheme}
 			title={label}
+			onClick={toggleTheme}
 		>
-			{resolvedTheme === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-			<span className="sr-only">{label}</span>
+			<Icon className={iconClassName} aria-hidden="true" />
+			<span className={labelClassName}>{isLight ? t`Light` : t`Dark`}</span>
 		</Button>
 	);
 }
