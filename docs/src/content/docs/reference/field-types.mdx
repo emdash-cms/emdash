@@ -566,6 +566,8 @@ Every stored block carries its type, version, and stable key alongside the field
 ]
 ```
 
+When writing content to a field with exactly one entry in `allowedTypes`, you can omit `_type` for new blocks or existing blocks of that type. EmDash stores the allowed type. Provide an explicit `_type` when several types are allowed, when editing a stored block of a retired type, or when restoring block values.
+
 Blocks validation accepts these properties:
 
 - `allowedTypes` — Ordered block type slugs available for new blocks.

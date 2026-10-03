@@ -373,6 +373,7 @@ export function resetKeyCounter(): void {
 export interface FieldSchema {
 	slug: string;
 	type: string;
+	validation?: unknown;
 	blockTypes?: Array<{
 		slug: string;
 		currentVersion: number;
@@ -389,10 +390,21 @@ function convertNestedBlockPortableText(
 	direction: "read" | "write",
 ): unknown {
 	if (!Array.isArray(value)) return value;
+	const validation = field.validation;
+	const allowedTypes =
+		validation && typeof validation === "object" && "allowedTypes" in validation
+			? validation.allowedTypes
+			: undefined;
 	return value.map((block) => {
 		if (!block || typeof block !== "object" || Array.isArray(block)) return block;
 		const record = { ...block };
-		const type = typeof record._type === "string" ? record._type : undefined;
+		const type =
+			record._type === undefined &&
+			direction === "write" &&
+			Array.isArray(allowedTypes) &&
+			allowedTypes.length === 1
+				? allowedTypes[0]
+				: record._type;
 		const version = typeof record._version === "number" ? record._version : undefined;
 		const blockType = field.blockTypes?.find((candidate) => candidate.slug === type);
 		const definition = blockType?.versions.find(
