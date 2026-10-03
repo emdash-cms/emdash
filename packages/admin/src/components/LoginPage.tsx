@@ -26,6 +26,7 @@ import { sanitizeRedirectUrl } from "../lib/url";
 import { SUPPORTED_LOCALES } from "../locales/index.js";
 import { useLocale } from "../locales/useLocale.js";
 import { PasskeyLogin } from "./auth/PasskeyLogin";
+import { TurnstileWidget } from "./auth/TurnstileWidget";
 import { BrandLogo } from "./Logo.js";
 
 // ============================================================================
@@ -45,14 +46,17 @@ type LoginMethod = "passkey" | "magic-link";
 
 interface MagicLinkFormProps {
 	onBack: () => void;
+	turnstileSiteKey?: string;
 }
 
-function MagicLinkForm({ onBack }: MagicLinkFormProps) {
+function MagicLinkForm({ onBack, turnstileSiteKey }: MagicLinkFormProps) {
 	const { t } = useLingui();
 	const [email, setEmail] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
 	const [sent, setSent] = React.useState(false);
+	const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+	const [turnstileKey, setTurnstileKey] = React.useState(0);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -63,12 +67,21 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 			const response = await apiFetch("/_emdash/api/auth/magic-link/send", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: email.trim().toLowerCase() }),
+				body: JSON.stringify({
+					email: email.trim().toLowerCase(),
+					turnstileToken: turnstileToken ?? undefined,
+				}),
 			});
 
 			if (!response.ok) {
-				const body: { error?: { message?: string } } = await response.json().catch(() => ({}));
-				throw new Error(body?.error?.message || t`Failed to send magic link`);
+				const body: { error?: { code?: string; message?: string } } = await response
+					.json()
+					.catch(() => ({}));
+				throw new Error(
+					body?.error?.code === "TURNSTILE_FAILED"
+						? t`The security check failed. Please try again.`
+						: body?.error?.message || t`Failed to send magic link`,
+				);
 			}
 
 			setSent(true);
@@ -76,6 +89,8 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 			setError(err instanceof Error ? err.message : t`Failed to send magic link`);
 		} finally {
 			setIsLoading(false);
+			setTurnstileToken(null);
+			setTurnstileKey((key) => key + 1);
 		}
 	};
 
@@ -136,6 +151,14 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 				required
 			/>
 
+			{turnstileSiteKey && (
+				<TurnstileWidget
+					key={turnstileKey}
+					siteKey={turnstileSiteKey}
+					onToken={setTurnstileToken}
+				/>
+			)}
+
 			{error && (
 				<div className="rounded-lg bg-kumo-danger/10 p-3 text-sm text-kumo-danger">{error}</div>
 			)}
@@ -145,7 +168,7 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 				className="w-full justify-center"
 				variant="primary"
 				loading={isLoading}
-				disabled={!email}
+				disabled={!email || (!!turnstileSiteKey && !turnstileToken)}
 			>
 				{isLoading ? t`Sending...` : t`Send magic link`}
 			</Button>
@@ -316,7 +339,12 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 							);
 						})()}
 
-					{method === "magic-link" && <MagicLinkForm onBack={() => setMethod("passkey")} />}
+					{method === "magic-link" && (
+						<MagicLinkForm
+							onBack={() => setMethod("passkey")}
+							turnstileSiteKey={authInfo?.turnstileSiteKey}
+						/>
+					)}
 				</div>
 
 				{/* Help text */}

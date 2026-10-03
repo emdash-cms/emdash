@@ -10,7 +10,8 @@
  * Plugin security does not rely on img-src -- plugins run in V8 isolates with
  * no DOM access. connect-src stays at 'self' unless the experimental registry
  * and/or the configured storage endpoint (for direct-to-S3 signed uploads)
- * are configured, in which case those origins are allowed too.
+ * are configured, in which case those origins are allowed too. Turnstile's
+ * script and iframe origin is allowed only when the admin auth forms use it.
  */
 import type { RegistryConfigInput } from "../../registry/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -78,7 +79,13 @@ function getHttpOrigin(rawUrl: string | undefined): string | undefined {
 	}
 }
 
-export function buildEmDashCsp(registry?: RegistryConfigInput, storageEndpoint?: string): string {
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+
+export function buildEmDashCsp(
+	registry?: RegistryConfigInput,
+	storageEndpoint?: string,
+	allowTurnstile = false,
+): string {
 	const connectSrc = ["connect-src 'self'"];
 	const origins = new Set<string>();
 	const registryAggregatorOrigin = getRegistryAggregatorOrigin(registry);
@@ -89,7 +96,10 @@ export function buildEmDashCsp(registry?: RegistryConfigInput, storageEndpoint?:
 
 	return [
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
+		allowTurnstile
+			? `script-src 'self' 'unsafe-inline' ${TURNSTILE_ORIGIN}`
+			: "script-src 'self' 'unsafe-inline'",
+		...(allowTurnstile ? [`frame-src 'self' ${TURNSTILE_ORIGIN}`] : []),
 		"style-src 'self' 'unsafe-inline'",
 		connectSrc.join(" "),
 		"form-action 'self'",

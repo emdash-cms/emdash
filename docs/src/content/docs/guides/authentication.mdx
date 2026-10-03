@@ -342,6 +342,38 @@ On Cloudflare, EmDash reads the client IP from Cloudflare's request metadata. A 
 
 Passkeys store public-key credentials; the private key stays with the user's authenticator. Magic-link tokens are stored as SHA-256 hashes and deleted after use.
 
+## Turnstile on email sign-in and signup
+
+The magic-link and self-signup forms send email to any address typed into them. To stop bots from using them, add a [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/) check:
+
+<Steps>
+
+1. Create a Turnstile widget in the Cloudflare dashboard and add your admin hostname to it. If the site already uses Turnstile for comments, use that widget instead and make sure the admin hostname is on it: comments and sign-in share one secret key, so both need the same widget.
+
+2. Set the widget's keys as environment variables. On Cloudflare, add the public site key to `vars` in your Wrangler configuration and store the secret key as a secret:
+
+   ```jsonc title="wrangler.jsonc"
+   {
+   	"vars": { "EMDASH_TURNSTILE_SITE_KEY": "0x4AAAAAAA..." },
+   }
+   ```
+
+   ```bash
+   pnpm wrangler secret put EMDASH_TURNSTILE_SECRET_KEY
+   ```
+
+   For local development with the Cloudflare adapter, put them in `.env`. On Node, set them in the environment of the server process.
+
+3. Redeploy. The admin shows the Turnstile widget on the email sign-in and signup forms. **Send magic link**, **Continue**, and **Resend email** stay disabled until the check completes, and `POST /_emdash/api/auth/magic-link/send` and `POST /_emdash/api/auth/signup/request` reject requests without a valid token.
+
+</Steps>
+
+The check applies only when both keys are set. The secret key alone enables Turnstile for [comments](/reference/configuration/#environment-variables) but not for sign-in. The admin's Content Security Policy allows `https://challenges.cloudflare.com` only while the check is enabled. Scripts and other clients that call these endpoints directly must send a `turnstileToken` in the request body.
+
+<Aside type="caution">
+	If the two keys belong to different widgets, the admin hostname is missing from the widget, or Turnstile can't be reached, every email sign-in and signup fails. Passkey sign-in keeps working. To restore email sign-in, remove `EMDASH_TURNSTILE_SITE_KEY` and redeploy.
+</Aside>
+
 ## Troubleshooting
 
 ### "No passkeys registered"

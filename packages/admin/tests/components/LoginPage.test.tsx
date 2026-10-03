@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { AdminBrandingProvider } from "../../src/lib/admin-branding-context";
 import { render } from "../utils/render.tsx";
@@ -24,14 +24,17 @@ const mockFetchAuthMode = vi.fn().mockResolvedValue({
 	authMode: "passkey",
 });
 
+const mockApiFetch = vi.fn(
+	async (_url: string, _init?: RequestInit) =>
+		new Response(JSON.stringify({ success: true }), { status: 200 }),
+);
+
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
 	return {
 		...actual,
 		fetchAuthMode: (...args: unknown[]) => mockFetchAuthMode(...args),
-		apiFetch: vi
-			.fn()
-			.mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 })),
+		apiFetch: (url: string, init?: RequestInit) => mockApiFetch(url, init),
 	};
 });
 
@@ -55,6 +58,10 @@ describe("LoginPage", () => {
 	beforeEach(() => {
 		// Clean URL params
 		window.history.replaceState({}, "", window.location.pathname);
+	});
+
+	afterEach(() => {
+		delete window.turnstile;
 	});
 
 	it("shows passkey login button when authMode is passkey", async () => {
@@ -160,6 +167,42 @@ describe("LoginPage", () => {
 		expect(logoImg.element().getAttribute("src")).toBe("https://example.com/logo.png");
 		// The stock lockup must not also be rendered
 		expect(screen.getByRole("img", { name: "EmDash" }).query()).toBeNull();
+	});
+
+	it("requires a Turnstile token before sending a magic link when a site key is configured", async () => {
+		mockFetchAuthMode.mockResolvedValueOnce({ authMode: "passkey", turnstileSiteKey: "site-key" });
+		let issueToken: ((token: string) => void) | undefined;
+		window.turnstile = {
+			render: (_container, options) => {
+				issueToken = options.callback;
+				return "widget-1";
+			},
+			remove: vi.fn(),
+		};
+		mockApiFetch.mockClear();
+
+		const screen = await render(
+			<QueryWrapper>
+				<LoginPage />
+			</QueryWrapper>,
+		);
+		await screen.getByText("Sign in with email link").click();
+		await screen.getByPlaceholder("you@example.com").fill("author@example.com");
+
+		const submit = screen.getByRole("button", { name: "Send magic link" });
+		await expect.element(submit).toBeDisabled();
+
+		await vi.waitFor(() => expect(issueToken).toBeDefined());
+		issueToken!("good-token");
+		await expect.element(submit).toBeEnabled();
+		await submit.click();
+
+		await vi.waitFor(() => expect(mockApiFetch).toHaveBeenCalled());
+		const init = mockApiFetch.mock.calls[0]![1];
+		expect(JSON.parse(init?.body as string)).toEqual({
+			email: "author@example.com",
+			turnstileToken: "good-token",
+		});
 	});
 
 	it("falls back to the stock EmDash mark when no admin branding is configured", async () => {
