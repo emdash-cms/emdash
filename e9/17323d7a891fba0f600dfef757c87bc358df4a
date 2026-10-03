@@ -1,0 +1,29 @@
+.changeset/validate-content-before-publication.md
+  s_871d7d7d37412b::t_e2e7d8782d40bf 1-5
+docs/src/content/docs/reference/rest-api.mdx
+  s_871d7d7d37412b::t_60857c7e8c577e 347-348
+packages/core/src/api/handlers/content.ts
+  s_871d7d7d37412b::t_89d6cfe70ea687 85,92-94,275-284,1592,1603-1614,1622,1638-1650,1666,1750-1754,2422-2428,2438-2459,2498,2518,2585-2589
+packages/core/src/api/handlers/validation.ts
+  s_871d7d7d37412b::t_45c9ae26bdb5a0 153,186
+packages/core/tests/integration/content/publish-validates-draft.test.ts
+  s_871d7d7d37412b::t_02abb3077df5b7 1-464
+packages/core/tests/workerd/content-publish-validation-d1.test.ts
+  s_871d7d7d37412b::t_7acbc441c4280d 1-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e917323d7a891fba0f600dfef757c87bc358df4a",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
