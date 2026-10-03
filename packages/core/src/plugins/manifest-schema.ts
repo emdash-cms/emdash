@@ -455,6 +455,12 @@ export const pluginManifestBaseSchema = z.object({
 	id: z.string().min(1),
 	version: z.string().min(1),
 	declaredAccess: declaredAccessSchema.optional(),
+	/**
+	 * Host environment constraints persisted from the signed release record
+	 * at registry install/update time (see `PluginManifest.requires`). Bundles
+	 * without the key must still validate — absence means "no constraints".
+	 */
+	requires: z.record(z.string(), z.string()).optional(),
 	capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)),
 	allowedHosts: z.array(z.string()),
 	storage: z.record(z.string(), storageCollectionSchema),

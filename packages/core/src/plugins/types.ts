@@ -2260,6 +2260,16 @@ export interface PluginManifest {
 	 * via `reconcileManifestAccess`. Optional during the wire-format migration.
 	 */
 	declaredAccess?: DeclaredAccess;
+	/**
+	 * Host environment constraints (`env:emdash`, `env:astro`, ...) copied
+	 * from the signed release record into the stored bundle manifest at
+	 * registry install/update time, so the load-time env gate can re-check
+	 * them after a host upgrade. The stored manifest is unsigned, so this is
+	 * only ever populated from the verified record — never from
+	 * publisher-authored bundle bytes — and is absent on bundles installed
+	 * without a record constraint.
+	 */
+	requires?: Record<string, string>;
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
 	storage: PluginStorageConfig;

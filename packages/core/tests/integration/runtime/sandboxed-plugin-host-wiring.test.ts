@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 
-import { SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
+import { runMigrations } from "../../../src/database/migrations/runner.js";
+import type { Database as DatabaseTables } from "../../../src/database/types.js";
+import { openNodeSqliteDatabase } from "../../../src/db/node-sqlite-compat.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
@@ -67,6 +70,7 @@ class MemoryStorage implements Storage {
 
 let currentInvokeHook: SandboxedPluginInstance["invokeHook"] = async () => undefined;
 let loadedSandboxCapabilities: string[] = [];
+let sandboxLoadCalls: Array<{ id: string; version: string }> = [];
 
 function createDeps(
 	invokeHook: SandboxedPluginInstance["invokeHook"],
@@ -75,10 +79,12 @@ function createDeps(
 ): RuntimeDependencies {
 	currentInvokeHook = invokeHook;
 	loadedSandboxCapabilities = [];
+	sandboxLoadCalls = [];
 	const runner = {
 		isAvailable: () => true,
 		isHealthy: () => true,
 		load: vi.fn(async (manifest: { id: string; version: string; capabilities: string[] }) => {
+			sandboxLoadCalls.push({ id: manifest.id, version: manifest.version });
 			loadedSandboxCapabilities = [...manifest.capabilities];
 			return {
 				id: `${manifest.id}:${manifest.version}`,
@@ -278,6 +284,234 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 			"plugin:deactivate",
 			"plugin:uninstall",
 		]);
+	});
+
+	describe("load-time requires gate", () => {
+		function putStoredBundle(
+			storage: MemoryStorage,
+			source: "marketplace" | "registry",
+			pluginId: string,
+			version: string,
+			requires?: Record<string, string>,
+		): void {
+			const manifest: Record<string, unknown> = {
+				id: pluginId,
+				version,
+				capabilities: ["media:read"],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["media:afterUpload"],
+				routes: [],
+				admin: {},
+			};
+			if (requires) manifest.requires = requires;
+			storage.putText(`${source}/${pluginId}/${version}/manifest.json`, JSON.stringify(manifest));
+			storage.putText(`${source}/${pluginId}/${version}/backend.js`, "export default {};");
+		}
+
+		async function upsertState(
+			target: EmDashRuntime,
+			pluginId: string,
+			source: "marketplace" | "registry",
+		): Promise<void> {
+			await new PluginStateRepository(target.db).upsert(pluginId, "1.0.0", "active", {
+				source,
+				...(source === "registry"
+					? { registryPublisherDid: "did:plc:test", registrySlug: pluginId }
+					: {}),
+			});
+		}
+
+		function createGateDeps(
+			invokeHook: SandboxedPluginInstance["invokeHook"],
+			source: "marketplace" | "registry",
+			storage: MemoryStorage,
+			extra: Partial<RuntimeDependencies> = {},
+		): RuntimeDependencies {
+			return createDeps(invokeHook, {
+				config: {
+					database: {
+						entrypoint: `test-load-gate-${randomUUID()}`,
+						config: {},
+						type: "sqlite",
+					},
+					storage: { entrypoint: `memory-${randomUUID()}`, config: {} },
+					astroVersion: "5.6.0",
+					...(source === "registry" ? { registry: "https://registry.example.com" } : {}),
+					...(source === "marketplace" ? { marketplace: "https://marketplace.example.com" } : {}),
+				},
+				createStorage: () => storage,
+				sandboxedPluginEntries: [],
+				...extra,
+			});
+		}
+
+		async function runMediaHook(target: EmDashRuntime): Promise<void> {
+			await target.hooks.runMediaAfterUpload({
+				id: "media-1",
+				filename: "image.png",
+				mimeType: "image/png",
+				size: 1,
+				url: "/image.png",
+				createdAt: new Date().toISOString(),
+			});
+		}
+
+		it("skips loading a registry plugin whose stored requires exclude the host", async () => {
+			const calls: string[] = [];
+			const invokeHook = vi.fn(async (name: string) => {
+				calls.push(name);
+			});
+			const storage = new MemoryStorage();
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			runtime = await EmDashRuntime.create(createGateDeps(invokeHook, "registry", storage));
+			putStoredBundle(storage, "registry", "load-incompat", "1.0.0", {
+				"env:astro": "^4.0.0",
+			});
+			await upsertState(runtime, "load-incompat", "registry");
+
+			await runtime.syncRegistryPlugins();
+
+			// Never loaded: no sandbox instance, no pipeline entry, no hook dispatch.
+			expect(sandboxLoadCalls).toEqual([]);
+			await runMediaHook(runtime);
+			expect(calls).toEqual([]);
+			// Warning names the plugin, version, host, and unsatisfied constraint.
+			const warnings = warn.mock.calls.map((call) => String(call[0])).join("\n");
+			expect(warnings).toContain("load-incompat");
+			expect(warnings).toContain("1.0.0");
+			expect(warnings).toContain("env:astro");
+			expect(warnings).toContain("^4.0.0");
+			// In-memory record for the admin list; DB state stays active.
+			expect(runtime.getSandboxedPluginLoadIncompatibility("load-incompat")).toEqual([
+				{ key: "env:astro", required: "^4.0.0", host: "5.6.0" },
+			]);
+			const state = await new PluginStateRepository(runtime.db).get("load-incompat");
+			expect(state?.status).toBe("active");
+			warn.mockRestore();
+		});
+
+		it("loads a registry plugin whose stored requires the host satisfies", async () => {
+			const calls: string[] = [];
+			const invokeHook = vi.fn(async (name: string) => {
+				calls.push(name);
+			});
+			const storage = new MemoryStorage();
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			runtime = await EmDashRuntime.create(createGateDeps(invokeHook, "registry", storage));
+			putStoredBundle(storage, "registry", "load-compat", "1.0.0", {
+				"env:astro": "^5.0.0",
+			});
+			await upsertState(runtime, "load-compat", "registry");
+
+			await runtime.syncRegistryPlugins();
+
+			expect(sandboxLoadCalls).toEqual([{ id: "load-compat", version: "1.0.0" }]);
+			await runMediaHook(runtime);
+			expect(calls).toEqual(["media:afterUpload"]);
+			expect(runtime.getSandboxedPluginLoadIncompatibility("load-compat")).toBeNull();
+			warn.mockRestore();
+		});
+
+		it("fails open when stored requires are unparseable or absent", async () => {
+			const calls: string[] = [];
+			const invokeHook = vi.fn(async (name: string) => {
+				calls.push(name);
+			});
+			const storage = new MemoryStorage();
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			runtime = await EmDashRuntime.create(createGateDeps(invokeHook, "registry", storage));
+			putStoredBundle(storage, "registry", "load-unparseable", "1.0.0", {
+				"env:astro": "not-a-semver-range",
+			});
+			putStoredBundle(storage, "registry", "load-no-requires", "1.0.0");
+			await upsertState(runtime, "load-unparseable", "registry");
+			await upsertState(runtime, "load-no-requires", "registry");
+
+			await runtime.syncRegistryPlugins();
+
+			expect(sandboxLoadCalls).toEqual(
+				expect.arrayContaining([
+					{ id: "load-unparseable", version: "1.0.0" },
+					{ id: "load-no-requires", version: "1.0.0" },
+				]),
+			);
+			await runMediaHook(runtime);
+			expect(calls).toEqual(["media:afterUpload", "media:afterUpload"]);
+			expect(runtime.getSandboxedPluginLoadIncompatibility("load-unparseable")).toBeNull();
+			expect(runtime.getSandboxedPluginLoadIncompatibility("load-no-requires")).toBeNull();
+			warn.mockRestore();
+		});
+
+		it("applies the same load-time gate to marketplace plugins", async () => {
+			const calls: string[] = [];
+			const invokeHook = vi.fn(async (name: string) => {
+				calls.push(name);
+			});
+			const storage = new MemoryStorage();
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			runtime = await EmDashRuntime.create(createGateDeps(invokeHook, "marketplace", storage));
+			putStoredBundle(storage, "marketplace", "mp-incompat", "1.0.0", {
+				"env:astro": "^4.0.0",
+			});
+			await upsertState(runtime, "mp-incompat", "marketplace");
+
+			await runtime.syncMarketplacePlugins();
+
+			expect(sandboxLoadCalls).toEqual([]);
+			await runMediaHook(runtime);
+			expect(calls).toEqual([]);
+			const warnings = warn.mock.calls.map((call) => String(call[0])).join("\n");
+			expect(warnings).toContain("mp-incompat");
+			expect(runtime.getSandboxedPluginLoadIncompatibility("mp-incompat")).toEqual([
+				{ key: "env:astro", required: "^4.0.0", host: "5.6.0" },
+			]);
+			warn.mockRestore();
+		});
+
+		it("skips a cold-start registry plugin whose stored requires exclude the host", async () => {
+			const calls: string[] = [];
+			const invokeHook = vi.fn(async (name: string) => {
+				calls.push(name);
+			});
+			const storage = new MemoryStorage();
+			putStoredBundle(storage, "registry", "cold-incompat", "1.0.0", {
+				"env:astro": "^4.0.0",
+			});
+
+			// Plant the active state row before create() so the runtime's
+			// cold-start loader — not the post-install sync — is the code path
+			// under test.
+			const sqlite = openNodeSqliteDatabase(":memory:");
+			const db = new Kysely<DatabaseTables>({
+				dialect: new SqliteDialect({ database: sqlite }),
+			});
+			await runMigrations(db);
+			await new PluginStateRepository(db).upsert("cold-incompat", "1.0.0", "active", {
+				source: "registry",
+				registryPublisherDid: "did:plc:test",
+				registrySlug: "cold-incompat",
+			});
+
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			runtime = await EmDashRuntime.create(
+				createGateDeps(invokeHook, "registry", storage, {
+					createDialect: () => new SqliteDialect({ database: sqlite }),
+				}),
+			);
+
+			expect(sandboxLoadCalls).toEqual([]);
+			await runMediaHook(runtime);
+			expect(calls).toEqual([]);
+			const warnings = warn.mock.calls.map((call) => String(call[0])).join("\n");
+			expect(warnings).toContain("cold-incompat");
+			expect(runtime.getSandboxedPluginLoadIncompatibility("cold-incompat")).toEqual([
+				{ key: "env:astro", required: "^4.0.0", host: "5.6.0" },
+			]);
+			const state = await new PluginStateRepository(runtime.db).get("cold-incompat");
+			expect(state?.status).toBe("active");
+			warn.mockRestore();
+		});
 	});
 
 	it("runs first-install lifecycle exactly once when requested by an install flow", async () => {

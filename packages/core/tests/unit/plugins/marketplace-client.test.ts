@@ -347,6 +347,32 @@ describe("MarketplaceClient", () => {
 			expect(bundle.adminCode).toContain("Admin");
 		});
 
+		it("strips bundle-authored requires so unsigned marketplace manifests never persist it", async () => {
+			const manifest = {
+				id: "test-seo",
+				version: "1.0.0",
+				// Publisher-authored and unsigned: must not survive extraction.
+				requires: { core: ">=999.0.0" },
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			};
+
+			const tarData = createTar({
+				"manifest.json": JSON.stringify(manifest),
+				"backend.js": "export default {};",
+			});
+			const gzipped = await gzip(tarData);
+
+			fetchSpy.mockResolvedValueOnce(new Response(gzipped, { status: 200 }));
+
+			const bundle = await client.downloadBundle("test-seo", "1.0.0");
+			expect(bundle.manifest.requires).toBeUndefined();
+		});
+
 		it("throws on missing manifest.json", async () => {
 			const tarData = createTar({
 				"backend.js": "export default {};",

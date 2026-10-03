@@ -86,6 +86,18 @@ export interface PluginUpdateInfo {
 	pluginId: string;
 	installed: string;
 	latest: string;
+	/**
+	 * Server-computed availability. When the latest release's `requires`
+	 * excludes the host, registry items report `false` here (with
+	 * `envCompatible: false`) even though `latest !== installed` — the
+	 * update handler would refuse with `ENV_INCOMPATIBLE`. Absent on
+	 * responses from older servers; fall back to the version comparison.
+	 */
+	hasUpdate?: boolean;
+	/** False when the latest release's `requires` excludes the host (registry only). */
+	envCompatible?: boolean;
+	/** Structured mismatches (`key`/`required`/`host`) when `envCompatible` is false. */
+	incompatibleConstraints?: Array<{ key: string; required: string; host: string }>;
 	hasCapabilityChanges: boolean;
 }
 

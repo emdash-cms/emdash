@@ -44,6 +44,13 @@ export interface PluginInfo {
 		permission: string;
 		destructive: boolean;
 	}>;
+	/**
+	 * Unsatisfied `requires` constraints when the plugin is active but was
+	 * skipped at load time because its stored range excludes this host.
+	 * Absent/empty when the plugin loaded normally — distinguishes
+	 * "active-but-incompatible" from both inactive and healthy.
+	 */
+	incompatibleWithHost?: Array<{ key: string; required: string; host: string }>;
 }
 
 /**

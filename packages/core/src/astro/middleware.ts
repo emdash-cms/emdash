@@ -1118,6 +1118,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					runPluginActivateLifecycle: runtime.runPluginActivateLifecycle.bind(runtime),
 					runPluginUninstallLifecycle: runtime.runPluginUninstallLifecycle.bind(runtime),
 					getRuntimePluginSettingsSchema: runtime.getRuntimePluginSettingsSchema.bind(runtime),
+					getSandboxedPluginLoadIncompatibility:
+						runtime.getSandboxedPluginLoadIncompatibility.bind(runtime),
 
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),

@@ -15,8 +15,9 @@ import {
 	checkEnvCompatibility,
 	compareVersions,
 	findSkippedEnvConstraints,
+	parseRequires,
 } from "@emdash-cms/registry-client/env";
-import type { HostEnv } from "@emdash-cms/registry-client/env";
+import type { EnvMismatch, HostEnv } from "@emdash-cms/registry-client/env";
 import { isProvenFirstRelease } from "@emdash-cms/registry-client/listing-policy";
 import type { ReleaseHistoryEvidence } from "@emdash-cms/registry-client/listing-policy";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
@@ -906,6 +907,19 @@ export async function handleRegistryInstall(
 		// marketplace plugins that happen to share the publisher's slug.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
 
+		// Persist the release record's guarded `requires` into the stored
+		// bundle manifest so the load-time env gate can re-check it after a
+		// host upgrade. The stored manifest is unsigned, so the value must
+		// come from the signed record (already env-gated above), never from
+		// publisher-authored bundle bytes: strip whatever the bundle declared
+		// and write the guarded record value, omitting the key entirely when
+		// the record carries no constraints.
+		const guardedRequires = parseRequires(release.requires);
+		const storedManifest = { ...bundle.manifest };
+		delete storedManifest.requires;
+		if (Object.keys(guardedRequires).length > 0) storedManifest.requires = guardedRequires;
+		bundle.manifest = storedManifest;
+
 		// Integrity: the bundle that will run MUST declare exactly the access
 		// the signed release record advertises. The consent dialog is driven
 		// from the record's `declaredAccess`, so a bundle enforcing something
@@ -1572,6 +1586,16 @@ export async function handleRegistryUpdate(
 		// and R2 layout stay in sync across install and update.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
 
+		// Same persistence rule as install: the stored bundle manifest is
+		// unsigned, so its `requires` must come from the signed release
+		// record (env-gated above) — never from publisher-authored bundle
+		// bytes. Refresh (or strip) whatever a previous install stored.
+		const guardedRequires = parseRequires(release.requires);
+		const storedManifest = { ...bundle.manifest };
+		delete storedManifest.requires;
+		if (Object.keys(guardedRequires).length > 0) storedManifest.requires = guardedRequires;
+		bundle.manifest = storedManifest;
+
 		// Integrity: same gate as install. The new bundle must declare exactly
 		// the access its signed release record advertises. Without it, an update
 		// that changes only the host scope (e.g. api.good.com -> evil.com) keeps
@@ -1738,6 +1762,16 @@ export interface RegistryUpdateCheck {
 	latest: string;
 	hasUpdate: boolean;
 	/**
+	 * Whether the latest release's `requires` is satisfied by the host. When
+	 * `false`, `hasUpdate` is forced to `false` — the update handler would
+	 * refuse with `ENV_INCOMPATIBLE` — and `incompatibleConstraints` carries
+	 * the mismatch list. Absent host env (older callers) reports `true`,
+	 * preserving the pure version-compare behavior.
+	 */
+	envCompatible: boolean;
+	/** Structured mismatches (`key`/`required`/`host`); present only when `envCompatible` is `false`. */
+	incompatibleConstraints?: EnvMismatch[];
+	/**
 	 * Both diff fields are `false` here by design: computing them at
 	 * update-check time would require downloading both bundles (or
 	 * extracting from the signed release extension and the installed
@@ -1752,13 +1786,16 @@ export interface RegistryUpdateCheck {
 /**
  * Bulk update check across every installed registry plugin. Queries the
  * aggregator for each plugin's latest release and reports `hasUpdate`
- * based on the version comparison. Plugins whose aggregator lookup fails
- * (unreachable, delisted, malformed) are skipped silently — one bad
- * publisher must not blank the whole admin Updates list.
+ * based on the version comparison. The latest release's `requires` is
+ * evaluated against the host env so a release the update handler would
+ * refuse never presents as an available update. Plugins whose aggregator
+ * lookup fails (unreachable, delisted, malformed) are skipped silently —
+ * one bad publisher must not blank the whole admin Updates list.
  */
 export async function handleRegistryUpdateCheck(
 	db: Kysely<Database>,
 	registryConfigInput: RegistryConfigInput | undefined,
+	opts?: { hostEnv?: HostEnv },
 ): Promise<ApiResult<{ items: RegistryUpdateCheck[] }>> {
 	const registryConfig = coerceRegistryConfig(registryConfigInput);
 	if (!registryConfig) {
@@ -1800,11 +1837,37 @@ export async function handleRegistryUpdateCheck(
 				const latest = releaseView.version;
 				if (!latest) continue;
 				const installed = plugin.version;
+
+				// The update handler refuses a release whose `requires` the
+				// host doesn't satisfy; the check must not advertise that
+				// release as an available update. `requires` comes off the
+				// aggregator-hydrated signed release record — the same value
+				// install/update enforce (their authoritative-record read is
+				// too expensive for a bulk check). Unparseable `requires`
+				// fails open here exactly as it does at install/update time.
+				let envCompatible = true;
+				let incompatibleConstraints: EnvMismatch[] | undefined;
+				if (opts?.hostEnv) {
+					const envError = assertEnvCompatible(releaseView.release?.requires, opts.hostEnv);
+					if (envError) {
+						envCompatible = false;
+						incompatibleConstraints = Object.entries(envError.details.requires).map(
+							([key, required]) => ({
+								key,
+								required,
+								host: envError.details.host[key] ?? "unknown",
+							}),
+						);
+					}
+				}
+
 				items.push({
 					pluginId: plugin.pluginId,
 					installed,
 					latest,
-					hasUpdate: latest !== installed,
+					hasUpdate: latest !== installed && envCompatible,
+					envCompatible,
+					incompatibleConstraints,
 					hasCapabilityChanges: false,
 					hasRouteVisibilityChanges: false,
 				});
