@@ -229,6 +229,11 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	content: none !important;
 }
 
+.ProseMirror blockquote p::before,
+.ProseMirror blockquote p::after {
+	content: none;
+}
+
 /* Tighter list spacing for editor */
 .prose li {
 	margin-top: 0.25em !important;

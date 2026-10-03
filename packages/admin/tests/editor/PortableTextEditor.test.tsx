@@ -1061,14 +1061,31 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(items.length).toBe(2);
 	});
 
-	it("renders a blockquote", async () => {
+	it.each(["A wise quote", '"A wise quote." — An author', '"اقتباس حكيم." — الكاتب'])(
+		"renders blockquote text without decorative quotation marks: %s",
+		async (text) => {
+			await render(<PortableTextEditor value={[textBlock(text, { style: "blockquote" })]} />);
+			const pm = await waitForEditor();
+			const bq = pm.querySelector("blockquote");
+			expect(bq).toBeTruthy();
+			expect(bq!.textContent).toBe(text);
+			const paragraph = bq!.querySelector("p")!;
+			for (const pseudo of ["::before", "::after"]) {
+				expect(["none", "normal"]).toContain(getComputedStyle(paragraph, pseudo).content);
+			}
+		},
+	);
+
+	it("keeps the writing placeholder visible in an empty blockquote", async () => {
 		await render(
-			<PortableTextEditor value={[textBlock("A wise quote", { style: "blockquote" })]} />,
+			<PortableTextEditor
+				value={[textBlock("", { style: "blockquote" })]}
+				placeholder="Write something..."
+			/>,
 		);
 		const pm = await waitForEditor();
-		const bq = pm.querySelector("blockquote");
-		expect(bq).toBeTruthy();
-		expect(bq!.textContent).toBe("A wise quote");
+		const paragraph = pm.querySelector("blockquote p")!;
+		expect(getComputedStyle(paragraph, "::before").content).toContain("Write something...");
 	});
 
 	it("renders a code block", async () => {
