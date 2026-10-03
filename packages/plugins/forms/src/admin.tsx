@@ -48,6 +48,13 @@ function apiFetch(route: string, body?: unknown): Promise<Response> {
 	});
 }
 
+const FORMS_LOAD_FAILED = "Failed to load forms";
+
+/** A 403 on forms/list is a permission problem, never an empty list of forms. */
+function formsLoadError(res: Response): string {
+	return res.status === 403 ? "You don't have permission to view forms." : FORMS_LOAD_FAILED;
+}
+
 // =============================================================================
 // Types (mirrors plugin types, kept minimal for admin use)
 // =============================================================================
@@ -187,13 +194,13 @@ function FormsListPage() {
 		try {
 			const res = await apiFetch("forms/list");
 			if (!res.ok) {
-				setError("Failed to load forms");
+				setError(formsLoadError(res));
 				return;
 			}
 			const data = await parseApiResponse<{ items: FormItem[] }>(res);
 			setForms(data.items);
 		} catch {
-			setError("Failed to load forms");
+			setError(FORMS_LOAD_FAILED);
 		} finally {
 			setLoading(false);
 		}
@@ -856,18 +863,23 @@ function SubmissionsPage() {
 	const [loading, setLoading] = React.useState(true);
 	const [subsLoading, setSubsLoading] = React.useState(false);
 	const [selectedSub, setSelectedSub] = React.useState<SubmissionItem | null>(null);
+	const [error, setError] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		void (async () => {
 			try {
 				const res = await apiFetch("forms/list");
-				if (res.ok) {
-					const data = await parseApiResponse<{ items: FormItem[] }>(res);
-					setForms(data.items);
-					if (data.items.length > 0 && data.items[0]) {
-						setSelectedFormId(data.items[0].id);
-					}
+				if (!res.ok) {
+					setError(formsLoadError(res));
+					return;
 				}
+				const data = await parseApiResponse<{ items: FormItem[] }>(res);
+				setForms(data.items);
+				if (data.items.length > 0 && data.items[0]) {
+					setSelectedFormId(data.items[0].id);
+				}
+			} catch {
+				setError(FORMS_LOAD_FAILED);
 			} finally {
 				setLoading(false);
 			}
@@ -956,6 +968,17 @@ function SubmissionsPage() {
 		return (
 			<div className="flex items-center justify-center py-16">
 				<Loader />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="space-y-6">
+				<h1 className="text-3xl font-bold">Submissions</h1>
+				<div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+					{error}
+				</div>
 			</div>
 		);
 	}
@@ -1202,12 +1225,16 @@ function RecentSubmissionsWidget() {
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [submissions, setSubmissions] = React.useState<SubmissionItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
+	const [error, setError] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		void (async () => {
 			try {
 				const formsRes = await apiFetch("forms/list");
-				if (!formsRes.ok) return;
+				if (!formsRes.ok) {
+					setError(formsLoadError(formsRes));
+					return;
+				}
 				const formsData = await parseApiResponse<{ items: FormItem[] }>(formsRes);
 				setForms(formsData.items);
 
@@ -1223,6 +1250,8 @@ function RecentSubmissionsWidget() {
 						setSubmissions(subsData.items);
 					}
 				}
+			} catch {
+				setError(FORMS_LOAD_FAILED);
 			} finally {
 				setLoading(false);
 			}
@@ -1235,6 +1264,10 @@ function RecentSubmissionsWidget() {
 				<Loader />
 			</div>
 		);
+	}
+
+	if (error) {
+		return <div className="text-center text-sm text-muted-foreground py-4">{error}</div>;
 	}
 
 	if (forms.length === 0) {
