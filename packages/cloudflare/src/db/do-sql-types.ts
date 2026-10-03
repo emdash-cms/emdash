@@ -63,7 +63,7 @@ export interface DOQueryStatement {
 /** Result shape returned by the `EmDashDB` RPC methods. */
 export interface DOQueryResult {
 	rows: Record<string, unknown>[];
-	/** Rows written. `undefined` for read-only statements. */
+	/** Rows changed by the last statement (SQLite `changes()`). `undefined` for read-only statements. */
 	changes?: number;
 	/**
 	 * Replication bookmark captured after a write, used for read-your-writes.

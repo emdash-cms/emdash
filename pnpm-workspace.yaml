@@ -104,7 +104,16 @@ catalog:
   "@cloudflare/vite-plugin": ^1.36.3
   "@cloudflare/vitest-plugin": ^1.0.0
   "@cloudflare/workers-types": ^5.20260820.1
+  "@codemirror/autocomplete": ^6.20.3
+  "@codemirror/commands": ^6.10.4
+  "@codemirror/lang-css": ^6.3.1
+  "@codemirror/lang-html": ^6.4.12
+  "@codemirror/lang-javascript": ^6.2.5
+  "@codemirror/language": ^6.12.4
+  "@codemirror/state": ^6.7.1
+  "@codemirror/view": ^6.43.8
   "@iconify-json/ph": ^1.2.2
+  "@lezer/highlight": ^1.2.3
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
   "@lingui/conf": ^5.9.4

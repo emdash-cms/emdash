@@ -515,7 +515,7 @@ See [Manage Core Database Migrations](/deployment/core-migrations/) for target c
 
 For PostgreSQL, runtime migrations run through the configured connection; Hyperdrive runtime migrations always use its primary binding. Deployment-managed Hyperdrive migrations connect directly to the PostgreSQL origin. Core migrations may create tables, indexes, and functions, alter or drop columns and constraints, and update existing rows. A role that can connect and modify rows but does not own the existing EmDash objects is not sufficient. The setup wizard cannot repair missing database privileges because runtime migrations run before setup.
 
-If the database is empty (no collections) and the setup wizard has not been completed, EmDash also applies a seed file on first boot. The seed is read from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the build at compile time. If none is present, a built-in default seed is used. Subsequent boots against an existing database leave its content alone.
+Until the setup wizard has been completed, EmDash also applies the schema and structure of a seed file once, on the first request. Sample content from the seed is applied only when an administrator chooses it in the setup wizard. The seed is read from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the build at compile time. If none is present, a built-in default seed is used. Subsequent boots against an existing database leave its content alone.
 
 ## Use separate databases for separate environments
 

@@ -1,0 +1,141 @@
+---
+/**
+ * Portable Text iframe block component
+ *
+ * Renders a page from another site in a responsive, sandboxed, lazy-loading
+ * iframe. Sources that aren't https render nothing.
+ */
+export interface Props {
+	node: {
+		_type: "iframe";
+		_key: string;
+		src: string;
+		title?: string;
+		width?: number;
+		height?: number;
+		allow?: string;
+		allowFullscreen?: boolean;
+	};
+}
+
+const SANDBOX = [
+	"allow-scripts",
+	"allow-same-origin",
+	"allow-forms",
+	"allow-popups",
+	"allow-popups-to-escape-sandbox",
+	"allow-presentation",
+];
+
+// Permissions that video and map players need. Others, such as camera or
+// payment, aren't granted to embedded pages.
+const ALLOWED_FEATURES = new Set([
+	"accelerometer",
+	"autoplay",
+	"clipboard-write",
+	"encrypted-media",
+	"fullscreen",
+	"gyroscope",
+	"picture-in-picture",
+	"web-share",
+]);
+
+const isString = (value: unknown) => typeof value === "string";
+const dimension = (value: unknown) =>
+	typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000
+		? value
+		: undefined;
+
+// An `iframe` block with other fields, or with values of other types, belongs
+// to a plugin.
+const FIELDS = new Map<string, (value: unknown) => boolean>([
+	["_type", () => true],
+	["_key", () => true],
+	["src", isString],
+	["title", isString],
+	["width", (value) => dimension(value) !== undefined],
+	["height", (value) => dimension(value) !== undefined],
+	["allow", isString],
+	["allowFullscreen", (value) => typeof value === "boolean"],
+]);
+
+const WHITESPACE_RE = /\s+/;
+const MARKUP_RE = /[&"<>]/g;
+const ENTITIES: Record<string, string> = { "&": "&amp;", '"': "&quot;", "<": "&lt;", ">": "&gt;" };
+
+function httpsUrl(value: unknown): URL | undefined {
+	try {
+		const url = new URL(typeof value === "string" ? value : "");
+		return url.protocol === "https:" ? url : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+const { node } = Astro.props;
+const src =
+	node &&
+	Object.entries(node).every(
+		([key, value]) => value === undefined || (FIELDS.get(key)?.(value) ?? false),
+	)
+		? httpsUrl(node.src)
+		: undefined;
+if (!src) {
+	return null;
+}
+
+const width = dimension(node.width);
+const height = dimension(node.height);
+const size =
+	width && height ? `aspect-ratio: ${width} / ${height}` : height ? `height: ${height}px` : undefined;
+
+// A page on the site's own origin with both scripts and same-origin access
+// could remove its own sandbox.
+const ownHosts = new Set([Astro.url.host, Astro.site?.host]);
+const sandbox = SANDBOX.filter(
+	(token) => token !== "allow-same-origin" || !ownHosts.has(src.host),
+).join(" ");
+
+// Granted to the embedded page's own origin. A directive whose allowlist is
+// `'none'` grants nothing, so it's dropped.
+const allow = (typeof node.allow === "string" ? node.allow : "")
+	.split(";")
+	.map((directive) => directive.trim().split(WHITESPACE_RE))
+	.filter(([feature = "", ...origins]) => ALLOWED_FEATURES.has(feature) && !origins.includes("'none'"))
+	.map(([feature]) => feature)
+	.join("; ");
+
+// Astro leaves `<` and `>` unescaped in attributes. Middleware that finds
+// `</body>` by searching the page's text could then match one in an author's
+// title and break the tag, dropping its sandbox.
+const escape = (value: string) => value.replace(MARKUP_RE, (char) => ENTITIES[char] ?? char);
+// Overrides a stricter site policy on purpose: YouTube and Vimeo players refuse
+// to play without a referrer. Only the site's origin is sent.
+const attributes = [
+	`src="${escape(src.href)}"`,
+	`title="${escape(node.title || "Embedded content")}"`,
+	'loading="lazy"',
+	'referrerpolicy="strict-origin-when-cross-origin"',
+	`sandbox="${sandbox}"`,
+	allow && `allow="${allow}"`,
+	node.allowFullscreen === true && "allowfullscreen",
+].filter(Boolean);
+const frame = `<iframe ${attributes.join(" ")}></iframe>`;
+---
+
+<div class="emdash-iframe" style={size}><Fragment set:html={frame} /></div>
+
+<style>
+	.emdash-iframe {
+		aspect-ratio: 16 / 9;
+		margin: 1.5rem 0;
+		width: 100%;
+	}
+
+	.emdash-iframe :global(iframe) {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 0;
+	}
+</style>

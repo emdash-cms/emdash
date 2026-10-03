@@ -69,7 +69,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			bio: body.bio ?? null,
 			avatarMediaId: body.avatarMediaId ?? null,
 			websiteUrl: body.websiteUrl ?? null,
-			userId: body.userId ?? null,
+			userId: body.userId,
 			isGuest: body.isGuest,
 			locale: body.locale,
 			translationOf: body.translationOf,

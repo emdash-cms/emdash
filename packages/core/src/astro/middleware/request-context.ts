@@ -64,19 +64,31 @@ function optOutOfRouteCache(cache: RouteCache): void {
 	cache?.set(false);
 }
 
+function isHtmlResponse(response: Response): boolean {
+	return response.headers.get("content-type")?.includes("text/html") ?? false;
+}
+
 /**
  * Inject HTML before `</body>` if the response is an HTML page with a body
  * end tag. Does not touch cache headers — callers decide whether the result
- * is still shareable. `injected` tells the caller whether anything changed.
+ * is still shareable. `injected` tells the caller whether the result carries
+ * the injected HTML.
+ *
+ * `Astro.rewrite()` runs this middleware again for the rewritten route inside
+ * the original request, so the response can already contain the HTML; `marker`
+ * identifies it so it is injected only once.
  */
 async function injectBeforeBodyEnd(
 	response: Response,
 	htmlToInject: string,
+	marker: string,
 ): Promise<{ response: Response; injected: boolean }> {
-	const contentType = response.headers.get("content-type");
-	if (!contentType?.includes("text/html")) return { response, injected: false };
+	if (!isHtmlResponse(response)) return { response, injected: false };
 
 	const html = await response.text();
+	if (html.includes(marker)) {
+		return { response: new Response(html, response), injected: true };
+	}
 	if (!html.includes("</body>")) {
 		// Body already consumed — rebuild the response unchanged.
 		return { response: new Response(html, response), injected: false };
@@ -94,14 +106,21 @@ async function injectBeforeBodyEnd(
 
 /**
  * Inject toolbar HTML into a response if it's an HTML page.
- * Returns the original response if not HTML.
+ * Returns the original response if not HTML, without calling
+ * `renderToolbarHtml`, which loads labels and, for an editor, resolves the
+ * preview secret.
  */
 async function injectToolbar(
 	response: Response,
-	toolbarHtml: string,
+	renderToolbarHtml: () => Promise<string>,
 	routeCache: RouteCache,
 ): Promise<Response> {
-	const result = await injectBeforeBodyEnd(response, toolbarHtml);
+	if (!isHtmlResponse(response)) return response;
+	const result = await injectBeforeBodyEnd(
+		response,
+		await renderToolbarHtml(),
+		'id="emdash-toolbar"',
+	);
 	if (result.injected) {
 		// Toolbar-injected HTML is session-specific (its presence reveals an
 		// active editor session); it must never be stored in a shared CDN cache
@@ -121,7 +140,11 @@ async function injectToolbar(
  * stays fully shareable.
  */
 async function injectBootstrap(response: Response): Promise<Response> {
-	const result = await injectBeforeBodyEnd(response, renderToolbarBootstrap());
+	const result = await injectBeforeBodyEnd(
+		response,
+		renderToolbarBootstrap(),
+		"<!-- EmDash Toolbar Bootstrap -->",
+	);
 	return result.response;
 }
 
@@ -177,14 +200,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				if (!hasEditCookie || toolbarMode === false) return response;
 				// The Playground shows its own bar, so the editor toolbar is hidden and
 				// only provides inline editing.
-				const labels = await loadVisualEditingToolbarLabels(context.request);
-				const toolbarHtml = renderToolbar({
-					editMode: true,
-					isPreview: false,
-					labels,
-					hidden: true,
-				});
-				return injectToolbar(response, toolbarHtml, context.cache);
+				return injectToolbar(
+					response,
+					async () =>
+						renderToolbar({
+							editMode: true,
+							isPreview: false,
+							labels: await loadVisualEditingToolbarLabels(context.request),
+							hidden: true,
+						}),
+					context.cache,
+				);
 			},
 		);
 	}
@@ -237,8 +263,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Verify preview token if present.
 	// The preview secret is resolved via `resolveSecretsCached`: env wins,
 	// otherwise a DB-stored value is read (or generated on first need).
-	// `emdash.db` is set by the runtime middleware which runs first; the
-	// only path where it's missing is a runtime-init failure.
+	// `emdash.db` is set by the runtime middleware which runs first; it is
+	// missing after a runtime-init failure and on signed-out requests to the
+	// image endpoint EmDash installs, which skip runtime init.
 	let preview: { collection: string; id: string } | undefined;
 	if (hasPreviewToken) {
 		const db = context.locals.emdash?.db;
@@ -289,11 +316,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// opt-out) in every toolbar mode, so the server toolbar is safe to
 			// inject here even in client mode.
 			if (isEditor && toolbarMode !== false) {
-				const toolbarHtml = await renderEditorToolbar(context, {
-					editMode,
-					isPreview: !!preview,
-				});
-				return injectToolbar(response, toolbarHtml, routeCache);
+				return injectToolbar(
+					response,
+					() => renderEditorToolbar(context, { editMode, isPreview: !!preview }),
+					routeCache,
+				);
 			}
 
 			// Stale edit cookie without a session (client mode): still serve the
@@ -324,11 +351,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// toolbar (response becomes `private, no-store` and route-cache
 		// opted out).
 		const response = await next();
-		const toolbarHtml = await renderEditorToolbar(context, {
-			editMode: false,
-			isPreview: false,
-		});
-		return injectToolbar(response, toolbarHtml, routeCache);
+		return injectToolbar(
+			response,
+			() => renderEditorToolbar(context, { editMode: false, isPreview: false }),
+			routeCache,
+		);
 	}
 
 	return next();

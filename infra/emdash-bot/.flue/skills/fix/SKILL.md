@@ -7,7 +7,7 @@ description: Implement diagnose's proposed fix when verify says bug, the cause i
 
 You are here because a work run established a change it can implement safely. For a bug, verify returned `bug`, diagnose pinned the cause with at least `medium` confidence, and diagnose rated the fix `mechanical` or `clear-best-option`. Implement the proposed change, prove it works, and leave the candidate verified.
 
-**What your output is, and is not.** You are not merging and not opening a PR. The trusted `publish_candidate` tool commits and pushes the durable candidate from a separate publisher sandbox. The model-controlled workspace has no push capability. Publication triggers a preview build; a draft PR opens only after the reporter or a maintainer accepts the candidate.
+**What your output is, and is not.** You are not merging and not opening a PR. The trusted `publish_candidate` tool commits and pushes the durable candidate from a separate publisher sandbox. The model-controlled workspace has no push capability. Publication triggers a preview build; the orchestrator then opens the PR and asks the reporter to try the preview.
 
 ## Delivery priorities
 

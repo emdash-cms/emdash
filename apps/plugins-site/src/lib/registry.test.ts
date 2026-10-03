@@ -1,3 +1,4 @@
+import { CURRENT_PLUGIN_CAPABILITIES } from "@emdash-cms/plugin-types";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -92,6 +93,14 @@ describe("registry presentation boundaries", () => {
 		expect(permissionCopy(summary.capabilities[0]!).label).toBe(
 			"Make unrestricted network requests",
 		);
+	});
+
+	it("describes every current capability in plain language", () => {
+		const unlabelled = CURRENT_PLUGIN_CAPABILITIES.filter(
+			(capability) => permissionCopy(capability).label === capability,
+		);
+
+		expect(unlabelled).toEqual([]);
 	});
 
 	it("distinguishes a missing declaration from an empty one", () => {

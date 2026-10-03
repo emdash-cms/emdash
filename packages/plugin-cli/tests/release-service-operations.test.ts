@@ -1,7 +1,13 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
-import { describe, expect, it } from "vitest";
+import { runCommand } from "citty";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import releaseFixture from "../../registry-verification/fixtures/records/release.json";
+import { releaseSubmitCommand } from "../src/commands/release.js";
 import {
 	cancelDelegatedReleaseIntent,
 	dryRunDelegatedRelease,
@@ -390,5 +396,65 @@ describe("delegated release CLI operations", () => {
 			),
 		).rejects.toThrow("Release record file is invalid");
 		expect(fetched).toBe(false);
+	});
+});
+
+describe("release submit command", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "emdash-release-submit-"));
+		await writeFile(join(dir, "release.json"), JSON.stringify(sourceRelease()));
+		vi.stubEnv("ACTIONS_ID_TOKEN_REQUEST_URL", ENVIRONMENT.ACTIONS_ID_TOKEN_REQUEST_URL);
+		vi.stubEnv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", ENVIRONMENT.ACTIONS_ID_TOKEN_REQUEST_TOKEN);
+	});
+
+	afterEach(async () => {
+		vi.unstubAllEnvs();
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	it.each([
+		{ command: "release submit", state: "published", statusReads: 1 },
+		{ command: "release submit --no-wait", state: "received", statusReads: 0 },
+		{ command: "release submit --wait=false", state: "received", statusReads: 0 },
+		{ command: "release submit --noWait", state: "received", statusReads: 0 },
+		{ command: "release submit --noWait=true", state: "received", statusReads: 0 },
+		{ command: "release submit --noWait=false", state: "published", statusReads: 1 },
+	])("$command prints the $state intent", async ({ command, state, statusReads }) => {
+		const reads: string[] = [];
+		vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+			const request = new Request(input, init);
+			const url = new URL(request.url);
+			if (url.hostname === "token.actions.example") {
+				return Response.json({ value: "header.payload.signature" });
+			}
+			if (url.pathname === "/v1/workflow-connections") {
+				return success({ status: "connected", policy: policy() });
+			}
+			if (request.method === "POST") {
+				return success({ intent: intent("received"), replayed: false }, 202);
+			}
+			reads.push(url.pathname);
+			return success({ intent: intent("published") });
+		});
+		const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+		await runCommand(releaseSubmitCommand, {
+			rawArgs: [
+				join(dir, "release.json"),
+				...command.split(" ").slice(2),
+				"--service-url",
+				SERVICE,
+				"--publisher-did",
+				PUBLISHER_DID,
+				"--json",
+			],
+		});
+
+		expect(JSON.parse(String(log.mock.lastCall?.[0]))).toMatchObject({ state });
+		expect(reads).toHaveLength(statusReads);
 	});
 });

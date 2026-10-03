@@ -22,10 +22,11 @@ import {
 	mediaListQuery,
 	mediaUploadDeduplicateForm,
 	mediaUploadEnsureUniqueFilenameForm,
+	mediaUploadMetadataForm,
 } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
-import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
+import { matchesMimeAllowlist, resolveUploadMimeType } from "#media/mime.js";
 import { computeContentHash } from "#utils/hash.js";
 
 import type { MediaItem } from "../../types.js";
@@ -178,6 +179,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				folderId = folderResult.data;
 			}
 		}
+		const metadataResult = mediaUploadMetadataForm.safeParse({
+			alt: formData.get("alt") ?? undefined,
+			caption: formData.get("caption") ?? undefined,
+		});
+		if (!metadataResult.success) {
+			return apiError("VALIDATION_ERROR", "Invalid request data", 400, {
+				issues: metadataResult.error.issues.map((issue) => ({
+					path: issue.path.join("."),
+					message: issue.message,
+				})),
+			});
+		}
 
 		// Validate file type — widen the allowlist when a field-specific list is configured
 		const fieldIdEntry = formData.get("fieldId");
@@ -187,7 +200,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId) : null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
-		if (!matchesMimeAllowlist(file.type, allowlist)) {
+		// Browsers that don't know a format (e.g. `.jxl`) may send an empty or
+		// generic type; fall back to the extension map so allowed uploads aren't
+		// rejected just because the client can't identify them.
+		const mimeType = resolveUploadMimeType(file.name, file.type);
+		if (!mimeType || !matchesMimeAllowlist(mimeType, allowlist)) {
 			return apiError("INVALID_TYPE", "File type not allowed", 400);
 		}
 
@@ -226,7 +243,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		await emdash.storage.upload({
 			key: storageKey,
 			body: buffer,
-			contentType: file.type,
+			contentType: mimeType,
 		});
 
 		// Get image dimensions from form data (sent by client)
@@ -242,7 +259,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// (avoids OOM on large originals on memory-constrained runtimes).
 		const thumbnailEntry = formData.get("thumbnail");
 		const thumbnail = thumbnailEntry instanceof File ? thumbnailEntry : null;
-		const enriched = await enrichImageMetadata(buffer, file.type, {
+		const enriched = await enrichImageMetadata(buffer, mimeType, {
 			knownDimensions: width != null && height != null ? { width, height } : undefined,
 			placeholder: thumbnail
 				? { bytes: new Uint8Array(await thumbnail.arrayBuffer()), contentType: thumbnail.type }
@@ -252,8 +269,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Create media record
 		const result = await emdash.handleMediaCreate({
 			filename,
-			mimeType: normalizeMime(file.type),
+			mimeType,
 			size: file.size,
+			alt: metadataResult.data.alt,
+			caption: metadataResult.data.caption,
 			// Client dimensions win over server header dimensions: the browser's
 			// naturalWidth/Height apply EXIF orientation, while image-size reports
 			// raw (pre-orientation) header dims — swapped for 90°/270° JPEGs.

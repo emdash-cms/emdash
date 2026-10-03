@@ -42,7 +42,7 @@ jobs:
   measure:
     name: Visual Regression
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -56,7 +56,9 @@ jobs:
       - run: pnpm locale:extract
         env:
           EMDASH_PSEUDO_LOCALE: "1"
-      - run: pnpm run --filter emdash... build
+      # Build what the e2e fixture needs here, so global setup doesn't build it
+      # inside each test run.
+      - run: pnpm run --filter "emdash-e2e-fixture..." build
         env:
           EMDASH_PSEUDO_LOCALE: "1"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -74,7 +76,7 @@ jobs:
           EMDASH_PSEUDO_LOCALE: "1"
         run: |
           set +e
-          pnpm exec playwright test visual-regression --reporter=line
+          pnpm exec playwright test visual-regression --reporter=line,github
           code=$?
           set -e
           echo "exit=$code" >> "$GITHUB_OUTPUT"
@@ -117,7 +119,10 @@ jobs:
 
           # Regenerate the accepted-state baselines (the candidates the Apply
           # workflow commits verbatim on accept). These are Linux/chromium PNGs.
-          EMDASH_PSEUDO_LOCALE=1 EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots --reporter=line || true
+          # Only the tests the measure run recorded as failed run again; if it
+          # recorded none, Playwright runs them all. This relies on no visual
+          # test rendering data that an earlier test in the run wrote.
+          EMDASH_PSEUDO_LOCALE=1 EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots --last-failed --reporter=line || true
 
           # Real drift == the regeneration changed tracked baselines or added
           # new ones. Untracked new files count (bootstrap: a PR that adds a

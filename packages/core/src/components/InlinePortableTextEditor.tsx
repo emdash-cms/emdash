@@ -9,6 +9,7 @@
  * Auto-saves on blur, dispatches custom events for toolbar integration.
  */
 
+import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react";
 import { Extension, Node, mergeAttributes, type JSONContent, type Range } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
@@ -27,6 +28,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { resolveImageMedia } from "../content/converters/gallery.js";
+import { normalizeImageLink } from "../content/converters/image-link.js";
 import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
@@ -171,6 +173,18 @@ function attrDimension(
 	return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+type ImageAlignment = "left" | "center" | "right" | "wide" | "full";
+
+function imageAlignment(value: unknown): ImageAlignment | undefined {
+	return value === "left" ||
+		value === "center" ||
+		value === "right" ||
+		value === "wide" ||
+		value === "full"
+		? value
+		: undefined;
+}
+
 function canonicalMediaProviderId(provider: string | undefined): string | undefined {
 	return provider === "external-url" ? "external" : provider;
 }
@@ -263,14 +277,12 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 				language: attrStrOpt(node.attrs, "language"),
 			};
 		}
-		case "htmlBlock": {
-			const rawHtml = node.attrs?.html;
+		case "htmlBlock":
 			return {
 				_type: "htmlBlock",
 				_key: k(),
-				html: typeof rawHtml === "string" ? rawHtml : "",
+				...htmlBlockFields(node.attrs ?? {}),
 			};
-		}
 		case "image": {
 			const provider = attrStrOpt(node.attrs, "provider");
 			const blurhash = attrStrOpt(node.attrs, "blurhash");
@@ -301,6 +313,8 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 				...(dominantColor ? { dominantColor } : {}),
 				displayWidth: attrDimension(node.attrs, "displayWidth"),
 				displayHeight: attrDimension(node.attrs, "displayHeight"),
+				alignment: imageAlignment(node.attrs?.alignment),
+				link: normalizeImageLink(node.attrs?.link) ?? undefined,
 			};
 		}
 		case "horizontalRule":
@@ -569,10 +583,9 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return { type: "horizontalRule" };
 	}
 	if (block._type === "htmlBlock") {
-		const hb = block as PTBlock & { html?: string };
 		return {
 			type: "htmlBlock",
-			attrs: { html: hb.html || "" },
+			attrs: { ...htmlBlockFields(block) },
 		};
 	}
 	if (block._type === "image") {
@@ -594,6 +607,9 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			dominantColor?: string;
 			displayWidth?: number;
 			displayHeight?: number;
+			alignment?: unknown;
+			/** `{ href, blank? }`, or a bare string on WordPress-imported content */
+			link?: unknown;
 		};
 		const meta = ib.asset?.meta;
 		const { asset, alt, width, height } = resolveImageMedia(ib);
@@ -625,6 +641,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 				dominantColor,
 				displayWidth: ib.displayWidth,
 				displayHeight: ib.displayHeight,
+				alignment: imageAlignment(ib.alignment) ?? null,
+				link: normalizeImageLink(ib.link),
 			},
 		};
 	}
@@ -1056,7 +1074,7 @@ const slashCommands: SlashCommandItem[] = [
 				.chain()
 				.focus()
 				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.insertContent({ type: "htmlBlock", attrs: { html: "", isolated: true } })
 				.run();
 		},
 	},
@@ -1118,6 +1136,9 @@ const HtmlBlockNode = Node.create({
 		const noDom = { rendered: false, parseHTML: () => null };
 		return {
 			html: { default: "", ...noDom },
+			css: { default: "", ...noDom },
+			js: { default: "", ...noDom },
+			isolated: { default: false, ...noDom },
 		};
 	},
 
@@ -2192,6 +2213,12 @@ export function InlinePortableTextEditor({
 			const blocks = getBlocks();
 
 			savingRef.current = true;
+			let settle = () => {};
+			const done = new Promise<void>((resolve) => {
+				settle = () => resolve();
+			});
+			// The visual-editing toolbar holds Publish until `done` settles.
+			document.dispatchEvent(new CustomEvent("emdash:save-pending", { detail: { done } }));
 			try {
 				const res = await fetch(
 					`/_emdash/api/content/${encodeURIComponent(collection)}/${encodeURIComponent(entryId)}`,
@@ -2222,6 +2249,7 @@ export function InlinePortableTextEditor({
 				console.error("Save failed:", err);
 			} finally {
 				savingRef.current = false;
+				settle();
 			}
 		},
 		[collection, entryId, field, getBlocks],
@@ -2279,6 +2307,8 @@ export function InlinePortableTextEditor({
 						caption: { default: null },
 						blurhash: { default: null },
 						dominantColor: { default: null },
+						alignment: { default: null, rendered: false },
+						link: { default: null, rendered: false },
 					};
 				},
 			}),

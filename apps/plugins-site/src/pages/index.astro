@@ -5,7 +5,10 @@ import PluginCard from "../components/PluginCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
 
-const result = await getLiveCollection("plugins", { limit: 100 });
+const result = await getLiveCollection("plugins", {
+	limit: 100,
+	includeLatestRelease: true,
+});
 const entries = result.entries ?? [];
 const hasError =
 	Boolean(result.error) ||

@@ -67,7 +67,7 @@ Write `seed/seed.json` with collections, fields, taxonomies, menus, widgets, and
 pnpm dev                # Start the Astro dev server
 ```
 
-The runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`.
+The runtime runs pending migrations on the first request and, before setup is completed, applies the seed's schema and structure once. Sample content needs an explicit step; see [Applying Seeds](references/schema-and-seed.md#applying-seeds). The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`.
 
 ## Quick API Cheat Sheet
 
@@ -79,7 +79,7 @@ const { entries, nextCursor, cacheHint } = await getEmDashCollection("posts", {
 	cursor,
 	orderBy: { published_at: "desc" },
 });
-const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, cacheHint: entryCacheHint } = await getEmDashEntry("posts", slug);
 
 // Site features
 import {

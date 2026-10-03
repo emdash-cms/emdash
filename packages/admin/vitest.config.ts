@@ -4,7 +4,25 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	resolve: { dedupe: ["react", "react-dom"] },
-	optimizeDeps: { include: ["@cloudflare/kumo/primitives/scroll-area", "react-image-crop"] },
+	optimizeDeps: {
+		include: [
+			"@cloudflare/kumo/primitives/scroll-area",
+			"@codemirror/autocomplete",
+			"@codemirror/commands",
+			"@codemirror/lang-css",
+			"@codemirror/lang-html",
+			"@codemirror/lang-javascript",
+			"@codemirror/language",
+			"@codemirror/state",
+			"@codemirror/view",
+			"@lezer/highlight",
+			"react-image-crop",
+			"date-fns",
+			"date-fns/locale/en-US",
+			"date-fns/locale/ar",
+			"date-fns/locale/fr",
+		],
+	},
 	plugins: [
 		react({
 			babel: {

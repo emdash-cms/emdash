@@ -353,8 +353,9 @@ function normalizeIssueComment(
 	if (mentionText === null) {
 		if (
 			!isPullRequest &&
-			(actor === "reporter" || actor === "maintainer") &&
-			labels.includes("bot:awaiting-reporter")
+			(((actor === "reporter" || actor === "maintainer") &&
+				labels.includes("bot:awaiting-reporter")) ||
+				(actor === "reporter" && labels.includes("bot:in-review")))
 		) {
 			return dispatch({
 				event: null,
@@ -363,6 +364,7 @@ function normalizeIssueComment(
 				labels,
 				needsClassify: true,
 				classifyText: body,
+				unaddressed: true,
 				triggeringComment,
 				...(deliveryId ? { deliveryId } : {}),
 			});
@@ -372,17 +374,6 @@ function normalizeIssueComment(
 				event: "triage",
 				arg: "The reporter supplied the requested information. Re-triage the issue.",
 				actor: "system",
-				labels,
-				needsClassify: false,
-				triggeringComment,
-				...(deliveryId ? { deliveryId } : {}),
-			});
-		}
-		if (!isPullRequest && actor === "reporter" && labels.includes("bot:in-review")) {
-			return dispatch({
-				event: "needs_changes",
-				arg: body,
-				actor,
 				labels,
 				needsClassify: false,
 				triggeringComment,

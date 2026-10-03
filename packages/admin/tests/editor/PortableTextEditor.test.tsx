@@ -1003,6 +1003,30 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		).toContain(linkDef?._key);
 	});
 
+	it("continues link formatting when typing at the end of an autolinked URL", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange });
+
+		simulateTyping(editor, "https://example.com ");
+		const end = editor.state.selection.from;
+		editor.commands.deleteRange({ from: end - 1, to: end });
+		simulateTyping(editor, "/docs");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; _key: string }>;
+		}>;
+		const block = blocks[0];
+		const linkDef = block?.markDefs?.find((markDef) => markDef._type === "link");
+		const linkedText = block?.children
+			?.filter((span) => span.marks?.includes(linkDef?._key ?? ""))
+			.map((span) => span.text)
+			.join("");
+
+		expect(linkedText).toBe("https://example.com/docs");
+	});
+
 	it("renders a bullet list", async () => {
 		await render(
 			<PortableTextEditor

@@ -39,7 +39,7 @@ import {
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
-import { getSiteBaseUrl } from "./api/site-url.js";
+import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
 	EmDashConfig,
 	PluginAdminPage,
@@ -108,6 +108,7 @@ import type {
 import type {
 	ActorInfo,
 	ContentActionOrigin,
+	ContentSaveHookDetails,
 	ContentItem as PluginContentItem,
 	ResolvedPlugin,
 	MediaItem,
@@ -1598,6 +1599,7 @@ export class EmDashRuntime {
 		const readSiteInfo = async () => {
 			const siteOpts = await optionsRepo.getMany([
 				"emdash:site_title",
+				"site:url",
 				"emdash:site_url",
 				"emdash:locale",
 				LOCALE_CASING_REPAIR_OPTION,
@@ -1605,7 +1607,11 @@ export class EmDashRuntime {
 				SETUP_COMPLETE_OPTION,
 			]);
 			const siteTitle = siteOpts.get("emdash:site_title");
-			const siteUrl = siteOpts.get("emdash:site_url");
+			const siteUrl = resolveSiteOrigin(
+				deps.config,
+				siteOpts.get("site:url"),
+				siteOpts.get("emdash:site_url"),
+			);
 			const locale = siteOpts.get("emdash:locale");
 			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			storedLocaleCasingRepairVersion =
@@ -1614,7 +1620,7 @@ export class EmDashRuntime {
 			setupDone = siteOpts.get(SETUP_COMPLETE_OPTION) === true;
 			return {
 				siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
-				siteUrl: deps.siteInfo?.url ?? (typeof siteUrl === "string" ? siteUrl : undefined),
+				siteUrl: deps.siteInfo?.url ?? siteUrl,
 				locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
 				// trailingSlash is a build-time Astro routing decision, not a
 				// user-editable setting, so it comes from the Astro config
@@ -2365,7 +2371,7 @@ export class EmDashRuntime {
 	/**
 	 * Get or create storage instance
 	 */
-	private static getStorage(deps: RuntimeDependencies): Storage | null {
+	static getStorage(deps: RuntimeDependencies): Storage | null {
 		const storageConfig = deps.config.storage;
 		if (!storageConfig || !deps.createStorage) {
 			return null;
@@ -3205,6 +3211,7 @@ export class EmDashRuntime {
 		collection: string,
 		params: {
 			cursor?: string;
+			page?: number;
 			limit?: number;
 			status?: string;
 			orderBy?: string;
@@ -3395,6 +3402,11 @@ export class EmDashRuntime {
 			}
 		}
 
+		const saveHookDetails = {
+			locale,
+			...(body.translationOf ? { translationOf: body.translationOf } : {}),
+		};
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
@@ -3405,6 +3417,7 @@ export class EmDashRuntime {
 					true,
 					undefined,
 					actor,
+					saveHookDetails,
 				);
 				processedData = hookResult.content;
 			} catch (error) {
@@ -3500,6 +3513,7 @@ export class EmDashRuntime {
 				true,
 				actor,
 				options.excludeAfterSavePluginId,
+				{ ...saveHookDetails, locale: result.data.item.locale ?? locale },
 			);
 		}
 
@@ -3610,6 +3624,7 @@ export class EmDashRuntime {
 						false,
 						resolvedItem?.id,
 						actor,
+						resolvedItem?.locale ? { locale: resolvedItem.locale } : {},
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -3921,7 +3936,15 @@ export class EmDashRuntime {
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
-			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false, actor);
+			const savedLocale = hydrated.data.item.locale;
+			this.runAfterSaveHooks(
+				contentItemToRecord(hydrated.data.item),
+				collection,
+				false,
+				actor,
+				undefined,
+				savedLocale ? { locale: savedLocale } : {},
+			);
 		}
 
 		if (hydrated.success) {
@@ -3968,7 +3991,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number; locale?: string } = {},
+		params: { cursor?: string; page?: number; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -4696,6 +4719,8 @@ export class EmDashRuntime {
 		size?: number;
 		width?: number;
 		height?: number;
+		alt?: string;
+		caption?: string;
 		storageKey: string;
 		contentHash?: string;
 		blurhash?: string;
@@ -5942,12 +5967,20 @@ export class EmDashRuntime {
 		isNew: boolean,
 		actor?: ActorInfo,
 		excludePluginId?: string,
+		details?: ContentSaveHookDetails,
 	): void {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
 				try {
-					await this.hooks.runContentAfterSave(content, collection, isNew, actor, excludePluginId);
+					await this.hooks.runContentAfterSave(
+						content,
+						collection,
+						isNew,
+						actor,
+						excludePluginId,
+						details,
+					);
 				} catch (err) {
 					console.error("EmDash afterSave hook error:", err);
 				}

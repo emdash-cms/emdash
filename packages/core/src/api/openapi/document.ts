@@ -295,7 +295,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(500),
+				...standardErrors(400, 500),
 			},
 		},
 		post: {
@@ -873,7 +873,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(500),
+				...standardErrors(400, 500),
 			},
 		},
 	},

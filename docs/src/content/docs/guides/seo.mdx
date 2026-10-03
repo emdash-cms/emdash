@@ -1,0 +1,189 @@
+---
+title: Built-in SEO Features
+description: The search engine optimization (SEO) features EmDash provides, what each one outputs, and how to enable them.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+EmDash provides search engine optimization (SEO) features for content entries, page heads, sitemaps, `robots.txt`, and redirects. Most of them work once a collection has SEO enabled and the site renders `<EmDashHead>` in its page heads.
+
+| Feature | Output | Requires |
+| --- | --- | --- |
+| [SEO panel](#edit-seo-fields-per-entry) | Title, description, image, canonical URL, and no-index per entry | SEO enabled on the collection |
+| [Head metadata](#render-seo-metadata-on-a-content-page) | Description, robots, canonical, Open Graph, and Twitter Card tags | `<EmDashHead>` in the page head |
+| [Structured data](#structured-data) | JSON-LD `BlogPosting` or `WebSite` | `<EmDashHead>` in the page head |
+| [Sitemaps](#sitemaps) | `/sitemap.xml` and `/sitemap-{collection}.xml` | SEO enabled on the collection |
+| [`robots.txt`](#robotstxt) | `/robots.txt` with a sitemap reference | Nothing |
+| [Site-wide settings](#site-wide-seo-settings) | Verification tags, default social image, title separator | Values in **Settings > SEO** |
+| [Translations](#translated-content) | `hreflang` links in the head and the sitemap | Astro i18n configured |
+| [Redirects and 404 log](#redirects-and-the-404-log) | Redirect and gone rules, a log of missed URLs | Nothing |
+
+## Enable SEO on a collection
+
+Turn on **SEO** for a collection in **Content Types** in the EmDash admin. In a seed file, add `"seo"` to the collection's `supports` array:
+
+```json title="seed/seed.json"
+{
+  "version": "1",
+  "collections": [
+    {
+      "slug": "posts",
+      "label": "Posts",
+      "urlPattern": "/posts/{slug}",
+      "supports": ["drafts", "revisions", "seo"],
+      "fields": [{ "slug": "title", "label": "Title", "type": "string", "required": true }]
+    }
+  ]
+}
+```
+
+With SEO enabled, the editor of a saved entry shows an **SEO** panel, and the collection appears in the sitemap. Collections with **Routable** turned off stay out of the sitemap.
+
+## Edit SEO fields per entry
+
+The **SEO** panel in the entry editor holds these fields:
+
+- **OG Image** is the social preview image (`og:image`) and the image listed for the entry in the sitemap.
+- **SEO Title** replaces the entry title in social previews and structured data, and in `<title>` when the page renders the title from `getSeoMeta()`.
+- **Meta Description** is the summary shown below the title in search results. The panel counts characters against a 160-character guideline.
+- **Canonical URL** points search engines to the original version of a page that is duplicated from another URL.
+- **Hide from search engines** adds `noindex, nofollow` to the page and removes the entry from the sitemap and from `hreflang` alternates.
+
+Empty fields fall back to the values the page passes to `createPublicPageContext()`. `getSeoMeta()` falls back to the entry's `title` and `excerpt` fields.
+
+## Render SEO metadata on a content page
+
+`<EmDashHead>` renders the SEO metadata for a page context. On a content page, pass the entry's collection and database ID as `content`, so `<EmDashHead>` applies the entry's SEO panel values.
+
+The following example renders the head of a post page. `getSeoMeta()` resolves the `<title>` and canonical URL, and `<EmDashHead>` renders the remaining tags:
+
+```astro title="src/pages/posts/[slug].astro"
+---
+import { decodeSlug, getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
+import { createPublicPageContext } from "emdash/page";
+import { EmDashHead } from "emdash/ui";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+
+const { entry: post } = await getEmDashEntry("posts", slug);
+if (!post) return Astro.rewrite("/404");
+
+const settings = await getSiteSettings();
+const seo = getSeoMeta(post, {
+  siteTitle: settings.title,
+  siteUrl: settings.url || Astro.url.origin,
+  titleSeparator: settings.seo?.titleSeparator,
+  path: Astro.url.pathname,
+});
+
+const page = createPublicPageContext({
+  Astro,
+  kind: "content",
+  title: seo.title,
+  pageTitle: seo.ogTitle,
+  description: seo.description,
+  canonical: seo.canonical,
+  siteName: settings.title,
+  content: { collection: "posts", id: post.data.id, slug: post.data.slug },
+});
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{seo.title}</title>
+    <EmDashHead page={page} />
+  </head>
+  <body>
+    <h1>{post.data.title}</h1>
+  </body>
+</html>
+```
+
+`<EmDashHead>` renders these tags:
+
+- The meta description.
+- A robots directive when the entry is hidden from search engines.
+- A canonical link and `og:url` when the page context or the entry sets a canonical URL.
+- Open Graph tags (`og:type`, `og:title`, `og:description`, `og:image`, `og:site_name`) and Twitter Card tags. When a page has no image, `og:image` uses the default social image from the site settings.
+- `article:published_time`, `article:modified_time`, and `article:author` when the page context includes `articleMeta`.
+
+`<EmDashHead>` does not render the `<title>` element. Render it in the page or layout, as the example does.
+
+For pages that are not content entries, use `kind: "custom"`. [Site Settings](/guides/site-settings/#read-settings-in-a-layout) shows a layout that builds a custom page context from the site settings.
+
+Plugins can add or replace head tags through the [`page:metadata` hook](/plugins/creating-plugins/hooks/#pagemetadata). For the same tag, a plugin's value wins over the site settings, which win over the values generated from the page context.
+
+## Structured data
+
+`<EmDashHead>` adds one JSON-LD script to a page when the page context has the data it needs:
+
+- An article page with a canonical URL gets a `BlogPosting` graph with the headline, description, image, publish and modified dates, author, and publisher that the page context provides. `kind: "content"` sets `pageType` to `"article"` unless the page context sets another type.
+- A page of any other type gets a `WebSite` graph with the site name and URL when the page context includes `siteName`.
+
+The JSON-LD uses the same title, description, and image as the Open Graph tags, including the editor's SEO panel values. Plugins can replace it through the `page:metadata` hook.
+
+## Sitemaps
+
+EmDash serves a sitemap index at `/sitemap.xml`. It links a child sitemap at `/sitemap-{collection}.xml` for each collection that has at least one listed entry.
+
+A collection sitemap lists entries that are published, not deleted, have a slug, and are not hidden from search engines. It builds each URL from the collection's URL pattern, or `/{collection}/{slug}` when the collection has none, and lists the entry's SEO image with the Google image sitemap extension.
+
+Each child sitemap holds up to 2,000 entries, ordered by entry ID so editing an entry does not move it to another page. Larger collections continue at `/sitemap-{collection}-2.xml`, `/sitemap-{collection}-3.xml`, and so on. The index lists every page with the date of that page's most recently updated entry.
+
+Add the sitemap URL to Google Search Console or Bing Webmaster Tools to see its indexing status there.
+
+## `robots.txt`
+
+EmDash serves `/robots.txt`. By default it allows all crawlers, disallows `/_emdash/`, and references the sitemap:
+
+```txt title="/robots.txt"
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes
+Disallow: /_emdash/
+
+Sitemap: https://example.com/sitemap.xml
+```
+
+To replace the default, enter custom content in **Settings > SEO > robots.txt**. EmDash appends the `Sitemap:` line when the custom content has none.
+
+`robots.txt` and the sitemaps build absolute URLs from the **Site URL** in **Settings > General**, then the [`siteUrl`](/reference/configuration/#siteurl) option or the `EMDASH_SITE_URL` environment variable, then the request origin. Set one of these so the URLs match the public domain. Browsers and shared caches may keep `robots.txt` for up to a day and sitemaps for up to an hour.
+
+<Aside>
+To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts`, or `src/pages/sitemap-[collection].xml.ts`. EmDash serves your route for that path and keeps its routes for the others. Collections with more than 2,000 entries span several child sitemaps: a custom `sitemap.xml` must list `/sitemap-{collection}-{n}.xml` for each further page, and a custom `sitemap-[collection].xml` receives those paged names, such as `post-2`.
+</Aside>
+
+## Site-wide SEO settings
+
+**Settings > SEO** in the EmDash admin holds these values:
+
+- **Title Separator** is the text between the page title and the site name. It takes effect when the page passes `settings.seo.titleSeparator` to `getSeoMeta()` as `titleSeparator`, as the [content page example](#render-seo-metadata-on-a-content-page) does.
+- **Default Social Image** is the `og:image` for pages without their own image. `<EmDashHead>` applies it.
+- **Google Verification** and **Bing Verification** add the `google-site-verification` and `msvalidate.01` meta tags that prove site ownership to Google Search Console and Bing Webmaster Tools. `<EmDashHead>` adds them to every page.
+- **robots.txt** replaces the default [`robots.txt`](#robotstxt).
+
+## Translated content
+
+When Astro i18n is configured, EmDash links the translations of an entry for search engines:
+
+- `<EmDashHead>` adds a `<link rel="alternate" hreflang="...">` for each published translation and an `x-default` link. See [Add `hreflang` links to the page head](/guides/internationalization/#add-hreflang-links-to-the-page-head).
+- Each collection sitemap lists every translation as its own URL with `xhtml:link` alternates. See [Sitemaps](/guides/internationalization/#sitemaps) in the internationalization guide.
+
+## Redirects and the 404 log
+
+Manage rules in **Redirects** in the EmDash admin. A rule either redirects a source path to a destination with status `301`, `302`, `307`, or `308`, or answers it with `410 Gone` or `451 Unavailable For Legal Reasons`. Source paths accept named segments (`/old/[slug]`) and catch-all segments (`/old-blog/[...path]`), which the destination can reuse.
+
+When the slug of a published entry changes, EmDash creates a `301` redirect from the old URL to the new one, based on the collection's URL pattern. It collapses existing redirect chains that pointed to the old URL. It creates no redirect while another entry, such as a translation, still uses the old slug.
+
+EmDash logs requests that end in a 404 response. The **404 Errors** tab on the **Redirects** page shows the most frequently missed paths. For each one, you can add a redirect or mark it as gone (`410`), which tells search engines the page was deleted. The log keeps up to 10,000 paths and drops the ones not seen for the longest time.
+
+Seed files can also define redirects. See [Redirects](/themes/seed-files/#redirects) in the seed file reference.
+
+## Imported SEO data
+
+The [WordPress import](/migration/from-wordpress/#custom-fields-and-seo-data) through the EmDash Exporter can copy Yoast and Rank Math SEO titles and descriptions into **SEO Title** and **SEO Description** fields on the target collection. These are regular content fields, separate from the **SEO** panel, so the page template has to render them.
+
+A [site transfer](/guides/site-transfer/) copies SEO panel values, SEO settings, and redirects to another EmDash site. The target site keeps its own site URL, which its sitemaps and `robots.txt` use.

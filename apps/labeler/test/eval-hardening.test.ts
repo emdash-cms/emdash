@@ -34,8 +34,13 @@ import {
 	promotionReviewChallengeHash,
 } from "../evals/report.js";
 import type { EvalCaseResult, EvalResultBundle } from "../evals/types.js";
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_IMAGE_PROMPT_HASH,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_PROMPT_HASH,
+} from "../src/ai/clef.js";
 import { sha256Hex } from "../src/ai/hash.js";
-import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
 
 const nativeAiRun = vi.hoisted(() => vi.fn());
 
@@ -386,33 +391,30 @@ describe("promotion hardening", () => {
 		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
 		const input = {
 			dataset,
-			text: [
-				{
-					modelId: "@cf/test/text-primary",
-					promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
-					configuredUnits: 1,
-				},
-				{
-					modelId: "@cf/test/text-verifier",
-					promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
-					configuredUnits: 1,
-				},
-			] as const,
+			text: {
+				...CLEF_TEXT_ASSESSMENT_SETTINGS,
+				modelId: "@cf/cloudflare/clef" as const,
+				promptHash: CLEF_TEXT_PROMPT_HASH,
+				configuredUnits: 1,
+			},
 			image: {
-				modelId: "@cf/test/image",
-				promptHash: await sha256Hex(IMAGE_SYSTEM_PROMPT),
+				...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+				modelId: "@cf/cloudflare/clef" as const,
+				promptHash: CLEF_IMAGE_PROMPT_HASH,
 				configuredUnits: 1,
 			},
 			repeatCount: 1,
 			runnerCommit: "test",
 		};
 		nativeAiRun.mockImplementation(async (_model, request) => ({
-			response: JSON.stringify({
-				schemaVersion: 1,
-				findings: [],
-				coveredEvidenceRefs: modelEvidenceRefs(request),
-			}),
-			usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+			model: "clef",
+			answers: Object.fromEntries(
+				Object.keys(clefQuestions(request)).map((category) => [
+					category,
+					{ type: "noul", noul: 0.01 },
+				]),
+			),
+			usage: { input_tokens: 10, output_tokens: 0 },
 		}));
 		const artifact = await runProtectedLiveEvaluation(input);
 		expect(artifact.bundle.mode).toBe("live");
@@ -721,42 +723,11 @@ function readinessBudgets() {
 	};
 }
 
-function modelEvidenceRefs(input: unknown): string[] {
-	if (!isRecord(input)) {
-		throw new TypeError("model input is invalid");
+function clefQuestions(input: unknown): Record<string, unknown> {
+	if (!isRecord(input) || !isRecord(input["questions"])) {
+		throw new TypeError("Clef questions are missing");
 	}
-	const messages = input["messages"];
-	if (!Array.isArray(messages)) throw new TypeError("model messages are missing");
-	const message = messages[1];
-	if (!isRecord(message)) {
-		throw new TypeError("model user message is invalid");
-	}
-	const content = message["content"];
-	let encoded: unknown;
-	if (typeof content === "string") encoded = content;
-	else if (Array.isArray(content)) {
-		const first = content[0];
-		if (!isRecord(first)) {
-			throw new TypeError("model image message is invalid");
-		}
-		encoded = first["text"];
-	}
-	if (typeof encoded !== "string") throw new TypeError("model evidence is missing");
-	const payload: unknown = JSON.parse(encoded);
-	if (!isRecord(payload)) {
-		throw new TypeError("model evidence payload is invalid");
-	}
-	if (typeof payload["evidenceRef"] === "string") return [payload["evidenceRef"]];
-	const text = Array.isArray(payload["text"]) ? payload["text"] : [];
-	const links = Array.isArray(payload["links"]) ? payload["links"] : [];
-	return [...text, ...links].map((field) => {
-		if (!isRecord(field)) {
-			throw new TypeError("model evidence field is invalid");
-		}
-		const ref = field["ref"];
-		if (typeof ref !== "string") throw new TypeError("model evidence ref is invalid");
-		return ref;
-	});
+	return input["questions"];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -316,6 +316,27 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByText("Format:")).toBeInTheDocument();
 	});
 
+	it("keeps the Uploaded row in the wider column when dimensions are missing", async () => {
+		const screen = await renderPanel({ item: makePdfItem() });
+
+		function factByLabel(label: string): HTMLElement {
+			return screen.getByText(label).element().closest("div")!;
+		}
+
+		await expect.element(screen.getByText("Uploaded:")).toBeInTheDocument();
+		expect(getComputedStyle(factByLabel("Size:")).gridColumnStart).toBe("1");
+		expect(getComputedStyle(factByLabel("Uploaded:")).gridColumnStart).toBe("1");
+		expect(getComputedStyle(factByLabel("Format:")).gridColumnStart).toBe("2");
+	});
+
+	it("displays dimensions for local videos that have width and height", async () => {
+		const item = makeLocalVideoItem({ width: 1920, height: 1080 });
+		const screen = await renderPanel({ item });
+		await expect.element(screen.getByText("1920 × 1080")).toBeInTheDocument();
+		await expect.element(screen.getByText("MP4", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Dimensions:")).toBeInTheDocument();
+	});
+
 	it("groups the preview, metadata, and actions in an accessible dialog", async () => {
 		const screen = await renderPanel();
 		const dialog = screen.getByRole("dialog", { name: "Media details" }).element();

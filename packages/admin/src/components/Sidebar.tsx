@@ -37,6 +37,7 @@ export { resolveNavIcon, toPhosphorIconName };
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
 
 /**
  * Static invariants for nav entries that have AC-level visibility
@@ -344,6 +345,21 @@ export function resolvePluginPageLabel(
 		.join(" ");
 }
 
+/**
+ * Resolve the display title for a plugin dashboard widget. Declared titles
+ * are run through the shared Lingui instance so a plugin-provided catalog
+ * localizes dashboard card headings the same way it localizes sidebar nav
+ * labels. Widgets without a title fall back to the raw widget id.
+ */
+export function resolvePluginWidgetTitle(
+	title: string | undefined,
+	widgetId: string,
+	translate: (id: string) => string,
+): string {
+	if (title) return translate(title);
+	return widgetId;
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
 export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
@@ -582,6 +598,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 							item={{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard }}
 							isActive={isItemActive("/", currentPath)}
 						/>
+						{userRole >= ROLE_CONTRIBUTOR && (
+							<NavMenuLink
+								item={{ to: "/calendar", label: t`Calendar`, icon: ADMIN_NAV_ICONS.calendar }}
+								isActive={isItemActive("/calendar", currentPath)}
+							/>
+						)}
 					</KumoSidebar.Menu>
 				</KumoSidebar.Group>
 

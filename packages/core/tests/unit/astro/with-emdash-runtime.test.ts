@@ -6,7 +6,16 @@
  * (event-scoped db in ALS + guaranteed commit/close), and error propagation.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+	Kysely,
+	KyselyPlugin,
+	PluginTransformQueryArgs,
+	PluginTransformResultArgs,
+	QueryResult,
+	RootOperationNode,
+	UnknownRow,
+} from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
@@ -70,9 +79,43 @@ import { createRequestScopedDb } from "virtual:emdash/dialect";
 
 import { after } from "../../../src/after.js";
 import { withEmDashRuntime } from "../../../src/astro/middleware.js";
-import { getRequestContext } from "../../../src/request-context.js";
+import {
+	PREVIEW_SECRET_OPTION_KEY,
+	_clearSecretsCacheForTesting,
+	resolveSecretsCached,
+} from "../../../src/config/secrets.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import type { Database } from "../../../src/database/types.js";
+import { getRequestContext, runWithContext } from "../../../src/request-context.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
+
+const SECRET_ENV_VARS = [
+	"EMDASH_PREVIEW_SECRET",
+	"PREVIEW_SECRET",
+	"EMDASH_IP_SALT",
+	"EMDASH_AUTH_SECRET",
+	"AUTH_SECRET",
+];
+
+class QueryCountingPlugin implements KyselyPlugin {
+	count = 0;
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.count += 1;
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+}
+
+function scopedDbFromContext(): Kysely<Database> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the event scope stores the adapter's handle
+	return getRequestContext()?.db as Kysely<Database>;
+}
 
 describe("withEmDashRuntime (#1887)", () => {
 	beforeEach(() => {
@@ -201,5 +244,57 @@ describe("withEmDashRuntime (#1887)", () => {
 		).resolves.toBe("ok");
 		expect(dbSeenByCallback).toBe(scopedDb);
 		expect(commit).toHaveBeenCalledOnce();
+	});
+});
+
+// Requests get their handle from the same `createRequestScopedDb` wrapper as events.
+describe("resolveSecretsCached with request-scoped databases", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
+		for (const name of SECRET_ENV_VARS) vi.stubEnv(name, "");
+		_clearSecretsCacheForTesting();
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		vi.unstubAllEnvs();
+		vi.mocked(createRequestScopedDb).mockReset();
+		_clearSecretsCacheForTesting();
+		await teardownTestDatabase(db);
+	});
+
+	it("reads the stored secrets once across handles for different events", async () => {
+		const firstEvent = new QueryCountingPlugin();
+		const secondEvent = new QueryCountingPlugin();
+		vi.mocked(createRequestScopedDb)
+			.mockReturnValueOnce({ db: db.withPlugin(firstEvent), commit: vi.fn() })
+			.mockReturnValueOnce({ db: db.withPlugin(secondEvent), commit: vi.fn() });
+
+		const first = await withEmDashRuntime(() => resolveSecretsCached(scopedDbFromContext()));
+		const second = await withEmDashRuntime(() => resolveSecretsCached(scopedDbFromContext()));
+
+		expect(firstEvent.count).toBeGreaterThan(0);
+		expect(secondEvent.count).toBe(0);
+		expect(second).toEqual(first);
+	});
+
+	it("resolves a database that other code puts in the request context on its own", async () => {
+		vi.mocked(createRequestScopedDb).mockReturnValue({ db: db.withoutPlugins(), commit: vi.fn() });
+		const configured = await withEmDashRuntime(() => resolveSecretsCached(scopedDbFromContext()));
+
+		const otherDb = await setupTestDatabase();
+		try {
+			const other = await runWithContext({ editMode: false, db: otherDb }, () =>
+				resolveSecretsCached(otherDb),
+			);
+			expect(other.previewSecret).not.toBe(configured.previewSecret);
+			expect(other.previewSecret).toBe(
+				await new OptionsRepository(otherDb).get<string>(PREVIEW_SECRET_OPTION_KEY),
+			);
+		} finally {
+			await teardownTestDatabase(otherDb);
+		}
 	});
 });

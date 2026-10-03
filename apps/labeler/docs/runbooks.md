@@ -176,9 +176,14 @@ pnpm --dir apps/labeler eval:image:local -- /secure/path/downloaded-images
 ```
 
 The command searches directories recursively and writes one JSON object per file to standard
-output. The JSON contains the local path, pass/review outcome, findings, model identity, latency,
-and usage. Image bytes are not included in the output or stored by the evaluator. Stop the proxy
-when evaluation finishes.
+output. The JSON contains the local path, pass/review outcome, findings, the probability for each
+finding category, model identity, latency, and usage. Image bytes are not included in the output or
+stored by the evaluator. Stop the proxy when evaluation finishes.
+
+The evaluator uses the production image settings. To compare other settings, set
+`LOCAL_IMAGE_EVAL_MODEL` to a Clef model ID, `LOCAL_IMAGE_EVAL_THRESHOLD` to a probability between
+zero and one, or `LOCAL_IMAGE_EVAL_SEPARATE_QUESTIONS` to `0` to send every question in one
+request.
 
 ## Deploy both Workers
 

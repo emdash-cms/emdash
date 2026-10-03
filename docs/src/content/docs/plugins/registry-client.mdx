@@ -69,7 +69,7 @@ export const collections = {
 };
 ```
 
-Use `getLiveCollection("plugins", { q, limit })` for bounded results and `getLiveEntry("plugins", { publisher, slug })` for one package. Pass the returned cache hint to `Astro.cache.set()` when the site has an Astro cache provider. Astro live collections do not return pagination metadata, so use `DiscoveryClient.searchPackages()` directly when the interface needs the next cursor.
+Use `getLiveCollection("plugins", { q, limit })` for bounded results and `getLiveEntry("plugins", { publisher, slug })` for one package. Add `includeLatestRelease: true` to the collection filter when a listing needs release data such as icons; it costs one extra registry request per package that has a published release, and an entry whose release can't be loaded within 3 seconds comes back without `latestRelease`. Pass the returned cache hint to `Astro.cache.set()` when the site has an Astro cache provider. Astro live collections do not return pagination metadata, so use `DiscoveryClient.searchPackages()` directly when the interface needs the next cursor.
 
 A package detail page fetches a plugin by its DID and slug, then fetches the latest release:
 

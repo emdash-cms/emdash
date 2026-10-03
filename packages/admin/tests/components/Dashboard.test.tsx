@@ -1,8 +1,12 @@
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
+import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { AdminManifest } from "../../src/lib/api";
 import type { DashboardStats } from "../../src/lib/api/dashboard";
 import type { TransferCapabilities } from "../../src/lib/api/transfer.js";
+import { PluginAdminProvider } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -165,6 +169,23 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("link", { name: "Scheduled" }))
+			.toHaveAttribute("href", "/calendar");
+	});
+
+	it("does not link the scheduled summary for subscribers, who cannot open the calendar", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 10 } });
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 5, published: 2, draft: 3, scheduled: 2 },
+			]),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Scheduled" })).not.toBeInTheDocument();
 	});
 
 	it("omits scheduled summary when only residual non-scheduled statuses exist", async () => {
@@ -528,5 +549,42 @@ describe("Dashboard", () => {
 				.not.toBeInTheDocument();
 			expect(mockFetchTransferCapabilities).toHaveBeenCalledTimes(1);
 		});
+	});
+
+	it("translates plugin dashboard widget titles through the shared Lingui catalog", async () => {
+		// Regression for #3783: plugin-provided dashboard widget titles must
+		// resolve the same way as admin page labels when a plugin loads its
+		// catalog into the admin's shared i18n instance.
+		const plI18n = setupI18n({
+			locale: "pl",
+			messages: { pl: { Forms: "Formularze" } },
+		});
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+
+		function DummyWidget() {
+			return <div>Widget body</div>;
+		}
+
+		const manifestWithWidgets: AdminManifest = {
+			...manifest,
+			plugins: {
+				forms: {
+					enabled: true,
+					dashboardWidgets: [{ id: "overview", title: "Forms" }],
+				},
+			},
+		};
+
+		const screen = await render(
+			<I18nProvider i18n={plI18n}>
+				<PluginAdminProvider pluginAdmins={{ forms: { widgets: { overview: DummyWidget } } }}>
+					<Dashboard manifest={manifestWithWidgets} />
+				</PluginAdminProvider>
+			</I18nProvider>,
+		);
+
+		await expect.element(screen.getByText("Formularze")).toBeInTheDocument();
+		// Sanity check: the original (untranslated) title should not be shown.
+		await expect.element(screen.getByText("Forms")).not.toBeInTheDocument();
 	});
 });
