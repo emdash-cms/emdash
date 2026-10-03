@@ -25,6 +25,7 @@ const NON_ALPHANUMERIC_UNDERSCORE_PATTERN = /[^a-zA-Z0-9_]/g;
 const TRAILING_SLASH_PATTERN = /\/$/;
 const PHP_STRING_PATTERN = /s:\d+:"(.*)";/;
 const PHP_ARRAY_PATTERN = /s:(\d+):"([^"]+)";(?:s:(\d+):"([^"]+)"|i:(\d+)|b:([01]))/g;
+const SHELL_SAFE_ARG_PATTERN = /^[\w@%+=:,./-]+$/;
 
 /** Type guard for Record<string, unknown> */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -236,7 +237,7 @@ export async function prepareWordPressImport(
 		`Review and edit: ${options.configPath}`,
 		`Review suggested config: ${liveConfigPath}`,
 		"Copy relevant parts to your src/live.config.ts",
-		`Run: emdash import wordpress ${filePath} --execute`,
+		`Run: ${importCommandLine(filePath, options, "--execute")}`,
 	];
 
 	log(pc.cyan("\n=== Next Steps ===\n"));
@@ -634,10 +635,26 @@ export async function executeWordPressImport(
 		imported: 0,
 		skipped: 0,
 		resumed: 0,
-		errors: 0,
 		byCollection: new Map<string, number>(),
 	};
+	const redirectPath = join(options.outputDir, "_redirects.json");
 	const redirects = new Map<string, string>();
+	if (options.resume) {
+		try {
+			const existing: unknown = JSON.parse(await readFile(redirectPath, "utf-8"));
+			if (isRecord(existing)) {
+				for (const [from, to] of Object.entries(existing)) {
+					if (typeof to === "string") redirects.set(from, to);
+				}
+			}
+		} catch {
+			// No redirect map from an earlier run
+		}
+	}
+
+	if (!options.dryRun) {
+		await mkdir(options.outputDir, { recursive: true });
+	}
 
 	// Process posts
 	for (const post of wxr.posts) {
@@ -659,6 +676,7 @@ export async function executeWordPressImport(
 			continue;
 		}
 
+		const importedBefore = stats.imported;
 		try {
 			const converted = convertPostWithConfig(post, mapping.collection, config, mediaMap);
 
@@ -696,7 +714,6 @@ export async function executeWordPressImport(
 				redirects.set(post.link, `/${converted.collection}/${converted.slug}`);
 			}
 		} catch (error) {
-			stats.errors++;
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			result.errors.push({
 				id: post.id,
@@ -713,9 +730,12 @@ export async function executeWordPressImport(
 		}
 
 		// Save progress periodically (every 50 items)
-		if (!options.dryRun && stats.imported % 50 === 0) {
+		if (!options.dryRun && stats.imported > importedBefore && stats.imported % 50 === 0) {
 			progress.updatedAt = new Date().toISOString();
 			await writeFile(progressPath, JSON.stringify(progress, null, 2));
+			if (redirects.size > 0) {
+				await writeFile(redirectPath, JSON.stringify(Object.fromEntries(redirects), null, 2));
+			}
 		}
 	}
 
@@ -773,7 +793,6 @@ export async function executeWordPressImport(
 	}
 
 	// Write redirects
-	const redirectPath = join(options.outputDir, "_redirects.json");
 	if (redirects.size > 0) {
 		if (options.dryRun) {
 			result.files.push({ path: redirectPath, action: "would_create" });
@@ -787,7 +806,7 @@ export async function executeWordPressImport(
 	if (!options.dryRun) {
 		progress.updatedAt = new Date().toISOString();
 		progress.stats.skippedPosts = stats.skipped;
-		progress.stats.errorCount = stats.errors;
+		progress.stats.errorCount = result.errors.length;
 		await writeFile(progressPath, JSON.stringify(progress, null, 2));
 	}
 
@@ -796,7 +815,7 @@ export async function executeWordPressImport(
 	result.summary.postsSkipped = stats.skipped + stats.resumed;
 	result.summary.mediaDownloaded = mediaDownloaded;
 	result.summary.mediaSkipped = mediaSkipped;
-	result.summary.errors = stats.errors + result.errors.length;
+	result.summary.errors = result.errors.length;
 
 	// Summary
 	const prefix = options.dryRun ? "[DRY RUN] " : "";
@@ -806,8 +825,8 @@ export async function executeWordPressImport(
 		log(`Resumed (skipped): ${pc.blue(stats.resumed.toString())}`);
 	}
 	log(`Skipped (disabled): ${pc.yellow(stats.skipped.toString())}`);
-	if (stats.errors > 0) {
-		log(`Errors: ${pc.red(stats.errors.toString())}`);
+	if (result.errors.length > 0) {
+		log(`Errors: ${pc.red(result.errors.length.toString())}`);
 	}
 
 	log(pc.bold("\nBy collection:"));
@@ -823,16 +842,16 @@ export async function executeWordPressImport(
 	if (options.dryRun) {
 		result.nextSteps = [
 			`Run without --dry-run to perform the import`,
-			`emdash import wordpress ${filePath} --execute`,
+			importCommandLine(filePath, options, "--execute"),
 		];
-	} else if (stats.errors > 0) {
+	} else if (result.errors.length > 0) {
 		result.nextSteps = [
 			`Fix errors and run with --resume to continue`,
-			`emdash import wordpress ${filePath} --execute --resume`,
+			importCommandLine(filePath, options, "--execute --resume"),
 		];
 	} else {
 		result.nextSteps = [
-			`Verify import: emdash migrate:verify --source ${filePath}`,
+			`Review the converted files in: ${options.outputDir}`,
 			`Progress saved to: ${progressPath}`,
 		];
 	}
@@ -848,6 +867,22 @@ export async function executeWordPressImport(
 	}
 
 	return result;
+}
+
+function importCommandLine(
+	filePath: string,
+	options: { outputDir: string; configPath: string },
+	flags: string,
+): string {
+	let command = `emdash import wordpress ${shellQuote(filePath)} -o ${shellQuote(options.outputDir)}`;
+	if (options.configPath !== join(options.outputDir, "migration-config.json")) {
+		command += ` --config ${shellQuote(options.configPath)}`;
+	}
+	return `${command} ${flags}`;
+}
+
+function shellQuote(arg: string): string {
+	return SHELL_SAFE_ARG_PATTERN.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`;
 }
 
 function createFreshProgress(sourceFile: string, configFile: string): ImportProgress {
