@@ -1,5 +1,7 @@
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { columnExists } from "../../../../src/database/dialect-helpers.js";
 import { sha256Hex } from "../../../../src/transfer/format/digest.js";
 import { KIND_REFERENCES, type SitePackageRecord } from "../../../../src/transfer/format/kinds.js";
 import { MANIFEST_PATH } from "../../../../src/transfer/format/paths.js";
@@ -32,6 +34,21 @@ describeEachDialect("site export", (dialect) => {
 
 	afterEach(async () => {
 		await teardownForDialect(ctx);
+	});
+
+	it("exports after revision bookkeeping is added by a newer instance", async () => {
+		if (!(await columnExists(ctx.db, "revisions", "is_autosave"))) {
+			await ctx.db.schema
+				.alterTable("revisions")
+				.addColumn("is_autosave", "integer", (column) => column.notNull().defaultTo(0))
+				.execute();
+		}
+		await sql`UPDATE revisions SET is_autosave = 1`.execute(ctx.db);
+
+		const { result, reader } = await runExport(ctx.db, storage);
+		expect(result.outcome, result.operation.errorDetail ?? undefined).toBe("complete");
+		const records = await packageRecords(reader);
+		expect(records.get("revision")).toHaveLength(3);
 	});
 
 	it("exports a package that never contains credentials, secrets, or storage keys", async () => {

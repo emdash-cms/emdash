@@ -303,6 +303,7 @@ const PORTABLE_TABLE_LIST: PortableTableSpec[] = [
 			data: f("data", "json"),
 			author_id: principal("authorPrincipal"),
 			created_at: f("createdAt"),
+			is_autosave: { class: "excluded" },
 		},
 	},
 	{
