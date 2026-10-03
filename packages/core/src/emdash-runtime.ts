@@ -257,7 +257,7 @@ import {
 } from "./index.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
-import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
+import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import { EmailPipeline } from "./plugins/email.js";
@@ -1096,6 +1096,66 @@ export class EmDashRuntime {
 	}
 
 	/**
+	 * Run install → activate once for each native plugin registered in the
+	 * integration config that has no `_plugin_state` row.
+	 *
+	 * Only the isolate whose insert creates the row runs the hooks. A plugin
+	 * whose hooks fail is recorded as inactive rather than retried on later
+	 * boots; re-enabling it from the admin runs `plugin:activate`.
+	 */
+	private async installUnrecordedConfigPlugins(
+		configPlugins: ResolvedPlugin[],
+		recordedStates: ReadonlyMap<string, string>,
+	): Promise<void> {
+		const stateRepo = new PluginStateRepository(this.db);
+		const failed: ResolvedPlugin[] = [];
+		const recordFailure = (plugin: ResolvedPlugin, hook: string, error: Error | undefined) => {
+			console.error(
+				`EmDash: ${hook} failed for config plugin "${plugin.id}"; disabling it:`,
+				error,
+			);
+			failed.push(plugin);
+		};
+
+		for (const plugin of configPlugins) {
+			if (recordedStates.has(plugin.id)) continue;
+
+			try {
+				if (!(await stateRepo.createActiveIfAbsent(plugin.id, plugin.version, "config"))) continue;
+				this.pluginStates.set(plugin.id, "active");
+
+				const install = await this._hooks.runPluginInstall(plugin.id);
+				const installFailure = install.find((result) => !result.success);
+				if (installFailure) {
+					recordFailure(plugin, "plugin:install", installFailure.error);
+					continue;
+				}
+
+				const activate = await this._hooks.runPluginActivate(plugin.id);
+				const activateFailure = activate.find((result) => !result.success);
+				if (activateFailure) {
+					recordFailure(plugin, "plugin:activate", activateFailure.error);
+				}
+			} catch (error) {
+				console.error(`EmDash: Config plugin "${plugin.id}" install/activate failed:`, error);
+			}
+		}
+
+		if (failed.length === 0) return;
+		for (const plugin of failed) {
+			try {
+				await stateRepo.disable(plugin.id, plugin.version);
+				await setCronTasksEnabled(this.db, plugin.id, false);
+			} catch (error) {
+				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
+			}
+			this.pluginStates.set(plugin.id, "inactive");
+			this.enabledPlugins.delete(plugin.id);
+		}
+		await this.rebuildHookPipeline();
+	}
+
+	/**
 	 * Rebuild the hook pipeline from the current set of enabled plugins.
 	 *
 	 * Filters `allPipelinePlugins` to only those in `enabledPlugins`,
@@ -1534,6 +1594,7 @@ export class EmDashRuntime {
 		const storage = EmDashRuntime.getStorage(deps);
 
 		let pluginStates: Map<string, string> = new Map();
+		let pluginStatesRead = false;
 		const configuredLocales: string[] =
 			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
 		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
@@ -1637,6 +1698,7 @@ export class EmDashRuntime {
 						.select(["plugin_id", "status"])
 						.execute();
 					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+					pluginStatesRead = true;
 				} catch (error) {
 					captureMissingManualSchema(error);
 					// _plugin_state may not exist yet on a pre-migration db.
@@ -2223,6 +2285,13 @@ export class EmDashRuntime {
 			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
 		);
 		sandboxRunner?.setContentActions?.(contentActions);
+
+		if (ownsConfiguredDb && pluginStatesRead) {
+			await phase("rt.lifecycle", "Config plugin install/activate", () =>
+				runtime.installUnrecordedConfigPlugins(deps.plugins, new Map(pluginStates)),
+			);
+		}
+
 		return runtime;
 	}
 
