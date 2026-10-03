@@ -4,6 +4,19 @@ EmDash is published to npm and in active use. During development you work inside
 
 This guide covers setup, policy, and the rules around opening a PR. For code patterns (SQL, API routes, authorization, performance, Lingui, RTL, etc.), see [AGENTS.md](AGENTS.md).
 
+## Project processes
+
+`CONTRIBUTING.md` is the directory for project processes. The detailed policies live in focused documents:
+
+| Subject                                                      | Canonical document                   |
+| ------------------------------------------------------------ | ------------------------------------ |
+| Roles, decisions, membership, and public or private channels | [Governance](GOVERNANCE.md)          |
+| Maintainer review and merge requirements                     | [Maintaining EmDash](MAINTAINING.md) |
+| Feature plans and RFCs                                       | [Proposals](proposals/README.md)     |
+| Project-led priorities and planning horizons                 | [Roadmap](ROADMAP.md)                |
+| Project Team triage                                          | [Triage guide](TRIAGE.md)            |
+| AI-assisted contributions and communication                  | [AI usage policy](AI_POLICY.md)      |
+
 ## Prerequisites
 
 - **Node.js** 22+
@@ -127,34 +140,35 @@ Your site uses `workspace:*` links, so core changes are reflected immediately.
 
 ## Contribution Policy
 
-### What we accept
+### Choose a contribution path
 
-| Type             | Process                                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Bug fixes**    | Open a PR directly. Include a failing test that reproduces the bug.                                                      |
-| **Docs / typos** | Open a PR directly.                                                                                                      |
-| **Translations** | Open a PR directly. See [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).                      |
-| **Features**     | Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) and wait for maintainer approval. |
-| **Refactors**    | Open a Discussion first.                                                                                                 |
-| **Performance**  | Open a Discussion first with benchmarks.                                                                                 |
+| Type                                       | Process                                                                                                                                                     |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bug fix**                                | Open an implementation PR directly. Include a regression test when it can protect meaningful behavior; otherwise include the reproduction and verification. |
+| **Documentation or tests**                 | Open an implementation PR directly.                                                                                                                         |
+| **Translation**                            | Open an implementation PR directly. Follow [Translating EmDash](https://docs.emdashcms.com/contributing/translating/).                                      |
+| **Chore**                                  | Open an implementation PR directly when it is concrete and scoped. Dependency upgrades normally come through Renovate or Dependabot.                        |
+| **Behavior-preserving refactor**           | Open an implementation PR directly and show that behavior is unchanged.                                                                                     |
+| **Behavior-preserving performance change** | Open an implementation PR directly with relevant measurements.                                                                                              |
+| **Feature**                                | Get a [feature plan or RFC](proposals/README.md) accepted before opening the implementation PR.                                                             |
 
-**Feature PRs without prior maintainer approval will be closed.** Not gatekeeping -- it's about not wasting your time on work that might not align with the project's direction.
+A bounded, additive feature normally uses a feature-plan PR without a separate Discussion. A broader or harder-to-reverse feature starts with an Ideas Discussion and then uses an RFC PR. Every implementation PR marked as a Feature links its merged design PR.
+
+Do not open prototype or draft implementation PRs against EmDash while the design is unresolved. Prototype locally or in a fork and link the evidence from the design PR.
 
 ### What we don't accept
 
-- **Drive-by feature additions.** No Discussion, no PR.
+- **Drive-by changes.** Open a PR only when you use EmDash and encountered the problem, maintain a relevant upstream integration, or received prior Maintainer approval for that specific change.
 - **Speculative refactors** that don't solve a concrete problem.
 - **Dependency upgrades** outside Renovate/Dependabot.
 - **Drive-by "improvements"** in code unrelated to your change.
-- **Bulk/spray PRs** ("fix all lint warnings", "add types everywhere"). Open a Discussion first.
+- **Bulk/spray PRs** ("fix all lint warnings", "add types everywhere").
 
-### AI-generated PRs
+### AI-assisted contributions
 
-AI-assisted contributions are welcome and held to the same quality bar as any other PR:
+AI-assisted contributions are welcome. The human submitter remains responsible for the change, reviews the complete output, tests it, and discloses the models or tools used.
 
-- The submitter is responsible for correctness, not the tool.
-- AI-generated PRs must pass CI, follow project patterns, and include tests.
-- Check the PR template's AI disclosure box and name the model/tool (e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6). This isn't punitive -- it helps reviewers focus on edge cases that AI tools tend to miss and run the review pass with a different model family.
+Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue or pull request or to participate in project communication. Agents cannot comment on issues, Discussions, or design PRs. Their participation in implementation-PR conversation is limited to explicitly requested code review and replies to code review.
 
 ### Interface screenshots
 
@@ -176,6 +190,7 @@ If the body contains `![Settings screen after the change](./after.png)`, pass `-
 
 - Branch from `main`.
 - Fill out the PR template completely. **PRs with an empty or missing template will be closed automatically.** The template is loaded by the GitHub UI; if you create a PR via API/CLI, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body.
+- For a design PR, use [the design template](.github/PULL_REQUEST_TEMPLATE/design.md), prefix the title with `design:`, and limit the change to `proposals/`. In the GitHub web interface, add `?template=design.md` to the new-PR URL to load the design template.
 - `pnpm typecheck` and `pnpm lint` must pass before pushing.
 - Run relevant tests.
 - Include screenshots for every UI change.
@@ -226,6 +241,9 @@ For RTL rules and the full Lingui pattern reference, see [AGENTS.md § Admin UI:
 
 - [AGENTS.md](AGENTS.md) -- architecture and code patterns
 - [TRIAGE.md](TRIAGE.md) -- guidance for community triagers
+- [GOVERNANCE.md](GOVERNANCE.md) -- roles, decision-making, and team membership
+- [proposals/README.md](proposals/README.md) -- feature plans and RFCs
+- [ROADMAP.md](ROADMAP.md) -- project-led priorities and planning horizons
 - [docs.emdashcms.com](https://docs.emdashcms.com) -- user guides and API reference
 - [Discussions](https://github.com/emdash-cms/emdash/discussions) -- ask questions, propose features
 - [Issues](https://github.com/emdash-cms/emdash/issues) -- bug reports

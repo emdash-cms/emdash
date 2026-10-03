@@ -4,6 +4,7 @@
 // rules here must match the workflow's, or its scheduled sweep relabels what
 // the bot set.
 
+import governanceDocument from "../../../../GOVERNANCE.md?raw";
 import {
 	addLabels,
 	getIssueLabels,
@@ -25,8 +26,19 @@ export const REVIEW_STATE_LABELS = [
 
 export type ReviewStateLabel = (typeof REVIEW_STATE_LABELS)[number];
 
-const REVIEWER_ASSOCIATIONS: ReadonlySet<string> = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
-const REVIEWER_BOTS: ReadonlySet<string> = new Set(["emdashbot[bot]", "ask-bonk[bot]"]);
+const MAINTAINER_SECTION = /<!-- maintainers:start -->([\s\S]*?)<!-- maintainers:end -->/;
+const GITHUB_PROFILE = /https:\/\/github\.com\/([a-z\d-]+)/gi;
+
+export function parseMaintainerLogins(document: string): ReadonlySet<string> {
+	const block = document.match(MAINTAINER_SECTION)?.[1];
+	const logins = new Set(
+		Array.from((block ?? "").matchAll(GITHUB_PROFILE), (match) => match[1]!.toLowerCase()),
+	);
+	if (logins.size === 0) throw new Error("GOVERNANCE.md has no marked Maintainers list");
+	return logins;
+}
+
+const MAINTAINER_LOGINS = parseMaintainerLogins(governanceDocument);
 const COUNTED_REVIEW_STATES: ReadonlySet<string> = new Set([
 	"APPROVED",
 	"CHANGES_REQUESTED",
@@ -52,9 +64,9 @@ export function decideReviewState(
 		(review): review is SubmittedReview =>
 			review.submittedAt !== null &&
 			review.authorLogin !== null &&
+			review.authorType !== "Bot" &&
 			review.authorLogin !== authorLogin &&
-			(REVIEWER_BOTS.has(review.authorLogin) ||
-				REVIEWER_ASSOCIATIONS.has(review.authorAssociation ?? "")) &&
+			MAINTAINER_LOGINS.has(review.authorLogin.toLowerCase()) &&
 			COUNTED_REVIEW_STATES.has(review.state),
 	);
 	const lastReview = latest(counted);
@@ -97,7 +109,12 @@ export async function syncReviewStateLabel(
 		desired = decideReviewState(target.authorLogin, reviews, commits);
 	}
 	const current = await getIssueLabels(token, ctx, number, signal);
-	if (desired && !current.includes(desired)) await addLabels(token, ctx, number, [desired], signal);
+	// Fork review events reach human-approval.yml through a labeled event. Pulse an
+	// unchanged state label so every review, including a second approval, refreshes it.
+	if (desired && current.includes(desired)) {
+		await removeLabel(token, ctx, number, desired, signal);
+	}
+	if (desired) await addLabels(token, ctx, number, [desired], signal);
 	for (const label of REVIEW_STATE_LABELS) {
 		if (label !== desired && current.includes(label)) {
 			await removeLabel(token, ctx, number, label, signal);

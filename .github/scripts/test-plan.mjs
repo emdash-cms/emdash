@@ -244,6 +244,7 @@ function createFullPlan(paths, reason, unknownPaths = []) {
 		unit_mode: "full",
 		unit_packages: ALL_UNIT_PACKAGES,
 		full: true,
+		design_only: false,
 		reason,
 		paths,
 		unknown_paths: unknownPaths,
@@ -315,6 +316,9 @@ export function createTestPlan(inputPaths) {
 		unit_mode: unitMode,
 		unit_packages: unitMode === "full" ? ALL_UNIT_PACKAGES : [...unitPackages],
 		full: TEST_LANES.every((lane) => selected.has(lane)),
+		design_only:
+			paths.length > 0 &&
+			paths.every((path) => path.startsWith("proposals/") && path.endsWith(".md")),
 		reason: `Matched ${[...categories].join(", ")}.`,
 		paths,
 		unknown_paths: [],
@@ -323,7 +327,7 @@ export function createTestPlan(inputPaths) {
 
 export function formatGitHubOutput(plan) {
 	const lines = [];
-	for (const lane of [...TEST_LANES, ...BROWSER_SUITES, "full"]) {
+	for (const lane of [...TEST_LANES, ...BROWSER_SUITES, "full", "design_only"]) {
 		lines.push(`${lane}=${String(plan[lane])}`);
 	}
 	lines.push(`reason=${plan.reason}`);

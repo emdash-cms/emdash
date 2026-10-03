@@ -1,0 +1,83 @@
+name: Roadmap initiative
+description: Track project-led work selected for the public roadmap
+title: "Roadmap: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is for project-led initiatives selected through roadmap planning. A feature request does not become a roadmap initiative merely because this issue exists.
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Intended outcome
+      description: Describe the user or project outcome, without assuming a particular implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: priority
+    attributes:
+      label: Why the project is prioritising this
+      description: Give the evidence, constraint, or project goal that justifies coordinated project work.
+    validations:
+      required: true
+
+  - type: input
+    id: champion
+    attributes:
+      label: Champion
+      description: Name the person actively advancing the next step.
+      placeholder: "@github-handle"
+    validations:
+      required: true
+
+  - type: input
+    id: sponsor
+    attributes:
+      label: Maintainer sponsor
+      placeholder: "@github-handle"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: horizon
+    attributes:
+      label: Horizon
+      options:
+        - Now
+        - Next
+        - Later
+        - Unscheduled
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options:
+        - Discovery
+        - Design
+        - Ready
+        - Building
+        - Paused
+        - Shipped
+    validations:
+      required: true
+
+  - type: textarea
+    id: next-step
+    attributes:
+      label: Next step
+      description: State the concrete action that advances this initiative.
+    validations:
+      required: true
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Related work
+      description: Link relevant Discussions, proposals, issues, and pull requests.
+    validations:
+      required: false

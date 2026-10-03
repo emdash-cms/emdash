@@ -57,44 +57,50 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ steps.pr-number.outputs.number }}
         run: |
-          if gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /dev/null 2>&1; then
+          if gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr_data.json 2>/dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            if jq -e '(.title | test("^design:"; "i")) or ((.body // "") | contains("<!-- design-pr -->"))' /tmp/pr_data.json > /dev/null; then
+              echo "design=true" >> "$GITHUB_OUTPUT"
+              echo "Design PRs require human review; skipping automated review."
+            else
+              echo "design=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "::warning::PR #${PR_NUMBER} not found, skipping review"
           fi
 
       - name: Checkout repository
-        if: steps.verify-pr.outputs.exists == 'true'
+        if: steps.verify-pr.outputs.exists == 'true' && steps.verify-pr.outputs.design != 'true'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Resolve model from comment
-        if: steps.verify-pr.outputs.exists == 'true'
+        if: steps.verify-pr.outputs.exists == 'true' && steps.verify-pr.outputs.design != 'true'
         id: model
         env:
           BODY: ${{ github.event.comment.body }}
         run: node .github/scripts/resolve-bonk-model.mjs
 
       - name: Setup pnpm
-        if: steps.verify-pr.outputs.exists == 'true'
+        if: steps.verify-pr.outputs.exists == 'true' && steps.verify-pr.outputs.design != 'true'
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
       - name: Setup Node.js
-        if: steps.verify-pr.outputs.exists == 'true'
+        if: steps.verify-pr.outputs.exists == 'true' && steps.verify-pr.outputs.design != 'true'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: "package.json"
           cache: "pnpm"
 
       - name: Install dependencies
-        if: steps.verify-pr.outputs.exists == 'true'
+        if: steps.verify-pr.outputs.exists == 'true' && steps.verify-pr.outputs.design != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Get PR details
-        if: steps.verify-pr.outputs.exists == 'true'
+        if: steps.verify-pr.outputs.exists == 'true' && steps.verify-pr.outputs.design != 'true'
         id: pr-details
         run: |
           gh api "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr_data.json
@@ -116,7 +122,7 @@ jobs:
           PR_NUMBER: ${{ steps.pr-number.outputs.number }}
 
       - name: Run Review (${{ steps.model.outputs.alias }})
-        if: steps.verify-pr.outputs.exists == 'true'
+        if: steps.verify-pr.outputs.exists == 'true' && steps.verify-pr.outputs.design != 'true'
         uses: ask-bonk/ask-bonk/github@22f7cea9896b0ae77d92b8dcbcf81798a9165633 # main as of 2026-04-24
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}

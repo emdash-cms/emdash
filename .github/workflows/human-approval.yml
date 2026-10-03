@@ -1,0 +1,229 @@
+name: Human Approval
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, labeled]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  approval:
+    name: Update human approval gate
+    if: >-
+      github.event_name != 'pull_request_review'
+      || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: human-approval-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Check current-revision approvals
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setFailed('The event did not contain a pull request.');
+              return;
+            }
+
+            let approvalGate;
+            async function setApprovalGate(waiting, title, summary) {
+              const name = 'Human Maintainer approval';
+              const detailsUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+              if (approvalGate === undefined) {
+                const { data } = await github.rest.checks.listForRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: pr.head.sha,
+                  check_name: name,
+                  filter: 'latest',
+                  per_page: 100,
+                });
+                approvalGate = data.check_runs.find(run => run.name === name) || null;
+              }
+              const output = { title, summary };
+
+              if (approvalGate && !(approvalGate.status === 'completed' && waiting)) {
+                const { data } = await github.rest.checks.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  check_run_id: approvalGate.id,
+                  status: waiting ? 'in_progress' : 'completed',
+                  ...(waiting
+                    ? {}
+                    : { conclusion: 'success', completed_at: new Date().toISOString() }),
+                  details_url: detailsUrl,
+                  output,
+                });
+                approvalGate = data;
+                return;
+              }
+
+              const { data } = await github.rest.checks.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name,
+                head_sha: pr.head.sha,
+                status: waiting ? 'in_progress' : 'completed',
+                ...(waiting
+                  ? { started_at: new Date().toISOString() }
+                  : { conclusion: 'success', completed_at: new Date().toISOString() }),
+                details_url: detailsUrl,
+                output,
+              });
+              approvalGate = data;
+            }
+
+            if (pr.draft) {
+              core.notice('Draft pull requests do not require approval yet.');
+              return;
+            }
+
+            await setApprovalGate(
+              true,
+              'Evaluating human Maintainer approval',
+              'Checking reviews on the current revision.',
+            );
+
+            const { data: governanceFile } = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: 'GOVERNANCE.md',
+              ref: pr.base.sha,
+            });
+            if (Array.isArray(governanceFile) || governanceFile.type !== 'file') {
+              core.setFailed('GOVERNANCE.md was not returned as a file.');
+              return;
+            }
+            const governance = Buffer.from(governanceFile.content, 'base64').toString('utf8');
+            const maintainerBlock = governance.match(
+              /<!-- maintainers:start -->([\s\S]*?)<!-- maintainers:end -->/,
+            )?.[1];
+            const maintainerLogins = new Set(
+              [...(maintainerBlock || '').matchAll(/https:\/\/github\.com\/([a-z\d-]+)/gi)]
+                .map(match => match[1].toLowerCase()),
+            );
+            if (maintainerLogins.size === 0) {
+              core.setFailed('GOVERNANCE.md does not contain a marked Maintainers list.');
+              return;
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            const commitIndex = new Map(commits.map((commit, index) => [commit.sha, index]));
+
+            const latestByReviewer = new Map();
+            for (const review of reviews) {
+              const login = review.user?.login;
+              const submittedAt = Date.parse(review.submitted_at || '');
+              if (
+                !login ||
+                review.user?.type === 'Bot' ||
+                login === pr.user.login ||
+                !maintainerLogins.has(login.toLowerCase()) ||
+                !Number.isFinite(submittedAt) ||
+                !['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(review.state)
+              ) {
+                continue;
+              }
+              const previous = latestByReviewer.get(login);
+              if (!previous || submittedAt > previous.submittedAt) {
+                latestByReviewer.set(login, {
+                  state: review.state,
+                  submittedAt,
+                  commitId: review.commit_id,
+                });
+              }
+            }
+
+            const privilegedPaths = [
+              /^GOVERNANCE\.md$/,
+              /^MAINTAINING\.md$/,
+              /^AI_POLICY\.md$/,
+              /^ROADMAP\.md$/,
+              /^CONTRIBUTING\.md$/,
+              /^TRIAGE\.md$/,
+              /^proposals\/(README|feature-plan-template|rfc-template)\.md$/,
+              /^\.github\/CODEOWNERS$/,
+              /^\.github\/PULL_REQUEST_TEMPLATE(?:\.md|\/)/,
+              /^\.github\/workflows\//,
+              /^\.github\/actions\//,
+              /^\.changeset\/config\.json$/,
+              /^apps\/release-action\//,
+              /^apps\/release-service\//,
+              /^infra\/emdash-bot\//,
+              /^infra\/flue-review\//,
+            ];
+            const privileged = files.some(file =>
+              privilegedPaths.some(pattern => pattern.test(file.filename))
+            );
+            const required = privileged ? 2 : 1;
+            const approvalCoversCurrentRevision = review => {
+              const reviewedIndex = commitIndex.get(review.commitId);
+              if (reviewedIndex === undefined) return false;
+              return commits
+                .slice(reviewedIndex + 1)
+                .every(commit => (commit.parents || []).length > 1);
+            };
+            const approvers = [...latestByReviewer.entries()]
+              .filter(([, review]) =>
+                review.state === 'APPROVED' && approvalCoversCurrentRevision(review)
+              )
+              .map(([login]) => login);
+            const changeRequests = [...latestByReviewer.entries()]
+              .filter(([, review]) => review.state === 'CHANGES_REQUESTED')
+              .map(([login]) => login);
+
+            if (changeRequests.length > 0) {
+              const summary = `Changes are still requested by ${changeRequests.join(', ')}.`;
+              await setApprovalGate(
+                true,
+                'Changes requested by a human Maintainer',
+                summary,
+              );
+              core.notice(summary);
+              return;
+            }
+
+            if (approvers.length < required) {
+              const category = privileged ? 'governance or privileged supply-chain' : 'normal';
+              const summary = `${category} changes require ${required} human Maintainer approval${required === 1 ? '' : 's'} on the current revision; found ${approvers.length}.`;
+              await setApprovalGate(
+                true,
+                'Awaiting human Maintainer approval',
+                summary,
+              );
+              core.notice(summary);
+              return;
+            }
+
+            await setApprovalGate(
+              false,
+              'Human Maintainer approval requirement met',
+              `Current revision approved by ${approvers.join(', ')}.`,
+            );
+            core.info(`Current revision approved by ${approvers.join(', ')}.`);

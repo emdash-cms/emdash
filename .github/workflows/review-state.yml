@@ -47,7 +47,7 @@ jobs:
             const stateLabels = {
               'review/needs-review': {
                 color: 'fbca04',
-                description: 'No maintainer or bot review yet',
+                description: 'No human Maintainer review yet',
               },
               'review/awaiting-author': {
                 color: 'c5def5',
@@ -63,7 +63,30 @@ jobs:
               },
             };
             const stateNames = Object.keys(stateLabels);
-            const reviewerBots = ['emdashbot[bot]', 'ask-bonk[bot]'];
+            const governanceRef =
+              context.payload.pull_request?.base?.sha || context.payload.repository.default_branch;
+            const { data: governanceFile } = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: 'GOVERNANCE.md',
+              ref: governanceRef,
+            });
+            if (Array.isArray(governanceFile) || governanceFile.type !== 'file') {
+              core.setFailed('GOVERNANCE.md was not returned as a file.');
+              return;
+            }
+            const governance = Buffer.from(governanceFile.content, 'base64').toString('utf8');
+            const maintainerBlock = governance.match(
+              /<!-- maintainers:start -->([\s\S]*?)<!-- maintainers:end -->/,
+            )?.[1];
+            const maintainerLogins = new Set(
+              [...(maintainerBlock || '').matchAll(/https:\/\/github\.com\/([a-z\d-]+)/gi)]
+                .map(match => match[1].toLowerCase()),
+            );
+            if (maintainerLogins.size === 0) {
+              core.setFailed('GOVERNANCE.md does not contain a marked Maintainers list.');
+              return;
+            }
 
             // --- Ensure the four labels exist (mirrors pr-sweep.yml) ---
             const existingLabels = new Set();
@@ -151,11 +174,9 @@ jobs:
                 });
                 const qualifying = reviews.filter(review =>
                   review.user &&
+                  review.user.type !== 'Bot' &&
                   review.user.login !== pr.user.login &&
-                  (
-                    reviewerBots.includes(review.user.login) ||
-                    ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(review.author_association)
-                  ) &&
+                  maintainerLogins.has(review.user.login.toLowerCase()) &&
                   ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED'].includes(review.state)
                 );
 

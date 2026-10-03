@@ -26,13 +26,33 @@ jobs:
           script: |
             const body = context.payload.pull_request.body || '';
             const pr = context.payload.pull_request;
-            const association = pr.author_association || '';
-            const isMaintainer = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association);
             const errors = [];
-            const hasTemplate = body.includes('## What does this PR do?') || body.includes('## Type of change');
+            const isDesign = body.includes('<!-- design-pr -->') || /^design:/i.test(pr.title);
+            const hasImplementationTemplate = body.includes('## What does this PR do?') && body.includes('## Type of change');
+            const hasDesignTemplate = body.includes('<!-- design-pr -->') && body.includes('## Design proposal');
 
-            if (!hasTemplate) {
-              errors.push('This PR does not use the required PR template. Please edit the description to use the [PR template](https://github.com/emdash-cms/emdash/blob/main/.github/PULL_REQUEST_TEMPLATE.md). Copy it into your PR description and fill out all sections.');
+            if (isDesign && !hasDesignTemplate) {
+              errors.push('Design PRs must use the [design PR template](https://github.com/emdash-cms/emdash/blob/main/.github/PULL_REQUEST_TEMPLATE/design.md).');
+            } else if (!isDesign && !hasImplementationTemplate) {
+              errors.push('This PR does not use the required [implementation PR template](https://github.com/emdash-cms/emdash/blob/main/.github/PULL_REQUEST_TEMPLATE.md). Copy it into the PR description and fill out all sections.');
+            } else if (isDesign) {
+              if (!/^design:/i.test(pr.title)) {
+                errors.push('Prefix a design PR title with `design:`.');
+              }
+              const proposalLink = body.match(/Proposal:\s*`?(proposals\/[a-z0-9][a-z0-9-]*\.md)`?/i);
+              if (!proposalLink) {
+                errors.push('Link the descriptive `proposals/*.md` file in the "Design proposal" section.');
+              }
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                per_page: 100,
+              });
+              const implementationFiles = files.filter(file => !file.filename.startsWith('proposals/'));
+              if (implementationFiles.length > 0) {
+                errors.push(`Design PRs contain proposal files only. Move implementation changes out of this PR: ${implementationFiles.map(file => `\`${file.filename}\``).join(', ')}`);
+              }
             } else {
               const descriptionSection = body.match(/## What does this PR do\?\s*\n([\s\S]*?)(?=\n## )/);
               const description = descriptionSection?.[1]?.replace(/<!--[\s\S]*?-->/g, '').trim() || '';
@@ -55,10 +75,46 @@ jobs:
               }
 
               const isFeature = /- \[x\] Feature/i.test(body);
-              if (isFeature && !isMaintainer) {
-                const hasDiscussionLink = /github\.com\/emdash-cms\/emdash\/discussions\/\d+/.test(body);
-                if (!hasDiscussionLink) {
-                  errors.push('Feature PRs require a link to an approved Discussion (https://github.com/emdash-cms/emdash/discussions/categories/ideas). Open a Discussion first, get approval, then link it in the PR.');
+              const designProcessApplies = Date.parse(pr.created_at) >= Date.parse('2026-10-03T00:00:00Z');
+              if (isFeature && designProcessApplies) {
+                const designMatch = body.match(/New features link to their merged design PR:\s*https:\/\/github\.com\/emdash-cms\/emdash\/pull\/(\d+)/i);
+                if (!designMatch) {
+                  errors.push('Feature PRs require a link to their merged design PR. Follow the feature-plan or RFC process in `proposals/README.md` first.');
+                } else {
+                  const designNumber = Number(designMatch[1]);
+                  if (designNumber === pr.number) {
+                    errors.push('The feature link must point to an earlier merged design PR, not this implementation PR.');
+                  } else {
+                    try {
+                      const { data: designPr } = await github.rest.pulls.get({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        pull_number: designNumber,
+                      });
+                      if (!designPr.merged_at) {
+                        errors.push(`Design PR #${designNumber} has not been merged.`);
+                      } else {
+                        const designFiles = await github.paginate(github.rest.pulls.listFiles, {
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          pull_number: designNumber,
+                          per_page: 100,
+                        });
+                        if (
+                          designFiles.length === 0 ||
+                          designFiles.some(file => !file.filename.startsWith('proposals/'))
+                        ) {
+                          errors.push(`PR #${designNumber} is merged but is not a design-only PR under \`proposals/\`.`);
+                        }
+                      }
+                    } catch (error) {
+                      if (error.status === 404) {
+                        errors.push(`Design PR #${designNumber} does not exist in emdash-cms/emdash.`);
+                      } else {
+                        throw error;
+                      }
+                    }
+                  }
                 }
               }
 
@@ -119,11 +175,16 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const labels = new Set();
+            const body = pr.body || '';
+            const isDesign = body.includes('<!-- design-pr -->') || /^design:/i.test(pr.title);
 
             // --- Bot detection ---
             const botLogins = ['dependabot[bot]', 'renovate[bot]', 'emdashbot[bot]'];
             if (botLogins.includes(pr.user.login)) {
               labels.add('bot');
+            }
+            if (isDesign) {
+              labels.add('type/design');
             }
             // --- Size labels ---
             const { data: files } = await github.rest.pulls.listFiles({
@@ -184,6 +245,7 @@ jobs:
             // --- Ensure all labels exist, then apply ---
             const labelColors = {
               'bot': 'ededed',
+              'type/design': '5319e7',
               'size/XS': '3cbf00',
               'size/S': '5dba3f',
               'size/M': 'fbca04',
@@ -267,7 +329,7 @@ jobs:
 
             // --- Scope guard: comment on oversized PRs ---
             // Only on open (not synchronize) to avoid spamming on every push
-            if (context.payload.action === 'opened') {
+            if (context.payload.action === 'opened' && !isDesign) {
               const warnings = [];
 
               if (linesChanged > 500) {

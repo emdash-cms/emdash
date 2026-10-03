@@ -13,6 +13,14 @@ describe("test plan", () => {
 		for (const lane of TEST_LANES) assert.equal(plan[lane], false, lane);
 	});
 
+	it("identifies proposal-only design changes", () => {
+		const design = createTestPlan(["proposals/content-locking.md", "proposals/README.md"]);
+		assert.equal(design.design_only, true);
+
+		const mixed = createTestPlan(["proposals/content-locking.md", "packages/core/src/index.ts"]);
+		assert.equal(mixed.design_only, false);
+	});
+
 	it("selects focused admin UI coverage", () => {
 		const plan = createTestPlan(["packages/admin/src/components/Editor.tsx"]);
 
@@ -172,6 +180,7 @@ describe("test plan", () => {
 		assert.ok(output.includes("e2e_playground=false\n"));
 		assert.ok(output.includes("browser_admin=true\n"));
 		assert.ok(output.includes("browser_release=false\n"));
+		assert.ok(output.includes("design_only=false\n"));
 		assert.ok(output.includes("unit_mode=none\n"));
 		assert.ok(output.includes("unit_packages=[]\n"));
 		assert.ok(output.includes("unknown_paths=[]\n"));

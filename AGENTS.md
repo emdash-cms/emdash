@@ -2,6 +2,8 @@ This file provides guidance to agentic coding tools working in this repository.
 
 For human-facing contributor info (setup, repo layout, PR policy, i18n), see [CONTRIBUTING.md](CONTRIBUTING.md). This file focuses on the patterns and gotchas an agent needs to write correct code.
 
+Follow [AI_POLICY.md](AI_POLICY.md) for external actions and project communication. In particular, do not comment on issues, Discussions, or design PRs. On implementation PRs, post only a specifically requested code review or a reply to code review, and sign agent-written comments posted from a human account as the policy requires.
+
 `CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
 
 When writing, revising, or reviewing documentation, load the `writing-emdash-docs` skill. Use it for public docs, READMEs, contributor guidance, technical specifications, release notes and changesets, and skill instructions.
@@ -36,7 +38,7 @@ Before opening a PR: tests pass, lint clean, formatted, changeset added if a pub
 
 A changeset is user-facing documentation that lands verbatim in a package CHANGELOG. Review its usefulness to someone upgrading, not only its presence and frontmatter. Follow [.changeset/README.md](.changeset/README.md) for the canonical writing and review standard, including proportional detail and migration guidance for default or breaking changes.
 
-When opening a PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section -- the GitHub UI injects it automatically but the CLI does not, and PRs missing it are auto-closed. Check the AI-generated code disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset/i18n/Discussion items are n/a.
+When opening an implementation PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section. For a design PR, copy `.github/PULL_REQUEST_TEMPLATE/design.md` instead. The GitHub UI injects a template automatically but the CLI does not, and PRs missing one are auto-closed. Check the AI assistance disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset, i18n, screenshots, or design links are not applicable.
 
 Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include screenshots of the rendered result; include before-and-after images when the change is not clear from the result alone. Keep the behavior described in text and give every image useful alt text.
 
