@@ -1,0 +1,37 @@
+.changeset/infer-single-block-type.md
+  s_5764de537fe6d7::t_c5fd0e12659731 1-5
+docs/src/content/docs/reference/field-types.mdx
+  s_5764de537fe6d7::t_0d37e9d3403813 569-570
+packages/core/src/client/index.ts
+  s_5764de537fe6d7::t_cb48fcc898b932 650-655,1651-1656
+packages/core/src/client/portable-text.ts
+  s_5764de537fe6d7::t_35bebd4767ec48 376,393-397,401-407
+packages/core/src/schema/block-values.ts
+  s_5764de537fe6d7::t_1dbb4f2c39f778 160-161,178-186,204-205,207,211-212,214-215,245,269
+packages/core/tests/integration/content/blocks-content.test.ts
+  s_5764de537fe6d7::t_e5a59417c183eb 6,79-175,217-227,229-232,234-244
+packages/core/tests/integration/mcp/blocks-content.test.ts
+  s_5764de537fe6d7::t_9355cd3b6260a0 119-163
+packages/core/tests/unit/client/client.test.ts
+  s_5764de537fe6d7::t_33250dfc4a9a2a 1557-1612
+packages/core/tests/unit/client/portable-text.test.ts
+  s_5764de537fe6d7::t_78470546825fc3 619-635
+packages/core/tests/workerd/blocks-content-d1.test.ts
+  s_5764de537fe6d7::t_d3acd43852fb63 36-53,55-66,68-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ac9976c1b9a2383ba01e3e62aae67a053c7864b1",
+  "prompts": {},
+  "sessions": {
+    "s_5764de537fe6d7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a102b3-ee09-78a1-8c5a-1b8533b05fbe",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
