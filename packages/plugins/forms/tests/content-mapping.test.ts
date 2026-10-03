@@ -398,7 +398,10 @@ describe("validateContentMapping", () => {
 		await expect(
 			validateContentMapping(
 				ctx,
-				{ collection: "events", fieldMappings: { event_details: "body" } },
+				{
+					collection: "events",
+					fieldMappings: { event_details: { field: "body", transform: "portableText" } },
+				},
 				formPages,
 			),
 		).rejects.toThrow(/does not map required field "title"/);
@@ -412,7 +415,7 @@ describe("validateContentMapping", () => {
 				ctx,
 				{
 					collection: "events",
-					fieldMappings: { event_details: "body" },
+					fieldMappings: { event_details: { field: "body", transform: "portableText" } },
 					metadata: { title: "Form submission" },
 				},
 				formPages,
@@ -428,28 +431,243 @@ describe("validateContentMapping", () => {
 				ctx,
 				{
 					collection: "events",
-					fieldMappings: { event_details: "body" },
+					fieldMappings: { event_details: { field: "body", transform: "portableText" } },
 					metadata: { title: null },
 				},
 				formPages,
 			),
 		).rejects.toThrow(
-			/metadata for required field "title" in collection "events" must not be null/,
+			/metadata for required field "title" in collection "events" must not be empty/,
 		);
+	});
+
+	it("rejects an empty-string metadata constant for a required collection field", async () => {
+		const { ctx } = createTestContext(undefined);
+
+		await expect(
+			validateContentMapping(
+				ctx,
+				{
+					collection: "events",
+					fieldMappings: { event_details: { field: "body", transform: "portableText" } },
+					metadata: { title: " " },
+				},
+				formPages,
+			),
+		).rejects.toThrow(
+			/metadata for required field "title" in collection "events" must not be empty/,
+		);
+	});
+
+	it("rejects a metadata key that is also a mapping target", async () => {
+		const { ctx } = createTestContext(undefined);
+
+		await expect(
+			validateContentMapping(
+				ctx,
+				{ ...validMapping, metadata: { title: "Fixed title" } },
+				formPages,
+			),
+		).rejects.toThrow(
+			/metadata field "title" in collection "events" is also mapped from a form field/,
+		);
+	});
+
+	it("rejects a mapping from a file field", async () => {
+		const { ctx } = createTestContext(undefined);
+		const pages: FormPage[] = [
+			{ fields: [...formPages[0]!.fields, makeField({ name: "attachment", type: "file" })] },
+		];
+
+		await expect(
+			validateContentMapping(
+				ctx,
+				{ ...validMapping, fieldMappings: { ...validMapping.fieldMappings, attachment: "source" } },
+				pages,
+			),
+		).rejects.toThrow(/cannot map file field "attachment"/);
 	});
 
 	it("rejects a required collection field mapped from an optional form field", async () => {
 		const { ctx } = createTestContext(undefined);
 
-		// event_details is optional — an empty submission would leave the
-		// required "title" field without a value.
 		await expect(
 			validateContentMapping(
 				ctx,
 				{ collection: "events", fieldMappings: { event_details: "title" } },
 				formPages,
 			),
-		).rejects.toThrow(/from an optional form field/);
+		).rejects.toThrow(/from an optional or conditional form field/);
+	});
+
+	it("rejects a required collection field mapped from a conditional required form field", async () => {
+		const { ctx } = createTestContext(undefined);
+		const pages: FormPage[] = [
+			{
+				fields: [
+					makeField({ name: "has_title", type: "checkbox" }),
+					makeField({
+						name: "event_title",
+						required: true,
+						condition: { field: "has_title", op: "filled" },
+					}),
+				],
+			},
+		];
+
+		await expect(
+			validateContentMapping(
+				ctx,
+				{ collection: "events", fieldMappings: { event_title: "title" } },
+				pages,
+			),
+		).rejects.toThrow(/from an optional or conditional form field/);
+	});
+});
+
+describe("validateContentMapping value compatibility", () => {
+	const products: CollectionSchemaInfo = {
+		...eventsCollection,
+		slug: "products",
+		label: "Products",
+		fields: [
+			schemaField("name", "text", true),
+			schemaField("price", "number", true),
+			schemaField("stock", "number"),
+			schemaField("available_from", "datetime"),
+			{ ...schemaField("category", "select"), validation: { options: ["news", "sports"] } },
+			{ ...schemaField("tags", "multiSelect"), validation: { options: ["news", "sports"] } },
+			schemaField("featured", "boolean"),
+			schemaField("notes", "text"),
+			schemaField("photo", "image"),
+		],
+	};
+	const pages: FormPage[] = [
+		{
+			fields: [
+				makeField({ name: "name", required: true }),
+				makeField({ name: "price_text", required: true }),
+				makeField({ name: "price", type: "number", required: true }),
+				makeField({ name: "launch", type: "date" }),
+				makeField({
+					name: "section",
+					type: "select",
+					options: [
+						{ label: "News", value: "news" },
+						{ label: "Other", value: "other" },
+					],
+				}),
+				makeField({
+					name: "topics",
+					type: "checkbox-group",
+					options: [{ label: "Sports", value: "sports" }],
+				}),
+				makeField({ name: "agree", type: "checkbox" }),
+			],
+		},
+	];
+	const base = { collection: "products", fieldMappings: { name: "name", price: "price" } };
+
+	function validate(mapping: ContentMapping) {
+		const { ctx } = createTestContext(undefined, { collections: { products } });
+		return validateContentMapping(ctx, mapping, pages);
+	}
+
+	it("accepts matching form and collection field types", async () => {
+		await expect(
+			validate({
+				...base,
+				fieldMappings: {
+					...base.fieldMappings,
+					launch: { field: "available_from", transform: "date" },
+					topics: "tags",
+					agree: { field: "featured" },
+					section: { field: "notes", transform: "string" },
+				},
+			}),
+		).resolves.toBeUndefined();
+	});
+
+	it("rejects a text field mapped to a number field without a transform", async () => {
+		await expect(
+			validate({ ...base, fieldMappings: { name: "name", price_text: "price" } }),
+		).rejects.toThrow(/"price_text" \(text\) to field "price" \(number\)/);
+	});
+
+	it("rejects the number transform onto a required field from a text field", async () => {
+		await expect(
+			validate({
+				...base,
+				fieldMappings: { name: "name", price_text: { field: "price", transform: "number" } },
+			}),
+		).rejects.toThrow(/cannot convert every text value/);
+	});
+
+	it("accepts the number transform onto an optional field from a text field", async () => {
+		await expect(
+			validate({
+				...base,
+				fieldMappings: {
+					...base.fieldMappings,
+					name: "name",
+					price_text: { field: "stock", transform: "number" },
+				},
+			}),
+		).resolves.toBeUndefined();
+	});
+
+	it("rejects a date field mapped to a datetime field without the date transform", async () => {
+		await expect(
+			validate({ ...base, fieldMappings: { ...base.fieldMappings, launch: "available_from" } }),
+		).rejects.toThrow(/"launch" \(date\) to field "available_from" \(datetime\)/);
+	});
+
+	it("rejects a select field whose options are not all options of the target", async () => {
+		await expect(
+			validate({ ...base, fieldMappings: { ...base.fieldMappings, section: "category" } }),
+		).rejects.toThrow(/"section" \(select\) to field "category" \(select\)/);
+	});
+
+	it("rejects a checkbox mapped to a text field without the string transform", async () => {
+		await expect(
+			validate({ ...base, fieldMappings: { ...base.fieldMappings, agree: "notes" } }),
+		).rejects.toThrow(/"agree" \(checkbox\) to field "notes" \(text\)/);
+	});
+
+	it("rejects an image field as a target", async () => {
+		await expect(
+			validate({
+				...base,
+				fieldMappings: { ...base.fieldMappings, name: "photo", price_text: "name" },
+			}),
+		).rejects.toThrow(/to field "photo" \(image\)/);
+	});
+
+	it("rejects metadata whose value does not fit the target field", async () => {
+		await expect(validate({ ...base, metadata: { stock: "many" } })).rejects.toThrow(
+			/metadata for field "stock" in collection "products" is not a valid number value/,
+		);
+		await expect(validate({ ...base, metadata: { category: "other" } })).rejects.toThrow(
+			/metadata for field "category" in collection "products" is not a valid select value/,
+		);
+		await expect(validate({ ...base, metadata: { available_from: "2026-08-01" } })).rejects.toThrow(
+			/is not a valid datetime value/,
+		);
+	});
+
+	it("accepts metadata that fits the target field", async () => {
+		await expect(
+			validate({
+				...base,
+				metadata: {
+					stock: 3,
+					category: "news",
+					tags: ["sports"],
+					featured: true,
+					available_from: "2026-08-01T00:00:00.000Z",
+				},
+			}),
+		).resolves.toBeUndefined();
 	});
 });
 
