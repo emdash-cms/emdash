@@ -49,6 +49,7 @@ import { fetchBlockTypes } from "../lib/api/schema.js";
 import { singularize } from "../lib/singularize.js";
 import { cn } from "../lib/utils";
 import { AllowedTypesEditor } from "./AllowedTypesEditor";
+import { DialogError } from "./DialogError";
 import {
 	RELATION_DIALOG_CLASS,
 	RELATION_DIALOG_STYLE,
@@ -144,6 +145,9 @@ export interface FieldEditorProps {
 	field?: SchemaField;
 	onSave: (input: CreateFieldInput) => void;
 	isSaving?: boolean;
+	/** Message from a save that was rejected server-side, e.g. a change that
+	 * requires a manual content migration. */
+	saveError?: string | null;
 	/** The collection the field belongs to. Reference fields need it to work out
 	 * which relations they can bind to, and from which end. */
 	collectionSlug?: string;
@@ -279,6 +283,7 @@ export function FieldEditor({
 	field,
 	onSave,
 	isSaving,
+	saveError,
 	collectionSlug,
 	onCreateRelation,
 }: FieldEditorProps) {
@@ -1310,25 +1315,28 @@ export function FieldEditor({
 				)}
 
 				{step === "config" && (
-					<div className="flex flex-col-reverse gap-2 py-2 sm:flex-row sm:justify-end sm:space-x-2">
-						<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
-							{t`Cancel`}
-						</Button>
-						{isCreatingRelation ? (
-							<Button onClick={() => setField("step", "relation")}>{t`Next`}</Button>
-						) : (
-							<Button
-								onClick={handleSave}
-								disabled={
-									!slug ||
-									!label ||
-									isSaving ||
-									(selectedType === "repeater" && formState.subFields.length === 0)
-								}
-							>
-								{isSaving ? t`Saving...` : field ? t`Update Field` : t`Add Field`}
+					<div className="flex flex-col gap-2 py-2">
+						<DialogError message={saveError} />
+						<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2">
+							<Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+								{t`Cancel`}
 							</Button>
-						)}
+							{isCreatingRelation ? (
+								<Button onClick={() => setField("step", "relation")}>{t`Next`}</Button>
+							) : (
+								<Button
+									onClick={handleSave}
+									disabled={
+										!slug ||
+										!label ||
+										isSaving ||
+										(selectedType === "repeater" && formState.subFields.length === 0)
+									}
+								>
+									{isSaving ? t`Saving...` : field ? t`Update Field` : t`Add Field`}
+								</Button>
+							)}
+						</div>
 					</div>
 				)}
 			</Dialog>
