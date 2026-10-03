@@ -96,9 +96,25 @@ describe("parseFlags — --template", () => {
 		expect(parseFlags(argv("--template", "portfolio")).template).toBe("portfolio");
 	});
 
-	it("rejects unknown template keys", () => {
-		expect(() => parseFlags(argv("--template", "nope"))).toThrow(FlagError);
-		expect(() => parseFlags(argv("--template", "nope"))).toThrow(/--template/);
+	it("accepts unknown template keys as ad-hoc repo-relative directory names", () => {
+		// Decided passthrough behavior: a key outside the built-in list is
+		// downloaded as a literal directory from the templates repo.
+		expect(parseFlags(argv("--template", "nope")).template).toBe("nope");
+		expect(parseFlags(argv("--template", "my-template")).template).toBe("my-template");
+		expect(parseFlags(argv("--template", "nested/my-template")).template).toBe(
+			"nested/my-template",
+		);
+	});
+
+	it("rejects template names that cannot be a repo-relative directory", () => {
+		// Guards the giget specifier against malformed/traversal input;
+		// the error message still lists the built-in keys.
+		// (Leading-dash values never reach this check — parseArgs itself
+		// rejects them as ambiguous option arguments.)
+		for (const bad of ["Bad Name", "../escape", "a//b", ""]) {
+			expect(() => parseFlags(argv("--template", bad))).toThrow(FlagError);
+		}
+		expect(() => parseFlags(argv("--template", "Bad Name"))).toThrow(/--template must be one of/);
 	});
 
 	it("accepts the combined <platform>:<template> form", () => {
@@ -118,8 +134,10 @@ describe("parseFlags — --template", () => {
 		expect(() => parseFlags(argv("--template", "vercel:blog"))).toThrow(/platform prefix/);
 	});
 
-	it("rejects an unknown template name in the combined form", () => {
-		expect(() => parseFlags(argv("--template", "cloudflare:nope"))).toThrow(FlagError);
+	it("accepts an ad-hoc directory name in the combined form", () => {
+		const flags = parseFlags(argv("--template", "cloudflare:nope"));
+		expect(flags.platform).toBe("cloudflare");
+		expect(flags.template).toBe("nope");
 	});
 
 	it("errors when --platform and --template platform-prefix disagree (platform first)", () => {
