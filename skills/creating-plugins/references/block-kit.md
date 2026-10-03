@@ -456,7 +456,7 @@ cards: { indexes: ["title"] },
 
 - Each `select` with `optionsRoute` calls `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>` when it renders, so every field instance and repeater item sends its own request. The request has `X-EmDash-Request: 1` and a `{}` body.
 - It is an ordinary plugin route: it needs `plugins:manage` unless the route declares another `permission`.
-- The route returns `{ items: Array<{ id: string; name: string }> }`. `id` becomes the stored value and `name` the label. Other item properties are ignored.
+- The handler returns `{ items: Array<{ id: string; name: string }> }`. The route responds with the standard EmDash envelope (`{ success: true, data: { items: [...] } }`), and the editor reads `data.items`. `id` becomes the stored value and `name` the label. Other item properties are ignored.
 - The field shows a loading state while the request runs. A failed request, a non-OK response, or a response without an `items` array falls back to the static `options`.
 - `optionsRoute` only takes effect in the Portable Text block editor. Admin pages, widgets, saved-entry panels, and declarative field widgets ignore it and read only the static `options`. Block Kit responses must give a `select` at least one static option.
 

@@ -409,7 +409,7 @@ definePlugin({
 
 Each `select` with `optionsRoute` calls the route when it renders, so a block with two such fields, or a repeater with several items, sends one request for each. Collapsing and reopening a repeater item sends the request again. The request is `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>`. The request carries the `X-EmDash-Request: 1` header and an empty JSON object as its body. The route is a normal plugin route, so it needs the `plugins:manage` permission unless it declares another `permission`.
 
-The route returns `{ items: Array<{ id: string; name: string }> }`. The admin shows each item as an option with `id` as the stored value and `name` as the label. Extra properties on an item are ignored.
+The handler returns `{ items: Array<{ id: string; name: string }> }`. The route responds with the standard EmDash envelope (`{ success: true, data: { items: [...] } }`, see [API routes](/plugins/creating-plugins/api-routes/)), and the block editor reads the options from `data.items`. The admin shows each item as an option with `id` as the stored value and `name` as the label. Extra properties on an item are ignored.
 
 While the request runs, the field shows a loading state. If the request fails, the response is not OK, or the response has no `items` array, the field falls back to the static `options` array. A static `options` array that is empty leaves the dropdown without choices in that case.
 
