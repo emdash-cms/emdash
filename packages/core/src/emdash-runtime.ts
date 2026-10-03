@@ -304,7 +304,15 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 ]);
 
 /** Field types whose schema is an array, so a stored blank string can never validate. */
-const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
+const BLANK_AS_NULL_FIELD_TYPES = new Set<string>([
+	"portableText",
+	"multiSelect",
+	"repeater",
+	"url",
+	"datetime",
+	"number",
+	"integer",
+]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
 
@@ -5806,7 +5814,8 @@ export class EmDashRuntime {
 
 	/**
 	 * Normalize field values in content data before validation.
-	 * Turns a blank string in an array-valued field into `null`, and fills
+	 * Turns a blank string into `null` in a field whose type has no blank value
+	 * (array, url, datetime and number fields), and fills
 	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
 	 */
 	private async normalizeFieldValues(
@@ -5829,7 +5838,7 @@ export class EmDashRuntime {
 		const result = { ...data };
 		for (const field of collectionInfo.fields) {
 			const value = result[field.slug];
-			if (ARRAY_FIELD_TYPES.has(field.type) && typeof value === "string" && !value.trim()) {
+			if (BLANK_AS_NULL_FIELD_TYPES.has(field.type) && typeof value === "string" && !value.trim()) {
 				result[field.slug] = null;
 			}
 		}
