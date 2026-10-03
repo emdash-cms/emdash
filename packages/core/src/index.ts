@@ -755,3 +755,13 @@ export type {
 	CollectionDeletionGuardResult,
 	ExecuteCollectionDeletionGuard,
 } from "./db/adapters.js";
+
+// Registry plugin pins (declarative registry-plugins.json + headless installer)
+export {
+	REGISTRY_PINS_FILE,
+	declareRegistryPinsSchema,
+	loadRegistryPins,
+	installRegistryPins,
+} from "./registry/pins.js";
+export type { RegistryPin, RegistryPinResult, RegistryPinInstallOpts } from "./registry/pins.js";
+export type { RegistryConfig, RegistryConfigInput } from "./registry/types.js";

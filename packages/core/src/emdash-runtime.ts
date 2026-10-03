@@ -1769,7 +1769,8 @@ export class EmDashRuntime {
 		// It participates in exclusive hook resolution like any other plugin —
 		// auto-selected when it's the sole provider, overridden when a real one is configured.
 		// Gated by import.meta.env.DEV to prevent silent email loss in production.
-		if (import.meta.env.DEV) {
+		// Guarded typeof: import.meta.env is undefined under plain Node.
+		if (typeof import.meta.env !== "undefined" && import.meta.env.DEV) {
 			try {
 				const devConsolePlugin = definePlugin({
 					id: DEV_CONSOLE_EMAIL_PLUGIN_ID,
