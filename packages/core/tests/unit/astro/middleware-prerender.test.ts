@@ -377,6 +377,44 @@ describe("astro middleware prerendered routes", () => {
 		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
+	function prerenderedContext(pathname: string) {
+		const locals: Record<string, unknown> = {};
+		const context: Record<string, unknown> = {
+			request: new Request(`https://example.com${pathname}`),
+			url: new URL(`https://example.com${pathname}`),
+			cookies: { get: vi.fn(() => undefined) },
+			locals,
+			redirect: vi.fn(),
+			isPrerendered: true,
+		};
+		return { context, locals };
+	}
+
+	it.each(["/sitemap-post.xml", "/sitemap-index.xml", `/sitemap-${"a".repeat(63)}.xml`])(
+		"sets up the runtime for the collection sitemap %s",
+		async (pathname) => {
+			const { context, locals } = prerenderedContext(pathname);
+			await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+			// Only the full runtime wires the plugin route handler; the anonymous
+			// fast path sets a partial `locals.emdash` without it.
+			const emdash = locals.emdash as Record<string, unknown> | undefined;
+			expect(typeof emdash?.handlePluginApiRoute).toBe("function");
+		},
+	);
+
+	it.each([
+		"/sitemap-0.xml",
+		"/sitemap-Post.xml",
+		"/sitemap-a.b.xml",
+		"/sitemap-.xml",
+		`/sitemap-${"a".repeat(64)}.xml`,
+	])("skips runtime setup for %s, which cannot be a collection slug", async (pathname) => {
+		const { context, locals } = prerenderedContext(pathname);
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+		const emdash = locals.emdash as Record<string, unknown> | undefined;
+		expect(emdash?.handlePluginApiRoute).toBeUndefined();
+	});
+
 	it("does not access context.session when prerendering public pages", async () => {
 		const cookies = {
 			get: vi.fn(() => undefined),

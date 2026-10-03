@@ -50,6 +50,7 @@ import type {
 } from "../transfer/schema-importer.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { resetRegisteredCollectionsCache } from "./collection-slugs-cache.js";
+import { MAX_SCHEMA_SLUG_LENGTH, SCHEMA_SLUG_PATTERN } from "./slug.js";
 import {
 	type Collection,
 	type CollectionAdminConfig,
@@ -76,7 +77,6 @@ import {
 import { compileUrlPattern } from "./url-pattern.js";
 
 // Regex patterns for schema registry
-const SLUG_VALIDATION_PATTERN = /^[a-z][a-z0-9_]*$/;
 const EC_PREFIX_PATTERN = /^ec_/;
 const SINGLE_QUOTE_PATTERN = /'/g;
 const UNDERSCORE_PATTERN = /_/g;
@@ -2331,15 +2331,18 @@ export class SchemaRegistry {
 			throw new SchemaError(`${type} slug is required`, "INVALID_SLUG");
 		}
 
-		if (!SLUG_VALIDATION_PATTERN.test(slug)) {
+		if (!SCHEMA_SLUG_PATTERN.test(slug)) {
 			throw new SchemaError(
 				`${type} slug must start with a letter and contain only lowercase letters, numbers, and underscores`,
 				"INVALID_SLUG",
 			);
 		}
 
-		if (slug.length > 63) {
-			throw new SchemaError(`${type} slug must be 63 characters or less`, "INVALID_SLUG");
+		if (slug.length > MAX_SCHEMA_SLUG_LENGTH) {
+			throw new SchemaError(
+				`${type} slug must be ${MAX_SCHEMA_SLUG_LENGTH} characters or less`,
+				"INVALID_SLUG",
+			);
 		}
 	}
 
