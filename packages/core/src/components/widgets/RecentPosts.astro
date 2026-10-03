@@ -1,13 +1,25 @@
 ---
 import { getEmDashCollection } from "../../query.js";
+import { buildRecentPostUrl } from "./recent-posts-url.js";
 
 interface Props {
 	count?: number;
 	showThumbnails?: boolean;
 	showDate?: boolean;
+	/**
+	 * URL template for each post link. `:slug` is replaced with the post's
+	 * slug. Defaults to `/posts/:slug`; override for sites using a catch-all
+	 * route (e.g. `/:slug`).
+	 */
+	urlTemplate?: string;
 }
 
-const { count = 5, showThumbnails = false, showDate = true } = Astro.props;
+const {
+	count = 5,
+	showThumbnails = false,
+	showDate = true,
+	urlTemplate = "/posts/:slug",
+} = Astro.props;
 
 const { entries: posts } = await getEmDashCollection("posts", {
 	limit: count,
@@ -36,7 +48,7 @@ function getString(data: Record<string, unknown>, key: string): string | undefin
 							class="widget-recent-posts__thumbnail"
 						/>
 					)}
-					<a href={`/posts/${post.id}`} class="widget-recent-posts__link">
+					<a href={buildRecentPostUrl(post.id, urlTemplate)} class="widget-recent-posts__link">
 						{title}
 					</a>
 					{showDate && publishedAt && (
