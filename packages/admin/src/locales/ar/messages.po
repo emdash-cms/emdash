@@ -1007,7 +1007,7 @@ msgstr "تحدد العلاقة كيفية ارتباط نوعَي محتوى. �
 msgid "A relationship is required"
 msgstr "العلاقة مطلوبة"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:272
+#: packages/admin/src/components/settings/GeneralSettings.tsx:273
 msgid "A short description of your site"
 msgstr "وصف مختصر لموقعك"
 
@@ -1598,9 +1598,9 @@ msgstr "مفتاح رقمي مشفّر تفتحه باستخدام بصمة إص
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:163
-#: packages/admin/src/components/settings/GeneralSettings.tsx:236
+#: packages/admin/src/components/settings/GeneralSettings.tsx:164
 #: packages/admin/src/components/settings/GeneralSettings.tsx:237
+#: packages/admin/src/components/settings/GeneralSettings.tsx:238
 #: packages/admin/src/components/settings/SecuritySettings.tsx:51
 #: packages/admin/src/components/settings/SecuritySettings.tsx:67
 #: packages/admin/src/components/settings/SecuritySettings.tsx:124
@@ -2427,7 +2427,7 @@ msgstr "تغيير"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "تغيير <0>{0}</0> من <1>{1}</1> إلى <2>{2}</2>؟ سيفقدون صلاحية الوصول إلى الميزات ذات المستوى الأعلى."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:376
+#: packages/admin/src/components/settings/GeneralSettings.tsx:377
 msgid "Change Favicon"
 msgstr "تغيير أيقونة المتصفح"
 
@@ -2435,7 +2435,7 @@ msgstr "تغيير أيقونة المتصفح"
 msgid "Change Image"
 msgstr "تغيير الصورة"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:316
+#: packages/admin/src/components/settings/GeneralSettings.tsx:317
 msgid "Change Logo"
 msgstr "تغيير الشعار"
 
@@ -2587,7 +2587,7 @@ msgstr "اختر وقت نشر جديدًا لهذه المسودة."
 msgid "Choose a non-empty {0} image."
 msgstr "اختر صورة {0} غير فارغة."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:443
+#: packages/admin/src/components/settings/GeneralSettings.tsx:444
 msgid "Choose a recognized timezone for reliable date display."
 msgstr ""
 
@@ -3731,7 +3731,7 @@ msgstr "منتقي التاريخ والوقت"
 msgid "Date field to filter on"
 msgstr "حقل التاريخ للتصفية حسبه"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
 msgid "Date Format"
 msgstr "تنسيق التاريخ"
 
@@ -4870,7 +4870,7 @@ msgstr "تُستخدم الإنجليزية لعدم تهيئة أي لغة لل
 msgid "Enter a name."
 msgstr "أدخل اسمًا."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:447
+#: packages/admin/src/components/settings/GeneralSettings.tsx:448
 msgid "Enter a recognized timezone to save"
 msgstr ""
 
@@ -4997,7 +4997,7 @@ msgstr "كل الإصدارات المنشورة لهذه الإضافة تم س
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "ستُحذف أيضًا كل علاقة يشارك فيها نوع المحتوى هذا:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:429
 msgid "Example: {pattern} → {preview}"
 msgstr ""
 
@@ -5707,7 +5707,7 @@ msgid "Failed to save field"
 msgstr "فشل حفظ الحقل"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:163
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5845,8 +5845,8 @@ msgid "FAQ"
 msgstr "الأسئلة الشائعة"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
+#: packages/admin/src/components/settings/GeneralSettings.tsx:355
 msgid "Favicon"
 msgstr "أيقونة المتصفح"
 
@@ -6134,7 +6134,7 @@ msgstr "إعدادات المعرض"
 msgid "General"
 msgstr "عام"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:214
+#: packages/admin/src/components/settings/GeneralSettings.tsx:215
 msgid "General Settings"
 msgstr "الإعدادات العامة"
 
@@ -7385,7 +7385,7 @@ msgstr "جارٍ تحميل لوحة الإضافة"
 msgid "Loading plugins..."
 msgstr "جاري تحميل الإضافات..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:425
+#: packages/admin/src/components/settings/GeneralSettings.tsx:426
 msgid "Loading preview…"
 msgstr ""
 
@@ -7408,7 +7408,7 @@ msgid "Loading sections..."
 msgstr "جاري تحميل الأقسام..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:225
+#: packages/admin/src/components/settings/GeneralSettings.tsx:226
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7512,8 +7512,8 @@ msgid "Log out"
 msgstr "تسجيل الخروج"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:287
-#: packages/admin/src/components/settings/GeneralSettings.tsx:294
+#: packages/admin/src/components/settings/GeneralSettings.tsx:288
+#: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Logo"
 msgstr "الشعار"
 
@@ -8562,7 +8562,7 @@ msgstr "لم يتم العثور على مفتاح مرور مطابق لهذا 
 msgid "No matching tags"
 msgstr "لا توجد وسوم مطابقة"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:460
+#: packages/admin/src/components/settings/GeneralSettings.tsx:461
 msgid "No matching timezones"
 msgstr ""
 
@@ -8788,7 +8788,7 @@ msgstr "عدد"
 msgid "Number of posts"
 msgstr "عدد المقالات"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:415
+#: packages/admin/src/components/settings/GeneralSettings.tsx:416
 msgid "Number of posts to show per page on list views"
 msgstr "عدد المنشورات الظاهرة لكل صفحة في عروض القائمة"
 
@@ -9453,7 +9453,7 @@ msgstr "المنشورات"
 msgid "Posts & Pages"
 msgstr "المقالات والصفحات"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:409
+#: packages/admin/src/components/settings/GeneralSettings.tsx:410
 msgid "Posts Per Page"
 msgstr "المنشورات لكل صفحة"
 
@@ -9517,7 +9517,7 @@ msgstr "معاينة المسودة"
 msgid "Preview of {0}"
 msgstr "معاينة {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Preview unavailable for this format"
 msgstr ""
 
@@ -9798,7 +9798,7 @@ msgstr "قراءة التصنيفات والمصطلحات الخاصة بك"
 msgid "Read-only"
 msgstr "للقراءة فقط"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:406
+#: packages/admin/src/components/settings/GeneralSettings.tsx:407
 msgid "Reading"
 msgstr "القراءة"
 
@@ -9913,7 +9913,7 @@ msgstr "المجموعة المرجعية"
 msgid "Referenced collection is required"
 msgstr "المجموعة المرجعية مطلوبة"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Referenced favicon unavailable."
 msgstr "أيقونة الموقع المرجعية غير متاحة."
 
@@ -10010,8 +10010,8 @@ msgstr "جارٍ إعادة تحميل الخطة…"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:325
-#: packages/admin/src/components/settings/GeneralSettings.tsx:385
+#: packages/admin/src/components/settings/GeneralSettings.tsx:326
+#: packages/admin/src/components/settings/GeneralSettings.tsx:386
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10972,7 +10972,7 @@ msgstr "البحث في المجلدات"
 msgid "Search for a language…"
 msgstr "البحث عن لغة…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:440
+#: packages/admin/src/components/settings/GeneralSettings.tsx:441
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr ""
 
@@ -11033,7 +11033,7 @@ msgstr "البحث في المظاهر"
 msgid "Search themes..."
 msgstr "البحث في المظاهر..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:451
+#: packages/admin/src/components/settings/GeneralSettings.tsx:452
 msgid "Search timezones…"
 msgstr ""
 
@@ -11239,11 +11239,11 @@ msgstr "اختيار نسخة الوضع الداكن لـ {label}"
 msgid "Select default social image"
 msgstr "اختيار صورة المشاركة الاجتماعية الافتراضية"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:490
+#: packages/admin/src/components/settings/GeneralSettings.tsx:491
 msgid "Select favicon"
 msgstr "اختيار أيقونة الموقع"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:397
+#: packages/admin/src/components/settings/GeneralSettings.tsx:398
 msgid "Select Favicon"
 msgstr "اختيار أيقونة المتصفح"
 
@@ -11266,11 +11266,11 @@ msgstr "اختيار صورة"
 msgid "Select Image"
 msgstr "اختيار صورة"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:482
+#: packages/admin/src/components/settings/GeneralSettings.tsx:483
 msgid "Select logo"
 msgstr "اختيار الشعار"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:338
 msgid "Select Logo"
 msgstr "اختيار الشعار"
 
@@ -11476,7 +11476,7 @@ msgid "Settings Read"
 msgstr "قراءة الإعدادات"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:155
+#: packages/admin/src/components/settings/GeneralSettings.tsx:156
 msgid "Settings saved successfully"
 msgstr "تم حفظ الإعدادات بنجاح"
 
@@ -11631,7 +11631,7 @@ msgstr "تصدير الموقع"
 msgid "Site identity"
 msgstr "هوية الموقع"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:258
+#: packages/admin/src/components/settings/GeneralSettings.tsx:259
 msgid "Site Identity"
 msgstr "هوية الموقع"
 
@@ -11640,7 +11640,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "طُبّقت هوية الموقع (العنوان، والشعار النصي، والشعار)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "هوية الموقع، الشعار، أيقونة المتصفح، وإعدادات القراءة"
 
@@ -11666,7 +11666,7 @@ msgstr "إعدادات الموقع"
 msgid "Site title"
 msgstr "عنوان الموقع"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:261
+#: packages/admin/src/components/settings/GeneralSettings.tsx:262
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "عنوان الموقع"
@@ -11683,7 +11683,7 @@ msgstr "عنوان الموقع مطلوب"
 msgid "Site Transfer"
 msgstr "نقل الموقع"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:277
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Site URL"
 msgstr "رابط الموقع"
 
@@ -12056,7 +12056,7 @@ msgstr "حجم الجدول"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "لا يمكن لصق الجداول داخل القوائم أو الاقتباسات. الصق الجدول في فقرة مستقلة وحاول مرة أخرى."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:270
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12370,7 +12370,7 @@ msgstr "السوق فارغ. تحقق لاحقًا للعثور على إضاف�
 msgid "The menu has been deleted."
 msgstr "تم حذف القائمة."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:264
+#: packages/admin/src/components/settings/GeneralSettings.tsx:265
 msgid "The name of your site, used in the header and metadata"
 msgstr "اسم موقعك، يُستخدم في الترويسة والبيانات الوصفية"
 
@@ -12479,7 +12479,7 @@ msgstr "لم تحفظ الإضافة هذه التغييرات. راجعها ق�
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "نتيجة الإضافة قديمة لأن المحرر تغيّر أثناء عملها."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
+#: packages/admin/src/components/settings/GeneralSettings.tsx:282
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "الرابط العام لموقعك (يُستخدم للروابط الأساسية وخرائط الموقع)"
 
@@ -12496,7 +12496,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "الصورة المرجعية لم تعد متاحة. اختر أخرى أو احذف المرجع."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:305
+#: packages/admin/src/components/settings/GeneralSettings.tsx:306
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "الشعار المرجعي لم يعد متاحًا. اختر آخر أو احذف المرجع."
 
@@ -12884,7 +12884,7 @@ msgstr "يؤدي هذا إلى إزالة العلاقة، وكل رابط مخ�
 msgid "This removes the schedule and publishes immediately."
 msgstr "يؤدي هذا إلى إزالة الجدولة والنشر فورًا."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:442
+#: packages/admin/src/components/settings/GeneralSettings.tsx:443
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
@@ -13013,7 +13013,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:434
+#: packages/admin/src/components/settings/GeneralSettings.tsx:435
 msgid "Timezone"
 msgstr "المنطقة الزمنية"
 

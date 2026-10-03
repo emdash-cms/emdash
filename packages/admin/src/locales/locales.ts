@@ -47,6 +47,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "ka", label: "ქართული", enabled: true }, // Georgian
 	{ code: "de", label: "Deutsch", enabled: true }, // German
 	{ code: "hi", label: "हिन्दी", enabled: true }, // Hindi
+	{ code: "ur", label: "اردو", enabled: true, dir: "rtl" }, // Urdu
 	{ code: "hu", label: "Magyar", enabled: true }, // Hungarian
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese

@@ -25,6 +25,7 @@ import {
 	th,
 	tr,
 	uk,
+	ur,
 	zhCN,
 	zhTW,
 } from "react-day-picker/locale";
@@ -60,6 +61,7 @@ const DAY_PICKER_LOCALES: Readonly<Record<string, DayPickerLocale>> = {
 	th,
 	tr,
 	uk,
+	ur,
 };
 
 export function getDayPickerLocale(locale: string): DayPickerLocale {

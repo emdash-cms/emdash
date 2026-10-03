@@ -1007,7 +1007,7 @@ msgstr ""
 msgid "A relationship is required"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:272
+#: packages/admin/src/components/settings/GeneralSettings.tsx:273
 msgid "A short description of your site"
 msgstr "আপনার সাইটের একটি সংক্ষিপ্ত বিবরণ"
 
@@ -1598,9 +1598,9 @@ msgstr "একটি এনক্রিপ্টেড ডিজিটাল ক
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:163
-#: packages/admin/src/components/settings/GeneralSettings.tsx:236
+#: packages/admin/src/components/settings/GeneralSettings.tsx:164
 #: packages/admin/src/components/settings/GeneralSettings.tsx:237
+#: packages/admin/src/components/settings/GeneralSettings.tsx:238
 #: packages/admin/src/components/settings/SecuritySettings.tsx:51
 #: packages/admin/src/components/settings/SecuritySettings.tsx:67
 #: packages/admin/src/components/settings/SecuritySettings.tsx:124
@@ -2427,7 +2427,7 @@ msgstr "পরিবর্তন করুন"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0>-এর ভূমিকা <1>{1}</1> থেকে <2>{2}</2>-এ পরিবর্তন করবেন? তারা উচ্চ-স্তরের ফিচারগুলোতে অ্যাক্সেস হারাবেন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:376
+#: packages/admin/src/components/settings/GeneralSettings.tsx:377
 msgid "Change Favicon"
 msgstr "ফেভিকন পরিবর্তন করুন"
 
@@ -2435,7 +2435,7 @@ msgstr "ফেভিকন পরিবর্তন করুন"
 msgid "Change Image"
 msgstr "ছবি পরিবর্তন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:316
+#: packages/admin/src/components/settings/GeneralSettings.tsx:317
 msgid "Change Logo"
 msgstr "লোগো পরিবর্তন করুন"
 
@@ -2587,7 +2587,7 @@ msgstr "এই খসড়ার জন্য প্রকাশের নত�
 msgid "Choose a non-empty {0} image."
 msgstr "একটি খালি নয় এমন {0} ছবি বেছে নিন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:443
+#: packages/admin/src/components/settings/GeneralSettings.tsx:444
 msgid "Choose a recognized timezone for reliable date display."
 msgstr ""
 
@@ -3731,7 +3731,7 @@ msgstr "তারিখ ও সময় নির্বাচক"
 msgid "Date field to filter on"
 msgstr "যে তারিখ ফিল্ড দিয়ে ফিল্টার করা হবে"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
 msgid "Date Format"
 msgstr "তারিখের ফরম্যাট"
 
@@ -4870,7 +4870,7 @@ msgstr "কোনো কনটেন্ট ভাষা কনফিগার �
 msgid "Enter a name."
 msgstr "একটি নাম লিখুন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:447
+#: packages/admin/src/components/settings/GeneralSettings.tsx:448
 msgid "Enter a recognized timezone to save"
 msgstr ""
 
@@ -4997,7 +4997,7 @@ msgstr "এই প্লাগইনের প্রতিটি প্রকা
 msgid "Every relationship this content type takes part in goes too:"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:429
 msgid "Example: {pattern} → {preview}"
 msgstr ""
 
@@ -5707,7 +5707,7 @@ msgid "Failed to save field"
 msgstr "ফিল্ড সংরক্ষণ করতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:163
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5845,8 +5845,8 @@ msgid "FAQ"
 msgstr "সাধারণ জিজ্ঞাসা"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
+#: packages/admin/src/components/settings/GeneralSettings.tsx:355
 msgid "Favicon"
 msgstr "ফেভিকন"
 
@@ -6134,7 +6134,7 @@ msgstr "গ্যালারি সেটিংস"
 msgid "General"
 msgstr "সাধারণ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:214
+#: packages/admin/src/components/settings/GeneralSettings.tsx:215
 msgid "General Settings"
 msgstr "সাধারণ সেটিংস"
 
@@ -7385,7 +7385,7 @@ msgstr "প্লাগইন প্যানেল লোড হচ্ছে"
 msgid "Loading plugins..."
 msgstr "প্লাগইন লোড হচ্ছে..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:425
+#: packages/admin/src/components/settings/GeneralSettings.tsx:426
 msgid "Loading preview…"
 msgstr ""
 
@@ -7408,7 +7408,7 @@ msgid "Loading sections..."
 msgstr "সেকশন লোড হচ্ছে..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:225
+#: packages/admin/src/components/settings/GeneralSettings.tsx:226
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7512,8 +7512,8 @@ msgid "Log out"
 msgstr "লগ আউট করুন"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:287
-#: packages/admin/src/components/settings/GeneralSettings.tsx:294
+#: packages/admin/src/components/settings/GeneralSettings.tsx:288
+#: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Logo"
 msgstr "লোগো"
 
@@ -8562,7 +8562,7 @@ msgstr "এই অ্যাকাউন্টের জন্য মিলে �
 msgid "No matching tags"
 msgstr "মিলে যাওয়া কোনো ট্যাগ নেই"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:460
+#: packages/admin/src/components/settings/GeneralSettings.tsx:461
 msgid "No matching timezones"
 msgstr ""
 
@@ -8788,7 +8788,7 @@ msgstr "সংখ্যা"
 msgid "Number of posts"
 msgstr "পোস্টের সংখ্যা"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:415
+#: packages/admin/src/components/settings/GeneralSettings.tsx:416
 msgid "Number of posts to show per page on list views"
 msgstr "তালিকা ভিউতে প্রতি পেজে কতগুলো পোস্ট দেখানো হবে"
 
@@ -9453,7 +9453,7 @@ msgstr "পোস্ট"
 msgid "Posts & Pages"
 msgstr "পোস্ট ও পেজ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:409
+#: packages/admin/src/components/settings/GeneralSettings.tsx:410
 msgid "Posts Per Page"
 msgstr "প্রতি পেজে পোস্ট"
 
@@ -9517,7 +9517,7 @@ msgstr "খসড়া প্রিভিউ করুন"
 msgid "Preview of {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Preview unavailable for this format"
 msgstr ""
 
@@ -9798,7 +9798,7 @@ msgstr "আপনার ট্যাক্সোনমি ও টার্ম �
 msgid "Read-only"
 msgstr "শুধু পড়ার জন্য"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:406
+#: packages/admin/src/components/settings/GeneralSettings.tsx:407
 msgid "Reading"
 msgstr "পড়া"
 
@@ -9913,7 +9913,7 @@ msgstr ""
 msgid "Referenced collection is required"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Referenced favicon unavailable."
 msgstr "উল্লিখিত ফেভিকন উপলব্ধ নয়।"
 
@@ -10010,8 +10010,8 @@ msgstr "প্ল্যান রিলোড করা হচ্ছে…"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:325
-#: packages/admin/src/components/settings/GeneralSettings.tsx:385
+#: packages/admin/src/components/settings/GeneralSettings.tsx:326
+#: packages/admin/src/components/settings/GeneralSettings.tsx:386
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10972,7 +10972,7 @@ msgstr "ফোল্ডার অনুসন্ধান করুন"
 msgid "Search for a language…"
 msgstr "একটি ভাষা অনুসন্ধান করুন…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:440
+#: packages/admin/src/components/settings/GeneralSettings.tsx:441
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr ""
 
@@ -11033,7 +11033,7 @@ msgstr "থিম অনুসন্ধান করুন"
 msgid "Search themes..."
 msgstr "থিম অনুসন্ধান করুন..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:451
+#: packages/admin/src/components/settings/GeneralSettings.tsx:452
 msgid "Search timezones…"
 msgstr ""
 
@@ -11239,11 +11239,11 @@ msgstr "{label}-এর জন্য ডার্ক মোড ভ্যারি
 msgid "Select default social image"
 msgstr "ডিফল্ট সোশ্যাল ছবি নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:490
+#: packages/admin/src/components/settings/GeneralSettings.tsx:491
 msgid "Select favicon"
 msgstr "ফেভিকন নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:397
+#: packages/admin/src/components/settings/GeneralSettings.tsx:398
 msgid "Select Favicon"
 msgstr "ফেভিকন নির্বাচন করুন"
 
@@ -11266,11 +11266,11 @@ msgstr "ছবি নির্বাচন করুন"
 msgid "Select Image"
 msgstr "ছবি নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:482
+#: packages/admin/src/components/settings/GeneralSettings.tsx:483
 msgid "Select logo"
 msgstr "লোগো নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:338
 msgid "Select Logo"
 msgstr "লোগো নির্বাচন করুন"
 
@@ -11476,7 +11476,7 @@ msgid "Settings Read"
 msgstr "সেটিংস পড়া"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:155
+#: packages/admin/src/components/settings/GeneralSettings.tsx:156
 msgid "Settings saved successfully"
 msgstr "সেটিংস সফলভাবে সংরক্ষিত হয়েছে"
 
@@ -11631,7 +11631,7 @@ msgstr "সাইট এক্সপোর্ট"
 msgid "Site identity"
 msgstr "সাইটের পরিচিতি"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:258
+#: packages/admin/src/components/settings/GeneralSettings.tsx:259
 msgid "Site Identity"
 msgstr "সাইটের পরিচিতি"
 
@@ -11640,7 +11640,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "সাইটের পরিচিতি প্রয়োগ করা হয়েছে (শিরোনাম, ট্যাগলাইন, লোগো)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "সাইটের পরিচিতি, লোগো, ফেভিকন ও পড়ার পছন্দসমূহ"
 
@@ -11666,7 +11666,7 @@ msgstr "সাইট সেটিংস"
 msgid "Site title"
 msgstr "সাইটের শিরোনাম"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:261
+#: packages/admin/src/components/settings/GeneralSettings.tsx:262
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "সাইটের শিরোনাম"
@@ -11683,7 +11683,7 @@ msgstr "সাইটের শিরোনাম আবশ্যক"
 msgid "Site Transfer"
 msgstr "সাইট স্থানান্তর"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:277
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Site URL"
 msgstr "সাইট URL"
 
@@ -12056,7 +12056,7 @@ msgstr "টেবিলের আকার"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "তালিকা বা উদ্ধৃতির ভেতরে টেবিল পেস্ট করা যায় না। টেবিলটি একটি আলাদা অনুচ্ছেদে পেস্ট করে আবার চেষ্টা করুন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:270
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12370,7 +12370,7 @@ msgstr "মার্কেটপ্লেস খালি। নতুন প্
 msgid "The menu has been deleted."
 msgstr "মেনুটি মুছে ফেলা হয়েছে।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:264
+#: packages/admin/src/components/settings/GeneralSettings.tsx:265
 msgid "The name of your site, used in the header and metadata"
 msgstr "আপনার সাইটের নাম, যা হেডার ও মেটাডেটায় ব্যবহৃত হয়"
 
@@ -12479,7 +12479,7 @@ msgstr "প্লাগইন এই পরিবর্তনগুলো সং
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "প্লাগইনের ফলাফল পুরোনো হয়ে গেছে, কারণ এটি কাজ করার সময় এডিটরে পরিবর্তন হয়েছে।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
+#: packages/admin/src/components/settings/GeneralSettings.tsx:282
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "আপনার সাইটের পাবলিক URL (ক্যানোনিকাল লিঙ্ক ও সাইটম্যাপের জন্য ব্যবহৃত)"
 
@@ -12496,7 +12496,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "রেফারেন্স করা ছবিটি আর পাওয়া যাচ্ছে না। নতুন একটি বেছে নিন অথবা রেফারেন্সটি সরান।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:305
+#: packages/admin/src/components/settings/GeneralSettings.tsx:306
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "রেফারেন্স করা লোগোটি আর পাওয়া যাচ্ছে না। নতুন একটি বেছে নিন অথবা রেফারেন্সটি সরান।"
 
@@ -12884,7 +12884,7 @@ msgstr ""
 msgid "This removes the schedule and publishes immediately."
 msgstr "এটি নির্ধারিত সময়সূচি সরিয়ে দিয়ে এখনই প্রকাশ করবে।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:442
+#: packages/admin/src/components/settings/GeneralSettings.tsx:443
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
@@ -13013,7 +13013,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:434
+#: packages/admin/src/components/settings/GeneralSettings.tsx:435
 msgid "Timezone"
 msgstr "টাইমজোন"
 

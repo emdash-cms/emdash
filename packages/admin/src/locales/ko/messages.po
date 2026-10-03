@@ -1007,7 +1007,7 @@ msgstr "관계는 두 콘텐츠 유형이 연결되는 방식을 정의합니다
 msgid "A relationship is required"
 msgstr "관계를 선택하세요"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:272
+#: packages/admin/src/components/settings/GeneralSettings.tsx:273
 msgid "A short description of your site"
 msgstr "사이트에 대한 간단한 설명"
 
@@ -1598,9 +1598,9 @@ msgstr "지문, 얼굴 인식, PIN 또는 기기 비밀번호로 잠금을 해�
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:163
-#: packages/admin/src/components/settings/GeneralSettings.tsx:236
+#: packages/admin/src/components/settings/GeneralSettings.tsx:164
 #: packages/admin/src/components/settings/GeneralSettings.tsx:237
+#: packages/admin/src/components/settings/GeneralSettings.tsx:238
 #: packages/admin/src/components/settings/SecuritySettings.tsx:51
 #: packages/admin/src/components/settings/SecuritySettings.tsx:67
 #: packages/admin/src/components/settings/SecuritySettings.tsx:124
@@ -2427,7 +2427,7 @@ msgstr "변경"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0>의 역할을 <1>{1}</1>에서 <2>{2}</2>(으)로 변경하시겠습니까? 상위 역할의 기능에 접근할 수 없게 됩니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:376
+#: packages/admin/src/components/settings/GeneralSettings.tsx:377
 msgid "Change Favicon"
 msgstr "파비콘 변경"
 
@@ -2435,7 +2435,7 @@ msgstr "파비콘 변경"
 msgid "Change Image"
 msgstr "이미지 변경"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:316
+#: packages/admin/src/components/settings/GeneralSettings.tsx:317
 msgid "Change Logo"
 msgstr "로고 변경"
 
@@ -2587,7 +2587,7 @@ msgstr "이 초안의 새 게시 시간을 선택하세요."
 msgid "Choose a non-empty {0} image."
 msgstr "파일 크기가 0이 아닌 {0} 이미지를 선택하세요."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:443
+#: packages/admin/src/components/settings/GeneralSettings.tsx:444
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "날짜가 정확하게 표시되도록 인식 가능한 시간대를 선택하세요."
 
@@ -3731,7 +3731,7 @@ msgstr "날짜 및 시간 선택기"
 msgid "Date field to filter on"
 msgstr "필터에 사용할 날짜 필드"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
 msgid "Date Format"
 msgstr "날짜 형식"
 
@@ -4870,7 +4870,7 @@ msgstr "콘텐츠 언어가 설정되지 않아 영어가 사용됩니다. 콘�
 msgid "Enter a name."
 msgstr "이름을 입력하세요."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:447
+#: packages/admin/src/components/settings/GeneralSettings.tsx:448
 msgid "Enter a recognized timezone to save"
 msgstr "저장하려면 인식 가능한 시간대를 입력하세요."
 
@@ -4997,7 +4997,7 @@ msgstr "이 플러그인의 공개된 릴리스가 모두 철회되었거나 검
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "이 콘텐츠 유형에 연결된 모든 관계도 함께 삭제됩니다:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:429
 msgid "Example: {pattern} → {preview}"
 msgstr "예: {pattern} → {preview}"
 
@@ -5707,7 +5707,7 @@ msgid "Failed to save field"
 msgstr "필드를 저장하지 못했습니다."
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:163
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5845,8 +5845,8 @@ msgid "FAQ"
 msgstr "자주 묻는 질문"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
+#: packages/admin/src/components/settings/GeneralSettings.tsx:355
 msgid "Favicon"
 msgstr "파비콘"
 
@@ -6134,7 +6134,7 @@ msgstr "갤러리 설정"
 msgid "General"
 msgstr "일반"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:214
+#: packages/admin/src/components/settings/GeneralSettings.tsx:215
 msgid "General Settings"
 msgstr "일반 설정"
 
@@ -7385,7 +7385,7 @@ msgstr "플러그인 패널 로드 중"
 msgid "Loading plugins..."
 msgstr "플러그인 로드 중..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:425
+#: packages/admin/src/components/settings/GeneralSettings.tsx:426
 msgid "Loading preview…"
 msgstr "미리보기 로드 중…"
 
@@ -7408,7 +7408,7 @@ msgid "Loading sections..."
 msgstr "섹션 로드 중..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:225
+#: packages/admin/src/components/settings/GeneralSettings.tsx:226
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7512,8 +7512,8 @@ msgid "Log out"
 msgstr "로그아웃"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:287
-#: packages/admin/src/components/settings/GeneralSettings.tsx:294
+#: packages/admin/src/components/settings/GeneralSettings.tsx:288
+#: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Logo"
 msgstr "로고"
 
@@ -8562,7 +8562,7 @@ msgstr "이 계정과 일치하는 패스키를 찾을 수 없습니다."
 msgid "No matching tags"
 msgstr "일치하는 태그가 없습니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:460
+#: packages/admin/src/components/settings/GeneralSettings.tsx:461
 msgid "No matching timezones"
 msgstr "일치하는 시간대가 없습니다."
 
@@ -8788,7 +8788,7 @@ msgstr "숫자"
 msgid "Number of posts"
 msgstr "표시할 게시물 수"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:415
+#: packages/admin/src/components/settings/GeneralSettings.tsx:416
 msgid "Number of posts to show per page on list views"
 msgstr "목록 보기에서 페이지당 표시할 게시물 수"
 
@@ -9453,7 +9453,7 @@ msgstr "게시물"
 msgid "Posts & Pages"
 msgstr "게시물 및 페이지"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:409
+#: packages/admin/src/components/settings/GeneralSettings.tsx:410
 msgid "Posts Per Page"
 msgstr "페이지당 게시물 수"
 
@@ -9517,7 +9517,7 @@ msgstr "초안 미리보기"
 msgid "Preview of {0}"
 msgstr "{0} 미리보기"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Preview unavailable for this format"
 msgstr "이 형식의 미리보기를 표시할 수 없습니다."
 
@@ -9798,7 +9798,7 @@ msgstr "분류 및 분류 항목 읽기"
 msgid "Read-only"
 msgstr "읽기 전용"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:406
+#: packages/admin/src/components/settings/GeneralSettings.tsx:407
 msgid "Reading"
 msgstr "읽기 설정"
 
@@ -9913,7 +9913,7 @@ msgstr "참조할 컬렉션"
 msgid "Referenced collection is required"
 msgstr "참조할 컬렉션을 선택하세요"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Referenced favicon unavailable."
 msgstr "참조된 파비콘을 사용할 수 없습니다."
 
@@ -10010,8 +10010,8 @@ msgstr "계획 다시 불러오는 중…"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:325
-#: packages/admin/src/components/settings/GeneralSettings.tsx:385
+#: packages/admin/src/components/settings/GeneralSettings.tsx:326
+#: packages/admin/src/components/settings/GeneralSettings.tsx:386
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10972,7 +10972,7 @@ msgstr "폴더 검색"
 msgid "Search for a language…"
 msgstr "언어 검색…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:440
+#: packages/admin/src/components/settings/GeneralSettings.tsx:441
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "IANA 시간대를 검색하세요(예: Europe/London)"
 
@@ -11033,7 +11033,7 @@ msgstr "테마 검색"
 msgid "Search themes..."
 msgstr "테마 검색..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:451
+#: packages/admin/src/components/settings/GeneralSettings.tsx:452
 msgid "Search timezones…"
 msgstr "시간대 검색…"
 
@@ -11239,11 +11239,11 @@ msgstr "{label} 항목의 다크 모드용 대체 이미지 선택"
 msgid "Select default social image"
 msgstr "기본 소셜 이미지 선택"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:490
+#: packages/admin/src/components/settings/GeneralSettings.tsx:491
 msgid "Select favicon"
 msgstr "파비콘 선택"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:397
+#: packages/admin/src/components/settings/GeneralSettings.tsx:398
 msgid "Select Favicon"
 msgstr "파비콘 선택"
 
@@ -11266,11 +11266,11 @@ msgstr "이미지 선택"
 msgid "Select Image"
 msgstr "이미지 선택"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:482
+#: packages/admin/src/components/settings/GeneralSettings.tsx:483
 msgid "Select logo"
 msgstr "로고 선택"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:338
 msgid "Select Logo"
 msgstr "로고 선택"
 
@@ -11476,7 +11476,7 @@ msgid "Settings Read"
 msgstr "설정 읽기"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:155
+#: packages/admin/src/components/settings/GeneralSettings.tsx:156
 msgid "Settings saved successfully"
 msgstr "설정이 성공적으로 저장되었습니다."
 
@@ -11631,7 +11631,7 @@ msgstr "사이트 내보내기"
 msgid "Site identity"
 msgstr "사이트 기본 정보"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:258
+#: packages/admin/src/components/settings/GeneralSettings.tsx:259
 msgid "Site Identity"
 msgstr "사이트 기본 정보"
 
@@ -11640,7 +11640,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "사이트 기본 정보 적용됨(제목, 사이트 설명, 로고)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "사이트 기본 정보, 로고, 파비콘, 읽기 설정"
 
@@ -11666,7 +11666,7 @@ msgstr "사이트 설정"
 msgid "Site title"
 msgstr "사이트 제목"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:261
+#: packages/admin/src/components/settings/GeneralSettings.tsx:262
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "사이트 제목"
@@ -11683,7 +11683,7 @@ msgstr "사이트 제목이 필요합니다"
 msgid "Site Transfer"
 msgstr "사이트 이전"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:277
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Site URL"
 msgstr "사이트 URL"
 
@@ -12056,7 +12056,7 @@ msgstr "표 크기"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "목록이나 인용문 안에는 표를 붙여넣을 수 없습니다. 표를 별도의 문단에 붙여넣고 다시 시도하세요."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:270
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12370,7 +12370,7 @@ msgstr "마켓플레이스가 비어 있습니다. 나중에 새 플러그인이
 msgid "The menu has been deleted."
 msgstr "메뉴가 삭제되었습니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:264
+#: packages/admin/src/components/settings/GeneralSettings.tsx:265
 msgid "The name of your site, used in the header and metadata"
 msgstr "헤더 및 메타데이터에 사용되는 사이트 이름"
 
@@ -12479,7 +12479,7 @@ msgstr "플러그인이 이 변경 사항을 저장하지 않았습니다. 편�
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "플러그인 작업 중 편집기 내용이 변경되어 결과가 더 이상 유효하지 않습니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
+#: packages/admin/src/components/settings/GeneralSettings.tsx:282
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "사이트의 공개 URL(표준 링크 및 사이트맵에 사용됨)"
 
@@ -12496,7 +12496,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "참조된 이미지를 더 이상 사용할 수 없습니다. 새 이미지를 선택하거나 참조를 제거하세요."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:305
+#: packages/admin/src/components/settings/GeneralSettings.tsx:306
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "참조된 로고를 더 이상 사용할 수 없습니다. 새 로고를 선택하거나 참조를 제거하세요."
 
@@ -12884,7 +12884,7 @@ msgstr "이 관계와 관계에 저장된 모든 연결, 관계를 사용하는 
 msgid "This removes the schedule and publishes immediately."
 msgstr "예약을 취소하고 즉시 게시합니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:442
+#: packages/admin/src/components/settings/GeneralSettings.tsx:443
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "저장된 시간대를 인식할 수 없습니다. 날짜가 정확하게 표시되도록 추천 항목에서 선택하세요."
 
@@ -13013,7 +13013,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:434
+#: packages/admin/src/components/settings/GeneralSettings.tsx:435
 msgid "Timezone"
 msgstr "시간대"
 
