@@ -104,18 +104,48 @@ export function invalidateRedirectCache(): void {
 	invalidateSingleFlightCache(cacheState.refresh);
 }
 
+/**
+ * Normalize a redirect source to the percent-encoded form that
+ * `context.url.pathname` produces for an incoming request.
+ *
+ * The WHATWG URL parser always returns a percent-encoded pathname, while the
+ * admin stores whatever the author typed -- normally raw Unicode. Comparing the
+ * two verbatim means a source like `/stitek/domácí-zvířata` can never match the
+ * request a browser sends as `/stitek/dom%C3%A1c%C3%AD-zv%C3%AD%C5%99ata`, so
+ * the redirect silently falls through to a 404.
+ *
+ * Round-tripping through `URL` keeps this non-breaking: it is idempotent for a
+ * source that is already percent-encoded (an existing `%C3%A1` is preserved
+ * rather than double-encoded), it leaves Astro pattern syntax (`[param]`,
+ * `[...rest]`) and trailing slashes untouched, and it needs no data migration
+ * for rules already stored.
+ */
+function normalizeSourcePath(source: string): string {
+	try {
+		return new URL(source, "http://placeholder.invalid").pathname;
+	} catch {
+		return source;
+	}
+}
+
 /** Compile a rule set into the in-memory lookup structures. */
 function compileRedirects(rules: RedirectRuleSet): CachedRedirects {
 	const exact = new Map<string, RedirectRule>();
-	for (const rule of rules.exact) exact.set(rule.source, rule);
+	// Keyed by the normalized source, because lookups use `context.url.pathname`,
+	// which is always percent-encoded.
+	for (const rule of rules.exact) exact.set(normalizeSourcePath(rule.source), rule);
 	const patterns: CachedRedirectRule[] = [];
 	for (const rule of rules.patterns) {
+		// Validate the author's raw source; normalisation only affects matching.
 		const patternError = validatePattern(rule.source);
 		if (patternError) {
 			console.warn(`[emdash:redirects] Skipping redirect ${rule.id}: ${patternError}`);
 			continue;
 		}
-		patterns.push({ redirect: rule, compiled: compilePattern(rule.source) });
+		patterns.push({
+			redirect: rule,
+			compiled: compilePattern(normalizeSourcePath(rule.source)),
+		});
 	}
 	return { version: rules.version, exact, patterns };
 }
