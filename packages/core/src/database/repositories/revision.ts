@@ -1,4 +1,4 @@
-import { sql, type Kysely, type Selectable } from "kysely";
+import { sql, type Insertable, type Kysely, type Selectable } from "kysely";
 import { monotonicFactory } from "ulidx";
 
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
@@ -25,6 +25,7 @@ export interface CreateRevisionInput {
 	entryId: string;
 	data: Record<string, unknown>;
 	authorId?: string;
+	autosave?: boolean;
 }
 
 export function normalizeRevisionLimit(value: unknown): number {
@@ -56,12 +57,13 @@ export class RevisionRepository {
 		const id = createRevisionId();
 		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
-		const row: Omit<RevisionTable, "created_at"> = {
+		const row: Insertable<RevisionTable> = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
 			data: JSON.stringify(data),
 			author_id: input.authorId ?? null,
+			is_autosave: input.autosave ? 1 : 0,
 		};
 
 		await this.db.insertInto("revisions").values(row).execute();
@@ -339,14 +341,17 @@ export class RevisionRepository {
 		collection: string,
 		entryId: string,
 		revisionId: string,
+		options: { autosaveOnly?: boolean } = {},
 	): Promise<boolean> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
+		const autosaveFilter = options.autosaveOnly ? sql`AND is_autosave = 1` : sql``;
 		const result = await sql`
 			DELETE FROM revisions
 			WHERE id = ${revisionId}
 			AND collection = ${collection}
 			AND entry_id = ${entryId}
+			${autosaveFilter}
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
 				WHERE content.live_revision_id = revisions.id

@@ -11,6 +11,7 @@ export interface RevisionTable {
 	data: string; // JSON snapshot
 	author_id: string | null;
 	created_at: Generated<string>;
+	is_autosave: Generated<number>;
 }
 
 export interface RevisionPruneQueueTable {
