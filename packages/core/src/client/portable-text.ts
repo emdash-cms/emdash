@@ -446,7 +446,7 @@ export function convertDataForWrite(
 	for (const field of fields) {
 		if (field.type === "portableText" && typeof result[field.slug] === "string") {
 			result[field.slug] = markdownToPortableText(result[field.slug] as string);
-		} else if (field.type === "blocks") {
+		} else if (field.type === "blocks" && Array.isArray(result[field.slug])) {
 			result[field.slug] = convertNestedBlockPortableText(result[field.slug], field, "write");
 		}
 	}

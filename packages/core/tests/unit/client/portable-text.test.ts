@@ -599,6 +599,10 @@ describe("blocks Portable Text conversion", () => {
 		},
 	];
 
+	it("does not add an omitted blocks field to a partial write", () => {
+		expect(convertDataForWrite({ title: "Updated" }, fields)).toStrictEqual({ title: "Updated" });
+	});
+
 	it("uses the active version for a new keyless block write", () => {
 		const result = convertDataForWrite(
 			{ layout: [{ _type: "hero", introduction: "Hello **world**" }] },
