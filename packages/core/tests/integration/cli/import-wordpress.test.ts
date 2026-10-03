@@ -133,6 +133,44 @@ describe("emdash import wordpress", () => {
 		expect(readJson(join(outputDir, "_redirects.json"))).toEqual(redirectsBefore);
 	});
 
+	it("counts each failed entry and attachment once", () => {
+		const exportPath = join(dir, "export.xml");
+		writeFileSync(
+			exportPath,
+			readFileSync(FIXTURE, "utf8").replaceAll(
+				"https://example.com/wp-content/uploads/2025/01/hero.jpg",
+				"http://127.0.0.1/hero.jpg",
+			),
+		);
+		runCli("import", "wordpress", exportPath, "-o", outputDir);
+		const configPath = join(outputDir, "migration-config.json");
+		const config = readJson(configPath) as { fields: Record<string, { type: string }> };
+		config.fields.custom_field!.type = "date";
+		writeFileSync(configPath, JSON.stringify(config));
+
+		const result = runCli(
+			"import",
+			"wordpress",
+			exportPath,
+			"-o",
+			outputDir,
+			"--execute",
+			"--json",
+		);
+
+		expect(result.status).toBe(1);
+		const summary = JSON.parse(result.stdout) as {
+			summary: { errors: number };
+			errors: unknown[];
+		};
+		expect(summary.errors).toHaveLength(2);
+		expect(summary.summary.errors).toBe(2);
+		expect(readJson(join(outputDir, ".wp-migration-progress.json"))).toMatchObject({
+			errors: [{ type: "post" }, { type: "media" }],
+			stats: { errorCount: 2 },
+		});
+	});
+
 	it("fails when the export file does not exist", () => {
 		const result = runCli("import", "wordpress", join(dir, "missing.xml"), "-o", outputDir);
 

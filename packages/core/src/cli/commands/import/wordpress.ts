@@ -808,7 +808,7 @@ export async function executeWordPressImport(
 	if (!options.dryRun) {
 		progress.updatedAt = new Date().toISOString();
 		progress.stats.skippedPosts = stats.skipped;
-		progress.stats.errorCount = stats.errors;
+		progress.stats.errorCount = result.errors.length;
 		await writeFile(progressPath, JSON.stringify(progress, null, 2));
 	}
 
@@ -817,7 +817,7 @@ export async function executeWordPressImport(
 	result.summary.postsSkipped = stats.skipped + stats.resumed;
 	result.summary.mediaDownloaded = mediaDownloaded;
 	result.summary.mediaSkipped = mediaSkipped;
-	result.summary.errors = stats.errors + result.errors.length;
+	result.summary.errors = result.errors.length;
 
 	// Summary
 	const prefix = options.dryRun ? "[DRY RUN] " : "";
