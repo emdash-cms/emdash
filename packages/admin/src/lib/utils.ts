@@ -50,3 +50,36 @@ export function formatRelativeTime(dateString: string, locale: string): string {
 		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
 	});
 }
+
+/**
+ * Format a timestamp in the admin's locale.
+ *
+ * Every date in the admin goes through here rather than `toLocaleDateString()` with no locale,
+ * which follows the browser's language and leaves a Hebrew admin printing English months. With no
+ * options it formats exactly as `toLocaleDateString()` did, so no call site changes how it looks.
+ */
+export function formatDate(
+	value: string | Date,
+	locale: string,
+	options: Intl.DateTimeFormatOptions = {},
+): string {
+	const date = typeof value === "string" ? parseTimestamp(value) : value;
+	return new Intl.DateTimeFormat(locale, options).format(date);
+}
+
+/** U+2068 FIRST STRONG ISOLATE and U+2069 POP DIRECTIONAL ISOLATE, written as escapes because the
+ * characters themselves are invisible in source. */
+const FIRST_STRONG_ISOLATE = "\u2068";
+const POP_DIRECTIONAL_ISOLATE = "\u2069";
+
+/**
+ * Wrap a formatted value in Unicode isolates so the surrounding text cannot reorder it.
+ *
+ * A date carries digits and punctuation, whose direction the bidirectional algorithm takes from
+ * the paragraph around them: "22 בספט׳ 2026, 22:48" in an RTL panel renders with the comma
+ * against the wrong number. In JSX prefer `<bdi>`, which does the same thing as markup; this is
+ * for values interpolated into a translated sentence, where there is no element to wrap them in.
+ */
+export function isolate(text: string): string {
+	return `${FIRST_STRONG_ISOLATE}${text}${POP_DIRECTIONAL_ISOLATE}`;
+}
