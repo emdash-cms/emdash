@@ -1,5 +1,13 @@
 ---
 import { getEmDashCollection } from "../../query.js";
+import { getI18nConfig } from "../../i18n/config.js";
+import { getSiteSettings } from "../../settings/index.js";
+import EmDashImage from "../EmDashImage.astro";
+import {
+	createPublishedDateFormatter,
+	isThumbnailImage,
+	toPublishedDate,
+} from "../../widgets/recent-posts.js";
 
 interface Props {
 	count?: number;
@@ -9,30 +17,38 @@ interface Props {
 
 const { count = 5, showThumbnails = false, showDate = true } = Astro.props;
 
-const { entries: posts } = await getEmDashCollection("posts", {
-	limit: count,
-	orderBy: { published_at: "desc" },
+const [{ entries: posts }, settings] = await Promise.all([
+	getEmDashCollection("posts", {
+		limit: count,
+		orderBy: { published_at: "desc" },
+	}),
+	showDate ? getSiteSettings() : undefined,
+]);
+
+const dateFormatter = createPublishedDateFormatter({
+	locale: Astro.currentLocale ?? getI18nConfig()?.defaultLocale,
+	timezone: settings?.timezone,
 });
 
-// Helper to get typed values from dynamic data
-function getString(data: Record<string, unknown>, key: string): string | undefined {
-	const val = data[key];
-	return typeof val === "string" ? val : undefined;
+function getTitle(data: Record<string, unknown>): string | undefined {
+	return typeof data.title === "string" ? data.title : undefined;
 }
 ---
 
 <ul class="widget-recent-posts">
 	{
 		posts.map((post) => {
-			const publishedAt = getString(post.data, "publishedAt");
-			const featuredImage = getString(post.data, "featured_image");
-			const title = getString(post.data, "title");
+			const title = getTitle(post.data);
+			const publishedAt = toPublishedDate(post.data.publishedAt);
+			const featuredImage = post.data.featured_image;
 			return (
 				<li>
-					{showThumbnails && featuredImage && (
-						<img
-							src={featuredImage}
+					{showThumbnails && isThumbnailImage(featuredImage) && (
+						<EmDashImage
+							image={featuredImage}
 							alt=""
+							width={96}
+							height={96}
 							class="widget-recent-posts__thumbnail"
 						/>
 					)}
@@ -40,8 +56,11 @@ function getString(data: Record<string, unknown>, key: string): string | undefin
 						{title}
 					</a>
 					{showDate && publishedAt && (
-						<time datetime={publishedAt} class="widget-recent-posts__date">
-							{new Date(publishedAt).toLocaleDateString()}
+						<time
+							datetime={publishedAt.toISOString()}
+							class="widget-recent-posts__date"
+						>
+							{dateFormatter.format(publishedAt)}
 						</time>
 					)}
 				</li>
