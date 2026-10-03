@@ -1,0 +1,25 @@
+.changeset/fix-omitted-blocks-mcp.md
+  s_5764de537fe6d7::t_000ed1081cb828 1-5
+packages/core/src/client/portable-text.ts
+  s_5764de537fe6d7::t_eadd5390d24bc0 449
+packages/core/tests/integration/mcp/blocks-content.test.ts
+  s_5764de537fe6d7::t_bbb174d103a019 1-119
+packages/core/tests/unit/client/portable-text.test.ts
+  s_5764de537fe6d7::t_7fa25bae9165d7 602-605
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d7b88b6fd5306bf2341c204651f963aefa1cea40",
+  "prompts": {},
+  "sessions": {
+    "s_5764de537fe6d7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a102b3-ee09-78a1-8c5a-1b8533b05fbe",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
