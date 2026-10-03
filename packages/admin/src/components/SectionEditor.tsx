@@ -283,6 +283,7 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 											setSectionSlug(e.target.value);
 											setSlugTouched(true);
 										}}
+										onBlur={() => setSectionSlug((current) => slugify(current))}
 										placeholder="section-slug"
 										pattern="[a-z0-9\-]+"
 									/>
