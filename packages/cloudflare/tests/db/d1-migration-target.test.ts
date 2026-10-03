@@ -274,6 +274,27 @@ describe("resolveD1MigrationTarget", () => {
 		expect(fetch).not.toHaveBeenCalled();
 	});
 
+	it("names both flags when there is neither a selector nor a Wrangler config", async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>();
+		const readWranglerConfig = vi.fn();
+
+		await expect(
+			resolveD1MigrationTarget(
+				{ binding: "DB" },
+				{
+					projectRoot: "/project",
+					env: { CLOUDFLARE_API_TOKEN: TOKEN, CLOUDFLARE_ACCOUNT_ID: ACCOUNT_ID },
+					overrides: {},
+				},
+				{ fetch, readWranglerConfig },
+			),
+		).rejects.toThrow(
+			/--d1 <uuid-or-name>, or --wrangler-config <path> for the Wrangler config that declares the "DB" binding/,
+		);
+		expect(readWranglerConfig).not.toHaveBeenCalled();
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
 	it("rejects conflicting explicit and configured account IDs", async () => {
 		const fetch = vi.fn<typeof globalThis.fetch>();
 		await expect(
