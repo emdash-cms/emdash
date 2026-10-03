@@ -46,7 +46,7 @@ export default defineConfig({
 });
 ```
 
-Workers Cache purges with `cache.purge()` from `cloudflare:workers`, so you can delete the `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN` secrets from your Worker. The KV [object cache](/deployment/object-cache/) (`kvCache()`) is unchanged.
+EmDash purges Workers Cache entries by tag when content changes (see [Edge Caching](/deployment/edge-cache/)), so you can delete the `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN` secrets from your Worker. The KV [object cache](/deployment/object-cache/) (`kvCache()`) is unchanged.
 
 ### Removed: `Comments` and `CommentForm` from `emdash/ui`
 
