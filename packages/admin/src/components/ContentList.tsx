@@ -69,6 +69,12 @@ import { ListPaginationFooter, type ListPagination } from "./ListPaginationFoote
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
+import {
+	EMPTY_TERM_FILTER,
+	isTermFilterActive,
+	TermFilters,
+	type TermFilterState,
+} from "./TermFilters.js";
 
 /**
  * Sortable content list columns. The named values map to the server's system
@@ -176,6 +182,8 @@ export interface ContentListProps {
 	/** Controlled byline filter state. */
 	bylineFilter?: BylineFilterState;
 	onBylineFilterChange?: (filter: BylineFilterState) => void;
+	termFilter?: TermFilterState;
+	onTermFilterChange?: (filter: TermFilterState) => void;
 	/**
 	 * Bulk actions. Each is opt-in: the selection checkboxes only appear when at
 	 * least one bulk handler is provided, and each toolbar button renders only
@@ -288,6 +296,8 @@ export function ContentList({
 	onDateFilterChange,
 	bylineFilter = EMPTY_BYLINE_FILTER,
 	onBylineFilterChange,
+	termFilter,
+	onTermFilterChange,
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
@@ -557,6 +567,9 @@ export function ContentList({
 									onDateFilterChange={onDateFilterChange}
 									bylineFilter={bylineFilter}
 									onBylineFilterChange={onBylineFilterChange}
+									collection={collection}
+									termFilter={termFilter}
+									onTermFilterChange={onTermFilterChange}
 									locale={activeLocale ?? undefined}
 								/>
 							)}
@@ -987,6 +1000,10 @@ interface FilterBarProps {
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
 	bylineFilter: BylineFilterState;
 	onBylineFilterChange?: (filter: BylineFilterState) => void;
+	/** Slug of the collection being listed, so term filters know which taxonomies apply. */
+	collection: string;
+	termFilter?: TermFilterState;
+	onTermFilterChange?: (filter: TermFilterState) => void;
 	/** Locale the list is showing, so the byline picker offers matching rows. */
 	locale?: string;
 }
@@ -1008,6 +1025,9 @@ function FilterBar({
 	onDateFilterChange,
 	bylineFilter,
 	onBylineFilterChange,
+	collection,
+	termFilter,
+	onTermFilterChange,
 	locale,
 }: FilterBarProps) {
 	const { t } = useLingui();
@@ -1036,7 +1056,8 @@ function FilterBar({
 		authorFilter !== "" ||
 		!!dateFilter.from ||
 		!!dateFilter.to ||
-		isBylineFilterActive(bylineFilter);
+		isBylineFilterActive(bylineFilter) ||
+		isTermFilterActive(termFilter ?? EMPTY_TERM_FILTER);
 
 	const handleClear = () => {
 		onStatusFilterChange("all");
@@ -1048,6 +1069,7 @@ function FilterBar({
 			...EMPTY_BYLINE_FILTER,
 			includeInferred: bylineFilter.includeInferred,
 		});
+		onTermFilterChange?.(EMPTY_TERM_FILTER);
 	};
 
 	return (
@@ -1092,6 +1114,15 @@ function FilterBar({
 
 			{onBylineFilterChange && (
 				<BylineFilter value={bylineFilter} onChange={onBylineFilterChange} locale={locale} />
+			)}
+
+			{onTermFilterChange && (
+				<TermFilters
+					collection={collection}
+					value={termFilter ?? {}}
+					onChange={onTermFilterChange}
+					locale={locale}
+				/>
 			)}
 
 			{showDateFilter && (
