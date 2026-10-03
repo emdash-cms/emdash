@@ -1,5 +1,20 @@
 # @emdash-cms/plugin-types
 
+## 0.6.0
+
+### Minor Changes
+
+- [#3732](https://github.com/emdash-cms/emdash/pull/3732) [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `describeCapability()` and `CAPABILITY_DESCRIPTIONS`, which give an English label and description for every plugin capability so tools that list a plugin's permissions can show the same wording.
+  
+  ```ts
+  import { describeCapability } from "@emdash-cms/plugin-types";
+  
+  describeCapability("content:read");
+  // { label: "Read content", description: "Read entries from your site’s content collections." }
+  ```
+  
+  Deprecated capability names return the description of their replacement. A string that is not a known capability returns `undefined`.
+
 ## 0.5.0
 
 ### Minor Changes

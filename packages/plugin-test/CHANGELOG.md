@@ -1,5 +1,16 @@
 # @emdash-cms/plugin-test
 
+## 0.2.8
+
+### Patch Changes
+
+- Updated dependencies [[`04a3d8d`](https://github.com/emdash-cms/emdash/commit/04a3d8db8d1c88b889167a1567a5d7a2ef76332d), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`36b46d9`](https://github.com/emdash-cms/emdash/commit/36b46d9431fac3787396b0db2d42474530a41e91), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`6cf612c`](https://github.com/emdash-cms/emdash/commit/6cf612cbf2a04a7eb1b22cb3e4ffecb53a1a438a), [`9ee7415`](https://github.com/emdash-cms/emdash/commit/9ee7415a35c01ae2591af1a1c21787ca694b9c99), [`36aee2d`](https://github.com/emdash-cms/emdash/commit/36aee2d17225a44cd4060f1ae158e723e3730372), [`e2a07ae`](https://github.com/emdash-cms/emdash/commit/e2a07ae1b02951d77a32341302ff5c504cb52b1c), [`e6fe5d4`](https://github.com/emdash-cms/emdash/commit/e6fe5d498a527b5e6bd6cbc80ee5220ce626673c), [`07f6f44`](https://github.com/emdash-cms/emdash/commit/07f6f443fa16fb0fd2f50fea85039d216e0345df), [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412), [`f2fe380`](https://github.com/emdash-cms/emdash/commit/f2fe3807a45b27d33dc3b39e1eb5783b71c309e2), [`4bc129c`](https://github.com/emdash-cms/emdash/commit/4bc129ce6e36041596b63c59e680a5dca7838a1d), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`7f3093e`](https://github.com/emdash-cms/emdash/commit/7f3093ef9f4523ba6323c7c5d95ae16e67a7ae41), [`3bfd6fc`](https://github.com/emdash-cms/emdash/commit/3bfd6fc1965f21700b23355499866980e90fece4), [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6), [`550e59b`](https://github.com/emdash-cms/emdash/commit/550e59b51ab4d0bc3ad3ab13e70d94ca96313863), [`ea88e8e`](https://github.com/emdash-cms/emdash/commit/ea88e8e3801ff127c111c85b2872a93d89a3b641)]:
+  - emdash@1.2.0
+  - @emdash-cms/plugin-types@0.6.0
+  - @emdash-cms/plugin-cli@0.13.3
+  - @emdash-cms/cloudflare@1.2.0
+  - @emdash-cms/blocks@1.2.0
+
 ## 0.2.7
 
 ### Patch Changes
