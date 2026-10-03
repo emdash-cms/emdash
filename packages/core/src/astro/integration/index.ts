@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
 
+import { getEnvSiteUrl } from "../../api/public-url.js";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
 import { normalizeMigrationConfig } from "../../database/migrations/policy.js";
 import { normalizeAstroI18n } from "../../i18n/normalize.js";
@@ -77,10 +78,23 @@ const DEFAULT_STORAGE = local({
 	baseUrl: "/_emdash/api/media/file",
 });
 
-interface ImageRemotePattern {
+export interface ImageRemotePattern {
 	protocol?: "http" | "https";
 	hostname?: string;
 	pathname?: string;
+}
+
+/**
+ * Resolve the site origin for `image.remotePatterns`: the configured `siteUrl`,
+ * then `EMDASH_SITE_URL` / `SITE_URL`. Astro bakes `remotePatterns` into the
+ * build output, so the env vars only take effect if they are set when
+ * `astro build` runs.
+ *
+ * @internal Exported for unit testing.
+ */
+export function resolveBuildTimeSiteUrl(configuredSiteUrl: string | undefined): string | undefined {
+	if (configuredSiteUrl) return configuredSiteUrl;
+	return getEnvSiteUrl();
 }
 
 /**
@@ -142,10 +156,12 @@ export function buildImageRemotePatterns(
 
 	if (siteUrl) {
 		try {
-			patterns.push({
-				hostname: new URL(siteUrl).hostname,
-				pathname: `${INTERNAL_MEDIA_PREFIX}**`,
-			});
+			const { hostname } = new URL(siteUrl);
+			// WHATWG URL accepts `*` in a hostname, which Astro's matcher treats
+			// as a wildcard that would allowlist other hosts.
+			if (!hostname.includes("*")) {
+				patterns.push({ hostname, pathname: `${INTERNAL_MEDIA_PREFIX}**` });
+			}
 		} catch {
 			// ignore an unparseable site URL
 		}
@@ -459,8 +475,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 
 	// Validate siteUrl if provided in astro.config.mjs.
 	// Env-var fallback (EMDASH_SITE_URL / SITE_URL) is handled at runtime by
-	// getPublicOrigin() in api/public-url.ts — NOT here — so Docker images built
-	// without a domain can pick it up at container start via process.env.
+	// getPublicOrigin() in api/public-url.ts — don't fold it into
+	// resolvedConfig.siteUrl here — so Docker images built without a domain can
+	// pick it up at container start via process.env.
 	if (resolvedConfig.siteUrl) {
 		const raw = resolvedConfig.siteUrl;
 		try {
@@ -641,7 +658,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// merges arrays, so user-configured remotePatterns are preserved.
 				const imageRemotePatterns = buildImageRemotePatterns(
 					resolvedConfig.storage,
-					resolvedConfig.siteUrl,
+					resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
 					command,
 				);
 
