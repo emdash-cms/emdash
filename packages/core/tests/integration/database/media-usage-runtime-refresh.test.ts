@@ -2,6 +2,7 @@ import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { handleMediaUsageSummaries } from "../../../src/api/handlers/media-usage.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
@@ -175,7 +176,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		]);
 	});
 
-	it("marks coverage stale when a failed draft update has already advanced stored draft data", async () => {
+	it("preserves the draft and complete coverage when metadata validation rejects an update", async () => {
 		const created = await runtime.handleContentCreate("posts", {
 			slug: "failed-metadata-draft-post",
 			data: {
@@ -186,6 +187,13 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		expect(created.success).toBe(true);
 		if (!created.success) throw new Error(created.error.message);
 		const contentId = created.data.item.id;
+		const firstDraft = await runtime.handleContentUpdate("posts", contentId, {
+			data: { hero: mediaRef("media-existing-draft") },
+		});
+		expect(firstDraft.success).toBe(true);
+		const contentRepo = new ContentRepository(ctx.db);
+		const contentBefore = await contentRepo.findById("posts", contentId);
+		const revisionsBefore = await revisionRepo.findByEntry("posts", contentId);
 		await usageRepo.upsertIndexStatus({
 			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
 			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
@@ -200,8 +208,18 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		});
 
 		expect(updated.success).toBe(false);
-		expect((await revisionRepo.findByEntry("posts", contentId, { limit: 1 }))[0]?.data).toEqual(
-			expect.objectContaining({ hero: mediaRef("media-unrefreshed-draft") }),
+		expect(await contentRepo.findById("posts", contentId)).toEqual(contentBefore);
+		expect(await revisionRepo.findByEntry("posts", contentId)).toEqual(revisionsBefore);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-existing-draft")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ contentId, sourceVariant: "draft_overlay" }),
+			}),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-live")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
+		]);
+		expect(await usageRepo.findSource(sourceKey("posts", contentId, "draft_overlay"))).toEqual(
+			expect.objectContaining({ sourceCompleteness: "complete", lastErrorCode: null }),
 		);
 		expect(await usageRepo.findCurrentUsageByMediaId("media-unrefreshed-draft")).toEqual([]);
 		expect(
@@ -212,8 +230,8 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			}),
 		).toEqual(
 			expect.objectContaining({
-				status: "stale",
-				lastErrorCode: "CONTENT_USAGE_STALE",
+				status: "complete",
+				lastErrorCode: null,
 			}),
 		);
 	});

@@ -1741,12 +1741,17 @@ describe("ContentEditPage – autosave cache patching", () => {
 			});
 			await publishDateButton.click();
 			await expect.element(publishDateButton).toBeDisabled();
+			await waitFor(() => expect(releasePublishedAt).toBeTypeOf("function"));
 
 			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			expect(seoRequestSeen).toBe(false);
+			await expect.element(publishDateButton).toBeDisabled();
+
+			releasePublishedAt?.();
 			await waitFor(() => {
 				expect(seoRequestSeen).toBe(true);
 			});
-			await expect.element(publishDateButton).toBeDisabled();
+			await expect.element(publishDateButton).toBeEnabled();
 		} finally {
 			releasePublishedAt?.();
 			globalThis.fetch = fetchWithMocks;
@@ -1800,7 +1805,7 @@ describe("ContentEditPage – autosave cache patching", () => {
 		try {
 			// Auxiliary write (SEO): the Save control must stay idle while it flies.
 			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
-			await new Promise((resolve) => setTimeout(resolve, 50));
+			await waitFor(() => expect(resolvePut).toBeTypeOf("function"));
 			expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
 			expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("blocked");
 			await expect
@@ -1823,11 +1828,12 @@ describe("ContentEditPage – autosave cache patching", () => {
 				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
 			});
 		} finally {
+			resolvePut?.();
 			globalThis.fetch = fetchWithMocks;
 		}
 	});
 
-	it("keeps editor save feedback visual without strengthening main's operation gating", async () => {
+	it("keeps Save blocked until an editor save and its queued auxiliary write finish", async () => {
 		const { router, TestApp } = buildRouter();
 		await router.navigate({
 			to: "/content/$collection/$id",
@@ -1840,6 +1846,7 @@ describe("ContentEditPage – autosave cache patching", () => {
 
 		const fetchWithMocks = globalThis.fetch;
 		const resolvers: (() => void)[] = [];
+		let saveObserver: MutationObserver | undefined;
 		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
 			const url =
 				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
@@ -1877,27 +1884,51 @@ describe("ContentEditPage – autosave cache patching", () => {
 				expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
 			});
 
-			// Auxiliary write lands while the editor save is still in flight.
 			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
-			await new Promise((resolve) => setTimeout(resolve, 50));
 			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+			expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("blocked");
+			expect(resolvers).toHaveLength(1);
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }))
+				.toBeDisabled();
 
-			// Main's shared mutation observer follows the latest auxiliary write.
-			// When it settles, operation gating becomes idle even though the older
-			// editor request is still running; feedback remains visual-only.
-			expect(resolvers).toHaveLength(2);
+			const saveButton = screen.getByRole("button", { name: "Save", exact: true }).element();
+			let saveWasEnabled = false;
+			const captureSaveState = (records: MutationRecord[]) => {
+				saveWasEnabled ||=
+					records.some((record) => record.oldValue === null) ||
+					!saveButton.hasAttribute("disabled");
+			};
+			saveObserver = new MutationObserver(captureSaveState);
+			saveObserver.observe(saveButton, {
+				attributes: true,
+				attributeFilter: ["disabled"],
+				attributeOldValue: true,
+			});
+
+			resolvers[0]?.();
+			await waitFor(() => expect(resolvers).toHaveLength(2));
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+			});
+			expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("blocked");
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }))
+				.toBeDisabled();
+
+			captureSaveState(saveObserver.takeRecords());
+			saveObserver.disconnect();
+			expect(saveWasEnabled).toBe(false);
+
 			resolvers[1]?.();
 			await waitFor(() => {
 				expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("ready");
 			});
-			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+			expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
 			await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
-
-			resolvers[0]?.();
-			await waitFor(() => {
-				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
-			});
 		} finally {
+			saveObserver?.disconnect();
+			for (const resolve of resolvers) resolve();
 			globalThis.fetch = fetchWithMocks;
 		}
 	});

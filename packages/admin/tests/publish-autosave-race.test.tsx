@@ -1,11 +1,13 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import type { QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { fireEvent } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup } from "vitest-browser-react";
 import { page, userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
@@ -226,8 +228,28 @@ function createMockServer(options: MockServerOptions = {}) {
 	};
 }
 
+const queryClients: QueryClient[] = [];
+const responseReleases: Array<() => void> = [];
+
+async function disposeEditorTest() {
+	for (const release of responseReleases.splice(0)) release();
+	try {
+		await cleanup();
+		await vi.waitFor(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+			expect(queryClients.some((client) => client.isMutating() > 0)).toBe(false);
+		});
+	} finally {
+		for (const client of queryClients.splice(0)) {
+			await client.cancelQueries();
+			client.clear();
+		}
+	}
+}
+
 function buildRouter() {
 	const queryClient = createTestQueryClient();
+	queryClients.push(queryClient);
 	const router = createAdminRouter(queryClient);
 	if (!i18n.locale) i18n.loadAndActivate({ locale: "en", messages: {} });
 
@@ -262,6 +284,7 @@ async function renderEditPage(
 	await expect
 		.element(screen.getByRole("button", { name: publishingLabel, exact: true }))
 		.toBeVisible();
+	await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
 	return screen;
 }
 
@@ -312,6 +335,7 @@ function deferredResponse() {
 	const promise = new Promise<Response>((next) => {
 		resolve = next;
 	});
+	responseReleases.push(() => resolve(new Response()));
 	return { promise, resolve };
 }
 
@@ -322,10 +346,14 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		vi.useFakeTimers();
 	});
 
-	afterEach(() => {
-		server?.restore();
-		server = undefined;
-		vi.useRealTimers();
+	afterEach(async () => {
+		try {
+			await disposeEditorTest();
+		} finally {
+			server?.restore();
+			server = undefined;
+			vi.useRealTimers();
+		}
 	});
 
 	it("flushes the current payload before publish and cancels the pending debounce", async () => {
@@ -875,10 +903,14 @@ describe("ContentEditPage save sequencing and conflicts", () => {
 		vi.useFakeTimers();
 	});
 
-	afterEach(() => {
-		server?.restore();
-		server = undefined;
-		vi.useRealTimers();
+	afterEach(async () => {
+		try {
+			await disposeEditorTest();
+		} finally {
+			server?.restore();
+			server = undefined;
+			vi.useRealTimers();
+		}
 	});
 
 	// One stored entry that refuses a save carrying a stale token, like the real
@@ -975,7 +1007,10 @@ describe("ContentEditPage save sequencing and conflicts", () => {
 	async function enterConflict(screen: Awaited<ReturnType<typeof render>>) {
 		server!.otherWriterSaves({ title: "Other writer", website: "" });
 		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
-		await vi.advanceTimersByTimeAsync(2500);
+		await vi.waitFor(async () => {
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(contentMutations(server!.requests)).toHaveLength(1);
+		});
 		await expect
 			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
 			.toBeVisible();
@@ -1089,6 +1124,11 @@ describe("ContentEditPage save sequencing and conflicts", () => {
 				if (field === "author") expect(server!.entry.authorId).toBe("user_2");
 				else expect(server!.entry.seo?.title).toBe("Queued SEO");
 			});
+			const changes =
+				field === "author" ? { authorId: "user_2" } : { seo: { title: "Queued SEO" } };
+			const mutations = contentMutations(server.requests);
+			expect(mutations).toHaveLength(2);
+			expect(mutations[1]?.body).toMatchObject({ ...changes, _rev: "rev-moved" });
 			expect(server.entry.data.title).toBe("Other writer");
 			await expect
 				.element(screen.getByRole("button", { name: "Save anyway", exact: true }))

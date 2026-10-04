@@ -30,8 +30,10 @@ describeEachDialect("revision-preconditioned saves", (dialect) => {
 	let context: DialectTestContext;
 	let runtime: EmDashRuntime;
 	let slowSave: ReturnType<typeof createGate>;
+	let pendingSaves: Promise<unknown>[];
 
 	beforeEach(async () => {
+		pendingSaves = [];
 		context = await setupForDialect(dialect);
 		const registry = new SchemaRegistry(context.db);
 		for (const collection of ["posts", "pages"]) {
@@ -66,6 +68,7 @@ describeEachDialect("revision-preconditioned saves", (dialect) => {
 
 	afterEach(async () => {
 		slowSave.release();
+		await Promise.allSettled(pendingSaves);
 		await teardownForDialect(context);
 	});
 
@@ -85,6 +88,7 @@ describeEachDialect("revision-preconditioned saves", (dialect) => {
 				seo: { title: "Editor A SEO" },
 				_rev: revision,
 			});
+			pendingSaves.push(editorA);
 			await slowSave.entered;
 			let editorB: Awaited<ReturnType<typeof runtime.handleContentUpdate>>;
 			try {
@@ -148,6 +152,7 @@ describeEachDialect("revision-preconditioned saves", (dialect) => {
 		});
 		const id = created.data!.item.id;
 		const editorA = runtime.handleContentUpdate("posts", id, { data: { title: "Editor A" } });
+		pendingSaves.push(editorA);
 		await slowSave.entered;
 		try {
 			const editorB = await runtime.handleContentUpdate("posts", id, {

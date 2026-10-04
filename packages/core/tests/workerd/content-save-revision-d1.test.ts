@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { Kysely, sql } from "kysely";
-import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
@@ -21,12 +21,16 @@ declare module "cloudflare:test" {
 }
 
 let db: Kysely<Database>;
+let pendingSaves: Promise<unknown>[];
+let saveReleases: Array<() => void>;
 
 beforeAll(() => {
 	db = new Kysely<Database>({ dialect: new RawBindingD1Dialect({ database: env.DB }) });
 });
 
 beforeEach(async () => {
+	pendingSaves = [];
+	saveReleases = [];
 	await resetD1Schema(db);
 	await runMigrations(db);
 	const registry = new SchemaRegistry(db);
@@ -39,6 +43,11 @@ beforeEach(async () => {
 		});
 		await registry.createField(collection, { slug: "title", label: "Title", type: "string" });
 	}
+});
+
+afterEach(async () => {
+	for (const release of saveReleases) release();
+	await Promise.allSettled(pendingSaves);
 });
 
 afterAll(async () => {
@@ -69,6 +78,7 @@ it.each(["posts", "pages"])(
 		});
 		const released = new Promise<void>((resolve) => {
 			release = resolve;
+			saveReleases.push(resolve);
 		});
 		const plugin = definePlugin({
 			id: "slow-save",
@@ -98,6 +108,7 @@ it.each(["posts", "pages"])(
 			seo: { title: "Editor A SEO" },
 			_rev: created.data!._rev,
 		});
+		pendingSaves.push(editorA);
 		await entered;
 		try {
 			const editorB = await runtime.handleContentUpdate(collection, id, {
@@ -108,6 +119,7 @@ it.each(["posts", "pages"])(
 			expect(editorB.success).toBe(true);
 		} finally {
 			release();
+			await Promise.allSettled([editorA]);
 		}
 		expect(await editorA).toMatchObject({ success: false, error: { code: "CONFLICT" } });
 		const stored = await runtime.handleContentGet(collection, id);
