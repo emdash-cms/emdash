@@ -1,16 +1,14 @@
 import {
+	createClefImageAdapter,
+	createClefTextAdapter,
+	type ClefAdapterConfig,
+} from "../src/ai/clef.js";
+import {
 	createCloudflareImagesDerivativeTransformer,
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 } from "../src/ai/image-resize.js";
-import { createUnanimousTextModerationAdapter } from "../src/ai/unanimous.js";
-import {
-	createWorkersAiImageAdapter,
-	createWorkersAiTextAdapter,
-	workersAiBindingFromEnv,
-	type WorkersAiAdapterConfig,
-	type WorkersAiBinding,
-} from "../src/ai/workers-ai.js";
+import { workersAiBindingFromEnv, type WorkersAiBinding } from "../src/ai/workers-ai.js";
 import { assertSealedEvalDataset } from "./dataset.js";
 import { runEvaluation, type EvaluationRunOptions } from "./harness.js";
 import type { EvalCaseRun, EvalResultBundle, SealedEvalDataset } from "./types.js";
@@ -24,12 +22,8 @@ export interface LiveEvaluationArtifact {
 
 export interface ProtectedLiveEvaluationInput {
 	dataset: SealedEvalDataset;
-	text: readonly [
-		WorkersAiAdapterConfig & { configuredUnits: number },
-		WorkersAiAdapterConfig & { configuredUnits: number },
-		...(WorkersAiAdapterConfig & { configuredUnits: number })[],
-	];
-	image: WorkersAiAdapterConfig & { configuredUnits: number };
+	text: ClefAdapterConfig & { configuredUnits: number };
+	image: ClefAdapterConfig & { configuredUnits: number };
 	repeatCount: number;
 	runnerCommit: string;
 	executedAt?: string;
@@ -75,13 +69,8 @@ function createLiveEvaluationOptions(
 	executedAt: string,
 	durability?: ProtectedLiveEvaluationDurability,
 ): EvaluationRunOptions {
-	const [primaryText, verifierText, ...additionalText] = input.text;
-	const text = createUnanimousTextModerationAdapter([
-		createWorkersAiTextAdapter(ai, primaryText),
-		createWorkersAiTextAdapter(ai, verifierText),
-		...additionalText.map((config) => createWorkersAiTextAdapter(ai, config)),
-	]);
-	const baseImage = createWorkersAiImageAdapter(ai, input.image);
+	const text = createClefTextAdapter(ai, input.text);
+	const baseImage = createClefImageAdapter(ai, input.image);
 	const image = images
 		? createResizedImageModerationAdapter(
 				createCloudflareImagesDerivativeTransformer(images),

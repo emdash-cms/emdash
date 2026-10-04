@@ -519,6 +519,10 @@ msgstr ""
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr ""
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:218
+msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
+msgstr ""
+
 #: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr "{failedCount, plural, one {#টি আপলোড ব্যর্থ হয়েছে} other {#টি আপলোড ব্যর্থ হয়েছে}}"
@@ -734,6 +738,18 @@ msgstr "{selectedCount, plural, one {#টি নির্বাচিত} other 
 #: packages/admin/src/components/ContentList.tsx:648
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {#টি আইটেম ট্র্যাশে সরাবেন? পরে আপনি এটি পুনরুদ্ধার করতে পারবেন।} other {#টি আইটেম ট্র্যাশে সরাবেন? পরে আপনি সেগুলো পুনরুদ্ধার করতে পারবেন।}}"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:71
+msgid "{siteName} has moved to {siteHost}"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:72
+msgid "{siteName} is now at {siteHost}. Sign in there from now on."
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
 msgid "{siteZone} · Your time: {viewerZone}"
@@ -1007,7 +1023,7 @@ msgstr ""
 msgid "A relationship is required"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:272
+#: packages/admin/src/components/settings/GeneralSettings.tsx:347
 msgid "A short description of your site"
 msgstr "আপনার সাইটের একটি সংক্ষিপ্ত বিবরণ"
 
@@ -1054,7 +1070,7 @@ msgid "Accept & Update"
 msgstr "গ্রহণ করুন ও আপডেট করুন"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:239
-#: packages/admin/src/locales/emails.ts:48
+#: packages/admin/src/locales/emails.ts:57
 msgid "Accept Invite"
 msgstr "আমন্ত্রণ গ্রহণ করুন"
 
@@ -1150,9 +1166,14 @@ msgstr ""
 msgid "Add {singularLower} to posts"
 msgstr ""
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:160
+#: packages/admin/src/components/settings/SecuritySettings.tsx:165
 msgid "Add a new passkey"
 msgstr "একটি নতুন পাসকি যোগ করুন"
+
+#. placeholder {0}: window.location.host
+#: packages/admin/src/components/settings/SecuritySettings.tsx:171
+msgid "Add a passkey for {0}"
+msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:700
 msgid "Add a person or team to credit on your content."
@@ -1276,7 +1297,7 @@ msgstr "নতুন ফোল্ডার যোগ করুন"
 msgid "Add noindex meta tag"
 msgstr "noindex মেটা ট্যাগ যোগ করুন"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:187
+#: packages/admin/src/components/settings/SecuritySettings.tsx:198
 msgid "Add Passkey"
 msgstr "পাসকি যোগ করুন"
 
@@ -1362,12 +1383,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:614
+#: packages/admin/src/components/Sidebar.tsx:629
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "অ্যাডমিন"
 
-#: packages/admin/src/components/Sidebar.tsx:556
+#: packages/admin/src/components/Sidebar.tsx:571
 msgid "Admin navigation"
 msgstr "অ্যাডমিন নেভিগেশন"
 
@@ -1542,6 +1563,11 @@ msgstr "কোনো এন্ট্রিতে বাইলাইন নির
 msgid "Also requested, but not available to your role:"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:65
+msgid "visualEditing.altText"
+msgstr ""
+
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:514
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:518
@@ -1598,12 +1624,13 @@ msgstr "একটি এনক্রিপ্টেড ডিজিটাল ক
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:163
-#: packages/admin/src/components/settings/GeneralSettings.tsx:236
-#: packages/admin/src/components/settings/GeneralSettings.tsx:237
-#: packages/admin/src/components/settings/SecuritySettings.tsx:51
-#: packages/admin/src/components/settings/SecuritySettings.tsx:67
-#: packages/admin/src/components/settings/SecuritySettings.tsx:124
+#: packages/admin/src/components/settings/GeneralSettings.tsx:190
+#: packages/admin/src/components/settings/GeneralSettings.tsx:203
+#: packages/admin/src/components/settings/GeneralSettings.tsx:311
+#: packages/admin/src/components/settings/GeneralSettings.tsx:312
+#: packages/admin/src/components/settings/SecuritySettings.tsx:56
+#: packages/admin/src/components/settings/SecuritySettings.tsx:72
+#: packages/admin/src/components/settings/SecuritySettings.tsx:129
 #: packages/admin/src/components/settings/SeoSettings.tsx:82
 #: packages/admin/src/components/settings/SeoSettings.tsx:144
 #: packages/admin/src/components/settings/SeoSettings.tsx:145
@@ -1631,7 +1658,7 @@ msgstr "একটি এনক্রিপ্টেড ডিজিটাল ক
 #: packages/admin/src/router.tsx:2231
 #: packages/admin/src/router.tsx:2247
 #: packages/admin/src/router.tsx:2272
-#: packages/admin/src/router.tsx:2865
+#: packages/admin/src/router.tsx:2874
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1844,7 +1871,7 @@ msgid "Authentication failed"
 msgstr "প্রমাণীকরণ ব্যর্থ হয়েছে"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/SecuritySettings.tsx:111
+#: packages/admin/src/components/settings/SecuritySettings.tsx:116
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
 msgstr "প্রমাণীকরণ একটি বাহ্যিক প্রোভাইডার ({0}) দ্বারা পরিচালিত হয়। বাহ্যিক প্রমাণীকরণ ব্যবহার করার সময় পাসকি সেটিংস পাওয়া যায় না।"
 
@@ -1959,6 +1986,11 @@ msgstr "উপলব্ধ উইজেট"
 #: packages/admin/src/components/BylineAvatarField.tsx:71
 msgid "Avatar"
 msgstr "অবতার"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:74
+msgid "visualEditing.back"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:628
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
@@ -2219,7 +2251,7 @@ msgstr "বাইলাইন ফিল্ড"
 msgid "Byline schema"
 msgstr "বাইলাইন স্কিমা"
 
-#: packages/admin/src/components/Sidebar.tsx:463
+#: packages/admin/src/components/Sidebar.tsx:478
 msgid "Byline Schema"
 msgstr "বাইলাইন স্কিমা"
 
@@ -2233,7 +2265,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1092
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:433
+#: packages/admin/src/components/Sidebar.tsx:448
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Bylines"
 msgstr "বাইলাইন"
@@ -2252,7 +2284,7 @@ msgstr "C++"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:558
-#: packages/admin/src/components/Sidebar.tsx:588
+#: packages/admin/src/components/Sidebar.tsx:603
 #: packages/admin/src/routes/calendar.tsx:276
 msgid "Calendar"
 msgstr "ক্যালেন্ডার"
@@ -2288,7 +2320,7 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1313
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:604
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:817
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:406
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:411
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1315
 #: packages/admin/src/components/MediaDetailPanel.tsx:1847
@@ -2308,7 +2340,8 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/Sections.tsx:231
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:216
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/SecuritySettings.tsx:166
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
+#: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:581
 #: packages/admin/src/components/TaxonomyManager.tsx:881
 #: packages/admin/src/components/TaxonomyManager.tsx:1099
@@ -2319,7 +2352,7 @@ msgstr "কনটেন্ট দেখতে পারেন"
 msgid "Cancel"
 msgstr "বাতিল করুন"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:405
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:410
 msgid "Cancel (Esc)"
 msgstr "বাতিল করুন (Esc)"
 
@@ -2427,7 +2460,12 @@ msgstr "পরিবর্তন করুন"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0>-এর ভূমিকা <1>{1}</1> থেকে <2>{2}</2>-এ পরিবর্তন করবেন? তারা উচ্চ-স্তরের ফিচারগুলোতে অ্যাক্সেস হারাবেন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:376
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
+#: packages/admin/src/components/settings/GeneralSettings.tsx:373
+msgid "Change domain"
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:509
 msgid "Change Favicon"
 msgstr "ফেভিকন পরিবর্তন করুন"
 
@@ -2435,7 +2473,7 @@ msgstr "ফেভিকন পরিবর্তন করুন"
 msgid "Change Image"
 msgstr "ছবি পরিবর্তন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:316
+#: packages/admin/src/components/settings/GeneralSettings.tsx:449
 msgid "Change Logo"
 msgstr "লোগো পরিবর্তন করুন"
 
@@ -2475,6 +2513,10 @@ msgstr ""
 #: packages/admin/src/components/settings/SeoSettings.tsx:172
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "পেজের শিরোনাম ও সাইটের নামের মাঝের অক্ষর (যেমন, \"My Post | My Site\")"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:155
+msgid "Check and switch"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:205
 msgid "Check for updates"
@@ -2559,6 +2601,10 @@ msgstr "এই ডিভাইসে পাসকি সাপোর্ট আ�
 msgid "Checking this site"
 msgstr "এই সাইট পরীক্ষা করা হচ্ছে"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:155
+msgid "Checking…"
+msgstr ""
+
 #: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
 #: packages/admin/src/components/TaxonomySidebar.tsx:489
@@ -2587,7 +2633,7 @@ msgstr "এই খসড়ার জন্য প্রকাশের নত�
 msgid "Choose a non-empty {0} image."
 msgstr "একটি খালি নয় এমন {0} ছবি বেছে নিন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:443
+#: packages/admin/src/components/settings/GeneralSettings.tsx:576
 msgid "Choose a recognized timezone for reliable date display."
 msgstr ""
 
@@ -2687,11 +2733,11 @@ msgstr "সংরক্ষিত মান মুছে ফেলুন"
 msgid "Clear stored value for {fieldKey}"
 msgstr "{fieldKey}-এর সংরক্ষিত মান মুছে ফেলুন"
 
-#: packages/admin/src/locales/emails.ts:47
+#: packages/admin/src/locales/emails.ts:56
 msgid "Click the button below to create your account:"
 msgstr "আপনার অ্যাকাউন্ট তৈরি করতে নিচের বোতামে ক্লিক করুন:"
 
-#: packages/admin/src/locales/emails.ts:55
+#: packages/admin/src/locales/emails.ts:64
 msgid "Click the button below to sign in:"
 msgstr "সাইন ইন করতে নিচের বোতামে ক্লিক করুন:"
 
@@ -2703,11 +2749,11 @@ msgstr "আপনার অ্যাকাউন্ট সেটআপ চাল
 msgid "Click the link in the email to sign in."
 msgstr "সাইন ইন করতে ইমেইলের লিঙ্কে ক্লিক করুন।"
 
-#: packages/admin/src/locales/emails.ts:46
+#: packages/admin/src/locales/emails.ts:55
 msgid "Click this link to create your account:"
 msgstr "আপনার অ্যাকাউন্ট তৈরি করতে এই লিঙ্কে ক্লিক করুন:"
 
-#: packages/admin/src/locales/emails.ts:54
+#: packages/admin/src/locales/emails.ts:63
 msgid "Click this link to sign in to {siteName}:"
 msgstr "{siteName}-এ সাইন ইন করতে এই লিঙ্কে ক্লিক করুন:"
 
@@ -2915,7 +2961,7 @@ msgstr "মন্তব্যের প্রতিক্রিয়া"
 #: packages/admin/src/components/ContentTypeEditor.tsx:650
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:419
+#: packages/admin/src/components/Sidebar.tsx:434
 msgid "Comments"
 msgstr "মন্তব্য"
 
@@ -3006,7 +3052,7 @@ msgstr "কনটেন্ট"
 #: packages/admin/src/components/Dashboard.tsx:479
 #: packages/admin/src/components/PortableTextEditor.tsx:3247
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:598
+#: packages/admin/src/components/Sidebar.tsx:613
 #: packages/admin/src/components/Widgets.tsx:901
 msgid "Content"
 msgstr "কনটেন্ট"
@@ -3091,7 +3137,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:131
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/Sidebar.tsx:474
 msgid "Content Types"
 msgstr "কনটেন্ট টাইপ"
 
@@ -3129,6 +3175,10 @@ msgstr "ইমপোর্ট চালিয়ে যান"
 #: packages/admin/src/components/PortableTextEditor.tsx:5337
 msgid "Continue numbering"
 msgstr "নম্বর চালিয়ে যান"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:390
+msgid "Continue on {handoverHost}"
+msgstr ""
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:72
 msgid "Continue to finish signing in. The link works only once."
@@ -3197,8 +3247,8 @@ msgstr "এই টোকেনটি এখনই কপি করুন — এ
 msgid "Copy token"
 msgstr "টোকেন কপি করুন"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:322
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:323
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:327
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:328
 #: packages/admin/src/components/MediaDetailPanel.tsx:1367
 msgid "Copy URL"
 msgstr "URL কপি করুন"
@@ -3704,8 +3754,8 @@ msgstr "ডার্ক মোডের ভেরিয়েন্ট"
 #: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:390
 #: packages/admin/src/components/Dashboard.tsx:71
-#: packages/admin/src/components/Sidebar.tsx:397
-#: packages/admin/src/components/Sidebar.tsx:583
+#: packages/admin/src/components/Sidebar.tsx:412
+#: packages/admin/src/components/Sidebar.tsx:598
 msgid "Dashboard"
 msgstr "ড্যাশবোর্ড"
 
@@ -3731,7 +3781,7 @@ msgstr "তারিখ ও সময় নির্বাচক"
 msgid "Date field to filter on"
 msgstr "যে তারিখ ফিল্ড দিয়ে ফিল্টার করা হবে"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
+#: packages/admin/src/components/settings/GeneralSettings.tsx:553
 msgid "Date Format"
 msgstr "তারিখের ফরম্যাট"
 
@@ -3794,7 +3844,7 @@ msgstr "কোডে নির্ধারিত"
 #: packages/admin/src/components/ContentTypeEditor.tsx:853
 #: packages/admin/src/components/ContentTypeList.tsx:256
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:378
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:383
 #: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaDetailPanel.tsx:1920
 #: packages/admin/src/components/MenuEditor.tsx:555
@@ -3897,7 +3947,7 @@ msgstr "মন্তব্য মুছবেন?"
 msgid "Delete Content Type?"
 msgstr "কনটেন্ট টাইপ মুছবেন?"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:379
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:384
 msgid "Delete embed"
 msgstr "এমবেড মুছুন"
 
@@ -4058,6 +4108,11 @@ msgstr "ভূমিকা নামানো হচ্ছে..."
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "অস্বীকার করুন"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:66
+msgid "visualEditing.altTextPlaceholder"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:521
 #: packages/admin/src/components/PortableTextEditor.tsx:4774
@@ -4299,6 +4354,10 @@ msgstr "ডোমেইন"
 msgid "Domain added successfully"
 msgstr "ডোমেইন সফলভাবে যোগ করা হয়েছে"
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+msgid "Domain changed to {url}"
+msgstr ""
+
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:120
 msgid "Domain removed"
 msgstr "ডোমেইন সরানো হয়েছে"
@@ -4385,6 +4444,11 @@ msgstr "ডাউনলোড হচ্ছে"
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:112
 msgid "Downloading the package"
 msgstr "প্যাকেজ ডাউনলোড হচ্ছে"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:53
+msgid "visualEditing.draft"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
 #: packages/admin/src/components/ContentList.tsx:1021
@@ -4523,8 +4587,8 @@ msgstr ""
 msgid "Each path segment can contain at most one placeholder, e.g. {0}"
 msgstr ""
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:367
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:368
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:372
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:373
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/Sections.tsx:439
@@ -4640,7 +4704,7 @@ msgid "Edit menu items"
 msgstr "মেনু আইটেম সম্পাদনা করুন"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:30
+#: packages/admin/src/locales/server.ts:50
 msgid "visualEditing.editMode"
 msgstr "সম্পাদনা মোড"
 
@@ -4666,8 +4730,8 @@ msgstr "রিডাইরেক্ট {0} সম্পাদনা করুন
 msgid "Edit role"
 msgstr "ভূমিকা সম্পাদনা করুন"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:367
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:368
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:372
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:373
 msgid "Edit URL"
 msgstr "URL সম্পাদনা করুন"
 
@@ -4684,7 +4748,7 @@ msgid "Editing on this site is paused until the import finishes."
 msgstr "ইমপোর্ট শেষ না হওয়া পর্যন্ত এই সাইটে সম্পাদনা স্থগিত থাকবে।"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:21
+#: packages/admin/src/locales/server.ts:41
 msgid "visualEditing.sessionExpired"
 msgstr "সম্পাদনার সেশনের মেয়াদ শেষ হয়েছে। চালিয়ে যেতে পেজটি রিফ্রেশ করুন।"
 
@@ -4724,6 +4788,14 @@ msgstr "ইমেইল"
 msgid "Email address"
 msgstr "ইমেইল ঠিকানা"
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:640
+msgid "Email all users?"
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+msgid "Email every other user a link to the sign-in page at {siteHost}."
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:242
 #: packages/admin/src/components/SignupPage.tsx:67
 msgid "Email is required"
@@ -4745,6 +4817,10 @@ msgstr "ইমেইল প্রোভাইডার সক্রিয়"
 #: packages/admin/src/components/settings/EmailSettings.tsx:58
 msgid "Email Settings"
 msgstr "ইমেইল সেটিংস"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:412
+msgid "Email users"
+msgstr ""
 
 #: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Email verified"
@@ -4870,7 +4946,7 @@ msgstr "কোনো কনটেন্ট ভাষা কনফিগার �
 msgid "Enter a name."
 msgstr "একটি নাম লিখুন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:447
+#: packages/admin/src/components/settings/GeneralSettings.tsx:580
 msgid "Enter a recognized timezone to save"
 msgstr ""
 
@@ -4906,6 +4982,10 @@ msgstr "নাম লিখুন"
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Enter the code from your terminal"
 msgstr "আপনার টার্মিনালে দেখানো কোডটি লিখুন"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:91
+msgid "Enter the domain below. EmDash checks that it serves this site before switching."
+msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:123
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:132
@@ -4953,7 +5033,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1207
 #: packages/admin/src/components/Widgets.tsx:771
-#: packages/admin/src/router.tsx:3140
+#: packages/admin/src/router.tsx:3149
 msgid "Error"
 msgstr "ত্রুটি"
 
@@ -4981,6 +5061,10 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "ইমপোর্ট করা প্রতিটি রেকর্ড ও মিডিয়া ফাইল আবার পড়ে দেখা হয়েছে এবং প্যাকেজের সাথে মিলেছে। ট্রান্সফারের রেকর্ড হিসেবে এই রসিদটি রেখে দিন।"
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:1986
 msgid "Every place using this image will update to the cropped version."
 msgstr "যেসব জায়গায় এই ছবি ব্যবহৃত হয়েছে, সবখানে ক্রপ করা সংস্করণে আপডেট হয়ে যাবে।"
@@ -4997,11 +5081,12 @@ msgstr "এই প্লাগইনের প্রতিটি প্রকা
 msgid "Every relationship this content type takes part in goes too:"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:561
 msgid "Example: {pattern} → {preview}"
 msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:294
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:97
 msgid "example.com"
 msgstr "example.com"
 
@@ -5118,7 +5203,7 @@ msgstr "ইমপোর্ট পরিত্যাগ করতে ব্যর
 msgid "Failed to add domain"
 msgstr "ডোমেইন যোগ করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:175
+#: packages/admin/src/components/settings/SecuritySettings.tsx:186
 msgid "Failed to add passkey"
 msgstr "পাসকি যোগ করতে ব্যর্থ হয়েছে"
 
@@ -5137,6 +5222,10 @@ msgstr "অনুরোধ অনুমোদন করতে ব্যর্থ
 #: packages/admin/src/lib/api/transfer.ts:482
 msgid "Failed to cancel import"
 msgstr "ইমপোর্ট বাতিল করতে ব্যর্থ হয়েছে"
+
+#: packages/admin/src/lib/api/settings.ts:118
+msgid "Failed to change the domain"
+msgstr ""
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:74
 msgid "Failed to communicate with plugin"
@@ -5158,6 +5247,11 @@ msgstr "ইমপোর্ট চালিয়ে যেতে ব্যর্
 #: packages/admin/src/components/TaxonomySidebar.tsx:753
 msgid "Failed to create {0}"
 msgstr "{0} তৈরি করতে ব্যর্থ হয়েছে"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/lib/api/settings.ts:95
+msgid "Failed to create a sign-in link"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Failed to create admin"
@@ -5328,6 +5422,10 @@ msgstr "একটি প্যাকেজ ফাইল ডাউনলোড �
 msgid "Failed to duplicate"
 msgstr "ডুপ্লিকেট করতে ব্যর্থ হয়েছে"
 
+#: packages/admin/src/lib/api/settings.ts:105
+msgid "Failed to email users"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/lib/api/plugins.ts:146
 msgid "Failed to enable plugin"
@@ -5440,6 +5538,10 @@ msgstr "সেটআপের স্ট্যাটাস আনতে ব্য
 msgid "Failed to fetch terms"
 msgstr "টার্মগুলো আনতে ব্যর্থ হয়েছে"
 
+#: packages/admin/src/lib/api/settings.ts:87
+msgid "Failed to fetch the site domain"
+msgstr ""
+
 #: packages/admin/src/lib/api/core-update.ts:29
 msgid "Failed to fetch update status"
 msgstr ""
@@ -5550,7 +5652,12 @@ msgstr "ইমপোর্টের রসিদ লোড করতে ব্�
 msgid "Failed to load imports"
 msgstr "ইমপোর্টগুলো লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:123
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:77
+msgid "visualEditing.mediaLoadFailed"
+msgstr ""
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:128
 msgid "Failed to load passkeys"
 msgstr "পাসকি লোড করতে ব্যর্থ হয়েছে"
 
@@ -5638,7 +5745,7 @@ msgid "Failed to remove domain"
 msgstr "ডোমেইন সরাতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:73
-#: packages/admin/src/components/settings/SecuritySettings.tsx:66
+#: packages/admin/src/components/settings/SecuritySettings.tsx:71
 msgid "Failed to remove passkey"
 msgstr "পাসকি সরাতে ব্যর্থ হয়েছে"
 
@@ -5646,7 +5753,7 @@ msgstr "পাসকি সরাতে ব্যর্থ হয়েছে"
 msgid "Failed to rename media folder"
 msgstr "মিডিয়া ফোল্ডারের নাম পরিবর্তন করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:50
+#: packages/admin/src/components/settings/SecuritySettings.tsx:55
 msgid "Failed to rename passkey"
 msgstr "পাসকির নাম পরিবর্তন করতে ব্যর্থ হয়েছে"
 
@@ -5694,7 +5801,7 @@ msgstr "URL পুনর্লিখন করতে ব্যর্থ হয�
 
 #: packages/admin/src/router.tsx:809
 #: packages/admin/src/router.tsx:1180
-#: packages/admin/src/router.tsx:2864
+#: packages/admin/src/router.tsx:2873
 msgid "Failed to save"
 msgstr "সংরক্ষণ করতে ব্যর্থ হয়েছে"
 
@@ -5707,7 +5814,7 @@ msgid "Failed to save field"
 msgstr "ফিল্ড সংরক্ষণ করতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:189
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5845,8 +5952,8 @@ msgid "FAQ"
 msgstr "সাধারণ জিজ্ঞাসা"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:480
+#: packages/admin/src/components/settings/GeneralSettings.tsx:487
 msgid "Favicon"
 msgstr "ফেভিকন"
 
@@ -6134,7 +6241,7 @@ msgstr "গ্যালারি সেটিংস"
 msgid "General"
 msgstr "সাধারণ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:214
+#: packages/admin/src/components/settings/GeneralSettings.tsx:289
 msgid "General Settings"
 msgstr "সাধারণ সেটিংস"
 
@@ -6171,9 +6278,13 @@ msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2441
-#: packages/admin/src/router.tsx:3160
+#: packages/admin/src/router.tsx:3169
 msgid "Go to Dashboard"
 msgstr "ড্যাশবোর্ডে যান"
+
+#: packages/admin/src/locales/emails.ts:74
+msgid "Go to sign-in"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:308
 msgid "Goes live"
@@ -6322,7 +6433,7 @@ msgid "Hide token"
 msgstr "টোকেন লুকান"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:32
+#: packages/admin/src/locales/server.ts:52
 msgid "visualEditing.hideToolbar"
 msgstr "টুলবার লুকান"
 
@@ -6453,7 +6564,11 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "যদি <0>{email}</0>-এর জন্য কোনো অ্যাকাউন্ট থাকে, তাহলে আমরা একটি সাইন-ইন লিঙ্ক পাঠিয়েছি।"
 
-#: packages/admin/src/locales/emails.ts:58
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:123
+msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:67
 msgid "If you didn't request this, you can safely ignore this email."
 msgstr "আপনি যদি এটির অনুরোধ না করে থাকেন, তাহলে নিশ্চিন্তে এই ইমেইলটি উপেক্ষা করতে পারেন।"
 
@@ -6463,6 +6578,11 @@ msgstr ""
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:211
 msgid "Iframe block options"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:63
+msgid "visualEditing.image"
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:437
@@ -6541,7 +6661,7 @@ msgstr "ছবি"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:485
+#: packages/admin/src/components/Sidebar.tsx:500
 #: packages/admin/src/components/WordPressImport.tsx:758
 msgid "Import"
 msgstr "ইমপোর্ট"
@@ -7243,6 +7363,15 @@ msgstr "লিঙ্ক"
 msgid "Links from"
 msgstr ""
 
+#. placeholder {0}: siteDomain.configuredUrl
+#: packages/admin/src/components/settings/GeneralSettings.tsx:359
+msgid "Links in emails and plugins use {0}, set by the deployment configuration."
+msgstr ""
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:84
+msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
+msgstr ""
+
 #: packages/admin/src/components/RelationForm.tsx:279
 msgid "Links to"
 msgstr ""
@@ -7301,7 +7430,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3115
+#: packages/admin/src/router.tsx:3124
 msgid "Loading"
 msgstr "লোড হচ্ছে"
 
@@ -7330,8 +7459,8 @@ msgstr "কালেকশন লোড হচ্ছে..."
 msgid "Loading comments..."
 msgstr "মন্তব্য লোড হচ্ছে..."
 
-#: packages/admin/src/router.tsx:3117
-#: packages/admin/src/router.tsx:3129
+#: packages/admin/src/router.tsx:3126
+#: packages/admin/src/router.tsx:3138
 msgid "Loading configuration..."
 msgstr "কনফিগারেশন লোড হচ্ছে..."
 
@@ -7385,7 +7514,7 @@ msgstr "প্লাগইন প্যানেল লোড হচ্ছে"
 msgid "Loading plugins..."
 msgstr "প্লাগইন লোড হচ্ছে..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:425
+#: packages/admin/src/components/settings/GeneralSettings.tsx:558
 msgid "Loading preview…"
 msgstr ""
 
@@ -7408,7 +7537,7 @@ msgid "Loading sections..."
 msgstr "সেকশন লোড হচ্ছে..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:225
+#: packages/admin/src/components/settings/GeneralSettings.tsx:300
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7454,7 +7583,7 @@ msgstr "উইজেট লোড হচ্ছে..."
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:155
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
-#: packages/admin/src/components/settings/SecuritySettings.tsx:99
+#: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
 #: packages/admin/src/components/TaxonomyManager.tsx:1274
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -7464,6 +7593,11 @@ msgstr "উইজেট লোড হচ্ছে..."
 #: packages/admin/src/routes/bylines.tsx:673
 msgid "Loading..."
 msgstr "লোড হচ্ছে..."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:75
+msgid "visualEditing.loading"
+msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:147
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
@@ -7512,8 +7646,8 @@ msgid "Log out"
 msgstr "লগ আউট করুন"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:287
-#: packages/admin/src/components/settings/GeneralSettings.tsx:294
+#: packages/admin/src/components/settings/GeneralSettings.tsx:420
+#: packages/admin/src/components/settings/GeneralSettings.tsx:427
 msgid "Logo"
 msgstr "লোগো"
 
@@ -7555,7 +7689,7 @@ msgstr "মূল লাইব্রেরি"
 msgid "Main Sidebar"
 msgstr "মূল সাইডবার"
 
-#: packages/admin/src/components/Sidebar.tsx:606
+#: packages/admin/src/components/Sidebar.tsx:621
 msgid "Manage"
 msgstr "পরিচালনা"
 
@@ -7590,7 +7724,7 @@ msgid "Manage URL redirects and view 404 errors."
 msgstr "URL রিডাইরেক্ট পরিচালনা করুন এবং 404 ত্রুটি দেখুন।"
 
 #: packages/admin/src/components/Settings.tsx:88
-#: packages/admin/src/components/settings/SecuritySettings.tsx:89
+#: packages/admin/src/components/settings/SecuritySettings.tsx:94
 msgid "Manage your passkeys and authentication"
 msgstr "আপনার পাসকি ও প্রমাণীকরণ পরিচালনা করুন"
 
@@ -7637,11 +7771,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "মার্কেটপ্লেস"
 
-#: packages/admin/src/router.tsx:2525
+#: packages/admin/src/router.tsx:2534
 msgid "Marketplace browsing is no longer available."
 msgstr "মার্কেটপ্লেস ব্রাউজ করার সুবিধা আর উপলব্ধ নেই।"
 
-#: packages/admin/src/router.tsx:2500
+#: packages/admin/src/router.tsx:2509
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "মার্কেটপ্লেস ব্রাউজ করার সুবিধা আর উপলব্ধ নেই। প্লাগইন পেজ থেকে ইনস্টল করা প্লাগইন পরিচালনা করুন।"
 
@@ -7686,7 +7820,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:410
+#: packages/admin/src/components/Sidebar.tsx:425
 #: packages/admin/src/components/WordPressImport.tsx:772
 #: packages/admin/src/components/WordPressImport.tsx:1170
 #: packages/admin/src/components/WordPressImport.tsx:1357
@@ -7722,6 +7856,11 @@ msgstr "মিডিয়া ইমপোর্ট এড়িয়ে যা
 #: packages/admin/src/components/MediaFolderDialog.tsx:183
 msgid "Media in this folder will return to Main library. No files will be deleted."
 msgstr "এই ফোল্ডারের মিডিয়া মূল লাইব্রেরিতে ফিরে যাবে। কোনো ফাইল মুছে ফেলা হবে না।"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:73
+msgid "visualEditing.mediaLibrary"
+msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:166
 #: packages/admin/src/components/MediaLibrary.tsx:755
@@ -7831,7 +7970,7 @@ msgstr "মেনুর ক্রম আপডেট করা হয়েছ�
 #: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:424
+#: packages/admin/src/components/Sidebar.tsx:439
 #: packages/admin/src/components/WordPressImport.tsx:1174
 msgid "Menus"
 msgstr "মেনু"
@@ -8218,6 +8357,10 @@ msgstr "নতুন কালেকশন"
 msgid "New Content Type"
 msgstr "নতুন কনটেন্ট টাইপ"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:96
+msgid "New domain"
+msgstr ""
+
 #: packages/admin/src/routes/byline-schema.tsx:224
 msgid "New field"
 msgstr "নতুন ফিল্ড"
@@ -8494,6 +8637,16 @@ msgstr "ডকুমেন্টে কোনো হেডিং নেই"
 msgid "No iframe found in this code. For an embed that runs a script, use an HTML block."
 msgstr ""
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:64
+msgid "visualEditing.noImageSelected"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:76
+msgid "visualEditing.noImagesFound"
+msgstr ""
+
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:271
 msgid "No images in this gallery yet."
 msgstr "এই গ্যালারিতে এখনও কোনো ছবি নেই।"
@@ -8562,7 +8715,7 @@ msgstr "এই অ্যাকাউন্টের জন্য মিলে �
 msgid "No matching tags"
 msgstr "মিলে যাওয়া কোনো ট্যাগ নেই"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:460
+#: packages/admin/src/components/settings/GeneralSettings.tsx:593
 msgid "No matching timezones"
 msgstr ""
 
@@ -8605,7 +8758,7 @@ msgstr "প্যারেন্ট নেই (শীর্ষ স্তর)"
 msgid "No passkeys registered"
 msgstr "কোনো পাসকি নিবন্ধিত নেই"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:154
+#: packages/admin/src/components/settings/SecuritySettings.tsx:159
 msgid "No passkeys registered yet."
 msgstr "এখনও কোনো পাসকি নিবন্ধিত হয়নি।"
 
@@ -8750,6 +8903,7 @@ msgstr "মেলেনি"
 
 #: packages/admin/src/components/ContentList.tsx:1568
 #: packages/admin/src/components/PluginSettings.tsx:341
+#: packages/admin/src/components/settings/GeneralSettings.tsx:365
 msgid "Not set"
 msgstr "নির্ধারিত নয়"
 
@@ -8788,7 +8942,7 @@ msgstr "সংখ্যা"
 msgid "Number of posts"
 msgstr "পোস্টের সংখ্যা"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:415
+#: packages/admin/src/components/settings/GeneralSettings.tsx:548
 msgid "Number of posts to show per page on list views"
 msgstr "তালিকা ভিউতে প্রতি পেজে কতগুলো পোস্ট দেখানো হবে"
 
@@ -8874,7 +9028,7 @@ msgid "Open folder {0}"
 msgstr "{0} ফোল্ডার খুলুন"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:31
+#: packages/admin/src/locales/server.ts:51
 msgid "visualEditing.openInAdmin"
 msgstr "অ্যাডমিনে খুলুন"
 
@@ -8888,8 +9042,8 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:779
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:794
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:795
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:333
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:334
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:338
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:339
 msgid "Open in new tab"
 msgstr "নতুন ট্যাবে খুলুন"
 
@@ -8906,6 +9060,10 @@ msgstr "সেটআপ খুলুন"
 #: packages/admin/src/components/SignupPage.tsx:237
 msgid "Open the dashboard"
 msgstr "ড্যাশবোর্ড খুলুন"
+
+#: packages/admin/src/locales/emails.ts:73
+msgid "Open the sign-in page at the new address:"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
 msgid "Open Windows settings"
@@ -9047,7 +9205,7 @@ msgstr "প্যাকেজ ডাইজেস্ট"
 msgid "Package downloaded"
 msgstr "প্যাকেজ ডাউনলোড হয়েছে"
 
-#: packages/admin/src/router.tsx:3155
+#: packages/admin/src/router.tsx:3164
 msgid "Page Not Found"
 msgstr "পেজ পাওয়া যায়নি"
 
@@ -9096,7 +9254,7 @@ msgstr "আংশিক"
 msgid "Pass"
 msgstr "উত্তীর্ণ"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:85
+#: packages/admin/src/components/settings/SecuritySettings.tsx:90
 msgid "Passkey added successfully"
 msgstr "পাসকি সফলভাবে যোগ করা হয়েছে"
 
@@ -9117,15 +9275,15 @@ msgstr "পাসকির নাম (ঐচ্ছিক)"
 msgid "Passkey registered successfully!"
 msgstr "পাসকি সফলভাবে নিবন্ধিত হয়েছে!"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:62
+#: packages/admin/src/components/settings/SecuritySettings.tsx:67
 msgid "Passkey removed"
 msgstr "পাসকি সরানো হয়েছে"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:46
+#: packages/admin/src/components/settings/SecuritySettings.tsx:51
 msgid "Passkey renamed"
 msgstr "পাসকির নাম পরিবর্তন করা হয়েছে"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:135
+#: packages/admin/src/components/settings/SecuritySettings.tsx:140
 #: packages/admin/src/components/users/UserList.tsx:103
 msgid "Passkeys"
 msgstr "পাসকি"
@@ -9135,14 +9293,34 @@ msgstr "পাসকি"
 msgid "Passkeys ({0})"
 msgstr "পাসকি ({0})"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:136
+#: packages/admin/src/components/settings/SecuritySettings.tsx:141
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "পাসকি হলো পাসওয়ার্ড ছাড়াই আপনার অ্যাকাউন্টে সাইন ইন করার একটি নিরাপদ উপায়। বিভিন্ন ডিভাইসের জন্য আপনি একাধিক পাসকি নিবন্ধন করতে পারেন।"
+
+#: packages/admin/src/locales/emails.ts:75
+msgid "Passkeys from the old address don't work there. Sign in with an email link, then add a passkey in Security settings."
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:297
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:475
 msgid "Passkeys Not Available Here"
 msgstr "এখানে পাসকি উপলব্ধ নয়"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+msgid "Passkeys only work at the address where they were created."
+msgstr ""
+
+#: packages/admin/src/components/settings/SecuritySettings.tsx:172
+msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
+msgstr ""
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:113
+msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyContextMessage.tsx:5
 msgid "Passkeys require a <0>secure context</0>: use <1>HTTPS</1>, or open the admin at <2>http://localhost</2> (with your dev port). Plain <3>http://</3> on a custom hostname is not treated as secure, even on loopback."
@@ -9380,8 +9558,8 @@ msgstr "প্লাগইন রেজিস্ট্রি"
 msgid "Plugin registry configuration error"
 msgstr "প্লাগইন রেজিস্ট্রি কনফিগারেশন ত্রুটি"
 
-#: packages/admin/src/router.tsx:2460
-#: packages/admin/src/router.tsx:2491
+#: packages/admin/src/router.tsx:2469
+#: packages/admin/src/router.tsx:2500
 msgid "Plugin registry is not configured."
 msgstr "প্লাগইন রেজিস্ট্রি কনফিগার করা হয়নি।"
 
@@ -9417,10 +9595,14 @@ msgstr "প্লাগইন উইজেট ত্রুটি"
 #: packages/admin/src/components/PluginManager.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:192
-#: packages/admin/src/components/Sidebar.tsx:467
-#: packages/admin/src/components/Sidebar.tsx:622
+#: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/components/Sidebar.tsx:637
 msgid "Plugins"
 msgstr "প্লাগইন"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:89
+msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
+msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:342
 msgid "Point-in-Time Restore"
@@ -9453,7 +9635,7 @@ msgstr "পোস্ট"
 msgid "Posts & Pages"
 msgstr "পোস্ট ও পেজ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:409
+#: packages/admin/src/components/settings/GeneralSettings.tsx:542
 msgid "Posts Per Page"
 msgstr "প্রতি পেজে পোস্ট"
 
@@ -9517,7 +9699,7 @@ msgstr "খসড়া প্রিভিউ করুন"
 msgid "Preview of {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:560
 msgid "Preview unavailable for this format"
 msgstr ""
 
@@ -9597,7 +9779,7 @@ msgid "Publication policy blocked scheduled content"
 msgstr "প্রকাশনা নীতি নির্ধারিত কনটেন্ট আটকে দিয়েছে"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:19
+#: packages/admin/src/locales/server.ts:39
 msgid "visualEditing.publish"
 msgstr "প্রকাশ করুন"
 
@@ -9616,7 +9798,7 @@ msgid "Publish changes?"
 msgstr "পরিবর্তন প্রকাশ করবেন?"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:26
+#: packages/admin/src/locales/server.ts:46
 msgid "visualEditing.publishFailed"
 msgstr "প্রকাশ করতে ব্যর্থ হয়েছে। আপনার অনুমতি পরীক্ষা করে আবার চেষ্টা করুন।"
 
@@ -9642,6 +9824,11 @@ msgstr "কনটেন্ট প্রকাশ, অপ্রকাশিত, �
 #: packages/admin/src/router.tsx:1311
 msgid "Published"
 msgstr "প্রকাশিত"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:347
@@ -9693,7 +9880,7 @@ msgid "Publishing summary"
 msgstr "প্রকাশনার সারসংক্ষেপ"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:20
+#: packages/admin/src/locales/server.ts:40
 msgid "visualEditing.publishing"
 msgstr "প্রকাশ করা হচ্ছে…"
 
@@ -9798,7 +9985,7 @@ msgstr "আপনার ট্যাক্সোনমি ও টার্ম �
 msgid "Read-only"
 msgstr "শুধু পড়ার জন্য"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:406
+#: packages/admin/src/components/settings/GeneralSettings.tsx:539
 msgid "Reading"
 msgstr "পড়া"
 
@@ -9884,7 +10071,7 @@ msgstr "লগইন পেজে নিয়ে যাওয়া হচ্�
 #: packages/admin/src/components/Redirects.tsx:416
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:427
+#: packages/admin/src/components/Sidebar.tsx:442
 msgid "Redirects"
 msgstr "রিডাইরেক্ট"
 
@@ -9913,12 +10100,12 @@ msgstr ""
 msgid "Referenced collection is required"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:498
 msgid "Referenced favicon unavailable."
 msgstr "উল্লিখিত ফেভিকন উপলব্ধ নয়।"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:25
+#: packages/admin/src/locales/server.ts:45
 msgid "visualEditing.refreshPage"
 msgstr "পেজ রিফ্রেশ করুন"
 
@@ -9939,7 +10126,7 @@ msgid "Register"
 msgstr "নিবন্ধন করুন"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:273
-#: packages/admin/src/components/settings/SecuritySettings.tsx:182
+#: packages/admin/src/components/settings/SecuritySettings.tsx:193
 msgid "Register Passkey"
 msgstr "পাসকি নিবন্ধন করুন"
 
@@ -9957,7 +10144,7 @@ msgstr "নিবন্ধন বাতিল হয়েছে বা সম�
 
 #: packages/admin/src/components/PluginManager.tsx:210
 #: packages/admin/src/components/PluginManager.tsx:447
-#: packages/admin/src/components/Sidebar.tsx:476
+#: packages/admin/src/components/Sidebar.tsx:491
 msgid "Registry"
 msgstr "রেজিস্ট্রি"
 
@@ -9999,6 +10186,11 @@ msgstr ""
 msgid "Reloading the plan…"
 msgstr "প্ল্যান রিলোড করা হচ্ছে…"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:72
+msgid "visualEditing.removeImage"
+msgstr ""
+
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentEditor.tsx:3182
@@ -10010,8 +10202,8 @@ msgstr "প্ল্যান রিলোড করা হচ্ছে…"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:325
-#: packages/admin/src/components/settings/GeneralSettings.tsx:385
+#: packages/admin/src/components/settings/GeneralSettings.tsx:458
+#: packages/admin/src/components/settings/GeneralSettings.tsx:518
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10162,6 +10354,11 @@ msgstr "রিপিটার"
 #: packages/admin/src/components/FieldEditor.tsx:474
 msgid "Repeating group of fields"
 msgstr "পুনরাবৃত্ত ফিল্ডের গ্রুপ"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:70
+msgid "visualEditing.replaceImage"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3172
 #: packages/admin/src/components/ContentEditor.tsx:3209
@@ -10416,7 +10613,7 @@ msgstr "অবসরপ্রাপ্ত"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3143
+#: packages/admin/src/router.tsx:3152
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:344
 msgid "Retry"
@@ -10652,7 +10849,7 @@ msgid "Sample content"
 msgstr "নমুনা কনটেন্ট"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:820
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:417
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:422
 #: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:632
@@ -10663,7 +10860,7 @@ msgstr "নমুনা কনটেন্ট"
 msgid "Save"
 msgstr "সংরক্ষণ করুন"
 
-#: packages/admin/src/components/editor/PluginBlockNode.tsx:416
+#: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 msgid "Save (Enter)"
 msgstr "সংরক্ষণ করুন (Enter)"
 
@@ -10697,6 +10894,11 @@ msgstr "প্রকাশের আগে কনটেন্ট খসড়া
 msgid "Save date"
 msgstr "তারিখ সংরক্ষণ করুন"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:62
+msgid "visualEditing.saveFailed"
+msgstr ""
+
 #: packages/admin/src/components/settings/PasskeyItem.tsx:112
 msgid "Save name"
 msgstr "নাম সংরক্ষণ করুন"
@@ -10717,6 +10919,11 @@ msgstr "নির্ধারিত সময় সংরক্ষণ করু
 #: packages/admin/src/components/PluginSettings.tsx:209
 msgid "Save Settings"
 msgstr "সেটিংস সংরক্ষণ করুন"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:61
+msgid "visualEditing.saved"
+msgstr ""
 
 #: packages/admin/src/components/SaveButton.tsx:34
 msgid "Saved"
@@ -10750,6 +10957,11 @@ msgstr ""
 #: packages/admin/src/routes/bylines.tsx:859
 msgid "Saving..."
 msgstr "সংরক্ষণ করা হচ্ছে..."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:60
+msgid "visualEditing.saving"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Saving…"
@@ -10972,7 +11184,7 @@ msgstr "ফোল্ডার অনুসন্ধান করুন"
 msgid "Search for a language…"
 msgstr "একটি ভাষা অনুসন্ধান করুন…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:440
+#: packages/admin/src/components/settings/GeneralSettings.tsx:573
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr ""
 
@@ -11033,7 +11245,7 @@ msgstr "থিম অনুসন্ধান করুন"
 msgid "Search themes..."
 msgstr "থিম অনুসন্ধান করুন..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:451
+#: packages/admin/src/components/settings/GeneralSettings.tsx:584
 msgid "Search timezones…"
 msgstr ""
 
@@ -11096,7 +11308,7 @@ msgstr "সেকশনের শিরোনাম"
 #: packages/admin/src/components/Sections.tsx:150
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:432
+#: packages/admin/src/components/Sidebar.tsx:447
 msgid "Sections"
 msgstr "সেকশন"
 
@@ -11149,8 +11361,8 @@ msgstr "নিরাপত্তা ত্রুটি। নিশ্চিত 
 #: packages/admin/src/components/AdminCommandPalette.tsx:263
 #: packages/admin/src/components/Header.tsx:94
 #: packages/admin/src/components/Settings.tsx:83
-#: packages/admin/src/components/settings/SecuritySettings.tsx:88
-#: packages/admin/src/components/settings/SecuritySettings.tsx:110
+#: packages/admin/src/components/settings/SecuritySettings.tsx:93
+#: packages/admin/src/components/settings/SecuritySettings.tsx:115
 msgid "Security Settings"
 msgstr "নিরাপত্তা সেটিংস"
 
@@ -11239,11 +11451,11 @@ msgstr "{label}-এর জন্য ডার্ক মোড ভ্যারি
 msgid "Select default social image"
 msgstr "ডিফল্ট সোশ্যাল ছবি নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:490
+#: packages/admin/src/components/settings/GeneralSettings.tsx:623
 msgid "Select favicon"
 msgstr "ফেভিকন নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:397
+#: packages/admin/src/components/settings/GeneralSettings.tsx:530
 msgid "Select Favicon"
 msgstr "ফেভিকন নির্বাচন করুন"
 
@@ -11266,11 +11478,11 @@ msgstr "ছবি নির্বাচন করুন"
 msgid "Select Image"
 msgstr "ছবি নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:482
+#: packages/admin/src/components/settings/GeneralSettings.tsx:615
 msgid "Select logo"
 msgstr "লোগো নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:470
 msgid "Select Logo"
 msgstr "লোগো নির্বাচন করুন"
 
@@ -11347,6 +11559,10 @@ msgstr "নতুন একজন টিম সদস্যকে আমন্�
 msgid "Send email through your site"
 msgstr ""
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+msgid "Send emails"
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
 msgid "Send Invite"
 msgstr "আমন্ত্রণ পাঠান"
@@ -11369,6 +11585,7 @@ msgstr "পরীক্ষামূলক ইমেইল পাঠান"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
+#: packages/admin/src/components/settings/GeneralSettings.tsx:643
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11433,6 +11650,10 @@ msgstr "মন্তব্য কখনো স্বয়ংক্রিয়�
 msgid "Set to draft"
 msgstr "খসড়া হিসেবে সেট করুন"
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:401
+msgid "Set up an email provider in Email settings to email users."
+msgstr ""
+
 #: packages/admin/src/components/MediaLibrary.tsx:815
 msgid "Set up media usage tracking"
 msgstr "মিডিয়া ব্যবহার ট্র্যাকিং সেট আপ করুন"
@@ -11462,7 +11683,7 @@ msgstr "সেট আপ করা হচ্ছে..."
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:530
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:489
+#: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/WordPressImport.tsx:1834
 msgid "Settings"
 msgstr "সেটিংস"
@@ -11476,7 +11697,7 @@ msgid "Settings Read"
 msgstr "সেটিংস পড়া"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:155
+#: packages/admin/src/components/settings/GeneralSettings.tsx:182
 msgid "Settings saved successfully"
 msgstr "সেটিংস সফলভাবে সংরক্ষিত হয়েছে"
 
@@ -11555,7 +11776,7 @@ msgid "Shows a button for creating a new entry"
 msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:457
-#: packages/admin/src/locales/emails.ts:56
+#: packages/admin/src/locales/emails.ts:65
 msgid "Sign in"
 msgstr "সাইন ইন করুন"
 
@@ -11568,7 +11789,7 @@ msgstr "সাইন ইন করুন"
 msgid "Sign in instead"
 msgstr "বরং সাইন ইন করুন"
 
-#: packages/admin/src/locales/emails.ts:53
+#: packages/admin/src/locales/emails.ts:62
 msgid "Sign in to {siteName}"
 msgstr "{siteName}-এ সাইন ইন করুন"
 
@@ -11631,7 +11852,7 @@ msgstr "সাইট এক্সপোর্ট"
 msgid "Site identity"
 msgstr "সাইটের পরিচিতি"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:258
+#: packages/admin/src/components/settings/GeneralSettings.tsx:333
 msgid "Site Identity"
 msgstr "সাইটের পরিচিতি"
 
@@ -11640,7 +11861,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "সাইটের পরিচিতি প্রয়োগ করা হয়েছে (শিরোনাম, ট্যাগলাইন, লোগো)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "সাইটের পরিচিতি, লোগো, ফেভিকন ও পড়ার পছন্দসমূহ"
 
@@ -11666,7 +11887,7 @@ msgstr "সাইট সেটিংস"
 msgid "Site title"
 msgstr "সাইটের শিরোনাম"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:261
+#: packages/admin/src/components/settings/GeneralSettings.tsx:336
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "সাইটের শিরোনাম"
@@ -11683,9 +11904,17 @@ msgstr "সাইটের শিরোনাম আবশ্যক"
 msgid "Site Transfer"
 msgstr "সাইট স্থানান্তর"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:277
+#: packages/admin/src/components/settings/GeneralSettings.tsx:353
 msgid "Site URL"
 msgstr "সাইট URL"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+msgid "Site URL set to {url}"
+msgstr ""
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:83
+msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
+msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:345
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
@@ -12056,7 +12285,7 @@ msgstr "টেবিলের আকার"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "তালিকা বা উদ্ধৃতির ভেতরে টেবিল পেস্ট করা যায় না। টেবিলটি একটি আলাদা অনুচ্ছেদে পেস্ট করে আবার চেষ্টা করুন।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:344
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12137,6 +12366,10 @@ msgstr "প্রযুক্তিগত বিবরণ"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:172
 msgid "Technical verification details"
 msgstr "প্রযুক্তিগত যাচাইয়ের বিবরণ"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:398
+msgid "Tell users where to sign in"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:218
 msgid "Template:"
@@ -12370,7 +12603,7 @@ msgstr "মার্কেটপ্লেস খালি। নতুন প্
 msgid "The menu has been deleted."
 msgstr "মেনুটি মুছে ফেলা হয়েছে।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:264
+#: packages/admin/src/components/settings/GeneralSettings.tsx:339
 msgid "The name of your site, used in the header and metadata"
 msgstr "আপনার সাইটের নাম, যা হেডার ও মেটাডেটায় ব্যবহৃত হয়"
 
@@ -12454,7 +12687,7 @@ msgstr "প্যাকেজের কনটেন্ট এই সাইটে
 msgid "The package’s file index is not valid."
 msgstr "প্যাকেজের ফাইল ইনডেক্স বৈধ নয়।"
 
-#: packages/admin/src/router.tsx:3157
+#: packages/admin/src/router.tsx:3166
 msgid "The page you're looking for doesn't exist."
 msgstr "আপনি যে পেজটি খুঁজছেন তা নেই।"
 
@@ -12479,9 +12712,9 @@ msgstr "প্লাগইন এই পরিবর্তনগুলো সং
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "প্লাগইনের ফলাফল পুরোনো হয়ে গেছে, কারণ এটি কাজ করার সময় এডিটরে পরিবর্তন হয়েছে।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
-msgid "The public URL of your site (used for canonical links and sitemaps)"
-msgstr "আপনার সাইটের পাবলিক URL (ক্যানোনিকাল লিঙ্ক ও সাইটম্যাপের জন্য ব্যবহৃত)"
+#: packages/admin/src/components/settings/GeneralSettings.tsx:355
+msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
+msgstr ""
 
 #: packages/admin/src/components/RegistryBrowse.tsx:219
 #: packages/admin/src/components/RegistryPluginDetail.tsx:543
@@ -12496,7 +12729,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "রেফারেন্স করা ছবিটি আর পাওয়া যাচ্ছে না। নতুন একটি বেছে নিন অথবা রেফারেন্সটি সরান।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:305
+#: packages/admin/src/components/settings/GeneralSettings.tsx:438
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "রেফারেন্স করা লোগোটি আর পাওয়া যাচ্ছে না। নতুন একটি বেছে নিন অথবা রেফারেন্সটি সরান।"
 
@@ -12770,7 +13003,7 @@ msgstr "এটি একটি WordPress সাইট।"
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "এটি সেই প্যাকেজ নয় যা দিয়ে ইমপোর্ট শুরু হয়েছিল। একই ফাইল আবার বেছে নিন।"
 
-#: packages/admin/src/locales/emails.ts:57
+#: packages/admin/src/locales/emails.ts:66
 msgid "This link expires in 15 minutes."
 msgstr "এই লিঙ্কের মেয়াদ 15 মিনিটে শেষ হবে।"
 
@@ -12778,7 +13011,7 @@ msgstr "এই লিঙ্কের মেয়াদ 15 মিনিটে �
 msgid "This link expires in 7 days and can only be used once."
 msgstr "এই লিঙ্কের মেয়াদ 7 দিনে শেষ হবে এবং এটি শুধু একবার ব্যবহার করা যাবে।"
 
-#: packages/admin/src/locales/emails.ts:49
+#: packages/admin/src/locales/emails.ts:58
 msgid "This link expires in 7 days."
 msgstr "এই লিঙ্কের মেয়াদ 7 দিনে শেষ হবে।"
 
@@ -12884,7 +13117,7 @@ msgstr ""
 msgid "This removes the schedule and publishes immediately."
 msgstr "এটি নির্ধারিত সময়সূচি সরিয়ে দিয়ে এখনই প্রকাশ করবে।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:442
+#: packages/admin/src/components/settings/GeneralSettings.tsx:575
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
@@ -13013,7 +13246,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:434
+#: packages/admin/src/components/settings/GeneralSettings.tsx:567
 msgid "Timezone"
 msgstr "টাইমজোন"
 
@@ -13384,6 +13617,11 @@ msgstr "{itemLabel} অপ্রকাশিত করুন"
 msgid "Unpublished"
 msgstr "অপ্রকাশিত"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:55
+msgid "visualEditing.unpublishedChanges"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeList.tsx:153
 msgid "Unregistered Content Tables Found"
 msgstr "অনিবন্ধিত কনটেন্ট টেবিল পাওয়া গেছে"
@@ -13391,6 +13629,11 @@ msgstr "অনিবন্ধিত কনটেন্ট টেবিল পা
 #: packages/admin/src/components/TaxonomySidebar.tsx:844
 msgid "Unresolved assignment"
 msgstr "অমীমাংসিত অ্যাসাইনমেন্ট"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:59
+msgid "visualEditing.unsaved"
+msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Unsaved content may leave your site"
@@ -13509,6 +13752,11 @@ msgstr "ব্যবহারের তথ্য আপডেট করা হ�
 msgid "Updating..."
 msgstr "আপডেট করা হচ্ছে..."
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:71
+msgid "visualEditing.uploadImage"
+msgstr ""
+
 #: packages/admin/src/components/MediaLibrary.tsx:804
 msgid "Upload"
 msgstr "আপলোড করুন"
@@ -13601,6 +13849,11 @@ msgstr "আপলোড করা হয়েছে:"
 msgid "Uploading"
 msgstr "আপলোড হচ্ছে"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:78
+msgid "visualEditing.uploadingFile"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:114
 #: packages/admin/src/components/media/ImageDropTarget.tsx:134
 #: packages/admin/src/components/media/ImageDropTarget.tsx:147
@@ -13676,6 +13929,10 @@ msgstr "ব্যবহারের তথ্য হালনাগাদ না
 #: packages/admin/src/components/Redirects.tsx:113
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "প্যাটার্ন মেলানোর জন্য পাথে [param] বা [...rest] ব্যবহার করুন।"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:133
+msgid "Use {fallbackUrl} anyway"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
 msgid "Use a security key"
@@ -13769,7 +14026,7 @@ msgid "User not found"
 msgstr "ব্যবহারকারী পাওয়া যায়নি"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:223
-#: packages/admin/src/components/Sidebar.tsx:464
+#: packages/admin/src/components/Sidebar.tsx:479
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "ব্যবহারকারী"
@@ -14140,7 +14397,7 @@ msgstr "উইজেট আপডেট করা হয়েছে"
 #: packages/admin/src/components/PluginManager.tsx:478
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:431
+#: packages/admin/src/components/Sidebar.tsx:446
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1182
 msgid "Widgets"
@@ -14341,15 +14598,20 @@ msgstr "সংযোগটি অনুমোদন করতে আপনাক
 msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "আপনি <0>{roleName}</0> হিসেবে সাইন আপ করছেন"
 
+#. placeholder {0}: window.location.host
+#: packages/admin/src/components/settings/GeneralSettings.tsx:380
+msgid "You're signed in at {0}"
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:631
 msgid "You're signed in via Cloudflare Access"
 msgstr "আপনি Cloudflare Access-এর মাধ্যমে সাইন ইন করেছেন"
 
-#: packages/admin/src/locales/emails.ts:44
+#: packages/admin/src/locales/emails.ts:53
 msgid "You've been invited to {siteName}"
 msgstr "আপনাকে {siteName}-এ আমন্ত্রণ জানানো হয়েছে"
 
-#: packages/admin/src/locales/emails.ts:45
+#: packages/admin/src/locales/emails.ts:54
 msgid "You've been invited to join {siteName}."
 msgstr "আপনাকে {siteName}-এ যোগ দেওয়ার আমন্ত্রণ জানানো হয়েছে।"
 
@@ -14437,6 +14699,10 @@ msgstr "আপনার ভূমিকা"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
+msgstr ""
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:81
+msgid "Your site is currently at {currentUrl}."
 msgstr ""
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)

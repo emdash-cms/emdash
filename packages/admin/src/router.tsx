@@ -2338,8 +2338,17 @@ const mediaUsageSettingsRoute = createRoute({
 const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
-	component: SecuritySettings,
+	component: SecuritySettingsWrapper,
+	validateSearch: (search: Record<string, unknown>): { addPasskey?: boolean } =>
+		search.addPasskey === true || search.addPasskey === 1 || search.addPasskey === "1"
+			? { addPasskey: true }
+			: {},
 });
+
+function SecuritySettingsWrapper() {
+	const { addPasskey } = useSearch({ from: "/_admin/settings/security" });
+	return <SecuritySettings addPasskey={addPasskey} />;
+}
 
 // Allowed domains settings route
 const allowedDomainsSettingsRoute = createRoute({

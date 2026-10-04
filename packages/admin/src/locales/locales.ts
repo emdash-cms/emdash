@@ -46,6 +46,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "ka", label: "ქართული", enabled: true }, // Georgian
 	{ code: "de", label: "Deutsch", enabled: true }, // German
+	{ code: "he", label: "עברית", enabled: true, dir: "rtl" }, // Hebrew
 	{ code: "hi", label: "हिन्दी", enabled: true }, // Hindi
 	{ code: "hu", label: "Magyar", enabled: true }, // Hungarian
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
@@ -54,6 +55,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "nb", label: "Norsk bokmål", enabled: true }, // Norwegian Bokmål
 	{ code: "pl", label: "Polski", enabled: true }, // Polish
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
+	{ code: "pt-PT", label: "Português (Portugal)", enabled: true }, // Portuguese (Portugal)
 	{ code: "sr-Latn", label: "Srpski", enabled: true }, // Serbian (Latin script)
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	{ code: "es-ES", label: "Español (España)", enabled: true }, // Spanish (Spain) - BCP 47

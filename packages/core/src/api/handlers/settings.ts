@@ -5,7 +5,11 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import { getSiteSettingsWithDb, setSiteSettings } from "../../settings/index.js";
+import {
+	getSiteSettingWithDb,
+	getSiteSettingsWithDb,
+	setSiteSettings,
+} from "../../settings/index.js";
 import type { SiteSettings, SiteSettingsUpdate } from "../../settings/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
@@ -37,6 +41,22 @@ export async function handleSettingsUpdate(
 	input: SiteSettingsUpdate,
 ): Promise<ApiResult<Partial<SiteSettings>>> {
 	try {
+		const { timezone } = input;
+		if (
+			typeof timezone === "string" &&
+			!isValidTimeZone(timezone) &&
+			// A previously stored value is sent back unchanged by the admin's settings
+			// form; rejecting it would block saving every other setting.
+			timezone !== (await getSiteSettingWithDb("timezone", db))
+		) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: `timezone: "${timezone}" is not an IANA timezone (for example "Europe/Lisbon" or "UTC")`,
+				},
+			};
+		}
 		await setSiteSettings(input, db);
 		const updatedSettings = await getSiteSettingsWithDb(db, storage);
 		return { success: true, data: updatedSettings };
@@ -45,5 +65,15 @@ export async function handleSettingsUpdate(
 			success: false,
 			error: { code: "SETTINGS_UPDATE_ERROR", message: "Failed to update settings" },
 		};
+	}
+}
+
+function isValidTimeZone(timezone: string): boolean {
+	try {
+		return Boolean(
+			new Intl.DateTimeFormat("en", { timeZone: timezone }).resolvedOptions().timeZone,
+		);
+	} catch {
+		return false;
 	}
 }

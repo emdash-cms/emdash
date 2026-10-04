@@ -345,6 +345,21 @@ export function resolvePluginPageLabel(
 		.join(" ");
 }
 
+/**
+ * Resolve the display title for a plugin dashboard widget. Declared titles
+ * are run through the shared Lingui instance so a plugin-provided catalog
+ * localizes dashboard card headings the same way it localizes sidebar nav
+ * labels. Widgets without a title fall back to the raw widget id.
+ */
+export function resolvePluginWidgetTitle(
+	title: string | undefined,
+	widgetId: string,
+	translate: (id: string) => string,
+): string {
+	if (title) return translate(title);
+	return widgetId;
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
 export function resolveItemPath(item: NavItem): string {
 	let path = item.to;

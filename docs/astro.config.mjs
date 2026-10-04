@@ -83,6 +83,7 @@ export default defineConfig({
 						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
+						{ label: "Move to a New Domain", slug: "guides/change-domain" },
 						{ label: "Built-in SEO Features", slug: "guides/seo" },
 						{ label: "Authentication", slug: "guides/authentication" },
 						{ label: "Email Setup", slug: "guides/email" },
