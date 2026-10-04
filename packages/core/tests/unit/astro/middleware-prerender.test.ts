@@ -377,6 +377,27 @@ describe("astro middleware prerendered routes", () => {
 		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
+	it.each(["/sitemap-post.xml", "/sitemap-post-2.xml"])(
+		"initializes the runtime for collection sitemap %s",
+		async (path) => {
+			const locals: Record<string, unknown> = {};
+			const context = {
+				request: new Request(`https://example.com${path}`),
+				url: new URL(`https://example.com${path}`),
+				cookies: { get: vi.fn(() => undefined) },
+				locals,
+				redirect: vi.fn(),
+				isPrerendered: true,
+			};
+
+			await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+			expect(typeof (locals.emdash as Record<string, unknown>)?.handlePluginApiRoute).toBe(
+				"function",
+			);
+		},
+	);
+
 	it("does not access context.session when prerendering public pages", async () => {
 		const cookies = {
 			get: vi.fn(() => undefined),

@@ -55,3 +55,17 @@ export class PluginRouteError extends Error {
 		return new PluginRouteError("INTERNAL_ERROR", message, 500);
 	}
 }
+
+/**
+ * Check whether a thrown value is a PluginRouteError.
+ *
+ * Also matches on shape, not just `instanceof`: under `astro dev`, Vite can load a
+ * plugin's `emdash` import as a separate module instance, so the error the plugin
+ * throws comes from a different copy of this class.
+ */
+export function isPluginRouteError(error: unknown): error is PluginRouteError {
+	if (error instanceof PluginRouteError) return true;
+	if (!(error instanceof Error) || error.name !== "PluginRouteError") return false;
+	const { code, status } = error as Partial<PluginRouteError>;
+	return typeof code === "string" && typeof status === "number";
+}

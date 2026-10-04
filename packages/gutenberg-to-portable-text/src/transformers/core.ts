@@ -24,12 +24,7 @@ const P_TAG_SINGLE_PATTERN = /<p[^>]*>([\s\S]*?)<\/p>/i;
 const HREF_PATTERN = /href="([^"]*)"/i;
 const DATA_ID_PATTERN = /data-id=["'](\d+)["']/i;
 const CODE_TAG_PATTERN_SINGLE = /<code[^>]*>([\s\S]*?)<\/code>/i;
-const TABLE_TAG_PATTERN = /<table[^>]*>([\s\S]*?)<\/table>/i;
-const THEAD_TAG_PATTERN = /<thead[^>]*>([\s\S]*?)<\/thead>/i;
 const IMG_TAG_GLOBAL = /<img[^>]+>/gi;
-const TABLE_ROW_PATTERN = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-const TABLE_CELL_PATTERN = /<(th|td)[^>]*>([\s\S]*?)<\/\1>/gi;
-const TBODY_TAG_PATTERN = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i;
 const CITE_TAG_PATTERN = /<cite[^>]*>([\s\S]*?)<\/cite>/i;
 const LT_ENTITY_PATTERN = /&lt;/g;
 const GT_ENTITY_PATTERN = /&gt;/g;
@@ -551,16 +546,16 @@ export const group: BlockTransformer = (block, _options, context) => {
  */
 export const table: BlockTransformer = (block, _options, context) => {
 	// Parse the table HTML
-	const tableMatch = block.innerHTML.match(TABLE_TAG_PATTERN);
+	const tableMatch = findTagPairs(block.innerHTML, ["table"], 1)[0];
 	if (!tableMatch) {
 		return [];
 	}
 
-	const tableContent = tableMatch[1]!;
+	const tableContent = tableMatch.content;
 
 	// Check for thead
-	const theadMatch = tableContent.match(THEAD_TAG_PATTERN);
-	const tbodyMatch = tableContent.match(TBODY_TAG_PATTERN);
+	const theadMatch = findTagPairs(tableContent, ["thead"], 1)[0];
+	const tbodyMatch = findTagPairs(tableContent, ["tbody"], 1)[0];
 
 	const rows: Array<{
 		_type: "tableRow";
@@ -575,14 +570,14 @@ export const table: BlockTransformer = (block, _options, context) => {
 	}> = [];
 
 	// Parse header rows
-	if (theadMatch?.[1]) {
-		const headerRows = parseTableRows(theadMatch[1], context, true);
+	if (theadMatch?.content) {
+		const headerRows = parseTableRows(theadMatch.content, context, true);
 		rows.push(...headerRows);
 	}
 
 	// Parse body rows
-	if (tbodyMatch?.[1]) {
-		const bodyRows = parseTableRows(tbodyMatch[1], context, false);
+	if (tbodyMatch?.content) {
+		const bodyRows = parseTableRows(tbodyMatch.content, context, false);
 		rows.push(...bodyRows);
 	} else if (!theadMatch) {
 		// No thead or tbody, parse rows directly
@@ -634,10 +629,8 @@ function parseTableRows(
 		}>;
 	}> = [];
 
-	let rowMatch;
-
-	while ((rowMatch = TABLE_ROW_PATTERN.exec(html)) !== null) {
-		const rowContent = rowMatch[1]!;
+	for (const rowMatch of findTagPairs(html, ["tr"])) {
+		const rowContent = rowMatch.content;
 		const cells: Array<{
 			_type: "tableCell";
 			_key: string;
@@ -647,11 +640,9 @@ function parseTableRows(
 		}> = [];
 
 		// Match both th and td cells
-		let cellMatch;
-
-		while ((cellMatch = TABLE_CELL_PATTERN.exec(rowContent)) !== null) {
-			const isHeaderCell = cellMatch[1]!.toLowerCase() === "th" || isHeader;
-			const cellContent = cellMatch[2]!;
+		for (const cellMatch of findTagPairs(rowContent, ["th", "td"])) {
+			const isHeaderCell = cellMatch.name === "th" || isHeader;
+			const cellContent = cellMatch.content;
 
 			const { children, markDefs } = context.parseInlineContent(cellContent);
 
@@ -674,6 +665,69 @@ function parseTableRows(
 	}
 
 	return rows;
+}
+
+interface TagPair {
+	name: string;
+	content: string;
+}
+
+/**
+ * Finds `<name ...>content</name>` pairs in document order with the same
+ * results as the lazy regex `/<(name)[^>]*>([\s\S]*?)<\/\1>/gi`: each opening
+ * tag ends at the first `>` and pairs with the first closing tag of the same
+ * name, ignoring nesting. Names must be lowercase; they match ASCII
+ * case-insensitively and without a word boundary, so `th` also matches
+ * `<thead>`.
+ *
+ * Once an opening tag finds no closing tag, no later tag of that name can
+ * either, so the name is dropped. Retrying it from every later position would
+ * make unclosed markup quadratic.
+ */
+function findTagPairs(html: string, names: readonly string[], limit = Infinity): TagPair[] {
+	const pairs: TagPair[] = [];
+	const closable = new Set(names);
+	let lt = html.indexOf("<");
+	while (lt !== -1 && pairs.length < limit && closable.size > 0) {
+		const name = names.find((n) => closable.has(n) && matchesLowercase(html, lt + 1, n));
+		if (name !== undefined) {
+			const openEnd = html.indexOf(">", lt + 1 + name.length);
+			if (openEnd === -1) {
+				break;
+			}
+			const closeStart = indexOfCloseTag(html, name, openEnd + 1);
+			if (closeStart !== -1) {
+				pairs.push({ name, content: html.slice(openEnd + 1, closeStart) });
+				lt = html.indexOf("<", closeStart + name.length + 3);
+				continue;
+			}
+			closable.delete(name);
+		}
+		lt = html.indexOf("<", lt + 1);
+	}
+	return pairs;
+}
+
+function indexOfCloseTag(html: string, name: string, from: number): number {
+	let i = html.indexOf("</", from);
+	while (i !== -1) {
+		if (matchesLowercase(html, i + 2, name) && html[i + 2 + name.length] === ">") {
+			return i;
+		}
+		i = html.indexOf("</", i + 1);
+	}
+	return -1;
+}
+
+function matchesLowercase(html: string, at: number, lowercase: string): boolean {
+	for (let i = 0; i < lowercase.length; i++) {
+		const charCode = html.charCodeAt(at + i);
+		const folded = charCode >= 65 && charCode <= 90 ? charCode + 32 : charCode;
+		if (folded !== lowercase.charCodeAt(i)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**

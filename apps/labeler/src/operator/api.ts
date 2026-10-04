@@ -754,6 +754,7 @@ async function productionRerun(
 		params,
 		observedAt: now.toISOString(),
 		makeCurrent: false,
+		origin: { kind: "operator" },
 	});
 	await ensureOperatorRerunWorkflow(env.ASSESSMENT_WORKFLOW, params);
 	return params.runKey;

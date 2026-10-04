@@ -1036,6 +1036,8 @@ interface PluginContext {
 
 See [Plugin capabilities](/plugins/creating-plugins/capabilities/) for the capability required by each context API.
 
+`site.url` and `url()` use the same address as links in emails: the configured [`siteUrl`](/reference/configuration/#siteurl), then the **Site URL** from **Settings > General**, then the address the site was set up on. EmDash reads it when the runtime starts, so a changed **Site URL** reaches plugins after the server restarts or, on Cloudflare Workers, as new isolates start.
+
 <Aside>
 	Context APIs are gated by plugin capabilities. Declare required capabilities in the plugin
 	definition.

@@ -28,6 +28,9 @@ Confirm the non-secret values in `apps/labeler/wrangler.jsonc`:
 - Confirm the policy, parser, and model versions. Prompt identities are computed from the
   embedded prompts. These values are written into assessment records and published in the
   policy document.
+- Changing a version applies only to listing versions that have no decision yet. A listing version
+  that has passed, is held for review, is blocked, or has an operator decision keeps its outcome,
+  and no automated trigger assesses it again. To re-check one, use the operator rerun action.
 
 Confirm the deployed policy in `apps/aggregator/wrangler.jsonc`:
 
@@ -176,9 +179,14 @@ pnpm --dir apps/labeler eval:image:local -- /secure/path/downloaded-images
 ```
 
 The command searches directories recursively and writes one JSON object per file to standard
-output. The JSON contains the local path, pass/review outcome, findings, model identity, latency,
-and usage. Image bytes are not included in the output or stored by the evaluator. Stop the proxy
-when evaluation finishes.
+output. The JSON contains the local path, pass/review outcome, findings, the probability for each
+finding category, model identity, latency, and usage. Image bytes are not included in the output or
+stored by the evaluator. Stop the proxy when evaluation finishes.
+
+The evaluator uses the production image settings. To compare other settings, set
+`LOCAL_IMAGE_EVAL_MODEL` to a Clef model ID, `LOCAL_IMAGE_EVAL_THRESHOLD` to a probability between
+zero and one, or `LOCAL_IMAGE_EVAL_SEPARATE_QUESTIONS` to `0` to send every question in one
+request.
 
 ## Deploy both Workers
 
