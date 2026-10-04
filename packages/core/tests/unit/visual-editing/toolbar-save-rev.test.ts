@@ -59,6 +59,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 	let readGate: Promise<void> | undefined;
 	let readFailure: number | undefined;
 	let pendingRequests: Promise<Response>[];
+	let publicationDone: Promise<void>;
 	let gateReleases: Array<() => void>;
 	let writes: Array<{ _rev: string; data: Record<string, unknown> }>;
 	const documentListeners: Parameters<typeof document.addEventListener>[] = [];
@@ -97,9 +98,11 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		writes = [];
 		vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 		vi.spyOn(window, "open").mockImplementation(() => null);
-		Object.defineProperty(document, "startViewTransition", {
-			configurable: true,
-			value: () => {},
+		publicationDone = new Promise<void>((resolve) => {
+			Object.defineProperty(document, "startViewTransition", {
+				configurable: true,
+				value: () => resolve(),
+			});
 		});
 		const transport = async (url: string, init?: RequestInit) => {
 			if (url === "/_emdash/api/manifest") {
@@ -153,8 +156,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		});
 	});
 
-	afterEach(async () => {
-		for (const release of gateReleases) release();
+	async function drainPendingRequests(): Promise<void> {
 		let drainedRequests = 0;
 		const pendingSessions = () => {
 			const sessions: Map<string, VisualEditingWriteSession> | undefined = Reflect.get(
@@ -176,6 +178,11 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 			)
 				break;
 		}
+	}
+
+	afterEach(async () => {
+		for (const release of gateReleases) release();
+		await drainPendingRequests();
 		if (mounted)
 			await act(async () => {
 				for (const element of document.querySelectorAll<HTMLElement>(".ProseMirror")) {
@@ -394,16 +401,14 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		await editBody(editor, element, "Second edit. ");
 		expect(writes).toHaveLength(1);
 		releaseSave();
-		await vi.waitFor(async () =>
-			expect(JSON.stringify((await currentDraft()).body)).toContain("Second edit. First edit."),
-		);
-		await vi.waitFor(() => expect(saveMessage()).toContain(LABELS.saved));
+		await act(drainPendingRequests);
+		expect(JSON.stringify((await currentDraft()).body)).toContain("Second edit. First edit.");
+		expect(saveMessage()).toContain(LABELS.saved);
 		expect(writes).toHaveLength(2);
 		expect(writes[1]!._rev).not.toBe(writes[0]!._rev);
 		document.querySelector<HTMLButtonElement>("#emdash-tb-publish")!.click();
-		await vi.waitFor(async () =>
-			expect((await runtime.handleContentGet("posts", id)).data!.item.status).toBe("published"),
-		);
+		await act(() => publicationDone);
+		expect((await runtime.handleContentGet("posts", id)).data!.item.status).toBe("published");
 	});
 
 	it("keeps pagehide saves revision-guarded without blind retries", async () => {
@@ -452,9 +457,8 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 			});
 			document.querySelector<HTMLButtonElement>("#emdash-tb-publish")!.click();
 			releaseSave();
-			await vi.waitFor(async () =>
-				expect((await runtime.handleContentGet("posts", id)).data!.item.status).toBe("published"),
-			);
+			await act(() => publicationDone);
+			expect((await runtime.handleContentGet("posts", id)).data!.item.status).toBe("published");
 			const publishedBody = JSON.stringify(
 				(await runtime.handleContentGet("posts", id)).data!.item.data.body,
 			);
@@ -537,9 +541,8 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 			});
 			expect(writes).toHaveLength(1);
 			releaseSave();
-			await vi.waitFor(async () =>
-				expect(JSON.stringify((await currentDraft()).body)).toContain("Latest edit. First edit."),
-			);
+			await act(drainPendingRequests);
+			expect(JSON.stringify((await currentDraft()).body)).toContain("Latest edit. First edit.");
 			expect(writes).toHaveLength(2);
 			expect(writes[1]!._rev).not.toBe(writes[0]!._rev);
 		} finally {
