@@ -1,0 +1,19 @@
+packages/core/tests/unit/visual-editing/toolbar-save-rev.test.ts
+  s_0294938d219c1c::t_ed47224c752303 19,62,96,157-178,390,445,508,529
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "61c8f648e646e52d21cf20afe2cf589f59a10bf7",
+  "prompts": {},
+  "sessions": {
+    "s_0294938d219c1c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10667-56e0-7413-99d3-445a01675ff3",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
