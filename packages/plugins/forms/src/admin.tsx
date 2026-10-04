@@ -1012,7 +1012,8 @@ function SubmissionsPage() {
 			"Failed to export submissions",
 			setActionError,
 		);
-		if (res) {
+		if (!res) return;
+		try {
 			const data = await parseApiResponse<{ data: string; filename?: string }>(res);
 			const blob = new Blob([format === "csv" ? data.data : JSON.stringify(data.data, null, 2)], {
 				type: format === "csv" ? "text/csv" : "application/json",
@@ -1023,6 +1024,8 @@ function SubmissionsPage() {
 			a.download = data.filename ?? `submissions.${format}`;
 			a.click();
 			URL.revokeObjectURL(url);
+		} catch {
+			setActionError("Failed to export submissions");
 		}
 	};
 
@@ -1321,12 +1324,14 @@ function RecentSubmissionsWidget() {
 						formId: formsData.items[0].id,
 						limit: 5,
 					});
-					if (subsRes.ok) {
-						const subsData = await parseApiResponse<{
-							items: SubmissionItem[];
-						}>(subsRes);
-						setSubmissions(subsData.items);
+					if (!subsRes.ok) {
+						setError(submissionsLoadError(subsRes));
+						return;
 					}
+					const subsData = await parseApiResponse<{
+						items: SubmissionItem[];
+					}>(subsRes);
+					setSubmissions(subsData.items);
 				}
 			} catch {
 				setError(FORMS_LOAD_FAILED);
