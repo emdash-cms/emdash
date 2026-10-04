@@ -1,0 +1,92 @@
+.changeset/atomic-content-saves.md
+  s_871d7d7d37412b::t_9ac06e7ee315e5 1-8
+  s_871d7d7d37412b::t_25dc0a24bb54b8 9-10
+packages/admin/src/router.tsx
+  s_5764de537fe6d7::t_69583dca896606 1551-1560,1562,1575-1583,1600-1609,1611
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_5764de537fe6d7::t_a072ae3a3d8210 14,71,118-125,897,920-924,926,928-932,935-943,945,950,959-971,989,1053-1126,1132-1186,1296
+  s_871d7d7d37412b::t_2ae241500be0f7 4,10,231-249,252,287,338,349-356,906-913,1010-1013,1127-1131
+packages/core/src/api/handlers/content.ts
+  s_871d7d7d37412b::t_cd813cdb2ea62f 1504-1507,1614-1627,1747-1749
+packages/core/src/database/repositories/content.ts
+  s_871d7d7d37412b::t_7fcf4282e8c27b 1026-1031,1081-1083,1086,1090-1099
+packages/core/src/database/repositories/types.ts
+  s_e955802d4454f7::t_843d50c5826345 44
+packages/core/src/emdash-runtime.ts
+  s_8d1d9eceb6ba87::t_65e2b88ffe4436 3773,3814-3820,3889,3891-3902,3915-3922,3931-3936,3943,3986-3987,3991-3993
+  s_871d7d7d37412b::t_ef77b6c2467d0a 3886,3952
+packages/core/tests/integration/content/save-rev-race.test.ts
+  s_871d7d7d37412b::t_5bb74d839ce85e 1-32,34-35,37-70,72-90,92-154,156-172
+  s_871d7d7d37412b::t_16379d03cfeabb 33,36,71,91,155
+packages/core/tests/workerd/content-save-revision-d1.test.ts
+  s_871d7d7d37412b::t_ef95b718c99d5e 1-2,4-23,26-31,34-47,53-80,82-110,112-121,123-173
+  s_871d7d7d37412b::t_666d53a3d2914f 3,24-25,32-33,48-52,81,111,122
+packages/core/src/transfer/format/columns.ts
+  s_871d7d7d37412b::t_5e134613386c6b 306
+packages/core/tests/integration/transfer/export/export.test.ts
+  s_871d7d7d37412b::t_506bfea02ceed8 1,4,39-53
+e2e/tests/autosave.spec.ts
+  s_871d7d7d37412b::t_a3f275959ca2f1 76,88-90,102-104
+packages/admin/tests/router.test.tsx
+  s_871d7d7d37412b::t_f9232ce0b1f5c5 1744,1747-1750,1754,1808,1831,1836,1849,1889-1893,1895-1906,1910,1914-1928,1930-1931
+packages/core/tests/integration/database/media-usage-runtime-refresh.test.ts
+  s_871d7d7d37412b::t_0b840caa630f96 5,179,190-196,211-222,233-234
+.changeset/manual-save-history.md
+  s_871d7d7d37412b::t_3482573d166993 1-7
+packages/core/src/database/migrations/092_revision_autosave.ts
+  s_871d7d7d37412b::t_cce9fd5bd052f2 1-29
+packages/core/src/database/migrations/runner.ts
+  s_871d7d7d37412b::t_4d990a9489c8ce 102,195
+packages/core/src/database/repositories/revision.ts
+  s_871d7d7d37412b::t_04a33adebf7cca 1,28,60,66,344,348,354
+packages/core/src/database/types.ts
+  s_871d7d7d37412b::t_53b0cc355d82e9 14
+packages/core/tests/integration/content/autosave-keeps-manual-save.test.ts
+  s_871d7d7d37412b::t_1e30b9f6df9e53 1-114
+packages/core/tests/integration/database/revision-autosave-migration.test.ts
+  s_871d7d7d37412b::t_73ab869483a044 1-25
+packages/core/tests/utils/revision-autosave-migration-cases.ts
+  s_871d7d7d37412b::t_652248e0e48186 1-65
+packages/core/tests/workerd/revision-autosave-d1.test.ts
+  s_871d7d7d37412b::t_c765ff4281c5f6 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f15eeb9b7a39b10939eae20b40e006de0da9ff63",
+  "prompts": {},
+  "sessions": {
+    "s_5764de537fe6d7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a102b3-ee09-78a1-8c5a-1b8533b05fbe",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_8d1d9eceb6ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5ec4347f-45bc-455a-ba4d-9d2e7ea2cf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e955802d4454f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "373c9c4e-0cc8-4065-b607-4edad4116b90",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
