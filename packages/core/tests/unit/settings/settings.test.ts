@@ -1,6 +1,7 @@
-import BetterSqlite3 from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/secrets.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -86,6 +87,94 @@ describe("Site Settings", () => {
 			const parsed = JSON.parse(row?.value || "{}");
 			expect(parsed.mediaId).toBe("med_123");
 			expect(parsed.alt).toBe("Logo");
+		});
+
+		it("deletes media settings while preserving sibling SEO settings", async () => {
+			await setSiteSettings(
+				{
+					logo: { mediaId: "med_logo" },
+					favicon: { mediaId: "med_favicon" },
+					seo: {
+						defaultOgImage: { mediaId: "med_og" },
+						titleSeparator: " — ",
+						googleVerification: "google-code",
+					},
+				},
+				db,
+			);
+
+			await setSiteSettings({ logo: null, favicon: null, seo: { defaultOgImage: null } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.logo).toBeUndefined();
+			expect(settings.favicon).toBeUndefined();
+			expect(settings.seo).toEqual({
+				titleSeparator: " — ",
+				googleVerification: "google-code",
+			});
+			expect(await new OptionsRepository(db).exists("site:logo")).toBe(false);
+			expect(await new OptionsRepository(db).exists("site:favicon")).toBe(false);
+			const storedSeo = await new OptionsRepository(db).get<Record<string, unknown>>("site:seo");
+			expect(storedSeo).not.toHaveProperty("defaultOgImage");
+		});
+
+		it("deletes the SEO option when its only media reference is removed", async () => {
+			await setSiteSettings({ seo: { defaultOgImage: { mediaId: "med_og" } } }, db);
+
+			await setSiteSettings({ seo: { defaultOgImage: null } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.seo).toBeUndefined();
+			expect(await new OptionsRepository(db).exists("site:seo")).toBe(false);
+		});
+
+		it("keeps the other SEO fields when updating one of them", async () => {
+			await setSiteSettings(
+				{
+					seo: {
+						titleSeparator: " | ",
+						robotsTxt: "User-agent: *\nDisallow: /private/",
+						googleVerification: "google-code",
+					},
+				},
+				db,
+			);
+
+			await setSiteSettings({ seo: { googleVerification: "new-code" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.seo).toEqual({
+				titleSeparator: " | ",
+				robotsTxt: "User-agent: *\nDisallow: /private/",
+				googleVerification: "new-code",
+			});
+		});
+
+		it("keeps the other social links when updating one of them", async () => {
+			await setSiteSettings({ social: { twitter: "@handle", github: "user" } }, db);
+
+			await setSiteSettings({ social: { github: "new-user" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.social).toEqual({ twitter: "@handle", github: "new-user" });
+		});
+
+		it("rolls back updates when a media-setting deletion fails", async () => {
+			await setSiteSettings({ title: "Original", logo: { mediaId: "med_logo" } }, db);
+			await sql`
+				CREATE TRIGGER block_site_logo_delete
+				BEFORE DELETE ON options
+				WHEN OLD.name = 'site:logo'
+				BEGIN
+					SELECT RAISE(ABORT, 'blocked delete');
+				END
+			`.execute(db);
+
+			await expect(setSiteSettings({ title: "Changed", logo: null }, db)).rejects.toThrow();
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.title).toBe("Original");
+			expect(settings.logo?.mediaId).toBe("med_logo");
 		});
 	});
 

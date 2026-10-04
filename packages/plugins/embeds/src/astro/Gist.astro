@@ -14,6 +14,11 @@ interface Props {
 
 const { node } = Astro.props;
 const { id, file } = node;
+
+// astro-embed renders the fetched gist HTML unsanitized and appends `.json` to any path,
+// so only gist page paths may reach it: other gist.github.com paths redirect to raw files.
+const isGitHubGist =
+	/^https:\/\/gist\.github\.com\/(?!raw\/)(?:[\w-]+\/)?[0-9a-f]+\/?(?:[?#]\S*)?$/i.test(id);
 ---
 
-<AstroGist id={id} file={file} />
+{isGitHubGist && <AstroGist id={id} file={file} />}

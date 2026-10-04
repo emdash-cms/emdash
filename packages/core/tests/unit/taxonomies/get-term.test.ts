@@ -60,7 +60,7 @@ describeEachDialect("getTerm", (dialect) => {
 		// scoped to the def's declared collections, so point it at the test
 		// collection (`post`).
 		await ctx.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "=", "category")
 			.execute();

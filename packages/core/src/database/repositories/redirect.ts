@@ -2,11 +2,13 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { interpolateUrlPattern } from "../../i18n/resolve.js";
+import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import {
 	compilePattern,
 	matchPattern,
 	interpolateDestination,
 	isPattern,
+	validatePattern,
 } from "../../redirects/patterns.js";
 import { currentTimestampValue, isPostgres } from "../dialect-helpers.js";
 import type { Database, RedirectTable } from "../types.js";
@@ -17,9 +19,9 @@ import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Hard cap on rows stored in `_emdash_404_log`. When exceeded, the oldest
- * rows (by `last_seen_at`) are evicted on insert. Prevents an unauthenticated
- * attacker from growing the table without bound by requesting unique URLs.
+ * Hard cap on rows stored in `_emdash_404_log`. Scheduled maintenance evicts
+ * the oldest rows by `last_seen_at` without adding a read-amplifying count to
+ * the anonymous request path.
  */
 export const MAX_404_LOG_ROWS = 10_000;
 
@@ -426,13 +428,16 @@ export class RedirectRepository {
 
 	/**
 	 * Fetch all enabled redirects (for loop detection graph building).
-	 * Not paginated — returns the full set.
+	 * Not paginated — returns the full set. Ordered oldest first: the earliest
+	 * matching pattern rule wins, so this order is match precedence.
 	 */
 	async findAllEnabled(): Promise<Redirect[]> {
 		const rows = await this.db
 			.selectFrom("_emdash_redirects")
 			.selectAll()
 			.where("enabled", "=", 1)
+			.orderBy("created_at", (order) => order.asc().nullsFirst())
+			.orderBy("id", "asc")
 			.execute();
 		return rows.map(rowToRedirect);
 	}
@@ -456,6 +461,8 @@ export class RedirectRepository {
 			.selectAll()
 			.where("enabled", "=", 1)
 			.where("is_pattern", "=", 1)
+			.orderBy("created_at", (order) => order.asc().nullsFirst())
+			.orderBy("id", "asc")
 			.execute();
 		return rows.map(rowToRedirect);
 	}
@@ -468,18 +475,21 @@ export class RedirectRepository {
 	async matchPath(path: string): Promise<RedirectMatch | null> {
 		// 1. Exact match (fast, indexed)
 		const exact = await this.findExactMatch(path);
-		if (exact) {
+		if (exact && isSiteRelativeDestination(exact.destination)) {
 			return { redirect: exact, resolvedDestination: exact.destination };
 		}
 
 		// 2. Pattern match
 		const patterns = await this.findEnabledPatternRules();
 		for (const redirect of patterns) {
+			if (validatePattern(redirect.source)) continue;
 			const compiled = compilePattern(redirect.source);
 			const params = matchPattern(compiled, path);
 			if (params) {
 				const resolved = interpolateDestination(redirect.destination, params);
-				return { redirect, resolvedDestination: resolved };
+				if (isSiteRelativeDestination(resolved)) {
+					return { redirect, resolvedDestination: resolved };
+				}
 			}
 		}
 
@@ -646,7 +656,7 @@ export class RedirectRepository {
 		// under concurrency: two requests for the same new path can't both
 		// insert — the second one hits the conflict branch and increments
 		// hits instead of failing with a uniqueness error.
-		const result = await this.db
+		await this.db
 			.insertInto("_emdash_404_log")
 			.values({
 				id,
@@ -667,14 +677,7 @@ export class RedirectRepository {
 					ip,
 				}),
 			)
-			.returning("id")
-			.executeTakeFirst();
-
-		// The conflict branch only updates existing rows, so repeat hits
-		// cannot grow the table. Only enforce the row cap when we actually
-		// inserted a new path.
-		if (result?.id !== id) return;
-		await this.enforce404Cap();
+			.execute();
 	}
 
 	/**
@@ -682,36 +685,44 @@ export class RedirectRepository {
 	 * MAX_404_LOG_ROWS. "Oldest" is by `last_seen_at`, so a path that keeps
 	 * getting hit stays in the table even if it was first seen long ago.
 	 *
-	 * Private — called by `log404` only after a new path was inserted.
+	 * Called by scheduled system cleanup, never by the anonymous request path.
 	 */
-	private async enforce404Cap(): Promise<void> {
-		const countRow = await this.db
-			.selectFrom("_emdash_404_log")
-			.select((eb) => eb.fn.countAll<number>().as("c"))
-			.executeTakeFirst();
-		const count = Number(countRow?.c ?? 0);
-		if (count <= MAX_404_LOG_ROWS) return;
+	async cleanup404Log(): Promise<number> {
+		// Cheap precheck: the expensive DELETE is only needed once the table
+		// has grown past MAX_404_LOG_ROWS. Counting a bounded sample avoids
+		// the full-table ORDER BY/NOT IN scan on the overwhelming majority
+		// of cron ticks when there is nothing to evict.
+		const probe = await this.db
+			.selectFrom(
+				this.db
+					.selectFrom("_emdash_404_log")
+					.select(sql`1`.as("one"))
+					.limit(MAX_404_LOG_ROWS + 1)
+					.as("sample"),
+			)
+			.select(({ fn }) => fn.countAll<number>().as("count"))
+			.executeTakeFirstOrThrow();
+		if (Number(probe.count) <= MAX_404_LOG_ROWS) {
+			return 0;
+		}
 
-		const excess = count - MAX_404_LOG_ROWS;
-
-		// Evict the oldest rows in a single SQL statement. Using a subquery
-		// (rather than materialising the victim IDs in JS and passing them
-		// back as bind parameters) keeps the statement bounded regardless of
-		// how far over cap the table is — important for existing installs
-		// that crossed the threshold before this cap was introduced.
-		await this.db
+		// Keep the newest rows in one statement. Deriving the victims inside the
+		// DELETE makes overlapping cleanup runs idempotent: each statement
+		// evaluates the current newest set instead of acting on a stale count.
+		const result = await this.db
 			.deleteFrom("_emdash_404_log")
 			.where(
 				"id",
-				"in",
+				"not in",
 				this.db
 					.selectFrom("_emdash_404_log")
 					.select("id")
-					.orderBy("last_seen_at", "asc")
-					.orderBy("id", "asc")
-					.limit(excess),
+					.orderBy("last_seen_at", "desc")
+					.orderBy("id", "desc")
+					.limit(MAX_404_LOG_ROWS),
 			)
-			.execute();
+			.executeTakeFirst();
+		return Number(result.numDeletedRows);
 	}
 
 	async find404s(opts: {

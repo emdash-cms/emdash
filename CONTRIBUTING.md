@@ -66,20 +66,21 @@ Core changes propagate to the demo automatically.
 
 ## Repository Layout
 
-| Directory                 | What it is                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `packages/core/`          | Main `emdash` package -- Astro integration, REST API, database, schema, plugins |
-| `packages/admin/`         | React admin UI SPA (`@emdash-cms/admin`)                                        |
-| `packages/auth/`          | Auth -- passkeys, OAuth, magic links (`@emdash-cms/auth`)                       |
-| `packages/cloudflare/`    | Cloudflare Workers adapter + plugin sandbox                                     |
-| `packages/blocks/`        | Portable Text block definitions                                                 |
-| `packages/create-emdash/` | `create-emdash` CLI scaffolder                                                  |
-| `packages/plugins/`       | First-party plugins                                                             |
-| `demos/`                  | Dev/test apps (`simple`, `cloudflare`, `postgres`, ...)                         |
-| `templates/`              | Starter templates                                                               |
-| `docs/`                   | Documentation site (Starlight)                                                  |
-| `e2e/`                    | Playwright test infrastructure                                                  |
-| `i18n/`                   | Translation status dashboard (Lunaria)                                          |
+| Directory                 | What it is                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/`          | Main `emdash` package -- Astro integration, REST API, database, schema, plugins                                                                   |
+| `packages/admin/`         | React admin UI SPA (`@emdash-cms/admin`)                                                                                                          |
+| `packages/auth/`          | Auth -- passkeys, OAuth, magic links (`@emdash-cms/auth`)                                                                                         |
+| `packages/cloudflare/`    | Cloudflare Workers adapter + plugin sandbox                                                                                                       |
+| `packages/blocks/`        | Portable Text block definitions                                                                                                                   |
+| `packages/create-emdash/` | `create-emdash` CLI scaffolder                                                                                                                    |
+| `packages/plugins/`       | First-party plugins                                                                                                                               |
+| `demos/`                  | Dev/test apps (`simple`, `cloudflare`, `postgres`, ...)                                                                                           |
+| `templates/`              | Starter templates                                                                                                                                 |
+| `skills/`                 | Agent skills; those listed in `scripts/sync-skills-repo.mjs` publish to [emdash-cms/skills](https://github.com/emdash-cms/skills) on each release |
+| `docs/`                   | Documentation site (Starlight)                                                                                                                    |
+| `e2e/`                    | Playwright test infrastructure                                                                                                                    |
+| `i18n/`                   | Translation status dashboard (Lunaria)                                                                                                            |
 
 ## Checks
 
@@ -94,6 +95,8 @@ pnpm test:e2e    # Playwright
 ```
 
 `pnpm build` is required before the first typecheck in a fresh checkout. Scoped package typechecks such as `pnpm --filter @emdash-cms/plugin-cli typecheck` resolve internal workspace type declarations from `dist/`, which the build emits; this matches CI's build-then-typecheck order.
+
+`pnpm test:e2e` runs the fixture against the built packages in `dist/` and only builds what is missing, so run `pnpm build` after changing package source.
 
 Tests use real in-memory SQLite -- no mocking. Each test gets a fresh database. Typecheck and lint must pass.
 

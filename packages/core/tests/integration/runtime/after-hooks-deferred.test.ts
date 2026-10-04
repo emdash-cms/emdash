@@ -17,9 +17,10 @@
 
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 // Capture-only stub for `after()`: record the deferred task without running
 // it, so a test can assert the work was scheduled (not abandoned) and then
@@ -44,7 +45,7 @@ import { SchemaRegistry } from "../../../src/schema/registry.js";
 const afterDeleteHandler = vi.fn<ContentAfterDeleteHandler>(async () => {});
 const afterUnpublishHandler = vi.fn<ContentAfterUnpublishHandler>(async () => {});
 
-function createDeps(sqlite: Database.Database): RuntimeDependencies {
+function createDeps(sqlite: Database): RuntimeDependencies {
 	return {
 		config: {
 			database: {

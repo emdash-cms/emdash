@@ -1,5 +1,62 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.46
+
+### Patch Changes
+
+- Updated dependencies [[`5de3bdc`](https://github.com/emdash-cms/emdash/commit/5de3bdc4310f6bcca013f05002f05a61e208b2a4)]:
+  - @emdash-cms/auth@1.1.0
+
+## 0.2.45
+
+### Patch Changes
+
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d)]:
+  - @emdash-cms/auth@1.0.1
+
+## 0.2.45-rc.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@1.0.1-rc.1
+
+## 0.2.45-rc.0
+
+### Patch Changes
+
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d), [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd)]:
+  - emdash@1.0.1-rc.0
+  - @emdash-cms/auth@1.0.1-rc.0
+
+## 0.2.44
+
+### Patch Changes
+
+- Updated dependencies [[`2410395`](https://github.com/emdash-cms/emdash/commit/24103953cc5873f76c36625b11251ac5864dca78)]:
+  - @emdash-cms/auth@0.42.0
+
+## 0.2.43
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.41.0
+
+## 0.2.42
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.40.1
+
+## 0.2.41
+
+### Patch Changes
+
+- Updated dependencies [[`973699a`](https://github.com/emdash-cms/emdash/commit/973699a1ea439876b43c8efa8093e39934a116de), [`5a9d822`](https://github.com/emdash-cms/emdash/commit/5a9d822fa68acb4a48b39ba01f85edf5c61d83d4), [`bf6b0a9`](https://github.com/emdash-cms/emdash/commit/bf6b0a9623076a5fbe2368602bca42317f96ad03), [`1796cd5`](https://github.com/emdash-cms/emdash/commit/1796cd508c2bd6456abe77b458f7d177093df754), [`20858ed`](https://github.com/emdash-cms/emdash/commit/20858edbad9d8beabc33c120783e3ed771146d9d)]:
+  - @emdash-cms/auth@0.40.0
+
 ## 0.2.40
 
 ### Patch Changes

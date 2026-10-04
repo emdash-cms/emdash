@@ -64,7 +64,7 @@ export interface PortableTextImageBlock {
 	alt?: string;
 	caption?: string;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
-	link?: string;
+	link?: string | { href: string; blank?: boolean };
 }
 
 /**

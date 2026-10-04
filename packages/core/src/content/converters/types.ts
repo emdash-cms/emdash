@@ -71,6 +71,7 @@ export interface PortableTextImageBlock {
 	};
 	alt?: string;
 	caption?: string;
+	title?: string;
 	/** Original image width */
 	width?: number;
 	/** Original image height */
@@ -80,6 +81,23 @@ export interface PortableTextImageBlock {
 	/** Display height for this instance (overrides original) */
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	/**
+	 * Optional link. When set, the image is rendered inside an `<a>` using
+	 * `sanitizeHref`-validated `href`. Mirrors `PortableTextLinkMark`.
+	 *
+	 * The bare string form is legacy: `gutenberg-to-portable-text` emits
+	 * `link: "https://…"` for linked images, so WordPress-imported content
+	 * carries it. Read the field through `normalizeImageLink()`.
+	 */
+	link?: string | PortableTextImageLink;
+}
+
+/**
+ * Canonical link shape on a Portable Text image block.
+ */
+export interface PortableTextImageLink {
+	href: string;
+	blank?: boolean;
 }
 
 /**
@@ -137,6 +155,29 @@ export interface PortableTextHtmlBlock {
 	_type: "htmlBlock";
 	_key: string;
 	html: string;
+	/** Styles for the isolated frame. Not used when the block renders inline. */
+	css?: string;
+	/** Script for the isolated frame. Not used when the block renders inline. */
+	js?: string;
+	/** Render in a sandboxed frame instead of as inline, sanitized HTML. */
+	isolated?: boolean;
+}
+
+/**
+ * Iframe block (a page from another site)
+ */
+export interface PortableTextIframeBlock {
+	_type: "iframe";
+	_key: string;
+	/** An absolute https URL. */
+	src: string;
+	title?: string;
+	/** Whole numbers from 1 to 10000. With both set, they give the aspect ratio. */
+	width?: number;
+	height?: number;
+	/** Permissions policy features for the embedded page. */
+	allow?: string;
+	allowFullscreen?: boolean;
 }
 
 /**
@@ -157,6 +198,7 @@ export type PortableTextBlock =
 	| PortableTextGalleryBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
+	| PortableTextIframeBlock
 	| PortableTextTableBlock
 	| PortableTextUnknownBlock;
 

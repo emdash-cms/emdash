@@ -13,6 +13,7 @@ import {
 	throwResponseError,
 	type FindManyResult,
 } from "./client.js";
+import type { EntryRef } from "./relations.js";
 
 /**
  * Derive draft status from a content item's revision pointers
@@ -60,6 +61,13 @@ export interface ContentItem {
 	draftRevisionId: string | null;
 	seo?: ContentSeo;
 	/**
+	 * First page of reference-field edges, keyed by field slug.
+	 * Only present when the server opts into hydration (the editor GET route).
+	 * Each field's entries are stored solely in `_emdash_content_references`;
+	 * the admin sends the desired id lists back in the `references` save key.
+	 */
+	references?: Record<string, { children: EntryRef[]; nextCursor?: string }>;
+	/**
 	 * Opaque optimistic-concurrency token returned by the content API on
 	 * reads. Echo it back on writes so the server can reject a save that is
 	 * based on a stale read (#2121). Undefined if the server didn't send one.
@@ -75,6 +83,8 @@ export interface CreateContentInput {
 	bylines?: BylineCreditInput[];
 	locale?: string;
 	translationOf?: string;
+	/** Reference-field edges to write atomically, keyed by field slug. */
+	references?: Record<string, string[]>;
 }
 
 export interface TranslationSummary {
@@ -120,6 +130,8 @@ export interface UpdateContentInput {
 	/** Skip revision creation (used by autosave) */
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/** Reference-field edges to replace atomically, keyed by field slug. */
+	references?: Record<string, string[]>;
 	/**
 	 * Optimistic-concurrency token from the last read. When present, the
 	 * server rejects the write with 409 if the entry changed since that read,
@@ -154,6 +166,8 @@ export async function fetchContentList(
 	collection: string,
 	options?: {
 		cursor?: string;
+		/** 1-based page number; use instead of `cursor` for numbered pages with a `total`. */
+		page?: number;
 		limit?: number;
 		status?: string;
 		locale?: string;
@@ -187,6 +201,7 @@ export async function fetchContentList(
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
+	if (options?.page !== undefined) params.set("page", String(options.page));
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.status) params.set("status", options.status);
 	if (options?.locale) params.set("locale", options.locale);
@@ -277,6 +292,7 @@ export async function createContent(
 			bylines: input.bylines,
 			locale: input.locale,
 			translationOf: input.translationOf,
+			references: input.references,
 		}),
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
@@ -334,12 +350,15 @@ export async function fetchTrashedContent(
 	collection: string,
 	options?: {
 		cursor?: string;
+		/** 1-based page number; use instead of `cursor` for numbered pages with a `total`. */
+		page?: number;
 		limit?: number;
 		locale?: string;
 	},
 ): Promise<FindManyResult<TrashedContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
+	if (options?.page !== undefined) params.set("page", String(options.page));
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.locale) params.set("locale", options.locale);
 

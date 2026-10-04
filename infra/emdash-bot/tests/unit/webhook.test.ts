@@ -219,7 +219,12 @@ describe("normalizeWebhook", () => {
 			});
 			expect(r).toMatchObject({
 				kind: "dispatch",
-				event: { event: null, needsClassify: true, classifyText: "This works for me now" },
+				event: {
+					event: null,
+					needsClassify: true,
+					classifyText: "This works for me now",
+					unaddressed: true,
+				},
 			});
 		});
 
@@ -248,7 +253,7 @@ describe("normalizeWebhook", () => {
 			});
 		});
 
-		test("routes reporter feedback on an attached PR from the issue thread", () => {
+		test("classifies a natural reporter reply on an issue in review", () => {
 			const r = normalizeWebhook({
 				eventType: "issue_comment",
 				payload: {
@@ -270,11 +275,28 @@ describe("normalizeWebhook", () => {
 			expect(r).toMatchObject({
 				kind: "dispatch",
 				event: {
-					event: "needs_changes",
-					arg: "The preview still drops the French term",
+					event: null,
+					needsClassify: true,
+					classifyText: "The preview still drops the French term",
 					actor: "reporter",
+					unaddressed: true,
 				},
 			});
+		});
+
+		test("ignores a maintainer's plain comment on an issue in review", () => {
+			const r = normalizeWebhook({
+				eventType: "issue_comment",
+				payload: {
+					...baseComment,
+					issue: {
+						...baseComment.issue,
+						labels: [{ name: "bot:bug" }, { name: "bot:in-review" }],
+					},
+					comment: { ...baseComment.comment, body: "Looks close, I'll review the PR" },
+				},
+			});
+			expect(r).toMatchObject({ kind: "skip" });
 		});
 
 		test("uses reporter actor when the opener comments without maintainer association", () => {
@@ -310,6 +332,54 @@ describe("normalizeWebhook", () => {
 					needsClassify: false,
 				},
 			});
+		});
+
+		test.each([
+			["opened", "OWNER"],
+			["opened", "MEMBER"],
+			["opened", "COLLABORATOR"],
+			["reopened", "MEMBER"],
+		])("%s issue with author association %s waits for a triage command", (action, association) => {
+			const payload: IssuesEvent = {
+				action,
+				issue: {
+					number: 7,
+					user: { login: "alice" },
+					labels: [],
+					author_association: association,
+				},
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("skip");
+		});
+
+		test.each(["CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR", "NONE"])(
+			"opened issue with author association %s starts triage",
+			(association) => {
+				const payload: IssuesEvent = {
+					action: "opened",
+					issue: {
+						number: 7,
+						user: { login: "alice" },
+						labels: [],
+						author_association: association,
+					},
+					sender: { login: "alice" },
+				};
+				const r = normalizeWebhook({ eventType: "issues", payload });
+				expect(r).toMatchObject({ kind: "dispatch", event: { event: "triage" } });
+			},
+		);
+
+		test("closed reaps the fix-loop branches on a member's issue", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" }, author_association: "MEMBER" },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r).toMatchObject({ kind: "cleanup", anchor: "issue-7" });
 		});
 
 		test("labeled is not handled (DO is the source of truth, not labels)", () => {

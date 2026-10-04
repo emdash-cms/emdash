@@ -44,12 +44,13 @@ import {
 	getI18nConfig,
 	handlePluginSettingsUpdate,
 	RedirectRepository,
+	saveTaxonomyStructure,
 	setI18nConfig,
 	TaxonomyRepository,
 	validateEditorDraftPatch,
 	validateEditorDraftRequest,
 	type UserInfo,
-} from "emdash/plugin-test-runtime";
+} from "emdash/internal/plugin-test-runtime";
 import { Kysely } from "kysely";
 
 import type { PluginStorageTestEntry, PluginTestCollection, PluginTestRequest } from "./index.js";
@@ -981,11 +982,13 @@ export async function createPluginRuntimeTestHost(
 						conflict.columns(["name", "locale"]).doUpdateSet({
 							label: input.label,
 							label_singular: input.labelSingular ?? null,
-							hierarchical: input.hierarchical ? 1 : 0,
-							collections: JSON.stringify(input.collections),
 						}),
 					)
 					.execute();
+				await saveTaxonomyStructure(runtime.db, input.name, id, {
+					hierarchical: input.hierarchical ?? false,
+					collections: input.collections,
+				});
 				return { id, name: input.name };
 			},
 			async redirect(input) {

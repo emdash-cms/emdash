@@ -54,6 +54,7 @@ const locals = {
 
 const imgSrc = (html: string) => html.match(/<img[^>]*\bsrc="([^"]*)"/)?.[1] ?? "(no <img>)";
 const imgTag = (html: string) => html.match(/<img\b[^>]*>/)?.[0] ?? "";
+const anchorTag = (html: string) => html.match(/<a\b[^>]*>/)?.[0] ?? "";
 const attr = (tag: string, name: string) =>
 	tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1]?.replaceAll("&amp;", "&");
 const compact = (html: string) => html.replace(/\s+/g, " ").trim();
@@ -114,6 +115,7 @@ describe("faithful render of migrated image node", () => {
 			...node,
 			alt: "Migrated image",
 			caption: "A caption",
+			title: "Image details",
 			alignment: "center",
 			width: 1200,
 			height: 800,
@@ -125,6 +127,7 @@ describe("faithful render of migrated image node", () => {
 		expect(compact(html)).toContain('<figure class="emdash-image emdash-image--align-center"');
 		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png");
 		expect(attr(tag, "alt")).toBe("Migrated image");
+		expect(attr(tag, "title")).toBe("Image details");
 		expect(attr(tag, "width")).toBe("600");
 		expect(attr(tag, "height")).toBe("400");
 		expect(attr(tag, "loading")).toBe("lazy");
@@ -133,6 +136,49 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(html).toContain("<figcaption");
 		expect(html).toContain("A caption");
+	});
+
+	test("non-finite dimensions never reach rendered attributes or styles", async () => {
+		const html = await renderImage({
+			...node,
+			width: Number.NaN,
+			height: Number.POSITIVE_INFINITY,
+			displayWidth: Number.NaN,
+			displayHeight: Number.POSITIVE_INFINITY,
+		});
+
+		expect(html).not.toContain("NaN");
+		expect(html).not.toContain("Infinity");
+	});
+
+	test("linked image wraps the figure body in a sanitized anchor", async () => {
+		const html = await renderImage({
+			...node,
+			title: "Linked image details",
+			link: { href: "https://example.com/promo", blank: true },
+		});
+		const a = anchorTag(html);
+		const tag = imgTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/promo");
+		expect(attr(a, "target")).toBe("_blank");
+		expect(attr(a, "rel")).toBe("noopener noreferrer");
+		expect(attr(tag, "title")).toBe("Linked image details");
+		expect(compact(html)).toMatch(/<a\b[^>]*>\s*<img\b/);
+	});
+
+	test("same-page anchor links never open in a new tab", async () => {
+		const html = await renderImage({ ...node, link: { href: "#gallery", blank: true } });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("#gallery");
+		expect(attr(a, "target")).toBeUndefined();
+		expect(attr(a, "rel")).toBeUndefined();
+	});
+
+	test("legacy string links from WordPress imports still render", async () => {
+		const html = await renderImage({ ...node, link: "https://example.com/legacy" });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/legacy");
+		expect(attr(a, "target")).toBeUndefined();
 	});
 
 	test("bare local media ref falls back to the media file route", async () => {
@@ -217,6 +263,22 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "sizes")).toBe("(min-width: 600px) 600px, 100vw");
 	});
 
+	test("provider srcsets stop at the original width", async () => {
+		const html = await renderImage({
+			...node,
+			asset: { _ref: "provider-image", provider: "mock-images" },
+			width: 1000,
+			height: 1000,
+			displayWidth: 600,
+			displayHeight: 600,
+		});
+		const widths = attr(imgTag(html), "srcset")
+			?.split(", ")
+			.map((candidate) => candidate.split(" ")[1]);
+
+		expect(widths).toEqual(["600w", "640w", "750w", "828w", "960w", "1000w"]);
+	});
+
 	test("missing external provider falls back without crashing", async () => {
 		const html = await renderImage({
 			...node,
@@ -289,6 +351,32 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(attr(tag, "loading")).toBe("lazy");
 		expect(attr(tag, "decoding")).toBe("async");
+	});
+
+	test("public EmDashImage offers the original instead of an upscaled 2x", async () => {
+		const html = await renderEmDashImage({
+			image: { id: "01PROVIDER", provider: "mock-images", width: 60, height: 60 },
+			alt: "Avatar",
+			width: 40,
+			height: 40,
+		});
+
+		expect(attr(imgTag(html), "srcset")).toBe(
+			"https://img.example.com/render?w=40&h=40 40w, https://img.example.com/render?w=60&h=60 60w",
+		);
+	});
+
+	test("public EmDashImage offers 1x and 2x for a small provider image", async () => {
+		const html = await renderEmDashImage({
+			image: { id: "01PROVIDER", provider: "mock-images", width: 1200, height: 1200 },
+			alt: "Avatar",
+			width: 40,
+			height: 40,
+		});
+
+		expect(attr(imgTag(html), "srcset")).toBe(
+			"https://img.example.com/render?w=40&h=40 40w, https://img.example.com/render?w=80&h=80 80w",
+		);
 	});
 
 	test("public EmDashImage preserves priority and passthrough attrs", async () => {

@@ -1290,7 +1290,10 @@ export function MediaDetailPanel({
 									gridTemplateColumns: "minmax(0, 3fr) minmax(0, 2fr)",
 								}}
 							>
-								<div className="flex min-w-0 items-start gap-2 text-sm">
+								<div
+									className="flex min-w-0 items-start gap-2 text-sm"
+									style={{ gridColumnStart: 1 }}
+								>
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 										<HardDrive className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 									</span>
@@ -1300,7 +1303,10 @@ export function MediaDetailPanel({
 									</p>
 								</div>
 								{item.width && item.height && (
-									<div className="flex min-w-0 items-start gap-2 text-sm">
+									<div
+										className="flex min-w-0 items-start gap-2 text-sm"
+										style={{ gridColumnStart: 2 }}
+									>
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 											<Ruler className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 										</span>
@@ -1313,7 +1319,10 @@ export function MediaDetailPanel({
 									</div>
 								)}
 								{!isProviderAsset && (
-									<div className="flex min-w-0 items-start gap-2 text-sm">
+									<div
+										className="flex min-w-0 items-start gap-2 text-sm"
+										style={{ gridColumnStart: 1 }}
+									>
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 											<Calendar className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 										</span>
@@ -1328,7 +1337,10 @@ export function MediaDetailPanel({
 										</p>
 									</div>
 								)}
-								<div className="flex min-w-0 items-start gap-2 text-sm">
+								<div
+									className="flex min-w-0 items-start gap-2 text-sm"
+									style={{ gridColumnStart: 2 }}
+								>
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 										<File className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 									</span>

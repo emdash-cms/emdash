@@ -7,9 +7,10 @@
  * - Migration 022 columns
  */
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -17,7 +18,7 @@ import { PluginStateRepository } from "../../../src/plugins/state.js";
 
 describe("PluginStateRepository – marketplace extensions", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: BetterSqlite3.Database;
+	let sqliteDb: BetterSqlite3;
 	let repo: PluginStateRepository;
 
 	beforeEach(async () => {

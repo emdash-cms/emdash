@@ -36,6 +36,7 @@ import type {
 	ConditionalWriteResult,
 	ConditionalDeleteResult,
 } from "../../plugins/types.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { pluginDataWriteExpr, pluginDataUpdateGuard } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
@@ -271,18 +272,20 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	async getMany(ids: string[]): Promise<Map<string, T>> {
 		if (ids.length === 0) return new Map();
 
-		const rows = await this.db
-			.selectFrom("_plugin_storage")
-			.select(["id", "data"])
-			.where("plugin_id", "=", this.pluginId)
-			.where("collection", "=", this.collection)
-			.where("id", "in", ids)
-			.execute();
-
 		const result = new Map<string, T>();
-		for (const row of rows) {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
-			result.set(row.id, JSON.parse(row.data) as T);
+		for (const batch of chunks(ids, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_plugin_storage")
+				.select(["id", "data"])
+				.where("plugin_id", "=", this.pluginId)
+				.where("collection", "=", this.collection)
+				.where("id", "in", batch)
+				.execute();
+
+			for (const row of rows) {
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+				result.set(row.id, JSON.parse(row.data) as T);
+			}
 		}
 		return result;
 	}
@@ -330,14 +333,20 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	async deleteMany(ids: string[]): Promise<number> {
 		if (ids.length === 0) return 0;
 
-		const result = await this.db
-			.deleteFrom("_plugin_storage")
-			.where("plugin_id", "=", this.pluginId)
-			.where("collection", "=", this.collection)
-			.where("id", "in", ids)
-			.executeTakeFirst();
+		return withTransaction(this.db, async (trx) => {
+			let deleted = 0;
+			for (const batch of chunks(ids, SQL_BATCH_SIZE)) {
+				const result = await trx
+					.deleteFrom("_plugin_storage")
+					.where("plugin_id", "=", this.pluginId)
+					.where("collection", "=", this.collection)
+					.where("id", "in", batch)
+					.executeTakeFirst();
 
-		return Number(result.numDeletedRows ?? 0);
+				deleted += Number(result.numDeletedRows ?? 0);
+			}
+			return deleted;
+		});
 	}
 
 	/**
@@ -345,7 +354,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	 */
 	async query(options: QueryOptions = {}): Promise<PaginatedResult<{ id: string; data: T }>> {
 		const { where = {}, orderBy = {}, cursor } = options;
-		const limit = Math.min(options.limit ?? 50, 100);
+		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
 
 		// Validate that all queried fields are indexed
 		validateWhereClause(where, this.indexedFields, this.pluginId, this.collection);

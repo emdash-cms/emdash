@@ -160,6 +160,18 @@ export class OptionsRepository {
 	}
 
 	/**
+	 * Delete multiple options in one statement.
+	 */
+	async deleteMany(names: string[]): Promise<number> {
+		if (names.length === 0) return 0;
+		const result = await this.db
+			.deleteFrom("options")
+			.where("name", "in", names)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
+
+	/**
 	 * Check if an option exists
 	 */
 	async exists(name: string): Promise<boolean> {

@@ -252,6 +252,8 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
  * Issues events. New and reopened issues enter the bounded triage run
  * automatically. Triage can ask for missing information, await approval, or
  * start low-risk work without requiring the reporter to know command syntax.
+ * Issues opened by maintainers skip the automatic run and wait for
+ * `@emdashbot triage`.
  * `labeled` / `unlabeled` are skipped because the DO is the source of truth
  * for state; label drift is reconciled by the Orchestrator DO's periodic alarm
  * tick (`reconcileLabels`), not by webhooks.
@@ -282,6 +284,10 @@ function normalizeIssues(
 	const number = readNumber(issue?.number);
 	if (!number) return { kind: "skip", reason: "issues event missing issue.number" };
 	if (issue?.pull_request) return { kind: "skip", reason: "issues event is for a pull request" };
+	const authorAssociation = readString(issue?.author_association);
+	if (authorAssociation && MAINTAINER_ASSOCIATIONS.has(authorAssociation)) {
+		return { kind: "skip", reason: `issues.${action} by a maintainer waits for a command` };
+	}
 	return dispatchFor(number, {
 		event: "triage",
 		arg: action === "reopened" ? "Re-triage this reopened issue." : null,
@@ -347,8 +353,9 @@ function normalizeIssueComment(
 	if (mentionText === null) {
 		if (
 			!isPullRequest &&
-			(actor === "reporter" || actor === "maintainer") &&
-			labels.includes("bot:awaiting-reporter")
+			(((actor === "reporter" || actor === "maintainer") &&
+				labels.includes("bot:awaiting-reporter")) ||
+				(actor === "reporter" && labels.includes("bot:in-review")))
 		) {
 			return dispatch({
 				event: null,
@@ -357,6 +364,7 @@ function normalizeIssueComment(
 				labels,
 				needsClassify: true,
 				classifyText: body,
+				unaddressed: true,
 				triggeringComment,
 				...(deliveryId ? { deliveryId } : {}),
 			});
@@ -366,17 +374,6 @@ function normalizeIssueComment(
 				event: "triage",
 				arg: "The reporter supplied the requested information. Re-triage the issue.",
 				actor: "system",
-				labels,
-				needsClassify: false,
-				triggeringComment,
-				...(deliveryId ? { deliveryId } : {}),
-			});
-		}
-		if (!isPullRequest && actor === "reporter" && labels.includes("bot:in-review")) {
-			return dispatch({
-				event: "needs_changes",
-				arg: body,
-				actor,
 				labels,
 				needsClassify: false,
 				triggeringComment,

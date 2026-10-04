@@ -27,7 +27,7 @@ describe("writeMigrationManifest", () => {
 				entrypoint: "emdash/db/sqlite",
 				config: {},
 				migrations: {
-					entrypoint: "emdash/db/sqlite-migrations",
+					entrypoint: "emdash/internal/db/sqlite-migrations",
 					manifestConfig: { url: "file:./data.db" },
 				},
 			},

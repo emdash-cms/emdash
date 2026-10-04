@@ -1,5 +1,82 @@
 # @emdash-cms/auth
 
+## 1.1.0
+
+### Minor Changes
+
+- [#3254](https://github.com/emdash-cms/emdash/pull/3254) [`5de3bdc`](https://github.com/emdash-cms/emdash/commit/5de3bdc4310f6bcca013f05002f05a61e208b2a4) Thanks [@danielmlr](https://github.com/danielmlr)! - Adds a `microsoft()` login provider, so editors can sign in to the admin with a Microsoft Entra ID work or school account next to passkeys and the other providers.
+  
+  ```js
+  import { microsoft } from "emdash/auth/providers/microsoft";
+  
+  emdash({ authProviders: [microsoft()] });
+  ```
+  
+  The provider reads `EMDASH_OAUTH_MICROSOFT_CLIENT_ID`, `EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET`, and `EMDASH_OAUTH_MICROSOFT_TENANT_ID` (or the unprefixed names) and stays unconfigured until all three are set. The tenant is a directory (tenant) ID, or `common`, `organizations`, or `consumers`. With a directory ID, an account that signs in through that directory counts as verified when its address is in the domain of its sign-in name, or when the optional `xms_edov` claim confirms the address's domain, so it can link to an existing user, accept an invite, sign up through an allowed domain, and create the first admin account. Accounts that sign in through another directory or identity provider, such as guests, and sign-ins through `common`, `organizations`, or `consumers` do not count as verified. `microsoft({ emailVerified })` overrides this either way.
+
+## 1.0.1
+
+### Patch Changes
+
+- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. Before upgrading from 0.42, read the [upgrade guide](https://docs.emdashcms.com/upgrade-to-v1/), which lists each change and how to migrate.
+  
+  From this release, breaking changes ship only in a new major version.
+
+## 1.0.1-rc.1
+
+No changes in this release.
+
+## 1.0.1-rc.0
+
+### Patch Changes
+
+- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. The other entries for this version describe each one and how to migrate; check them before upgrading from 0.42.
+  
+  From this release, breaking changes ship only in a new major version.
+  
+  The first 1.x version is 1.0.1. npm also lists a deprecated `emdash@1.0.0`, published by mistake from 0.7-era code; do not install it.
+
+## 0.42.0
+
+### Minor Changes
+
+- [#1939](https://github.com/emdash-cms/emdash/pull/1939) [`2410395`](https://github.com/emdash-cms/emdash/commit/24103953cc5873f76c36625b11251ac5864dca78) Thanks [@swissky](https://github.com/swissky)! - Adds a core update notice to the admin dashboard. When a newer EmDash version is available, admins see a dismissible banner with a link to the release notes. The banner names the newest release that has been public on npm for at least 24 hours.
+  
+  The check is on by default: the server sends a GET request to `https://registry.npmjs.org/emdash` at most once a day, in the background, with no site data. To wait longer before a release is announced, for example to match pnpm's `minimumReleaseAge`, or to turn the check off:
+  
+  ```js
+  emdash({ updateCheck: { minimumReleaseAge: "7d" } }); // a duration string or seconds
+  emdash({ updateCheck: false });
+  ```
+  
+  The banner reads `GET /_emdash/api/admin/core-update`, which requires the new `updates:read` permission (admins only).
+
+## 0.41.0
+
+No changes in this release.
+
+## 0.40.1
+
+No changes in this release.
+
+## 0.40.0
+
+### Minor Changes
+
+- [#3415](https://github.com/emdash-cms/emdash/pull/3415) [`973699a`](https://github.com/emdash-cms/emdash/commit/973699a1ea439876b43c8efa8093e39934a116de) Thanks [@swissky](https://github.com/swissky)! - Fixes a magic link or recovery link signing in twice when the same link is submitted by two requests at the same time, which created two separate sessions from one single-use link. Only one of the concurrent requests now succeeds; the other gets the "Invalid or expired link" error. Completing a signup or invite with a link that another request is already using now also fails with the invalid-link error instead of a server error. Custom `AuthAdapter` implementations must add the new `consumeToken(hash, type)` method, which atomically deletes and returns the matching token, or returns `null` when none exists.
+
+- [#1944](https://github.com/emdash-cms/emdash/pull/1944) [`bf6b0a9`](https://github.com/emdash-cms/emdash/commit/bf6b0a9623076a5fbe2368602bca42317f96ad03) Thanks [@swissky](https://github.com/swissky)! - Localizes invite, magic-link, and account-recovery emails: they now follow the site locale (falling back to the requesting user's admin language) instead of always being sent in English. Email HTML sets `lang` and `dir` on the root element, so right-to-left languages render correctly. A non-canonical site locale (`pt-br`) is normalized to its catalog (`pt-BR`); an unsupported value falls back to the requesting user's admin language.
+  
+  `@emdash-cms/auth`'s invite and magic-link builders (`buildInviteEmail`, `buildMagicLinkEmail`, now exported) accept optional injected copy and locale via new `emailStrings`/`emailLocale` config options (`InviteEmailStrings`/`MagicLinkEmailStrings`). `@emdash-cms/admin/locales` exports the copy resolvers `getInviteEmailStrings`/`getMagicLinkEmailStrings` and the BCP 47 matcher `matchLocale`.
+
+- [#3346](https://github.com/emdash-cms/emdash/pull/3346) [`1796cd5`](https://github.com/emdash-cms/emdash/commit/1796cd508c2bd6456abe77b458f7d177093df754) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds the `transfer:export`, `transfer:analyze`, and `transfer:execute` token scopes and the admin-only `transfer:export` and `transfer:import` permissions for site export and import. `admin` grants all three; each transfer scope grants only itself, so a token can be limited to one transfer action. The `TRANSFER_SCOPES` constant and `isTransferScope()` helper identify these scopes.
+
+### Patch Changes
+
+- [#3017](https://github.com/emdash-cms/emdash/pull/3017) [`5a9d822`](https://github.com/emdash-cms/emdash/commit/5a9d822fa68acb4a48b39ba01f85edf5c61d83d4) Thanks [@jakevis](https://github.com/jakevis)! - Fixes email-verification signup, which could not be completed: the verification email linked to the JSON API endpoint instead of the signup page, the signup page itself redirected anonymous visitors to login, and that redirect dropped the `?token=` from the URL. The email now links to `/_emdash/admin/signup?token=…` (as the invite email already did), the page is reachable without a session, and the login redirect preserves the query string of the page it returns to.
+
+- [#3380](https://github.com/emdash-cms/emdash/pull/3380) [`20858ed`](https://github.com/emdash-cms/emdash/commit/20858edbad9d8beabc33c120783e3ed771146d9d) Thanks [@swissky](https://github.com/swissky)! - Malformed invite, signup, and magic-link tokens now return a clean "invalid token" error instead of a 500. Token hashing tolerates values that aren't valid base64url, so an unrecognized token misses the lookup like any other unknown token.
+
 ## 0.39.1
 
 No changes in this release.

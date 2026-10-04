@@ -7,9 +7,10 @@
 import { randomUUID } from "node:crypto";
 
 import { Role } from "@emdash-cms/auth";
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
@@ -151,7 +152,7 @@ describe("hook actor payloads", () => {
 	const afterEvents: ContentHookEvent[] = [];
 	let mutateBeforeSaveActor = false;
 
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let runtime: EmDashRuntime;
 	let repo: ContentRepository;
 
@@ -254,6 +255,7 @@ describe("hook actor payloads", () => {
 				isNew: false,
 				id: item.id,
 				actor: actorB,
+				locale: "en",
 			},
 		]);
 
@@ -292,7 +294,7 @@ describe("hook actor payloads", () => {
 describe("sandboxed hook actor payloads", () => {
 	const invokeHook = vi.fn<SandboxedPluginInstance["invokeHook"]>();
 
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let runtime: EmDashRuntime;
 	let repo: ContentRepository;
 
@@ -363,6 +365,7 @@ describe("sandboxed hook actor payloads", () => {
 			collection: "posts",
 			isNew: true,
 			actor: actorA,
+			locale: "en",
 		});
 	});
 
@@ -381,6 +384,7 @@ describe("sandboxed hook actor payloads", () => {
 			isNew: false,
 			id: item.id,
 			actor: actorB,
+			locale: "en",
 		});
 	});
 });

@@ -17,6 +17,7 @@ export default defineConfig({
 			disable404Route: true,
 			components: {
 				SkipLink: "./src/components/SkipLink.astro",
+				PageFrame: "./src/components/PageFrame.astro",
 			},
 			logo: {
 				light: "./src/assets/logo-light.svg",
@@ -40,8 +41,10 @@ export default defineConfig({
 					items: [
 						{ label: "Getting Started", slug: "getting-started" },
 						{ label: "Add to an Existing Project", slug: "existing-project" },
+						{ label: "Upgrade to EmDash 1.0", slug: "upgrade-to-v1" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
 						{ label: "Docs MCP for AI Tools", slug: "docs-mcp" },
+						{ label: "Agent Skills", slug: "agent-skills" },
 					],
 				},
 				{
@@ -73,17 +76,23 @@ export default defineConfig({
 						{ label: "Media Library", slug: "guides/media-library" },
 						{ label: "Dark Mode", slug: "guides/dark-mode" },
 						{ label: "Taxonomies", slug: "guides/taxonomies" },
+						{ label: "Relations", slug: "guides/relations" },
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },
 						{ label: "Page Layouts", slug: "guides/page-layouts" },
+						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
+						{ label: "Move to a New Domain", slug: "guides/change-domain" },
+						{ label: "Built-in SEO Features", slug: "guides/seo" },
 						{ label: "Authentication", slug: "guides/authentication" },
+						{ label: "Email Setup", slug: "guides/email" },
 						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },
 						{ label: "AI Tools", slug: "guides/ai-tools" },
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
 						{ label: "Backups", slug: "guides/backups" },
+						{ label: "Site Transfer", slug: "guides/site-transfer" },
 						{
 							label: "Internationalization (i18n)",
 							slug: "guides/internationalization",

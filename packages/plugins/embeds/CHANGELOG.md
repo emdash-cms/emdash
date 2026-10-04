@@ -1,5 +1,63 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.54
+
+### Patch Changes
+
+- Updated dependencies [[`85ab50c`](https://github.com/emdash-cms/emdash/commit/85ab50c60e325b564b427d2d7ffde7e903c2dbf7), [`3a00448`](https://github.com/emdash-cms/emdash/commit/3a00448c05604eab26c4ad2b851d33b2de8bc605)]:
+  - @emdash-cms/blocks@1.1.0
+
+## 0.1.53
+
+### Patch Changes
+
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d)]:
+  - @emdash-cms/blocks@1.0.1
+
+## 0.1.53-rc.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@1.0.1-rc.1
+
+## 0.1.53-rc.0
+
+### Patch Changes
+
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d), [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd)]:
+  - emdash@1.0.1-rc.0
+  - @emdash-cms/blocks@1.0.1-rc.0
+
+## 0.1.52
+
+### Patch Changes
+
+- Updated dependencies [[`f2f9119`](https://github.com/emdash-cms/emdash/commit/f2f9119738ba360d02e3fd00e1cf7d1d49b52fda), [`2e943ff`](https://github.com/emdash-cms/emdash/commit/2e943ff35fcffc5a4e35dd658ef73cf098030e3b)]:
+  - @emdash-cms/blocks@0.42.0
+
+## 0.1.51
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.41.0
+
+## 0.1.50
+
+### Patch Changes
+
+- [`28362d4`](https://github.com/emdash-cms/emdash/commit/28362d4acbd7569b0fc92de3dca56544a7e40482) Thanks [@swissky](https://github.com/swissky)! - Updates Gist and Mastodon embed rendering for consistent remote-content handling. Gist blocks accept gist page URLs such as `https://gist.github.com/<user>/<id>`; other URL forms render nothing. Mastodon posts retain supported content and formatting after fetched markup is normalized before rendering.
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.40.1
+
+## 0.1.49
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.40.0
+
 ## 0.1.48
 
 ### Patch Changes

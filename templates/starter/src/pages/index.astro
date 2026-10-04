@@ -6,8 +6,11 @@ import { resolveStarterSiteIdentity } from "../utils/site-identity";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
+	limit: 10,
 });
-const { siteTitle, siteTagline } = resolveStarterSiteIdentity(await getSiteSettings());
+const { siteTitle, siteTagline } = resolveStarterSiteIdentity(
+	await getSiteSettings(),
+);
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
@@ -17,8 +20,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 	{
 		posts.length === 0 ? (
 			<p>
-				No posts yet.{" "}
-				<a href="/_emdash/admin/content/posts/new">Create one</a>.
+				No posts yet. <a href="/_emdash/admin/content/posts/new">Create one</a>.
 			</p>
 		) : (
 			<ul>
@@ -26,11 +28,11 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 					<li>
 						<a href={`/posts/${post.id}`}>
 							{post.data.featured_image && (
-								<Image image={post.data.featured_image} />
+								<div {...post.edit.featured_image}><Image image={post.data.featured_image} /></div>
 							)}
-							<h2>{post.data.title}</h2>
+							<h2 {...post.edit.title}>{post.data.title}</h2>
 						</a>
-						{post.data.excerpt && <p>{post.data.excerpt}</p>}
+						{post.data.excerpt && <p {...post.edit.excerpt}>{post.data.excerpt}</p>}
 						{post.data.publishedAt && (
 							<time datetime={post.data.publishedAt.toISOString()}>
 								{post.data.publishedAt.toLocaleDateString("en-US", {

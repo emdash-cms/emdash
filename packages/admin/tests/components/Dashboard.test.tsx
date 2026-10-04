@@ -1,14 +1,19 @@
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
+import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { AdminManifest } from "../../src/lib/api";
 import type { DashboardStats } from "../../src/lib/api/dashboard";
+import type { TransferCapabilities } from "../../src/lib/api/transfer.js";
+import { PluginAdminProvider } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
 		...actual,
-		Link: ({ children, to, params, search: _search, ...props }: any) => {
+		Link: ({ children, to, params, search, ...props }: any) => {
 			let href = String(to ?? "");
 			if (params && typeof params === "object") {
 				for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
@@ -19,6 +24,12 @@ vi.mock("@tanstack/react-router", async () => {
 					href = href.replace(`$${key}`, paramValue);
 				}
 			}
+			const query = new URLSearchParams(
+				Object.entries((search ?? {}) as Record<string, unknown>).flatMap(([key, value]) =>
+					typeof value === "string" ? [[key, value]] : [],
+				),
+			).toString();
+			if (query) href += `?${query}`;
 			return (
 				<a href={href} {...props}>
 					{children}
@@ -41,6 +52,13 @@ vi.mock("../../src/lib/api/dashboard", async () => {
 		dismissScheduledPolicyRejection: (collection: string, id: string, revision: string) =>
 			mockDismissScheduledPolicyRejection(collection, id, revision),
 	};
+});
+
+const mockFetchTransferCapabilities = vi.fn<() => Promise<TransferCapabilities>>();
+
+vi.mock("../../src/lib/api/transfer.js", async () => {
+	const actual = await vi.importActual("../../src/lib/api/transfer.js");
+	return { ...actual, fetchTransferCapabilities: () => mockFetchTransferCapabilities() };
 });
 
 vi.mock("../../src/lib/api/current-user", () => ({
@@ -91,11 +109,33 @@ function policyStats(reason = "Approval is required.", revision = "rejection-rev
 	return stats;
 }
 
+function transferCapabilities(empty: boolean): TransferCapabilities {
+	return {
+		formatVersions: ["1"],
+		features: [],
+		optionalFeatures: [],
+		limits: {
+			manifestBytes: 1,
+			recordLineBytes: 1,
+			chunkBytes: 1,
+			chunkRecords: 1,
+			totalRecords: 1,
+			totalFiles: 1,
+			indexChunks: 1,
+			jsonDepth: 1,
+			maxBlobBytes: 1,
+		},
+		portableDomain: { empty, blockers: [], seededScaffold: [] },
+	};
+}
+
 describe("Dashboard", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockUseCurrentUser.mockReturnValue({ data: { role: 50 } });
 		mockDismissScheduledPolicyRejection.mockResolvedValue();
+		mockFetchTransferCapabilities.mockResolvedValue(transferCapabilities(false));
+		window.localStorage.clear();
 	});
 
 	it("shows marketplace migration guidance to admins", async () => {
@@ -129,6 +169,23 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("link", { name: "Scheduled" }))
+			.toHaveAttribute("href", "/calendar");
+	});
+
+	it("does not link the scheduled summary for subscribers, who cannot open the calendar", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 10 } });
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 5, published: 2, draft: 3, scheduled: 2 },
+			]),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Scheduled")).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Scheduled" })).not.toBeInTheDocument();
 	});
 
 	it("omits scheduled summary when only residual non-scheduled statuses exist", async () => {
@@ -341,20 +398,22 @@ describe("Dashboard", () => {
 			.toHaveAttribute("href", "/content/pages/new");
 	});
 
-	it("omits quick actions for hidden collections", async () => {
+	it("omits quick actions for hidden collections and those opting out", async () => {
 		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
-		const withHidden: AdminManifest = {
+		const withOptOuts: AdminManifest = {
 			...manifest,
 			collections: {
 				...manifest.collections,
 				sync_runs: { ...manifest.collections.pages!, labelSingular: "Sync run", hidden: true },
+				settings: { ...manifest.collections.pages!, labelSingular: "Setting", quickCreate: false },
 			},
 		};
 
-		const screen = await render(<Dashboard manifest={withHidden} />);
+		const screen = await render(<Dashboard manifest={withOptOuts} />);
 
 		await expect.element(screen.getByRole("link", { name: "Page" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("link", { name: "Sync run" })).not.toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Setting" })).not.toBeInTheDocument();
 	});
 
 	it("uses the same heading level for every dashboard card title", async () => {
@@ -409,5 +468,123 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect.element(screen.getByRole("img", { name: "Status: toString" })).toBeInTheDocument();
+	});
+
+	describe("site import suggestion", () => {
+		const emptyStats = () =>
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 0, published: 0, draft: 0, scheduled: 0 },
+			]);
+
+		it("links an admin of an importable site to the Transfer import", async () => {
+			mockFetchDashboardStats.mockResolvedValue(emptyStats());
+			mockFetchTransferCapabilities.mockResolvedValue(transferCapabilities(true));
+
+			const screen = await render(<Dashboard manifest={manifest} />);
+
+			await expect
+				.element(screen.getByRole("link", { name: "Import a site package" }))
+				.toHaveAttribute("href", "/settings/transfer?start=import");
+		});
+
+		it("stays hidden when the site can't receive an import", async () => {
+			mockFetchDashboardStats.mockResolvedValue(emptyStats());
+			mockFetchTransferCapabilities.mockResolvedValue(transferCapabilities(false));
+
+			const screen = await render(<Dashboard manifest={manifest} />);
+
+			await expect.element(screen.getByText("Media files")).toBeInTheDocument();
+			await vi.waitFor(() => expect(mockFetchTransferCapabilities).toHaveBeenCalled());
+			await expect
+				.element(screen.getByText("Moving from another EmDash site?"))
+				.not.toBeInTheDocument();
+		});
+
+		it("doesn't check import eligibility for non-admins", async () => {
+			mockUseCurrentUser.mockReturnValue({ data: { role: 40 } });
+			mockFetchDashboardStats.mockResolvedValue(emptyStats());
+			mockFetchTransferCapabilities.mockResolvedValue(transferCapabilities(true));
+
+			const screen = await render(<Dashboard manifest={manifest} />);
+
+			await expect.element(screen.getByText("Media files")).toBeInTheDocument();
+			await expect
+				.element(screen.getByText("Moving from another EmDash site?"))
+				.not.toBeInTheDocument();
+			expect(mockFetchTransferCapabilities).not.toHaveBeenCalled();
+		});
+
+		it("doesn't check import eligibility once the site has content", async () => {
+			mockFetchDashboardStats.mockResolvedValue(
+				makeStats([
+					{ slug: "pages", label: "Pages", total: 1, published: 1, draft: 0, scheduled: 0 },
+				]),
+			);
+			mockFetchTransferCapabilities.mockResolvedValue(transferCapabilities(true));
+
+			const screen = await render(<Dashboard manifest={manifest} />);
+
+			await expect.element(screen.getByText("Media files")).toBeInTheDocument();
+			await expect
+				.element(screen.getByText("Moving from another EmDash site?"))
+				.not.toBeInTheDocument();
+			expect(mockFetchTransferCapabilities).not.toHaveBeenCalled();
+		});
+
+		it("stays dismissed", async () => {
+			mockFetchDashboardStats.mockResolvedValue(emptyStats());
+			mockFetchTransferCapabilities.mockResolvedValue(transferCapabilities(true));
+
+			const first = await render(<Dashboard manifest={manifest} />);
+			await first.getByRole("button", { name: "Dismiss import suggestion" }).click();
+			await expect
+				.element(first.getByText("Moving from another EmDash site?"))
+				.not.toBeInTheDocument();
+			await first.unmount();
+
+			const second = await render(<Dashboard manifest={manifest} />);
+			await expect.element(second.getByText("Media files")).toBeInTheDocument();
+			await expect
+				.element(second.getByText("Moving from another EmDash site?"))
+				.not.toBeInTheDocument();
+			expect(mockFetchTransferCapabilities).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	it("translates plugin dashboard widget titles through the shared Lingui catalog", async () => {
+		// Regression for #3783: plugin-provided dashboard widget titles must
+		// resolve the same way as admin page labels when a plugin loads its
+		// catalog into the admin's shared i18n instance.
+		const plI18n = setupI18n({
+			locale: "pl",
+			messages: { pl: { Forms: "Formularze" } },
+		});
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+
+		function DummyWidget() {
+			return <div>Widget body</div>;
+		}
+
+		const manifestWithWidgets: AdminManifest = {
+			...manifest,
+			plugins: {
+				forms: {
+					enabled: true,
+					dashboardWidgets: [{ id: "overview", title: "Forms" }],
+				},
+			},
+		};
+
+		const screen = await render(
+			<I18nProvider i18n={plI18n}>
+				<PluginAdminProvider pluginAdmins={{ forms: { widgets: { overview: DummyWidget } } }}>
+					<Dashboard manifest={manifestWithWidgets} />
+				</PluginAdminProvider>
+			</I18nProvider>,
+		);
+
+		await expect.element(screen.getByText("Formularze")).toBeInTheDocument();
+		// Sanity check: the original (untranslated) title should not be shown.
+		await expect.element(screen.getByText("Forms")).not.toBeInTheDocument();
 	});
 });

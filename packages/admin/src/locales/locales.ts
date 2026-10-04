@@ -34,16 +34,19 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "en", label: "English", enabled: true },
 	{ code: "ar", label: "العربية", enabled: true, dir: "rtl" }, // Arabic
 	{ code: "eu", label: "Euskara", enabled: true }, // Basque
+	{ code: "bn", label: "বাংলা", enabled: true }, // Bengali
 	{ code: "ca", label: "Català", enabled: true }, // Catalan
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "zh-TW", label: "繁體中文", enabled: true }, // Chinese (Traditional)
 	{ code: "cs", label: "Čeština", enabled: true }, // Czech
+	{ code: "da", label: "Dansk", enabled: true }, // Danish
 	{ code: "nl", label: "Nederlands", enabled: true }, // Dutch
 	{ code: "en-GB", label: "English (UK)", enabled: true }, // English (United Kingdom)
 	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl" }, // Farsi (also known as Persian)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "ka", label: "ქართული", enabled: true }, // Georgian
 	{ code: "de", label: "Deutsch", enabled: true }, // German
+	{ code: "he", label: "עברית", enabled: true, dir: "rtl" }, // Hebrew
 	{ code: "hi", label: "हिन्दी", enabled: true }, // Hindi
 	{ code: "hu", label: "Magyar", enabled: true }, // Hungarian
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
@@ -52,6 +55,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "nb", label: "Norsk bokmål", enabled: true }, // Norwegian Bokmål
 	{ code: "pl", label: "Polski", enabled: true }, // Polish
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
+	{ code: "pt-PT", label: "Português (Portugal)", enabled: true }, // Portuguese (Portugal)
 	{ code: "sr-Latn", label: "Srpski", enabled: true }, // Serbian (Latin script)
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	{ code: "es-ES", label: "Español (España)", enabled: true }, // Spanish (Spain) - BCP 47

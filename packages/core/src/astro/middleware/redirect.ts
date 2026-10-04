@@ -14,11 +14,14 @@
  * wasn't already matched by a redirect, log it.
  */
 
+import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { getDb } from "../../loader.js";
+import { createRedirectSource } from "../../redirects/artifacts.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
+import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 
 /** Paths that should never be intercepted by redirects */
@@ -31,6 +34,12 @@ type RedirectCode = 301 | 302 | 303 | 307 | 308;
 
 function isRedirectCode(code: number): code is RedirectCode {
 	return code === 301 || code === 302 || code === 303 || code === 307 || code === 308;
+}
+
+function warnUnsafeDestination(id: string): void {
+	console.warn(
+		`[emdash:redirects] Skipping redirect ${id}: destination is not a site-relative path`,
+	);
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -61,10 +70,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	try {
 		const repo = new RedirectRepository(db);
 
-		// One query loads both exact and pattern rules into the cache; warm
-		// requests issue zero queries. Empty-redirect sites cache an empty
-		// Map + array, so the next request returns immediately without probing.
-		const cached = await loadCachedRedirects(() => repo.findAllEnabled());
+		// One query loads the published rules into the cache; warm requests
+		// issue zero queries, and an expired cache checks the published version
+		// in the background. Empty-redirect sites cache an empty Map + array.
+		const cached = await loadCachedRedirects(createRedirectSource(db));
 
 		// 1. Exact match (O(1) Map lookup)
 		let exact = cached.exact.get(pathname);
@@ -80,7 +89,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				return new Response(null, { status: exact.type });
 			}
 			const dest = exact.destination;
-			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
+			if (!isSiteRelativeDestination(dest)) {
+				warnUnsafeDestination(exact.id);
+				return next();
+			}
 			repo.recordHit(exact.id).catch(() => {});
 			const code = isRedirectCode(exact.type) ? exact.type : 301;
 			return context.redirect(dest, code);
@@ -95,7 +107,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				repo.recordHit(redirect.id).catch(() => {});
 				return new Response(null, { status: redirect.type });
 			}
-			if (destination.startsWith("//") || destination.startsWith("/\\")) return next();
+			if (!isSiteRelativeDestination(destination)) {
+				warnUnsafeDestination(redirect.id);
+				return next();
+			}
 			repo.recordHit(redirect.id).catch(() => {});
 			const code = isRedirectCode(redirect.type) ? redirect.type : 301;
 			return context.redirect(destination, code);
@@ -104,12 +119,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// No redirect matched -- proceed and check for 404
 		const response = await next();
 
+		// Keep a 404 out of the route cache: publishing the missing entry later
+		// purges content tags, not the missed path, so a cached 404 would outlive
+		// the fix. Astro has no cache handle for URLs that match no route, but a
+		// page answering a content miss with Astro.rewrite("/404") has one.
+		if (response.status === 404) {
+			const routeCache: APIContext["cache"] | undefined = context.cache;
+			routeCache?.set(false);
+		}
+
 		// Log misses (fire-and-forget) under the path the visitor requested.
-		// Two shapes count as a miss: an unmatched route rendering the error
-		// page with status 404, and a matched route answering a content miss
-		// with a redirect to /404 (the documented template pattern) — there the
-		// missed path exists only on this first pass, before the browser
-		// follows the redirect. The error page itself is never logged: /404
+		// Two shapes count as a miss: a 404 response (an unmatched route, or a
+		// page answering a content miss with Astro.rewrite("/404")), and a
+		// matched route answering a content miss with a redirect to /404 —
+		// there the missed path exists only on this first pass, before the
+		// browser follows the redirect. The error page itself is never logged: /404
 		// answers 404 by design and carries no path information.
 		const location = response.headers.get("location");
 		const missedByRedirect =

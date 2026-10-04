@@ -10,17 +10,21 @@
  *
  */
 
+import { z } from "zod";
+
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
 import { sanitizeHeadersForSandbox } from "./request-meta.js";
-import { normalizePluginCapabilities } from "./types.js";
+import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./types.js";
 import type {
+	ManifestMcpTool,
 	ResolvedPlugin,
 	ResolvedPluginHooks,
 	ResolvedHook,
 	PluginRoute,
 	PluginCapability,
+	PluginMcpToolDefinition,
 	PluginStorageConfig,
 	PluginAdminConfig,
 } from "./types.js";
@@ -281,7 +285,7 @@ export function adaptSandboxEntry(
 	// Build capabilities from descriptor.
 	// Validate against the known set (same as defineNativePlugin). Both
 	// current and deprecated names are accepted; deprecated names are
-	// silently normalized to current names below so the runtime only ever
+	// normalized to current names below so the runtime only ever
 	// sees the canonical form.
 	const rawCapabilities = descriptor.capabilities ?? [];
 	for (const cap of rawCapabilities) {
@@ -293,7 +297,7 @@ export function adaptSandboxEntry(
 		}
 	}
 
-	// Silent normalization: rewrite deprecated names to current names.
+	warnDeprecatedPluginCapabilities(pluginId, rawCapabilities);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated above; normalization only returns capabilities from the union
 	const capabilities = normalizePluginCapabilities(rawCapabilities as PluginCapability[]);
 	const allowedHosts = descriptor.allowedHosts ?? [];
@@ -347,19 +351,50 @@ export function adaptSandboxEntry(
 		hooks: resolvedHooks,
 		routes: resolvedRoutes,
 		mcp: {
-			tools: Object.fromEntries(
-				Object.entries(definition.mcp?.tools ?? {}).map(([name, tool]) => [
-					name,
-					{
-						description: tool.description,
-						route: tool.route,
-						input: tool.input,
-						output: tool.output,
-						destructive: tool.destructive,
-					},
-				]),
-			),
+			tools: {
+				// `emdash-plugin build` removes `mcp` from the runtime module and
+				// ships the tools in the descriptor instead.
+				...Object.fromEntries(
+					(descriptor.mcp?.tools ?? []).map((tool) => [tool.name, toolFromManifest(tool)]),
+				),
+				...Object.fromEntries(
+					Object.entries(definition.mcp?.tools ?? {}).map(([name, tool]) => [
+						name,
+						{
+							description: tool.description,
+							route: tool.route,
+							input: tool.input,
+							output: tool.output,
+							destructive: tool.destructive,
+						},
+					]),
+				),
+			},
 		},
 		admin,
+	};
+}
+
+/**
+ * An MCP tool from its serialized manifest form. The schemas are converted
+ * on first use: turning JSON Schema back into Zod takes milliseconds per
+ * tool, and this adapter runs on every cold start, public requests included.
+ */
+function toolFromManifest(tool: ManifestMcpTool): PluginMcpToolDefinition {
+	let input: z.ZodType | undefined;
+	let output: z.ZodType | undefined;
+	return {
+		description: tool.description,
+		route: tool.route,
+		destructive: tool.destructive,
+		get input() {
+			input ??= z.fromJSONSchema({ ...tool.inputSchema });
+			return input;
+		},
+		get output() {
+			if (!tool.outputSchema) return undefined;
+			output ??= z.fromJSONSchema({ ...tool.outputSchema });
+			return output;
+		},
 	};
 }

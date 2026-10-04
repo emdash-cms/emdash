@@ -1,17 +1,12 @@
 /**
  * Custom Image Node for TipTap
  *
- * Provides a selectable, editable image with:
- * - Click to select
- * - Visual selection indicator
- * - Quick inline alt text editing
- * - Full detail panel for advanced settings
- * - Delete/replace options
+ * Provides a selectable image with a visual selection indicator, a caption
+ * field, and a detail panel for advanced settings. The toolbar for a selected
+ * image lives in PortableTextEditor.
  */
 
-import { Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Trash, Pencil, X, Check, SlidersHorizontal } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
@@ -19,6 +14,7 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
 import { fetchMediaItem } from "../../lib/api/media.js";
+import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
@@ -44,9 +40,26 @@ declare module "@tiptap/react" {
 				displayWidth?: number;
 				displayHeight?: number;
 				alignment?: "left" | "center" | "right" | "wide" | "full";
+				link?: { href: string; blank?: boolean } | null;
 			}) => ReturnType;
 		};
 	}
+}
+
+export interface ImageSettingsHandle {
+	getPos: () => number | undefined;
+	toggle: () => void;
+}
+
+function imageDimension(value: number | undefined): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+// Firefox can't select text by mouse inside a draggable element, and the image node view is one.
+function setNodeViewDraggable(event: React.PointerEvent<HTMLTextAreaElement>, draggable: boolean) {
+	if (event.pointerType !== "mouse") return;
+	const nodeView = event.currentTarget.closest<HTMLElement>("[draggable]");
+	if (nodeView) nodeView.draggable = draggable;
 }
 
 // React component for the image node view
@@ -59,8 +72,6 @@ function ImageNodeView({
 	getPos,
 }: NodeViewProps) {
 	const { t } = useLingui();
-	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
-	const [altText, setAltText] = React.useState(node.attrs.alt || "");
 	const mediaId =
 		typeof node.attrs.mediaId === "string" &&
 		node.attrs.mediaId &&
@@ -78,33 +89,50 @@ function ImageNodeView({
 	/** Whether this node currently has its sidebar panel open */
 	const sidebarOpenRef = React.useRef(false);
 	const nodeKeyRef = React.useRef({});
+	/** The attrs object the open panel last wrote or saw; any other value is an outside change. */
+	const panelAttrsRef = React.useRef<unknown>(null);
 
-	const handleSaveAlt = () => {
-		updateAttributes({ alt: altText });
-		setIsEditingAlt(false);
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSaveAlt();
-		} else if (e.key === "Escape") {
-			setAltText(node.attrs.alt || "");
-			setIsEditingAlt(false);
-		}
-	};
-
-	// Sync local alt text state when node attributes change
-	React.useEffect(() => {
-		setAltText(node.attrs.alt || "");
-	}, [node.attrs.alt]);
-
-	const handlePointerDown = (event: React.PointerEvent) => {
-		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+	const selectImage = () => {
 		const position = getPos();
 		if (typeof position === "number") {
 			editor.commands.setNodeSelection(position);
 		}
+	};
+
+	const handlePointerDown = (event: React.PointerEvent) => {
+		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+		// The caption selects the image once it has focus, so the toolbar sees that focus.
+		if ((event.target as HTMLElement).closest("figcaption")) return;
+		selectImage();
+	};
+
+	const caption = typeof node.attrs.caption === "string" ? node.attrs.caption : "";
+	const captionRef = React.useRef<HTMLTextAreaElement>(null);
+	// ProseMirror would take text dragged over or dropped on the caption into the document.
+	React.useEffect(() => {
+		const textarea = captionRef.current;
+		if (!textarea) return;
+		const keepTextDrag = (event: DragEvent) => {
+			if (!event.dataTransfer?.types.includes("Files")) event.stopPropagation();
+		};
+		textarea.addEventListener("dragover", keepTextDrag);
+		textarea.addEventListener("drop", keepTextDrag);
+		return () => {
+			textarea.removeEventListener("dragover", keepTextDrag);
+			textarea.removeEventListener("drop", keepTextDrag);
+		};
+	}, [editor.isEditable]);
+	const handleCaptionKeyDown = (event: React.KeyboardEvent) => {
+		if (event.key !== "Enter" || event.nativeEvent.isComposing || event.keyCode === 229) return;
+		event.preventDefault();
+		const position = getPos();
+		if (typeof position !== "number") return;
+		const after = position + node.nodeSize;
+		editor
+			.chain()
+			.insertContentAt(after, { type: "paragraph" })
+			.focus(after + 1)
+			.run();
 	};
 
 	const getImageAttrs = (): ImagePanelAttributes => ({
@@ -122,6 +150,7 @@ function ImageNodeView({
 		displayWidth: node.attrs.displayWidth,
 		displayHeight: node.attrs.displayHeight,
 		alignment: node.attrs.alignment,
+		link: node.attrs.link,
 	});
 
 	const openSidebar = () => {
@@ -137,12 +166,20 @@ function ImageNodeView({
 			  }) => void)
 			| null;
 		if (onOpen) {
+			const updateFromPanel = (attrs: Partial<ImageAttributes>) => {
+				updateAttributes(attrs);
+				const position = getPos();
+				if (typeof position === "number") {
+					panelAttrsRef.current = editor.state.doc.nodeAt(position)?.attrs;
+				}
+			};
 			sidebarOpenRef.current = true;
+			panelAttrsRef.current = node.attrs;
 			onOpen({
 				type: "image",
 				attrs: getImageAttrs(),
-				onUpdate: (attrs: Partial<ImageAttributes>) => updateAttributes(attrs),
-				onReplace: (attrs: ImageAttributes) => updateAttributes(attrs),
+				onUpdate: updateFromPanel,
+				onReplace: updateFromPanel,
 				onDelete: () => deleteNode(),
 				onClose: () => {
 					sidebarOpenRef.current = false;
@@ -176,6 +213,24 @@ function ImageNodeView({
 		}
 	}, [selected]);
 
+	// The panel stages its fields and writes them all back on Apply, so it must
+	// not outlive a change made outside it, or the node itself.
+	React.useEffect(() => {
+		if (sidebarOpenRef.current && node.attrs !== panelAttrsRef.current) closeSidebar();
+	}, [node.attrs]);
+	React.useEffect(() => closeSidebar, []);
+
+	const toggleSettings = useStableCallback(toggleSidebar);
+	React.useEffect(() => {
+		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
+		const handles = storage?.settingsHandles as Set<ImageSettingsHandle> | undefined;
+		const handle = { getPos, toggle: toggleSettings };
+		handles?.add(handle);
+		return () => {
+			handles?.delete(handle);
+		};
+	}, [editor, getPos, toggleSettings]);
+
 	const alignment = node.attrs.alignment as
 		| "left"
 		| "center"
@@ -188,18 +243,22 @@ function ImageNodeView({
 	const alignmentStyle: React.CSSProperties =
 		alignment === "center" ? { width: "fit-content", marginInline: "auto" } : {};
 	const { width, height, displayWidth, displayHeight } = node.attrs as ImageAttributes;
-	const aspectRatio = width && height ? width / height : undefined;
-	let renderWidth = width;
-	let renderHeight = height;
-	if (displayWidth && displayHeight) {
-		renderWidth = displayWidth;
-		renderHeight = displayHeight;
-	} else if (displayWidth && aspectRatio) {
-		renderWidth = displayWidth;
-		renderHeight = Math.round(displayWidth / aspectRatio);
-	} else if (displayHeight && aspectRatio) {
-		renderWidth = Math.round(displayHeight * aspectRatio);
-		renderHeight = displayHeight;
+	const originalWidth = imageDimension(width);
+	const originalHeight = imageDimension(height);
+	const customWidth = imageDimension(displayWidth);
+	const customHeight = imageDimension(displayHeight);
+	const aspectRatio = originalWidth && originalHeight ? originalWidth / originalHeight : undefined;
+	let renderWidth = originalWidth;
+	let renderHeight = originalHeight;
+	if (customWidth && customHeight) {
+		renderWidth = customWidth;
+		renderHeight = customHeight;
+	} else if (customWidth && aspectRatio) {
+		renderWidth = customWidth;
+		renderHeight = Math.round(customWidth / aspectRatio);
+	} else if (customHeight && aspectRatio) {
+		renderWidth = Math.round(customHeight * aspectRatio);
+		renderHeight = customHeight;
 	}
 
 	return (
@@ -212,7 +271,6 @@ function ImageNodeView({
 					"w-full min-[641px]:w-fit min-[641px]:max-w-1/2",
 				alignment === "left" && "min-[641px]:[float:left] min-[641px]:me-6",
 				alignment === "right" && "min-[641px]:[float:right] min-[641px]:ms-6",
-				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
 			)}
 		>
 			<figure className="relative my-0!">
@@ -220,7 +278,12 @@ function ImageNodeView({
 					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
-					className="rounded-lg max-w-full h-auto object-cover"
+					className={cn(
+						"rounded-lg max-w-full h-auto object-cover",
+						// Shown only while focus is inside this editor, as the toolbar is.
+						selected &&
+							"group-focus-within/editor:ring-2 ring-kumo-brand ring-offset-2 ring-offset-kumo-base",
+					)}
 					width={renderWidth}
 					height={renderHeight}
 					style={{
@@ -230,98 +293,32 @@ function ImageNodeView({
 					draggable={false}
 				/>
 
-				{/* Selection overlay with actions */}
-				{selected && (
-					<div className="absolute top-2 end-2 flex gap-1">
-						<Button
-							type="button"
-							variant="secondary"
-							shape="square"
-							className="h-8 w-8"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={() => setIsEditingAlt(true)}
-							title={t`Quick edit alt text`}
-							aria-label={t`Quick edit alt text`}
-						>
-							<Pencil className="h-4 w-4" />
-						</Button>
-						<Button
-							type="button"
-							variant="secondary"
-							shape="square"
-							className="h-8 w-8"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={toggleSidebar}
-							title={t`Image settings`}
-							aria-label={t`Image settings`}
-						>
-							<SlidersHorizontal className="h-4 w-4" />
-						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							shape="square"
-							className="h-8 w-8"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={() => deleteNode()}
-							title={t`Delete image`}
-							aria-label={t`Delete image`}
-						>
-							<Trash className="h-4 w-4" />
-						</Button>
-					</div>
-				)}
-
-				{/* Quick alt text editor (inline) */}
-				{isEditingAlt && (
-					<div className="absolute bottom-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-3 rounded-b-lg border-t">
-						<label className="text-xs font-medium text-kumo-subtle mb-1 block">{t`Alt text`}</label>
-						<div className="flex gap-2">
-							<Input
-								type="text"
-								value={altText}
-								onChange={(e) => setAltText(e.target.value)}
-								onKeyDown={handleKeyDown}
-								placeholder={t`Describe the image...`}
-								className="flex-1 h-8 text-sm"
-								autoFocus
-							/>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-8 w-8"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={() => {
-									setAltText(node.attrs.alt || "");
-									setIsEditingAlt(false);
-								}}
-								title={t`Cancel`}
-								aria-label={t`Cancel`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-							<Button
-								type="button"
-								variant="primary"
-								shape="square"
-								className="h-8 w-8"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={handleSaveAlt}
-								title={t`Save`}
-								aria-label={t`Save alt text`}
-							>
-								<Check className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-				)}
-
-				{/* Caption only — must mirror the published renderer (Image.astro) */}
-				{!isEditingAlt && node.attrs.caption && (
-					<figcaption className="text-center text-sm text-kumo-subtle mt-2">
-						{node.attrs.caption}
+				{/* Show the caption, never the alt text, as the published renderer (Image.astro) does */}
+				{editor.isEditable ? (
+					// Inline-size containment keeps the placeholder from widening a small image.
+					<figcaption className="mt-2 [contain:inline-size]">
+						<textarea
+							ref={captionRef}
+							aria-label={t`Caption`}
+							placeholder={t`Type caption for image (optional)`}
+							rows={1}
+							tabIndex={-1}
+							dir="auto"
+							value={caption}
+							onChange={(event) => {
+								if (editor.isEditable) updateAttributes({ caption: event.target.value });
+							}}
+							onFocus={selectImage}
+							onPointerEnter={(event) => setNodeViewDraggable(event, false)}
+							onPointerLeave={(event) => setNodeViewDraggable(event, true)}
+							onKeyDown={handleCaptionKeyDown}
+							className="block w-full resize-none field-sizing-content rounded-sm bg-transparent text-center text-sm text-kumo-subtle placeholder:text-kumo-placeholder focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-focus/50"
+						/>
 					</figcaption>
+				) : (
+					caption && (
+						<figcaption className="text-center text-sm text-kumo-subtle mt-2">{caption}</figcaption>
+					)
 				)}
 			</figure>
 		</NodeViewWrapper>
@@ -355,6 +352,8 @@ export const ImageExtension = Node.create({
 				| null,
 			/** Callback set by PortableTextEditor to close the sidebar */
 			onCloseBlockSidebar: null as (() => void) | null,
+			/** One per mounted image node view, so the toolbar can toggle a given image's settings */
+			settingsHandles: new Set<ImageSettingsHandle>(),
 		};
 	},
 
@@ -410,6 +409,9 @@ export const ImageExtension = Node.create({
 			alignment: {
 				default: null,
 			},
+			link: {
+				default: null,
+			},
 		};
 	},
 
@@ -446,6 +448,7 @@ export const ImageExtension = Node.create({
 					displayWidth?: number;
 					displayHeight?: number;
 					alignment?: "left" | "center" | "right" | "wide" | "full";
+					link?: { href: string; blank?: boolean } | null;
 				}) =>
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				({ commands }: any) => {

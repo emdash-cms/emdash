@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
 	DEFAULT_LOCALE,
 	getLocaleDir,
+	getLocaleLabel,
 	loadMessages,
 	resolveLocale,
 	SUPPORTED_LOCALES,
@@ -20,6 +21,26 @@ for (const { code } of SUPPORTED_LOCALES) {
 test("loadMessages falls back to English for unknown locale", async () => {
 	const [fallback, english] = await Promise.all([loadMessages("xx"), loadMessages("en")]);
 	expect(fallback).toEqual(english);
+});
+
+// -- getLocaleLabel ----------------------------------------------------------
+
+describe("getLocaleLabel", () => {
+	test("uses the admin label for a supported locale", () => {
+		expect(getLocaleLabel("de")).toBe("Deutsch");
+	});
+
+	test("matches a supported locale regardless of case", () => {
+		expect(getLocaleLabel("zh-tw")).toBe("繁體中文");
+	});
+
+	test("names a content locale the admin is not translated into", () => {
+		expect(getLocaleLabel("it")).toBe("Italiano");
+	});
+
+	test("falls back to the uppercase code for an invalid tag", () => {
+		expect(getLocaleLabel("not a locale")).toBe("NOT A LOCALE");
+	});
 });
 
 // -- getLocaleDir ----------------------------------------------------------
@@ -109,8 +130,12 @@ describe("resolveLocale", () => {
 	});
 
 	// Accept-Language base language fallback
-	test("falls back to base language (pt-PT -> pt-BR)", () => {
-		expect(resolveLocale(makeRequest({ "accept-language": "pt-PT" }))).toBe("pt-BR");
+	test("matches accept-language with region (pt-PT)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "pt-PT" }))).toBe("pt-PT");
+	});
+
+	test("falls back to base language (de-AT -> de)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "de-AT" }))).toBe("de");
 	});
 
 	test("matches exact accept-language tag with region (zh-TW)", () => {

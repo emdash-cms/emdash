@@ -22,6 +22,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm, createTermTranslation, withLocale } from "../lib/api/taxonomies.js";
+import { inlineLabel } from "../lib/inline-label.js";
 import { resolveTaxonomyDefinitions } from "../lib/taxonomy-definitions.js";
 import { foldForMatch, termExactMatches, termMatches } from "../lib/taxonomy-match.js";
 import { cn } from "../lib/utils.js";
@@ -637,7 +638,7 @@ function TaxonomySection({
 	canManageTaxonomies: boolean;
 	onChange?: (termIds: string[]) => void;
 }) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
@@ -675,11 +676,14 @@ function TaxonomySection({
 			void queryClient.invalidateQueries({
 				queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
 			});
-			toastManager.add({ title: t`${taxonomy.label} updated` });
+			toastManager.add({
+				title: t`${taxonomy.label} updated`,
+				description: t`Saved immediately; term changes do not wait for Publish changes.`,
+			});
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: t`Failed to update ${taxonomy.label.toLowerCase()}`,
+				title: t`Failed to update ${inlineLabel(taxonomy.label, lingui.locale)}`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});

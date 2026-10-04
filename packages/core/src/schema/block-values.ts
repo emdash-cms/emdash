@@ -12,6 +12,7 @@ import { generateBlockFieldSchema } from "./zod-generator.js";
 export interface BlockWriteOptions {
 	migrateBlocks?: boolean;
 	replaceBlocks?: boolean;
+	restoreBlocks?: boolean;
 }
 
 export interface StoredBlockValue extends Record<string, unknown> {
@@ -25,6 +26,65 @@ export type ResolvedBlockTypes = ReadonlyMap<string, BlockType>;
 export async function resolveBlockTypes(db: Kysely<Database>): Promise<ResolvedBlockTypes> {
 	const blockTypes = await new BlockTypeRegistry(db).listBlockTypes();
 	return new Map(blockTypes.map((type) => [type.slug, type]));
+}
+
+async function fingerprintResolvedTypes(
+	allowedTypes: readonly string[],
+	retiredTypes: readonly string[],
+	types: readonly BlockType[],
+): Promise<string> {
+	const payload = JSON.stringify({
+		allowedTypes,
+		retiredTypes,
+		types: types.map((type) => ({
+			slug: type.slug,
+			currentVersion: type.currentVersion,
+			versions: type.versions.map((version) => ({
+				version: version.version,
+				fingerprint: version.fingerprint,
+			})),
+		})),
+	});
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
+	const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	);
+	return `blocks-field:v1:sha256:${hex}`;
+}
+
+export async function expandCollectionBlockFields(
+	db: Kysely<Database>,
+	collection: CollectionWithFields,
+): Promise<CollectionWithFields> {
+	const blockFields = collection.fields.filter((field) => field.type === "blocks");
+	if (blockFields.length === 0) return collection;
+	const resolved = await resolveBlockTypes(db);
+	const fields = await Promise.all(
+		collection.fields.map(async (field) => {
+			if (field.type !== "blocks") return field;
+			const allowedTypes = field.validation?.allowedTypes ?? [];
+			const retiredTypes = field.validation?.retiredTypes ?? [];
+			const slugs = [
+				...allowedTypes,
+				...retiredTypes.filter((slug) => !allowedTypes.includes(slug)),
+			];
+			const blockTypes = slugs.map((slug) => {
+				const type = resolved.get(slug);
+				if (!type) unsupported(field.slug, `block type "${slug}" is unavailable`);
+				return type;
+			});
+			return {
+				...field,
+				blockTypes,
+				blockTypeFingerprint: await fingerprintResolvedTypes(
+					allowedTypes,
+					retiredTypes,
+					blockTypes,
+				),
+			};
+		}),
+	);
+	return { ...collection, fields };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -139,7 +199,10 @@ function normalizeBlockArray(
 			if (previous._type !== rawBlock._type) {
 				validationError(`${blockPath}._type`, "cannot change an existing block's type");
 			}
-		} else if (!allowed.has(rawBlock._type)) {
+		} else if (
+			!allowed.has(rawBlock._type) &&
+			!(options.restoreBlocks && retired.has(rawBlock._type))
+		) {
 			const reason = retired.has(rawBlock._type) ? "is retired" : "is not allowed by this field";
 			validationError(`${blockPath}._type`, `block type "${rawBlock._type}" ${reason}`);
 		}
@@ -160,7 +223,7 @@ function normalizeBlockArray(
 			}
 		} else {
 			version = rawBlock._version === undefined ? type.currentVersion : rawBlock._version;
-			if (version !== type.currentVersion) {
+			if (version !== type.currentVersion && !options.restoreBlocks) {
 				validationError(`${blockPath}._version`, "new blocks must use the active version");
 			}
 		}

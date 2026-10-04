@@ -1,5 +1,6 @@
 import { safeParse } from "@atcute/lexicons/validations";
-import { declaredAccessToCapabilities } from "@emdash-cms/plugin-types";
+import { declaredAccessToCapabilities, describeCapability } from "@emdash-cms/plugin-types";
+import type { CapabilityDescription } from "@emdash-cms/plugin-types";
 import { RECORD_SCOPED_BLOB_CACHE_TYPE } from "@emdash-cms/registry-lexicons";
 import { PackageReleaseExtension } from "@emdash-cms/registry-lexicons";
 import type { RegistryEntryData } from "@emdash-cms/registry-loader";
@@ -59,63 +60,9 @@ export function requestedPermissions(data: RegistryEntryData): PermissionSummary
 	return { declared: true, capabilities, allowedHosts: summary.allowedHosts };
 }
 
-const PERMISSION_COPY: Record<string, { label: string; description: string }> = {
-	"content:read": {
-		label: "Read content",
-		description: "Read entries from your site’s content collections.",
-	},
-	"content:write": {
-		label: "Manage content",
-		description: "Create, update, and delete content entries.",
-	},
-	"taxonomies:read": {
-		label: "Read taxonomies",
-		description: "Read taxonomy definitions, terms, and content assignments.",
-	},
-	"media:read": {
-		label: "Read media",
-		description: "Read media metadata and files from your library.",
-	},
-	"media:write": {
-		label: "Manage media",
-		description: "Upload, update, and delete media from your library.",
-	},
-	"network:request": {
-		label: "Make network requests",
-		description: "Connect to the publisher-declared external hosts.",
-	},
-	"network:request:unrestricted": {
-		label: "Make unrestricted network requests",
-		description: "Connect to any external host.",
-	},
-	"email:send": {
-		label: "Send email",
-		description: "Send email through your site’s configured mail service.",
-	},
-	"hooks.email-events:register": {
-		label: "Observe outgoing email",
-		description: "Observe and modify messages before or after they are sent.",
-	},
-	"hooks.email-transport:register": {
-		label: "Provide the email transport",
-		description: "Deliver every message sent by the site, replacing the current transport.",
-	},
-	"hooks.page-fragments:register": {
-		label: "Add page scripts and styles",
-		description: "Inject script or style fragments into rendered pages.",
-	},
-	"users:read": {
-		label: "Read user accounts",
-		description: "Read user records from your site.",
-	},
-};
-
-export function permissionCopy(capability: string): {
-	label: string;
-	description: string;
-} {
+export function permissionCopy(capability: string): CapabilityDescription {
 	return (
-		PERMISSION_COPY[capability] ?? {
+		describeCapability(capability) ?? {
 			label: capability,
 			description: "Use this publisher-declared capability.",
 		}

@@ -158,46 +158,60 @@ export class TaxonomyRepository {
 	async create(input: CreateTaxonomyInput): Promise<Taxonomy> {
 		const id = ulid();
 
-		// Empty-string parentId is coerced to null defensively. Higher layers
-		// also normalize this — see handleTermCreate / handleTermUpdate.
+		// Empty-string parentId counts as omitted. Higher layers also normalize
+		// this — see handleTermCreate / handleTermUpdate.
 		// `parent_id` stores the parent's locale-agnostic translation_group (not a
 		// row id), mirroring content_taxonomies.taxonomy_id, so a child stays
 		// nested in every locale's tree. resolveTranslationGroup accepts either a
 		// row id or an already-resolved group, so this is idempotent.
-		const parentInput =
-			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
-		const parentId = parentInput ? await this.resolveParentRef(parentInput) : null;
+		const parentInput = input.parentId === "" ? undefined : input.parentId;
+		let parentId = parentInput ? await this.resolveParentRef(parentInput) : null;
 
 		let translationGroup = id;
 		let sortOrder: number | null = null;
+		let movesGroup = false;
 		if (input.translationOf) {
 			const source = await this.findById(input.translationOf);
 			if (source?.translationGroup) translationGroup = source.translationGroup;
 			// A translation is the same term in another locale, so it takes the
-			// group's position — but only while it stays in the group that position
-			// belongs to. Landing under a different parent makes it a new member of
-			// that sibling group, and the source's position means nothing there.
-			if (source && source.parentId === parentId) sortOrder = source.sortOrder;
+			// group's parent and position. Naming a different parent moves the whole
+			// group there, as an update through any locale does, and appends it to
+			// the siblings it lands among.
+			if (source && (parentInput === undefined || source.parentId === parentId)) {
+				parentId = source.parentId;
+				sortOrder = source.sortOrder;
+			} else if (source) {
+				movesGroup = true;
+			}
 		}
 		sortOrder ??= await this.nextSortOrder(input.name, parentId);
 
-		await this.db
-			.insertInto("taxonomies")
-			.values({
-				id,
-				name: input.name,
-				slug: input.slug,
-				label: input.label,
-				parent_id: parentId,
-				data: input.data ? JSON.stringify(input.data) : null,
-				sort_order: sortOrder,
-				// When omitted, the DB DEFAULT 'en' is used — keeps behaviour
-				// consistent with ContentRepository and lets higher layers
-				// supply an explicit locale from request context.
-				...(input.locale !== undefined ? { locale: input.locale } : {}),
-				translation_group: translationGroup,
-			})
-			.execute();
+		await withTransaction(this.db, async (trx) => {
+			await trx
+				.insertInto("taxonomies")
+				.values({
+					id,
+					name: input.name,
+					slug: input.slug,
+					label: input.label,
+					parent_id: parentId,
+					data: input.data ? JSON.stringify(input.data) : null,
+					sort_order: sortOrder,
+					// When omitted, the DB DEFAULT 'en' is used — keeps behaviour
+					// consistent with ContentRepository and lets higher layers
+					// supply an explicit locale from request context.
+					...(input.locale !== undefined ? { locale: input.locale } : {}),
+					translation_group: translationGroup,
+				})
+				.execute();
+			if (movesGroup) {
+				await trx
+					.updateTable("taxonomies")
+					.set({ parent_id: parentId, sort_order: sortOrder })
+					.where("translation_group", "=", translationGroup)
+					.execute();
+			}
+		});
 
 		invalidateTaxonomyObjectCache();
 
@@ -426,6 +440,13 @@ export class TaxonomyRepository {
 				// A position only means anything within one sibling group, so a term
 				// that changes parent is appended to the group it lands in.
 				group.sort_order = await this.nextSortOrder(existing.name, parentId);
+			} else if (
+				await this.groupHasOtherParent(existing.translationGroup ?? existing.id, parentId)
+			) {
+				// Other locales of the term sit elsewhere; bring them to this row's
+				// parent and position.
+				group.parent_id = parentId;
+				group.sort_order = existing.sortOrder;
 			}
 		}
 
@@ -542,6 +563,24 @@ export class TaxonomyRepository {
 		// Null only when the group is empty.
 		if (!bounds || bounds.max === null) return 0;
 		return bounds.max + 1;
+	}
+
+	/** Whether any row of `translationGroup` has a parent other than `parentId`. */
+	private async groupHasOtherParent(
+		translationGroup: string,
+		parentId: string | null,
+	): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("taxonomies")
+			.select("id")
+			.where("translation_group", "=", translationGroup)
+			.where((eb) =>
+				parentId === null
+					? eb("parent_id", "is not", null)
+					: eb.or([eb("parent_id", "is", null), eb("parent_id", "!=", parentId)]),
+			)
+			.executeTakeFirst();
+		return row !== undefined;
 	}
 
 	async delete(id: string): Promise<boolean> {

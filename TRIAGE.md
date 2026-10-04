@@ -47,7 +47,7 @@ EmDash has a lot of automation. Probably the most important piece is @emdashbot,
 - **It skips draft PRs and PRs opened by bots**, including @emdashbot's own. A draft gets its review when it is marked ready, or straight away if you add `bot:review`. On a bot-authored PR, `bot:review` has no effect.
 - Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically. See [PR Labels](#pr-labels) for what they mean.
 
-Issue triage uses a separate issue-work bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)). It performs a bounded first pass on new issues, applies area labels and one kind label (`bot:bug`, `bot:enhancement`, or `bot:task`), and asks a focused question when the report lacks information. It may prepare a candidate automatically for an obvious low-risk change, but deeper or sensitive work waits for maintainer approval. A human still accepts the candidate and reviews the resulting PR.
+Issue triage uses a separate issue-work bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)). It performs a bounded first pass on new issues, applies area labels and one kind label (`bot:bug`, `bot:enhancement`, or `bot:task`), and asks a focused question when the report lacks information. Issues opened by organization members and repository collaborators skip that pass until a maintainer runs `@emdashbot triage`. It may prepare a candidate automatically for an obvious low-risk change, but deeper or sensitive work waits for maintainer approval. A human still accepts the candidate and reviews the resulting PR.
 
 You can help by:
 
@@ -155,7 +155,7 @@ For bugs, a confirmed reproduction is the most useful evidence for priority. If 
 
 ### The Investigation Bot and `bot:*` Labels
 
-New issues enter automatic triage. A maintainer can also run the same pass on an older issue with `@emdashbot triage`. The normal maintainer commands are:
+New issues enter automatic triage, except issues opened by organization members and repository collaborators, triagers included. Those authors have usually looked into the issue already, so the bot waits for a command there. On such an issue, or on an older one, `@emdashbot triage` runs the same pass. The normal maintainer commands are:
 
 - `@emdashbot triage` — classify the issue, check the relevant source area, apply useful labels, and decide whether to ask for information, await approval, or start low-risk work.
 - `@emdashbot investigate` — reproduce and diagnose the report with evidence, without preparing a candidate.
@@ -276,7 +276,7 @@ Almost every label you'll see on a PR is applied and removed automatically. You 
 The labels you apply by hand on a PR:
 
 - `bot:review` to summon a bot re-review.
-- `ci:rerun` to re-run the failed CI jobs on the PR's latest commit once CI has finished, for example after a flaky test. The label removes itself, so add it again for another attempt. It doesn't start workflows waiting for approval (`needs-approval`); those need a maintainer.
+- `ci:run` to start CI on the PR's latest commit. It approves workflows waiting for approval (`needs-approval`) and re-runs failed jobs once CI has finished, for example after a flaky test. Approving runs the contributor's code on our runners, so read the diff first and don't approve anything that touches workflows, build scripts, or dependencies in ways you can't account for. The label removes itself, so add it again for another attempt, and again after the contributor pushes new commits.
 - `needs-discussion` when a feature/refactor PR has no maintainer approval anywhere.
 - `blocked` when progress depends on another issue, PR, or maintainer decision.
 

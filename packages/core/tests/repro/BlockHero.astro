@@ -1,0 +1,13 @@
+---
+interface Props {
+	value: { _version: 1 | 2; heading?: string; title?: string };
+	index: number;
+	blockKey: string;
+}
+
+const { value, index, blockKey } = Astro.props;
+---
+
+<section data-block="hero" data-index={index} data-key={blockKey}>
+	{value._version === 1 ? value.heading : value.title}
+</section>

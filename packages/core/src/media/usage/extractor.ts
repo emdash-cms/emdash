@@ -59,6 +59,11 @@ export function extractMediaUsageOccurrences({
 
 		if (field.type === "portableText") {
 			extractPortableTextOccurrences(occurrences, seen, field.slug, value);
+			continue;
+		}
+
+		if (field.type === "blocks") {
+			extractBlockOccurrences(occurrences, seen, field, value);
 		}
 	}
 
@@ -71,6 +76,7 @@ function extractRepeaterOccurrences(
 	fieldSlug: string,
 	value: unknown,
 	subFields: readonly MediaUsageExtractionSubField[] | undefined,
+	pathPrefix = fieldSlug,
 ): void {
 	if (!Array.isArray(value) || !Array.isArray(subFields)) return;
 
@@ -84,7 +90,7 @@ function extractRepeaterOccurrences(
 				occurrences,
 				seen,
 				fieldSlug,
-				`${fieldSlug}[${itemIndex}].${subField.slug}`,
+				`${pathPrefix}[${itemIndex}].${subField.slug}`,
 				item[subField.slug],
 			);
 		}
@@ -121,6 +127,7 @@ function extractPortableTextOccurrences(
 	seen: Set<string>,
 	fieldSlug: string,
 	value: unknown,
+	pathPrefix = fieldSlug,
 ): void {
 	if (!Array.isArray(value)) return;
 
@@ -132,7 +139,7 @@ function extractPortableTextOccurrences(
 				occurrences,
 				seen,
 				fieldSlug,
-				`${fieldSlug}[${blockIndex}]`,
+				`${pathPrefix}[${blockIndex}]`,
 				block.asset,
 			);
 			continue;
@@ -146,8 +153,72 @@ function extractPortableTextOccurrences(
 					occurrences,
 					seen,
 					fieldSlug,
-					`${fieldSlug}[${blockIndex}].images[${imageIndex}]`,
+					`${pathPrefix}[${blockIndex}].images[${imageIndex}]`,
 					image.asset,
+				);
+			}
+		}
+	}
+}
+
+export class MediaUsageBlockResolutionError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MediaUsageBlockResolutionError";
+	}
+}
+
+function extractBlockOccurrences(
+	occurrences: ExtractedMediaUsageOccurrence[],
+	seen: Set<string>,
+	field: ExtractMediaUsageOccurrencesInput["fields"][number],
+	value: unknown,
+): void {
+	if (!Array.isArray(value)) return;
+	const types = new Map((field.blockTypes ?? []).map((type) => [type.slug, type]));
+	for (const [index, block] of value.entries()) {
+		if (!isRecord(block)) continue;
+		if (
+			typeof block._type !== "string" ||
+			typeof block._version !== "number" ||
+			typeof block._key !== "string" ||
+			block._key.length === 0
+		) {
+			throw new MediaUsageBlockResolutionError(
+				`Block at ${field.slug}[${index}] has invalid identity metadata`,
+			);
+		}
+		const type = types.get(block._type);
+		const version = type?.versions.find((candidate) => candidate.version === block._version);
+		if (!type || !version || version.unsupportedTypes?.length) {
+			throw new MediaUsageBlockResolutionError(
+				`Block at ${field.slug}[${index}] has no retained definition`,
+			);
+		}
+		const pathPrefix = `${field.slug}.${block._key}`;
+		for (const nestedField of version.fields) {
+			const nestedValue = block[nestedField.slug];
+			const nestedPath = `${pathPrefix}.${nestedField.slug}`;
+			if (nestedField.type === "image") {
+				addImageOccurrences(occurrences, seen, field.slug, nestedPath, nestedValue);
+			} else if (nestedField.type === "file") {
+				addOccurrence(occurrences, seen, {
+					fieldSlug: field.slug,
+					fieldPath: nestedPath,
+					referenceType: "file_field",
+					value: nestedValue,
+					fallbackKind: null,
+				});
+			} else if (nestedField.type === "portableText") {
+				extractPortableTextOccurrences(occurrences, seen, field.slug, nestedValue, nestedPath);
+			} else if (nestedField.type === "repeater") {
+				extractRepeaterOccurrences(
+					occurrences,
+					seen,
+					field.slug,
+					nestedValue,
+					nestedField.validation?.subFields,
+					nestedPath,
 				);
 			}
 		}

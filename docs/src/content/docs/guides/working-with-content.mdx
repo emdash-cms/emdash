@@ -19,6 +19,7 @@ The collection page lists its entries. From here you can:
 - select **Add New** to create an entry;
 - search by the entry title, slug, and fields marked as searchable;
 - filter by publishing state, author, byline, date, and locale;
+- move between pages of entries and choose whether a page shows 20, 50, or 100;
 - select entries for bulk publishing, returning to draft, or moving to Trash; and
 - open **Trash** to restore or permanently delete an entry.
 
@@ -60,16 +61,70 @@ Use the toolbar to format the selected text. To insert a block, select the add-b
 a paragraph or type `/` and search for a block by name. Image and gallery blocks open the same media
 picker used by image fields.
 
-When you select an image block, its settings let you replace or remove that use of the image and set
-its display size, alignment, alt text, caption, and optional tooltip. **Edit asset** opens the
-underlying Media Library item, where changing or replacing the asset can affect other entries that
-use it. See [Media Library](/guides/media-library/#edit-an-image-used-in-content) for that distinction.
+You can also drag image files into the editor or paste a copied image or screenshot. Each image
+uploads to the Media Library and appears between the surrounding blocks when the upload finishes. If
+an upload fails, the reason appears where the image would have gone.
 
-<Aside type="caution">
-	The standard Portable Text renderer sanitizes HTML blocks. It permits iframe content only from
-	YouTube and Vimeo. A custom HTML-block renderer must apply its own sanitization and provider
-	allowlist before inserting HTML into a page.
+When you select an image block, a toolbar appears above it. Use it to replace the image, edit its alt
+text, align it, add a link, or delete the block. The **Alt text** button is highlighted once the image
+has a description, and hovering it shows the description. Alt text that is only a Media Library
+image's file name doesn't count. Type a caption in the field under the image, and press Enter to keep
+writing below it. From a selected image, Tab moves to the caption and then the toolbar.
+
+**Image settings** in the toolbar opens every setting for that use of the image, including its
+display size and optional tooltip. **Edit asset** there opens the underlying Media Library item,
+where changing or replacing the asset can affect other entries that use it. See
+[Media Library](/guides/media-library/#edit-an-image-used-in-content) for that distinction.
+
+### Add HTML, CSS and JavaScript
+
+An HTML block holds code the other blocks can't express, such as an embed, a signup form or a small
+widget. Its tabs are **HTML**, **CSS**, **JS** and **Preview**. Each code tab is a code editor where
+Tab indents; press Escape to return to the surrounding text. The **CSS** and **JS** tabs are
+optional: you can also paste a whole snippet, with its `<style>` and `<script>` elements, into the
+**HTML** tab.
+
+**Preview** shows the block as your site renders it. When you open an entry, a block that runs
+JavaScript waits until you select **Run preview**, so a broken script can't freeze the editor.
+
+The block's menu sets how your site renders it:
+
+- **Isolated frame** runs the block's HTML, CSS and JavaScript in a sandboxed frame that grows with
+  its content. The frame can't read your site's cookies, storage or pages, and your site's styles
+  don't reach it. Relative links resolve from your site's root. After a visitor clicks inside the
+  frame, it can open other pages in the visitor's tab or a new one. New HTML blocks use this mode,
+  but blocks pasted from another website or browser tab don't. Don't size content to the frame's
+  viewport, as with `height: 100vh`: the frame grows to fit it, which makes the content taller
+  again, until the frame reaches 20,000 pixels.
+- **Inline** puts the HTML into the page, where it uses your site's styles. Your site keeps text
+  formatting, links, lists, tables, images and iframes, and removes other markup, such as scripts,
+  `<style>` elements, `style` attributes, media and form controls. Iframes from sites other than
+  YouTube and Vimeo are emptied. An inline block has no **CSS** or **JS** tab.
+
+Search engines may not treat text inside an isolated frame as part of the page. Put text that
+matters for search in paragraphs or an inline block.
+
+<Aside>
+	In a deployed admin, previews follow the admin's security policy, which blocks scripts, styles,
+	fonts and other resources from other sites, but not images or https frames. A note below the
+	preview says when this happens. Your site can still load them.
 </Aside>
+
+### Embed a page from another site
+
+An iframe block shows a page from another site, such as a video, a map or a form. Type `/iframe`,
+then paste the site's embed code or a link into the **Code** tab. YouTube and Vimeo links become
+their players, and any other https link is embedded as it is. **Preview** shows the embedded page.
+When you open an entry, a saved block waits until you select **Load preview**, so the admin doesn't
+load other sites' pages until you ask. Iframe blocks pasted from another website or browser tab
+arrive empty.
+
+Only https pages can be embedded, and the block keeps only the parts of an embed code it needs: the
+address, the title, the size, full-screen support and the permissions players use. Some sites refuse
+to appear inside another site's page; their preview stays blank or shows an error from that site.
+
+An embed code that runs a script instead of an iframe, such as some social media posts, belongs in
+an [HTML block](#add-html-css-and-javascript).
 
 ## Save draft changes
 
@@ -104,9 +159,11 @@ If the browser or computer closes without releasing it, the lock expires seven m
 last renewal.
 
 Locks are independent for each locale, so two people can edit different translations of the same
-entry. A script or API client is also refused while another editor holds the lock unless it uses the
-documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock) for the complete
-API behavior.
+entry. A script, API client, or MCP client is also refused while another editor holds the lock
+unless it uses the documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock)
+for the complete API behavior and
+[Content lifecycle and bylines](/reference/mcp-server/#content-lifecycle-and-bylines) for the MCP
+tools.
 
 An administrator can turn locking off for a collection under **Content Types**, then the collection,
 then **Edit locking**.
@@ -130,6 +187,57 @@ current live revision stays public; for a new entry, nothing is public yet.
 Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare Workers require a
 Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow
 [Scheduled publishing](/deployment/cloudflare/#scheduled-publishing) to verify the trigger.
+
+## Review the publishing calendar
+
+The calendar shows what was published and what is scheduled across your collections. Contributors
+and higher roles can open **Calendar** from the sidebar or the command palette. When something is
+scheduled, the dashboard's **Scheduled** count also links to it.
+
+The calendar has two views:
+
+- **Month** shows a grid of days. Published entries appear as plain lines and scheduled entries as
+  cards. Hover over or focus an entry to see its full title, state, time, and collection. When a day
+  has more entries than fit, select **+N more** to list them all.
+- **Agenda** lists the month by day, with each entry's time. In the current month, days before today
+  start collapsed unless one of them has an overdue entry, and a red line marks the present.
+
+On a phone or another narrow screen, the calendar opens in **Agenda**, and **Month** shows a date
+picker with dots on the days that have entries. Select a day to list its entries.
+
+Select an entry to open its details in a side panel, or Ctrl-click (Cmd-click on macOS) to open it
+in the editor in a new tab. The panel shows the entry's state, time, collection, locale and
+translations, bylines, and when it was last edited. From the panel you can open the entry in the
+editor, preview scheduled changes, or view a published entry on the site. If you can publish the
+entry (Authors for their own entries, and Editors and higher roles for any entry), you can also
+reschedule it, remove its schedule, or publish an overdue entry now. On a phone, the panel opens as a
+sheet at the bottom of the screen.
+
+Use **Filter** to narrow both views by collection and state, and by locale on multilingual sites. The
+filters, the view, the month, and the open entry are kept in the page URL, so you can bookmark or
+share it.
+
+Entries are placed on days in the site's time zone, which the calendar names beside the month. If
+your browser uses a different time zone, the calendar says so, and entry times also appear in your
+own time zone.
+
+The calendar shows:
+
+- published entries on the date they were published;
+- scheduled entries on their scheduled date; and
+- scheduled changes to a published entry on their scheduled date, marked **Update**. Once the changes
+  go live, the entry appears only on its original publication date.
+
+A schedule that is more than two minutes past its time is marked **Overdue**. This usually means the
+scheduled-publishing sweep is not running; see [Publish or schedule changes](#publish-or-schedule-changes).
+
+The calendar leaves out drafts without a schedule, entries in Trash, and collections hidden from the
+sidebar. The dashboard's **Scheduled** count covers every month and includes hidden collections, so
+it can be higher than what the calendar shows for one month.
+
+The calendar loads at most 1,000 entries for a month, including the days from neighboring months
+that the grid shows. When there are more, it says on which day the loaded entries end and marks the
+later days as not loaded.
 
 ## Restore a revision
 

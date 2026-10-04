@@ -147,7 +147,7 @@ import { getEmDashEntry } from "emdash";
 const { slug } = Astro.params;
 const { entry } = await getEmDashEntry("posts", slug);
 
-if (!entry) return Astro.redirect("/404");
+if (!entry) return Astro.rewrite("/404");
 
 const { x402 } = Astro.locals;
 

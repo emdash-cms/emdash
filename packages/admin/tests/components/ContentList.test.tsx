@@ -3,6 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ContentList } from "../../src/components/ContentList";
+import type { ListPagination } from "../../src/components/ListPaginationFooter";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
 import type {
 	ContentListColumnCellContext,
@@ -700,6 +701,24 @@ describe("ContentList", () => {
 				.toBeInTheDocument();
 		});
 
+		it("keeps the collection label capitalized for a German admin", async () => {
+			const previousLocale = i18n.locale;
+			i18n.load("de", {});
+			i18n.activate("de");
+
+			try {
+				const items = [makeItem({ id: "1", data: { title: "Beitrag" } })];
+				const screen = await render(
+					<ContentList {...defaultProps} collectionLabel="Beiträge" items={items} />,
+				);
+				await expect
+					.element(screen.getByRole("searchbox"))
+					.toHaveAttribute("placeholder", "Search Beiträge...");
+			} finally {
+				i18n.activate(previousLocale);
+			}
+		});
+
 		it("hides search input when no items", async () => {
 			const screen = await render(<ContentList {...defaultProps} items={[]} />);
 			expect(screen.getByRole("searchbox").query()).toBeNull();
@@ -805,6 +824,29 @@ describe("ContentList", () => {
 	});
 
 	describe("pagination", () => {
+		it("explains the bulk tag limit before opening the dialog", async () => {
+			const items = Array.from({ length: 51 }, (_, index) =>
+				makeItem({ id: `item_${index}`, data: { title: `Post ${index}` } }),
+			);
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					bulkTagTaxonomies={[{ name: "tag", label: "Tags", labelSingular: "Tag" }]}
+				/>,
+			);
+			for (let pageIndex = 0; pageIndex < 3; pageIndex++) {
+				await screen.getByRole("checkbox", { name: "Select all on this page" }).click();
+				if (pageIndex < 2) await screen.getByRole("button", { name: "Next page" }).click();
+			}
+			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeDisabled();
+			await expect
+				.element(screen.getByRole("status"))
+				.toHaveTextContent("Select up to 50 posts at a time.");
+			await screen.getByRole("checkbox", { name: "Select Post 50" }).click();
+			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeEnabled();
+		});
+
 		it("shows pagination when items exceed page size", async () => {
 			const items = Array.from({ length: 25 }, (_, i) =>
 				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
@@ -857,6 +899,192 @@ describe("ContentList", () => {
 
 			// 143 / 20 = 8 pages. The denominator should read 8, not "/5".
 			await expect.element(screen.getByText("1 / 8")).toBeInTheDocument();
+		});
+	});
+
+	describe("legacy selection", () => {
+		it("drops a selected row that leaves the loaded list", async () => {
+			const first = makeItem({ id: "a", data: { title: "Alpha" } });
+			const second = makeItem({ id: "b", data: { title: "Bravo" } });
+			const screen = await render(
+				<ContentList {...defaultProps} items={[first, second]} onBulkDelete={vi.fn()} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+
+			await screen.rerender(
+				<ContentList {...defaultProps} items={[second]} onBulkDelete={vi.fn()} />,
+			);
+
+			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
+		});
+	});
+
+	describe("numbered pages", () => {
+		function makePagination(overrides: Partial<ListPagination> = {}): ListPagination {
+			return {
+				page: 1,
+				perPage: 20,
+				totalCount: 143,
+				isPending: false,
+				onPageChange: vi.fn(),
+				onPageSizeChange: vi.fn(),
+				...overrides,
+			};
+		}
+
+		function makePosts(from: number, count: number) {
+			return Array.from({ length: count }, (_, index) =>
+				makeItem({ id: `post_${from + index}`, data: { title: `Post ${from + index}` } }),
+			);
+		}
+
+		it("renders the whole server page with the media footer", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={makePosts(1, 50)}
+					pagination={makePagination({ perPage: 50 })}
+					hasMore
+					onLoadMore={vi.fn()}
+				/>,
+			);
+
+			await expect.element(screen.getByText("Showing 1-50 of 143")).toBeInTheDocument();
+			await expect.element(screen.getByText("Post 50")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("navigation", { name: "Posts pagination" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+
+		it("shows the loading row, not the empty state, while an empty page loads", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					pagination={makePagination({ totalCount: 0, isPending: true })}
+				/>,
+			);
+
+			await expect.element(screen.getByText("Loading...")).toBeInTheDocument();
+			expect(screen.getByText(NO_POSTS_YET_REGEX).query()).toBeNull();
+			expect(screen.getByRole("navigation", { name: "Posts pagination" }).query()).toBeNull();
+		});
+
+		it("keeps the sort headers usable but locks the rows while a page loads", async () => {
+			const posts = makePosts(1, 2);
+			const props = {
+				...defaultProps,
+				items: posts,
+				sort: { field: "updatedAt", direction: "desc" } as const,
+				onSortChange: vi.fn(),
+				onBulkDelete: vi.fn(),
+			};
+			const screen = await render(<ContentList {...props} pagination={makePagination()} />);
+			const sortByTitle = screen.getByRole("button", { name: "Title" });
+			sortByTitle.element().focus();
+
+			await screen.rerender(
+				<ContentList {...props} pagination={makePagination({ isPending: true })} />,
+			);
+			// The browser moves focus out of an inert subtree on its next rendering update.
+			await new Promise(requestAnimationFrame);
+			await new Promise(requestAnimationFrame);
+
+			expect(document.activeElement).toBe(sortByTitle.element());
+			const rowCheckbox = screen.getByRole("checkbox", { name: "Select Post 1" }).element();
+			rowCheckbox.focus();
+			expect(document.activeElement).not.toBe(rowCheckbox);
+		});
+
+		it("keeps selections from other pages for bulk actions", async () => {
+			const onBulkPublish = vi.fn().mockResolvedValue([]);
+			const props = { ...defaultProps, onBulkPublish };
+			const screen = await render(
+				<ContentList {...props} items={makePosts(1, 20)} pagination={makePagination()} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Post 3" }).click();
+
+			await screen.rerender(
+				<ContentList
+					{...props}
+					items={makePosts(21, 20)}
+					pagination={makePagination({ page: 2 })}
+				/>,
+			);
+			await screen.getByRole("checkbox", { name: "Select Post 22" }).click();
+			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+
+			expect(onBulkPublish).toHaveBeenCalledWith(["post_3", "post_22"]);
+		});
+
+		it.each([
+			["the status filter", { statusFilter: "draft" as const }],
+			["the collection", { collection: "pages", collectionLabel: "Pages" }],
+		])("clears selections when %s changes", async (_change, changedProps) => {
+			const props = {
+				...defaultProps,
+				items: makePosts(1, 2),
+				onBulkDelete: vi.fn(),
+				onStatusFilterChange: vi.fn(),
+				pagination: makePagination(),
+			};
+			const screen = await render(<ContentList {...props} />);
+			await screen.getByRole("checkbox", { name: "Select Post 1" }).click();
+			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
+
+			await screen.rerender(<ContentList {...props} {...changedProps} />);
+
+			await expect.element(screen.getByText("1 selected")).not.toBeInTheDocument();
+		});
+
+		it("lists rows selected on another page in the bulk-tag dialog", async () => {
+			const props = {
+				...defaultProps,
+				bulkTagTaxonomies: [{ name: "tag", label: "Tags", labelSingular: "Tag" }],
+			};
+			const screen = await render(
+				<ContentList {...props} items={makePosts(1, 20)} pagination={makePagination()} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Post 3" }).click();
+			await screen.rerender(
+				<ContentList
+					{...props}
+					items={makePosts(21, 20)}
+					pagination={makePagination({ page: 2 })}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Add tag" }).click();
+
+			await expect
+				.element(screen.getByRole("dialog").getByText("Post 3", { exact: true }))
+				.toBeInTheDocument();
+		});
+
+		it("pages the trash with its own footer", async () => {
+			const trashedItems = Array.from({ length: 20 }, (_, index) =>
+				makeTrashedItem({ id: `trashed_${index}`, data: { title: `Old ${index}` } }),
+			);
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					trashedItems={trashedItems}
+					trashedCount={25}
+					trashPagination={makePagination({ totalCount: 25 })}
+					hasMoreTrashed
+					onLoadMoreTrashed={vi.fn()}
+				/>,
+			);
+
+			await screen.getByRole("tab", { name: /Trash/ }).click();
+
+			await expect.element(screen.getByText("Showing 1-20 of 25")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("navigation", { name: "Trash pagination" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
 		});
 	});
 

@@ -16,16 +16,23 @@ rules:
       # CLA assistant must comment on PRs from forks; runs a pinned third-party
       # action and does not execute any code from the PR.
       - cla.yml
-      # ci-rerun only re-runs failed jobs of a PR's existing runs via
-      # github-script; it never checks out or runs PR code, and a re-run keeps
-      # the permissions of the run it repeats.
-      - ci-rerun.yml
+      # ci-run only approves and re-runs a PR's existing `pull_request` runs
+      # via github-script; it never checks out or runs PR code, and those runs
+      # keep the read-only, secretless permissions of a fork PR.
+      - ci-run.yml
       # auto-format-apply uses workflow_run to commit the formatted patch
       # computed by the untrusted `auto-format` workflow. The trusted job only
       # consumes the inert patch artifact, verifies the PR head SHA matches the
       # workflow_run head SHA, applies the diff, and pushes back via an app
       # token. It never checks out or executes PR-controlled code.
       - auto-format-apply.yml
+      # env-types-apply uses workflow_run to commit the regenerated
+      # emdash-env.d.ts patch computed by the untrusted `env-types` workflow.
+      # The trusted job only consumes the inert patch artifact, verifies the PR
+      # head SHA matches the workflow_run head SHA, refuses patches touching
+      # anything but emdash-env.d.ts, applies the diff, and pushes back via an
+      # app token. It never executes PR-controlled code.
+      - env-types-apply.yml
       # Lunaria only reads localized content and posts a status comment; does
       # not execute PR-controlled code.
       - lunaria.yml

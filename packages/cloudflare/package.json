@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/cloudflare",
-  "version": "0.39.1",
+  "version": "1.1.0",
   "description": "Cloudflare adapters for EmDash - D1, R2, Access, and Worker Loader sandbox",
   "type": "module",
   "main": "dist/index.mjs",
@@ -17,7 +17,7 @@
       "types": "./dist/db/d1.d.mts",
       "default": "./dist/db/d1.mjs"
     },
-    "./db/d1-migrations": {
+    "./internal/db/d1-migrations": {
       "types": "./dist/db/d1-migrations.d.mts",
       "default": "./dist/db/d1-migrations.mjs"
     },
@@ -25,7 +25,7 @@
       "types": "./dist/db/hyperdrive.d.mts",
       "default": "./dist/db/hyperdrive.mjs"
     },
-    "./db/hyperdrive-migrations": {
+    "./internal/db/hyperdrive-migrations": {
       "types": "./dist/db/hyperdrive-migrations.d.mts",
       "default": "./dist/db/hyperdrive-migrations.mjs"
     },
@@ -89,14 +89,6 @@
     "./media/stream-runtime": {
       "types": "./dist/media/stream-runtime.d.mts",
       "default": "./dist/media/stream-runtime.mjs"
-    },
-    "./cache": {
-      "types": "./dist/cache/runtime.d.mts",
-      "default": "./dist/cache/runtime.mjs"
-    },
-    "./cache/config": {
-      "types": "./dist/cache/config.d.mts",
-      "default": "./dist/cache/config.mjs"
     },
     "./cache/kv": {
       "types": "./dist/cache/kv.d.mts",

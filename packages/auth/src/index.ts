@@ -64,10 +64,13 @@ export {
 	hashPrefixedToken,
 	// Scopes
 	VALID_SCOPES,
+	TRANSFER_SCOPES,
 	validateScopes,
 	isValidScope,
+	isTransferScope,
 	hasScope,
 	type ApiTokenScope,
+	type TransferScope,
 	// PKCE
 	computeS256Challenge,
 } from "./tokens.js";
@@ -78,9 +81,13 @@ export * from "./passkey/index.js";
 // Magic Link
 export {
 	sendMagicLink,
+	createMagicLinkUrl,
 	verifyMagicLink,
 	MagicLinkError,
+	buildMagicLinkEmail,
 	type MagicLinkConfig,
+	type MagicLinkEmailStrings,
+	type MagicLinkUrlOptions,
 } from "./magic-link/index.js";
 
 // Invite
@@ -89,10 +96,12 @@ export {
 	createInviteToken,
 	validateInvite,
 	completeInvite,
+	buildInviteEmail,
 	InviteError,
 	escapeHtml,
 	type InviteConfig,
 	type InviteTokenResult,
+	type InviteEmailStrings,
 	type EmailSendFn,
 } from "./invite.js";
 
@@ -119,7 +128,14 @@ export {
 	type StateStore,
 	type OAuthConsumerConfig,
 } from "./oauth/consumer.js";
-export type { OAuthProvider, OAuthConfig, OAuthProfile, OAuthState } from "./oauth/types.js";
+export { isValidMicrosoftTenant } from "./oauth/providers/microsoft.js";
+export type {
+	OAuthProvider,
+	OAuthConfig,
+	MicrosoftOAuthConfig,
+	OAuthProfile,
+	OAuthState,
+} from "./oauth/types.js";
 
 // Email types (implementations moved to plugin email pipeline)
 export type { EmailAdapter, EmailMessage } from "./types.js";

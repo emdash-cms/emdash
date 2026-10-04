@@ -4,12 +4,14 @@
  * Converts Portable Text to TipTap's ProseMirror JSON format for editing.
  */
 
+import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import {
 	UnsafePortableTextTableError,
 	portableTextTableToProseMirror,
 } from "@emdash-cms/admin/portable-text-table";
 
-import { sanitizeGalleryImages } from "./gallery.js";
+import { resolveImageMedia, sanitizeGalleryImages } from "./gallery.js";
+import { normalizeImageLink } from "./image-link.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -37,6 +39,7 @@ import type {
 	PortableTextImageBlock,
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
+	PortableTextIframeBlock,
 } from "./types.js";
 
 function generateKey(): string {
@@ -221,6 +224,35 @@ function isGalleryBlock(block: PortableTextBlock): block is PortableTextGalleryB
 	return block._type === "gallery" && "images" in block && Array.isArray(block.images);
 }
 
+const isString = (value: unknown) => typeof value === "string";
+const isFrameDimension = (value: unknown) =>
+	typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000;
+
+const IFRAME_BLOCK_FIELDS = new Map<string, (value: unknown) => boolean>([
+	["_type", () => true],
+	["_key", () => true],
+	["src", isString],
+	["title", isString],
+	["width", isFrameDimension],
+	["height", isFrameDimension],
+	["allow", isString],
+	["allowFullscreen", (value) => typeof value === "boolean"],
+]);
+
+/**
+ * An `iframe` block with other fields, or with values of other types, belongs
+ * to a plugin and stays a generic block.
+ */
+function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
+	return (
+		block._type === "iframe" &&
+		typeof block.src === "string" &&
+		Object.entries(block).every(
+			([key, value]) => value === undefined || (IFRAME_BLOCK_FIELDS.get(key)?.(value) ?? false),
+		)
+	);
+}
+
 /**
  * Type guard for code blocks
  */
@@ -263,11 +295,14 @@ function convertBlock(
 		return convertCodeBlock(block, preserveIdentity);
 	}
 	if (block._type === "htmlBlock") {
-		const hb = block as PortableTextBlock & { html?: string };
 		return {
 			type: "htmlBlock",
-			attrs: identityAttrs({ html: hb.html || "" }, block._key, preserveIdentity),
+			attrs: identityAttrs({ ...htmlBlockFields(block) }, block._key, preserveIdentity),
 		};
+	}
+	if (isIframeBlock(block)) {
+		const { _type, _key, ...attrs } = block;
+		return { type: "iframeBlock", attrs: identityAttrs(attrs, _key, preserveIdentity) };
 	}
 	if (block._type === "break") {
 		return {
@@ -644,24 +679,31 @@ function imageAlignment(value: unknown): PortableTextImageBlock["alignment"] {
 		: undefined;
 }
 
+function imageDimension(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 /**
  * Convert image block to ProseMirror
  */
 function convertImage(block: PortableTextImageBlock, preserveIdentity: boolean): ProseMirrorNode {
+	const { asset, alt, width, height } = resolveImageMedia(block);
 	return {
 		type: "image",
 		attrs: identityAttrs(
 			{
-				src: block.asset.url || block.asset._ref,
-				alt: block.alt || "",
-				title: block.caption || "",
-				mediaId: block.asset._ref,
-				provider: block.asset.provider,
-				width: block.width,
-				height: block.height,
-				displayWidth: block.displayWidth,
-				displayHeight: block.displayHeight,
+				src: asset.url || asset._ref,
+				alt: alt || "",
+				title: block.title || "",
+				caption: Object.hasOwn(block, "caption") ? block.caption || "" : block.title || "",
+				mediaId: asset._ref,
+				provider: asset.provider,
+				width: imageDimension(width),
+				height: imageDimension(height),
+				displayWidth: imageDimension(block.displayWidth),
+				displayHeight: imageDimension(block.displayHeight),
 				alignment: imageAlignment(block.alignment),
+				link: normalizeImageLink(block.link),
 			},
 			block._key,
 			preserveIdentity,
@@ -681,24 +723,25 @@ function convertMalformedImage(
 	// PortableTextUnknownBlock allows indexed access via [key: string]: unknown
 	const url = "url" in block && typeof block.url === "string" ? block.url : "";
 	const alt = "alt" in block && typeof block.alt === "string" ? block.alt : "";
-	const caption = "caption" in block && typeof block.caption === "string" ? block.caption : "";
-	const width = "width" in block && typeof block.width === "number" ? block.width : undefined;
-	const height = "height" in block && typeof block.height === "number" ? block.height : undefined;
-	const displayWidth =
-		"displayWidth" in block && typeof block.displayWidth === "number"
-			? block.displayWidth
-			: undefined;
-	const displayHeight =
-		"displayHeight" in block && typeof block.displayHeight === "number"
-			? block.displayHeight
-			: undefined;
+	const title = "title" in block && typeof block.title === "string" ? block.title : "";
+	const rawCaption = "caption" in block ? block.caption : undefined;
+	const caption = Object.hasOwn(block, "caption")
+		? typeof rawCaption === "string"
+			? rawCaption
+			: ""
+		: title;
+	const width = imageDimension("width" in block ? block.width : undefined);
+	const height = imageDimension("height" in block ? block.height : undefined);
+	const displayWidth = imageDimension("displayWidth" in block ? block.displayWidth : undefined);
+	const displayHeight = imageDimension("displayHeight" in block ? block.displayHeight : undefined);
 	return {
 		type: "image",
 		attrs: identityAttrs(
 			{
 				src: url,
 				alt,
-				title: caption,
+				title,
+				caption,
 				mediaId: undefined,
 				provider: undefined,
 				width,

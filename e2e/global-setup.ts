@@ -26,7 +26,6 @@ interface Target {
 	usesTempDb: boolean;
 }
 
-const COLOR_PLUGIN_DIST = resolve(ROOT, "packages/plugins/color/dist/index.mjs");
 const REGISTRY_TEST_PLUGIN_DIST = resolve(ROOT, "packages/plugins/marketplace-test/dist/index.mjs");
 const WORKERD_DIST = resolve(ROOT, "packages/workerd/dist/index.mjs");
 const CLOUDFLARE_DIST = resolve(ROOT, "packages/cloudflare/dist/index.mjs");
@@ -35,13 +34,13 @@ const TARGETS: Record<string, Target> = {
 	node: {
 		fixtureDir: resolve(ROOT, "e2e/fixture"),
 		buildFilter: "emdash-e2e-fixture...",
-		depsMarkers: [COLOR_PLUGIN_DIST, REGISTRY_TEST_PLUGIN_DIST, WORKERD_DIST],
+		depsMarkers: [REGISTRY_TEST_PLUGIN_DIST, WORKERD_DIST],
 		usesTempDb: true,
 	},
 	cloudflare: {
 		fixtureDir: resolve(ROOT, "e2e/fixture-cloudflare"),
 		buildFilter: "emdash-e2e-fixture-cloudflare...",
-		depsMarkers: [CLOUDFLARE_DIST, COLOR_PLUGIN_DIST],
+		depsMarkers: [CLOUDFLARE_DIST, REGISTRY_TEST_PLUGIN_DIST],
 		usesTempDb: false,
 	},
 };
@@ -69,8 +68,9 @@ async function ensureBuilt(): Promise<void> {
 
 /**
  * Ensure all e2e fixture dependencies are built.
- * The CI build filter (--filter emdash...) only builds emdash and its deps,
- * not the fixture's plugin dependencies like @emdash-cms/plugin-color.
+ * Some CI jobs build only `emdash...`, which leaves out the fixture's built
+ * dependencies such as @emdash-cms/plugin-marketplace-test.
+ * Source-only packages such as @emdash-cms/plugin-color have no dist to check.
  */
 async function ensureFixtureDepsBuilt(): Promise<void> {
 	if (TARGET.depsMarkers.every((marker) => existsSync(marker))) return;
@@ -339,6 +339,7 @@ export default async function globalSetup(): Promise<void> {
 			EMDASH_MARKETPLACE_URL: marketplaceUrl,
 			EMDASH_REGISTRY_URL: marketplaceUrl,
 			EMDASH_REGISTRY_FIXTURE: registryFixturePath,
+			EMDASH_ENCRYPTION_KEY: "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 		},
 		stdio: "pipe",
 	});

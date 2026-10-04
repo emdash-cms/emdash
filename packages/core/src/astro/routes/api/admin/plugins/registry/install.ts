@@ -19,11 +19,11 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleRegistryInstall, handleRegistryUninstall } from "#api/index.js";
-import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { finalizePluginInstall } from "#plugins/install-finalization.js";
 
 import { getRegistryConfigInput } from "../../../../../../registry/config.js";
+import { checkSiteWriteFence } from "../../../../../../transfer/fence.js";
 import { VERSION } from "../../../../../../version.js";
 
 export const prerender = false;
@@ -77,8 +77,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const denied = requirePerm(user, "plugins:manage");
 		if (denied) return denied;
 
-		const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
-		if (activationFence) return activationFence;
+		const writeFence = await checkSiteWriteFence(emdash.db);
+		if (writeFence) return writeFence;
 
 		const body = await parseBody(request, installBodySchema);
 		if (isParseError(body)) return body;
@@ -97,7 +97,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
-			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
+			getRegistryConfigInput(emdash.config.registry),
 			{
 				did: body.did,
 				slug: body.slug,

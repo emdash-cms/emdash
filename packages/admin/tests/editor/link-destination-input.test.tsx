@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -48,6 +49,13 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 		name: "image",
 		group: "block",
 		atom: true,
+		addAttributes() {
+			return {
+				src: { default: null },
+				alt: { default: "" },
+				link: { default: null },
+			};
+		},
 		parseHTML() {
 			return [{ tag: "img[src]" }];
 		},
@@ -514,6 +522,35 @@ async function focusAndSelectAll(editor: Editor, pm: HTMLElement) {
 	editor.commands.selectAll();
 }
 
+/** Insert an image and select it, which is a NodeSelection rather than a text selection. */
+async function insertAndSelectImage(
+	editor: Editor,
+	pm: HTMLElement,
+	link: { href: string; blank?: boolean } | null = null,
+) {
+	pm.focus();
+	await vi.waitFor(() => expect(document.activeElement).toBe(pm), { timeout: 1000 });
+	editor
+		.chain()
+		.focus()
+		.insertContent({ type: "image", attrs: { src: "/img.jpg", alt: "Example", link } })
+		.run();
+
+	let imagePos = -1;
+	editor.state.doc.descendants((node, pos) => {
+		if (node.type.name === "image") {
+			imagePos = pos;
+			return false;
+		}
+		return true;
+	});
+	expect(imagePos).toBeGreaterThanOrEqual(0);
+	editor.view.dispatch(
+		editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imagePos)),
+	);
+	await vi.waitFor(() => expect(editor.isActive("image")).toBe(true));
+}
+
 describe("link destination input in the editor", () => {
 	it("inserts a picked entry as a link from the toolbar popover", async () => {
 		mockSearchResponses([helloPost]);
@@ -528,9 +565,75 @@ describe("link destination input in the editor", () => {
 		(option.element() as HTMLElement).click();
 
 		await vi.waitFor(() => {
-			expect(editor.isActive("link")).toBe(true);
-			expect(editor.getAttributes("link").href).toBe("/blog/hello-world");
+			expect(pm.querySelector("a")?.getAttribute("href")).toBe("/blog/hello-world");
 		});
+	});
+
+	it("points a selected image at a picked entry instead of marking text", async () => {
+		mockSearchResponses([helloPost]);
+		const { screen, editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+
+		screen.getByRole("button", { name: "Image link", exact: true }).element().click();
+
+		await typeQuery(screen, "hello");
+		const option = screen.getByRole("option", { name: /Hello World/ });
+		await expect.element(option).toBeVisible();
+		(option.element() as HTMLElement).click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "/blog/hello-world" });
+		});
+		// The destination belongs to the image, not to a text link mark.
+		expect(editor.isActive("link")).toBe(false);
+	});
+
+	it("keeps a selected image's open-in-new-tab choice when a picked entry replaces its link", async () => {
+		mockSearchResponses([helloPost]);
+		const { screen, editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm, { href: "/old", blank: true });
+
+		screen.getByRole("button", { name: "Image link", exact: true }).element().click();
+
+		await typeQuery(screen, "hello");
+		const option = screen.getByRole("option", { name: /Hello World/ });
+		await expect.element(option).toBeVisible();
+		(option.element() as HTMLElement).click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({
+				href: "/blog/hello-world",
+				blank: true,
+			});
+		});
+	});
+
+	it("keeps the image toolbar and the pick error showing when a picked entry has no URL yet", async () => {
+		vi.mocked(fetchManifest).mockResolvedValue(
+			makeManifest({ posts: { label: "Posts", urlPattern: "/blog/{year}/{month}/{slug}" } }),
+		);
+		vi.mocked(fetchContent).mockResolvedValue({
+			status: "draft",
+			publishedAt: null,
+		} as unknown as ContentItem);
+		mockSearchResponses([], [helloPost]);
+		const { screen, editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+		let toolbar: HTMLElement | null = null;
+		await vi.waitFor(() => {
+			toolbar = document.querySelector<HTMLElement>("[data-emdash-image-bubble-menu]");
+			expect(toolbar).toBeVisible();
+		});
+		toolbar!.querySelector<HTMLButtonElement>('[aria-label="Add link"]')!.click();
+
+		await typeQuery(screen, "hello");
+		const option = screen.getByRole("option", { name: /Hello World/ });
+		await expect.element(option).toBeVisible();
+		(option.element() as HTMLElement).click();
+
+		await expect.element(screen.getByText(/no URL until it is published/)).toBeVisible();
+		expect(toolbar).toBeVisible();
+		expect(editor.getAttributes("image").link).toBeNull();
 	});
 
 	it("applies typed URLs from the toolbar popover via Apply", async () => {
@@ -543,8 +646,7 @@ describe("link destination input in the editor", () => {
 		screen.getByRole("button", { name: "Apply" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(editor.isActive("link")).toBe(true);
-			expect(editor.getAttributes("link").href).toBe("https://example.com");
+			expect(pm.querySelector("a")?.getAttribute("href")).toBe("https://example.com");
 		});
 	});
 
@@ -570,8 +672,7 @@ describe("link destination input in the editor", () => {
 		(option.element() as HTMLElement).click();
 
 		await vi.waitFor(() => {
-			expect(editor.isActive("link")).toBe(true);
-			expect(editor.getAttributes("link").href).toBe("/blog/hello-world");
+			expect(pm.querySelector("a")?.getAttribute("href")).toBe("/blog/hello-world");
 		});
 	});
 });

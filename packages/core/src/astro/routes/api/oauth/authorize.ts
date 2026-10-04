@@ -79,6 +79,10 @@ const SCOPE_LABELS: Record<string, string> = {
 	"settings:read": "View site settings",
 	"settings:manage": "Modify site settings",
 	"mcp:tools": "Use MCP tools from all enabled plugins",
+	"transfer:export":
+		"Export a copy of the entire site: all content, drafts, media, settings, and author names and emails",
+	"transfer:analyze": "Upload site packages and check whether they can be imported into this site",
+	"transfer:execute": "Import a site package into this empty site, overwriting its initial setup",
 	admin: "Full administrative access",
 };
 

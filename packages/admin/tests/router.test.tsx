@@ -1090,6 +1090,181 @@ describe("ContentListPage – hook order is stable when a refetch errors (#1415)
 });
 
 // ---------------------------------------------------------------------------
+// Tests: ContentListPage – numbered pages for the list and the trash
+// ---------------------------------------------------------------------------
+
+describe("ContentListPage – numbered pages", () => {
+	const MANIFEST_WITH_PAGES: AdminManifest = {
+		...MANIFEST,
+		collections: {
+			...MANIFEST.collections,
+			pages: { ...MANIFEST.collections.posts!, label: "Pages", labelSingular: "Page" },
+		},
+	};
+	let mockFetch: ReturnType<typeof createMockFetch>;
+	let requests: string[];
+	let totals: Record<string, number>;
+	let holdManifest: Promise<void> | undefined;
+	let holdCollection: { collection: string; release: Promise<void> } | undefined;
+
+	function listPage(collection: string, url: URL, total: number) {
+		const page = Number(url.searchParams.get("page"));
+		const limit = Number(url.searchParams.get("limit"));
+		const start = (page - 1) * limit;
+		const count = Math.max(0, Math.min(limit, total - start));
+		const items = Array.from({ length: count }, (_, index) => {
+			const n = start + index + 1;
+			return {
+				id: `${collection}-${n}`,
+				type: collection,
+				slug: `${collection}-${n}`,
+				status: "draft",
+				locale: "fr",
+				data: { title: `${collection} entry ${n}` },
+				authorId: "user_01",
+				createdAt: "2026-01-01T00:00:00Z",
+				updatedAt: "2026-01-01T00:00:00Z",
+				deletedAt: "2026-01-02T00:00:00Z",
+				publishedAt: null,
+				scheduledAt: null,
+				liveRevisionId: null,
+				draftRevisionId: null,
+			};
+		});
+		return { items, total };
+	}
+
+	beforeEach(() => {
+		requests = [];
+		totals = { posts: 45, "posts/trash": 25, pages: 3, "pages/trash": 0 };
+		holdManifest = undefined;
+		holdCollection = undefined;
+		mockFetch = createMockFetch();
+		mockFetch
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 60 } })
+			.on("GET", "/_emdash/api/content/posts/authors", { data: { items: [] } })
+			.on("GET", "/_emdash/api/content/pages/authors", { data: { items: [] } });
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = async (input, init) => {
+			const href =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(href, location.origin);
+			if (url.pathname === "/_emdash/api/manifest") {
+				await holdManifest;
+				return Response.json({ data: MANIFEST_WITH_PAGES });
+			}
+			const list = /^\/_emdash\/api\/content\/(\w+)(\/trash)?$/.exec(url.pathname);
+			if (list && url.searchParams.has("page")) {
+				requests.push(`${url.pathname}${url.search}`);
+				const [, collection = "", trash = ""] = list;
+				if (holdCollection?.collection === collection) await holdCollection.release;
+				return Response.json({
+					data: listPage(collection, url, totals[`${collection}${trash}`] ?? 0),
+				});
+			}
+			return mockedFetch(input, init);
+		};
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	async function renderPosts() {
+		const harness = buildRouter();
+		await harness.router.navigate({ to: "/content/$collection", params: { collection: "posts" } });
+		const screen = await render(<harness.TestApp />);
+		await expect.element(screen.getByText("Showing 1-20 of 45")).toBeInTheDocument();
+		return { ...harness, screen };
+	}
+
+	it("loads one page of the list and of the trash at a time", async () => {
+		const { screen } = await renderPosts();
+
+		expect(requests).toContain("/_emdash/api/content/posts/trash?page=1&limit=20&locale=fr");
+		expect(
+			requests.some((url) => url.startsWith("/_emdash/api/content/posts?page=1&limit=20&")),
+		).toBe(true);
+		await expect.element(screen.getByRole("tab", { name: /Trash/ })).toHaveTextContent("25");
+
+		await screen.getByRole("button", { name: "Next page" }).click();
+
+		await expect.element(screen.getByText("Showing 21-40 of 45")).toBeInTheDocument();
+		await expect.element(screen.getByText("posts entry 21")).toBeInTheDocument();
+		expect(
+			requests.some((url) => url.startsWith("/_emdash/api/content/posts?page=2&limit=20&")),
+		).toBe(true);
+	});
+
+	it("starts a changed search at page 1 without requesting the old page for it", async () => {
+		const { screen } = await renderPosts();
+		await screen.getByRole("button", { name: "Next page" }).click();
+		await expect.element(screen.getByText("Showing 21-40 of 45")).toBeInTheDocument();
+
+		await screen.getByRole("searchbox", { name: "Search posts" }).fill("entry");
+
+		await expect.element(screen.getByText("Showing 1-20 of 45")).toBeInTheDocument();
+		const searches = requests.filter((url) => url.includes("q=entry"));
+		expect(searches).toHaveLength(1);
+		expect(searches[0]).toContain("page=1&");
+	});
+
+	it("moves back to the last page when the current one empties", async () => {
+		const { screen, queryClient } = await renderPosts();
+		await screen.getByRole("button", { name: "Last page" }).click();
+		await expect.element(screen.getByText("Showing 41-45 of 45")).toBeInTheDocument();
+
+		totals.posts = 40;
+		await queryClient.invalidateQueries({ queryKey: ["content", "posts"] });
+
+		await expect.element(screen.getByText("Showing 21-40 of 40")).toBeInTheDocument();
+		await expect.element(screen.getByText("posts entry 40")).toBeInTheDocument();
+	});
+
+	it("never shows or requests the previous collection's page when switching collection", async () => {
+		const { screen, router } = await renderPosts();
+		await screen.getByRole("button", { name: "Next page" }).click();
+		await expect.element(screen.getByText("Showing 21-40 of 45")).toBeInTheDocument();
+		let releasePages = () => {};
+		holdCollection = {
+			collection: "pages",
+			release: new Promise<void>((resolve) => {
+				releasePages = resolve;
+			}),
+		};
+
+		await router.navigate({ to: "/content/$collection", params: { collection: "pages" } });
+
+		await expect.element(screen.getByRole("heading", { name: "Pages" })).toBeInTheDocument();
+		expect(screen.getByText("posts entry 21").query()).toBeNull();
+		releasePages();
+		await expect.element(screen.getByText("Showing 1-3 of 3")).toBeInTheDocument();
+		expect(requests.filter((url) => url.startsWith("/_emdash/api/content/pages?"))).toEqual([
+			expect.stringContaining("page=1&"),
+		]);
+	});
+
+	it("waits for the manifest before loading the trash", async () => {
+		let releaseManifest = () => {};
+		holdManifest = new Promise<void>((resolve) => {
+			releaseManifest = resolve;
+		});
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/content/$collection", params: { collection: "posts" } });
+		const screen = await render(<TestApp />);
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		expect(requests).toEqual([]);
+		releaseManifest();
+
+		await expect.element(screen.getByText("Showing 1-20 of 45")).toBeInTheDocument();
+		expect(requests.filter((url) => url.includes("/trash?"))).toEqual([
+			"/_emdash/api/content/posts/trash?page=1&limit=20&locale=fr",
+		]);
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Tests: ContentNewPage – locale passed to createContent
 // ---------------------------------------------------------------------------
 
@@ -1518,7 +1693,10 @@ describe("ContentEditPage – autosave cache patching", () => {
 			await expect.element(trigger).toHaveAttribute("data-returns-promise", "true");
 
 			await waitFor(() => {
-				expect(updateBody).toEqual({ publishedAt: "2020-06-01T08:45:00.000Z" });
+				expect(updateBody).toEqual({
+					publishedAt: "2020-06-01T08:45:00.000Z",
+					_rev: "revision-token",
+				});
 			});
 		} finally {
 			globalThis.fetch = fetchWithMocks;

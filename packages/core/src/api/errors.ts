@@ -6,6 +6,8 @@
  * instead of using ad-hoc strings.
  */
 
+import { TransferErrorCode, transferErrorStatus } from "../transfer/errors.js";
+
 export const ErrorCode = {
 	// Shared (used across domains)
 	NOT_FOUND: "NOT_FOUND",
@@ -26,6 +28,7 @@ export const ErrorCode = {
 	NOT_IMPLEMENTED: "NOT_IMPLEMENTED",
 	NOT_SUPPORTED: "NOT_SUPPORTED",
 	MISSING_PARAM: "MISSING_PARAM",
+	DOMAIN_CHECK_FAILED: "DOMAIN_CHECK_FAILED",
 	CSRF_REJECTED: "CSRF_REJECTED",
 
 	// Content
@@ -83,6 +86,7 @@ export const ErrorCode = {
 	COLLECTION_EXISTS: "COLLECTION_EXISTS",
 	COLLECTION_NOT_FOUND: "COLLECTION_NOT_FOUND",
 	COLLECTION_SCHEMA_MISMATCH: "COLLECTION_SCHEMA_MISMATCH",
+	COLLECTION_TABLE_ORPHANED: "COLLECTION_TABLE_ORPHANED",
 	TABLE_NOT_FOUND: "TABLE_NOT_FOUND",
 	FIELD_EXISTS: "FIELD_EXISTS",
 	FIELD_TYPE_COLUMN_CHANGE: "FIELD_TYPE_COLUMN_CHANGE",
@@ -174,6 +178,7 @@ export const ErrorCode = {
 	USER_EXISTS: "USER_EXISTS",
 	INVALID_TOKEN: "INVALID_TOKEN",
 	TOKEN_EXPIRED: "TOKEN_EXPIRED",
+	SESSION_UNAVAILABLE: "SESSION_UNAVAILABLE",
 	DOMAIN_NOT_ALLOWED: "DOMAIN_NOT_ALLOWED",
 	INVITE_CREATE_ERROR: "INVITE_CREATE_ERROR",
 	INVITE_VALIDATE_ERROR: "INVITE_VALIDATE_ERROR",
@@ -181,6 +186,9 @@ export const ErrorCode = {
 	SIGNUP_VERIFY_ERROR: "SIGNUP_VERIFY_ERROR",
 	SIGNUP_COMPLETE_ERROR: "SIGNUP_COMPLETE_ERROR",
 	RECOVERY_SEND_ERROR: "RECOVERY_SEND_ERROR",
+	MAGIC_LINK_VERIFY_ERROR: "MAGIC_LINK_VERIFY_ERROR",
+	NO_SITE_URL: "NO_SITE_URL",
+	SIGN_IN_HANDOVER_ERROR: "SIGN_IN_HANDOVER_ERROR",
 	USER_LIST_ERROR: "USER_LIST_ERROR",
 	USER_DETAIL_ERROR: "USER_DETAIL_ERROR",
 	USER_UPDATE_ERROR: "USER_UPDATE_ERROR",
@@ -220,6 +228,9 @@ export const ErrorCode = {
 	DOMAIN_UPDATE_ERROR: "DOMAIN_UPDATE_ERROR",
 	DOMAIN_DELETE_ERROR: "DOMAIN_DELETE_ERROR",
 
+	// Core update check
+	UPDATE_CHECK_ERROR: "UPDATE_CHECK_ERROR",
+
 	// Plugins / Marketplace
 	PLUGIN_LIST_ERROR: "PLUGIN_LIST_ERROR",
 	PLUGIN_GET_ERROR: "PLUGIN_GET_ERROR",
@@ -240,6 +251,8 @@ export const ErrorCode = {
 	ALREADY_INSTALLED: "ALREADY_INSTALLED",
 	ALREADY_UP_TO_DATE: "ALREADY_UP_TO_DATE",
 	NO_VERSION: "NO_VERSION",
+	INVALID_VERSION: "INVALID_VERSION",
+	DOWNGRADE_NOT_ALLOWED: "DOWNGRADE_NOT_ALLOWED",
 	MANIFEST_MISMATCH: "MANIFEST_MISMATCH",
 	MANIFEST_VERSION_MISMATCH: "MANIFEST_VERSION_MISMATCH",
 	AUDIT_FAILED: "AUDIT_FAILED",
@@ -351,6 +364,9 @@ export const ErrorCode = {
 	SETTINGS_UPDATE_ERROR: "SETTINGS_UPDATE_ERROR",
 	EMAIL_SETTINGS_READ_ERROR: "EMAIL_SETTINGS_READ_ERROR",
 	EMAIL_TEST_ERROR: "EMAIL_TEST_ERROR",
+	SITE_DOMAIN_ERROR: "SITE_DOMAIN_ERROR",
+	DOMAIN_PROOF_ERROR: "DOMAIN_PROOF_ERROR",
+	DOMAIN_MOVE_NOTICE_ERROR: "DOMAIN_MOVE_NOTICE_ERROR",
 
 	// Backups
 	BACKUP_SETTINGS_READ_ERROR: "BACKUP_SETTINGS_READ_ERROR",
@@ -382,6 +398,9 @@ export const ErrorCode = {
 	DASHBOARD_ERROR: "DASHBOARD_ERROR",
 	DASHBOARD_STATS_ERROR: "DASHBOARD_STATS_ERROR",
 
+	// Calendar
+	CALENDAR_ERROR: "CALENDAR_ERROR",
+
 	// Misc
 	SNAPSHOT_ERROR: "SNAPSHOT_ERROR",
 	TYPEGEN_ERROR: "TYPEGEN_ERROR",
@@ -389,6 +408,9 @@ export const ErrorCode = {
 	NO_DB: "NO_DB",
 	INVALID_REQUEST: "INVALID_REQUEST",
 	UNKNOWN_ACTION: "UNKNOWN_ACTION",
+
+	// Site transfer
+	...TransferErrorCode,
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -417,6 +439,9 @@ export type OAuthErrorCode = (typeof OAuthErrorCode)[keyof typeof OAuthErrorCode
  * defaults to 400 (client error).
  */
 export function mapErrorStatus(code: string | undefined): number {
+	const transferStatus = transferErrorStatus(code);
+	if (transferStatus !== undefined) return transferStatus;
+
 	switch (code) {
 		// 400 Bad Request
 		case ErrorCode.VALIDATION_ERROR:
@@ -447,6 +472,8 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.UNKNOWN_ACTION:
 		case ErrorCode.AMBIGUOUS_LOCALE:
 		case ErrorCode.REORDER_MISMATCH:
+		case ErrorCode.INVALID_VERSION:
+		case ErrorCode.DOWNGRADE_NOT_ALLOWED:
 			return 400;
 
 		// 409 Conflict
@@ -488,10 +515,12 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.CONFLICT:
 		case ErrorCode.SLUG_CONFLICT:
 		case ErrorCode.COLLECTION_EXISTS:
+		case ErrorCode.COLLECTION_TABLE_ORPHANED:
 		case ErrorCode.FIELD_EXISTS:
 		case ErrorCode.CREDENTIAL_EXISTS:
 		case ErrorCode.EMAIL_IN_USE:
 		case ErrorCode.USER_EXISTS:
+		case ErrorCode.NO_SITE_URL:
 		case ErrorCode.PLUGIN_ID_CONFLICT:
 		case ErrorCode.ALREADY_INSTALLED:
 		case ErrorCode.ALREADY_CONFIGURED:
@@ -522,6 +551,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.CHECKSUM_MISMATCH:
 		case ErrorCode.INVALID_BUNDLE:
 		case ErrorCode.BUNDLE_EXTRACT_FAILED:
+		case ErrorCode.DOMAIN_CHECK_FAILED:
 			return 422;
 
 		// 429 Too Many Requests
@@ -536,6 +566,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.NO_DB:
 		case ErrorCode.STORAGE_NOT_CONFIGURED:
 		case ErrorCode.EMAIL_NOT_CONFIGURED:
+		case ErrorCode.SESSION_UNAVAILABLE:
 		case ErrorCode.COLLECTION_SCHEMA_MISMATCH:
 			return 500;
 

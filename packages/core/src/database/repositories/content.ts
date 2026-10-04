@@ -1,17 +1,17 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type RawBuilder } from "kysely";
 import { ulid } from "ulidx";
 
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
 import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
-import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
+import { isIndexableFieldType, isStoragelessFieldRow, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
-import { ContentDatetimeNormalizer } from "../content-datetime.js";
-import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
+import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -80,7 +80,7 @@ function sameStoredValue(left: unknown, right: unknown): boolean {
 function matchesPublication(
 	observed: ContentItem,
 	existing: ContentItem,
-	revision: { data: Record<string, unknown> },
+	revisionData: Record<string, unknown>,
 	revisionId: string,
 	slug: string | null,
 	publishedAt: string,
@@ -99,7 +99,7 @@ function matchesPublication(
 		return false;
 	}
 
-	return Object.entries(revision.data).every(
+	return Object.entries(revisionData).every(
 		([key, value]) =>
 			SYSTEM_COLUMNS.has(key) || key.startsWith("_") || sameStoredValue(observed.data[key], value),
 	);
@@ -154,35 +154,42 @@ interface ResolvedOrderField {
 	indexedCustomField: boolean;
 }
 
-type IndexedOrderValue = string | number | null;
+type NullableOrderValue = string | number | null;
 
-interface IndexedFieldCursorPayload {
+interface NullableOrderCursorPayload {
 	version: 1;
 	field: string;
-	value: IndexedOrderValue;
+	value: NullableOrderValue;
 }
 
-function encodeIndexedFieldCursor(field: string, value: IndexedOrderValue, id: string): string {
-	const payload: IndexedFieldCursorPayload = { version: 1, field, value };
+function encodeNullableOrderCursor(field: string, value: NullableOrderValue, id: string): string {
+	const payload: NullableOrderCursorPayload = { version: 1, field, value };
 	return encodeCursor(JSON.stringify(payload), id);
 }
 
-function decodeIndexedFieldCursor(
+/**
+ * `acceptPlain` also accepts the plain `{ orderValue, id }` cursor that
+ * built-in and collection sort fields were paged with before, which wrote a
+ * NULL as "".
+ */
+function decodeNullableOrderCursor(
 	cursor: string,
 	field: string,
-): { value: IndexedOrderValue; id: string } {
+	{ acceptPlain = false } = {},
+): { value: NullableOrderValue; id: string } {
 	const { orderValue, id } = decodeCursor(cursor);
 	let payload: unknown;
 	try {
 		payload = JSON.parse(orderValue);
 	} catch {
-		throw new InvalidCursorError(cursor);
+		payload = undefined;
 	}
 
 	if (payload === null || typeof payload !== "object") {
+		if (acceptPlain) return { value: orderValue === "" ? null : orderValue, id };
 		throw new InvalidCursorError(cursor);
 	}
-	const candidate = payload as Partial<IndexedFieldCursorPayload>;
+	const candidate = payload as Partial<NullableOrderCursorPayload>;
 	const validValue =
 		candidate.value === null ||
 		typeof candidate.value === "string" ||
@@ -191,7 +198,34 @@ function decodeIndexedFieldCursor(
 		throw new InvalidCursorError(cursor);
 	}
 
-	return { value: candidate.value as IndexedOrderValue, id };
+	return { value: candidate.value as NullableOrderValue, id };
+}
+
+/**
+ * Keyset condition for the rows after (`value`, `cursorId`) in a sort by the
+ * nullable `column`, then `id`. The ORDER BY keeps each dialect's own NULL
+ * position, lowest on SQLite and highest on Postgres, so the condition follows
+ * it.
+ */
+function nullableOrderCondition(
+	db: Kysely<Database>,
+	column: string,
+	direction: "ASC" | "DESC",
+	value: NullableOrderValue,
+	cursorId: string,
+): RawBuilder<boolean> {
+	const sort = sql.ref(column);
+	const id = sql.ref("id");
+	const cmp = direction === "ASC" ? sql.raw(">") : sql.raw("<");
+	const nullsFirst = (direction === "ASC") !== isPostgres(db);
+	if (value === null) {
+		return nullsFirst
+			? sql<boolean>`(${sort} IS NOT NULL OR ${id} ${cmp} ${cursorId})`
+			: sql<boolean>`(${sort} IS NULL AND ${id} ${cmp} ${cursorId})`;
+	}
+	// The row value, unlike the equivalent OR, lets SQLite keep reading the index in order.
+	const past = sql<boolean>`(${sort}, ${id}) ${cmp} (${value}, ${cursorId})`;
+	return nullsFirst ? past : sql<boolean>`(${past} OR ${sort} IS NULL)`;
 }
 
 /**
@@ -223,6 +257,13 @@ const ORDER_FIELD_COLUMNS: Record<string, string> = {
 	status: "status",
 	locale: "locale",
 };
+
+/**
+ * Order columns every row has a value for. Their cursors keep the plain
+ * `{ orderValue, id }` shape; a cursor for any other order column records a
+ * NULL explicitly.
+ */
+const NON_NULL_ORDER_COLUMNS = new Set(["created_at", "updated_at", "status", "locale"]);
 
 /** True when `field` maps to a system column and needs no per-collection resolution. */
 export function isSystemOrderField(field: string): boolean {
@@ -256,6 +297,16 @@ const SYSTEM_COLUMNS = new Set([
 function getTableName(type: string): string {
 	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
+}
+
+function assertPageOffset(offset: number | undefined, cursor: string | undefined): void {
+	if (offset === undefined) return;
+	if (cursor !== undefined) {
+		throw new EmDashValidationError("cursor and offset cannot be used together");
+	}
+	if (!Number.isSafeInteger(offset) || offset < 0) {
+		throw new EmDashValidationError("offset must be a non-negative integer");
+	}
 }
 
 /**
@@ -323,8 +374,11 @@ function escapeRegExp(s: string): string {
 export class ContentRepository {
 	private readonly datetimes: ContentDatetimeNormalizer;
 
-	constructor(private db: Kysely<Database>) {
-		this.datetimes = new ContentDatetimeNormalizer(db);
+	constructor(
+		private db: Kysely<Database>,
+		private readonly datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
 	/**
@@ -347,7 +401,7 @@ export class ContentRepository {
 			publishedAt,
 			createdAt,
 		} = input;
-		const data = await this.datetimes.normalizeData(type, inputData);
+		const data = await this.datetimes.normalizeInput(type, inputData);
 		const normalizedCreatedAt = createdAt
 			? await this.datetimes.normalizeValue(type, createdAt)
 			: now;
@@ -575,11 +629,63 @@ export class ContentRepository {
 		return this.mapRow(type, row);
 	}
 
+	async findManyByIds(
+		type: string,
+		ids: string[],
+		options: { includeTrashed?: boolean } = {},
+	): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (ids.length === 0) return items;
+		const tableName = getTableName(type);
+		const deletedFilter = options.includeTrashed ? sql`` : sql`AND deleted_at IS NULL`;
+		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE id IN (${sql.join(batch)}) ${deletedFilter}
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				items.set(item.id, item);
+			}
+		}
+		return items;
+	}
+
+	async findManyBySlugsInLocale(
+		type: string,
+		slugs: string[],
+		locale: string,
+		options: { includeTrashed?: boolean } = {},
+	): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (slugs.length === 0) return items;
+		const tableName = getTableName(type);
+		const deletedFilter = options.includeTrashed ? sql`` : sql`AND deleted_at IS NULL`;
+		for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE slug IN (${sql.join(batch)}) AND locale = ${locale} ${deletedFilter}
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				if (item.slug !== null) items.set(item.slug, item);
+			}
+		}
+		return items;
+	}
+
 	/**
 	 * Find content by id, including trashed (soft-deleted) items.
 	 * Used by restore endpoint for ownership checks.
+	 *
+	 * `deletedAt` rides along because the row is already in hand: a caller that
+	 * has to know whether the row is trashed before touching anything else would
+	 * otherwise pay a second read for a column this row already carries.
 	 */
-	async findByIdIncludingTrashed(type: string, id: string): Promise<ContentItem | null> {
+	async findByIdIncludingTrashed(
+		type: string,
+		id: string,
+	): Promise<(ContentItem & { deletedAt: string | null }) | null> {
 		const tableName = getTableName(type);
 
 		const result = await sql<Record<string, unknown>>`
@@ -592,7 +698,10 @@ export class ContentRepository {
 			return null;
 		}
 
-		return this.mapRow(type, row);
+		return {
+			...this.mapRow(type, row),
+			deletedAt: typeof row.deleted_at === "string" ? row.deleted_at : null,
+		};
 	}
 
 	/**
@@ -737,7 +846,8 @@ export class ContentRepository {
 		options: FindManyOptions = {},
 	): Promise<FindManyResult<ContentItem>> {
 		const tableName = getTableName(type);
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		assertPageOffset(options.offset, options.cursor);
 
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
@@ -748,6 +858,8 @@ export class ContentRepository {
 			options.sortableExtras,
 		);
 		const dbField = resolvedOrderField.column;
+		const nullableOrder =
+			resolvedOrderField.indexedCustomField || !NON_NULL_ORDER_COLUMNS.has(dbField);
 		const resolvedFieldFilters = await this.resolveFieldFilters(type, options.where?.fieldFilters);
 
 		// Validate order direction to prevent injection
@@ -783,15 +895,17 @@ export class ContentRepository {
 		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
 			if (resolvedOrderField.indexedCustomField) {
-				const { value, id: cursorId } = decodeIndexedFieldCursor(options.cursor, orderField);
+				const { value, id: cursorId } = decodeNullableOrderCursor(options.cursor, orderField);
 				const isPresent = sql<boolean>`${sql.ref(dbField)} IS NOT NULL`;
 				const falseLiteral = sql<boolean>`FALSE`;
 				const trueLiteral = sql<boolean>`TRUE`;
 				if (safeOrderDirection === "ASC" && value === null) {
-					query = query.where(sql<boolean>`
+					// Kysely joins a raw condition to the others with a bare AND, so the
+					// OR must carry its own parentheses to stay under every filter.
+					query = query.where(sql<boolean>`(
 						(${isPresent}) > ${falseLiteral}
 						OR ((${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} > ${cursorId})
-					`);
+					)`);
 				} else if (safeOrderDirection === "DESC" && value === null) {
 					query = query.where(sql<boolean>`
 						(${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} < ${cursorId}
@@ -807,6 +921,13 @@ export class ContentRepository {
 							< (${trueLiteral}, ${value}, ${cursorId})
 					`);
 				}
+			} else if (nullableOrder) {
+				const { value, id: cursorId } = decodeNullableOrderCursor(options.cursor, orderField, {
+					acceptPlain: true,
+				});
+				query = query.where(
+					nullableOrderCondition(this.db, dbField, safeOrderDirection, value, cursorId),
+				);
 			} else {
 				const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
@@ -841,7 +962,11 @@ export class ContentRepository {
 		if (indexedOrderFilter?.kind !== "null") {
 			query = query.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc");
 		}
-		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc").limit(limit + 1);
+		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc");
+		query =
+			options.offset === undefined
+				? query.limit(limit + 1)
+				: query.limit(limit).offset(options.offset);
 
 		// Run the page fetch and the unbounded count together — the UI needs
 		// both to render a stable denominator (kept on every page intentionally),
@@ -870,15 +995,15 @@ export class ContentRepository {
 		if (hasMore && items.length > 0) {
 			const lastRow = items.at(-1) as Record<string, unknown>;
 			const lastOrderValue = lastRow[dbField];
-			if (resolvedOrderField.indexedCustomField) {
+			if (nullableOrder) {
 				if (
 					lastOrderValue !== null &&
 					typeof lastOrderValue !== "string" &&
 					typeof lastOrderValue !== "number"
 				) {
-					throw new EmDashValidationError(`Invalid indexed value for order field: ${orderField}`);
+					throw new EmDashValidationError(`Invalid value for order field: ${orderField}`);
 				}
-				mappedResult.nextCursor = encodeIndexedFieldCursor(
+				mappedResult.nextCursor = encodeNullableOrderCursor(
 					orderField,
 					lastOrderValue,
 					String(lastRow.id),
@@ -938,7 +1063,7 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			const data = await this.datetimes.normalizeData(type, writableContentData(input.data));
+			const data = await this.datetimes.normalizeInput(type, writableContentData(input.data));
 			for (const [key, value] of Object.entries(data)) {
 				updates[key] = serializeValue(value);
 			}
@@ -978,7 +1103,12 @@ export class ContentRepository {
 		if (!existing) throw new EmDashValidationError("Content item not found");
 
 		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
-		const { _slug, ...snapshotFields } = normalizedSnapshot;
+		const { _slug } = normalizedSnapshot;
+		// Leading-underscore keys are staged metadata (`_slug`, `_references`), not columns.
+		const snapshotFields: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(normalizedSnapshot)) {
+			if (!key.startsWith("_")) snapshotFields[key] = value;
+		}
 		const fieldData = writableContentData(snapshotFields);
 		const revisionId = createRevisionId();
 		const now = new Date().toISOString();
@@ -1066,7 +1196,7 @@ export class ContentRepository {
 		const item = await this.findById(type, id);
 		if (!item) throw new Error("Content not found");
 
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return { item, revisionId };
 	}
 
@@ -1136,7 +1266,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return revisionId;
 	}
 
@@ -1150,7 +1280,7 @@ export class ContentRepository {
 		input: UpdateContentInput,
 	): Promise<ContentItem> {
 		const data = input.data
-			? await this.datetimes.normalizeData(type, writableContentData(input.data))
+			? await this.datetimes.normalizeInput(type, writableContentData(input.data))
 			: {};
 		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
 		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
@@ -1175,7 +1305,7 @@ export class ContentRepository {
 			collectionRows.map((row) => row.fieldSlug).filter((slug): slug is string => Boolean(slug)),
 		);
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let existing = await this.findById(type, id);
 
 		// A key with no field is rejected unless the entry already stores it: deleting a field
@@ -1398,7 +1528,7 @@ export class ContentRepository {
 		usesRevisions: boolean,
 	): Promise<boolean> {
 		const tableName = getTableName(type);
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let sibling: ContentItem | null = initial;
 
 		for (let attempt = 0; sibling && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
@@ -1578,7 +1708,8 @@ export class ContentRepository {
 		options: Omit<FindManyOptions, "where"> & { where?: { locale?: string } } = {},
 	): Promise<FindManyResult<ContentItem & { deletedAt: string }>> {
 		const tableName = getTableName(type);
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
+		assertPageOffset(options.offset, options.cursor);
 
 		// Determine ordering - default to most recently deleted
 		const orderField = options.orderBy?.field || "deletedAt";
@@ -1619,8 +1750,11 @@ export class ContentRepository {
 
 		query = query
 			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
-			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
-			.limit(limit + 1);
+			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc");
+		query =
+			options.offset === undefined
+				? query.limit(limit + 1)
+				: query.limit(limit).offset(options.offset);
 
 		const rows = await query.execute();
 		const hasMore = rows.length > limit;
@@ -1810,10 +1944,10 @@ export class ContentRepository {
 		// of translation groups — at the locale the list is scoped to. Matching
 		// the locale is what keeps the filter agreeing with the list: an
 		// inferred credit renders only when the author's byline has a row at
-		// that locale (`hydrateBylinesMany` -> `findByUserIds`), and byline
-		// translations start life with a null `user_id`, so a group translated
-		// into the locale but not re-linked resolves to no credit. `locale`
-		// falls back to each entry's own when the list spans locales.
+		// that locale (`hydrateBylinesMany` -> `findByUserIds`), so a group
+		// whose translation at the locale has no linked user resolves to no
+		// credit. `locale` falls back to each entry's own when the list spans
+		// locales.
 		const authorHasByline = (eb: any, bylineIds?: string[]) => {
 			let sub = eb
 				.selectFrom("_emdash_bylines as b")
@@ -2107,6 +2241,37 @@ export class ContentRepository {
 		return result.rows.map((row) => this.mapRow(type, row));
 	}
 
+	async findTranslationIds(type: string, translationGroup: string): Promise<string[]> {
+		const tableName = getTableName(type);
+		const result = await sql<{ id: string }>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			AND deleted_at IS NULL
+		`.execute(this.db);
+		return result.rows.map((row) => row.id);
+	}
+
+	async findTranslationIdsForGroups(
+		type: string,
+		translationGroups: string[],
+	): Promise<Map<string, string[]>> {
+		const ids = new Map<string, string[]>();
+		if (translationGroups.length === 0) return ids;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(translationGroups)], SQL_BATCH_SIZE)) {
+			const result = await sql<{ id: string; translation_group: string }>`
+				SELECT id, translation_group FROM ${sql.ref(tableName)}
+				WHERE translation_group IN (${sql.join(batch)}) AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const group = ids.get(row.translation_group) ?? [];
+				group.push(row.id);
+				ids.set(row.translation_group, group);
+			}
+		}
+		return ids;
+	}
+
 	/**
 	 * Find all translations in a translation group
 	 */
@@ -2123,13 +2288,26 @@ export class ContentRepository {
 		return result.rows.map((row) => this.mapRow(type, row));
 	}
 
-	/** Whether any row of `translationGroup` exists, trashed rows included. */
-	async hasTranslationsIncludingTrashed(type: string, translationGroup: string): Promise<boolean> {
+	/**
+	 * Whether any row still shares `translationGroup`, trashed rows included.
+	 * Group-keyed satellite data (term assignments, reference edges) is owned by
+	 * the group, not by a single locale row, so a purge may only cascade to it
+	 * once nothing is left to own it — and a trashed sibling is still restorable.
+	 */
+	async hasTranslationsIncludingTrashed(
+		type: string,
+		translationGroup: string,
+		options: { excludeId?: string } = {},
+	): Promise<boolean> {
 		const tableName = getTableName(type);
+		// Asked before a row is deleted, "does anything else hold this group?"
+		// has to leave that row out of the answer.
+		const exclusion = options.excludeId ? sql`AND id != ${options.excludeId}` : sql``;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT id FROM ${sql.ref(tableName)}
 			WHERE translation_group = ${translationGroup}
+			${exclusion}
 			LIMIT 1
 		`.execute(this.db);
 
@@ -2306,7 +2484,7 @@ export class ContentRepository {
 		}
 
 		if (!promoteRevision) {
-			const revisionRepo = new RevisionRepository(this.db);
+			const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 			let provisionalRevisionId: string | null = null;
 			try {
 				let liveRevisionId = existing.liveRevisionId;
@@ -2399,7 +2577,7 @@ export class ContentRepository {
 			}
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
@@ -2418,6 +2596,9 @@ export class ContentRepository {
 			if (!revision || revision.collection !== type || revision.entryId !== id) {
 				throw new EmDashValidationError("Revision does not belong to the specified content item");
 			}
+
+			const writableFieldSlugs = await this.datetimes.writableFieldSlugs(type);
+			const revisionData = keepKnownFields(revision.data, writableFieldSlugs);
 
 			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
 			const intendedSlug = stagedSlug ?? existing.slug;
@@ -2438,7 +2619,7 @@ export class ContentRepository {
 
 			const assignments: ReturnType<typeof sql>[] = [];
 			if (stagedSlug !== null) assignments.push(sql`slug = ${stagedSlug}`);
-			for (const [key, value] of Object.entries(revision.data)) {
+			for (const [key, value] of Object.entries(revisionData)) {
 				if (SYSTEM_COLUMNS.has(key) || key.startsWith("_")) continue;
 				validateIdentifier(key, "content field name");
 				assignments.push(sql`${sql.ref(key)} = ${serializeValue(value)}`);
@@ -2496,7 +2677,7 @@ export class ContentRepository {
 				promoted = matchesPublication(
 					observed,
 					existing,
-					revision,
+					revisionData,
 					revisionToPublish,
 					intendedSlug,
 					intendedPublishedAt,
@@ -2560,7 +2741,7 @@ export class ContentRepository {
 			return existing;
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
@@ -2632,7 +2813,7 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		const revision = await revisionRepo.findById(revisionId);
 		if (!revision) {
 			throw new EmDashValidationError("Revision not found");
@@ -2898,9 +3079,16 @@ export class ContentRepository {
 			.where("collection.slug", "=", type)
 			.where("field.slug", "in", fields)
 			.where("field.indexed", "=", 1)
-			.select(["field.slug", "field.type"])
+			.select(["field.slug", "field.type", "field.validation"])
 			.execute();
-		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
+		// `indexed` alone is not enough: a storage-less field has no column to
+		// filter on. A reference field bound to a relation after it was indexed can
+		// still carry the flag, and its column no longer receives writes.
+		const metadata = new Map(
+			rows
+				.filter((row) => !isStoragelessFieldRow(row))
+				.map((row) => [row.slug, row.type as FieldType]),
+		);
 
 		if (metadata.size === 0 && !(await this.collectionExists(type))) return [];
 

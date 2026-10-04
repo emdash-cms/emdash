@@ -3,6 +3,7 @@ import { Kysely } from "kysely";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
+import { handleContentCreate } from "../../src/api/handlers/content.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import type { Database } from "../../src/database/types.js";
 import { BlockTypeRegistry } from "../../src/schema/block-type-registry.js";
@@ -71,5 +72,67 @@ describe("blocks content on D1", () => {
 				}),
 			]);
 		}
+	});
+
+	it("batches MIME admission for large block arrays", async () => {
+		const blocks = new BlockTypeRegistry(db);
+		const schema = new SchemaRegistry(db);
+		await blocks.createBlockType({
+			slug: "download",
+			label: "Download",
+			fields: [
+				{
+					slug: "file",
+					label: "File",
+					type: "file",
+					validation: { allowedMimeTypes: ["application/pdf"] },
+				},
+			],
+		});
+		await schema.createCollection({ slug: "pages", label: "Pages" });
+		await schema.createField("pages", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["download"] },
+		});
+
+		const mediaIds = Array.from({ length: 51 }, (_, index) => `media-${index}`);
+		for (const id of mediaIds) {
+			// oxlint-disable-next-line no-await-in-loop -- each insert stays below D1's bind limit
+			await db
+				.insertInto("media")
+				.values({
+					id,
+					filename: `${id}.pdf`,
+					mime_type: "application/pdf",
+					size: 100,
+					width: null,
+					height: null,
+					alt: null,
+					caption: null,
+					storage_key: `${id}.pdf`,
+					content_hash: null,
+					blurhash: null,
+					dominant_color: null,
+					status: "ready",
+					author_id: null,
+				})
+				.execute();
+		}
+
+		const created = await handleContentCreate(db, "pages", {
+			slug: "downloads",
+			data: {
+				layout: mediaIds.map((id, index) => ({
+					_type: "download",
+					_version: 1,
+					_key: `download-${index}`,
+					file: { id, provider: "local" },
+				})),
+			},
+		});
+
+		expect(created.success).toBe(true);
 	});
 });

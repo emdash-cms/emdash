@@ -14,6 +14,7 @@ The seed file (`seed/seed.json`) defines the site's entire schema and optional d
 		"author": "Author Name"
 	},
 	"settings": { ... },
+	"blockTypes": [ ... ],
 	"collections": [ ... ],
 	"taxonomies": [ ... ],
 	"menus": [ ... ],
@@ -41,12 +42,14 @@ Collections define content types. Each collection becomes a database table (`ec_
 
 ### Collection Supports
 
-| Support     | Description               |
-| ----------- | ------------------------- |
-| `drafts`    | Draft/published workflow  |
-| `revisions` | Revision history          |
-| `search`    | Full-text search indexing |
-| `seo`       | SEO meta fields in admin  |
+| Support      | Description               |
+| ------------ | ------------------------- |
+| `drafts`     | Draft/published workflow  |
+| `revisions`  | Revision history          |
+| `preview`    | Signed draft previews     |
+| `scheduling` | Scheduled publication     |
+| `search`     | Full-text search indexing |
+| `seo`        | SEO meta fields in admin  |
 
 ### Slug Rules
 
@@ -60,14 +63,21 @@ Collections define content types. Each collection becomes a database table (`ec_
 | -------------- | ----------- | ------------------------------------- | ---------------------------- |
 | `string`       | TEXT        | `string`                              | Single line text             |
 | `text`         | TEXT        | `string`                              | Multi-line text (textarea)   |
+| `url`          | TEXT        | `string`                              | URL input                    |
 | `number`       | REAL        | `number`                              | Floating point               |
 | `integer`      | INTEGER     | `number`                              | Whole numbers                |
 | `boolean`      | INTEGER     | `boolean`                             | Stored as 0/1                |
 | `datetime`     | TEXT        | `Date`                                | ISO 8601 string in DB        |
+| `select`       | TEXT        | `string`                              | One configured option        |
+| `multiSelect`  | JSON        | `string[]`                            | Configured option list       |
 | `image`        | TEXT        | `{ id, src?, alt?, width?, height? }` | **Object, not a string**     |
+| `file`         | TEXT        | `{ id, url?, filename?, ... }`        | File reference               |
 | `reference`    | TEXT        | `string` (ID)                         | Reference to another entry   |
+| `slug`         | TEXT        | `string`                              | Slug input                   |
+| `repeater`     | JSON        | `object[]`                            | Repeated structured rows     |
 | `portableText` | JSON        | `PortableTextBlock[]`                 | Rich text as structured JSON |
-| `json`         | JSON        | `any`                                 | Arbitrary JSON data          |
+| `blocks`       | JSON        | `{ _type, _version, _key, ... }[]`    | Ordered typed composition    |
+| `json`         | JSON        | `unknown`                             | Arbitrary JSON data          |
 
 ### Field Definition
 
@@ -112,8 +122,8 @@ Fields can have:
 	{ "slug": "year", "label": "Year", "type": "string" },
 	{ "slug": "summary", "label": "Summary", "type": "text", "searchable": true },
 	{ "slug": "content", "label": "Content", "type": "portableText", "searchable": true },
-	{ "slug": "gallery", "label": "Gallery", "type": "json" },
-	{ "slug": "url", "label": "Project URL", "type": "string" }
+	{ "slug": "gallery", "label": "Gallery", "type": "repeater", "validation": { "subFields": [{ "slug": "image", "label": "Image", "type": "image", "required": true }] } },
+	{ "slug": "url", "label": "Project URL", "type": "url" }
 ]
 ```
 
@@ -125,6 +135,63 @@ Fields can have:
 	{ "slug": "content", "label": "Content", "type": "portableText", "searchable": true }
 ]
 ```
+
+## Block types
+
+Define `blockTypes` before collections that use a `blocks` field. Each type retains every numbered version and names one active version for new blocks.
+
+```json
+{
+	"version": "1",
+	"blockTypes": [
+		{
+			"slug": "hero",
+			"label": "Hero",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{ "slug": "heading", "label": "Heading", "type": "string", "required": true },
+						{ "slug": "image", "label": "Image", "type": "image" }
+					]
+				}
+			]
+		}
+	],
+	"collections": [
+		{
+			"slug": "pages",
+			"label": "Pages",
+			"fields": [
+				{
+					"slug": "layout",
+					"label": "Layout",
+					"type": "blocks",
+					"validation": { "allowedTypes": ["hero"], "maxItems": 20 }
+				}
+			]
+		}
+	]
+}
+```
+
+Compatible changes amend the active version. A breaking change creates a new inactive version; deploy renderers for it before activation, then migrate stored blocks explicitly. Removing a type from `allowedTypes` moves it to the server-managed `retiredTypes` list.
+
+Seeded block values include their type version and stable key:
+
+```json
+{
+	"_type": "hero",
+	"_version": 1,
+	"_key": "home-hero",
+	"heading": "Build something useful"
+}
+```
+
+Adding a required blocks field or a positive `minItems` rule to a populated collection is not an additive schema change. Backfill every existing entry before enforcing the requirement.
+
+Block fields support scalar, text, selection, Portable Text, image, file, and repeater fields. References, JSON, slugs, nested blocks, custom widgets, indexes, uniqueness, and per-subfield localization are not supported inside block definitions.
 
 ## Taxonomies
 

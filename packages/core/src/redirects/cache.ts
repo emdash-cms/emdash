@@ -3,19 +3,19 @@
  *
  * Worker-isolate cache for enabled redirect rules. The middleware populates
  * this on first request; route handlers invalidate it on writes. Cached rules
- * expire so writes handled by another isolate become visible here too.
+ * are revalidated after they expire so writes handled by another isolate
+ * become visible here too.
  *
- * Both exact-match and pattern rules are loaded from one query and cached
- * together: exact rules indexed by source path in a Map, pattern rules
- * pre-compiled into an array. A single warm request issues zero database
- * queries; a cold or expired isolate issues one.
+ * A cold isolate loads the rules from its source and waits for them. Once
+ * warm, requests never wait: an expired cache keeps serving while one
+ * background revalidation asks the source whether the loaded version is still
+ * current and reloads only when it is not.
  *
  * This module deliberately has NO Astro imports so it can be safely imported
  * from handlers, seed, CLI, and tests without dragging in `astro:middleware`.
  */
 
 import { after } from "../after.js";
-import type { Redirect } from "../database/repositories/redirect.js";
 import {
 	createSingleFlightCache,
 	type SingleFlightCache,
@@ -23,17 +23,45 @@ import {
 	singleFlightCached,
 } from "../utils/single-flight-cache.js";
 import type { CompiledPattern } from "./patterns.js";
-import { compilePattern, interpolateDestination, matchPattern } from "./patterns.js";
+import {
+	compilePattern,
+	interpolateDestination,
+	matchPattern,
+	validatePattern,
+} from "./patterns.js";
+
+export interface RedirectRule {
+	id: string;
+	source: string;
+	destination: string;
+	type: number;
+}
+
+export interface RedirectRuleSet {
+	/** Identifies the loaded rules for revalidation, or null when they can only be reloaded. */
+	version: string | null;
+	/** Exact rules; a later rule for the same source replaces an earlier one. */
+	exact: RedirectRule[];
+	/** Pattern rules in precedence order. */
+	patterns: RedirectRule[];
+}
+
+export interface RedirectSource {
+	load(): Promise<RedirectRuleSet>;
+	/** Whether `version` is still the source's current rule set. */
+	isCurrent(version: string): Promise<boolean>;
+}
 
 export interface CachedRedirectRule {
-	redirect: Redirect;
+	redirect: RedirectRule;
 	compiled: CompiledPattern;
 }
 
 export interface CachedRedirects {
-	/** Exact-match rules indexed by source path (`source` -> `Redirect`). */
-	exact: Map<string, Redirect>;
-	/** Pattern rules with their compiled regexes, preserving insertion order. */
+	version: string | null;
+	/** Exact-match rules indexed by source path. */
+	exact: Map<string, RedirectRule>;
+	/** Pattern rules with their compiled regexes, in precedence order. */
 	patterns: CachedRedirectRule[];
 }
 
@@ -42,6 +70,7 @@ interface RedirectCacheState {
 	expiresAt: number;
 	generation: number;
 	refresh: SingleFlightCache<CachedRedirects>;
+	revalidatingUntil: number;
 }
 
 const REDIRECT_CACHE_TTL_MS = 30_000;
@@ -57,6 +86,7 @@ const cacheState: RedirectCacheState =
 			expiresAt: 0,
 			generation: 0,
 			refresh: createSingleFlightCache<CachedRedirects>(),
+			revalidatingUntil: 0,
 		};
 		g[REDIRECT_CACHE_KEY] = state;
 		return state;
@@ -70,31 +100,24 @@ export function invalidateRedirectCache(): void {
 	cacheState.generation++;
 	cacheState.redirects = null;
 	cacheState.expiresAt = 0;
+	cacheState.revalidatingUntil = 0;
 	invalidateSingleFlightCache(cacheState.refresh);
 }
 
-/**
- * Get the cached redirects, or null if the cache is cold.
- */
-function getCachedRedirects(): CachedRedirects | null {
-	if (cacheState.redirects && Date.now() >= cacheState.expiresAt) {
-		invalidateRedirectCache();
-	}
-	return cacheState.redirects;
-}
-
-/** Compile enabled database rows into the in-memory lookup structures. */
-function compileRedirects(redirects: Redirect[]): CachedRedirects {
-	const exact = new Map<string, Redirect>();
+/** Compile a rule set into the in-memory lookup structures. */
+function compileRedirects(rules: RedirectRuleSet): CachedRedirects {
+	const exact = new Map<string, RedirectRule>();
+	for (const rule of rules.exact) exact.set(rule.source, rule);
 	const patterns: CachedRedirectRule[] = [];
-	for (const r of redirects) {
-		if (r.isPattern) {
-			patterns.push({ redirect: r, compiled: compilePattern(r.source) });
-		} else {
-			exact.set(r.source, r);
+	for (const rule of rules.patterns) {
+		const patternError = validatePattern(rule.source);
+		if (patternError) {
+			console.warn(`[emdash:redirects] Skipping redirect ${rule.id}: ${patternError}`);
+			continue;
 		}
+		patterns.push({ redirect: rule, compiled: compilePattern(rule.source) });
 	}
-	return { exact, patterns };
+	return { version: rules.version, exact, patterns };
 }
 
 function installCachedRedirects(redirects: CachedRedirects): CachedRedirects {
@@ -103,17 +126,39 @@ function installCachedRedirects(redirects: CachedRedirects): CachedRedirects {
 	return cacheState.redirects;
 }
 
-export async function loadCachedRedirects(
-	load: () => Promise<Redirect[]>,
-): Promise<CachedRedirects> {
+function revalidateInBackground(source: RedirectSource, cached: CachedRedirects): void {
+	const now = Date.now();
+	if (cacheState.revalidatingUntil > now) return;
+	cacheState.revalidatingUntil = now + REDIRECT_CACHE_TTL_MS;
+	const generation = cacheState.generation;
+	after(async () => {
+		try {
+			if (cached.version !== null && (await source.isCurrent(cached.version))) {
+				if (generation === cacheState.generation) {
+					cacheState.expiresAt = Date.now() + REDIRECT_CACHE_TTL_MS;
+				}
+				return;
+			}
+			const loaded = compileRedirects(await source.load());
+			if (generation === cacheState.generation) installCachedRedirects(loaded);
+		} catch (error) {
+			console.error("[emdash:redirects] revalidating redirects failed:", error);
+		}
+	});
+}
+
+export async function loadCachedRedirects(source: RedirectSource): Promise<CachedRedirects> {
 	for (let attempt = 0; attempt < REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS; attempt++) {
-		const cached = getCachedRedirects();
-		if (cached) return cached;
+		const cached = cacheState.redirects;
+		if (cached) {
+			if (Date.now() >= cacheState.expiresAt) revalidateInBackground(source, cached);
+			return cached;
+		}
 
 		const generation = cacheState.generation;
 		const loaded = await singleFlightCached(
 			cacheState.refresh,
-			async () => compileRedirects(await load()),
+			async () => compileRedirects(await source.load()),
 			{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
 		);
 
@@ -136,7 +181,7 @@ export async function loadCachedRedirects(
 export function matchCachedPatterns(
 	rules: CachedRedirectRule[],
 	pathname: string,
-): { redirect: Redirect; destination: string } | null {
+): { redirect: RedirectRule; destination: string } | null {
 	for (const { redirect, compiled } of rules) {
 		const params = matchPattern(compiled, pathname);
 		if (params) {

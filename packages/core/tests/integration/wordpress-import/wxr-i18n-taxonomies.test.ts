@@ -66,7 +66,7 @@ async function setup(): Promise<Harness> {
 	// (plural) because that's the conventional EmDash collection slug, but
 	// the test DB uses `post` so we widen the def to match.
 	await db
-		.updateTable("_emdash_taxonomy_defs")
+		.updateTable("_emdash_taxonomy_def_groups")
 		.set({ collections: JSON.stringify(["post"]) })
 		.where("name", "in", ["category", "tag"])
 		.execute();
@@ -798,6 +798,40 @@ describe("WXR import: taxonomy ingest (#1061)", () => {
 		}
 	});
 
+	it("resolves a taxonomy defined only in a locale off the import locale's fallback chain", async () => {
+		// The seeded `category` def is at `en`, and `ar` falls back to nothing.
+		setI18nConfig({ defaultLocale: "ar", locales: ["ar", "en"] });
+		try {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <wp:category>
+      <wp:term_id>5</wp:term_id>
+      <wp:category_nicename><![CDATA[akhbar]]></wp:category_nicename>
+      <wp:cat_name><![CDATA[Akhbar]]></wp:cat_name>
+    </wp:category>
+    <item>
+      <title>Marhaba</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello-ar</wp:post_name>
+      <category domain="category" nicename="akhbar"><![CDATA[Akhbar]]></category>
+    </item>
+  </channel>
+</rss>`;
+
+			const { result } = await runImport(harness, wxr, { locale: "ar" });
+
+			expect(result.taxonomies?.missingTaxonomies ?? []).not.toContain("category");
+			const repo = new TaxonomyRepository(harness.db);
+			const arabicCategories = await repo.findByName("category", { locale: "ar" });
+			expect(arabicCategories.map((t) => t.slug)).toContain("akhbar");
+		} finally {
+			setI18nConfig(null);
+		}
+	});
+
 	it("captures per-item category text body as the term label (#1087 review LOW #8)", async () => {
 		// Older / hand-edited WXR exports skip top-level <wp:category>
 		// blocks. Pass-4 backfill should use the per-item `<category>`
@@ -853,7 +887,7 @@ describe("WXR import: taxonomy ingest (#1061)", () => {
 		// so `setPostTermAssignmentsReplacing` doesn't touch the
 		// inherited rows.
 		await harness.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["editorials"]) }) // restricted to a non-existent collection
 			.where("name", "=", "category")
 			.execute();

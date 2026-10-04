@@ -288,6 +288,18 @@ describe("TaxonomySidebar", () => {
 		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
 	});
 
+	it("explains when saved term changes affect published content", async () => {
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+			{ wrapper: Wrapper },
+		);
+		await (await openPicker(screen, "Tags")).fill("Alpha");
+		await userEvent.keyboard("{Enter}");
+		await expect
+			.element(screen.getByText("Saved immediately; term changes do not wait for Publish changes."))
+			.toBeInTheDocument();
+	});
+
 	it("assigns comma-separated existing terms together", async () => {
 		const onChange = vi.fn();
 		const screen = await render(

@@ -41,13 +41,12 @@ export const GET: APIRoute = async ({ locals }) => {
 			console.warn("[plugins/updates] marketplace check threw:", err);
 			return null;
 		}),
-		handleRegistryUpdateCheck(
-			emdash.db,
-			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
-		).catch((err) => {
-			console.warn("[plugins/updates] registry check threw:", err);
-			return null;
-		}),
+		handleRegistryUpdateCheck(emdash.db, getRegistryConfigInput(emdash.config.registry)).catch(
+			(err) => {
+				console.warn("[plugins/updates] registry check threw:", err);
+				return null;
+			},
+		),
 	]);
 	if (marketplace && !marketplace.success) {
 		console.warn(

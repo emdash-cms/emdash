@@ -60,12 +60,35 @@ describe("test plan", () => {
 		assert.equal(plan.e2e_node, false);
 	});
 
+	it("runs the embeds browser suite only for embeds changes", () => {
+		const embeds = createTestPlan(["packages/plugins/embeds/src/astro/Gist.astro"]);
+		assert.equal(embeds.browser, true);
+		assert.equal(embeds.browser_embeds, true);
+		assert.equal(embeds.integration, true);
+
+		const forms = createTestPlan(["packages/plugins/forms/src/index.ts"]);
+		assert.equal(forms.browser_embeds, false);
+	});
+
 	it("runs shared E2E fixture changes against both runtimes", () => {
 		const plan = createTestPlan(["e2e/fixtures/admin.ts"]);
 
 		assert.equal(plan.e2e_node, true);
 		assert.equal(plan.e2e_cloudflare, true);
 		assert.equal(plan.visual, false);
+	});
+
+	it("runs cross-browser image coverage for marketplace fixture changes", () => {
+		const plan = createTestPlan(["packages/plugins/marketplace-test/src/plugin.ts"]);
+
+		assert.equal(plan.unit, true);
+		assert.equal(plan.integration, true);
+		assert.equal(plan.e2e_table, true);
+		assert.equal(plan.unit_mode, "full");
+		assert.equal(plan.full, false);
+
+		const otherFixture = createTestPlan(["packages/plugins/sandboxed-test/src/plugin.ts"]);
+		assert.equal(otherFixture.e2e_table, false);
 	});
 
 	it("identifies changed package roots for focused unit tests", () => {

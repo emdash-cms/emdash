@@ -15,7 +15,8 @@
 			"slug": "projects",
 			"label": "Projects",
 			"labelSingular": "Project",
-			"supports": ["drafts", "revisions", "search", "seo"],
+			"supports": ["drafts", "revisions", "preview", "search", "seo"],
+			"urlPattern": "/work/{slug}",
 			"fields": [
 				{
 					"slug": "title",
@@ -55,12 +56,28 @@
 				{
 					"slug": "gallery",
 					"label": "Gallery",
-					"type": "json"
+					"type": "repeater",
+					"validation": {
+						"maxItems": 24,
+						"subFields": [
+							{
+								"slug": "image",
+								"label": "Image",
+								"type": "image",
+								"required": true
+							},
+							{
+								"slug": "caption",
+								"label": "Caption",
+								"type": "text"
+							}
+						]
+					}
 				},
 				{
 					"slug": "url",
 					"label": "Project URL",
-					"type": "string"
+					"type": "url"
 				}
 			]
 		},
@@ -68,7 +85,8 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
-			"supports": ["drafts", "revisions", "search"],
+			"supports": ["drafts", "revisions", "preview", "search", "seo"],
+			"urlPattern": "/{slug}",
 			"fields": [
 				{
 					"slug": "title",
@@ -87,31 +105,6 @@
 		}
 	],
 	"taxonomies": [
-		{
-			"name": "category",
-			"label": "Categories",
-			"labelSingular": "Category",
-			"hierarchical": false,
-			"collections": ["projects"],
-			"terms": [
-				{
-					"slug": "branding",
-					"label": "Branding"
-				},
-				{
-					"slug": "web",
-					"label": "Web Design"
-				},
-				{
-					"slug": "print",
-					"label": "Print"
-				},
-				{
-					"slug": "photography",
-					"label": "Photography"
-				}
-			]
-		},
 		{
 			"name": "tag",
 			"label": "Tags",
@@ -307,10 +300,31 @@
 							],
 							"_key": "k8"
 						}
+					],
+					"gallery": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1523726491678-bf852e717f6a?w=1200&h=900&fit=crop",
+									"alt": "Brand identity sketches and colour studies arranged on a desk",
+									"filename": "meridian-process.jpg"
+								}
+							},
+							"caption": "Early identity studies for Meridian Collective."
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1558655146-d09347e92766?w=1200&h=900&fit=crop",
+									"alt": "Meridian website layouts displayed on a designer's monitor",
+									"filename": "meridian-digital.jpg"
+								}
+							},
+							"caption": "The identity applied to Meridian's digital experience."
+						}
 					]
 				},
 				"taxonomies": {
-					"category": ["branding"],
 					"tag": ["identity", "art-direction"]
 				}
 			},
@@ -371,7 +385,6 @@
 					]
 				},
 				"taxonomies": {
-					"category": ["web"],
 					"tag": ["ui-ux", "development"]
 				}
 			},
@@ -431,7 +444,6 @@
 					]
 				},
 				"taxonomies": {
-					"category": ["print"],
 					"tag": ["editorial", "art-direction"]
 				}
 			},
@@ -491,7 +503,6 @@
 					]
 				},
 				"taxonomies": {
-					"category": ["photography"],
 					"tag": ["art-direction", "editorial"]
 				}
 			}

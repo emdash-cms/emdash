@@ -1,0 +1,11 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"jsx": "react-jsx",
+		"lib": ["es2023", "esnext.typedarrays", "DOM", "DOM.Iterable"]
+	},
+	"include": ["src/components/**/*"],
+	// These import .astro files, which tsgo can't resolve outside `astro check`.
+	"exclude": ["node_modules", "dist", "src/components/index.ts", "src/components/marks.ts"]
+}

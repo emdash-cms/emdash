@@ -14,7 +14,7 @@
  *   - `wp:category` -> EmDash `category` taxonomy (seeded by migration 006).
  *   - `wp:tag`      -> EmDash `tag` taxonomy.
  *   - `wp:term`     -> matching EmDash taxonomy by `name` (case-sensitive).
- *                      If no matching def exists in the target locale, the
+ *                      If the taxonomy isn't defined in any locale, the
  *                      term is skipped — we don't auto-create defs because
  *                      the user controls their schema through the admin.
  *   - Terms are created idempotently by `(taxonomy, slug, locale)`. Existing
@@ -28,9 +28,12 @@
 import type { Kysely } from "kysely";
 
 import type { WxrCategory, WxrPost, WxrTag, WxrTerm } from "../cli/wxr/parser.js";
+import {
+	findTaxonomyStructure,
+	selectTaxonomyDefs,
+} from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { Database } from "../database/types.js";
-import { resolveLocaleChain } from "../i18n/resolve.js";
 import { invalidateTermCache } from "../taxonomies/index.js";
 
 /**
@@ -128,22 +131,6 @@ function rememberTerm(
 	bySlug.set(slug, termId);
 }
 
-/**
- * Look up an EmDash taxonomy def by name. Definitions are per-locale but
- * a def is conceptually site-wide -- the per-locale row carries only the
- * label translations.
- *
- * Match the runtime helper `getTaxonomyDef` (in `src/taxonomies/index.ts`):
- * walk `resolveLocaleChain(locale)` so the importer picks the same def the
- * runtime would later resolve to. When the chain is empty (i18n disabled)
- * or every locale in the chain misses, fall through to the lowest-locale
- * row so single-locale installs still see seeded defs that were inserted
- * at some non-empty locale value.
- *
- * Without this fallback, a user importing into a non-default locale would
- * see every category dropped as `missingTaxonomies` even though the seeded
- * defs exist (just at the site's default locale).
- */
 function parseDefCollections(raw: string | null): string[] {
 	if (!raw) return [];
 	try {
@@ -155,47 +142,6 @@ function parseDefCollections(raw: string | null): string[] {
 		// malformed JSON in the def -- treat as "no collection filter"
 	}
 	return [];
-}
-
-async function findTaxonomyDef(
-	db: Kysely<Database>,
-	name: string,
-	locale: string | undefined,
-): Promise<{ id: string; collections: string[] } | null> {
-	const chain = resolveLocaleChain(locale);
-
-	if (chain.length === 0) {
-		// i18n disabled and no explicit locale. The runtime treats this
-		// as "no locale filter" and picks the lowest-locale row. We do the
-		// same so the importer agrees with how the runtime later reads
-		// the def.
-		const row = await db
-			.selectFrom("_emdash_taxonomy_defs")
-			.selectAll()
-			.where("name", "=", name)
-			.orderBy("locale", "asc")
-			.executeTakeFirst();
-		return row ? { id: row.id, collections: parseDefCollections(row.collections) } : null;
-	}
-
-	// Non-empty chain: walk it in order, return null if every entry misses.
-	// This matches `getTaxonomyDef` exactly. We deliberately do NOT fall
-	// through to any-locale lookup: doing so would let the importer pick a
-	// def at a locale the runtime would never resolve to, producing
-	// content the user can't see in the admin or on the rendered site.
-	for (const tryLocale of chain) {
-		const row = await db
-			.selectFrom("_emdash_taxonomy_defs")
-			.selectAll()
-			.where("name", "=", name)
-			.where("locale", "=", tryLocale)
-			.executeTakeFirst();
-		if (row) {
-			return { id: row.id, collections: parseDefCollections(row.collections) };
-		}
-	}
-
-	return null;
 }
 
 /**
@@ -212,11 +158,7 @@ async function findTaxonomyDef(
 export async function loadTaxonomyPlanFromDb(db: Kysely<Database>): Promise<TaxonomyImportPlan> {
 	const state = makeState();
 
-	const defs = await db
-		.selectFrom("_emdash_taxonomy_defs")
-		.select(["name", "collections"])
-		.orderBy("locale", "asc")
-		.execute();
+	const defs = await selectTaxonomyDefs(db).orderBy("d.locale", "asc").execute();
 	for (const def of defs) {
 		if (!state.plan.collectionsByTaxonomy.has(def.name)) {
 			state.plan.collectionsByTaxonomy.set(def.name, new Set(parseDefCollections(def.collections)));
@@ -237,60 +179,132 @@ export async function loadTaxonomyPlanFromDb(db: Kysely<Database>): Promise<Taxo
 	return state.plan;
 }
 
-/**
- * Find or create a term in the given taxonomy. Returns the term id. Callers
- * must verify the taxonomy def exists before calling — this helper assumes
- * the def is present.
- *
- * Note: we don't resolve WordPress parent slugs into EmDash parent ids in
- * this pass. WXR exports list categories in arbitrary order, so a category's
- * parent may not exist yet when we first see it. Hierarchy is preserved at
- * the data level (the parent slug is on `WxrCategory.parent`) but flattens
- * in EmDash for now; restoring the tree is a follow-up improvement.
- */
-async function ensureTerm(
-	repo: TaxonomyRepository,
-	state: TaxonomyImportState,
-	taxonomyName: string,
-	slug: string,
-	label: string,
-	description: string | undefined,
-	locale: string | undefined,
-): Promise<string> {
-	// Already resolved in this run (e.g. seen in `wp:category` AND in a per-
-	// item `<category>` element).
-	const cached = state.plan.termIdByNameAndSlug.get(taxonomyName)?.get(slug);
-	if (cached) return cached;
+interface TermDescriptor {
+	taxonomyName: string;
+	slug: string;
+	label: string;
+	description?: string;
+}
 
-	const existing = await repo.findBySlug(taxonomyName, slug, locale);
-	if (existing) {
-		bump(state.plan.termsReused, taxonomyName);
-		rememberTerm(state, taxonomyName, slug, existing.id);
-		return existing.id;
+function termKey(taxonomyName: string, slug: string): string {
+	return `${taxonomyName}\u0000${slug}`;
+}
+
+/**
+ * Find or create many terms in a small number of batched SELECTs instead of
+ * one SELECT per term. This is the dominant fixed cost for WXR imports with
+ * large category/tag vocabularies: a site with 100+ categories would otherwise
+ * spend one D1 round-trip per category before writing any posts.
+ *
+ * Batching rules:
+ *   - Descriptors already resolved in `state.plan.termIdByNameAndSlug` are
+ *     skipped (same idempotency as the old per-term loop).
+ *   - Remaining descriptors are deduplicated by `(taxonomy, slug)`; the first
+ *     label/description seen wins, matching the old behaviour where the first
+ *     `ensureTerm` call cached the id.
+ *   - One batched SELECT resolves existing rows at the requested locale.
+ *   - One batched SELECT resolves any-locale rows for use as `translationOf`.
+ *   - Missing rows are still created one at a time because each insert needs
+ *     its own ULID/translation_group/sort_order bookkeeping, but the reads are
+ *     where the round-trip bottleneck lives.
+ */
+async function ensureTermsBatch(
+	db: Kysely<Database>,
+	state: TaxonomyImportState,
+	descriptors: TermDescriptor[],
+	locale: string | undefined,
+): Promise<void> {
+	if (descriptors.length === 0) return;
+
+	const repo = new TaxonomyRepository(db);
+
+	const needed: TermDescriptor[] = [];
+	const seenKeys = new Set<string>();
+	for (const d of descriptors) {
+		if (state.plan.termIdByNameAndSlug.get(d.taxonomyName)?.has(d.slug)) continue;
+		const key = termKey(d.taxonomyName, d.slug);
+		if (seenKeys.has(key)) continue;
+		seenKeys.add(key);
+		needed.push(d);
+	}
+	if (needed.length === 0) return;
+
+	// Resolve existing rows at the requested locale in one round-trip.
+	const existingAtLocale = await findExistingTerms(db, needed, locale);
+	for (const row of existingAtLocale) {
+		bump(state.plan.termsReused, row.name);
+		rememberTerm(state, row.name, row.slug, row.id);
 	}
 
-	// No row at the requested locale. Before creating, check whether a
-	// `(name, slug)` row exists in some OTHER locale -- e.g. the admin
-	// pre-created an Arabic translation, and now an `en` import wants the
-	// canonical row. We need to mint the new row inside the existing row's
-	// `translation_group` so per-locale lookups across the family work.
-	// Without this, the mirror pass would later refuse to reconcile (it
-	// sees pre-existing rows in a different group as a no-op) and pivots
-	// would point at a group that has no row in the requested locale.
-	const anyLocale = await repo.findBySlug(taxonomyName, slug);
-	const translationOf = anyLocale?.id;
+	// Build the list of descriptors that still need creation.
+	const stillNeeded: TermDescriptor[] = [];
+	for (const d of needed) {
+		if (!state.plan.termIdByNameAndSlug.get(d.taxonomyName)?.has(d.slug)) {
+			stillNeeded.push(d);
+		}
+	}
+	if (stillNeeded.length === 0) return;
 
-	const created = await repo.create({
-		name: taxonomyName,
-		slug,
-		label,
-		data: description ? { description } : undefined,
-		locale,
-		translationOf,
-	});
-	bump(state.plan.termsCreated, taxonomyName);
-	rememberTerm(state, taxonomyName, slug, created.id);
-	return created.id;
+	// Resolve any-locale rows once for translationOf linking.
+	const anyLocaleRows = await findExistingTerms(db, stillNeeded, undefined);
+	const translationOfByKey = new Map<string, string>();
+	for (const row of anyLocaleRows) {
+		const key = termKey(row.name, row.slug);
+		if (!translationOfByKey.has(key)) translationOfByKey.set(key, row.id);
+	}
+
+	for (const d of stillNeeded) {
+		const created = await repo.create({
+			name: d.taxonomyName,
+			slug: d.slug,
+			label: d.label,
+			data: d.description ? { description: d.description } : undefined,
+			locale,
+			translationOf: translationOfByKey.get(termKey(d.taxonomyName, d.slug)),
+		});
+		bump(state.plan.termsCreated, d.taxonomyName);
+		rememberTerm(state, d.taxonomyName, d.slug, created.id);
+	}
+}
+
+/**
+ * Batched lookup of term rows for a list of `(taxonomy, slug)` pairs.
+ * Chunks at `SQL_BATCH_SIZE / 2` because each pair consumes two bind
+ * parameters (`name` and `slug`). When `locale` is omitted, returns rows
+ * for all locales ordered by locale ascending so callers can pick the first
+ * row per pair (mirroring `TaxonomyRepository.findBySlug` without a locale
+ * argument).
+ */
+async function findExistingTerms(
+	db: Kysely<Database>,
+	descriptors: TermDescriptor[],
+	locale: string | undefined,
+): Promise<Array<{ id: string; name: string; slug: string }>> {
+	const { chunks, SQL_BATCH_SIZE } = await import("../utils/chunks.js");
+	const rows: Array<{ id: string; name: string; slug: string }> = [];
+	const seenKeys = new Set<string>();
+
+	// Each pair uses 2 bind params, so limit each batch to SQL_BATCH_SIZE / 2 pairs.
+	for (const batch of chunks(descriptors, Math.floor(SQL_BATCH_SIZE / 2))) {
+		const batchRows = await db
+			.selectFrom("taxonomies")
+			.select(["id", "name", "slug"])
+			.where((eb) =>
+				eb.or(batch.map((d) => eb.and([eb("name", "=", d.taxonomyName), eb("slug", "=", d.slug)]))),
+			)
+			.$if(locale !== undefined, (qb) => qb.where("locale", "=", locale!))
+			.orderBy("locale", "asc")
+			.execute();
+
+		for (const row of batchRows) {
+			const key = termKey(row.name, row.slug);
+			if (seenKeys.has(key)) continue;
+			seenKeys.add(key);
+			rows.push(row);
+		}
+	}
+
+	return rows;
 }
 
 /**
@@ -327,15 +341,16 @@ export async function preImportWxrTaxonomies(
 	locale: string | undefined,
 ): Promise<TaxonomyImportPlan> {
 	const state = makeState();
-	const repo = new TaxonomyRepository(db);
 
 	// Cache def lookups for the duration of the import. Keyed by name; value
-	// is `null` when we've already determined the def is missing in this
-	// locale (so we only report the "missing" warning once per taxonomy).
+	// is `null` when we've already determined the taxonomy is missing (so we
+	// only report the "missing" warning once per taxonomy).
 	const defCache = new Map<string, { id: string; collections: string[] } | null>();
 	const lookupDef = async (name: string): Promise<{ id: string; collections: string[] } | null> => {
 		if (defCache.has(name)) return defCache.get(name) ?? null;
-		const def = await findTaxonomyDef(db, name, locale);
+		// A taxonomy's structure is the same in every locale, so a definition in
+		// any locale counts, as it does for the runtime's `getTaxonomyDef`.
+		const def = await findTaxonomyStructure(db, name);
 		defCache.set(name, def);
 		if (def) {
 			state.plan.collectionsByTaxonomy.set(name, new Set(def.collections));
@@ -343,38 +358,40 @@ export async function preImportWxrTaxonomies(
 		return def;
 	};
 
-	// Pass 1: top-level <wp:category> blocks -> EmDash `category` taxonomy.
+	// Pass 1-3: collect every term declared at the top of the WXR, then
+	// resolve them in a few batched queries instead of one round-trip per term.
 	const categoryDef = await lookupDef("category");
+	const tagDef = await lookupDef("tag");
+	const topLevel: TermDescriptor[] = [];
+
 	if (categoryDef) {
 		for (const cat of categories) {
-			const slug = cat.nicename;
-			const label = cat.name;
-			if (!slug || !label) continue;
-			await ensureTerm(repo, state, "category", slug, label, cat.description, locale);
+			if (!cat.nicename || !cat.name) continue;
+			topLevel.push({
+				taxonomyName: "category",
+				slug: cat.nicename,
+				label: cat.name,
+				description: cat.description,
+			});
 		}
 	} else if (categories.length > 0) {
-		// Seeded `category` def was deleted by the user — record so the
-		// import response can surface why none of the categories landed.
 		state.plan.missingTaxonomies.push("category");
 	}
 
-	// Pass 2: top-level <wp:tag> blocks -> EmDash `tag` taxonomy.
-	const tagDef = await lookupDef("tag");
 	if (tagDef) {
 		for (const tag of tags) {
-			const slug = tag.slug;
-			const label = tag.name;
-			if (!slug || !label) continue;
-			await ensureTerm(repo, state, "tag", slug, label, tag.description, locale);
+			if (!tag.slug || !tag.name) continue;
+			topLevel.push({
+				taxonomyName: "tag",
+				slug: tag.slug,
+				label: tag.name,
+				description: tag.description,
+			});
 		}
 	} else if (tags.length > 0) {
 		state.plan.missingTaxonomies.push("tag");
 	}
 
-	// Pass 3: <wp:term> blocks for custom taxonomies (genre, etc.). Skipped:
-	//   - `nav_menu`: menus are handled by `importMenusFromWxr`.
-	//   - `language`: Polylang's locale signal; promoted to `WxrPost.locale`
-	//     by the parser and not a content taxonomy in EmDash.
 	for (const term of terms) {
 		if (term.taxonomy === "nav_menu" || term.taxonomy === "language") continue;
 		// Normalize WordPress' `post_tag` synonym -> EmDash `tag`. WordPress
@@ -388,16 +405,23 @@ export async function preImportWxrTaxonomies(
 			}
 			continue;
 		}
-		await ensureTerm(repo, state, taxonomyName, term.slug, term.name, term.description, locale);
+		topLevel.push({
+			taxonomyName,
+			slug: term.slug,
+			label: term.name,
+			description: term.description,
+		});
 	}
+
+	await ensureTermsBatch(db, state, topLevel, locale);
 
 	// Pass 4: per-item assignments. Backfills terms missing from the top-
 	// level blocks (rare, but observed in hand-edited or partial exports).
-	// Labels come from the per-item `<category>` text body when the parser
-	// captured one; otherwise we fall back to the slug. This is the path
-	// for older exports that skip top-level `<wp:category>` definitions.
+	// Collect every assignment first so we can batch-resolve them too.
+	const fromPosts: TermDescriptor[] = [];
 	let recordedMissingCategoryFromPosts = false;
 	let recordedMissingTagFromPosts = false;
+
 	for (const post of posts) {
 		for (const slug of post.categories) {
 			if (!categoryDef) {
@@ -411,15 +435,11 @@ export async function preImportWxrTaxonomies(
 				break;
 			}
 			if (state.plan.termIdByNameAndSlug.get("category")?.has(slug)) continue;
-			await ensureTerm(
-				repo,
-				state,
-				"category",
+			fromPosts.push({
+				taxonomyName: "category",
 				slug,
-				labelFor(post, "category", slug),
-				undefined,
-				locale,
-			);
+				label: labelFor(post, "category", slug),
+			});
 		}
 		for (const slug of post.tags) {
 			if (!tagDef) {
@@ -430,13 +450,14 @@ export async function preImportWxrTaxonomies(
 				break;
 			}
 			if (state.plan.termIdByNameAndSlug.get("tag")?.has(slug)) continue;
-			await ensureTerm(repo, state, "tag", slug, labelFor(post, "tag", slug), undefined, locale);
+			fromPosts.push({
+				taxonomyName: "tag",
+				slug,
+				label: labelFor(post, "tag", slug),
+			});
 		}
 		if (post.customTaxonomies) {
 			for (const [rawName, slugs] of post.customTaxonomies) {
-				// `nav_menu` is handled by the menu importer; `language` is
-				// Polylang's per-post locale signal, already promoted by the
-				// parser.
 				if (rawName === "nav_menu" || rawName === "language") continue;
 				const taxonomyName = rawName === "post_tag" ? "tag" : rawName;
 				const def = await lookupDef(taxonomyName);
@@ -448,19 +469,17 @@ export async function preImportWxrTaxonomies(
 				}
 				for (const slug of slugs) {
 					if (state.plan.termIdByNameAndSlug.get(taxonomyName)?.has(slug)) continue;
-					await ensureTerm(
-						repo,
-						state,
+					fromPosts.push({
 						taxonomyName,
 						slug,
-						labelFor(post, taxonomyName, slug),
-						undefined,
-						locale,
-					);
+						label: labelFor(post, taxonomyName, slug),
+					});
 				}
 			}
 		}
 	}
+
+	await ensureTermsBatch(db, state, fromPosts, locale);
 
 	// `content_taxonomies` writes happen later in `attachPostTaxonomies`, but
 	// term inserts above already invalidate the in-memory "has any terms" probe.

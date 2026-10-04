@@ -29,6 +29,7 @@ import {
 } from "./flags.js";
 import {
 	isDirNonEmpty,
+	replacePackageManagerCommands,
 	runCommand,
 	sanitizePackageName,
 	setWorkerLoader,
@@ -376,9 +377,11 @@ async function main() {
 
 		// Set project name in package.json
 		const pkgPath = resolve(projectDir, "package.json");
+		let scripts: string[] = [];
 		if (existsSync(pkgPath)) {
 			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 			pkg.name = projectName;
+			scripts = Object.keys(pkg.scripts ?? {});
 
 			// Templates ship with `packageManager: "pnpm@X"` baked in by the
 			// sync script. Drop it when the user picked a different PM so
@@ -397,6 +400,14 @@ async function main() {
 			}
 
 			writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+		}
+
+		for (const doc of ["README.md", "AGENTS.md"]) {
+			const docPath = resolve(projectDir, doc);
+			if (existsSync(docPath)) {
+				const content = readFileSync(docPath, "utf-8");
+				writeFileSync(docPath, replacePackageManagerCommands(content, pm, scripts));
+			}
 		}
 
 		// Scaffold a fresh EMDASH_ENCRYPTION_KEY into the local-secrets file.

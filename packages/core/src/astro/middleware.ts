@@ -46,6 +46,7 @@ import {
 	resolveRuntimeMigrationMode,
 	type RuntimeMigrationMode,
 } from "../database/migrations/policy.js";
+import { markRequestScopedDb } from "../database/request-scoped.js";
 import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	DB_INIT_DEADLINE_MS,
@@ -489,6 +490,20 @@ function migrationRequiredResponse(): Response {
 	);
 }
 
+function unmigratedDatabaseResponse(): Response {
+	return new Response(
+		'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Site unavailable</title></head><body><p>This site\'s database has not been migrated yet. <a href="/_emdash/admin/setup">Set up EmDash</a></p></body></html>',
+		{
+			status: 503,
+			headers: {
+				"Content-Type": "text/html; charset=utf-8",
+				"Cache-Control": "no-store",
+				"Retry-After": "60",
+			},
+		},
+	);
+}
+
 function runtimeConfigurationErrorResponse(error: unknown, pathname: string): Response | null {
 	if (!pathname.startsWith("/_emdash/api/")) return null;
 	if (error instanceof EmDashConfigurationError) {
@@ -575,13 +590,80 @@ function pushMetricsTimings(
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
-const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
+const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*(?:-[1-9]\d*)?\.xml$/;
+
+function isImageEndpointRequest(context: APIContext): boolean {
+	const route = virtualConfig?.imageEndpointRoute;
+	return typeof route === "string" && context.routePattern === route;
+}
+
+/** The runtime's storage adapter, or null when none is configured or it cannot be created. */
+function tryGetStorage(config: EmDashConfig, migrationMode: RuntimeMigrationMode): Storage | null {
+	try {
+		return EmDashRuntime.getStorage(buildDependencies(config, migrationMode));
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Run an image endpoint request on the adapter's request-scoped db. Anything
+ * on its path that queries (host middleware, the redirect middleware under a
+ * custom endpoint route) must not fall back to the per-isolate singleton: a
+ * request-bound connection (pg over Hyperdrive) reused by another request fails
+ * or hangs on workerd's cross-request I/O guard. A signed-in request also gets
+ * the db as `locals.emdash.db`, which the auth middleware resolves `locals.user`
+ * with.
+ *
+ * The adapter's `commit()` is skipped: on D1 it sets the bookmark cookie, and a
+ * response that sets a cookie is never stored by Workers Cache. This assumes
+ * nothing on the image path writes data the client must read back; the
+ * bookmark it sent still covers its earlier writes.
+ */
+async function runImageRequest(
+	config: EmDashConfig,
+	context: APIContext,
+	imageLocals: EmDashHandlers,
+	signedIn: boolean,
+	metrics: RequestMetrics,
+	next: () => Promise<Response>,
+): Promise<Response> {
+	const scoped = createRequestScopedDb({
+		config: config.database?.config,
+		isAuthenticated: signedIn,
+		isWrite: false,
+		canUseCachedBinding: false,
+		cookies: context.cookies,
+		url: context.url,
+	});
+	if (!scoped) {
+		if (signedIn) {
+			try {
+				const { getDb } = await import("../loader.js");
+				imageLocals.db = await getDb();
+			} catch (error) {
+				console.error("[emdash] image request could not open the database:", error);
+			}
+		}
+		return finalizeResponse(await next());
+	}
+	if (signedIn) imageLocals.db = scoped.db;
+	const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({ ...scoped, commit: () => {} });
+	const parent = getRequestContext();
+	const ctx = parent
+		? { ...parent, db: scoped.db, deferredTasks }
+		: { editMode: false, db: scoped.db, metrics, deferredTasks };
+	return runWithContext(ctx, () =>
+		finishScoped(lifecycle, async () => finalizeResponse(await next())),
+	);
+}
 
 /**
  * Ask the configured database adapter for a per-request scoped Kysely. The
  * adapter encapsulates any per-request semantics (D1 sessions, read-replica
  * routing, bookmark cookies, etc.); core just forwards the cookie jar and
- * request flags and wraps next() in ALS if a scope was returned.
+ * request flags, registers the returned handle as a view of the configured
+ * database, and wraps next() in ALS if a scope was returned.
  */
 function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
@@ -591,7 +673,9 @@ function createRequestScopedDb(
 	const fn = virtualCreateRequestScopedDb as (
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
-	return fn(opts);
+	const scoped = fn(opts);
+	if (scoped) markRequestScopedDb(scoped.db);
+	return scoped;
 }
 
 const buildDate = virtualBuildTime ? new Date(virtualBuildTime) : null;
@@ -605,6 +689,10 @@ const buildDate = virtualBuildTime ? new Date(virtualBuildTime) : null;
  * returning visitor's conditional request with 304, leaving them on HTML whose
  * assets 404.
  *
+ * Only a route that set a content validator gets the build dimension. The build
+ * alone does not move when content is published, so as a page's only validator
+ * it would answer every returning visitor with 304 until the next deploy.
+ *
  * Prerendered pages are served by the host's static layer, which manages its
  * own validators — only on-demand responses need the build dimension.
  *
@@ -612,13 +700,14 @@ const buildDate = virtualBuildTime ? new Date(virtualBuildTime) : null;
  * different, so after a rollback the earlier build still answers a conditional
  * request with 304 and the browser stays on the newer build's HTML.
  *
- * Must run before next(): Astro keeps the later of two dates, so a route's own
- * hint still wins when content is newer, and a route that opts out with
- * `Astro.cache.set(false)` stays opted out — calling set() afterwards would
- * clear that opt-out.
+ * Must run after next(), once the route has set its hint. Astro keeps the later
+ * of two dates, so a route's own hint still wins when content is newer.
+ * `Astro.cache.set(false)` also clears `lastModified`, so for an opted-out
+ * route the guard skips the build `set()` below, which would re-enable caching.
  */
 function applyBuildValidator(context: APIContext): void {
 	if (context.isPrerendered || !buildDate || !context.cache?.enabled) return;
+	if (!context.cache.options.lastModified) return;
 	context.cache.set({ lastModified: buildDate });
 }
 
@@ -639,8 +728,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			return finalizeResponse(await next());
 		}
 	}
-
-	applyBuildValidator(context);
 
 	const queryRecorder = isInstrumentationEnabled()
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
@@ -680,6 +767,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
+		// The image endpoint EmDash installed reads media bytes from storage and
+		// nothing else, so it needs neither the setup probe nor runtime init.
+		const imageStorage =
+			config && !playgroundDb && isImageEndpointRequest(context)
+				? tryGetStorage(config, migrationMode)
+				: null;
+		if (imageStorage) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; the image endpoint reads only storage, the auth middleware db
+			const imageLocals = { storage: imageStorage } as EmDashHandlers;
+			locals.emdash = imageLocals;
+			return runImageRequest(config, context, imageLocals, !!sessionUser, metrics, next);
+		}
+
 		// Credentialed API requests (API tokens `ec_pat_*`, OAuth tokens
 		// `ec_oat_*`, and other Bearer credentials) carry no `astro-session`
 		// cookie, so `sessionUser` is null for them -- yet they still expect
@@ -712,13 +812,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// bypasses runtime init and would crash with "no such table: options".
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
-				// have ever run -- redirect to the setup wizard.
-				// Skip the probe when prerendering: a prerendered route is built to
-				// static HTML, so returning context.redirect("/_emdash/admin/setup")
-				// below would bake that redirect into the page and ship it to
-				// production. The build database is legitimately empty in CI and there
-				// is no live visitor to send to the wizard at build time (session reads
-				// are already skipped for prerender above for the same reason).
+				// have ever run, and the page may only render once runtime init below
+				// has migrated the database.
+				// Skip the probe when prerendering: the build database is legitimately
+				// empty in CI, and a response derived from it would be baked into the
+				// static page (session reads are already skipped for prerender above
+				// for the same reason).
+				let unmigrated = false;
+				let probeFailed = false;
 				if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
 					const t0 = performance.now();
 					try {
@@ -727,17 +828,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						await db.selectFrom("_emdash_migrations").selectAll().limit(1).execute();
 						markSetupVerified();
 					} catch (error) {
-						// Only a genuinely-missing migrations table means a fresh,
-						// un-set-up database — redirect to the setup wizard.
 						if (isMissingTableError(error)) {
-							return context.redirect("/_emdash/admin/setup");
+							unmigrated = true;
+						} else {
+							// Any other failure (transient D1/replica error, timeout, cold-start
+							// race, locked SQLite) must NOT be read as "fresh install". Leave the
+							// flag unset so a later request can re-verify, and fall through to
+							// render the page normally. Unless a runtime is already running,
+							// skip runtime init for this request: it would connect to the same
+							// database again and make the visitor wait through a second timeout.
+							probeFailed = !getRuntimeHolder().instance;
+							console.error("Setup probe failed (non-fatal):", error);
 						}
-						// Any other failure (transient D1/replica error, timeout, cold-start
-						// race, locked SQLite) must NOT be read as "fresh install" — doing so
-						// bounces real visitors on a set-up site to /_emdash/admin/setup.
-						// Leave the flag unset so a later request can re-verify, and fall
-						// through to render the page normally.
-						console.error("Setup probe failed (non-fatal):", error);
 					}
 					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
@@ -745,8 +847,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Initialize the runtime for page:metadata and page:fragments hooks.
 				// The runtime is a cached singleton — after the first request,
 				// getRuntime() is just a null-check. This enables SEO plugins to
-				// contribute meta tags for all visitors, not just logged-in editors.
-				if (config) {
+				// contribute meta tags for all visitors, not just logged-in editors,
+				// except on a request whose setup probe just failed.
+				if (config && !probeFailed) {
 					// Sub-phase timings are populated only on the cold init. Warm
 					// requests hit the cached runtime and leave this empty.
 					const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
@@ -761,9 +864,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
-							// Exposed so the wrapped image endpoint (`/_image`) can read media
-							// bytes from storage on the anonymous fast path -- public `<img>`
-							// requests carry no session.
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
@@ -791,6 +891,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// in Server-Timing (rt.db, rt.fts, rt.plugins, rt.site,
 					// rt.sandbox, rt.market, rt.hooks, rt.cron).
 					for (const sub of initSubTimings) timings.push(sub);
+				}
+				if (unmigrated && !locals.emdash) {
+					return finalizeResponse(unmigratedDatabaseResponse(), timings);
 				}
 
 				// Even on the anonymous fast path we ask the adapter for a per-request
@@ -927,6 +1030,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					handleMediaGet: runtime.handleMediaGet.bind(runtime),
 					handleMediaUpload: runtime.handleMediaUpload.bind(runtime),
 					handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
+					handleMediaRegisterUpload: runtime.handleMediaRegisterUpload.bind(runtime),
 					handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
 					...(runtime.handleMediaReplaceMetadata
 						? {
@@ -1096,7 +1200,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	};
 
 	try {
-		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		const response = await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		applyBuildValidator(context);
+		return response;
 	} finally {
 		// Streamed responses defer the flush to stream end (see
 		// wrapBodyForStreamMetrics) so the log captures queries issued while

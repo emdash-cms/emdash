@@ -28,9 +28,18 @@ import {
 	handleMediaUpload as uploadMedia,
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
-import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
+import { resolveReferenceSelection } from "./api/handlers/relations.js";
+import {
+	liveReferenceSelection,
+	mergeStagedReferenceBaselines,
+	mergeStagedReferences,
+	STAGED_REFERENCES_BASELINE_KEY,
+	STAGED_REFERENCES_KEY,
+	type StagedReferenceBaselines,
+	type StagedReferences,
+} from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
-import { getSiteBaseUrl } from "./api/site-url.js";
+import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
 	EmDashConfig,
 	PluginAdminPage,
@@ -58,6 +67,7 @@ import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
+import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
 import type {
 	ContentItem as ContentItemInternal,
@@ -82,7 +92,7 @@ import {
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
 import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
-import type { ContentActionCallbacks } from "./plugins/context.js";
+import type { ContentActionCallbacks, ContentWriteGuard } from "./plugins/context.js";
 import type { PluginContentCacheInvalidator } from "./plugins/routes.js";
 import {
 	createSandboxedPluginProxy,
@@ -98,6 +108,7 @@ import type {
 import type {
 	ActorInfo,
 	ContentActionOrigin,
+	ContentSaveHookDetails,
 	ContentItem as PluginContentItem,
 	ResolvedPlugin,
 	MediaItem,
@@ -123,10 +134,12 @@ import type {
 	PluginContentCreateCallback,
 	VersionedContentItem,
 } from "./plugins/types.js";
-import { normalizePluginCapabilities } from "./plugins/types.js";
+import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
+import { isStoragelessField, isStoragelessFieldRow } from "./schema/types.js";
 import type { CollectionWithFields } from "./schema/types.js";
+import { AUTO_SEED_COMPLETE_OPTION } from "./seed/ownership.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
@@ -135,6 +148,7 @@ import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
 const LOCALE_CASING_REPAIR_OPTION = "emdash:repair_locale_casing";
+const SETUP_COMPLETE_OPTION = "emdash:setup_complete";
 
 const PLUGIN_COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
 
@@ -184,6 +198,7 @@ interface PageContributions {
 
 import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
+import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
 import {
@@ -226,6 +241,7 @@ import {
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,
+	handleMediaRegisterUpload,
 	handleMediaUpdate,
 	handleMediaReplaceMetadata,
 	handleMediaDelete,
@@ -241,7 +257,7 @@ import {
 } from "./index.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
-import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
+import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import { EmailPipeline } from "./plugins/email.js";
@@ -268,26 +284,27 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
-import {
-	getRegistryConfigInput,
-	resolveManifestRegistryConfig,
-	resolveRegistryConfigForSandbox,
-} from "./registry/config.js";
+import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
+import { assertSiteWriteAllowed } from "./transfer/fence.js";
 
 const DRAFT_ONLY_UPDATE_KEYS = new Set([
 	"data",
 	"slug",
 	"locale",
 	"skipRevision",
+	"references",
 	"actor",
 	"migrateBlocks",
 	"replaceBlocks",
 ]);
+
+/** Field types whose schema is an array, so a stored blank string can never validate. */
+const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
 
@@ -494,7 +511,7 @@ export interface EmDashRuntimeParts {
 	pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
-		beforeContentWrite?: () => Promise<void>;
+		beforeContentWrite?: ContentWriteGuard;
 		contentCreate?: PluginContentCreateCallback;
 		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
@@ -781,7 +798,7 @@ export class EmDashRuntime {
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
-		beforeContentWrite?: () => Promise<void>;
+		beforeContentWrite?: ContentWriteGuard;
 		contentCreate?: PluginContentCreateCallback;
 		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
@@ -877,9 +894,9 @@ export class EmDashRuntime {
 	private async publishScheduledWithFence(
 		onPublished?: (refs: PublishedRef[]) => Promise<void>,
 	): Promise<PublishedRef[]> {
-		await assertMediaUsageActivationWriteAllowed(this.db);
+		const recordWrite = await assertSiteWriteAllowed(this.db);
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
-		return publishDueContent(this.db, {
+		const published = await publishDueContent(this.db, {
 			publish: (collection, id, options) =>
 				this.handleContentPublish(collection, id, {
 					...options,
@@ -888,6 +905,8 @@ export class EmDashRuntime {
 			onPublished,
 			currentTime,
 		});
+		if (published.length > 0) await recordWrite();
+		return published;
 	}
 
 	/**
@@ -1015,14 +1034,27 @@ export class EmDashRuntime {
 	async setPluginStatus(pluginId: string, status: "active" | "inactive"): Promise<void> {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
+			this.setSandboxedPluginActive(pluginId, true);
 			this.enabledPlugins.add(pluginId);
 			await this.rebuildHookPipeline();
 			await this._hooks.runPluginActivate(pluginId);
 		} else {
-			// Fire deactivate on the current pipeline while the plugin is still in it
-			await this._hooks.runPluginDeactivate(pluginId);
-			this.enabledPlugins.delete(pluginId);
-			await this.rebuildHookPipeline();
+			try {
+				// Deactivate hooks retain access until their cleanup has finished.
+				await this._hooks.runPluginDeactivate(pluginId);
+			} finally {
+				this.setSandboxedPluginActive(pluginId, false);
+				this.enabledPlugins.delete(pluginId);
+				await this.rebuildHookPipeline();
+			}
+		}
+	}
+
+	private setSandboxedPluginActive(pluginId: string, active: boolean): void {
+		for (const [key, plugin] of this.sandboxedPlugins) {
+			if (key.slice(0, key.lastIndexOf(":")) === pluginId) {
+				plugin.setActive?.(active);
+			}
 		}
 	}
 
@@ -1061,6 +1093,66 @@ export class EmDashRuntime {
 
 	async runPluginActivateLifecycle(pluginId: string): Promise<void> {
 		await this._hooks.runPluginActivate(pluginId);
+	}
+
+	/**
+	 * Run install → activate once for each native plugin registered in the
+	 * integration config that has no `_plugin_state` row.
+	 *
+	 * Only the isolate whose insert creates the row runs the hooks. A plugin
+	 * whose hooks fail is recorded as inactive rather than retried on later
+	 * boots; re-enabling it from the admin runs `plugin:activate`.
+	 */
+	private async installUnrecordedConfigPlugins(
+		configPlugins: ResolvedPlugin[],
+		recordedStates: ReadonlyMap<string, string>,
+	): Promise<void> {
+		const stateRepo = new PluginStateRepository(this.db);
+		const failed: ResolvedPlugin[] = [];
+		const recordFailure = (plugin: ResolvedPlugin, hook: string, error: Error | undefined) => {
+			console.error(
+				`EmDash: ${hook} failed for config plugin "${plugin.id}"; disabling it:`,
+				error,
+			);
+			failed.push(plugin);
+		};
+
+		for (const plugin of configPlugins) {
+			if (recordedStates.has(plugin.id)) continue;
+
+			try {
+				if (!(await stateRepo.createActiveIfAbsent(plugin.id, plugin.version, "config"))) continue;
+				this.pluginStates.set(plugin.id, "active");
+
+				const install = await this._hooks.runPluginInstall(plugin.id);
+				const installFailure = install.find((result) => !result.success);
+				if (installFailure) {
+					recordFailure(plugin, "plugin:install", installFailure.error);
+					continue;
+				}
+
+				const activate = await this._hooks.runPluginActivate(plugin.id);
+				const activateFailure = activate.find((result) => !result.success);
+				if (activateFailure) {
+					recordFailure(plugin, "plugin:activate", activateFailure.error);
+				}
+			} catch (error) {
+				console.error(`EmDash: Config plugin "${plugin.id}" install/activate failed:`, error);
+			}
+		}
+
+		if (failed.length === 0) return;
+		for (const plugin of failed) {
+			try {
+				await stateRepo.disable(plugin.id, plugin.version);
+				await setCronTasksEnabled(this.db, plugin.id, false);
+			} catch (error) {
+				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
+			}
+			this.pluginStates.set(plugin.id, "inactive");
+			this.enabledPlugins.delete(plugin.id);
+		}
+		await this.rebuildHookPipeline();
 	}
 
 	/**
@@ -1135,7 +1227,7 @@ export class EmDashRuntime {
 	 * update, and uninstall handlers complete.
 	 */
 	async syncRegistryPlugins(): Promise<void> {
-		if (!getRegistryConfigInput(this.config.registry, this.config.experimental?.registry)) return;
+		if (!getRegistryConfigInput(this.config.registry)) return;
 		await this.syncSandboxedSourcePlugins("registry");
 	}
 
@@ -1423,6 +1515,7 @@ export class EmDashRuntime {
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
 						editorPanels: bundle.manifest.admin?.editorPanels,
 						editorActions: bundle.manifest.admin?.editorActions,
+						mcp: bundle.manifest.mcp,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -1501,6 +1594,7 @@ export class EmDashRuntime {
 		const storage = EmDashRuntime.getStorage(deps);
 
 		let pluginStates: Map<string, string> = new Map();
+		let pluginStatesRead = false;
 		const configuredLocales: string[] =
 			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
 		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
@@ -1513,9 +1607,11 @@ export class EmDashRuntime {
 					trailingSlash?: "always" | "never" | "ignore";
 			  }
 			| undefined;
-		// "Already set up" by default so a read failure (e.g. tables absent on a
+		// "Already complete" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
-		let seedGate = { collectionCount: 1, setupDone: true };
+		let seedComplete = true;
+		let setupDone = true;
+		let seedCollectionsReadable = false;
 
 		// Seeding must only touch the configured singleton, never a borrowed
 		// per-request db (playground / DO preview) or the loader-fallback db.
@@ -1562,17 +1658,31 @@ export class EmDashRuntime {
 		};
 
 		const readSiteInfo = async () => {
-			const siteOpts = await optionsRepo.getMany<string>([
+			const siteOpts = await optionsRepo.getMany([
 				"emdash:site_title",
+				"site:url",
 				"emdash:site_url",
 				"emdash:locale",
 				LOCALE_CASING_REPAIR_OPTION,
+				AUTO_SEED_COMPLETE_OPTION,
+				SETUP_COMPLETE_OPTION,
 			]);
-			storedLocaleCasingRepairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
+			const siteTitle = siteOpts.get("emdash:site_title");
+			const siteUrl = resolveSiteOrigin(
+				deps.config,
+				siteOpts.get("site:url"),
+				siteOpts.get("emdash:site_url"),
+			);
+			const locale = siteOpts.get("emdash:locale");
+			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
+			storedLocaleCasingRepairVersion =
+				typeof repairVersion === "string" ? repairVersion : undefined;
+			seedComplete = siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true;
+			setupDone = siteOpts.get(SETUP_COMPLETE_OPTION) === true;
 			return {
-				siteName: deps.siteInfo?.name ?? siteOpts.get("emdash:site_title") ?? undefined,
-				siteUrl: deps.siteInfo?.url ?? siteOpts.get("emdash:site_url") ?? undefined,
-				locale: deps.siteInfo?.locale ?? siteOpts.get("emdash:locale") ?? undefined,
+				siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
+				siteUrl: deps.siteInfo?.url ?? siteUrl,
+				locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
 				// trailingSlash is a build-time Astro routing decision, not a
 				// user-editable setting, so it comes from the Astro config
 				// (virtual:emdash/config), not the options table.
@@ -1588,6 +1698,7 @@ export class EmDashRuntime {
 						.select(["plugin_id", "status"])
 						.execute();
 					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+					pluginStatesRead = true;
 				} catch (error) {
 					captureMissingManualSchema(error);
 					// _plugin_state may not exist yet on a pre-migration db.
@@ -1610,27 +1721,16 @@ export class EmDashRuntime {
 						// Selecting the slugs instead of COUNT(*) costs the same
 						// round trip and primes the registered-collections cache,
 						// so the first render on this isolate skips its own lookup.
-						const [collectionRows, setupOption] = await Promise.all([
-							readDb.selectFrom("_emdash_collections").select("slug").execute(),
-							readDb
-								.selectFrom("options")
-								.select("value")
-								.where("name", "=", "emdash:setup_complete")
-								.executeTakeFirst(),
-						]);
+						const collectionRows = await readDb
+							.selectFrom("_emdash_collections")
+							.select("slug")
+							.execute();
 						primeRegisteredCollections(collectionRows.map((row) => row.slug));
-						const setupDone = (() => {
-							try {
-								return !!setupOption && JSON.parse(setupOption.value) === true;
-							} catch {
-								return false;
-							}
-						})();
-						seedGate = { collectionCount: collectionRows.length, setupDone };
+						seedCollectionsReadable = true;
 					} catch (error) {
 						captureMissingManualSchema(error);
-						// Leave the "already set up" default so a read failure never
-						// triggers a seed onto a half-built db.
+						// Leave collections unreadable so a read failure never triggers
+						// a seed onto a half-built db.
 					}
 				}),
 			);
@@ -1660,7 +1760,7 @@ export class EmDashRuntime {
 		// wizard (the wizard and dev-bypass apply seeds explicitly). Run under a
 		// per-isolate lock keyed by the configured db so a reclaimed-and-rerun
 		// create() can't apply the seed a second time concurrently.
-		if (seedGate.collectionCount === 0 && !seedGate.setupDone) {
+		if (seedCollectionsReadable && !seedComplete && !setupDone) {
 			try {
 				const activation = await activateMediaUsageCapture(db, { writersDrained: true });
 				if (activation.outcome !== "active") {
@@ -1683,9 +1783,15 @@ export class EmDashRuntime {
 
 						const seed = await loadSeed();
 						const validation = validateSeed(seed);
-						if (validation.valid) {
-							await applySeed(db, seed, { onConflict: "skip" });
-							console.log("Auto-seeded default collections");
+						if (!validation.valid) return false;
+
+						const seedResult = await applySeed(db, seed, { onConflict: "skip" });
+						await new OptionsRepository(db).set(AUTO_SEED_COMPLETE_OPTION, true);
+						console.log("Auto-seeded default collections");
+						if (seedResult.taxonomies.skipped > 0) {
+							console.warn(
+								`[auto-seed] Kept ${seedResult.taxonomies.skipped} existing taxonomy definition(s) instead of the seed's. Edit them in the admin, or run \`emdash seed <file> --on-conflict update\` to replace them (this also overwrites other seeded records).`,
+							);
 						}
 						seedHolder.done.add(seedKey);
 						return true;
@@ -1752,8 +1858,9 @@ export class EmDashRuntime {
 		}
 
 		// Register built-in default comment moderator.
-		// Always present — auto-selected as the sole comment:moderate provider
-		// unless a plugin (e.g. AI moderation) provides its own.
+		// Always present as a fallback: exclusive hook resolution selects a
+		// single plugin moderator (e.g. AI moderation) over it unless the site
+		// has already stored a comment:moderate selection.
 		try {
 			const defaultModeratorPlugin = definePlugin({
 				id: DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
@@ -1824,6 +1931,11 @@ export class EmDashRuntime {
 		const sandboxedPluginPool = await phase("rt.sandbox", "Sandboxed plugins", () =>
 			EmDashRuntime.loadSandboxedPlugins(deps, db, storage, siteInfo),
 		);
+		for (const [key, plugin] of sandboxedPluginPool) {
+			const pluginId = key.slice(0, key.lastIndexOf(":"));
+			const status = pluginStates.get(pluginId);
+			plugin.setActive?.(status === undefined || status === "active");
+		}
 
 		// Cold-start: load marketplace- and registry-installed plugins from
 		// site R2 via the sandbox runner. The two tiers only depend on the
@@ -1847,10 +1959,7 @@ export class EmDashRuntime {
 		}
 
 		// Cold-start: load registry-installed plugins from site R2
-		if (
-			getRegistryConfigInput(deps.config.registry, deps.config.experimental?.registry) &&
-			storage
-		) {
+		if (getRegistryConfigInput(deps.config.registry) && storage) {
 			installedTierPhases.push(
 				phase("rt.registry", "Registry plugins", () =>
 					EmDashRuntime.loadInstalledSandboxedPlugins(
@@ -1956,7 +2065,7 @@ export class EmDashRuntime {
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
-			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
+			beforeContentWrite: () => assertSiteWriteAllowed(resolveDb()),
 			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
@@ -2080,8 +2189,8 @@ export class EmDashRuntime {
 							if (runtime) {
 								await runtime.publishScheduled();
 							} else {
-								await assertMediaUsageActivationWriteAllowed(db);
-								await publishDueContent(db);
+								const recordWrite = await assertSiteWriteAllowed(db);
+								if ((await publishDueContent(db)).length > 0) await recordWrite();
 							}
 						} catch (error) {
 							console.error("[scheduled-publish] Sweep failed:", error);
@@ -2176,6 +2285,13 @@ export class EmDashRuntime {
 			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
 		);
 		sandboxRunner?.setContentActions?.(contentActions);
+
+		if (ownsConfiguredDb && pluginStatesRead) {
+			await phase("rt.lifecycle", "Config plugin install/activate", () =>
+				runtime.installUnrecordedConfigPlugins(deps.plugins, new Map(pluginStates)),
+			);
+		}
+
 		return runtime;
 	}
 
@@ -2324,7 +2440,7 @@ export class EmDashRuntime {
 	/**
 	 * Get or create storage instance
 	 */
-	private static getStorage(deps: RuntimeDependencies): Storage | null {
+	static getStorage(deps: RuntimeDependencies): Storage | null {
 		const storageConfig = deps.config.storage;
 		if (!storageConfig || !deps.createStorage) {
 			return null;
@@ -2405,6 +2521,7 @@ export class EmDashRuntime {
 					fieldWidgets: entry.fieldWidgets,
 					editorPanels: entry.editorPanels,
 					editorActions: entry.editorActions,
+					mcp: entry.mcp,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -2442,7 +2559,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
-						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
 						mediaStorage: mediaStorage
@@ -2517,6 +2634,7 @@ export class EmDashRuntime {
 								: undefined,
 					}),
 				);
+				warnDeprecatedPluginCapabilities(entry.id, entry.capabilities ?? []);
 				const capabilities = normalizePluginCapabilities(entry.capabilities ?? []);
 
 				// Build manifest from entry's declared config
@@ -2601,7 +2719,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
-						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
 						mediaStorage: {
@@ -2782,6 +2900,7 @@ export class EmDashRuntime {
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
 						editorPanels: bundle.manifest.admin?.editorPanels,
 						editorActions: bundle.manifest.admin?.editorActions,
+						mcp: bundle.manifest.mcp,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -2842,6 +2961,7 @@ export class EmDashRuntime {
 				await optionsRepo.delete(key);
 			},
 			preferredHints,
+			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
 		});
 	}
 
@@ -3019,11 +3139,7 @@ export class EmDashRuntime {
 		}> = [];
 		let taxonomyDefinitionLocales: string[] = [];
 		try {
-			const rows = await this.db
-				.selectFrom("_emdash_taxonomy_defs")
-				.selectAll()
-				.orderBy("name")
-				.execute();
+			const rows = await selectTaxonomyDefs(this.db).orderBy("d.name").execute();
 			taxonomyDefinitionLocales = rows.map((row) => row.locale);
 			manifestTaxonomies = rows.map((row) => ({
 				id: row.id,
@@ -3072,13 +3188,8 @@ export class EmDashRuntime {
 					}
 				: undefined;
 
-		const registryConfig = resolveRegistryConfigForSandbox({
-			registry: this.config.registry,
-			experimentalRegistry: this.config.experimental?.registry,
-		});
 		const { registry, error: registryConfigurationError } = resolveManifestRegistryConfig(
-			registryConfig.input,
-			{ fieldPrefix: registryConfig.fieldPrefix },
+			getRegistryConfigInput(this.config.registry),
 		);
 		if (registryConfigurationError) {
 			console.error(
@@ -3101,6 +3212,7 @@ export class EmDashRuntime {
 				implicit: i18nConfig === null,
 			},
 			marketplace: !!this.config.marketplace,
+			sandboxEnabled: this.runtimeDeps.sandboxEnabled && this.runtimeDeps.sandboxBypassed !== true,
 			registry,
 			registryConfigurationError,
 		};
@@ -3168,6 +3280,7 @@ export class EmDashRuntime {
 		collection: string,
 		params: {
 			cursor?: string;
+			page?: number;
 			limit?: number;
 			status?: string;
 			orderBy?: string;
@@ -3191,8 +3304,13 @@ export class EmDashRuntime {
 		return handleContentAuthors(this.db, collection);
 	}
 
-	async handleContentGet(collection: string, id: string, locale?: string) {
-		const result = await handleContentGet(this.db, collection, id, locale);
+	async handleContentGet(
+		collection: string,
+		id: string,
+		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
+	) {
+		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
 		return this.hydrateDraftData(result);
 	}
 
@@ -3289,6 +3407,7 @@ export class EmDashRuntime {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			actor?: ActorInfo;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
@@ -3325,11 +3444,18 @@ export class EmDashRuntime {
 				await this.db
 					.selectFrom("_emdash_fields as field")
 					.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
-					.select("field.slug")
+					.select(["field.slug", "field.type", "field.validation"])
 					.where("collection.slug", "=", collection)
 					.where("field.translatable", "=", 0)
 					.execute()
-			).map((field) => field.slug);
+			)
+				// A storage-less field has nothing in `data` worth sharing: its
+				// selection is keyed by translation group, so every translation
+				// already reads the same edges. What the source row does carry under
+				// that slug is the frozen column a field bound after the fact left
+				// behind, and copying it would send a key `data` no longer accepts.
+				.filter((field) => !isStoragelessFieldRow(field))
+				.map((field) => field.slug);
 			const siblings = await repo.findTranslations(
 				collection,
 				source.translationGroup ?? source.id,
@@ -3345,6 +3471,11 @@ export class EmDashRuntime {
 			}
 		}
 
+		const saveHookDetails = {
+			locale,
+			...(body.translationOf ? { translationOf: body.translationOf } : {}),
+		};
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
@@ -3355,6 +3486,7 @@ export class EmDashRuntime {
 					true,
 					undefined,
 					actor,
+					saveHookDetails,
 				);
 				processedData = hookResult.content;
 			} catch (error) {
@@ -3375,6 +3507,9 @@ export class EmDashRuntime {
 		const collectionInfo = await this.schemaRegistry
 			.getCollectionWithFields(collection)
 			.catch(() => null);
+		const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
+			? await resolveBlockTypes(this.db)
+			: undefined;
 		if (collectionInfo) {
 			try {
 				processedData = await normalizeBlocksData(
@@ -3387,6 +3522,7 @@ export class EmDashRuntime {
 						replaceBlocks: body.replaceBlocks,
 					},
 					false,
+					resolvedBlockTypes,
 				);
 			} catch (error) {
 				if (error instanceof SchemaError) {
@@ -3399,8 +3535,12 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Normalize media fields (fill dimensions, storageKey, etc.)
-		processedData = await this.normalizeMediaFields(collection, processedData, collectionInfo);
+		processedData = await this.normalizeFieldValues(
+			collection,
+			processedData,
+			collectionInfo,
+			resolvedBlockTypes,
+		);
 
 		// Validate against the collection schema. Hook output is validated
 		// rather than `body.data` so plugins that mutate field values can't
@@ -3442,6 +3582,7 @@ export class EmDashRuntime {
 				true,
 				actor,
 				options.excludeAfterSavePluginId,
+				{ ...saveHookDetails, locale: result.data.item.locale ?? locale },
 			);
 		}
 
@@ -3465,6 +3606,7 @@ export class EmDashRuntime {
 				noIndex?: boolean;
 			};
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Replace the previous autosave revision after staging this save. */
@@ -3515,10 +3657,29 @@ export class EmDashRuntime {
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
-		const collectionInfo = bodyWithoutRev.data
-			? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
-			: null;
+		// A save carrying only a reference selection reaches the draft merge without any
+		// data, so it needs the collection loaded just the same.
+		const collectionInfo =
+			bodyWithoutRev.data || bodyWithoutRev.references
+				? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
+				: null;
 		const knownFieldSlugs = new Set((collectionInfo?.fields ?? []).map((f) => f.slug));
+
+		// A collection that keeps drafts merges `data` into a revision instead of
+		// writing columns, so a reference field's slug would land in the revision
+		// JSON and never reach the check the column writer's own path makes. Both
+		// operands are already in hand here, so the check costs nothing.
+		if (bodyWithoutRev.data && collectionInfo) {
+			const storageless = new Set(
+				collectionInfo.fields.filter(isStoragelessField).map((field) => field.slug),
+			);
+			const changed = changedStoragelessDataKeys(
+				storageless,
+				bodyWithoutRev.data,
+				resolvedItem?.data ?? {},
+			);
+			if (changed.length > 0) return storagelessDataKeyError(changed);
+		}
 
 		// Run beforeSave hooks if data is provided
 		let processedData = bodyWithoutRev.data;
@@ -3532,6 +3693,7 @@ export class EmDashRuntime {
 						false,
 						resolvedItem?.id,
 						actor,
+						resolvedItem?.locale ? { locale: resolvedItem.locale } : {},
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -3539,8 +3701,13 @@ export class EmDashRuntime {
 				}
 			}
 
-			// Normalize media fields (fill dimensions, storageKey, etc.)
-			processedData = await this.normalizeMediaFields(collection, processedData!, collectionInfo);
+			processedData = await this.normalizeFieldValues(
+				collection,
+				processedData!,
+				collectionInfo,
+				undefined,
+				false,
+			);
 
 			// Drop unknown field keys the entry already stores (e.g. a deleted field
 			// stranded in a draft revision) before validation, while still rejecting
@@ -3572,6 +3739,12 @@ export class EmDashRuntime {
 							true,
 							resolvedBlockTypes,
 						);
+						processedData = await this.normalizeFieldValues(
+							collection,
+							processedData,
+							collectionInfo,
+							resolvedBlockTypes,
+						);
 					} catch (error) {
 						if (error instanceof SchemaError) {
 							return {
@@ -3600,9 +3773,42 @@ export class EmDashRuntime {
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
-		if (processedData) {
+		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
+
+				// Resolve a pending selection to translation groups before it is
+				// staged, so a bad id or an over-long selection fails this save the
+				// way a direct link write would, and publication has nothing left to
+				// resolve.
+				let stagedReferences: StagedReferences | undefined;
+				let stagedReferenceBaselines: StagedReferenceBaselines | undefined;
+				if (bodyWithoutRev.references) {
+					stagedReferences = {};
+					let entryGroup: string | undefined;
+					for (const [fieldSlug, selectedIds] of Object.entries(bodyWithoutRev.references)) {
+						const resolved = await resolveReferenceSelection(
+							this.db,
+							collection,
+							resolvedId,
+							fieldSlug,
+							selectedIds,
+						);
+						if (!resolved.success) {
+							return { success: false as const, error: resolved.error };
+						}
+						stagedReferences[fieldSlug] = resolved.data.groups;
+						entryGroup = resolved.data.entryGroup;
+					}
+					if (entryGroup) {
+						const liveSelection = await liveReferenceSelection(this.db, collection, entryGroup);
+						stagedReferenceBaselines = {};
+						for (const fieldSlug of Object.keys(stagedReferences)) {
+							stagedReferenceBaselines[fieldSlug] = liveSelection[fieldSlug] ?? [];
+						}
+					}
+				}
+
 				const revisionRepo = new RevisionRepository(this.db);
 				let existing = await repo.findById(collection, resolvedId);
 
@@ -3614,15 +3820,21 @@ export class EmDashRuntime {
 					} else {
 						baseData = existing.data;
 					}
-					let attemptData = processedData;
+					let attemptData = processedData ?? {};
 					try {
 						attemptData = await normalizeBlocksData(
 							this.db,
 							collectionInfo,
-							processedData,
+							attemptData,
 							baseData,
 							blockWriteOptions,
 							true,
+							resolvedBlockTypes,
+						);
+						attemptData = await this.normalizeFieldValues(
+							collection,
+							attemptData,
+							collectionInfo,
 							resolvedBlockTypes,
 						);
 					} catch (error) {
@@ -3650,6 +3862,15 @@ export class EmDashRuntime {
 						: { ...baseData, ...attemptData };
 					if (bodyWithoutRev.slug !== undefined) {
 						mergedData._slug = bodyWithoutRev.slug;
+					}
+					if (stagedReferences) {
+						mergedData[STAGED_REFERENCES_KEY] = mergeStagedReferences(baseData, stagedReferences);
+					}
+					if (stagedReferenceBaselines) {
+						mergedData[STAGED_REFERENCES_BASELINE_KEY] = mergeStagedReferenceBaselines(
+							baseData,
+							stagedReferenceBaselines,
+						);
 					}
 
 					const revision = await revisionRepo.create({
@@ -3742,13 +3963,19 @@ export class EmDashRuntime {
 						...bodyWithoutRev,
 						data: usesDraftRevisions ? undefined : processedData,
 						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
+						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,
 						authorId: bodyWithoutRev.authorId,
 						bylines: bodyWithoutRev.bylines,
 					});
 
 		const liveContentChanged = usesDraftRevisions
 			? liveMetaTouched
-			: Boolean(processedData || bodyWithoutRev.slug !== undefined || liveMetaTouched);
+			: Boolean(
+					processedData ||
+					bodyWithoutRev.slug !== undefined ||
+					bodyWithoutRev.references ||
+					liveMetaTouched,
+				);
 
 		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
 		// the same effective data the response surfaces — for revision-
@@ -3778,7 +4005,15 @@ export class EmDashRuntime {
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
-			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false, actor);
+			const savedLocale = hydrated.data.item.locale;
+			this.runAfterSaveHooks(
+				contentItemToRecord(hydrated.data.item),
+				collection,
+				false,
+				actor,
+				undefined,
+				savedLocale ? { locale: savedLocale } : {},
+			);
 		}
 
 		if (hydrated.success) {
@@ -3825,7 +4060,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number; locale?: string } = {},
+		params: { cursor?: string; page?: number; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -3923,7 +4158,7 @@ export class EmDashRuntime {
 			}
 			invocationInvalidator = this.pluginInvocationCacheInvalidators.get(invocationKey);
 		}
-		await assertMediaUsageActivationWriteAllowed(this.db);
+		const recordWrite = await assertSiteWriteAllowed(this.db);
 		const repo = new ContentRepository(this.db);
 		const item =
 			action === "restore"
@@ -3939,6 +4174,7 @@ export class EmDashRuntime {
 		this.retainPluginContentAction(key);
 		try {
 			const result = await fn(resolvedId);
+			await recordWrite();
 			const invalidator =
 				invalidateContentCache ?? invocationInvalidator ?? this.pluginContentCacheInvalidator;
 			if (invalidator) {
@@ -4519,12 +4755,41 @@ export class EmDashRuntime {
 		return result;
 	}
 
+	async handleMediaRegisterUpload(input: { storageKey: string; authorId?: string }) {
+		if (!this.storage) {
+			return {
+				success: false as const,
+				error: { code: "NO_STORAGE", message: "Storage not configured" },
+			};
+		}
+		const result = await handleMediaRegisterUpload(this.db, this.storage, input);
+
+		if (result.success && this.hooks.hasHooks("media:afterUpload")) {
+			const item = result.data.item;
+			const mediaItem: MediaItem = {
+				id: item.id,
+				filename: item.filename,
+				mimeType: item.mimeType,
+				size: item.size,
+				url: `/media/${item.id}/${item.filename}`,
+				createdAt: item.createdAt,
+			};
+			this.hooks
+				.runMediaAfterUpload(mediaItem)
+				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+		}
+
+		return result;
+	}
+
 	async handleMediaCreate(input: {
 		filename: string;
 		mimeType: string;
 		size?: number;
 		width?: number;
 		height?: number;
+		alt?: string;
+		caption?: string;
 		storageKey: string;
 		contentHash?: string;
 		blurhash?: string;
@@ -4612,7 +4877,7 @@ export class EmDashRuntime {
 	}
 
 	async handleMediaDelete(id: string) {
-		const result = await handleMediaDelete(this.db, id);
+		const result = await handleMediaDelete(this.db, id, this.storage);
 		// Same reasoning as `handleMediaUpdate`: if the deleted media row
 		// was referenced by a setting, the cached resolved URL now points
 		// at a 404. Invalidation is unconditional on success — cheaper than
@@ -4831,10 +5096,12 @@ export class EmDashRuntime {
 		// live, matching the documented tool contract.
 		try {
 			const contentRepo = new ContentRepository(this.db);
+			const restoredData = { ...revision.data };
+			delete restoredData[STAGED_REFERENCES_BASELINE_KEY];
 			const newDraftId = await contentRepo.restoreDraftRevision(
 				revision.collection,
 				revision.entryId,
-				revision.data,
+				restoredData,
 				callerUserId,
 			);
 			if (!newDraftId) {
@@ -5037,6 +5304,26 @@ export class EmDashRuntime {
 
 		const locale = resolveLocale(request);
 		return { context: { surface, locale, direction: getLocaleDir(locale) } };
+	}
+
+	/**
+	 * UI context for a configured plugin's Block Kit page or widget. An
+	 * undeclared surface yields no context and no error: configured plugins
+	 * are not held to their declarations, so rejecting here would break
+	 * configured plugins that serve undeclared pages.
+	 */
+	private resolveTrustedUiContext(
+		plugin: ResolvedPlugin,
+		routeKey: string,
+		body: unknown,
+		request: Request,
+	): PluginUiContext | undefined {
+		if (routeKey !== "admin") return undefined;
+		const surfaces = {
+			pages: (plugin.admin.pages ?? []).map((page) => normalizePluginPagePath(page.path)),
+			widgets: (plugin.admin.widgets ?? []).map((widget) => widget.id),
+		};
+		return this.resolvePluginUiContext(surfaces, body, request).context;
 	}
 
 	private validateSandboxedAdminResponse(
@@ -5302,7 +5589,10 @@ export class EmDashRuntime {
 				request,
 				body,
 				user: caller,
-				ui: editorDispatch?.ui ?? uiResult.context,
+				ui:
+					editorDispatch?.ui ??
+					uiResult.context ??
+					this.resolveTrustedUiContext(trustedPlugin, routeKey, body, request),
 			});
 			return editorDispatch
 				? this.validatePluginEditorExtensionResponse(pluginId, editorDispatch, result)
@@ -5584,13 +5874,16 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Normalize image/file fields in content data.
-	 * Fills missing dimensions, storageKey, mimeType, and filename from providers.
+	 * Normalize field values in content data before validation.
+	 * Turns a blank string in an array-valued field into `null`, and fills
+	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
 	 */
-	private async normalizeMediaFields(
+	private async normalizeFieldValues(
 		collection: string,
 		data: Record<string, unknown>,
 		preloaded?: CollectionWithFields | null,
+		preloadedBlockTypes?: Awaited<ReturnType<typeof resolveBlockTypes>>,
+		includeBlocks = true,
 	): Promise<Record<string, unknown>> {
 		let collectionInfo = preloaded;
 		if (collectionInfo === undefined) {
@@ -5602,6 +5895,14 @@ export class EmDashRuntime {
 		}
 		if (!collectionInfo?.fields) return data;
 
+		const result = { ...data };
+		for (const field of collectionInfo.fields) {
+			const value = result[field.slug];
+			if (ARRAY_FIELD_TYPES.has(field.type) && typeof value === "string" && !value.trim()) {
+				result[field.slug] = null;
+			}
+		}
+
 		const imageFields = collectionInfo.fields.filter(
 			(f) => f.type === "image" || f.type === "file",
 		);
@@ -5611,10 +5912,14 @@ export class EmDashRuntime {
 		const repeaterFields = collectionInfo.fields.filter(
 			(f) => f.type === "repeater" && Array.isArray(f.validation?.subFields),
 		);
-		if (imageFields.length === 0 && repeaterFields.length === 0) return data;
+		const blockFields = includeBlocks
+			? collectionInfo.fields.filter((field) => field.type === "blocks")
+			: [];
+		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
+			return result;
+		}
 
 		const getProvider = (id: string) => this.getMediaProvider(id);
-		const result = { ...data };
 
 		for (const field of imageFields) {
 			const value = result[field.slug];
@@ -5665,6 +5970,63 @@ export class EmDashRuntime {
 			);
 		}
 
+		if (blockFields.length > 0) {
+			const blockTypes = preloadedBlockTypes ?? (await resolveBlockTypes(this.db));
+			for (const field of blockFields) {
+				const value = result[field.slug];
+				if (!Array.isArray(value)) continue;
+				result[field.slug] = await Promise.all(
+					value.map(async (block) => {
+						if (!isRecord(block) || typeof block._type !== "string") return block;
+						const type = blockTypes.get(block._type);
+						const version = type?.versions.find(
+							(candidate) => candidate.version === block._version,
+						);
+						if (!version || version.unsupportedTypes?.length) return block;
+						const normalizedBlock: Record<string, unknown> = { ...block };
+						for (const nestedField of version.fields) {
+							const nestedValue = normalizedBlock[nestedField.slug];
+							if (nestedValue == null) continue;
+							try {
+								if (nestedField.type === "image") {
+									const normalized = await normalizeImageValue(nestedValue, getProvider);
+									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								} else if (nestedField.type === "file") {
+									const normalized = await normalizeMediaValue(nestedValue, getProvider);
+									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
+									const imageSlugs = (nestedField.validation?.subFields ?? [])
+										.filter((subField) => subField.type === "image")
+										.map((subField) => subField.slug);
+									normalizedBlock[nestedField.slug] = await Promise.all(
+										nestedValue.map(async (item) => {
+											if (!isRecord(item)) return item;
+											const normalizedItem = { ...item };
+											for (const slug of imageSlugs) {
+												try {
+													const normalized = await normalizeImageValue(
+														normalizedItem[slug],
+														getProvider,
+													);
+													if (normalized) normalizedItem[slug] = normalized;
+												} catch {
+													continue;
+												}
+											}
+											return normalizedItem;
+										}),
+									);
+								}
+							} catch {
+								continue;
+							}
+						}
+						return normalizedBlock;
+					}),
+				);
+			}
+		}
+
 		return result;
 	}
 
@@ -5674,12 +6036,20 @@ export class EmDashRuntime {
 		isNew: boolean,
 		actor?: ActorInfo,
 		excludePluginId?: string,
+		details?: ContentSaveHookDetails,
 	): void {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
 				try {
-					await this.hooks.runContentAfterSave(content, collection, isNew, actor, excludePluginId);
+					await this.hooks.runContentAfterSave(
+						content,
+						collection,
+						isNew,
+						actor,
+						excludePluginId,
+						details,
+					);
 				} catch (err) {
 					console.error("EmDash afterSave hook error:", err);
 				}

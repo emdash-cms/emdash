@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/sandbox-workerd",
-	"version": "0.7.1",
+	"version": "0.9.2",
 	"description": "workerd-based plugin sandbox for EmDash on Node.js",
 	"type": "module",
 	"main": "dist/index.mjs",
@@ -36,8 +36,6 @@
 		"miniflare": "^4.20250408.0"
 	},
 	"devDependencies": {
-		"@types/better-sqlite3": "catalog:",
-		"better-sqlite3": "catalog:",
 		"kysely": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",

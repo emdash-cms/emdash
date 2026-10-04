@@ -1,6 +1,9 @@
 const REGEX_SPECIAL_CHARS = /[.*+?^${}()|[\]\\]/g;
 const WORDPRESS_IMAGE_SIZE_SUFFIX = /-\d+x\d+(?=\.[^./?#]+$)/;
 const BASE_URL_EXTENSION = /^(.+)(\.[^./?#]+)$/;
+const QUERY_BEFORE_FRAGMENT = /^[^#]*\?/;
+/** What may follow a URL in a string field: its end, a quote, a tag, or the punctuation of prose. */
+const URL_END = `(?=$|["'\\s<>)\\],;:!?]|\\.(?=$|["'\\s<>)\\]]))`;
 
 /**
  * Strip query parameters from a URL for base matching
@@ -16,11 +19,23 @@ export function getBaseUrl(url: string): string {
 }
 
 /**
- * Build a map of base URLs to new URLs for flexible matching
+ * Whether a URL map key carries a query string, which makes it one URL rather
+ * than a file: `https://example.com/?attachment_id=7` is an attachment's page,
+ * and its base is the home page. Such a key is matched exactly, never by its
+ * base, or every link to the home page would be rewritten with it.
+ */
+export function carriesQuery(url: string): boolean {
+	return QUERY_BEFORE_FRAGMENT.test(url);
+}
+
+/**
+ * Build a map of base URLs to new URLs for flexible matching. A key that
+ * carries a query has no base entry (see `carriesQuery`).
  */
 export function buildBaseUrlMap(urlMap: Record<string, string>): Map<string, string> {
 	const baseMap = new Map<string, string>();
 	for (const [oldUrl, newUrl] of Object.entries(urlMap)) {
+		if (carriesQuery(oldUrl)) continue;
 		const baseUrl = getBaseUrl(oldUrl);
 		baseMap.set(baseUrl, newUrl);
 	}
@@ -86,7 +101,8 @@ export interface PortableTextBlock {
 		_ref?: string;
 		url?: string;
 	};
-	link?: string;
+	/** Linked-image target: legacy string, or `{ href, blank? }` from the editor */
+	link?: string | { href?: string; blank?: boolean };
 	// For nested content like galleries
 	images?: PortableTextBlock[];
 	columns?: Array<{ content?: PortableTextBlock[] }>;
@@ -116,11 +132,17 @@ export function rewritePortableTextUrls(
 			}
 		}
 
-		// Handle image link URLs (for linked images)
+		// Handle image link URLs (for linked images). The link is a bare string on
+		// freshly imported content and `{ href, blank? }` once edited in the editor.
 		if (block._type === "image" && block.link) {
-			const newUrl = findMatchingUrl(block.link, exactMap, baseMap);
+			const linkHref = typeof block.link === "string" ? block.link : block.link.href;
+			const newUrl = linkHref ? findMatchingUrl(linkHref, exactMap, baseMap) : null;
 			if (newUrl) {
-				block.link = newUrl;
+				if (typeof block.link === "string") {
+					block.link = newUrl;
+				} else {
+					block.link.href = newUrl;
+				}
 				changed = true;
 				urlsRewritten++;
 			}
@@ -164,13 +186,17 @@ export function rewriteStringUrls(
 	let changed = false;
 	let urlsRewritten = 0;
 
-	// Try exact matches first
+	// Try exact matches first. A key that carries a query is replaced only where
+	// the URL ends with it: `?attachment_id=7` is not the start of `?attachment_id=71`.
 	for (const [oldUrl, newUrl] of Object.entries(exactMap)) {
-		if (newValue.includes(oldUrl)) {
-			newValue = newValue.split(oldUrl).join(newUrl);
-			changed = true;
-			urlsRewritten++;
-		}
+		if (!newValue.includes(oldUrl)) continue;
+		const replaced = carriesQuery(oldUrl)
+			? newValue.replace(new RegExp(`${escapeRegExp(oldUrl)}${URL_END}`, "g"), () => newUrl)
+			: newValue.split(oldUrl).join(newUrl);
+		if (replaced === newValue) continue;
+		newValue = replaced;
+		changed = true;
+		urlsRewritten++;
 	}
 
 	// For base URL matching in strings, we need to be more careful
@@ -211,8 +237,5 @@ function buildBaseUrlMatchRegex(baseUrl: string): RegExp {
 		? `${escapeRegExp(extensionMatch[1])}(?:-\\d+x\\d+)?${escapeRegExp(extensionMatch[2])}`
 		: escapeRegExp(baseUrl);
 
-	return new RegExp(
-		`${basePattern}(\\?[^"'\\s]*)?(?=$|["'\\s<>)\\],;:!?]|\\.(?=$|["'\\s<>)\\]]))`,
-		"g",
-	);
+	return new RegExp(`${basePattern}(\\?[^"'\\s]*)?${URL_END}`, "g");
 }

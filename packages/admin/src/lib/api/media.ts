@@ -69,9 +69,14 @@ export interface MediaUsageEntryDetail {
 	sources: MediaUsageSourceDetail[];
 }
 
+export interface MediaUsageSiteSettingDetail {
+	setting: "logo" | "favicon" | "seo.defaultOgImage";
+}
+
 export interface MediaUsageDetailsResponse {
 	items: MediaUsageEntryDetail[];
 	nextCursor?: string;
+	siteSettings: MediaUsageSiteSettingDetail[];
 	coverage: MediaUsageCoverage;
 }
 
@@ -379,12 +384,14 @@ async function uploadToSignedUrl(
 	uploadInfo: UploadUrlResponse,
 	options?: MediaUploadOptions,
 ): Promise<void> {
+	const headers = { ...uploadInfo.headers };
+	if (file.type) {
+		headers["Content-Type"] = file.type;
+	}
+
 	const response = await fetch(uploadInfo.uploadUrl, {
 		method: uploadInfo.method,
-		headers: {
-			...uploadInfo.headers,
-			"Content-Type": file.type,
-		},
+		headers,
 		body: file,
 		signal: options?.signal,
 	});
@@ -435,12 +442,89 @@ export async function getImageDimensions(
 	});
 }
 
+function isVideoFile(file: File): boolean {
+	return file.type.startsWith("video/");
+}
+
+/**
+ * Get video dimensions from a file.
+ *
+ * The browser reports oriented dimensions in `videoWidth`/`videoHeight` once
+ * `loadedmetadata` fires, so phone videos with rotation metadata show the
+ * display width/height rather than the encoded frame size.
+ */
+export async function getVideoDimensions(
+	file: File,
+	options?: MediaUploadOptions,
+): Promise<{ width: number; height: number } | null> {
+	options?.signal?.throwIfAborted();
+	if (!isVideoFile(file)) {
+		return null;
+	}
+
+	return new Promise((resolve, reject) => {
+		const video = document.createElement("video");
+		const objectUrl = URL.createObjectURL(file);
+		const cleanup = () => {
+			video.removeEventListener("loadedmetadata", handleLoaded);
+			video.removeEventListener("error", handleError);
+			options?.signal?.removeEventListener("abort", handleAbort);
+			video.src = "";
+			video.load();
+			URL.revokeObjectURL(objectUrl);
+		};
+		const handleLoaded = () => {
+			const width = video.videoWidth;
+			const height = video.videoHeight;
+			cleanup();
+			if (width && height) {
+				resolve({ width, height });
+			} else {
+				resolve(null);
+			}
+		};
+		const handleError = () => {
+			cleanup();
+			resolve(null);
+		};
+		const handleAbort = () => {
+			cleanup();
+			reject(options?.signal?.reason);
+		};
+		video.addEventListener("loadedmetadata", handleLoaded, { once: true });
+		video.addEventListener("error", handleError, { once: true });
+		options?.signal?.addEventListener("abort", handleAbort, { once: true });
+		if (options?.signal?.aborted) {
+			handleAbort();
+			return;
+		}
+		video.muted = true;
+		video.playsInline = true;
+		video.preload = "metadata";
+		video.src = objectUrl;
+		video.load();
+	});
+}
+
+function getMediaDimensions(
+	file: File,
+	options?: MediaUploadOptions,
+): Promise<{ width: number; height: number } | null> {
+	if (file.type.startsWith("image/")) {
+		return getImageDimensions(file, options);
+	}
+	if (isVideoFile(file)) {
+		return getVideoDimensions(file, options);
+	}
+	return Promise.resolve(null);
+}
+
 /**
  * Upload media file via direct upload (legacy/local storage)
  */
 async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise<LocalMediaItem> {
-	// Get image dimensions before upload
-	const dimensions = await getImageDimensions(file, opts);
+	// Get media dimensions before upload
+	const dimensions = await getMediaDimensions(file, opts);
 
 	const formData = new FormData();
 	formData.append("file", file);
@@ -487,8 +571,8 @@ export async function uploadMedia(file: File, opts?: UploadMediaOptions): Promis
 	// Upload directly to storage via signed URL
 	await uploadToSignedUrl(file, uploadInfo, opts);
 
-	// Get image dimensions for confirmation
-	const dimensions = await getImageDimensions(file, opts);
+	// Get media dimensions for confirmation
+	const dimensions = await getMediaDimensions(file, opts);
 
 	// Confirm the upload
 	return confirmUpload(

@@ -8,6 +8,8 @@ import { MediaRepository, type MediaItem } from "../../database/repositories/med
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { isValidFocalPointUpdate, type FocalPointUpdate } from "../../media/focal-point.js";
+import { removeUploadAttempt } from "../../media/upload-attempts.js";
+import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
 
 const FOREIGN_KEY_VIOLATION_RE = /foreign key constraint failed/i;
@@ -38,7 +40,7 @@ export async function handleMediaList(
 ): Promise<ApiResult<MediaListResponse>> {
 	try {
 		if (params.page !== undefined) {
-			const limit = Math.min(params.limit || 50, 100);
+			const limit = Math.max(1, Math.min(params.limit || 50, 100));
 			const offset = (params.page - 1) * limit;
 			if (
 				params.cursor !== undefined ||
@@ -66,7 +68,7 @@ export async function handleMediaList(
 		const repo = new MediaRepository(db);
 		const result = await repo.findMany({
 			cursor: params.cursor,
-			limit: Math.min(params.limit || 50, 100),
+			limit: Math.max(1, Math.min(params.limit || 50, 100)),
 			mimeType: params.mimeType,
 			q: params.q,
 			folderId: params.folderId,
@@ -144,6 +146,7 @@ export async function handleMediaCreate(
 		width?: number;
 		height?: number;
 		alt?: string;
+		caption?: string;
 		storageKey: string;
 		contentHash?: string;
 		blurhash?: string;
@@ -166,6 +169,91 @@ export async function handleMediaCreate(
 			error: {
 				code: "MEDIA_CREATE_ERROR",
 				message: "Failed to create media",
+			},
+		};
+	}
+}
+
+/**
+ * Confirm an upload minted by the signed upload URL endpoint.
+ *
+ * The storage key must belong to a pending media row created for the same
+ * user; arbitrary keys never reach storage this way.
+ */
+export async function handleMediaRegisterUpload(
+	db: Kysely<Database>,
+	storage: Storage,
+	input: {
+		storageKey: string;
+		authorId?: string;
+	},
+): Promise<ApiResult<MediaResponse>> {
+	const invalidKey: ApiResult<never> = {
+		success: false,
+		error: {
+			code: "INVALID_STORAGE_KEY",
+			message:
+				"storageKey does not match a pending upload created for this user; request a signed upload URL first",
+		},
+	};
+	try {
+		const repo = new MediaRepository(db);
+		const pending = await repo.findPendingByStorageKey(input.storageKey);
+		if (!pending) return invalidKey;
+		if ((pending.authorId ?? null) !== (input.authorId ?? null)) return invalidKey;
+		if (pending.size === null) {
+			return {
+				success: false,
+				error: {
+					code: "INVALID_STATE",
+					message: "Pending upload has no expected size",
+				},
+			};
+		}
+		if (!(await storage.exists(input.storageKey))) {
+			return {
+				success: false,
+				error: { code: "FILE_NOT_FOUND", message: "File was not uploaded to storage" },
+			};
+		}
+
+		const storedFile = await storage.download(input.storageKey);
+		try {
+			if (storedFile.size !== pending.size) {
+				return {
+					success: false,
+					error: {
+						code: "UPLOAD_SIZE_MISMATCH",
+						message: "Stored file size does not match the pending upload",
+					},
+				};
+			}
+		} finally {
+			try {
+				await storedFile.body.cancel();
+			} catch (error) {
+				console.error("[media] upload confirmation cancellation failed:", error);
+			}
+		}
+
+		const item = await repo.confirmUpload(pending.id, undefined, input.storageKey);
+		if (!item) return invalidKey;
+		try {
+			await repo.deleteUploadAttempt(input.storageKey);
+		} catch (error) {
+			console.error("[media] upload attempt cleanup failed:", error);
+		}
+
+		return {
+			success: true,
+			data: { item },
+		};
+	} catch {
+		return {
+			success: false,
+			error: {
+				code: "MEDIA_REGISTER_ERROR",
+				message: "Failed to register the upload",
 			},
 		};
 	}
@@ -269,30 +357,42 @@ function isForeignKeyViolation(error: unknown): boolean {
 	);
 }
 
-/**
- * Delete media item
- */
+/** Delete a media item, then delete or queue cleanup of its stored object. */
 export async function handleMediaDelete(
 	db: Kysely<Database>,
 	id: string,
-): Promise<ApiResult<{ deleted: true; storageKey: string }>> {
+	storage?: Storage | null,
+): Promise<ApiResult<{ deleted: true; storageKey: string; storageDeleted: boolean }>> {
 	try {
 		const repo = new MediaRepository(db);
-		const storageKey = await repo.deleteWithStorageKey(id);
+		const notFound: ApiResult<never> = {
+			success: false,
+			error: { code: "NOT_FOUND", message: `Media item not found: ${id}` },
+		};
 
-		if (!storageKey) {
-			return {
-				success: false,
-				error: {
-					code: "NOT_FOUND",
-					message: `Media item not found: ${id}`,
-				},
-			};
+		const media = await repo.findById(id);
+		if (!media) return notFound;
+
+		if (storage) await repo.trackStorageKeyForCleanup(media.id, media.storageKey);
+		const storageKey = await repo.deleteWithStorageKey(id);
+		if (!storageKey) return notFound;
+
+		let storageDeleted = false;
+		if (storage) {
+			if (await repo.isStorageKeyReferenced(storageKey)) {
+				// A legacy or concurrently-created row still owns this object. Remove
+				// the cleanup marker created above so scheduled cleanup cannot delete it.
+				await repo.deleteUploadAttempt(storageKey);
+			} else {
+				storageDeleted = await removeUploadAttempt(storage, repo, storageKey, {
+					allowUntracked: true,
+				});
+			}
 		}
 
 		return {
 			success: true,
-			data: { deleted: true, storageKey },
+			data: { deleted: true, storageKey, storageDeleted },
 		};
 	} catch {
 		return {

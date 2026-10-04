@@ -13,7 +13,7 @@ import { localeCode } from "./common.js";
  */
 export const menuItemTypeEnum = z.enum(["custom", "page", "post", "taxonomy", "collection"]);
 
-const safeHref = z
+export const safeHref = z
 	.string()
 	.trim()
 	.refine(

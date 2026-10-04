@@ -12,9 +12,11 @@ import { siteSettingsTag } from "../cache/chrome-tags.js";
 import { resolvePluginEncryptionKeys } from "../config/secrets.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
+import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
+import { isRecord } from "../plugin-utils.js";
 import {
 	PluginSettingEncryptionError,
 	decryptPluginSetting,
@@ -32,10 +34,19 @@ import {
 	invalidateSingleFlightCache,
 	singleFlightCached,
 } from "../utils/single-flight-cache.js";
-import type { SiteSettings, SiteSettingKey, MediaReference, SeoSettings } from "./types.js";
+import type {
+	MediaReference,
+	SeoSettings,
+	SiteSettings,
+	SiteSettingsUpdate,
+	SiteSettingKey,
+} from "./types.js";
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
+
+/** Settings stored as one object whose fields are updated individually. */
+const NESTED_SETTING_KEYS = new Set(["seo", "social"]);
 
 function isPluginSettingEnvelopeRecord(value: unknown): value is Record<string, unknown> {
 	return (
@@ -329,7 +340,8 @@ export async function getSiteSettingsWithDb(
 /**
  * Set site settings (internal function used by admin API)
  *
- * Merges provided settings with existing ones. Only provided fields are updated.
+ * Merges provided settings with existing ones. Only provided fields are updated,
+ * including fields inside `seo` and `social`; `seo.defaultOgImage: null` removes the default image.
  * Media references should include just the mediaId; URLs are resolved on read.
  *
  * @param settings - Partial settings object with values to update
@@ -349,21 +361,37 @@ export async function getSiteSettingsWithDb(
  * ```
  */
 export async function setSiteSettings(
-	settings: Partial<SiteSettings>,
+	settings: SiteSettingsUpdate,
 	db: Kysely<Database>,
 ): Promise<void> {
-	const options = new OptionsRepository(db);
-
-	// Convert settings to options format
 	const updates: Record<string, unknown> = {};
+	const deletions: string[] = [];
+	const nestedPatches: [key: string, patch: Record<string, unknown>][] = [];
+
 	for (const [key, value] of Object.entries(settings)) {
-		if (value !== undefined) {
-			updates[`${SETTINGS_PREFIX}${key}`] = value;
-		}
+		if (value === undefined) continue;
+		if (value === null) deletions.push(`${SETTINGS_PREFIX}${key}`);
+		else if (NESTED_SETTING_KEYS.has(key) && isRecord(value)) nestedPatches.push([key, value]);
+		else updates[`${SETTINGS_PREFIX}${key}`] = value;
 	}
 
 	try {
-		await options.setMany(updates);
+		await withTransaction(db, async (trx) => {
+			const transactionOptions = new OptionsRepository(trx);
+			await transactionOptions.setMany(updates);
+			await transactionOptions.deleteMany(deletions);
+
+			for (const [key, patch] of nestedPatches) {
+				const optionName = `${SETTINGS_PREFIX}${key}`;
+				const next = { ...(await transactionOptions.get<Record<string, unknown>>(optionName)) };
+				for (const [field, fieldValue] of Object.entries(patch)) {
+					if (fieldValue === null) delete next[field];
+					else if (fieldValue !== undefined) next[field] = fieldValue;
+				}
+				if (Object.keys(next).length === 0) await transactionOptions.delete(optionName);
+				else await transactionOptions.set(optionName, next);
+			}
+		});
 	} finally {
 		invalidateSiteSettingsCache();
 	}

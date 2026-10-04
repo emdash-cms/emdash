@@ -87,6 +87,16 @@ describe("detectLoops", () => {
 		const result = detectLoops([]);
 		expect(result).toHaveLength(0);
 	});
+
+	it("skips malformed stored patterns", () => {
+		const edges = [
+			edge("invalid", "/[a][b][c]", "/ignored", true, true),
+			edge("1", "/a", "/b"),
+			edge("2", "/b", "/a"),
+		];
+
+		expect(detectLoops(edges)).toEqual(expect.arrayContaining(["1", "2"]));
+	});
 });
 
 describe("wouldCreateLoop", () => {
@@ -190,5 +200,11 @@ describe("wouldCreateLoop", () => {
 		];
 		const result = wouldCreateLoop("/news/[slug]", "/blog/[slug]", edges);
 		expect(result).not.toBeNull();
+	});
+
+	it("does not compile an ambiguous destination template", () => {
+		const edges = [edge("1", "/target", "/source")];
+
+		expect(wouldCreateLoop("/source", "/[a][b][c]", edges)).toBeNull();
 	});
 });

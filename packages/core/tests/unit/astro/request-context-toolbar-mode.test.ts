@@ -34,6 +34,7 @@ function buildContext(opts: {
 	search?: string;
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
+	playground?: boolean;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -46,7 +47,7 @@ function buildContext(opts: {
 			),
 			set: vi.fn(),
 		},
-		locals: { user: opts.user ?? null },
+		locals: { user: opts.user ?? null, __playgroundDb: opts.playground ? {} : undefined },
 	};
 }
 
@@ -56,6 +57,8 @@ const htmlResponse = () =>
 	});
 
 const EDITOR = { id: "u1", role: 30 };
+
+const HIDDEN_EDIT_TOOLBAR = /<div id="emdash-toolbar" data-edit-mode="true"[^>]* hidden>/;
 
 describe("toolbar: server (default)", () => {
 	it("injects the toolbar for editors and leaves anonymous HTML untouched", async () => {
@@ -281,5 +284,70 @@ describe("toolbar: false", () => {
 			expect(html).not.toContain("emdash-toolbar");
 			expect(res.headers.get("Cache-Control")).toBeNull();
 		}
+	});
+
+	it("does not add the toolbar in the Playground either", async () => {
+		const onRequest = await loadMiddleware(false);
+		const context = buildContext({ user: EDITOR, playground: true, editCookie: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).not.toContain("emdash-toolbar");
+		expect(res.headers.get("Cache-Control")).toBeNull();
+	});
+});
+
+describe("toolbar: Playground", () => {
+	it("adds the toolbar hidden, for inline editing, while edit mode is on", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ user: EDITOR, playground: true, editCookie: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).toMatch(HIDDEN_EDIT_TOOLBAR);
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(context.cache.set).toHaveBeenCalledWith(false);
+	});
+
+	it("leaves the page untouched while edit mode is off", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ user: EDITOR, playground: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).not.toContain("emdash-toolbar");
+		expect(res.headers.get("Cache-Control")).toBeNull();
+		expect(context.cache.set).not.toHaveBeenCalled();
+	});
+});
+
+describe("toolbar: rewritten pages", () => {
+	// Astro.rewrite() runs the middleware again for the target route inside the
+	// original request, so the outer pass receives HTML the inner pass already
+	// injected into.
+	const rewriteTo404 = (onRequest: Middleware, context: ReturnType<typeof buildContext>) => () =>
+		Promise.resolve(
+			onRequest({ ...context, url: new URL("https://example.com/404") }, async () =>
+				htmlResponse(),
+			),
+		);
+
+	it("injects the editor toolbar once and keeps the page uncacheable", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ pathname: "/posts/missing", user: EDITOR });
+
+		const res = await onRequest(context, rewriteTo404(onRequest, context));
+
+		expect((await res.text()).match(/id="emdash-toolbar"/g)).toHaveLength(1);
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+	});
+
+	it("injects the client bootstrap once", async () => {
+		const onRequest = await loadMiddleware("client");
+		const context = buildContext({ pathname: "/posts/missing" });
+
+		const res = await onRequest(context, rewriteTo404(onRequest, context));
+
+		expect((await res.text()).match(/<!-- EmDash Toolbar Bootstrap -->/g)).toHaveLength(1);
 	});
 });

@@ -13,7 +13,7 @@ const slug = decodeSlug(Astro.params.slug);
 const term = slug ? await getTerm("category", slug) : null;
 
 if (!term) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
@@ -62,6 +62,7 @@ const filteredPosts = posts.map((post) => ({
 							date={post.data.publishedAt ?? undefined}
 							readingTime={getReadingTime(post.data.content)}
 							tags={tags.map((t) => ({ slug: t.slug, label: t.label }))}
+							edit={post.edit}
 						/>
 					))}
 				</div>

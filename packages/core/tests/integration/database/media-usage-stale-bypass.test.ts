@@ -15,6 +15,7 @@ import {
 	type MediaUsageContentSourceVariant,
 } from "../../../src/media/usage/source-key.js";
 import { createContentAccessWithWrite } from "../../../src/plugins/context.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
@@ -156,6 +157,43 @@ describeEachDialect("media usage stale marking for bypass writes", (dialect) => 
 		expect(
 			await usageRepo.recordIncrementalSuccess({ collectionId, collectionSlug: "posts" }),
 		).toBe(true);
+		await expectSchemaReconciliation(collectionId, 6);
+	});
+
+	it("requires reconciliation after media-relevant block definition mutations", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		const created = await blocks.createBlockType({
+			slug: "feature",
+			label: "Feature",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["feature"] },
+		});
+		const collectionId = await activateCollectionCapture("posts");
+
+		const amended = await blocks.updateBlockType("feature", {
+			expectedFingerprint: created.versions[0]!.fingerprint,
+			fields: [
+				{ slug: "image", label: "Image", type: "image" },
+				{ slug: "file", label: "File", type: "file" },
+			],
+		});
+		await expectSchemaReconciliation(collectionId, 2);
+
+		await trustCurrentSchema(collectionId);
+		const versioned = await blocks.updateBlockType("feature", {
+			expectedFingerprint: amended.versions[0]!.fingerprint,
+			breaking: true,
+			fields: [{ slug: "file", label: "File", type: "file" }],
+		});
+		await expectSchemaReconciliation(collectionId, 4);
+
+		await trustCurrentSchema(collectionId);
+		await blocks.activateVersion("feature", 2, versioned.versions[0]!.fingerprint);
 		await expectSchemaReconciliation(collectionId, 6);
 	});
 
