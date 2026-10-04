@@ -1,0 +1,23 @@
+.changeset/atomic-content-saves.md
+  s_871d7d7d37412b::t_25dc0a24bb54b8 9-10
+packages/core/src/transfer/format/columns.ts
+  s_871d7d7d37412b::t_5e134613386c6b 306
+packages/core/tests/integration/transfer/export/export.test.ts
+  s_871d7d7d37412b::t_506bfea02ceed8 1,4,39-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5cfade57ed0e0b262b59e2f23d32f0dbc6eb7185",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+e2e/tests/autosave.spec.ts
+  s_871d7d7d37412b::t_a3f275959ca2f1 76,88-90,102-104
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_871d7d7d37412b::t_2ae241500be0f7 4,10,231-249,252,287,338,349-356,906-913,1010-1013,1127-1131
+packages/admin/tests/router.test.tsx
+  s_871d7d7d37412b::t_f9232ce0b1f5c5 1744,1747-1750,1754,1808,1831,1836,1849,1889-1893,1895-1906,1910,1914-1928,1930-1931
+packages/core/tests/integration/content/save-rev-race.test.ts
+  s_871d7d7d37412b::t_16379d03cfeabb 33,36,71,91,155
+packages/core/tests/integration/database/media-usage-runtime-refresh.test.ts
+  s_871d7d7d37412b::t_0b840caa630f96 5,179,190-196,211-222,233-234
+packages/core/tests/workerd/content-save-revision-d1.test.ts
+  s_871d7d7d37412b::t_666d53a3d2914f 3,24-25,32-33,48-52,81,111,122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "39afc9f79fcf67f66c55c4e436cc7913fcc81313",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
