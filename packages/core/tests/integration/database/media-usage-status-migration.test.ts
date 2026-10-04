@@ -352,7 +352,10 @@ async function listColumnNames(
 	tableName: keyof Database,
 ): Promise<Set<string>> {
 	const tables = await ctx.db.introspection.getTables();
-	const table = tables.find((candidate) => candidate.name === tableName);
+	const table = tables.find(
+		(candidate) =>
+			candidate.name === tableName && (!ctx.pgCtx || candidate.schema === ctx.pgCtx.schemaName),
+	);
 	return new Set(table?.columns.map((column) => column.name) ?? []);
 }
 

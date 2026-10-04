@@ -758,6 +758,8 @@ describe("Toolbar Presence and Structure", () => {
 
 		const headings = getToolbarButton(screen, "Headings");
 		headings.element().focus();
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}{Tab}");
+		await expect.element(headings).toHaveFocus();
 		await expect.element(screen.getByText("Headings")).toBeVisible();
 	});
 

@@ -41,6 +41,7 @@ let signingKeyMultibase: string;
 beforeAll(async () => {
 	const kp = await P256PrivateKeyExportable.createKeypair();
 	signingKeyMultibase = await kp.exportPublicKey("multikey");
+	await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
 });
 
 class MapDidDocCache implements DidDocCache {
@@ -347,10 +348,6 @@ describe("DidResolver", () => {
 	});
 
 	describe("createD1DidDocCache", () => {
-		beforeAll(async () => {
-			await applyD1Migrations(testEnv.DB, testEnv.TEST_MIGRATIONS);
-		});
-
 		beforeEach(async () => {
 			await testEnv.DB.exec("DELETE FROM known_publishers");
 		});

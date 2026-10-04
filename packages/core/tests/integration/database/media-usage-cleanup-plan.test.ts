@@ -60,6 +60,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+	vi.restoreAllMocks();
 	vi.useRealTimers();
 	await db.destroy();
 });

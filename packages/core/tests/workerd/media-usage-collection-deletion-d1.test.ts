@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { Kysely, sql } from "kysely";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
 import { executeCollectionDeletionGuard } from "../../../cloudflare/src/db/d1.js";
@@ -21,6 +21,18 @@ let db: Kysely<Database>;
 beforeAll(async () => {
 	db = new Kysely<Database>({ dialect: new RawBindingD1Dialect({ database: env.DB }) });
 	await runMigrations(db);
+});
+
+afterEach(async () => {
+	await sql`DROP TABLE IF EXISTS ec_d1_guarded`.execute(db);
+	await sql`DROP TABLE IF EXISTS ec_d1_fence`.execute(db);
+	await db.deleteFrom("_emdash_media_usage").execute();
+	await db.deleteFrom("_emdash_media_usage_generation_writes").execute();
+	await db.deleteFrom("_emdash_media_usage_sources").execute();
+	await db.deleteFrom("_emdash_media_usage_work").execute();
+	await db.deleteFrom("_emdash_media_usage_index_status").execute();
+	await db.deleteFrom("_emdash_media_usage_collection_deletions").execute();
+	await db.deleteFrom("_emdash_collections").execute();
 });
 
 afterAll(async () => {
@@ -268,14 +280,6 @@ it("drains at most fifty exact-ID work rows in a real D1 tick", async () => {
 		.where("collection_id", "=", "collection-d1-cleanup")
 		.execute();
 	expect(remaining).toEqual([{ content_id: "d1-entry-050" }]);
-	await db
-		.deleteFrom("_emdash_media_usage_work")
-		.where("collection_id", "=", "collection-d1-cleanup")
-		.execute();
-	await db
-		.deleteFrom("_emdash_media_usage_collection_deletions")
-		.where("collection_id", "=", "collection-d1-cleanup")
-		.execute();
 });
 
 it("records bounded real-D1 cost evidence through finalization", async () => {

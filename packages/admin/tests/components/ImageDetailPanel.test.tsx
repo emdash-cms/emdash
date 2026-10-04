@@ -181,7 +181,10 @@ describe("ImageDetailPanel", () => {
 		const sizeHelp = screen.getByText(
 			"Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged.",
 		);
-		screen.getByRole("button", { name: "More information about Display size" }).element().focus();
+		const sizeTrigger = screen.getByRole("button", { name: "More information about Display size" });
+		sizeTrigger.element().focus();
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}{Tab}");
+		await expect.element(sizeTrigger).toHaveFocus();
 		await expect.element(sizeHelp).toBeVisible();
 	});
 

@@ -163,7 +163,7 @@ async function typeQuery(screen: Awaited<ReturnType<typeof render>>, text: strin
 
 beforeEach(() => {
 	vi.mocked(fetchManifest).mockResolvedValue(postsManifest);
-	vi.mocked(fetchContent).mockRejectedValue(new Error("not mocked"));
+	vi.mocked(fetchContent).mockReset().mockRejectedValue(new Error("not mocked"));
 	vi.mocked(apiFetch).mockReset();
 });
 

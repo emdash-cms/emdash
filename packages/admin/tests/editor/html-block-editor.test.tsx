@@ -70,6 +70,11 @@ function codeEditors(): HTMLElement[] {
 	return [...document.querySelectorAll<HTMLElement>(".html-block .cm-content")];
 }
 
+async function clickCodeEditor(index = 0) {
+	await vi.waitFor(() => expect(codeEditors()[index]).toBeDefined());
+	await userEvent.click(codeEditors()[index]!);
+}
+
 async function waitForCodeEditorFocus(index = 0) {
 	await vi.waitFor(() => {
 		expect(codeEditors()[index]).toBeDefined();
@@ -107,10 +112,10 @@ describe("HTML block editor", () => {
 		await insertFromSlashMenu(pm);
 
 		await screen.getByRole("tab", { name: "CSS" }).click();
-		await userEvent.click(codeEditors()[0]!);
+		await clickCodeEditor();
 		await userEvent.keyboard("p {{ color: red; }");
 		await screen.getByRole("tab", { name: "JS" }).click();
-		await userEvent.click(codeEditors()[0]!);
+		await clickCodeEditor();
 		await userEvent.keyboard("let answer = 42;");
 
 		await vi.waitFor(() =>
@@ -139,7 +144,7 @@ describe("HTML block editor", () => {
 		const saved: Block = { _type: "htmlBlock", _key: "saved", html: "<p>Saved</p>" };
 		const { screen, latest } = await renderEditor({ value: [saved, paragraph("after", "After")] });
 		await screen.getByRole("tab", { name: "HTML" }).click();
-		await userEvent.click(codeEditors()[0]!);
+		await clickCodeEditor();
 
 		await screen.getByRole("button", { name: "Insert HTML" }).click();
 		await waitForCodeEditorFocus(1);
@@ -155,7 +160,7 @@ describe("HTML block editor", () => {
 		const second: Block = { _type: "htmlBlock", _key: "second", html: "<p>Second</p>" };
 		const { screen, latest } = await renderEditor({ value: [first, second] });
 		await screen.getByRole("tab", { name: "HTML" }).first().click();
-		await userEvent.click(codeEditors()[0]!);
+		await clickCodeEditor();
 
 		await screen.getByRole("button", { name: "Insert HTML" }).click();
 		await waitForCodeEditorFocus(1);
@@ -191,7 +196,7 @@ describe("HTML block editor", () => {
 		const { screen, latest } = await renderEditor({ value: [saved, table] });
 		await screen.getByRole("tab", { name: "HTML" }).click();
 		await vi.waitFor(() => expect(codeEditors()).toHaveLength(1));
-		await userEvent.click(codeEditors()[0]!);
+		await clickCodeEditor();
 
 		await screen.getByRole("button", { name: "Insert HTML" }).click();
 		await waitForCodeEditorFocus(1);
@@ -487,7 +492,7 @@ describe("HTML block preview", () => {
 		await ran;
 
 		await screen.getByRole("tab", { name: "JS" }).click();
-		await userEvent.click(codeEditors()[0]!);
+		await clickCodeEditor();
 		await userEvent.keyboard("{End} ");
 		const ranAgain = nextMessageFrom(previewFrame, "ran");
 		await screen.getByRole("tab", { name: "Preview" }).click();

@@ -758,7 +758,6 @@ describe("Marketplace handlers", () => {
 			const detail = mockPluginDetail("test-seo", "2.0.0");
 			detail.latestVersion!.checksum = "expected-checksum";
 			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
-			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
 
 			const bundleBytes = await createMockBundle(mockManifest("test-seo", "2.0.0"));
 			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));

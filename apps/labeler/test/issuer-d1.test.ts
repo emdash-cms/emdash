@@ -25,11 +25,19 @@ beforeAll(async () => {
 describe("D1 listing label issuer", () => {
 	it("allocates unique monotonic sequences under concurrent issuance", async () => {
 		const issuer = await createTestIssuer(env.DB);
+		const subject = { ...PROFILE_SUBJECT, uri: `${PROFILE_URI}-concurrent` };
+		const initial = await issuer.block(
+			decisionContext("concurrent-baseline"),
+			subject,
+			new Date("2026-08-24T11:59:59.000Z"),
+		);
+		expect(initial.labels).toHaveLength(1);
+		const firstSequence = initial.labels[0]!.sequence + 1;
 		const decisions = await Promise.all(
 			Array.from({ length: 24 }, (_, index) =>
 				issuer.block(
 					decisionContext(`concurrent-${index}`),
-					PROFILE_SUBJECT,
+					subject,
 					new Date(`2026-08-24T12:00:${`${index}`.padStart(2, "0")}.000Z`),
 				),
 			),
@@ -38,7 +46,7 @@ describe("D1 listing label issuer", () => {
 		const sequences = issued
 			.map((result) => result.sequence)
 			.toSorted((left, right) => left - right);
-		expect(sequences).toEqual(Array.from({ length: 24 }, (_, index) => index + 1));
+		expect(sequences).toEqual(Array.from({ length: 24 }, (_, index) => firstSequence + index));
 		expect(new Set(sequences)).toHaveLength(24);
 
 		for (const result of issued) {
@@ -47,7 +55,9 @@ describe("D1 listing label issuer", () => {
 					label: result.label,
 					resolveDid: async () => labelDidDocument(),
 				}),
-			).resolves.toEqual(expect.objectContaining({ src: ISSUER_DID, cid: SUBJECT_CID }));
+			).resolves.toEqual(
+				expect.objectContaining({ src: ISSUER_DID, uri: subject.uri, cid: SUBJECT_CID }),
+			);
 		}
 	});
 
