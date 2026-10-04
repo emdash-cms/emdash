@@ -5,6 +5,19 @@
 
 import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
+export interface E2eTestArticle {
+  id: string;
+  slug: string | null;
+  status: string;
+  summary?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
 export interface Page {
   id: string;
   slug: string | null;
@@ -39,6 +52,7 @@ export interface Post {
 
 declare module "emdash" {
   interface EmDashCollections {
+    e2e_test_articles: E2eTestArticle;
     pages: Page;
     posts: Post;
   }

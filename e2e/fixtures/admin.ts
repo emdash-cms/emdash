@@ -180,6 +180,23 @@ export class AdminPage {
 			.catch(() => {});
 	}
 
+	/**
+	 * Wait for the content types list to contain the named collection links.
+	 *
+	 * The list fetches collections independently of the generic loading spinner,
+	 * and on a cold Cloudflare worker the query can outrun the default 5s
+	 * visibility timeout. Poll explicitly for the seeded rows before asserting
+	 * individual collection links or slugs.
+	 */
+	async waitForContentTypeList(labels: string[], timeout = 15000): Promise<void> {
+		const table = this.page.locator("table");
+		for (const label of labels) {
+			await expect(table.getByRole("link", { name: label, exact: true })).toBeVisible({
+				timeout,
+			});
+		}
+	}
+
 	// ============================================
 	// Navigation
 	// ============================================

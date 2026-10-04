@@ -36,15 +36,19 @@ test.describe("Content Types", () => {
 			// Should show the table
 			await expect(admin.page.locator("table")).toBeVisible();
 
-			// Seeded collections should appear as links in the table (scope to table to avoid sidebar)
-			const table = admin.page.locator("table");
-			await expect(table.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
-			await expect(table.getByRole("link", { name: "Pages", exact: true })).toBeVisible();
+			// The content-types list fetches collections independently of the
+			// generic loading spinner. On a cold Cloudflare worker that query can
+			// take longer than the default 5s visibility timeout, so wait for
+			// the seeded rows to render before asserting specific links.
+			await admin.waitForContentTypeList(["Posts", "Pages"]);
 		});
 
 		test("shows slug column for each collection", async ({ admin }) => {
 			await admin.goto("/content-types");
 			await admin.waitForLoading();
+
+			// Wait for seeded collection rows to render (cold-start safety).
+			await admin.waitForContentTypeList(["Posts", "Pages"]);
 
 			// Slug values rendered as <code> elements inside the table
 			await expect(admin.page.locator("table code", { hasText: "posts" })).toBeVisible();
@@ -63,6 +67,9 @@ test.describe("Content Types", () => {
 		test("clicking a collection shows its field list", async ({ admin }) => {
 			await admin.goto("/content-types");
 			await admin.waitForLoading();
+
+			// Wait for seeded collection rows to render (cold-start safety).
+			await admin.waitForContentTypeList(["Posts", "Pages"]);
 
 			// Click into the posts collection (scope to table to avoid sidebar link)
 			await admin.page.locator("table").getByRole("link", { name: "Posts", exact: true }).click();
@@ -201,10 +208,9 @@ test.describe("Content Types", () => {
 			await admin.goto("/content-types");
 			await admin.waitForLoading();
 
-			// The collection we created in the previous test should appear (scope to table)
-			await expect(
-				admin.page.locator("table").getByRole("link", { name: TEST_LABEL_PLURAL, exact: true }),
-			).toBeVisible({ timeout: 10000 });
+			// The collection we created in the previous test should appear.
+			// Use the list-ready helper for cold-start tolerance.
+			await admin.waitForContentTypeList([TEST_LABEL_PLURAL]);
 
 			await expect(admin.page.locator("table code", { hasText: TEST_SLUG })).toBeVisible();
 		});
@@ -255,10 +261,8 @@ test.describe("Content Types", () => {
 			await admin.goto("/content-types");
 			await admin.waitForLoading();
 
-			// Verify the test collection exists before deletion
-			await expect(admin.page.locator("table code", { hasText: TEST_SLUG })).toBeVisible({
-				timeout: 10000,
-			});
+			// Verify the test collection exists before deletion (cold-start safety).
+			await admin.waitForContentTypeList([TEST_LABEL_PLURAL]);
 
 			// Find the row for the test collection and click its delete button
 			const row = admin.page.locator("tr").filter({ hasText: TEST_LABEL_PLURAL });
