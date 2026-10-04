@@ -16,6 +16,7 @@ import { emdashLoader, ENTRY_REV } from "../../../src/loader.js";
 import { runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
+import type { VisualEditingWriteSession } from "../../../src/visual-editing/write-session.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
 	describeEachDialect,
@@ -58,6 +59,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 	let readGate: Promise<void> | undefined;
 	let readFailure: number | undefined;
 	let pendingRequests: Promise<Response>[];
+	let gateReleases: Array<() => void>;
 	let writes: Array<{ _rev: string; data: Record<string, unknown> }>;
 	const documentListeners: Parameters<typeof document.addEventListener>[] = [];
 
@@ -91,6 +93,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		readGate = undefined;
 		readFailure = undefined;
 		pendingRequests = [];
+		gateReleases = [];
 		writes = [];
 		vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 		vi.spyOn(window, "open").mockImplementation(() => null);
@@ -151,7 +154,28 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 	});
 
 	afterEach(async () => {
-		await Promise.allSettled(pendingRequests);
+		for (const release of gateReleases) release();
+		let drainedRequests = 0;
+		const pendingSessions = () => {
+			const sessions: Map<string, VisualEditingWriteSession> | undefined = Reflect.get(
+				window,
+				Symbol.for("emdash.visualEditing.writeSessions"),
+			);
+			return Array.from(sessions?.values() ?? [], (session) => session.pending);
+		};
+		while (true) {
+			const sessions = pendingSessions();
+			const requests = pendingRequests.slice(drainedRequests);
+			drainedRequests = pendingRequests.length;
+			await Promise.allSettled([...requests, ...sessions]);
+			const remainingSessions = pendingSessions();
+			if (
+				drainedRequests === pendingRequests.length &&
+				sessions.length === remainingSessions.length &&
+				sessions.every((pending, index) => pending === remainingSessions[index])
+			)
+				break;
+		}
 		if (mounted)
 			await act(async () => {
 				for (const element of document.querySelectorAll<HTMLElement>(".ProseMirror")) {
@@ -363,6 +387,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		let releaseSave!: () => void;
 		saveGate = new Promise<void>((resolve) => {
 			releaseSave = resolve;
+			gateReleases.push(resolve);
 		});
 		await editBody(editor, element, "First edit. ");
 		await vi.waitFor(() => expect(writes).toHaveLength(1));
@@ -417,6 +442,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		let releaseSave!: () => void;
 		saveGate = new Promise<void>((resolve) => {
 			releaseSave = resolve;
+			gateReleases.push(resolve);
 		});
 		try {
 			await editBody(editor, element, "Undone edit. ");
@@ -479,6 +505,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		let releaseRead!: () => void;
 		readGate = new Promise<void>((resolve) => {
 			releaseRead = resolve;
+			gateReleases.push(resolve);
 		});
 		try {
 			await act(async () => {
@@ -499,6 +526,7 @@ describeEachDialect("visual editor revision safety", (dialect) => {
 		let releaseSave!: () => void;
 		saveGate = new Promise<void>((resolve) => {
 			releaseSave = resolve;
+			gateReleases.push(resolve);
 		});
 		try {
 			await editBody(editor, element, "First edit. ");
