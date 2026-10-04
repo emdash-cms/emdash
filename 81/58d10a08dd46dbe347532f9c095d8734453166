@@ -1,0 +1,19 @@
+packages/core/tests/unit/visual-editing/toolbar-save-rev.test.ts
+  s_871d7d7d37412b::t_0c9e95ab65ed1e 62,101-105,159,181-185,404-406,410-411,460-461,544-545
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8158d10a08dd46dbe347532f9c095d8734453166",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
