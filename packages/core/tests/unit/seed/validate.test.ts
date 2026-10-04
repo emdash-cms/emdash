@@ -1,3 +1,6 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, it, expect } from "vitest";
 
 import type { SeedFile } from "../../../src/seed/types.js";
@@ -956,6 +959,40 @@ describe("validateSeed", () => {
 			});
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]).toContain('must be "content", "menu", or "component"');
+		});
+
+		it("warns that widget settings are not applied", () => {
+			const result = validateSeed({
+				version: "1",
+				widgetAreas: [
+					{
+						name: "sidebar",
+						label: "Sidebar",
+						widgets: [{ type: "component", componentId: "core:archives", settings: { limit: 6 } }],
+					},
+				],
+			});
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toContain(
+				'widgetAreas[0].widgets[0].settings: not applied; widget options belong in "props"',
+			);
+		});
+
+		it("finds no widget settings in the repository's seeds", () => {
+			const root = resolve(import.meta.dirname, "../../../../..");
+			const seeds = ["templates", "demos", "infra", "fixtures"].flatMap((dir) =>
+				readdirSync(resolve(root, dir))
+					.map((name) => resolve(root, dir, name, "seed/seed.json"))
+					.filter((path) => existsSync(path)),
+			);
+			expect(seeds.length).toBeGreaterThan(0);
+			for (const path of seeds) {
+				const { warnings } = validateSeed(JSON.parse(readFileSync(path, "utf8")));
+				expect(
+					warnings.filter((warning) => /\.widgets\[\d+\]\.settings:/.test(warning)),
+					path,
+				).toEqual([]);
+			}
 		});
 
 		it("should require menuName for menu widgets", () => {

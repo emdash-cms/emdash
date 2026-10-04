@@ -519,7 +519,7 @@ msgstr "{dayLabel}, {entries}"
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr "{earlierCount, plural, one {Prikaži # raniji unos} few {Prikaži # ranija unosa} other {Prikaži # ranijih unosa}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:218
+#: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {# e-poruka nije poslata. Proveri provajdera e-pošte.} few {# e-poruke nisu poslate. Proveri provajdera e-pošte.} other {# e-poruka nije poslato. Proveri provajdera e-pošte.}}"
 
@@ -739,7 +739,7 @@ msgstr "{selectedCount, plural, one {# izabrano} few {# izabrana} other {# izabr
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Premestiti # stavku u korpu? Možeš je kasnije vratiti.} few {Premestiti # stavke u korpu? Možeš ih kasnije vratiti.} other {Premestiti # stavki u korpu? Možeš ih kasnije vratiti.}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr "{sent, plural, one {Poslata e-poruka # korisniku} few {Poslata e-poruka # korisnika} other {Poslata e-poruka # korisnicima}}"
 
@@ -1023,7 +1023,7 @@ msgstr "Relacija definiše kako se dva tipa sadržaja povezuju. Polja referenci 
 msgid "A relationship is required"
 msgstr "Relacija je obavezna"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
 msgid "A short description of your site"
 msgstr "Kratak opis sajta"
 
@@ -1624,10 +1624,10 @@ msgstr "Šifrovani digitalni ključ koji otključavaš pomoću otiska prsta, lic
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
-#: packages/admin/src/components/settings/GeneralSettings.tsx:311
+#: packages/admin/src/components/settings/GeneralSettings.tsx:191
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 #: packages/admin/src/components/settings/GeneralSettings.tsx:312
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2461,11 +2461,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "Promeniti <0>{0}</0> sa <1>{1}</1> na <2>{2}</2>? Izgubiće pristup funkcijama višeg nivoa."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:373
+#: packages/admin/src/components/settings/GeneralSettings.tsx:374
 msgid "Change domain"
 msgstr "Promeni domen"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:509
+#: packages/admin/src/components/settings/GeneralSettings.tsx:510
 msgid "Change Favicon"
 msgstr "Promeni favicon"
 
@@ -2473,7 +2473,7 @@ msgstr "Promeni favicon"
 msgid "Change Image"
 msgstr "Promeni sliku"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:449
+#: packages/admin/src/components/settings/GeneralSettings.tsx:450
 msgid "Change Logo"
 msgstr "Promeni logo"
 
@@ -2633,7 +2633,7 @@ msgstr "Izaberi novo vreme objavljivanja za ovaj nacrt."
 msgid "Choose a non-empty {0} image."
 msgstr "Izaberi {0} sliku koja nije prazna."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:577
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "Izaberi prepoznatu vremensku zonu za pouzdan prikaz datuma."
 
@@ -3176,7 +3176,7 @@ msgstr "Nastavi uvoz"
 msgid "Continue numbering"
 msgstr "Nastavi numeraciju"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:390
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Continue on {handoverHost}"
 msgstr "Nastavi na {handoverHost}"
 
@@ -3781,7 +3781,7 @@ msgstr "Birač datuma i vremena"
 msgid "Date field to filter on"
 msgstr "Polje datuma za filtriranje"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:553
+#: packages/admin/src/components/settings/GeneralSettings.tsx:554
 msgid "Date Format"
 msgstr "Format datuma"
 
@@ -4354,7 +4354,7 @@ msgstr "Domen"
 msgid "Domain added successfully"
 msgstr "Domen uspešno dodat"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Domain changed to {url}"
 msgstr "Promenjen je domen na {url}"
 
@@ -4788,11 +4788,11 @@ msgstr "E-pošta"
 msgid "Email address"
 msgstr "Adresa e-pošte"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:640
+#: packages/admin/src/components/settings/GeneralSettings.tsx:641
 msgid "Email all users?"
 msgstr "Poslati e-poštu svim korisnicima?"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:403
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr "Pošalji svim ostalim korisnicima link do stranice za prijavu na {siteHost}."
 
@@ -4818,7 +4818,7 @@ msgstr "Provajder e-pošte aktivan"
 msgid "Email Settings"
 msgstr "Podešavanja e-pošte"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:412
+#: packages/admin/src/components/settings/GeneralSettings.tsx:413
 msgid "Email users"
 msgstr "Pošalji e-poštu korisnicima"
 
@@ -4946,7 +4946,7 @@ msgstr "Engleski se koristi jer nije podešen jezik sadržaja. Jezik sadržaja s
 msgid "Enter a name."
 msgstr "Unesi naziv."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:580
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Enter a recognized timezone to save"
 msgstr "Unesi prepoznatu vremensku zonu da sačuvaš"
 
@@ -5061,7 +5061,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "Svaki uvezeni zapis i medijski fajl su ponovo pročitani i poklopili su se sa paketom. Sačuvaj ovu potvrdu kao evidenciju o prenosu."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:642
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "Svaki drugi korisnik sa aktivnim nalogom dobija e-poštu da je sajt sada na {siteHost}, sa linkom za prijavu tamo. Pristupni ključevi (passkeys) sa druge adrese ne rade na {siteHost}, pa se korisnici prijavljuju preko linka u e-pošti i dodaju novi pristupni ključ (passkey)."
 
@@ -5081,7 +5081,7 @@ msgstr "Svako objavljeno izdanje ovog dodatka je povučeno ili nije verifikovano
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "Uklanjaju se i sve relacije u kojima ovaj tip sadržaja učestvuje:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:562
 msgid "Example: {pattern} → {preview}"
 msgstr "Primer: {pattern} → {preview}"
 
@@ -5248,7 +5248,7 @@ msgstr "Nastavljanje uvoza nije uspelo"
 msgid "Failed to create {0}"
 msgstr "Pravljenje nije uspelo: {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/components/settings/GeneralSettings.tsx:203
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr "Pravljenje linka za prijavu nije uspelo"
@@ -5814,7 +5814,7 @@ msgid "Failed to save field"
 msgstr "Čuvanje polja nije uspelo"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:189
+#: packages/admin/src/components/settings/GeneralSettings.tsx:190
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5952,8 +5952,8 @@ msgid "FAQ"
 msgstr "FAQ"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:480
-#: packages/admin/src/components/settings/GeneralSettings.tsx:487
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
+#: packages/admin/src/components/settings/GeneralSettings.tsx:488
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -6241,7 +6241,7 @@ msgstr "Podešavanja galerije"
 msgid "General"
 msgstr "Opšte"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "General Settings"
 msgstr "Opšta podešavanja"
 
@@ -7364,7 +7364,7 @@ msgid "Links from"
 msgstr "Linkovi od"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:359
+#: packages/admin/src/components/settings/GeneralSettings.tsx:360
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "Linkovi u e-pošti i dodacima koriste {0}, koje postavlja konfiguracija za objavljivanje."
 
@@ -7514,7 +7514,7 @@ msgstr "Učitavanje panela dodatka"
 msgid "Loading plugins..."
 msgstr "Učitavanje dodataka..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:558
+#: packages/admin/src/components/settings/GeneralSettings.tsx:559
 msgid "Loading preview…"
 msgstr "Učitavanje pregleda…"
 
@@ -7537,7 +7537,7 @@ msgid "Loading sections..."
 msgstr "Učitavanje sekcija..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:300
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7646,8 +7646,8 @@ msgid "Log out"
 msgstr "Odjavi se"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Logo"
 msgstr "Logo"
 
@@ -8715,7 +8715,7 @@ msgstr "Nije pronađen odgovarajući pristupni ključ (passkey) za ovaj nalog."
 msgid "No matching tags"
 msgstr "Nema odgovarajućih oznaka"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:593
+#: packages/admin/src/components/settings/GeneralSettings.tsx:594
 msgid "No matching timezones"
 msgstr "Nema odgovarajućih vremenskih zona"
 
@@ -8903,7 +8903,7 @@ msgstr "Bez poklapanja"
 
 #: packages/admin/src/components/ContentList.tsx:1568
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Not set"
 msgstr "Nije postavljeno"
 
@@ -8942,7 +8942,7 @@ msgstr "Broj"
 msgid "Number of posts"
 msgstr "Broj objava"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:548
+#: packages/admin/src/components/settings/GeneralSettings.tsx:549
 msgid "Number of posts to show per page on list views"
 msgstr "Broj objava po stranici u prikazima liste"
 
@@ -9306,7 +9306,7 @@ msgstr "Pristupni ključevi (passkeys) sa stare adrese tamo ne rade. Prijavi se 
 msgid "Passkeys Not Available Here"
 msgstr "Pristupni ključevi (passkeys) nisu dostupni ovde"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Passkeys only work at the address where they were created."
 msgstr "Pristupni ključevi (passkeys) rade samo na adresi na kojoj su napravljeni."
 
@@ -9318,7 +9318,7 @@ msgstr "Pristupni ključevi (passkeys) rade samo na adresi na kojoj su napravlje
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "Pristupni ključevi (passkeys) rade samo na adresi na kojoj su napravljeni. Nakon prebacivanja, nastavi da se prijavljuješ na trenutnoj adresi ili koristi link za prijavu iz e-pošte na novoj."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:382
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr "Pristupni ključevi (passkeys) rade samo na adresi na kojoj su napravljeni. Nastavi na {handoverHost} da se prijaviš tamo bez pristupnog ključa (passkey), pa dodaj jedan za tu adresu."
 
@@ -9635,7 +9635,7 @@ msgstr "Objave"
 msgid "Posts & Pages"
 msgstr "Objave i stranice"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:542
+#: packages/admin/src/components/settings/GeneralSettings.tsx:543
 msgid "Posts Per Page"
 msgstr "Objava po stranici"
 
@@ -9699,7 +9699,7 @@ msgstr "Pregled nacrta"
 msgid "Preview of {0}"
 msgstr "Pregled: {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:560
+#: packages/admin/src/components/settings/GeneralSettings.tsx:561
 msgid "Preview unavailable for this format"
 msgstr "Pregled nije dostupan za ovaj format"
 
@@ -9985,7 +9985,7 @@ msgstr "Čitanje taksonomija i termina"
 msgid "Read-only"
 msgstr "Samo za čitanje"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:539
+#: packages/admin/src/components/settings/GeneralSettings.tsx:540
 msgid "Reading"
 msgstr "Čitanje"
 
@@ -10100,7 +10100,7 @@ msgstr "Referencirana kolekcija"
 msgid "Referenced collection is required"
 msgstr "Referencirana kolekcija je obavezna"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:498
+#: packages/admin/src/components/settings/GeneralSettings.tsx:499
 msgid "Referenced favicon unavailable."
 msgstr "Referencirani favicon nije dostupan."
 
@@ -10202,8 +10202,8 @@ msgstr "visualEditing.removeImage"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:458
-#: packages/admin/src/components/settings/GeneralSettings.tsx:518
+#: packages/admin/src/components/settings/GeneralSettings.tsx:459
+#: packages/admin/src/components/settings/GeneralSettings.tsx:519
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -11184,7 +11184,7 @@ msgstr "Pretraži fascikle"
 msgid "Search for a language…"
 msgstr "Pretraži jezik…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:573
+#: packages/admin/src/components/settings/GeneralSettings.tsx:574
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "Pretraži IANA vremensku zonu (npr. Europe/London)"
 
@@ -11245,7 +11245,7 @@ msgstr "Pretraži teme"
 msgid "Search themes..."
 msgstr "Pretraži teme..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:584
+#: packages/admin/src/components/settings/GeneralSettings.tsx:585
 msgid "Search timezones…"
 msgstr "Pretraži vremenske zone…"
 
@@ -11451,11 +11451,11 @@ msgstr "Izaberi varijantu za tamni režim za {label}"
 msgid "Select default social image"
 msgstr "Izaberi podrazumevanu sliku za društvene mreže"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:623
+#: packages/admin/src/components/settings/GeneralSettings.tsx:624
 msgid "Select favicon"
 msgstr "Izaberi favikon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:530
+#: packages/admin/src/components/settings/GeneralSettings.tsx:531
 msgid "Select Favicon"
 msgstr "Izaberi favicon"
 
@@ -11478,11 +11478,11 @@ msgstr "Izaberi sliku"
 msgid "Select Image"
 msgstr "Izaberi sliku"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:615
+#: packages/admin/src/components/settings/GeneralSettings.tsx:616
 msgid "Select logo"
 msgstr "Izaberi logo"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:470
+#: packages/admin/src/components/settings/GeneralSettings.tsx:471
 msgid "Select Logo"
 msgstr "Izaberi logo"
 
@@ -11559,7 +11559,7 @@ msgstr "Pošalji e-poštu sa pozivnicom novom članu tima."
 msgid "Send email through your site"
 msgstr "Šalji e-poštu preko sajta"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:643
 msgid "Send emails"
 msgstr "Šalji e-poštu"
 
@@ -11585,7 +11585,7 @@ msgstr "Pošalji test e-poštu"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:644
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11650,7 +11650,7 @@ msgstr "Postavi na 0 da se komentari nikada ne zatvaraju automatski."
 msgid "Set to draft"
 msgstr "Postavi kao nacrt"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:401
+#: packages/admin/src/components/settings/GeneralSettings.tsx:402
 msgid "Set up an email provider in Email settings to email users."
 msgstr "Podesi provajdera e-pošte u podešavanjima e-pošte da šalješ e-poštu korisnicima."
 
@@ -11697,7 +11697,7 @@ msgid "Settings Read"
 msgstr "Čitanje podešavanja"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:182
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "Settings saved successfully"
 msgstr "Podešavanja uspešno sačuvana"
 
@@ -11852,7 +11852,7 @@ msgstr "Izvoz sajta"
 msgid "Site identity"
 msgstr "Identitet sajta"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:333
+#: packages/admin/src/components/settings/GeneralSettings.tsx:334
 msgid "Site Identity"
 msgstr "Identitet sajta"
 
@@ -11861,7 +11861,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "identitet sajta primenjen (naslov, slogan, logo)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:291
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Identitet sajta, logo, favicon i preferencije čitanja"
 
@@ -11887,7 +11887,7 @@ msgstr "Podešavanja sajta"
 msgid "Site title"
 msgstr "Naslov sajta"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:336
+#: packages/admin/src/components/settings/GeneralSettings.tsx:337
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "Naslov sajta"
@@ -11904,11 +11904,11 @@ msgstr "Naslov sajta je obavezan"
 msgid "Site Transfer"
 msgstr "Prenos sajta"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:353
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Site URL"
 msgstr "URL sajta"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site URL set to {url}"
 msgstr "Postavljen je URL sajta na {url}"
 
@@ -12285,7 +12285,7 @@ msgstr "Veličina tabele"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Tabele ne mogu da se nalepe unutar lista ili citata. Nalepi tabelu u poseban pasus i pokušaj ponovo."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:345
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12367,7 +12367,7 @@ msgstr "Tehnički detalji"
 msgid "Technical verification details"
 msgstr "Detalji tehničke verifikacije"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:398
+#: packages/admin/src/components/settings/GeneralSettings.tsx:399
 msgid "Tell users where to sign in"
 msgstr "Obavesti korisnike gde da se prijave"
 
@@ -12603,7 +12603,7 @@ msgstr "Tržište je prazno. Proveri ponovo kasnije za nove dodatke."
 msgid "The menu has been deleted."
 msgstr "Obrisan je meni."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:339
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "The name of your site, used in the header and metadata"
 msgstr "Naziv tvog sajta, koristi se u zaglavlju i metapodacima"
 
@@ -12712,7 +12712,7 @@ msgstr "Dodatak nije sačuvao ove promene. Pregledaj ih pre ažuriranja editora.
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Rezultat dodatka je zastareo jer se editor promenio dok je radio."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:355
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr "Javna adresa sajta, koja se koristi za linkove u e-pošti i dodacima, mape sajta i apsolutne URL-ove u metapodacima za pretragu i društvene mreže"
 
@@ -12729,7 +12729,7 @@ msgstr "Opseg ima više unosa nego što kalendar može da prikaže."
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Referencirana slika više nije dostupna. Izaberi novu ili ukloni referencu."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:438
+#: packages/admin/src/components/settings/GeneralSettings.tsx:439
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Referencirani logo više nije dostupan. Izaberi novi ili ukloni referencu."
 
@@ -13117,7 +13117,7 @@ msgstr "Ovim se uklanja relacija, svaka veza sačuvana pod njom i referentna pol
 msgid "This removes the schedule and publishes immediately."
 msgstr "Ovim se uklanja raspored i objavljuje odmah."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:575
+#: packages/admin/src/components/settings/GeneralSettings.tsx:576
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Ova sačuvana vremenska zona nije prepoznata. Izaberi predlog za pouzdan prikaz datuma."
 
@@ -13246,7 +13246,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Vremena su u {zoneName}. Pregledač koristi {viewerZoneName}."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:567
+#: packages/admin/src/components/settings/GeneralSettings.tsx:568
 msgid "Timezone"
 msgstr "Vremenska zona"
 
@@ -14599,7 +14599,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "Prijavljuješ se kao <0>{roleName}</0>"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:380
+#: packages/admin/src/components/settings/GeneralSettings.tsx:381
 msgid "You're signed in at {0}"
 msgstr "Uspešna prijava putem {0}"
 

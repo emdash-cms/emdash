@@ -519,7 +519,7 @@ msgstr ""
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:218
+#: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr ""
 
@@ -739,7 +739,7 @@ msgstr ""
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr ""
 
@@ -1023,7 +1023,7 @@ msgstr ""
 msgid "A relationship is required"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
 msgid "A short description of your site"
 msgstr "Krótki opis Twojej strony"
 
@@ -1624,10 +1624,10 @@ msgstr ""
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
-#: packages/admin/src/components/settings/GeneralSettings.tsx:311
+#: packages/admin/src/components/settings/GeneralSettings.tsx:191
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 #: packages/admin/src/components/settings/GeneralSettings.tsx:312
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2461,11 +2461,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:373
+#: packages/admin/src/components/settings/GeneralSettings.tsx:374
 msgid "Change domain"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:509
+#: packages/admin/src/components/settings/GeneralSettings.tsx:510
 msgid "Change Favicon"
 msgstr "Zmień favicon"
 
@@ -2473,7 +2473,7 @@ msgstr "Zmień favicon"
 msgid "Change Image"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:449
+#: packages/admin/src/components/settings/GeneralSettings.tsx:450
 msgid "Change Logo"
 msgstr "Zmień logo"
 
@@ -2633,7 +2633,7 @@ msgstr ""
 msgid "Choose a non-empty {0} image."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:577
 msgid "Choose a recognized timezone for reliable date display."
 msgstr ""
 
@@ -3176,7 +3176,7 @@ msgstr "Kontynuuj import"
 msgid "Continue numbering"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:390
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Continue on {handoverHost}"
 msgstr ""
 
@@ -3781,7 +3781,7 @@ msgstr "Wybór daty i czasu"
 msgid "Date field to filter on"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:553
+#: packages/admin/src/components/settings/GeneralSettings.tsx:554
 msgid "Date Format"
 msgstr "Format daty"
 
@@ -4354,7 +4354,7 @@ msgstr "Domena"
 msgid "Domain added successfully"
 msgstr "Domena dodana pomyślnie"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Domain changed to {url}"
 msgstr ""
 
@@ -4785,11 +4785,11 @@ msgstr "E-mail"
 msgid "Email address"
 msgstr "Adres e-mail"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:640
+#: packages/admin/src/components/settings/GeneralSettings.tsx:641
 msgid "Email all users?"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:403
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr ""
 
@@ -4815,7 +4815,7 @@ msgstr "Dostawca e-mail aktywny"
 msgid "Email Settings"
 msgstr "Ustawienia e-mail"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:412
+#: packages/admin/src/components/settings/GeneralSettings.tsx:413
 msgid "Email users"
 msgstr ""
 
@@ -4943,7 +4943,7 @@ msgstr ""
 msgid "Enter a name."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:580
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Enter a recognized timezone to save"
 msgstr ""
 
@@ -5058,7 +5058,7 @@ msgstr ""
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:642
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr ""
 
@@ -5078,7 +5078,7 @@ msgstr ""
 msgid "Every relationship this content type takes part in goes too:"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:562
 msgid "Example: {pattern} → {preview}"
 msgstr ""
 
@@ -5245,7 +5245,7 @@ msgstr ""
 msgid "Failed to create {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/components/settings/GeneralSettings.tsx:203
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr ""
@@ -5811,7 +5811,7 @@ msgid "Failed to save field"
 msgstr ""
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:189
+#: packages/admin/src/components/settings/GeneralSettings.tsx:190
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5949,8 +5949,8 @@ msgid "FAQ"
 msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:480
-#: packages/admin/src/components/settings/GeneralSettings.tsx:487
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
+#: packages/admin/src/components/settings/GeneralSettings.tsx:488
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -6238,7 +6238,7 @@ msgstr ""
 msgid "General"
 msgstr "Ogólne"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "General Settings"
 msgstr "Ustawienia ogólne"
 
@@ -7361,7 +7361,7 @@ msgid "Links from"
 msgstr ""
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:359
+#: packages/admin/src/components/settings/GeneralSettings.tsx:360
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
@@ -7511,7 +7511,7 @@ msgstr ""
 msgid "Loading plugins..."
 msgstr "Ładowanie wtyczek..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:558
+#: packages/admin/src/components/settings/GeneralSettings.tsx:559
 msgid "Loading preview…"
 msgstr ""
 
@@ -7534,7 +7534,7 @@ msgid "Loading sections..."
 msgstr "Ładowanie sekcji..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:300
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7643,8 +7643,8 @@ msgid "Log out"
 msgstr "Wyloguj się"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Logo"
 msgstr "Logo"
 
@@ -8712,7 +8712,7 @@ msgstr "Nie znaleziono pasującego klucza passkey dla tego konta."
 msgid "No matching tags"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:593
+#: packages/admin/src/components/settings/GeneralSettings.tsx:594
 msgid "No matching timezones"
 msgstr ""
 
@@ -8900,7 +8900,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1568
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Not set"
 msgstr ""
 
@@ -8939,7 +8939,7 @@ msgstr "Liczba"
 msgid "Number of posts"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:548
+#: packages/admin/src/components/settings/GeneralSettings.tsx:549
 msgid "Number of posts to show per page on list views"
 msgstr "Liczba wpisów wyświetlanych na stronie w widokach list"
 
@@ -9300,7 +9300,7 @@ msgstr ""
 msgid "Passkeys Not Available Here"
 msgstr "Passkeys niedostępne tutaj"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Passkeys only work at the address where they were created."
 msgstr ""
 
@@ -9312,7 +9312,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:382
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr ""
 
@@ -9629,7 +9629,7 @@ msgstr "Wpisy"
 msgid "Posts & Pages"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:542
+#: packages/admin/src/components/settings/GeneralSettings.tsx:543
 msgid "Posts Per Page"
 msgstr "Wpisów na stronę"
 
@@ -9693,7 +9693,7 @@ msgstr "Podgląd szkicu"
 msgid "Preview of {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:560
+#: packages/admin/src/components/settings/GeneralSettings.tsx:561
 msgid "Preview unavailable for this format"
 msgstr ""
 
@@ -9979,7 +9979,7 @@ msgstr ""
 msgid "Read-only"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:539
+#: packages/admin/src/components/settings/GeneralSettings.tsx:540
 msgid "Reading"
 msgstr "Czytanie"
 
@@ -10094,7 +10094,7 @@ msgstr ""
 msgid "Referenced collection is required"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:498
+#: packages/admin/src/components/settings/GeneralSettings.tsx:499
 msgid "Referenced favicon unavailable."
 msgstr ""
 
@@ -10196,8 +10196,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:458
-#: packages/admin/src/components/settings/GeneralSettings.tsx:518
+#: packages/admin/src/components/settings/GeneralSettings.tsx:459
+#: packages/admin/src/components/settings/GeneralSettings.tsx:519
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -11178,7 +11178,7 @@ msgstr ""
 msgid "Search for a language…"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:573
+#: packages/admin/src/components/settings/GeneralSettings.tsx:574
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr ""
 
@@ -11239,7 +11239,7 @@ msgstr ""
 msgid "Search themes..."
 msgstr "Szukaj motywów..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:584
+#: packages/admin/src/components/settings/GeneralSettings.tsx:585
 msgid "Search timezones…"
 msgstr ""
 
@@ -11445,11 +11445,11 @@ msgstr ""
 msgid "Select default social image"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:623
+#: packages/admin/src/components/settings/GeneralSettings.tsx:624
 msgid "Select favicon"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:530
+#: packages/admin/src/components/settings/GeneralSettings.tsx:531
 msgid "Select Favicon"
 msgstr "Wybierz favicon"
 
@@ -11472,11 +11472,11 @@ msgstr "Wybierz obraz"
 msgid "Select Image"
 msgstr "Wybierz obraz"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:615
+#: packages/admin/src/components/settings/GeneralSettings.tsx:616
 msgid "Select logo"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:470
+#: packages/admin/src/components/settings/GeneralSettings.tsx:471
 msgid "Select Logo"
 msgstr "Wybierz logo"
 
@@ -11553,7 +11553,7 @@ msgstr "Wyślij e-mail z zaproszeniem do nowego członka zespołu."
 msgid "Send email through your site"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:643
 msgid "Send emails"
 msgstr ""
 
@@ -11579,7 +11579,7 @@ msgstr "Wyślij testowego e-maila"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:644
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11644,7 +11644,7 @@ msgstr ""
 msgid "Set to draft"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:401
+#: packages/admin/src/components/settings/GeneralSettings.tsx:402
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
@@ -11691,7 +11691,7 @@ msgid "Settings Read"
 msgstr "Odczyt ustawień"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:182
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "Settings saved successfully"
 msgstr "Ustawienia zapisane pomyślnie"
 
@@ -11846,7 +11846,7 @@ msgstr ""
 msgid "Site identity"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:333
+#: packages/admin/src/components/settings/GeneralSettings.tsx:334
 msgid "Site Identity"
 msgstr "Tożsamość strony"
 
@@ -11855,7 +11855,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:291
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Tożsamość strony, logo, favicon i preferencje odczytu"
 
@@ -11881,7 +11881,7 @@ msgstr "Ustawienia strony"
 msgid "Site title"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:336
+#: packages/admin/src/components/settings/GeneralSettings.tsx:337
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "Tytuł strony"
@@ -11898,11 +11898,11 @@ msgstr "Tytuł strony jest wymagany"
 msgid "Site Transfer"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:353
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Site URL"
 msgstr "URL strony"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site URL set to {url}"
 msgstr ""
 
@@ -12279,7 +12279,7 @@ msgstr ""
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:345
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12361,7 +12361,7 @@ msgstr ""
 msgid "Technical verification details"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:398
+#: packages/admin/src/components/settings/GeneralSettings.tsx:399
 msgid "Tell users where to sign in"
 msgstr ""
 
@@ -12597,7 +12597,7 @@ msgstr "Marketplace jest pusty. Sprawdź ponownie później."
 msgid "The menu has been deleted."
 msgstr "Menu zostało usunięte."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:339
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "The name of your site, used in the header and metadata"
 msgstr "Nazwa Twojej strony, używana w nagłówku i metadanych"
 
@@ -12706,7 +12706,7 @@ msgstr ""
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:355
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr ""
 
@@ -12723,7 +12723,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:438
+#: packages/admin/src/components/settings/GeneralSettings.tsx:439
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr ""
 
@@ -13111,7 +13111,7 @@ msgstr ""
 msgid "This removes the schedule and publishes immediately."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:575
+#: packages/admin/src/components/settings/GeneralSettings.tsx:576
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
@@ -13240,7 +13240,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:567
+#: packages/admin/src/components/settings/GeneralSettings.tsx:568
 msgid "Timezone"
 msgstr "Strefa czasowa"
 
@@ -14593,7 +14593,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr ""
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:380
+#: packages/admin/src/components/settings/GeneralSettings.tsx:381
 msgid "You're signed in at {0}"
 msgstr ""
 

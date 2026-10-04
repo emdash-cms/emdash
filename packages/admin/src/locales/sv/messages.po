@@ -519,7 +519,7 @@ msgstr ""
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:218
+#: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr ""
 
@@ -739,7 +739,7 @@ msgstr "{selectedCount, plural, one {# vald} other {# valda}}"
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Flytta # objekt till papperskorgen? Du kan återställa det senare.} other {Flytta # objekt till papperskorgen? Du kan återställa dem senare.}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr ""
 
@@ -1023,7 +1023,7 @@ msgstr "En relation anger hur två innehållstyper länkas samman. Referensfält
 msgid "A relationship is required"
 msgstr "En relation krävs"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
 msgid "A short description of your site"
 msgstr "En kort beskrivning av din webbplats"
 
@@ -1624,10 +1624,10 @@ msgstr "En krypterad digital nyckel som du låser upp med fingeravtryck, ansikts
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
-#: packages/admin/src/components/settings/GeneralSettings.tsx:311
+#: packages/admin/src/components/settings/GeneralSettings.tsx:191
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 #: packages/admin/src/components/settings/GeneralSettings.tsx:312
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2461,11 +2461,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "Ändra <0>{0}</0> från <1>{1}</1> till <2>{2}</2>? Personen förlorar då åtkomst till funktioner på högre nivå."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:373
+#: packages/admin/src/components/settings/GeneralSettings.tsx:374
 msgid "Change domain"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:509
+#: packages/admin/src/components/settings/GeneralSettings.tsx:510
 msgid "Change Favicon"
 msgstr "Ändra favicon"
 
@@ -2473,7 +2473,7 @@ msgstr "Ändra favicon"
 msgid "Change Image"
 msgstr "Ändra bild"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:449
+#: packages/admin/src/components/settings/GeneralSettings.tsx:450
 msgid "Change Logo"
 msgstr "Ändra logotyp"
 
@@ -2633,7 +2633,7 @@ msgstr "Välj en ny publiceringstid för utkastet."
 msgid "Choose a non-empty {0} image."
 msgstr "Välj en {0}-bild som inte är tom."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:577
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "Välj en giltig tidszon så att datum visas korrekt."
 
@@ -3176,7 +3176,7 @@ msgstr "Fortsätt import"
 msgid "Continue numbering"
 msgstr "Fortsätt numreringen"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:390
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Continue on {handoverHost}"
 msgstr ""
 
@@ -3781,7 +3781,7 @@ msgstr "Väljare för datum och tid"
 msgid "Date field to filter on"
 msgstr "Datumfält att filtrera på"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:553
+#: packages/admin/src/components/settings/GeneralSettings.tsx:554
 msgid "Date Format"
 msgstr "Datumformat"
 
@@ -4354,7 +4354,7 @@ msgstr "Domän"
 msgid "Domain added successfully"
 msgstr "Domänen lades till"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Domain changed to {url}"
 msgstr ""
 
@@ -4788,11 +4788,11 @@ msgstr "E-post"
 msgid "Email address"
 msgstr "E-postadress"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:640
+#: packages/admin/src/components/settings/GeneralSettings.tsx:641
 msgid "Email all users?"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:403
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr ""
 
@@ -4818,7 +4818,7 @@ msgstr "E-postleverantör aktiv"
 msgid "Email Settings"
 msgstr "E-postinställningar"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:412
+#: packages/admin/src/components/settings/GeneralSettings.tsx:413
 msgid "Email users"
 msgstr ""
 
@@ -4946,7 +4946,7 @@ msgstr "Engelska används eftersom inget innehållsspråk är konfigurerat. Inne
 msgid "Enter a name."
 msgstr "Ange ett namn."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:580
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Enter a recognized timezone to save"
 msgstr "Ange en giltig tidszon för att spara"
 
@@ -5061,7 +5061,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "Varje importerad post och mediefil lästes tillbaka och stämde med paketet. Spara kvittot som dokumentation av flytten."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:642
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr ""
 
@@ -5081,7 +5081,7 @@ msgstr "Alla publicerade versioner av det här tillägget har återkallats eller
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "Alla relationer som innehållstypen ingår i tas också bort:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:562
 msgid "Example: {pattern} → {preview}"
 msgstr "Exempel: {pattern} → {preview}"
 
@@ -5248,7 +5248,7 @@ msgstr "Det gick inte att fortsätta importen"
 msgid "Failed to create {0}"
 msgstr "Det gick inte att skapa {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/components/settings/GeneralSettings.tsx:203
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr ""
@@ -5814,7 +5814,7 @@ msgid "Failed to save field"
 msgstr "Det gick inte att spara fältet"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:189
+#: packages/admin/src/components/settings/GeneralSettings.tsx:190
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5952,8 +5952,8 @@ msgid "FAQ"
 msgstr "Vanliga frågor"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:480
-#: packages/admin/src/components/settings/GeneralSettings.tsx:487
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
+#: packages/admin/src/components/settings/GeneralSettings.tsx:488
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -6241,7 +6241,7 @@ msgstr "Galleriinställningar"
 msgid "General"
 msgstr "Allmänt"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "General Settings"
 msgstr "Allmänna inställningar"
 
@@ -7364,7 +7364,7 @@ msgid "Links from"
 msgstr "Länkar från"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:359
+#: packages/admin/src/components/settings/GeneralSettings.tsx:360
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
@@ -7514,7 +7514,7 @@ msgstr "Läser in tilläggspanelen"
 msgid "Loading plugins..."
 msgstr "Läser in tillägg …"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:558
+#: packages/admin/src/components/settings/GeneralSettings.tsx:559
 msgid "Loading preview…"
 msgstr "Läser in förhandsgranskning …"
 
@@ -7537,7 +7537,7 @@ msgid "Loading sections..."
 msgstr "Läser in sektioner …"
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:300
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7646,8 +7646,8 @@ msgid "Log out"
 msgstr "Logga ut"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Logo"
 msgstr "Logotyp"
 
@@ -8715,7 +8715,7 @@ msgstr "Ingen matchande passkey hittades för det här kontot."
 msgid "No matching tags"
 msgstr "Inga matchande taggar"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:593
+#: packages/admin/src/components/settings/GeneralSettings.tsx:594
 msgid "No matching timezones"
 msgstr "Inga matchande tidszoner"
 
@@ -8903,7 +8903,7 @@ msgstr "Ingen träff"
 
 #: packages/admin/src/components/ContentList.tsx:1568
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Not set"
 msgstr "Inte angivet"
 
@@ -8942,7 +8942,7 @@ msgstr "Tal"
 msgid "Number of posts"
 msgstr "Antal inlägg"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:548
+#: packages/admin/src/components/settings/GeneralSettings.tsx:549
 msgid "Number of posts to show per page on list views"
 msgstr "Antal inlägg som visas per sida i listvyer"
 
@@ -9306,7 +9306,7 @@ msgstr ""
 msgid "Passkeys Not Available Here"
 msgstr "Passkeys är inte tillgängliga här"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Passkeys only work at the address where they were created."
 msgstr ""
 
@@ -9318,7 +9318,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:382
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr ""
 
@@ -9635,7 +9635,7 @@ msgstr "Inlägg"
 msgid "Posts & Pages"
 msgstr "Inlägg och sidor"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:542
+#: packages/admin/src/components/settings/GeneralSettings.tsx:543
 msgid "Posts Per Page"
 msgstr "Inlägg per sida"
 
@@ -9699,7 +9699,7 @@ msgstr "Förhandsgranska utkast"
 msgid "Preview of {0}"
 msgstr "Förhandsgranskning av {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:560
+#: packages/admin/src/components/settings/GeneralSettings.tsx:561
 msgid "Preview unavailable for this format"
 msgstr "Förhandsgranskning är inte tillgänglig för det här formatet"
 
@@ -9985,7 +9985,7 @@ msgstr "Läsa dina taxonomier och termer"
 msgid "Read-only"
 msgstr "Skrivskyddad"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:539
+#: packages/admin/src/components/settings/GeneralSettings.tsx:540
 msgid "Reading"
 msgstr "Läsning"
 
@@ -10100,7 +10100,7 @@ msgstr "Refererad samling"
 msgid "Referenced collection is required"
 msgstr "Refererad samling krävs"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:498
+#: packages/admin/src/components/settings/GeneralSettings.tsx:499
 msgid "Referenced favicon unavailable."
 msgstr "Den refererade favicon-filen är inte tillgänglig."
 
@@ -10202,8 +10202,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:458
-#: packages/admin/src/components/settings/GeneralSettings.tsx:518
+#: packages/admin/src/components/settings/GeneralSettings.tsx:459
+#: packages/admin/src/components/settings/GeneralSettings.tsx:519
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -11184,7 +11184,7 @@ msgstr "Sök mappar"
 msgid "Search for a language…"
 msgstr "Sök efter ett språk …"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:573
+#: packages/admin/src/components/settings/GeneralSettings.tsx:574
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "Sök efter en IANA-tidszon (t.ex. Europe/Stockholm)"
 
@@ -11245,7 +11245,7 @@ msgstr "Sök i teman"
 msgid "Search themes..."
 msgstr "Sök i teman …"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:584
+#: packages/admin/src/components/settings/GeneralSettings.tsx:585
 msgid "Search timezones…"
 msgstr "Sök tidszoner …"
 
@@ -11451,11 +11451,11 @@ msgstr "Välj variant för mörkt läge i {label}"
 msgid "Select default social image"
 msgstr "Välj standardbild för sociala medier"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:623
+#: packages/admin/src/components/settings/GeneralSettings.tsx:624
 msgid "Select favicon"
 msgstr "Välj favicon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:530
+#: packages/admin/src/components/settings/GeneralSettings.tsx:531
 msgid "Select Favicon"
 msgstr "Välj favicon"
 
@@ -11478,11 +11478,11 @@ msgstr "Välj bild"
 msgid "Select Image"
 msgstr "Välj bild"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:615
+#: packages/admin/src/components/settings/GeneralSettings.tsx:616
 msgid "Select logo"
 msgstr "Välj logotyp"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:470
+#: packages/admin/src/components/settings/GeneralSettings.tsx:471
 msgid "Select Logo"
 msgstr "Välj logotyp"
 
@@ -11559,7 +11559,7 @@ msgstr "Skicka ett inbjudningsmejl till en ny teammedlem."
 msgid "Send email through your site"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:643
 msgid "Send emails"
 msgstr ""
 
@@ -11585,7 +11585,7 @@ msgstr "Skicka testmejl"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:644
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11650,7 +11650,7 @@ msgstr "Sätt till 0 för att aldrig stänga kommentarer automatiskt."
 msgid "Set to draft"
 msgstr "Ändra till utkast"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:401
+#: packages/admin/src/components/settings/GeneralSettings.tsx:402
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
@@ -11697,7 +11697,7 @@ msgid "Settings Read"
 msgstr "Läsa inställningar"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:182
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "Settings saved successfully"
 msgstr "Inställningarna sparades"
 
@@ -11852,7 +11852,7 @@ msgstr "Exportera webbplats"
 msgid "Site identity"
 msgstr "Webbplatsidentitet"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:333
+#: packages/admin/src/components/settings/GeneralSettings.tsx:334
 msgid "Site Identity"
 msgstr "Webbplatsidentitet"
 
@@ -11861,7 +11861,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "webbplatsidentitet tillämpad (titel, slogan, logotyp)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:291
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Webbplatsidentitet, logotyp, favicon och läsinställningar"
 
@@ -11887,7 +11887,7 @@ msgstr "Webbplatsinställningar"
 msgid "Site title"
 msgstr "Webbplatstitel"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:336
+#: packages/admin/src/components/settings/GeneralSettings.tsx:337
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "Webbplatstitel"
@@ -11904,11 +11904,11 @@ msgstr "Webbplatstitel krävs"
 msgid "Site Transfer"
 msgstr "Webbplatsflytt"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:353
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Site URL"
 msgstr "Webbplats-URL"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site URL set to {url}"
 msgstr ""
 
@@ -12285,7 +12285,7 @@ msgstr "Tabellstorlek"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Tabeller kan inte klistras in i listor eller citat. Klistra in tabellen i ett eget stycke och försök igen."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:345
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12367,7 +12367,7 @@ msgstr "Tekniska detaljer"
 msgid "Technical verification details"
 msgstr "Tekniska verifieringsdetaljer"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:398
+#: packages/admin/src/components/settings/GeneralSettings.tsx:399
 msgid "Tell users where to sign in"
 msgstr ""
 
@@ -12603,7 +12603,7 @@ msgstr "Marknadsplatsen är tom. Kom tillbaka senare för nya tillägg."
 msgid "The menu has been deleted."
 msgstr "Menyn har tagits bort."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:339
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "The name of your site, used in the header and metadata"
 msgstr "Namnet på din webbplats, används i sidhuvudet och metadata"
 
@@ -12712,7 +12712,7 @@ msgstr "Tillägget har inte sparat ändringarna. Granska dem innan du uppdaterar
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Tilläggets resultat är inaktuellt eftersom innehållet i redigeraren ändrades medan tillägget arbetade."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:355
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr ""
 
@@ -12729,7 +12729,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Den refererade bilden är inte längre tillgänglig. Välj en ny eller ta bort referensen."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:438
+#: packages/admin/src/components/settings/GeneralSettings.tsx:439
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Den refererade logotypen är inte längre tillgänglig. Välj en ny eller ta bort referensen."
 
@@ -13117,7 +13117,7 @@ msgstr "Relationen tas bort tillsammans med alla länkar som lagrats i den och d
 msgid "This removes the schedule and publishes immediately."
 msgstr "Schemaläggningen tas bort och innehållet publiceras direkt."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:575
+#: packages/admin/src/components/settings/GeneralSettings.tsx:576
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Den sparade tidszonen känns inte igen. Välj ett av förslagen så att datum visas korrekt."
 
@@ -13246,7 +13246,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:567
+#: packages/admin/src/components/settings/GeneralSettings.tsx:568
 msgid "Timezone"
 msgstr "Tidszon"
 
@@ -14599,7 +14599,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "Du registrerar dig som <0>{roleName}</0>"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:380
+#: packages/admin/src/components/settings/GeneralSettings.tsx:381
 msgid "You're signed in at {0}"
 msgstr ""
 
