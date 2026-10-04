@@ -5,10 +5,11 @@
  * interactions to the plugin's admin route and renders the returned blocks.
  */
 
+import { Loader } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
+import { WarningCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
@@ -106,7 +107,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-16">
-				<CircleNotch className="h-6 w-6 animate-spin text-kumo-subtle" />
+				<Loader aria-label={t`Loading...`} className="text-kumo-subtle" />
 			</div>
 		);
 	}
@@ -153,8 +154,11 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				/>
 			</div>
 			{pending && (
-				<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-					<CircleNotch className="h-6 w-6 animate-spin text-kumo-subtle" aria-hidden="true" />
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-0 flex items-center justify-center"
+				>
+					<Loader aria-label={t`Updating...`} className="text-kumo-subtle" />
 				</div>
 			)}
 			<span role="status" className="sr-only">
