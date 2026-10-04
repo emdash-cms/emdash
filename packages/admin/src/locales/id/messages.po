@@ -519,7 +519,7 @@ msgstr "{dayLabel}, {entries}"
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr "{earlierCount, plural, other {Tampilkan # entri sebelumnya}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:218
+#: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr ""
 
@@ -739,7 +739,7 @@ msgstr "{selectedCount, plural, other {# dipilih}}"
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, other {Pindahkan # item ke tempat sampah? Anda dapat memulihkan mereka nanti.}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr ""
 
@@ -1023,7 +1023,7 @@ msgstr "Relasi mendefinisikan bagaimana dua tipe konten tertaut. Kemudian kolom 
 msgid "A relationship is required"
 msgstr "Relasi diperlukan"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
 msgid "A short description of your site"
 msgstr "Deskripsi singkat dari situs Anda"
 
@@ -1624,10 +1624,10 @@ msgstr "Kunci digital terenkripsi yang Anda buka menggunakan sidik jari, wajah, 
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
-#: packages/admin/src/components/settings/GeneralSettings.tsx:311
+#: packages/admin/src/components/settings/GeneralSettings.tsx:191
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 #: packages/admin/src/components/settings/GeneralSettings.tsx:312
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2461,11 +2461,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "Ubah <0>{0}</0> dari <1>{1}</1> ke <2>{2}</2>? Mereka akan kehilangan akses ke fitur tingkat lebih tinggi."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:373
+#: packages/admin/src/components/settings/GeneralSettings.tsx:374
 msgid "Change domain"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:509
+#: packages/admin/src/components/settings/GeneralSettings.tsx:510
 msgid "Change Favicon"
 msgstr "Ubah Favicon"
 
@@ -2473,7 +2473,7 @@ msgstr "Ubah Favicon"
 msgid "Change Image"
 msgstr "Ubah Gambar"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:449
+#: packages/admin/src/components/settings/GeneralSettings.tsx:450
 msgid "Change Logo"
 msgstr "Ubah Logo"
 
@@ -2633,7 +2633,7 @@ msgstr "Pilih waktu publikasi baru untuk draf ini."
 msgid "Choose a non-empty {0} image."
 msgstr "Pilih gambar {0} yang tidak kosong."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:577
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "Pilih zona waktu yang dikenali untuk tampilan tanggal yang andal."
 
@@ -3176,7 +3176,7 @@ msgstr "Lanjutkan Impor"
 msgid "Continue numbering"
 msgstr "Lanjutkan penomoran"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:390
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Continue on {handoverHost}"
 msgstr ""
 
@@ -3781,7 +3781,7 @@ msgstr "Pemilih tanggal dan waktu"
 msgid "Date field to filter on"
 msgstr "Kolom tanggal untuk pemfilteran"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:553
+#: packages/admin/src/components/settings/GeneralSettings.tsx:554
 msgid "Date Format"
 msgstr "Format Tanggal"
 
@@ -4354,7 +4354,7 @@ msgstr "Domain"
 msgid "Domain added successfully"
 msgstr "Domain berhasil ditambahkan"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Domain changed to {url}"
 msgstr ""
 
@@ -4788,11 +4788,11 @@ msgstr "Surel"
 msgid "Email address"
 msgstr "Alamat surel"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:640
+#: packages/admin/src/components/settings/GeneralSettings.tsx:641
 msgid "Email all users?"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:403
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr ""
 
@@ -4818,7 +4818,7 @@ msgstr "Penyedia surel aktif"
 msgid "Email Settings"
 msgstr "Pengaturan Surel"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:412
+#: packages/admin/src/components/settings/GeneralSettings.tsx:413
 msgid "Email users"
 msgstr ""
 
@@ -4946,7 +4946,7 @@ msgstr "Inggris digunakan karena tidak ada bahasa konten yang dikonfigurasikan. 
 msgid "Enter a name."
 msgstr "Masukkan nama."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:580
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Enter a recognized timezone to save"
 msgstr "Masukkan zona waktu yang dikenali untuk disimpan"
 
@@ -5061,7 +5061,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "Setiap rekaman dan berkas media yang diimpor dibaca kembali dan cocok dengan paket. Simpan struk ini sebagai catatan transfer."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:642
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr ""
 
@@ -5081,7 +5081,7 @@ msgstr "Setiap rilis yang dipublikasikan dari pengaya ini telah ditarik atau tid
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "Setiap relasi yang terkait dengan tipe konten ini juga akan hilang:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:562
 msgid "Example: {pattern} → {preview}"
 msgstr "Contoh: {pattern} → {preview}"
 
@@ -5248,7 +5248,7 @@ msgstr "Gagal melanjutkan impor"
 msgid "Failed to create {0}"
 msgstr "Gagal membuat {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/components/settings/GeneralSettings.tsx:203
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr ""
@@ -5814,7 +5814,7 @@ msgid "Failed to save field"
 msgstr "Gagal menyimpan kolom"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:189
+#: packages/admin/src/components/settings/GeneralSettings.tsx:190
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5952,8 +5952,8 @@ msgid "FAQ"
 msgstr "FAQ"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:480
-#: packages/admin/src/components/settings/GeneralSettings.tsx:487
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
+#: packages/admin/src/components/settings/GeneralSettings.tsx:488
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -6241,7 +6241,7 @@ msgstr "Pengaturan galeri"
 msgid "General"
 msgstr "Umum"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "General Settings"
 msgstr "Pengaturan Umum"
 
@@ -7364,7 +7364,7 @@ msgid "Links from"
 msgstr "Ditautkan dari"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:359
+#: packages/admin/src/components/settings/GeneralSettings.tsx:360
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
@@ -7514,7 +7514,7 @@ msgstr "Memuat panel pengaya"
 msgid "Loading plugins..."
 msgstr "Memuat pengaya..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:558
+#: packages/admin/src/components/settings/GeneralSettings.tsx:559
 msgid "Loading preview…"
 msgstr "Memuat pratinjau"
 
@@ -7537,7 +7537,7 @@ msgid "Loading sections..."
 msgstr "Memuat bagian..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:300
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7646,8 +7646,8 @@ msgid "Log out"
 msgstr "Keluar"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Logo"
 msgstr "Logo"
 
@@ -8715,7 +8715,7 @@ msgstr "Tidak ditemukan kunci sandi yang cocok untuk akun ini."
 msgid "No matching tags"
 msgstr "Tidak ada tag yang cocok"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:593
+#: packages/admin/src/components/settings/GeneralSettings.tsx:594
 msgid "No matching timezones"
 msgstr "Tidak ada zona waktu yang cocok"
 
@@ -8903,7 +8903,7 @@ msgstr "Tidak cocok"
 
 #: packages/admin/src/components/ContentList.tsx:1568
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Not set"
 msgstr "Belum diatur"
 
@@ -8942,7 +8942,7 @@ msgstr "Nomor"
 msgid "Number of posts"
 msgstr "Jumlah postingan"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:548
+#: packages/admin/src/components/settings/GeneralSettings.tsx:549
 msgid "Number of posts to show per page on list views"
 msgstr "Jumlah postingan per halaman di tampilan daftar"
 
@@ -9306,7 +9306,7 @@ msgstr ""
 msgid "Passkeys Not Available Here"
 msgstr "Kunci Sandi Tidak Tersedia di Sini"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Passkeys only work at the address where they were created."
 msgstr ""
 
@@ -9318,7 +9318,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:382
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr ""
 
@@ -9635,7 +9635,7 @@ msgstr "Postingan"
 msgid "Posts & Pages"
 msgstr "Postingan & Halaman"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:542
+#: packages/admin/src/components/settings/GeneralSettings.tsx:543
 msgid "Posts Per Page"
 msgstr "Postingan Per Halaman"
 
@@ -9699,7 +9699,7 @@ msgstr "Pratinjau draf"
 msgid "Preview of {0}"
 msgstr "Pratinjau dari {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:560
+#: packages/admin/src/components/settings/GeneralSettings.tsx:561
 msgid "Preview unavailable for this format"
 msgstr "Pratinjau tidak tersedia untuk format ini"
 
@@ -9985,7 +9985,7 @@ msgstr "Baca taksonomi dan istilah Anda"
 msgid "Read-only"
 msgstr "Hanya baca"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:539
+#: packages/admin/src/components/settings/GeneralSettings.tsx:540
 msgid "Reading"
 msgstr "Membaca"
 
@@ -10100,7 +10100,7 @@ msgstr "Koleksi referensi"
 msgid "Referenced collection is required"
 msgstr "Koleksi referensi diperlukan"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:498
+#: packages/admin/src/components/settings/GeneralSettings.tsx:499
 msgid "Referenced favicon unavailable."
 msgstr "Favicon yang dirujuk tidak tersedia."
 
@@ -10202,8 +10202,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:458
-#: packages/admin/src/components/settings/GeneralSettings.tsx:518
+#: packages/admin/src/components/settings/GeneralSettings.tsx:459
+#: packages/admin/src/components/settings/GeneralSettings.tsx:519
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -11184,7 +11184,7 @@ msgstr "Cari map"
 msgid "Search for a language…"
 msgstr "Cari bahasa…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:573
+#: packages/admin/src/components/settings/GeneralSettings.tsx:574
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "Cari untuk zona waktu IANA (cth. Asia/Jakarta)"
 
@@ -11245,7 +11245,7 @@ msgstr "Cari tema"
 msgid "Search themes..."
 msgstr "Cari tema..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:584
+#: packages/admin/src/components/settings/GeneralSettings.tsx:585
 msgid "Search timezones…"
 msgstr "Cari zona waktu…"
 
@@ -11451,11 +11451,11 @@ msgstr "Pilih varian mode gelap untuk {label}"
 msgid "Select default social image"
 msgstr "Pilih gambar sosial bawaan"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:623
+#: packages/admin/src/components/settings/GeneralSettings.tsx:624
 msgid "Select favicon"
 msgstr "Pilih favicon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:530
+#: packages/admin/src/components/settings/GeneralSettings.tsx:531
 msgid "Select Favicon"
 msgstr "Pilih Favicon"
 
@@ -11478,11 +11478,11 @@ msgstr "Pilih gambar"
 msgid "Select Image"
 msgstr "Pilih Gambar"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:615
+#: packages/admin/src/components/settings/GeneralSettings.tsx:616
 msgid "Select logo"
 msgstr "Pilih logo"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:470
+#: packages/admin/src/components/settings/GeneralSettings.tsx:471
 msgid "Select Logo"
 msgstr "Pilih Logo"
 
@@ -11559,7 +11559,7 @@ msgstr "Kirimkan surel undangan kepada anggota tim baru."
 msgid "Send email through your site"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:643
 msgid "Send emails"
 msgstr ""
 
@@ -11585,7 +11585,7 @@ msgstr "Kirimkan Surel Uji"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:644
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11650,7 +11650,7 @@ msgstr "Atur ke 0 untuk tidak pernah menutup komentar otomatis."
 msgid "Set to draft"
 msgstr "Atur ke draf"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:401
+#: packages/admin/src/components/settings/GeneralSettings.tsx:402
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
@@ -11697,7 +11697,7 @@ msgid "Settings Read"
 msgstr "Baca Pengaturan"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:182
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "Settings saved successfully"
 msgstr "Pengaturan berhasil disimpan"
 
@@ -11852,7 +11852,7 @@ msgstr "Ekspor Situs"
 msgid "Site identity"
 msgstr "Identitas situs"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:333
+#: packages/admin/src/components/settings/GeneralSettings.tsx:334
 msgid "Site Identity"
 msgstr "Identitas Situs"
 
@@ -11861,7 +11861,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "identitas situs diterapkan (judul, slogan, logo)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:291
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Identitas situs, logo, favicon, dan preferensi bacaan"
 
@@ -11887,7 +11887,7 @@ msgstr "Pengaturan Situs"
 msgid "Site title"
 msgstr "Judul situs"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:336
+#: packages/admin/src/components/settings/GeneralSettings.tsx:337
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "Judul Situs"
@@ -11904,11 +11904,11 @@ msgstr "Judul situs wajib diisi"
 msgid "Site Transfer"
 msgstr "Transfer Situs"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:353
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Site URL"
 msgstr "URL Situs"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site URL set to {url}"
 msgstr ""
 
@@ -12285,7 +12285,7 @@ msgstr "Ukuran tabel"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Tabel tidak dapat ditempel di dalam daftar atau kutipan. Tempel tabel ke dalam paragrafnya sendiri dan coba lagi."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:345
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12367,7 +12367,7 @@ msgstr "Rincian teknisi"
 msgid "Technical verification details"
 msgstr "Rincian verifikasi teknisi"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:398
+#: packages/admin/src/components/settings/GeneralSettings.tsx:399
 msgid "Tell users where to sign in"
 msgstr ""
 
@@ -12603,7 +12603,7 @@ msgstr "Marketplace kosong. Periksa kembali nanti untuk pengaya baru."
 msgid "The menu has been deleted."
 msgstr "Menu telah dihapus."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:339
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "The name of your site, used in the header and metadata"
 msgstr "Nama dari situs Anda, digunakan di header dan metadata"
 
@@ -12712,7 +12712,7 @@ msgstr "Pengaya belum menyimpan perubahan ini. Tinjau sebelum memperbarui penyun
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Hasil pengaya usang karena penyunting diubah saat bekerja."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:355
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr ""
 
@@ -12729,7 +12729,7 @@ msgstr "Rentang memiliki lebih banyak entri dari yang dapat ditampilkan kalender
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Gambar yang dirujuk tidak lagi tersedia. Pilih yang baru atau hapus referensi."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:438
+#: packages/admin/src/components/settings/GeneralSettings.tsx:439
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Logo yang dirujuk tidak lagi tersedia. Pilih yang baru atau hapus referensi."
 
@@ -13117,7 +13117,7 @@ msgstr "Ini menghapus hubungan, setiap tautan yang tersimpan di bawahnya, dan ko
 msgid "This removes the schedule and publishes immediately."
 msgstr "Ini menghapus jadwal dan menerbitkan segera."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:575
+#: packages/admin/src/components/settings/GeneralSettings.tsx:576
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Zona waktu yang tersimpan ini tidak dikenali. Pilih saran untuk tampilan tanggal yang andal."
 
@@ -13246,7 +13246,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Waktu berada di {zoneName}. Peramban Anda menggunakan {viewerZoneName}."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:567
+#: packages/admin/src/components/settings/GeneralSettings.tsx:568
 msgid "Timezone"
 msgstr "Zona waktu"
 
@@ -14599,7 +14599,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "Anda akan mendaftar sebagai <0>{roleName}</0>"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:380
+#: packages/admin/src/components/settings/GeneralSettings.tsx:381
 msgid "You're signed in at {0}"
 msgstr ""
 

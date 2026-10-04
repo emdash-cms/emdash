@@ -519,7 +519,7 @@ msgstr "{dayLabel}, {entries}"
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr "{earlierCount, plural, one {แสดงรายการก่อนหน้าอีก #} other {แสดงรายการก่อนหน้าอีก #}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:218
+#: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr ""
 
@@ -739,7 +739,7 @@ msgstr "{selectedCount, plural, one {เลือกแล้ว # รายก�
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {ย้าย # รายการไปถังขยะหรือไม่? คุณกู้คืนได้ภายหลัง} other {ย้าย # รายการไปถังขยะหรือไม่? คุณกู้คืนได้ภายหลัง}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr ""
 
@@ -1023,7 +1023,7 @@ msgstr "ความสัมพันธ์กำหนดวิธีที่
 msgid "A relationship is required"
 msgstr "ต้องระบุความสัมพันธ์"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:347
+#: packages/admin/src/components/settings/GeneralSettings.tsx:348
 msgid "A short description of your site"
 msgstr "คำอธิบายสั้น ๆ ของเว็บไซต์ของคุณ"
 
@@ -1624,10 +1624,10 @@ msgstr "กุญแจดิจิทัลที่เข้ารหัส �
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
-#: packages/admin/src/components/settings/GeneralSettings.tsx:311
+#: packages/admin/src/components/settings/GeneralSettings.tsx:191
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 #: packages/admin/src/components/settings/GeneralSettings.tsx:312
+#: packages/admin/src/components/settings/GeneralSettings.tsx:313
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2461,11 +2461,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "เปลี่ยน <0>{0}</0> จาก <1>{1}</1> เป็น <2>{2}</2> หรือไม่ พวกเขาจะไม่สามารถเข้าถึงฟีเจอร์ระดับสูงขึ้นได้"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:373
+#: packages/admin/src/components/settings/GeneralSettings.tsx:374
 msgid "Change domain"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:509
+#: packages/admin/src/components/settings/GeneralSettings.tsx:510
 msgid "Change Favicon"
 msgstr "เปลี่ยน Favicon"
 
@@ -2473,7 +2473,7 @@ msgstr "เปลี่ยน Favicon"
 msgid "Change Image"
 msgstr "เปลี่ยนรูปภาพ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:449
+#: packages/admin/src/components/settings/GeneralSettings.tsx:450
 msgid "Change Logo"
 msgstr "เปลี่ยนโลโก้"
 
@@ -2633,7 +2633,7 @@ msgstr "เลือกเวลาเผยแพร่ใหม่สำหร
 msgid "Choose a non-empty {0} image."
 msgstr "เลือกรูปภาพ {0} ที่ไม่ว่างเปล่า"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:577
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "เลือกเขตเวลาที่รู้จักเพื่อให้แสดงวันที่ได้อย่างถูกต้อง"
 
@@ -3176,7 +3176,7 @@ msgstr "ดำเนินการนำเข้าต่อ"
 msgid "Continue numbering"
 msgstr "นับเลขต่อ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:390
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Continue on {handoverHost}"
 msgstr ""
 
@@ -3781,7 +3781,7 @@ msgstr "ตัวเลือกวันที่และเวลา"
 msgid "Date field to filter on"
 msgstr "ฟิลด์วันที่ที่ใช้กรอง"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:553
+#: packages/admin/src/components/settings/GeneralSettings.tsx:554
 msgid "Date Format"
 msgstr "รูปแบบวันที่"
 
@@ -4354,7 +4354,7 @@ msgstr "โดเมน"
 msgid "Domain added successfully"
 msgstr "เพิ่มโดเมนสำเร็จ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Domain changed to {url}"
 msgstr ""
 
@@ -4788,11 +4788,11 @@ msgstr "อีเมล"
 msgid "Email address"
 msgstr "ที่อยู่อีเมล"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:640
+#: packages/admin/src/components/settings/GeneralSettings.tsx:641
 msgid "Email all users?"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:403
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr ""
 
@@ -4818,7 +4818,7 @@ msgstr "ผู้ให้บริการอีเมลใช้งานอ
 msgid "Email Settings"
 msgstr "ตั้งค่าอีเมล"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:412
+#: packages/admin/src/components/settings/GeneralSettings.tsx:413
 msgid "Email users"
 msgstr ""
 
@@ -4946,7 +4946,7 @@ msgstr "ใช้ภาษาอังกฤษเนื่องจากยั
 msgid "Enter a name."
 msgstr "ป้อนชื่อ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:580
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Enter a recognized timezone to save"
 msgstr "ป้อนเขตเวลาที่ถูกต้องเพื่อบันทึก"
 
@@ -5061,7 +5061,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "ระบบอ่านทุกระเบียนและไฟล์มีเดียที่นำเข้ากลับมาตรวจสอบแล้ว และตรงกับแพ็กเกจ เก็บใบรับนี้ไว้เป็นหลักฐานของการโอนย้าย"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:642
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr ""
 
@@ -5081,7 +5081,7 @@ msgstr "ทุกรุ่นที่เผยแพร่ของปลั๊
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "ความสัมพันธ์ทุกรายการที่ประเภทเนื้อหานี้เกี่ยวข้องจะถูกลบไปด้วย:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:562
 msgid "Example: {pattern} → {preview}"
 msgstr "ตัวอย่าง: {pattern} → {preview}"
 
@@ -5248,7 +5248,7 @@ msgstr "ดำเนินการนำเข้าต่อไม่สำเ
 msgid "Failed to create {0}"
 msgstr "สร้าง {0} ไม่สำเร็จ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/components/settings/GeneralSettings.tsx:203
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr ""
@@ -5814,7 +5814,7 @@ msgid "Failed to save field"
 msgstr "บันทึกฟิลด์ไม่สำเร็จ"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:189
+#: packages/admin/src/components/settings/GeneralSettings.tsx:190
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -5952,8 +5952,8 @@ msgid "FAQ"
 msgstr "คำถามที่พบบ่อย"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:480
-#: packages/admin/src/components/settings/GeneralSettings.tsx:487
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
+#: packages/admin/src/components/settings/GeneralSettings.tsx:488
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -6241,7 +6241,7 @@ msgstr "การตั้งค่าแกลเลอรี"
 msgid "General"
 msgstr "ทั่วไป"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "General Settings"
 msgstr "การตั้งค่าทั่วไป"
 
@@ -7364,7 +7364,7 @@ msgid "Links from"
 msgstr "ลิงก์จาก"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:359
+#: packages/admin/src/components/settings/GeneralSettings.tsx:360
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
@@ -7514,7 +7514,7 @@ msgstr "กำลังโหลดแผงปลั๊กอิน"
 msgid "Loading plugins..."
 msgstr "กำลังโหลดปลั๊กอิน..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:558
+#: packages/admin/src/components/settings/GeneralSettings.tsx:559
 msgid "Loading preview…"
 msgstr "กำลังโหลดตัวอย่าง…"
 
@@ -7537,7 +7537,7 @@ msgid "Loading sections..."
 msgstr "กำลังโหลดส่วนต่างๆ..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:300
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7646,8 +7646,8 @@ msgid "Log out"
 msgstr "ออกจากระบบ"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:420
-#: packages/admin/src/components/settings/GeneralSettings.tsx:427
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
+#: packages/admin/src/components/settings/GeneralSettings.tsx:428
 msgid "Logo"
 msgstr "โลโก้"
 
@@ -8715,7 +8715,7 @@ msgstr "ไม่พบ passkey ที่ตรงกับบัญชีนี
 msgid "No matching tags"
 msgstr "ไม่มีแท็กที่ตรงกัน"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:593
+#: packages/admin/src/components/settings/GeneralSettings.tsx:594
 msgid "No matching timezones"
 msgstr "ไม่มีเขตเวลาที่ตรงกัน"
 
@@ -8903,7 +8903,7 @@ msgstr "ไม่ตรงกัน"
 
 #: packages/admin/src/components/ContentList.tsx:1568
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:365
+#: packages/admin/src/components/settings/GeneralSettings.tsx:366
 msgid "Not set"
 msgstr "ยังไม่ได้ตั้งค่า"
 
@@ -8942,7 +8942,7 @@ msgstr "ตัวเลข"
 msgid "Number of posts"
 msgstr "จำนวนโพสต์"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:548
+#: packages/admin/src/components/settings/GeneralSettings.tsx:549
 msgid "Number of posts to show per page on list views"
 msgstr "จำนวนโพสต์ที่จะแสดงต่อหน้าในมุมมองรายการ"
 
@@ -9306,7 +9306,7 @@ msgstr ""
 msgid "Passkeys Not Available Here"
 msgstr "ไม่สามารถใช้ Passkey ที่นี่ได้"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Passkeys only work at the address where they were created."
 msgstr ""
 
@@ -9318,7 +9318,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:382
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr ""
 
@@ -9635,7 +9635,7 @@ msgstr "โพสต์"
 msgid "Posts & Pages"
 msgstr "โพสต์และหน้า"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:542
+#: packages/admin/src/components/settings/GeneralSettings.tsx:543
 msgid "Posts Per Page"
 msgstr "จำนวนโพสต์ต่อหน้า"
 
@@ -9699,7 +9699,7 @@ msgstr "ดูตัวอย่างฉบับร่าง"
 msgid "Preview of {0}"
 msgstr "ตัวอย่างของ {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:560
+#: packages/admin/src/components/settings/GeneralSettings.tsx:561
 msgid "Preview unavailable for this format"
 msgstr "ไม่มีตัวอย่างสำหรับรูปแบบนี้"
 
@@ -9985,7 +9985,7 @@ msgstr "อ่านอนุกรมวิธานและเทอมขอ
 msgid "Read-only"
 msgstr "อ่านอย่างเดียว"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:539
+#: packages/admin/src/components/settings/GeneralSettings.tsx:540
 msgid "Reading"
 msgstr "การอ่าน"
 
@@ -10100,7 +10100,7 @@ msgstr "คอลเลกชันที่อ้างอิง"
 msgid "Referenced collection is required"
 msgstr "ต้องระบุคอลเลกชันที่อ้างอิง"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:498
+#: packages/admin/src/components/settings/GeneralSettings.tsx:499
 msgid "Referenced favicon unavailable."
 msgstr "ไม่สามารถใช้ favicon ที่อ้างอิงได้"
 
@@ -10202,8 +10202,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:5486
-#: packages/admin/src/components/settings/GeneralSettings.tsx:458
-#: packages/admin/src/components/settings/GeneralSettings.tsx:518
+#: packages/admin/src/components/settings/GeneralSettings.tsx:459
+#: packages/admin/src/components/settings/GeneralSettings.tsx:519
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -11184,7 +11184,7 @@ msgstr "ค้นหาโฟลเดอร์"
 msgid "Search for a language…"
 msgstr "ค้นหาภาษา…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:573
+#: packages/admin/src/components/settings/GeneralSettings.tsx:574
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "ค้นหาเขตเวลา IANA (เช่น Europe/London)"
 
@@ -11245,7 +11245,7 @@ msgstr "ค้นหาธีม"
 msgid "Search themes..."
 msgstr "ค้นหาธีม..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:584
+#: packages/admin/src/components/settings/GeneralSettings.tsx:585
 msgid "Search timezones…"
 msgstr "ค้นหาเขตเวลา…"
 
@@ -11451,11 +11451,11 @@ msgstr "เลือกตัวแปรโหมดมืดของ {label}"
 msgid "Select default social image"
 msgstr "เลือกรูปภาพโซเชียลเริ่มต้น"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:623
+#: packages/admin/src/components/settings/GeneralSettings.tsx:624
 msgid "Select favicon"
 msgstr "เลือก Favicon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:530
+#: packages/admin/src/components/settings/GeneralSettings.tsx:531
 msgid "Select Favicon"
 msgstr "เลือก Favicon"
 
@@ -11478,11 +11478,11 @@ msgstr "เลือกรูปภาพ"
 msgid "Select Image"
 msgstr "เลือกรูปภาพ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:615
+#: packages/admin/src/components/settings/GeneralSettings.tsx:616
 msgid "Select logo"
 msgstr "เลือกโลโก้"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:470
+#: packages/admin/src/components/settings/GeneralSettings.tsx:471
 msgid "Select Logo"
 msgstr "เลือกโลโก้"
 
@@ -11559,7 +11559,7 @@ msgstr "ส่งอีเมลเชิญไปยังสมาชิกท
 msgid "Send email through your site"
 msgstr "ส่งอีเมลผ่านเว็บไซต์ของคุณ"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:643
 msgid "Send emails"
 msgstr ""
 
@@ -11585,7 +11585,7 @@ msgstr "ส่งอีเมลทดสอบ"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:644
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11650,7 +11650,7 @@ msgstr "ตั้งค่าเป็น 0 เพื่อไม่ปิดค
 msgid "Set to draft"
 msgstr "เปลี่ยนเป็นฉบับร่าง"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:401
+#: packages/admin/src/components/settings/GeneralSettings.tsx:402
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
@@ -11697,7 +11697,7 @@ msgid "Settings Read"
 msgstr "อ่านการตั้งค่า"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:182
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "Settings saved successfully"
 msgstr "บันทึกการตั้งค่าสำเร็จ"
 
@@ -11852,7 +11852,7 @@ msgstr "ส่งออกเว็บไซต์"
 msgid "Site identity"
 msgstr "ข้อมูลประจำตัวเว็บไซต์"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:333
+#: packages/admin/src/components/settings/GeneralSettings.tsx:334
 msgid "Site Identity"
 msgstr "เอกลักษณ์เว็บไซต์"
 
@@ -11861,7 +11861,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "ใช้เอกลักษณ์เว็บไซต์แล้ว (ชื่อ คำโปรย โลโก้)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:291
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "เอกลักษณ์เว็บไซต์ โลโก้ favicon และการตั้งค่าการอ่าน"
 
@@ -11887,7 +11887,7 @@ msgstr "ตั้งค่าเว็บไซต์"
 msgid "Site title"
 msgstr "ชื่อเว็บไซต์"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:336
+#: packages/admin/src/components/settings/GeneralSettings.tsx:337
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "ชื่อเว็บไซต์"
@@ -11904,11 +11904,11 @@ msgstr "ต้องระบุชื่อเว็บไซต์"
 msgid "Site Transfer"
 msgstr "การย้ายเว็บไซต์"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:353
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Site URL"
 msgstr "URL เว็บไซต์"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:274
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site URL set to {url}"
 msgstr ""
 
@@ -12285,7 +12285,7 @@ msgstr "ขนาดตาราง"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "วางตารางภายในรายการหรือคำพูดอ้างอิงไม่ได้ วางตารางในย่อหน้าของตัวเองแล้วลองอีกครั้ง"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:345
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12367,7 +12367,7 @@ msgstr "รายละเอียดทางเทคนิค"
 msgid "Technical verification details"
 msgstr "รายละเอียดการยืนยันทางเทคนิค"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:398
+#: packages/admin/src/components/settings/GeneralSettings.tsx:399
 msgid "Tell users where to sign in"
 msgstr ""
 
@@ -12603,7 +12603,7 @@ msgstr "มาร์เก็ตเพลสว่างเปล่า กล�
 msgid "The menu has been deleted."
 msgstr "ลบเมนูแล้ว"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:339
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "The name of your site, used in the header and metadata"
 msgstr "ชื่อเว็บไซต์ของคุณ ใช้ในส่วนหัวและข้อมูลเมตา"
 
@@ -12712,7 +12712,7 @@ msgstr "ปลั๊กอินยังไม่ได้บันทึกก
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "ผลลัพธ์ของปลั๊กอินล้าสมัยแล้ว เพราะตัวแก้ไขเปลี่ยนไประหว่างที่ปลั๊กอินทำงาน"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:355
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr ""
 
@@ -12729,7 +12729,7 @@ msgstr "ช่วงนี้มีรายการมากกว่าที
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "รูปภาพที่อ้างอิงไม่พร้อมใช้งานอีกต่อไป เลือกรูปใหม่หรือนำการอ้างอิงออก"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:438
+#: packages/admin/src/components/settings/GeneralSettings.tsx:439
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "โลโก้ที่อ้างอิงไม่พร้อมใช้งานอีกต่อไป เลือกใหม่หรือนำการอ้างอิงออก"
 
@@ -13117,7 +13117,7 @@ msgstr "การดำเนินการนี้จะนำความส
 msgid "This removes the schedule and publishes immediately."
 msgstr "การดำเนินการนี้จะนำกำหนดเวลาออกและเผยแพร่ทันที"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:575
+#: packages/admin/src/components/settings/GeneralSettings.tsx:576
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "ไม่รู้จักเขตเวลาที่บันทึกไว้ เลือกจากคำแนะนำเพื่อให้แสดงวันที่ได้ถูกต้อง"
 
@@ -13246,7 +13246,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "เวลาเป็นเขตเวลา {zoneName} เบราว์เซอร์ของคุณใช้ {viewerZoneName}"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:567
+#: packages/admin/src/components/settings/GeneralSettings.tsx:568
 msgid "Timezone"
 msgstr "เขตเวลา"
 
@@ -14599,7 +14599,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "คุณจะสมัครใช้งานในฐานะ <0>{roleName}</0>"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:380
+#: packages/admin/src/components/settings/GeneralSettings.tsx:381
 msgid "You're signed in at {0}"
 msgstr ""
 

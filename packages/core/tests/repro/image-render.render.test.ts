@@ -263,6 +263,22 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "sizes")).toBe("(min-width: 600px) 600px, 100vw");
 	});
 
+	test("provider srcsets stop at the original width", async () => {
+		const html = await renderImage({
+			...node,
+			asset: { _ref: "provider-image", provider: "mock-images" },
+			width: 1000,
+			height: 1000,
+			displayWidth: 600,
+			displayHeight: 600,
+		});
+		const widths = attr(imgTag(html), "srcset")
+			?.split(", ")
+			.map((candidate) => candidate.split(" ")[1]);
+
+		expect(widths).toEqual(["600w", "640w", "750w", "828w", "960w", "1000w"]);
+	});
+
 	test("missing external provider falls back without crashing", async () => {
 		const html = await renderImage({
 			...node,
@@ -335,6 +351,32 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(attr(tag, "loading")).toBe("lazy");
 		expect(attr(tag, "decoding")).toBe("async");
+	});
+
+	test("public EmDashImage offers the original instead of an upscaled 2x", async () => {
+		const html = await renderEmDashImage({
+			image: { id: "01PROVIDER", provider: "mock-images", width: 60, height: 60 },
+			alt: "Avatar",
+			width: 40,
+			height: 40,
+		});
+
+		expect(attr(imgTag(html), "srcset")).toBe(
+			"https://img.example.com/render?w=40&h=40 40w, https://img.example.com/render?w=60&h=60 60w",
+		);
+	});
+
+	test("public EmDashImage offers 1x and 2x for a small provider image", async () => {
+		const html = await renderEmDashImage({
+			image: { id: "01PROVIDER", provider: "mock-images", width: 1200, height: 1200 },
+			alt: "Avatar",
+			width: 40,
+			height: 40,
+		});
+
+		expect(attr(imgTag(html), "srcset")).toBe(
+			"https://img.example.com/render?w=40&h=40 40w, https://img.example.com/render?w=80&h=80 80w",
+		);
 	});
 
 	test("public EmDashImage preserves priority and passthrough attrs", async () => {
