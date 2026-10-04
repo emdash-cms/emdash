@@ -1,0 +1,37 @@
+.changeset/manual-save-history.md
+  s_871d7d7d37412b::t_3482573d166993 1-7
+packages/core/src/database/migrations/092_revision_autosave.ts
+  s_871d7d7d37412b::t_cce9fd5bd052f2 1-29
+packages/core/src/database/migrations/runner.ts
+  s_871d7d7d37412b::t_4d990a9489c8ce 102,195
+packages/core/src/database/repositories/revision.ts
+  s_871d7d7d37412b::t_04a33adebf7cca 1,28,60,66,344,348,354
+packages/core/src/database/types.ts
+  s_871d7d7d37412b::t_53b0cc355d82e9 14
+packages/core/src/emdash-runtime.ts
+  s_871d7d7d37412b::t_ef77b6c2467d0a 3817,3883
+packages/core/tests/integration/content/autosave-keeps-manual-save.test.ts
+  s_871d7d7d37412b::t_1e30b9f6df9e53 1-114
+packages/core/tests/integration/database/revision-autosave-migration.test.ts
+  s_871d7d7d37412b::t_73ab869483a044 1-25
+packages/core/tests/utils/revision-autosave-migration-cases.ts
+  s_871d7d7d37412b::t_652248e0e48186 1-65
+packages/core/tests/workerd/revision-autosave-d1.test.ts
+  s_871d7d7d37412b::t_c765ff4281c5f6 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7aa14e0b5ebfb57a4d912e0d3f54b6cb8f3605f6",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
