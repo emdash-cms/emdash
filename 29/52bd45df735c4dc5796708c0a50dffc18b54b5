@@ -1,0 +1,21 @@
+packages/core/tests/integration/content/draft-save-updated-at.test.ts
+  s_0294938d219c1c::t_41d43a9d6592a3 104,113,115
+packages/core/tests/utils/revision-autosave-migration-cases.ts
+  s_0294938d219c1c::t_0399480c6798cf 41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2952bd45df735c4dc5796708c0a50dffc18b54b5",
+  "prompts": {},
+  "sessions": {
+    "s_0294938d219c1c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10667-56e0-7413-99d3-445a01675ff3",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
