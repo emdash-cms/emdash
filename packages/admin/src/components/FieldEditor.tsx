@@ -815,6 +815,7 @@ export function FieldEditor({
 											label={t`Slug`}
 											value={slug}
 											onChange={(e) => setField("slug", e.target.value)}
+											onBlur={() => setField("slug", slugifyLabel(slug))}
 											placeholder="field_slug"
 											disabled={!!field}
 										/>
