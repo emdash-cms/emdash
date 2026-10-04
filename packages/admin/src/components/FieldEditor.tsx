@@ -322,6 +322,13 @@ export function FieldEditor({
 		}
 	}, [open, field]);
 
+	// A close mid-save would hand the in-flight save's completion handler a
+	// dialog now showing a different field, discarding whatever it has typed.
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen && isSaving) return;
+		onOpenChange(nextOpen);
+	};
+
 	const { step, selectedType, slug, label, required, unique, searchable, indexed } = formState;
 	const { minLength, maxLength, min, max, pattern, options } = formState;
 	const { targetCollection, allowMultiple, relation, relationSide } = formState;
@@ -654,7 +661,7 @@ export function FieldEditor({
 	// same header, same scroll area, same actions as defining one anywhere else.
 	if (isRelationStep && onCreateRelation) {
 		return (
-			<Dialog.Root open={open} onOpenChange={onOpenChange}>
+			<Dialog.Root open={open} onOpenChange={handleOpenChange}>
 				<Dialog size="lg" className={RELATION_DIALOG_CLASS} style={RELATION_DIALOG_STYLE}>
 					<RelationFormPanel
 						collections={collections}
@@ -668,7 +675,13 @@ export function FieldEditor({
 						headerAction={
 							<Dialog.Close
 								render={(props) => (
-									<Button {...props} variant="ghost" shape="square" aria-label={t`Close`}>
+									<Button
+										{...props}
+										variant="ghost"
+										shape="square"
+										aria-label={t`Close`}
+										disabled={isSaving}
+									>
 										<X className="h-4 w-4" />
 									</Button>
 								)}
@@ -681,7 +694,7 @@ export function FieldEditor({
 	}
 
 	return (
-		<Dialog.Root open={open} onOpenChange={onOpenChange}>
+		<Dialog.Root open={open} onOpenChange={handleOpenChange}>
 			<Dialog className="p-6 max-w-2xl" size="lg">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
@@ -696,6 +709,7 @@ export function FieldEditor({
 								shape="square"
 								aria-label={t`Close`}
 								className="absolute end-4 top-4"
+								disabled={isSaving}
 							>
 								<X className="h-4 w-4" />
 								<span className="sr-only">{t`Close`}</span>

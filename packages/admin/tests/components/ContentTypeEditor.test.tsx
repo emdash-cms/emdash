@@ -367,10 +367,6 @@ describe("ContentTypeEditor", () => {
 	});
 
 	// ---- A rejected field save keeps the dialog open and shows the error ----
-	// Regression for https://github.com/emdash-cms/emdash/issues/3668: the
-	// dialog used to close unconditionally on save, so a server rejection
-	// (e.g. changing `required`/`unique`, which needs a manual migration) was
-	// silently discarded and looked like the toggle had reverted on its own.
 
 	it("keeps the field editor open and shows the error when the save is rejected", async () => {
 		const onUpdateField = vi.fn(() =>

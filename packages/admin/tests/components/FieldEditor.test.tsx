@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { FieldEditor } from "../../src/components/FieldEditor";
 import { fetchCollections, fetchRelations } from "../../src/lib/api";
@@ -361,6 +362,27 @@ describe("FieldEditor", () => {
 				<FieldEditor {...defaultProps} isSaving={true} field={field} />,
 			);
 			await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+		});
+
+		it("disables the close button while saving", async () => {
+			const field = makeField();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} isSaving={true} field={field} />,
+			);
+			await expect.element(screen.getByRole("button", { name: "Close" })).toBeDisabled();
+		});
+
+		it("ignores close attempts while saving, via the close button or escape", async () => {
+			const onOpenChange = vi.fn();
+			const field = makeField();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} onOpenChange={onOpenChange} isSaving={true} field={field} />,
+			);
+
+			screen.getByRole("button", { name: "Close" }).element().click();
+			await userEvent.keyboard("{Escape}");
+
+			expect(onOpenChange).not.toHaveBeenCalled();
 		});
 	});
 
