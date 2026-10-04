@@ -240,7 +240,7 @@ msgstr "{0, plural, one {# upload mislykkedes} other {# uploads mislykkedes}}"
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
 msgid "{0, plural, one {+# more} other {+# more}}"
-msgstr ""
+msgstr "{0, plural, one {+# mere} other {+# flere}}"
 
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:858
@@ -461,12 +461,12 @@ msgstr "{0}/160 tegn"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:427
 msgid "{added} posts updated"
-msgstr ""
+msgstr "{added} indlæg opdateret"
 
 #. placeholder {0}: failed.length
 #: packages/admin/src/components/BulkTagDialog.tsx:424
 msgid "{added} updated · {0} failed"
-msgstr ""
+msgstr "{added} opdateret · {0} mislykkedes"
 
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:474
@@ -684,7 +684,7 @@ msgstr "Indstillinger for {pluginName}"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:488
 msgid "{plural} go live now; draft edits stay unpublished."
-msgstr ""
+msgstr "{plural} udgives med det samme. Ændringer i kladder bliver ikke udgivet."
 
 #: packages/admin/src/components/Dashboard.tsx:165
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
@@ -851,7 +851,7 @@ msgstr "<0>{name}</0> har overtaget dette indlæg, dine ændringer bliver ikke l
 
 #: packages/admin/src/components/BulkTagDialog.tsx:426
 msgid "1 post updated"
-msgstr ""
+msgstr "1 indlæg opdateret"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:37
 msgid "1 year"
@@ -1156,15 +1156,15 @@ msgstr "Tilføj {0}"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:563
 msgid "Add {singularLower} to {ready} posts"
-msgstr ""
+msgstr "Tilføj {singularLower} til {ready} indlæg"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:562
 msgid "Add {singularLower} to 1 post"
-msgstr ""
+msgstr "Tilføj {singularLower} til 1 indlæg"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:264
 msgid "Add {singularLower} to posts"
-msgstr ""
+msgstr "Tilføj {singularLower} til indlæg"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:165
 msgid "Add a new passkey"
@@ -1177,7 +1177,7 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:700
 msgid "Add a person or team to credit on your content."
-msgstr ""
+msgstr "Tilføj en person eller et team, der skal krediteres for dit indhold."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:571
 msgid "Add another byline"
@@ -1342,7 +1342,7 @@ msgstr "Tilføj tag"
 
 #: packages/admin/src/components/ContentList.tsx:622
 msgid "Add term"
-msgstr ""
+msgstr "Tilføj term"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1321
 #: packages/admin/src/components/TaxonomyManager.tsx:1337
@@ -1376,7 +1376,7 @@ msgstr "Yderligere data, der skal importeres."
 
 #: packages/admin/src/routes/bylines.tsx:789
 msgid "Additional details"
-msgstr ""
+msgstr "Yderligere oplysninger"
 
 #: packages/admin/src/components/WordPressImport.tsx:1506
 msgid "admin"
@@ -1493,7 +1493,7 @@ msgstr "Alle roller"
 
 #: packages/admin/src/components/Sections.tsx:257
 msgid "All sources"
-msgstr ""
+msgstr "Alle kilder"
 
 #: packages/admin/src/components/ContentList.tsx:1019
 #: packages/admin/src/components/Redirects.tsx:391
@@ -1541,7 +1541,7 @@ msgstr "Tilladte typer"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:68
 msgid "Already assigned or duplicate"
-msgstr ""
+msgstr "Allerede tildelt eller dublet"
 
 #: packages/admin/src/components/SignupPage.tsx:455
 msgid "Already have an account?"
@@ -1848,7 +1848,7 @@ msgstr "Højst…"
 
 #: packages/admin/src/routes/bylines.tsx:752
 msgid "Attribution"
-msgstr ""
+msgstr "Kreditering"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 #: packages/admin/src/components/MediaLibrary.tsx:923
@@ -1945,7 +1945,7 @@ msgstr "Genereres automatisk ud fra navnet (du kan redigere det)"
 
 #: packages/admin/src/components/Sections.tsx:217
 msgid "Auto-generated from the title. You can change it."
-msgstr ""
+msgstr "Genereres automatisk ud fra titlen. Du kan ændre den."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:654
 msgid "Automatic"
@@ -2036,7 +2036,7 @@ msgstr "Tilbage til markedspladsen"
 
 #: packages/admin/src/components/MenuEditor.tsx:365
 msgid "Back to menus"
-msgstr ""
+msgstr "Tilbage til menuer"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
 #: packages/admin/src/components/RegistryPluginDetail.tsx:908
@@ -2211,7 +2211,7 @@ msgstr "Punktopstilling"
 
 #: packages/admin/src/routes/bylines.tsx:874
 msgid "byline"
-msgstr ""
+msgstr "byline"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:290
 #: packages/admin/src/routes/bylines.tsx:529
@@ -2220,7 +2220,7 @@ msgstr "Byline"
 
 #: packages/admin/src/routes/bylines.tsx:334
 msgid "Byline created"
-msgstr ""
+msgstr "Byline oprettet"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:25
 #: packages/admin/src/components/settings/transfer/labels.ts:83
@@ -2229,7 +2229,7 @@ msgstr "Byline krediteringer"
 
 #: packages/admin/src/routes/bylines.tsx:383
 msgid "Byline deleted"
-msgstr ""
+msgstr "Byline slettet"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:21
 msgid "Byline field group values"
@@ -2257,7 +2257,7 @@ msgstr "Byline skema"
 
 #: packages/admin/src/routes/bylines.tsx:372
 msgid "Byline updated"
-msgstr ""
+msgstr "Byline opdateret"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
@@ -2508,7 +2508,7 @@ msgstr "Ændringer kasseret"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:478
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
-msgstr ""
+msgstr "Ændringerne blev gemt, men sider i cachen kan stadig vise de gamle {pluralLower}. Prøv at opdatere cachen igen."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:172
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
@@ -2639,7 +2639,7 @@ msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:184
 msgid "Choose a term and enter between 1 and 50 posts."
-msgstr ""
+msgstr "Vælg en term, og angiv mellem 1 og 50 indlæg."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:231
 msgid "Choose an image from the library or upload a new one."
@@ -2693,7 +2693,7 @@ msgstr "Vælg dit foretrukne sprog i administrationen"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:333
 msgid "Choose…"
-msgstr ""
+msgstr "Vælg…"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:660
 msgid "Choosing a byline replaces this automatic credit."
@@ -3259,7 +3259,7 @@ msgstr "Kopierer media"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:241
 msgid "Could not add {singularLower}"
-msgstr ""
+msgstr "Kunne ikke tilføje {singularLower}"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:111
 msgid "Could not check this code"
@@ -3275,7 +3275,7 @@ msgstr "Kunne ikke kopiere automatisk. Marker URL'en ovenfor, og kopier den manu
 
 #: packages/admin/src/components/BulkTagDialog.tsx:176
 msgid "Could not create {singularLower}"
-msgstr ""
+msgstr "Kunne ikke oprette {singularLower}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4027
 msgid "Could not insert section"
@@ -3283,7 +3283,7 @@ msgstr "Sektionen kunne ikke indsættes"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:364
 msgid "Could not load {pluralLower}."
-msgstr ""
+msgstr "Kunne ikke indlæse {pluralLower}."
 
 #: packages/admin/src/components/Dashboard.tsx:307
 msgid "Could not load dashboard data"
@@ -3442,7 +3442,7 @@ msgstr "Opret {0} oversættelse"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:321
 msgid "Create {singularLower}"
-msgstr ""
+msgstr "Opret {singularLower}"
 
 #: packages/admin/src/components/FieldEditor.tsx:1066
 msgid "Create a block type before adding a blocks field."
@@ -3467,7 +3467,7 @@ msgstr "Opret en nummereret liste"
 
 #: packages/admin/src/routes/bylines.tsx:639
 msgid "Create a profile for someone credited on your content."
-msgstr ""
+msgstr "Opret en profil for en person, der krediteres for dit indhold."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:979
 msgid "Create a reusable public profile, then add it to this post."
@@ -3499,7 +3499,7 @@ msgstr "Opret felt"
 
 #: packages/admin/src/components/MenuList.tsx:131
 msgid "Create menu"
-msgstr ""
+msgstr "Opret menu"
 
 #: packages/admin/src/components/MenuList.tsx:119
 #: packages/admin/src/components/MenuList.tsx:208
@@ -3508,7 +3508,7 @@ msgstr "Opret menu"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:355
 msgid "Create new {singularLower}"
-msgstr ""
+msgstr "Opret ny {singularLower}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:244
 msgid "Create New Token"
@@ -3562,7 +3562,7 @@ msgstr "Opret skema og importer"
 #: packages/admin/src/components/Sections.tsx:234
 #: packages/admin/src/components/Sections.tsx:312
 msgid "Create section"
-msgstr ""
+msgstr "Opret sektion"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:110
 msgid "Create sections in the Sections library to use them here"
@@ -3920,12 +3920,12 @@ msgstr "Slet blok"
 #: packages/admin/src/routes/bylines.tsx:614
 #: packages/admin/src/routes/bylines.tsx:876
 msgid "Delete byline"
-msgstr ""
+msgstr "Slet byline"
 
 #. placeholder {0}: item.displayName
 #: packages/admin/src/routes/bylines.tsx:611
 msgid "Delete byline {0}"
-msgstr ""
+msgstr "Slet byline {0}"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
@@ -3976,7 +3976,7 @@ msgstr "Slet medie?"
 
 #: packages/admin/src/components/MenuList.tsx:231
 msgid "Delete menu"
-msgstr ""
+msgstr "Slet menu"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Delete permanently"
@@ -4014,7 +4014,7 @@ msgstr "Slet rækker"
 
 #: packages/admin/src/components/Sections.tsx:469
 msgid "Delete section"
-msgstr ""
+msgstr "Slet sektion"
 
 #: packages/admin/src/components/Sections.tsx:337
 msgid "Delete Section?"
@@ -4585,7 +4585,7 @@ msgstr ""
 #. placeholder {0}: "/{year}/{slug}"
 #: packages/admin/src/components/ContentTypeEditor.tsx:543
 msgid "Each path segment can contain at most one placeholder, e.g. {0}"
-msgstr ""
+msgstr "Hvert stisegment kan højst indeholde én pladsholder, f.eks. {0}"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:372
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:373
@@ -4644,7 +4644,7 @@ msgstr "Rediger medie"
 
 #: packages/admin/src/routes/bylines.tsx:693
 msgid "Edit byline"
-msgstr ""
+msgstr "Rediger byline"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
@@ -4859,7 +4859,7 @@ msgstr "EmDash {0}"
 #. placeholder {0}: status.current
 #: packages/admin/src/components/CoreUpdateBanner.tsx:67
 msgid "EmDash {latest} is available (you're running {0})"
-msgstr ""
+msgstr "EmDash {latest} er tilgængelig (du kører {0})"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "EmDash does not keep the previous image."
@@ -5092,7 +5092,7 @@ msgstr "example.com"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:266
 msgid "Existing {pluralLower} stay in place."
-msgstr ""
+msgstr "Eksisterende {pluralLower} bevares."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:478
 msgid "Existing content is indexed. New changes are tracked automatically."
@@ -5544,7 +5544,7 @@ msgstr ""
 
 #: packages/admin/src/lib/api/core-update.ts:29
 msgid "Failed to fetch update status"
-msgstr ""
+msgstr "Opdateringsstatus kunne ikke hentes"
 
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
@@ -6263,7 +6263,7 @@ msgstr "GitHub"
 
 #: packages/admin/src/components/MenuList.tsx:134
 msgid "Give this navigation a label and a site identifier."
-msgstr ""
+msgstr "Giv navigationen en etiket og en identifikator til brug på webstedet."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:769
 msgid "Give this passkey a name to help you identify it later."
@@ -6322,7 +6322,7 @@ msgstr "Grupper efter"
 
 #: packages/admin/src/routes/bylines.tsx:565
 msgid "Guest"
-msgstr ""
+msgstr "Gæst"
 
 #: packages/admin/src/routes/bylines.tsx:775
 msgid "Guest byline"
@@ -6420,7 +6420,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:582
 msgid "Hide from navigation"
-msgstr ""
+msgstr "Skjul fra navigation"
 
 #: packages/admin/src/components/SeoPanel.tsx:243
 #: packages/admin/src/components/SeoPanel.tsx:246
@@ -6549,7 +6549,7 @@ msgstr "Jeg har sat det op - tjek igen"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:567
 msgid "Icon"
-msgstr ""
+msgstr "Ikon"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:243
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:163
@@ -6793,7 +6793,7 @@ msgstr "Importerer menuer, widgets og indstillinger"
 
 #: packages/admin/src/components/WordPressImport.tsx:926
 msgid "Importing reusable blocks..."
-msgstr ""
+msgstr "Importerer genanvendelige blokke..."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:60
 msgid "Importing terms and bylines"
@@ -7304,7 +7304,7 @@ msgstr "Linket er udløbet"
 
 #: packages/admin/src/routes/bylines.tsx:754
 msgid "Link this byline to a user or mark it as a guest profile."
-msgstr ""
+msgstr "Knyt denne byline til en bruger, eller markér den som en gæsteprofil."
 
 #: packages/admin/src/components/FieldEditor.tsx:450
 msgid "Link to another content item"
@@ -7436,7 +7436,7 @@ msgstr "Indlæser"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:360
 msgid "Loading {pluralLower}…"
-msgstr ""
+msgstr "Indlæser {pluralLower}…"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:59
 msgid "Loading approval requests…"
@@ -7717,7 +7717,7 @@ msgstr "Administrer navigationsmenuer for dit websted"
 
 #: packages/admin/src/routes/bylines.tsx:474
 msgid "Manage the people and teams credited on your content."
-msgstr ""
+msgstr "Administrer de personer og teams, der krediteres for dit indhold."
 
 #: packages/admin/src/components/Redirects.tsx:366
 msgid "Manage URL redirects and view 404 errors."
@@ -8295,7 +8295,7 @@ msgstr "Navnet skal starte med et bogstav og må kun indeholde små bogstaver, t
 
 #: packages/admin/src/components/Sections.tsx:174
 msgid "Name your section, then add its content in the editor."
-msgstr ""
+msgstr "Giv din sektion et navn, og tilføj derefter indholdet i editoren."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:594
 msgid "Navigate"
@@ -8336,13 +8336,13 @@ msgstr "Ny {itemLabel}"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:309
 msgid "New {singularLower} name"
-msgstr ""
+msgstr "Navn på {singularLower}"
 
 #: packages/admin/src/routes/bylines.tsx:496
 #: packages/admin/src/routes/bylines.tsx:654
 #: packages/admin/src/routes/bylines.tsx:693
 msgid "New byline"
-msgstr ""
+msgstr "Ny byline"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
@@ -8394,7 +8394,7 @@ msgstr "Ny genanvendelig profil"
 
 #: packages/admin/src/components/Sections.tsx:159
 msgid "New section"
-msgstr ""
+msgstr "Ny sektion"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:501
 msgid "new tab"
@@ -8534,7 +8534,7 @@ msgstr "Ingen bylines fundet"
 
 #: packages/admin/src/routes/bylines.tsx:634
 msgid "No bylines yet"
-msgstr ""
+msgstr "Ingen bylines endnu"
 
 #: packages/admin/src/components/Dashboard.tsx:485
 msgid "No collections configured"
@@ -8692,7 +8692,7 @@ msgstr "Ingen matchende bloktyper"
 
 #: packages/admin/src/routes/bylines.tsx:634
 msgid "No matching bylines"
-msgstr ""
+msgstr "Ingen matchende bylines"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:549
 msgid "No matching bylines."
@@ -8877,7 +8877,7 @@ msgstr "Der blev ikke fundet nogen Windows Hello autentificering"
 
 #: packages/admin/src/routes/bylines.tsx:517
 msgid "Non-guest"
-msgstr ""
+msgstr "Uden gæster"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
 #: packages/admin/src/components/PortableTextEditor.tsx:4453
@@ -9411,7 +9411,7 @@ msgstr "Tilladelser"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:573
 msgid "Phosphor icon name, e.g. calendar-blank or trophy"
-msgstr ""
+msgstr "Navn på Phosphor ikon, f.eks. calendar-blank eller trophy"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
 msgid "PHP"
@@ -9645,7 +9645,7 @@ msgstr "Pre-release"
 
 #: packages/admin/src/components/WordPressImport.tsx:918
 msgid "Preparing categories and tags..."
-msgstr ""
+msgstr "Forbereder kategorier og tags..."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:326
 msgid "Preparing registration..."
@@ -9697,7 +9697,7 @@ msgstr "Forhåndsvis kladde"
 #. placeholder {0}: section.title
 #: packages/admin/src/components/Sections.tsx:381
 msgid "Preview of {0}"
-msgstr ""
+msgstr "Forhåndsvisning af {0}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:560
 msgid "Preview unavailable for this format"
@@ -9724,11 +9724,11 @@ msgstr "Forrige skærmbillede"
 
 #: packages/admin/src/components/MenuList.tsx:166
 msgid "primary"
-msgstr ""
+msgstr "primary"
 
 #: packages/admin/src/components/MenuList.tsx:156
 msgid "Primary navigation"
-msgstr ""
+msgstr "Primær navigation"
 
 #: packages/admin/src/components/ContentStatusBadge.tsx:69
 msgid "Private"
@@ -9894,7 +9894,7 @@ msgstr "I kø"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:595
 msgid "Quick action on the dashboard"
-msgstr ""
+msgstr "Hurtig handling i kontrolpanelet"
 
 #: packages/admin/src/components/FieldEditor.tsx:963
 msgid "Quick create a relationship"
@@ -9921,65 +9921,65 @@ msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:422
 msgid "Read and restore trashed content"
-msgstr "Læse og gendanne indhold i papirkurven"
+msgstr "Læs og gendan indhold i papirkurven"
 
 #: packages/admin/src/lib/api/marketplace.ts:425
 msgid "Read collection and field definitions"
-msgstr "Læse definitioner af samlinger og felter"
+msgstr "Læs definitioner af samlinger og felter"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
-msgstr "Læse samlingsskemaer"
+msgstr "Læs samlingsskemaer"
 
 #: packages/admin/src/lib/api/marketplace.ts:423
 msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
-msgstr "Læse kommentartekster, forfatteres e-mailadresser, pseudonyme IP hashes, user agents og metadata for moderering"
+msgstr "Læs kommentartekster, forfatteres e-mailadresser, pseudonyme IP hashes, user agents og metadata for moderering"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
-msgstr "Læse indlæg"
+msgstr "Læs indlæg"
 
 #: packages/admin/src/lib/api/marketplace.ts:435
 msgid "Read media file contents"
-msgstr "Læse indholdet af mediefiler"
+msgstr "Læs indholdet af mediefiler"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
-msgstr "Læse mediefiler"
+msgstr "Læs mediefiler"
 
 #: packages/admin/src/lib/api/marketplace.ts:431
 msgid "Read public byline profiles and content credits"
-msgstr ""
+msgstr "Læs offentlige byline profiler og krediteringer af indhold"
 
 #: packages/admin/src/lib/api/marketplace.ts:432
 msgid "Read redirect rules"
-msgstr "Læse omdirigeringsregler"
+msgstr "Læs omdirigeringsregler"
 
 #: packages/admin/src/lib/api/marketplace.ts:419
 msgid "Read retained content revision history"
-msgstr "Læse gemt revisionshistorik for indhold"
+msgstr "Læs gemt revisionshistorik for indhold"
 
 #: packages/admin/src/lib/api/marketplace.ts:426
 msgid "Read selected unsaved editor content after you explicitly invoke the plugin"
-msgstr "Læse udvalgt ikke-gemt editorindhold, når du udtrykkeligt aktiverer pluginet"
+msgstr "Læs udvalgt ikke-gemt editorindhold, når du udtrykkeligt aktiverer pluginet"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
-msgstr "Læse webstedsindstillinger"
+msgstr "Læs webstedsindstillinger"
 
 #: packages/admin/src/lib/api/marketplace.ts:438
 #: packages/admin/src/lib/api/marketplace.ts:450
 msgid "Read user accounts"
-msgstr "Læse brugerkonti"
+msgstr "Læs brugerkonti"
 
 #: packages/admin/src/lib/api/marketplace.ts:418
 #: packages/admin/src/lib/api/marketplace.ts:446
 msgid "Read your content"
-msgstr "Læse dit indhold"
+msgstr "Læs dit indhold"
 
 #: packages/admin/src/lib/api/marketplace.ts:429
 msgid "Read your taxonomies and terms"
-msgstr "Læse dine taksonomier og termer"
+msgstr "Læs dine taksonomier og termer"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
 msgid "Read-only"
@@ -10172,7 +10172,7 @@ msgstr "Udgivelsen er for ny til at blive installeret"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:75
 msgid "Release notes"
-msgstr ""
+msgstr "Udgivelsesnoter"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
@@ -10309,7 +10309,7 @@ msgstr "{0} er fjernet fra udvalget."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:584
 msgid "Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins"
-msgstr ""
+msgstr "Fjerner menupunktet i sidepanelet, linket i kommandopaletten og den hurtige handling i kontrolpanelet. Indlæggene kan stadig tilgås via URL, API og plugins."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:57
 msgid "Removing starter content"
@@ -10645,7 +10645,7 @@ msgstr "Prøv fejlede igen"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:371
 msgid "Retry loading {pluralLower}"
-msgstr ""
+msgstr "Prøv at indlæse {pluralLower} igen"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
@@ -11314,7 +11314,7 @@ msgstr "Sektioner"
 
 #: packages/admin/src/components/Sections.tsx:279
 msgid "Sections could not be loaded."
-msgstr ""
+msgstr "Sektioner kunne ikke indlæses."
 
 #: packages/admin/src/components/SetupWizard.tsx:628
 msgid "Secure your account"
@@ -11504,7 +11504,7 @@ msgstr "Vælg tabel"
 
 #: packages/admin/src/components/ContentList.tsx:627
 msgid "Select up to 50 posts at a time."
-msgstr ""
+msgstr "Vælg op til 50 indlæg ad gangen."
 
 #: packages/admin/src/components/WordPressImport.tsx:1755
 msgid "Select which content types to import."
@@ -11761,7 +11761,7 @@ msgstr "Viser {pageShowingRange} af {0}"
 
 #: packages/admin/src/components/MenuList.tsx:158
 msgid "Shown in the admin menu list."
-msgstr ""
+msgstr "Vises i listen over menuer i administrationen."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1097
 msgid "Shown to readers in this order."
@@ -11773,7 +11773,7 @@ msgstr "Vises, når du holder markøren over billedet."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:597
 msgid "Shows a button for creating a new entry"
-msgstr ""
+msgstr "Viser en knap til at oprette et nyt indlæg"
 
 #: packages/admin/src/components/SignupPage.tsx:457
 #: packages/admin/src/locales/emails.ts:65
@@ -12102,7 +12102,7 @@ msgstr "Kvadratisk (1:1)"
 
 #: packages/admin/src/components/MenuList.tsx:171
 msgid "Stable identifier for your site, such as primary or footer."
-msgstr ""
+msgstr "En fast identifikator for navigationen på dit websted, f.eks. primary eller footer."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:529
 msgid "Start a new import"
@@ -12332,7 +12332,7 @@ msgstr "Taksonomier (administrer)"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:285
 msgid "Taxonomy"
-msgstr ""
+msgstr "Taksonomi"
 
 #. placeholder {0}: blocker.name
 #: packages/admin/src/components/settings/transfer/labels.ts:110
@@ -12531,11 +12531,11 @@ msgstr "Importen kan ikke starte, før disse er løst."
 
 #: packages/admin/src/lib/api/import.ts:467
 msgid "The import did not return a completion cursor"
-msgstr ""
+msgstr "Importen returnerede ikke en \"completion cursor\""
 
 #: packages/admin/src/lib/api/import.ts:452
 msgid "The import did not return a preparation cursor"
-msgstr ""
+msgstr "Importen returnerede ikke en \"preparation cursor\""
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:513
 msgid "The import failed"
@@ -13169,7 +13169,7 @@ msgstr "Dette websted har endnu intet indhold, så du kan importere en .emdash p
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:55
 msgid "This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs."
-msgstr ""
+msgstr "Sessionslagring er ikke konfigureret for dette websted - login kan ikke gennemføres. Bed webstedets administrator om at angive session.driver i astro.config.mjs"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:320
 msgid "This site holds partial data from an earlier import"
@@ -13421,7 +13421,7 @@ msgstr "Prøv en anden søgning eller et andet samlingsfilter."
 
 #: packages/admin/src/routes/bylines.tsx:638
 msgid "Try a different search or filter."
-msgstr ""
+msgstr "Prøv en anden søgning eller et andet filter."
 
 #: packages/admin/src/components/ContentPickerModal.tsx:287
 #: packages/admin/src/components/SectionPickerModal.tsx:103
@@ -13597,7 +13597,7 @@ msgstr "Ukendt rolle"
 
 #: packages/admin/src/routes/bylines.tsx:565
 msgid "Unlinked"
-msgstr ""
+msgstr "Ikke tilknyttet"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
@@ -13709,12 +13709,12 @@ msgstr "Opdater oplysningerne for {0}"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:68
 msgid "Update the emdash package in your project and redeploy to get the latest fixes."
-msgstr ""
+msgstr "Opdater emdash-pakken i dit projekt, og udrul projektet igen for at få de seneste rettelser."
 
 #. placeholder {0}: selected.displayName
 #: packages/admin/src/routes/bylines.tsx:697
 msgid "Update the profile for {0}."
-msgstr ""
+msgstr "Opdater profilen for {0}."
 
 #: packages/admin/src/components/Redirects.tsx:112
 msgid "Update this redirect rule."

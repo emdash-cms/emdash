@@ -594,7 +594,7 @@ export const table: BlockTransformer = (block, _options, context) => {
 			_type: "table" as const,
 			_key: context.generateKey(),
 			rows,
-			hasHeaderRow: !!theadMatch,
+			hasHeaderRow: !!theadMatch || rows[0]!.cells.every((cell) => cell.isHeader === true),
 		},
 	];
 };

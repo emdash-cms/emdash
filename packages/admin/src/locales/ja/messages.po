@@ -1480,7 +1480,7 @@ msgstr "すべてのコメントを承認待ちにする"
 
 #: packages/admin/src/components/WordPressImport.tsx:2541
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
-msgstr "インポートされたコンテンツはすべて未割り当てになります。後からコンテンツエディタで投稿者を再割り当てできます。"
+msgstr "インポートされたコンテンツはすべて未割り当てになります。後からコンテンツエディターで投稿者を再割り当てできます。"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:71
 msgid "All locales"
@@ -9328,7 +9328,7 @@ msgstr "パスキーを使用するには<0>安全なコンテキスト</0>が�
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:155
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
-msgstr "パスキーにはHTTPSまたはhttp://localhost（ポート付き）が必要です。このホスト名はセキュアなブラウザコンテキストではありません。"
+msgstr "パスキーにはHTTPSまたはhttp://localhost（ポート付き）が必要です。このホスト名はセキュアなブラウザーコンテキストではありません。"
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:248
 msgid "Paste an embed code or an https link…"
@@ -10754,7 +10754,7 @@ msgstr "リッチテキストを表示"
 
 #: packages/admin/src/components/FieldEditor.tsx:432
 msgid "Rich text editor"
-msgstr "リッチテキストエディタ"
+msgstr "リッチテキストエディター"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
 #: packages/admin/src/components/PortableTextEditor.tsx:4456
@@ -14227,7 +14227,7 @@ msgstr "ウェブアドレス"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:156
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:319
 msgid "WebAuthn is not supported in this browser"
-msgstr "このブラウザはWebAuthnに対応していません"
+msgstr "このブラウザーはWebAuthnに対応していません"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:246
 #: packages/admin/src/components/RegistryPluginDetail.tsx:780
@@ -14634,7 +14634,7 @@ msgstr "アカウントの作成が完了しました。"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:303
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:481
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
-msgstr "お使いのブラウザはパスキーに対応していません。Chrome、Safari、Firefox、Edgeなどの最新ブラウザをご使用ください。"
+msgstr "お使いのブラウザーはパスキーに対応していません。Chrome、Safari、Firefox、Edgeなどの最新ブラウザーをご使用ください。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
 msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
