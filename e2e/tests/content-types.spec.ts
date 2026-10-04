@@ -36,10 +36,6 @@ test.describe("Content Types", () => {
 			// Should show the table
 			await expect(admin.page.locator("table")).toBeVisible();
 
-			// The content-types list fetches collections independently of the
-			// generic loading spinner. On a cold Cloudflare worker that query can
-			// take longer than the default 5s visibility timeout, so wait for
-			// the seeded rows to render before asserting specific links.
 			await admin.waitForContentTypeList(["Posts", "Pages"]);
 		});
 
