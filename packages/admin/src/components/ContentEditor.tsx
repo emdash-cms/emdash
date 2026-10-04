@@ -344,6 +344,8 @@ export interface ContentEditorProps {
 	autosaveRejectionToken?: number;
 	/** Whether the server refused the last save because it was based on a stale read. */
 	hasSaveConflict?: boolean;
+	/** Called when the dirty state of the editor form changes. */
+	onDirtyChange?: (isDirty: boolean) => void;
 	onPublish?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -465,6 +467,7 @@ export function ContentEditor({
 	autosaveCompletionToken,
 	autosaveRejectionToken,
 	hasSaveConflict,
+	onDirtyChange,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -731,20 +734,6 @@ export function ContentEditor({
 	}, [fields, formData]);
 	const hasUnsupportedPortableTextMarks = unsupportedPortableTextMarks.length > 0;
 
-	const handleBylinesChange = React.useCallback(
-		(next: BylineCreditInput[]) => {
-			editorGenerationRef.current++;
-			setBylinesTouched(true);
-			if (isNew) {
-				onBylinesChange?.(next);
-				return;
-			}
-			setInternalBylines(next);
-			onBylinesChange?.(next);
-		},
-		[isNew, onBylinesChange],
-	);
-
 	// Check if form has unsaved changes
 	const currentData = React.useMemo(
 		() =>
@@ -763,6 +752,34 @@ export function ContentEditor({
 	);
 	const isDirty =
 		isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData || referencesDirty;
+	const onDirtyChangeRef = React.useRef(onDirtyChange);
+	onDirtyChangeRef.current = onDirtyChange;
+	const markDirty = React.useCallback(() => {
+		onDirtyChangeRef.current?.(true);
+	}, []);
+	// Report both directions so the page never has to guess, but emit the
+	// dirty=true signal synchronously from every editing event path. That
+	// keeps a background refetch from adopting a newer write token while the
+	// editor already has unsaved local changes.
+	React.useEffect(() => {
+		onDirtyChangeRef.current?.(isDirty);
+	}, [isDirty]);
+
+	const handleBylinesChange = React.useCallback(
+		(next: BylineCreditInput[]) => {
+			editorGenerationRef.current++;
+			markDirty();
+			setBylinesTouched(true);
+			if (isNew) {
+				onBylinesChange?.(next);
+				return;
+			}
+			setInternalBylines(next);
+			onBylinesChange?.(next);
+		},
+		[isNew, onBylinesChange, markDirty],
+	);
+
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
 	// Read at call time, not captured: a control that has not re-rendered since the
@@ -779,6 +796,7 @@ export function ContentEditor({
 	// Upserts the field so one with no hydrated rows can take its first pick.
 	const handleReferenceCurrentChange = React.useCallback(
 		(fieldSlug: string, rows: ReferenceEntryRow[]) => {
+			markDirty();
 			setReferenceState((prev) => {
 				const existing = prev[fieldSlug];
 				return {
@@ -789,7 +807,7 @@ export function ContentEditor({
 				};
 			});
 		},
-		[],
+		[markDirty],
 	);
 
 	// Page the rest of a field's hydrated set. The full set must be loaded before
@@ -961,10 +979,11 @@ export function ContentEditor({
 			next[operation.field] = operation.op === "clear" ? null : operation.value;
 		}
 		editorGenerationRef.current++;
+		markDirty();
 		setFormData(next);
 		setHasAppliedEditorDraftPatch(true);
 		setPendingEditorDraftPatch(null);
-	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t]);
+	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t, markDirty]);
 
 	React.useEffect(() => {
 		if (!autosaveCompletionToken) {
@@ -1326,19 +1345,24 @@ export function ContentEditor({
 	const handleFieldChange = React.useCallback(
 		(name: string, value: unknown) => {
 			editorGenerationRef.current++;
+			markDirty();
 			setFormData((prev) => ({ ...prev, [name]: value }));
 			if (name === "title" && !slugTouched && typeof value === "string" && value) {
 				setSlug(slugify(value));
 			}
 		},
-		[slugTouched],
+		[slugTouched, markDirty],
 	);
 
-	const handleSlugChange = React.useCallback((value: string) => {
-		editorGenerationRef.current++;
-		setSlug(value);
-		setSlugTouched(true);
-	}, []);
+	const handleSlugChange = React.useCallback(
+		(value: string) => {
+			editorGenerationRef.current++;
+			markDirty();
+			setSlug(value);
+			setSlugTouched(true);
+		},
+		[markDirty],
+	);
 
 	const isPublished = status === "published";
 
