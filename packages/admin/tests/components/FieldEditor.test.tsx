@@ -922,6 +922,78 @@ describe("FieldEditor", () => {
 		});
 	});
 
+	describe("repeater sub-field identifiers", () => {
+		const repeaterField = makeField({
+			slug: "sections",
+			label: "Sections",
+			type: "repeater",
+			validation: {
+				subFields: [{ slug: "title", label: "Title", type: "string" }],
+			} as SchemaField["validation"],
+		});
+
+		it("preserves the stored key when an existing sub-field is relabeled", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={repeaterField} onSave={onSave} />,
+			);
+			await expect.element(screen.getByLabelText("Slug", { exact: true }).nth(1)).toBeDisabled();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Heading");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{ slug: "title", label: "Heading", type: "string", required: undefined },
+			]);
+		});
+
+		it("allows a new sub-field in an existing repeater to use a manual key", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={repeaterField} onSave={onSave} />,
+			);
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(2).fill("Subtitle");
+			await screen.getByLabelText("Slug", { exact: true }).nth(2).fill("deck");
+			await screen.getByLabelText("Label", { exact: true }).nth(2).fill("Summary");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{ slug: "title", label: "Title", type: "string", required: undefined },
+				{ slug: "deck", label: "Summary", type: "string", required: undefined },
+			]);
+		});
+
+		it.each(["generated", "manual"])("blocks %s key collisions until resolved", async (mode) => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(<FieldEditor {...defaultProps} onSave={onSave} />);
+			screen
+				.getByRole("button", { name: /^Repeater/ })
+				.element()
+				.click();
+			await screen.getByLabelText("Label", { exact: true }).fill("Sections");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Größe");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen
+				.getByLabelText("Label", { exact: true })
+				.nth(2)
+				.fill(mode === "generated" ? "Groesse" : "Summary");
+			if (mode === "manual") {
+				await screen.getByLabelText("Slug", { exact: true }).nth(2).fill("groesse");
+			}
+			await expect.element(screen.getByRole("button", { name: "Add Field" })).toBeDisabled();
+			await expect
+				.element(screen.getByText("Sub-field slugs must be unique.").first())
+				.toBeVisible();
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			expect(onSave).not.toHaveBeenCalled();
+			await screen.getByLabelText("Slug", { exact: true }).nth(2).fill("summary");
+			await expect.element(screen.getByRole("button", { name: "Add Field" })).toBeEnabled();
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			expect(
+				onSave.mock.calls[0]?.[0].validation.subFields.map((sf: { slug: string }) => sf.slug),
+			).toEqual(["groesse", "summary"]);
+		});
+	});
+
 	describe("dialog closed", () => {
 		it("renders nothing visible when open is false", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} open={false} />);

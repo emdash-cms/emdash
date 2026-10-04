@@ -2,6 +2,8 @@
 "@emdash-cms/admin": patch
 ---
 
-Fix generated identifier slugs for non-ASCII labels.
+Fixes generated admin identifier slugs for non-ASCII labels in content types, taxonomies, byline fields, relations, and fields.
 
-Labels like `Größe` now produce `groesse`, `Título` becomes `titulo`, and labels written entirely in scripts without ASCII letters (e.g. `名前`, `2024年`) leave the slug empty with an inline message instead of creating an invalid slug. The logic is now shared across the content type, taxonomy, byline-field, relation, and field editors, and repeater sub-fields expose their own slug input.
+Labels like `Größe` now produce `groesse` and `Título` becomes `titulo`, including equivalent decomposed Unicode input. Labels that cannot produce a valid ASCII identifier, such as `名前` or `2024年`, require a manually entered slug and show an inline message.
+
+Adds editable slugs for new repeater sub-fields and blocks duplicate sub-field slugs before saving. Existing sub-field slugs stay read-only so relabeling preserves the keys used by saved content.

@@ -29,16 +29,16 @@ const LEADING_LETTER_PATTERN = /^[a-z]/;
 /**
  * Convert a human-readable label into a database-style identifier slug.
  *
- * The algorithm applies a small list of explicit ligature/umlaut expansions,
- * then NFKD-normalizes the string and strips combining marks, then keeps
- * only lowercase ASCII letters and digits (separators become underscores).
+ * NFC normalization keeps canonically equivalent labels consistent through
+ * the explicit ligature/umlaut expansions. NFKD then separates accents so
+ * identifiers contain only ASCII letters, digits, and underscores.
  *
  * If the result is empty or would start with a digit, the function returns an
  * empty string so callers can ask the user for a slug instead of creating an
  * invalid one.
  */
 export function slugifyIdentifier(value: string): string {
-	let result = value.trim();
+	let result = value.trim().normalize("NFC");
 
 	for (const [from, to] of SPECIAL_REPLACEMENTS) {
 		result = result.split(from).join(to);

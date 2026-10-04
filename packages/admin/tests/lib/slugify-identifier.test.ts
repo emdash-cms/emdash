@@ -9,6 +9,13 @@ describe("slugifyIdentifier", () => {
 		expect(slugifyIdentifier("Köln")).toBe("koeln");
 	});
 
+	it.each(["Größe", "Ärger mit Öl", "Grüße"])(
+		"generates the same identifier for composed and decomposed %s",
+		(label) => {
+			expect(slugifyIdentifier(label.normalize("NFD"))).toBe(slugifyIdentifier(label));
+		},
+	);
+
 	it("strips accents from Romance diacritics", () => {
 		expect(slugifyIdentifier("Título")).toBe("titulo");
 		expect(slugifyIdentifier("Ärger mit Öl")).toBe("aerger_mit_oel");
