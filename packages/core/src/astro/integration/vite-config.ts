@@ -70,13 +70,7 @@ import {
 	generateBlockComponentsModule,
 } from "./virtual-modules.js";
 
-// Matches relative locale catalog imports from within the admin source tree,
-// e.g. `./de/messages.mjs`, `./es-419/messages.mjs`, `./sr-Latn/messages.mjs`,
-// or `./locales/de/messages.mjs`. Anchored so it does not accidentally match
-// a subsegment such as "tn" inside "sr-Latn".
-const LOCALE_MESSAGES_RE = /^\.\/(?:locales\/)?([^/]+)\/messages\.mjs$/;
-
-const QUERY_RE = /[?#].*$/;
+const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
 
 export function pathToImportUrl(path: string): string {
 	return pathToFileURL(path, { windows: win32.isAbsolute(path) }).href;
@@ -102,7 +96,7 @@ export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string
 			// within admin source to the compiled dist/locales/ directory, since
 			// lingui compile only runs during build — not in dev watch mode.
 			if (!importer?.startsWith(adminSourceVitePath)) return;
-			const match = id.replace(QUERY_RE, "").match(LOCALE_MESSAGES_RE);
+			const match = id.match(LOCALE_MESSAGES_RE);
 			if (match?.[1]) {
 				return resolve(adminDistPath, "locales", match[1], "messages.mjs");
 			}
