@@ -45,9 +45,11 @@ The rich-text editor supports headings, lists, quotations, code, links, images, 
 custom blocks. If imported content contains a block that the editor cannot display, EmDash preserves
 the stored block rather than removing it during the next save.
 
-Saving and publishing are separate states for collections with drafts. **Save** stores the current
-work as a draft. **Publish** or **Publish changes** makes that saved version available to public
-queries. Scheduling records when a draft or pending change should become public.
+On collections with revisions, **Save** stores content-field changes as a draft. **Publish** or
+**Publish changes** makes those fields available to public queries. Scheduling records when a draft
+or pending change should become public. Saved SEO, ownership, byline credit, and taxonomy changes
+still update the live entry. See [Content lifecycle](/reference/content-lifecycle/) for the draft
+and live metadata behavior.
 
 When edit locking is enabled for a collection, opening an entry holds a lock for that editor. Other
 writers are refused while the lock is active instead of silently overwriting the entry. If an entry

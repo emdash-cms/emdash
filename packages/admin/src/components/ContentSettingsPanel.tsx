@@ -1075,6 +1075,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`Ownership`}
 							</Text>
+							{!isNew && (
+								<Text as="p" size="sm" variant="secondary" DANGEROUS_className="mb-4">
+									{t`Saved changes update published entries without publishing again.`}
+								</Text>
+							)}
 							<AuthorSelector
 								authorId={item?.authorId || null}
 								users={users}
@@ -1112,6 +1117,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									}
 								/>
 							</div>
+							{!isNew && (
+								<Text as="p" size="sm" variant="secondary" DANGEROUS_className="mb-4">
+									{t`Saved changes update published entries without publishing again.`}
+								</Text>
+							)}
 							<BylineCreditsEditor
 								key={`${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`}
 								credits={activeBylines}
@@ -1173,6 +1183,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						<div className="p-4">
 							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`SEO`}
+							</Text>
+							<Text as="p" size="sm" variant="secondary" DANGEROUS_className="mb-4">
+								{t`Saved changes update published entries without publishing again.`}
 							</Text>
 							<SeoPanel
 								contentKey={item?.id ?? `new:${collection}`}

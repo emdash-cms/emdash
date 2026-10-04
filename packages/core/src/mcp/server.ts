@@ -1266,9 +1266,14 @@ export function createMcpServer(
 				"Markdown can't express (custom blocks, embeds). Requires the _rev " +
 				"token from content_get, so read the item before updating it: the " +
 				"update fails if the item changed since that read. When status is not " +
-				"set, a change to a published item is staged as a draft, so the " +
-				"response shows the new values while the live version keeps the old " +
-				"ones until content_publish. " +
+				"set, content-field changes to a published item are staged as a draft " +
+				"only on collections with revisions. The response includes those draft " +
+				"values; content_publish makes them live. An accompanying slug is " +
+				"staged with those field saves when 'data' is supplied. Updating a " +
+				"slug without 'data' changes the live slug immediately. Saved SEO, " +
+				"byline, and taxonomy changes update the published entry immediately. On " +
+				"collections without revisions, saved content fields and slug also " +
+				"update the published entry immediately. " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
 				"single transaction. `publishedAt` requires the content:publish_any " +
 				"permission and is useful for migrations or correcting historical dates.",

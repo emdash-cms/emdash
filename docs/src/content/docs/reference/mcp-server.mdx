@@ -245,7 +245,11 @@ permission, conflict, and hook behavior shared by MCP, REST, the CLI, and the ad
 
 `content_get` returns an opaque `_rev` value. Pass it to `content_update`, `content_publish`, `content_unpublish`, `content_schedule`, or `content_discard_draft`. A stale value returns a conflict, so read the item again before retrying.
 
-`content_update` is a partial update: omitted fields keep their current values. Updating a published item stages a draft while the live version remains unchanged. Use `content_compare` to review the live and draft values, then call `content_publish` to make the draft live or `content_discard_draft` to remove it. `content_delete` moves an item to trash; only `content_permanent_delete` removes a trashed item permanently.
+`content_update` is a partial update: omitted fields keep their current values. On collections with revisions, updating a published item's content fields without setting `status` stages a draft while the live field values remain unchanged. An accompanying slug is staged with those field saves when `data` is supplied. Updating `slug` without `data` changes the live slug immediately. Use `content_compare` to review the live and draft values, then call `content_publish` to make the draft live or `content_discard_draft` to remove it.
+
+Saved changes to `seo`, `bylines`, and `taxonomies` update the published entry immediately, even when content fields have unpublished changes. On collections without revisions, saved content fields and slug also update the published entry immediately.
+
+`content_delete` moves an item to trash; only `content_permanent_delete` removes a trashed item permanently.
 
 Bylines are reusable author or contributor credits. `byline_create` can create a guest credit or link a byline to a CMS user. A user can have only one byline per locale. A translation created with `translationOf` keeps the source byline's user unless you pass `userId`; pass `null` to leave the translation unlinked. Pass the returned byline ID in the `bylines` input accepted by `content_create` and `content_update`. Deleting a byline removes that credit from content and clears it as the primary byline.
 

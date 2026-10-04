@@ -342,9 +342,11 @@ Content-Type: application/json
 }
 ```
 
-Changing a published entry creates a draft while the previous version stays live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date, cancels any pending schedule, and removes the entry from the live site.
+On collections with revisions, changing a published entry's content fields creates a draft while the previous field values stay live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date, cancels any pending schedule, and removes the entry from the live site.
 
 Publishing validates the complete saved content, including required reference selections and media MIME restrictions, against the current collection schema. Field-schema failures return `VALIDATION_ERROR` with `details.issues`; media MIME failures return `INVALID_MIME_FOR_FIELD`. Correct the content before retrying. On collections with revisions, use the publish operation to promote saved draft fields. Updating `status` alone does not promote them.
+
+Updates to `seo`, `authorId`, `bylines`, and `taxonomies` affect the live entry immediately. They are not staged in content revisions. On collections without revisions, content-field saves also affect the live entry immediately.
 
 Creation and update bodies accept byline credits, and content responses include the primary byline and ordered credits. The content list can filter by stored byline IDs and optionally include an author's inferred byline. Creating and managing the byline records themselves is available through the [MCP byline tools](/reference/mcp-server/#byline-tools), not the public REST contract.
 

@@ -3,9 +3,9 @@ title: Content Lifecycle
 description: State transitions, revisions, permissions, conflicts, and hooks for EmDash content.
 ---
 
-EmDash keeps the published version of an entry separate from unpublished changes. The admin panel,
-REST API, command-line interface (CLI), and Model Context Protocol (MCP) tools use the same lifecycle
-rules.
+On collections with revisions, EmDash keeps published content fields separate from unpublished
+field changes. The admin panel, REST API, command-line interface (CLI), and Model Context Protocol
+(MCP) tools use the same lifecycle rules.
 
 An entry can be `draft`, `scheduled`, or `published`. A published entry can also have a draft and a
 future schedule: visitors continue to receive the live revision until the scheduled draft is
@@ -19,7 +19,7 @@ timestamps. “No change” means the operation preserves the stored value.
 
 | Action | Starting state | Result | Revision effect | `publishedAt` | `scheduledAt` | Repeated call |
 | --- | --- | --- | --- | --- | --- | --- |
-| Save changes | Any active entry | Status does not change | On a revision-enabled collection, replaces the draft revision while the live revision remains public | No change | No change | A supplied `_rev` refuses a stale save; omitting it makes the REST write unconditional |
+| Save changes | Any active entry | Status does not change | Content-field saves replace the draft on revision-enabled collections; metadata updates are live immediately | No change | No change | A supplied `_rev` refuses a stale save; omitting it makes the REST write unconditional |
 | Publish | Draft, scheduled, or published | Published | Promotes the draft revision to live and clears the draft pointer | Set on first publish; preserved on later publishes unless an authorized caller overrides it | Cleared | Preserves the live content and publication time, but returns a new `_rev` |
 | Publish when due | Scheduled, or published with a scheduled draft | Published | Same as publish | Uses the scheduled time on first publish; preserves the existing value when publishing a new draft over live content | Cleared | A later scheduler pass skips an entry whose schedule was already cleared |
 | Unpublish | Any active entry | Draft | Clears the live pointer; preserves the existing draft or creates one from the live revision | Preserved | Cleared | An entry that is already a plain draft does not change |
@@ -32,7 +32,12 @@ timestamps. “No change” means the operation preserves the stored value.
 | Restore a revision | Any active entry | Status does not change | On a revision-enabled collection, replaces the draft with a copy of the selected revision; the live revision remains unchanged | No change | No change | Creates a new revision and returns a new `_rev` |
 
 On a collection without revision support, saves and publishes use the content row instead of live
-and draft pointers. Restoring a revision writes the selected field values directly to that row.
+and draft pointers. Saving content fields updates published entries immediately. Restoring a
+revision writes the selected field values directly to that row.
+
+SEO, ownership (`authorId`), byline credits, and taxonomy selections are not staged in content
+revisions. Saving them updates the live entry immediately, including when it has unpublished
+content-field changes.
 
 Restoring a revision on a revision-enabled collection does not publish it. Publish the entry after
 reviewing the restored draft.

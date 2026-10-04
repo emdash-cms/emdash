@@ -5,9 +5,8 @@ description: Create, edit, publish, schedule, and safely delete content in the E
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Use the EmDash admin to take an entry from its first draft to a published page. The editor keeps
-draft changes separate from the version visitors can see, so saving and publishing are two distinct
-actions.
+Use the EmDash admin to take an entry from its first draft to a published page. On collections with
+revisions, saving content fields and publishing them are separate actions.
 
 ## Open a collection
 
@@ -137,12 +136,19 @@ Select **Save** when you want a point in the editing sequence to remain in revis
 save fails, the editor keeps the unsaved fields in place and shows the error. Do not leave the page
 until the button returns to **Saved** or you have copied the unsaved work elsewhere.
 
-For a published entry, saving changes updates its draft only. Visitors continue to receive the
-previous live revision. Use **Preview draft** to check the pending version, **Live View** to check
-the public version, and **Publish changes** when the draft is ready to replace it.
+For a published entry in a collection with revisions, saving content fields updates the draft.
+Visitors continue to receive the previously published field values. Use **Preview draft** to check
+the pending version, **Live View** to check the public version, and **Publish changes** when the
+draft is ready to replace it.
 
-Changing the slug of a published entry follows the same draft flow. The public URL changes when you
-publish the draft, not when autosave runs.
+Saved changes to SEO, ownership (author), byline credits, and taxonomy selections update the live
+entry. On published entries, they do not wait for **Publish changes**, even when content fields have
+unpublished changes. Byline credits use the form's autosave or **Save**; wait for **Saved** before
+leaving the editor. On collections without revisions, saved content fields also update the published
+entry immediately.
+
+In the admin editor, changing the slug of a published entry follows the same draft flow on collections
+with revisions. The public URL changes when you publish the draft, not when autosave runs.
 
 ## Work with another editor
 
@@ -282,10 +288,14 @@ a draft with no schedule. Publish it to make it public.
 
 ## Automate content work
 
-The REST API and EmDash CLI support the same draft and publishing workflow. Collection fields belong
-inside the request's `data` object. An update saves a draft revision; publishing is a separate action.
-Pass the latest `_rev` value when updating or publishing so the server rejects a stale write instead
-of replacing newer work.
+The REST API and EmDash CLI use the same lifecycle rules. Collection fields belong inside the
+request's `data` object. On collections with revisions, a REST update without `status` saves
+content-field changes as a draft; publishing is a separate action. On collections with revisions,
+CLI `content update` publishes the saved draft by default; pass `--draft` to leave those field changes
+unpublished. On collections without
+revisions, saved content fields update the published entry immediately. Saved SEO, byline, and
+taxonomy changes are live metadata, not staged content fields. Pass the latest `_rev` value when
+updating or publishing so the server rejects a stale write instead of replacing newer work.
 
 Use the [content lifecycle reference](/reference/content-lifecycle/) for state transitions,
 permissions, conflicts, and hooks. The [REST API reference](/reference/rest-api/) defines request and
