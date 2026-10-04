@@ -3,6 +3,7 @@ import type { Server } from "node:http";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import Bluesky from "../src/astro/Bluesky.astro";
 import Gist from "../src/astro/Gist.astro";
 import Mastodon from "../src/astro/Mastodon.astro";
 import { sanitizeMastodonEmbed } from "../src/sanitize-mastodon.js";
@@ -72,6 +73,66 @@ describe("embeds that render remote HTML", () => {
 			}
 		},
 	);
+
+	describe("Bluesky", () => {
+		const postUrl = "https://bsky.app/profile/alice.bsky.social/post/3juwcxjcku52k";
+
+		async function renderBluesky(id: string) {
+			const container = await AstroContainer.create();
+			return container.renderToString(Bluesky, {
+				props: { node: { _type: "bluesky", _key: "b", id } },
+			});
+		}
+
+		it("renders the post HTML from Bluesky's oEmbed endpoint", async () => {
+			const fetchSpy = vi
+				.spyOn(globalThis, "fetch")
+				.mockImplementation(async () =>
+					Response.json({ html: '<blockquote class="bluesky-embed">post</blockquote>' }),
+				);
+			try {
+				const html = await renderBluesky(postUrl);
+				expect(html).toContain('<blockquote class="bluesky-embed">post</blockquote>');
+				expect(fetchSpy).toHaveBeenCalledWith(
+					`https://embed.bsky.app/oembed?url=${encodeURIComponent(postUrl)}&format=json`,
+					expect.anything(),
+				);
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it.each([
+			["the endpoint returns an error", async () => new Response("nope", { status: 404 })],
+			["the endpoint returns no HTML", async () => Response.json({ html: 42 })],
+			[
+				"the request fails",
+				async () => {
+					throw new TypeError("network down");
+				},
+			],
+		])("links to the post when %s", async (_label, impl) => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(impl);
+			try {
+				const html = await renderBluesky(postUrl);
+				expect(html).toContain(`<a href="${postUrl}">`);
+				expect(html).not.toContain("<blockquote");
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it("does not fetch or render a URL outside bsky.app", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch");
+			try {
+				const html = await renderBluesky("https://example.com/profile/a/post/b");
+				expect(fetchSpy).not.toHaveBeenCalled();
+				expect(html).not.toContain("example.com");
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+	});
 
 	it("strips scripts and event handlers from a Mastodon post", async () => {
 		const container = await AstroContainer.create();

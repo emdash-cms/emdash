@@ -32,6 +32,18 @@ describe("resolveBlueskyPostUrl", () => {
 		expect(resolveBlueskyPostUrl(atUri)).toBeNull();
 	});
 
+	it("rejects a post URL with extra path segments", () => {
+		expect(
+			resolveBlueskyPostUrl("https://bsky.app/profile/alice.bsky.social/post/3juwcxjcku52k/extra"),
+		).toBeNull();
+	});
+
+	it("rejects a plain-http post URL", () => {
+		expect(
+			resolveBlueskyPostUrl("http://bsky.app/profile/alice.bsky.social/post/3juwcxjcku52k"),
+		).toBeNull();
+	});
+
 	it("rejects an unrelated URL", () => {
 		expect(resolveBlueskyPostUrl("https://example.com/not-bluesky")).toBeNull();
 	});

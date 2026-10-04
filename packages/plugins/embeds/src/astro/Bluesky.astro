@@ -2,12 +2,7 @@
 /**
  * Bluesky post embed component for Portable Text
  *
- * Renders via Bluesky's own oEmbed endpoint (embed.bsky.app) instead of
- * @astro-community/astro-embed-bluesky: that package depends on @atproto/api,
- * whose CommonJS build (transitively multiformats) crashes Astro's Cloudflare
- * dev runner -- it evaluates modules one at a time inside workerd, which has
- * no `require`/`exports` globals (#938).
- *
+ * Renders the HTML returned by Bluesky's oEmbed endpoint.
  * astro-portabletext passes `node` (not `value`) for custom type components.
  * Accepts either `id` or `url` field for compatibility with different content sources.
  */
@@ -32,8 +27,10 @@ if (postUrl) {
 			{ signal: controller.signal },
 		);
 		if (response.ok) {
-			const data = (await response.json()) as { html?: string };
-			html = data.html ?? null;
+			const data: unknown = await response.json();
+			if (data && typeof data === "object" && "html" in data && typeof data.html === "string") {
+				html = data.html;
+			}
 		}
 	} catch {
 		html = null;
@@ -43,4 +40,4 @@ if (postUrl) {
 }
 ---
 
-{html && <Fragment set:html={html} />}
+{html ? <Fragment set:html={html} /> : postUrl && <a href={postUrl}>{postUrl}</a>}

@@ -4,7 +4,8 @@
  * that Bluesky's oEmbed endpoint accepts.
  */
 
-const BSKY_POST_URL_RE = /^https?:\/\/(?:staging\.)?bsky\.app\/profile\/[^/]+\/post\/[^/?#]+/i;
+const BSKY_POST_URL_RE =
+	/^https:\/\/(?:staging\.)?bsky\.app\/profile\/[^/]+\/post\/[^/?#]+\/?(?:[?#].*)?$/i;
 const AT_URI_POST_RE = /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/;
 
 export function resolveBlueskyPostUrl(postId: string): string | null {
