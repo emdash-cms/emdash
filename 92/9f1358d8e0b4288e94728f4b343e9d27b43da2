@@ -1,0 +1,33 @@
+.changeset/disclose-live-content-metadata.md
+  s_871d7d7d37412b::t_af1b3033c3eb11 1-6
+docs/src/content/docs/concepts/admin-panel.mdx
+  s_871d7d7d37412b::t_ad8f6be548fb1c 48-52
+docs/src/content/docs/guides/working-with-content.mdx
+  s_871d7d7d37412b::t_8bafd96bf64c72 8-9,139-142,144-151,291-298
+docs/src/content/docs/reference/content-lifecycle.mdx
+  s_871d7d7d37412b::t_d62e7a755e5080 6-8,22,35-40
+docs/src/content/docs/reference/mcp-server.mdx
+  s_871d7d7d37412b::t_e329babff2b892 248-252
+docs/src/content/docs/reference/rest-api.mdx
+  s_871d7d7d37412b::t_2275b28dd1cbae 345,349-350
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_871d7d7d37412b::t_d30c8aad50a854 1078-1082,1120-1124,1187-1189
+packages/core/src/mcp/server.ts
+  s_871d7d7d37412b::t_12a8d4f349b3f9 1269-1276
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "929f1358d8e0b4288e94728f4b343e9d27b43da2",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
