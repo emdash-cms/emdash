@@ -1077,6 +1077,19 @@ describe("ContentEditor", () => {
 			await expect.element(input).toHaveValue("2026-02-26T09:30");
 		});
 
+		it("renders a datetime field when the site timezone is not a valid IANA zone", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Recall", recall_date: "2026-02-26T09:30:00.000Z" } }),
+				timezone: "Lisboa",
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					recall_date: { kind: "datetime", label: "Recall date" },
+				},
+			});
+			await expect.element(screen.getByLabelText("Recall date")).toHaveValue("2026-02-26T09:30");
+		});
+
 		it("saves datetime fields back as full ISO 8601 with Z and milliseconds", async () => {
 			// datetime-local emits "YYYY-MM-DDTHH:mm" which the field's
 			// `z.string().datetime().or(z.string().date())` schema rejects.

@@ -7,6 +7,7 @@ import {
 	createD1AssessmentLifecycleStore,
 } from "../src/assessment/lifecycle.js";
 import { createAssessmentWorkflowParams } from "../src/assessment/run-key.js";
+import type { AssessmentVersionSet } from "../src/assessment/types.js";
 import { ASSESSMENT_VERSIONS, PROFILE_CID, PROFILE_URI } from "./assessment-fixtures.js";
 
 beforeAll(async () => {
@@ -90,9 +91,10 @@ describe("authoritative assessment lifecycle", () => {
 	});
 
 	it("prevents deletion or a newer CID from reaching positive finalization", async () => {
+		const deletionCid = `${PROFILE_CID.slice(0, -4)}dlte`;
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const deletedParams = await createAssessmentWorkflowParams({
-			subject: { uri: PROFILE_URI, cid: PROFILE_CID, kind: "profile" },
+			subject: { uri: PROFILE_URI, cid: deletionCid, kind: "profile" },
 			versions: ASSESSMENT_VERSIONS,
 			logicalTriggerId: "event:delete-case",
 		});
@@ -118,7 +120,7 @@ describe("authoritative assessment lifecycle", () => {
 			deleted: true,
 		});
 
-		const oldCid = `${PROFILE_CID.slice(0, -1)}c`;
+		const oldCid = `${deletionCid.slice(0, -1)}c`;
 		const oldParams = await createAssessmentWorkflowParams({
 			subject: { uri: PROFILE_URI, cid: oldCid, kind: "profile" },
 			versions: ASSESSMENT_VERSIONS,
@@ -127,7 +129,7 @@ describe("authoritative assessment lifecycle", () => {
 		await lifecycle.observeRun({ params: oldParams, observedAt: "2026-08-24T12:00:00.000Z" });
 		const oldStarted = await lifecycle.startRun(oldParams.runKey, 0, "2026-08-24T12:00:01.000Z");
 		const newParams = await createAssessmentWorkflowParams({
-			subject: { uri: PROFILE_URI, cid: PROFILE_CID, kind: "profile" },
+			subject: { uri: PROFILE_URI, cid: deletionCid, kind: "profile" },
 			versions: ASSESSMENT_VERSIONS,
 			logicalTriggerId: "event:new-cid",
 		});
@@ -180,5 +182,206 @@ describe("authoritative assessment lifecycle", () => {
 			),
 		).rejects.toBeInstanceOf(AssessmentStateConflictError);
 		expect(await lifecycle.getRun(oldParams.runKey)).toMatchObject({ state: "running" });
+	});
+});
+
+describe("assessment run origins", () => {
+	const versionCid = (suffix: string) => `${PROFILE_CID.slice(0, -4)}${suffix}`;
+
+	async function decide(cid: string, trigger: string, outcome: "passed" | "review") {
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const params = await createAssessmentWorkflowParams({
+			subject: { uri: PROFILE_URI, cid, kind: "profile" },
+			versions: ASSESSMENT_VERSIONS,
+			logicalTriggerId: trigger,
+		});
+		await lifecycle.observeRun({ params, observedAt: "2026-08-25T09:00:00.000Z" });
+		const started = await lifecycle.startRun(params.runKey, 0, "2026-08-25T09:00:01.000Z");
+		const prepared = await lifecycle.persistPrepared(
+			params.runKey,
+			started.stateVersion,
+			{ moderationFingerprint: `sha256:${trigger}`, canonicalInput: {}, coverage: {} },
+			"2026-08-25T09:00:02.000Z",
+		);
+		await lifecycle.finalizeRun(
+			params.runKey,
+			prepared.stateVersion,
+			outcome,
+			"2026-08-25T09:00:03.000Z",
+		);
+		return params.runKey;
+	}
+
+	async function paramsFor(
+		cid: string,
+		trigger: string,
+		versions: AssessmentVersionSet = ASSESSMENT_VERSIONS,
+	) {
+		return createAssessmentWorkflowParams({
+			subject: { uri: PROFILE_URI, cid, kind: "profile" },
+			versions,
+			logicalTriggerId: trigger,
+		});
+	}
+
+	async function currentAssessment(cid: string) {
+		return env.DB.prepare(
+			"SELECT assessment_id FROM current_assessments WHERE subject_uri = ? AND subject_cid = ?",
+		)
+			.bind(PROFILE_URI, cid)
+			.first<string>("assessment_id");
+	}
+
+	async function runExists(runKey: string) {
+		return (
+			(await env.DB.prepare("SELECT 1 AS found FROM assessments WHERE run_key = ?")
+				.bind(runKey)
+				.first<number>("found")) === 1
+		);
+	}
+
+	it("never re-assesses a decided listing version after the model changes", async () => {
+		const cid = versionCid("dcda");
+		const decided = await decide(cid, "event:decided", "passed");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const changedModel = await paramsFor(cid, "authoritative:after-model-change", {
+			...ASSESSMENT_VERSIONS,
+			textModelId: "@cf/example/another-model",
+		});
+
+		const observed = await lifecycle.observeRun({
+			params: changedModel,
+			observedAt: "2026-08-25T10:00:00.000Z",
+		});
+
+		expect(observed).toBeNull();
+		expect(await runExists(changedModel.runKey)).toBe(false);
+		expect(await currentAssessment(cid)).toBe(decided);
+	});
+
+	it("keeps a listing version held for review held", async () => {
+		const cid = versionCid("dcra");
+		const held = await decide(cid, "event:held", "review");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+
+		const observed = await lifecycle.observeRun({
+			params: await paramsFor(cid, "event:redelivered"),
+			observedAt: "2026-08-25T10:00:00.000Z",
+		});
+
+		expect(observed).toBeNull();
+		expect(await currentAssessment(cid)).toBe(held);
+	});
+
+	it("does not start a run for a listing version an operator decided", async () => {
+		const cid = versionCid("opda");
+		await env.DB.prepare(
+			`INSERT INTO operator_actions
+			   (actor_did, actor_role, action, subject_uri, subject_cid, reason, idempotency_key, created_at)
+			 VALUES ('did:web:operator.example', 'admin', 'approve', ?, ?, '', 'approve-opda', ?)`,
+		)
+			.bind(PROFILE_URI, cid, "2026-08-25T09:00:00.000Z")
+			.run();
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const params = await paramsFor(cid, "event:after-approval");
+
+		expect(
+			await lifecycle.observeRun({ params, observedAt: "2026-08-25T10:00:00.000Z" }),
+		).toBeNull();
+		expect(await runExists(params.runKey)).toBe(false);
+	});
+
+	it("lets only the first of two automated triggers assess a new listing version", async () => {
+		const cid = versionCid("raca");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const reconciliation = await paramsFor(cid, "reconciliation:first");
+		const authoritative = await paramsFor(cid, "authoritative:second");
+
+		const [first, second] = await Promise.all([
+			lifecycle.observeRun({ params: reconciliation, observedAt: "2026-08-25T10:00:00.000Z" }),
+			lifecycle.observeRun({ params: authoritative, observedAt: "2026-08-25T10:00:00.000Z" }),
+		]);
+
+		expect([first, second].filter((run) => run !== null)).toHaveLength(1);
+		const winner = first ? reconciliation.runKey : authoritative.runKey;
+		expect(await currentAssessment(cid)).toBe(winner);
+	});
+
+	it("does not dispatch a run again once it has finished", async () => {
+		const cid = versionCid("fina");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		await decide(cid, "authoritative:deterministic", "passed");
+
+		expect(
+			await lifecycle.observeRun({
+				params: await paramsFor(cid, "authoritative:deterministic"),
+				observedAt: "2026-08-25T10:00:00.000Z",
+			}),
+		).toBeNull();
+	});
+
+	it("lets an operator re-assess a decided listing version deliberately", async () => {
+		const cid = versionCid("orra");
+		await decide(cid, "event:operator-decided", "passed");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const params = await paramsFor(cid, "operator:rerun");
+
+		const observed = await lifecycle.observeRun({
+			params,
+			observedAt: "2026-08-25T10:00:00.000Z",
+			makeCurrent: false,
+			origin: { kind: "operator" },
+		});
+
+		expect(observed).toMatchObject({ runKey: params.runKey, state: "pending" });
+		expect(await currentAssessment(cid)).toBe(params.runKey);
+	});
+
+	it("supersedes an abandoned run on a decided listing version and restores the decision", async () => {
+		const cid = versionCid("orpa");
+		const decided = await decide(cid, "event:orphan-decided", "passed");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const orphan = await paramsFor(cid, "operator:orphan");
+		await lifecycle.observeRun({
+			params: orphan,
+			observedAt: "2026-08-25T10:00:00.000Z",
+			origin: { kind: "operator" },
+		});
+		await lifecycle.startRun(orphan.runKey, 0, "2026-08-25T10:00:01.000Z");
+
+		expect(await lifecycle.supersedeAbandonedRun(orphan.runKey, "2026-08-25T11:00:00.000Z")).toBe(
+			true,
+		);
+		expect(await lifecycle.getRun(orphan.runKey)).toMatchObject({ state: "superseded" });
+		expect(await currentAssessment(cid)).toBe(decided);
+	});
+
+	it("lets an undecided listing version be assessed again once its abandoned run is superseded", async () => {
+		const cid = versionCid("unda");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const abandoned = await paramsFor(cid, "event:abandoned");
+		await lifecycle.observeRun({ params: abandoned, observedAt: "2026-08-25T10:00:00.000Z" });
+		const replacement = await paramsFor(cid, "recovery:replacement");
+		expect(
+			await lifecycle.observeRun({ params: replacement, observedAt: "2026-08-25T10:30:00.000Z" }),
+		).toBeNull();
+
+		expect(
+			await lifecycle.supersedeAbandonedRun(abandoned.runKey, "2026-08-25T11:00:00.000Z"),
+		).toBe(true);
+
+		expect(await lifecycle.getRun(abandoned.runKey)).toMatchObject({ state: "superseded" });
+		expect(
+			await lifecycle.observeRun({ params: replacement, observedAt: "2026-08-25T11:00:01.000Z" }),
+		).toMatchObject({ runKey: replacement.runKey, state: "pending" });
+	});
+
+	it("does not supersede a run that has already finished", async () => {
+		const cid = versionCid("dnea");
+		const finished = await decide(cid, "event:finished", "passed");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+
+		expect(await lifecycle.supersedeAbandonedRun(finished, "2026-08-25T11:00:00.000Z")).toBe(false);
+		expect(await lifecycle.getRun(finished)).toMatchObject({ state: "passed" });
 	});
 });

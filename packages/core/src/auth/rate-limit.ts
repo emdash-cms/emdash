@@ -1,12 +1,13 @@
 /**
- * Database-backed rate limiter for unauthenticated endpoints.
+ * Database-backed rate limiter.
  *
  * Uses a `_emdash_rate_limits` table with composite primary key (key, window).
  * Each call to `checkRateLimit` atomically upserts a counter and returns
  * whether the request is within the allowed limit.
  *
- * Key format: `{ip}:{endpoint}` — limits are per-IP, per-endpoint. Callers
- * may pass a salted IP hash instead of the raw address.
+ * Key format: `{subject}:{endpoint}` — limits are per-subject, per-endpoint.
+ * The subject is the client IP (or a salted IP hash) on unauthenticated
+ * endpoints, and the user ID on endpoints that require a session.
  * Window format: ISO timestamp truncated to the window size.
  */
 
@@ -33,11 +34,11 @@ export interface RateLimitResult {
 }
 
 /**
- * Check (and increment) the rate limit for a given IP + endpoint.
+ * Check (and increment) the rate limit for a given subject + endpoint.
  *
- * If `ip` is null (no trusted IP available), rate limiting is skipped
- * and the request is allowed. There's no meaningful key to rate limit
- * on when the IP is unknown.
+ * If `subject` is null (for example, no trusted IP available), rate limiting
+ * is skipped and the request is allowed. There's no meaningful key to rate
+ * limit on when the subject is unknown.
  *
  * Returns whether the request is allowed. The counter is always
  * incremented — even when the limit is exceeded — so that repeated
@@ -48,20 +49,19 @@ export interface RateLimitResult {
  */
 export async function checkRateLimit(
 	db: Kysely<Database>,
-	ip: string | null,
+	subject: string | null,
 	endpoint: string,
 	maxRequests: number,
 	windowSeconds: number,
 ): Promise<RateLimitResult> {
-	// No trusted IP — skip rate limiting entirely
-	if (!ip) {
+	if (!subject) {
 		return { allowed: true, count: 0, limit: maxRequests };
 	}
 
 	const windowStart = new Date(
 		Math.floor(Date.now() / (windowSeconds * 1000)) * windowSeconds * 1000,
 	).toISOString();
-	const key = `${ip}:${endpoint}`;
+	const key = `${subject}:${endpoint}`;
 
 	// Atomic upsert: insert or increment, return current count
 	const result = await sql<{ count: number }>`

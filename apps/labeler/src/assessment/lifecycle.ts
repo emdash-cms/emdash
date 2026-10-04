@@ -8,10 +8,39 @@ import type {
 const MAX_CANONICAL_INPUT_BYTES = 256 * 1024;
 const OPERATIONAL_ERROR_CODE_RE = /^[A-Z][A-Z0-9_]{0,127}$/;
 
+/**
+ * Who asked for a run. An automated run is never created for a listing version that already has a
+ * decision or another run in flight; only an operator can re-assess a decided version.
+ */
+export type AssessmentRunOrigin = { kind: "automated" } | { kind: "operator" };
+
+const AUTOMATED_ORIGIN: AssessmentRunOrigin = { kind: "automated" };
+
+// Bound as ?1 subject URI, ?2 subject CID, ?3 observed run key.
+const DECIDED_SQL = `(
+	EXISTS (
+		SELECT 1 FROM assessments decided
+		WHERE decided.subject_uri = ?1 AND decided.subject_cid = ?2
+		  AND decided.state IN ('passed', 'review', 'blocked')
+	)
+	OR EXISTS (
+		SELECT 1 FROM operator_actions decision
+		WHERE decision.subject_uri = ?1 AND decision.subject_cid = ?2
+		  AND decision.action IN ('approve', 'block')
+	)
+)`;
+const OTHER_IN_FLIGHT_SQL = `EXISTS (
+	SELECT 1 FROM assessments other
+	WHERE other.subject_uri = ?1 AND other.subject_cid = ?2
+	  AND other.state IN ('pending', 'running')
+	  AND other.run_key <> ?3
+)`;
+
 export interface ObserveAssessmentRunOptions {
 	params: AssessmentWorkflowParams;
 	observedAt: string;
 	makeCurrent?: boolean;
+	origin?: AssessmentRunOrigin;
 }
 
 export interface PreparedAssessmentData {
@@ -21,7 +50,17 @@ export interface PreparedAssessmentData {
 }
 
 export interface AssessmentLifecycleStore {
-	observeRun(options: ObserveAssessmentRunOptions): Promise<AssessmentRunSnapshot>;
+	/**
+	 * Records a run and returns it when it should be dispatched. Returns null, without creating or
+	 * promoting anything, when the origin is not allowed to assess this listing version.
+	 */
+	observeRun(options: ObserveAssessmentRunOptions): Promise<AssessmentRunSnapshot | null>;
+	/**
+	 * Supersedes an unfinished run whose Workflow instance is gone, and points the listing version
+	 * back at its latest decided assessment when it has one. Only call this after confirming the
+	 * instance is missing, errored, or terminated: a live instance would fail its next transition.
+	 */
+	supersedeAbandonedRun(runKey: string, now: string): Promise<boolean>;
 	getRun(runKey: string): Promise<AssessmentRunSnapshot | null>;
 	startRun(runKey: string, expectedVersion: number, now: string): Promise<AssessmentRunSnapshot>;
 	persistPrepared(
@@ -47,9 +86,11 @@ export interface AssessmentLifecycleStore {
 
 export function createD1AssessmentLifecycleStore(db: D1Database): AssessmentLifecycleStore {
 	return {
-		async observeRun({ params, observedAt, makeCurrent = true }) {
+		async observeRun({ params, observedAt, makeCurrent = true, origin = AUTOMATED_ORIGIN }) {
 			const identity = workflowParamsToIdentity(params);
 			const { publisherDid } = parseSubjectUri(identity.subject.uri);
+			const guarded = origin.kind === "operator" ? 0 : 1;
+			const guard = [identity.subject.uri, identity.subject.cid, params.runKey];
 			const statements = [
 				db
 					.prepare(
@@ -75,14 +116,13 @@ export function createD1AssessmentLifecycleStore(db: D1Database): AssessmentLife
 						    policy_version, parser_version, text_model_id, text_prompt_hash,
 						    image_model_id, image_prompt_hash, logical_trigger_id,
 						    state, state_version, created_at, updated_at)
-						 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)
+						 SELECT ?3, ?3, ?1, ?2, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'pending', 0, ?13, ?13
+						 WHERE ?4 = 0 OR NOT (${DECIDED_SQL} OR ${OTHER_IN_FLIGHT_SQL})
 						 ON CONFLICT(run_key) DO NOTHING`,
 					)
 					.bind(
-						params.runKey,
-						params.runKey,
-						identity.subject.uri,
-						identity.subject.cid,
+						...guard,
+						guarded,
 						identity.subject.kind,
 						identity.versions.policyVersion,
 						identity.versions.parserVersion,
@@ -92,18 +132,22 @@ export function createD1AssessmentLifecycleStore(db: D1Database): AssessmentLife
 						identity.versions.imagePromptHash,
 						identity.logicalTriggerId,
 						observedAt,
-						observedAt,
 					),
 				db
 					.prepare(
 						`INSERT INTO current_assessments
 						   (subject_uri, subject_cid, assessment_id, updated_at)
-						 VALUES (?, ?, ?, ?)
+						 SELECT ?1, ?2, ?3, ?5
+						 WHERE EXISTS (
+						     SELECT 1 FROM assessments own
+						     WHERE own.run_key = ?3 AND own.state IN ('pending', 'running')
+						   )
+						   AND (?4 = 0 OR NOT (${DECIDED_SQL} OR ${OTHER_IN_FLIGHT_SQL}))
 						 ON CONFLICT(subject_uri, subject_cid) DO UPDATE SET
 						   assessment_id = excluded.assessment_id,
 						   updated_at = excluded.updated_at`,
 					)
-					.bind(identity.subject.uri, identity.subject.cid, params.runKey, observedAt),
+					.bind(...guard, guarded, observedAt),
 			];
 			if (makeCurrent) {
 				statements.splice(
@@ -124,7 +168,10 @@ export function createD1AssessmentLifecycleStore(db: D1Database): AssessmentLife
 			}
 			await db.batch(statements);
 			const snapshot = await readRun(db, params.runKey);
-			if (!snapshot) throw new Error("assessment run was not durably observed");
+			if (!snapshot) {
+				if (guarded) return null;
+				throw new Error("assessment run was not durably observed");
+			}
 			if (
 				snapshot.subject.uri !== identity.subject.uri ||
 				snapshot.subject.cid !== identity.subject.cid ||
@@ -132,7 +179,49 @@ export function createD1AssessmentLifecycleStore(db: D1Database): AssessmentLife
 			) {
 				throw new Error("assessment run key is already bound to different inputs");
 			}
-			return snapshot;
+			if (!guarded) return snapshot;
+			if (snapshot.state !== "pending" && snapshot.state !== "running") return null;
+			const blocked = await db
+				.prepare(`SELECT (${DECIDED_SQL} OR ${OTHER_IN_FLIGHT_SQL}) AS blocked`)
+				.bind(...guard)
+				.first<number>("blocked");
+			return blocked ? null : snapshot;
+		},
+		async supersedeAbandonedRun(runKey, now) {
+			const [superseded] = await db.batch([
+				db
+					.prepare(
+						`UPDATE assessments SET
+						   state = 'superseded',
+						   state_version = state_version + 1,
+						   updated_at = ?2,
+						   completed_at = ?2
+						 WHERE run_key = ?1 AND state IN ('pending', 'running')`,
+					)
+					.bind(runKey, now),
+				db
+					.prepare(
+						`UPDATE current_assessments SET
+						   assessment_id = (
+						     SELECT decided.id FROM assessments decided
+						     WHERE decided.subject_uri = current_assessments.subject_uri
+						       AND decided.subject_cid = current_assessments.subject_cid
+						       AND decided.state IN ('passed', 'review', 'blocked')
+						     ORDER BY decided.completed_at DESC, decided.id DESC
+						     LIMIT 1
+						   ),
+						   updated_at = ?2
+						 WHERE assessment_id = ?1
+						   AND EXISTS (
+						     SELECT 1 FROM assessments decided
+						     WHERE decided.subject_uri = current_assessments.subject_uri
+						       AND decided.subject_cid = current_assessments.subject_cid
+						       AND decided.state IN ('passed', 'review', 'blocked')
+						   )`,
+					)
+					.bind(runKey, now),
+			]);
+			return superseded?.meta.changes === 1;
 		},
 		getRun(runKey) {
 			return readRun(db, runKey);
