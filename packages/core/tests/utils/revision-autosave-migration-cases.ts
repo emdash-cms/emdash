@@ -38,7 +38,8 @@ export async function verifyRevisionAutosaveUpgrade(db: Kysely<Database>): Promi
 		WHERE id = ${content.id}
 	`.execute(db);
 
-	await Promise.all([up(db), up(db)]);
+	const concurrentUpgrades = await Promise.allSettled([up(db), up(db)]);
+	expect(concurrentUpgrades).toMatchObject([{ status: "fulfilled" }, { status: "fulfilled" }]);
 	await up(db);
 	const revisions = new RevisionRepository(db);
 	const preserved = await revisions.findByEntry("posts", content.id);

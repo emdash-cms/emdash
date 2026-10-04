@@ -101,7 +101,7 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		expect(autosaved.data!.item.updatedAt).toBe(publishedUpdatedAt);
 	});
 
-	it("Autosave removes the superseded draft after the pointer swap", async () => {
+	it("Autosave removes a superseded autosave after the pointer swap", async () => {
 		const created = await runtime.handleContentCreate("posts", {
 			data: { title: "Live Post" },
 			slug: "autosave-cleanup",
@@ -110,7 +110,9 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		await runtime.handleContentPublish("posts", id);
 		const firstSave = await runtime.handleContentUpdate("posts", id, {
 			data: { title: "Draft v1" },
+			skipRevision: true,
 		});
+		expect(firstSave.success).toBe(true);
 		const firstDraftId = firstSave.data!.item.draftRevisionId!;
 		const revisionRepo = new RevisionRepository(db);
 
