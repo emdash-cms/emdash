@@ -333,6 +333,19 @@ export function validateSeed(data: unknown): ValidationResult {
 								`${fieldPrefix}.indexed: a reference field with a targetCollection stores no column to index`,
 							);
 						}
+
+						if (field.type === "repeater") {
+							const subFields = field.validation?.subFields;
+							if ("fields" in field) {
+								warnings.push(
+									`${fieldPrefix}.fields: repeater sub-fields must be defined in validation.subFields; these fields are ignored`,
+								);
+							} else if (!Array.isArray(subFields) || subFields.length === 0) {
+								warnings.push(
+									`${fieldPrefix}.validation.subFields: repeater needs a non-empty array of sub-fields, so its rows have nothing to edit`,
+								);
+							}
+						}
 					}
 				}
 			}
