@@ -1,0 +1,25 @@
+apps/labeler/test/assessment-lifecycle.test.ts
+  s_871d7d7d37412b::t_e5d121c9cf6fc4 19,22,46
+apps/labeler/test/subscription-replay.test.ts
+  s_871d7d7d37412b::t_7f0b287279f216 30
+apps/labeler/test/workflow-foundation.test.ts
+  s_871d7d7d37412b::t_2aa593db6a0b80 226,232,261,307
+packages/admin/tests/editor/html-block-editor.test.tsx
+  s_871d7d7d37412b::t_bc8ac958ebbf1e 8,298,300-318,322,324-339
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7104f343f2f8693307668053345553933fc2e8b8",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
