@@ -1,0 +1,35 @@
+apps/aggregator/test/did-resolver.test.ts
+  s_871d7d7d37412b::t_0bdd39956710eb 44
+apps/labeler/test/issuer-d1.test.ts
+  s_871d7d7d37412b::t_b3d3e1adf610c5 28-35,40,49,58-60
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_871d7d7d37412b::t_438a4bb6478bfd 184-187
+packages/admin/tests/editor/html-block-editor.test.tsx
+  s_871d7d7d37412b::t_66883847246906 73-77,115,118,147,163,199,495
+packages/admin/tests/editor/link-destination-input.test.tsx
+  s_871d7d7d37412b::t_a19d871424e383 166
+packages/admin/tests/editor/toolbar.test.tsx
+  s_871d7d7d37412b::t_8291cf456e7853 761-762
+packages/core/tests/integration/database/media-usage-cleanup-plan.test.ts
+  s_871d7d7d37412b::t_f0f88526db0d9d 63
+packages/core/tests/integration/database/media-usage-status-migration.test.ts
+  s_871d7d7d37412b::t_a79893854f4588 355-358
+packages/core/tests/workerd/media-usage-collection-deletion-d1.test.ts
+  s_871d7d7d37412b::t_ba2e3f2067fbeb 3,26-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4e4fbe7460cffd6a7a4c45bf6d75246f4cbbcd54",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
