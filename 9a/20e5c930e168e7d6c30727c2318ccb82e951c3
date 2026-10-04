@@ -1,0 +1,19 @@
+packages/core/tests/unit/components/inline-portable-text-superscript-subscript.test.ts
+  s_871d7d7d37412b::t_7d5b503bcc71e5 9,37-38,41-42,54-58,64-67,74,82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9a20e5c930e168e7d6c30727c2318ccb82e951c3",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
