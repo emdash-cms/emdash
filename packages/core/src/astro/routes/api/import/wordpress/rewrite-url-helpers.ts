@@ -103,6 +103,10 @@ export interface PortableTextBlock {
 	};
 	/** Linked-image target: legacy string, or `{ href, blank? }` from the editor */
 	link?: string | { href?: string; blank?: boolean };
+	/** Embed blocks: `provider` is "video" or "audio" for self-hosted media */
+	provider?: string;
+	url?: string;
+	html?: string;
 	// For nested content like galleries
 	images?: PortableTextBlock[];
 	columns?: Array<{ content?: PortableTextBlock[] }>;
@@ -145,6 +149,31 @@ export function rewritePortableTextUrls(
 				}
 				changed = true;
 				urlsRewritten++;
+			}
+		}
+
+		// Handle self-hosted video and audio embeds. The WordPress converter turns core/video
+		// and core/audio into an embed block holding the media URL, so the imported file is
+		// uploaded but the post keeps playing it from the old site until this is rewritten.
+		// Embeds of a hosted provider (YouTube, Vimeo, ...) are never in the media map.
+		if (block._type === "embed" && (block.provider === "video" || block.provider === "audio")) {
+			if (block.url) {
+				const newUrl = findMatchingUrl(block.url, exactMap, baseMap);
+				if (newUrl) {
+					block.url = newUrl;
+					changed = true;
+					urlsRewritten++;
+				}
+			}
+
+			// core/video and core/audio also keep the original markup, which holds the same URL
+			if (typeof block.html === "string") {
+				const htmlResult = rewriteStringUrls(block.html, exactMap, baseMap);
+				if (htmlResult.changed) {
+					block.html = htmlResult.newValue;
+					changed = true;
+					urlsRewritten += htmlResult.urlsRewritten;
+				}
 			}
 		}
 
