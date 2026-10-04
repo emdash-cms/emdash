@@ -1,0 +1,59 @@
+.changeset/atomic-content-saves.md
+  s_871d7d7d37412b::t_9ac06e7ee315e5 1-8
+packages/admin/src/router.tsx
+  s_5764de537fe6d7::t_69583dca896606 1551-1560,1562,1575-1583,1600-1609,1611
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_5764de537fe6d7::t_a072ae3a3d8210 12,69,116-123,869,888-892,894,896-900,903-911,913,918,927-939,957,1018-1146,1256
+packages/core/src/api/handlers/content.ts
+  s_871d7d7d37412b::t_cd813cdb2ea62f 1504-1507,1614-1627,1747-1749
+packages/core/src/database/repositories/content.ts
+  s_871d7d7d37412b::t_7fcf4282e8c27b 1026-1031,1081-1083,1086,1090-1099
+packages/core/src/database/repositories/types.ts
+  s_e955802d4454f7::t_843d50c5826345 44
+packages/core/src/emdash-runtime.ts
+  s_8d1d9eceb6ba87::t_65e2b88ffe4436 3773,3814-3820,3888,3890-3901,3914-3921,3930-3935,3942,3984-3985,3989-3991
+packages/core/tests/integration/content/save-rev-race.test.ts
+  s_871d7d7d37412b::t_5bb74d839ce85e 1-167
+packages/core/tests/workerd/content-save-revision-d1.test.ts
+  s_871d7d7d37412b::t_ef95b718c99d5e 1-161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bda5b4beacad69b0edc6703a8e46649a2a91a886",
+  "prompts": {},
+  "sessions": {
+    "s_5764de537fe6d7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a102b3-ee09-78a1-8c5a-1b8533b05fbe",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_8d1d9eceb6ba87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5ec4347f-45bc-455a-ba4d-9d2e7ea2cf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e955802d4454f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "373c9c4e-0cc8-4065-b607-4edad4116b90",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
