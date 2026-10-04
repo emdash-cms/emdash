@@ -113,7 +113,7 @@ function serializeEditorState(input: {
 function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
 	for (const [name, field] of Object.entries(fields)) {
-		if (field.defaultValue !== undefined) data[name] = field.defaultValue;
+		if (field.defaultValue !== undefined) data[name] = structuredClone(field.defaultValue);
 	}
 	return data;
 }

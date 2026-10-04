@@ -1174,6 +1174,36 @@ describe("ContentEditor", () => {
 			});
 		});
 
+		it("keeps nested defaults unchanged across new entries", async () => {
+			const fields: Record<string, FieldDescriptor> = {
+				settings: {
+					kind: "json",
+					label: "Settings",
+					defaultValue: { links: [{ label: "Original" }] },
+				},
+				sections: { kind: "json", label: "Sections", defaultValue: ["First"] },
+			};
+			const expected = { settings: { links: [{ label: "Original" }] }, sections: ["First"] };
+			const onSave = vi.fn<NonNullable<ContentEditorProps["onSave"]>>();
+			const first = await renderEditor({ isNew: true, fields, onSave });
+
+			await first.getByRole("button", { name: "Save" }).first().click();
+			expect(onSave).toHaveBeenCalledTimes(1);
+			const saved = onSave.mock.calls[0]![0].data;
+			expect(saved).toEqual(expected);
+			await first.unmount();
+
+			(saved.settings as { links: { label: string }[] }).links[0]!.label = "Changed";
+			(saved.sections as string[]).push("Second");
+			expect(fields.settings!.defaultValue).toEqual(expected.settings);
+			expect(fields.sections!.defaultValue).toEqual(expected.sections);
+
+			const second = await renderEditor({ isNew: true, fields, onSave });
+			await second.getByRole("button", { name: "Save" }).first().click();
+			expect(onSave).toHaveBeenCalledTimes(2);
+			expect(onSave.mock.calls[1]![0].data).toEqual(expected);
+		});
+
 		it("shows an existing entry's stored values, not the defaults, and stays saved", async () => {
 			const screen = await renderEditor({
 				isNew: false,
