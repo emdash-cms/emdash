@@ -483,7 +483,7 @@ msgstr "{characters, plural, other {# karakter}}"
 
 #: packages/admin/src/components/ContentList.tsx:895
 msgid "{collectionLabel} pagination"
-msgstr ""
+msgstr "Paginasi {collectionLabel}"
 
 #: packages/admin/src/components/editor/TableControls.tsx:219
 msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
@@ -521,7 +521,7 @@ msgstr "{earlierCount, plural, other {Tampilkan # entri sebelumnya}}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:219
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
-msgstr ""
+msgstr "{failed, plural, other {# surel gagal dikirim. Periksa penyedia surel.}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:198
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
@@ -741,15 +741,15 @@ msgstr "{selectedCount, plural, other {Pindahkan # item ke tempat sampah? Anda d
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
-msgstr ""
+msgstr "{sent, plural, other {Disureli # pengguna}}"
 
 #: packages/admin/src/locales/emails.ts:71
 msgid "{siteName} has moved to {siteHost}"
-msgstr ""
+msgstr "{siteName} telah dipindahkan ke {siteHost}"
 
 #: packages/admin/src/locales/emails.ts:72
 msgid "{siteName} is now at {siteHost}. Sign in there from now on."
-msgstr ""
+msgstr "{siteName} sekarang berada di {siteHost}. Masuk di sana mulai sekarang."
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
 msgid "{siteZone} · Your time: {viewerZone}"
@@ -1173,7 +1173,7 @@ msgstr "Tambahkan kunci sandi baru"
 #. placeholder {0}: window.location.host
 #: packages/admin/src/components/settings/SecuritySettings.tsx:171
 msgid "Add a passkey for {0}"
-msgstr ""
+msgstr "Tambahkan kunci sandi untuk {0}"
 
 #: packages/admin/src/routes/bylines.tsx:700
 msgid "Add a person or team to credit on your content."
@@ -1322,7 +1322,7 @@ msgstr "Tambahkan baris di bawah"
 #: packages/admin/src/lib/api/marketplace.ts:444
 #: packages/admin/src/lib/api/marketplace.ts:455
 msgid "Add scripts and styles to your site's pages"
-msgstr ""
+msgstr "Tambahkan skrip dan gaya ke halaman situs Anda"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:390
 msgid "Add selected"
@@ -1566,7 +1566,7 @@ msgstr "Juga diminta, tetapi tidak tersedia untuk peran Anda:"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:65
 msgid "visualEditing.altText"
-msgstr ""
+msgstr "Teks alternatif"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:514
@@ -1990,7 +1990,7 @@ msgstr "Avatar"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:74
 msgid "visualEditing.back"
-msgstr ""
+msgstr "Kembali"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:628
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
@@ -2463,7 +2463,7 @@ msgstr "Ubah <0>{0}</0> dari <1>{1}</1> ke <2>{2}</2>? Mereka akan kehilangan ak
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
 #: packages/admin/src/components/settings/GeneralSettings.tsx:374
 msgid "Change domain"
-msgstr ""
+msgstr "Ubah domain"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:510
 msgid "Change Favicon"
@@ -2516,7 +2516,7 @@ msgstr "Karakter antara judul halaman dan nama situs (cth., \"Pos Saya | Situs S
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:155
 msgid "Check and switch"
-msgstr ""
+msgstr "Periksa dan alihkan"
 
 #: packages/admin/src/components/PluginManager.tsx:205
 msgid "Check for updates"
@@ -2603,7 +2603,7 @@ msgstr "Memeriksa situs ini"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:155
 msgid "Checking…"
-msgstr ""
+msgstr "Memeriksa…"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:395
 #: packages/admin/src/components/TaxonomySidebar.tsx:396
@@ -3178,7 +3178,7 @@ msgstr "Lanjutkan penomoran"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Continue on {handoverHost}"
-msgstr ""
+msgstr "Lanjutkan di {handoverHost}"
 
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:72
 msgid "Continue to finish signing in. The link works only once."
@@ -4085,7 +4085,7 @@ msgstr "Menghapus..."
 #: packages/admin/src/lib/api/marketplace.ts:443
 #: packages/admin/src/lib/api/marketplace.ts:454
 msgid "Deliver all email your site sends"
-msgstr ""
+msgstr "Kirimkan semua surel yang dikirim situs Anda"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:254
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:147
@@ -4112,7 +4112,7 @@ msgstr "Tolak"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:66
 msgid "visualEditing.altTextPlaceholder"
-msgstr ""
+msgstr "Deskripsikan gambar"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:521
 #: packages/admin/src/components/PortableTextEditor.tsx:4774
@@ -4356,7 +4356,7 @@ msgstr "Domain berhasil ditambahkan"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Domain changed to {url}"
-msgstr ""
+msgstr "Domain diubah ke {url}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:120
 msgid "Domain removed"
@@ -4448,7 +4448,7 @@ msgstr "Mengunduh paket"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:53
 msgid "visualEditing.draft"
-msgstr ""
+msgstr "Draf"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
 #: packages/admin/src/components/ContentList.tsx:1021
@@ -4706,7 +4706,7 @@ msgstr "Sunting item menu"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:50
 msgid "visualEditing.editMode"
-msgstr "visualEditing.editMode"
+msgstr "Mode sunting"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:881
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
@@ -4750,7 +4750,7 @@ msgstr "Menyunting di situs ini dijeda hingga impor selesai."
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:41
 msgid "visualEditing.sessionExpired"
-msgstr "visualEditing.sessionExpired"
+msgstr "Sesi penyuntingan kedaluwarsa. Muat ulang halaman untuk melanjutkan."
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -4790,11 +4790,11 @@ msgstr "Alamat surel"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:641
 msgid "Email all users?"
-msgstr ""
+msgstr "Sureli semua pengguna?"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:403
 msgid "Email every other user a link to the sign-in page at {siteHost}."
-msgstr ""
+msgstr "Sureli setiap pengguna lain tautan ke halaman masuk di {siteHost}."
 
 #: packages/admin/src/components/SetupWizard.tsx:242
 #: packages/admin/src/components/SignupPage.tsx:67
@@ -4820,7 +4820,7 @@ msgstr "Pengaturan Surel"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:413
 msgid "Email users"
-msgstr ""
+msgstr "Sureli pengguna"
 
 #: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Email verified"
@@ -4985,7 +4985,7 @@ msgstr "Masukkan kode dari terminal Anda"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:91
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
-msgstr ""
+msgstr "Masukkan domain di bawah. EmDash memeriksa bahwa itu menyajikan situs ini sebelum beralih."
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:123
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:132
@@ -5063,7 +5063,7 @@ msgstr "Setiap rekaman dan berkas media yang diimpor dibaca kembali dan cocok de
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:642
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
-msgstr ""
+msgstr "Setiap pengguna lain dengan akun aktif mendapatkan surel mengatakan situs sekarang berada di {siteHost}, dengan tautan untuk masuk di sana. Kunci sandi dari alamat lain tidak bekerja di {siteHost}, jadi pengguna masuk dengan tautan surel dan menambahkan kunci sandi baru."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1986
 msgid "Every place using this image will update to the cropped version."
@@ -5225,7 +5225,7 @@ msgstr "Gagal membatalkan impor"
 
 #: packages/admin/src/lib/api/settings.ts:118
 msgid "Failed to change the domain"
-msgstr ""
+msgstr "Gagal mengubah domain"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:74
 msgid "Failed to communicate with plugin"
@@ -5251,7 +5251,7 @@ msgstr "Gagal membuat {0}"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:203
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
-msgstr ""
+msgstr "Gagal membuat tautan masuk"
 
 #: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Failed to create admin"
@@ -5424,7 +5424,7 @@ msgstr "Gagal menduplikasi"
 
 #: packages/admin/src/lib/api/settings.ts:105
 msgid "Failed to email users"
-msgstr ""
+msgstr "Gagal menyureli pengguna"
 
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/lib/api/plugins.ts:146
@@ -5540,7 +5540,7 @@ msgstr "Gagal mengambil istilah"
 
 #: packages/admin/src/lib/api/settings.ts:87
 msgid "Failed to fetch the site domain"
-msgstr ""
+msgstr "Gagal mengambil domain situs"
 
 #: packages/admin/src/lib/api/core-update.ts:29
 msgid "Failed to fetch update status"
@@ -5655,7 +5655,7 @@ msgstr "Gagal memuat impor"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:77
 msgid "visualEditing.mediaLoadFailed"
-msgstr ""
+msgstr "Gagal memuat media"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:128
 msgid "Failed to load passkeys"
@@ -6284,7 +6284,7 @@ msgstr "Pergi ke Dasbor"
 
 #: packages/admin/src/locales/emails.ts:74
 msgid "Go to sign-in"
-msgstr ""
+msgstr "Pergi ke masuk"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:308
 msgid "Goes live"
@@ -6435,7 +6435,7 @@ msgstr "Sembunyikan token"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:52
 msgid "visualEditing.hideToolbar"
-msgstr "visualEditing.hideToolbar"
+msgstr "Sembunyikan toolbar"
 
 #: packages/admin/src/components/Shell.tsx:86
 msgid "Hide toolbar"
@@ -6566,7 +6566,7 @@ msgstr "Jika ada akun untuk <0>{email}</0>, kami telah mengirimkan tautan masuk.
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:123
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
-msgstr ""
+msgstr "Jika situs belum dapat dicapai dari internet, contohnya di localhost atau di balik halaman masuk, Anda dapat menggunakan alamat tanpa pemeriksaan."
 
 #: packages/admin/src/locales/emails.ts:67
 msgid "If you didn't request this, you can safely ignore this email."
@@ -6583,7 +6583,7 @@ msgstr "Opsi blok iframe"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:63
 msgid "visualEditing.image"
-msgstr ""
+msgstr "Gambar"
 
 #: packages/admin/src/components/FieldEditor.tsx:437
 #: packages/admin/src/components/FieldEditor.tsx:1240
@@ -7366,11 +7366,11 @@ msgstr "Ditautkan dari"
 #. placeholder {0}: siteDomain.configuredUrl
 #: packages/admin/src/components/settings/GeneralSettings.tsx:360
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
-msgstr ""
+msgstr "Tautan di surel dan pengaya menggunakan {0}, diatur oleh konfigurasi penggelaran."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:84
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
-msgstr ""
+msgstr "Tautan di surel dan pengaya, peta situs, dan URL absolut di metadata pencarian dan sosial akan menggunakan domain baru."
 
 #: packages/admin/src/components/RelationForm.tsx:279
 msgid "Links to"
@@ -7597,7 +7597,7 @@ msgstr "Memuat..."
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:75
 msgid "visualEditing.loading"
-msgstr ""
+msgstr "Memuat…"
 
 #: packages/admin/src/components/BylineFilter.tsx:147
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
@@ -7860,7 +7860,7 @@ msgstr "Media di map ini akan kembali ke Pustaka Utama. Tidak ada berkas yang ak
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:73
 msgid "visualEditing.mediaLibrary"
-msgstr ""
+msgstr "Pustaka Media"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:166
 #: packages/admin/src/components/MediaLibrary.tsx:755
@@ -8359,7 +8359,7 @@ msgstr "Tipe Konten Baru"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:96
 msgid "New domain"
-msgstr ""
+msgstr "Domain baru"
 
 #: packages/admin/src/routes/byline-schema.tsx:224
 msgid "New field"
@@ -8640,12 +8640,12 @@ msgstr "Tidak ada iframe ditemukan dalam kode ini. Untuk sematan yang menjalanka
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:64
 msgid "visualEditing.noImageSelected"
-msgstr ""
+msgstr "Tidak ada gambar dipilih"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:76
 msgid "visualEditing.noImagesFound"
-msgstr ""
+msgstr "Tidak ada gambar ditemukan"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:271
 msgid "No images in this gallery yet."
@@ -9030,7 +9030,7 @@ msgstr "Buka map {0}"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:51
 msgid "visualEditing.openInAdmin"
-msgstr "visualEditing.openInAdmin"
+msgstr "Buka di admin"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Open in editor"
@@ -9063,7 +9063,7 @@ msgstr "Buka dasbor"
 
 #: packages/admin/src/locales/emails.ts:73
 msgid "Open the sign-in page at the new address:"
-msgstr ""
+msgstr "Buka halaman masuk di alamat baru:"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
 msgid "Open Windows settings"
@@ -9299,7 +9299,7 @@ msgstr "Kunci sandi adalah cara aman tanpa kata sandi untuk masuk ke akun Anda. 
 
 #: packages/admin/src/locales/emails.ts:75
 msgid "Passkeys from the old address don't work there. Sign in with an email link, then add a passkey in Security settings."
-msgstr ""
+msgstr "Kunci sandi dari alamat lama tidak bekerja di sana. Masuk dengan tautan surel, lalu tambahkan kunci sandi di pengaturan Keamanan."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:297
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:475
@@ -9308,19 +9308,19 @@ msgstr "Kunci Sandi Tidak Tersedia di Sini"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Passkeys only work at the address where they were created."
-msgstr ""
+msgstr "Kunci sandi hanya bekerja pada alamat di mana mereka telah dibuat."
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:172
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
-msgstr ""
+msgstr "Kunci sandi hanya bekerja pada alamat di mana mereka telah dibuat. Tambahkan yang ada di sini sehingga Anda dapat masuk pada alamat ini pada kali selanjutnya."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:113
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
-msgstr ""
+msgstr "Kunci sandi hanya bekerja pada alamat di mana mereka telah dibuat. Setelah mengalihkan, pertahankan masuk pada alamat saat ini, atau gunakan tautan masuk surel pada yang baru."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:382
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
-msgstr ""
+msgstr "Kunci sandi hanya bekerja pada alamat di mana mereka telah dibuat. Lanjutkan di {handoverHost} untuk masuk di sana tanpa kunci sandi, lalu tambahkan yang baru untuk alamat itu."
 
 #: packages/admin/src/components/auth/PasskeyContextMessage.tsx:5
 msgid "Passkeys require a <0>secure context</0>: use <1>HTTPS</1>, or open the admin at <2>http://localhost</2> (with your dev port). Plain <3>http://</3> on a custom hostname is not treated as secure, even on loopback."
@@ -9602,7 +9602,7 @@ msgstr "Pengaya"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:89
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
-msgstr ""
+msgstr "Arahkan domain pada situs ini. Di Cloudflare, buka Worker Anda di Workers & Pages, pergi ke tab Domains, dan tambahkan domain."
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:342
 msgid "Point-in-Time Restore"
@@ -9781,7 +9781,7 @@ msgstr "Kebijakan publikasi memblokir konten terjadwal"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:39
 msgid "visualEditing.publish"
-msgstr "visualEditing.publish"
+msgstr "Publikasikan"
 
 #: packages/admin/src/components/ContentList.tsx:583
 #: packages/admin/src/components/ContentSettingsPanel.tsx:900
@@ -9800,7 +9800,7 @@ msgstr "Publikasikan perubahan?"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:46
 msgid "visualEditing.publishFailed"
-msgstr "visualEditing.publishFailed"
+msgstr "Publikasi gagal. Periksa izin Anda dan coba lagi."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
 #: packages/admin/src/components/ContentSettingsPanel.tsx:463
@@ -9828,7 +9828,7 @@ msgstr "Dipublikasikan"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:54
 msgid "visualEditing.published"
-msgstr ""
+msgstr "Dipublikasikan"
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:347
@@ -9882,7 +9882,7 @@ msgstr "Ringkasan publikasi"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:40
 msgid "visualEditing.publishing"
-msgstr "visualEditing.publishing"
+msgstr "Memublikasikan…"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
 msgid "Python"
@@ -9902,7 +9902,7 @@ msgstr "Buat cepat relasi"
 
 #: packages/admin/src/components/FieldEditor.tsx:1028
 msgid "Quick create names the relationship after this field and this collection, takes how many entries it holds from the switch above, and puts no limit on how many entries link back the other way. <0>Create the relationship yourself</0> to set its slug, the name each side goes by, and both limits, then pick it above."
-msgstr "Buat cepat menamai relasi setelah kolom dan koleksi ini, mengambil berapa banyak entri yang dipegangnya dari sakelar di atas, dan tidak membatasi berapa banyak entri yang ditautkan kembali ke arah lain. <0>Buat relasi sendiri</0> untuk mengatur slug, nama yang digunakan kedua sisi, dan kedua batas, lalu pilih di atas.<<<<<<< HEAD"
+msgstr "Buat cepat menamai relasi setelah kolom dan koleksi ini, mengambil berapa banyak entri yang dipegangnya dari sakelar di atas, dan tidak membatasi berapa banyak entri yang ditautkan kembali ke arah lain. <0>Buat relasi sendiri</0> untuk mengatur slug, nama yang digunakan kedua sisi, dan kedua batas, lalu pilih di atas."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
 #: packages/admin/src/components/PortableTextEditor.tsx:1887
@@ -9917,7 +9917,7 @@ msgstr "Meta mentah"
 #: packages/admin/src/lib/api/marketplace.ts:442
 #: packages/admin/src/lib/api/marketplace.ts:453
 msgid "Read and change email your site sends"
-msgstr ""
+msgstr "Baca dan ubah surel yang dikirimkan situs Anda"
 
 #: packages/admin/src/lib/api/marketplace.ts:422
 msgid "Read and restore trashed content"
@@ -10107,7 +10107,7 @@ msgstr "Favicon yang dirujuk tidak tersedia."
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:45
 msgid "visualEditing.refreshPage"
-msgstr "visualEditing.refreshPage"
+msgstr "Muat ulang halaman"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:337
 msgid "Refresh status"
@@ -10189,7 +10189,7 @@ msgstr "Memuat ulang rencana…"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:72
 msgid "visualEditing.removeImage"
-msgstr ""
+msgstr "Hapus"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
@@ -10358,7 +10358,7 @@ msgstr "Grup kolom berulang"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:70
 msgid "visualEditing.replaceImage"
-msgstr ""
+msgstr "Ganti"
 
 #: packages/admin/src/components/ContentEditor.tsx:3172
 #: packages/admin/src/components/ContentEditor.tsx:3209
@@ -10897,7 +10897,7 @@ msgstr "Simpan tanggal"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:62
 msgid "visualEditing.saveFailed"
-msgstr ""
+msgstr "Gagal menyimpan"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:112
 msgid "Save name"
@@ -10923,7 +10923,7 @@ msgstr "Simpan Pengaturan"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:61
 msgid "visualEditing.saved"
-msgstr ""
+msgstr "Disimpan"
 
 #: packages/admin/src/components/SaveButton.tsx:34
 msgid "Saved"
@@ -10961,7 +10961,7 @@ msgstr "Menyimpan..."
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:60
 msgid "visualEditing.saving"
-msgstr ""
+msgstr "Menyimpan…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Saving…"
@@ -11557,11 +11557,11 @@ msgstr "Kirimkan surel undangan kepada anggota tim baru."
 
 #: packages/admin/src/lib/api/marketplace.ts:441
 msgid "Send email through your site"
-msgstr ""
+msgstr "Kirimkan surel melalui situs Anda"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:643
 msgid "Send emails"
-msgstr ""
+msgstr "Kirimkan surel"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
 msgid "Send Invite"
@@ -11652,7 +11652,7 @@ msgstr "Atur ke draf"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:402
 msgid "Set up an email provider in Email settings to email users."
-msgstr ""
+msgstr "Siapkan penyedia surel di pengaturan Surel untuk menyureli pengguna."
 
 #: packages/admin/src/components/MediaLibrary.tsx:815
 msgid "Set up media usage tracking"
@@ -11910,11 +11910,11 @@ msgstr "URL Situs"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site URL set to {url}"
-msgstr ""
+msgstr "URL situs diatur ke {url}"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:83
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
-msgstr ""
+msgstr "Peta situs dan URL absolut di metadata pencarian dan sosial akan menggunakan domain baru. Tautan di surel dan pengaya tetap menggunakan {configuredUrl}, diatur oleh konfigurasi penggelaran."
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:345
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
@@ -12369,7 +12369,7 @@ msgstr "Rincian verifikasi teknisi"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:399
 msgid "Tell users where to sign in"
-msgstr ""
+msgstr "Beritahukan pengguna di mana untuk masuk"
 
 #: packages/admin/src/components/SetupWizard.tsx:218
 msgid "Template:"
@@ -12714,7 +12714,7 @@ msgstr "Hasil pengaya usang karena penyunting diubah saat bekerja."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:356
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
-msgstr ""
+msgstr "Alamat publik dari situs Anda, digunakan untuk tautan di surel dan pengaya, peta situs, dan URL absolut di metadata pencarian dan sosial"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:219
 #: packages/admin/src/components/RegistryPluginDetail.tsx:543
@@ -12838,7 +12838,7 @@ msgstr "Blok ini tidak dapat disunting karena definisi tersimpannya tidak tersed
 #. placeholder {0}: url.host
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:220
 msgid "This block embeds a page from {0}."
-msgstr ""
+msgstr "Blok ini menyematkan halaman dari {0}."
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
 msgid "This block runs JavaScript."
@@ -13405,7 +13405,7 @@ msgstr "Tempat sampah kosong."
 
 #: packages/admin/src/components/ContentList.tsx:971
 msgid "Trash pagination"
-msgstr ""
+msgstr "Paginasi tempat sampah"
 
 #: packages/admin/src/components/FieldEditor.tsx:408
 msgid "True/false toggle"
@@ -13620,7 +13620,7 @@ msgstr "Tidak diterbitkan"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:55
 msgid "visualEditing.unpublishedChanges"
-msgstr ""
+msgstr "Perubahan belum dipublikasikan"
 
 #: packages/admin/src/components/ContentTypeList.tsx:153
 msgid "Unregistered Content Tables Found"
@@ -13633,7 +13633,7 @@ msgstr "Penetapan belum terselesaikan"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:59
 msgid "visualEditing.unsaved"
-msgstr ""
+msgstr "Belum disimpan"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Unsaved content may leave your site"
@@ -13755,7 +13755,7 @@ msgstr "Memperbarui..."
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:71
 msgid "visualEditing.uploadImage"
-msgstr ""
+msgstr "Unggah"
 
 #: packages/admin/src/components/MediaLibrary.tsx:804
 msgid "Upload"
@@ -13852,7 +13852,7 @@ msgstr "Mengunggah"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:78
 msgid "visualEditing.uploadingFile"
-msgstr ""
+msgstr "Mengunggah {filename}…"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:114
 #: packages/admin/src/components/media/ImageDropTarget.tsx:134
@@ -13932,7 +13932,7 @@ msgstr "Gunakan [param] atau [...rest] di jalur untuk pencocokan pola."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:133
 msgid "Use {fallbackUrl} anyway"
-msgstr ""
+msgstr "Gunakan {fallbackUrl} saja"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
 msgid "Use a security key"
@@ -14601,7 +14601,7 @@ msgstr "Anda akan mendaftar sebagai <0>{roleName}</0>"
 #. placeholder {0}: window.location.host
 #: packages/admin/src/components/settings/GeneralSettings.tsx:381
 msgid "You're signed in at {0}"
-msgstr ""
+msgstr "Anda masuk di {0}"
 
 #: packages/admin/src/components/SetupWizard.tsx:631
 msgid "You're signed in via Cloudflare Access"
@@ -14703,7 +14703,7 @@ msgstr "Peran Anda tidak mengizinkan salah satu izin yang diminta perangkat ini.
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:81
 msgid "Your site is currently at {currentUrl}."
-msgstr ""
+msgstr "Situs Anda saat ini di {currentUrl}."
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:691
