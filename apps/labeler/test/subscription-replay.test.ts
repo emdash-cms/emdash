@@ -27,7 +27,7 @@ describe("com.atproto.label.subscribeLabels", () => {
 		const second = await issuer.block(decisionContext("replay-second"), PROFILE_SUBJECT);
 		const history = [...first.labels, ...second.labels];
 
-		const replay = await connect(0);
+		const replay = await connect(history[0]!.sequence - 1);
 		const replayed = await collectFrames(replay, history.length);
 		expect(replayed.map((frame) => frame.sequence)).toEqual(history.map((label) => label.sequence));
 		replay.close(1000, "reconnect");

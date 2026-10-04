@@ -5,6 +5,7 @@
 
 import { i18n } from "@lingui/core";
 import { GapCursor } from "@tiptap/pm/gapcursor";
+import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import { describe, expect, it, vi } from "vitest";
@@ -294,33 +295,48 @@ describe("HTML block editor", () => {
 	});
 
 	it("shows the earlier code after undo in the editor", async () => {
-		const { pm, latest } = await renderEditor();
+		const { editor, pm, latest } = await renderEditor();
 		await insertFromSlashMenu(pm);
-		await userEvent.keyboard("one");
-		await vi.waitFor(() => expect(htmlBlocks(latest())[0]?.html).toBe("one"));
-		await pause(600);
-		await userEvent.keyboard(" two");
-		await vi.waitFor(() => expect(htmlBlocks(latest())[0]?.html).toBe("one two"));
+		vi.useFakeTimers();
+		try {
+			await userEvent.fill(codeEditors()[0]!, "one");
+			await vi.runOnlyPendingTimersAsync();
+			expect(htmlBlocks(latest())[0]?.html).toBe("one");
+			editor.view.dispatch(closeHistory(editor.state.tr));
+			await userEvent.fill(codeEditors()[0]!, "one two");
+			await vi.runOnlyPendingTimersAsync();
+			expect(htmlBlocks(latest())[0]?.html).toBe("one two");
 
-		await userEvent.keyboard("{Escape}");
-		await userEvent.keyboard("{ControlOrMeta>}z{/ControlOrMeta}");
+			await userEvent.keyboard("{Escape}");
+			await userEvent.keyboard("{ControlOrMeta>}z{/ControlOrMeta}");
 
-		await vi.waitFor(() => expect(codeEditors()[0]?.textContent).toBe("one"));
+			await vi.waitFor(() => expect(codeEditors()[0]?.textContent).toBe("one"));
+			await vi.runOnlyPendingTimersAsync();
+			expect(htmlBlocks(latest())[0]?.html).toBe("one");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("undoes the latest typing from the toolbar without losing it to an older step", async () => {
-		const { screen, pm, latest } = await renderEditor();
+		const { screen, editor, pm, latest } = await renderEditor();
 		await insertFromSlashMenu(pm);
-		await userEvent.keyboard("one");
-		await vi.waitFor(() => expect(htmlBlocks(latest())[0]?.html).toBe("one"));
-		await pause(600);
+		vi.useFakeTimers();
+		try {
+			await userEvent.fill(codeEditors()[0]!, "one");
+			await vi.runOnlyPendingTimersAsync();
+			expect(htmlBlocks(latest())[0]?.html).toBe("one");
+			editor.view.dispatch(closeHistory(editor.state.tr));
 
-		await userEvent.keyboard(" two");
-		await screen.getByRole("button", { name: "Undo" }).click();
+			await userEvent.fill(codeEditors()[0]!, "one two");
+			await screen.getByRole("button", { name: "Undo" }).click();
 
-		await vi.waitFor(() => expect(htmlBlocks(latest())[0]?.html).toBe("one"));
-		await pause(400);
-		expect(htmlBlocks(latest())[0]?.html).toBe("one");
+			await vi.waitFor(() => expect(htmlBlocks(latest())[0]?.html).toBe("one"));
+			await vi.runOnlyPendingTimersAsync();
+			expect(htmlBlocks(latest())[0]?.html).toBe("one");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("writes typing that waited while the editor was read-only", async () => {

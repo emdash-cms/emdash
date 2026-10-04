@@ -16,9 +16,10 @@ beforeAll(async () => {
 
 describe("authoritative assessment lifecycle", () => {
 	it("observes duplicate runs once and makes transitions idempotent across step retries", async () => {
+		const idempotencyCid = `${PROFILE_CID.slice(0, -4)}idma`;
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const params = await createAssessmentWorkflowParams({
-			subject: { uri: PROFILE_URI, cid: PROFILE_CID, kind: "profile" },
+			subject: { uri: PROFILE_URI, cid: idempotencyCid, kind: "profile" },
 			versions: ASSESSMENT_VERSIONS,
 			logicalTriggerId: "event:100",
 		});
@@ -42,7 +43,7 @@ describe("authoritative assessment lifecycle", () => {
 		expect(retriedStart).toEqual(started);
 		const prepared = {
 			moderationFingerprint: "sha256:prepared",
-			canonicalInput: { schemaVersion: 1, subject: { uri: PROFILE_URI, cid: PROFILE_CID } },
+			canonicalInput: { schemaVersion: 1, subject: { uri: PROFILE_URI, cid: idempotencyCid } },
 			coverage: { text: "complete", links: "not-present", media: "not-present" },
 		};
 		const stored = await lifecycle.persistPrepared(

@@ -223,12 +223,13 @@ describe("assessment Workflow foundation", () => {
 	});
 
 	it("finalizes as an error when required display media cannot be acquired", async () => {
+		const acquisitionErrorCid = `${RELEASE_CID.slice(0, -4)}meri`;
 		const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const checksum = await computeMultihash(PNG_BYTES);
 		if (!checksum.success) throw new Error("test checksum could not be computed");
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const params = await createAssessmentWorkflowParams({
-			subject: { uri: RELEASE_URI, cid: RELEASE_CID, kind: "release" },
+			subject: { uri: RELEASE_URI, cid: acquisitionErrorCid, kind: "release" },
 			versions: ASSESSMENT_VERSIONS,
 			logicalTriggerId: "workflow:media-acquisition-error",
 		});
@@ -257,7 +258,7 @@ describe("assessment Workflow foundation", () => {
 					async verifyExactRecord() {
 						return {
 							uri: RELEASE_URI,
-							cid: RELEASE_CID,
+							cid: acquisitionErrorCid,
 							record: createReleaseRecord(checksum.value),
 							verification: "did-mst-signature" as const,
 						};
@@ -303,7 +304,7 @@ describe("assessment Workflow foundation", () => {
 			JSON.stringify({
 				event: "assessment_media_acquisition_failed",
 				subjectUri: RELEASE_URI,
-				subjectCid: RELEASE_CID,
+				subjectCid: acquisitionErrorCid,
 				error: "fixture media service unavailable",
 			}),
 		);
