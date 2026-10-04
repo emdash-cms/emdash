@@ -1126,6 +1126,55 @@ describe("htmlToPortableText", () => {
 		});
 	});
 
+	it("keeps a code block that is followed by a paragraph", () => {
+		const html = "<p>Before</p><pre>Get-ADUser -Filter *</pre><p>After</p>";
+		const result = htmlToPortableText(html);
+
+		expect(result.map((block) => block._type)).toEqual(["block", "code", "block"]);
+		expect(result[1]).toMatchObject({ _type: "code", code: "Get-ADUser -Filter *" });
+	});
+
+	it("keeps a code block when the pre element has attributes", () => {
+		const html =
+			'<p>Before</p><pre class="brush: powershell">Get-ADUser -Filter *</pre><p>After</p>';
+		const result = htmlToPortableText(html);
+
+		expect(result.map((block) => block._type)).toEqual(["block", "code", "block"]);
+		expect(result[1]).toMatchObject({ _type: "code", code: "Get-ADUser -Filter *" });
+	});
+
+	it("converts line breaks inside a code block to newlines", () => {
+		const html = "<pre>$x = 1<br />$y = 2<br>$z = 3</pre>";
+		const result = htmlToPortableText(html);
+
+		expect(result[0]).toMatchObject({
+			_type: "code",
+			code: "$x = 1\n$y = 2\n$z = 3",
+		});
+	});
+
+	it("keeps the language of a code block", () => {
+		const html = '<pre><code class="language-powershell">Get-ADUser</code></pre>';
+		const result = htmlToPortableText(html);
+
+		expect(result[0]).toMatchObject({
+			_type: "code",
+			code: "Get-ADUser",
+			language: "powershell",
+		});
+	});
+
+	it("does not treat an element whose name starts with a block tag as that block", () => {
+		const html = "<p>One</p><param name=\"movie\" value=\"video.swf\" /><p>Two</p>";
+		const result = htmlToPortableText(html);
+
+		const paragraphs = result.filter((block) => block._type === "block") as PortableTextTextBlock[];
+		expect(paragraphs.map((block) => block.children.map((child) => child.text).join(""))).toEqual([
+			"One",
+			"Two",
+		]);
+	});
+
 	it("converts horizontal rules", () => {
 		const html = "<p>Before</p><hr><p>After</p>";
 		const result = htmlToPortableText(html);
