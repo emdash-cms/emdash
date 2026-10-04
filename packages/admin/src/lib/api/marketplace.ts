@@ -410,6 +410,7 @@ export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
  * Canonical names are the keys; legacy names alias to the same labels so
  * old manifests still render meaningful copy until they're republished.
  */
+import type { PluginCapability } from "@emdash-cms/plugin-types";
 import type { MessageDescriptor } from "@lingui/core";
 
 export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
@@ -437,6 +438,10 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"users:read": msg`Read user accounts`,
 	"network:request": msg`Connect to network hosts and load external plugin admin images`,
 	"network:request:unrestricted": msg`Connect to any network host and load external plugin admin images (unrestricted)`,
+	"email:send": msg`Send email through your site`,
+	"hooks.email-events:register": msg`Read and change email your site sends`,
+	"hooks.email-transport:register": msg`Deliver all email your site sends`,
+	"hooks.page-fragments:register": msg`Add scripts and styles to your site's pages`,
 	// Legacy aliases (still emitted by older installed manifests)
 	"read:content": msg`Read your content`,
 	"write:content": msg`Create, update, and delete content`,
@@ -445,7 +450,10 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"read:users": msg`Read user accounts`,
 	"network:fetch": msg`Connect to network hosts and load external plugin admin images`,
 	"network:fetch:any": msg`Connect to any network host and load external plugin admin images (unrestricted)`,
-};
+	"email:intercept": msg`Read and change email your site sends`,
+	"email:provide": msg`Deliver all email your site sends`,
+	"page:inject": msg`Add scripts and styles to your site's pages`,
+} satisfies Record<PluginCapability, MessageDescriptor>;
 
 /** Capability names that grant scoped network access (legacy + canonical). */
 const NETWORK_REQUEST_CAPABILITIES = new Set(["network:request", "network:fetch"]);

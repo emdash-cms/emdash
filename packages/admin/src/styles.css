@@ -258,7 +258,8 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	--tw-prose-pre-bg: var(--color-kumo-contrast);
 }
 
-.emdash-code-block {
+.emdash-code-block,
+.emdash-code-editor {
 	--emdash-code-background: #f7f7f5;
 	--emdash-code-foreground: #24292f;
 	--emdash-code-muted: #57606a;
@@ -266,14 +267,16 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	--emdash-code-string: #0a3069;
 	--emdash-code-number: #0550ae;
 	--emdash-code-title: #7545c7;
+}
 
+.emdash-code-block {
 	background: var(--emdash-code-background);
 	color: var(--emdash-code-foreground);
 	caret-color: var(--emdash-code-foreground);
 	padding-block: 1.875rem;
 }
 
-[data-mode="dark"] .emdash-code-block {
+[data-mode="dark"] :is(.emdash-code-block, .emdash-code-editor) {
 	--emdash-code-background: #202020;
 	--emdash-code-foreground: #f0f3f6;
 	--emdash-code-muted: #c9d1d9;
@@ -287,6 +290,17 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	background: transparent;
 	color: inherit;
 	font-size: 0.8125rem;
+}
+
+.emdash-code-editor .cm-editor {
+	font-size: 0.8125rem;
+}
+
+/* 16px stops iOS from zooming into the editor. */
+@media (pointer: coarse) {
+	.emdash-code-editor .cm-editor {
+		font-size: 1rem;
+	}
 }
 
 .emdash-code-block :is(.hljs-comment, .hljs-quote) {

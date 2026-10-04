@@ -14,6 +14,7 @@ import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
+import { createAdminLocaleResolverPlugin, readAdminLocaleManifest } from "./admin-locales.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import {
 	VIRTUAL_CONFIG_ID,
@@ -120,7 +121,7 @@ export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string
  * Resolve path to the admin package dist directory.
  * Used for Vite alias to ensure the package is found in pnpm's isolated node_modules.
  */
-function resolveAdminDist(): string {
+export function resolveAdminDist(): string {
 	const require = createRequire(import.meta.url);
 	const adminPath = require.resolve("@emdash-cms/admin");
 	// Return the directory containing the built package (dist/)
@@ -425,6 +426,7 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
+	const adminLocales = options.resolvedConfig.admin?.locales;
 	const useSyncExternalStoreShimPath = resolveIntegrationShim("use-sync-external-store.js");
 	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
 		"use-sync-external-store-with-selector.js",
@@ -445,6 +447,7 @@ export function createViteConfig(
 			__EMDASH_PSEUDO_LOCALE__: JSON.stringify(
 				isDev && process.env["EMDASH_PSEUDO_LOCALE"] === "1",
 			),
+			__EMDASH_ADMIN_LOCALES__: JSON.stringify(adminLocales ?? null),
 		},
 		resolve: {
 			dedupe: ["@emdash-cms/admin", "react", "react-dom"],
@@ -493,6 +496,18 @@ export function createViteConfig(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options, command),
+			// Must precede the Lingui macro plugin, which redirects source
+			// catalog imports to dist/ in dev.
+			...(adminLocales
+				? [
+						createAdminLocaleResolverPlugin({
+							adminDistPath,
+							adminSourcePath,
+							locales: adminLocales,
+							manifest: readAdminLocaleManifest(adminDistPath),
+						}),
+					]
+				: []),
 			...(cloudflare ? [] : [createWorkersBuiltinsExternalPlugin()]),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
@@ -646,6 +661,17 @@ export function createViteConfig(
 						"emdash > lowlight",
 						"emdash > highlight.js",
 						"emdash > highlight.js/lib/core",
+						// The HTML block's code editor loads these lazily. Discovering
+						// them on first use would re-optimize and reload the admin.
+						"emdash > @emdash-cms/admin > @codemirror/autocomplete",
+						"emdash > @emdash-cms/admin > @codemirror/commands",
+						"emdash > @emdash-cms/admin > @codemirror/lang-css",
+						"emdash > @emdash-cms/admin > @codemirror/lang-html",
+						"emdash > @emdash-cms/admin > @codemirror/lang-javascript",
+						"emdash > @emdash-cms/admin > @codemirror/language",
+						"emdash > @emdash-cms/admin > @codemirror/state",
+						"emdash > @emdash-cms/admin > @codemirror/view",
+						"emdash > @emdash-cms/admin > @lezer/highlight",
 					]
 				: [
 						"@emdash-cms/admin",

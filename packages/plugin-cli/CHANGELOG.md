@@ -1,5 +1,11 @@
 # @emdash-cms/registry-cli
 
+## 0.13.2
+
+### Patch Changes
+
+- [#3582](https://github.com/emdash-cms/emdash/pull/3582) [`5bbcc3c`](https://github.com/emdash-cms/emdash/commit/5bbcc3c10bb92cfebce1754d2b6503a0aaed013a) Thanks [@leostera](https://github.com/leostera)! - Fixes type checking for the interactive release trigger in `emdash-plugin release setup` while preserving cancellation behavior.
+
 ## 0.13.1
 
 ### Patch Changes

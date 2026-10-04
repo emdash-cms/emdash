@@ -821,7 +821,7 @@ describe("Slash Command Menu", () => {
 		await vi.waitFor(() => {
 			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
 			expect(htmlBlock).toBeDefined();
-			expect((htmlBlock as { attrs?: { html?: string } }).attrs?.html).toBe("");
+			expect(htmlBlock?.attrs).toMatchObject({ html: "", css: "", js: "", isolated: true });
 		});
 	});
 

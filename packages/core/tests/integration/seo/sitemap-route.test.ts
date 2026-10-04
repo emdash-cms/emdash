@@ -9,10 +9,12 @@
  */
 
 import type { APIContext } from "astro";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { SITEMAP_PAGE_SIZE } from "../../../src/api/handlers/seo.js";
 import { GET as getSitemap } from "../../../src/astro/routes/sitemap-[collection].xml.js";
+import { GET as getSitemapIndex } from "../../../src/astro/routes/sitemap.xml.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -387,5 +389,82 @@ describe("sitemap-[collection].xml route", () => {
 		expect(xml).toContain(
 			'<xhtml:link rel="alternate" hreflang="x-default" href="http://localhost:4321/blog/hello" />',
 		);
+	});
+
+	describe("pagination", () => {
+		/** Published rows whose IDs sort before any ULID, so they fill page 1 first. */
+		async function insertFiller(count: number) {
+			const rows = Array.from({ length: count }, (_, i) => `000000${String(i).padStart(6, "0")}`);
+			for (let i = 0; i < rows.length; i += 200) {
+				const values = rows
+					.slice(i, i + 200)
+					.map((id) => sql`(${id}, ${`filler-${id}`}, 'published', 'en', ${id})`);
+				await sql`
+					INSERT INTO ec_post (id, slug, status, locale, translation_group)
+					VALUES ${sql.join(values)}
+				`.execute(db);
+			}
+		}
+
+		it("rejects an explicit first-page suffix and malformed names", async () => {
+			await repo.create({ type: "post", slug: "hello", data: {}, status: "published" });
+
+			for (const param of ["post-1", "post-02", "post-", "post-x", "post-1000000"]) {
+				const res = await getSitemap(mockContext({ collectionSlug: param, db }));
+				expect(res.status, param).toBe(404);
+			}
+		});
+
+		it("continues on the next page and keeps cross-page hreflang alternates", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: false });
+			await insertFiller(SITEMAP_PAGE_SIZE - 1);
+			const en = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: {},
+				status: "published",
+				locale: "en",
+			});
+			const fr = await repo.create({
+				type: "post",
+				slug: "bonjour",
+				data: {},
+				status: "published",
+				locale: "fr",
+				translationOf: en.id,
+			});
+			const enLoc = "http://localhost:4321/blog/hello";
+			const frLoc = "http://localhost:4321/fr/blog/bonjour";
+			const [firstLoc, secondLoc] = en.id < fr.id ? [enLoc, frLoc] : [frLoc, enLoc];
+
+			const first = await (await getSitemap(mockContext({ collectionSlug: "post", db }))).text();
+			const secondRes = await getSitemap(mockContext({ collectionSlug: "post-2", db }));
+			expect(secondRes.status).toBe(200);
+			const second = await secondRes.text();
+
+			expect(first.match(/<url>/g)).toHaveLength(SITEMAP_PAGE_SIZE);
+			expect(first).toContain(`<loc>${firstLoc}</loc>`);
+			expect(first).not.toContain(`<loc>${secondLoc}</loc>`);
+			expect(second.match(/<url>/g)).toHaveLength(1);
+			expect(second).toContain(`<loc>${secondLoc}</loc>`);
+
+			for (const xml of [first, second]) {
+				expect(xml).toContain(`<xhtml:link rel="alternate" hreflang="en" href="${enLoc}" />`);
+				expect(xml).toContain(`<xhtml:link rel="alternate" hreflang="fr" href="${frLoc}" />`);
+				expect(xml).toContain(
+					`<xhtml:link rel="alternate" hreflang="x-default" href="${enLoc}" />`,
+				);
+			}
+
+			const third = await getSitemap(mockContext({ collectionSlug: "post-3", db }));
+			expect(third.status).toBe(404);
+
+			const index = await (
+				await getSitemapIndex(mockContext({ collectionSlug: undefined, db }))
+			).text();
+			expect(index).toContain("<loc>http://localhost:4321/sitemap-post.xml</loc>");
+			expect(index).toContain("<loc>http://localhost:4321/sitemap-post-2.xml</loc>");
+			expect(index).not.toContain("sitemap-post-3.xml");
+		});
 	});
 });

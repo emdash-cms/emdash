@@ -440,6 +440,51 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(fields?.subtitle?.validation).toBeUndefined();
 	});
 
+	it("forwards each field's default value, including false and 0", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "Posts",
+			labelSingular: "Post",
+			source: "test",
+		});
+		await registry.createField("posts", {
+			slug: "featured",
+			label: "Featured",
+			type: "boolean",
+			defaultValue: true,
+		});
+		await registry.createField("posts", {
+			slug: "pinned",
+			label: "Pinned",
+			type: "boolean",
+			defaultValue: false,
+		});
+		await registry.createField("posts", {
+			slug: "priority",
+			label: "Priority",
+			type: "number",
+			defaultValue: 0,
+		});
+		await registry.createField("posts", {
+			slug: "color",
+			label: "Color",
+			type: "select",
+			validation: { options: ["red", "blue"] },
+			defaultValue: "blue",
+		});
+		await registry.createField("posts", { slug: "subtitle", label: "Subtitle", type: "string" });
+
+		const runtime = buildRuntime(db);
+		const fields = (await runtime.getManifest()).collections.posts?.fields;
+
+		expect(fields?.featured?.defaultValue).toBe(true);
+		expect(fields?.pinned?.defaultValue).toBe(false);
+		expect(fields?.priority?.defaultValue).toBe(0);
+		expect(fields?.color?.defaultValue).toBe("blue");
+		expect(fields?.subtitle).not.toHaveProperty("defaultValue");
+	});
+
 	it("reports the implicit English content locale when i18n is not configured", async () => {
 		const runtime = buildRuntime(db);
 

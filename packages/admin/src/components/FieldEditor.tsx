@@ -47,7 +47,7 @@ import type {
 } from "../lib/api/relations.js";
 import { fetchBlockTypes } from "../lib/api/schema.js";
 import { singularize } from "../lib/singularize.js";
-import { cn } from "../lib/utils";
+import { cn, slugifyIdentifier } from "../lib/utils";
 import { AllowedTypesEditor } from "./AllowedTypesEditor";
 import { DialogError } from "./DialogError";
 import {
@@ -60,8 +60,6 @@ import {
 // Constants
 // ============================================================================
 
-const SLUG_INVALID_CHARS_REGEX = /[^a-z0-9]+/g;
-const SLUG_LEADING_TRAILING_REGEX = /^_|_$/g;
 const SEARCHABLE_FIELD_TYPES = new Set<FieldType>([
 	"string",
 	"text",
@@ -98,13 +96,6 @@ function freeSidesFor(relation: RelationWithUsage, collection: string): Relation
 	return sides;
 }
 
-function slugifyLabel(value: string): string {
-	return value
-		.toLowerCase()
-		.replace(SLUG_INVALID_CHARS_REGEX, "_")
-		.replace(SLUG_LEADING_TRAILING_REGEX, "");
-}
-
 /**
  * A picker is called what the side it picks is called: a field over the linked
  * end of Chapters → Lessons is "Lessons", and the inverse one is "Chapters".
@@ -117,7 +108,7 @@ function nameAfterRelation(
 ): FieldFormState {
 	if (!relation || state.labelEdited) return state;
 	const label = side === "parent" ? relation.childLabel : relation.parentLabel;
-	return { ...state, label, slug: slugifyLabel(label) };
+	return { ...state, label, slug: slugifyIdentifier(label) };
 }
 
 /** What one side of a relation calls a single entry. */
@@ -165,6 +156,8 @@ interface FieldTypeConfig {
 
 interface RepeaterSubFieldState {
 	slug: string;
+	slugEdited: boolean;
+	slugPersisted: boolean;
 	type: string;
 	label: string;
 	required: boolean;
@@ -222,7 +215,9 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			pattern: field.validation?.pattern ?? "",
 			options: field.validation?.options?.join("\n") ?? "",
 			subFields: (field.validation as Record<string, unknown>)?.subFields
-				? ((field.validation as Record<string, unknown>).subFields as RepeaterSubFieldState[])
+				? ((field.validation as Record<string, unknown>).subFields as RepeaterSubFieldState[]).map(
+						(sf) => ({ ...sf, slugEdited: true, slugPersisted: true }),
+					)
 				: [],
 			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
@@ -494,7 +489,7 @@ export function FieldEditor({
 			label: value,
 			labelEdited: true,
 			// Only auto-generate for new fields
-			...(field ? {} : { slug: slugifyLabel(value) }),
+			...(field ? {} : { slug: slugifyIdentifier(value) }),
 		}));
 	};
 
@@ -541,8 +536,18 @@ export function FieldEditor({
 		);
 	};
 
+	const subFieldSlugs = formState.subFields.map((sf) => sf.slug);
+	const duplicateSubFieldSlugs = new Set(
+		subFieldSlugs.filter((value, index) => value && subFieldSlugs.indexOf(value) !== index),
+	);
+	const subFieldsValid =
+		selectedType !== "repeater" ||
+		(duplicateSubFieldSlugs.size === 0 &&
+			formState.subFields.every((sf) => sf.slug.trim().length > 0 && sf.label.trim().length > 0));
+
 	const handleSave = () => {
 		if (!selectedType || !slug || !label) return;
+		if (!subFieldsValid) return;
 
 		if (selectedType === "reference" && !boundToRelation && !targetCollection) {
 			setRefError(true);
@@ -639,6 +644,11 @@ export function FieldEditor({
 	};
 
 	const typeConfig = FIELD_TYPES.find((fieldType) => fieldType.type === selectedType);
+
+	const slugError =
+		!field && !slug && label.trim().length > 0
+			? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
 
 	// The relationship step is the relation dialog, in this dialog's frame:
 	// same header, same scroll area, same actions as defining one anywhere else.
@@ -822,6 +832,7 @@ export function FieldEditor({
 											onChange={(e) => setField("slug", e.target.value)}
 											placeholder="field_slug"
 											disabled={!!field}
+											error={slugError}
 										/>
 										{field && (
 											<p className="text-xs text-kumo-subtle mt-2">
@@ -1188,7 +1199,14 @@ export function FieldEditor({
 												...prev,
 												subFields: [
 													...prev.subFields,
-													{ slug: "", type: "string", label: "", required: false },
+													{
+														slug: "",
+														slugEdited: false,
+														slugPersisted: false,
+														type: "string",
+														label: "",
+														required: false,
+													},
 												],
 											}))
 										}
@@ -1203,28 +1221,48 @@ export function FieldEditor({
 									</p>
 								)}
 
-								{formState.subFields.map((sf, i) => (
-									<div key={i} className="flex gap-2 items-start border rounded-lg p-3">
-										<div className="flex-1 space-y-2">
-											<div className="grid grid-cols-2 gap-2">
-												<Input
-													label={t`Label`}
-													value={sf.label}
-													onChange={(e) => {
-														const updated = [...formState.subFields];
-														updated[i] = {
-															...sf,
-															label: e.target.value,
-															slug: e.target.value
-																.toLowerCase()
-																.replace(SLUG_INVALID_CHARS_REGEX, "_")
-																.replace(SLUG_LEADING_TRAILING_REGEX, ""),
-														};
-														setFormState((prev) => ({ ...prev, subFields: updated }));
-													}}
-													placeholder={t`Field label`}
-												/>
-												<div>
+								{formState.subFields.map((sf, i) => {
+									const subFieldSlugError = duplicateSubFieldSlugs.has(sf.slug)
+										? t`Sub-field slugs must be unique.`
+										: sf.label.trim().length > 0 && !sf.slug
+											? t`A slug cannot be generated from this label. Type one manually.`
+											: undefined;
+									return (
+										<div key={i} className="flex gap-2 items-start border rounded-lg p-3">
+											<div className="flex-1 space-y-2">
+												<div className="grid grid-cols-3 gap-2">
+													<Input
+														label={t`Label`}
+														value={sf.label}
+														onChange={(e) => {
+															const updated = [...formState.subFields];
+															updated[i] = {
+																...sf,
+																label: e.target.value,
+																...(sf.slugEdited
+																	? {}
+																	: { slug: slugifyIdentifier(e.target.value) }),
+															};
+															setFormState((prev) => ({ ...prev, subFields: updated }));
+														}}
+														placeholder={t`Field label`}
+													/>
+													<Input
+														label={t`Slug`}
+														value={sf.slug}
+														disabled={sf.slugPersisted}
+														onChange={(e) => {
+															const updated = [...formState.subFields];
+															updated[i] = {
+																...sf,
+																slug: e.target.value,
+																slugEdited: true,
+															};
+															setFormState((prev) => ({ ...prev, subFields: updated }));
+														}}
+														placeholder={t`field_slug`}
+														error={subFieldSlugError}
+													/>
 													<Select
 														label={t`Type`}
 														value={sf.type}
@@ -1246,32 +1284,37 @@ export function FieldEditor({
 														}}
 													/>
 												</div>
+												{sf.slugPersisted && (
+													<p className="text-xs text-kumo-subtle">
+														{t`Sub-field slugs cannot be changed after creation.`}
+													</p>
+												)}
+												<Switch
+													label={t`Required`}
+													checked={sf.required ?? false}
+													onCheckedChange={(checked) => {
+														const updated = [...formState.subFields];
+														updated[i] = { ...sf, required: checked };
+														setFormState((prev) => ({ ...prev, subFields: updated }));
+													}}
+												/>
 											</div>
-											<Switch
-												label={t`Required`}
-												checked={sf.required ?? false}
-												onCheckedChange={(checked) => {
-													const updated = [...formState.subFields];
-													updated[i] = { ...sf, required: checked };
-													setFormState((prev) => ({ ...prev, subFields: updated }));
-												}}
-											/>
+											<Button
+												variant="ghost"
+												shape="square"
+												onClick={() =>
+													setFormState((prev) => ({
+														...prev,
+														subFields: prev.subFields.filter((_, j) => j !== i),
+													}))
+												}
+												aria-label={t`Remove sub-field`}
+											>
+												<Trash className="h-4 w-4 text-kumo-danger" />
+											</Button>
 										</div>
-										<Button
-											variant="ghost"
-											shape="square"
-											onClick={() =>
-												setFormState((prev) => ({
-													...prev,
-													subFields: prev.subFields.filter((_, j) => j !== i),
-												}))
-											}
-											aria-label={t`Remove sub-field`}
-										>
-											<Trash className="h-4 w-4 text-kumo-danger" />
-										</Button>
-									</div>
-								))}
+									);
+								})}
 
 								<div className="grid grid-cols-2 gap-4">
 									<Input
@@ -1330,7 +1373,8 @@ export function FieldEditor({
 										!slug ||
 										!label ||
 										isSaving ||
-										(selectedType === "repeater" && formState.subFields.length === 0)
+										(selectedType === "repeater" && formState.subFields.length === 0) ||
+										!subFieldsValid
 									}
 								>
 									{isSaving ? t`Saving...` : field ? t`Update Field` : t`Add Field`}

@@ -19,7 +19,12 @@ import { runMigrations } from "../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
-import { emdashLoader, resetTaxonomyNamesCache, type SortDirection } from "../../src/loader.js";
+import {
+	emdashLoader,
+	LARGE_TERM_ASSIGNMENTS,
+	resetTaxonomyNamesCache,
+	type SortDirection,
+} from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 
@@ -27,6 +32,11 @@ interface CapturedQuery {
 	sql: string;
 	parameters: readonly unknown[];
 }
+
+// Every post carries the term, and a term this large is walked on the `ec_post`
+// index; a smaller one is sought on the pivot and sorted instead.
+const POSTS = LARGE_TERM_ASSIGNMENTS;
+const PAGE_SIZE = 5;
 
 let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
@@ -63,7 +73,7 @@ beforeEach(async () => {
 		label: "News",
 		locale: "en",
 	});
-	for (let i = 0; i < 40; i++) {
+	for (let i = 0; i < POSTS; i++) {
 		const post = await content.create({
 			type: "post",
 			slug: `post-${i}`,
@@ -118,7 +128,7 @@ it.each([
 				collection: "_emdash",
 				filter: {
 					type: "post",
-					limit: 5,
+					limit: PAGE_SIZE,
 					cursor,
 					where: where as never,
 					orderBy: { published_at: direction as SortDirection },
@@ -139,5 +149,5 @@ it.each([
 		pages++;
 	} while (cursor);
 
-	expect(pages).toBe(8);
+	expect(pages).toBe(Math.ceil(POSTS / PAGE_SIZE));
 });

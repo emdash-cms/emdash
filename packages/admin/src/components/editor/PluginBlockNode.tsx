@@ -253,7 +253,12 @@ function PluginBlockNodeView({
 	const displayId = id
 		? getDisplayId(id, blockType)
 		: Object.values(data)
-				.filter((v) => typeof v === "string" && v.length > 0)
+				.filter(
+					(v): v is string | number =>
+						(typeof v === "string" && v.length > 0) ||
+						(typeof v === "number" && Number.isFinite(v)),
+				)
+				.map(String)
 				.join(", ") || blockType;
 
 	return (

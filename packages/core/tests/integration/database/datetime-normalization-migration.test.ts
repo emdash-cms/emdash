@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	formatDatetimeStorageReport,
@@ -112,6 +112,25 @@ describeEachDialect("datetime normalization migration", (dialect) => {
 			starts_at: "2026-08-21T16:00:00.000Z",
 			sessions: [{ begins_at: "2026-01-15T15:00:00.000Z" }],
 		});
+	});
+
+	it("logs the report as info only when values are rewritten", async () => {
+		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		const info = vi.spyOn(console, "info").mockImplementation(() => {});
+		try {
+			await insertEvent("event-clean", "2026-08-21T16:00:00.000Z", "2026-01-15T15:00:00.000Z");
+			await normalizeDatetimeStorage(ctx.db);
+			expect(info).not.toHaveBeenCalled();
+			expect(error).not.toHaveBeenCalled();
+
+			await insertEvent("event-naive", "2026-01-15T09:30", "2026-01-15T15:00:00.000Z");
+			await normalizeDatetimeStorage(ctx.db);
+			expect(info).toHaveBeenCalledWith(expect.stringContaining("1 noncanonical values (1 naive)"));
+			expect(error).not.toHaveBeenCalled();
+		} finally {
+			error.mockRestore();
+			info.mockRestore();
+		}
 	});
 
 	it("processes more than one bounded page", async () => {

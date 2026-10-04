@@ -20,7 +20,7 @@ import { z } from "zod";
 import { SiteWriteBlockedError } from "../transfer/fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
-import { PluginRouteError } from "./route-error.js";
+import { isPluginRouteError, PluginRouteError } from "./route-error.js";
 import { parseDeclaredPluginRouteInput } from "./route-wire.js";
 import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./types.js";
 
@@ -293,7 +293,7 @@ export class PluginRouteHandler {
 				};
 			}
 			// Handle known error types
-			if (error instanceof PluginRouteError) {
+			if (isPluginRouteError(error)) {
 				return {
 					success: false,
 					error: {

@@ -32,8 +32,9 @@ export async function acquireGitHubPermit(
 	gate: GitHubRateLimitGate,
 	category: string,
 	consumer: string,
+	maxWaitMs = INLINE_PERMIT_WAIT_MS,
 ): Promise<GitHubPermit> {
-	const deadline = Date.now() + INLINE_PERMIT_WAIT_MS;
+	const deadline = Date.now() + maxWaitMs;
 	for (;;) {
 		const permit = await gate.permit(category, consumer);
 		if (permit.allowed || permit.retryAt > deadline) return permit;

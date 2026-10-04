@@ -485,6 +485,21 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings/email.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/settings/domain",
+		entrypoint: resolveRoute("api/settings/domain.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/domain/notify",
+		entrypoint: resolveRoute("api/settings/domain-notify.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/site/domain-proof",
+		entrypoint: resolveRoute("api/site/domain-proof.ts"),
+	});
+
 	// Backup routes
 	injectRoute({
 		pattern: "/_emdash/api/settings/backups",
@@ -1203,6 +1218,11 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/auth/magic-link/verify",
 		entrypoint: resolveRoute("api/auth/magic-link/verify.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/auth/handover",
+		entrypoint: resolveRoute("api/auth/handover.ts"),
 	});
 
 	// OAuth routes

@@ -19,6 +19,7 @@ The collection page lists its entries. From here you can:
 - select **Add New** to create an entry;
 - search by the entry title, slug, and fields marked as searchable;
 - filter by publishing state, author, byline, date, and locale;
+- move between pages of entries and choose whether a page shows 20, 50, or 100;
 - select entries for bulk publishing, returning to draft, or moving to Trash; and
 - open **Trash** to restore or permanently delete an entry.
 
@@ -75,11 +76,55 @@ display size and optional tooltip. **Edit asset** there opens the underlying Med
 where changing or replacing the asset can affect other entries that use it. See
 [Media Library](/guides/media-library/#edit-an-image-used-in-content) for that distinction.
 
-<Aside type="caution">
-	The standard Portable Text renderer sanitizes HTML blocks. It permits iframe content only from
-	YouTube and Vimeo. A custom HTML-block renderer must apply its own sanitization and provider
-	allowlist before inserting HTML into a page.
+### Add HTML, CSS and JavaScript
+
+An HTML block holds code the other blocks can't express, such as an embed, a signup form or a small
+widget. Its tabs are **HTML**, **CSS**, **JS** and **Preview**. Each code tab is a code editor where
+Tab indents; press Escape to return to the surrounding text. The **CSS** and **JS** tabs are
+optional: you can also paste a whole snippet, with its `<style>` and `<script>` elements, into the
+**HTML** tab.
+
+**Preview** shows the block as your site renders it. When you open an entry, a block that runs
+JavaScript waits until you select **Run preview**, so a broken script can't freeze the editor.
+
+The block's menu sets how your site renders it:
+
+- **Isolated frame** runs the block's HTML, CSS and JavaScript in a sandboxed frame that grows with
+  its content. The frame can't read your site's cookies, storage or pages, and your site's styles
+  don't reach it. Relative links resolve from your site's root. After a visitor clicks inside the
+  frame, it can open other pages in the visitor's tab or a new one. New HTML blocks use this mode,
+  but blocks pasted from another website or browser tab don't. Don't size content to the frame's
+  viewport, as with `height: 100vh`: the frame grows to fit it, which makes the content taller
+  again, until the frame reaches 20,000 pixels.
+- **Inline** puts the HTML into the page, where it uses your site's styles. Your site keeps text
+  formatting, links, lists, tables, images and iframes, and removes other markup, such as scripts,
+  `<style>` elements, `style` attributes, media and form controls. Iframes from sites other than
+  YouTube and Vimeo are emptied. An inline block has no **CSS** or **JS** tab.
+
+Search engines may not treat text inside an isolated frame as part of the page. Put text that
+matters for search in paragraphs or an inline block.
+
+<Aside>
+	In a deployed admin, previews follow the admin's security policy, which blocks scripts, styles,
+	fonts and other resources from other sites, but not images or https frames. A note below the
+	preview says when this happens. Your site can still load them.
 </Aside>
+
+### Embed a page from another site
+
+An iframe block shows a page from another site, such as a video, a map or a form. Type `/iframe`,
+then paste the site's embed code or a link into the **Code** tab. YouTube and Vimeo links become
+their players, and any other https link is embedded as it is. **Preview** shows the embedded page.
+When you open an entry, a saved block waits until you select **Load preview**, so the admin doesn't
+load other sites' pages until you ask. Iframe blocks pasted from another website or browser tab
+arrive empty.
+
+Only https pages can be embedded, and the block keeps only the parts of an embed code it needs: the
+address, the title, the size, full-screen support and the permissions players use. Some sites refuse
+to appear inside another site's page; their preview stays blank or shows an error from that site.
+
+An embed code that runs a script instead of an iframe, such as some social media posts, belongs in
+an [HTML block](#add-html-css-and-javascript).
 
 ## Save draft changes
 
@@ -168,13 +213,13 @@ entry (Authors for their own entries, and Editors and higher roles for any entry
 reschedule it, remove its schedule, or publish an overdue entry now. On a phone, the panel opens as a
 sheet at the bottom of the screen.
 
-The collection and state filters, and the locale filter on multilingual sites, narrow both views. On
-narrow screens they share one **Filter** menu. The filters, the view, the month, and the open entry
-are kept in the page URL, so you can bookmark or share it.
+Use **Filter** to narrow both views by collection and state, and by locale on multilingual sites. The
+filters, the view, the month, and the open entry are kept in the page URL, so you can bookmark or
+share it.
 
-Entries are placed on days in the site's time zone, which the calendar names above the view. If your
-browser uses a different time zone, the calendar says so, and entry times also appear in your own
-time zone.
+Entries are placed on days in the site's time zone, which the calendar names beside the month. If
+your browser uses a different time zone, the calendar says so, and entry times also appear in your
+own time zone.
 
 The calendar shows:
 

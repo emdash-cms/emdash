@@ -30,7 +30,6 @@ import {
 	filterItems,
 	groupByDay,
 	isCalendarState,
-	isMonthCutOff,
 	isMonthKey,
 	monthGridDays,
 	readList,
@@ -40,7 +39,6 @@ import {
 	type CalendarFilterValues,
 	type CalendarItem,
 	type CalendarSearch,
-	type CalendarState,
 	type CalendarView,
 } from "../lib/calendar.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
@@ -116,6 +114,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			visibleCollectionEntries(manifest.collections).map(([slug, collection]) => ({
 				slug,
 				label: collection.label,
+				icon: collection.icon,
 			})),
 		[manifest.collections],
 	);
@@ -186,19 +185,11 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const visibleItems = React.useMemo(() => filterItems(items, filters), [items, filters]);
 	// Pages load oldest first, so a truncated range is complete before its last loaded day.
 	const loadedThrough = calendar.data?.truncated ? items.at(-1)?.day : undefined;
-	const monthCutOff = isMonthCutOff(month, loadedThrough);
 	const days = React.useMemo(() => groupByDay(visibleItems), [visibleItems]);
-	const counts = React.useMemo(() => {
-		if (!calendar.data || monthCutOff) return undefined;
-		const result: Record<CalendarState, number> = {
-			published: 0,
-			scheduled: 0,
-			update: 0,
-			overdue: 0,
-		};
-		for (const item of visibleItems) if (item.day.startsWith(month)) result[item.state] += 1;
-		return result;
-	}, [calendar.data, monthCutOff, visibleItems, month]);
+	const unfilteredDays = React.useMemo(
+		() => (filtered ? groupByDay(items) : days),
+		[filtered, items, days],
+	);
 
 	const updateSearch = (patch: Partial<CalendarSearch>, options?: { push?: boolean }) => {
 		void navigate({
@@ -252,6 +243,12 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			...(patch.locales && { locales: toListParam(patch.locales) }),
 			...(patch.states && { states: toListParam(patch.states) }),
 		});
+	};
+	const filterTriggerRef = React.useRef<HTMLButtonElement>(null);
+	// The notices offering this unmount once it runs, so focus moves to the Filter menu.
+	const clearFilters = () => {
+		setFilters({ collections: [], locales: [], states: [] });
+		filterTriggerRef.current?.focus();
 	};
 	const prefetchMonth = (target: string) => {
 		if (!isMonthKey(target)) return;
@@ -319,7 +316,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						locales={locales}
 						value={filters}
 						onChange={setFilters}
-						compact={compact}
+						triggerRef={filterTriggerRef}
 					/>
 				}
 			/>
@@ -329,7 +326,6 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				display={display}
 				zoneTime={zoneTime}
 				loading={calendar.isPending && calendar.isFetching}
-				counts={counts}
 				onPrevious={() => goToMonth(shiftMonth(month, -1))}
 				onNext={() => goToMonth(shiftMonth(month, 1))}
 				onToday={() => goToMonth(undefined)}
@@ -368,6 +364,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						month={month}
 						gridDays={gridDays}
 						days={days}
+						unfilteredDays={unfilteredDays}
 						today={today}
 						now={now}
 						display={display}
@@ -377,6 +374,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						selectedKey={selectedKey}
 						onSelect={openEntry}
 						onMonthChange={goToMonth}
+						onClearFilters={filtered ? clearFilters : undefined}
 					/>
 				) : (
 					<CalendarAgenda
@@ -388,9 +386,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						display={display}
 						loading={!calendar.data}
 						loadedThrough={loadedThrough}
-						onClearFilters={
-							filtered ? () => setFilters({ collections: [], locales: [], states: [] }) : undefined
-						}
+						onClearFilters={filtered ? clearFilters : undefined}
 						selectedKey={selectedKey}
 						onSelect={openEntry}
 					/>

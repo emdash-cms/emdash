@@ -50,6 +50,7 @@ export { default as Gallery } from "./Gallery.astro";
 export { default as Columns } from "./Columns.astro";
 export { default as Break } from "./Break.astro";
 export { default as HtmlBlock } from "./HtmlBlock.astro";
+export { default as Iframe } from "./Iframe.astro";
 export { default as Table } from "./Table.astro";
 export { default as Button } from "./Button.astro";
 export { default as Buttons } from "./Buttons.astro";
@@ -76,6 +77,7 @@ import EmbedComponent from "./Embed.astro";
 import FileComponent from "./File.astro";
 import GalleryComponent from "./Gallery.astro";
 import HtmlBlockComponent from "./HtmlBlock.astro";
+import IframeComponent from "./Iframe.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
 import { emdashMarkComponents } from "./marks.js";
@@ -89,8 +91,8 @@ import TableComponent from "./Table.astro";
  * Includes renderers for:
  * - Block styles: paragraph, h1..h6, blockquote — with `textAlign` honoured
  *   as a WordPress-style `has-text-align-{value}` class (#1201)
- * - Block types: image, code, embed, gallery, columns, break, htmlBlock, table,
- *   button, buttons, cover, file, pullquote
+ * - Block types: image, code, embed, gallery, columns, break, htmlBlock, iframe,
+ *   table, button, buttons, cover, file, pullquote
  * - Marks: superscript, subscript, underline, strike-through, link
  */
 export const emdashComponents = {
@@ -107,6 +109,7 @@ export const emdashComponents = {
 		columns: ColumnsComponent,
 		break: BreakComponent,
 		htmlBlock: HtmlBlockComponent,
+		iframe: IframeComponent,
 		table: TableComponent,
 		button: ButtonComponent,
 		buttons: ButtonsComponent,

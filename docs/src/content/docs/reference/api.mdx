@@ -305,7 +305,7 @@ The result also carries a `cacheHint` naming the rows the page read. A route tha
 
 ### `decodeSlug()` and `slugify()`
 
-Use `decodeSlug()` on a dynamic route parameter before passing it to a content query. It returns `undefined` for a missing parameter and otherwise applies `decodeURIComponent()`, which throws for malformed percent encoding:
+Use `decodeSlug()` on a dynamic route parameter before passing it to a content query. It returns `undefined` for a missing parameter or a malformed percent-encoded string, and otherwise returns the decoded slug:
 
 ```ts
 function decodeSlug(raw: string | undefined): string | undefined;
@@ -512,6 +512,44 @@ const count = await getCommentCount("posts", post.data.id);
 ```
 
 `threaded` nests replies below their parent. The default `sort` is `"oldest"`; `"best"` ranks top-level comments by reactions and enables reaction counts automatically. Server-rendered comment queries return at most 500 approved comments; use the REST API when a client needs pagination.
+
+### Translate the comment components
+
+The `Comments` and `CommentForm` components from `emdash/ui/comments` render English text by default. Pass a `labels` object to replace any of it. Keys you leave out, or set to `undefined`, keep their English default:
+
+```astro
+<Comments
+	collection="posts"
+	contentId={post.data.id}
+	threaded
+	labels={{
+		heading: (count) => (count === 1 ? "1 Kommentar" : `${count} Kommentare`),
+		member: "Mitglied",
+		like: "Gefällt mir",
+	}}
+/>
+<CommentForm
+	collection="posts"
+	contentId={post.data.id}
+	labels={{
+		name: "Name",
+		email: "E-Mail",
+		comment: "Kommentar",
+		submit: "Kommentar senden",
+		submitting: "Wird gesendet …",
+		published: "Kommentar veröffentlicht",
+		pending: "Kommentar wird vor der Veröffentlichung geprüft",
+		error: "Der Kommentar konnte nicht gesendet werden.",
+		networkError: "Netzwerkfehler. Bitte versuche es erneut.",
+	}}
+/>
+```
+
+`Comments` accepts `heading`, `member`, and `like`. `heading` receives the number of approved comments, so it can return a separate text for zero comments.
+
+`CommentForm` accepts `name`, `email`, `comment`, `submit`, `submitting`, `published`, `pending`, `error`, and `networkError`. The form shows `published` when the comment is approved immediately and `pending` when it waits for moderation. Without `error`, the form shows the server's English error message.
+
+`Comments` formats comment dates in the page locale (`Astro.currentLocale`) and falls back to `en-US`. Astro sets `Astro.currentLocale` only when the [`i18n` configuration](https://docs.astro.build/en/guides/internationalization/) is enabled. Without it, or to use a different format, pass a BCP 47 locale tag such as `locale="de-CH"`.
 
 ## Menus
 

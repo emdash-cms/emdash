@@ -22,6 +22,7 @@ if (!isDid(identifier) && !isHandle(identifier)) return Astro.rewrite("/404");
 const result = await getLiveCollection("plugins", {
 	q: identifier,
 	limit: 100,
+	includeLatestRelease: true,
 });
 if (result.error) return Astro.redirect("/?registry=unavailable");
 const entries = (result.entries ?? []).filter(({ data }) =>
