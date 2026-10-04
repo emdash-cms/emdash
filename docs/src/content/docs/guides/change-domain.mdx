@@ -20,6 +20,27 @@ Open `https://<new domain>/_emdash/admin` in a browser. The EmDash sign-in page 
 
 If the site sets [`siteUrl`](/reference/configuration/#siteurl), `EMDASH_SITE_URL`, or `SITE_URL`, links in emails and plugins use that address instead of the **Site URL**, and **Settings > General** names it. Change the configuration and deploy again to move those links as well.
 
+### While the new domain still serves the old site
+
+When EmDash runs at a temporary address, such as `https://new.example.com`, while `https://example.com` still serves the site you are replacing, keep `siteUrl` on the address that serves EmDash until the new domain points at it.
+
+A configured `siteUrl` is the address passkeys belong to: it sets the relying party ID and the single browser origin that passkey verification accepts. Setting it to the final domain before that domain serves EmDash leaves no address where a passkey works, because passkeys registered at the temporary address are no longer accepted there.
+
+To use the final domain for email and plugin links before the move, add the temporary address to [`allowedOrigins`](/reference/configuration/#allowedorigins). Passkeys then keep working at the temporary address. Each entry must be the same hostname as `siteUrl` or a subdomain of it, so this works for a subdomain of the final domain, not for an unrelated staging host:
+
+```js title="astro.config.mjs"
+emdash({
+	siteUrl: "https://example.com",
+	allowedOrigins: ["https://new.example.com"],
+});
+```
+
+<Aside type="tip">
+	Set up [email](/guides/email/) before you move. A [magic
+	link](/guides/authentication/#log-in-with-a-magic-link) signs you in at an address where you have
+	no passkey yet.
+</Aside>
+
 ## Change the domain
 
 <Steps>
