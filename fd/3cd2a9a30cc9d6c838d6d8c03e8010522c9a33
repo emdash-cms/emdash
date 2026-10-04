@@ -1,0 +1,75 @@
+.changeset/manual-save-history.md
+  s_871d7d7d37412b::t_3482573d166993 1-7
+packages/core/src/database/migrations/092_revision_autosave.ts
+  s_871d7d7d37412b::t_cce9fd5bd052f2 1-29
+packages/core/src/database/migrations/runner.ts
+  s_871d7d7d37412b::t_4d990a9489c8ce 102,195
+packages/core/src/database/repositories/revision.ts
+  s_871d7d7d37412b::t_04a33adebf7cca 1,28,60,66,344,348,354
+packages/core/src/database/types.ts
+  s_871d7d7d37412b::t_53b0cc355d82e9 14
+packages/core/src/emdash-runtime.ts
+  s_871d7d7d37412b::t_ef77b6c2467d0a 3817,3883
+packages/core/tests/integration/content/autosave-keeps-manual-save.test.ts
+  s_871d7d7d37412b::t_1e30b9f6df9e53 1-114
+packages/core/tests/integration/database/revision-autosave-migration.test.ts
+  s_871d7d7d37412b::t_73ab869483a044 1-25
+packages/core/tests/utils/revision-autosave-migration-cases.ts
+  s_871d7d7d37412b::t_652248e0e48186 1-65
+packages/core/tests/workerd/revision-autosave-d1.test.ts
+  s_871d7d7d37412b::t_c765ff4281c5f6 1-34
+.changeset/guard-visual-content-revisions.md
+  s_871d7d7d37412b::t_912719ef48fa3d 1-6
+packages/admin/src/locales/server.ts
+  s_871d7d7d37412b::t_8139fe1d9c9dde 23-24,65-72,125-126
+packages/admin/tests/visual-editing-toolbar-locale.test.ts
+  s_871d7d7d37412b::t_f18295ad196efc 24-27,59-60
+packages/core/src/api/rev.ts
+  s_871d7d7d37412b::t_7a10787ed8a5cb 19
+packages/core/src/components/InlineEditor.astro
+  s_871d7d7d37412b::t_73e988f99035b1 16,20,29
+packages/core/src/components/InlinePortableTextEditor.tsx
+  s_871d7d7d37412b::t_74c37391a18546 40,2134,2143,2152-2161,2216-2271,2276,2278-2279,2281-2284,2286,2288-2336,2338,2340-2346,2348,2351,2364-2366,2368-2373,2444,2454-2470,2478-2479,2536-2544
+packages/core/src/components/PortableText.astro
+  s_871d7d7d37412b::t_b431a10c4efd79 74
+packages/core/src/loader.ts
+  s_871d7d7d37412b::t_a3db3185d1f731 17,31-49,597,2009
+packages/core/src/query.ts
+  s_871d7d7d37412b::t_5204d83e93eada 32,403,436,446-451,488-489
+packages/core/src/visual-editing/editable.ts
+  s_871d7d7d37412b::t_941c667e964ec1 10,24,47
+packages/core/src/visual-editing/toolbar.ts
+  s_871d7d7d37412b::t_854a06d648b5b5 3,38-39,607,703-709,728,739,778,806-810,816-819,823-851,854-855,859-860,866,877-884,894,946-948,950-961,965,968-976,981-983,986,989,993,1041-1042,1059,1062,1077,1079,1110-1111,1118-1119,1121-1130,1132-1137,1140-1142,1148-1149,1183,1189,1191,1195-1202,1206,1312,1330,1484,1650,1652
+packages/core/src/visual-editing/write-session.ts
+  s_871d7d7d37412b::t_07335bef3e4707 1-43
+packages/core/tests/unit/components/inline-portable-text-media-picker.test.ts
+  s_871d7d7d37412b::t_f46e99cac8efe8 31,94-100,142-143
+packages/core/tests/unit/components/inline-portable-text-unchanged-save.test.ts
+  s_871d7d7d37412b::t_ab6c414b182a11 41-42,45-46,58-62,68-71,85
+packages/core/tests/unit/loader-revision-preview.test.ts
+  s_871d7d7d37412b::t_f1a95d1c4a34b6 4,9,35-58
+packages/core/tests/unit/visual-editing/toolbar-image-popover.test.ts
+  s_871d7d7d37412b::t_09642189b72334 160,405,410-416
+packages/core/tests/unit/visual-editing/toolbar-inline-editing.test.ts
+  s_871d7d7d37412b::t_880237adf255fc 78-79,84-87,97,118,145-151,330,362-363,373-375,381-382,384-385,387,461-474,488,494,496,498-501,506,513,518,520,523-524,526
+packages/core/tests/unit/visual-editing/toolbar-save-rev.test.ts
+  s_871d7d7d37412b::t_c581a4e4f77136 1-549
+packages/core/tests/unit/visual-editing/toolbar.test.ts
+  s_871d7d7d37412b::t_24d686f7c61045 209-212,215
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fd3cd2a9a30cc9d6c838d6d8c03e8010522c9a33",
+  "prompts": {},
+  "sessions": {
+    "s_871d7d7d37412b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a10328-5172-7061-99fb-7e173de57dcb",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
