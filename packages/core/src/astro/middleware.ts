@@ -590,7 +590,7 @@ function pushMetricsTimings(
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
-const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
+const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*(?:-[1-9]\d*)?\.xml$/;
 
 function isImageEndpointRequest(context: APIContext): boolean {
 	const route = virtualConfig?.imageEndpointRoute;

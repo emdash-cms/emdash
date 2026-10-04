@@ -17,6 +17,7 @@ import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeedWithinBudget, type SeedApplyBudget } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
+import { setSiteSettings } from "#settings/index.js";
 
 /**
  * What one setup request may spend on the seed before the rest continues in
@@ -112,6 +113,12 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 			return handleError(error, "Failed to apply seed", "SEED_ERROR");
 		}
 		const { result, complete: seedComplete, progress: seedProgress } = seeded;
+
+		if (seedComplete) {
+			// The seed only fills settings that are still unset, and the runtime
+			// has usually auto-seeded the template's title and tagline already.
+			await setSiteSettings({ title: body.title, tagline: body.tagline }, emdash.db);
+		}
 
 		// Store setup state
 		// In external auth mode, mark setup complete immediately (first user to login becomes admin)

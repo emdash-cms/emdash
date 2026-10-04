@@ -887,24 +887,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	async storageGetMany(collection: string, ids: string[]): Promise<Map<string, unknown>> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		if (ids.length === 0) return new Map();
 
-		const placeholders = ids.map(() => "?").join(",");
-		const results = await this.env.DB.prepare(
-			`SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id IN (${placeholders})`,
-		)
-			.bind(pluginId, collection, ...ids)
-			.all<{ id: string; data: string }>();
-
-		const map = new Map<string, unknown>();
-		for (const row of results.results ?? []) {
-			map.set(row.id, JSON.parse(row.data));
-		}
-		return map;
+		return (await this.getStorageRepo(collection)).getMany(ids);
 	}
 
 	async storagePutMany(
@@ -927,22 +916,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	async storageDeleteMany(collection: string, ids: string[]): Promise<number> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		if (ids.length === 0) return 0;
 
-		let deleted = 0;
-		for (const id of ids) {
-			const result = await this.env.DB.prepare(
-				"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?",
-			)
-				.bind(pluginId, collection, id)
-				.run();
-			deleted += result.meta?.changes ?? 0;
-		}
-		return deleted;
+		return (await this.getStorageRepo(collection)).deleteMany(ids);
 	}
 
 	// =========================================================================

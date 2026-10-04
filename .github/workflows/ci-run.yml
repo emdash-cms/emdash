@@ -1,10 +1,12 @@
-name: CI Rerun
+name: CI Run
 
-# Re-runs the failed jobs of a PR's latest commit when someone adds the
-# `ci:rerun` label. Re-running a workflow needs write access; applying a label
-# only needs triage, so this lets triagers retry a fork PR after a flaky job.
-# Pure actions/github-script: no checkout, no secrets. A re-run keeps the
-# permissions of the run it repeats, so a fork PR's jobs stay read-only.
+# Runs CI on a PR's latest commit when someone adds the `ci:run` label: approves
+# workflow runs waiting for approval (first-time contributors) and re-runs
+# failed jobs. Approving and re-running need write access; applying a label
+# only needs triage, so this lets triagers start CI on fork PRs.
+# Pure actions/github-script: no checkout, no secrets. Approved and re-run
+# workflows keep the permissions of a fork PR's `pull_request` run, so they
+# stay read-only and get no secrets.
 
 on:
   pull_request_target:
@@ -14,19 +16,19 @@ permissions:
   contents: read
 
 jobs:
-  rerun:
-    name: Re-run failed jobs
-    if: github.event.label.name == 'ci:rerun'
+  run:
+    name: Approve and re-run CI
+    if: github.event.label.name == 'ci:run'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      actions: write # re-run the failed jobs
-      pull-requests: write # remove the ci:rerun label
+      actions: write # approve runs and re-run the failed jobs
+      pull-requests: write # remove the ci:run label
     concurrency:
-      group: ci-rerun-${{ github.event.pull_request.number }}
+      group: ci-run-${{ github.event.pull_request.number }}
       cancel-in-progress: false
     steps:
-      - name: Re-run failed jobs on the PR head
+      - name: Approve and re-run workflows on the PR head
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -40,12 +42,14 @@ jobs:
                 owner,
                 repo,
                 issue_number: pr.number,
-                name: 'ci:rerun',
+                name: 'ci:run',
               });
             } catch (e) {
               if (e.status !== 404) throw e;
             }
 
+            // `pr.head.sha` is the commit at the time the label was added, so
+            // a commit pushed afterwards is never approved by this label.
             // `pull_request` runs only: the `pull_request_target` workflows
             // report on the PR rather than test it.
             const allRuns = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
@@ -65,26 +69,33 @@ jobs:
             }
             const runs = [...newest.values()];
 
-            const running = runs.filter((run) => run.status !== 'completed');
-            for (const run of running) {
-              core.warning(`${run.name} is still running; add ci:rerun again once it finishes.`);
+            // Runs waiting for approval count as `completed`, with conclusion
+            // `action_required`.
+            const pending = runs.filter(
+              (run) => run.status === 'completed' && run.conclusion === 'action_required',
+            );
+            for (const run of pending) {
+              await github.rest.actions.approveWorkflowRun({ owner, repo, run_id: run.id });
+              core.info(`#${pr.number}: approved ${run.name} (${run.html_url})`);
             }
 
-            // Runs waiting for approval count as `completed`, with conclusion
-            // `action_required`, and must stay out of this list.
+            const running = runs.filter((run) => run.status !== 'completed');
+            for (const run of running) {
+              core.warning(`${run.name} is still running; add ci:run again once it finishes.`);
+            }
+
             const failed = runs.filter(
               (run) =>
                 run.status === 'completed' &&
                 ['failure', 'cancelled', 'timed_out'].includes(run.conclusion),
             );
-            if (failed.length === 0) {
-              core.info(`#${pr.number}: no failed runs on ${pr.head.sha}`);
+            if (pending.length === 0 && failed.length === 0) {
+              core.info(`#${pr.number}: no failed or pending runs on ${pr.head.sha}`);
               return;
             }
             for (const run of failed) {
               // A run still waiting for approval when its PR is closed ends as
-              // `failure` without starting a job; like an `action_required`
-              // run, it is left to a maintainer.
+              // `failure` without starting a job, and can't be re-run.
               const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
                 owner,
                 repo,
@@ -92,7 +103,7 @@ jobs:
                 per_page: 1,
               });
               if (jobs.total_count === 0) {
-                core.warning(`${run.name} never started a job, so ci:rerun leaves it alone.`);
+                core.warning(`${run.name} never started a job, so ci:run leaves it alone.`);
                 continue;
               }
               await github.rest.actions.reRunWorkflowFailedJobs({ owner, repo, run_id: run.id });
