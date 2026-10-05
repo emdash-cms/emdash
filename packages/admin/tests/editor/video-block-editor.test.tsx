@@ -332,7 +332,7 @@ describe("Video block editor", () => {
 			return element!;
 		});
 		const item = [...menu.querySelectorAll("button")].find(
-			(button) => button.querySelector(".font-medium")?.textContent === "Video",
+			(button) => button.querySelector("[data-slash-item-title]")?.textContent === "Video",
 		);
 		item!.click();
 		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
