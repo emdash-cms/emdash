@@ -114,6 +114,7 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
 	"/_emdash/api/health",
+	"/_emdash/api/site/domain-proof",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 	"/_emdash/api/visual-editing/toolbar-labels",
@@ -239,7 +240,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				return apiError("CSRF_REJECTED", "Missing required header", 403);
 			}
 		}
-		return next();
+		const response = await next();
+		if (!import.meta.env.DEV) {
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(
+					getRegistryConfigInput(context.locals.emdash?.config.registry),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
+				),
+			);
+		}
+		return response;
 	}
 
 	// For public routes: soft auth check (set locals.user if session exists, but never block)
@@ -569,8 +583,7 @@ async function handleExternalAuth(
 			let newName: string | undefined;
 			let newRole: RoleLevel | undefined;
 
-			// Sync name from provider if provider provides one and local differs
-			if (authResult.name && user.name !== authResult.name) {
+			if (externalConfig.syncName !== false && authResult.name && user.name !== authResult.name) {
 				newName = authResult.name;
 				updates.name = newName;
 			}

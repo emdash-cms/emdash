@@ -148,8 +148,17 @@ const CONTENT_STATUSES = [
 	"future",
 ] as const;
 
+const pageParam = z.coerce
+	.number()
+	.int()
+	.min(1)
+	.max(Number.MAX_SAFE_INTEGER)
+	.optional()
+	.meta({ description: "1-based page number, for numbered pages instead of a cursor" });
+
 export const contentListQuery = cursorPaginationQuery
 	.extend({
+		page: pageParam,
 		/** Filter by status; `all` (like omitting it) lists every status. */
 		status: z
 			.enum([...CONTENT_STATUSES, "all"])
@@ -181,6 +190,10 @@ export const contentListQuery = cursorPaginationQuery
 		includeInferredBylines: booleanParam,
 		/** JSON-encoded indexed custom-field filters, combined with AND semantics. */
 		fieldFilters: contentFieldFiltersQuery.optional(),
+	})
+	.refine(({ cursor, page }) => cursor === undefined || page === undefined, {
+		message: "cursor and page cannot be used together",
+		path: ["page"],
 	})
 	.transform(({ bylines, ...rest }) => ({
 		...rest,
@@ -358,9 +371,14 @@ export const contentTermsResponseSchema = z
 
 export const contentTrashQuery = cursorPaginationQuery
 	.extend({
+		page: pageParam,
 		locale: localeCode.optional().meta({
 			description: "Restrict the trash listing to entries in this locale",
 		}),
+	})
+	.refine(({ cursor, page }) => cursor === undefined || page === undefined, {
+		message: "cursor and page cannot be used together",
+		path: ["page"],
 	})
 	.meta({ id: "ContentTrashQuery" });
 
@@ -479,6 +497,8 @@ export const trashedContentListResponseSchema = z
 	.object({
 		items: z.array(trashedContentItemSchema),
 		nextCursor: z.string().optional(),
+		/** Every trashed entry matching the filters. Returned with numbered pages. */
+		total: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "TrashedContentListResponse" });
 

@@ -9,6 +9,7 @@ import type { Editor } from "@tiptap/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cdp, userEvent } from "vitest/browser";
 
+import { BlockMenu } from "../../src/components/editor/BlockMenu";
 import {
 	PortableTextEditor,
 	_portableTextToProsemirror as portableTextToProsemirror,
@@ -332,7 +333,7 @@ describe("Video block editor", () => {
 			return element!;
 		});
 		const item = [...menu.querySelectorAll("button")].find(
-			(button) => button.querySelector(".font-medium")?.textContent === "Video",
+			(button) => button.querySelector("[data-slash-item-title]")?.textContent === "Video",
 		);
 		item!.click();
 		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -511,6 +512,33 @@ describe("Video block editor", () => {
 
 		await vi.waitFor(() => expect(videos(latest())).toEqual([]));
 		expect(document.querySelector(".ProseMirror figure")).toBeNull();
+	});
+
+	it("names a selected video in its block menu", async () => {
+		const { editor } = await renderEditor({ value: [INTRO, videoBlock()] });
+
+		selectVideo(editor);
+		const screen = await render(
+			<BlockMenu
+				editor={editor}
+				anchorElement={document.querySelector<HTMLElement>(".ProseMirror figure")}
+				isOpen
+				onClose={() => {}}
+			/>,
+		);
+
+		await expect.element(screen.getByRole("group", { name: "Video", exact: true })).toBeVisible();
+	});
+
+	it("draws no selection tint over a selected video, as with images", async () => {
+		const { editor, pm } = await renderEditor({ value: [INTRO, videoBlock()] });
+
+		selectVideo(editor);
+		const block = document.querySelector<HTMLElement>(".ProseMirror > .ProseMirror-selectednode")!;
+
+		expect(document.activeElement).toBe(pm);
+		expect(block.querySelector("video")).toBeTruthy();
+		expect(getComputedStyle(block, "::after").content).toBe("none");
 	});
 
 	it("moves through the player, caption and actions with Tab, and back to the block", async () => {

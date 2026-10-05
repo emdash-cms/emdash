@@ -111,7 +111,7 @@ function IframePreview({ embed, url }: { embed: IframeEmbed; url: URL }) {
 	);
 }
 
-function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected }: NodeViewProps) {
+function IframeBlockNodeView({ editor, node, getPos, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
 	const editable = editor.isEditable;
 	const embed = iframeEmbedFromAttrs(node.attrs);
@@ -203,7 +203,6 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes, selected 
 	return (
 		<EmbedBlockCard
 			className="iframe-block"
-			selected={selected}
 			editable={editable}
 			tabs={TABS}
 			activeTab={tab}

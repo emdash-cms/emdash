@@ -259,9 +259,8 @@ lose same-origin access, and only https sources render.
 
 A video block renders through `Video` from `emdash/ui`. A Media Library video plays in the browser's
 own player, with controls and its caption, from your storage's public URL when one is configured.
-Without a public URL, videos are served through `/_emdash/api/media/file/`, which doesn't support
-byte-range requests yet, so Safari and iOS can't play them. A video from a media provider renders
-through that provider. An empty video block, which has no `asset`, renders nothing.
+Without a public URL, videos are served through `/_emdash/api/media/file/`. A video from a media
+provider renders through that provider. An empty video block, which has no `asset`, renders nothing.
 
 With [Astro's content security policy](https://docs.astro.build/en/reference/configuration-reference/#securitycsp)
 turned on, the browser blocks the styles and scripts inside isolated HTML blocks, so they render

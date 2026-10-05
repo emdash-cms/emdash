@@ -17,6 +17,7 @@
 import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 
+import { after } from "../../after.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { getDb } from "../../loader.js";
 import { createRedirectSource } from "../../redirects/artifacts.js";
@@ -40,6 +41,16 @@ function warnUnsafeDestination(id: string): void {
 	console.warn(
 		`[emdash:redirects] Skipping redirect ${id}: destination is not a site-relative path`,
 	);
+}
+
+function recordHitInBackground(repo: RedirectRepository, id: string): void {
+	after(async () => {
+		try {
+			await repo.recordHit(id);
+		} catch (error) {
+			console.error("[emdash:redirects] failed to record redirect hit:", error);
+		}
+	});
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -85,7 +96,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// Terminal statuses (410 Gone / 451): serve the status directly,
 			// with no Location header.
 			if (isTerminalStatus(exact.type)) {
-				repo.recordHit(exact.id).catch(() => {});
+				recordHitInBackground(repo, exact.id);
 				return new Response(null, { status: exact.type });
 			}
 			const dest = exact.destination;
@@ -93,7 +104,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				warnUnsafeDestination(exact.id);
 				return next();
 			}
-			repo.recordHit(exact.id).catch(() => {});
+			recordHitInBackground(repo, exact.id);
 			const code = isRedirectCode(exact.type) ? exact.type : 301;
 			return context.redirect(dest, code);
 		}
@@ -104,14 +115,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const { redirect, destination } = patternMatch;
 			// Terminal statuses (410 Gone / 451): serve the status directly.
 			if (isTerminalStatus(redirect.type)) {
-				repo.recordHit(redirect.id).catch(() => {});
+				recordHitInBackground(repo, redirect.id);
 				return new Response(null, { status: redirect.type });
 			}
 			if (!isSiteRelativeDestination(destination)) {
 				warnUnsafeDestination(redirect.id);
 				return next();
 			}
-			repo.recordHit(redirect.id).catch(() => {});
+			recordHitInBackground(repo, redirect.id);
 			const code = isRedirectCode(redirect.type) ? redirect.type : 301;
 			return context.redirect(destination, code);
 		}
@@ -128,7 +139,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			routeCache?.set(false);
 		}
 
-		// Log misses (fire-and-forget) under the path the visitor requested.
+		// Log misses under the path the visitor requested.
 		// Two shapes count as a miss: a 404 response (an unmatched route, or a
 		// page answering a content miss with Astro.rewrite("/404")), and a
 		// matched route answering a content miss with a redirect to /404 —
@@ -142,13 +153,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (missedDirectly || missedByRedirect) {
 			const referrer = context.request.headers.get("referer") ?? null;
 			const userAgent = context.request.headers.get("user-agent") ?? null;
-			repo
-				.log404({
-					path: pathname,
-					referrer,
-					userAgent,
-				})
-				.catch(() => {});
+			after(async () => {
+				try {
+					await repo.log404({
+						path: pathname,
+						referrer,
+						userAgent,
+					});
+				} catch (error) {
+					console.error("[emdash:redirects] failed to log 404:", error);
+				}
+			});
 		}
 
 		return response;

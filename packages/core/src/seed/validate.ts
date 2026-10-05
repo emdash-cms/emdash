@@ -716,6 +716,12 @@ export function validateSeed(data: unknown): ValidationResult {
 						if (widget.type === "component" && !widget.componentId) {
 							errors.push(`${widgetPrefix}: componentId is required for component widgets`);
 						}
+
+						if ("settings" in widget) {
+							warnings.push(
+								`${widgetPrefix}.settings: not applied; widget options belong in "props"`,
+							);
+						}
 					}
 				}
 			}

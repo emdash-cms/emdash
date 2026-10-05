@@ -1,6 +1,6 @@
 ---
 title: React admin extensions
-description: Add generated settings, React pages and widgets, editor panels, and content-list columns to a native plugin.
+description: Add generated settings, React pages, dashboard widgets, field widgets, editor panels, and content-list columns to a native plugin.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -90,7 +90,7 @@ A trusted React extension has three connected declarations:
 
 1. The descriptor's `adminEntry` tells Astro which module to bundle into the admin.
 2. The runtime's `admin.entry`, `admin.pages`, and `admin.widgets` describe the visible admin surfaces.
-3. The admin module exports component maps whose keys match the declared page paths and widget IDs.
+3. The admin module exports component maps whose keys match the declared page paths and widget IDs. Field widgets are the exception: they are resolved by name from the `fields` export and need no declaration.
 
 The descriptor only needs the module specifier. Page and widget metadata belongs in the runtime definition:
 
@@ -324,6 +324,92 @@ export const widgets: PluginAdminExports["widgets"] = {
 ```
 
 The host places the component inside a dashboard card and renders `title` as its heading. Keep the component compact and do not add a second card shell. `size` accepts `full`, `half`, or `third`; it is stored as a layout hint, but the current dashboard renders plugin widgets in its responsive two-column grid without applying that hint.
+
+## Custom field widgets
+
+A field widget replaces the editor for one schema field with a component from your plugin. Export a `fields` map from the admin module, keyed by widget name:
+
+```tsx title="src/admin/index.tsx"
+import { useLingui } from "@lingui/react";
+
+interface FieldWidgetProps {
+	value: unknown;
+	onChange: (value: unknown) => void;
+	label: string;
+	id: string;
+	required?: boolean;
+	options?: Record<string, unknown> | Array<{ value: string; label: string }>;
+	validation?: Record<string, unknown>;
+	minimal?: boolean;
+}
+
+function RatingField({ value, onChange, label, id, options }: FieldWidgetProps) {
+	const { i18n } = useLingui();
+	const max = !Array.isArray(options) && typeof options?.max === "number" ? options.max : 5;
+	const rating = typeof value === "number" ? value : 0;
+
+	return (
+		<div role="group" aria-labelledby={`${id}-label`} className="grid gap-2">
+			<span id={`${id}-label`} className="text-sm font-medium">
+				{label}
+			</span>
+			<div className="flex gap-1">
+				{Array.from({ length: max }, (_, index) => index + 1).map((step) => (
+					<button
+						key={step}
+						type="button"
+						id={step === 1 ? id : undefined}
+						aria-pressed={step <= rating}
+						aria-label={i18n._({
+							id: "rating.set",
+							message: "Rate {step}",
+							values: { step },
+						})}
+						onClick={() => onChange(step === rating ? null : step)}
+					>
+						{step <= rating ? "★" : "☆"}
+					</button>
+				))}
+			</div>
+		</div>
+	);
+}
+
+export const fields = {
+	rating: RatingField,
+};
+```
+
+The plugin needs the `adminEntry` and `admin.entry` pair described in [React entrypoint](#react-entrypoint) so the module loads. Nothing else in the descriptor or the `definePlugin()` call refers to a field widget.
+
+A schema field opts in by setting `widget` to `<plugin-id>:<widget-name>`. The plugin ID is the `id` passed to `definePlugin()`, and the widget name is a key of the `fields` export. The following seed field uses the widget above for a plugin whose ID is `plugin-reviews`:
+
+```json title="seed/seed.json"
+{
+	"slug": "rating",
+	"label": "Rating",
+	"type": "integer",
+	"widget": "plugin-reviews:rating",
+	"options": { "max": 5 }
+}
+```
+
+The schema API accepts `widget` as well. Choose a field `type` that can hold the value the widget produces; the widget changes only the editor, not how the value is stored.
+
+The component receives the following props:
+
+| Prop | Type | Behavior |
+| --- | --- | --- |
+| `value` | `unknown` | The field's current value in the editor. Narrow it before use. |
+| `onChange` | `(value: unknown) => void` | Call with the new value, not an event. |
+| `label` | `string` | The field's label. The host does not render one around a plugin widget, so render it yourself. |
+| `id` | `string` | A DOM ID for the field, in the form `field-<slug>`. |
+| `required` | `boolean` (optional) | The field's required setting. |
+| `options` | `object` or `Array<{ value, label }>` (optional) | The field's `options` from the schema, passed through unchanged. Use it for per-field configuration such as `max` above. When the field has `validation.options` (`select` and `multiSelect` fields), the host passes those instead, as a list of `{ value, label }` items. |
+| `validation` | `object` (optional) | The field's `validation` rules from the schema. |
+| `minimal` | `boolean` (optional) | `true` when the host asks for a compact rendering without surrounding label chrome. |
+
+The editor wraps each widget in an error boundary. If the component throws while rendering, the field shows a "Plugin widget error" message with a retry button instead of unmounting the editor. If the `fields` export has no function under the requested name, the editor uses the default editor for the field type. A `widget` value without a `:` logs a console warning and also falls back.
 
 ## Content editor panels
 

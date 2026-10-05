@@ -81,11 +81,13 @@ export * from "./passkey/index.js";
 // Magic Link
 export {
 	sendMagicLink,
+	createMagicLinkUrl,
 	verifyMagicLink,
 	MagicLinkError,
 	buildMagicLinkEmail,
 	type MagicLinkConfig,
 	type MagicLinkEmailStrings,
+	type MagicLinkUrlOptions,
 } from "./magic-link/index.js";
 
 // Invite

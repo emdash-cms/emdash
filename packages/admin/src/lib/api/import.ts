@@ -597,8 +597,13 @@ export async function importWxrMedia(
 	return result;
 }
 
-/** Attachments per media request. Bounds each Worker invocation (issue #475). */
-const MEDIA_BATCH_SIZE = 25;
+/**
+ * Attachments per media request. The server decodes new JPEG and PNG files in
+ * pure JS for their placeholders, which can take about 2 s of CPU per photo on
+ * Workers. One request gets 30 s of CPU by default on Workers Paid, and a
+ * request that exceeds it is stopped mid-stream.
+ */
+const MEDIA_BATCH_SIZE = 5;
 
 /**
  * Import media in bounded batches instead of one giant request, so each

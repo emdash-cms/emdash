@@ -1041,18 +1041,136 @@ export interface PullRequestCommit {
 	readonly parentCount: number;
 }
 
+interface RestCommit {
+	parents?: unknown[];
+	commit?: { committer?: { date?: string | null } | null };
+}
+
+function toPullRequestCommit(commit: RestCommit): PullRequestCommit {
+	return {
+		committedAt: commit.commit?.committer?.date ?? null,
+		parentCount: commit.parents?.length ?? 0,
+	};
+}
+
 export async function listPullRequestCommits(
 	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 	signal?: AbortSignal,
 ): Promise<PullRequestCommit[]> {
-	const commits = await listPullRequestPages<{
-		parents?: unknown[];
-		commit?: { committer?: { date?: string | null } | null };
-	}>(token, ctx, prNumber, "commits", signal);
-	return commits.map((commit) => ({
-		committedAt: commit.commit?.committer?.date ?? null,
-		parentCount: commit.parents?.length ?? 0,
-	}));
+	const commits = await listPullRequestPages<RestCommit>(token, ctx, prNumber, "commits", signal);
+	return commits.map(toPullRequestCommit);
+}
+
+export interface ForcePush {
+	readonly headSha: string;
+	readonly baseSha: string | null;
+	readonly replacedSha: string | null;
+}
+
+export async function getFirstForcePushSince(
+	token: GitHubToken,
+	ctx: RepoContext,
+	prNumber: number,
+	since: string,
+	signal?: AbortSignal,
+): Promise<ForcePush | null> {
+	const response = await coordinatedFetch(token, `${GITHUB_API}/graphql`, {
+		method: "POST",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({
+			query: `query EmDashFirstForcePush($owner: String!, $repo: String!, $number: Int!, $since: DateTime!) {
+				repository(owner: $owner, name: $repo) {
+					pullRequest(number: $number) {
+						headRefOid
+						baseRef { target { oid } }
+						timelineItems(itemTypes: [HEAD_REF_FORCE_PUSHED_EVENT], since: $since, first: 1) {
+							nodes { ... on HeadRefForcePushedEvent { beforeCommit { oid } } }
+						}
+					}
+				}
+			}`,
+			variables: { owner: ctx.owner, repo: ctx.repo, number: prNumber, since },
+		}),
+		signal,
+	});
+	if (!response.ok) throw new Error(`getFirstForcePushSince failed: ${response.status}`);
+	const payload = await response.json<{
+		data?: {
+			repository?: {
+				pullRequest?: {
+					headRefOid?: string;
+					baseRef?: { target?: { oid?: string } | null } | null;
+					timelineItems?: {
+						nodes?: Array<{ beforeCommit?: { oid?: string } | null } | null>;
+					};
+				} | null;
+			};
+		};
+		errors?: Array<{ message?: string }>;
+	}>();
+	if (payload.errors?.length) throw new Error("getFirstForcePushSince GraphQL query failed");
+	const pull = payload.data?.repository?.pullRequest;
+	if (!pull?.headRefOid) throw new GitHubPullRequestNotFoundError(prNumber);
+	const push = pull.timelineItems?.nodes?.[0];
+	if (!push) return null;
+	return {
+		headSha: pull.headRefOid,
+		baseSha: pull.baseRef?.target?.oid ?? null,
+		replacedSha: push.beforeCommit?.oid ?? null,
+	};
+}
+
+export interface ComparedFile {
+	readonly filename: string;
+	readonly previousFilename: string | null;
+	readonly status: string;
+	readonly sha: string | null;
+	readonly patch: string | null;
+}
+
+export interface CommitComparison {
+	readonly totalCommits: number;
+	readonly commits: PullRequestCommit[];
+	readonly files: ComparedFile[];
+}
+
+/** Three-dot compare: the commits and changes on `head` since its merge base with `base`. */
+export async function compareCommits(
+	token: GitHubToken,
+	ctx: RepoContext,
+	base: string,
+	head: string,
+	signal?: AbortSignal,
+): Promise<CommitComparison> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/compare/${base}...${head}`,
+		{ headers: authHeaders(token), signal },
+	);
+	if (!res.ok) throw new Error(`compareCommits failed: ${res.status}`);
+	const comparison = await res.json<{
+		total_commits?: number;
+		commits?: RestCommit[];
+		files?: Array<{
+			filename?: string;
+			previous_filename?: string;
+			status?: string;
+			sha?: string | null;
+			patch?: string;
+		}>;
+	}>();
+	const commits = (comparison.commits ?? []).map(toPullRequestCommit);
+	return {
+		totalCommits: comparison.total_commits ?? commits.length,
+		commits,
+		files: (comparison.files ?? []).map((file) => ({
+			filename: file.filename ?? "",
+			previousFilename: file.previous_filename ?? null,
+			status: file.status ?? "",
+			sha: file.sha ?? null,
+			patch: file.patch ?? null,
+		})),
+	};
 }

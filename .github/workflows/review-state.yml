@@ -63,6 +63,7 @@ jobs:
               },
             };
             const stateNames = Object.keys(stateLabels);
+            const reviewerBots = ['emdashbot[bot]', 'ask-bonk[bot]'];
 
             // --- Ensure the four labels exist (mirrors pr-sweep.yml) ---
             const existingLabels = new Set();
@@ -97,6 +98,79 @@ jobs:
                 });
               } catch (e) {
                 if (e.status !== 404) throw e;
+              }
+            }
+
+            // Only NON-merge commits count as new work. Merge commits (parents > 1)
+            // are "Update branch" / `git merge main`, so syncing a branch with main
+            // does not flip a reviewed PR back to needs-rereview.
+            function committedAfter(commits, time) {
+              return commits.some(commit =>
+                !(commit.parents && commit.parents.length > 1) &&
+                commit.commit?.committer?.date &&
+                new Date(commit.commit.committer.date) > new Date(time)
+              );
+            }
+
+            // Added and removed lines per file, without hunk headers or context lines,
+            // so the same change on a newer main gives the same net diff. A file
+            // without a patch (binary, or a diff too large to show) counts by its blob
+            // SHA. The compare API lists at most 300 files.
+            function netDiff(comparison) {
+              const files = comparison.files || [];
+              if (files.length >= 300) return null;
+              return files
+                .map(file => [
+                  file.status,
+                  file.previous_filename || '',
+                  file.filename,
+                  ...(file.patch == null
+                    ? [`blob ${file.sha}`]
+                    : file.patch.split('\n').filter(line => line.startsWith('+') || line.startsWith('-'))),
+                ].join('\n'))
+                .toSorted()
+                .join('\n\0\n');
+            }
+
+            // A rebase gives every commit a new committer date, so after a force-push
+            // the net diff decides whether the review still covers the PR.
+            async function rebasedWithoutChanges(prNumber, reviewedAt) {
+              try {
+                const { repository } = await github.graphql(
+                  `query($owner: String!, $repo: String!, $number: Int!, $since: DateTime!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) {
+                        headRefOid
+                        baseRef { target { oid } }
+                        timelineItems(itemTypes: [HEAD_REF_FORCE_PUSHED_EVENT], since: $since, first: 1) {
+                          nodes { ... on HeadRefForcePushedEvent { beforeCommit { oid } } }
+                        }
+                      }
+                    }
+                  }`,
+                  { owner, repo, number: prNumber, since: reviewedAt }
+                );
+                const pull = repository.pullRequest;
+                const baseSha = pull.baseRef?.target?.oid;
+                const replacedSha = pull.timelineItems.nodes[0]?.beforeCommit?.oid;
+                if (!baseSha || !replacedSha) return false;
+                const [replaced, current] = await Promise.all(
+                  [replacedSha, pull.headRefOid].map(async sha => {
+                    const { data } = await github.rest.repos.compareCommitsWithBasehead({
+                      owner,
+                      repo,
+                      basehead: `${baseSha}...${sha}`,
+                    });
+                    return data;
+                  })
+                );
+                if (replaced.commits.length < replaced.total_commits) return false;
+                if (committedAfter(replaced.commits, reviewedAt)) return false;
+                const before = netDiff(replaced);
+                return before !== null && before === netDiff(current);
+              } catch (e) {
+                core.info(`Net diff of #${prNumber} not compared: ${e.message}`);
+                return false;
               }
             }
 
@@ -152,7 +226,7 @@ jobs:
                   review.user &&
                   review.user.login !== pr.user.login &&
                   (
-                    review.user.type === 'Bot' ||
+                    reviewerBots.includes(review.user.login) ||
                     ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(review.author_association)
                   ) &&
                   ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED'].includes(review.state)
@@ -168,25 +242,12 @@ jobs:
                   }
                 }
 
-                // --- Last non-merge commit ---
-                // Only NON-merge commits count as new work. Merge commits (parents > 1)
-                // are "Update branch" / `git merge main`, so syncing a branch with main
-                // does not flip a reviewed PR back to needs-rereview.
                 const commits = await github.paginate(github.rest.pulls.listCommits, {
                   owner,
                   repo,
                   pull_number: pr.number,
                   per_page: 100,
                 });
-                let lastCommitAt;
-                for (const commit of commits) {
-                  if (commit.parents && commit.parents.length > 1) continue;
-                  const committed = commit.commit?.committer?.date;
-                  if (!committed) continue;
-                  if (!lastCommitAt || new Date(committed) > new Date(lastCommitAt)) {
-                    lastCommitAt = committed;
-                  }
-                }
 
                 // --- Decide the state ---
                 // lastReview may be a COMMENTED review; approvals should still win unless a later
@@ -206,8 +267,8 @@ jobs:
                 if (!lastReview) {
                   desired = 'review/needs-review';
                 } else if (
-                  lastCommitAt &&
-                  new Date(lastCommitAt) > new Date(lastReview.submitted_at)
+                  committedAfter(commits, lastReview.submitted_at) &&
+                  !(await rebasedWithoutChanges(pr.number, lastReview.submitted_at))
                 ) {
                   desired = 'review/needs-rereview';
                 } else if (lastDecisionReview?.state === 'APPROVED') {

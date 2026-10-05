@@ -32,6 +32,7 @@ import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/Byline
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
+	CONTENT_LIST_PAGE_SIZES,
 	ContentList,
 	EMPTY_DATE_FILTER,
 	type ContentDateFilter,
@@ -155,6 +156,7 @@ import { describeContentValidationError } from "./lib/content-validation-errors"
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
+import { usePagedQuery } from "./lib/use-paged-query";
 import { useEntryLock } from "./lib/useEntryLock";
 import { BylineSchemaPage } from "./routes/byline-schema";
 import { BylinesPage } from "./routes/bylines";
@@ -494,43 +496,45 @@ function ContentListPage() {
 		enabled: !!manifest,
 	});
 
-	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
-		useInfiniteQuery({
-			queryKey: [
-				"content",
-				collection,
-				{
-					locale: activeLocale,
-					sort,
-					search: searchTerm,
-					status: statusFilter,
-					author: authorFilter,
-					date: dateApiParams,
-					byline: bylineApiParams,
-				},
-			],
-			queryFn: ({ pageParam }) =>
-				fetchContentList(collection, {
-					locale: activeLocale,
-					cursor: pageParam,
-					limit: 100,
-					orderBy: sort.field,
-					order: sort.direction,
-					search: searchTerm || undefined,
-					status: statusFilter === "all" ? undefined : statusFilter,
-					authorId: authorFilter || undefined,
-					...dateApiParams,
-					...bylineApiParams,
-				}),
-			initialPageParam: undefined as string | undefined,
-			getNextPageParam: (lastPage) => lastPage.nextCursor,
-			enabled: !!manifest,
-		});
+	const contentList = usePagedQuery({
+		scope: ["content", collection],
+		queryKey: [
+			{
+				locale: activeLocale,
+				sort,
+				search: searchTerm,
+				status: statusFilter,
+				author: authorFilter,
+				date: dateApiParams,
+				byline: bylineApiParams,
+			},
+		],
+		queryFn: ({ page, perPage }) =>
+			fetchContentList(collection, {
+				locale: activeLocale,
+				page,
+				limit: perPage,
+				orderBy: sort.field,
+				order: sort.direction,
+				search: searchTerm || undefined,
+				status: statusFilter === "all" ? undefined : statusFilter,
+				authorId: authorFilter || undefined,
+				...dateApiParams,
+				...bylineApiParams,
+			}),
+		pageSizes: CONTENT_LIST_PAGE_SIZES,
+		enabled: !!manifest,
+	});
 
-	// Fetch trashed items
-	const { data: trashedData, isLoading: isTrashedLoading } = useQuery({
-		queryKey: ["content", collection, "trash", { locale: activeLocale }],
-		queryFn: () => fetchTrashedContent(collection, { locale: activeLocale }),
+	// A failed trash request (subscribers can't read the trash) only hides the
+	// trash rows; it never replaces the list with an error screen.
+	const trash = usePagedQuery({
+		scope: ["content", collection, "trash"],
+		queryKey: [{ locale: activeLocale }],
+		queryFn: ({ page, perPage }) =>
+			fetchTrashedContent(collection, { locale: activeLocale, page, limit: perPage }),
+		pageSizes: CONTENT_LIST_PAGE_SIZES,
+		enabled: !!manifest,
 	});
 
 	const deleteMutation = useMutation({
@@ -665,20 +669,9 @@ function ContentListPage() {
 		},
 	});
 
-	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
-	}, [data]);
-
-	// Server returns `total` on every page; the first page is authoritative
-	// because filters don't change within a fetch cycle. Fall back to the
-	// loaded count so old servers (pre-total) still render a denominator.
-	const total = data?.pages[0]?.total ?? items.length;
-
 	// Keep every hook above the early returns below — a render that takes a
 	// guard (e.g. `error`) must run the same number of hooks as a full render,
 	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
-	const handleLoadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
-
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -689,8 +682,8 @@ function ContentListPage() {
 		return <NotFoundPage message={`Collection "${collection}" not found`} />;
 	}
 
-	if (error) {
-		return <ErrorScreen error={error.message} />;
+	if (contentList.query.error) {
+		return <ErrorScreen error={contentList.query.error.message} />;
 	}
 
 	const listColumns = (collectionConfig.listColumns ?? []).flatMap((slug) => {
@@ -719,14 +712,14 @@ function ContentListPage() {
 		<ContentList
 			collection={collection}
 			collectionLabel={collectionConfig.label}
-			items={items}
+			items={contentList.items}
+			pagination={contentList.pagination}
 			listColumns={listColumns}
-			trashedItems={trashedData?.items || []}
-			isLoading={isLoading || isFetchingNextPage}
-			isTrashedLoading={isTrashedLoading}
-			hasMore={!!hasNextPage}
-			onLoadMore={handleLoadMore}
-			trashedCount={trashedData?.items?.length || 0}
+			trashedItems={trash.items}
+			trashPagination={trash.pagination}
+			isLoading={contentList.query.isLoading}
+			isTrashedLoading={trash.query.isLoading}
+			trashedCount={trash.pagination.totalCount}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
 			onPermanentDelete={(id) => permanentDeleteMutation.mutate(id)}
@@ -739,7 +732,6 @@ function ContentListPage() {
 			dateField={collectionConfig.dateField}
 			sort={sort}
 			onSortChange={setSortOverride}
-			total={total}
 			onSearchChange={setSearchTerm}
 			statusFilter={statusFilter}
 			onStatusFilterChange={setStatusFilter}
@@ -2346,8 +2338,17 @@ const mediaUsageSettingsRoute = createRoute({
 const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
-	component: SecuritySettings,
+	component: SecuritySettingsWrapper,
+	validateSearch: (search: Record<string, unknown>): { addPasskey?: boolean } =>
+		search.addPasskey === true || search.addPasskey === 1 || search.addPasskey === "1"
+			? { addPasskey: true }
+			: {},
 });
+
+function SecuritySettingsWrapper() {
+	const { addPasskey } = useSearch({ from: "/_admin/settings/security" });
+	return <SecuritySettings addPasskey={addPasskey} />;
+}
 
 // Allowed domains settings route
 const allowedDomainsSettingsRoute = createRoute({

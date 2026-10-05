@@ -39,6 +39,7 @@ import type {
 	ContentItem,
 	TrashedContentItem,
 } from "../lib/api.js";
+import { getDraftStatus } from "../lib/api.js";
 import {
 	ContentListColumnBoundary,
 	resolveContentListColumns,
@@ -65,6 +66,7 @@ import {
 	ContentStatusLabel,
 	isContentStatusState,
 } from "./ContentStatusBadge.js";
+import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
@@ -191,6 +193,19 @@ export interface ContentListProps {
 	userRole?: number;
 	/** Manifest state used to omit disabled or stale trusted-plugin contributions. */
 	pluginStates?: AdminManifest["plugins"];
+	/**
+	 * Server-side numbered pages for the All tab. `items` is then exactly the
+	 * current page, search is expected to be server-side (`onSearchChange`), and
+	 * `total`, `hasMore`, and `onLoadMore` are ignored. Selections persist across
+	 * pages and clear when the search, filters, locale, or collection change.
+	 */
+	pagination?: ListPagination;
+	/**
+	 * Server-side numbered pages for the Trash tab. `trashedItems` is then
+	 * exactly the current page; `hasMoreTrashed` and `onLoadMoreTrashed` are
+	 * ignored.
+	 */
+	trashPagination?: ListPagination;
 }
 
 type BulkActionHandler = (ids: string[]) => Promise<string[]>;
@@ -198,6 +213,9 @@ type BulkActionHandler = (ids: string[]) => Promise<string[]>;
 type ViewTab = "all" | "trash";
 
 const PAGE_SIZE = 20;
+
+/** Page sizes offered with `pagination`; the first is the default. */
+export const CONTENT_LIST_PAGE_SIZES = [20, 50, 100];
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -277,6 +295,8 @@ export function ContentList({
 	bulkTagTaxonomies = [],
 	userRole = 0,
 	pluginStates,
+	pagination,
+	trashPagination,
 }: ContentListProps) {
 	const { t, i18n: lingui } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -334,10 +354,10 @@ export function ContentList({
 	// page 5 of 10, then typed a query narrowing to 1 page). Without clamping
 	// we'd render an empty table until the next refetch.
 	const clampedPage = Math.min(page, totalPages - 1);
-	const paginatedItems = filteredItems.slice(
-		clampedPage * PAGE_SIZE,
-		(clampedPage + 1) * PAGE_SIZE,
-	);
+	const paged = !!pagination;
+	const paginatedItems = paged
+		? filteredItems
+		: filteredItems.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
 
 	// Auto-fetch the next API page when the user is on a client page whose
 	// items haven't been loaded yet. Skip during client-side search because
@@ -351,16 +371,17 @@ export function ContentList({
 		// In client-search mode we skip auto-fetch while a query is active
 		// (filtering can collapse the list). In server-search mode the loaded
 		// items already are the matches, so paging forward should keep fetching.
-		if (!hasMore || !onLoadMore || (!serverSearch && searchQuery)) return;
+		if (paged || !hasMore || !onLoadMore || (!serverSearch && searchQuery)) return;
 		const loadedPages = Math.ceil(filteredItems.length / PAGE_SIZE);
 		if (clampedPage >= loadedPages - 1) {
 			onLoadMore();
 		}
-	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery, serverSearch]);
+	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, paged, searchQuery, serverSearch]);
 
 	// Drop selections for rows that left the current result set (filter/locale
 	// change, deletion) so a bulk action never targets a now-hidden id.
 	React.useEffect(() => {
+		if (paged) return;
 		setSelectedIds((prev) => {
 			if (prev.size === 0) return prev;
 			const present = new Set(items.map((i) => i.id));
@@ -372,25 +393,62 @@ export function ContentList({
 			}
 			return changed ? next : prev;
 		});
-	}, [items]);
+	}, [items, paged]);
+
+	// With server pages `items` holds one page, so selections on other pages
+	// can't be checked against it. Clear them when the result set changes.
+	const selectionScope = JSON.stringify([
+		collection,
+		activeLocale ?? null,
+		activeSearch,
+		statusFilter,
+		authorFilter,
+		dateFilter.from || dateFilter.to ? dateFilter : null,
+		isBylineFilterActive(bylineFilter) ? bylineFilter : null,
+	]);
+	const selectedRowsRef = React.useRef(new Map<string, ContentItem>());
+	React.useEffect(() => {
+		if (!paged) return;
+		setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+		selectedRowsRef.current.clear();
+	}, [paged, selectionScope]);
 
 	const clearSelection = React.useCallback(() => setSelectedIds(new Set()), []);
-	const toggleOne = (id: string) =>
+	const rememberRows = (rows: readonly ContentItem[]) => {
+		if (!paged) return;
+		for (const row of rows) selectedRowsRef.current.set(row.id, row);
+	};
+	const toggleOne = (id: string) => {
+		rememberRows(paginatedItems.filter((item) => item.id === id));
 		setSelectedIds((prev) => {
 			const next = new Set(prev);
 			if (next.has(id)) next.delete(id);
 			else next.add(id);
 			return next;
 		});
+	};
 	const pageIds = paginatedItems.map((i) => i.id);
 	const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
-	const togglePage = () =>
+	const togglePage = () => {
+		rememberRows(paginatedItems);
 		setSelectedIds((prev) => {
 			const next = new Set(prev);
 			if (allPageSelected) for (const id of pageIds) next.delete(id);
 			else for (const id of pageIds) next.add(id);
 			return next;
 		});
+	};
+	const deleteRow = onDelete
+		? (id: string) => {
+				setSelectedIds((prev) => {
+					if (!prev.has(id)) return prev;
+					const next = new Set(prev);
+					next.delete(id);
+					return next;
+				});
+				onDelete(id);
+			}
+		: undefined;
 	const selectedCount = selectedIds.size;
 	const extensionColumns = React.useMemo(
 		() => resolveContentListColumns(pluginAdmins, collection, userRole, pluginStates),
@@ -419,9 +477,17 @@ export function ContentList({
 	const colSpan =
 		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
 	const trashColSpan = i18n ? 4 : 3;
+	const tabPagination = activeTab === "all" ? pagination : trashPagination;
+	const showPaginationFooter = !!tabPagination && tabPagination.totalCount > 0;
 
 	return (
-		<div className="space-y-4">
+		<div
+			className={
+				showPaginationFooter
+					? "flex min-h-full flex-col gap-4 [&_tbody_*]:scroll-mb-48"
+					: "space-y-4"
+			}
+		>
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-4">
@@ -538,7 +604,9 @@ export function ContentList({
 										onClick={() => {
 											setBulkTagSelection(
 												Array.from(selectedIds, (id) => {
-													const item = items.find((candidate) => candidate.id === id);
+													const item =
+														items.find((candidate) => candidate.id === id) ??
+														selectedRowsRef.current.get(id);
 													return {
 														collection,
 														id,
@@ -642,11 +710,15 @@ export function ContentList({
 
 					{/* Table */}
 					<div className="rounded-md border bg-kumo-base overflow-x-auto">
-						<table className="w-full">
+						<table className="w-full" aria-busy={pagination?.isPending || undefined}>
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
 									{bulkEnabled && (
-										<th scope="col" className="w-10 px-4 py-3">
+										<th
+											scope="col"
+											className="w-10 px-4 py-3"
+											inert={pagination?.isPending || undefined}
+										>
 											<Checkbox
 												checked={allPageSelected}
 												onCheckedChange={togglePage}
@@ -704,8 +776,11 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody className="divide-y divide-kumo-line">
-								{isLoading && items.length === 0 ? (
+							<tbody
+								className="divide-y divide-kumo-line"
+								inert={pagination?.isPending || undefined}
+							>
+								{items.length === 0 && (isLoading || pagination?.isPending) ? (
 									<tr>
 										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											<span className="inline-flex items-center gap-2">
@@ -747,7 +822,7 @@ export function ContentList({
 											item={item}
 											visibleItems={paginatedItems}
 											collection={collection}
-											onDelete={onDelete}
+											onDelete={deleteRow}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											i18n={i18n}
@@ -767,7 +842,7 @@ export function ContentList({
 					</div>
 
 					{/* Pagination */}
-					{totalPages > 1 && (
+					{!pagination && totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
 								{renderItemCount({
@@ -805,19 +880,28 @@ export function ContentList({
 					)}
 
 					{/* Load more */}
-					{hasMore && (
+					{!pagination && hasMore && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
 								{isLoading ? t`Loading...` : t`Load More`}
 							</Button>
 						</div>
 					)}
+
+					{pagination && pagination.totalCount > 0 && (
+						<ListPaginationFooter
+							key="all"
+							pagination={pagination}
+							pageSizes={CONTENT_LIST_PAGE_SIZES}
+							label={t`${collectionLabel} pagination`}
+						/>
+					)}
 				</>
 			) : (
 				<>
 					{/* Trash Table */}
 					<div className="rounded-md border bg-kumo-base overflow-x-auto">
-						<table className="w-full">
+						<table className="w-full" aria-busy={trashPagination?.isPending || undefined}>
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
 									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
@@ -836,8 +920,11 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody className="divide-y divide-kumo-line">
-								{isTrashedLoading && trashedItems.length === 0 ? (
+							<tbody
+								className="divide-y divide-kumo-line"
+								inert={trashPagination?.isPending || undefined}
+							>
+								{trashedItems.length === 0 && (isTrashedLoading || trashPagination?.isPending) ? (
 									<tr>
 										<td colSpan={trashColSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											<span className="inline-flex items-center gap-2">
@@ -869,12 +956,21 @@ export function ContentList({
 					</div>
 
 					{/* Load more trashed */}
-					{hasMoreTrashed && (
+					{!trashPagination && hasMoreTrashed && (
 						<div className="flex justify-center">
 							<Button variant="outline" onClick={onLoadMoreTrashed} disabled={isTrashedLoading}>
 								{isTrashedLoading ? t`Loading...` : t`Load More`}
 							</Button>
 						</div>
+					)}
+
+					{trashPagination && trashPagination.totalCount > 0 && (
+						<ListPaginationFooter
+							key="trash"
+							pagination={trashPagination}
+							pageSizes={CONTENT_LIST_PAGE_SIZES}
+							label={t`Trash pagination`}
+						/>
 					)}
 				</>
 			)}
@@ -1346,7 +1442,7 @@ function ContentListItem({
 			<td className="px-4 py-3">
 				<StatusBadge
 					status={item.status}
-					hasPendingChanges={!!item.draftRevisionId && item.draftRevisionId !== item.liveRevisionId}
+					hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
 				/>
 			</td>
 			{showLocale && (

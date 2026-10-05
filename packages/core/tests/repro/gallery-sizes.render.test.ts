@@ -76,6 +76,16 @@ describe("Gallery sizes", () => {
 		}
 	});
 
+	test("provider srcsets stop at the original width", async () => {
+		const html = await renderGallery({
+			node: { _type: "gallery", _key: "g", images: [providerImage("a")] },
+		});
+		const srcset = attr(imgTags(html)[0]!, "srcset");
+
+		expect(srcset).toContain("https://img.example.com/render?w=1600&h=1200 1600w");
+		expect(srcset).not.toContain("1920w");
+	});
+
 	test("the slot follows the block's column count", async () => {
 		const html = await renderGallery({
 			node: { _type: "gallery", _key: "g", columns: 4, images: [providerImage("a")] },

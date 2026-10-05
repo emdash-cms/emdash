@@ -16,10 +16,12 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 	return error instanceof Error && "code" in error;
 }
 
+import { resolveByteRange } from "./range.js";
 import type {
 	Storage,
 	LocalStorageConfig,
 	UploadResult,
+	DownloadOptions,
 	DownloadResult,
 	ListResult,
 	ListOptions,
@@ -108,7 +110,7 @@ export class LocalStorage implements Storage {
 		}
 	}
 
-	async download(key: string): Promise<DownloadResult> {
+	async download(key: string, options: DownloadOptions = {}): Promise<DownloadResult> {
 		try {
 			const filePath = this.getFilePath(key);
 
@@ -117,7 +119,11 @@ export class LocalStorage implements Storage {
 			}
 
 			const stat = await fs.stat(filePath);
-			const nodeStream = createReadStream(filePath);
+			const range = options.range && resolveByteRange(options.range, stat.size);
+			const nodeStream = createReadStream(
+				filePath,
+				range ? { start: range.offset, end: range.offset + range.length - 1 } : undefined,
+			);
 
 			// Convert Node.js stream to web ReadableStream
 			// Readable.toWeb returns ReadableStream (which is ReadableStream<unknown>),
@@ -135,6 +141,7 @@ export class LocalStorage implements Storage {
 				body: webStream,
 				contentType,
 				size: stat.size,
+				...(range && { range }),
 			};
 		} catch (error) {
 			if (error instanceof EmDashStorageError) throw error;

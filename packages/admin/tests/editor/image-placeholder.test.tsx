@@ -275,7 +275,7 @@ describe("Image placeholder", () => {
 		const { screen, editor, latest } = await renderEditor({ value: [INTRO] });
 		editor.commands.focus("end");
 
-		await userEvent.click(screen.getByRole("button", { name: "Insert Image" }));
+		await userEvent.click(screen.getByRole("button", { name: "Insert image" }));
 
 		await expect.element(screen.getByRole("dialog", { name: "Select image" })).toBeVisible();
 		await vi.waitFor(() => expect(images(latest())).toHaveLength(1));
@@ -292,7 +292,7 @@ describe("Image placeholder", () => {
 			return element!;
 		});
 		const item = [...menu.querySelectorAll("button")].find(
-			(button) => button.querySelector(".font-medium")?.textContent === "Image",
+			(button) => button.querySelector("[data-slash-item-title]")?.textContent === "Image",
 		);
 		item!.click();
 		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -351,7 +351,7 @@ describe("Image placeholder", () => {
 			asset: { _ref: "01IMAGE", url: PHOTO.url },
 		};
 		const { screen, editor } = await renderEditor({ value: [EMPTY, filled] });
-		const toolbar = screen.getByRole("group", { name: "Image controls" });
+		const toolbar = screen.getByRole("toolbar", { name: "Image controls" });
 
 		selectImageAt(editor, 1);
 		await expect.element(toolbar).toBeVisible();
