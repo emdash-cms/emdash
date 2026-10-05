@@ -230,6 +230,7 @@ export class S3Storage implements Storage {
 					body,
 					contentType,
 					size: served.size,
+					lastModified: response.LastModified,
 					range: { offset: served.offset, length: served.length },
 				};
 			}
@@ -238,6 +239,7 @@ export class S3Storage implements Storage {
 				body,
 				contentType,
 				size: response.ContentLength || 0,
+				lastModified: response.LastModified,
 			};
 		} catch (error) {
 			if (

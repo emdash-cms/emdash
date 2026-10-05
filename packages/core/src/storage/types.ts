@@ -108,6 +108,8 @@ export interface DownloadResult {
 	 * `DownloadOptions.range`. Absent when `body` is the whole file.
 	 */
 	range?: { offset: number; length: number };
+	/** Last modification time of the stored object, when the backend can provide it. */
+	lastModified?: Date;
 }
 
 /**

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getApproval, listApproverCredentials } from "./api.js";
 import { App } from "./App.js";
 import { applyLocale, i18n } from "./i18n.js";
+import { PublisherPage } from "./PublisherPage.js";
 
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
@@ -30,6 +31,33 @@ afterEach(() => {
 });
 
 describe("release-service web surfaces", () => {
+	it("shows the service error message and code from the publisher client", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				Response.json(
+					{
+						error: {
+							code: "PROFILE_FETCH_FAILED",
+							message: "Package profile could not be verified",
+						},
+						requestId: "request-1",
+					},
+					{ status: 503 },
+				),
+			),
+		);
+		render(
+			<I18nProvider i18n={i18n}>
+				<PublisherPage />
+			</I18nProvider>,
+		);
+		expect(
+			await screen.findByText("Package profile could not be verified (PROFILE_FETCH_FAILED)"),
+		).toBeTruthy();
+		expect(screen.queryByText("The release service request failed.")).toBeNull();
+	});
+
 	it("shows one account login without role navigation", async () => {
 		vi.stubGlobal(
 			"fetch",
