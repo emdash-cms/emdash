@@ -297,10 +297,9 @@ export function resolveTransformQuality(
  * default (lossy formats get one, lossless PNG does not; see
  * {@link DEFAULT_TRANSFORM_QUALITY}).
  *
- * `fit` and `position` describe how the rendition fills its box. Unlike the
- * others they are advisory: an unrecognised value is dropped rather than
- * failing the request. The platform endpoint maps them onto its backend's
- * vocabulary.
+ * `fit` and `position` describe how the rendition fills its box. Each is left
+ * `undefined` when missing or unrecognised, and the platform endpoint maps it
+ * onto its backend's vocabulary.
  */
 export function parseTransformParams(params: URLSearchParams): ParsedTransformParams {
 	const width = parseDimension(params.get("w"));

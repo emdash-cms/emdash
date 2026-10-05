@@ -1,24 +1,27 @@
 import type { APIContext } from "astro";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const adapterGET = vi.fn(() => new Response("adapter", { status: 200 }));
-vi.mock("@astrojs/cloudflare/image-transform-endpoint", () => ({ GET: adapterGET }));
-
-/** Records the transform the endpoint hands to the Images binding. */
-const transform = vi.fn();
-const output = vi.fn(() => ({
-	response: () => new Response("bytes", { headers: { "Content-Type": "image/webp" } }),
-}));
-
-const images = {
-	input: () => ({
-		transform: (options: unknown) => {
-			transform(options);
-			return { output };
+const { adapterGET, transform, images } = vi.hoisted(() => {
+	/** Records the transform the endpoint hands to the Images binding. */
+	const recordTransform = vi.fn();
+	const output = vi.fn(() => ({
+		response: () => new Response("bytes", { headers: { "Content-Type": "image/webp" } }),
+	}));
+	return {
+		adapterGET: vi.fn(() => new Response("adapter", { status: 200 })),
+		transform: recordTransform,
+		images: {
+			input: () => ({
+				transform: (options: unknown) => {
+					recordTransform(options);
+					return { output };
+				},
+			}),
 		},
-	}),
-};
+	};
+});
 
+vi.mock("@astrojs/cloudflare/image-transform-endpoint", () => ({ GET: adapterGET }));
 vi.mock("cloudflare:workers", () => ({ env: { IMAGES: images } }));
 
 const { GET } = await import("../src/image-endpoint.js");
