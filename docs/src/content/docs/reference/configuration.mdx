@@ -385,6 +385,7 @@ Options for `access()`:
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
 | `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
+| `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to keep names edited in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names to EmDash role levels; first match wins                                  |
 
 <Aside>
@@ -983,7 +984,7 @@ emdash({
 });
 ```
 
-`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, and `roleMapping`. The [`auth`](#auth) option documents their defaults and role behavior.
+`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, `syncName`, and `roleMapping`. The [`auth`](#auth) option documents their defaults, role behavior, and name sync.
 
 ### `sandbox()`
 
