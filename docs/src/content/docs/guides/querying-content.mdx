@@ -247,6 +247,9 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 galleries, code, tables, HTML blocks and iframe blocks. Pass custom components when a site adds its
 own Portable Text blocks.
 
+An empty image block, saved with an empty `asset._ref` and `asset.url`, renders nothing. If you
+replace the `image` renderer, skip those blocks as well.
+
 An HTML block with `isolated: true` renders its `html`, `css` and `js` in a sandboxed iframe that
 sizes itself to its content. Other HTML blocks render their `html` in the page, sanitized. If you
 replace the `htmlBlock` renderer, pass isolated blocks to `HtmlBlock` from `emdash/ui` or render
