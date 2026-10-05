@@ -160,6 +160,45 @@ function verifierReport(): ReleaseVerificationReport {
 }
 
 describe("verification evaluation", () => {
+	it("verifies attestations for workflows running from package version tags", async () => {
+		const ref = "refs/tags/gallery@1.2.3";
+		const identity: VerifiedWorkloadIdentity = {
+			...WORKLOAD_IDENTITY,
+			workflow: {
+				...WORKLOAD_IDENTITY.workflow,
+				ref: `example/gallery/.github/workflows/release.yml@${ref}`,
+			},
+			run: { ...WORKLOAD_IDENTITY.run, ref, refType: "tag" },
+		};
+		const report = verifierReport();
+		if (!report.success) throw new Error("Verifier fixture must succeed");
+		report.value.provenance.builderId = `https://github.com/${identity.workflow.ref}`;
+		report.value.provenance.workflowRef = ref;
+		expect(
+			await evaluateWorkloadAttestation(
+				await intent(proposedRelease(), identity),
+				{
+					...WORKLOAD_POLICY,
+					workflowRef: "example/gallery/.github/workflows/release.yml@refs/*",
+					allowedRefs: ["refs/tags/*"],
+				},
+				report.value.provenance,
+			),
+		).toEqual({ ok: true });
+		report.value.provenance.workflowRef = "refs/tags/gallery@2.0.0";
+		expect(
+			await evaluateWorkloadAttestation(
+				await intent(proposedRelease(), identity),
+				{
+					...WORKLOAD_POLICY,
+					workflowRef: "example/gallery/.github/workflows/release.yml@refs/*",
+					allowedRefs: ["refs/tags/*"],
+				},
+				report.value.provenance,
+			),
+		).toEqual({ ok: false, reasonCode: "ATTESTED_REF_MISMATCH" });
+	});
+
 	it("prepares the isolated verifier request from signed inputs", async () => {
 		expect(prepareVerifierInput(await intent(), snapshot())).toEqual({
 			artifact: {
