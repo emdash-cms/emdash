@@ -47,7 +47,7 @@ describe("agent upgrade work order", () => {
 				migrationStatus: "pnpm exec emdash migrate --status",
 				migrationApply: "pnpm exec emdash migrate",
 				migrationCheck: "pnpm exec emdash migrate --check",
-				syncSkills: "npx --yes skills add emdash-cms/skills -y",
+				syncSkills: "npx --yes skills@1.7.0 add emdash-cms/skills -y",
 			},
 		};
 
@@ -88,7 +88,7 @@ describe("agent upgrade work order", () => {
 				migrationStatus: "pnpm exec emdash migrate --status",
 				migrationApply: "pnpm exec emdash migrate",
 				migrationCheck: "pnpm exec emdash migrate --check",
-				syncSkills: "npx --yes skills add emdash-cms/skills -y",
+				syncSkills: "npx --yes skills@1.7.0 add emdash-cms/skills -y",
 			},
 		};
 

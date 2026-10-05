@@ -12,7 +12,7 @@ The updater resolves the `latest` npm dist-tag independently for every direct `e
 
 For each package, the updater preserves the existing caret, tilde, or exact dependency style and runs the project's package manager. It then:
 
-- refreshes the project skills with `npx skills add emdash-cms/skills`
+- refreshes the project skills with `npx --yes skills@1.7.0 add emdash-cms/skills -y`
 - fetches the crossed package changelogs from each exact GitHub release tag
 - removes generated dependency-bump entries and Changesets attribution wrappers
 - deduplicates authored entries repeated across packages without shortening their bodies

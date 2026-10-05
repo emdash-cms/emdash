@@ -55,7 +55,7 @@ Run the updater from the site's project directory. It reads the installed packag
 
    The command preserves each dependency's existing caret, tilde, or exact version style and runs the project's package manager. Package versions can differ: each direct package receives the exact version published under the selected tag.
 
-   It then runs `npx skills add emdash-cms/skills` in the project and compares the installed core migration identity with the identity captured before installation. It does not apply a migration.
+   It then runs `npx --yes skills@1.7.0 add emdash-cms/skills -y` in the project and compares the installed core migration identity with the identity captured before installation. It does not apply a migration.
 
 3. Open `.emdash/UPGRADE.md` and complete its project actions.
 

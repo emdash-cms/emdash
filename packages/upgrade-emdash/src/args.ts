@@ -21,10 +21,10 @@ Options:
   --cwd <path>  Project directory (default: current directory)
   --to <tag>    npm dist-tag to install (default: latest)
   --dry-run     Inspect the upgrade without changing files
-  --yes         Apply without an interactive confirmation
+  -y, --yes     Apply without an interactive confirmation
   --json        Emit the dry-run plan as JSON
-  --help        Show this help
-  --version     Show the updater version
+  -h, --help    Show this help
+  -v, --version Show the updater version
 `;
 
 export function parseArgs(args: readonly string[], cwd = process.cwd()): CliOptions {

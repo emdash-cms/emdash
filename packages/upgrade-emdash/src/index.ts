@@ -7,7 +7,13 @@ import pc from "picocolors";
 import { HELP, parseArgs } from "./args.js";
 import { migrationBackupWarning, renderUpgradeGuide } from "./guide.js";
 import { createUpgradePlan, withTargetMigrations } from "./plan.js";
-import { loadProject, run, writeDependenciesAndInstall, type ProjectState } from "./project.js";
+import {
+	loadProject,
+	run,
+	SYNC_SKILLS,
+	writeDependenciesAndInstall,
+	type ProjectState,
+} from "./project.js";
 import type { UpgradePlan } from "./types.js";
 
 async function updaterVersion(): Promise<string> {
@@ -61,7 +67,14 @@ async function applyPlan(plan: UpgradePlan): Promise<UpgradePlan> {
 	await mkdir(dirname(completedPlan.guidePath), { recursive: true });
 	await writeFile(completedPlan.guidePath, renderUpgradeGuide(completedPlan));
 	p.log.step("Refreshing EmDash agent skills");
-	await run("npx", ["--yes", "skills", "add", "emdash-cms/skills", "-y"], plan.projectRoot);
+	try {
+		await run(SYNC_SKILLS.command, SYNC_SKILLS.args, plan.projectRoot);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		p.log.warn(
+			`Refreshing the EmDash agent skills failed: ${message} Run ${completedPlan.commands.syncSkills} before starting the work order.`,
+		);
+	}
 	return completedPlan;
 }
 

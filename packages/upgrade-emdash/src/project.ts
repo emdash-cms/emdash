@@ -45,6 +45,11 @@ const SECTIONS: readonly DependencySection[] = [
 	"optionalDependencies",
 ];
 const MINIMUM_EMDASH_VERSION = "0.35.0";
+
+export const SYNC_SKILLS = {
+	command: "npx",
+	args: ["--yes", "skills@1.7.0", "add", "emdash-cms/skills", "-y"],
+} as const;
 const SIMPLE_VERSION = /^(\^|~)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 async function pathExists(path: string): Promise<boolean> {

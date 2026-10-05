@@ -7,13 +7,14 @@ import {
 	emdashCommand,
 	installCommand,
 	packageRun,
+	SYNC_SKILLS,
 	targetSpecifier,
 	type ProjectState,
 } from "./project.js";
 import { resolveRegistryRelease } from "./registry.js";
 import type { ChangelogEntry, DependencyChange, UpgradePlan } from "./types.js";
 
-function quotedCommand(command: string, args: readonly string[]): string {
+function commandLine(command: string, args: readonly string[]): string {
 	return [command, ...args].join(" ");
 }
 
@@ -106,7 +107,7 @@ export async function createUpgradePlan(
 		},
 		guidePath: resolve(project.root, ".emdash", "UPGRADE.md"),
 		commands: {
-			install: quotedCommand(install.command, install.args),
+			install: commandLine(install.command, install.args),
 			build: packageRun(project.packageManager, "build"),
 			deploy: project.packageJson.scripts?.deploy
 				? packageRun(project.packageManager, "deploy")
@@ -114,7 +115,7 @@ export async function createUpgradePlan(
 			migrationStatus: emdashCommand(project.packageManager, "migrate --status"),
 			migrationApply: emdashCommand(project.packageManager, "migrate"),
 			migrationCheck: emdashCommand(project.packageManager, "migrate --check"),
-			syncSkills: "npx --yes skills add emdash-cms/skills -y",
+			syncSkills: commandLine(SYNC_SKILLS.command, SYNC_SKILLS.args),
 		},
 	};
 }
