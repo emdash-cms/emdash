@@ -516,7 +516,7 @@ describe("ImageUploadExtension with videos", () => {
 	const EMPTY_VIDEO_BETWEEN = [textBlock("First"), { type: "videoBlock" }, textBlock("Second")];
 
 	function emptyVideo() {
-		const element = document.querySelector<HTMLElement>("[data-video-placeholder]");
+		const element = document.querySelector<HTMLElement>("[data-media-placeholder]");
 		if (!element) throw new Error("No empty video block");
 		return element;
 	}

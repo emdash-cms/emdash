@@ -31,6 +31,7 @@ import {
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
 import { MediaPickerModal } from "../MediaPickerModal";
+import { MediaPlaceholder, isFileDrag, useNativeEditGuard } from "./MediaPlaceholder";
 
 type FieldCheck = (value: unknown) => boolean;
 
@@ -131,7 +132,7 @@ export function openPickerOnInsert(editor: Editor) {
 }
 
 const STOP = "[data-video-stop]";
-const PLACEHOLDER = "[data-video-placeholder]";
+const PLACEHOLDER = "[data-media-placeholder]";
 
 /** Focus the node-selected video's first control, for keyboard users. */
 function focusSelectedVideo(editor: Editor, type: NodeType): boolean {
@@ -154,9 +155,6 @@ function chooseSelectedVideo(editor: Editor, type: NodeType): boolean {
 	placeholder?.click();
 	return placeholder !== null;
 }
-
-const isFileDrag = (event: { dataTransfer: DataTransfer | null }) =>
-	Boolean(event.dataTransfer?.types.includes("Files"));
 
 /**
  * Drags and drops go to ProseMirror, so dropped files reach the upload
@@ -213,32 +211,8 @@ function VideoNodeView({
 	const width = isDimension(attrs.width) ? attrs.width : undefined;
 	const height = isDimension(attrs.height) ? attrs.height : undefined;
 	const empty = isEmptyVideo(attrs);
-	const [dropping, setDropping] = React.useState(false);
-	const dragDepth = React.useRef(0);
 	const figureRef = React.useRef<HTMLElement>(null);
-
-	// ProseMirror leaves keys on the player and buttons to the browser, whose own editing
-	// would change the text around the block: typing replaces it, and Backspace joins the
-	// paragraphs on either side. Input method text can't be cancelled, so it gets no
-	// selection to go to.
-	React.useEffect(() => {
-		const figure = figureRef.current;
-		if (!figure) return;
-		const keepEditsOut = (event: InputEvent) => {
-			if (event.target !== captionRef.current) event.preventDefault();
-		};
-		const keepCompositionOut = (event: CompositionEvent) => {
-			if (event.target !== captionRef.current) {
-				figure.ownerDocument.getSelection()?.removeAllRanges();
-			}
-		};
-		figure.addEventListener("beforeinput", keepEditsOut);
-		figure.addEventListener("compositionstart", keepCompositionOut);
-		return () => {
-			figure.removeEventListener("beforeinput", keepEditsOut);
-			figure.removeEventListener("compositionstart", keepCompositionOut);
-		};
-	}, []);
+	useNativeEditGuard(figureRef, captionRef);
 
 	// ProseMirror would take text dragged over or dropped on the caption into the document.
 	React.useEffect(() => {
@@ -306,15 +280,6 @@ function VideoNodeView({
 		deleteNode();
 	};
 
-	// ProseMirror ignores keydown on the placeholder, so it removes the block itself rather
-	// than relying on the browser's editing.
-	const removeOnDeleteKey = (event: React.KeyboardEvent<HTMLElement>) => {
-		if (event.key !== "Backspace" && event.key !== "Delete") return;
-		if (event.nativeEvent.isComposing) return;
-		event.preventDefault();
-		removeBlock();
-	};
-
 	// Selected, the pill stays visible while the picker is open, so the
 	// picker can hand focus back to Replace when it closes.
 	const openPicker = () => {
@@ -332,25 +297,6 @@ function VideoNodeView({
 		setPickerOpen(true);
 	}, []);
 
-	// Only the highlight: ProseMirror takes the drop, and the upload extension
-	// puts the dropped files in this block's place.
-	const dropHighlight = {
-		onDragEnter: (event: React.DragEvent) => {
-			if (!isFileDrag(event)) return;
-			dragDepth.current += 1;
-			setDropping(true);
-		},
-		onDragLeave: (event: React.DragEvent) => {
-			if (!isFileDrag(event)) return;
-			dragDepth.current = Math.max(0, dragDepth.current - 1);
-			if (dragDepth.current === 0) setDropping(false);
-		},
-		onDrop: () => {
-			dragDepth.current = 0;
-			setDropping(false);
-		},
-	};
-
 	const pillButtonClass = "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11";
 
 	return (
@@ -362,38 +308,17 @@ function VideoNodeView({
 				onKeyDown={handleTab}
 			>
 				{empty ? (
-					<div
+					<MediaPlaceholder
+						icon={VideoCamera}
+						label={t`Upload or choose a video`}
+						readOnlyLabel={t`No video`}
+						editable={editable}
+						selected={selected}
 						dir={chromeDir}
-						className={cn(
-							"rounded-lg border border-dashed border-kumo-line bg-kumo-control motion-safe:transition-colors",
-							// Important, because the admin's unlayered `*` border color beats utilities.
-							dropping && "border-kumo-brand! bg-kumo-tint",
-							selected &&
-								"group-focus-within/editor:ring-2 ring-kumo-brand ring-offset-2 ring-offset-kumo-base",
-						)}
-						{...(editable ? dropHighlight : {})}
-					>
-						{editable ? (
-							<Button
-								type="button"
-								variant="ghost"
-								tabIndex={-1}
-								data-video-stop=""
-								data-video-placeholder=""
-								className="h-auto w-full justify-start gap-3 rounded-[7px] px-4 py-3 text-start text-sm font-normal text-kumo-subtle"
-								onClick={openPicker}
-								onKeyDown={removeOnDeleteKey}
-							>
-								<VideoCamera className="size-5 shrink-0" aria-hidden="true" />
-								{dropping ? t`Drop to upload` : t`Upload or choose a video`}
-							</Button>
-						) : (
-							<p className="m-0! flex items-center gap-3 px-4 py-3 text-sm text-kumo-subtle">
-								<VideoCamera className="size-5 shrink-0" aria-hidden="true" />
-								{t`No video`}
-							</p>
-						)}
-					</div>
+						onChoose={openPicker}
+						onRemove={removeBlock}
+						buttonAttributes={{ "data-video-stop": "" }}
+					/>
 				) : (
 					<>
 						<div
