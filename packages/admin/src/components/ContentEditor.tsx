@@ -7,7 +7,6 @@ import {
 	Input,
 	InputArea,
 	Label,
-	LinkButton,
 	Loader,
 	Select,
 	Sidebar,
@@ -68,12 +67,13 @@ import { BlocksField } from "./BlocksField.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
 	ContentSettingsPanel,
+	compactBarButtonClassName,
+	compactBarLabelClassName,
 	DiscardDraftDialog,
-	PreviewButton,
-	PublishActions,
+	EditorActions,
 	ScheduleActions,
-	SettingsActionBar,
 } from "./ContentSettingsPanel.js";
+import { focusDocumentStart } from "./editor/BlockCommands.js";
 import { EditorDraftPatchPreview } from "./EditorDraftPatchPreview.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
@@ -86,7 +86,6 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
-import { SaveButton } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -108,6 +107,14 @@ function serializeEditorState(input: {
 		slug: input.slug,
 		bylines: input.bylines,
 	});
+}
+
+function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<string, unknown> {
+	const data: Record<string, unknown> = {};
+	for (const [name, field] of Object.entries(fields)) {
+		if (field.defaultValue !== undefined) data[name] = structuredClone(field.defaultValue);
+	}
+	return data;
 }
 
 const SERVER_FIELD_TYPE_TO_EDITOR_KIND: Record<string, string> = {
@@ -188,6 +195,8 @@ export interface FieldDescriptor {
 	unsupportedType?: { type: string; path: string };
 	blockTypes?: import("../lib/api/schema.js").BlockType[];
 	blockTypeFingerprint?: string;
+	/** Value a new entry starts with. */
+	defaultValue?: unknown;
 }
 
 /**
@@ -509,7 +518,9 @@ export function ContentEditor({
 		mq.addEventListener("change", onChange);
 		return () => mq.removeEventListener("change", onChange);
 	}, []);
-	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
+	const [formData, setFormData] = React.useState<Record<string, unknown>>(
+		() => item?.data ?? (isNew ? defaultFieldValues(fields) : {}),
+	);
 	const editorGenerationRef = React.useRef(0);
 	const editorIdentity = `${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
 	const [editorDraftError, setEditorDraftError] = React.useState<string | null>(null);
@@ -1274,6 +1285,23 @@ export function ContentEditor({
 	// generic "Edit <label>".
 	const titleField = manifest?.collections[collection]?.titleField;
 	const entryTitle = item && titleField ? getEntryTitle(item, titleField) : "";
+	const documentTitleField = titleField ?? (fields.title?.kind === "string" ? "title" : undefined);
+	const liveTitleValue = documentTitleField ? formData[documentTitleField] : undefined;
+	const liveTitle = typeof liveTitleValue === "string" ? liveTitleValue.trim() : "";
+	const barTitle = liveTitle || entryTitle || (isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`);
+	const collectionListLabel = manifest?.collections[collection]?.label ?? collectionLabel;
+	const documentTitleRef = React.useRef<HTMLInputElement>(null);
+	const hasDocumentTitle =
+		documentTitleField !== undefined && fields[documentTitleField]?.kind === "string";
+	const focusDocumentBody = React.useCallback(() => {
+		if (portableTextEditor) focusDocumentStart(portableTextEditor);
+	}, [portableTextEditor]);
+	const focusDocumentTitle = React.useCallback(() => {
+		const input = documentTitleRef.current;
+		if (!input) return;
+		input.focus();
+		input.setSelectionRange(input.value.length, input.value.length);
+	}, []);
 
 	const handlePreview = async () => {
 		if (!item?.id) return;
@@ -1386,17 +1414,160 @@ export function ContentEditor({
 		[canToggleDistractionFree],
 	);
 
+	// One bar for where you are and what you can do with the entry. Pinned
+	// above the scrolling page on wide screens and in distraction-free mode;
+	// on small screens it scrolls away with the page to leave room to write.
+	const pinEditorBar = !isBelowLg || isDistractionFree;
+	const editorBar = (
+		<div
+			data-emdash-editor-bar=""
+			className="@container/editor-bar flex min-h-12 shrink-0 items-center gap-1.5 border-b border-kumo-line px-3 py-2 sm:px-4"
+		>
+			{/* The title gives up its width first; the actions wrap only when even
+			    their icons don't fit. */}
+			{!isDistractionFree && (
+				<RouterLinkButton
+					to="/content/$collection"
+					params={{ collection }}
+					search={{ locale: undefined }}
+					aria-label={t`Back to ${collectionLabel} list`}
+					variant="ghost"
+					shape="square"
+					size="sm"
+					icon={<ArrowPrev className="size-4" />}
+				/>
+			)}
+			<div className="flex min-w-0 flex-1 items-center gap-1.5">
+				{!isDistractionFree && (
+					<>
+						{/* Repeats the back link for pointers, so it stays out of the tab order. */}
+						<Link
+							to="/content/$collection"
+							params={{ collection }}
+							search={{ locale: undefined }}
+							tabIndex={-1}
+							aria-hidden="true"
+							className="hidden max-w-48 shrink-0 truncate text-base text-kumo-subtle no-underline hover:text-kumo-default @[44rem]/editor-bar:block"
+						>
+							{collectionListLabel}
+						</Link>
+						<span
+							aria-hidden="true"
+							className="hidden text-kumo-inactive @[44rem]/editor-bar:block"
+						>
+							/
+						</span>
+					</>
+				)}
+				<h1 dir="auto" className="min-w-0 truncate text-base font-medium">
+					{barTitle}
+				</h1>
+				{i18n && item?.locale && (
+					<Badge variant="outline" className="uppercase text-xs">
+						{item.locale}
+					</Badge>
+				)}
+			</div>
+			{/* The distraction-free toggle stays outside the disabled fieldset:
+			    it changes the view, not the entry, and a reader must be able to
+			    leave the overlay. */}
+			<div className="ms-0.5 flex flex-wrap items-center justify-end gap-1.5 sm:ms-1.5">
+				<fieldset disabled={readOnly} className="contents">
+					{!isDistractionFree && item && sandboxedEditorActions.length > 0 ? (
+						<SandboxedContentEditorActions
+							actions={sandboxedEditorActions}
+							collection={collection}
+							entryId={item.id}
+							locale={item.locale ?? entryLocale}
+							isMobile={isBelowLg}
+							disabled={Boolean(isSaving || isAutosaving)}
+							hasUnsavedChanges={isDirty}
+							onEntryRefresh={onEntryRefresh}
+							captureDraft={captureEditorDraft}
+							onDraftResponse={handleEditorDraftResponse}
+						/>
+					) : null}
+					<EditorActions
+						collectionLabel={collectionLabel}
+						isNew={isNew}
+						isDirty={isDirty}
+						isSaving={Boolean(saveFeedbackActive)}
+						isAutosaving={autosaveFeedbackActive}
+						saveDisabled={isContentSaveBlocked}
+						isLive={isLive}
+						hasPendingChanges={hasPendingChanges}
+						publishingState={publishingState}
+						publishingPending={publishingPending}
+						publishDisabled={hasSaveConflict}
+						liveViewUrl={liveViewUrl}
+						supportsPreview={supportsPreview}
+						isLoadingPreview={isLoadingPreview}
+						onPreview={handlePreview}
+						onPublish={handlePublish}
+						onUnpublish={handleUnpublish}
+						onMenuOpenChange={setPublishingMenuOpen}
+						beforePublish={
+							// The settings panel holds these outside distraction-free mode.
+							isDistractionFree && !isNew ? (
+								<>
+									{supportsDrafts && hasPendingChanges && onDiscardDraft && (
+										<DiscardDraftDialog
+											onDiscard={onDiscardDraft}
+											triggerVariant="outline"
+											triggerSize="sm"
+											compact
+										/>
+									)}
+									<ScheduleActions
+										publishingState={publishingState}
+										canSchedule={canSchedule}
+										isScheduling={isScheduling}
+										isUnscheduling={isUnscheduling}
+										disabled={publishingPending || hasSaveConflict}
+										onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+										onUnschedule={onUnschedule ? handleUnschedule : undefined}
+										inline
+									/>
+								</>
+							) : null
+						}
+					/>
+					{!isDistractionFree && isBelowLg && <MobileSettingsButton />}
+				</fieldset>
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					type="button"
+					onClick={() => setIsDistractionFree((prev) => !prev)}
+					aria-label={
+						isDistractionFree ? t`Exit distraction-free mode` : t`Enter distraction-free mode`
+					}
+					title={
+						isDistractionFree
+							? t`Exit distraction-free mode (⌘⇧\\)`
+							: t`Distraction-free mode (⌘⇧\\)`
+					}
+				>
+					{isDistractionFree ? (
+						<ArrowsInSimple className="h-4 w-4" aria-hidden="true" />
+					) : (
+						<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
+					)}
+				</Button>
+			</div>
+		</div>
+	);
+
 	return (
 		<form
 			onSubmit={handleSubmit}
 			className={cn(
-				"transition-all duration-300",
-				isDistractionFree
-					? "space-y-6 fixed inset-0 z-50 bg-kumo-elevated p-8 overflow-auto"
-					: "flex h-full bg-kumo-elevated",
+				"flex h-full flex-col bg-kumo-elevated",
+				isDistractionFree && "fixed inset-0 z-50",
 			)}
 		>
-			{/* Wraps the whole layout so the strip's Settings button and the
+			{/* Wraps the whole layout so the bar's Settings button and the
 			    block-panel sync can reach the sidebar context. Below lg Kumo
 			    renders the panel as an inline (not portaled) sheet. */}
 			<Sidebar.Provider
@@ -1410,7 +1581,7 @@ export function ContentEditor({
 				minWidth={EDITOR_SETTINGS_MIN_WIDTH_PX}
 				maxWidth={EDITOR_SETTINGS_MAX_WIDTH_PX}
 				mobileBreakpoint={1024}
-				className={cn(!isDistractionFree && "h-full min-h-0")}
+				className="min-h-0 flex-1 flex-col"
 				style={
 					{
 						"--sidebar-bg": "var(--color-kumo-elevated)",
@@ -1418,393 +1589,173 @@ export function ContentEditor({
 					} as React.CSSProperties
 				}
 			>
-				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
-					{/* In distraction-free mode the header stays visible while the editor scrolls
-					    so readers can discover the exit affordance without hovering. */}
+				{pinEditorBar && editorBar}
+				<div className="flex min-h-0 flex-1">
 					<div
-						className={cn(
-							"flex flex-wrap items-center justify-between gap-y-2",
-							isDistractionFree
-								? "sticky top-0 z-10 mx-auto w-full max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur"
-								: cn(
-										"mx-auto mb-6 max-w-3xl",
-										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
-									),
-						)}
+						data-emdash-editor-canvas=""
+						className="min-w-0 flex-1 overflow-y-auto [--emdash-editor-sticky-top:0px]"
 					>
-						<div className="flex min-w-0 items-center gap-3">
-							{!isDistractionFree && (
-								<RouterLinkButton
-									to="/content/$collection"
-									params={{ collection }}
-									search={{ locale: undefined }}
-									aria-label={t`Back to ${collectionLabel} list`}
-									variant="ghost"
-									shape="square"
-									icon={<ArrowPrev />}
+						{!pinEditorBar && editorBar}
+						<div className="emdash-editor-page mx-auto max-w-[52rem] space-y-6 pt-8 pb-16 sm:pt-12">
+							{notice}
+							{editorDraftError ? (
+								<Banner
+									variant="error"
+									role="alert"
+									title={t`Plugin changes were not applied`}
+									description={editorDraftError}
 								/>
-							)}
-							<h1 className="min-w-0 truncate text-lg font-semibold">
-								{isNew ? t`New ${itemLabel}` : entryTitle || t`Edit ${itemLabel}`}
-							</h1>
-							{i18n && item?.locale && (
-								<Badge variant="outline" className="uppercase text-xs">
-									{item.locale}
-								</Badge>
-							)}
-						</div>
-						{/* The distraction-free toggles stay outside the disabled fieldsets:
-						    they change the view, not the entry, and a reader must be able to
-						    leave the overlay. */}
-						<div
-							className={cn(
-								"flex items-center gap-2",
-								isDistractionFree &&
-									(isBelowLg
-										? "w-full flex-wrap justify-end"
-										: "min-w-0 max-w-full flex-wrap justify-end"),
-							)}
-						>
-							{!isDistractionFree ? (
-								// Below lg, actions move here from the (hidden) panel.
-								<>
-									{isBelowLg && (
-										<fieldset
-											disabled={readOnly}
-											className="flex flex-wrap items-center justify-end gap-2"
-										>
-											{!isNew && supportsPreview && (
-												<PreviewButton
-													hasPendingChanges={hasPendingChanges}
-													isLoadingPreview={isLoadingPreview}
-													onPreview={handlePreview}
-												/>
-											)}
-											<SaveButton
-												type="submit"
-												isDirty={isDirty}
-												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-												disabled={isContentSaveBlocked}
+							) : null}
+							<fieldset disabled={readOnly} className="contents">
+								{unsupportedFields.length > 0 && (
+									<Banner
+										variant="error"
+										role="alert"
+										title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
+										description={unsupportedFields
+											.map(
+												([name, field]) =>
+													`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
+											)
+											.join(", ")}
+									/>
+								)}
+								{hasSaveConflict && (
+									<Banner
+										variant="error"
+										role="alert"
+										title={t`This entry changed somewhere else after you opened it.`}
+										description={t`What you typed is still here. Saving replaces the newer version.`}
+										action={
+											<Button size="sm" variant="secondary" type="button" onClick={submitSave}>
+												{t`Save anyway`}
+											</Button>
+										}
+									/>
+								)}
+								<div className="space-y-6 [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
+									{Object.entries(fields).map(([name, field]) => {
+										// Key by item id so all field editors remount cleanly when the
+										// underlying content item changes (e.g. switching translations).
+										// PortableTextEditor in particular freezes its initial content on
+										// mount; without this key, navigating between translations leaves
+										// the previous locale's body in the editor and silently overwrites
+										// the new translation on the next edit.
+										const fieldKey = `${name}:${item?.id ?? "new"}`;
+										const isDocumentBody = field.kind === "portableText" && name === "content";
+										const fieldEl = (
+											<FieldRenderer
+												key={fieldKey}
+												name={name}
+												field={field}
+												value={formData[name]}
+												onChange={handleFieldChange}
+												onEditorReady={isDocumentBody ? setPortableTextEditor : undefined}
+												isDocumentTitle={name === documentTitleField}
+												titleInputRef={name === documentTitleField ? documentTitleRef : undefined}
+												onDocumentTitleExit={portableTextEditor ? focusDocumentBody : undefined}
+												isDocumentBody={isDocumentBody}
+												onArrowUpAtStart={
+													isDocumentBody && hasDocumentTitle ? focusDocumentTitle : undefined
+												}
+												pluginBlocks={pluginBlocks}
+												onBlockSidebarOpen={
+													field.kind === "portableText" ? handleBlockSidebarOpen : undefined
+												}
+												onBlockSidebarClose={
+													field.kind === "portableText" ? handleBlockSidebarClose : undefined
+												}
+												manifest={manifest}
+												readOnly={readOnly}
+												timezone={timezone}
+												referenceState={referenceState}
+												onReferenceChange={handleReferenceCurrentChange}
+												onLoadMoreReferences={handleLoadMoreReferences}
+												onRetryReferences={handleRetryReferences}
+												// Existing entries carry their locale on `item`; new entries only
+												// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
+												entryLocale={item?.locale ?? entryLocale}
 											/>
-											{liveViewUrl && (
-												<LinkButton
-													href={liveViewUrl}
-													external
-													variant="outline"
-													icon={<ArrowSquareOut />}
-												>
-													{t`Live View`}
-												</LinkButton>
-											)}
-											<PublishActions
-												collectionLabel={collectionLabel}
-												isNew={isNew}
-												isLive={isLive}
-												hasPendingChanges={hasPendingChanges}
-												publishingState={publishingState}
-												isPending={publishingPending}
-												disabled={hasSaveConflict}
-												onPublish={handlePublish}
-												onUnpublish={handleUnpublish}
-												onMenuOpenChange={setPublishingMenuOpen}
-											/>
-											<MobileSettingsButton />
-										</fieldset>
-									)}
-									{item && sandboxedEditorActions.length > 0 ? (
-										<fieldset disabled={readOnly} className="contents">
-											<SandboxedContentEditorActions
-												actions={sandboxedEditorActions}
-												collection={collection}
-												entryId={item.id}
-												locale={item.locale ?? entryLocale}
-												isMobile={isBelowLg}
-												disabled={Boolean(isSaving || isAutosaving)}
-												hasUnsavedChanges={isDirty}
-												onEntryRefresh={onEntryRefresh}
-												captureDraft={captureEditorDraft}
-												onDraftResponse={handleEditorDraftResponse}
-											/>
-										</fieldset>
-									) : null}
-									<Button
-										variant="ghost"
-										shape="square"
-										type="button"
-										onClick={() => setIsDistractionFree(true)}
-										aria-label={t`Enter distraction-free mode`}
-										title={t`Distraction-free mode (⌘⇧\\)`}
-									>
-										<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
-									</Button>
-								</>
-							) : (
-								// Distraction-free: this overlay is the only save/exit surface.
-								<>
-									<fieldset disabled={readOnly} className="contents">
-										<SaveButton
-											type="submit"
-											size="sm"
-											isDirty={isDirty}
-											isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-											disabled={isContentSaveBlocked}
-										/>
-										{liveViewUrl && (
-											<LinkButton
-												href={liveViewUrl}
-												external
-												variant="outline"
-												size="sm"
-												icon={<ArrowSquareOut />}
-											>
-												{t`Live View`}
-											</LinkButton>
-										)}
-										{!isNew && supportsPreview && (
-											<PreviewButton
-												size="sm"
-												hasPendingChanges={hasPendingChanges}
-												isLoadingPreview={isLoadingPreview}
-												onPreview={handlePreview}
-											/>
-										)}
-										{!isNew && (
-											<>
-												{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-													<DiscardDraftDialog
-														onDiscard={onDiscardDraft}
-														triggerVariant="outline"
-														triggerSize="sm"
-													/>
-												)}
-												<ScheduleActions
-													publishingState={publishingState}
-													canSchedule={canSchedule}
-													isScheduling={isScheduling}
-													isUnscheduling={isUnscheduling}
-													disabled={publishingPending || hasSaveConflict}
-													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-													onUnschedule={onUnschedule ? handleUnschedule : undefined}
-													inline
-												/>
-												<PublishActions
-													collectionLabel={collectionLabel}
-													isLive={isLive}
-													hasPendingChanges={hasPendingChanges}
-													publishingState={publishingState}
-													isPending={publishingPending}
-													disabled={hasSaveConflict}
-													onPublish={handlePublish}
-													onUnpublish={handleUnpublish}
-													onMenuOpenChange={setPublishingMenuOpen}
-													size="sm"
-												/>
-											</>
-										)}
-									</fieldset>
-									<Button
-										variant="ghost"
-										shape="square"
-										type="button"
-										onClick={() => setIsDistractionFree(false)}
-										aria-label={t`Exit distraction-free mode`}
-										title={t`Exit distraction-free mode (⌘⇧\\)`}
-									>
-										<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
-									</Button>
-								</>
-							)}
+										);
+										return fieldEl;
+									})}
+								</div>
+							</fieldset>
 						</div>
 					</div>
 
-					<div
-						className={cn(isDistractionFree ? "mx-auto max-w-3xl" : "mx-auto max-w-3xl space-y-6")}
+					{/* Hidden (not unmounted) in distraction-free mode so panel-local
+					    state survives the round trip; `hidden` on the pane's own layout
+					    element leaves no gap. */}
+					<Sidebar
+						id={settingsPanelId}
+						aria-label={t`Settings`}
+						className={cn(isDistractionFree && "hidden")}
 					>
-						{notice}
-						{editorDraftError ? (
-							<Banner
-								variant="error"
-								role="alert"
-								title={t`Plugin changes were not applied`}
-								description={editorDraftError}
-							/>
-						) : null}
 						<fieldset disabled={readOnly} className="contents">
-							{unsupportedFields.length > 0 && (
-								<Banner
-									variant="error"
-									role="alert"
-									title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
-									description={unsupportedFields
-										.map(
-											([name, field]) =>
-												`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
-										)
-										.join(", ")}
-								/>
-							)}
-							{hasSaveConflict && (
-								<Banner
-									variant="error"
-									role="alert"
-									title={t`This entry changed somewhere else after you opened it.`}
-									description={t`What you typed is still here. Saving replaces the newer version.`}
-									action={
-										<Button size="sm" variant="secondary" type="button" onClick={submitSave}>
-											{t`Save anyway`}
-										</Button>
-									}
-								/>
-							)}
 							<div
-								className={cn(
-									"space-y-6",
-									!isDistractionFree &&
-										"[&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base",
-								)}
+								className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
+								style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
 							>
-								{Object.entries(fields).map(([name, field]) => {
-									// Key by item id so all field editors remount cleanly when the
-									// underlying content item changes (e.g. switching translations).
-									// PortableTextEditor in particular freezes its initial content on
-									// mount; without this key, navigating between translations leaves
-									// the previous locale's body in the editor and silently overwrites
-									// the new translation on the next edit.
-									const fieldKey = `${name}:${item?.id ?? "new"}`;
-									const fieldEl = (
-										<FieldRenderer
-											key={fieldKey}
-											name={name}
-											field={field}
-											value={formData[name]}
-											onChange={handleFieldChange}
-											onEditorReady={
-												field.kind === "portableText" && name === "content"
-													? setPortableTextEditor
-													: undefined
-											}
-											pluginBlocks={pluginBlocks}
-											onBlockSidebarOpen={
-												field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-											}
-											onBlockSidebarClose={
-												field.kind === "portableText" ? handleBlockSidebarClose : undefined
-											}
-											manifest={manifest}
-											readOnly={readOnly}
-											timezone={timezone}
-											referenceState={referenceState}
-											onReferenceChange={handleReferenceCurrentChange}
-											onLoadMoreReferences={handleLoadMoreReferences}
-											onRetryReferences={handleRetryReferences}
-											// Existing entries carry their locale on `item`; new entries only
-											// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
-											entryLocale={item?.locale ?? entryLocale}
-										/>
-									);
-									return fieldEl;
-								})}
+								{isBelowLg && blockSidebarPanel?.type !== "image" && (
+									<div className="flex justify-end px-4 pt-3">
+										<MobileSettingsCloseButton />
+									</div>
+								)}
+								<ContentSettingsPanel
+									collection={collection}
+									item={item}
+									isNew={isNew}
+									manifest={manifest}
+									entryLocale={entryLocale}
+									slug={slug}
+									onSlugChange={handleSlugChange}
+									status={status}
+									supportsDrafts={supportsDrafts}
+									isLive={isLive}
+									hasPendingChanges={hasPendingChanges}
+									publishingState={publishingState}
+									publishingDisabled={publishingPending || hasSaveConflict}
+									canSchedule={canSchedule}
+									isScheduling={isScheduling}
+									isUnscheduling={isUnscheduling}
+									onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+									onUnschedule={onUnschedule ? handleUnschedule : undefined}
+									supportsRevisions={supportsRevisions}
+									onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
+									isUpdatingPublishedAt={isUpdatingPublishedAt}
+									onDiscardDraft={onDiscardDraft}
+									onRevisionRestored={onRevisionRestored}
+									onDelete={onDelete}
+									isDeleting={isDeleting}
+									currentUser={currentUser}
+									users={users}
+									onAuthorChange={onAuthorChange}
+									activeBylines={activeBylines}
+									inferredByline={resolvedItemBylines.inferredByline}
+									availableBylines={availableBylines}
+									availableBylinesLoaded={availableBylinesLoaded}
+									onBylinesChange={handleBylinesChange}
+									onQuickCreateByline={onQuickCreateByline}
+									onQuickEditByline={onQuickEditByline}
+									i18n={i18n}
+									translations={translations}
+									onTranslate={onTranslate}
+									hasSeo={hasSeo}
+									onSeoChange={onSeoChange ? handleSeoChange : undefined}
+									portableTextEditor={portableTextEditor}
+									blockSidebarPanel={blockSidebarPanel}
+									onBlockSidebarClose={handleBlockSidebarClose}
+									onBlockSidebarDelete={handleBlockSidebarDelete}
+									captureEditorDraft={captureEditorDraft}
+									onEditorDraftResponse={handleEditorDraftResponse}
+									onEntryRefresh={onEntryRefresh}
+								/>
 							</div>
 						</fieldset>
-					</div>
+						{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
+					</Sidebar>
 				</div>
-
-				{/* Hidden (not unmounted) in distraction-free mode so panel-local
-			    state survives the round trip; `hidden` on the pane's own layout
-			    element leaves no gap. */}
-				<Sidebar
-					id={settingsPanelId}
-					aria-label={t`Settings`}
-					className={cn(isDistractionFree && "hidden")}
-				>
-					<fieldset disabled={readOnly} className="contents">
-						{/* The action bar absorbs the high-frequency props (isDirty,
-						    isSaving, isAutosaving) so they never reach the memoized panel. */}
-						{!isBelowLg && (
-							<SettingsActionBar
-								collectionLabel={collectionLabel}
-								isNew={isNew}
-								isDirty={isDirty}
-								isSaving={Boolean(saveFeedbackActive)}
-								isAutosaving={autosaveFeedbackActive}
-								saveDisabled={isContentSaveBlocked}
-								isLive={isLive}
-								hasPendingChanges={hasPendingChanges}
-								publishingState={publishingState}
-								publishingPending={publishingPending}
-								publishDisabled={hasSaveConflict}
-								liveViewUrl={liveViewUrl}
-								supportsPreview={supportsPreview}
-								isLoadingPreview={isLoadingPreview}
-								onPreview={handlePreview}
-								onPublish={handlePublish}
-								onUnpublish={handleUnpublish}
-								onMenuOpenChange={setPublishingMenuOpen}
-								announceSaveStatus={!isDistractionFree}
-							/>
-						)}
-						<div
-							className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
-							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
-						>
-							{isBelowLg && blockSidebarPanel?.type !== "image" && (
-								<div className="flex justify-end px-4 pt-3">
-									<MobileSettingsCloseButton />
-								</div>
-							)}
-							<ContentSettingsPanel
-								collection={collection}
-								item={item}
-								isNew={isNew}
-								manifest={manifest}
-								entryLocale={entryLocale}
-								slug={slug}
-								onSlugChange={handleSlugChange}
-								status={status}
-								supportsDrafts={supportsDrafts}
-								isLive={isLive}
-								hasPendingChanges={hasPendingChanges}
-								publishingState={publishingState}
-								publishingDisabled={publishingPending || hasSaveConflict}
-								canSchedule={canSchedule}
-								isScheduling={isScheduling}
-								isUnscheduling={isUnscheduling}
-								onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-								onUnschedule={onUnschedule ? handleUnschedule : undefined}
-								supportsRevisions={supportsRevisions}
-								onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
-								isUpdatingPublishedAt={isUpdatingPublishedAt}
-								onDiscardDraft={onDiscardDraft}
-								onRevisionRestored={onRevisionRestored}
-								onDelete={onDelete}
-								isDeleting={isDeleting}
-								currentUser={currentUser}
-								users={users}
-								onAuthorChange={onAuthorChange}
-								activeBylines={activeBylines}
-								inferredByline={resolvedItemBylines.inferredByline}
-								availableBylines={availableBylines}
-								availableBylinesLoaded={availableBylinesLoaded}
-								onBylinesChange={handleBylinesChange}
-								onQuickCreateByline={onQuickCreateByline}
-								onQuickEditByline={onQuickEditByline}
-								i18n={i18n}
-								translations={translations}
-								onTranslate={onTranslate}
-								hasSeo={hasSeo}
-								onSeoChange={onSeoChange ? handleSeoChange : undefined}
-								portableTextEditor={portableTextEditor}
-								blockSidebarPanel={blockSidebarPanel}
-								onBlockSidebarClose={handleBlockSidebarClose}
-								onBlockSidebarDelete={handleBlockSidebarDelete}
-								captureEditorDraft={captureEditorDraft}
-								onEditorDraftResponse={handleEditorDraftResponse}
-								onEntryRefresh={onEntryRefresh}
-							/>
-						</div>
-					</fieldset>
-					{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
-				</Sidebar>
 
 				{/* Below lg, opening a block detail panel must open the sheet.
 				    Suspended in distraction-free mode: the nav is hidden there but
@@ -2027,8 +1978,15 @@ function MobileSettingsButton() {
 	const { t } = useLingui();
 	const { toggleSidebar } = useSidebar();
 	return (
-		<Button type="button" variant="outline" icon={<Faders />} onClick={toggleSidebar}>
-			{t`Settings`}
+		<Button
+			type="button"
+			variant="ghost"
+			size="sm"
+			className={compactBarButtonClassName}
+			icon={<Faders />}
+			onClick={toggleSidebar}
+		>
+			<span className={compactBarLabelClassName}>{t`Settings`}</span>
 		</Button>
 	);
 }
@@ -2079,6 +2037,15 @@ interface FieldRendererProps {
 	/** Render the value without accepting edits. */
 	readOnly?: boolean;
 	timezone: string;
+	/** Render this string field as the page's large title. */
+	isDocumentTitle?: boolean;
+	titleInputRef?: React.Ref<HTMLInputElement>;
+	/** Enter, or ArrowDown at the end of the page title, moves on to the body. */
+	onDocumentTitleExit?: () => void;
+	/** Lay out this Portable Text field as the page's body, below the title. */
+	isDocumentBody?: boolean;
+	/** ArrowUp from the body's first line, to move back to the title. */
+	onArrowUpAtStart?: () => void;
 }
 
 /**
@@ -2102,6 +2069,11 @@ function FieldRenderer({
 	entryLocale,
 	readOnly = false,
 	timezone,
+	isDocumentTitle = false,
+	titleInputRef,
+	onDocumentTitleExit,
+	isDocumentBody = false,
+	onArrowUpAtStart,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -2196,6 +2168,37 @@ function FieldRenderer({
 			const hint = hasBounds(length) ? (
 				<LengthHint count={text.length} bounds={length} />
 			) : undefined;
+			if (isDocumentTitle && !minimal) {
+				return (
+					<Input
+						ref={titleInputRef}
+						size="lg"
+						label={<span className={labelClass}>{label}</span>}
+						id={id}
+						value={text}
+						onChange={(e) => handleChange(e.target.value)}
+						onKeyDown={(e) => {
+							if (!onDocumentTitleExit || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return;
+							// Safari commits an IME composition with a 229 key press that isn't marked as composing.
+							if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
+							const input = e.currentTarget;
+							const atEnd =
+								input.selectionStart === input.value.length &&
+								input.selectionEnd === input.value.length;
+							if (e.key !== "Enter" && !(e.key === "ArrowDown" && atEnd)) return;
+							e.preventDefault();
+							onDocumentTitleExit?.();
+						}}
+						required={field.required}
+						maxLength={length.max}
+						aria-invalid={tooLong || undefined}
+						description={hint}
+						error={boundsError(hint, tooLong)}
+						dir="auto"
+						className="text-lg!"
+					/>
+				);
+			}
 			return (
 				<Input
 					label={<span className={labelClass}>{label}</span>}
@@ -2257,9 +2260,12 @@ function FieldRenderer({
 						onChange={handleChange}
 						placeholder={t`Start writing, or type '/' for commands`}
 						aria-labelledby={labelId}
+						variant={isDocumentBody && !minimal ? "document" : "boxed"}
+						onArrowUpAtStart={onArrowUpAtStart}
 						className={cn(
 							!minimal &&
-								"bg-kumo-control focus-within:ring-kumo-focus/50 focus-within:ring-[1.5px]",
+								!isDocumentBody &&
+								"bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:ring-kumo-focus/50 focus-within:ring-[1.5px]",
 						)}
 						pluginBlocks={pluginBlocks}
 						onEditorReady={onEditorReady}

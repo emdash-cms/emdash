@@ -47,6 +47,7 @@ import type {
 	SeedBylineCredit,
 	SeedBlockType,
 } from "../../seed/types.js";
+import { classifySetting } from "../../transfer/format/settings.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 
@@ -391,6 +392,7 @@ async function exportSettings(db: Kysely<Database>): Promise<SeedFile["settings"
 
 	const settings: Record<string, unknown> = {};
 	for (const [key, value] of allOptions) {
+		if (classifySetting(key) === "targetLocal") continue;
 		const settingKey = key.replace(SETTINGS_PREFIX, "");
 		settings[settingKey] = value;
 	}

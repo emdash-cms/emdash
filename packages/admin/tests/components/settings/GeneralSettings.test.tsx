@@ -4,12 +4,25 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { MediaItem, SiteSettings, SiteSettingsUpdate } from "../../../src/lib/api";
+import type {
+	AdminManifest,
+	EmailSettings,
+	MediaItem,
+	SiteDomain,
+	SiteSettings,
+	SiteSettingsUpdate,
+} from "../../../src/lib/api";
 import { render } from "../../utils/render";
 
 const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
 const mockUpdateSettings =
 	vi.fn<(settings: SiteSettingsUpdate) => Promise<Partial<SiteSettings>>>();
+const mockFetchSiteDomain = vi.fn<() => Promise<SiteDomain>>();
+const mockChangeSiteDomain = vi.fn<(domain: string) => Promise<{ url: string }>>();
+const mockFetchManifest = vi.fn<() => Promise<Partial<AdminManifest>>>();
+const mockCreateSignInHandover = vi.fn<() => Promise<{ url: string }>>();
+const mockFetchEmailSettings = vi.fn<() => Promise<Partial<EmailSettings>>>();
+const mockNotifyUsersOfDomain = vi.fn<() => Promise<{ sent: number; failed: number }>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -29,6 +42,12 @@ vi.mock("../../../src/lib/api", async () => {
 		...actual,
 		fetchSettings: () => mockFetchSettings(),
 		updateSettings: (settings: SiteSettingsUpdate) => mockUpdateSettings(settings),
+		fetchSiteDomain: () => mockFetchSiteDomain(),
+		changeSiteDomain: (domain: string) => mockChangeSiteDomain(domain),
+		fetchManifest: () => mockFetchManifest(),
+		createSignInHandover: () => mockCreateSignInHandover(),
+		fetchEmailSettings: () => mockFetchEmailSettings(),
+		notifyUsersOfDomain: () => mockNotifyUsersOfDomain(),
 	};
 });
 
@@ -93,6 +112,13 @@ async function renderGeneralSettings() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockFetchSettings.mockResolvedValue(defaultSettings);
+	mockFetchSiteDomain.mockResolvedValue({
+		configuredUrl: null,
+		siteOrigin: window.location.origin,
+	});
+	mockFetchManifest.mockResolvedValue({ authMode: "passkey" });
+	mockCreateSignInHandover.mockReturnValue(new Promise(() => undefined));
+	mockFetchEmailSettings.mockResolvedValue({ available: true });
 	mockUpdateSettings.mockImplementation(async (settings) => {
 		mockFetchSettings.mockResolvedValue(settings);
 		return settings;
@@ -148,10 +174,8 @@ describe("GeneralSettings", () => {
 
 		await userEvent.click(dirtyButtons[0]);
 		await vi.waitFor(() => {
-			expect(mockUpdateSettings).toHaveBeenCalledWith({
-				...defaultSettings,
-				title: "A better blog",
-			});
+			const { url: _url, ...withoutUrl } = defaultSettings;
+			expect(mockUpdateSettings).toHaveBeenCalledWith({ ...withoutUrl, title: "A better blog" });
 		});
 		await expect.element(screen.getByText("Settings saved successfully")).toBeInTheDocument();
 
@@ -329,5 +353,151 @@ describe("GeneralSettings", () => {
 				expect.objectContaining({ logo: null, favicon: null }),
 			);
 		});
+	});
+
+	it("changes the domain without discarding unsaved edits", async () => {
+		mockChangeSiteDomain.mockImplementation(async () => {
+			mockFetchSettings.mockResolvedValue({ ...defaultSettings, url: "https://new.example" });
+			return { url: "https://new.example" };
+		});
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("Unsaved tagline");
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("new.example");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(mockChangeSiteDomain).toHaveBeenCalledWith("new.example"));
+		await expect
+			.element(screen.getByText("Domain changed to https://new.example"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Tagline")).toHaveValue("Unsaved tagline");
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ tagline: "Unsaved tagline" }),
+			),
+		);
+		expect(mockUpdateSettings.mock.lastCall?.[0]).not.toHaveProperty("url");
+	});
+
+	it("offers to use an address without the check when the check fails", async () => {
+		mockChangeSiteDomain.mockRejectedValue(new Error("Enter a domain such as example.com"));
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("http://localhost:4321/");
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Enter a domain such as");
+		screen.getByRole("button", { name: "Use http://localhost:4321 anyway" }).element().click();
+
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith({ url: "http://localhost:4321" }),
+		);
+		await expect
+			.element(screen.getByText("Site URL set to http://localhost:4321"))
+			.toBeInTheDocument();
+	});
+
+	it("names the configured address that emails use while keeping the Site URL changeable", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: "https://configured.example",
+			siteOrigin: window.location.origin,
+		});
+		const screen = await renderGeneralSettings();
+
+		await expect
+			.element(
+				screen.getByText(
+					"Links in emails and plugins use https://configured.example, set by the deployment configuration.",
+				),
+			)
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await expect
+			.element(
+				screen.getByText(/Links in emails and plugins keep using https:\/\/configured\.example/),
+			)
+			.toBeInTheDocument();
+	});
+
+	it("offers to continue signed in at the new domain after changing it", async () => {
+		mockChangeSiteDomain.mockImplementation(async () => {
+			mockFetchSiteDomain.mockResolvedValue({
+				configuredUrl: null,
+				siteOrigin: "https://new.example",
+			});
+			return { url: "https://new.example" };
+		});
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText("Site URL", { exact: true })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Continue on/ }).query()).toBeNull();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("new.example");
+		await userEvent.keyboard("{Enter}");
+
+		const continueButton = screen.getByRole("button", { name: "Continue on new.example" });
+		await expect.element(continueButton).toBeInTheDocument();
+		await userEvent.click(continueButton);
+		expect(mockCreateSignInHandover).toHaveBeenCalledOnce();
+	});
+
+	it("does not offer sign-in handover with external authentication", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: null,
+			siteOrigin: "https://new.example",
+		});
+		mockFetchManifest.mockResolvedValue({ authMode: "cloudflare-access" });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await vi.waitFor(() => expect(mockFetchManifest).toHaveBeenCalled());
+		await mockFetchManifest.mock.results[0]?.value;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: /Continue on/ }).query()).toBeNull();
+	});
+
+	it("emails users where to sign in after confirming", async () => {
+		mockFetchSiteDomain.mockResolvedValue({
+			configuredUrl: null,
+			siteOrigin: "https://new.example",
+		});
+		mockNotifyUsersOfDomain.mockResolvedValue({ sent: 3, failed: 1 });
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Email users" }));
+		await expect.element(screen.getByText(/now at new\.example/)).toBeInTheDocument();
+		expect(mockNotifyUsersOfDomain).not.toHaveBeenCalled();
+		screen.getByRole("button", { name: "Send emails" }).element().click();
+
+		await vi.waitFor(() => expect(mockNotifyUsersOfDomain).toHaveBeenCalledOnce());
+		await expect.element(screen.getByText("Emailed 3 users")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("1 email could not be sent. Check the email provider."))
+			.toBeInTheDocument();
+	});
+
+	it("does not offer to email users without an email provider", async () => {
+		mockFetchEmailSettings.mockResolvedValue({ available: false });
+		const screen = await renderGeneralSettings();
+
+		await expect
+			.element(screen.getByText("Set up an email provider in Email settings to email users."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Email users" })).toBeDisabled();
+	});
+
+	it("does not offer to email users with external authentication", async () => {
+		mockFetchManifest.mockResolvedValue({ authMode: "cloudflare-access" });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("https://example.com")).toBeInTheDocument();
+		await vi.waitFor(() => expect(mockFetchManifest).toHaveBeenCalled());
+		await mockFetchManifest.mock.results[0]?.value;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: "Email users" }).query()).toBeNull();
 	});
 });

@@ -147,6 +147,16 @@ export const mediaUploadEnsureUniqueFilenameForm = z
 	.default("false")
 	.transform((value) => value === "true");
 
+const optionalMediaTextForm = z
+	.string()
+	.optional()
+	.transform((value) => (value === "" ? undefined : value));
+
+export const mediaUploadMetadataForm = z.object({
+	alt: optionalMediaTextForm,
+	caption: optionalMediaTextForm,
+});
+
 export const mediaReplaceMetadataForm = z.object({
 	width: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 	height: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
@@ -157,6 +167,8 @@ const binaryFileSchema = z.string().meta({ format: "binary" });
 export const mediaDirectUploadBody = z
 	.object({
 		file: binaryFileSchema,
+		alt: z.string().optional(),
+		caption: z.string().optional(),
 		width: z.string().optional(),
 		height: z.string().optional(),
 		thumbnail: binaryFileSchema.optional(),

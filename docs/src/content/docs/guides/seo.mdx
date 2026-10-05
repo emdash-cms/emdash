@@ -126,9 +126,11 @@ The JSON-LD uses the same title, description, and image as the Open Graph tags, 
 
 ## Sitemaps
 
-EmDash serves a sitemap index at `/sitemap.xml`. It links one child sitemap at `/sitemap-{collection}.xml` for each collection that has at least one listed entry, with the date of the collection's most recently updated entry.
+EmDash serves a sitemap index at `/sitemap.xml`. It links a child sitemap at `/sitemap-{collection}.xml` for each collection that has at least one listed entry.
 
-A collection sitemap lists entries that are published, not deleted, have a slug, and are not hidden from search engines. It builds each URL from the collection's URL pattern, or `/{collection}/{slug}` when the collection has none, and lists the entry's SEO image with the Google image sitemap extension. A collection sitemap holds up to 50,000 entries, ordered by last update.
+A collection sitemap lists entries that are published, not deleted, have a slug, and are not hidden from search engines. It builds each URL from the collection's URL pattern, or `/{collection}/{slug}` when the collection has none, and lists the entry's SEO image with the Google image sitemap extension.
+
+Each child sitemap holds up to 2,000 entries, ordered by entry ID so editing an entry does not move it to another page. Larger collections continue at `/sitemap-{collection}-2.xml`, `/sitemap-{collection}-3.xml`, and so on. The index lists every page with the date of that page's most recently updated entry.
 
 Add the sitemap URL to Google Search Console or Bing Webmaster Tools to see its indexing status there.
 
@@ -151,7 +153,7 @@ To replace the default, enter custom content in **Settings > SEO > robots.txt**.
 `robots.txt` and the sitemaps build absolute URLs from the **Site URL** in **Settings > General**, then the [`siteUrl`](/reference/configuration/#siteurl) option or the `EMDASH_SITE_URL` environment variable, then the request origin. Set one of these so the URLs match the public domain. Browsers and shared caches may keep `robots.txt` for up to a day and sitemaps for up to an hour.
 
 <Aside>
-To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts`, or `src/pages/sitemap-[collection].xml.ts`. EmDash serves your route for that path and keeps its routes for the others.
+To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts`, or `src/pages/sitemap-[collection].xml.ts`. EmDash serves your route for that path and keeps its routes for the others. Collections with more than 2,000 entries span several child sitemaps: a custom `sitemap.xml` must list `/sitemap-{collection}-{n}.xml` for each further page, and a custom `sitemap-[collection].xml` receives those paged names, such as `post-2`.
 </Aside>
 
 ## Site-wide SEO settings

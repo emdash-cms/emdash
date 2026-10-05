@@ -337,7 +337,7 @@ test.describe("visual regression", () => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		view = await openTableVisual(admin, 3, 3, false);
 		await view.table.locator("td").first().locator("p").click();
-		await expect(page.getByRole("group", { name: "Table controls" })).toHaveScreenshot(
+		await expect(page.getByRole("toolbar", { name: "Table controls" })).toHaveScreenshot(
 			"table-c-contextual-toolbar.png",
 			tableShot,
 		);

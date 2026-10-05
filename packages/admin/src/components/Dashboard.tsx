@@ -24,7 +24,7 @@ import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
-import { visibleCollectionEntries } from "./Sidebar.js";
+import { resolvePluginWidgetTitle, visibleCollectionEntries } from "./Sidebar.js";
 
 const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	published: "published",
@@ -656,11 +656,13 @@ function PluginWidgetCard({
 }: {
 	widget: { id: string; pluginId: string; title?: string; size?: string };
 }) {
+	const { i18n } = useLingui();
 	const WidgetComponent = usePluginWidget(widget.pluginId, widget.id);
+	const title = resolvePluginWidgetTitle(widget.title, widget.id, (id) => i18n._(id));
 
 	return (
 		<LayerCard className="h-full">
-			<DashboardCardHeading>{widget.title || widget.id}</DashboardCardHeading>
+			<DashboardCardHeading>{title}</DashboardCardHeading>
 			<LayerCard.Primary className="flex-1">
 				<DashboardCardInset>
 					{WidgetComponent ? (

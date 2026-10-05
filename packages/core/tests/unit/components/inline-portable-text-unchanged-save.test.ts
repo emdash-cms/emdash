@@ -166,6 +166,39 @@ describe("inline Portable Text editor saves", () => {
 		expect(image).not.toHaveProperty("title");
 	});
 
+	it("keeps image links and alignment when saving another inline edit", async () => {
+		const editable = await mount([
+			{
+				_type: "image",
+				_key: "linked-image",
+				asset: { _ref: "01LINKED", url: "/linked.jpg" },
+				alignment: "right",
+				link: { href: "https://example.com/", blank: true },
+			},
+			{
+				_type: "image",
+				_key: "imported-image",
+				asset: { _ref: "01IMPORTED", url: "/imported.jpg" },
+				alignment: "wide",
+				link: "/about",
+			},
+		]);
+		await act(async () => {
+			editorOf(editable).commands.insertContentAt(0, "Edited. ");
+		});
+
+		await blur(editable);
+		expect(puts).toHaveLength(1);
+		const body = puts[0]!.body as {
+			data: { body: Array<Record<string, unknown>> };
+		};
+		const images = body.data.body.filter((block) => block._type === "image");
+		expect(images).toMatchObject([
+			{ alignment: "right", link: { href: "https://example.com/", blank: true } },
+			{ alignment: "wide", link: { href: "/about" } },
+		]);
+	});
+
 	it("does not save an edit that was undone before focus left", async () => {
 		const editable = await mount();
 		await act(async () => {

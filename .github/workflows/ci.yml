@@ -499,10 +499,34 @@ jobs:
           key: playwright-all-browsers-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install chromium firefox webkit
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-      - run: pnpm exec playwright install-deps chromium firefox webkit
+      # Firefox and WebKit need about 125 MB of system packages that the runner
+      # image lacks. Keep the downloaded packages so a slow Ubuntu mirror can't
+      # use up the job's time.
+      - name: Keep apt package downloads in a cacheable directory
+        id: apt-archives
+        run: |
+          mkdir -p "$HOME/apt-archives/partial"
+          printf 'Dir::Cache::Archives "%s/apt-archives";\nAPT::Keep-Downloaded-Packages "true";\nAPT::Sandbox::User "root";\n' "$HOME" |
+            sudo tee /etc/apt/apt.conf.d/99playwright-archives
+          echo "key=playwright-apt-$ImageOS-$ImageVersion-$(pnpm exec playwright --version | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: apt-cache
+        with:
+          path: ~/apt-archives/*.deb
+          key: ${{ steps.apt-archives.outputs.key }}
+          restore-keys: playwright-apt-
+      - run: |
+          pnpm exec playwright install-deps chromium firefox webkit
+          sudo apt-get autoclean
+      # Save right away, so a later test failure or timeout still keeps the packages.
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/apt-archives/*.deb
+          key: ${{ steps.apt-archives.outputs.key }}
       - run: pnpm run test:e2e:table
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
+        if: failure() || cancelled()
         with:
           name: playwright-table
           path: |

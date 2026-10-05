@@ -377,6 +377,11 @@ function dbFieldDescriptor(
 		entry.validation = validation;
 	}
 
+	// A bound reference is set through `references`; create refuses a value for it in `data`.
+	if (field.defaultValue !== undefined && !isStoragelessField(field)) {
+		entry.defaultValue = field.defaultValue;
+	}
+
 	return entry;
 }
 
