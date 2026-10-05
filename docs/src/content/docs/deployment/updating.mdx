@@ -29,6 +29,8 @@ The updater changes project files and installed packages without connecting to t
 
 Before starting or deploying the upgraded application, create a recovery point when the work order lists added migrations, `emdash migrate --status` reports an earlier pending migration, or a release entry requires a data-changing project action. Follow [Backups and recovery](/guides/backups/) for the configured database. EmDash's JSON backup cannot restore a site.
 
+The updater requires `emdash` 0.35.0 or later, the first release that reports its core migrations. For an older site, create a recovery point, update `emdash` and the other direct `@emdash-cms/*` packages to 0.35.0 with the project's package manager, and review the package changelogs up to that release. Then run the updater for the rest of the update.
+
 Check the Node.js version on the machine that builds the site and, for a Node.js deployment, on the server. [Getting Started](/getting-started/#prerequisites) lists the supported versions.
 
 ## Plan and apply the update

@@ -5,6 +5,7 @@ import { dirname, parse, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { applyEdits, modify } from "jsonc-parser";
+import semver from "semver";
 
 import type {
 	DependencyChange,
@@ -42,6 +43,7 @@ const SECTIONS: readonly DependencySection[] = [
 	"devDependencies",
 	"optionalDependencies",
 ];
+const MINIMUM_EMDASH_VERSION = "0.35.0";
 const SIMPLE_VERSION = /^(\^|~)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 async function pathExists(path: string): Promise<boolean> {
@@ -210,13 +212,18 @@ export async function loadProject(start: string): Promise<ProjectState> {
 			});
 		}
 	}
-	if (!dependencies.some((dependency) => dependency.name === "emdash")) {
-		throw new Error("The project does not declare emdash as a direct dependency.");
-	}
-	const identity = await loadMigrationIdentity(packageJsonPath);
 	const emdashVersion = dependencies.find(
 		(dependency) => dependency.name === "emdash",
 	)?.installedVersion;
+	if (!emdashVersion) {
+		throw new Error("The project does not declare emdash as a direct dependency.");
+	}
+	if (semver.valid(emdashVersion) && semver.lt(emdashVersion, MINIMUM_EMDASH_VERSION)) {
+		throw new Error(
+			`upgrade-emdash requires emdash ${MINIMUM_EMDASH_VERSION} or later, but this project has ${emdashVersion}. Update the direct EmDash packages to ${MINIMUM_EMDASH_VERSION} or later with the project's package manager, following https://docs.emdashcms.com/deployment/updating/#before-you-update, then run upgrade-emdash again.`,
+		);
+	}
+	const identity = await loadMigrationIdentity(packageJsonPath);
 	if (emdashVersion !== identity.emdashVersion) {
 		throw new Error(
 			`The installed emdash package is ${emdashVersion}, but emdash/migrations reports ${identity.emdashVersion}. Reinstall or rebuild the project's dependencies before upgrading.`,

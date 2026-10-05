@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
 	applyDependencyChanges,
 	applyDependencyEdits,
 	emdashCommand,
+	loadProject,
 	targetSpecifier,
 } from "../src/project.js";
 import type { DependencyChange } from "../src/types.js";
@@ -59,5 +64,44 @@ describe("project dependency updates", () => {
 		expect(emdashCommand("npm", "migrate --status")).toBe("npm exec -- emdash migrate --status");
 		expect(emdashCommand("yarn", "migrate --status")).toBe("yarn emdash migrate --status");
 		expect(emdashCommand("bun", "migrate --status")).toBe("bunx emdash migrate --status");
+	});
+});
+
+describe("project loading", () => {
+	const directories: string[] = [];
+
+	afterEach(async () => {
+		await Promise.all(
+			directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+		);
+	});
+
+	async function writeJson(path: string, value: unknown): Promise<void> {
+		await mkdir(join(path, ".."), { recursive: true });
+		await writeFile(path, `${JSON.stringify(value, null, "\t")}\n`);
+	}
+
+	async function project(emdashVersion: string): Promise<string> {
+		const root = await mkdtemp(join(tmpdir(), "upgrade-emdash-"));
+		directories.push(root);
+		await writeJson(join(root, "package.json"), {
+			dependencies: { emdash: `^${emdashVersion}` },
+		});
+		await writeJson(join(root, "node_modules/emdash/package.json"), {
+			name: "emdash",
+			version: emdashVersion,
+			type: "module",
+			exports: { ".": "./index.mjs" },
+		});
+		await writeFile(join(root, "node_modules/emdash/index.mjs"), "export {};\n");
+		return root;
+	}
+
+	it("explains that emdash releases without a migration identity need a manual update first", async () => {
+		const root = await project("0.34.0");
+
+		await expect(loadProject(root)).rejects.toThrow(
+			"upgrade-emdash requires emdash 0.35.0 or later, but this project has 0.34.0",
+		);
 	});
 });
