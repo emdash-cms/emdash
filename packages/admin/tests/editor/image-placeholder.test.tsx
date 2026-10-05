@@ -13,7 +13,7 @@ import {
 	PortableTextEditor,
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
-import { fetchMediaItem, type MediaItem } from "../../src/lib/api/media.js";
+import { fetchMediaItem, uploadMedia, type MediaItem } from "../../src/lib/api/media.js";
 import { render } from "../utils/render";
 
 import "../../src/styles.css";
@@ -84,7 +84,7 @@ vi.mock("../../src/lib/api/media.js", async () => {
 	const actual = await vi.importActual<typeof import("../../src/lib/api/media.js")>(
 		"../../src/lib/api/media.js",
 	);
-	return { ...actual, fetchMediaItem: vi.fn() };
+	return { ...actual, fetchMediaItem: vi.fn(), uploadMedia: vi.fn() };
 });
 
 type Block = { _type: string; _key: string; [key: string]: unknown };
@@ -379,6 +379,25 @@ describe("Image placeholder", () => {
 
 		await expect.element(screen.getByRole("button", { name: "Drop to upload" })).toBeVisible();
 		expect(document.querySelector(".prosemirror-dropcursor-block")).toBeNull();
+	});
+
+	it("fills a selected empty image with an image file pasted on it", async () => {
+		vi.mocked(uploadMedia).mockResolvedValue(PHOTO);
+		const { editor, latest } = await renderEditor({ value: [INTRO, EMPTY, OUTRO] });
+		const clipboardData = new DataTransfer();
+		clipboardData.items.add(new File([new Uint8Array(8)], "photo.png", { type: "image/png" }));
+
+		selectImageAt(editor, 0);
+		editor.view.dom.dispatchEvent(
+			new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData }),
+		);
+
+		await vi.waitFor(() =>
+			expect(images(latest())).toEqual([
+				expect.objectContaining({ asset: expect.objectContaining({ _ref: "01IMAGE" }) }),
+			]),
+		);
+		expect(blockTexts(editor)).toEqual(["Intro", "image", "Outro"]);
 	});
 
 	it("shows an empty image as a plain box in a read-only entry", async () => {

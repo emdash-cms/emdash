@@ -206,6 +206,16 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 			return null;
 		};
 
+		const pastedMedia = (view: EditorView, event: ClipboardEvent): File[] | null => {
+			const data = event.clipboardData;
+			const hasMedia = [...(data?.files ?? [])].some((file) => kindOf(view, file) !== null);
+			if (!data || !hasMedia) return null;
+			// Word, Excel and similar apps put a picture of the selection beside the real content.
+			const html = data.getData("text/html");
+			if (html && hasText(html)) return null;
+			return [...data.files];
+		};
+
 		const insertMedia = (
 			view: EditorView,
 			id: number,
@@ -331,20 +341,25 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 						start(view, files, coords.pos, emptyMediaAt(view.state.doc, coords.inside));
 						return true;
 					},
+					handleDOMEvents: {
+						// Runs before the editor's own paste handling, which moves a paste on a selected
+						// block to after it, so files pasted on a selected empty image or video fill it.
+						paste(view, event) {
+							const { selection } = view.state;
+							if (!view.editable || !(selection instanceof NodeSelection)) return false;
+							const emptyBlock = emptyMediaAt(view.state.doc, selection.from);
+							const files = emptyBlock && pastedMedia(view, event);
+							if (!files) return false;
+							event.preventDefault();
+							start(view, files, selection.from, emptyBlock);
+							return true;
+						},
+					},
 					handlePaste(view, event) {
-						const data = event.clipboardData;
-						const hasMedia = [...(data?.files ?? [])].some((file) => kindOf(view, file) !== null);
-						if (!data || !hasMedia) return false;
-						// Word, Excel and similar apps put a picture of the selection beside the real content.
-						const html = data.getData("text/html");
-						if (html && hasText(html)) return false;
+						const files = pastedMedia(view, event);
+						if (!files) return false;
 						event.preventDefault();
-						const { selection } = view.state;
-						const emptyBlock =
-							selection instanceof NodeSelection
-								? emptyMediaAt(view.state.doc, selection.from)
-								: undefined;
-						start(view, [...data.files], selection.from, emptyBlock);
+						start(view, files, view.state.selection.from);
 						return true;
 					},
 				},
