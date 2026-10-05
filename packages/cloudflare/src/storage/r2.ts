@@ -100,6 +100,7 @@ export class R2Storage implements Storage {
 				body: object.body,
 				contentType: object.httpMetadata?.contentType || "application/octet-stream",
 				size: object.size,
+				lastModified: object.uploaded,
 				// R2 may not report the range it read, which is the requested one clamped to the object
 				...(range && ranged && { range: servedRange(ranged.range ?? range, ranged.size) }),
 			};

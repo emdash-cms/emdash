@@ -141,6 +141,7 @@ export class LocalStorage implements Storage {
 				body: webStream,
 				contentType,
 				size: stat.size,
+				lastModified: stat.mtime,
 				...(range && { range }),
 			};
 		} catch (error) {
