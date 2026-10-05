@@ -138,6 +138,24 @@ describe("faithful render of migrated image node", () => {
 		expect(html).toContain("A caption");
 	});
 
+	test("an image block without a source renders nothing, not even its caption", async () => {
+		const c = await AstroContainer.create();
+		const empty = {
+			_type: "image",
+			_key: "empty",
+			asset: { _ref: "", url: "" },
+			caption: "Planned photo",
+		};
+		const html = await c.renderToString(PortableText, {
+			props: { value: [empty], components: { type: { image: Image } } },
+			locals,
+		});
+
+		expect(html).not.toContain("<img");
+		expect(html).not.toContain("emdash-image");
+		expect(html).not.toContain("Planned photo");
+	});
+
 	test("non-finite dimensions never reach rendered attributes or styles", async () => {
 		const html = await renderImage({
 			...node,

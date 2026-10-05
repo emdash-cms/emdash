@@ -173,6 +173,11 @@ if (!src) {
 	}
 }
 
+// An image block the editor hasn't filled yet has neither a file nor a media id.
+if (!src) {
+	return null;
+}
+
 // Build placeholder background style. Prefer first-class LQIP fields; fall
 // back to `asset.meta` for legacy snapshots persisted before LQIP was promoted.
 const blurhash = (node.blurhash ?? (node.asset.meta?.blurhash as string | undefined)) as
