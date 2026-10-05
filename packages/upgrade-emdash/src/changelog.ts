@@ -13,6 +13,7 @@ const RELEASE_HEADING = /^## (\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\s*$/gm;
 const CATEGORY_HEADING = /^### (Major|Minor|Patch) Changes\s*$/gm;
 const ENTRY_START = /^- /gm;
 const ARCHIVE_MARKER = /<!--\s*emdash-changelog-archive:\s*(.+?)\s*-->/;
+const ARCHIVE_MARKERS = new RegExp(ARCHIVE_MARKER.source, "g");
 const CHANGESET_WRAPPER =
 	/^- (?:(\[#\d+\]\((https:\/\/github\.com\/[^)]+)\)) )?(\[`[^`]+`\]\((https:\/\/github\.com\/[^)]+)\)) Thanks .+?! - /;
 
@@ -55,7 +56,8 @@ function normalizeEntry(entry: string): { body: string; source?: string } | null
 	return { body: entry.slice(2).trim() };
 }
 
-export function parseChangelog(changelog: string): ParsedEntry[] {
+export function parseChangelog(source: string): ParsedEntry[] {
+	const changelog = source.replace(ARCHIVE_MARKERS, "");
 	const releases = [...changelog.matchAll(RELEASE_HEADING)];
 	return releases.flatMap((release, releaseIndex) => {
 		const releaseStart = (release.index ?? 0) + release[0].length;

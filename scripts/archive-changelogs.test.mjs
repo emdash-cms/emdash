@@ -36,6 +36,30 @@ void test("preserves the previous archive chain when the active file rotates aga
 	);
 });
 
+function prependRelease(changelog, release) {
+	const index = changelog.indexOf("\n");
+	return `${changelog.slice(0, index)}\n\n${release.trim()}\n${changelog.slice(index + 1)}`;
+}
+
+function markerCount(changelog) {
+	return changelog.match(/emdash-changelog-archive/g)?.length ?? 0;
+}
+
+void test("rotates again after Changesets prepends a release above the archive marker", () => {
+	const source = `# package\n\n${release("1.3.0")}${release("1.2.0")}${release("1.1.0")}${release("1.0.0")}`;
+	const first = splitChangelog(source, 180);
+	const versioned = prependRelease(first.active, release("1.4.0"));
+	const second = splitChangelog(versioned, 180);
+
+	assert.equal(markerCount(second.active), 1);
+	for (const archive of second.archives) assert.equal(markerCount(archive.content), 1);
+	assert.ok(
+		second.archives
+			.at(-1)
+			.content.includes(`emdash-changelog-archive: ./${first.archives[0].name}`),
+	);
+});
+
 void test("leaves a changelog alone when it is below the bound", () => {
 	const source = `# package\n\n${release("1.0.0")}`;
 	assert.deepEqual(splitChangelog(source, 1024), { active: source, archives: [] });

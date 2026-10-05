@@ -48,6 +48,16 @@ describe("release changelog", () => {
 		expect(entries.map((entry) => entry.body).join("\n")).not.toContain("Thanks");
 	});
 
+	it("keeps the archive marker out of entries when a release was prepended above it", () => {
+		const changelog =
+			"# emdash\n\n## 1.3.0\n\n### Minor Changes\n\n- New API.\n\n<!-- emdash-changelog-archive: ./changelog/1.0.0-to-1.2.0.md -->\n\n## 1.2.0\n\n### Patch Changes\n\n- Fix.\n";
+
+		expect(entriesBetween(changelog, "1.0.0", "1.3.0").map((entry) => entry.body)).toEqual([
+			"New API.",
+			"Fix.",
+		]);
+	});
+
 	it("follows chained archives until it reaches the installed version", async () => {
 		const files = new Map([
 			[

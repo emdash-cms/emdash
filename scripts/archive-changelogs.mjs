@@ -8,6 +8,7 @@ export const MAX_CHANGELOG_BYTES = 128 * 1024;
 
 const RELEASE_HEADING = /^## (\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\s*$/gm;
 const ARCHIVE_MARKER = /<!--\s*emdash-changelog-archive:\s*(.+?)\s*-->/;
+const ARCHIVE_MARKERS = new RegExp(ARCHIVE_MARKER.source, "g");
 const ARCHIVE_HEADROOM = 512;
 
 function bytes(value) {
@@ -50,11 +51,13 @@ function relativeMarker(fromDirectory, target) {
 
 export function splitChangelog(source, maxBytes = MAX_CHANGELOG_BYTES) {
 	if (bytes(source) <= maxBytes) return { active: source, archives: [] };
-	const sections = releaseSections(source);
-	if (sections.length < 2) return { active: source, archives: [] };
-	const firstRelease = source.search(RELEASE_HEADING);
 	const existingArchive = source.match(ARCHIVE_MARKER)?.[1];
-	const header = source.slice(0, firstRelease).replace(ARCHIVE_MARKER, "").trimEnd();
+	// Changesets inserts new releases after the title line, so the marker can sit inside a release.
+	const unmarked = source.replace(ARCHIVE_MARKERS, "");
+	const sections = releaseSections(unmarked);
+	if (sections.length < 2) return { active: source, archives: [] };
+	const firstRelease = unmarked.search(RELEASE_HEADING);
+	const header = unmarked.slice(0, firstRelease).trimEnd();
 	const kept = [...sections];
 	const moved = [];
 	while (
