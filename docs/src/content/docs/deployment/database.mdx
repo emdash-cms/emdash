@@ -161,16 +161,21 @@ export default defineConfig({
 </Aside>
 
 <Aside type="caution" title="Incompatible with global_fetch_strictly_public">
-	Do not enable `session: "auto"` (or `"primary-first"`) together with the
+	Do not combine `session: "auto"` or `"primary-first"` with the
 	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
-	compatibility flag. The Sessions API establishes the session through an internal Cloudflare
-	request, which that flag blocks — every SSR request then hangs until the Worker hits its wall-clock
-	limit (~10s) and is canceled, with no error in the logs (`wrangler tail` shows `outcome: "canceled"`
-	and near-zero CPU time). The hang may only begin once replicas finish provisioning, so it can pass
-	an initial post-deploy check.
+	compatibility flag. The flag blocks the internal Cloudflare request that the D1 Sessions API uses
+	to route queries, so session queries never complete.
 
-	If you need `global_fetch_strictly_public`, set `session: "disabled"` (the default). All queries go
-	to the primary database — you lose replica read latency, but requests resolve normally. See
+	Since `@emdash-cms/cloudflare` 0.34.0, EmDash waits five seconds on the first session query in each
+	Worker isolate, then logs `[emdash] A D1 session query hung for 5000ms`, re-runs `SELECT` queries on
+	the primary database, and turns sessions off for the rest of that isolate. A write caught in that
+	window fails and must be retried. Every new isolate repeats the delay, and no request reads from a
+	replica. Earlier versions have no timeout: every SSR request hangs with nothing in the logs. The
+	problem may only appear once replicas finish provisioning, so it can pass an initial post-deploy
+	check.
+
+	If your Worker needs `global_fetch_strictly_public`, keep `session` at its default, `"disabled"`.
+	All queries then go to the primary database. See
 	[#1273](https://github.com/emdash-cms/emdash/issues/1273).
 </Aside>
 
