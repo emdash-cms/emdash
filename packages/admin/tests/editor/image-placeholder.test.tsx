@@ -315,6 +315,24 @@ describe("Image placeholder", () => {
 		expect(blockTexts(editor)).toEqual(["Intro", "Outro"]);
 	});
 
+	it("moves to the placeholder with Tab, and back to the block with Escape or Shift+Tab", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: [INTRO, EMPTY] });
+		const placeholder = screen.getByRole("button", { name: "Upload or choose an image" }).element();
+
+		selectImageAt(editor, 0);
+		await userEvent.keyboard("{Tab}");
+		expect(document.activeElement).toBe(placeholder);
+		await userEvent.keyboard("{Escape}");
+		expect(document.activeElement).toBe(pm);
+		expect(selectedNodeName(editor)).toBe("image");
+
+		await userEvent.keyboard("{Tab}");
+		expect(document.activeElement).toBe(placeholder);
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+		expect(document.activeElement).toBe(pm);
+		expect(selectedNodeName(editor)).toBe("image");
+	});
+
 	it("leaves the text around an empty image alone for input method text on its placeholder", async () => {
 		const { screen, editor } = await renderEditor({ value: [INTRO, EMPTY, OUTRO] });
 

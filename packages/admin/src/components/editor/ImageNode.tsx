@@ -29,6 +29,7 @@ import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
 import {
 	MediaPlaceholder,
 	chooseSelectedEmpty,
+	focusSelectedEmpty,
 	hideDropCursorOverEmpty,
 	isEmptyMedia,
 	takePickerRequest,
@@ -307,6 +308,10 @@ function ImageNodeView({
 					dir={chromeDir}
 					onChoose={openPicker}
 					onRemove={removeBlock}
+					onExit={() => {
+						selectImage();
+						editor.view.focus();
+					}}
 				/>
 				{pickerOpen && (
 					<MediaPickerModal
@@ -433,6 +438,7 @@ export const ImageExtension = Node.create({
 	addKeyboardShortcuts() {
 		return {
 			Enter: ({ editor }) => chooseSelectedEmpty(editor, this.type),
+			Tab: ({ editor }) => focusSelectedEmpty(editor, this.type),
 		};
 	},
 

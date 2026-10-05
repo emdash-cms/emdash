@@ -63,16 +63,28 @@ export function takePickerRequest(
 	return true;
 }
 
+function selectedPlaceholder(editor: Editor, type: NodeType): HTMLElement | null {
+	const { selection } = editor.state;
+	if (!(selection instanceof NodeSelection) || selection.node.type !== type) return null;
+	if (!isEmptyMedia(selection.node.attrs)) return null;
+	const dom = editor.view.nodeDOM(selection.from);
+	return dom instanceof HTMLElement
+		? dom.querySelector<HTMLElement>("[data-media-placeholder]")
+		: null;
+}
+
 /** Opens the picker of a node-selected empty media block, as clicking its placeholder does. */
 export function chooseSelectedEmpty(editor: Editor, type: NodeType): boolean {
-	const { selection } = editor.state;
-	if (!(selection instanceof NodeSelection) || selection.node.type !== type) return false;
-	if (!isEmptyMedia(selection.node.attrs)) return false;
-	const dom = editor.view.nodeDOM(selection.from);
-	const placeholder =
-		dom instanceof HTMLElement ? dom.querySelector<HTMLElement>("[data-media-placeholder]") : null;
+	const placeholder = selectedPlaceholder(editor, type);
 	placeholder?.click();
 	return placeholder !== null;
+}
+
+/** Moves focus to the placeholder of a node-selected empty media block, for keyboard users. */
+export function focusSelectedEmpty(editor: Editor, type: NodeType): boolean {
+	const placeholder = selectedPlaceholder(editor, type);
+	placeholder?.focus();
+	return placeholder !== null && placeholder === placeholder.ownerDocument.activeElement;
 }
 
 /**
@@ -117,6 +129,8 @@ export interface MediaPlaceholderProps {
 	dir: "ltr" | "rtl";
 	onChoose: () => void;
 	onRemove: () => void;
+	/** Escape and Shift+Tab call this, to go back to the block, unless the node view handles them. */
+	onExit?: () => void;
 	/** Extra attributes for the button, such as a node view's own keyboard stop. */
 	buttonAttributes?: Record<`data-${string}`, string>;
 }
@@ -130,6 +144,7 @@ export function MediaPlaceholder({
 	dir,
 	onChoose,
 	onRemove,
+	onExit,
 	buttonAttributes,
 }: MediaPlaceholderProps) {
 	const { t } = useLingui();
@@ -167,13 +182,17 @@ export function MediaPlaceholder({
 		},
 	};
 
-	// ProseMirror ignores keydown on the placeholder, so it removes the block itself rather
+	// ProseMirror ignores keydown on the placeholder, so it handles its keys itself rather
 	// than relying on the browser's editing.
-	const removeOnDeleteKey = (event: React.KeyboardEvent<HTMLElement>) => {
-		if (event.key !== "Backspace" && event.key !== "Delete") return;
-		if (event.nativeEvent.isComposing) return;
-		event.preventDefault();
-		onRemove();
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+		if (event.nativeEvent.isComposing || event.defaultPrevented) return;
+		if (event.key === "Backspace" || event.key === "Delete") {
+			event.preventDefault();
+			onRemove();
+		} else if (onExit && (event.key === "Escape" || (event.key === "Tab" && event.shiftKey))) {
+			event.preventDefault();
+			onExit();
+		}
 	};
 
 	return (
@@ -198,7 +217,7 @@ export function MediaPlaceholder({
 					{...buttonAttributes}
 					className="h-auto w-full justify-start gap-3 rounded-[7px] px-4 py-3 text-start text-sm font-normal text-kumo-subtle"
 					onClick={onChoose}
-					onKeyDown={removeOnDeleteKey}
+					onKeyDown={handleKeyDown}
 				>
 					<MediaIcon className="size-5 shrink-0" aria-hidden="true" />
 					{dropping ? t`Drop to upload` : label}
