@@ -8,7 +8,6 @@ import { applyEdits, modify } from "jsonc-parser";
 import semver from "semver";
 
 import { applyCatalogEdits } from "./catalog.js";
-
 import type {
 	DependencyChange,
 	DependencySection,
@@ -453,7 +452,10 @@ export async function writeDependenciesAndInstall<T>(
 		applyDependencyEdits(project.packageJsonSource, changes),
 	);
 	if (workspaceManifest) {
-		await writeFile(workspaceManifest.path, applyCatalogEdits(workspaceManifest.source, catalogEdits));
+		await writeFile(
+			workspaceManifest.path,
+			applyCatalogEdits(workspaceManifest.source, catalogEdits),
+		);
 	}
 	try {
 		await run(install.command, install.args, project.installRoot);

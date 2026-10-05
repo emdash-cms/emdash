@@ -233,7 +233,12 @@ describe("upgrade plan", () => {
 	it("explains a catalog dependency without a pnpm catalog entry", async () => {
 		await expect(
 			createUpgradePlan(
-				singleDependencyProject("@emdash-cms/cloudflare", "catalog:preview", "1.0.0", "catalog: {}\n"),
+				singleDependencyProject(
+					"@emdash-cms/cloudflare",
+					"catalog:preview",
+					"1.0.0",
+					"catalog: {}\n",
+				),
 				"latest",
 				releasesAt("1.1.0"),
 			),

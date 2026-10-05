@@ -29,7 +29,10 @@ export function catalogEntry(
 	return undefined;
 }
 
-export function applyCatalogEdits(workspaceManifest: string, edits: readonly CatalogEdit[]): string {
+export function applyCatalogEdits(
+	workspaceManifest: string,
+	edits: readonly CatalogEdit[],
+): string {
 	const document = parseDocument(workspaceManifest);
 	for (const edit of edits) {
 		for (const path of entryPaths(edit.catalog, edit.packageName)) {

@@ -207,7 +207,7 @@ describe("project loading", () => {
 			await writeJson(join(site, "package.json"), { dependencies: { emdash: "catalog:" } });
 			const sitePackageJson = await readFile(join(site, "package.json"), "utf8");
 			const bin = await temporaryDirectory();
-			await writeFile(join(bin, "pnpm"), "#!/bin/sh\necho \"$*\" >> pnpm.log\n");
+			await writeFile(join(bin, "pnpm"), '#!/bin/sh\necho "$*" >> pnpm.log\n');
 			await chmod(join(bin, "pnpm"), 0o755);
 			const change: DependencyChange = {
 				name: "emdash",

@@ -69,7 +69,9 @@ describe("agent upgrade work order", () => {
 
 		const withCatalog = renderUpgradeGuide({
 			...plan,
-			dependencies: [{ ...plan.dependencies[0]!, catalog: "default", from: "^1.0.1", to: "^1.1.0" }],
+			dependencies: [
+				{ ...plan.dependencies[0]!, catalog: "default", from: "^1.0.1", to: "^1.1.0" },
+			],
 		});
 		expect(withCatalog).toContain(
 			"- `emdash`: `1.0.1` → `1.1.0` (`^1.0.1` → `^1.1.0` in the `default` pnpm catalog)",
