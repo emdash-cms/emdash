@@ -36,9 +36,9 @@ void test("preserves the previous archive chain when the active file rotates aga
 	);
 });
 
-function prependRelease(changelog, release) {
+function prependRelease(changelog, section) {
 	const index = changelog.indexOf("\n");
-	return `${changelog.slice(0, index)}\n\n${release.trim()}\n${changelog.slice(index + 1)}`;
+	return `${changelog.slice(0, index)}\n\n${section.trim()}\n${changelog.slice(index + 1)}`;
 }
 
 function markerCount(changelog) {

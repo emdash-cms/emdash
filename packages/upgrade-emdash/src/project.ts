@@ -385,7 +385,10 @@ export async function writeDependenciesAndInstall<T>(
 			}),
 		)),
 	];
-	await writeFile(project.packageJsonPath, applyDependencyEdits(project.packageJsonSource, changes));
+	await writeFile(
+		project.packageJsonPath,
+		applyDependencyEdits(project.packageJsonSource, changes),
+	);
 	try {
 		await run(install.command, install.args, project.installRoot);
 	} catch (error) {
