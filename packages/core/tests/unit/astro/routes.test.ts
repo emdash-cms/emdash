@@ -51,6 +51,7 @@ function mockMediaContext(key: string | undefined, contentType = "image/png") {
 					storage: { download },
 				},
 			},
+			request: new Request(`https://example.com/_emdash/api/media/file/${key}`),
 		} as Parameters<typeof getMediaFile>[0],
 		download,
 	};

@@ -74,6 +74,26 @@ export interface UploadResult {
 }
 
 /**
+ * A single byte range of a file, as requested by an HTTP `Range` header
+ */
+export type ByteRange =
+	/** `length` bytes from `offset`, or every byte from `offset` when `length` is omitted */
+	| { offset: number; length?: number }
+	/** The last `suffix` bytes */
+	| { suffix: number };
+
+/**
+ * Options for downloading a file
+ */
+export interface DownloadOptions {
+	/**
+	 * Download only this part of the file. Adapters that can't serve it,
+	 * including when it starts past the end of the file, return the whole file.
+	 */
+	range?: ByteRange;
+}
+
+/**
  * Download result
  */
 export interface DownloadResult {
@@ -81,8 +101,13 @@ export interface DownloadResult {
 	body: ReadableStream<Uint8Array>;
 	/** MIME type */
 	contentType: string;
-	/** File size in bytes */
+	/** Size of the whole file in bytes, even when `body` holds only part of it */
 	size: number;
+	/**
+	 * The part of the file `body` holds, when the adapter served
+	 * `DownloadOptions.range`. Absent when `body` is the whole file.
+	 */
+	range?: { offset: number; length: number };
 }
 
 /**
@@ -167,9 +192,9 @@ export interface Storage {
 	}): Promise<UploadResult>;
 
 	/**
-	 * Download a file from storage
+	 * Download a file from storage, or part of it with `options.range`
 	 */
-	download(key: string): Promise<DownloadResult>;
+	download(key: string, options?: DownloadOptions): Promise<DownloadResult>;
 
 	/**
 	 * Delete a file from storage

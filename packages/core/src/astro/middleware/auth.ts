@@ -583,8 +583,7 @@ async function handleExternalAuth(
 			let newName: string | undefined;
 			let newRole: RoleLevel | undefined;
 
-			// Sync name from provider if provider provides one and local differs
-			if (authResult.name && user.name !== authResult.name) {
+			if (externalConfig.syncName !== false && authResult.name && user.name !== authResult.name) {
 				newName = authResult.name;
 				updates.name = newName;
 			}

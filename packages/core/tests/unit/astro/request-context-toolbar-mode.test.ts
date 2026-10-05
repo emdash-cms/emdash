@@ -153,6 +153,53 @@ describe("toolbar: client", () => {
 	});
 });
 
+describe("toolbar placement", () => {
+	// Astro escapes only `&` and `"` in attribute values, so this alt text
+	// reaches the page as written.
+	const alt = "</body><img src=x onerror=alert(1)>";
+	const content = `<!doctype html><html><head><title>Post</title></head><body><img src="/photo.jpg" alt="${alt}"><p>Post</p>`;
+	// A script the page renders after its layout ends up after `</html>`.
+	const end = "</body></html><script>1</script>";
+
+	it.each([
+		{ toolbar: "server", user: EDITOR, marker: 'id="emdash-toolbar"' },
+		{ toolbar: "client", user: null, marker: "emdash-toolbar-bootstrap" },
+	])(
+		"$toolbar mode injects before the page's closing body tag, not into an attribute",
+		async ({ toolbar, user, marker }) => {
+			const onRequest = await loadMiddleware(toolbar);
+
+			const res = await onRequest(
+				buildContext({ user }),
+				async () => new Response(content + end, { headers: { "content-type": "text/html" } }),
+			);
+
+			const html = await res.text();
+			expect(html.slice(0, content.length)).toBe(content);
+			expect(html.slice(content.length)).toContain(marker);
+			expect(html.endsWith(end)).toBe(true);
+		},
+	);
+
+	it.each([
+		{ toolbar: "server", user: EDITOR },
+		{ toolbar: "client", user: null },
+	])(
+		"$toolbar mode leaves an HTML fragment, such as a server island, untouched",
+		async ({ toolbar, user }) => {
+			const onRequest = await loadMiddleware(toolbar);
+			const island = `<img src="/photo.jpg" alt="${alt}"><p>Island</p>`;
+
+			const res = await onRequest(
+				buildContext({ user }),
+				async () => new Response(island, { headers: { "content-type": "text/html" } }),
+			);
+
+			expect(await res.text()).toBe(island);
+		},
+	);
+});
+
 describe("toolbar bootstrap script", () => {
 	it("generates syntactically valid JavaScript", async () => {
 		const { renderToolbarBootstrap } =
