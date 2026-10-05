@@ -8,7 +8,6 @@ import {
 	PortableTextEditor,
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
-import type { MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 import "../../src/styles.css";
@@ -18,54 +17,7 @@ import "../../src/styles.css";
 // ---------------------------------------------------------------------------
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
-	MediaPickerModal: ({
-		open,
-		onOpenChange,
-		onSelect,
-	}: {
-		open: boolean;
-		onOpenChange: (open: boolean) => void;
-		onSelect: (item: MediaItem) => void;
-	}) =>
-		open ? (
-			<div role="dialog" aria-label="Test image picker">
-				<button
-					type="button"
-					onClick={() =>
-						onSelect({
-							id: "image-1",
-							filename: "diagram.png",
-							mimeType: "image/png",
-							url: "/diagram.png",
-							size: 1024,
-							alt: "Architecture diagram",
-							createdAt: "2026-08-16T00:00:00.000Z",
-						})
-					}
-				>
-					Choose test image
-				</button>
-				<button
-					type="button"
-					onClick={() =>
-						onSelect({
-							id: "",
-							filename: "remote.jpg",
-							mimeType: "image/jpeg",
-							url: "https://media.example/remote.jpg",
-							provider: "external-url",
-							size: 0,
-							createdAt: "2026-08-16T00:00:00.000Z",
-						})
-					}
-				>
-					Choose external image
-				</button>
-				<button type="button" onClick={() => onOpenChange(false)}>
-					Cancel image picker
-				</button>
-			</div>
-		) : null,
+	MediaPickerModal: () => null,
 }));
 
 vi.mock("../../src/components/SectionPickerModal", () => ({
