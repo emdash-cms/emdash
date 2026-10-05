@@ -429,6 +429,8 @@ export interface PublishActionsProps {
 	onUnpublish?: () => void;
 	onMenuOpenChange?: (open: boolean) => void;
 	size?: "sm";
+	/** In the editor's bar, which shortens or hides the labels when it's narrow. */
+	compact?: boolean;
 }
 
 export function PublishActions({
@@ -443,6 +445,7 @@ export function PublishActions({
 	onUnpublish,
 	onMenuOpenChange,
 	size,
+	compact,
 }: PublishActionsProps) {
 	const { t } = useLingui();
 	const [publishOpen, setPublishOpen] = React.useState(false);
@@ -475,8 +478,11 @@ export function PublishActions({
 				loading={isPending}
 				disabled={disabled}
 				icon={<EyeSlash />}
+				className={compact ? compactBarButtonClassName : undefined}
 			>
-				{t`Unpublish ${itemLabel}`}
+				<span className={compact ? compactBarLabelClassName : undefined}>
+					{t`Unpublish ${itemLabel}`}
+				</span>
 			</Button>
 		) : null;
 	}
@@ -507,7 +513,14 @@ export function PublishActions({
 					/>
 				}
 			>
-				{publishLabel}
+				{compact ? (
+					<>
+						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
+						<span className="hidden @max-2xl/editor-bar:inline">{t`Publish`}</span>
+					</>
+				) : (
+					publishLabel
+				)}
 			</Dialog.Trigger>
 			<Dialog className="p-6" size="sm">
 				<Dialog.Title className="text-lg font-semibold">{confirmationTitle}</Dialog.Title>
@@ -699,6 +712,7 @@ export function EditorActions({
 					onUnpublish={onUnpublish}
 					onMenuOpenChange={onMenuOpenChange}
 					size="sm"
+					compact
 				/>
 			)}
 		</div>
