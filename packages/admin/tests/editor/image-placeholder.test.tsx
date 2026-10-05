@@ -246,6 +246,29 @@ describe("Image placeholder", () => {
 		expect(images(latest())).toEqual([EMPTY]);
 	});
 
+	it("keeps text dropped on the caption of an image it was filled with out of the document", async () => {
+		picker.item = PHOTO;
+		const { screen, editor } = await renderEditor({ value: [INTRO, EMPTY, OUTRO] });
+
+		await userEvent.click(screen.getByRole("button", { name: "Upload or choose an image" }));
+		await userEvent.click(screen.getByRole("button", { name: "Choose image" }));
+		const caption = screen.getByPlaceholder("Type caption for image (optional)");
+		await expect.element(caption).toBeVisible();
+		const data = new DataTransfer();
+		data.setData("text/plain", "Dropped words");
+		const box = caption.element().getBoundingClientRect();
+		const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+		for (const type of ["dragover", "drop"]) {
+			caption
+				.element()
+				.dispatchEvent(
+					new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: data, ...at }),
+				);
+		}
+
+		expect(editor.state.doc.textContent).not.toContain("Dropped words");
+	});
+
 	it("stores a canonical provider when an external image URL is chosen", async () => {
 		picker.item = {
 			id: "",

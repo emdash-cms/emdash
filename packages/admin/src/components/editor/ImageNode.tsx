@@ -156,7 +156,7 @@ function ImageNodeView({
 			textarea.removeEventListener("dragover", keepTextDrag);
 			textarea.removeEventListener("drop", keepTextDrag);
 		};
-	}, [editor.isEditable]);
+	}, [editor.isEditable, empty]);
 	const handleCaptionKeyDown = (event: React.KeyboardEvent) => {
 		if (event.key !== "Enter" || event.nativeEvent.isComposing || event.keyCode === 229) return;
 		event.preventDefault();
