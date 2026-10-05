@@ -2111,7 +2111,7 @@ const iframeSlashCommand: SlashCommandItem = {
 	title: msg`Iframe`,
 	description: msg`Embed a page from another site`,
 	icon: FrameCorners,
-	aliases: ["embed", "youtube", "vimeo", "video", "map"],
+	aliases: ["embed", "youtube", "vimeo", "map"],
 	category: EMBEDS_CATEGORY,
 	command: ({ editor, range }) => insertIframeBlock(editor, range),
 };
