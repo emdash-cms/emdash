@@ -7,7 +7,7 @@
 import type { PortableTextBlock } from "@emdash-cms/gutenberg-to-portable-text";
 import mime from "mime/lite";
 
-import { RESERVED_FIELD_SLUGS } from "../schema/types.js";
+import { RESERVED_COLLECTION_SLUGS, RESERVED_FIELD_SLUGS } from "../schema/types.js";
 import type { ImportFieldDef, CollectionSchemaStatus } from "./types.js";
 
 // =============================================================================
@@ -132,11 +132,24 @@ const POST_TYPE_TO_COLLECTION: Record<string, string> = {
 	faq: "faqs",
 };
 
+const INVALID_COLLECTION_SLUG_CHARS = /[^a-z0-9_]/g;
+
+/** Turn a WordPress post type name into a valid, non-reserved collection slug. */
+export function sanitizeCollectionSlug(slug: string): string {
+	const sanitized = slug
+		.toLowerCase()
+		.replace(INVALID_COLLECTION_SLUG_CHARS, "_")
+		.replace(LEADING_NON_ALPHA_CHARS, "");
+	if (!sanitized) return "imported";
+	if (RESERVED_COLLECTION_SLUGS.includes(sanitized)) return `wp_${sanitized}`;
+	return sanitized;
+}
+
 /**
  * Map WordPress post type to EmDash collection name
  */
 export function mapPostTypeToCollection(postType: string): string {
-	return POST_TYPE_TO_COLLECTION[postType] || postType;
+	return POST_TYPE_TO_COLLECTION[postType] || sanitizeCollectionSlug(postType);
 }
 
 // =============================================================================

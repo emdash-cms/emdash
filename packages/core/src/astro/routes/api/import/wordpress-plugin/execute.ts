@@ -37,7 +37,7 @@ import {
 } from "#import/sources/wordpress-plugin.js";
 import { resolveAndValidateExternalUrl, SsrfError } from "#import/ssrf.js";
 import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.js";
-import { resolveImportByline, sanitizeFieldSlug } from "#import/utils.js";
+import { resolveImportByline, sanitizeCollectionSlug, sanitizeFieldSlug } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
 	loadTaxonomyPlanFromDb,
@@ -635,7 +635,7 @@ export async function ensureCustomTaxonomyDefs(
 		const collections = (taxonomy.post_types ?? [])
 			.map((postType) => config.postTypeMappings[postType])
 			.filter((mapping) => mapping?.enabled)
-			.map((mapping) => mapping.collection);
+			.map((mapping) => sanitizeCollectionSlug(mapping.collection));
 
 		const result = await handleTaxonomyCreate(db, {
 			name: taxonomy.name,
@@ -839,7 +839,7 @@ export async function importContent(
 			continue;
 		}
 
-		const collection = mapping.collection;
+		const collection = sanitizeCollectionSlug(mapping.collection);
 
 		// Check if collection exists in manifest
 		if (!manifest?.collections[collection]) {

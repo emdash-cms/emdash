@@ -19,6 +19,7 @@ import {
 import type { EmDashHandlers, EmDashManifest } from "../../../src/astro/types.js";
 import type { Database } from "../../../src/database/types.js";
 import type { NormalizedItem } from "../../../src/import/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime, handlersFromRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -283,5 +284,75 @@ describe("WordPress plugin import: scheduled posts", () => {
 			{ slug: "missed", status: "draft", scheduled_at: null },
 			{ slug: "upcoming", status: "scheduled", scheduled_at: "2099-06-01T09:30:00.000Z" },
 		]);
+	});
+});
+
+describe("WordPress plugin import: post types with hyphens", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "team_member",
+			label: "Team Members",
+			labelSingular: "Team Member",
+		});
+		await registry.createField("team_member", { slug: "title", label: "Title", type: "string" });
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	// The admin sends the mapping's collection unsanitized; prepare created `team_member`.
+	const config: WpPluginImportConfig = {
+		postTypeMappings: { "team-member": { collection: "team-member", enabled: true } },
+		skipExisting: false,
+	};
+
+	it("imports into the sanitized collection that prepare created", async () => {
+		const emdash = {
+			db,
+			handleContentCreate: (collection: string, body: { data: Record<string, unknown> }) =>
+				handleContentCreate(db, collection, body),
+		} as unknown as EmDashHandlers;
+		const manifest = { collections: { team_member: {} } } as unknown as EmDashManifest;
+
+		const { result, collectionByWpId } = await importContent(
+			generate([makeItem({ sourceId: 5, postType: "team-member", slug: "ada" })]),
+			config,
+			emdash,
+			manifest,
+			undefined,
+		);
+
+		expect(result.errors).toEqual([]);
+		expect(result.imported).toBe(1);
+		expect(collectionByWpId.get(5)).toBe("team_member");
+	});
+
+	it("scopes custom taxonomies to the sanitized collection", async () => {
+		const term = { id: 1, name: "Term", slug: "term", description: "", parent: null, count: 1 };
+		await ensureCustomTaxonomyDefs(
+			db,
+			[
+				{
+					name: "abteilung",
+					label: "Abteilungen",
+					hierarchical: false,
+					post_types: ["team-member"],
+					terms: [term],
+				},
+			],
+			config,
+		);
+
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("collections")
+			.where("name", "=", "abteilung")
+			.executeTakeFirstOrThrow();
+		expect(JSON.parse(row.collections ?? "[]")).toEqual(["team_member"]);
 	});
 });
