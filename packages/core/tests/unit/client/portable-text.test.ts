@@ -484,6 +484,16 @@ describe("PT <-> Markdown round-trip", () => {
 		expect(roundTripped[0].code).toBe("const x = 42;");
 	});
 
+	it("preserves an image block without a URL, such as an empty one, through round-trip", () => {
+		const original: PortableTextBlock[] = [
+			{ _type: "image", _key: "i1", asset: { _ref: "", url: "" } },
+		];
+
+		const roundTripped = markdownToPortableText(portableTextToMarkdown(original));
+
+		expect(roundTripped).toEqual(original);
+	});
+
 	it("preserves bold text through round-trip", () => {
 		const original: PortableTextBlock[] = [
 			{

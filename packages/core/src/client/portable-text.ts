@@ -76,14 +76,15 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 			lines.push(code);
 			lines.push("```");
 			prevWasList = false;
-		} else if (block._type === "image") {
+		} else if (block._type === "image" && (block.asset as { url?: string } | undefined)?.url) {
 			if (i > 0) lines.push("");
 			const alt = (block.alt as string) || "";
-			const url = (block.asset as { url?: string })?.url || "";
+			const url = (block.asset as { url: string }).url;
 			lines.push(`![${alt}](${url})`);
 			prevWasList = false;
 		} else {
-			// Tier 3: Unknown block -> opaque fence
+			// Tier 3: Unknown block -> opaque fence. So is an image without a URL, such as an
+			// empty one, since `![]()` doesn't read back as an image.
 			if (i > 0) lines.push("");
 			lines.push(`<!--ec:block ${JSON.stringify(block)} -->`);
 			prevWasList = false;
