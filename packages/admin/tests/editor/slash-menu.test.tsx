@@ -9,6 +9,7 @@
  * since there's no standalone export.
  */
 
+import { closeHistory } from "@tiptap/pm/history";
 import { TableMap } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import { SuggestionPluginKey } from "@tiptap/suggestion";
@@ -366,6 +367,46 @@ describe("Slash Command Menu", () => {
 		expect(blockTexts(editor)).toEqual(["First", ""]);
 		expect(editor.commands.undo()).toBe(true);
 		expect(blockTexts(editor)).toEqual(["First"]);
+	});
+
+	it("leaves nothing to undo after closing the insert button's slash in an empty line", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("First");
+		const { tr, schema } = editor.state;
+		editor.view.dispatch(
+			closeHistory(tr.insert(tr.doc.content.size, schema.nodes.paragraph!.create())),
+		);
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		expect(blockTexts(editor)).toEqual(["First", "/"]);
+
+		await userEvent.keyboard("{Escape}");
+
+		await waitForSlashMenuClosed();
+		expect(blockTexts(editor)).toEqual(["First", ""]);
+		expect(editor.commands.undo()).toBe(true);
+		expect(blockTexts(editor)).toEqual(["First"]);
+	});
+
+	it("reports no change until the insert button's menu runs a command", async () => {
+		const onChange = vi.fn();
+		const { screen, editor, pm } = await renderEditor({ onChange });
+		await focusEditor(pm);
+		editor.commands.insertContent("First");
+		onChange.mockClear();
+
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		await waitForSlashMenu();
+		await userEvent.keyboard("hea");
+		await vi.waitFor(() => expect(getItemTitles(getSlashMenu()!)).toContain("Heading 1"));
+		expect(onChange).not.toHaveBeenCalled();
+
+		findItem(getSlashMenu()!, "Heading 1")?.click();
+
+		await waitForSlashMenuClosed();
+		const blocks = onChange.mock.lastCall?.[0] as Array<{ style?: string }>;
+		expect(blocks.map((block) => block.style)).toEqual(["normal", "h1"]);
 	});
 
 	it("types into an empty paragraph right after the insert point instead of adding a line", async () => {

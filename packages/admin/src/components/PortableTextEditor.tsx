@@ -124,7 +124,7 @@ import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
-import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
+import Suggestion, { exitSuggestion, SuggestionPluginKey } from "@tiptap/suggestion";
 import * as React from "react";
 
 import { htmlBlockFields } from "../html-block";
@@ -2163,7 +2163,8 @@ function createSlashCommandsExtension(options: {
 	onCommand: (item: SlashCommandItem) => void;
 	/** Escape or Tab closed the menu without running a command. */
 	onDismiss: () => void;
-	onExit: () => void;
+	/** The menu closed; changes the block insert button's line held back can be reported. */
+	onExit: (editor: Editor) => void;
 }) {
 	const { filterCommands, onStateChange, getState, onCommand, onDismiss, onExit } = options;
 
@@ -2179,9 +2180,10 @@ function createSlashCommandsExtension(options: {
 		},
 
 		addProseMirrorPlugins() {
+			const { editor } = this;
 			return [
 				Suggestion({
-					editor: this.editor,
+					editor,
 					char: "/",
 					startOfLine: true,
 					decorationClass: "emdash-slash-query",
@@ -2257,7 +2259,7 @@ function createSlashCommandsExtension(options: {
 							},
 							onExit: () => {
 								onStateChange((prev) => ({ ...prev, isOpen: false }));
-								onExit();
+								onExit(editor);
 							},
 						};
 					},
@@ -3707,6 +3709,37 @@ export function PortableTextEditor({
 	const initialContent = initialConversion.content;
 	const tableConversionError = initialConversion.tableError ?? conversionTableError;
 
+	/**
+	 * Hands the document to `onChange` as Portable Text. While the slash line
+	 * the block insert button typed is open, changes wait until its menu
+	 * closes, so the line alone isn't an edit for autosave to save.
+	 */
+	const reportChange = React.useCallback((changedEditor: Editor) => {
+		const cb = onChangeRef.current;
+		if (!cb) return;
+		if (insertedLineRef.current && SuggestionPluginKey.getState(changedEditor.state)?.active)
+			return;
+		const doc = changedEditor.getJSON();
+		// TipTap's getJSON() returns JSONContent which is structurally compatible
+		const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
+		try {
+			const portableText = prosemirrorToPortableText(pmDoc);
+			if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
+			lastPortableTextValueRef.current = portableText;
+			cb(portableText);
+		} catch (error) {
+			if (error instanceof UnsupportedPortableTextMarksError) {
+				setConversionErrorMarks(error.marks);
+				return;
+			}
+			if (error instanceof UnsafePortableTextTableError) {
+				setConversionTableError(error);
+				return;
+			}
+			throw error;
+		}
+	}, []);
+
 	// Memoize the entire extensions array so TipTap never diffs/replaces
 	// plugins on re-render. The loop was: extension array changes → useEditor
 	// calls setOptions → old Suggestion plugin destroyed → onExit fires
@@ -3797,7 +3830,8 @@ export function PortableTextEditor({
 				getState: () => slashMenuStateRef.current,
 				onCommand: (item) => slashMenuActionsRef.current.run(item),
 				onDismiss: () => slashMenuActionsRef.current.dismiss(),
-				onExit: () => {
+				onExit: (exitedEditor) => {
+					if (insertedLineRef.current) reportChange(exitedEditor);
 					insertedLineRef.current = null;
 				},
 			}),
@@ -3836,30 +3870,7 @@ export function PortableTextEditor({
 		editable: editable && unsupportedMarks.length === 0 && tableConversionError === null,
 		immediatelyRender: true,
 		editorProps,
-		onUpdate: ({ editor: updatedEditor }) => {
-			const cb = onChangeRef.current;
-			if (cb) {
-				const doc = updatedEditor.getJSON();
-				// TipTap's getJSON() returns JSONContent which is structurally compatible
-				const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
-				try {
-					const portableText = prosemirrorToPortableText(pmDoc);
-					if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
-					lastPortableTextValueRef.current = portableText;
-					cb(portableText);
-				} catch (error) {
-					if (error instanceof UnsupportedPortableTextMarksError) {
-						setConversionErrorMarks(error.marks);
-						return;
-					}
-					if (error instanceof UnsafePortableTextTableError) {
-						setConversionTableError(error);
-						return;
-					}
-					throw error;
-				}
-			}
-		},
+		onUpdate: ({ editor: updatedEditor }) => reportChange(updatedEditor),
 	});
 
 	/**
@@ -3915,17 +3926,20 @@ export function PortableTextEditor({
 			const slashPos = reuseBefore ? pos - 1 : pos + 1;
 			// A stale dismissed position could block this slash; opening a menu forgets it anyway.
 			setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: null }));
+			insertedLineRef.current = { slashPos, addedParagraph: !reuse };
 			editor
 				.chain()
 				.focus()
 				.command(({ tr }) => {
 					closeHistory(tr);
 					if (!reuse) tr.insert(pos, tr.doc.type.schema.nodes.paragraph!.create());
+					// In an empty line that was already there, the slash is all the button
+					// adds, and closing the menu removes it outside the undo history too.
+					else tr.setMeta("addToHistory", false);
 					tr.insertText("/", slashPos).setSelection(TextSelection.create(tr.doc, slashPos + 1));
 					return true;
 				})
 				.run();
-			insertedLineRef.current = { slashPos, addedParagraph: !reuse };
 			// Scrolls far enough for the menu, up to 21rem tall, to open below the line, without
 			// scrolling the line under the toolbar.
 			const line = editor.view.coordsAtPos(slashPos);
