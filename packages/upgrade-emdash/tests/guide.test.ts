@@ -55,6 +55,7 @@ describe("agent upgrade work order", () => {
 		expect(guide).toContain("Replace the removed option.");
 		expect(guide).toContain("Keep the deployment setting");
 		expect(guide).toContain("emdash@1.1.0");
+		expect(guide).toContain("Source: [#12](https://github.com/emdash-cms/emdash/pull/12)");
 		expect(guide).toContain("`002_added`");
 		expect(guide).toContain("restorable database backup");
 		expect(guide).toContain("https://docs.emdashcms.com/guides/backups/");

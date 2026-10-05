@@ -107,7 +107,7 @@ describe("project loading", () => {
 		if (hasMigrations) {
 			await writeFile(
 				join(root, "node_modules/emdash/migrations.mjs"),
-				`export async function getCoreMigrationIdentity() { return { emdashVersion: ${JSON.stringify(emdashVersion)}, names: ["001_initial"] }; }\n`,
+				'import { readFileSync } from "node:fs";\nconst { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));\nexport async function getCoreMigrationIdentity() { return { emdashVersion: version, names: ["001_initial"] }; }\n',
 			);
 		}
 		return root;
@@ -154,10 +154,9 @@ describe("project loading", () => {
 			const lockfile = (specifier: string) => `lock "emdash": "${specifier}"\n`;
 			await writeFile(join(site, "package-lock.json"), lockfile("^1.0.0"));
 			const bin = await temporaryDirectory();
-			const log = join(bin, "npm.log");
 			await writeFile(
 				join(bin, "npm"),
-				`#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\nprintf 'lock %s\\n' "$(grep -o '"emdash": "[^"]*"' package.json)" > package-lock.json\n`,
+				`#!/bin/sh\necho "$*" >> npm.log\nprintf 'lock %s\\n' "$(grep -o '"emdash": "[^"]*"' package.json)" > package-lock.json\n`,
 			);
 			await chmod(join(bin, "npm"), 0o755);
 			const originalPackageJson = await readFile(join(site, "package.json"), "utf8");
@@ -188,7 +187,7 @@ describe("project loading", () => {
 
 			expect(await readFile(join(site, "package.json"), "utf8")).toBe(originalPackageJson);
 			expect(await readFile(join(site, "package-lock.json"), "utf8")).toBe(lockfile("^1.0.0"));
-			expect(await readFile(log, "utf8")).toBe("install\ninstall\n");
+			expect(await readFile(join(site, "npm.log"), "utf8")).toBe("install\ninstall\n");
 		},
 	);
 });
