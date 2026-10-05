@@ -329,3 +329,94 @@ describe("S3Storage same-key upload", () => {
 		]);
 	});
 });
+
+describe("S3Storage ranged download", () => {
+	afterEach(() => s3Send.mockReset());
+
+	function storage() {
+		return createStorage({
+			endpoint: "https://bucket.s3.example.com",
+			bucket: "my-bucket",
+			accessKeyId: "key",
+			secretAccessKey: "secret",
+		});
+	}
+
+	function objectBody(text: string) {
+		return { transformToWebStream: () => new Blob([text]).stream() };
+	}
+
+	function sentRanges(): unknown[] {
+		return s3Send.mock.calls.map(
+			([command]) => (command as { input: { Range?: string } }).input.Range,
+		);
+	}
+
+	it.each([
+		[{ offset: 2, length: 3 }, "bytes=2-4"],
+		[{ offset: 7 }, "bytes=7-"],
+		[{ suffix: 3 }, "bytes=-3"],
+	])("requests %o as %s", async (range, header) => {
+		s3Send.mockResolvedValueOnce({ Body: objectBody(""), ContentLength: 0 });
+
+		await storage().download("clip.mp4", { range });
+
+		expect(sentRanges()).toEqual([header]);
+	});
+
+	it("reports the served bytes and the whole object's size from Content-Range", async () => {
+		s3Send.mockResolvedValueOnce({
+			Body: objectBody("234"),
+			ContentType: "video/mp4",
+			ContentLength: 3,
+			ContentRange: "bytes 2-4/10",
+		});
+
+		const result = await storage().download("clip.mp4", { range: { offset: 2, length: 3 } });
+
+		expect(result).toMatchObject({
+			contentType: "video/mp4",
+			size: 10,
+			range: { offset: 2, length: 3 },
+		});
+		expect(await new Response(result.body).text()).toBe("234");
+	});
+
+	it("downloads the whole object when the range is not satisfiable", async () => {
+		s3Send.mockRejectedValueOnce(
+			Object.assign(new Error("The requested range is not satisfiable"), { name: "InvalidRange" }),
+		);
+		s3Send.mockResolvedValueOnce({ Body: objectBody("0123456789"), ContentLength: 10 });
+
+		const result = await storage().download("clip.mp4", { range: { offset: 10 } });
+
+		expect(sentRanges()).toEqual(["bytes=10-", undefined]);
+		expect(result.range).toBeUndefined();
+		expect(result.size).toBe(10);
+	});
+
+	it("treats a response without Content-Range as the whole object", async () => {
+		s3Send.mockResolvedValueOnce({ Body: objectBody("0123456789"), ContentLength: 10 });
+
+		const result = await storage().download("clip.mp4", { range: { offset: 2, length: 3 } });
+
+		expect(result.range).toBeUndefined();
+		expect(result.size).toBe(10);
+	});
+
+	it("downloads the whole object when Content-Range doesn't give its size", async () => {
+		s3Send.mockResolvedValueOnce({
+			Body: objectBody("234"),
+			ContentLength: 3,
+			ContentRange: "bytes 2-4/*",
+		});
+		s3Send.mockResolvedValueOnce({ Body: objectBody("0123456789"), ContentLength: 10 });
+
+		const result = await storage().download("clip.mp4", { range: { offset: 2, length: 3 } });
+
+		expect(sentRanges()).toEqual(["bytes=2-4", undefined]);
+		expect(result.range).toBeUndefined();
+		expect(result.size).toBe(10);
+		expect(await new Response(result.body).text()).toBe("0123456789");
+	});
+});

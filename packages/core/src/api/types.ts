@@ -74,6 +74,8 @@ export interface ManifestFieldDescriptor extends FieldDescriptor {
 	unsupportedType?: { type: string; path: string };
 	blockTypes?: BlockType[];
 	blockTypeFingerprint?: string;
+	/** Value a new entry starts with in the admin editor. */
+	defaultValue?: unknown;
 }
 
 export interface FieldDescriptor {

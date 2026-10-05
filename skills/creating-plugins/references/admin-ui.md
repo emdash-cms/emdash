@@ -203,9 +203,10 @@ definePlugin({
 		entry: "@my-org/plugin-color/admin",
 		pages: [{ path: "/settings", label: "Settings" }],
 		widgets: [{ id: "status", title: "Status", size: "half" }],
-		fieldWidgets: [{ name: "picker", label: "Color picker", fieldTypes: ["string"] }],
 	},
 });
 ```
+
+A schema field selects a `fields` entry with `widget: "<plugin-id>:<widget-name>"`. The component receives `value`, `onChange(value)`, `label`, `id`, and optionally `required`, `options`, `validation`, and `minimal`. `options` is the field's schema `options` unless the field is a `select` or `multiSelect` with legacy `validation.options`, in which case it is an array of `{ value, label }` items. The host renders no label around the widget, so render `label` yourself. A missing widget name falls back to the default editor for the field type. Trusted React widgets need no `admin.fieldWidgets` declaration; that field is for sandboxed Block Kit widgets.
 
 Native admin code must follow the repository's Kumo, localization, accessibility, and RTL rules. It runs with the site's authority and is not registry-installable.

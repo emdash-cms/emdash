@@ -34,10 +34,27 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
-// Mock FieldEditor — just expose open state via data attribute
+// Mock FieldEditor — exposes open state, a save trigger, and the error banner
+// a rejected save should produce, without the real dialog's form fields.
 vi.mock("../../src/components/FieldEditor", () => ({
-	FieldEditor: ({ open }: { open: boolean }) =>
-		open ? <div data-testid="field-editor-dialog">Field Editor</div> : null,
+	FieldEditor: ({
+		open,
+		onSave,
+		saveError,
+	}: {
+		open: boolean;
+		onSave: (input: unknown) => void;
+		saveError?: string | null;
+	}) =>
+		open ? (
+			<div data-testid="field-editor-dialog">
+				Field Editor
+				{saveError && <div data-testid="field-save-error">{saveError}</div>}
+				<button onClick={() => onSave({ slug: "title", label: "Title", type: "string" })}>
+					Save field
+				</button>
+			</div>
+		) : null,
 }));
 
 const DELETE_FIELD_BUTTON_PATTERN = /Delete Title field/i;
@@ -347,6 +364,45 @@ describe("ContentTypeEditor", () => {
 
 		// Dialog should now be visible
 		await expect.element(screen.getByTestId("field-editor-dialog")).toBeInTheDocument();
+	});
+
+	// ---- A rejected field save keeps the dialog open and shows the error ----
+
+	it("keeps the field editor open and shows the error when the save is rejected", async () => {
+		const onUpdateField = vi.fn(() =>
+			Promise.reject(new Error(`Changing required for field "title" requires a manual migration.`)),
+		);
+		const fields = [makeField({ slug: "title", label: "Title" })];
+		const collection = makeCollection({ fields });
+
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onUpdateField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: EDIT_TITLE_RE }).click();
+		await screen.getByRole("button", { name: "Save field" }).click();
+
+		expect(onUpdateField).toHaveBeenCalled();
+		await expect.element(screen.getByTestId("field-editor-dialog")).toBeInTheDocument();
+		await expect
+			.element(screen.getByTestId("field-save-error"))
+			.toHaveTextContent(/requires a manual migration/i);
+	});
+
+	it("closes the field editor once the save succeeds", async () => {
+		const onUpdateField = vi.fn(() => Promise.resolve());
+		const fields = [makeField({ slug: "title", label: "Title" })];
+		const collection = makeCollection({ fields });
+
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onUpdateField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: EDIT_TITLE_RE }).click();
+		await screen.getByRole("button", { name: "Save field" }).click();
+
+		expect(onUpdateField).toHaveBeenCalled();
+		await expect.element(screen.getByTestId("field-editor-dialog")).not.toBeInTheDocument();
 	});
 
 	// ---- Delete field with confirm dialog calls onDeleteField ----

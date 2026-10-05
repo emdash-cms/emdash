@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export { slugify } from "../slugify.js";
+export { slugifyIdentifier } from "./slugify-identifier.js";
 
 // Regex patterns for parseTimestamp
 const NAIVE_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;

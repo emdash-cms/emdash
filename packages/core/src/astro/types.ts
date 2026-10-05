@@ -83,6 +83,8 @@ export interface ManifestCollection {
 			id?: string;
 			/** Validation config for the field (e.g. `allowedMimeTypes` for file/image fields, subFields for repeater). */
 			validation?: Record<string, unknown>;
+			/** Value a new entry starts with in the admin editor. */
+			defaultValue?: unknown;
 		}
 	>;
 }

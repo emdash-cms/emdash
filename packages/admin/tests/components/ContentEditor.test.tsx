@@ -1144,6 +1144,108 @@ describe("ContentEditor", () => {
 		});
 	});
 
+	describe("field defaults", () => {
+		const fieldsWithDefaults: Record<string, FieldDescriptor> = {
+			featured: { kind: "boolean", label: "Featured", defaultValue: true },
+			color: {
+				kind: "select",
+				label: "Color",
+				options: [
+					{ value: "red", label: "Red" },
+					{ value: "blue", label: "Blue" },
+				],
+				defaultValue: "blue",
+			},
+			order: { kind: "number", label: "Order", defaultValue: 3 },
+			rank: { kind: "number", label: "Rank", defaultValue: 0 },
+			subtitle: { kind: "string", label: "Subtitle", defaultValue: "Draft" },
+			tagline: { kind: "string", label: "Tagline", defaultValue: "New" },
+		};
+
+		it("starts a new entry with each field's default and saves the defaults untouched", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({ isNew: true, onSave, fields: fieldsWithDefaults });
+
+			await expect.element(screen.getByRole("switch")).toBeChecked();
+			await expect
+				.element(screen.getByRole("combobox", { name: "Color" }))
+				.toHaveTextContent("Blue");
+			await expect.element(screen.getByLabelText("Order", { exact: true })).toHaveValue(3);
+			await expect.element(screen.getByLabelText("Rank", { exact: true })).toHaveValue(0);
+			await expect.element(screen.getByLabelText("Subtitle")).toHaveValue("Draft");
+
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledTimes(1);
+			expect(onSave.mock.calls[0]![0].data).toEqual({
+				featured: true,
+				color: "blue",
+				order: 3,
+				rank: 0,
+				subtitle: "Draft",
+				tagline: "New",
+			});
+		});
+
+		it("keeps nested defaults unchanged across new entries", async () => {
+			const fields: Record<string, FieldDescriptor> = {
+				settings: {
+					kind: "json",
+					label: "Settings",
+					defaultValue: { links: [{ label: "Original" }] },
+				},
+				sections: { kind: "json", label: "Sections", defaultValue: ["First"] },
+			};
+			const expected = { settings: { links: [{ label: "Original" }] }, sections: ["First"] };
+			const onSave = vi.fn<NonNullable<ContentEditorProps["onSave"]>>();
+			const first = await renderEditor({ isNew: true, fields, onSave });
+
+			await first.getByRole("button", { name: "Save" }).first().click();
+			expect(onSave).toHaveBeenCalledTimes(1);
+			const saved = onSave.mock.calls[0]![0].data;
+			expect(saved).toEqual(expected);
+			await first.unmount();
+
+			(saved.settings as { links: { label: string }[] }).links[0]!.label = "Changed";
+			(saved.sections as string[]).push("Second");
+			expect(fields.settings!.defaultValue).toEqual(expected.settings);
+			expect(fields.sections!.defaultValue).toEqual(expected.sections);
+
+			const second = await renderEditor({ isNew: true, fields, onSave });
+			await second.getByRole("button", { name: "Save" }).first().click();
+			expect(onSave).toHaveBeenCalledTimes(2);
+			expect(onSave.mock.calls[1]![0].data).toEqual(expected);
+		});
+
+		it("shows an existing entry's stored values, not the defaults, and stays saved", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { featured: false, color: "red", order: 0, subtitle: "" } }),
+				fields: fieldsWithDefaults,
+			});
+
+			await expect.element(screen.getByRole("switch")).not.toBeChecked();
+			await expect
+				.element(screen.getByRole("combobox", { name: "Color" }))
+				.toHaveTextContent("Red");
+			await expect.element(screen.getByLabelText("Order", { exact: true })).toHaveValue(0);
+			await expect.element(screen.getByLabelText("Subtitle")).toHaveValue("");
+			await expect.element(screen.getByLabelText("Tagline")).toHaveValue("");
+			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+		});
+
+		it("leaves the defaults out of an edit form whose entry did not load", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: undefined,
+				fields: fieldsWithDefaults,
+			});
+
+			await expect.element(screen.getByRole("switch")).not.toBeChecked();
+			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+		});
+	});
+
 	describe("field constraints", () => {
 		it("caps string fields at maxLength and counts characters against it", async () => {
 			const screen = await renderEditor({

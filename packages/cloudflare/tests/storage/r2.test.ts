@@ -42,3 +42,18 @@ describe("R2Storage same-key upload", () => {
 		]);
 	});
 });
+
+describe("R2Storage ranged download", () => {
+	it("describes the requested bytes when R2 doesn't report the range it read", async () => {
+		const bucket = {
+			async get() {
+				return { body: new Blob(["789"]).stream(), size: 10, httpMetadata: {} };
+			},
+		} as unknown as R2Bucket;
+
+		const result = await new R2Storage(bucket).download("clip.mp4", { range: { suffix: 3 } });
+
+		expect(result.size).toBe(10);
+		expect(result.range).toEqual({ offset: 7, length: 3 });
+	});
+});

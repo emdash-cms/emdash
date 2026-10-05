@@ -24,6 +24,7 @@ import type { EmDashPreviewDB } from "./do-class.js";
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
 import { isBlockedInPlayground } from "./do-playground-routes.js";
+import { insertBeforeBodyEnd } from "./insert-before-body-end.js";
 import { initializePlayground } from "./playground-initializer.js";
 import { renderPlaygroundLoadingPage } from "./playground-loading.js";
 import { renderPlaygroundToolbar } from "./playground-toolbar.js";
@@ -147,10 +148,9 @@ async function injectPlaygroundToolbar(
 	if (!contentType?.includes("text/html")) return response;
 
 	const html = await response.text();
-	if (!html.includes("</body>")) return new Response(html, response);
+	const injected = insertBeforeBodyEnd(html, renderPlaygroundToolbar(config));
+	if (injected === undefined) return new Response(html, response);
 
-	const toolbarHtml = renderPlaygroundToolbar(config);
-	const injected = html.replace("</body>", `${toolbarHtml}</body>`);
 	return new Response(injected, {
 		status: response.status,
 		headers: response.headers,

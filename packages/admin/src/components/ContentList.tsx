@@ -39,6 +39,7 @@ import type {
 	ContentItem,
 	TrashedContentItem,
 } from "../lib/api.js";
+import { getDraftStatus } from "../lib/api.js";
 import {
 	ContentListColumnBoundary,
 	resolveContentListColumns,
@@ -1441,7 +1442,7 @@ function ContentListItem({
 			<td className="px-4 py-3">
 				<StatusBadge
 					status={item.status}
-					hasPendingChanges={!!item.draftRevisionId && item.draftRevisionId !== item.liveRevisionId}
+					hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
 				/>
 			</td>
 			{showLocale && (
