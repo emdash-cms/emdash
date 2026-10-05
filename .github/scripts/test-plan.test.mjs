@@ -170,6 +170,12 @@ describe("test plan", () => {
 		assert.ok(plan.unit_packages.includes("@emdash-cms/release-service"));
 	});
 
+	it("runs the Cloudflare package tests when the adapter changes", () => {
+		const plan = createTestPlan(["packages/cloudflare/src/image-endpoint.ts"]);
+
+		assert.ok(plan.unit_packages.includes("@emdash-cms/cloudflare"));
+	});
+
 	it("marks a union that selects every lane as full", () => {
 		const plan = createTestPlan([
 			"packages/core/src/index.ts",

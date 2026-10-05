@@ -3,4 +3,4 @@
 "emdash": patch
 ---
 
-Fixes cropping for EmDash media on Cloudflare. An image asked to fill a fixed box — a square avatar, a fixed-ratio thumbnail — came back scaled down and letterboxed inside it, because the endpoint never passed the requested fit to the Images binding. `fit` and `position` are now honoured, so a crop crops and its focal side is respected.
+Fixes images on Cloudflare that set both `width` and `height` (including EmDash's `<Image>` and Astro's `<Image>` and `<Picture>`) being scaled down inside the box instead of cropped to fill it. `fit` is now honored, cropping and fitting never enlarge small sources, and a single-keyword `position` such as `top` or `left` controls which part is kept.

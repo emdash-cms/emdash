@@ -39,15 +39,16 @@ const FORMAT_MIME: Record<ImageTransformFormat, ImageOutputOptions["format"]> = 
 
 /**
  * Maps Astro `fit` values to the Cloudflare Images binding's fit vocabulary.
- * Unmapped values (e.g. `outside`) become `undefined`, leaving the binding's
- * default behaviour unchanged.
+ * Astro's sharp service never enlarges, so the cropping and fitting values map
+ * to the binding's non-enlarging fits. Unmapped values (e.g. `outside`) become `undefined`,
+ * leaving the binding's default behaviour unchanged.
  */
 const FIT_TO_BINDING: Record<ImageTransformFit, ImageTransform["fit"] | undefined> = {
 	fill: "squeeze",
-	contain: "contain",
-	cover: "cover",
+	contain: "scale-down",
+	cover: "crop",
 	"scale-down": "scale-down",
-	inside: "contain",
+	inside: "scale-down",
 	outside: undefined,
 };
 

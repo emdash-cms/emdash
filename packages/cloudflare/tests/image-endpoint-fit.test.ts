@@ -59,13 +59,17 @@ beforeEach(() => {
 });
 
 describe("Cloudflare image endpoint: fit and position", () => {
-	it("forwards fit=cover so a square crop crops instead of letterboxing", async () => {
-		// Astro emits `fit`/`position` for constrained images. Dropping `fit`
-		// left the binding on its default, so a 32x32 avatar came back
-		// scaled-down inside the box rather than cover-cropped to fill it.
+	it("crops for fit=cover instead of scaling down inside the box", async () => {
 		await request("w=32&h=32&f=webp&fit=cover&position=center");
 
-		expect(lastTransform()).toMatchObject({ width: 32, height: 32, fit: "cover" });
+		expect(lastTransform()).toMatchObject({ width: 32, height: 32, fit: "crop" });
+	});
+
+	it("never asks the binding to enlarge, matching Astro's sharp service", async () => {
+		for (const fit of ["cover", "contain", "inside", "scale-down"]) {
+			await request(`w=64&h=64&fit=${fit}`);
+			expect(["crop", "scale-down"]).toContain(lastTransform().fit);
+		}
 	});
 
 	it("maps position to the binding's gravity vocabulary", async () => {
@@ -95,9 +99,9 @@ describe("Cloudflare image endpoint: fit and position", () => {
 		}
 	});
 
-	it("maps Astro's sharp-only inside fit onto contain", async () => {
+	it("maps Astro's sharp-only inside fit onto scale-down", async () => {
 		await request("w=64&h=64&fit=inside");
-		expect(lastTransform().fit).toBe("contain");
+		expect(lastTransform().fit).toBe("scale-down");
 	});
 
 	it("maps Astro's fill to the binding's squeeze", async () => {
