@@ -10,7 +10,7 @@ Run it from an existing site:
 npx upgrade-emdash@latest
 ```
 
-The command resolves the selected npm dist-tag separately for every direct `emdash` and `@emdash-cms/*` dependency. It preserves each dependency's caret, tilde, or exact version style, runs the project's package manager (from the workspace root when the site is a workspace package), refreshes the project skills from `emdash-cms/skills`, and writes `.emdash/UPGRADE.md`. The project must already have `emdash` 0.35.0 or later installed.
+The command resolves the selected npm dist-tag separately for every direct `emdash` and `@emdash-cms/*` dependency. It preserves each dependency's caret, tilde, or exact version style (replacing a preview build URL, git source, or other range with a caret range on the release), runs the project's package manager (from the workspace root when the site is a workspace package), refreshes the project skills from `emdash-cms/skills`, and writes `.emdash/UPGRADE.md`. The project must already have `emdash` 0.35.0 or later installed.
 
 The work order contains the complete authored major, minor, and patch changelog entries crossed by those packages, fetched from their exact GitHub release tags. Generated dependency-bump entries and Changesets attribution wrappers are removed, and repeated entries are deduplicated without shortening their bodies.
 

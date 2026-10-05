@@ -53,7 +53,7 @@ Run the updater from the site's project directory. It reads the installed packag
    npx upgrade-emdash@latest
    ```
 
-   The command preserves each dependency's existing caret, tilde, or exact version style and runs the project's package manager. Package versions can differ: each direct package receives the exact version published under the selected tag.
+   The command preserves each dependency's existing caret, tilde, or exact version style and runs the project's package manager. A preview build URL, git source, or other range is replaced with a caret range on the release. The command stops for `catalog:`, `workspace:`, local path, and `npm:` alias specifiers and explains what to change. Package versions can differ: each direct package receives the exact version published under the selected tag.
 
    It then runs `npx --yes skills@1.7.0 add emdash-cms/skills -y` in the project and compares the installed core migration identity with the identity captured before installation. It does not apply a migration.
 

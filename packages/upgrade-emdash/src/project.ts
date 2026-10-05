@@ -50,6 +50,7 @@ export const SYNC_SKILLS = {
 	command: "npx",
 	args: ["--yes", "skills@1.7.0", "add", "emdash-cms/skills", "-y"],
 } as const;
+const PROJECT_MANAGED_SPECIFIER = /^(?:catalog|workspace|link|file|portal|npm):/;
 const SIMPLE_VERSION = /^(\^|~)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 async function pathExists(path: string): Promise<boolean> {
@@ -272,9 +273,28 @@ export async function loadProject(start: string): Promise<ProjectState> {
 }
 
 export function targetSpecifier(current: string, targetVersion: string): string | null {
+	if (PROJECT_MANAGED_SPECIFIER.test(current)) return null;
 	const match = current.match(SIMPLE_VERSION);
-	if (!match) return null;
+	if (!match) return `^${targetVersion}`;
 	return `${match[1] ?? ""}${targetVersion}`;
+}
+
+export function unsupportedSpecifierMessage(
+	name: string,
+	specifier: string,
+	targetVersion: string,
+): string {
+	const release = `"${name}": "^${targetVersion}"`;
+	if (specifier.startsWith("catalog:")) {
+		return `${name} uses ${specifier}, so its version comes from a pnpm catalog. upgrade-emdash does not update catalogs yet. Set ${name} to ${targetVersion} in that catalog in pnpm-workspace.yaml, run pnpm install, then run upgrade-emdash again.`;
+	}
+	if (specifier.startsWith("workspace:")) {
+		return `${name} uses ${specifier}, so it comes from a package in this workspace rather than from npm. upgrade-emdash only updates packages installed from npm.`;
+	}
+	if (specifier.startsWith("npm:")) {
+		return `${name} is an alias for ${specifier}. upgrade-emdash cannot tell which package the alias should install. Replace it with ${release} in package.json, or update the alias yourself, then run upgrade-emdash again.`;
+	}
+	return `${name} uses ${specifier}, a local path. upgrade-emdash only updates packages installed from npm. Replace it with ${release} in package.json to install the release, then run upgrade-emdash again.`;
 }
 
 export function applyDependencyChanges(

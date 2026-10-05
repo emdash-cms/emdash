@@ -153,4 +153,60 @@ describe("upgrade plan", () => {
 
 		expect(plans.map((plan) => plan.commands.deploy)).toEqual([undefined, "pnpm deploy"]);
 	});
+
+	function singleDependencyProject(
+		name: string,
+		specifier: string,
+		installedVersion: string,
+	): ProjectState {
+		const dependencies = { emdash: "^1.2.0", [name]: specifier };
+		const packageJson = { dependencies };
+		return {
+			root: "/site",
+			installRoot: "/site",
+			packageJsonPath: "/site/package.json",
+			packageJsonSource: `${JSON.stringify(packageJson)}\n`,
+			packageJson,
+			packageManager: "pnpm",
+			dependencies: [
+				{ name: "emdash", section: "dependencies", specifier: "^1.2.0", installedVersion: "1.2.0" },
+				{ name, section: "dependencies", specifier, installedVersion },
+			],
+			currentVersion: "1.2.0",
+			migrations: [],
+		};
+	}
+
+	const releasesAt =
+		(version: string): typeof fetch =>
+		async (input) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const name = decodeURIComponent(new URL(url).pathname.split("/").slice(1, -1).join("/"));
+			return jsonResponse({ name, version: name === "emdash" ? "1.2.0" : version });
+		};
+
+	it("replaces a preview build URL with the release even when the versions match", async () => {
+		const preview = "https://pkg.pr.new/emdash-cms/emdash/@emdash-cms/cloudflare@3285";
+		const plan = await createUpgradePlan(
+			singleDependencyProject("@emdash-cms/cloudflare", preview, "1.1.0"),
+			"latest",
+			releasesAt("1.1.0"),
+		);
+
+		expect(plan.dependencies).toMatchObject([
+			{ name: "@emdash-cms/cloudflare", from: preview, to: "^1.1.0", toVersion: "1.1.0" },
+		]);
+	});
+
+	it("explains that catalog versions must be updated in the catalog", async () => {
+		await expect(
+			createUpgradePlan(
+				singleDependencyProject("@emdash-cms/cloudflare", "catalog:", "1.0.0"),
+				"latest",
+				releasesAt("1.1.0"),
+			),
+		).rejects.toThrow(
+			"@emdash-cms/cloudflare uses catalog:, so its version comes from a pnpm catalog. upgrade-emdash does not update catalogs yet.",
+		);
+	});
 });

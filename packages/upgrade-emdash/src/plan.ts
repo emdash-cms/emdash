@@ -9,6 +9,7 @@ import {
 	packageRun,
 	SYNC_SKILLS,
 	targetSpecifier,
+	unsupportedSpecifierMessage,
 	type ProjectState,
 } from "./project.js";
 import { resolveRegistryRelease } from "./registry.js";
@@ -47,7 +48,7 @@ export async function createUpgradePlan(
 		const target = targetSpecifier(dependency.specifier, release.version);
 		if (!target && dependency.installedVersion !== release.version) {
 			throw new Error(
-				`${dependency.name} uses ${dependency.specifier}. Update its workspace, catalog, alias, or non-semver specifier at the owning level, then run upgrade-emdash again.`,
+				unsupportedSpecifierMessage(dependency.name, dependency.specifier, release.version),
 			);
 		}
 		if (

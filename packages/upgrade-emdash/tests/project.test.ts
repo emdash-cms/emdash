@@ -22,6 +22,33 @@ describe("project dependency updates", () => {
 		expect(targetSpecifier("workspace:*", "1.2.0")).toBeNull();
 	});
 
+	it("replaces preview builds, git sources, and other registry ranges with a caret release", () => {
+		for (const specifier of [
+			"https://pkg.pr.new/emdash-cms/emdash/@emdash-cms/cloudflare@3285",
+			"git+https://github.com/emdash-cms/emdash.git#main",
+			"github:emdash-cms/emdash",
+			">=1.0.0",
+			"1.x",
+			"latest",
+		]) {
+			expect(targetSpecifier(specifier, "1.2.0")).toBe("^1.2.0");
+		}
+	});
+
+	it("leaves catalog, workspace, local path, and alias specifiers to the project", () => {
+		for (const specifier of [
+			"catalog:",
+			"catalog:emdash",
+			"workspace:^",
+			"link:../emdash",
+			"file:../emdash",
+			"portal:../emdash",
+			"npm:@example/emdash@^1.0.0",
+		]) {
+			expect(targetSpecifier(specifier, "1.2.0")).toBeNull();
+		}
+	});
+
 	it("updates each package in its declared dependency section", () => {
 		const packageJson = {
 			dependencies: { emdash: "^1.0.1", astro: "^7.0.0" },
