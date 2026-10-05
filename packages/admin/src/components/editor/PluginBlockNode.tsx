@@ -15,7 +15,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	DotsSixVertical,
 	Trash,
 	Pencil,
 	X,
@@ -263,32 +262,13 @@ function PluginBlockNodeView({
 
 	return (
 		<NodeViewWrapper
-			className={cn(
-				"plugin-block relative my-3",
-				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
-			)}
+			className="plugin-block relative my-4"
 			contentEditable={false}
 			data-drag-handle
 		>
 			<div className="relative group">
-				{/* Drag handle - appears in left gutter */}
-				<div
-					className={cn(
-						"absolute -start-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing",
-						selected && "opacity-100",
-					)}
-					data-drag-handle
-				>
-					<DotsSixVertical className="h-5 w-5 text-kumo-subtle/50" />
-				</div>
-
 				{/* Main block content */}
-				<div
-					className={cn(
-						"rounded-lg border bg-kumo-base transition-colors",
-						selected ? "border-kumo-brand/50 bg-kumo-tint/30" : "hover:border-kumo-line",
-					)}
-				>
+				<div className="rounded-lg border bg-kumo-base">
 					{/* Header with icon, label, and actions */}
 					<div className="flex items-center gap-3 px-4 py-3">
 						{/* Icon */}

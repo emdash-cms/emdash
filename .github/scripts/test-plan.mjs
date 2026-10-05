@@ -146,6 +146,12 @@ const RULES = [
 		unitMode: "full",
 	},
 	{
+		name: "marketplace image fixture",
+		matches: (path) => path.startsWith("packages/plugins/marketplace-test/"),
+		lanes: ["unit", "integration", "e2e_table"],
+		unitMode: "full",
+	},
+	{
 		name: "plugin fixtures",
 		matches: (path) => path.startsWith("packages/plugins/"),
 		lanes: ["unit", "integration"],

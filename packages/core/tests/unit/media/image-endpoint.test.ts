@@ -9,6 +9,11 @@ import {
 	originalMediaHeaders,
 	DEFAULT_TRANSFORM_QUALITY,
 	MAX_TRANSFORM_DIMENSION,
+	formatHttpDate,
+	makeWeakEtag,
+	getTransformFingerprint,
+	isNotModified,
+	validatorHeaders,
 } from "../../../src/media/image-endpoint.js";
 
 describe("matchInternalMediaKey", () => {
@@ -160,5 +165,135 @@ describe("originalMediaHeaders", () => {
 		expect(originalMediaHeaders("image/svg+xml")["Content-Disposition"]).toBe("attachment");
 		expect(originalMediaHeaders("application/pdf")["Content-Disposition"]).toBe("attachment");
 		expect(originalMediaHeaders("image/svg+xml")["Content-Security-Policy"]).toContain("sandbox");
+	});
+
+	it("includes weak ETag and Last-Modified when size and modification time are provided", () => {
+		const lastModified = new Date("2026-01-15T12:00:00.000Z");
+		const h = originalMediaHeaders("image/png", 1234, lastModified);
+		expect(h.ETag).toBe(`W/"1234-${lastModified.getTime()}"`);
+		expect(h["Last-Modified"]).toBe(formatHttpDate(lastModified));
+	});
+
+	it("falls back to an ETag with only size when no modification time is provided", () => {
+		const h = originalMediaHeaders("image/png", 1234);
+		expect(h.ETag).toBe(`W/"1234"`);
+		expect(h["Last-Modified"]).toBeUndefined();
+	});
+});
+
+describe("formatHttpDate", () => {
+	it("returns an RFC 7231 HTTP-date in GMT", () => {
+		const date = new Date("2026-01-15T12:00:00.000Z");
+		expect(formatHttpDate(date)).toMatch(/, 15 Jan 2026 12:00:00 GMT/);
+	});
+});
+
+describe("makeWeakEtag", () => {
+	it("includes size and modification time when available", () => {
+		const lastModified = new Date("2026-01-15T12:00:00.000Z");
+		expect(makeWeakEtag(1234, lastModified)).toBe(`W/"1234-${lastModified.getTime()}"`);
+	});
+
+	it("falls back to size only when no modification time is available", () => {
+		expect(makeWeakEtag(1234)).toBe(`W/"1234"`);
+	});
+
+	it("appends a suffix for derived representations", () => {
+		const lastModified = new Date("2026-01-15T12:00:00.000Z");
+		expect(makeWeakEtag(1234, lastModified, "w=150")).toBe(
+			`W/"1234-${lastModified.getTime()}-w=150"`,
+		);
+	});
+});
+
+describe("getTransformFingerprint", () => {
+	it("serializes the relevant query params in a stable order", () => {
+		const params = new URLSearchParams("h=150&f=webp&q=85&w=100&fit=cover&extra=ignored");
+		expect(getTransformFingerprint(params)).toBe("w=100&h=150&f=webp&q=85&fit=cover");
+	});
+
+	it("returns an empty string when no transform params are present", () => {
+		expect(getTransformFingerprint(new URLSearchParams())).toBe("");
+	});
+});
+
+describe("validatorHeaders", () => {
+	it("returns ETag and Last-Modified when a modification time is given", () => {
+		const lastModified = new Date("2026-01-15T12:00:00.000Z");
+		const headers = validatorHeaders(1234, lastModified);
+		expect(headers.ETag).toBe(makeWeakEtag(1234, lastModified));
+		expect(headers["Last-Modified"]).toBe(formatHttpDate(lastModified));
+	});
+
+	it("returns only an ETag when no modification time is given", () => {
+		const headers = validatorHeaders(1234);
+		expect(headers.ETag).toBe(makeWeakEtag(1234));
+		expect(headers["Last-Modified"]).toBeUndefined();
+	});
+});
+
+describe("isNotModified", () => {
+	const lastModified = new Date("2026-01-15T12:00:00.000Z");
+	const etag = makeWeakEtag(1234, lastModified);
+
+	it("matches a request with the exact ETag", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "If-None-Match": etag },
+		});
+		expect(isNotModified(request, 1234, lastModified)).toBe(true);
+	});
+
+	it("matches a request with a weak-comparison equivalent ETag", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "If-None-Match": etag.replace("W/", "") },
+		});
+		expect(isNotModified(request, 1234, lastModified)).toBe(true);
+	});
+
+	it("matches If-None-Match: *", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "If-None-Match": "*" },
+		});
+		expect(isNotModified(request, 1234, lastModified)).toBe(true);
+	});
+
+	it("matches If-Modified-Since when the resource is not newer", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "If-Modified-Since": formatHttpDate(lastModified) },
+		});
+		expect(isNotModified(request, 1234, lastModified)).toBe(true);
+	});
+
+	it("does not match If-Modified-Since when the resource is newer", () => {
+		const earlier = new Date(lastModified.getTime() - 60_000);
+		const request = new Request("http://localhost/test", {
+			headers: { "If-Modified-Since": formatHttpDate(earlier) },
+		});
+		expect(isNotModified(request, 1234, lastModified)).toBe(false);
+	});
+
+	it("does not match a stale ETag", () => {
+		const request = new Request("http://localhost/test", {
+			headers: { "If-None-Match": `W/"stale"` },
+		});
+		expect(isNotModified(request, 1234, lastModified)).toBe(false);
+	});
+
+	it("prioritizes If-None-Match over If-Modified-Since", () => {
+		const request = new Request("http://localhost/test", {
+			headers: {
+				"If-None-Match": `W/"stale"`,
+				"If-Modified-Since": formatHttpDate(lastModified),
+			},
+		});
+		expect(isNotModified(request, 1234, lastModified)).toBe(false);
+	});
+
+	it("matches a transform suffix", () => {
+		const suffix = "w=150";
+		const request = new Request("http://localhost/test", {
+			headers: { "If-None-Match": makeWeakEtag(1234, lastModified, suffix) },
+		});
+		expect(isNotModified(request, 1234, lastModified, suffix)).toBe(true);
 	});
 });

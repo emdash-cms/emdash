@@ -235,6 +235,8 @@ export type {
 	SignedUploadOptions,
 	UploadResult,
 	DownloadResult,
+	DownloadOptions,
+	ByteRange,
 	ListResult,
 	ListOptions,
 	FileInfo,

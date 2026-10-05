@@ -385,6 +385,7 @@ Options for `access()`:
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
 | `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
+| `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to keep names edited in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names to EmDash role levels; first match wins                                  |
 
 <Aside>
@@ -450,6 +451,8 @@ emdash({
 ```
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
+
+Image optimization reads these environment variables at **build time**, because Astro records the allowed image origins in `image.remotePatterns` when `astro build` runs. If `EMDASH_SITE_URL` or `SITE_URL` is set only in the runtime environment, as on hosts that inject variables when the app starts, locally stored media is served unoptimized. Set the variable in the build environment as well, or set `siteUrl` in config.
 
 Setup fails with `SITE_URL_REQUIRED` on a non-loopback host when neither source is set. This prevents the first unauthenticated setup request from choosing the origin used in later authentication emails. A production build deployed to Cloudflare Workers is the exception: Cloudflare only routes requests for hostnames bound to the Worker, so setup records `https://` and the hostname it runs on. The same build served by `wrangler dev`, `astro preview`, or self-hosted workerd on a reachable address gets no such guarantee; set `siteUrl` or `EMDASH_SITE_URL` there first.
 
@@ -616,7 +619,7 @@ Uploads that exceed the configured limit are rejected with a `413 Payload Too La
 
 ### `admin`
 
-**Optional.** Replaces EmDash branding in the admin interface. These values do not change the public site's title, logo, or favicon.
+**Optional.** Replaces EmDash branding in the admin interface and limits which admin languages the build includes. The branding values do not change the public site's title, logo, or favicon.
 
 ```js
 emdash({
@@ -635,6 +638,7 @@ emdash({
 | `siteName`    | `string`          | Name shown in the sidebar header and browser title                             |
 | `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
 | `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
+| `locales`     | `string[]`        | Admin languages to include, such as `["en", "de"]`. Catalogs for other languages are left out of the admin bundle, and only the listed languages appear in the language switcher. Users whose preferred languages are not listed see English. `en` is always included as the fallback, even if you omit it, so `admin: { locales: ["en-GB"] }` ships both English and British English. An unknown code fails the build and the error lists the available codes. |
 
 ### `updateCheck`
 
@@ -980,7 +984,7 @@ emdash({
 });
 ```
 
-`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, and `roleMapping`. The [`auth`](#auth) option documents their defaults and role behavior.
+`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, `syncName`, and `roleMapping`. The [`auth`](#auth) option documents their defaults, role behavior, and name sync.
 
 ### `sandbox()`
 

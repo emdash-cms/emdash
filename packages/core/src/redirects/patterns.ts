@@ -160,20 +160,44 @@ export function compilePattern(source: string): CompiledPattern {
 	};
 }
 
+function toggledTrailingSlash(path: string): string | null {
+	if (path.length <= 1) return null;
+	return path.endsWith("/") ? path.slice(0, -1) : `${path}/`;
+}
+
 /**
  * Match a path against a compiled pattern.
  * Returns captured params or null if no match.
+ *
+ * Trailing slashes are ignored so `/category/arts/feed` and
+ * `/category/arts/feed/` match the same rule, consistent with exact and
+ * catch-all redirects.
  */
 export function matchPattern(
 	compiled: CompiledPattern,
 	path: string,
 ): Record<string, string> | null {
 	const match = path.match(compiled.regex);
-	if (!match) return null;
+	if (match) {
+		const params: Record<string, string> = {};
+		for (let i = 0; i < compiled.paramNames.length; i++) {
+			const value = match[i + 1];
+			if (value !== undefined) {
+				params[compiled.paramNames[i]] = value;
+			}
+		}
+		return params;
+	}
+
+	const alt = toggledTrailingSlash(path);
+	if (!alt) return null;
+
+	const altMatch = alt.match(compiled.regex);
+	if (!altMatch) return null;
 
 	const params: Record<string, string> = {};
 	for (let i = 0; i < compiled.paramNames.length; i++) {
-		const value = match[i + 1];
+		const value = altMatch[i + 1];
 		if (value !== undefined) {
 			params[compiled.paramNames[i]] = value;
 		}

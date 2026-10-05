@@ -4,6 +4,7 @@ import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import {
 	invalidateRedirectCache,
 	loadCachedRedirects,
+	matchCachedPatterns,
 	type RedirectRuleSet,
 	type RedirectSource,
 } from "../../../src/redirects/cache.js";
@@ -252,5 +253,31 @@ describe("redirect cache", () => {
 		await waitForDeferredTasks();
 
 		await expect(destinationOf(source)).resolves.toBe("/newest");
+	});
+
+	describe("matchCachedPatterns", () => {
+		it("matches parameterized rules with and without a trailing slash", async () => {
+			const source = new FakeSource({
+				version: "v1",
+				exact: [],
+				patterns: [
+					{
+						id: "feed",
+						source: "/category/[slug]/feed",
+						destination: "/tags/[slug]/feed",
+						type: 301,
+					},
+				],
+			});
+
+			const cached = await loadCachedRedirects(source);
+
+			expect(matchCachedPatterns(cached.patterns, "/category/arts/feed")?.destination).toBe(
+				"/tags/arts/feed",
+			);
+			expect(matchCachedPatterns(cached.patterns, "/category/arts/feed/")?.destination).toBe(
+				"/tags/arts/feed",
+			);
+		});
 	});
 });

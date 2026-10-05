@@ -200,7 +200,10 @@ import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
 import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
-import { runSystemCleanup } from "./cleanup.js";
+import {
+	runSystemCleanup,
+	shouldRunSystemCleanup as shouldRunSystemCleanupNow,
+} from "./cleanup.js";
 import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
@@ -257,7 +260,7 @@ import {
 } from "./index.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
-import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
+import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import { EmailPipeline } from "./plugins/email.js";
@@ -910,10 +913,14 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Run the full scheduled-maintenance batch: cron tasks, scheduled
-	 * publishing, and system cleanup. For request-less drivers — the
-	 * Cloudflare `scheduled()` handler invokes this from a Cron Trigger.
-	 * (On Node the timer-based scheduler drives the same work itself.)
+	 * Run the scheduled-maintenance batch: cron tasks, scheduled publishing,
+	 * and hourly system cleanup. For request-less drivers — the Cloudflare
+	 * `scheduled()` handler invokes this from a Cron Trigger. (On Node the
+	 * timer-based scheduler drives the same work itself.)
+	 *
+	 * Full cleanup runs only on the top of the hour so per-minute work stays
+	 * proportional to what is due; the heartbeat and scheduled publish sweep
+	 * still run every tick.
 	 *
 	 * Each step is independent and non-fatal. Returns the content promoted
 	 * by the publishing sweep so the caller can purge edge-cache tags.
@@ -956,6 +963,26 @@ export class EmDashRuntime {
 			}
 		}
 
+		const currentTime = this.runtimeDeps.now?.() ?? new Date();
+		const { published } = await this.runScheduledMaintenanceTick(options, currentTime);
+
+		return { processed, published };
+	}
+
+	/**
+	 * Time-gated maintenance pass shared by Cloudflare `scheduled()` and the
+	 * Node timer scheduler. Scheduled publishing and the heartbeat run every
+	 * tick; the heavier bookkeeping cleanups run only on the top of the hour so
+	 * per-minute work stays proportional to what is actually due. This keeps the
+	 * cold-start CPU budget on Workers Free from being consumed by cleanup
+	 * queries on every quiet-hours tick.
+	 */
+	private async runScheduledMaintenanceTick(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		},
+		currentTime: Date,
+	): Promise<{ published: PublishedRef[] }> {
 		let published: PublishedRef[] = [];
 		try {
 			published = await this.publishScheduledWithFence(options.onPublished);
@@ -963,11 +990,7 @@ export class EmDashRuntime {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
 
-		try {
-			await runSystemCleanup(this.db, this.storage ?? undefined);
-		} catch (error) {
-			console.error("[cleanup] System cleanup failed:", error);
-		}
+		await this.runSystemCleanupIfDue(currentTime);
 
 		try {
 			await this.syncPluginStorageIndexesOnce();
@@ -977,9 +1000,25 @@ export class EmDashRuntime {
 
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
-		await recordSchedulerHeartbeatSafely(this.db);
+		await recordSchedulerHeartbeatSafely(this.db, currentTime);
 
-		return { processed, published };
+		return { published };
+	}
+
+	private lastSystemCleanupAt: Date | null = null;
+
+	private shouldRunSystemCleanup(currentTime: Date): boolean {
+		return shouldRunSystemCleanupNow(currentTime, this.lastSystemCleanupAt);
+	}
+
+	private async runSystemCleanupIfDue(currentTime: Date): Promise<void> {
+		if (!this.shouldRunSystemCleanup(currentTime)) return;
+		this.lastSystemCleanupAt = currentTime;
+		try {
+			await runSystemCleanup(this.db, this.storage ?? undefined);
+		} catch (error) {
+			console.error("[cleanup] System cleanup failed:", error);
+		}
 	}
 
 	/**
@@ -1093,6 +1132,66 @@ export class EmDashRuntime {
 
 	async runPluginActivateLifecycle(pluginId: string): Promise<void> {
 		await this._hooks.runPluginActivate(pluginId);
+	}
+
+	/**
+	 * Run install → activate once for each native plugin registered in the
+	 * integration config that has no `_plugin_state` row.
+	 *
+	 * Only the isolate whose insert creates the row runs the hooks. A plugin
+	 * whose hooks fail is recorded as inactive rather than retried on later
+	 * boots; re-enabling it from the admin runs `plugin:activate`.
+	 */
+	private async installUnrecordedConfigPlugins(
+		configPlugins: ResolvedPlugin[],
+		recordedStates: ReadonlyMap<string, string>,
+	): Promise<void> {
+		const stateRepo = new PluginStateRepository(this.db);
+		const failed: ResolvedPlugin[] = [];
+		const recordFailure = (plugin: ResolvedPlugin, hook: string, error: Error | undefined) => {
+			console.error(
+				`EmDash: ${hook} failed for config plugin "${plugin.id}"; disabling it:`,
+				error,
+			);
+			failed.push(plugin);
+		};
+
+		for (const plugin of configPlugins) {
+			if (recordedStates.has(plugin.id)) continue;
+
+			try {
+				if (!(await stateRepo.createActiveIfAbsent(plugin.id, plugin.version, "config"))) continue;
+				this.pluginStates.set(plugin.id, "active");
+
+				const install = await this._hooks.runPluginInstall(plugin.id);
+				const installFailure = install.find((result) => !result.success);
+				if (installFailure) {
+					recordFailure(plugin, "plugin:install", installFailure.error);
+					continue;
+				}
+
+				const activate = await this._hooks.runPluginActivate(plugin.id);
+				const activateFailure = activate.find((result) => !result.success);
+				if (activateFailure) {
+					recordFailure(plugin, "plugin:activate", activateFailure.error);
+				}
+			} catch (error) {
+				console.error(`EmDash: Config plugin "${plugin.id}" install/activate failed:`, error);
+			}
+		}
+
+		if (failed.length === 0) return;
+		for (const plugin of failed) {
+			try {
+				await stateRepo.disable(plugin.id, plugin.version);
+				await setCronTasksEnabled(this.db, plugin.id, false);
+			} catch (error) {
+				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
+			}
+			this.pluginStates.set(plugin.id, "inactive");
+			this.enabledPlugins.delete(plugin.id);
+		}
+		await this.rebuildHookPipeline();
 	}
 
 	/**
@@ -1534,6 +1633,7 @@ export class EmDashRuntime {
 		const storage = EmDashRuntime.getStorage(deps);
 
 		let pluginStates: Map<string, string> = new Map();
+		let pluginStatesRead = false;
 		const configuredLocales: string[] =
 			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
 		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
@@ -1637,6 +1737,7 @@ export class EmDashRuntime {
 						.select(["plugin_id", "status"])
 						.execute();
 					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+					pluginStatesRead = true;
 				} catch (error) {
 					captureMissingManualSchema(error);
 					// _plugin_state may not exist yet on a pre-migration db.
@@ -2117,37 +2218,19 @@ export class EmDashRuntime {
 					cronScheduler = scheduler;
 
 					// Run scheduled publishing and system cleanup alongside each tick.
-					// Pass storage so cleanupPendingUploads can delete orphaned files.
+					// The heavier bookkeeping cleanup is time-gated to once per hour;
+					// per-minute work stays limited to publishing, cron tasks, and the
+					// heartbeat so cold isolates on tight CPU budgets don't pay for
+					// full cleanup on every quiet-hours tick.
 					scheduler.setSystemCleanup(async () => {
+						const runtime = runtimeRef.current;
+						if (!runtime) return;
+						const currentTime = deps.now?.() ?? new Date();
 						try {
-							// Route through the runtime so content:afterPublish hooks fire.
-							// Falls back to the raw handler if (improbably) the tick beats
-							// the post-construction ref assignment.
-							const runtime = runtimeRef.current;
-							if (runtime) {
-								await runtime.publishScheduled();
-							} else {
-								const recordWrite = await assertSiteWriteAllowed(db);
-								if ((await publishDueContent(db)).length > 0) await recordWrite();
-							}
+							await runtime.runScheduledMaintenanceTick({}, currentTime);
 						} catch (error) {
-							console.error("[scheduled-publish] Sweep failed:", error);
+							console.error("[scheduled] Maintenance tick failed:", error);
 						}
-						try {
-							await runSystemCleanup(db, storage ?? undefined);
-						} catch (error) {
-							// Non-fatal -- individual cleanup failures are already logged
-							// by runSystemCleanup. This catches unexpected errors.
-							console.error("[cleanup] System cleanup failed:", error);
-						}
-						try {
-							await runtimeRef.current?.syncPluginStorageIndexesOnce();
-						} catch (error) {
-							console.error("[plugins] Storage index sync failed:", error);
-						}
-						// Never throws; no-op unless scheduled backups are enabled and due.
-						await maybeRunScheduledBackup(db, storage ?? undefined);
-						await recordSchedulerHeartbeatSafely(db);
 					});
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.
@@ -2223,6 +2306,13 @@ export class EmDashRuntime {
 			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
 		);
 		sandboxRunner?.setContentActions?.(contentActions);
+
+		if (ownsConfiguredDb && pluginStatesRead) {
+			await phase("rt.lifecycle", "Config plugin install/activate", () =>
+				runtime.installUnrecordedConfigPlugins(deps.plugins, new Map(pluginStates)),
+			);
+		}
+
 		return runtime;
 	}
 

@@ -177,6 +177,8 @@ export interface AdminManifest {
 					unsupportedType?: { type: string; path: string };
 					blockTypes?: import("./schema.js").BlockType[];
 					blockTypeFingerprint?: string;
+					/** Value a new entry starts with. */
+					defaultValue?: unknown;
 				}
 			>;
 		}

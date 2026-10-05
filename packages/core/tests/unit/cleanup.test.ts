@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
-import { runSystemCleanup } from "../../src/cleanup.js";
+import { runSystemCleanup, shouldRunSystemCleanup } from "../../src/cleanup.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaRepository } from "../../src/database/repositories/media.js";
 import { MAX_404_LOG_ROWS } from "../../src/database/repositories/redirect.js";
@@ -479,5 +479,26 @@ describe("Expired token cleanup", () => {
 
 		expect(remaining).toHaveLength(5);
 		expect(remaining.every((r) => r.hash.startsWith("valid-"))).toBe(true);
+	});
+});
+
+describe("System cleanup scheduling", () => {
+	it("runs cleanup on the top of the hour", () => {
+		expect(shouldRunSystemCleanup(new Date("2026-10-04T12:00:00.000Z"))).toBe(true);
+	});
+
+	it("skips cleanup during the hour", () => {
+		expect(shouldRunSystemCleanup(new Date("2026-10-04T12:05:00.000Z"))).toBe(false);
+		expect(shouldRunSystemCleanup(new Date("2026-10-04T12:59:00.000Z"))).toBe(false);
+	});
+
+	it("does not run a second cleanup if the previous one was recent", () => {
+		const lastRun = new Date("2026-10-04T12:00:00.000Z");
+		expect(shouldRunSystemCleanup(new Date("2026-10-04T12:00:30.000Z"), lastRun)).toBe(false);
+	});
+
+	it("runs cleanup in the next hour", () => {
+		const lastRun = new Date("2026-10-04T12:00:00.000Z");
+		expect(shouldRunSystemCleanup(new Date("2026-10-04T13:00:00.000Z"), lastRun)).toBe(true);
 	});
 });

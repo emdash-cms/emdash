@@ -235,7 +235,7 @@ Almost every label you'll see on a PR is applied and removed automatically. You 
 The labels you apply by hand on a PR:
 
 - `bot:review` to summon a bot re-review.
-- `ci:rerun` to re-run failed CI jobs on the PR's latest commit. The label removes itself, so add it again for another attempt. A Maintainer still approves first-time-contributor workflow runs until a narrower delegated mechanism is available.
+- `ci:run` to start CI on the PR's latest commit. It approves workflows waiting for approval (`needs-approval`) and re-runs failed jobs once CI has finished, for example after a flaky test. Approving runs the contributor's code on our runners, so read the diff first and don't approve anything that touches workflows, build scripts, or dependencies in ways you can't account for. The label removes itself, so add it again for another attempt, and again after the contributor pushes new commits.
 - `blocked` when progress depends on another issue, PR, or maintainer decision.
 
 ## Discussions

@@ -1,4 +1,5 @@
 import { Banner, Button, Input, Loader, Surface } from "@cloudflare/kumo";
+import { ReleaseServiceError } from "@emdash-cms/registry-client/release-service";
 import { type FormEvent, type ReactNode, useState } from "react";
 
 import { beginIdentityAuthorization, UiApiError } from "./api.js";
@@ -36,7 +37,7 @@ export function LoadingPanel() {
 export function ErrorBanner({ error }: { error: unknown }) {
 	const t = useT();
 	const description =
-		error instanceof UiApiError
+		error instanceof UiApiError || error instanceof ReleaseServiceError
 			? t("error.withCode", "{message} ({code})", { message: error.message, code: error.code })
 			: t("error.generic", "The release service request failed.");
 	return (

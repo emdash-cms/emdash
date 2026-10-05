@@ -30,7 +30,7 @@ import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	buildResponsiveImage,
 	toAbsoluteMediaUrl,
-	RESPONSIVE_BREAKPOINTS,
+	responsiveWidths,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
@@ -99,9 +99,10 @@ function buildLocalImageUrl(img: MediaValue): string {
 function generateSrcset(
 	getSrc: NonNullable<ImageEmbed["getSrc"]>,
 	maxWidth: number,
-	aspectRatio?: number
+	aspectRatio?: number,
+	originalWidth?: number
 ): string {
-	return RESPONSIVE_BREAKPOINTS.filter((w) => w <= maxWidth * 2) // Include up to 2x for retina
+	return responsiveWidths(maxWidth, originalWidth)
 		.map((w) => {
 			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
 			return `${getSrc({ width: w, height: h })} ${w}w`;
@@ -147,6 +148,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 				src: absoluteSrc,
 				width: finalWidth,
 				height: finalHeight,
+				originalWidth: img.width,
 			});
 			if (optimized) {
 				src = optimized.src;
@@ -171,7 +173,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 					if (embed.getSrc) {
 						// Use image width, or default to 1200 for responsive images
 						const maxWidth = finalWidth || 1200;
-						srcset = generateSrcset(embed.getSrc, maxWidth, aspectRatio);
+						srcset = generateSrcset(embed.getSrc, maxWidth, aspectRatio, img.width);
 						sizes = finalWidth
 							? `(min-width: ${finalWidth}px) ${finalWidth}px, 100vw`
 							: "100vw";
