@@ -34,6 +34,7 @@ import {
 	relativizeContentLinks,
 	sanitizeFieldSlug,
 } from "../utils.js";
+import { parseWxrDate } from "./wxr.js";
 
 // =============================================================================
 // API Response Types
@@ -722,8 +723,8 @@ function pluginPostToNormalizedItem(post: PluginPost, siteUrl: string): Normaliz
 		title: post.title,
 		content,
 		excerpt: post.excerpt || undefined,
-		date: new Date(post.date_gmt || post.date),
-		modified: post.modified_gmt ? new Date(post.modified_gmt) : new Date(post.modified),
+		date: parseWxrDate(post.date_gmt, undefined, post.date) ?? new Date(Number.NaN),
+		modified: parseWxrDate(post.modified_gmt, undefined, post.modified),
 		author: post.author?.login,
 		categories,
 		tags,
