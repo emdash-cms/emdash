@@ -29,6 +29,7 @@ interface InstalledMigrationModule {
 
 export interface ProjectState {
 	root: string;
+	installRoot: string;
 	packageJsonPath: string;
 	packageJsonSource: string;
 	packageJson: ProjectPackage;
@@ -94,6 +95,28 @@ export async function findProjectRoot(start: string): Promise<string> {
 		current = dirname(current);
 	}
 	throw new Error("Could not find a project package.json.");
+}
+
+async function isWorkspaceRoot(directory: string): Promise<boolean> {
+	if (await pathExists(resolve(directory, "pnpm-workspace.yaml"))) return true;
+	const packageJsonPath = resolve(directory, "package.json");
+	if (!(await pathExists(packageJsonPath))) return false;
+	try {
+		const value: unknown = JSON.parse(await readFile(packageJsonPath, "utf8"));
+		return typeof value === "object" && value !== null && Reflect.has(value, "workspaces");
+	} catch {
+		return false;
+	}
+}
+
+export async function findInstallRoot(root: string): Promise<string> {
+	const filesystemRoot = parse(root).root;
+	let current = root;
+	while (current !== filesystemRoot) {
+		current = dirname(current);
+		if (await isWorkspaceRoot(current)) return current;
+	}
+	return root;
 }
 
 export async function detectPackageManager(
@@ -199,7 +222,8 @@ export async function loadProject(start: string): Promise<ProjectState> {
 	const packageJsonSource = await readFile(packageJsonPath, "utf8");
 	const packageJson: unknown = JSON.parse(packageJsonSource);
 	if (!isProjectPackage(packageJson)) throw new Error("The project package.json is invalid.");
-	const packageManager = await detectPackageManager(root, packageJson.packageManager);
+	const installRoot = await findInstallRoot(root);
+	const packageManager = await detectPackageManager(installRoot, packageJson.packageManager);
 	const dependencies: ProjectDependency[] = [];
 	for (const section of SECTIONS) {
 		for (const [name, specifier] of Object.entries(packageJson[section] ?? {})) {
@@ -231,6 +255,7 @@ export async function loadProject(start: string): Promise<ProjectState> {
 	}
 	return {
 		root,
+		installRoot,
 		packageJsonPath,
 		packageJsonSource,
 		packageJson,
@@ -307,8 +332,11 @@ export function emdashCommand(packageManager: PackageManager, args: string): str
 
 export function run(command: string, args: readonly string[], cwd: string): Promise<void> {
 	return new Promise((resolvePromise, reject) => {
-		const executable = process.platform === "win32" && command === "npx" ? "npx.cmd" : command;
-		const child = spawn(executable, args, { cwd, stdio: "inherit" });
+		// Package manager commands are .cmd shims on Windows, which Node only runs through a shell.
+		const child =
+			process.platform === "win32"
+				? spawn([command, ...args].join(" "), { cwd, stdio: "inherit", shell: true })
+				: spawn(command, args, { cwd, stdio: "inherit" });
 		child.once("error", reject);
 		child.once("exit", (code, signal) => {
 			if (code === 0) resolvePromise();
@@ -321,13 +349,21 @@ export function run(command: string, args: readonly string[], cwd: string): Prom
 	});
 }
 
-export async function writeDependenciesAndInstall(
+async function restoreFiles(
+	files: readonly { path: string; source: string | Buffer | null }[],
+): Promise<void> {
+	for (const file of files) {
+		if (file.source !== null) await writeFile(file.path, file.source);
+		else await rm(file.path, { force: true });
+	}
+}
+
+export async function writeDependenciesAndInstall<T>(
 	project: ProjectState,
 	changes: readonly DependencyChange[],
-): Promise<void> {
-	if (changes.length === 0) return;
-	const updated = applyDependencyEdits(project.packageJsonSource, changes);
-	await writeFile(project.packageJsonPath, updated);
+	verify: () => Promise<T>,
+): Promise<T> {
+	if (changes.length === 0) return verify();
 	const install = installCommand(project.packageManager);
 	const lockfiles = {
 		bun: ["bun.lock", "bun.lockb"],
@@ -335,20 +371,35 @@ export async function writeDependenciesAndInstall(
 		pnpm: ["pnpm-lock.yaml"],
 		yarn: ["yarn.lock"],
 	}[project.packageManager];
-	const lockfileSources = await Promise.all(
-		lockfiles.map(async (name) => {
-			const path = resolve(project.root, name);
-			return { path, source: (await pathExists(path)) ? await readFile(path) : null };
-		}),
-	);
+	const originals = [
+		{ path: project.packageJsonPath, source: project.packageJsonSource },
+		...(await Promise.all(
+			lockfiles.map(async (name) => {
+				const path = resolve(project.installRoot, name);
+				return { path, source: (await pathExists(path)) ? await readFile(path) : null };
+			}),
+		)),
+	];
+	await writeFile(project.packageJsonPath, applyDependencyEdits(project.packageJsonSource, changes));
 	try {
-		await run(install.command, install.args, project.root);
+		await run(install.command, install.args, project.installRoot);
 	} catch (error) {
-		await writeFile(project.packageJsonPath, project.packageJsonSource);
-		for (const lockfile of lockfileSources) {
-			if (lockfile.source) await writeFile(lockfile.path, lockfile.source);
-			else await rm(lockfile.path, { force: true });
-		}
+		await restoreFiles(originals);
 		throw error;
+	}
+	try {
+		return await verify();
+	} catch (error) {
+		await restoreFiles(originals);
+		const message = error instanceof Error ? error.message : String(error);
+		try {
+			await run(install.command, install.args, project.installRoot);
+		} catch {
+			throw new Error(
+				`${message} The package.json and lockfile were restored, but reinstalling the previous dependencies failed. Run ${install.command} ${install.args.join(" ")} in ${project.installRoot}.`,
+				{ cause: error },
+			);
+		}
+		throw new Error(`${message} The previous dependencies were restored.`, { cause: error });
 	}
 }

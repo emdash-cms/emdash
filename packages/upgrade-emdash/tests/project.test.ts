@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -10,6 +10,7 @@ import {
 	emdashCommand,
 	loadProject,
 	targetSpecifier,
+	writeDependenciesAndInstall,
 } from "../src/project.js";
 import type { DependencyChange } from "../src/types.js";
 
@@ -81,21 +82,62 @@ describe("project loading", () => {
 		await writeFile(path, `${JSON.stringify(value, null, "\t")}\n`);
 	}
 
-	async function project(emdashVersion: string): Promise<string> {
-		const root = await mkdtemp(join(tmpdir(), "upgrade-emdash-"));
-		directories.push(root);
+	async function temporaryDirectory(): Promise<string> {
+		const directory = await mkdtemp(join(tmpdir(), "upgrade-emdash-"));
+		directories.push(directory);
+		return directory;
+	}
+
+	async function project(emdashVersion: string, root?: string): Promise<string> {
+		root ??= await temporaryDirectory();
 		await writeJson(join(root, "package.json"), {
 			dependencies: { emdash: `^${emdashVersion}` },
 		});
+		const hasMigrations = emdashVersion !== "0.34.0";
 		await writeJson(join(root, "node_modules/emdash/package.json"), {
 			name: "emdash",
 			version: emdashVersion,
 			type: "module",
-			exports: { ".": "./index.mjs" },
+			exports: {
+				".": "./index.mjs",
+				...(hasMigrations ? { "./migrations": "./migrations.mjs" } : {}),
+			},
 		});
 		await writeFile(join(root, "node_modules/emdash/index.mjs"), "export {};\n");
+		if (hasMigrations) {
+			await writeFile(
+				join(root, "node_modules/emdash/migrations.mjs"),
+				`export async function getCoreMigrationIdentity() { return { emdashVersion: ${JSON.stringify(emdashVersion)}, names: ["001_initial"] }; }\n`,
+			);
+		}
 		return root;
 	}
+
+	it("installs from the workspace root when the site is a workspace package", async () => {
+		const workspace = await temporaryDirectory();
+		await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - sites/*\n");
+		await writeFile(join(workspace, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+		await writeJson(join(workspace, "package.json"), { private: true });
+		const site = await project("1.0.0", join(workspace, "sites/blog"));
+
+		await expect(loadProject(site)).resolves.toMatchObject({
+			root: site,
+			installRoot: workspace,
+			packageManager: "pnpm",
+		});
+	});
+
+	it("ignores a lockfile in an ancestor directory that is not a workspace root", async () => {
+		const parent = await temporaryDirectory();
+		await writeFile(join(parent, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+		const site = await project("1.0.0", join(parent, "blog"));
+
+		await expect(loadProject(site)).resolves.toMatchObject({
+			root: site,
+			installRoot: site,
+			packageManager: "npm",
+		});
+	});
 
 	it("explains that emdash releases without a migration identity need a manual update first", async () => {
 		const root = await project("0.34.0");
@@ -104,4 +146,49 @@ describe("project loading", () => {
 			"upgrade-emdash requires emdash 0.35.0 or later, but this project has 0.34.0",
 		);
 	});
+
+	it.skipIf(process.platform === "win32")(
+		"restores the previous dependencies when the installed result is rejected",
+		async () => {
+			const site = await project("1.0.0");
+			const lockfile = (specifier: string) => `lock "emdash": "${specifier}"\n`;
+			await writeFile(join(site, "package-lock.json"), lockfile("^1.0.0"));
+			const bin = await temporaryDirectory();
+			const log = join(bin, "npm.log");
+			await writeFile(
+				join(bin, "npm"),
+				`#!/bin/sh\necho "$*" >> ${JSON.stringify(log)}\nprintf 'lock %s\\n' "$(grep -o '"emdash": "[^"]*"' package.json)" > package-lock.json\n`,
+			);
+			await chmod(join(bin, "npm"), 0o755);
+			const originalPackageJson = await readFile(join(site, "package.json"), "utf8");
+			const path = process.env.PATH;
+			process.env.PATH = `${bin}${delimiter}${path ?? ""}`;
+			try {
+				await expect(
+					writeDependenciesAndInstall(
+						await loadProject(site),
+						[
+							{
+								name: "emdash",
+								section: "dependencies",
+								from: "^1.0.0",
+								to: "^1.2.0",
+								fromVersion: "1.0.0",
+								toVersion: "1.2.0",
+							},
+						],
+						async () => {
+							throw new Error("emdash resolved to 1.1.0.");
+						},
+					),
+				).rejects.toThrow("emdash resolved to 1.1.0. The previous dependencies were restored.");
+			} finally {
+				process.env.PATH = path;
+			}
+
+			expect(await readFile(join(site, "package.json"), "utf8")).toBe(originalPackageJson);
+			expect(await readFile(join(site, "package-lock.json"), "utf8")).toBe(lockfile("^1.0.0"));
+			expect(await readFile(log, "utf8")).toBe("install\ninstall\n");
+		},
+	);
 });

@@ -21,6 +21,7 @@ describe("upgrade plan", () => {
 		};
 		const project: ProjectState = {
 			root: "/site",
+			installRoot: "/site",
 			packageJsonPath: "/site/package.json",
 			packageJsonSource: `${JSON.stringify(packageJson)}\n`,
 			packageJson,
@@ -98,6 +99,7 @@ describe("upgrade plan", () => {
 		const packageJson = { dependencies: { emdash: "^1.0.0" } };
 		const project: ProjectState = {
 			root: "/site",
+			installRoot: "/site",
 			packageJsonPath: "/site/package.json",
 			packageJsonSource: `${JSON.stringify(packageJson)}\n`,
 			packageJson,

@@ -7,7 +7,7 @@ import pc from "picocolors";
 import { HELP, parseArgs } from "./args.js";
 import { migrationBackupWarning, renderUpgradeGuide } from "./guide.js";
 import { createUpgradePlan, withTargetMigrations } from "./plan.js";
-import { loadProject, run, writeDependenciesAndInstall } from "./project.js";
+import { loadProject, run, writeDependenciesAndInstall, type ProjectState } from "./project.js";
 import type { UpgradePlan } from "./types.js";
 
 async function updaterVersion(): Promise<string> {
@@ -36,12 +36,7 @@ function printPlan(plan: UpgradePlan): void {
 	}
 }
 
-async function applyPlan(plan: UpgradePlan): Promise<UpgradePlan> {
-	const project = await loadProject(plan.projectRoot);
-	if (plan.dependencies.length > 0) {
-		p.log.step("Updating dependencies");
-		await writeDependenciesAndInstall(project, plan.dependencies);
-	}
+async function loadInstalledProject(plan: UpgradePlan): Promise<ProjectState> {
 	const installedProject = await loadProject(plan.projectRoot);
 	for (const change of plan.dependencies) {
 		const installed = installedProject.dependencies.find(
@@ -53,6 +48,15 @@ async function applyPlan(plan: UpgradePlan): Promise<UpgradePlan> {
 			);
 		}
 	}
+	return installedProject;
+}
+
+async function applyPlan(plan: UpgradePlan): Promise<UpgradePlan> {
+	const project = await loadProject(plan.projectRoot);
+	if (plan.dependencies.length > 0) p.log.step("Updating dependencies");
+	const installedProject = await writeDependenciesAndInstall(project, plan.dependencies, () =>
+		loadInstalledProject(plan),
+	);
 	const completedPlan = withTargetMigrations(plan, installedProject);
 	await mkdir(dirname(completedPlan.guidePath), { recursive: true });
 	await writeFile(completedPlan.guidePath, renderUpgradeGuide(completedPlan));
