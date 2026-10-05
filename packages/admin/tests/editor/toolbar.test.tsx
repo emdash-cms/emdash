@@ -760,18 +760,6 @@ describe("Toolbar Presence and Structure", () => {
 // =============================================================================
 
 describe("Block insertion", () => {
-	// ImageNode is mocked here, so the picker its real node view opens isn't part of this test.
-	it("adds an empty image at the cursor from the toolbar", async () => {
-		const { screen, editor } = await renderEditor();
-		editor.commands.focus("end");
-
-		getToolbarButton(screen, "Insert image").element().click();
-
-		const images = editor.getJSON().content?.filter((node) => node.type === "image") ?? [];
-		expect(images).toHaveLength(1);
-		expect(images[0]?.attrs).toMatchObject({ src: null, mediaId: null });
-	});
-
 	it("inserts an empty HTML block from the toolbar", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus("end");

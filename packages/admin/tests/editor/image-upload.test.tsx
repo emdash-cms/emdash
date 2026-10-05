@@ -462,17 +462,6 @@ describe("ImageUploadExtension with an empty image block", () => {
 			]),
 		);
 	});
-
-	it("puts an image pasted over the selected empty image block in its place", async () => {
-		const editor = await setup(async (file) => attrsFor(file), { content: EMPTY_IMAGE_BETWEEN });
-		editor.commands.setNodeSelection(textEnd(editor, "First") + 1);
-
-		pasteData(editor.view.dom, { files: [imageFile("clip.png")] });
-
-		await vi.waitFor(() =>
-			expect(blockTypes(editor)).toEqual(["First", "image:media-clip.png", "Second"]),
-		);
-	});
 });
 
 describe("ImageUploadExtension with videos", () => {

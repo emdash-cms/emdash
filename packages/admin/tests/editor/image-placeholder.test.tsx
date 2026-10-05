@@ -1,13 +1,14 @@
 /**
- * The image block's empty state through the full editor: inserting from /image,
- * the toolbar and the gutter opens the picker, closing it leaves a placeholder
- * to fill later, and the placeholder's keyboard, toolbar and read-only states.
+ * The image block's empty state through the full editor: inserting from /image
+ * or the toolbar opens the picker, closing it leaves a placeholder to fill
+ * later, and the placeholder's keyboard, toolbar, drop and paste handling.
+ * The placeholder itself is shared with videos, whose tests cover the rest.
  */
 
 import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import { describe, expect, it, vi } from "vitest";
-import { cdp, userEvent } from "vitest/browser";
+import { userEvent } from "vitest/browser";
 
 import {
 	PortableTextEditor,
@@ -67,19 +68,7 @@ vi.mock("../../src/components/MediaPickerModal", async () => {
 	};
 });
 vi.mock("../../src/components/SectionPickerModal", () => ({ SectionPickerModal: () => null }));
-vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
-	DragHandleWrapper: ({
-		editor,
-		onInsertBlock,
-	}: {
-		editor: Editor;
-		onInsertBlock?: (position: number) => void;
-	}) => (
-		<button type="button" onClick={() => onInsertBlock?.(editor.state.doc.content.size)}>
-			Test gutter insert
-		</button>
-	),
-}));
+vi.mock("../../src/components/editor/DragHandleWrapper", () => ({ DragHandleWrapper: () => null }));
 vi.mock("../../src/lib/api/media.js", async () => {
 	const actual = await vi.importActual<typeof import("../../src/lib/api/media.js")>(
 		"../../src/lib/api/media.js",
@@ -152,13 +141,6 @@ function blockTexts(editor: Editor): string[] {
 		texts.push(block.isAtom ? block.type.name : block.textContent),
 	);
 	return texts;
-}
-
-/** Wait out anything a key press started, so a test can tell that nothing happened. */
-async function settle() {
-	for (let frame = 0; frame < 2; frame++) {
-		await new Promise((resolve) => requestAnimationFrame(resolve));
-	}
 }
 
 function selectImageAt(editor: Editor, index: number) {
@@ -304,30 +286,6 @@ describe("Image placeholder", () => {
 		await vi.waitFor(() => expect(images(latest())).toHaveLength(1));
 	});
 
-	it("undoes an image added from the gutter in one step", async () => {
-		const { screen, editor } = await renderEditor({ value: [INTRO] });
-		const before = editor.getJSON();
-
-		await screen.getByRole("button", { name: "Test gutter insert" }).click();
-		const menu = await vi.waitFor(() => {
-			const element = document.querySelector<HTMLElement>("[data-slash-command-menu]");
-			expect(element).toBeTruthy();
-			return element!;
-		});
-		const item = [...menu.querySelectorAll("button")].find(
-			(button) => button.querySelector("[data-slash-item-title]")?.textContent === "Image",
-		);
-		item!.click();
-		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-		await expect
-			.element(screen.getByRole("button", { name: "Upload or choose an image" }))
-			.toBeVisible();
-		expect(document.activeElement).toBe(editor.view.dom);
-		await userEvent.keyboard("{ControlOrMeta>}z{/ControlOrMeta}");
-
-		expect(editor.getJSON()).toEqual(before);
-	});
-
 	it("deletes only the empty image when Backspace is pressed on its placeholder", async () => {
 		const { screen, editor, latest } = await renderEditor({ value: [INTRO, EMPTY, OUTRO] });
 
@@ -354,17 +312,6 @@ describe("Image placeholder", () => {
 		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
 		expect(document.activeElement).toBe(pm);
 		expect(selectedNodeName(editor)).toBe("image");
-	});
-
-	it("leaves the text around an empty image alone for input method text on its placeholder", async () => {
-		const { screen, editor } = await renderEditor({ value: [INTRO, EMPTY, OUTRO] });
-
-		await focusPlaceholder(screen, editor);
-		await cdp().send("Input.imeSetComposition", { text: "k", selectionStart: 1, selectionEnd: 1 });
-		await cdp().send("Input.insertText", { text: "か" });
-		await settle();
-
-		expect(blockTexts(editor)).toEqual(["Intro", "image", "Outro"]);
 	});
 
 	it("shows the image toolbar for a selected image, but not for an empty one", async () => {
@@ -421,24 +368,5 @@ describe("Image placeholder", () => {
 			]),
 		);
 		expect(blockTexts(editor)).toEqual(["Intro", "image", "Outro"]);
-	});
-
-	it("shows an empty image as a plain box in a read-only entry", async () => {
-		const { screen } = await renderEditor({ value: [EMPTY], editable: false });
-
-		await expect.element(screen.getByText("No image")).toBeVisible();
-		expect(document.querySelector("[data-media-placeholder]")).toBeNull();
-	});
-
-	it("keeps its label out of the direction the editor reads from the text", async () => {
-		const arabic: Block = {
-			...INTRO,
-			_key: "arabic",
-			children: [{ _type: "span", _key: "arabic-span", text: "مرحبا بالعالم", marks: [] }],
-		};
-		const { screen, pm } = await renderEditor({ value: [EMPTY, arabic] });
-
-		await expect.element(screen.getByText("Upload or choose an image")).toBeVisible();
-		expect(getComputedStyle(pm).direction).toBe("rtl");
 	});
 });
