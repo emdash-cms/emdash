@@ -293,7 +293,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			dts: false,
 			platform: "neutral",
 			external: [],
-			noExternal: ["emdash/plugin", "zod"],
+			noExternal: ["emdash/plugin", "zod", "@emdash-cms/blocks", "@emdash-cms/blocks/server"],
 			inlineOnly: false,
 			treeshake: true,
 		});
@@ -589,7 +589,7 @@ export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFil
 			dts: false,
 			platform: "neutral",
 			external: [],
-			noExternal: ["emdash/plugin", "zod"],
+			noExternal: ["emdash/plugin", "zod", "@emdash-cms/blocks", "@emdash-cms/blocks/server"],
 			inlineOnly: false,
 			minify: true,
 			plugins: [runtimeSourcePlugin],

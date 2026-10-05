@@ -37,7 +37,7 @@ export function _resetEnvCache(): void {
 	_envAllowedOrigins = null;
 }
 
-function getEnvSiteUrl(): string | undefined {
+export function getEnvSiteUrl(): string | undefined {
 	if (_envSiteUrl !== null) return _envSiteUrl || undefined;
 	try {
 		// process.env is available on Node.js; undefined on Workers

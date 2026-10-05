@@ -78,6 +78,19 @@ describe("test plan", () => {
 		assert.equal(plan.visual, false);
 	});
 
+	it("runs cross-browser image coverage for marketplace fixture changes", () => {
+		const plan = createTestPlan(["packages/plugins/marketplace-test/src/plugin.ts"]);
+
+		assert.equal(plan.unit, true);
+		assert.equal(plan.integration, true);
+		assert.equal(plan.e2e_table, true);
+		assert.equal(plan.unit_mode, "full");
+		assert.equal(plan.full, false);
+
+		const otherFixture = createTestPlan(["packages/plugins/sandboxed-test/src/plugin.ts"]);
+		assert.equal(otherFixture.e2e_table, false);
+	});
+
 	it("identifies changed package roots for focused unit tests", () => {
 		const plan = createTestPlan([
 			"packages/marketplace/src/index.ts",

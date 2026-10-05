@@ -197,13 +197,43 @@ function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: stri
 	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });
 }
 
+function listValue(...items: string[]) {
+	return items.map((text, index) => ({
+		_type: "block" as const,
+		_key: `item-${index}`,
+		style: "normal" as const,
+		listItem: "bullet" as const,
+		level: 1,
+		children: [{ _type: "span" as const, _key: `item-span-${index}`, text }],
+	}));
+}
+
+function topLevelTypes(editor: Editor): string[] {
+	const types: string[] = [];
+	editor.state.doc.forEach((node) => types.push(node.type.name));
+	return types;
+}
+
+async function typeLink(value: string) {
+	await vi.waitFor(() => {
+		expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
+	});
+	const input = document.querySelector<HTMLInputElement>(
+		'input[aria-label="Search or type a URL"]',
+	)!;
+	Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 function expectVisibleActiveState(element: HTMLElement) {
 	expect(element.classList.contains("bg-kumo-interact/50")).toBe(true);
-	expect(element.classList.contains("hover:bg-kumo-interact/50")).toBe(true);
+	expect(element.classList.contains("text-kumo-link")).toBe(true);
 }
 
 function expectNoVisibleActiveState(element: HTMLElement) {
 	expect(element.classList.contains("bg-kumo-interact/50")).toBe(false);
+	expect(element.classList.contains("text-kumo-link")).toBe(false);
 }
 
 function getTextPosition(editor: Editor, text: string): number {
@@ -225,9 +255,9 @@ function expectAlignmentState(
 	active: "left" | "center" | "right" | null,
 ) {
 	const buttons = {
-		left: getToolbarButton(screen, "Align Left").element(),
-		center: getToolbarButton(screen, "Align Center").element(),
-		right: getToolbarButton(screen, "Align Right").element(),
+		left: getToolbarButton(screen, "Align left").element(),
+		center: getToolbarButton(screen, "Align center").element(),
+		right: getToolbarButton(screen, "Align right").element(),
 	};
 
 	for (const [alignment, button] of Object.entries(buttons)) {
@@ -240,7 +270,7 @@ function expectMixedTableAlignmentState(
 	mixed: Array<"left" | "center" | "right">,
 ) {
 	for (const alignment of ["left", "center", "right"] as const) {
-		const label = `Align ${alignment[0]!.toUpperCase()}${alignment.slice(1)}`;
+		const label = `Align ${alignment}`;
 		expect(getToolbarButton(screen, label).element().getAttribute("aria-pressed")).toBe(
 			mixed.includes(alignment) ? "mixed" : "false",
 		);
@@ -272,9 +302,10 @@ describe("Toolbar Presence and Structure", () => {
 	it("centers controls when they fit and preserves horizontal overflow", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const controls = toolbar.firstElementChild as HTMLElement;
 
-		expect(toolbar.className).toContain("overflow-x-auto");
-		expect(getComputedStyle(toolbar).justifyContent).toBe("safe center");
+		expect(controls.className).toContain("overflow-x-auto");
+		expect(getComputedStyle(controls).justifyContent).toBe("safe center");
 	});
 
 	it("has all formatting buttons", async () => {
@@ -366,16 +397,16 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("has all alignment buttons", async () => {
 		const { screen } = await renderEditor();
-		await expect.element(screen.getByRole("button", { name: "Align Left" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Align Center" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Align left" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Align center" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Align right" })).toBeVisible();
 	});
 
 	it("exposes the permanent Table control and keeps other extended actions in the block menu", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
-		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Add link" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Insert image" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Insert HTML" })).toBeVisible();
 		const table = screen.getByRole("button", { name: "Table" });
 		await expect.element(table).toBeVisible();
@@ -392,7 +423,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("shows the complete grouped Table menu inside a table", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		getToolbarButton(screen, "Table").element().click();
 		const menuLocator = screen.getByRole("menu");
 		await expect.element(menuLocator).toBeVisible();
@@ -440,8 +472,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("focuses the permanent Table trigger with Alt+F10 without changing selection", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
 		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		await vi.waitFor(() => expect(document.activeElement).toBe(editor.view.dom));
 		const before = editor.state.selection.toJSON();
 
@@ -453,7 +485,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("returns from the closed Alt+F10 Table trigger with Escape", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		const before = editor.state.selection.toJSON();
 		await userEvent.keyboard("{Alt>}{F10}{/Alt}");
 		await vi.waitFor(() => expect(getToolbarButton(screen, "Table").element()).toHaveFocus());
@@ -495,7 +528,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("restores the editor selection when the Table menu closes with Escape", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		const before = editor.state.selection.toJSON();
 		await userEvent.keyboard("{Alt>}{F10}{/Alt}");
 		await vi.waitFor(() => expect(getToolbarButton(screen, "Table").element()).toHaveFocus());
@@ -510,7 +544,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("restores the editor bookmark when the toolbar picker is cancelled", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().setTextSelection(getTextPosition(editor, "Hello world")).run();
+		editor.view.focus();
+		editor.commands.setTextSelection(getTextPosition(editor, "Hello world"));
 		const before = editor.state.selection.toJSON();
 		getToolbarButton(screen, "Table").element().click();
 		const insert = screen.getByRole("menuitem", { name: "Insert table" });
@@ -533,7 +568,8 @@ describe("Toolbar Presence and Structure", () => {
 		["picker", "outside"],
 	])("preserves newer focus after closing the %s in the %s", async (kind, destination) => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().setTextSelection(getTextPosition(editor, "Hello world")).run();
+		editor.view.focus();
+		editor.commands.setTextSelection(getTextPosition(editor, "Hello world"));
 		if (kind === "menu") editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		const before = editor.state.selection.toJSON();
 		getToolbarButton(screen, "Table").element().click();
@@ -602,7 +638,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("runs live Table actions and announces only successful changes", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		getToolbarButton(screen, "Table").element().click();
 		const merge = screen.getByRole("menuitem", { name: "Merge selected cells" });
 		await expect.element(merge).toBeDisabled();
@@ -619,7 +656,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("announces the first rectangular selection after a structural result", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		getToolbarButton(screen, "Table").element().click();
 		const addRow = screen.getByRole("menuitem", { name: "Add row below" });
 		await expect.element(addRow).toBeVisible();
@@ -639,12 +677,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("announces a newly inserted paragraph before the table", async () => {
 		const { screen, editor } = await renderEditor();
-		editor
-			.chain()
-			.focus()
-			.selectAll()
-			.insertTable({ rows: 1, cols: 1, withHeaderRow: false })
-			.run();
+		editor.view.focus();
+		editor.chain().selectAll().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
 		getToolbarButton(screen, "Table").element().click();
 		const action = screen.getByRole("menuitem", { name: "Insert paragraph before" });
 		await expect.element(action).toBeVisible();
@@ -656,7 +690,8 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("shows partial header state as visibly and accessibly mixed", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		const first = editor.state.doc.firstChild!.firstChild!.firstChild!;
 		editor.view.dispatch(
 			editor.state.tr.setNodeMarkup(2, editor.schema.nodes.tableHeader, first.attrs),
@@ -671,7 +706,7 @@ describe("Toolbar Presence and Structure", () => {
 	it("renders the link editor outside the horizontally scrolling toolbar", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Add link" }).element().click();
 
 		await vi.waitFor(() => {
 			const input = document.querySelector<HTMLInputElement>(
@@ -778,11 +813,11 @@ describe("Block insertion", () => {
 		editor.commands.focus("end");
 		const before = editor.getJSON();
 
-		getToolbarButton(screen, "Insert Image").element().click();
+		getToolbarButton(screen, "Insert image").element().click();
 		await screen.getByRole("button", { name: "Cancel image picker" }).click();
 		expect(editor.getJSON()).toEqual(before);
 
-		getToolbarButton(screen, "Insert Image").element().click();
+		getToolbarButton(screen, "Insert image").element().click();
 		await screen.getByRole("button", { name: "Choose test image" }).click();
 		await vi.waitFor(() => {
 			const image = editor.getJSON().content?.find((node) => node.type === "image");
@@ -799,7 +834,7 @@ describe("Block insertion", () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus("end");
 
-		getToolbarButton(screen, "Insert Image").element().click();
+		getToolbarButton(screen, "Insert image").element().click();
 		await screen.getByRole("button", { name: "Choose external image" }).click();
 
 		await vi.waitFor(() => {
@@ -822,6 +857,102 @@ describe("Block insertion", () => {
 			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
 			expect(htmlBlock?.attrs).toMatchObject({ html: "", css: "", js: "", isolated: true });
 		});
+	});
+
+	it("inserts a block after the list holding the caret, which couldn't save it", async () => {
+		const { screen, editor } = await renderEditor({ value: listValue("one", "two") });
+		editor.chain().focus().setTextSelection(4).run();
+
+		getToolbarButton(screen, "Insert HTML").element().click();
+
+		await vi.waitFor(() =>
+			expect(topLevelTypes(editor).slice(0, 2)).toEqual(["bulletList", "htmlBlock"]),
+		);
+		expect(editor.state.doc.firstChild?.childCount).toBe(2);
+	});
+
+	it("turns an empty list item into the inserted block instead of leaving it behind", async () => {
+		const { screen, editor } = await renderEditor({ value: listValue("one", "two") });
+		editor.chain().focus().setTextSelection(13).splitListItem("listItem").run();
+		expect(editor.state.doc.firstChild?.childCount).toBe(3);
+
+		getToolbarButton(screen, "Insert HTML").element().click();
+
+		await vi.waitFor(() =>
+			expect(topLevelTypes(editor).slice(0, 2)).toEqual(["bulletList", "htmlBlock"]),
+		);
+		expect(editor.state.doc.firstChild?.textContent).toBe("onetwo");
+		expect(editor.state.doc.firstChild?.childCount).toBe(2);
+	});
+
+	it("inserts a block after a heading instead of splitting it", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [{ ...defaultValue[0]!, style: "h2" as const }],
+		});
+		editor.chain().focus().setTextSelection(4).run();
+
+		getToolbarButton(screen, "Insert HTML").element().click();
+
+		await vi.waitFor(() =>
+			expect(topLevelTypes(editor).slice(0, 2)).toEqual(["heading", "htmlBlock"]),
+		);
+		expect(editor.state.doc.firstChild?.textContent).toBe("Hello world");
+	});
+
+	it("inserts a block after a selected block instead of replacing it", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.chain().focus().setTextSelection(3).run();
+		await vi.waitFor(() => expect(editor.view.hasFocus()).toBe(true));
+		await userEvent.keyboard("{Escape}");
+		await vi.waitFor(() => expect(editor.state.selection).toBeInstanceOf(NodeSelection));
+
+		getToolbarButton(screen, "Insert HTML").element().click();
+
+		await vi.waitFor(() =>
+			expect(topLevelTypes(editor).slice(0, 2)).toEqual(["paragraph", "htmlBlock"]),
+		);
+		expect(editor.state.doc.firstChild?.textContent).toBe("Hello world");
+	});
+});
+
+describe("Block buttons", () => {
+	it("shows a nested list's own type, not its parent list's", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{ ...listValue("parent")[0]!, listItem: "number" as const },
+				{ ...listValue("child")[0]!, _key: "child", level: 2 },
+			],
+		});
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "child")).run();
+
+		await expect
+			.element(getToolbarButton(screen, "Bullet List"))
+			.toHaveAttribute("aria-pressed", "true");
+		await expect
+			.element(getToolbarButton(screen, "Numbered List"))
+			.toHaveAttribute("aria-pressed", "false");
+	});
+
+	it("turns a heading into a quote that keeps its text", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [{ ...defaultValue[0]!, style: "h2" as const }],
+		});
+		editor.chain().focus().setTextSelection(3).run();
+
+		getToolbarButton(screen, "Quote").element().click();
+
+		await vi.waitFor(() => expect(editor.state.doc.firstChild?.type.name).toBe("blockquote"));
+		expect(editor.state.doc.firstChild?.firstChild?.type.name).toBe("paragraph");
+		expect(editor.state.doc.firstChild?.textContent).toBe("Hello world");
+	});
+
+	it("disables the block buttons while a divider is selected", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.chain().focus().insertContentAt(0, { type: "horizontalRule" }).setNodeSelection(0).run();
+
+		for (const name of ["Bullet List", "Numbered List", "Quote", "Code Block"]) {
+			await expect.element(getToolbarButton(screen, name)).toBeDisabled();
+		}
 	});
 });
 
@@ -917,7 +1048,7 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
-	it("Inline Code: click toggles aria-pressed to true", async () => {
+	it("Inline code: click toggles aria-pressed to true", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
@@ -986,7 +1117,7 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
-	it("Bullet List: click toggles aria-pressed to true", async () => {
+	it("Bulleted list: click toggles aria-pressed to true", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
@@ -998,7 +1129,7 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
-	it("Numbered List: click toggles aria-pressed to true", async () => {
+	it("Numbered list: click toggles aria-pressed to true", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
@@ -1079,7 +1210,7 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
-	it("Code Block: click toggles aria-pressed to true", async () => {
+	it("Code block: click toggles aria-pressed to true", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
@@ -1116,6 +1247,16 @@ describe("Formatting Button Toggle States", () => {
 // =============================================================================
 
 describe("Text Alignment", () => {
+	it("disables alignment in a list item, which can't keep it", async () => {
+		const { screen, editor } = await renderEditor({ value: listValue("one") });
+		editor.chain().focus().setTextSelection(4).run();
+
+		await expect.element(getToolbarButton(screen, "Align center")).toBeDisabled();
+		await expect
+			.element(getToolbarButton(screen, "Align left"))
+			.toHaveAttribute("aria-pressed", "false");
+	});
+
 	it("tracks default and explicit alignment whenever the cursor changes paragraphs", async () => {
 		const { screen, editor } = await renderEditor({
 			value: [
@@ -1153,7 +1294,7 @@ describe("Text Alignment", () => {
 		}
 	});
 
-	it("treats unannotated headings, list paragraphs, and newly split empty blocks as left aligned", async () => {
+	it("treats unannotated headings and newly split empty blocks as left aligned, and lists as unaligned", async () => {
 		const { screen, editor } = await renderEditor({
 			value: [
 				{
@@ -1173,13 +1314,14 @@ describe("Text Alignment", () => {
 			],
 		});
 
-		for (const text of ["A heading", "A list item"]) {
-			editor.chain().focus().setTextSelection(getTextPosition(editor, text)).run();
-			await vi.waitFor(() => expectAlignmentState(screen, "left"));
-		}
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "A heading")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
 
-		const listPosition = getTextPosition(editor, "A list item") + "A list item".length;
-		editor.chain().focus().setTextSelection(listPosition).splitBlock().run();
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "A list item")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+
+		const headingEnd = getTextPosition(editor, "A heading") + "A heading".length;
+		editor.chain().focus().setTextSelection(headingEnd).splitBlock().run();
 		await vi.waitFor(() => expectAlignmentState(screen, "left"));
 	});
 
@@ -1257,7 +1399,7 @@ describe("Text Alignment", () => {
 			.run();
 		await vi.waitFor(() => expectAlignmentState(screen, null));
 
-		getToolbarButton(screen, "Align Right").element().click();
+		getToolbarButton(screen, "Align right").element().click();
 		await vi.waitFor(() => expectAlignmentState(screen, "right"));
 
 		editor.commands.undo();
@@ -1266,7 +1408,7 @@ describe("Text Alignment", () => {
 		editor.commands.redo();
 		await vi.waitFor(() => expectAlignmentState(screen, "right"));
 
-		getToolbarButton(screen, "Align Left").element().click();
+		getToolbarButton(screen, "Align left").element().click();
 		await vi.waitFor(() => expectAlignmentState(screen, "left"));
 	});
 
@@ -1279,7 +1421,8 @@ describe("Text Alignment", () => {
 
 	it("resolves uniform and mixed table cell selections from their selected ranges", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 
 		const cellPositions: number[] = [];
 		editor.state.doc.descendants((node, pos) => {
@@ -1310,7 +1453,8 @@ describe("Text Alignment", () => {
 
 	it("stores table alignment on cells and disables lossy block actions", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		const cellPositions: number[] = [];
 		editor.state.doc.descendants((node, pos) => {
 			if (node.type.name === "tableCell") cellPositions.push(pos);
@@ -1321,7 +1465,7 @@ describe("Text Alignment", () => {
 			.setTextSelection(cellPositions[0]! + 2)
 			.run();
 
-		getToolbarButton(screen, "Align Right").element().click();
+		getToolbarButton(screen, "Align right").element().click();
 
 		await vi.waitFor(() => {
 			const cell = editor.state.doc.nodeAt(cellPositions[0]!);
@@ -1333,7 +1477,7 @@ describe("Text Alignment", () => {
 			"Numbered List",
 			"Quote",
 			"Code Block",
-			"Insert Image",
+			"Insert image",
 			"Insert HTML",
 		]) {
 			await expect.element(getToolbarButton(screen, label)).toBeDisabled();
@@ -1343,7 +1487,8 @@ describe("Text Alignment", () => {
 
 	it("updates every cell when the first selected cell already has the requested alignment", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		const cellPositions: number[] = [];
 		editor.state.doc.descendants((node, pos) => {
 			if (node.type.name === "tableCell") cellPositions.push(pos);
@@ -1366,7 +1511,7 @@ describe("Text Alignment", () => {
 			if (change.docChanged) documentTransactions++;
 		});
 
-		getToolbarButton(screen, "Align Left").element().click();
+		getToolbarButton(screen, "Align left").element().click();
 
 		await vi.waitFor(() => expectAlignmentState(screen, "left"));
 		expect(
@@ -1383,7 +1528,8 @@ describe("Text Alignment", () => {
 
 	it("disables cell alignment for a whole-table node selection", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		let tablePosition = -1;
 		editor.state.doc.descendants((node, position) => {
 			if (node.type.name === "table" && tablePosition === -1) tablePosition = position;
@@ -1394,7 +1540,7 @@ describe("Text Alignment", () => {
 		);
 		const before = editor.getJSON();
 
-		for (const label of ["Align Left", "Align Center", "Align Right"]) {
+		for (const label of ["Align left", "Align center", "Align right"]) {
 			const button = getToolbarButton(screen, label);
 			await expect.element(button).toBeDisabled();
 			expect(button.element().getAttribute("aria-pressed")).toBe("false");
@@ -1405,7 +1551,8 @@ describe("Text Alignment", () => {
 
 	it("disables lossy block and alignment actions when select-all includes a table", async () => {
 		const { screen, editor } = await renderEditor();
-		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+		editor.view.focus();
+		editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: false });
 		editor.view.dispatch(editor.state.tr.setSelection(new AllSelection(editor.state.doc)));
 		const before = editor.getJSON();
 
@@ -1414,11 +1561,11 @@ describe("Text Alignment", () => {
 			"Numbered List",
 			"Quote",
 			"Code Block",
-			"Insert Image",
+			"Insert image",
 			"Insert HTML",
-			"Align Left",
-			"Align Center",
-			"Align Right",
+			"Align left",
+			"Align center",
+			"Align right",
 		]) {
 			const button = getToolbarButton(screen, label);
 			await expect.element(button).toBeDisabled();
@@ -1484,7 +1631,7 @@ describe("Text Alignment", () => {
 				),
 			);
 
-			for (const label of ["Align Left", "Align Center", "Align Right"]) {
+			for (const label of ["Align left", "Align center", "Align right"]) {
 				await expect.element(getToolbarButton(screen, label)).toBeDisabled();
 			}
 		},
@@ -1527,12 +1674,12 @@ describe("Text Alignment", () => {
 		await vi.waitFor(() => expectAlignmentState(screen, null));
 	});
 
-	it("Align Center becomes pressed, Align Left becomes unpressed", async () => {
+	it("Align center becomes pressed, Align left becomes unpressed", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const alignLeft = screen.getByRole("button", { name: "Align Left" });
-		const alignCenter = screen.getByRole("button", { name: "Align Center" });
+		const alignLeft = screen.getByRole("button", { name: "Align left" });
+		const alignCenter = screen.getByRole("button", { name: "Align center" });
 
 		alignCenter.element().click();
 
@@ -1542,13 +1689,13 @@ describe("Text Alignment", () => {
 		});
 	});
 
-	it("Align Right becomes pressed, others unpressed", async () => {
+	it("Align right becomes pressed, others unpressed", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const alignLeft = screen.getByRole("button", { name: "Align Left" });
-		const alignCenter = screen.getByRole("button", { name: "Align Center" });
-		const alignRight = screen.getByRole("button", { name: "Align Right" });
+		const alignLeft = screen.getByRole("button", { name: "Align left" });
+		const alignCenter = screen.getByRole("button", { name: "Align center" });
+		const alignRight = screen.getByRole("button", { name: "Align right" });
 
 		alignRight.element().click();
 
@@ -1559,12 +1706,12 @@ describe("Text Alignment", () => {
 		});
 	});
 
-	it("Align Left becomes pressed after switching from another alignment", async () => {
+	it("Align left becomes pressed after switching from another alignment", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const alignLeft = screen.getByRole("button", { name: "Align Left" });
-		const alignRight = screen.getByRole("button", { name: "Align Right" });
+		const alignLeft = screen.getByRole("button", { name: "Align left" });
+		const alignRight = screen.getByRole("button", { name: "Align right" });
 
 		// First switch to right
 		alignRight.element().click();
@@ -1682,11 +1829,11 @@ describe("Undo/Redo", () => {
 // =============================================================================
 
 describe("Link Insertion", () => {
-	it("clicking Insert Link opens a popover with URL input", async () => {
+	it("clicking Add link opens a popover with URL input", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const linkBtn = screen.getByRole("button", { name: "Insert Link" });
+		const linkBtn = screen.getByRole("button", { name: "Add link" });
 		linkBtn.element().click();
 
 		await vi.waitFor(() => {
@@ -1699,7 +1846,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Add link" }).element().click();
 
 		await vi.waitFor(() => {
 			expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
@@ -1711,7 +1858,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Add link" }).element().click();
 
 		await vi.waitFor(() => {
 			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
@@ -1747,7 +1894,7 @@ describe("Link Insertion", () => {
 			.setTextSelection(editor.state.doc.content.size - 1)
 			.run();
 
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Add link" }).element().click();
 		await vi.waitFor(() => {
 			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
@@ -1772,11 +1919,57 @@ describe("Link Insertion", () => {
 		});
 	});
 
+	it("links a bare domain with https, so it isn't relative to the page", async () => {
+		const { screen } = await renderEditor();
+		await focusAndSelectAll(screen);
+
+		screen.getByRole("button", { name: "Add link" }).element().click();
+		await typeLink("example.com/docs");
+		screen.getByRole("button", { name: "Apply" }).element().click();
+
+		await vi.waitFor(() => {
+			const link = screen.container.querySelector(".ProseMirror a");
+			expect(link?.getAttribute("href")).toBe("https://example.com/docs");
+		});
+	});
+
+	it("says why it won't apply a link", async () => {
+		const { screen } = await renderEditor();
+		await focusAndSelectAll(screen);
+
+		screen.getByRole("button", { name: "Add link" }).element().click();
+		await typeLink("javascript:alert(1)");
+		screen.getByRole("button", { name: "Apply" }).element().click();
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent(
+				"This link can't be used. Enter a web address, such as https://example.com.",
+			);
+		expect(screen.container.querySelector(".ProseMirror a")).toBeNull();
+	});
+
+	it("keeps the popover open for an image link it won't apply", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{ _type: "image", _key: "img", asset: { _ref: "image-1", url: "/diagram.png" }, alt: "" },
+			],
+		});
+		editor.chain().focus().setNodeSelection(0).run();
+
+		screen.getByRole("button", { name: "Image link" }).element().click();
+		await typeLink("javascript:alert(1)");
+		screen.getByRole("button", { name: "Apply" }).element().click();
+
+		await expect.element(screen.getByRole("button", { name: "Apply" })).toBeVisible();
+		expect(editor.getAttributes("image").link).toBeNull();
+	});
+
 	it("clicking Cancel closes the popover", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Add link" }).element().click();
 
 		await vi.waitFor(() => {
 			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
@@ -1805,7 +1998,7 @@ describe("Link Insertion", () => {
 		const modUp = navigator.platform.includes("Mac") ? "{/Meta}" : "{/Control}";
 		await userEvent.keyboard(`${mod}{a}${modUp}`);
 
-		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		screen.getByRole("button", { name: "Edit link" }).element().click();
 
 		await vi.waitFor(() => {
 			expect(screen.getByRole("button", { name: "Remove" })).toBeTruthy();
@@ -1875,7 +2068,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
 			(button) => !button.disabled && button.getClientRects().length > 0,
 		)!;
-		const alignCenter = screen.getByRole("button", { name: "Align Center" });
+		const alignCenter = screen.getByRole("button", { name: "Align center" });
 
 		// Focus a button in the middle
 		alignCenter.element().focus();

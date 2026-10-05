@@ -151,15 +151,11 @@ body {
 }
 
 /* Keep editor menu choices visibly distinct from their dropdown surfaces. */
-[data-emdash-heading-item][data-highlighted],
-[data-emdash-block-menu-item][data-highlighted] {
+[data-emdash-heading-item][data-highlighted] {
 	background-color: var(--color-kumo-interact) !important;
 }
 
-[data-mode="light"] [data-emdash-heading-item][data-highlighted],
-[data-mode="light"] [data-emdash-block-menu-item][data-highlighted],
-[data-mode="light"] [data-slash-command-menu] button:hover,
-[data-mode="light"] [data-slash-command-menu] button.bg-kumo-interact {
+[data-mode="light"] [data-emdash-heading-item][data-highlighted] {
 	background-color: var(--color-kumo-tint) !important;
 }
 
@@ -269,11 +265,14 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	--emdash-code-title: #7545c7;
 }
 
+/* Code reads left to right even in a right-to-left document. */
 .emdash-code-block {
+	direction: ltr;
+	text-align: start;
 	background: var(--emdash-code-background);
 	color: var(--emdash-code-foreground);
 	caret-color: var(--emdash-code-foreground);
-	padding-block: 1.875rem;
+	padding-block: 2.25rem;
 }
 
 [data-mode="dark"] :is(.emdash-code-block, .emdash-code-editor) {
@@ -405,13 +404,506 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	}
 }
 /**
+ * Document editor typography.
+ *
+ * Modeled on Notion's block rhythm: blocks sit 1px apart and pad their text
+ * by 3px, so paragraphs read as separate blocks without large gaps and the
+ * gutter handle can center on each block's first line.
+ */
+.emdash-document {
+	font-size: 1rem;
+	line-height: 1.5;
+	color: var(--text-color-kumo-default);
+	caret-color: var(--text-color-kumo-default);
+	overflow-wrap: break-word;
+}
+
+.emdash-document :where(p, h1, h2, h3, h4, h5, h6) {
+	margin: 0;
+	padding-block: 0.1875rem;
+}
+
+.emdash-document > * {
+	margin-block: 1px;
+}
+
+.emdash-document > *:first-child {
+	margin-top: 0;
+}
+
+/* Node views put their block margin on an inner wrapper. */
+.emdash-document > :first-child > [data-node-view-wrapper] {
+	margin-top: 0;
+}
+
+.emdash-document :where(h1, h2, h3, h4, h5, h6) {
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.emdash-document h1 {
+	font-size: 1.875rem;
+}
+
+.emdash-document h2 {
+	font-size: 1.5rem;
+}
+
+.emdash-document h3 {
+	font-size: 1.25rem;
+}
+
+.emdash-document h4 {
+	font-size: 1.125rem;
+}
+
+.emdash-document h5 {
+	font-size: 1rem;
+}
+
+.emdash-document h6 {
+	font-size: 0.875rem;
+	color: var(--text-color-kumo-subtle);
+}
+
+.emdash-document strong {
+	font-weight: 600;
+}
+
+.emdash-document a {
+	color: var(--text-color-kumo-link);
+	text-decoration-line: underline;
+	text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.2em;
+}
+
+.emdash-document a:hover {
+	text-decoration-color: currentColor;
+}
+
+.emdash-document :not(pre) > code {
+	border: 1px solid var(--color-kumo-hairline);
+	border-radius: 0.375rem;
+	background-color: color-mix(in oklab, var(--text-color-kumo-default) 5%, transparent);
+	padding: 0.125em 0.375em;
+	color: var(--text-color-kumo-default);
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	font-size: 0.875em;
+	font-weight: 400;
+}
+
+.emdash-document :is(ul, ol) {
+	margin: 0;
+	padding-inline-start: 1.625rem;
+}
+
+.emdash-document ul {
+	list-style-type: disc;
+}
+
+.emdash-document ul ul {
+	list-style-type: circle;
+}
+
+.emdash-document ul ul ul {
+	list-style-type: square;
+}
+
+.emdash-document ol {
+	list-style-type: decimal;
+}
+
+.emdash-document ol ol {
+	list-style-type: lower-alpha;
+}
+
+.emdash-document ol ol ol {
+	list-style-type: lower-roman;
+}
+
+.emdash-document li {
+	margin-block: 1px;
+	padding-inline-start: 0.125rem;
+}
+
+.emdash-document li::marker {
+	color: var(--text-color-kumo-default);
+}
+
+.emdash-document blockquote {
+	margin-inline: 0;
+	border-inline-start: 3px solid currentColor;
+	padding-inline-start: 0.875em;
+	font-size: 1.2em;
+	font-style: normal;
+	quotes: none;
+}
+
+.emdash-document > blockquote {
+	margin-block: 0.25rem;
+}
+
+/* A divider is a full-height block with a centered rule, so it is easy to hover and drag. */
+.emdash-document hr {
+	height: 1.3125rem;
+	margin-block: 0.25rem;
+	overflow: visible;
+	border: 0;
+	background: linear-gradient(var(--color-kumo-line), var(--color-kumo-line)) center / 100% 1px
+		no-repeat;
+}
+
+/*
+ * Matches the code block the boxed editor gets from its prose styles, with an
+ * edge, since the page behind it is nearly the same colour.
+ */
+.emdash-document .emdash-code-block {
+	margin: 0;
+	overflow-x: auto;
+	border-radius: 0.375rem;
+	box-shadow: inset 0 0 0 1px var(--color-kumo-line);
+	padding-inline: 1rem;
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	font-size: 0.875rem;
+	font-weight: 400;
+	line-height: 1.7142857;
+}
+
+.emdash-document th {
+	text-align: start;
+}
+
+.emdash-document table {
+	font-size: 0.875rem;
+}
+
+.emdash-document th {
+	font-weight: 500;
+}
+
+/*
+ * Space above headings lives on the block before them, so a dragged
+ * heading's preview starts at its text rather than at an empty margin.
+ */
+.emdash-document > :has(+ h1) {
+	margin-bottom: 2rem;
+}
+
+.emdash-document > :has(+ h2) {
+	margin-bottom: 1.4rem;
+}
+
+.emdash-document > :has(+ :is(h3, h4, h5, h6)) {
+	margin-bottom: 1rem;
+}
+
+/* `currentcolor` keeps links, inline code, and syntax colours while selected. */
+.emdash-document ::selection {
+	background-color: color-mix(in oklab, var(--color-kumo-brand) 28%, transparent);
+	color: currentcolor;
+}
+
+/*
+ * A selected block (block handle, Escape, or Select All) gets a tint
+ * that reaches just past its edges, so each block reads as its own container.
+ * It shows while the editor or its block menu has focus, like the image
+ * toolbar, and the text inside isn't highlighted a second time.
+ */
+[data-emdash-editor-floating-root] .ProseMirror {
+	--emdash-block-selection: color-mix(in oklab, var(--color-kumo-brand) 14%, transparent);
+}
+
+[data-emdash-editor-floating-root] .ProseMirror[data-emdash-block-selection] ::selection {
+	background-color: transparent;
+}
+
+[data-emdash-editor-floating-root]
+	.ProseMirror
+	> :is(.ProseMirror-selectednode, .emdash-block-selected):not(.node-image) {
+	position: relative;
+	outline: none;
+}
+
+:is([data-emdash-editor-floating-root]:focus-within, [data-emdash-block-menu-open])
+	.ProseMirror
+	> :is(.ProseMirror-selectednode, .emdash-block-selected):not(.node-image)::after {
+	position: absolute;
+	inset: -1px -0.25rem;
+	border-radius: 0.375rem;
+	background-color: var(--emdash-block-selection);
+	content: "";
+	pointer-events: none;
+	animation: emdash-block-select 120ms ease-out;
+}
+
+/*
+ * Framed blocks keep the tint's corners concentric with their own. Like
+ * images, they have no text to carry the tint, so they also get an edge.
+ */
+:is([data-emdash-editor-floating-root]:focus-within, [data-emdash-block-menu-open])
+	.ProseMirror
+	> :is(.ProseMirror-selectednode, .emdash-block-selected):is(
+		.node-htmlBlock,
+		.node-iframeBlock,
+		.node-pluginBlock,
+		.node-gallery
+	)::after {
+	inset: -0.375rem;
+	border-radius: calc(0.5rem + 0.375rem);
+	box-shadow: inset 0 0 0 2px var(--color-kumo-brand);
+}
+
+:is([data-emdash-editor-floating-root]:focus-within, [data-emdash-block-menu-open])
+	.ProseMirror
+	> :is(.ProseMirror-selectednode, .emdash-block-selected).node-codeBlock::after {
+	inset: -0.375rem;
+	border-radius: calc(0.375rem + 0.375rem);
+}
+
+/* Table wrappers scroll sideways, which would clip a tint drawn outside them. */
+:is([data-emdash-editor-floating-root]:focus-within, [data-emdash-block-menu-open])
+	.ProseMirror
+	> :is(.ProseMirror-selectednode, .emdash-block-selected).tableWrapper::after {
+	inset: 0;
+	border-radius: 0;
+}
+
+:is([data-emdash-editor-floating-root]:focus-within, [data-emdash-block-menu-open])
+	.ProseMirror
+	> :is(.ProseMirror-selectednode, .emdash-block-selected).node-image
+	img {
+	outline: 2px solid var(--color-kumo-brand);
+	outline-offset: calc(0.375rem - 2px);
+	box-shadow: 0 0 0 0.375rem var(--emdash-block-selection);
+	animation: emdash-block-frame 120ms ease-out;
+}
+
+@keyframes emdash-block-select {
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes emdash-block-frame {
+	from {
+		box-shadow: 0 0 0 0 transparent;
+	}
+}
+
+@media (forced-colors: active) {
+	:is([data-emdash-editor-floating-root]:focus-within, [data-emdash-block-menu-open])
+		.ProseMirror
+		> :is(.ProseMirror-selectednode, .emdash-block-selected) {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	[data-emdash-editor-floating-root] .ProseMirror > * {
+		animation: none;
+	}
+
+	[data-emdash-editor-floating-root] .ProseMirror > *::after,
+	[data-emdash-editor-floating-root] .ProseMirror > * img {
+		animation: none !important;
+	}
+}
+
+/*
+ * TipTap positions each bubble menu in a wrapper with no z-index, so the
+ * menu's own z-index can't lift it over the sticky toolbar.
+ */
+[data-emdash-editor-floating-root]
+	> div:has(
+		> :is(
+			[data-emdash-inline-bubble-menu],
+			[data-emdash-link-bubble-menu],
+			[data-emdash-table-bubble-menu],
+			[data-emdash-image-bubble-menu]
+		)
+	) {
+	z-index: 100;
+}
+
+/*
+ * The fixed toolbar scrolls sideways when it doesn't fit, fading out at the
+ * edge that still has buttons past it.
+ */
+@property --emdash-toolbar-fade-start {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --emdash-toolbar-fade-end {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@keyframes emdash-toolbar-scroll-fade {
+	0% {
+		--emdash-toolbar-fade-start: 0px;
+	}
+	10%,
+	100% {
+		--emdash-toolbar-fade-start: 1.5rem;
+	}
+	0%,
+	90% {
+		--emdash-toolbar-fade-end: 1.5rem;
+	}
+	100% {
+		--emdash-toolbar-fade-end: 0px;
+	}
+}
+
+.emdash-editor-toolbar {
+	scrollbar-width: none;
+	animation: emdash-toolbar-scroll-fade linear;
+	animation-timeline: scroll(self inline);
+	mask-image: linear-gradient(
+		to var(--emdash-toolbar-fade-direction, right),
+		transparent,
+		black var(--emdash-toolbar-fade-start),
+		black calc(100% - var(--emdash-toolbar-fade-end)),
+		transparent
+	);
+}
+
+[dir="rtl"] .emdash-editor-toolbar {
+	--emdash-toolbar-fade-direction: left;
+}
+
+.emdash-editor-toolbar::-webkit-scrollbar {
+	display: none;
+}
+
+/*
+ * Text scrolling under the stuck document toolbar fades out below it instead
+ * of being cut at its edge. The fade continues the band of page colour the
+ * toolbar sits on, behind the card, so the card's border and rounded corners
+ * stay on top. Both span the gutter too, so block handles and a selected
+ * image's ring beside the card are covered.
+ */
+[data-emdash-editor-toolbar="document"]::before,
+[data-emdash-editor-toolbar="document"]::after {
+	position: absolute;
+	z-index: -1;
+	inset-inline: calc(var(--emdash-editor-gutter, 0rem) * -1);
+	content: "";
+	pointer-events: none;
+}
+
+/* The band also takes clicks, so covered block handles beside the card can't be pressed. */
+[data-emdash-editor-toolbar="document"]::before {
+	inset-block: 0;
+	background-color: var(--emdash-editor-surface);
+	pointer-events: auto;
+}
+
+[data-emdash-editor-toolbar="document"]::after {
+	top: 100%;
+	height: 1.5rem;
+	/* Solid at first, so the bottom of a line under the card doesn't peek out below it. */
+	background-image: linear-gradient(var(--emdash-editor-surface) 0.25rem, transparent);
+	opacity: 0;
+	transition: opacity 150ms ease-out;
+}
+
+[data-emdash-editor-toolbar="document"][data-stuck]::after {
+	opacity: 1;
+}
+
+/*
+ * Page layout for the document variant. The page's inline padding is its
+ * margin, which widens into a gutter for the block handles where they show.
+ * The editor extends into it, so its text aligns with the fields around it
+ * while the handles and their hover area sit in the margin.
+ */
+.emdash-editor-page {
+	--emdash-editor-gutter: 1rem;
+	padding-inline: var(--emdash-editor-gutter);
+}
+
+@media (min-width: 40rem) {
+	.emdash-editor-page {
+		--emdash-editor-gutter: 3.25rem;
+	}
+}
+
+[data-emdash-editor-variant="document"] .emdash-document {
+	margin-inline: calc(var(--emdash-editor-gutter, 0rem) * -1);
+	padding-inline: var(--emdash-editor-gutter, 0rem);
+}
+
+/* Without the gutter, block handles have no room beside the text. */
+@media (width < 40rem) {
+	[data-emdash-editor-variant="document"] .drag-handle {
+		display: none;
+	}
+}
+
+/*
+ * On touch screens the toolbar's own + adds blocks, so the handle is just the
+ * grip, with a target that grows outward into the gutter.
+ */
+@media (pointer: coarse) {
+	.drag-handle [data-block-insert] {
+		display: none;
+	}
+
+	.drag-handle [data-block-handle] {
+		position: relative;
+		overflow: visible;
+	}
+
+	.drag-handle [data-block-handle]::before {
+		position: absolute;
+		inset-block: -0.625rem;
+		inset-inline: -1.625rem 0;
+		content: "";
+	}
+}
+
+/*
+ * The editor bar mixes bordered and ghost buttons. Drawing the border inside
+ * keeps each button as tall as a ghost button's hover background.
+ */
+[data-emdash-editor-bar] :is(button, a):not(:focus-visible) {
+	--tw-ring-inset: inset;
+}
+
+/* On touch screens a bar button's target spans the bar's height and half of each gap. */
+@media (pointer: coarse) {
+	/* Kumo's primary button clips overflow, which would clip the target too. */
+	[data-emdash-editor-bar] :is(button, a):not([aria-hidden="true"]) {
+		position: relative;
+		overflow: visible;
+	}
+
+	[data-emdash-editor-bar] :is(button, a):not([aria-hidden="true"])::after {
+		position: absolute;
+		inset: -0.6875rem -0.1875rem;
+		content: "";
+	}
+
+	/* That clipping also trimmed the primary button's shading, which sits 1px low. */
+	[data-emdash-editor-bar] button > span[aria-hidden="true"]:first-child {
+		clip-path: inset(0 0 1px);
+	}
+}
+
+/**
  * TipTap placeholder styles
  */
-.tiptap p.is-empty {
+.tiptap :is(p, h1, h2, h3, h4, h5, h6).is-empty {
 	display: flow-root;
 }
 
-.tiptap p.is-empty::before {
+.tiptap :is(p, h1, h2, h3, h4, h5, h6).is-empty::before {
 	color: var(--text-color-kumo-inactive);
 	content: attr(data-placeholder);
 	float: inline-start;
@@ -419,6 +911,54 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	width: 100%;
 	margin-inline-end: -100%;
 	pointer-events: none;
+}
+
+/*
+ * Only the focused block hints at what to type. An empty document always
+ * does, and an empty heading always names its level.
+ */
+.emdash-document:not(:focus-within)
+	.is-empty:not(.is-editor-empty, :is(h1, h2, h3, h4, h5, h6))::before {
+	content: none;
+}
+
+/* The slash command being typed, with a hint until there is a query. */
+.ProseMirror .emdash-slash-query {
+	margin-inline: -0.25em;
+	border-radius: 0.375rem;
+	background-color: var(--color-kumo-tint);
+	padding: 0.125em 0.25em;
+}
+
+.ProseMirror .emdash-slash-query.is-empty::after {
+	content: var(--emdash-slash-hint);
+	color: var(--text-color-kumo-inactive);
+	pointer-events: none;
+}
+
+/*
+ * A selected line break, which browsers don't draw, and a divider inside a
+ * selection. Like selected text, they only show while the editor has focus.
+ */
+.ProseMirror .emdash-selected-line-break {
+	display: inline-block;
+	width: 0.5em;
+	height: 1lh;
+	/* Drawn past the end of the line without taking room, so a full line doesn't wrap. */
+	margin-inline-end: -0.5em;
+	vertical-align: top;
+}
+
+[data-emdash-editor-floating-root]:focus-within
+	.ProseMirror
+	:is(.emdash-selected-line-break, hr.emdash-in-selection) {
+	background-color: var(--color-kumo-interact);
+}
+
+[data-emdash-editor-floating-root]:focus-within
+	.emdash-document
+	:is(.emdash-selected-line-break, hr.emdash-in-selection) {
+	background-color: color-mix(in oklab, var(--color-kumo-brand) 28%, transparent);
 }
 
 /**
@@ -439,9 +979,15 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	opacity: 0.5;
 }
 
+/* TipTap draws the gap cursor in black, which vanishes on the dark theme. */
+.ProseMirror .ProseMirror-gapcursor::after {
+	border-top-color: var(--text-color-kumo-default);
+}
+
 /* Drop cursor styling - auto-fade to handle cleanup issues */
 .ProseMirror-dropcursor {
-	border-color: #3b82f6 !important;
+	border-color: color-mix(in oklab, var(--color-kumo-brand) 60%, transparent) !important;
+	background-color: color-mix(in oklab, var(--color-kumo-brand) 60%, transparent) !important;
 	border-width: 2px !important;
 	animation: dropcursor-fade 2s forwards;
 }
@@ -492,16 +1038,31 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	container-type: inline-size;
 }
 
+/*
+ * `--emdash-editor-surface` is the colour behind the editor, kumo-base unless
+ * set. Table scroll shadows fade into it, and the document toolbar's band
+ * matches it, so a surface with another background sets it.
+ */
+[data-emdash-editor-variant="document"] {
+	--emdash-editor-surface: var(--color-kumo-elevated);
+}
+
+/* Low specificity, so the document's block spacing rules win over it. */
+.ProseMirror :where(.tableWrapper) {
+	margin-block: 1rem;
+}
+
 .ProseMirror .tableWrapper {
 	max-inline-size: 100%;
-	margin-block: 1rem;
 	overflow-x: auto;
 	overflow-y: hidden;
 	overscroll-behavior-inline: contain;
 	scrollbar-width: none;
 	background:
-		linear-gradient(to right, var(--color-kumo-base), transparent) left / 1rem 100% no-repeat local,
-		linear-gradient(to left, var(--color-kumo-base), transparent) right / 1rem 100% no-repeat local,
+		linear-gradient(to right, var(--emdash-editor-surface, var(--color-kumo-base)), transparent)
+			left / 1rem 100% no-repeat local,
+		linear-gradient(to left, var(--emdash-editor-surface, var(--color-kumo-base)), transparent)
+			right / 1rem 100% no-repeat local,
 		linear-gradient(to right, color-mix(in srgb, currentcolor 5%, transparent), transparent) left /
 			6px 100% no-repeat scroll,
 		linear-gradient(to left, color-mix(in srgb, currentcolor 5%, transparent), transparent) right /
@@ -583,8 +1144,13 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 @container (max-width: 30rem) {
-	[data-emdash-editor-surface] .ProseMirror {
+	[data-emdash-editor-variant="boxed"] .ProseMirror {
 		padding-inline: 1rem;
+	}
+
+	/* The narrow padding leaves block handles no room beside the text. */
+	[data-emdash-editor-variant="boxed"] .drag-handle {
+		display: none;
 	}
 }
 

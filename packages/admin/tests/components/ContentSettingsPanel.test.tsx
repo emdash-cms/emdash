@@ -8,9 +8,9 @@ import { userEvent } from "vitest/browser";
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
 	ContentSettingsPanel,
-	SettingsActionBar,
+	EditorActions,
 	type ContentSettingsPanelProps,
-	type SettingsActionBarProps,
+	type EditorActionsProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
 import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
@@ -1087,7 +1087,7 @@ describe("ContentSettingsPanel", () => {
 	});
 });
 
-function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): SettingsActionBarProps {
+function makeBarProps(overrides: Partial<EditorActionsProps> = {}): EditorActionsProps {
 	return {
 		collectionLabel: "Post",
 		isNew: false,
@@ -1101,18 +1101,17 @@ function makeBarProps(overrides: Partial<SettingsActionBarProps> = {}): Settings
 		onPreview: vi.fn(),
 		onPublish: vi.fn(),
 		onUnpublish: vi.fn(),
-		announceSaveStatus: true,
 		...overrides,
 	};
 }
 
-describe("SettingsActionBar", () => {
+describe("EditorActions", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
 
 	it("shows Publish now for an unpublished draft", async () => {
-		const screen = await render(<SettingsActionBar {...makeBarProps()} />);
+		const screen = await render(<EditorActions {...makeBarProps()} />);
 		const publish = screen.getByRole("button", { name: "Publish now", exact: true });
 
 		await expect.element(publish).toBeInTheDocument();
@@ -1122,7 +1121,7 @@ describe("SettingsActionBar", () => {
 
 	it("uses the normalized Publish now label for every collection", async () => {
 		const screen = await render(
-			<SettingsActionBar {...makeBarProps({ collectionLabel: "API Docs" })} />,
+			<EditorActions {...makeBarProps({ collectionLabel: "API Docs" })} />,
 		);
 
 		await expect
@@ -1132,7 +1131,7 @@ describe("SettingsActionBar", () => {
 
 	it("confirms Publish changes for a live item with edits", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
-		const screen = await render(<SettingsActionBar {...props} />);
+		const screen = await render(<EditorActions {...props} />);
 
 		const publishChanges = screen.getByRole("button", {
 			name: "Publish changes",
@@ -1153,7 +1152,7 @@ describe("SettingsActionBar", () => {
 
 	it("shows Unpublish Post for a clean live item", async () => {
 		const props = makeBarProps({ isLive: true });
-		const screen = await render(<SettingsActionBar {...props} />);
+		const screen = await render(<EditorActions {...props} />);
 
 		const unpublish = screen.getByRole("button", { name: "Unpublish Post" });
 		await expect.element(unpublish).toBeInTheDocument();
@@ -1164,7 +1163,7 @@ describe("SettingsActionBar", () => {
 
 	it("renders Live View when a live URL is provided", async () => {
 		const screen = await render(
-			<SettingsActionBar {...makeBarProps({ liveViewUrl: "https://example.com/my-post" })} />,
+			<EditorActions {...makeBarProps({ liveViewUrl: "https://example.com/my-post" })} />,
 		);
 		const link = screen.getByRole("link", { name: /Live View/ });
 		await expect.element(link).toBeInTheDocument();
@@ -1173,7 +1172,7 @@ describe("SettingsActionBar", () => {
 
 	it("renders Preview when preview is supported", async () => {
 		const props = makeBarProps({ supportsPreview: true, hasPendingChanges: true });
-		const screen = await render(<SettingsActionBar {...props} />);
+		const screen = await render(<EditorActions {...props} />);
 
 		const preview = screen.getByRole("button", { name: "Preview draft" });
 		await expect.element(preview).toBeInTheDocument();
@@ -1182,34 +1181,8 @@ describe("SettingsActionBar", () => {
 		expect(props.onPreview).toHaveBeenCalled();
 	});
 
-	it("gives every action an intrinsic flexible layout slot", async () => {
-		const screen = await render(
-			<SettingsActionBar
-				{...makeBarProps({
-					isLive: true,
-					hasPendingChanges: true,
-					liveViewUrl: "https://example.com/my-post",
-					supportsPreview: true,
-				})}
-			/>,
-		);
-		const actions = [
-			screen.getByRole("button", { name: "Saved" }).element(),
-			screen.getByRole("link", { name: "Live View" }).element(),
-			screen.getByRole("button", { name: "Preview draft" }).element(),
-			screen.getByRole("button", { name: "Publish changes", exact: true }).element(),
-		];
-		const slots = actions.map((action) => action.parentElement);
-
-		expect(new Set(slots)).toHaveLength(actions.length);
-		for (const slot of slots) {
-			expect(slot).toHaveClass("min-w-max", "flex-[1_1_auto]");
-		}
-		expect(slots[0]?.parentElement).toHaveClass("items-stretch");
-	});
-
 	it("hides the publish cluster for new items", async () => {
-		const screen = await render(<SettingsActionBar {...makeBarProps({ isNew: true })} />);
+		const screen = await render(<EditorActions {...makeBarProps({ isNew: true })} />);
 
 		expect(screen.container.textContent).not.toContain("Publish");
 		expect(screen.container.textContent).not.toContain("Unpublish");
@@ -1219,21 +1192,14 @@ describe("SettingsActionBar", () => {
 
 	it("shows autosave progress in the Save button", async () => {
 		const screen = await render(
-			<SettingsActionBar {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
+			<EditorActions {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
 		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
 		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
-	it("can suppress its live region when another mounted copy announces status", async () => {
-		const screen = await render(
-			<SettingsActionBar {...makeBarProps({ announceSaveStatus: false })} />,
-		);
-		expect(screen.container.querySelector('span[role="status"][aria-live="polite"]')).toBeNull();
-	});
-
 	it("marks the Save button dirty state", async () => {
-		const screen = await render(<SettingsActionBar {...makeBarProps({ isDirty: true })} />);
+		const screen = await render(<EditorActions {...makeBarProps({ isDirty: true })} />);
 		await expect
 			.element(screen.getByRole("button", { name: "Save", exact: true }))
 			.toBeInTheDocument();

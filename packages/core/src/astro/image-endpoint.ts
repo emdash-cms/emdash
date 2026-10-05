@@ -15,9 +15,12 @@ import { GET as genericGET } from "astro/assets/endpoint/generic";
 import { getConfiguredImageService, imageConfig } from "astro:assets";
 
 import {
+	getTransformFingerprint,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
+	validatorHeaders,
+	isNotModified,
 } from "../media/image-endpoint.js";
 
 export const prerender = false;
@@ -38,8 +41,33 @@ function isNotFound(error: unknown): boolean {
 	);
 }
 
-function streamOriginal(body: ReadableStream<Uint8Array>, contentType: string): Response {
-	return new Response(body, { status: 200, headers: originalMediaHeaders(contentType) });
+function streamOriginal(
+	body: ReadableStream<Uint8Array>,
+	contentType: string,
+	size: number,
+	lastModified?: Date,
+): Response {
+	return new Response(body, {
+		status: 200,
+		headers: originalMediaHeaders(contentType, size, lastModified),
+	});
+}
+
+function notModifiedResponse(
+	contentType: string,
+	size: number,
+	lastModified?: Date,
+	suffix?: string,
+): Response {
+	return new Response(null, {
+		status: 304,
+		headers: {
+			"Content-Type": contentType,
+			"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
+			"X-Content-Type-Options": "nosniff",
+			...validatorHeaders(size, lastModified, suffix),
+		},
+	});
 }
 
 export const GET: APIRoute = async (ctx) => {
@@ -59,11 +87,24 @@ export const GET: APIRoute = async (ctx) => {
 
 		// Only raster images are transformable; serve anything else unchanged.
 		if (!source.contentType.startsWith("image/")) {
-			return streamOriginal(source.body, source.contentType);
+			if (isNotModified(ctx.request, source.size, source.lastModified)) {
+				return notModifiedResponse(source.contentType, source.size, source.lastModified);
+			}
+			return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
 		}
 
 		const transform = await service.parseURL(url, imageConfig);
-		if (!transform) return streamOriginal(source.body, source.contentType);
+		if (!transform) {
+			if (isNotModified(ctx.request, source.size, source.lastModified)) {
+				return notModifiedResponse(source.contentType, source.size, source.lastModified);
+			}
+			return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
+		}
+
+		const fingerprint = getTransformFingerprint(url.searchParams);
+		if (isNotModified(ctx.request, source.size, source.lastModified, fingerprint)) {
+			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
+		}
 
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
 		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
@@ -74,6 +115,7 @@ export const GET: APIRoute = async (ctx) => {
 				"Content-Type": FORMAT_MIME[format] ?? source.contentType,
 				"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 				"X-Content-Type-Options": "nosniff",
+				...validatorHeaders(source.size, source.lastModified, fingerprint),
 			},
 		});
 	} catch (error) {

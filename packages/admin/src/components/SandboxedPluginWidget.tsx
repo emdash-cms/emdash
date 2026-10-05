@@ -5,7 +5,7 @@
  * interaction with page="widget:<widgetId>" to the plugin's admin route.
  */
 
-import { SkeletonLine } from "@cloudflare/kumo";
+import { Loader, SkeletonLine } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
@@ -23,6 +23,7 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 	const { t } = useLingui();
 	const [blocks, setBlocks] = useState<Block[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const page = `widget:${widgetId}`;
 	const requestGeneration = useRef(0);
@@ -33,6 +34,8 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 			if (showLoading) {
 				setLoading(true);
 				setError(null);
+			} else {
+				setPending(true);
 			}
 			try {
 				const requestInteraction =
@@ -57,7 +60,10 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 			} catch {
 				if (generation === requestGeneration.current) setError(t`Failed to load widget`);
 			} finally {
-				if (showLoading && generation === requestGeneration.current) setLoading(false);
+				if (generation === requestGeneration.current) {
+					if (showLoading) setLoading(false);
+					setPending(false);
+				}
 			}
 		},
 		[page, pluginId, t],
@@ -97,10 +103,28 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 	}
 
 	return (
-		<BlockRenderer
-			blocks={blocks}
-			onAction={handleAction}
-			resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
-		/>
+		<div className="relative">
+			<div
+				aria-busy={pending || undefined}
+				className={pending ? "opacity-60 transition-opacity" : "transition-opacity"}
+			>
+				<BlockRenderer
+					blocks={blocks}
+					onAction={handleAction}
+					resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
+				/>
+			</div>
+			{pending && (
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-0 flex items-center justify-center"
+				>
+					<Loader aria-label={t`Updating...`} className="text-kumo-subtle" />
+				</div>
+			)}
+			<span role="status" className="sr-only">
+				{pending ? t`Updating...` : ""}
+			</span>
+		</div>
 	);
 }

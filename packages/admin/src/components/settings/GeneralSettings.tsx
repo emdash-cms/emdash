@@ -49,6 +49,7 @@ const previewLocaleLoaders: Record<string, () => Promise<Locale>> = {
 	fr: () => import("date-fns/locale/fr").then(({ fr }) => fr),
 	ka: () => import("date-fns/locale/ka").then(({ ka }) => ka),
 	de: () => import("date-fns/locale/de").then(({ de }) => de),
+	he: () => import("date-fns/locale/he").then(({ he }) => he),
 	hi: () => import("date-fns/locale/hi").then(({ hi }) => hi),
 	hu: () => import("date-fns/locale/hu").then(({ hu }) => hu),
 	id: () => import("date-fns/locale/id").then(({ id }) => id),

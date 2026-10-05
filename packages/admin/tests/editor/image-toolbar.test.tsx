@@ -200,7 +200,7 @@ async function waitForToolbar() {
 	return toolbarElement()!;
 }
 
-/** The text formatting bubble shows 250 ms after a non-empty selection. */
+/** The text formatting bubble shows 120 ms after a non-empty selection. */
 function pastTextBubbleDelay() {
 	return new Promise((resolve) => setTimeout(resolve, 300));
 }
