@@ -69,21 +69,13 @@ describe("release changelog", () => {
 				"# emdash changelog archive\n\n## 1.2.0\n\n### Patch Changes\n\n- Upgrade detail.\n\n## 1.0.0\n\n### Major Changes\n\n- Initial.\n",
 			],
 		]);
+		const prefix = "https://raw.githubusercontent.com/emdash-cms/emdash/refs/tags/emdash%401.3.0/";
 		const requested: string[] = [];
 		const fetcher: typeof fetch = async (input) => {
-			const url = new URL(
-				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
-			);
-			const path = decodeURIComponent(url.pathname.split("/contents/")[1] ?? "");
-			requested.push(path);
-			const content = files.get(path);
-			return new Response(
-				JSON.stringify({
-					encoding: "base64",
-					content: Buffer.from(content ?? "").toString("base64"),
-				}),
-				{ status: content ? 200 : 404 },
-			);
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			requested.push(url);
+			const content = url.startsWith(prefix) ? files.get(url.slice(prefix.length)) : undefined;
+			return new Response(content ?? "404: Not Found", { status: content ? 200 : 404 });
 		};
 
 		const entries = await fetchChangelogRange(
@@ -95,8 +87,8 @@ describe("release changelog", () => {
 		);
 
 		expect(requested).toEqual([
-			"packages/core/CHANGELOG.md",
-			"packages/core/changelog/1.0.0-to-1.2.0.md",
+			`${prefix}packages/core/CHANGELOG.md`,
+			`${prefix}packages/core/changelog/1.0.0-to-1.2.0.md`,
 		]);
 		expect(entries.map((entry) => entry.body)).toEqual(["New API.", "Upgrade detail."]);
 	});
@@ -104,10 +96,7 @@ describe("release changelog", () => {
 	it("fails when the available changelog chain cannot cover the installed version", async () => {
 		const changelog =
 			"# emdash\n\n## 1.3.0\n\n### Minor Changes\n\n- New API.\n\n## 1.2.0\n\n### Patch Changes\n\n- Fix.\n";
-		const fetcher: typeof fetch = async () =>
-			new Response(
-				JSON.stringify({ encoding: "base64", content: Buffer.from(changelog).toString("base64") }),
-			);
+		const fetcher: typeof fetch = async () => new Response(changelog);
 
 		await expect(
 			fetchChangelogRange(

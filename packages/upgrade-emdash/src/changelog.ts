@@ -95,19 +95,9 @@ export function entriesBetween(
 	);
 }
 
-function githubHeaders(): Record<string, string> {
-	const headers: Record<string, string> = {
-		Accept: "application/vnd.github+json",
-		"User-Agent": "upgrade-emdash",
-		"X-GitHub-Api-Version": "2022-11-28",
-	};
-	if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-	return headers;
-}
-
-function githubContentsUrl(repository: GitHubRepository, path: string, tag: string): string {
+function githubRawUrl(repository: GitHubRepository, path: string, tag: string): string {
 	const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-	return `https://api.github.com/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.repo)}/contents/${encodedPath}?ref=${encodeURIComponent(tag)}`;
+	return `https://raw.githubusercontent.com/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.repo)}/refs/tags/${encodeURIComponent(tag)}/${encodedPath}`;
 }
 
 async function fetchGitHubFile(
@@ -116,23 +106,15 @@ async function fetchGitHubFile(
 	tag: string,
 	fetcher: typeof fetch,
 ): Promise<string> {
-	const response = await fetcher(githubContentsUrl(repository, path, tag), {
-		headers: githubHeaders(),
+	const response = await fetcher(githubRawUrl(repository, path, tag), {
+		headers: { "User-Agent": "upgrade-emdash" },
 	});
 	if (!response.ok) {
 		throw new Error(
 			`GitHub could not fetch ${repository.owner}/${repository.repo}/${path} at ${tag} (${response.status} ${response.statusText}).`,
 		);
 	}
-	const result: unknown = await response.json();
-	const encoding =
-		typeof result === "object" && result !== null ? Reflect.get(result, "encoding") : null;
-	const content =
-		typeof result === "object" && result !== null ? Reflect.get(result, "content") : null;
-	if (encoding !== "base64" || typeof content !== "string") {
-		throw new Error(`GitHub returned invalid changelog data for ${path} at ${tag}.`);
-	}
-	return Buffer.from(content.split("\n").join(""), "base64").toString("utf8");
+	return response.text();
 }
 
 function archivePath(

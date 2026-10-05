@@ -59,10 +59,7 @@ describe("upgrade plan", () => {
 			}
 			const version = url.pathname.includes("packages/core") ? "1.2.0" : "1.1.0";
 			const changelog = `# package\n\n## ${version}\n\n### Minor Changes\n\n- Shared authored change.\n\n## 1.0.0\n\n### Major Changes\n\n- Initial.\n`;
-			return jsonResponse({
-				encoding: "base64",
-				content: Buffer.from(changelog).toString("base64"),
-			});
+			return new Response(changelog);
 		};
 
 		const plan = await createUpgradePlan(project, "latest", fetcher);
