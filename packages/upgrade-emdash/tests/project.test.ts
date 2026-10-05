@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 
@@ -115,13 +115,9 @@ describe("project loading", () => {
 		return directory;
 	}
 
-	async function project(emdashVersion: string, root?: string): Promise<string> {
-		root ??= await temporaryDirectory();
-		await writeJson(join(root, "package.json"), {
-			dependencies: { emdash: `^${emdashVersion}` },
-		});
+	async function writeEmDashPackage(directory: string, emdashVersion: string): Promise<void> {
 		const hasMigrations = emdashVersion !== "0.34.0";
-		await writeJson(join(root, "node_modules/emdash/package.json"), {
+		await writeJson(join(directory, "package.json"), {
 			name: "emdash",
 			version: emdashVersion,
 			type: "module",
@@ -130,15 +126,40 @@ describe("project loading", () => {
 				...(hasMigrations ? { "./migrations": "./migrations.mjs" } : {}),
 			},
 		});
-		await writeFile(join(root, "node_modules/emdash/index.mjs"), "export {};\n");
+		await writeFile(join(directory, "index.mjs"), "export {};\n");
 		if (hasMigrations) {
 			await writeFile(
-				join(root, "node_modules/emdash/migrations.mjs"),
+				join(directory, "migrations.mjs"),
 				'import { readFileSync } from "node:fs";\nconst { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));\nexport async function getCoreMigrationIdentity() { return { emdashVersion: version, names: ["001_initial"] }; }\n',
 			);
 		}
+	}
+
+	async function project(emdashVersion: string, root?: string): Promise<string> {
+		root ??= await temporaryDirectory();
+		await writeJson(join(root, "package.json"), {
+			dependencies: { emdash: `^${emdashVersion}` },
+		});
+		await writeEmDashPackage(join(root, "node_modules/emdash"), emdashVersion);
 		return root;
 	}
+
+	it("reads the newly installed EmDash release in the same process", async () => {
+		const site = await temporaryDirectory();
+		await writeJson(join(site, "package.json"), { dependencies: { emdash: "^1.0.0" } });
+		const store = (version: string) =>
+			join(site, `node_modules/.pnpm/emdash@${version}/node_modules/emdash`);
+		await writeEmDashPackage(store("1.0.0"), "1.0.0");
+		await writeEmDashPackage(store("1.1.0"), "1.1.0");
+		await symlink(store("1.0.0"), join(site, "node_modules/emdash"));
+
+		await expect(loadProject(site)).resolves.toMatchObject({ currentVersion: "1.0.0" });
+
+		await rm(join(site, "node_modules/emdash"));
+		await symlink(store("1.1.0"), join(site, "node_modules/emdash"));
+
+		await expect(loadProject(site)).resolves.toMatchObject({ currentVersion: "1.1.0" });
+	});
 
 	it("installs from the workspace root when the site is a workspace package", async () => {
 		const workspace = await temporaryDirectory();

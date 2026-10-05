@@ -1,8 +1,8 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, parse, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import { applyEdits, modify } from "jsonc-parser";
 import semver from "semver";
@@ -23,9 +23,22 @@ export interface ProjectPackage {
 	optionalDependencies?: Record<string, string>;
 }
 
-interface InstalledMigrationModule {
-	getCoreMigrationIdentity: () => Promise<{ emdashVersion: string; names: readonly string[] }>;
+const MISSING_MIGRATIONS_EXIT_CODE = 3;
+const MIGRATION_IDENTITY_SCRIPT = `
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+let path;
+try {
+	path = createRequire(process.argv[1]).resolve("emdash/migrations");
+} catch {
+	process.exit(${MISSING_MIGRATIONS_EXIT_CODE});
 }
+const { getCoreMigrationIdentity } = await import(pathToFileURL(path).href);
+const { emdashVersion, names } = await getCoreMigrationIdentity();
+process.stdout.write("\\n" + JSON.stringify({ emdashVersion, names }) + "\\n");
+`;
+
+const execFileAsync = promisify(execFile);
 
 export interface ProjectState {
 	root: string;
@@ -80,11 +93,15 @@ function isProjectPackage(value: unknown): value is ProjectPackage {
 	});
 }
 
-function isInstalledMigrationModule(value: unknown): value is InstalledMigrationModule {
+function isMigrationIdentity(
+	value: unknown,
+): value is { emdashVersion: string; names: readonly string[] } {
+	if (typeof value !== "object" || value === null) return false;
+	const names = Reflect.get(value, "names");
 	return (
-		typeof value === "object" &&
-		value !== null &&
-		typeof Reflect.get(value, "getCoreMigrationIdentity") === "function"
+		typeof Reflect.get(value, "emdashVersion") === "string" &&
+		Array.isArray(names) &&
+		names.every((name) => typeof name === "string")
 	);
 }
 
@@ -151,8 +168,12 @@ async function findInstalledPackageJson(
 	packageJsonPath: string,
 	name: string,
 ): Promise<string> {
-	const directPath = resolve(root, "node_modules", ...name.split("/"), "package.json");
-	if (await pathExists(directPath)) return directPath;
+	const topDirectory = parse(root).root;
+	for (let directory = root; ; directory = dirname(directory)) {
+		const candidate = resolve(directory, "node_modules", ...name.split("/"), "package.json");
+		if (await pathExists(candidate)) return candidate;
+		if (directory === topDirectory) break;
+	}
 
 	const requireFromProject = createRequire(packageJsonPath);
 	try {
@@ -200,26 +221,30 @@ async function loadMigrationIdentity(packageJsonPath: string): Promise<{
 	emdashVersion: string;
 	names: readonly string[];
 }> {
-	const requireFromProject = createRequire(packageJsonPath);
-	let migrationsPath: string;
+	// A fresh process sees the packages installed during this run; this process caches module resolution.
+	let stdout: string;
 	try {
-		migrationsPath = requireFromProject.resolve("emdash/migrations");
-	} catch {
-		throw new Error("Install the project's dependencies before running upgrade-emdash.");
+		({ stdout } = await execFileAsync(
+			process.execPath,
+			["--input-type=module", "--eval", MIGRATION_IDENTITY_SCRIPT, packageJsonPath],
+			{ cwd: dirname(packageJsonPath), maxBuffer: 16 * 1024 * 1024 },
+		));
+	} catch (error) {
+		const code = typeof error === "object" && error !== null ? Reflect.get(error, "code") : null;
+		if (code === MISSING_MIGRATIONS_EXIT_CODE) {
+			throw new Error("Install the project's dependencies before running upgrade-emdash.", {
+				cause: error,
+			});
+		}
+		throw new Error("The installed EmDash package could not report its migration identity.", {
+			cause: error,
+		});
 	}
-	const resolvedPath = await realpath(migrationsPath);
-	const installedEmDashVersion = await installedVersion(
-		dirname(packageJsonPath),
-		packageJsonPath,
-		"emdash",
-	);
-	const migrationModule: unknown = await import(
-		`${pathToFileURL(resolvedPath).href}?emdash=${encodeURIComponent(installedEmDashVersion)}`
-	);
-	if (!isInstalledMigrationModule(migrationModule)) {
+	const identity: unknown = JSON.parse(stdout.trimEnd().split("\n").at(-1) ?? "null");
+	if (!isMigrationIdentity(identity)) {
 		throw new Error("The installed EmDash package does not expose its migration identity.");
 	}
-	return migrationModule.getCoreMigrationIdentity();
+	return identity;
 }
 
 export async function loadProject(start: string): Promise<ProjectState> {
