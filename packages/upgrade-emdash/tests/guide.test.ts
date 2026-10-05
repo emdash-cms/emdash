@@ -63,7 +63,14 @@ describe("agent upgrade work order", () => {
 		expect(guide).toContain("pnpm deploy");
 		expect(guide).toContain("pnpm exec emdash migrate --check");
 		expect(guide).toContain("upgrading-emdash");
+		expect(guide).toContain("--expected-target-fingerprint");
 		expect(migrationBackupWarning(plan)).toContain("Before starting or deploying");
+
+		const withoutDeployScript = renderUpgradeGuide({
+			...plan,
+			commands: { ...plan.commands, deploy: undefined },
+		});
+		expect(withoutDeployScript).toContain("without rebuilding it");
 	});
 
 	it("does not require an upgrade backup when no core migrations were added", () => {

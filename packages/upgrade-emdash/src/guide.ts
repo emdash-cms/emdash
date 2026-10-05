@@ -30,7 +30,10 @@ function renderMigrationGuide(plan: UpgradePlan): string {
 	const added = plan.migrations.added ?? [];
 	const deploy = plan.commands.deploy
 		? `Deploy the same build artifact:\n\n${codeBlock([plan.commands.deploy])}`
-		: "Deploy the same build artifact with the project's deployment workflow.";
+		: "Deploy the same build artifact with the project's deployment workflow, without rebuilding it. On Cloudflare Workers, run `wrangler deploy`.";
+	const apply = `${codeBlock([plan.commands.migrationApply])}
+
+The command shows the target and asks for confirmation. In a non-interactive shell, add \`--expected-target-fingerprint\` with the target fingerprint that the status command printed for the reviewed database.`;
 	const status = `Build the upgraded project and inspect the exact database target:\n\n${codeBlock([
 		plan.commands.build,
 		plan.commands.migrationStatus,
@@ -50,7 +53,7 @@ ${status}
 
 If the status reports pending migrations, stop before starting or deploying the upgraded application. Follow [Backups and recovery](https://docs.emdashcms.com/guides/backups/) to create a restorable recovery point. A JSON backup is not a recovery point. After a human has reviewed the target and backup, apply the pending migrations:
 
-${codeBlock([plan.commands.migrationApply])}
+${apply}
 
 ${deploy}
 
@@ -72,7 +75,7 @@ ${status}
 
 After a human has reviewed the target and backup, apply pending migrations:
 
-${codeBlock([plan.commands.migrationApply])}
+${apply}
 
 ${deploy}
 

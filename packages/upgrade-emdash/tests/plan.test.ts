@@ -122,4 +122,35 @@ describe("upgrade plan", () => {
 		expect(plan.dependencies).toMatchObject([{ from: "^1.0.0", to: "^1.2.0" }]);
 		expect(plan.changelog).toEqual([]);
 	});
+
+	it("does not offer a deploy script that rebuilds the project", async () => {
+		const plans = await Promise.all(
+			["astro build && wrangler deploy", "wrangler deploy"].map((deploy) => {
+				const packageJson = { scripts: { deploy }, dependencies: { emdash: "^1.2.0" } };
+				const project: ProjectState = {
+					root: "/site",
+					installRoot: "/site",
+					packageJsonPath: "/site/package.json",
+					packageJsonSource: `${JSON.stringify(packageJson)}\n`,
+					packageJson,
+					packageManager: "pnpm",
+					dependencies: [
+						{
+							name: "emdash",
+							section: "dependencies",
+							specifier: "^1.2.0",
+							installedVersion: "1.2.0",
+						},
+					],
+					currentVersion: "1.2.0",
+					migrations: [],
+				};
+				return createUpgradePlan(project, "latest", async () =>
+					jsonResponse({ name: "emdash", version: "1.2.0" }),
+				);
+			}),
+		);
+
+		expect(plans.map((plan) => plan.commands.deploy)).toEqual([undefined, "pnpm deploy"]);
+	});
 });

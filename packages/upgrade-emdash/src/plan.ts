@@ -14,6 +14,8 @@ import {
 import { resolveRegistryRelease } from "./registry.js";
 import type { ChangelogEntry, DependencyChange, UpgradePlan } from "./types.js";
 
+const REBUILDS = /\bbuild\b/;
+
 function commandLine(command: string, args: readonly string[]): string {
 	return [command, ...args].join(" ");
 }
@@ -94,6 +96,7 @@ export async function createUpgradePlan(
 	if (!emdashRelease)
 		throw new Error("The project does not declare emdash as a direct dependency.");
 	const install = installCommand(project.packageManager);
+	const deployScript = project.packageJson.scripts?.deploy;
 	return {
 		projectRoot: project.root,
 		packageManager: project.packageManager,
@@ -109,9 +112,10 @@ export async function createUpgradePlan(
 		commands: {
 			install: commandLine(install.command, install.args),
 			build: packageRun(project.packageManager, "build"),
-			deploy: project.packageJson.scripts?.deploy
-				? packageRun(project.packageManager, "deploy")
-				: undefined,
+			deploy:
+				deployScript && !REBUILDS.test(deployScript)
+					? packageRun(project.packageManager, "deploy")
+					: undefined,
 			migrationStatus: emdashCommand(project.packageManager, "migrate --status"),
 			migrationApply: emdashCommand(project.packageManager, "migrate"),
 			migrationCheck: emdashCommand(project.packageManager, "migrate --check"),
