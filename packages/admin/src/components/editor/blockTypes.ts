@@ -77,7 +77,7 @@ const heading = (
 export const textBlockTypes: TextBlockType[] = [
 	{
 		id: "paragraph",
-		label: msg`Text`,
+		label: msg`Paragraph`,
 		icon: TextT,
 		isActive: (editor) => editor.isActive("paragraph"),
 		transform: (editor) => turnInto(editor, "paragraph"),
@@ -90,7 +90,7 @@ export const textBlockTypes: TextBlockType[] = [
 	heading(6, msg`Heading 6`, TextHSix),
 	{
 		id: "bulletList",
-		label: msg`Bulleted list`,
+		label: msg`Bullet List`,
 		icon: List,
 		markdown: "-",
 		isActive: (editor) => editor.isActive("bulletList"),
@@ -98,7 +98,7 @@ export const textBlockTypes: TextBlockType[] = [
 	},
 	{
 		id: "orderedList",
-		label: msg`Numbered list`,
+		label: msg`Numbered List`,
 		icon: ListNumbers,
 		markdown: "1.",
 		isActive: (editor) => editor.isActive("orderedList"),
@@ -114,7 +114,7 @@ export const textBlockTypes: TextBlockType[] = [
 	},
 	{
 		id: "codeBlock",
-		label: msg`Code block`,
+		label: msg`Code Block`,
 		icon: CodeBlock,
 		markdown: "```",
 		isActive: (editor) => editor.isActive("codeBlock"),

@@ -1654,7 +1654,7 @@ describe("Toolbar", () => {
 		await expect
 			.element(toolbar.getByRole("button", { name: "Strikethrough" }))
 			.toBeInTheDocument();
-		await expect.element(toolbar.getByRole("button", { name: "Inline code" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
 		expect(toolbar.element().querySelector('[aria-label="Subscript"]')).toBeNull();
 		expect(toolbar.element().querySelector('[aria-label="Superscript"]')).toBeNull();
 	});
@@ -1705,14 +1705,14 @@ describe("Toolbar", () => {
 
 	it("has list buttons", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Bulleted list" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Numbered list" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Bullet List" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Numbered List" })).toBeInTheDocument();
 	});
 
 	it("has block buttons", async () => {
 		const screen = await renderWithToolbar();
 		await expect.element(screen.getByRole("button", { name: "Quote" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Code block" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Code Block" })).toBeInTheDocument();
 	});
 
 	it("has alignment buttons", async () => {

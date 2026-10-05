@@ -330,16 +330,16 @@ describe("BlockMenu", () => {
 		const submenu = await openTurnInto();
 
 		expect(getMenuItems(submenu).map(itemName)).toEqual([
-			"Text",
+			"Paragraph",
 			"Heading 1",
 			"Heading 2",
 			"Heading 3",
-			"Bulleted list",
-			"Numbered list",
+			"Bullet List",
+			"Numbered List",
 			"Quote",
-			"Code block",
+			"Code Block",
 		]);
-		expect(findButtonByText(submenu, "Text")).toHaveAttribute("aria-checked", "true");
+		expect(findButtonByText(submenu, "Paragraph")).toHaveAttribute("aria-checked", "true");
 		expect(findButtonByText(submenu, "Heading 1")).toHaveAttribute("aria-checked", "false");
 	});
 
@@ -367,7 +367,7 @@ describe("BlockMenu", () => {
 
 		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
 		await vi.waitFor(() => expect(getBlockMenu()).toBeTruthy());
-		findButtonByText(await openTurnInto(), "Bulleted list")!.click();
+		findButtonByText(await openTurnInto(), "Bullet List")!.click();
 
 		await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
 		expect(editor.getJSON()).toEqual(before);
@@ -382,7 +382,7 @@ describe("BlockMenu", () => {
 
 		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={vi.fn()} />);
 		await vi.waitFor(() => expect(getBlockMenu()).toBeTruthy());
-		findButtonByText(await openTurnInto(), "Numbered list")!.click();
+		findButtonByText(await openTurnInto(), "Numbered List")!.click();
 
 		await vi.waitFor(() => expect(editor.getHTML()).toContain("<ol"));
 		const list = editor.state.doc.firstChild;
@@ -449,7 +449,7 @@ describe("BlockMenu", () => {
 			expect(getBlockMenu()).toBeTruthy();
 		});
 
-		findButtonByText(await openTurnInto(), "Code block")!.click();
+		findButtonByText(await openTurnInto(), "Code Block")!.click();
 
 		expect(onClose).toHaveBeenCalled();
 
@@ -470,7 +470,7 @@ describe("BlockMenu", () => {
 			expect(getBlockMenu()).toBeTruthy();
 		});
 
-		findButtonByText(await openTurnInto(), "Bulleted list")!.click();
+		findButtonByText(await openTurnInto(), "Bullet List")!.click();
 
 		expect(onClose).toHaveBeenCalled();
 

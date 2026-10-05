@@ -676,14 +676,14 @@ describe("Slash Command Menu", () => {
 		const menu = await waitForSlashMenu();
 		const titles = getItemTitles(menu);
 
-		expect(titles[0]).toBe("Text");
+		expect(titles[0]).toBe("Paragraph");
 		expect(titles).toContain("Heading 1");
 		expect(titles).toContain("Heading 2");
 		expect(titles).toContain("Heading 3");
-		expect(titles).toContain("Bulleted list");
-		expect(titles).toContain("Numbered list");
+		expect(titles).toContain("Bullet List");
+		expect(titles).toContain("Numbered List");
 		expect(titles).toContain("Quote");
-		expect(titles).toContain("Code block");
+		expect(titles).toContain("Code Block");
 		expect(titles).toContain("HTML");
 		expect(titles).toContain("Divider");
 		expect(titles).toContain("Table");
@@ -848,7 +848,7 @@ describe("Slash Command Menu", () => {
 				const menu = getSlashMenu()!;
 				const items = getSlashMenuItems(menu);
 				expect(isItemSelected(items[0]!)).toBe(true);
-				expect(menu.querySelector('[role="status"]')?.textContent).toBe("Selected Text");
+				expect(menu.querySelector('[role="status"]')?.textContent).toBe("Selected Paragraph");
 			},
 			{ timeout: 3000 },
 		);
@@ -976,7 +976,7 @@ describe("Slash Command Menu", () => {
 
 		const menu = await waitForSlashMenu();
 		const items = getSlashMenuItems(menu);
-		const codeBlockBtn = items.find((btn) => itemTitle(btn) === "Code block");
+		const codeBlockBtn = items.find((btn) => itemTitle(btn) === "Code Block");
 		expect(codeBlockBtn).toBeTruthy();
 		codeBlockBtn!.click();
 
@@ -1031,7 +1031,7 @@ describe("Slash Command Menu", () => {
 
 		const menu = await waitForSlashMenu();
 		const items = getSlashMenuItems(menu);
-		const bulletBtn = items.find((btn) => itemTitle(btn) === "Bulleted list");
+		const bulletBtn = items.find((btn) => itemTitle(btn) === "Bullet List");
 		expect(bulletBtn).toBeTruthy();
 		bulletBtn!.click();
 
@@ -1049,7 +1049,7 @@ describe("Slash Command Menu", () => {
 
 		const menu = await waitForSlashMenu();
 		const items = getSlashMenuItems(menu);
-		const numberedBtn = items.find((btn) => itemTitle(btn) === "Numbered list");
+		const numberedBtn = items.find((btn) => itemTitle(btn) === "Numbered List");
 		expect(numberedBtn).toBeTruthy();
 		numberedBtn!.click();
 

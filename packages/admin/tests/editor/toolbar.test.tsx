@@ -314,7 +314,7 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Inline code" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeVisible();
 	});
 
 	it("collapses the supported heading levels into one menu", async () => {
@@ -385,14 +385,14 @@ describe("Toolbar Presence and Structure", () => {
 
 	it("has all list buttons", async () => {
 		const { screen } = await renderEditor();
-		await expect.element(screen.getByRole("button", { name: "Bulleted list" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Numbered list" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Bullet List" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Numbered List" })).toBeVisible();
 	});
 
 	it("has all block buttons", async () => {
 		const { screen } = await renderEditor();
 		await expect.element(screen.getByRole("button", { name: "Quote" })).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Code block" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Code Block" })).toBeVisible();
 	});
 
 	it("has all alignment buttons", async () => {
@@ -926,10 +926,10 @@ describe("Block buttons", () => {
 		editor.chain().focus().setTextSelection(getTextPosition(editor, "child")).run();
 
 		await expect
-			.element(getToolbarButton(screen, "Bulleted list"))
+			.element(getToolbarButton(screen, "Bullet List"))
 			.toHaveAttribute("aria-pressed", "true");
 		await expect
-			.element(getToolbarButton(screen, "Numbered list"))
+			.element(getToolbarButton(screen, "Numbered List"))
 			.toHaveAttribute("aria-pressed", "false");
 	});
 
@@ -950,7 +950,7 @@ describe("Block buttons", () => {
 		const { screen, editor } = await renderEditor();
 		editor.chain().focus().insertContentAt(0, { type: "horizontalRule" }).setNodeSelection(0).run();
 
-		for (const name of ["Bulleted list", "Numbered list", "Quote", "Code block"]) {
+		for (const name of ["Bullet List", "Numbered List", "Quote", "Code Block"]) {
 			await expect.element(getToolbarButton(screen, name)).toBeDisabled();
 		}
 	});
@@ -1052,7 +1052,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const btn = getToolbarButton(screen, "Inline code");
+		const btn = getToolbarButton(screen, "Inline Code");
 		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
 		btn.element().click();
 
@@ -1121,7 +1121,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Bulleted list" });
+		const btn = screen.getByRole("button", { name: "Bullet List" });
 		btn.element().click();
 
 		await vi.waitFor(() => {
@@ -1133,7 +1133,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Numbered list" });
+		const btn = screen.getByRole("button", { name: "Numbered List" });
 		btn.element().click();
 
 		await vi.waitFor(() => {
@@ -1214,7 +1214,7 @@ describe("Formatting Button Toggle States", () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
 
-		const btn = screen.getByRole("button", { name: "Code block" });
+		const btn = screen.getByRole("button", { name: "Code Block" });
 		btn.element().click();
 
 		await vi.waitFor(() => {
@@ -1473,10 +1473,10 @@ describe("Text Alignment", () => {
 			expect(cell?.firstChild?.attrs.textAlign).not.toBe("right");
 		});
 		for (const label of [
-			"Bulleted list",
-			"Numbered list",
+			"Bullet List",
+			"Numbered List",
 			"Quote",
-			"Code block",
+			"Code Block",
 			"Insert image",
 			"Insert HTML",
 		]) {
@@ -1557,10 +1557,10 @@ describe("Text Alignment", () => {
 		const before = editor.getJSON();
 
 		for (const label of [
-			"Bulleted list",
-			"Numbered list",
+			"Bullet List",
+			"Numbered List",
 			"Quote",
-			"Code block",
+			"Code Block",
 			"Insert image",
 			"Insert HTML",
 			"Align left",

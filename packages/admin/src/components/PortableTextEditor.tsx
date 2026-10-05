@@ -1970,10 +1970,10 @@ function headingCommand(
 const defaultSlashCommands: SlashCommandItem[] = [
 	{
 		id: "paragraph",
-		title: msg`Text`,
+		title: msg`Paragraph`,
 		description: msg`Start writing with plain text`,
 		icon: TextT,
-		aliases: ["paragraph", "plain", "p"],
+		aliases: ["text", "plain", "p"],
 		category: BASIC_BLOCKS_CATEGORY,
 		command: ({ editor, range }) => turnInto(editor, "paragraph", range),
 	},
@@ -1982,17 +1982,17 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	headingCommand(3, msg`Heading 3`, msg`Small section heading`, TextHThree, ["h3"]),
 	{
 		id: "bulletList",
-		title: msg`Bulleted list`,
+		title: msg`Bullet List`,
 		description: msg`Create a bullet list`,
 		icon: List,
-		aliases: ["ul", "unordered", "bullet"],
+		aliases: ["ul", "unordered", "bulleted"],
 		markdown: "-",
 		category: BASIC_BLOCKS_CATEGORY,
 		command: ({ editor, range }) => turnInto(editor, "bulletList", range),
 	},
 	{
 		id: "numberedList",
-		title: msg`Numbered list`,
+		title: msg`Numbered List`,
 		description: msg`Create a numbered list`,
 		icon: ListNumbers,
 		aliases: ["ol", "ordered"],
@@ -2012,7 +2012,7 @@ const defaultSlashCommands: SlashCommandItem[] = [
 	},
 	{
 		id: "codeBlock",
-		title: msg`Code block`,
+		title: msg`Code Block`,
 		description: msg`Insert a code block`,
 		icon: CodeBlock,
 		aliases: ["pre", "snippet", "```"],
@@ -2075,7 +2075,7 @@ const iframeSlashCommand: SlashCommandItem = {
 
 /**
  * Ranks a command against the slash query: exact aliases (`/h1`) first, then
- * title prefixes, initials (`/bl` → "Bulleted list"), word prefixes,
+ * title prefixes, initials (`/bl` → "Bullet List"), word prefixes,
  * substrings, descriptions, and finally loose in-order character matches.
  * The loose matches need three characters, so `/di` doesn't list every
  * "heading". Zero means no match.
@@ -2196,7 +2196,7 @@ function createSlashCommandsExtension(options: {
 					decorationClass: "emdash-slash-query",
 					command: ({ props }) => onCommand(props as SlashCommandItem),
 					items: ({ query }) => filterCommands(query),
-					// Titles such as "Code block" can be typed whole; a space after no match ends the query.
+					// Titles such as "Code Block" can be typed whole; a space after no match ends the query.
 					allowSpaces: true,
 					allow: ({ state, range }) => {
 						if (this.editor.isActive("table") || getState().dismissedSlashFrom === range.from) {
@@ -4599,7 +4599,7 @@ const INLINE_MARKS = [
 	{ mark: "italic", label: msg`Italic`, icon: TextItalic },
 	{ mark: "underline", label: msg`Underline`, icon: TextUnderline },
 	{ mark: "strike", label: msg`Strikethrough`, icon: TextStrikethrough },
-	{ mark: "code", label: msg`Inline code`, icon: Code },
+	{ mark: "code", label: msg`Inline Code`, icon: Code },
 ] as const;
 
 const FORMATTING_MARKS = [
@@ -6138,7 +6138,7 @@ function EditorToolbar({
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
 					disabled={!editorState.canFormat.code}
-					title={t`Inline code`}
+					title={t`Inline Code`}
 				>
 					<Code className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -6163,7 +6163,7 @@ function EditorToolbar({
 					onClick={() => toggleTextBlockType(editor, "bulletList")}
 					active={editorState.isBulletList}
 					disabled={!editorState.canTurnInto}
-					title={t`Bulleted list`}
+					title={t`Bullet List`}
 				>
 					<List className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -6171,7 +6171,7 @@ function EditorToolbar({
 					onClick={() => toggleTextBlockType(editor, "orderedList")}
 					active={editorState.isOrderedList}
 					disabled={!editorState.canTurnInto}
-					title={t`Numbered list`}
+					title={t`Numbered List`}
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -6205,7 +6205,7 @@ function EditorToolbar({
 					onClick={() => toggleTextBlockType(editor, "codeBlock")}
 					active={editorState.isCodeBlock}
 					disabled={!editorState.canTurnInto}
-					title={t`Code block`}
+					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
