@@ -13,6 +13,7 @@
 
 import { Editor } from "@tiptap/core";
 import TextAlign from "@tiptap/extension-text-align";
+import { NodeSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
@@ -356,6 +357,18 @@ describe("Turn into", () => {
 		expect(editor.getHTML()).toBe(
 			"<ol><li><p>one</p></li><li><p>two</p></li><li><p>three</p></li></ol><p>end</p>",
 		);
+	});
+
+	it("keeps a block selected whole when it joins the list above it", () => {
+		create("<ul><li><p>a</p></li></ul><p>bee</p><p>end</p>");
+		editor.commands.setNodeSelection(editor.state.doc.child(0).nodeSize);
+
+		turnInto("bulletList");
+
+		expect(editor.getHTML()).toBe("<ul><li><p>a</p></li><li><p>bee</p></li></ul><p>end</p>");
+		const { selection } = editor.state;
+		expect(selection instanceof NodeSelection && selection.node.type.name).toBe("bulletList");
+		expect(selection.from).toBe(0);
 	});
 
 	it("keeps a following numbered list's own start number", () => {

@@ -357,14 +357,22 @@ export function turnInto(editor: Editor, id: TextBlockTypeId, range?: Range): vo
 		chain.run();
 		return;
 	}
-	const converted = chain.command(({ tr }) => convertTextBlocks(tr, id)).run();
-	if (!converted || !wholeBlock) return;
-	// Ordered-list repairs can remap the selected block to a caret inside it.
+	let keepsBlockSelected = false;
+	const converted = chain
+		.command(({ tr }) => {
+			if (!convertTextBlocks(tr, id)) return false;
+			keepsBlockSelected = tr.selection instanceof NodeSelection;
+			return true;
+		})
+		.run();
+	if (!converted || !wholeBlock || !keepsBlockSelected) return;
+	// Joining the list above moves the block, and ordered-list repairs can remap
+	// the selected block to a caret inside it.
 	const after = editor.state.selection;
-	if (after instanceof NodeSelection || after.$head.before(1) === selection.from) {
-		editor.commands.setNodeSelection(selection.from);
-		enterBlockSelection(editor);
-	}
+	editor.commands.setNodeSelection(
+		after instanceof NodeSelection ? after.from : after.$head.before(1),
+	);
+	enterBlockSelection(editor);
 }
 
 /**
