@@ -117,6 +117,19 @@ export function isEmptyVideo(attrs: Record<string, unknown>): boolean {
 	return !attrs.mediaId && !attrs.src;
 }
 
+interface VideoStorage {
+	openPickerOnMount: boolean;
+}
+
+const videoStorage = (editor: Editor) =>
+	(editor.storage as unknown as Record<string, VideoStorage | undefined>).videoBlock;
+
+/** Opens the picker of the empty video block the next insert adds, once it mounts. */
+export function openPickerOnInsert(editor: Editor) {
+	const storage = videoStorage(editor);
+	if (storage) storage.openPickerOnMount = true;
+}
+
 const STOP = "[data-video-stop]";
 const PLACEHOLDER = "[data-video-placeholder]";
 
@@ -308,6 +321,16 @@ function VideoNodeView({
 		selectBlock(false);
 		setPickerOpen(true);
 	};
+
+	// Only an insert asks for the picker, never loading, undo or paste.
+	React.useEffect(() => {
+		const storage = videoStorage(editor);
+		const { selection } = editor.state;
+		if (!storage?.openPickerOnMount || !empty) return;
+		if (!(selection instanceof NodeSelection) || selection.from !== getPos()) return;
+		storage.openPickerOnMount = false;
+		setPickerOpen(true);
+	}, []);
 
 	// Only the highlight: ProseMirror takes the drop, and the upload extension
 	// puts the dropped files in this block's place.
@@ -538,6 +561,10 @@ export const VideoExtension = Node.create({
 	atom: true,
 	draggable: false,
 	selectable: true,
+
+	addStorage(): VideoStorage {
+		return { openPickerOnMount: false };
+	},
 
 	addAttributes() {
 		return {

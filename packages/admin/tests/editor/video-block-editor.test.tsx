@@ -24,8 +24,9 @@ const picker = vi.hoisted(() => ({ item: null as unknown }));
 
 vi.mock("../../src/components/MediaPickerModal", async () => {
 	const { createPortal } = await import("react-dom");
+	const { useEffect, useRef } = await import("react");
 	return {
-		MediaPickerModal: ({
+		MediaPickerModal: function MediaPickerModal({
 			open,
 			title,
 			onSelect,
@@ -35,8 +36,17 @@ vi.mock("../../src/components/MediaPickerModal", async () => {
 			title?: string;
 			onSelect: (item: unknown) => void;
 			onOpenChange: (open: boolean) => void;
-		}) =>
-			open
+		}) {
+			// Like the real dialog, closing returns focus to where it was when the picker opened.
+			const opener = useRef<Element | null>(null);
+			useEffect(() => {
+				if (open) opener.current = document.activeElement;
+			}, [open]);
+			const close = () => {
+				onOpenChange(false);
+				if (opener.current instanceof HTMLElement) opener.current.focus();
+			};
+			return open
 				? createPortal(
 						<div role="dialog" aria-label={title}>
 							<input aria-label="Search media" />
@@ -44,18 +54,19 @@ vi.mock("../../src/components/MediaPickerModal", async () => {
 								type="button"
 								onClick={() => {
 									onSelect(picker.item);
-									onOpenChange(false);
+									close();
 								}}
 							>
 								Choose video
 							</button>
-							<button type="button" onClick={() => onOpenChange(false)}>
+							<button type="button" onClick={close}>
 								Cancel
 							</button>
 						</div>,
 						document.body,
 					)
-				: null,
+				: null;
+		},
 	};
 });
 vi.mock("../../src/components/SectionPickerModal", () => ({ SectionPickerModal: () => null }));
@@ -244,10 +255,7 @@ function selectedNodeName(editor: Editor): string | null {
 }
 
 describe("Video block editor", () => {
-	it("adds an empty block from /video, then fills it from the picker on Enter", async () => {
-		picker.item = mediaItem("01VIDEO", playableUrl);
-		const { screen, editor, pm, latest } = await renderEditor({ value: [INTRO] });
-
+	async function insertFromSlashMenu(editor: Editor) {
 		editor.view.focus();
 		editor.commands.setTextSelection(editor.state.doc.content.size - 1);
 		await userEvent.keyboard("{Enter}/video");
@@ -255,17 +263,14 @@ describe("Video block editor", () => {
 			expect(document.querySelector("[data-slash-command-menu]")).toBeTruthy(),
 		);
 		await userEvent.keyboard("{Enter}");
+	}
 
-		await expect
-			.element(screen.getByRole("button", { name: "Upload or choose a video" }))
-			.toBeVisible();
-		await vi.waitFor(() =>
-			expect(videos(latest())).toEqual([{ _type: "video", _key: expect.any(String) }]),
-		);
-		expect(document.querySelector('[role="dialog"]')).toBeNull();
-		expect(selectedNodeName(editor)).toBe("videoBlock");
+	it("adds a video from /video through the picker that opens right away", async () => {
+		picker.item = mediaItem("01VIDEO", playableUrl);
+		const { screen, editor, pm, latest } = await renderEditor({ value: [INTRO] });
 
-		await userEvent.keyboard("{Enter}");
+		await insertFromSlashMenu(editor);
+		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
 		await userEvent.click(screen.getByRole("button", { name: "Choose video" }));
 
 		await vi.waitFor(() =>
@@ -284,9 +289,28 @@ describe("Video block editor", () => {
 		expect(document.activeElement).toBe(pm);
 	});
 
+	it("keeps an empty block to fill later when the picker that opened is closed", async () => {
+		const { screen, editor, pm, latest } = await renderEditor({ value: [INTRO] });
+
+		await insertFromSlashMenu(editor);
+		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+		await expect
+			.element(screen.getByRole("button", { name: "Upload or choose a video" }))
+			.toBeVisible();
+		await vi.waitFor(() =>
+			expect(videos(latest())).toEqual([{ _type: "video", _key: expect.any(String) }]),
+		);
+		expect(selectedNodeName(editor)).toBe("videoBlock");
+		expect(document.activeElement).toBe(pm);
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
+	});
+
 	it("opens the picker when an empty block is clicked, and stays empty when it's cancelled", async () => {
 		const empty: Block = { _type: "video", _key: "video1" };
 		const { screen, editor, latest } = await renderEditor({ value: [INTRO, empty] });
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
 
 		await userEvent.click(screen.getByRole("button", { name: "Upload or choose a video" }));
 		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
@@ -311,6 +335,7 @@ describe("Video block editor", () => {
 			(button) => button.querySelector(".font-medium")?.textContent === "Video",
 		);
 		item!.click();
+		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 		await expect
 			.element(screen.getByRole("button", { name: "Upload or choose a video" }))
 			.toBeVisible();

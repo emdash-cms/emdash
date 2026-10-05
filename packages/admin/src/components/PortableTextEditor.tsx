@@ -187,6 +187,7 @@ import {
 	VideoExtension,
 	isVideoBlock,
 	mediaItemToVideoAttrs,
+	openPickerOnInsert,
 	videoBlockFields,
 	videoNodeAttrs,
 } from "./editor/VideoNode";
@@ -1813,8 +1814,10 @@ function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(editor, editor.schema.nodes.iframeBlock!.create(), range, position);
 }
 
-// An empty video block takes no focus itself; the editor keeps it, so Enter can open the picker.
+// The new block opens its picker over the editor, which keeps focus underneath: closing the
+// picker returns focus there, with the empty block selected so Enter reopens it.
 function insertVideoBlock(editor: Editor, range?: Range, position?: number) {
+	openPickerOnInsert(editor);
 	insertTopLevelBlock(editor, editor.schema.nodes.videoBlock!.create(), range, position);
 	editor.view.focus();
 }
