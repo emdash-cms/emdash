@@ -55,15 +55,18 @@ export function looksLikeUrl(value: string): boolean {
 const EMAIL_LIKE = /^[^\s@/:]+@[^\s@/]+\.[^\s@/]{2,}$/;
 // A host needs a dot or to be localhost, so `tel:5551234` stays a phone link.
 const HOST_WITH_PORT = /^(?:localhost|[a-z0-9-]+(?:\.[a-z0-9-]+)+):\d+(?:[/?#]|$)/i;
+// `./`, `../`, or a slash before the first dot, as in `docs/guide.pdf`.
+const RELATIVE_PATH = /^(?:\.{1,2}\/|[^./]+\/)/;
 
 /**
  * Gives a bare domain or host `https://` and a bare email address `mailto:`,
- * so `example.com` doesn't become a link relative to the page it's on.
+ * so `example.com` doesn't become a link relative to the page it's on. A
+ * relative path such as `../about.html` stays as typed.
  */
 export function normalizeLinkHref(value: string): string {
 	const trimmed = value.trim();
 	if (HOST_WITH_PORT.test(trimmed)) return `https://${trimmed}`;
-	if (SCHEME_OR_PATH.test(trimmed)) return trimmed;
+	if (SCHEME_OR_PATH.test(trimmed) || RELATIVE_PATH.test(trimmed)) return trimmed;
 	if (EMAIL_LIKE.test(trimmed)) return `mailto:${trimmed}`;
 	return DOMAIN_LIKE.test(trimmed) ? `https://${trimmed}` : trimmed;
 }

@@ -217,6 +217,12 @@ describe("normalizeLinkHref", () => {
 			expect(normalizeLinkHref(href), href).toBe(href);
 		}
 	});
+
+	it("leaves relative paths as typed", () => {
+		for (const href of ["../about.html", "./guide.pdf", "docs/guide.pdf", "files/report.v2.pdf"]) {
+			expect(normalizeLinkHref(href), href).toBe(href);
+		}
+	});
 });
 
 // ---------------------------------------------------------------------------
