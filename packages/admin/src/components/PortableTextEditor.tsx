@@ -109,7 +109,7 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
-import { closeHistory } from "@tiptap/pm/history";
+import { closeHistory, undo, undoDepth } from "@tiptap/pm/history";
 import type { Mark as ProseMirrorMark, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import {
 	AllSelection,
@@ -2134,6 +2134,8 @@ interface InsertedSlashLine {
 	slashPos: number;
 	/** The button added the paragraph, rather than typing into an empty one. */
 	addedParagraph: boolean;
+	/** The undo history's depth just after the button typed the line. */
+	undoDepth: number;
 }
 
 /** The nearest element around `element` that scrolls vertically. */
@@ -3881,39 +3883,55 @@ export function PortableTextEditor({
 	});
 
 	/**
-	 * Closes the menu without running a command, keeping what was typed. The
-	 * slash the block insert button typed goes again if nothing followed it,
-	 * with the paragraph the button added when `removeLine` is set; the
-	 * transaction that removed it is returned.
+	 * Takes the line the block insert button typed back out, or only its slash
+	 * from an empty line that was already there. While the line holds only the
+	 * slash command and is still the last change in the undo history, the change
+	 * is undone instead, so no undo step is left behind that does nothing.
 	 */
-	const closeSlashMenu = React.useCallback(
-		(removeLine = false): Transaction | null => {
-			const { range } = slashMenuStateRef.current;
-			const untouched =
-				editor !== null &&
-				range !== null &&
-				insertedLineRef.current?.slashPos === range.from &&
-				editor.state.doc.textBetween(range.from, range.to) === "/";
-			setSlashMenuState((prev) => ({
-				...prev,
-				isOpen: false,
-				mode: "commands",
-				dismissedSlashFrom: untouched || !range ? prev.dismissedSlashFrom : range.from,
-			}));
-			if (!editor || !range) return null;
-			if (!untouched) {
-				exitSuggestion(editor.view);
-				return null;
-			}
-			const removed =
-				(removeLine && addedSlashParagraph(editor.state.doc, range, insertedLineRef.current)) ||
-				range;
-			const tr = editor.state.tr.delete(removed.from, removed.to).setMeta("addToHistory", false);
-			editor.view.dispatch(closeHistory(tr));
+	const removeInsertedLine = React.useCallback(
+		(activeEditor: Editor, line: InsertedSlashLine, range: Range): Transaction => {
+			const { state, view } = activeEditor;
+			const undone: Transaction[] = [];
+			// Text typed after the caret moved back sits outside the range, and undoing would take it too.
+			const onlyCommand =
+				state.doc.resolve(range.from).parent.content.size === range.to - range.from;
+			if (onlyCommand && undoDepth(state) === line.undoDepth) undo(state, (tr) => undone.push(tr));
+			const removed = addedSlashParagraph(state.doc, range, line) ?? range;
+			const tr =
+				undone[0] ??
+				closeHistory(state.tr.delete(removed.from, removed.to).setMeta("addToHistory", false));
+			view.dispatch(tr);
 			return tr;
 		},
-		[editor, setSlashMenuState],
+		[],
 	);
+
+	/**
+	 * Closes the menu without running a command, keeping what was typed. The
+	 * line the block insert button typed goes again if nothing followed its
+	 * slash; the transaction that removed it is returned.
+	 */
+	const closeSlashMenu = React.useCallback((): Transaction | null => {
+		const { range } = slashMenuStateRef.current;
+		const untouched =
+			editor !== null &&
+			range !== null &&
+			insertedLineRef.current?.slashPos === range.from &&
+			editor.state.doc.textBetween(range.from, range.to) === "/" &&
+			editor.state.doc.resolve(range.from).parent.content.size === 1;
+		setSlashMenuState((prev) => ({
+			...prev,
+			isOpen: false,
+			mode: "commands",
+			dismissedSlashFrom: untouched || !range ? prev.dismissedSlashFrom : range.from,
+		}));
+		if (!editor || !range) return null;
+		if (!untouched) {
+			exitSuggestion(editor.view);
+			return null;
+		}
+		return removeInsertedLine(editor, insertedLineRef.current!, range);
+	}, [editor, removeInsertedLine, setSlashMenuState]);
 
 	/**
 	 * The block insert button types a slash on a new line at `insertPos`, or
@@ -3922,7 +3940,7 @@ export function PortableTextEditor({
 	const openBlockInsertMenuAt = React.useCallback(
 		(insertPos: number) => {
 			if (!editor) return;
-			const closed = slashMenuStateRef.current.isOpen ? closeSlashMenu(true) : null;
+			const closed = slashMenuStateRef.current.isOpen ? closeSlashMenu() : null;
 			const pos = closed ? closed.mapping.map(insertPos) : insertPos;
 			const { doc } = editor.state;
 			if (pos < 0 || pos > doc.content.size || doc.resolve(pos).depth !== 0) return;
@@ -3933,20 +3951,19 @@ export function PortableTextEditor({
 			const slashPos = reuseBefore ? pos - 1 : pos + 1;
 			// A stale dismissed position could block this slash; opening a menu forgets it anyway.
 			setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: null }));
-			insertedLineRef.current = { slashPos, addedParagraph: !reuse };
+			const inserted: InsertedSlashLine = { slashPos, addedParagraph: !reuse, undoDepth: -1 };
+			insertedLineRef.current = inserted;
 			editor
 				.chain()
 				.focus()
 				.command(({ tr }) => {
 					closeHistory(tr);
 					if (!reuse) tr.insert(pos, tr.doc.type.schema.nodes.paragraph!.create());
-					// In an empty line that was already there, the slash is all the button
-					// adds, and closing the menu removes it outside the undo history too.
-					else tr.setMeta("addToHistory", false);
 					tr.insertText("/", slashPos).setSelection(TextSelection.create(tr.doc, slashPos + 1));
 					return true;
 				})
 				.run();
+			inserted.undoDepth = undoDepth(editor.state);
 			// Scrolls far enough for the menu, up to 21rem tall, to open below the line, without
 			// scrolling the line under the toolbar.
 			const line = editor.view.coordsAtPos(slashPos);
@@ -3965,23 +3982,34 @@ export function PortableTextEditor({
 	/**
 	 * The range a slash command replaces. The slash the block insert button
 	 * typed is cleared outside the undo history first, so undoing the command
-	 * doesn't bring it back. A picker inserts where the button's paragraph
-	 * was, so cancelling the picker leaves nothing behind.
+	 * doesn't bring it back; undoing it again removes a line the button added.
+	 * A picker inserts where the button's line was, so cancelling the picker
+	 * leaves nothing behind.
 	 */
 	const takeSlashRange = React.useCallback(
 		(activeEditor: Editor, range: Range, deferred: boolean): Range => {
 			pendingBlockInsertPosRef.current = null;
 			const line = insertedLineRef.current;
 			if (line?.slashPos !== range.from) return range;
-			const paragraph = deferred ? addedSlashParagraph(activeEditor.state.doc, range, line) : null;
-			const cleared = paragraph ?? range;
-			const tr = activeEditor.state.tr.delete(cleared.from, cleared.to);
-			activeEditor.view.dispatch(closeHistory(tr.setMeta("addToHistory", false)));
-			if (paragraph) pendingBlockInsertPosRef.current = paragraph.from;
+			const paragraph = addedSlashParagraph(activeEditor.state.doc, range, line);
+			if (paragraph && !deferred) {
+				const tr = activeEditor.state.tr.delete(range.from, range.to);
+				activeEditor.view.dispatch(closeHistory(tr.setMeta("addToHistory", false)));
+			} else {
+				removeInsertedLine(activeEditor, line, range);
+				if (paragraph) {
+					pendingBlockInsertPosRef.current = paragraph.from;
+				} else {
+					const { state } = activeEditor;
+					activeEditor.view.dispatch(
+						state.tr.setSelection(TextSelection.create(state.doc, line.slashPos)),
+					);
+				}
+			}
 			const caret = activeEditor.state.selection.from;
 			return { from: caret, to: caret };
 		},
-		[],
+		[removeInsertedLine],
 	);
 
 	const executeSlashCommand = React.useCallback(

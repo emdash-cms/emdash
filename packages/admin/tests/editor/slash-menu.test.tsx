@@ -354,7 +354,7 @@ describe("Slash Command Menu", () => {
 					.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 			},
 		],
-	])("removes the insert button's slash when %s closes the menu", async (_name, close) => {
+	])("removes the insert button's line when %s closes the menu", async (_name, close) => {
 		const { screen, editor, pm } = await renderEditor();
 		await focusEditor(pm);
 		editor.commands.insertContent("First");
@@ -364,9 +364,9 @@ describe("Slash Command Menu", () => {
 		await close();
 
 		await waitForSlashMenuClosed();
-		expect(blockTexts(editor)).toEqual(["First", ""]);
-		expect(editor.commands.undo()).toBe(true);
 		expect(blockTexts(editor)).toEqual(["First"]);
+		expect(editor.commands.undo()).toBe(true);
+		expect(blockTexts(editor)).toEqual([""]);
 	});
 
 	it("leaves nothing to undo after closing the insert button's slash in an empty line", async () => {
@@ -388,6 +388,52 @@ describe("Slash Command Menu", () => {
 		expect(editor.commands.undo()).toBe(true);
 		expect(blockTexts(editor)).toEqual(["First"]);
 	});
+
+	it("turns an empty line into the chosen block from the insert button, in one undo step", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("First");
+		const { tr, schema } = editor.state;
+		editor.view.dispatch(
+			closeHistory(tr.insert(tr.doc.content.size, schema.nodes.paragraph!.create())),
+		);
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		const menu = await waitForSlashMenu();
+
+		findItem(menu, "Heading 1")?.click();
+
+		await waitForSlashMenuClosed();
+		expect(editor.state.doc.child(1).type.name).toBe("heading");
+		expect(editor.commands.undo()).toBe(true);
+		expect(blockTexts(editor)).toEqual(["First", ""]);
+		expect(editor.state.doc.child(1).type.name).toBe("paragraph");
+		expect(editor.commands.undo()).toBe(true);
+		expect(blockTexts(editor)).toEqual(["First"]);
+	});
+
+	it.each([
+		["runs a command", () => findItem(getSlashMenu()!, "Heading 1")?.click(), "h"],
+		["closes", () => userEvent.keyboard("{Escape}"), "/h"],
+	])(
+		"keeps text typed after the insert button's slash when the caret moves back and the menu %s",
+		async (_name, close, expected) => {
+			const { screen, editor, pm } = await renderEditor();
+			await focusEditor(pm);
+			editor.commands.setContent("<p>First</p><p>Second</p>");
+			await screen.getByRole("button", { name: "Test insert after first block" }).click();
+			await waitForSlashMenu();
+			await userEvent.keyboard("h{ArrowLeft}");
+			await vi.waitFor(() =>
+				expect(editor.state.selection.from).toBe(editor.state.doc.child(0).nodeSize + 2),
+			);
+
+			await close();
+
+			await waitForSlashMenuClosed();
+			expect(blockTexts(editor)).toEqual(["First", expected, "Second"]);
+			expect(editor.state.doc.child(2).type.name).toBe("paragraph");
+		},
+	);
 
 	it("reports no change until the insert button's menu runs a command", async () => {
 		const onChange = vi.fn();
@@ -533,6 +579,8 @@ describe("Slash Command Menu", () => {
 
 		await waitForSlashMenuClosed();
 		expect(editor.getJSON()).toEqual(before);
+		expect(editor.commands.undo()).toBe(true);
+		expect(blockTexts(editor)).toEqual([""]);
 	});
 
 	it("inserts picker content where the insert button's line was", async () => {
