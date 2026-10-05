@@ -14,6 +14,7 @@ import { handleMenuDelete, handleMenuGet, handleMenuUpdate } from "#api/handlers
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, updateMenuBody } from "#api/schemas.js";
 import { menuTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -51,7 +52,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 		const result = await handleMenuUpdate(emdash.db, name, { ...body, locale: query.locale });
 		if (!result.success) return unwrapResult(result);
-		if (cache?.enabled) await cache.invalidate({ tags: [menuTag(name)] });
+		await invalidateRouteCache(cache, [menuTag(name)]);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to update menu", "MENU_UPDATE_ERROR");
@@ -71,7 +72,7 @@ export const DELETE: APIRoute = async ({ params, request, locals, cache }) => {
 	try {
 		const result = await handleMenuDelete(emdash.db, name, { locale: query.locale });
 		if (!result.success) return unwrapResult(result);
-		if (cache?.enabled) await cache.invalidate({ tags: [menuTag(name)] });
+		await invalidateRouteCache(cache, [menuTag(name)]);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to delete menu", "MENU_DELETE_ERROR");

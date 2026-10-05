@@ -11,6 +11,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { reorderWidgetsBody } from "#api/schemas.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -62,7 +63,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 			),
 		);
 
-		if (cache?.enabled) await cache.invalidate({ tags: [widgetAreaTag(name)] });
+		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ success: true });
 	} catch (error) {
 		return handleError(error, "Failed to reorder widgets", "WIDGET_REORDER_ERROR");

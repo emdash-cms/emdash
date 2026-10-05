@@ -13,6 +13,7 @@ import { handleTaxonomyCreate, handleTaxonomyList } from "#api/handlers/taxonomi
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createTaxonomyDefBody, localeFilterQuery } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -57,7 +58,7 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 
 		const result = await handleTaxonomyCreate(emdash.db, body);
 		if (!result.success) return unwrapResult(result, 201);
-		if (cache?.enabled) await cache.invalidate({ tags: [taxonomyTag(result.data.taxonomy.name)] });
+		await invalidateRouteCache(cache, [taxonomyTag(result.data.taxonomy.name)]);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create taxonomy", "TAXONOMY_CREATE_ERROR");

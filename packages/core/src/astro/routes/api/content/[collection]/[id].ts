@@ -14,6 +14,7 @@ import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentUpdateBody } from "#api/schemas.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -143,8 +144,8 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled && result.liveContentChanged !== false) {
-		await cache.invalidate({ tags: [collection, resolvedId] });
+	if (result.liveContentChanged !== false) {
+		await invalidateRouteCache(cache, [collection, resolvedId]);
 	}
 
 	return unwrapResult(result);
@@ -203,7 +204,7 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
+	await invalidateRouteCache(cache, [collection, resolvedId]);
 
 	return unwrapResult(result);
 };
