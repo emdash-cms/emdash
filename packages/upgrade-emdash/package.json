@@ -17,7 +17,8 @@
     "@clack/prompts": "^1.4.0",
     "jsonc-parser": "catalog:",
     "picocolors": "^1.1.1",
-    "semver": "catalog:"
+    "semver": "catalog:",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

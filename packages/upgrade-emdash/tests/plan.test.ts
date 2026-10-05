@@ -158,6 +158,7 @@ describe("upgrade plan", () => {
 		name: string,
 		specifier: string,
 		installedVersion: string,
+		workspaceManifestSource?: string,
 	): ProjectState {
 		const dependencies = { emdash: "^1.2.0", [name]: specifier };
 		const packageJson = { dependencies };
@@ -174,6 +175,14 @@ describe("upgrade plan", () => {
 			],
 			currentVersion: "1.2.0",
 			migrations: [],
+			...(workspaceManifestSource === undefined
+				? {}
+				: {
+						workspaceManifest: {
+							path: "/site/pnpm-workspace.yaml",
+							source: workspaceManifestSource,
+						},
+					}),
 		};
 	}
 
@@ -198,7 +207,39 @@ describe("upgrade plan", () => {
 		]);
 	});
 
-	it("explains that catalog versions must be updated in the catalog", async () => {
+	it("updates a pnpm catalog entry instead of the catalog: specifier", async () => {
+		const plan = await createUpgradePlan(
+			singleDependencyProject(
+				"@emdash-cms/cloudflare",
+				"catalog:",
+				"1.1.0",
+				'catalog:\n  "@emdash-cms/cloudflare": ~1.0.0\n',
+			),
+			"latest",
+			releasesAt("1.1.0"),
+		);
+
+		expect(plan.dependencies).toEqual([
+			expect.objectContaining({
+				name: "@emdash-cms/cloudflare",
+				catalog: "default",
+				from: "~1.0.0",
+				to: "~1.1.0",
+				toVersion: "1.1.0",
+			}),
+		]);
+	});
+
+	it("explains a catalog dependency without a pnpm catalog entry", async () => {
+		await expect(
+			createUpgradePlan(
+				singleDependencyProject("@emdash-cms/cloudflare", "catalog:preview", "1.0.0", "catalog: {}\n"),
+				"latest",
+				releasesAt("1.1.0"),
+			),
+		).rejects.toThrow(
+			"@emdash-cms/cloudflare uses catalog:preview, but the preview catalog in /site/pnpm-workspace.yaml has no @emdash-cms/cloudflare entry.",
+		);
 		await expect(
 			createUpgradePlan(
 				singleDependencyProject("@emdash-cms/cloudflare", "catalog:", "1.0.0"),
@@ -206,7 +247,7 @@ describe("upgrade plan", () => {
 				releasesAt("1.1.0"),
 			),
 		).rejects.toThrow(
-			"@emdash-cms/cloudflare uses catalog:, so its version comes from a pnpm catalog. upgrade-emdash does not update catalogs yet.",
+			"@emdash-cms/cloudflare uses catalog:, but there is no pnpm-workspace.yaml at /site. upgrade-emdash updates pnpm catalogs only.",
 		);
 	});
 });

@@ -90,10 +90,13 @@ export function renderUpgradeGuide(plan: UpgradePlan): string {
 			? plan.dependencies
 					.map(
 						(change) =>
-							`- \`${change.name}\`: \`${change.fromVersion}\` → \`${change.toVersion}\` (\`${change.from}\` → \`${change.to}\`)`,
+							`- \`${change.name}\`: \`${change.fromVersion}\` → \`${change.toVersion}\` (\`${change.from}\` → \`${change.to}\`${change.catalog ? ` in the \`${change.catalog}\` pnpm catalog` : ""})`,
 					)
 					.join("\n")
 			: "- All direct EmDash packages were already on the selected npm tag.";
+	const catalogNote = plan.dependencies.some((change) => change.catalog)
+		? "\n\nThe updater changed pnpm catalog entries in `pnpm-workspace.yaml`. The new versions apply to every workspace package that uses those catalog entries."
+		: "";
 	const changes =
 		plan.changelog.length > 0
 			? plan.changelog.map(renderEntry).join("\n\n")
@@ -104,7 +107,7 @@ This file is the handoff for upgrading the project at \`${plan.projectRoot}\` to
 
 ## Package changes
 
-${packages}
+${packages}${catalogNote}
 
 ## Release entries to assess
 

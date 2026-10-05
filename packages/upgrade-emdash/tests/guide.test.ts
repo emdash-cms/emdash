@@ -67,6 +67,15 @@ describe("agent upgrade work order", () => {
 		expect(guide).toContain("--expected-target-fingerprint");
 		expect(migrationBackupWarning(plan)).toContain("Before starting or deploying");
 
+		const withCatalog = renderUpgradeGuide({
+			...plan,
+			dependencies: [{ ...plan.dependencies[0]!, catalog: "default", from: "^1.0.1", to: "^1.1.0" }],
+		});
+		expect(withCatalog).toContain(
+			"- `emdash`: `1.0.1` → `1.1.0` (`^1.0.1` → `^1.1.0` in the `default` pnpm catalog)",
+		);
+		expect(withCatalog).toContain("every workspace package that uses those catalog entries");
+
 		const withoutDeployScript = renderUpgradeGuide({
 			...plan,
 			commands: { ...plan.commands, deploy: undefined },

@@ -196,6 +196,53 @@ describe("project loading", () => {
 	});
 
 	it.skipIf(process.platform === "win32")(
+		"updates catalog entries in pnpm-workspace.yaml and restores them when rejected",
+		async () => {
+			const workspace = await temporaryDirectory();
+			const manifest = "packages:\n  - sites/*\ncatalog:\n  emdash: ^1.0.0 # shared\n";
+			await writeFile(join(workspace, "pnpm-workspace.yaml"), manifest);
+			await writeFile(join(workspace, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+			await writeJson(join(workspace, "package.json"), { private: true });
+			const site = await project("1.0.0", join(workspace, "sites/blog"));
+			await writeJson(join(site, "package.json"), { dependencies: { emdash: "catalog:" } });
+			const sitePackageJson = await readFile(join(site, "package.json"), "utf8");
+			const bin = await temporaryDirectory();
+			await writeFile(join(bin, "pnpm"), "#!/bin/sh\necho \"$*\" >> pnpm.log\n");
+			await chmod(join(bin, "pnpm"), 0o755);
+			const change: DependencyChange = {
+				name: "emdash",
+				section: "dependencies",
+				catalog: "default",
+				from: "^1.0.0",
+				to: "^1.1.0",
+				fromVersion: "1.0.0",
+				toVersion: "1.1.0",
+			};
+			let installedManifest: string | undefined;
+			const path = process.env.PATH;
+			process.env.PATH = `${bin}${delimiter}${path ?? ""}`;
+			try {
+				const loaded = await loadProject(site);
+				expect(loaded.workspaceManifest?.path).toBe(join(workspace, "pnpm-workspace.yaml"));
+
+				await expect(
+					writeDependenciesAndInstall(loaded, [change], async () => {
+						installedManifest = await readFile(join(workspace, "pnpm-workspace.yaml"), "utf8");
+						throw new Error("emdash resolved to 1.0.0.");
+					}),
+				).rejects.toThrow("The previous dependencies were restored.");
+			} finally {
+				process.env.PATH = path;
+			}
+
+			expect(installedManifest).toBe(manifest.replace("^1.0.0", "^1.1.0"));
+			expect(await readFile(join(workspace, "pnpm-workspace.yaml"), "utf8")).toBe(manifest);
+			expect(await readFile(join(site, "package.json"), "utf8")).toBe(sitePackageJson);
+			expect(await readFile(join(workspace, "pnpm.log"), "utf8")).toBe("install\ninstall\n");
+		},
+	);
+
+	it.skipIf(process.platform === "win32")(
 		"restores the previous dependencies when the installed result is rejected",
 		async () => {
 			const site = await project("1.0.0");

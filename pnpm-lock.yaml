@@ -3041,6 +3041,9 @@ importers:
       semver:
         specifier: 'catalog:'
         version: 7.7.4
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -13793,7 +13796,7 @@ snapshots:
 
   '@astrojs/yaml2ts@0.2.4':
     dependencies:
-      yaml: 2.9.0
+      yaml: 2.9.1
 
   '@atcute/atproto@4.0.2(@atcute/lexicons@2.0.0)':
     dependencies:
@@ -14926,7 +14929,7 @@ snapshots:
   '@changesets/parse@1.0.0':
     dependencies:
       '@changesets/types': 7.0.0
-      yaml: 2.9.0
+      yaml: 2.9.1
 
   '@changesets/pre@3.0.0':
     dependencies:
@@ -16812,7 +16815,7 @@ snapshots:
     dependencies:
       jju: 1.4.0
       tinyglobby: 0.2.17
-      yaml: 2.9.0
+      yaml: 2.9.1
 
   '@marijn/find-cluster-break@1.0.3': {}
 

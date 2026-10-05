@@ -7,6 +7,8 @@ import { promisify } from "node:util";
 import { applyEdits, modify } from "jsonc-parser";
 import semver from "semver";
 
+import { applyCatalogEdits } from "./catalog.js";
+
 import type {
 	DependencyChange,
 	DependencySection,
@@ -43,6 +45,7 @@ const execFileAsync = promisify(execFile);
 export interface ProjectState {
 	root: string;
 	installRoot: string;
+	workspaceManifest?: { path: string; source: string };
 	packageJsonPath: string;
 	packageJsonSource: string;
 	packageJson: ProjectPackage;
@@ -255,6 +258,11 @@ export async function loadProject(start: string): Promise<ProjectState> {
 	if (!isProjectPackage(packageJson)) throw new Error("The project package.json is invalid.");
 	const installRoot = await findInstallRoot(root);
 	const packageManager = await detectPackageManager(installRoot, packageJson.packageManager);
+	const workspaceManifestPath = resolve(installRoot, "pnpm-workspace.yaml");
+	const workspaceManifest =
+		packageManager === "pnpm" && (await pathExists(workspaceManifestPath))
+			? { path: workspaceManifestPath, source: await readFile(workspaceManifestPath, "utf8") }
+			: undefined;
 	const dependencies: ProjectDependency[] = [];
 	for (const section of SECTIONS) {
 		for (const [name, specifier] of Object.entries(packageJson[section] ?? {})) {
@@ -287,6 +295,7 @@ export async function loadProject(start: string): Promise<ProjectState> {
 	return {
 		root,
 		installRoot,
+		...(workspaceManifest ? { workspaceManifest } : {}),
 		packageJsonPath,
 		packageJsonSource,
 		packageJson,
@@ -310,9 +319,6 @@ export function unsupportedSpecifierMessage(
 	targetVersion: string,
 ): string {
 	const release = `"${name}": "^${targetVersion}"`;
-	if (specifier.startsWith("catalog:")) {
-		return `${name} uses ${specifier}, so its version comes from a pnpm catalog. upgrade-emdash does not update catalogs yet. Set ${name} to ${targetVersion} in that catalog in pnpm-workspace.yaml, run pnpm install, then run upgrade-emdash again.`;
-	}
 	if (specifier.startsWith("workspace:")) {
 		return `${name} uses ${specifier}, so it comes from a package in this workspace rather than from npm. upgrade-emdash only updates packages installed from npm.`;
 	}
@@ -328,6 +334,7 @@ export function applyDependencyChanges(
 ): ProjectPackage {
 	const updated = structuredClone(packageJson);
 	for (const change of changes) {
+		if (change.catalog) continue;
 		const dependencies = updated[change.section];
 		if (dependencies) dependencies[change.name] = change.to;
 	}
@@ -340,6 +347,7 @@ export function applyDependencyEdits(
 ): string {
 	let updated = packageJsonSource;
 	for (const change of changes) {
+		if (change.catalog) continue;
 		updated = applyEdits(updated, modify(updated, [change.section, change.name], change.to, {}));
 	}
 	return updated;
@@ -421,8 +429,18 @@ export async function writeDependenciesAndInstall<T>(
 		pnpm: ["pnpm-lock.yaml"],
 		yarn: ["yarn.lock"],
 	}[project.packageManager];
+	const catalogEdits = changes.flatMap((change) =>
+		change.catalog
+			? [{ catalog: change.catalog, packageName: change.name, specifier: change.to }]
+			: [],
+	);
+	const workspaceManifest = catalogEdits.length > 0 ? project.workspaceManifest : undefined;
+	if (catalogEdits.length > 0 && !workspaceManifest) {
+		throw new Error(`The pnpm catalog changes need pnpm-workspace.yaml in ${project.installRoot}.`);
+	}
 	const originals = [
 		{ path: project.packageJsonPath, source: project.packageJsonSource },
+		...(workspaceManifest ? [workspaceManifest] : []),
 		...(await Promise.all(
 			lockfiles.map(async (name) => {
 				const path = resolve(project.installRoot, name);
@@ -434,6 +452,9 @@ export async function writeDependenciesAndInstall<T>(
 		project.packageJsonPath,
 		applyDependencyEdits(project.packageJsonSource, changes),
 	);
+	if (workspaceManifest) {
+		await writeFile(workspaceManifest.path, applyCatalogEdits(workspaceManifest.source, catalogEdits));
+	}
 	try {
 		await run(install.command, install.args, project.installRoot);
 	} catch (error) {
@@ -449,7 +470,7 @@ export async function writeDependenciesAndInstall<T>(
 			await run(install.command, install.args, project.installRoot);
 		} catch {
 			throw new Error(
-				`${message} The package.json and lockfile were restored, but reinstalling the previous dependencies failed. Run ${install.command} ${install.args.join(" ")} in ${project.installRoot}.`,
+				`${message} The dependency manifests and lockfile were restored, but reinstalling the previous dependencies failed. Run ${install.command} ${install.args.join(" ")} in ${project.installRoot}.`,
 				{ cause: error },
 			);
 		}

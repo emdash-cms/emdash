@@ -10,7 +10,7 @@ npx upgrade-emdash@latest
 
 The updater resolves the `latest` npm dist-tag independently for every direct `emdash` and `@emdash-cms/*` dependency. Use `--to next` or another dist-tag to choose a release channel. Exact versions are not accepted by `--to`; use the updater package version in the `npx` command when you need to reproduce an earlier updater implementation.
 
-For each package, the updater preserves the existing caret, tilde, or exact dependency style and runs the project's package manager. A preview build URL, git source, or other range becomes a caret range on the release. `catalog:`, `workspace:`, local path, and `npm:` alias specifiers are left to the project, and the updater explains what to change. It then:
+For each package, the updater preserves the existing caret, tilde, or exact dependency style and runs the project's package manager. A preview build URL, git source, or other range becomes a caret range on the release. A `catalog:` dependency is updated in its pnpm catalog entry in `pnpm-workspace.yaml`, which also moves every workspace package that uses that entry. `workspace:`, local path, and `npm:` alias specifiers are left to the project, and the updater explains what to change. It then:
 
 - refreshes the project skills with `npx --yes skills@1.7.0 add emdash-cms/skills -y`
 - fetches the crossed package changelogs from each exact GitHub release tag

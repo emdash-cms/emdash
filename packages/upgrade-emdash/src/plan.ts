@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 
 import semver from "semver";
 
+import { catalogEntry, catalogName } from "./catalog.js";
 import { deduplicateChangelog, fetchChangelogRange } from "./changelog.js";
 import {
 	emdashCommand,
@@ -13,12 +14,34 @@ import {
 	type ProjectState,
 } from "./project.js";
 import { resolveRegistryRelease } from "./registry.js";
-import type { ChangelogEntry, DependencyChange, UpgradePlan } from "./types.js";
+import type { ChangelogEntry, DependencyChange, ProjectDependency, UpgradePlan } from "./types.js";
 
 const REBUILDS = /\bbuild\b/;
 
 function commandLine(command: string, args: readonly string[]): string {
 	return [command, ...args].join(" ");
+}
+
+function versionSource(
+	project: ProjectState,
+	dependency: ProjectDependency,
+): { catalog?: string; specifier: string } | { problem: string } {
+	const catalog = catalogName(dependency.specifier);
+	if (!catalog) return { specifier: dependency.specifier };
+	const uses = `${dependency.name} uses ${dependency.specifier}`;
+	const manifest = project.workspaceManifest;
+	if (!manifest) {
+		return {
+			problem: `${uses}, but there is no pnpm-workspace.yaml at ${project.installRoot}. upgrade-emdash updates pnpm catalogs only.`,
+		};
+	}
+	const specifier = catalogEntry(manifest.source, catalog, dependency.name);
+	if (specifier === undefined) {
+		return {
+			problem: `${uses}, but the ${catalog} catalog in ${manifest.path} has no ${dependency.name} entry.`,
+		};
+	}
+	return { catalog, specifier };
 }
 
 export async function createUpgradePlan(
@@ -45,15 +68,19 @@ export async function createUpgradePlan(
 				`${dependency.name}@${tag} is ${release.version}, older than the installed ${dependency.installedVersion}.`,
 			);
 		}
-		const target = targetSpecifier(dependency.specifier, release.version);
+		const source = versionSource(project, dependency);
+		const target = "problem" in source ? null : targetSpecifier(source.specifier, release.version);
 		if (!target && dependency.installedVersion !== release.version) {
 			throw new Error(
-				unsupportedSpecifierMessage(dependency.name, dependency.specifier, release.version),
+				"problem" in source
+					? source.problem
+					: unsupportedSpecifierMessage(dependency.name, source.specifier, release.version),
 			);
 		}
 		if (
 			!target ||
-			(dependency.installedVersion === release.version && target === dependency.specifier)
+			"problem" in source ||
+			(dependency.installedVersion === release.version && target === source.specifier)
 		) {
 			return [];
 		}
@@ -61,7 +88,8 @@ export async function createUpgradePlan(
 			{
 				name: dependency.name,
 				section: dependency.section,
-				from: dependency.specifier,
+				...(source.catalog ? { catalog: source.catalog } : {}),
+				from: source.specifier,
 				to: target,
 				fromVersion: dependency.installedVersion,
 				toVersion: release.version,

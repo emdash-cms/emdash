@@ -38,7 +38,13 @@ function printPlan(plan: UpgradePlan): void {
 	];
 	p.note(lines.join("\n"), "Upgrade plan");
 	for (const change of plan.dependencies) {
-		p.log.info(`${change.name}: ${change.fromVersion} → ${change.toVersion}`);
+		const catalog = change.catalog ? ` (${change.catalog} pnpm catalog)` : "";
+		p.log.info(`${change.name}: ${change.fromVersion} → ${change.toVersion}${catalog}`);
+	}
+	if (plan.dependencies.some((change) => change.catalog)) {
+		p.log.warn(
+			"Catalog entries in pnpm-workspace.yaml will change for every workspace package that uses them.",
+		);
 	}
 }
 

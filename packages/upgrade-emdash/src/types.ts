@@ -18,6 +18,8 @@ export interface ProjectDependency {
 export interface DependencyChange {
 	name: string;
 	section: DependencySection;
+	/** The pnpm catalog that owns this dependency's version; `from` and `to` are its catalog entry. */
+	catalog?: string;
 	from: string;
 	to: string;
 	fromVersion: string;
