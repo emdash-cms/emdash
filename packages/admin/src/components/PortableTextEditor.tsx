@@ -187,6 +187,7 @@ import { iframeEmbedFromAttrs, isBuiltInIframeBlock } from "./editor/iframe-embe
 import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
+import { liftPastedBlocks } from "./editor/liftPastedBlocks";
 import { LinkDestinationInput, normalizeLinkHref } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import { EmDashOrderedList } from "./editor/ordered-list";
@@ -485,6 +486,12 @@ function setSelectedTextLink(editor: Editor, value: string): boolean {
  * and `---` typed in one adds the divider the way the slash menu does.
  */
 const PortableTextStarterKit = StarterKit.extend({
+	addProseMirrorPlugins() {
+		return [
+			...(this.parent?.() ?? []),
+			new Plugin({ props: { transformPastedHTML: liftPastedBlocks } }),
+		];
+	},
 	addExtensions() {
 		return (this.parent?.() ?? []).map((extension) => {
 			if (extension.name === "blockquote") return extension.extend({ content: "paragraph+" });

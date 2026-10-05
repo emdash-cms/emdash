@@ -794,8 +794,8 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 	});
 
 	it("pastes content copied from inside a quote or list beside it instead of losing it", async () => {
-		const { editor } = await renderAndGetEditor({ value: [textBlock("Intro")] });
-		editor.commands.setTextSelection(6);
+		const { editor } = await renderAndGetEditor({ value: [textBlock("Intro"), textBlock("")] });
+		editor.commands.setTextSelection(8);
 
 		pasteHtml(
 			editor,
@@ -809,6 +809,50 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		const values = _prosemirrorToPortableText(editor.getJSON() as never);
 		expect(values.map((block) => block._type)).toEqual(expect.arrayContaining(["table", "break"]));
 		expect(JSON.stringify(values)).toContain("Heading");
+	});
+
+	function blockRows(editor: Editor) {
+		return _prosemirrorToPortableText(editor.getJSON() as never).map((block) => [
+			block.listItem ?? block.style,
+			(block.children as Array<{ text?: string }> | undefined)?.map((span) => span.text).join(""),
+		]);
+	}
+
+	it("splits a pasted quote around a heading in it", async () => {
+		const { editor } = await renderAndGetEditor({ value: [textBlock("Intro"), textBlock("")] });
+		editor.commands.setTextSelection(8);
+
+		pasteHtml(editor, "<blockquote><h3>Heading</h3><p>one</p><p>two</p></blockquote>");
+
+		await vi.waitFor(() => expect(editor.getText()).toContain("two"));
+		expect(blockRows(editor)).toEqual([
+			["normal", "Intro"],
+			["h3", "Heading"],
+			["blockquote", "one"],
+			["blockquote", "two"],
+		]);
+	});
+
+	it("splits a pasted list around a heading in an item, and keeps counting", async () => {
+		const { editor, pm } = await renderAndGetEditor({
+			value: [textBlock("Intro"), textBlock("")],
+		});
+		editor.commands.setTextSelection(8);
+
+		pasteHtml(
+			editor,
+			'<ol start="3"><li><p>a</p></li><li><h3>Heading</h3><p>b</p></li><li><p>c</p></li></ol>',
+		);
+
+		await vi.waitFor(() => expect(editor.getText()).toContain("c"));
+		expect(blockRows(editor)).toEqual([
+			["normal", "Intro"],
+			["number", "a"],
+			["h3", "Heading"],
+			["number", "b"],
+			["number", "c"],
+		]);
+		expect(Array.from(pm.querySelectorAll("ol"), (list) => list.start)).toEqual([3, 4]);
 	});
 
 	it("does not open block slash commands inside a table cell", async () => {
