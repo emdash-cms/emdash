@@ -530,6 +530,17 @@ describe("Video block editor", () => {
 		await expect.element(screen.getByRole("group", { name: "Video", exact: true })).toBeVisible();
 	});
 
+	it("draws no selection tint over a selected video, as with images", async () => {
+		const { editor, pm } = await renderEditor({ value: [INTRO, videoBlock()] });
+
+		selectVideo(editor);
+		const block = document.querySelector<HTMLElement>(".ProseMirror > .ProseMirror-selectednode")!;
+
+		expect(document.activeElement).toBe(pm);
+		expect(block.querySelector("video")).toBeTruthy();
+		expect(getComputedStyle(block, "::after").content).toBe("none");
+	});
+
 	it("moves through the player, caption and actions with Tab, and back to the block", async () => {
 		const { editor, pm, screen } = await renderEditor({ value: [INTRO, videoBlock()] });
 		const replace = screen.getByRole("button", { name: "Replace video" }).element();
