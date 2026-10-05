@@ -48,4 +48,19 @@ describe("pnpm catalogs", () => {
 				.replace("emdash: 1.1.0-rc.0", "emdash: 1.2.0-rc.0"),
 		);
 	});
+
+	it("changes only the edited values in files with other indentation and line endings", () => {
+		for (const source of [
+			"catalog:\n    emdash: ^1.0.0  # two spaces before the comment\n    astro: ^7.0.0\n",
+			"catalog:\r\n  emdash: ^1.0.0 # windows line endings\r\n",
+			"---\ncatalog:\n  emdash: '^1.0.0'\n# trailing comment\n",
+			'catalog: { emdash: "^1.0.0", astro: ^7.0.0 }\n',
+		]) {
+			expect(
+				applyCatalogEdits(source, [
+					{ catalog: "default", packageName: "emdash", specifier: "^1.1.0" },
+				]),
+			).toBe(source.replace("^1.0.0", "^1.1.0"));
+		}
+	});
 });
