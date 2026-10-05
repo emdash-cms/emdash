@@ -17,7 +17,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Node, mergeAttributes, type Editor } from "@tiptap/core";
 import type { NodeType } from "@tiptap/pm/model";
 import { NodeSelection } from "@tiptap/pm/state";
-import type { EditorView } from "@tiptap/pm/view";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import * as React from "react";
@@ -31,7 +30,15 @@ import {
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
 import { MediaPickerModal } from "../MediaPickerModal";
-import { MediaPlaceholder, isFileDrag, useNativeEditGuard } from "./MediaPlaceholder";
+import {
+	MediaPlaceholder,
+	chooseSelectedEmpty,
+	hideDropCursorOverEmpty,
+	isEmptyMedia,
+	takePickerRequest,
+	useNativeEditGuard,
+	type MediaPickerStorage,
+} from "./MediaPlaceholder";
 
 type FieldCheck = (value: unknown) => boolean;
 
@@ -113,26 +120,7 @@ export function mediaItemToVideoAttrs(item: MediaItem) {
 	};
 }
 
-/** Whether a video node is empty, still waiting for a video. */
-export function isEmptyVideo(attrs: Record<string, unknown>): boolean {
-	return !attrs.mediaId && !attrs.src;
-}
-
-interface VideoStorage {
-	openPickerOnMount: boolean;
-}
-
-const videoStorage = (editor: Editor) =>
-	(editor.storage as unknown as Record<string, VideoStorage | undefined>).videoBlock;
-
-/** Opens the picker of the empty video block the next insert adds, once it mounts. */
-export function openPickerOnInsert(editor: Editor) {
-	const storage = videoStorage(editor);
-	if (storage) storage.openPickerOnMount = true;
-}
-
 const STOP = "[data-video-stop]";
-const PLACEHOLDER = "[data-media-placeholder]";
 
 /** Focus the node-selected video's first control, for keyboard users. */
 function focusSelectedVideo(editor: Editor, type: NodeType): boolean {
@@ -142,18 +130,6 @@ function focusSelectedVideo(editor: Editor, type: NodeType): boolean {
 	const first = dom instanceof HTMLElement ? dom.querySelector<HTMLElement>(STOP) : null;
 	first?.focus();
 	return first !== null && document.activeElement === first;
-}
-
-/** Open the picker of a node-selected empty video, as clicking it does. */
-function chooseSelectedVideo(editor: Editor, type: NodeType): boolean {
-	const { selection } = editor.state;
-	if (!(selection instanceof NodeSelection) || selection.node.type !== type) return false;
-	if (!isEmptyVideo(selection.node.attrs)) return false;
-	const dom = editor.view.nodeDOM(selection.from);
-	const placeholder =
-		dom instanceof HTMLElement ? dom.querySelector<HTMLElement>(PLACEHOLDER) : null;
-	placeholder?.click();
-	return placeholder !== null;
 }
 
 /**
@@ -210,7 +186,7 @@ function VideoNodeView({
 	const caption = isString(attrs.caption) ? attrs.caption : "";
 	const width = isDimension(attrs.width) ? attrs.width : undefined;
 	const height = isDimension(attrs.height) ? attrs.height : undefined;
-	const empty = isEmptyVideo(attrs);
+	const empty = isEmptyMedia(attrs);
 	const figureRef = React.useRef<HTMLElement>(null);
 	useNativeEditGuard(figureRef, captionRef);
 
@@ -287,14 +263,8 @@ function VideoNodeView({
 		setPickerOpen(true);
 	};
 
-	// Only an insert asks for the picker, never loading, undo or paste.
 	React.useEffect(() => {
-		const storage = videoStorage(editor);
-		const { selection } = editor.state;
-		if (!storage?.openPickerOnMount || !empty) return;
-		if (!(selection instanceof NodeSelection) || selection.from !== getPos()) return;
-		storage.openPickerOnMount = false;
-		setPickerOpen(true);
+		if (empty && takePickerRequest(editor, "videoBlock", getPos)) setPickerOpen(true);
 	}, []);
 
 	const pillButtonClass = "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11";
@@ -487,7 +457,7 @@ export const VideoExtension = Node.create({
 	draggable: false,
 	selectable: true,
 
-	addStorage(): VideoStorage {
+	addStorage(): MediaPickerStorage {
 		return { openPickerOnMount: false };
 	},
 
@@ -510,15 +480,8 @@ export const VideoExtension = Node.create({
 		return ["figure", mergeAttributes(HTMLAttributes, { "data-video-block": "" })];
 	},
 
-	// Files dropped on an empty block replace it, so no insertion line is drawn over it.
 	extendNodeSchema(extension) {
-		if (extension.name !== "videoBlock") return {};
-		return {
-			disableDropCursor: (view: EditorView, pos: { inside: number }, event: DragEvent) => {
-				const node = view.state.doc.nodeAt(pos.inside);
-				return isFileDrag(event) && node !== null && isEmptyVideo(node.attrs);
-			},
-		};
+		return extension.name === "videoBlock" ? { disableDropCursor: hideDropCursorOverEmpty } : {};
 	},
 
 	addNodeView() {
@@ -528,7 +491,7 @@ export const VideoExtension = Node.create({
 	addKeyboardShortcuts() {
 		return {
 			Tab: ({ editor }) => focusSelectedVideo(editor, this.type),
-			Enter: ({ editor }) => chooseSelectedVideo(editor, this.type),
+			Enter: ({ editor }) => chooseSelectedEmpty(editor, this.type),
 		};
 	},
 });

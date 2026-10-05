@@ -383,12 +383,12 @@ describe("Slash Command Menu", () => {
 
 		await screen.getByRole("button", { name: "Test gutter insert" }).click();
 		const menu = await waitForSlashMenu();
-		const imageCommand = getSlashMenuItems(menu).find((item) =>
-			item.textContent?.includes("Image"),
+		const galleryCommand = getSlashMenuItems(menu).find((item) =>
+			item.textContent?.includes("Gallery"),
 		);
-		expect(imageCommand).toBeTruthy();
+		expect(galleryCommand).toBeTruthy();
 
-		imageCommand?.click();
+		galleryCommand?.click();
 		await waitForSlashMenuClosed();
 		expect(editor.getJSON()).toEqual(before);
 	});

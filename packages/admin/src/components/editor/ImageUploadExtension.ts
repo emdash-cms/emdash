@@ -11,7 +11,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { createUploadPreviewUrl } from "../../lib/media-utils.js";
 import { matchesMimeAllowlist } from "../../lib/mime-utils.js";
 import { getMutationError } from "../DialogError.js";
-import { isEmptyVideo } from "./VideoNode.js";
+import { isEmptyMedia } from "./MediaPlaceholder.js";
 
 export interface ImageUploadOptions {
 	/** Uploads a file and resolves to the attributes of the image or video node to insert. */
@@ -137,10 +137,12 @@ function blockBoundary(doc: Node, pos: number) {
 	return pos <= ($pos.start(1) + $pos.end(1)) / 2 ? $pos.before(1) : $pos.after(1);
 }
 
-/** The range of the empty video block at `pos`, which files dropped or pasted on it replace. */
-function emptyVideoAt(doc: Node, pos: number) {
+const MEDIA_BLOCKS = new Set(["image", "videoBlock"]);
+
+/** The range of the empty image or video block at `pos`, which files dropped or pasted on it replace. */
+function emptyMediaAt(doc: Node, pos: number) {
 	const node = pos >= 0 ? doc.nodeAt(pos) : null;
-	if (node?.type.name !== "videoBlock" || !isEmptyVideo(node.attrs)) return undefined;
+	if (!node || !MEDIA_BLOCKS.has(node.type.name) || !isEmptyMedia(node.attrs)) return undefined;
 	return { from: pos, to: pos + node.nodeSize };
 }
 
@@ -235,7 +237,7 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 			view: EditorView,
 			files: File[],
 			dropPos: number,
-			emptyVideo?: { from: number; to: number },
+			emptyBlock?: { from: number; to: number },
 		) => {
 			const media = files.flatMap((file) => {
 				const kind = kindOf(view, file);
@@ -243,9 +245,9 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 			});
 			const tr = view.state.tr;
 			let pos: number;
-			if (emptyVideo && media.length > 0) {
-				tr.delete(emptyVideo.from, emptyVideo.to);
-				pos = emptyVideo.from;
+			if (emptyBlock && media.length > 0) {
+				tr.delete(emptyBlock.from, emptyBlock.to);
+				pos = emptyBlock.from;
 			} else {
 				pos = blockBoundary(view.state.doc, dropPos);
 			}
@@ -326,7 +328,7 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 						const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
 						if (!coords) return false;
 						event.preventDefault();
-						start(view, files, coords.pos, emptyVideoAt(view.state.doc, coords.inside));
+						start(view, files, coords.pos, emptyMediaAt(view.state.doc, coords.inside));
 						return true;
 					},
 					handlePaste(view, event) {
@@ -338,11 +340,11 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 						if (html && hasText(html)) return false;
 						event.preventDefault();
 						const { selection } = view.state;
-						const emptyVideo =
+						const emptyBlock =
 							selection instanceof NodeSelection
-								? emptyVideoAt(view.state.doc, selection.from)
+								? emptyMediaAt(view.state.doc, selection.from)
 								: undefined;
-						start(view, [...data.files], selection.from, emptyVideo);
+						start(view, [...data.files], selection.from, emptyBlock);
 						return true;
 					},
 				},

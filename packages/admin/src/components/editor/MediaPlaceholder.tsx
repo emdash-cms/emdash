@@ -1,17 +1,79 @@
 /**
  * The empty state of the editor's media blocks: a dashed box to click, or to
- * drop a file on, while the block waits for its image or video.
+ * drop a file on, while the block waits for its image or video. Inserting one
+ * opens its picker; closing the picker leaves the box to fill later.
  */
 
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import type { Icon } from "@phosphor-icons/react";
+import type { Editor } from "@tiptap/core";
+import type { NodeType } from "@tiptap/pm/model";
+import { NodeSelection } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
 export const isFileDrag = (event: { dataTransfer: DataTransfer | null }) =>
 	Boolean(event.dataTransfer?.types.includes("Files"));
+
+/** Whether an image or video node is empty, still waiting for its media. */
+export function isEmptyMedia(attrs: Record<string, unknown>): boolean {
+	return !attrs.mediaId && !attrs.src;
+}
+
+/** A `disableDropCursor` rule: files dropped on an empty media block replace it, so no insertion line is drawn. */
+export function hideDropCursorOverEmpty(
+	view: EditorView,
+	pos: { inside: number },
+	event: DragEvent,
+): boolean {
+	const node = view.state.doc.nodeAt(pos.inside);
+	return isFileDrag(event) && node !== null && isEmptyMedia(node.attrs);
+}
+
+export interface MediaPickerStorage {
+	openPickerOnMount: boolean;
+}
+
+const pickerStorage = (editor: Editor, name: string) =>
+	(editor.storage as unknown as Record<string, MediaPickerStorage | undefined>)[name];
+
+/** Opens the picker of the empty `name` block that the next insert adds, once it mounts. */
+export function openPickerOnInsert(editor: Editor, name: string) {
+	const storage = pickerStorage(editor, name);
+	if (storage) storage.openPickerOnMount = true;
+}
+
+/**
+ * Whether a node view mounting now is the block an insert just added, which is
+ * the selected node; takes the request. Loading, undo and paste never make one.
+ */
+export function takePickerRequest(
+	editor: Editor,
+	name: string,
+	getPos: () => number | undefined,
+): boolean {
+	const storage = pickerStorage(editor, name);
+	const { selection } = editor.state;
+	if (!storage?.openPickerOnMount) return false;
+	if (!(selection instanceof NodeSelection) || selection.from !== getPos()) return false;
+	storage.openPickerOnMount = false;
+	return true;
+}
+
+/** Opens the picker of a node-selected empty media block, as clicking its placeholder does. */
+export function chooseSelectedEmpty(editor: Editor, type: NodeType): boolean {
+	const { selection } = editor.state;
+	if (!(selection instanceof NodeSelection) || selection.node.type !== type) return false;
+	if (!isEmptyMedia(selection.node.attrs)) return false;
+	const dom = editor.view.nodeDOM(selection.from);
+	const placeholder =
+		dom instanceof HTMLElement ? dom.querySelector<HTMLElement>("[data-media-placeholder]") : null;
+	placeholder?.click();
+	return placeholder !== null;
+}
 
 /**
  * ProseMirror leaves keys on a node view's buttons and players to the browser,
@@ -75,6 +137,16 @@ export function MediaPlaceholder({
 	const [dropping, setDropping] = React.useState(false);
 	const dragDepth = React.useRef(0);
 	useNativeEditGuard(ref);
+
+	// ProseMirror would take a press on the button's label and move focus to the editor,
+	// so the button keeps the press, and focus, for its own keys.
+	React.useEffect(() => {
+		const element = ref.current;
+		if (!element) return;
+		const keepPress = (event: MouseEvent) => event.stopPropagation();
+		element.addEventListener("mousedown", keepPress);
+		return () => element.removeEventListener("mousedown", keepPress);
+	}, []);
 
 	// Only the highlight: ProseMirror takes the drop, and the upload extension
 	// puts the dropped files in this block's place.

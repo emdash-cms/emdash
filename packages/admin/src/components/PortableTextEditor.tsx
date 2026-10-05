@@ -124,7 +124,11 @@ import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
-import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
+import {
+	canonicalMediaProviderId,
+	localMediaFileUrl,
+	mediaItemToImageAttrs,
+} from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -155,6 +159,7 @@ import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
 import { LinkDestinationInput } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
+import { isEmptyMedia, openPickerOnInsert } from "./editor/MediaPlaceholder";
 import { EmDashOrderedList } from "./editor/ordered-list";
 import {
 	type PluginBlockDef,
@@ -187,7 +192,6 @@ import {
 	VideoExtension,
 	isVideoBlock,
 	mediaItemToVideoAttrs,
-	openPickerOnInsert,
 	videoBlockFields,
 	videoNodeAttrs,
 } from "./editor/VideoNode";
@@ -1428,7 +1432,7 @@ function convertPTBlock(
 				type: "image",
 				attrs: attrsWithPortableTextKey(
 					{
-						src: asset.url || `/_emdash/api/media/file/${asset._ref}`,
+						src: asset.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
 						alt: alt || "",
 						title: imageBlock.title || "",
 						caption: Object.hasOwn(imageBlock, "caption")
@@ -1816,10 +1820,18 @@ function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
 
 // The new block opens its picker over the editor, which keeps focus underneath: closing the
 // picker returns focus there, with the empty block selected so Enter reopens it.
-function insertVideoBlock(editor: Editor, range?: Range, position?: number) {
-	openPickerOnInsert(editor);
-	insertTopLevelBlock(editor, editor.schema.nodes.videoBlock!.create(), range, position);
+function insertMediaBlock(editor: Editor, name: string, range?: Range, position?: number) {
+	openPickerOnInsert(editor, name);
+	insertTopLevelBlock(editor, editor.schema.nodes[name]!.create(), range, position);
 	editor.view.focus();
+}
+
+function insertImageBlock(editor: Editor, range?: Range, position?: number) {
+	insertMediaBlock(editor, "image", range, position);
+}
+
+function insertVideoBlock(editor: Editor, range?: Range, position?: number) {
+	insertMediaBlock(editor, "videoBlock", range, position);
 }
 
 function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
@@ -3043,21 +3055,6 @@ export interface PortableTextEditorProps {
 	onBlockSidebarClose?: () => void;
 }
 
-// For external providers, src is only used for admin preview; the frontend Image
-// component uses provider + mediaId to generate proper URLs.
-function mediaItemToImageAttrs(item: MediaItem) {
-	return {
-		src: item.url,
-		alt: item.alt || item.filename,
-		mediaId: item.id,
-		provider: canonicalMediaProviderId(item.provider),
-		width: item.width,
-		height: item.height,
-		blurhash: item.blurhash,
-		dominantColor: item.dominantColor,
-	};
-}
-
 /**
  * Portable Text Editor Component
  */
@@ -3110,9 +3107,6 @@ export function PortableTextEditor({
 
 	const focusMode = controlledFocusMode ?? "normal";
 
-	// Media picker state (for image insertion)
-	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
-
 	// Multi-select media picker state (for gallery insertion)
 	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
 	const [conversionErrorMarks, setConversionErrorMarks] = React.useState<string[]>([]);
@@ -3162,10 +3156,6 @@ export function PortableTextEditor({
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
 	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
-	const openToolbarImagePicker = React.useCallback(() => {
-		pendingBlockInsertPosRef.current = null;
-		setMediaPickerOpen(true);
-	}, []);
 
 	// Slash commands state
 	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
@@ -3252,11 +3242,7 @@ export function PortableTextEditor({
 			icon: ImageIcon,
 			aliases: ["img", "photo", "picture", "url"],
 			category: msg`Media`,
-			deferInsertion: true,
-			command: ({ editor, range }) => {
-				editor.chain().focus().deleteRange(range).run();
-				setMediaPickerOpen(true);
-			},
+			...insertAtGutter(insertImageBlock),
 		});
 
 		// Add gallery command
@@ -3791,25 +3777,6 @@ export function PortableTextEditor({
 		};
 	}, [editor]);
 
-	// Handle image selection from media picker
-	const handleImageSelect = React.useCallback(
-		(item: MediaItem) => {
-			if (editor) {
-				const attrs = mediaItemToImageAttrs(item);
-				const insertPos = pendingBlockInsertPosRef.current;
-				const chain = editor.chain().focus();
-				if (insertPos === null) {
-					chain.setImage(attrs).run();
-				} else {
-					chain.insertContentAt(insertPos, { type: "image", attrs }).run();
-				}
-			}
-			pendingBlockInsertPosRef.current = null;
-			setMediaPickerOpen(false);
-		},
-		[editor],
-	);
-
 	// Handle gallery insertion from the multi-select media picker
 	const handleGallerySelect = React.useCallback(
 		(items: MediaItem[]) => {
@@ -4142,7 +4109,7 @@ export function PortableTextEditor({
 						editor={editor}
 						editable={editable}
 						onInsertBlock={handleTouchInsertBlock}
-						onInsertImage={openToolbarImagePicker}
+						onInsertImage={() => insertImageBlock(editor)}
 						onTableAction={announceTable}
 					/>
 				)}
@@ -4165,19 +4132,6 @@ export function PortableTextEditor({
 						}
 					/>
 				)}
-
-				{/* Media picker for image insertion */}
-				<MediaPickerModal
-					open={mediaPickerOpen}
-					onOpenChange={(open) => {
-						setMediaPickerOpen(open);
-						if (!open) pendingBlockInsertPosRef.current = null;
-					}}
-					onSelect={handleImageSelect}
-					mimeTypeFilter="image/"
-					title={t`Select image`}
-					confirmLabel={t`Insert image`}
-				/>
 
 				{/* Multi-select media picker for gallery insertion */}
 				<MediaPickerModal
@@ -4783,6 +4737,7 @@ function ImageBubbleMenu({
 					return (
 						activeEditor.isEditable &&
 						selection !== null &&
+						!isEmptyMedia(selection.node.attrs) &&
 						(pickerRef.current !== "idle" ||
 							view.hasFocus() ||
 							element.contains(document.activeElement) ||

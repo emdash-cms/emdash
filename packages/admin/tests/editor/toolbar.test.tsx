@@ -773,43 +773,16 @@ describe("Toolbar Presence and Structure", () => {
 // =============================================================================
 
 describe("Block insertion", () => {
-	it("leaves content unchanged until an image is selected from the toolbar picker", async () => {
-		const { screen, editor } = await renderEditor();
-		editor.commands.focus("end");
-		const before = editor.getJSON();
-
-		getToolbarButton(screen, "Insert Image").element().click();
-		await screen.getByRole("button", { name: "Cancel image picker" }).click();
-		expect(editor.getJSON()).toEqual(before);
-
-		getToolbarButton(screen, "Insert Image").element().click();
-		await screen.getByRole("button", { name: "Choose test image" }).click();
-		await vi.waitFor(() => {
-			const image = editor.getJSON().content?.find((node) => node.type === "image");
-			expect(image?.attrs).toMatchObject({
-				src: "/diagram.png",
-				alt: "Architecture diagram",
-				mediaId: "image-1",
-				provider: "local",
-			});
-		});
-	});
-
-	it("stores a canonical provider when inserting an external URL", async () => {
+	// ImageNode is mocked here, so the picker its real node view opens isn't part of this test.
+	it("adds an empty image at the cursor from the toolbar", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus("end");
 
 		getToolbarButton(screen, "Insert Image").element().click();
-		await screen.getByRole("button", { name: "Choose external image" }).click();
 
-		await vi.waitFor(() => {
-			const image = editor.getJSON().content?.find((node) => node.type === "image");
-			expect(image?.attrs).toMatchObject({
-				src: "https://media.example/remote.jpg",
-				mediaId: "",
-				provider: "external",
-			});
-		});
+		const images = editor.getJSON().content?.filter((node) => node.type === "image") ?? [];
+		expect(images).toHaveLength(1);
+		expect(images[0]?.attrs).toMatchObject({ src: null, mediaId: null });
 	});
 
 	it("inserts an empty HTML block from the toolbar", async () => {

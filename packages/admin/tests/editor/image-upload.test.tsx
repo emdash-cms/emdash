@@ -443,6 +443,38 @@ describe("ImageUploadExtension", () => {
 	});
 });
 
+describe("ImageUploadExtension with an empty image block", () => {
+	const EMPTY_IMAGE_BETWEEN = [textBlock("First"), { type: "image" }, textBlock("Second")];
+
+	it("puts images dropped on an empty image block in its place", async () => {
+		const editor = await setup(async (file) => attrsFor(file), { content: EMPTY_IMAGE_BETWEEN });
+		expect(blockTypes(editor)).toEqual(["First", "image:null", "Second"]);
+
+		const placeholder = document.querySelector<HTMLElement>("[data-media-placeholder]")!;
+		dropFiles(placeholder, [imageFile("a.png"), imageFile("b.png")]);
+
+		await vi.waitFor(() =>
+			expect(blockTypes(editor)).toEqual([
+				"First",
+				"image:media-a.png",
+				"image:media-b.png",
+				"Second",
+			]),
+		);
+	});
+
+	it("puts an image pasted over the selected empty image block in its place", async () => {
+		const editor = await setup(async (file) => attrsFor(file), { content: EMPTY_IMAGE_BETWEEN });
+		editor.commands.setNodeSelection(textEnd(editor, "First") + 1);
+
+		pasteData(editor.view.dom, { files: [imageFile("clip.png")] });
+
+		await vi.waitFor(() =>
+			expect(blockTypes(editor)).toEqual(["First", "image:media-clip.png", "Second"]),
+		);
+	});
+});
+
 describe("ImageUploadExtension with videos", () => {
 	const acceptsVideo = () => true;
 

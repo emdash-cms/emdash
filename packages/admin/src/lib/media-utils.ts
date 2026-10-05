@@ -5,6 +5,24 @@ export function canonicalMediaProviderId(provider: string | undefined): string {
 	return provider === "external-url" ? "external" : provider;
 }
 
+/**
+ * The editor's image node attributes for a picked or uploaded item. For external
+ * providers, `src` is only the admin's preview; the site's Image component builds
+ * URLs from `provider` and `mediaId`.
+ */
+export function mediaItemToImageAttrs(item: MediaItem) {
+	return {
+		src: item.url,
+		alt: item.alt || item.filename,
+		mediaId: item.id,
+		provider: canonicalMediaProviderId(item.provider),
+		width: item.width,
+		height: item.height,
+		blurhash: item.blurhash,
+		dominantColor: item.dominantColor,
+	};
+}
+
 export interface MediaFocalPoint {
 	focalX: number;
 	focalY: number;

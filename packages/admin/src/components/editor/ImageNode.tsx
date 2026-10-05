@@ -3,10 +3,12 @@
  *
  * Provides a selectable image with a visual selection indicator, a caption
  * field, and a detail panel for advanced settings. The toolbar for a selected
- * image lives in PortableTextEditor.
+ * image lives in PortableTextEditor. An image block without an image yet is a
+ * dashed placeholder to click, or to drop an image on.
  */
 
 import { useLingui } from "@lingui/react/macro";
+import { Image as ImageIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
@@ -15,9 +17,22 @@ import * as React from "react";
 
 import { fetchMediaItem } from "../../lib/api/media.js";
 import { useStableCallback } from "../../lib/hooks";
-import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
+import {
+	canonicalMediaProviderId,
+	getMediaPreviewUrl,
+	mediaItemToImageAttrs,
+} from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
+import { getLocaleDir } from "../../locales/config.js";
+import { MediaPickerModal } from "../MediaPickerModal";
 import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
+import {
+	MediaPlaceholder,
+	chooseSelectedEmpty,
+	hideDropCursorOverEmpty,
+	isEmptyMedia,
+	takePickerRequest,
+} from "./MediaPlaceholder";
 
 // Extend the Commands interface to include setImage
 declare module "@tiptap/react" {
@@ -71,7 +86,11 @@ function ImageNodeView({
 	editor,
 	getPos,
 }: NodeViewProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
+	// The editor reads its direction from the text, so admin chrome sets its own.
+	const chromeDir = getLocaleDir(i18n.locale);
+	const empty = isEmptyMedia(node.attrs);
+	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const mediaId =
 		typeof node.attrs.mediaId === "string" &&
 		node.attrs.mediaId &&
@@ -97,6 +116,21 @@ function ImageNodeView({
 		if (typeof position === "number") {
 			editor.commands.setNodeSelection(position);
 		}
+	};
+
+	const openPicker = () => {
+		selectImage();
+		setPickerOpen(true);
+	};
+
+	React.useEffect(() => {
+		if (empty && takePickerRequest(editor, "image", getPos)) setPickerOpen(true);
+	}, []);
+
+	const removeBlock = () => {
+		if (!editor.isEditable) return;
+		editor.view.focus();
+		deleteNode();
 	};
 
 	const handlePointerDown = (event: React.PointerEvent) => {
@@ -261,6 +295,39 @@ function ImageNodeView({
 		renderHeight = customHeight;
 	}
 
+	if (empty) {
+		return (
+			<NodeViewWrapper onPointerDown={handlePointerDown} className="relative my-4">
+				<MediaPlaceholder
+					icon={ImageIcon}
+					label={t`Upload or choose an image`}
+					readOnlyLabel={t`No image`}
+					editable={editor.isEditable}
+					selected={selected}
+					dir={chromeDir}
+					onChoose={openPicker}
+					onRemove={removeBlock}
+				/>
+				{pickerOpen && (
+					<MediaPickerModal
+						open
+						onOpenChange={setPickerOpen}
+						onSelect={(item) => {
+							if (editor.isEditable) updateAttributes(mediaItemToImageAttrs(item));
+							setPickerOpen(false);
+							// The placeholder that opened the picker is gone, so the editor takes focus.
+							selectImage();
+							editor.view.focus();
+						}}
+						mimeTypeFilter="image/"
+						title={t`Select image`}
+						confirmLabel={t`Insert image`}
+					/>
+				)}
+			</NodeViewWrapper>
+		);
+	}
+
 	return (
 		<NodeViewWrapper
 			style={alignmentStyle}
@@ -354,6 +421,18 @@ export const ImageExtension = Node.create({
 			onCloseBlockSidebar: null as (() => void) | null,
 			/** One per mounted image node view, so the toolbar can toggle a given image's settings */
 			settingsHandles: new Set<ImageSettingsHandle>(),
+			/** Set by an insert, so the new empty image opens its picker once it mounts */
+			openPickerOnMount: false,
+		};
+	},
+
+	extendNodeSchema(extension) {
+		return extension.name === "image" ? { disableDropCursor: hideDropCursorOverEmpty } : {};
+	},
+
+	addKeyboardShortcuts() {
+		return {
+			Enter: ({ editor }) => chooseSelectedEmpty(editor, this.type),
 		};
 	},
 
