@@ -236,6 +236,20 @@ const year = new Date().getFullYear();
 				</div>
 			</div>
 		</header>
+		<script is:inline>
+			// Inline, so the height is set before the browser scrolls to a URL fragment
+			(function () {
+				var header = document.querySelector(".site-header");
+				function setHeight() {
+					document.documentElement.style.setProperty(
+						"--header-height",
+						header.offsetHeight + "px",
+					);
+				}
+				setHeight();
+				new ResizeObserver(setHeight).observe(header);
+			})();
+		</script>
 
 		<main id="main" tabindex="-1">
 			<slot />
@@ -1476,16 +1490,6 @@ const year = new Date().getFullYear();
 				e.preventDefault();
 				searchInput.focus();
 			});
-
-			const header = document.querySelector<HTMLElement>(".site-header");
-			if (header) {
-				new ResizeObserver(() => {
-					document.documentElement.style.setProperty(
-						"--header-height",
-						`${header.offsetHeight}px`,
-					);
-				}).observe(header);
-			}
 		</script>
 		<EmDashBodyEnd page={pageCtx} />
 	</body>
