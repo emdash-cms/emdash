@@ -258,6 +258,11 @@ const sizes = {
 		margin-top: auto;
 	}
 
+	.post__footer > * {
+		min-width: 0;
+		max-width: 100%;
+	}
+
 	.post__tags {
 		gap: var(--spacing-1);
 	}
@@ -347,7 +352,7 @@ const sizes = {
 		translate: 2px 0;
 	}
 
-	:dir(rtl) .post--feature:has(.post__link:hover) .post__cta :global(svg) {
+	.post--feature:has(.post__link:hover) .post__cta :global(svg:dir(rtl)) {
 		translate: -2px 0;
 	}
 

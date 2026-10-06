@@ -19,6 +19,8 @@
 
   :root {
     --color-brand: light-dark(#0f766e, #2dd4bf);
+    --color-brand-hover: light-dark(#115e59, #5eead4);
+    --color-on-brand: light-dark(#ffffff, #0a0a0a);
     --font-heading: "Iowan Old Style", Georgia, serif;
     --radius-xl: 24px;
   }

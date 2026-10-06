@@ -579,7 +579,6 @@ const hasHeadings = (post.data.content ?? []).some(
 			margin: calc(-1 * var(--spacing-1));
 			padding: var(--spacing-1);
 			overflow-y: auto;
-			overscroll-behavior: contain;
 			scrollbar-width: thin;
 		}
 
@@ -747,6 +746,12 @@ const hasHeadings = (post.data.content ?? []).some(
 	/* Sidebar widgets */
 	:global(.post-widgets:not(:has(.widget))) {
 		display: none;
+	}
+
+	@media (max-width: 1099.98px) {
+		:global(.post-rail:not(:has(.widget))) {
+			display: none;
+		}
 	}
 
 	.post-widgets {
