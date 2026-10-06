@@ -30,7 +30,7 @@ export interface ShellProps {
 			string,
 			{
 				package?: string;
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 			}
 		>;
 		taxonomies: Array<{

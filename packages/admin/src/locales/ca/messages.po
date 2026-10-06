@@ -88,7 +88,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# comentari importat} other {# comentaris importats}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2266
+#: packages/admin/src/router.tsx:2285
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# comentari actualitzat} other {# comentaris actualitzats}}"
 
@@ -1122,7 +1122,7 @@ msgstr "Accepta la invitació"
 msgid "Access denied"
 msgstr "Accés denegat"
 
-#: packages/admin/src/router.tsx:2286
+#: packages/admin/src/router.tsx:2305
 msgid "Access Denied"
 msgstr "Accés denegat"
 
@@ -1426,12 +1426,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:629
+#: packages/admin/src/components/Sidebar.tsx:640
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Administració"
 
-#: packages/admin/src/components/Sidebar.tsx:571
+#: packages/admin/src/components/Sidebar.tsx:582
 msgid "Admin navigation"
 msgstr "Navegació d'administració"
 
@@ -1695,19 +1695,19 @@ msgstr "Una clau digital xifrada que desbloquegen amb la teva empremta, la cara,
 #: packages/admin/src/router.tsx:578
 #: packages/admin/src/router.tsx:592
 #: packages/admin/src/router.tsx:814
-#: packages/admin/src/router.tsx:1183
-#: packages/admin/src/router.tsx:1283
-#: packages/admin/src/router.tsx:1317
-#: packages/admin/src/router.tsx:1341
-#: packages/admin/src/router.tsx:1365
-#: packages/admin/src/router.tsx:1423
-#: packages/admin/src/router.tsx:1442
-#: packages/admin/src/router.tsx:1475
-#: packages/admin/src/router.tsx:1496
-#: packages/admin/src/router.tsx:2231
-#: packages/admin/src/router.tsx:2247
-#: packages/admin/src/router.tsx:2272
-#: packages/admin/src/router.tsx:2874
+#: packages/admin/src/router.tsx:1190
+#: packages/admin/src/router.tsx:1290
+#: packages/admin/src/router.tsx:1324
+#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1372
+#: packages/admin/src/router.tsx:1430
+#: packages/admin/src/router.tsx:1449
+#: packages/admin/src/router.tsx:1482
+#: packages/admin/src/router.tsx:1503
+#: packages/admin/src/router.tsx:2250
+#: packages/admin/src/router.tsx:2266
+#: packages/admin/src/router.tsx:2291
+#: packages/admin/src/router.tsx:2893
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -2009,7 +2009,7 @@ msgstr "Còpies de seguretat automàtiques"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Les còpies de seguretat automàtiques necessiten un emmagatzematge de fons (R2, S3 o emmagatzematge local). Configura l'emmagatzematge a la configuració d'EmDash per habilitar-les."
 
-#: packages/admin/src/router.tsx:1280
+#: packages/admin/src/router.tsx:1287
 msgid "Autosave failed"
 msgstr "Ha fallat el desament automàtic"
 
@@ -2310,7 +2310,7 @@ msgstr "Camps de signatura"
 msgid "Byline schema"
 msgstr "Esquema de signatures"
 
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:484
 msgid "Byline Schema"
 msgstr "Esquema de signatures"
 
@@ -2324,7 +2324,7 @@ msgstr "Signatura actualitzada"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1131
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:448
+#: packages/admin/src/components/Sidebar.tsx:454
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Bylines"
 msgstr "Signatures"
@@ -2343,7 +2343,7 @@ msgstr "C++"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:564
-#: packages/admin/src/components/Sidebar.tsx:603
+#: packages/admin/src/components/Sidebar.tsx:614
 #: packages/admin/src/routes/calendar.tsx:276
 msgid "Calendar"
 msgstr "Calendari"
@@ -2564,7 +2564,7 @@ msgstr "Registre de canvis"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Els canvis s'apliquen a tots els llocs on apareix aquesta signatura."
 
-#: packages/admin/src/router.tsx:1357
+#: packages/admin/src/router.tsx:1364
 msgid "Changes discarded"
 msgstr "Canvis descartats"
 
@@ -3030,7 +3030,7 @@ msgstr "Reaccions als comentaris"
 #: packages/admin/src/components/ContentTypeEditor.tsx:656
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:434
+#: packages/admin/src/components/Sidebar.tsx:440
 msgid "Comments"
 msgstr "Comentaris"
 
@@ -3120,7 +3120,7 @@ msgstr "contingut"
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
 #: packages/admin/src/components/Dashboard.tsx:479
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:613
+#: packages/admin/src/components/Sidebar.tsx:624
 #: packages/admin/src/components/Widgets.tsx:902
 msgid "Content"
 msgstr "Contingut"
@@ -3142,7 +3142,7 @@ msgstr "Errors de contingut ({0})"
 msgid "Content found:"
 msgstr "Contingut trobat:"
 
-#: packages/admin/src/router.tsx:1416
+#: packages/admin/src/router.tsx:1423
 msgid "Content has been scheduled for publishing"
 msgstr "S'ha programat la publicació del contingut"
 
@@ -3154,7 +3154,7 @@ msgstr "El contingut s'ha actualitzat a la revisió seleccionada."
 msgid "Content ID:"
 msgstr "ID del contingut:"
 
-#: packages/admin/src/router.tsx:1311
+#: packages/admin/src/router.tsx:1318
 msgid "Content is now live"
 msgstr "El contingut ja és en línia"
 
@@ -3179,11 +3179,11 @@ msgstr "El contingut fa referència a multimèdia d'una manera no vàlida"
 msgid "Content refers to media that is not in the package"
 msgstr "El contingut fa referència a multimèdia que no és al paquet"
 
-#: packages/admin/src/router.tsx:1335
+#: packages/admin/src/router.tsx:1342
 msgid "Content removed from public view"
 msgstr "S'ha retirat el contingut de la vista pública"
 
-#: packages/admin/src/router.tsx:1435
+#: packages/admin/src/router.tsx:1442
 msgid "Content reverted to draft"
 msgstr "El contingut s'ha revertit a esborrany"
 
@@ -3205,7 +3205,7 @@ msgstr "Tipus de contingut"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:131
-#: packages/admin/src/components/Sidebar.tsx:474
+#: packages/admin/src/components/Sidebar.tsx:480
 msgid "Content Types"
 msgstr "Tipus de contingut"
 
@@ -3710,7 +3710,7 @@ msgid "Created {0}"
 msgstr "S'ha creat {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1467
+#: packages/admin/src/router.tsx:1474
 msgid "Created {0} translation"
 msgstr "S'ha creat la traducció {0}"
 
@@ -3823,8 +3823,8 @@ msgstr "Variant de mode fosc"
 #: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:390
 #: packages/admin/src/components/Dashboard.tsx:71
-#: packages/admin/src/components/Sidebar.tsx:412
-#: packages/admin/src/components/Sidebar.tsx:598
+#: packages/admin/src/components/Sidebar.tsx:415
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Dashboard"
 msgstr "Tauler"
 
@@ -5114,7 +5114,7 @@ msgstr "entrada de la banda que enllaça"
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
-#: packages/admin/src/router.tsx:3149
+#: packages/admin/src/router.tsx:3168
 msgid "Error"
 msgstr "Error"
 
@@ -5372,14 +5372,14 @@ msgid "Failed to create term"
 msgstr "No s'ha pogut crear el terme"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1472
+#: packages/admin/src/router.tsx:1479
 msgid "Failed to create translation"
 msgstr "No s'ha pogut crear la traducció"
 
 #: packages/admin/src/router.tsx:548
 #: packages/admin/src/router.tsx:577
 #: packages/admin/src/router.tsx:660
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:1502
 msgid "Failed to delete"
 msgstr "No s'ha pogut eliminar"
 
@@ -5404,7 +5404,7 @@ msgid "Failed to delete collection"
 msgstr "No s'ha pogut eliminar la col·lecció"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2246
+#: packages/admin/src/router.tsx:2265
 msgid "Failed to delete comment"
 msgstr "No s'ha pogut eliminar el comentari"
 
@@ -5486,7 +5486,7 @@ msgstr "No s'ha pogut desactivar la cerca"
 msgid "Failed to disable user"
 msgstr "No s'ha pogut desactivar l'usuari"
 
-#: packages/admin/src/router.tsx:1364
+#: packages/admin/src/router.tsx:1371
 msgid "Failed to discard changes"
 msgstr "No s'han pogut descartar els canvis"
 
@@ -5528,7 +5528,7 @@ msgstr "No s'ha pogut activar l'usuari"
 msgid "Failed to execute import"
 msgstr "No s'ha pogut executar la importació"
 
-#: packages/admin/src/lib/api/client.ts:368
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "No s'ha pogut obtenir el mode d'autenticació"
 
@@ -5553,7 +5553,7 @@ msgstr "No s'ha pogut obtenir la configuració de correu"
 msgid "Failed to fetch entry terms"
 msgstr "No s'han pogut obtenir els termes de l'entrada"
 
-#: packages/admin/src/lib/api/client.ts:351
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "No s'ha pogut obtenir el manifest"
 
@@ -5634,8 +5634,8 @@ msgstr "No s'ha pogut obtenir l'estat d'actualització"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:1058
-#: packages/admin/src/router.tsx:2177
+#: packages/admin/src/router.tsx:1065
+#: packages/admin/src/router.tsx:2196
 msgid "Failed to fetch user"
 msgstr "No s'ha pogut obtenir l'usuari"
 
@@ -5800,7 +5800,7 @@ msgstr "No s'ha pogut carregar el giny"
 msgid "Failed to lock the entry"
 msgstr "No s'ha pogut bloquejar l'entrada"
 
-#: packages/admin/src/router.tsx:2271
+#: packages/admin/src/router.tsx:2290
 msgid "Failed to perform bulk action"
 msgstr "No s'ha pogut dur a terme l'acció massiva"
 
@@ -5813,7 +5813,7 @@ msgid "Failed to prepare import"
 msgstr "No s'ha pogut preparar la importació"
 
 #: packages/admin/src/router.tsx:616
-#: packages/admin/src/router.tsx:1316
+#: packages/admin/src/router.tsx:1323
 msgid "Failed to publish"
 msgstr "No s'ha pogut publicar"
 
@@ -5885,8 +5885,8 @@ msgid "Failed to rewrite URLs"
 msgstr "No s'han pogut reescriure els URL"
 
 #: packages/admin/src/router.tsx:809
-#: packages/admin/src/router.tsx:1180
-#: packages/admin/src/router.tsx:2873
+#: packages/admin/src/router.tsx:1187
+#: packages/admin/src/router.tsx:2892
 msgid "Failed to save"
 msgstr "No s'ha pogut desar"
 
@@ -5905,7 +5905,7 @@ msgstr "No s'ha pogut desar el camp"
 msgid "Failed to save settings"
 msgstr "No s'ha pogut desar la configuració"
 
-#: packages/admin/src/router.tsx:1422
+#: packages/admin/src/router.tsx:1429
 msgid "Failed to schedule"
 msgstr "No s'ha pogut programar"
 
@@ -5945,11 +5945,11 @@ msgstr "No s'ha pogut iniciar la importació"
 msgid "Failed to uninstall plugin"
 msgstr "No s'ha pogut desinstal·lar el connector"
 
-#: packages/admin/src/router.tsx:1340
+#: packages/admin/src/router.tsx:1347
 msgid "Failed to unpublish"
 msgstr "No s'ha pogut anul·lar la publicació"
 
-#: packages/admin/src/router.tsx:1441
+#: packages/admin/src/router.tsx:1448
 msgid "Failed to unschedule"
 msgstr "No s'ha pogut anul·lar la programació"
 
@@ -6000,7 +6000,7 @@ msgstr "No s'ha pogut actualitzar la secció"
 msgid "Failed to update settings"
 msgstr "No s'ha pogut actualitzar la configuració"
 
-#: packages/admin/src/router.tsx:2230
+#: packages/admin/src/router.tsx:2249
 msgid "Failed to update status"
 msgstr "No s'ha pogut actualitzar l'estat"
 
@@ -6226,7 +6226,7 @@ msgstr "Carpeta eliminada"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "El nom de la carpeta ha de tenir entre 1 i 200 caràcters"
 
-#: packages/admin/src/router.tsx:1900
+#: packages/admin/src/router.tsx:1919
 msgid "Folder no longer exists"
 msgstr "La carpeta ja no existeix"
 
@@ -6372,7 +6372,7 @@ msgid "Go live {countdown}"
 msgstr "Publica {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2441
-#: packages/admin/src/router.tsx:3169
+#: packages/admin/src/router.tsx:3188
 msgid "Go to Dashboard"
 msgstr "Ves al tauler"
 
@@ -6757,7 +6757,7 @@ msgstr "Imatges"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:506
 #: packages/admin/src/components/WordPressImport.tsx:758
 msgid "Import"
 msgstr "Importa"
@@ -7531,7 +7531,7 @@ msgid "Load preview"
 msgstr "Carrega la previsualització"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3124
+#: packages/admin/src/router.tsx:3143
 msgid "Loading"
 msgstr "S'està carregant"
 
@@ -7560,8 +7560,8 @@ msgstr "S'estan carregant les col·leccions..."
 msgid "Loading comments..."
 msgstr "S'estan carregant els comentaris..."
 
-#: packages/admin/src/router.tsx:3126
-#: packages/admin/src/router.tsx:3138
+#: packages/admin/src/router.tsx:3145
+#: packages/admin/src/router.tsx:3157
 msgid "Loading configuration..."
 msgstr "S'està carregant la configuració..."
 
@@ -7791,7 +7791,7 @@ msgstr "Biblioteca principal"
 msgid "Main Sidebar"
 msgstr "Barra lateral principal"
 
-#: packages/admin/src/components/Sidebar.tsx:621
+#: packages/admin/src/components/Sidebar.tsx:632
 msgid "Manage"
 msgstr "Gestiona"
 
@@ -7873,11 +7873,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Mercat"
 
-#: packages/admin/src/router.tsx:2534
+#: packages/admin/src/router.tsx:2553
 msgid "Marketplace browsing is no longer available."
 msgstr "La navegació pel mercat ja no està disponible."
 
-#: packages/admin/src/router.tsx:2509
+#: packages/admin/src/router.tsx:2528
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "La navegació pel mercat ja no està disponible. Gestiona els connectors instal·lats des de Connectors."
 
@@ -7921,7 +7921,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:425
+#: packages/admin/src/components/Sidebar.tsx:428
 #: packages/admin/src/components/WordPressImport.tsx:772
 #: packages/admin/src/components/WordPressImport.tsx:1170
 #: packages/admin/src/components/WordPressImport.tsx:1357
@@ -8071,7 +8071,7 @@ msgstr "S'ha actualitzat l'ordre del menú."
 #: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:445
 #: packages/admin/src/components/WordPressImport.tsx:1174
 msgid "Menus"
 msgstr "Menús"
@@ -8429,7 +8429,7 @@ msgstr "Necessita atenció"
 msgid "Never"
 msgstr "Mai"
 
-#: packages/admin/src/router.tsx:1467
+#: packages/admin/src/router.tsx:1474
 msgid "new"
 msgstr "nou"
 
@@ -9320,7 +9320,7 @@ msgstr "Resum del paquet"
 msgid "Package downloaded"
 msgstr "Paquet baixat"
 
-#: packages/admin/src/router.tsx:3164
+#: packages/admin/src/router.tsx:3183
 msgid "Page Not Found"
 msgstr "No s'ha trobat la pàgina"
 
@@ -9674,8 +9674,8 @@ msgstr "Registre de connectors"
 msgid "Plugin registry configuration error"
 msgstr "Error de configuració del registre de connectors"
 
-#: packages/admin/src/router.tsx:2469
-#: packages/admin/src/router.tsx:2500
+#: packages/admin/src/router.tsx:2488
+#: packages/admin/src/router.tsx:2519
 msgid "Plugin registry is not configured."
 msgstr "El registre de connectors no està configurat."
 
@@ -9711,8 +9711,8 @@ msgstr "Error del giny del connector"
 #: packages/admin/src/components/PluginManager.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:192
-#: packages/admin/src/components/Sidebar.tsx:482
-#: packages/admin/src/components/Sidebar.tsx:637
+#: packages/admin/src/components/Sidebar.tsx:488
+#: packages/admin/src/components/Sidebar.tsx:648
 msgid "Plugins"
 msgstr "Connectors"
 
@@ -9938,7 +9938,7 @@ msgstr "Publica, despublica, programa i desprograma contingut"
 #: packages/admin/src/components/ContentList.tsx:1032
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:507
-#: packages/admin/src/router.tsx:1311
+#: packages/admin/src/router.tsx:1318
 msgid "Published"
 msgstr "Publicat"
 
@@ -10189,7 +10189,7 @@ msgstr "S'està redirigint a l'inici de sessió..."
 #: packages/admin/src/components/Redirects.tsx:416
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:442
+#: packages/admin/src/components/Sidebar.tsx:448
 msgid "Redirects"
 msgstr "Redireccions"
 
@@ -10262,7 +10262,7 @@ msgstr "El registre s'ha cancel·lat o ha excedit el temps d'espera. Torna-ho a 
 
 #: packages/admin/src/components/PluginManager.tsx:210
 #: packages/admin/src/components/PluginManager.tsx:447
-#: packages/admin/src/components/Sidebar.tsx:491
+#: packages/admin/src/components/Sidebar.tsx:497
 msgid "Registry"
 msgstr "Registre"
 
@@ -10571,7 +10571,7 @@ msgstr "Dipòsit"
 msgid "Request a new link"
 msgstr "Sol·licita un enllaç nou"
 
-#: packages/admin/src/lib/api/client.ts:339
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "Ha fallat la sol·licitud"
 
@@ -10739,7 +10739,7 @@ msgstr "Retirat"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3152
+#: packages/admin/src/router.tsx:3171
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:344
 msgid "Retry"
@@ -10790,7 +10790,7 @@ msgstr "S'està tornant a provar…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blocs de contingut reutilitzables que pots inserir en qualsevol contingut"
 
-#: packages/admin/src/router.tsx:1358
+#: packages/admin/src/router.tsx:1365
 msgid "Reverted to published version"
 msgstr "S'ha revertit a la versió publicada"
 
@@ -11134,7 +11134,7 @@ msgstr "Programació treta"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 #: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1415
+#: packages/admin/src/router.tsx:1422
 msgid "Scheduled"
 msgstr "Programat"
 
@@ -11436,7 +11436,7 @@ msgstr "Títol de la secció"
 #: packages/admin/src/components/Sections.tsx:150
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:447
+#: packages/admin/src/components/Sidebar.tsx:453
 msgid "Sections"
 msgstr "Seccions"
 
@@ -11816,7 +11816,7 @@ msgstr "S'està configurant..."
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:530
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:504
+#: packages/admin/src/components/Sidebar.tsx:510
 #: packages/admin/src/components/WordPressImport.tsx:1834
 msgid "Settings"
 msgstr "Configuració"
@@ -12833,7 +12833,7 @@ msgstr "El contingut del paquet s'escriu en aquest lloc. La importació no es po
 msgid "The package’s file index is not valid."
 msgstr "L'índex de fitxers del paquet no és vàlid."
 
-#: packages/admin/src/router.tsx:3166
+#: packages/admin/src/router.tsx:3185
 msgid "The page you're looking for doesn't exist."
 msgstr "La pàgina que cerques no existeix."
 
@@ -13041,9 +13041,17 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr "Aquesta entrada ha canviat en un altre lloc després que l'obrissis."
 
 #: packages/admin/src/components/ContentEditor.tsx:1221
-#: packages/admin/src/router.tsx:984
+#: packages/admin/src/router.tsx:991
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Aquesta entrada ha canviat en un altre lloc. Desa igualment o recarrega per obtenir la versió més nova."
+
+#: packages/admin/src/router.tsx:1804
+msgid "This entry doesn't exist or isn't published. Your role can only view published content."
+msgstr ""
+
+#: packages/admin/src/router.tsx:1805
+msgid "This entry doesn't exist or was deleted."
+msgstr ""
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
 msgid "This entry has no URL until it is published. Paste a URL instead."
@@ -13528,7 +13536,7 @@ msgstr "S'està traduint..."
 #: packages/admin/src/components/MenuEditor.tsx:144
 #: packages/admin/src/components/TaxonomyManager.tsx:1252
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1466
+#: packages/admin/src/router.tsx:1473
 msgid "Translation created"
 msgstr "S'ha creat la traducció"
 
@@ -13786,7 +13794,7 @@ msgstr "Clau d'accés sense nom"
 msgid "Unpublish {itemLabel}"
 msgstr "Despublica {itemLabel}"
 
-#: packages/admin/src/router.tsx:1335
+#: packages/admin/src/router.tsx:1342
 msgid "Unpublished"
 msgstr "Publicació anul·lada"
 
@@ -13812,7 +13820,7 @@ msgstr "visualEditing.unsaved"
 msgid "Unsaved content may leave your site"
 msgstr "El contingut no desat pot sortir del teu lloc"
 
-#: packages/admin/src/router.tsx:1434
+#: packages/admin/src/router.tsx:1441
 msgid "Unscheduled"
 msgstr "Programació anul·lada"
 
@@ -14220,7 +14228,7 @@ msgid "User not found"
 msgstr "No s'ha trobat l'usuari"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:223
-#: packages/admin/src/components/Sidebar.tsx:479
+#: packages/admin/src/components/Sidebar.tsx:485
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "Usuaris"
@@ -14601,7 +14609,7 @@ msgstr "S'ha actualitzat el giny"
 #: packages/admin/src/components/PluginManager.tsx:478
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:446
+#: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Widgets.tsx:389
 #: packages/admin/src/components/WordPressImport.tsx:1182
 msgid "Widgets"
@@ -14768,7 +14776,7 @@ msgstr "Necessites permisos d'administrador per gestionar el seguiment de l'ús 
 msgid "You need Admin permissions to transfer this site."
 msgstr "Necessites permisos d'administrador per transferir aquest lloc."
 
-#: packages/admin/src/router.tsx:2287
+#: packages/admin/src/router.tsx:2306
 msgid "You need Editor permissions to moderate comments."
 msgstr "Necessites permisos d'editor per moderar els comentaris."
 

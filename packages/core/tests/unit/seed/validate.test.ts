@@ -402,6 +402,76 @@ describe("validateSeed", () => {
 			expect(result.valid).toBe(false);
 			expect(result.errors).toContain("collections[0].admin.quickCreate: must be a boolean");
 		});
+
+		function seedWithRepeater(repeater: Record<string, unknown>) {
+			return validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "home",
+						label: "Home",
+						fields: [{ slug: "services", label: "Services", type: "repeater", ...repeater }],
+					},
+				],
+			});
+		}
+
+		it("warns about repeater sub-fields declared as fields instead of validation.subFields", () => {
+			const result = seedWithRepeater({
+				fields: [
+					{ slug: "title", type: "string", required: true },
+					{ slug: "description", type: "text" },
+				],
+			});
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toEqual([
+				"collections[0].fields[0].fields: repeater sub-fields must be defined in validation.subFields; these fields are ignored",
+			]);
+		});
+
+		it("warns about a repeater without a non-empty sub-field array", () => {
+			for (const repeater of [
+				{},
+				{ validation: { subFields: [] } },
+				{ validation: { subFields: "title" } },
+			]) {
+				expect(seedWithRepeater(repeater)).toEqual({
+					valid: true,
+					errors: [],
+					warnings: [
+						"collections[0].fields[0].validation.subFields: repeater needs a non-empty array of sub-fields, so its rows have nothing to edit",
+					],
+				});
+			}
+		});
+
+		it("accepts a repeater with validation.subFields", () => {
+			const result = seedWithRepeater({
+				validation: { subFields: [{ slug: "title", label: "Title", type: "string" }] },
+			});
+
+			expect(result.valid).toBe(true);
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([]);
+		});
+
+		it("finds no repeater sub-field warnings in the repository's seeds", () => {
+			const root = resolve(import.meta.dirname, "../../../../..");
+			const seeds = ["templates", "demos", "infra", "fixtures"].flatMap((dir) =>
+				readdirSync(resolve(root, dir))
+					.map((name) => resolve(root, dir, name, "seed/seed.json"))
+					.filter((path) => existsSync(path)),
+			);
+			expect(seeds.length).toBeGreaterThan(0);
+			for (const path of seeds) {
+				const { warnings } = validateSeed(JSON.parse(readFileSync(path, "utf8")));
+				expect(
+					warnings.filter((warning) => /\.(?:fields|validation\.subFields): /.test(warning)),
+					path,
+				).toEqual([]);
+			}
+		});
 	});
 
 	describe("relation validation", () => {

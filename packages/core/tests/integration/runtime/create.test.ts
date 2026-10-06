@@ -571,6 +571,28 @@ describe("EmDashRuntime.create — cold boot", () => {
 		expect(dialectCalls).toBe(1);
 	});
 
+	it("retries immediately after an error reading migration state", async () => {
+		const unavailable = new Database(":memory:");
+		unavailable.close();
+		const healthy = new Database(":memory:");
+		await runMigrations(
+			new Kysely<EmDashDatabase>({ dialect: new SqliteDialect({ database: healthy }) }),
+		);
+
+		let dialectCalls = 0;
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			createDialect: () => {
+				dialectCalls += 1;
+				return new SqliteDialect({ database: dialectCalls === 1 ? unavailable : healthy });
+			},
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow();
+		await expect(EmDashRuntime.create(deps)).resolves.toBeInstanceOf(EmDashRuntime);
+		expect(dialectCalls).toBe(2);
+	});
+
 	it("rechecks pending migrations without entering migration-failure backoff", async () => {
 		let dialectCalls = 0;
 		const deps: RuntimeDependencies = {

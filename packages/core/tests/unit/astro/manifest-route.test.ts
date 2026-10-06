@@ -26,6 +26,7 @@ interface ManifestEnvelope {
 			favicon?: string;
 		};
 		authMode: string;
+		providerManagedName?: boolean;
 		signupEnabled?: boolean;
 		collections?: Record<string, unknown>;
 		plugins?: Record<string, unknown>;
@@ -120,5 +121,45 @@ describe("manifest route admin branding", () => {
 		} finally {
 			await teardownTestDatabase(db);
 		}
+	});
+});
+
+describe("manifest route provider-managed names", () => {
+	async function providerManagedName(auth?: Record<string, unknown>) {
+		const context = {
+			locals: {
+				emdash: {
+					config: auth ? { auth } : {},
+					getManifest: async () => ({
+						version: "test",
+						hash: "test",
+						collections: {},
+						plugins: {},
+						taxonomies: [],
+					}),
+				},
+			},
+		} as unknown as APIContext;
+		const body = (await (await getManifest(context)).json()) as ManifestEnvelope;
+		return body.data.providerManagedName;
+	}
+
+	const access = {
+		type: "cloudflare-access",
+		entrypoint: "@emdash-cms/cloudflare/auth",
+	};
+
+	it("reports names as provider-managed for external auth by default", async () => {
+		expect(await providerManagedName({ ...access, config: { teamDomain: "t" } })).toBe(true);
+	});
+
+	it("reports names as editable when external auth sets syncName to false", async () => {
+		expect(
+			await providerManagedName({ ...access, config: { teamDomain: "t", syncName: false } }),
+		).toBe(false);
+	});
+
+	it("reports names as editable with passkey auth", async () => {
+		expect(await providerManagedName()).toBe(false);
 	});
 });
