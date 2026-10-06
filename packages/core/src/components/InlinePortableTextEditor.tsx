@@ -2754,10 +2754,10 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
-				.emdash-inline-editor p.is-editor-empty {
+				.emdash-inline-editor:focus p.is-editor-empty {
 					display: flow-root;
 				}
-				.emdash-inline-editor p.is-editor-empty::before {
+				.emdash-inline-editor:focus p.is-editor-empty::before {
 					content: attr(data-placeholder);
 					float: inline-start;
 					width: 100%;
