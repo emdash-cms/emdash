@@ -436,8 +436,9 @@ describe("validateSeed", () => {
 				{ validation: { subFields: [] } },
 				{ validation: { subFields: "title" } },
 			]) {
-				expect(seedWithRepeater(repeater)).toMatchObject({
+				expect(seedWithRepeater(repeater)).toEqual({
 					valid: true,
+					errors: [],
 					warnings: [
 						"collections[0].fields[0].validation.subFields: repeater needs a non-empty array of sub-fields, so its rows have nothing to edit",
 					],
@@ -453,6 +454,23 @@ describe("validateSeed", () => {
 			expect(result.valid).toBe(true);
 			expect(result.errors).toEqual([]);
 			expect(result.warnings).toEqual([]);
+		});
+
+		it("finds no repeater sub-field warnings in the repository's seeds", () => {
+			const root = resolve(import.meta.dirname, "../../../../..");
+			const seeds = ["templates", "demos", "infra", "fixtures"].flatMap((dir) =>
+				readdirSync(resolve(root, dir))
+					.map((name) => resolve(root, dir, name, "seed/seed.json"))
+					.filter((path) => existsSync(path)),
+			);
+			expect(seeds.length).toBeGreaterThan(0);
+			for (const path of seeds) {
+				const { warnings } = validateSeed(JSON.parse(readFileSync(path, "utf8")));
+				expect(
+					warnings.filter((warning) => /\.(?:fields|validation\.subFields): /.test(warning)),
+					path,
+				).toEqual([]);
+			}
 		});
 	});
 
