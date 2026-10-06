@@ -38,6 +38,101 @@ describe("WordPress import URL rewriting", () => {
 		expect(blocks[0]?.asset?._ref).toBe(newUrl);
 	});
 
+	it("rewrites the URL of a self-hosted video embed", () => {
+		const oldVideoUrl = "https://example.com/wp-content/uploads/2026/01/clip.mp4";
+		const newVideoUrl = "/_emdash/media/file/imported/clip.mp4";
+		const videoMap = { [oldVideoUrl]: newVideoUrl };
+		const baseMap = buildBaseUrlMap(videoMap);
+		const blocks = [
+			{
+				_type: "embed",
+				provider: "video",
+				url: oldVideoUrl,
+			},
+		];
+
+		const result = rewritePortableTextUrls(blocks, videoMap, baseMap);
+
+		expect(result).toEqual({ changed: true, urlsRewritten: 1 });
+		expect(blocks[0]?.url).toBe(newVideoUrl);
+	});
+
+	it("rewrites the URL of a self-hosted audio embed", () => {
+		const oldAudioUrl = "https://example.com/wp-content/uploads/2026/01/episode.mp3";
+		const newAudioUrl = "/_emdash/media/file/imported/episode.mp3";
+		const audioMap = { [oldAudioUrl]: newAudioUrl };
+		const baseMap = buildBaseUrlMap(audioMap);
+		const blocks = [
+			{
+				_type: "embed",
+				provider: "audio",
+				url: oldAudioUrl,
+			},
+		];
+
+		const result = rewritePortableTextUrls(blocks, audioMap, baseMap);
+
+		expect(result).toEqual({ changed: true, urlsRewritten: 1 });
+		expect(blocks[0]?.url).toBe(newAudioUrl);
+	});
+
+	it("rewrites the old URL inside a video embed's html", () => {
+		const oldVideoUrl = "https://example.com/wp-content/uploads/2026/01/clip.mp4";
+		const newVideoUrl = "/_emdash/media/file/imported/clip.mp4";
+		const videoMap = { [oldVideoUrl]: newVideoUrl };
+		const baseMap = buildBaseUrlMap(videoMap);
+		const blocks = [
+			{
+				_type: "embed",
+				provider: "video",
+				url: oldVideoUrl,
+				html: `<video controls src="${oldVideoUrl}"></video>`,
+			},
+		];
+
+		const result = rewritePortableTextUrls(blocks, videoMap, baseMap);
+
+		expect(result.changed).toBe(true);
+		expect(blocks[0]?.html).toBe(`<video controls src="${newVideoUrl}"></video>`);
+		expect(blocks[0]?.html).not.toContain("example.com");
+	});
+
+	it("leaves an embed of a provider that is not in the map alone", () => {
+		const videoMap = { "https://example.com/wp-content/uploads/2026/01/clip.mp4": "/new/clip.mp4" };
+		const baseMap = buildBaseUrlMap(videoMap);
+		const youtubeUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+		const blocks = [
+			{
+				_type: "embed",
+				provider: "youtube",
+				url: youtubeUrl,
+			},
+		];
+
+		const result = rewritePortableTextUrls(blocks, videoMap, baseMap);
+
+		expect(result).toEqual({ changed: false, urlsRewritten: 0 });
+		expect(blocks[0]?.url).toBe(youtubeUrl);
+	});
+
+	it("rewrites a video embed that a media-text block nests in a column", () => {
+		const oldVideoUrl = "https://example.com/wp-content/uploads/2026/01/clip.mp4";
+		const newVideoUrl = "/_emdash/media/file/imported/clip.mp4";
+		const videoMap = { [oldVideoUrl]: newVideoUrl };
+		const baseMap = buildBaseUrlMap(videoMap);
+		const blocks = [
+			{
+				_type: "columns",
+				columns: [{ content: [{ _type: "embed", provider: "video", url: oldVideoUrl }] }],
+			},
+		];
+
+		const result = rewritePortableTextUrls(blocks, videoMap, baseMap);
+
+		expect(result).toEqual({ changed: true, urlsRewritten: 1 });
+		expect(blocks[0]?.columns?.[0]?.content?.[0]?.url).toBe(newVideoUrl);
+	});
+
 	it("matches string URLs that use a WordPress size suffix", () => {
 		const baseMap = buildBaseUrlMap(urlMap);
 		const result = rewriteStringUrls(
