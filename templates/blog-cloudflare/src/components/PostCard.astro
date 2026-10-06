@@ -249,6 +249,13 @@ const sizes = {
 		color: var(--color-text-secondary);
 	}
 
+	/* Inline editing needs the whole excerpt, not the clamped preview */
+	.post__excerpt[data-emdash-editing] {
+		display: block;
+		-webkit-line-clamp: unset;
+		overflow: visible;
+	}
+
 	.post__footer {
 		display: flex;
 		flex-wrap: wrap;

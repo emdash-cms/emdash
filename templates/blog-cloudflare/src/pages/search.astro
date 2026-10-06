@@ -52,7 +52,13 @@ const countLabel = nextCursor
 		<div class="frame">
 			<p class="eyebrow">Search</p>
 			<h1 class="intro__title">What are you looking for?</h1>
-			<form method="get" action="/search" role="search" class="search-form">
+			<form
+				method="get"
+				action="/search"
+				role="search"
+				aria-label="Posts"
+				class="search-form"
+			>
 				<label for="search-query" class="sr-only">Search posts</label>
 				<div class="search-field">
 					<svg

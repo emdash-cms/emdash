@@ -22,6 +22,7 @@
     --color-brand-hover: light-dark(#115e59, #5eead4);
     --color-on-brand: light-dark(#ffffff, #0a0a0a);
     --font-heading: "Iowan Old Style", Georgia, serif;
+    --radius-lg: 18px;
     --radius-xl: 24px;
   }
 */

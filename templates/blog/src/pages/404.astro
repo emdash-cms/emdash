@@ -19,6 +19,7 @@ import Base from "../layouts/Base.astro";
 				method="get"
 				action="/search"
 				role="search"
+				aria-label="Posts"
 				class="not-found__search"
 			>
 				<label for="not-found-query" class="sr-only">Search posts</label>
@@ -192,6 +193,7 @@ import Base from "../layouts/Base.astro";
 		inset-inline-end: 6px;
 		width: 32px;
 		height: 32px;
+		min-height: 0;
 		padding: 0;
 	}
 

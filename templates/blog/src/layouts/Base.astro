@@ -94,6 +94,7 @@ function navCurrent(url: string): "page" | "true" | undefined {
 		return undefined;
 	}
 	if (target.origin !== Astro.url.origin || target.hash) return undefined;
+	if (target.search && target.search !== Astro.url.search) return undefined;
 	const path = target.pathname.replace(TRAILING_SLASH, "") || "/";
 	if (path === currentPath) return "page";
 	if (path !== "/" && currentPath.startsWith(`${path}/`)) return "true";
@@ -183,7 +184,7 @@ const year = new Date().getFullYear();
 					)
 				}
 				<div class="site-header__actions">
-					<div class="site-search" role="search">
+					<div class="site-search" role="search" aria-label="Site">
 						<svg
 							class="site-search__icon"
 							viewBox="0 0 24 24"
