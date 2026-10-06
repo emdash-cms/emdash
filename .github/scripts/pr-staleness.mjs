@@ -14,6 +14,9 @@ const OPEN_PULL_REQUESTS_QUERY = `
 					commits(last: 1) { nodes { commit { committedDate } } }
 					comments(last: 50) { nodes { createdAt author { __typename } } }
 					reviews(last: 50) { nodes { submittedAt author { __typename } } }
+					timelineItems(itemTypes: [REOPENED_EVENT], last: 1) {
+						nodes { ... on ReopenedEvent { createdAt actor { __typename } } }
+					}
 				}
 			}
 		}
@@ -35,6 +38,9 @@ export function lastHumanActivity(pullRequest) {
 		...(pullRequest.reviews?.nodes ?? [])
 			.filter((review) => isHuman(review.author))
 			.map((review) => review.submittedAt),
+		...(pullRequest.timelineItems?.nodes ?? [])
+			.filter((reopened) => isHuman(reopened.actor))
+			.map((reopened) => reopened.createdAt),
 	];
 	const latest = Math.max(...timestamps.filter(Boolean).map((timestamp) => Date.parse(timestamp)));
 	return new Date(latest);

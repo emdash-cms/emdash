@@ -47,6 +47,16 @@ describe("lastHumanActivity", () => {
 		);
 	});
 
+	it("counts a human reopening the PR, but not a bot", () => {
+		const reopened = (author) => ({
+			...pullRequest(),
+			timelineItems: { nodes: [{ createdAt: "2026-09-20T00:00:00Z", actor: author }] },
+		});
+
+		assert.equal(lastHumanActivity(reopened(human)).toISOString(), "2026-09-20T00:00:00.000Z");
+		assert.equal(lastHumanActivity(reopened(bot)).toISOString(), "2026-09-01T00:00:00.000Z");
+	});
+
 	it("treats comments from deleted accounts as human and falls back to creation", () => {
 		const pr = pullRequest({ comments: [{ createdAt: "2026-09-05T00:00:00Z", author: null }] });
 		assert.equal(lastHumanActivity(pr).toISOString(), "2026-09-05T00:00:00.000Z");
