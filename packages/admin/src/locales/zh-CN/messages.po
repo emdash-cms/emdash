@@ -22,7 +22,7 @@ msgstr "（默认）"
 msgid " (opens in new window)"
 msgstr "（在新窗口中打开）"
 
-#: packages/admin/src/routes/bylines.tsx:958
+#: packages/admin/src/routes/bylines.tsx:957
 msgid "-- Select --"
 msgstr "-- 选择 --"
 
@@ -1417,7 +1417,7 @@ msgstr ""
 msgid "Additional data to import."
 msgstr "要导入的其他数据。"
 
-#: packages/admin/src/routes/bylines.tsx:789
+#: packages/admin/src/routes/bylines.tsx:787
 msgid "Additional details"
 msgstr ""
 
@@ -1894,7 +1894,7 @@ msgstr ""
 msgid "At most…"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:752
+#: packages/admin/src/routes/bylines.tsx:750
 msgid "Attribution"
 msgstr ""
 
@@ -2159,7 +2159,7 @@ msgstr ""
 msgid "Bing Verification"
 msgstr "Bing 验证"
 
-#: packages/admin/src/routes/bylines.tsx:741
+#: packages/admin/src/routes/bylines.tsx:739
 msgid "Bio"
 msgstr "简介"
 
@@ -2268,7 +2268,7 @@ msgstr ""
 msgid "Bullet List"
 msgstr "无序列表"
 
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "byline"
 msgstr ""
 
@@ -2407,7 +2407,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
 #: packages/admin/src/components/WordPressImport.tsx:1940
-#: packages/admin/src/routes/bylines.tsx:852
+#: packages/admin/src/routes/bylines.tsx:851
 msgid "Cancel"
 msgstr "取消"
 
@@ -3414,7 +3414,7 @@ msgstr "无法加载署名字段。"
 msgid "Couldn't load content."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:810
+#: packages/admin/src/routes/bylines.tsx:808
 msgid "Couldn't load custom fields."
 msgstr "无法加载自定义字段。"
 
@@ -3486,7 +3486,7 @@ msgstr "数量"
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/Widgets.tsx:455
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Create"
 msgstr "创建"
 
@@ -3926,7 +3926,7 @@ msgstr "代码定义"
 #: packages/admin/src/components/TaxonomyManager.tsx:1550
 #: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:847
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete"
 msgstr "删除"
 
@@ -3973,7 +3973,7 @@ msgstr "删除 {0} 小部件区域"
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/TaxonomyManager.tsx:1530
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "Delete {0}?"
 msgstr "删除 {0}？"
 
@@ -3987,7 +3987,7 @@ msgid "Delete block"
 msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:614
-#: packages/admin/src/routes/bylines.tsx:876
+#: packages/admin/src/routes/bylines.tsx:875
 msgid "Delete byline"
 msgstr ""
 
@@ -4148,7 +4148,7 @@ msgstr "删除 \"{0}\" 将同时移除所有署名中的 {1, plural, one {# 个�
 #: packages/admin/src/components/TaxonomyManager.tsx:1535
 #: packages/admin/src/components/TaxonomyManager.tsx:1551
 #: packages/admin/src/components/Widgets.tsx:720
-#: packages/admin/src/routes/bylines.tsx:877
+#: packages/admin/src/routes/bylines.tsx:876
 msgid "Deleting..."
 msgstr "删除中..."
 
@@ -4373,7 +4373,7 @@ msgstr "显示导航菜单"
 msgid "Display category list"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:724
+#: packages/admin/src/routes/bylines.tsx:722
 msgid "Display name"
 msgstr "显示名称"
 
@@ -6418,7 +6418,7 @@ msgstr ""
 msgid "Guest"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:775
+#: packages/admin/src/routes/bylines.tsx:773
 msgid "Guest byline"
 msgstr "访客署名"
 
@@ -7401,7 +7401,7 @@ msgstr "链接已过期"
 msgid "Link options"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:754
+#: packages/admin/src/routes/bylines.tsx:752
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr ""
 
@@ -7433,7 +7433,7 @@ msgid "Linked side (singular)"
 msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:565
-#: packages/admin/src/routes/bylines.tsx:758
+#: packages/admin/src/routes/bylines.tsx:756
 msgid "Linked user"
 msgstr "已关联用户"
 
@@ -8781,7 +8781,7 @@ msgstr "暂无项目"
 msgid "No limit"
 msgstr "无限制"
 
-#: packages/admin/src/routes/bylines.tsx:769
+#: packages/admin/src/routes/bylines.tsx:767
 msgid "No linked user"
 msgstr "无关联用户"
 
@@ -10989,7 +10989,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Save"
 msgstr "保存"
 
@@ -11087,7 +11087,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/users/UserDetail.tsx:323
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Saving..."
 msgstr "保存中..."
 
@@ -12094,7 +12094,7 @@ msgstr "已跳过"
 #: packages/admin/src/components/TaxonomyManager.tsx:797
 #: packages/admin/src/components/TaxonomyManager.tsx:801
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:730
+#: packages/admin/src/routes/bylines.tsx:728
 msgid "Slug"
 msgstr "别名"
 
@@ -13272,7 +13272,7 @@ msgstr "此重定向规则将被永久移除。"
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "此版本需要比您站点当前运行的更新版本的环境。请在安装前升级。"
 
-#: packages/admin/src/routes/bylines.tsx:875
+#: packages/admin/src/routes/bylines.tsx:874
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "这将删除署名配置文件。内容署名链接将被移除，主要指针将被清除。"
 
@@ -14452,7 +14452,7 @@ msgstr "此浏览器不支持 WebAuthn"
 msgid "Website"
 msgstr "网站"
 
-#: packages/admin/src/routes/bylines.tsx:736
+#: packages/admin/src/routes/bylines.tsx:734
 msgid "Website URL"
 msgstr "网站 URL"
 
@@ -14736,7 +14736,7 @@ msgstr "您可以创建和编辑自己的内容。"
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "您可以管理内容、媒体、菜单和分类。"
 
-#: packages/admin/src/routes/bylines.tsx:812
+#: packages/admin/src/routes/bylines.tsx:810
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "您仍可编辑上方的固定字段。保存不会影响任何已存储的自定义字段值。"
 

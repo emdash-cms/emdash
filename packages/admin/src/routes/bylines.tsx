@@ -716,124 +716,123 @@ export function BylinesPage() {
 							/>
 						</div>
 
-						<fieldset
-							disabled={!formLoaded}
-							className="emdash-auto-scrollbar min-h-0 min-w-0 flex-1 space-y-5 overflow-x-hidden overflow-y-auto px-6 py-6"
-						>
-							<Input
-								label={t`Display name`}
-								value={form.displayName}
-								onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value }))}
-								required
-							/>
-							<Input
-								label={t`Slug`}
-								value={form.slug}
-								onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
-								required
-							/>
-							<Input
-								label={t`Website URL`}
-								value={form.websiteUrl}
-								onChange={(e) => setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))}
-							/>
-							<InputArea
-								label={t`Bio`}
-								value={form.bio}
-								onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
-								rows={5}
-							/>
-							<BylineAvatarField
-								value={form.avatarMediaId}
-								onChange={(mediaId) => setForm((prev) => ({ ...prev, avatarMediaId: mediaId }))}
-							/>
-							<div className="space-y-4 border-t border-kumo-line pt-5">
-								<div className="space-y-1">
-									<h3 className="text-sm font-semibold">{t`Attribution`}</h3>
-									<p className="text-sm text-kumo-subtle">
-										{t`Link this byline to a user or mark it as a guest profile.`}
-									</p>
-								</div>
-								<Select
-									label={t`Linked user`}
-									value={form.userId ?? ""}
-									onValueChange={(value) => {
-										const userId = (value as string) || null;
-										setForm((prev) => ({
-											...prev,
-											userId,
-											isGuest: userId ? false : prev.isGuest,
-										}));
-									}}
-									items={{
-										"": t`No linked user`,
-										...Object.fromEntries(users.map((user) => [user.id, getUserLabel(user)])),
-									}}
-									className="w-full"
+						<div className="emdash-auto-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-6">
+							<fieldset disabled={!formLoaded} className="min-w-0 space-y-5">
+								<Input
+									label={t`Display name`}
+									value={form.displayName}
+									onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value }))}
+									required
 								/>
-								<Switch
-									label={t`Guest byline`}
-									checked={form.isGuest}
-									onCheckedChange={(checked) =>
-										setForm((prev) => ({
-											...prev,
-											isGuest: checked,
-											userId: checked ? null : prev.userId,
-										}))
-									}
+								<Input
+									label={t`Slug`}
+									value={form.slug}
+									onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
+									required
 								/>
-							</div>
-
-							{customFieldDefs.length > 0 && (
+								<Input
+									label={t`Website URL`}
+									value={form.websiteUrl}
+									onChange={(e) => setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))}
+								/>
+								<InputArea
+									label={t`Bio`}
+									value={form.bio}
+									onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
+									rows={5}
+								/>
+								<BylineAvatarField
+									value={form.avatarMediaId}
+									onChange={(mediaId) => setForm((prev) => ({ ...prev, avatarMediaId: mediaId }))}
+								/>
 								<div className="space-y-4 border-t border-kumo-line pt-5">
-									<h3 className="text-sm font-semibold">{t`Additional details`}</h3>
-									{customFieldDefs.map((field) => (
-										<CustomFieldInput
-											key={field.id}
-											field={field}
-											value={form.customFields[field.slug]}
-											onChange={(next) =>
-												setForm((prev) => ({
-													...prev,
-													customFields: {
-														...prev.customFields,
-														[field.slug]: next,
-													},
-												}))
-											}
-										/>
-									))}
-								</div>
-							)}
-							{customFieldsError && (
-								<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
-									<p className="font-medium text-kumo-danger">{t`Couldn't load custom fields.`}</p>
-									<p className="mt-1 text-xs text-kumo-subtle">
-										{t`You can still edit the fixed fields above. Saving will not touch any stored custom-field values.`}
-									</p>
-								</div>
-							)}
-
-							{selected && isMultiLocale && i18n ? (
-								<div className="border-t border-kumo-line pt-5">
-									<TranslationsPanel
-										locales={i18n.locales}
-										defaultLocale={i18n.defaultLocale}
-										currentLocale={selected.locale}
-										translations={translationsData?.items ?? []}
-										onOpen={(summary) => {
-											void navigate({
-												to: "/bylines",
-												search: { locale: summary.locale },
-											});
-											setSelectedId(summary.id);
+									<div className="space-y-1">
+										<h3 className="text-sm font-semibold">{t`Attribution`}</h3>
+										<p className="text-sm text-kumo-subtle">
+											{t`Link this byline to a user or mark it as a guest profile.`}
+										</p>
+									</div>
+									<Select
+										label={t`Linked user`}
+										value={form.userId ?? ""}
+										onValueChange={(value) => {
+											const userId = (value as string) || null;
+											setForm((prev) => ({
+												...prev,
+												userId,
+												isGuest: userId ? false : prev.isGuest,
+											}));
 										}}
-										onCreate={(locale) => translateMutation.mutate(locale)}
-										pendingLocale={pendingTranslationLocale}
+										items={{
+											"": t`No linked user`,
+											...Object.fromEntries(users.map((user) => [user.id, getUserLabel(user)])),
+										}}
+										className="w-full"
+									/>
+									<Switch
+										label={t`Guest byline`}
+										checked={form.isGuest}
+										onCheckedChange={(checked) =>
+											setForm((prev) => ({
+												...prev,
+												isGuest: checked,
+												userId: checked ? null : prev.userId,
+											}))
+										}
 									/>
 								</div>
-							) : null}
-						</fieldset>
+
+								{customFieldDefs.length > 0 && (
+									<div className="space-y-4 border-t border-kumo-line pt-5">
+										<h3 className="text-sm font-semibold">{t`Additional details`}</h3>
+										{customFieldDefs.map((field) => (
+											<CustomFieldInput
+												key={field.id}
+												field={field}
+												value={form.customFields[field.slug]}
+												onChange={(next) =>
+													setForm((prev) => ({
+														...prev,
+														customFields: {
+															...prev.customFields,
+															[field.slug]: next,
+														},
+													}))
+												}
+											/>
+										))}
+									</div>
+								)}
+								{customFieldsError && (
+									<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
+										<p className="font-medium text-kumo-danger">{t`Couldn't load custom fields.`}</p>
+										<p className="mt-1 text-xs text-kumo-subtle">
+											{t`You can still edit the fixed fields above. Saving will not touch any stored custom-field values.`}
+										</p>
+									</div>
+								)}
+
+								{selected && isMultiLocale && i18n ? (
+									<div className="border-t border-kumo-line pt-5">
+										<TranslationsPanel
+											locales={i18n.locales}
+											defaultLocale={i18n.defaultLocale}
+											currentLocale={selected.locale}
+											translations={translationsData?.items ?? []}
+											onOpen={(summary) => {
+												void navigate({
+													to: "/bylines",
+													search: { locale: summary.locale },
+												});
+												setSelectedId(summary.id);
+											}}
+											onCreate={(locale) => translateMutation.mutate(locale)}
+											pendingLocale={pendingTranslationLocale}
+										/>
+									</div>
+								) : null}
+							</fieldset>
+						</div>
 						<DialogError message={getMutationError(mutationError)} className="mx-6 mt-3" />
 
 						<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-kumo-line px-6 py-4">

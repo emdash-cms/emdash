@@ -822,13 +822,17 @@ let virtualConfig:
 	| undefined;
 let virtualCreateDialect: ((config: unknown) => Dialect) | undefined;
 
-async function loadVirtualModules() {
+async function loadVirtualConfig() {
 	if (virtualConfig === undefined) {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore - virtual module
 		const configModule = await import("virtual:emdash/config");
 		virtualConfig = configModule.default;
 	}
+}
+
+async function loadVirtualModules() {
+	await loadVirtualConfig();
 	if (virtualCreateDialect === undefined) {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore - virtual module
@@ -1570,6 +1574,9 @@ let dbInstance: Kysely<Database> | null = null;
  * Initializes the default database on first call using config from virtual module.
  */
 export async function getDb(): Promise<Kysely<Database>> {
+	// Entry IDs depend on the i18n config, so it must be loaded on the
+	// request-scoped path too, not only when the default database is opened.
+	await loadVirtualConfig();
 	// Per-request DB override via ALS (normal mode)
 	const ctx = getRequestContext();
 	if (ctx?.db) {
