@@ -16,8 +16,11 @@ import trustedRootJson from "./trust-roots/sigstore-public-good-v1.json";
 
 const STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
 const PREDICATE_TYPE = "https://slsa.dev/provenance/v1";
-const GITHUB_WORKFLOW_BUILD_TYPE =
+const LEGACY_GITHUB_WORKFLOW_BUILD_TYPE =
 	"https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1";
+const GITHUB_WORKFLOW_BUILD_TYPE = "https://actions.github.io/buildtypes/workflow/v1";
+const LEGACY_GITHUB_HOSTED_BUILDER_ID = "https://github.com/actions/runner/github-hosted";
+const GITHUB_HOSTED_RUNNER = "github-hosted";
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const DSSE_PAYLOAD_TYPE = "application/vnd.in-toto+json";
 const FULCIO_OID_PREFIX = "1.3.6.1.4.1.57264.1.";
@@ -195,7 +198,8 @@ function validateStatement(
 	const profileRepository = requireRepository(input.profileRepository);
 	const referenceRepository = requireRepository(input.reference.sourceRepository);
 	const buildDefinition = requireObject(statement.predicate.buildDefinition);
-	if (requireString(buildDefinition.buildType) !== GITHUB_WORKFLOW_BUILD_TYPE) {
+	const buildType = requireString(buildDefinition.buildType);
+	if (buildType !== GITHUB_WORKFLOW_BUILD_TYPE && buildType !== LEGACY_GITHUB_WORKFLOW_BUILD_TYPE) {
 		throw new Error("Unsupported SLSA build type");
 	}
 	const workflow = requireObject(requireObject(buildDefinition.externalParameters).workflow);
@@ -222,9 +226,11 @@ function validateStatement(
 		requireString(requireObject(runDetails.metadata).invocationId),
 	);
 	const slsaBuilderId = requireString(requireObject(runDetails.builder).id);
-	if (slsaBuilderId !== "https://github.com/actions/runner/github-hosted") {
-		throw new Error("Unsupported GitHub Actions runner class");
-	}
+	const githubHosted =
+		buildType === LEGACY_GITHUB_WORKFLOW_BUILD_TYPE
+			? slsaBuilderId === LEGACY_GITHUB_HOSTED_BUILDER_ID
+			: slsaBuilderId === builderId && github.runner_environment === GITHUB_HOSTED_RUNNER;
+	if (!githubHosted) throw new Error("Unsupported GitHub Actions runner class");
 
 	const dependencies = buildDefinition.resolvedDependencies;
 	if (!Array.isArray(dependencies)) throw new Error("Missing resolved dependency");
@@ -284,6 +290,7 @@ function validateSignerIdentity(
 	const issuer = readRequiredOid(oids, 8);
 	const buildSignerUri = readRequiredOid(oids, 9);
 	const buildSignerDigest = readRequiredOid(oids, 10);
+	const runnerEnvironment = readRequiredOid(oids, 11);
 	const sourceRepository = requireRepository(readRequiredOid(oids, 12));
 	const sourceDigest = readRequiredOid(oids, 13);
 	const sourceRef = readRequiredOid(oids, 14);
@@ -297,6 +304,7 @@ function validateSignerIdentity(
 		buildSignerUri !== expected.builderId ||
 		buildConfigUri !== expected.builderId ||
 		buildSignerDigest !== expected.commitSha ||
+		runnerEnvironment !== GITHUB_HOSTED_RUNNER ||
 		sourceDigest !== expected.commitSha ||
 		buildConfigDigest !== expected.commitSha ||
 		sourceRepository !== expected.repository ||
@@ -411,4 +419,6 @@ export const provenanceTestInternals = {
 	decodeDerUtf8String,
 	exactRegexPattern,
 	readRequiredOid,
+	validateSignerIdentity,
+	validateStatement,
 };
