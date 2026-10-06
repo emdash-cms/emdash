@@ -79,7 +79,12 @@ vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
 		editor: Editor;
 		onInsertBlock?: (position: number) => void;
 	}) => (
-		<button type="button" onClick={() => onInsertBlock?.(editor.state.doc.content.size)}>
+		<button
+			type="button"
+			// Like the real insert button, a click leaves focus in the editor.
+			onMouseDown={(event) => event.preventDefault()}
+			onClick={() => onInsertBlock?.(editor.state.doc.content.size)}
+		>
 			Test gutter insert
 		</button>
 	),
@@ -310,6 +315,7 @@ describe("Video block editor", () => {
 		const { screen, editor } = await renderEditor({ value: [INTRO] });
 		const before = editor.getJSON();
 
+		editor.view.focus();
 		await screen.getByRole("button", { name: "Test gutter insert" }).click();
 		const menu = await vi.waitFor(() => {
 			const element = document.querySelector<HTMLElement>("[data-slash-command-menu]");
@@ -343,6 +349,7 @@ describe("Video block editor", () => {
 		dropFiles(pm.querySelector("p")!, [videoFile("demo.webm")]);
 		await vi.waitFor(() => expect(vi.mocked(uploadMedia)).toHaveBeenCalledTimes(1));
 
+		editor.view.focus();
 		await screen.getByRole("button", { name: "Test gutter insert" }).click();
 		const menu = await vi.waitFor(() => {
 			const element = document.querySelector<HTMLElement>("[data-slash-command-menu]");
