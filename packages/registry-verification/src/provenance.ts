@@ -85,7 +85,7 @@ export class GitHubProvenanceVerifier implements ProvenanceVerifier {
 			const expected = validateStatement(statement, snapshot);
 			const bundle = bundleFromJSON(serializedBundle);
 			const signer = verifier.verify(toSignedEntity(bundle), {
-				subjectAlternativeName: exactRegexPattern(snapshot.reference.builderId),
+				subjectAlternativeName: exactRegexPattern(expected.signerId),
 				extensions: { issuer: GITHUB_OIDC_ISSUER },
 			});
 			validateSignerIdentity(signer.identity, expected);
@@ -133,6 +133,7 @@ interface ExpectedIdentity {
 	artifactDigest: Uint8Array;
 	repository: string;
 	builderId: string;
+	signerId: string;
 	workflowRef: string;
 	commitSha: string;
 	repositoryId: string;
@@ -226,10 +227,16 @@ function validateStatement(
 		requireString(requireObject(runDetails.metadata).invocationId),
 	);
 	const slsaBuilderId = requireString(requireObject(runDetails.builder).id);
+	const signerPrefix = `${attestedRepository}/`;
+	const signerSuffix = `@${workflowRef}`;
+	const signerPath = slsaBuilderId.slice(signerPrefix.length, -signerSuffix.length);
 	const githubHosted =
 		buildType === LEGACY_GITHUB_WORKFLOW_BUILD_TYPE
 			? slsaBuilderId === LEGACY_GITHUB_HOSTED_BUILDER_ID
-			: slsaBuilderId === builderId && github.runner_environment === GITHUB_HOSTED_RUNNER;
+			: slsaBuilderId.startsWith(signerPrefix) &&
+				slsaBuilderId.endsWith(signerSuffix) &&
+				GITHUB_WORKFLOW_PATH_RE.test(signerPath) &&
+				github.runner_environment === GITHUB_HOSTED_RUNNER;
 	if (!githubHosted) throw new Error("Unsupported GitHub Actions runner class");
 
 	const dependencies = buildDefinition.resolvedDependencies;
@@ -246,6 +253,7 @@ function validateStatement(
 		artifactDigest,
 		repository: attestedRepository,
 		builderId,
+		signerId: buildType === LEGACY_GITHUB_WORKFLOW_BUILD_TYPE ? builderId : slsaBuilderId,
 		workflowRef,
 		commitSha,
 		repositoryId,
@@ -281,7 +289,7 @@ function validateSignerIdentity(
 	expected: ExpectedIdentity,
 ): void {
 	if (
-		identity?.subjectAlternativeName !== expected.builderId ||
+		identity?.subjectAlternativeName !== expected.signerId ||
 		identity.extensions?.issuer !== GITHUB_OIDC_ISSUER
 	) {
 		throw new Error("Certificate identity mismatch");
@@ -301,7 +309,7 @@ function validateSignerIdentity(
 
 	if (
 		issuer !== GITHUB_OIDC_ISSUER ||
-		buildSignerUri !== expected.builderId ||
+		buildSignerUri !== expected.signerId ||
 		buildConfigUri !== expected.builderId ||
 		buildSignerDigest !== expected.commitSha ||
 		runnerEnvironment !== GITHUB_HOSTED_RUNNER ||

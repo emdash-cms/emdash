@@ -4,6 +4,7 @@ import type { TLogAuthority } from "@sigstore/verify";
 import { verifyCheckpoint } from "@sigstore/verify/dist/tlog/checkpoint.js";
 import { describe, expect, it } from "vitest";
 
+import reusableBundleFixture from "../fixtures/provenance/analytics-0.3.1-slsa.bundle.json";
 import actionsBundleFixture from "../fixtures/provenance/linguadash-0.2.0-slsa.bundle.json";
 import bundleFixture from "../fixtures/provenance/sigstore-core-4.0.1-slsa.bundle.json";
 import { computeMultihash, GitHubProvenanceVerifier } from "../src/index.js";
@@ -35,6 +36,21 @@ const actionsRelease = {
 		"https://github.com/swissky/emdash-plugin-linguadash/actions/runs/37491967820/attempts/1",
 	url: "https://github.com/swissky/emdash-plugin-linguadash/attestations/53240928",
 } as const;
+
+const reusableRelease = {
+	artifactDigest: decodeHex("4669ca928249741972855f09d2f17bf265e40b02d4982b561da74b46d80f9560"),
+	sourceRepository: "https://github.com/eisbachcode/emdash-plugin-analytics",
+	builderId:
+		"https://github.com/eisbachcode/emdash-plugin-analytics/.github/workflows/release.yml@refs/heads/main",
+	repositoryId: "1384219962",
+	workflowRef: "refs/heads/main",
+	commitSha: "c0d3df3a788c8b5bd489d9cfb9c5c62bcf212ad3",
+	invocationId:
+		"https://github.com/eisbachcode/emdash-plugin-analytics/actions/runs/37486660259/attempts/1",
+	url: "https://github.com/eisbachcode/emdash-plugin-analytics/attestations/53226901",
+} as const;
+const reusableSignerId =
+	"https://github.com/eisbachcode/emdash-plugin-analytics/.github/workflows/emdash-release.yml@refs/heads/main";
 
 const algorithmVectors = [
 	{
@@ -118,6 +134,22 @@ export function provenanceContract(): void {
 				artifactDigest: actionsRelease.artifactDigest,
 				profileRepository: actionsRelease.sourceRepository,
 			});
+
+			expect(result).toEqual({ success: true, value: { ...expected, predicateType } });
+		});
+
+		it("verifies a same-repository reusable workflow and returns the caller identity", async () => {
+			const { url, ...expected } = reusableRelease;
+			const result = await verify(
+				encoder.encode(JSON.stringify(reusableBundleFixture)),
+				{
+					builderId: reusableRelease.builderId,
+					sourceRepository: reusableRelease.sourceRepository,
+					url,
+				},
+				reusableRelease.artifactDigest,
+				reusableRelease.sourceRepository,
+			);
 
 			expect(result).toEqual({ success: true, value: { ...expected, predicateType } });
 		});
@@ -319,6 +351,7 @@ export function provenanceContract(): void {
 				artifactDigest,
 				repository: sourceRepository,
 				builderId,
+				signerId: builderId,
 				workflowRef,
 				commitSha,
 				repositoryId,
@@ -351,6 +384,53 @@ export function provenanceContract(): void {
 			expect(() =>
 				provenanceTestInternals.validateSignerIdentity(identity("self-hosted"), expected),
 			).toThrow("Certificate and predicate identity mismatch");
+		});
+	});
+
+	describe("Same-repository reusable workflow identity", () => {
+		it.each([
+			"https://github.com/example/other/.github/workflows/emdash-release.yml@refs/heads/main",
+			"https://github.com/eisbachcode/emdash-plugin-analytics/.github/workflows/emdash-release.yml@refs/heads/other",
+			"https://github.com/eisbachcode/emdash-plugin-analytics/emdash-release.yml@refs/heads/main",
+		])("rejects an unsupported signing workflow %s", (signerId) => {
+			expect(() =>
+				validateFixtureStatement(reusableBundleFixture, (statement) => {
+					statement.predicate.runDetails.builder.id = signerId;
+				}),
+			).toThrow("Unsupported GitHub Actions runner class");
+		});
+
+		it("authenticates the signer separately from the calling workflow", () => {
+			const expected = validateFixtureStatement(reusableBundleFixture);
+			expect(() =>
+				provenanceTestInternals.validateSignerIdentity(reusableCertificateIdentity(), expected),
+			).not.toThrow();
+		});
+
+		it.each([
+			[9, reusableRelease.builderId],
+			[18, reusableSignerId],
+			[10, "a".repeat(40)],
+			[19, "a".repeat(40)],
+		])("rejects a substituted certificate workflow identity in OID %s", (suffix, value) => {
+			const expected = validateFixtureStatement(reusableBundleFixture);
+			expect(() =>
+				provenanceTestInternals.validateSignerIdentity(
+					reusableCertificateIdentity({ [suffix]: value }),
+					expected,
+				),
+			).toThrow("Certificate and predicate identity mismatch");
+		});
+
+		it("rejects a certificate SAN naming the caller instead of the signer", () => {
+			const identity = reusableCertificateIdentity();
+			identity.subjectAlternativeName = reusableRelease.builderId;
+			expect(() =>
+				provenanceTestInternals.validateSignerIdentity(
+					identity,
+					validateFixtureStatement(reusableBundleFixture),
+				),
+			).toThrow("Certificate identity mismatch");
 		});
 	});
 
@@ -487,9 +567,33 @@ function validateFixtureStatement(
 			url: "https://example.test/attestation",
 		},
 		artifactDigest,
-		artifactDigests: [actionsRelease.artifactDigest],
+		artifactDigests: [actionsRelease.artifactDigest, reusableRelease.artifactDigest],
 		profileRepository: repository,
 	});
+}
+
+function reusableCertificateIdentity(overrides: Record<number, string> = {}) {
+	return {
+		subjectAlternativeName: reusableSignerId,
+		extensions: { issuer: "https://token.actions.githubusercontent.com" },
+		oids: Object.entries({
+			8: "https://token.actions.githubusercontent.com",
+			9: reusableSignerId,
+			10: reusableRelease.commitSha,
+			11: "github-hosted",
+			12: reusableRelease.sourceRepository,
+			13: reusableRelease.commitSha,
+			14: reusableRelease.workflowRef,
+			15: reusableRelease.repositoryId,
+			18: reusableRelease.builderId,
+			19: reusableRelease.commitSha,
+			21: reusableRelease.invocationId,
+			...overrides,
+		}).map(([suffix, value]) => ({
+			oid: { id: [1, 3, 6, 1, 4, 1, 57264, 1, Number(suffix)] },
+			value: Buffer.from(derUtf8(value)),
+		})),
+	};
 }
 
 function fixtureDocument(): Uint8Array {
