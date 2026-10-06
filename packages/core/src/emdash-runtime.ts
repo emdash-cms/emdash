@@ -266,6 +266,7 @@ import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/e
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
+	EXCLUSIVE_HOOK_KEY_PREFIX,
 	getActiveContentSaveHookName,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
@@ -1634,6 +1635,7 @@ export class EmDashRuntime {
 
 		let pluginStates: Map<string, string> = new Map();
 		let pluginStatesRead = false;
+		let exclusiveHookSelections: Map<string, string | undefined> | undefined;
 		const configuredLocales: string[] =
 			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
 		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
@@ -1749,6 +1751,29 @@ export class EmDashRuntime {
 				} catch (error) {
 					captureMissingManualSchema(error);
 					// options may not exist yet on a pre-migration db.
+				}
+			}),
+			phase("rt.hookselections", "Exclusive hook selections", async () => {
+				// Built-in and sandboxed providers register after these reads, so
+				// only configured plugins' hooks and the always-present
+				// comment:moderate are known here. Hook resolution reads the rest.
+				const keys = Array.from(
+					new Set([
+						"comment:moderate",
+						...deps.plugins.flatMap((plugin) =>
+							Object.entries(plugin.hooks)
+								.filter(([, hook]) => hook?.exclusive)
+								.map(([name]) => name),
+						),
+					]),
+					(name) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${name}`,
+				);
+				try {
+					const stored = await optionsRepo.getMany<string>(keys);
+					exclusiveHookSelections = new Map(keys.map((key) => [key, stored.get(key)]));
+				} catch (error) {
+					captureMissingManualSchema(error);
+					// Hook resolution reads the selections itself when this fails.
 				}
 			}),
 		];
@@ -2139,7 +2164,7 @@ export class EmDashRuntime {
 
 		// Resolve exclusive hooks — auto-select providers and sync with DB
 		await phase("rt.hooks", "Exclusive hook resolution", () =>
-			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps),
+			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps, exclusiveHookSelections),
 		);
 
 		// ── Email pipeline ───────────────────────────────────────────────
@@ -2952,6 +2977,7 @@ export class EmDashRuntime {
 		pipeline: HookPipeline,
 		db: Kysely<Database>,
 		deps: RuntimeDependencies,
+		storedSelections?: ReadonlyMap<string, string | undefined>,
 	): Promise<void> {
 		const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 		if (exclusiveHookNames.length === 0) return;
@@ -2977,7 +3003,16 @@ export class EmDashRuntime {
 			pipeline,
 			isActive: () => true,
 			getOption: (key) => optionsRepo.get<string>(key),
-			getOptions: (keys) => optionsRepo.getMany<string>(keys),
+			getOptions: async (keys) => {
+				const unread = keys.filter((key) => !storedSelections?.has(key));
+				const selections =
+					unread.length > 0 ? await optionsRepo.getMany<string>(unread) : new Map<string, string>();
+				for (const key of keys) {
+					const value = storedSelections?.get(key);
+					if (value !== undefined) selections.set(key, value);
+				}
+				return selections;
+			},
 			setOption: (key, value) => optionsRepo.set(key, value),
 			deleteOption: async (key) => {
 				await optionsRepo.delete(key);

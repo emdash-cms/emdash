@@ -525,7 +525,7 @@ msgstr ""
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:219
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr ""
 
@@ -746,7 +746,7 @@ msgstr "{selectedCount, plural, one {# valgt} other {# valgt}}"
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Flyt # element til papirkurven? Du kan gendanne det senere.} other {Flyt # elementer til papirkurven? Du kan gendanne dem senere.}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:216
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr ""
 
@@ -1051,7 +1051,7 @@ msgstr "En relation definerer, hvordan to indholdstyper forbindes. Referencefelt
 msgid "A relationship is required"
 msgstr "En relation er påkrævet"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:348
+#: packages/admin/src/components/settings/GeneralSettings.tsx:289
 msgid "A short description of your site"
 msgstr "En kort beskrivelse af dit websted"
 
@@ -1461,7 +1461,7 @@ msgstr "Når du udtrykkeligt aktiverer dette plugin, kan det sende udvalgt, ikke
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "Når du udtrykkeligt aktiverer dette plugin, kan det sende udvalgt, ikke-gemt editorindhold til: {0}"
 
-#: packages/admin/src/routes/calendar.tsx:307
+#: packages/admin/src/routes/calendar.tsx:308
 msgid "Agenda"
 msgstr ""
 
@@ -1673,10 +1673,10 @@ msgstr "En krypteret digital nøgle, som du låser op med dit fingeraftryk, dit 
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:191
-#: packages/admin/src/components/settings/GeneralSettings.tsx:204
-#: packages/admin/src/components/settings/GeneralSettings.tsx:312
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:134
+#: packages/admin/src/components/settings/GeneralSettings.tsx:147
+#: packages/admin/src/components/settings/GeneralSettings.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:254
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2344,7 +2344,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:564
 #: packages/admin/src/components/Sidebar.tsx:614
-#: packages/admin/src/routes/calendar.tsx:276
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "Calendar"
 msgstr "Kalender"
 
@@ -2392,7 +2392,7 @@ msgstr "Kan se indhold"
 #: packages/admin/src/components/PortableTextEditor.tsx:5644
 #: packages/admin/src/components/PortableTextEditor.tsx:5670
 #: packages/admin/src/components/PortableTextEditor.tsx:6404
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:368
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2523,11 +2523,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "Skift <0>{0}</0> fra <1>{1}</1> til <2>{2}</2>? {0} mister adgang til funktioner på højere niveau."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:374
+#: packages/admin/src/components/settings/GeneralSettings.tsx:315
 msgid "Change domain"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:510
+#: packages/admin/src/components/settings/GeneralSettings.tsx:451
 msgid "Change Favicon"
 msgstr "Skift favicon"
 
@@ -2535,20 +2535,20 @@ msgstr "Skift favicon"
 msgid "Change Image"
 msgstr "Skift billede"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:450
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Change Logo"
 msgstr "Skift logo"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:627
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:628
 msgid "Change publication date"
 msgstr "Skift udgivelsesdato"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:602
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:603
 msgid "Change publication date: {formattedValue}"
 msgstr "Skift udgivelsesdato: {formattedValue}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:467
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:468
 msgid "Change schedule"
 msgstr "Skift planlægning"
 
@@ -2608,7 +2608,7 @@ msgstr "Tjek websted"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "Tjek serverlogfilerne, og brug derefter API'et til gendannelse af mediebrug til det mislykkede arbejde."
 
-#: packages/admin/src/routes/calendar.tsx:268
+#: packages/admin/src/routes/calendar.tsx:269
 msgid "Check your connection and try again."
 msgstr ""
 
@@ -2686,7 +2686,7 @@ msgstr "Vælg et datointerval"
 msgid "Choose a file from the library or upload a new one."
 msgstr "Vælg en fil fra biblioteket, eller upload en ny."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
 msgid "Choose a new publication time for this draft."
 msgstr "Vælg et nyt udgivelsestidspunkt for denne kladde."
 
@@ -2695,7 +2695,7 @@ msgstr "Vælg et nyt udgivelsestidspunkt for denne kladde."
 msgid "Choose a non-empty {0} image."
 msgstr "Vælg et {0}-billede, der ikke er tomt."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:577
+#: packages/admin/src/components/settings/GeneralSettings.tsx:516
 msgid "Choose a recognized timezone for reliable date display."
 msgstr ""
 
@@ -2741,11 +2741,11 @@ msgstr "Vælg den samme pakkefil igen for at fuldføre uploaden."
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "Vælg Touch ID eller en anden tilgængelig adgangskodeadministrator, og bekræft derefter med dit fingeraftryk eller din Mac adgangskode."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:473
 msgid "Choose when these changes replace the live version."
 msgstr "Vælg, hvornår disse ændringer erstatter den udgivne version."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Choose when this draft becomes public."
 msgstr "Vælg, hvornår denne kladde bliver offentlig."
 
@@ -2858,7 +2858,7 @@ msgstr "Klik på dette link for at logge ind på {siteName}:"
 #: packages/admin/src/components/PortableTextEditor.tsx:2674
 #: packages/admin/src/components/PortableTextEditor.tsx:2680
 #: packages/admin/src/components/PortableTextEditor.tsx:2684
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:348
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/RelationDialog.tsx:65
@@ -3245,7 +3245,7 @@ msgstr "Fortsæt import"
 msgid "Continue numbering"
 msgstr "Fortsæt nummerering"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:391
+#: packages/admin/src/components/settings/GeneralSettings.tsx:332
 msgid "Continue on {handoverHost}"
 msgstr ""
 
@@ -3366,7 +3366,7 @@ msgstr "Billedet kunne ikke indlæses fra URL'en"
 msgid "Could not load media."
 msgstr "Media kunne ikke indlæses."
 
-#: packages/admin/src/routes/calendar.tsx:340
+#: packages/admin/src/routes/calendar.tsx:341
 msgid "Could not load the calendar"
 msgstr ""
 
@@ -3850,7 +3850,7 @@ msgstr "Dato- og tidsvælger"
 msgid "Date field to filter on"
 msgstr "Datofelt, der skal filtreres på"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:554
+#: packages/admin/src/components/settings/GeneralSettings.tsx:495
 msgid "Date Format"
 msgstr "Datoformat"
 
@@ -4429,7 +4429,7 @@ msgstr "Domæne"
 msgid "Domain added successfully"
 msgstr "Domænet er tilføjet"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Domain changed to {url}"
 msgstr ""
 
@@ -4865,11 +4865,11 @@ msgstr "E-mail"
 msgid "Email address"
 msgstr "E-mailadresse"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:580
 msgid "Email all users?"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:403
+#: packages/admin/src/components/settings/GeneralSettings.tsx:344
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr ""
 
@@ -4895,7 +4895,7 @@ msgstr "E-mailudbyder er aktiv"
 msgid "Email Settings"
 msgstr "E-mail-indstillinger"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:413
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Email users"
 msgstr ""
 
@@ -5027,7 +5027,7 @@ msgstr "Der bruges engelsk, fordi der ikke er konfigureret et indholdssprog. Ind
 msgid "Enter a name."
 msgstr "Indtast et navn."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:581
+#: packages/admin/src/components/settings/GeneralSettings.tsx:520
 msgid "Enter a recognized timezone to save"
 msgstr ""
 
@@ -5146,7 +5146,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr ""
 
@@ -5166,7 +5166,7 @@ msgstr "Alle udgivne versioner af dette plugin er trukket tilbage eller kunne ik
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "Alle relationer, som denne indholdstype indgår i, forsvinder også:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:562
+#: packages/admin/src/components/settings/GeneralSettings.tsx:501
 msgid "Example: {pattern} → {preview}"
 msgstr ""
 
@@ -5333,7 +5333,7 @@ msgstr "Importen kunne ikke fortsættes"
 msgid "Failed to create {0}"
 msgstr "{0} kunne ikke oprettes"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
+#: packages/admin/src/components/settings/GeneralSettings.tsx:146
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr ""
@@ -5899,7 +5899,7 @@ msgid "Failed to save field"
 msgstr "Feltet kunne ikke gemmes"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -6037,8 +6037,8 @@ msgid "FAQ"
 msgstr "FAQ"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:481
-#: packages/admin/src/components/settings/GeneralSettings.tsx:488
+#: packages/admin/src/components/settings/GeneralSettings.tsx:422
+#: packages/admin/src/components/settings/GeneralSettings.tsx:429
 msgid "Favicon"
 msgstr "Favicon"
 
@@ -6335,7 +6335,7 @@ msgstr "Galleriindstillinger"
 msgid "General"
 msgstr "Generelt"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:231
 msgid "General Settings"
 msgstr "Generelle indstillinger"
 
@@ -6570,7 +6570,7 @@ msgstr "Hooks"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "Vandret {0} %, lodret {1} %"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:192
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:193
 msgid "Hour"
 msgstr "Time"
 
@@ -7463,7 +7463,7 @@ msgid "Links from"
 msgstr "Linker fra"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:360
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
@@ -7615,10 +7615,6 @@ msgstr "Indlæser pluginpanel"
 msgid "Loading plugins..."
 msgstr "Indlæser plugins..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:559
-msgid "Loading preview…"
-msgstr ""
-
 #: packages/admin/src/components/Redirects.tsx:473
 msgid "Loading redirects..."
 msgstr "Indlæser omdirigeringer..."
@@ -7638,7 +7634,7 @@ msgid "Loading sections..."
 msgstr "Indlæser sektioner..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:242
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7706,7 +7702,7 @@ msgstr ""
 msgid "Loading…"
 msgstr "Indlæser…"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:110
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:111
 msgid "Local time"
 msgstr "Lokal tid"
 
@@ -7748,8 +7744,8 @@ msgid "Log out"
 msgstr "Log ud"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:421
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:362
+#: packages/admin/src/components/settings/GeneralSettings.tsx:369
 msgid "Logo"
 msgstr "Logo"
 
@@ -8138,7 +8134,7 @@ msgstr "Min. antal blokke"
 msgid "Minor section heading"
 msgstr "Mindre sektionsoverskrift"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:214
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:215
 msgid "Minute"
 msgstr "Minut"
 
@@ -8158,7 +8154,7 @@ msgstr "Modereringssignaler"
 msgid "Modify collection schemas"
 msgstr "Rediger samlingers skemaer"
 
-#: packages/admin/src/routes/calendar.tsx:293
+#: packages/admin/src/routes/calendar.tsx:294
 msgid "Month"
 msgstr ""
 
@@ -8827,7 +8823,7 @@ msgstr "Der blev ikke fundet en matchende passkey til denne konto."
 msgid "No matching tags"
 msgstr "Ingen matchende tags"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:594
+#: packages/admin/src/components/settings/GeneralSettings.tsx:533
 msgid "No matching timezones"
 msgstr ""
 
@@ -9019,7 +9015,7 @@ msgstr "Ikke matchet"
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:366
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
 msgstr "Ikke angivet"
 
@@ -9027,7 +9023,7 @@ msgstr "Ikke angivet"
 msgid "Nothing else is scheduled this month."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
 msgid "Nothing on this day."
 msgstr ""
 
@@ -9058,7 +9054,7 @@ msgstr "Tal"
 msgid "Number of posts"
 msgstr "Antal indlæg"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:549
+#: packages/admin/src/components/settings/GeneralSettings.tsx:490
 msgid "Number of posts to show per page on list views"
 msgstr "Antal indlæg, der vises pr. side i listevisninger"
 
@@ -9427,7 +9423,7 @@ msgstr ""
 msgid "Passkeys Not Available Here"
 msgstr "Passkeys er ikke tilgængelige her"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:276
+#: packages/admin/src/components/settings/GeneralSettings.tsx:217
 msgid "Passkeys only work at the address where they were created."
 msgstr ""
 
@@ -9439,7 +9435,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:382
+#: packages/admin/src/components/settings/GeneralSettings.tsx:323
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr ""
 
@@ -9514,7 +9510,7 @@ msgstr "Personer, der vises offentligt på dette indlæg."
 msgid "Per page"
 msgstr "Pr. side"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:234
 msgid "Period"
 msgstr "AM/PM"
 
@@ -9756,7 +9752,7 @@ msgstr "Indlæg"
 msgid "Posts & Pages"
 msgstr "Indlæg og sider"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:543
+#: packages/admin/src/components/settings/GeneralSettings.tsx:484
 msgid "Posts Per Page"
 msgstr "Indlæg pr. side"
 
@@ -9820,7 +9816,7 @@ msgstr "Forhåndsvis kladde"
 msgid "Preview of {0}"
 msgstr "Forhåndsvisning af {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:500
 msgid "Preview unavailable for this format"
 msgstr ""
 
@@ -9891,7 +9887,7 @@ msgstr "Offentlige ruter"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:971
 #: packages/admin/src/components/ContentSettingsPanel.tsx:976
 #: packages/admin/src/components/ContentSettingsPanel.tsx:987
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:631
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:632
 msgid "Publication date"
 msgstr "Udgivelsesdato"
 
@@ -9965,7 +9961,7 @@ msgstr ""
 msgid "Published {total} items"
 msgstr "{total} elementer er udgivet"
 
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:278
 msgid "Published and scheduled entries across collections, in the site's time zone."
 msgstr ""
 
@@ -10108,7 +10104,7 @@ msgstr "Læs dine taksonomier og termer"
 msgid "Read-only"
 msgstr "Skrivebeskyttet"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:540
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
 msgid "Reading"
 msgstr "Læsning"
 
@@ -10223,7 +10219,7 @@ msgstr "Refereret samling"
 msgid "Referenced collection is required"
 msgstr "Refereret samling er påkrævet"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:499
+#: packages/admin/src/components/settings/GeneralSettings.tsx:440
 msgid "Referenced favicon unavailable."
 msgstr "Det refererede favicon er ikke tilgængeligt."
 
@@ -10325,8 +10321,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6416
-#: packages/admin/src/components/settings/GeneralSettings.tsx:459
-#: packages/admin/src/components/settings/GeneralSettings.tsx:519
+#: packages/admin/src/components/settings/GeneralSettings.tsx:400
+#: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10746,7 +10742,7 @@ msgstr "Udfaset"
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3238
 #: packages/admin/src/routes/byline-schema.tsx:280
-#: packages/admin/src/routes/calendar.tsx:344
+#: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
 msgstr "Prøv igen"
 
@@ -11023,7 +11019,7 @@ msgstr "Gem ændringerne, før du kører plugin-handlinger"
 msgid "Save content as draft before publishing"
 msgstr "Gem indhold som kladde før udgivelse"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:634
 msgid "Save date"
 msgstr "Gem dato"
 
@@ -11044,7 +11040,7 @@ msgstr "Gem eller kasser de andre ændringer, før du beskærer."
 msgid "Save Relation"
 msgstr "Gem relation"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Save schedule"
 msgstr "Gem planlægning"
 
@@ -11114,20 +11110,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "Scan den med en telefon eller tablet i nærheden."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule"
 msgstr "Planlæg"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule changes"
 msgstr "Planlæg ændringer"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:487
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:488
 msgid "Schedule date"
 msgstr "Planlægningsdato"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:471
 msgid "Schedule publication"
 msgstr "Planlæg udgivelse"
 
@@ -11317,7 +11313,7 @@ msgstr "Søg i mapper"
 msgid "Search for a language…"
 msgstr "Søg efter et sprog…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:574
+#: packages/admin/src/components/settings/GeneralSettings.tsx:513
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr ""
 
@@ -11378,7 +11374,7 @@ msgstr "Søg i temaer"
 msgid "Search themes..."
 msgstr "Søg i temaer..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:585
+#: packages/admin/src/components/settings/GeneralSettings.tsx:524
 msgid "Search timezones…"
 msgstr ""
 
@@ -11584,11 +11580,11 @@ msgstr "Vælg variant til mørk tilstand for {label}"
 msgid "Select default social image"
 msgstr "Vælg standardbillede til sociale medier"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:624
+#: packages/admin/src/components/settings/GeneralSettings.tsx:563
 msgid "Select favicon"
 msgstr "Vælg favicon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:531
+#: packages/admin/src/components/settings/GeneralSettings.tsx:472
 msgid "Select Favicon"
 msgstr "Vælg favicon"
 
@@ -11611,11 +11607,11 @@ msgstr "Vælg billede"
 msgid "Select Image"
 msgstr "Vælg billede"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:616
+#: packages/admin/src/components/settings/GeneralSettings.tsx:555
 msgid "Select logo"
 msgstr "Vælg logo"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:471
+#: packages/admin/src/components/settings/GeneralSettings.tsx:412
 msgid "Select Logo"
 msgstr "Vælg logo"
 
@@ -11697,7 +11693,7 @@ msgstr "Send en invitationsmail til et nyt teammedlem."
 msgid "Send email through your site"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:582
 msgid "Send emails"
 msgstr ""
 
@@ -11723,7 +11719,7 @@ msgstr "Send testmail"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:644
+#: packages/admin/src/components/settings/GeneralSettings.tsx:583
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11788,7 +11784,7 @@ msgstr "Angiv 0 for aldrig at lukke kommentarer automatisk."
 msgid "Set to draft"
 msgstr "Skift til kladde"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:343
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
@@ -11835,7 +11831,7 @@ msgid "Settings Read"
 msgstr "Indstillinger (læs)"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:183
+#: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Settings saved successfully"
 msgstr "Indstillingerne er gemt"
 
@@ -11990,7 +11986,7 @@ msgstr "Webstedseksport"
 msgid "Site identity"
 msgstr "Webstedsidentitet"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:334
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site Identity"
 msgstr "Webstedsidentitet"
 
@@ -11999,7 +11995,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "webstedsidentitet anvendt (titel, slogan, logo)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:291
+#: packages/admin/src/components/settings/GeneralSettings.tsx:232
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Webstedsidentitet, logo, favicon og læseindstillinger"
 
@@ -12025,7 +12021,7 @@ msgstr "Webstedsindstillinger"
 msgid "Site title"
 msgstr "Webstedstitel"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "Webstedstitel"
@@ -12042,11 +12038,11 @@ msgstr "Webstedstitel er påkrævet"
 msgid "Site Transfer"
 msgstr "Webstedsoverførsel"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Site URL"
 msgstr "Websteds-URL"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site URL set to {url}"
 msgstr ""
 
@@ -12436,7 +12432,7 @@ msgstr "Tabelstørrelse"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Tabeller kan ikke indsættes i lister eller citater. Indsæt tabellen i sit eget afsnit, og prøv igen."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:345
+#: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12518,7 +12514,7 @@ msgstr "Tekniske detaljer"
 msgid "Technical verification details"
 msgstr "Tekniske verificeringsdetaljer"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:399
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "Tell users where to sign in"
 msgstr ""
 
@@ -12604,11 +12600,11 @@ msgstr "Browseren viser som regel en QR-kode."
 msgid "The build provenance matches this release and its package."
 msgstr "Build oprindelsen matcher denne udgivelse og dens pakke."
 
-#: packages/admin/src/routes/calendar.tsx:355
+#: packages/admin/src/routes/calendar.tsx:356
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr ""
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:357
 msgid "The calendar shows the first {maxEntries}."
 msgstr ""
 
@@ -12754,7 +12750,7 @@ msgstr "Markedspladsen er tom. Kig forbi senere for at se nye plugins."
 msgid "The menu has been deleted."
 msgstr "Menuen er slettet."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:340
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "The name of your site, used in the header and metadata"
 msgstr "Navnet på dit websted, som bruges i sidehovedet og metadata"
 
@@ -12863,7 +12859,7 @@ msgstr "Pluginet har ikke gemt disse ændringer. Gennemgå dem, før du opdatere
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Pluginets resultat er forældet, fordi editoren blev ændret, mens det arbejdede."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:356
+#: packages/admin/src/components/settings/GeneralSettings.tsx:297
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr ""
 
@@ -12880,7 +12876,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Det refererede billede er ikke længere tilgængeligt. Vælg et nyt, eller fjern referencen."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:439
+#: packages/admin/src/components/settings/GeneralSettings.tsx:380
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Det refererede logo er ikke længere tilgængeligt. Vælg et nyt, eller fjern referencen."
 
@@ -13029,7 +13025,7 @@ msgstr "Dette indhold kan ikke redigeres sikkert"
 msgid "This content will be visible on the site immediately."
 msgstr "Dette indhold bliver synligt på webstedet med det samme."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:598
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr ""
 
@@ -13260,7 +13256,7 @@ msgstr "Denne udgiveridentitet kan ikke længere slås op."
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "Denne udgivers handle peger ikke tilbage på dens identitet. Installation er deaktiveret, indtil udgiveren retter sit handle."
 
-#: packages/admin/src/routes/calendar.tsx:352
+#: packages/admin/src/routes/calendar.tsx:353
 msgid "This range has more than {maxEntries} entries"
 msgstr ""
 
@@ -13284,7 +13280,7 @@ msgstr "Dette fjerner relationen, alle links, der er gemt under den, og de refer
 msgid "This removes the schedule and publishes immediately."
 msgstr "Dette fjerner planlægningen og udgiver med det samme."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:515
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
@@ -13404,7 +13400,7 @@ msgstr "Dette vender tilbage til den udgivne version. Dine ændringer i kladden 
 msgid "Thoughts, tutorials, and more"
 msgstr "Tanker, vejledninger og mere"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:182
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:183
 msgid "Time"
 msgstr "Tidspunkt"
 
@@ -13416,8 +13412,8 @@ msgstr ""
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:568
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:507
 msgid "Timezone"
 msgstr "Tidszone"
 
@@ -13450,7 +13446,7 @@ msgid "to select"
 msgstr "for at vælge"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:569
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
 msgid "Today"
 msgstr ""
@@ -14761,7 +14757,7 @@ msgstr "Du har ikke tilladelse til at redigere denne fil."
 msgid "You don’t have permission to move this file."
 msgstr "Du har ikke tilladelse til at flytte denne fil."
 
-#: packages/admin/src/routes/calendar.tsx:266
+#: packages/admin/src/routes/calendar.tsx:267
 msgid "You don't have permission to view the calendar."
 msgstr ""
 
@@ -14816,7 +14812,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "Du tilmelder dig som <0>{roleName}</0>"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:322
 msgid "You're signed in at {0}"
 msgstr ""
 

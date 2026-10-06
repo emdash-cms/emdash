@@ -526,7 +526,7 @@ msgstr "{dayLabel}, {entries}"
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr "{earlierCount, plural, one {הצגת פריט מוקדם אחד} two {הצגת שני פריטים מוקדמים} other {הצגת # פריטים מוקדמים}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:219
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {לא ניתן היה לשלוח אימייל אחד. בדקו את ספק האימייל.} two {לא ניתן היה לשלוח שני אימיילים. בדקו את ספק האימייל.} other {לא ניתן היה לשלוח # אימיילים. בדקו את ספק האימייל.}}"
 
@@ -747,7 +747,7 @@ msgstr "{selectedCount, plural, one {אחד נבחר} two {שניים נבחרו
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {העברת פריט אחד לפח? אפשר לשחזר אותו מאוחר יותר.} two {העברת שני פריטים לפח? אפשר לשחזר אותם מאוחר יותר.} other {העברת # פריטים לפח? אפשר לשחזר אותם מאוחר יותר.}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:216
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr "{sent, plural, one {נשלח אימייל למשתמש אחד} two {נשלח אימייל לשני משתמשים} other {נשלח אימייל ל-# משתמשים}}"
 
@@ -1052,7 +1052,7 @@ msgstr "קשר מגדיר איך שני סוגי תוכן מקושרים. שדו
 msgid "A relationship is required"
 msgstr "נדרש קשר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:348
+#: packages/admin/src/components/settings/GeneralSettings.tsx:289
 msgid "A short description of your site"
 msgstr "תיאור קצר של האתר שלכם"
 
@@ -1462,7 +1462,7 @@ msgstr "אחרי הפעלה מפורשת של התוסף, הוא יכול לשל
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "אחרי הפעלה מפורשת של התוסף, הוא יכול לשלוח תוכן נבחר שלא נשמר מהעורך אל: {0}"
 
-#: packages/admin/src/routes/calendar.tsx:307
+#: packages/admin/src/routes/calendar.tsx:308
 msgid "Agenda"
 msgstr "סדר יום"
 
@@ -1674,10 +1674,10 @@ msgstr "מפתח דיגיטלי מוצפן שנפתח באמצעות טביעת 
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:191
-#: packages/admin/src/components/settings/GeneralSettings.tsx:204
-#: packages/admin/src/components/settings/GeneralSettings.tsx:312
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:134
+#: packages/admin/src/components/settings/GeneralSettings.tsx:147
+#: packages/admin/src/components/settings/GeneralSettings.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:254
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2345,7 +2345,7 @@ msgstr "שפת C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:564
 #: packages/admin/src/components/Sidebar.tsx:614
-#: packages/admin/src/routes/calendar.tsx:276
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "Calendar"
 msgstr "לוח שנה"
 
@@ -2393,7 +2393,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/PortableTextEditor.tsx:5644
 #: packages/admin/src/components/PortableTextEditor.tsx:5670
 #: packages/admin/src/components/PortableTextEditor.tsx:6404
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:368
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2524,11 +2524,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "האם לשנות את <0>{0}</0> מ-<1>{1}</1> ל-<2>{2}</2>? הם יאבדו גישה לתכונות ברמה גבוהה יותר."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:374
+#: packages/admin/src/components/settings/GeneralSettings.tsx:315
 msgid "Change domain"
 msgstr "שינוי דומיין"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:510
+#: packages/admin/src/components/settings/GeneralSettings.tsx:451
 msgid "Change Favicon"
 msgstr "שינוי favicon"
 
@@ -2536,20 +2536,20 @@ msgstr "שינוי favicon"
 msgid "Change Image"
 msgstr "שינוי תמונה"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:450
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Change Logo"
 msgstr "שינוי לוגו"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:627
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:628
 msgid "Change publication date"
 msgstr "שינוי תאריך פרסום"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:602
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:603
 msgid "Change publication date: {formattedValue}"
 msgstr "שינוי תאריך פרסום: {formattedValue}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:467
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:468
 msgid "Change schedule"
 msgstr "שינוי תזמון"
 
@@ -2609,7 +2609,7 @@ msgstr "בדיקת אתר"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "בדקו את יומני השרת, ולאחר מכן השתמשו ב-API לשחזור שימוש במדיה עבור הפעולה שנכשלה."
 
-#: packages/admin/src/routes/calendar.tsx:268
+#: packages/admin/src/routes/calendar.tsx:269
 msgid "Check your connection and try again."
 msgstr "בדקו את החיבור ונסו שוב."
 
@@ -2687,7 +2687,7 @@ msgstr "בחירת טווח תאריכים"
 msgid "Choose a file from the library or upload a new one."
 msgstr "בחרו קובץ מהספרייה או העלו קובץ חדש."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
 msgid "Choose a new publication time for this draft."
 msgstr "בחרו זמן פרסום חדש לטיוטה זו."
 
@@ -2696,7 +2696,7 @@ msgstr "בחרו זמן פרסום חדש לטיוטה זו."
 msgid "Choose a non-empty {0} image."
 msgstr "בחרו תמונת {0} שאינה ריקה."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:577
+#: packages/admin/src/components/settings/GeneralSettings.tsx:516
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "בחרו אזור זמן מוכר כדי שהתאריכים יוצגו נכון."
 
@@ -2742,11 +2742,11 @@ msgstr "בחרו שוב את אותו קובץ חבילה כדי לסיים לה
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "בחרו Touch ID או מנהל אישורים זמין אחר, ולאחר מכן אשרו באמצעות טביעת האצבע או סיסמת ה-Mac שלכם."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:473
 msgid "Choose when these changes replace the live version."
 msgstr "בחרו מתי שינויים אלה יחליפו את הגרסה החיה."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Choose when this draft becomes public."
 msgstr "בחרו מתי הטיוטה הזו תהפוך לציבורית."
 
@@ -2859,7 +2859,7 @@ msgstr "לחצו על הקישור הזה כדי להתחבר אל {siteName}:"
 #: packages/admin/src/components/PortableTextEditor.tsx:2674
 #: packages/admin/src/components/PortableTextEditor.tsx:2680
 #: packages/admin/src/components/PortableTextEditor.tsx:2684
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:348
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/RelationDialog.tsx:65
@@ -3246,7 +3246,7 @@ msgstr "המשך ייבוא"
 msgid "Continue numbering"
 msgstr "המשך מספור"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:391
+#: packages/admin/src/components/settings/GeneralSettings.tsx:332
 msgid "Continue on {handoverHost}"
 msgstr "המשך ב-{handoverHost}"
 
@@ -3367,7 +3367,7 @@ msgstr "לא ניתן לטעון תמונה מ-URL"
 msgid "Could not load media."
 msgstr "לא ניתן לטעון מדיה."
 
-#: packages/admin/src/routes/calendar.tsx:340
+#: packages/admin/src/routes/calendar.tsx:341
 msgid "Could not load the calendar"
 msgstr "לא ניתן לטעון את לוח השנה"
 
@@ -3851,7 +3851,7 @@ msgstr "בורר תאריך ושעה"
 msgid "Date field to filter on"
 msgstr "שדה תאריך לסינון"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:554
+#: packages/admin/src/components/settings/GeneralSettings.tsx:495
 msgid "Date Format"
 msgstr "תבנית תאריך"
 
@@ -4430,7 +4430,7 @@ msgstr "דומיין"
 msgid "Domain added successfully"
 msgstr "הדומיין נוסף בהצלחה"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Domain changed to {url}"
 msgstr "הדומיין שונה ל-{url}"
 
@@ -4866,11 +4866,11 @@ msgstr "אימייל"
 msgid "Email address"
 msgstr "כתובת אימייל"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:580
 msgid "Email all users?"
 msgstr "לשלוח אימייל לכל המשתמשים?"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:403
+#: packages/admin/src/components/settings/GeneralSettings.tsx:344
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr "שליחת אימייל לכל שאר המשתמשים עם קישור לדף ההתחברות ב-{siteHost}."
 
@@ -4896,7 +4896,7 @@ msgstr "ספק אימייל פעיל"
 msgid "Email Settings"
 msgstr "הגדרות אימייל"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:413
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Email users"
 msgstr "שליחת אימייל למשתמשים"
 
@@ -5028,7 +5028,7 @@ msgstr "נעשה שימוש באנגלית משום שלא מוגדרת שפת �
 msgid "Enter a name."
 msgstr "הזינו שם."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:581
+#: packages/admin/src/components/settings/GeneralSettings.tsx:520
 msgid "Enter a recognized timezone to save"
 msgstr "הזינו אזור זמן מוכר כדי לשמור"
 
@@ -5147,7 +5147,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "כל רשומה וקובץ מדיה שיובאו נקראו בחזרה ותאמו לחבילה. שמרו את האישור הזה כתיעוד של ההעברה."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "כל שאר המשתמשים עם חשבון פעיל יקבלו אימייל שהאתר נמצא עכשיו ב-{siteHost}, עם קישור להתחברות שם. מפתחות גישה מכתובת אחרת לא עובדים ב-{siteHost}, ולכן המשתמשים מתחברים עם קישור באימייל ומוסיפים מפתח גישה חדש."
 
@@ -5167,7 +5167,7 @@ msgstr "כל גרסה שפורסמה של תוסף זה הוסרה או שלא �
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "כל קשר שסוג התוכן הזה משתתף בו יימחק גם הוא:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:562
+#: packages/admin/src/components/settings/GeneralSettings.tsx:501
 msgid "Example: {pattern} → {preview}"
 msgstr "דוגמה: {pattern} ← {preview}"
 
@@ -5334,7 +5334,7 @@ msgstr "המשך הייבוא נכשל"
 msgid "Failed to create {0}"
 msgstr "יצירת {0} נכשלה"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
+#: packages/admin/src/components/settings/GeneralSettings.tsx:146
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr "יצירת קישור התחברות נכשלה"
@@ -5900,7 +5900,7 @@ msgid "Failed to save field"
 msgstr "שמירת שדה נכשלה"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -6038,8 +6038,8 @@ msgid "FAQ"
 msgstr "שאלות נפוצות"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:481
-#: packages/admin/src/components/settings/GeneralSettings.tsx:488
+#: packages/admin/src/components/settings/GeneralSettings.tsx:422
+#: packages/admin/src/components/settings/GeneralSettings.tsx:429
 msgid "Favicon"
 msgstr "סמל אתר"
 
@@ -6336,7 +6336,7 @@ msgstr "הגדרות גלריה"
 msgid "General"
 msgstr "כללי"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:231
 msgid "General Settings"
 msgstr "הגדרות כלליות"
 
@@ -6571,7 +6571,7 @@ msgstr "Hooks של תוסף"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "אופקי {0}%, אנכי {1}%"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:192
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:193
 msgid "Hour"
 msgstr "שעה"
 
@@ -7464,7 +7464,7 @@ msgid "Links from"
 msgstr "מקור הקישור"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:360
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "קישורים באימיילים ובתוספים משתמשים ב-{0}, שנקבע בהגדרות הפריסה."
 
@@ -7616,10 +7616,6 @@ msgstr "מתבצעת טעינת חלונית תוסף"
 msgid "Loading plugins..."
 msgstr "מתבצעת טעינת תוספים..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:559
-msgid "Loading preview…"
-msgstr "מתבצעת טעינת תצוגה מקדימה…"
-
 #: packages/admin/src/components/Redirects.tsx:473
 msgid "Loading redirects..."
 msgstr "מתבצעת טעינת הפניות..."
@@ -7639,7 +7635,7 @@ msgid "Loading sections..."
 msgstr "מתבצעת טעינת מקטעים..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:242
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7707,7 +7703,7 @@ msgstr "בטעינה…"
 msgid "Loading…"
 msgstr "בטעינה…"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:110
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:111
 msgid "Local time"
 msgstr "זמן מקומי"
 
@@ -7749,8 +7745,8 @@ msgid "Log out"
 msgstr "התנתקות"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:421
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:362
+#: packages/admin/src/components/settings/GeneralSettings.tsx:369
 msgid "Logo"
 msgstr "לוגו"
 
@@ -8139,7 +8135,7 @@ msgstr "מינימום בלוקים"
 msgid "Minor section heading"
 msgstr "כותרת מקטע קטנה"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:214
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:215
 msgid "Minute"
 msgstr "דקה"
 
@@ -8159,7 +8155,7 @@ msgstr "אותות ניהול תגובות"
 msgid "Modify collection schemas"
 msgstr "שינוי סכמות אוספים"
 
-#: packages/admin/src/routes/calendar.tsx:293
+#: packages/admin/src/routes/calendar.tsx:294
 msgid "Month"
 msgstr "חודש"
 
@@ -8828,7 +8824,7 @@ msgstr "לא נמצא מפתח גישה תואם לחשבון זה."
 msgid "No matching tags"
 msgstr "אין תגיות תואמות"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:594
+#: packages/admin/src/components/settings/GeneralSettings.tsx:533
 msgid "No matching timezones"
 msgstr "אין אזורי זמן תואמים"
 
@@ -9020,7 +9016,7 @@ msgstr "לא הותאם"
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:366
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
 msgstr "לא הוגדר"
 
@@ -9028,7 +9024,7 @@ msgstr "לא הוגדר"
 msgid "Nothing else is scheduled this month."
 msgstr "אין עוד פריטים מתוזמנים החודש."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
 msgid "Nothing on this day."
 msgstr "אין כלום ביום הזה."
 
@@ -9059,7 +9055,7 @@ msgstr "מספר"
 msgid "Number of posts"
 msgstr "מספר פוסטים"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:549
+#: packages/admin/src/components/settings/GeneralSettings.tsx:490
 msgid "Number of posts to show per page on list views"
 msgstr "מספר הפוסטים להצגה בכל עמוד בתצוגות רשימה"
 
@@ -9428,7 +9424,7 @@ msgstr "מפתחות גישה מהכתובת הישנה לא עובדים שם. 
 msgid "Passkeys Not Available Here"
 msgstr "מפתחות גישה אינם זמינים כאן"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:276
+#: packages/admin/src/components/settings/GeneralSettings.tsx:217
 msgid "Passkeys only work at the address where they were created."
 msgstr "מפתחות גישה עובדים רק בכתובת שבה הם נוצרו."
 
@@ -9440,7 +9436,7 @@ msgstr "מפתחות גישה עובדים רק בכתובת שבה הם נוצ�
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "מפתחות גישה עובדים רק בכתובת שבה הם נוצרו. אחרי המעבר, המשיכו להתחבר בכתובת הנוכחית, או השתמשו בקישור התחברות באימייל בכתובת החדשה."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:382
+#: packages/admin/src/components/settings/GeneralSettings.tsx:323
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr "מפתחות גישה עובדים רק בכתובת שבה הם נוצרו. המשיכו ב-{handoverHost} כדי להתחבר שם בלי מפתח גישה, ואז הוסיפו מפתח לכתובת הזו."
 
@@ -9515,7 +9511,7 @@ msgstr "אנשים המוצגים בפומבי בפוסט זה."
 msgid "Per page"
 msgstr "בכל עמוד"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:234
 msgid "Period"
 msgstr "תקופה"
 
@@ -9757,7 +9753,7 @@ msgstr "פוסטים"
 msgid "Posts & Pages"
 msgstr "פוסטים ועמודים"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:543
+#: packages/admin/src/components/settings/GeneralSettings.tsx:484
 msgid "Posts Per Page"
 msgstr "פוסטים בכל עמוד"
 
@@ -9821,7 +9817,7 @@ msgstr "תצוגה מקדימה של טיוטה"
 msgid "Preview of {0}"
 msgstr "תצוגה מקדימה של {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:500
 msgid "Preview unavailable for this format"
 msgstr "אין תצוגה מקדימה לתבנית הזו"
 
@@ -9892,7 +9888,7 @@ msgstr "נתיבים ציבוריים"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:971
 #: packages/admin/src/components/ContentSettingsPanel.tsx:976
 #: packages/admin/src/components/ContentSettingsPanel.tsx:987
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:631
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:632
 msgid "Publication date"
 msgstr "תאריך פרסום"
 
@@ -9966,7 +9962,7 @@ msgstr "פורסם בתאריך {liveSince}"
 msgid "Published {total} items"
 msgstr "פורסמו {total} פריטים"
 
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:278
 msgid "Published and scheduled entries across collections, in the site's time zone."
 msgstr "פריטים שפורסמו ופריטים מתוזמנים מכל האוספים, לפי אזור הזמן של האתר."
 
@@ -10109,7 +10105,7 @@ msgstr "קריאת הטקסונומיות והמונחים שלכם"
 msgid "Read-only"
 msgstr "קריאה בלבד"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:540
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
 msgid "Reading"
 msgstr "בקריאה"
 
@@ -10224,7 +10220,7 @@ msgstr "האוסף המקושר"
 msgid "Referenced collection is required"
 msgstr "נדרש אוסף מקושר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:499
+#: packages/admin/src/components/settings/GeneralSettings.tsx:440
 msgid "Referenced favicon unavailable."
 msgstr "סמל האתר המקושר אינו זמין."
 
@@ -10326,8 +10322,8 @@ msgstr "הסרה"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6416
-#: packages/admin/src/components/settings/GeneralSettings.tsx:459
-#: packages/admin/src/components/settings/GeneralSettings.tsx:519
+#: packages/admin/src/components/settings/GeneralSettings.tsx:400
+#: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10747,7 +10743,7 @@ msgstr "הוצא משימוש"
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3238
 #: packages/admin/src/routes/byline-schema.tsx:280
-#: packages/admin/src/routes/calendar.tsx:344
+#: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
 msgstr "ניסיון חוזר"
 
@@ -11024,7 +11020,7 @@ msgstr "שמרו שינויים לפני הפעלת פעולות תוסף"
 msgid "Save content as draft before publishing"
 msgstr "שמירת תוכן כטיוטה לפני פרסום"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:634
 msgid "Save date"
 msgstr "שמירת תאריך"
 
@@ -11045,7 +11041,7 @@ msgstr "שמרו או בטלו את השינויים האחרים לפני הח�
 msgid "Save Relation"
 msgstr "שמירת קשר"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Save schedule"
 msgstr "שמירת תזמון"
 
@@ -11115,20 +11111,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "סרקו אותו באמצעות טלפון או טאבלט קרובים."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule"
 msgstr "תזמון"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule changes"
 msgstr "תזמון שינויים"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:487
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:488
 msgid "Schedule date"
 msgstr "תאריך תזמון"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:471
 msgid "Schedule publication"
 msgstr "תזמון פרסום"
 
@@ -11318,7 +11314,7 @@ msgstr "חיפוש תיקיות"
 msgid "Search for a language…"
 msgstr "חיפוש שפה…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:574
+#: packages/admin/src/components/settings/GeneralSettings.tsx:513
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "חיפוש אזור זמן IANA (למשל Asia/Jerusalem)"
 
@@ -11379,7 +11375,7 @@ msgstr "חיפוש ערכות עיצוב"
 msgid "Search themes..."
 msgstr "חיפוש ערכות עיצוב..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:585
+#: packages/admin/src/components/settings/GeneralSettings.tsx:524
 msgid "Search timezones…"
 msgstr "חיפוש אזורי זמן…"
 
@@ -11585,11 +11581,11 @@ msgstr "בחירת גרסה למצב כהה עבור {label}"
 msgid "Select default social image"
 msgstr "בחירת תמונה חברתית כברירת מחדל"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:624
+#: packages/admin/src/components/settings/GeneralSettings.tsx:563
 msgid "Select favicon"
 msgstr "בחירת סמל אתר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:531
+#: packages/admin/src/components/settings/GeneralSettings.tsx:472
 msgid "Select Favicon"
 msgstr "בחירת סמל אתר"
 
@@ -11612,11 +11608,11 @@ msgstr "בחירת תמונה"
 msgid "Select Image"
 msgstr "בחירת תמונה"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:616
+#: packages/admin/src/components/settings/GeneralSettings.tsx:555
 msgid "Select logo"
 msgstr "בחירת לוגו"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:471
+#: packages/admin/src/components/settings/GeneralSettings.tsx:412
 msgid "Select Logo"
 msgstr "בחירת לוגו"
 
@@ -11698,7 +11694,7 @@ msgstr "שלחו אימייל הזמנה לחבר/ת צוות חדש/ה."
 msgid "Send email through your site"
 msgstr "שליחת דואר דרך האתר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:582
 msgid "Send emails"
 msgstr "שליחת אימיילים"
 
@@ -11724,7 +11720,7 @@ msgstr "שליחת אימייל בדיקה"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:644
+#: packages/admin/src/components/settings/GeneralSettings.tsx:583
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11789,7 +11785,7 @@ msgstr "הגדירו 0 כדי לא לסגור תגובות אוטומטית לע
 msgid "Set to draft"
 msgstr "הגדרה כטיוטה"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:343
 msgid "Set up an email provider in Email settings to email users."
 msgstr "הגדירו ספק אימייל בהגדרות האימייל כדי לשלוח אימייל למשתמשים."
 
@@ -11836,7 +11832,7 @@ msgid "Settings Read"
 msgstr "קריאת הגדרות"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:183
+#: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Settings saved successfully"
 msgstr "ההגדרות נשמרו בהצלחה"
 
@@ -11991,7 +11987,7 @@ msgstr "ייצוא אתר"
 msgid "Site identity"
 msgstr "זהות האתר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:334
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site Identity"
 msgstr "זהות האתר"
 
@@ -12000,7 +11996,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "זהות האתר הוחלה (כותרת, סלוגן, לוגו)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:291
+#: packages/admin/src/components/settings/GeneralSettings.tsx:232
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "זהות האתר, לוגו, סמל אתר והעדפות קריאה"
 
@@ -12026,7 +12022,7 @@ msgstr "הגדרות אתר"
 msgid "Site title"
 msgstr "כותרת אתר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "כותרת אתר"
@@ -12043,11 +12039,11 @@ msgstr "נדרשת כותרת אתר"
 msgid "Site Transfer"
 msgstr "העברת אתר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Site URL"
 msgstr "URL של האתר"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site URL set to {url}"
 msgstr "ה-URL של האתר הוגדר ל-{url}"
 
@@ -12437,7 +12433,7 @@ msgstr "גודל טבלה"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "לא ניתן להדביק טבלאות בתוך רשימות או ציטוטים. הדביקו את הטבלה בפסקה נפרדת ונסו שוב."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:345
+#: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12519,7 +12515,7 @@ msgstr "פרטים טכניים"
 msgid "Technical verification details"
 msgstr "פרטי אימות טכניים"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:399
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "Tell users where to sign in"
 msgstr "עדכון המשתמשים היכן להתחבר"
 
@@ -12605,11 +12601,11 @@ msgstr "הדפדפן יציג בדרך כלל קוד QR."
 msgid "The build provenance matches this release and its package."
 msgstr "מקור הבנייה תואם לגרסה הזו ולחבילה שלה."
 
-#: packages/admin/src/routes/calendar.tsx:355
+#: packages/admin/src/routes/calendar.tsx:356
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr "לוח השנה מציג את {maxEntries} הראשונים, שמסתיימים ב-{cutOffDay}."
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:357
 msgid "The calendar shows the first {maxEntries}."
 msgstr "לוח השנה מציג את {maxEntries} הראשונים."
 
@@ -12755,7 +12751,7 @@ msgstr "חנות התוספים ריקה. בדקו שוב מאוחר יותר ע
 msgid "The menu has been deleted."
 msgstr "התפריט נמחק."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:340
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "The name of your site, used in the header and metadata"
 msgstr "שם האתר שלכם, המשמש בכותרת ובמטא-נתונים"
 
@@ -12864,7 +12860,7 @@ msgstr "התוסף לא שמר את השינויים האלה. בדקו אותם
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "התוצאה של התוסף אינה עדכנית: העורך השתנה בזמן שהוא עבד."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:356
+#: packages/admin/src/components/settings/GeneralSettings.tsx:297
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr "הכתובת הציבורית של האתר, המשמשת לקישורים באימיילים ובתוספים, למפות אתר ולכתובות URL מלאות במטא-דאטה לחיפוש ולרשתות חברתיות"
 
@@ -12881,7 +12877,7 @@ msgstr "בטווח יש יותר פריטים ממה שלוח השנה יכול 
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "התמונה המקושרת אינה זמינה עוד. בחרו תמונה חדשה או הסירו את הקישור."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:439
+#: packages/admin/src/components/settings/GeneralSettings.tsx:380
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "הלוגו המקושר אינו זמין עוד. בחרו לוגו חדש או הסירו את הקישור."
 
@@ -13030,7 +13026,7 @@ msgstr "לא ניתן לערוך תוכן זה בבטחה"
 msgid "This content will be visible on the site immediately."
 msgstr "תוכן זה יהיה גלוי באתר מיד."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:598
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "היום הזה לא נטען. בטווח יש יותר פריטים ממה שלוח השנה יכול להציג."
 
@@ -13261,7 +13257,7 @@ msgstr "זהות מפרסם זו אינה נפתרת עוד."
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "הכינוי של מפרסם זה אינו נפתר בחזרה לזהותו. ההתקנה מושבתת עד שהמפרסם יתקן את הכינוי שלו."
 
-#: packages/admin/src/routes/calendar.tsx:352
+#: packages/admin/src/routes/calendar.tsx:353
 msgid "This range has more than {maxEntries} entries"
 msgstr "בטווח הזה יש יותר מ-{maxEntries} פריטים"
 
@@ -13285,7 +13281,7 @@ msgstr "פעולה זו מסירה את הקשר, כל קישור ששמור ת�
 msgid "This removes the schedule and publishes immediately."
 msgstr "פעולה זו מסירה את התזמון ומפרסמת מיד."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:515
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "אזור הזמן השמור אינו מוכר. בחרו אחת מההצעות כדי שהתאריכים יוצגו נכון."
 
@@ -13405,7 +13401,7 @@ msgstr "פעולה זו תחזיר לגרסה שפורסמה. שינויי הט�
 msgid "Thoughts, tutorials, and more"
 msgstr "מחשבות, מדריכים ועוד"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:182
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:183
 msgid "Time"
 msgstr "שעה"
 
@@ -13417,8 +13413,8 @@ msgstr "השעות לפי {zoneName}."
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "השעות לפי {zoneName}. הדפדפן שלכם משתמש ב-{viewerZoneName}."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:568
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:507
 msgid "Timezone"
 msgstr "אזור זמן"
 
@@ -13451,7 +13447,7 @@ msgid "to select"
 msgstr "לבחירה"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:569
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
 msgid "Today"
 msgstr "היום"
@@ -14762,7 +14758,7 @@ msgstr "אין לכם הרשאה לערוך נכס זה."
 msgid "You don’t have permission to move this file."
 msgstr "אין לכם הרשאה להעביר קובץ זה."
 
-#: packages/admin/src/routes/calendar.tsx:266
+#: packages/admin/src/routes/calendar.tsx:267
 msgid "You don't have permission to view the calendar."
 msgstr "אין לכם הרשאה לצפות בלוח השנה."
 
@@ -14817,7 +14813,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "תירשמו בתור <0>{roleName}</0>"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:322
 msgid "You're signed in at {0}"
 msgstr "התחברתם ב-{0}"
 

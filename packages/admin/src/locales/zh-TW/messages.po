@@ -525,7 +525,7 @@ msgstr "{dayLabel}，{entries}"
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr "{earlierCount, plural, one {顯示較早的 # 筆內容} other {顯示較早的 # 筆內容}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:219
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {# 封電子郵件無法寄出。請檢查電子郵件服務供應商。} other {# 封電子郵件無法寄出。請檢查電子郵件服務供應商。}}"
 
@@ -746,7 +746,7 @@ msgstr "{selectedCount, plural, one {已選取 # 個項目} other {已選取 # �
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {要將 # 個項目移至回收桶嗎？之後仍可還原。} other {要將 # 個項目移至回收桶嗎？之後仍可還原。}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:216
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr "{sent, plural, one {已寄送電子郵件給 # 位使用者} other {已寄送電子郵件給 # 位使用者}}"
 
@@ -1051,7 +1051,7 @@ msgstr "關聯定義了兩種內容類型如何連結。兩側的參照欄位再
 msgid "A relationship is required"
 msgstr "必須選取關聯"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:348
+#: packages/admin/src/components/settings/GeneralSettings.tsx:289
 msgid "A short description of your site"
 msgstr "網站的簡短說明"
 
@@ -1461,7 +1461,7 @@ msgstr "明確呼叫這個外掛後，它可以將選取的未儲存編輯器內
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "明確呼叫這個外掛後，它可以將選取的未儲存編輯器內容傳送至：{0}"
 
-#: packages/admin/src/routes/calendar.tsx:307
+#: packages/admin/src/routes/calendar.tsx:308
 msgid "Agenda"
 msgstr "行程清單"
 
@@ -1673,10 +1673,10 @@ msgstr "使用指紋、臉部辨識、PIN 碼或裝置密碼解鎖的加密數�
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:191
-#: packages/admin/src/components/settings/GeneralSettings.tsx:204
-#: packages/admin/src/components/settings/GeneralSettings.tsx:312
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:134
+#: packages/admin/src/components/settings/GeneralSettings.tsx:147
+#: packages/admin/src/components/settings/GeneralSettings.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:254
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2344,7 +2344,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:564
 #: packages/admin/src/components/Sidebar.tsx:614
-#: packages/admin/src/routes/calendar.tsx:276
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "Calendar"
 msgstr "行事曆"
 
@@ -2392,7 +2392,7 @@ msgstr "可以檢視內容"
 #: packages/admin/src/components/PortableTextEditor.tsx:5644
 #: packages/admin/src/components/PortableTextEditor.tsx:5670
 #: packages/admin/src/components/PortableTextEditor.tsx:6404
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:368
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2523,11 +2523,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "要將 <0>{0}</0> 從 <1>{1}</1> 變更為 <2>{2}</2> 嗎？該使用者將無法存取較高層級的功能。"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:374
+#: packages/admin/src/components/settings/GeneralSettings.tsx:315
 msgid "Change domain"
 msgstr "變更網域"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:510
+#: packages/admin/src/components/settings/GeneralSettings.tsx:451
 msgid "Change Favicon"
 msgstr "變更網站圖示"
 
@@ -2535,20 +2535,20 @@ msgstr "變更網站圖示"
 msgid "Change Image"
 msgstr "變更圖片"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:450
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Change Logo"
 msgstr "變更標誌"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:627
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:628
 msgid "Change publication date"
 msgstr "變更發佈日期"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:602
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:603
 msgid "Change publication date: {formattedValue}"
 msgstr "變更發佈日期：{formattedValue}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:467
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:468
 msgid "Change schedule"
 msgstr "變更排程"
 
@@ -2608,7 +2608,7 @@ msgstr "檢查網站"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "請檢查伺服器記錄，再使用媒體使用情況復原 API 處理失敗的工作。"
 
-#: packages/admin/src/routes/calendar.tsx:268
+#: packages/admin/src/routes/calendar.tsx:269
 msgid "Check your connection and try again."
 msgstr "請檢查連線後再試一次。"
 
@@ -2686,7 +2686,7 @@ msgstr "選擇日期範圍"
 msgid "Choose a file from the library or upload a new one."
 msgstr "從媒體庫選擇檔案，或上傳新檔案。"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
 msgid "Choose a new publication time for this draft."
 msgstr "為這份草稿選擇新的發佈時間。"
 
@@ -2695,7 +2695,7 @@ msgstr "為這份草稿選擇新的發佈時間。"
 msgid "Choose a non-empty {0} image."
 msgstr "請選擇不是空檔案的 {0} 圖片。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:577
+#: packages/admin/src/components/settings/GeneralSettings.tsx:516
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "請選擇可辨識的時區，以確保日期正確顯示。"
 
@@ -2741,11 +2741,11 @@ msgstr "請再次選擇同一個套件檔案，以完成上傳。"
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "請選擇 Touch ID 或其他可用的憑證管理工具，再使用指紋或 Mac 密碼確認。"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:473
 msgid "Choose when these changes replace the live version."
 msgstr "選擇何時以這些變更取代已公開的版本。"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Choose when this draft becomes public."
 msgstr "選擇何時公開這份草稿。"
 
@@ -2858,7 +2858,7 @@ msgstr "請點擊這個連結以登入 {siteName}："
 #: packages/admin/src/components/PortableTextEditor.tsx:2674
 #: packages/admin/src/components/PortableTextEditor.tsx:2680
 #: packages/admin/src/components/PortableTextEditor.tsx:2684
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:348
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/RelationDialog.tsx:65
@@ -3245,7 +3245,7 @@ msgstr "繼續匯入"
 msgid "Continue numbering"
 msgstr "接續編號"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:391
+#: packages/admin/src/components/settings/GeneralSettings.tsx:332
 msgid "Continue on {handoverHost}"
 msgstr "前往 {handoverHost} 繼續"
 
@@ -3366,7 +3366,7 @@ msgstr "無法從 URL 載入圖片"
 msgid "Could not load media."
 msgstr "無法載入媒體。"
 
-#: packages/admin/src/routes/calendar.tsx:340
+#: packages/admin/src/routes/calendar.tsx:341
 msgid "Could not load the calendar"
 msgstr "無法載入行事曆"
 
@@ -3850,7 +3850,7 @@ msgstr "日期與時間選擇器"
 msgid "Date field to filter on"
 msgstr "用來篩選的日期欄位"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:554
+#: packages/admin/src/components/settings/GeneralSettings.tsx:495
 msgid "Date Format"
 msgstr "日期格式"
 
@@ -4429,7 +4429,7 @@ msgstr "網域"
 msgid "Domain added successfully"
 msgstr "已成功新增網域"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Domain changed to {url}"
 msgstr "網域已變更為 {url}"
 
@@ -4865,11 +4865,11 @@ msgstr "電子郵件"
 msgid "Email address"
 msgstr "電子郵件地址"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:580
 msgid "Email all users?"
 msgstr "要寄送電子郵件給所有使用者嗎？"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:403
+#: packages/admin/src/components/settings/GeneralSettings.tsx:344
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr "寄送 {siteHost} 登入頁面的連結給其他所有使用者。"
 
@@ -4895,7 +4895,7 @@ msgstr "電子郵件服務提供者已啟用"
 msgid "Email Settings"
 msgstr "電子郵件設定"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:413
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Email users"
 msgstr "寄送電子郵件給使用者"
 
@@ -5027,7 +5027,7 @@ msgstr "由於尚未設定內容語言，因此使用英文。內容語言會隨
 msgid "Enter a name."
 msgstr "請輸入名稱。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:581
+#: packages/admin/src/components/settings/GeneralSettings.tsx:520
 msgid "Enter a recognized timezone to save"
 msgstr "請輸入可辨識的時區才能儲存"
 
@@ -5146,7 +5146,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "已重新讀取每筆匯入記錄與媒體檔案，並確認與套件一致。請保留這份移轉紀錄作為移轉證明。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "其他每位帳號仍啟用的使用者都會收到電子郵件，通知網站現在位於 {siteHost}，並附上該處的登入連結。其他網址的通行密鑰無法在 {siteHost} 使用，因此使用者需要透過電子郵件連結登入，再新增通行密鑰。"
 
@@ -5166,7 +5166,7 @@ msgstr "此外掛所有已發佈版本都已撤回或無法驗證。請稍後再
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "這個內容類型參與的所有關聯也都會刪除："
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:562
+#: packages/admin/src/components/settings/GeneralSettings.tsx:501
 msgid "Example: {pattern} → {preview}"
 msgstr "範例：{pattern} → {preview}"
 
@@ -5333,7 +5333,7 @@ msgstr "無法繼續匯入"
 msgid "Failed to create {0}"
 msgstr "無法建立 {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
+#: packages/admin/src/components/settings/GeneralSettings.tsx:146
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr "無法建立登入連結"
@@ -5899,7 +5899,7 @@ msgid "Failed to save field"
 msgstr "無法儲存欄位"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -6037,8 +6037,8 @@ msgid "FAQ"
 msgstr "常見問題"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:481
-#: packages/admin/src/components/settings/GeneralSettings.tsx:488
+#: packages/admin/src/components/settings/GeneralSettings.tsx:422
+#: packages/admin/src/components/settings/GeneralSettings.tsx:429
 msgid "Favicon"
 msgstr "網站圖示"
 
@@ -6335,7 +6335,7 @@ msgstr "圖庫設定"
 msgid "General"
 msgstr "一般"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:231
 msgid "General Settings"
 msgstr "一般設定"
 
@@ -6570,7 +6570,7 @@ msgstr "Hooks"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "水平 {0}%，垂直 {1}%"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:192
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:193
 msgid "Hour"
 msgstr "小時"
 
@@ -7463,7 +7463,7 @@ msgid "Links from"
 msgstr "連結來源"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:360
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "電子郵件及外掛中的連結會使用部署設定指定的 {0}。"
 
@@ -7615,10 +7615,6 @@ msgstr "正在載入外掛面板"
 msgid "Loading plugins..."
 msgstr "正在載入外掛…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:559
-msgid "Loading preview…"
-msgstr "正在載入預覽…"
-
 #: packages/admin/src/components/Redirects.tsx:473
 msgid "Loading redirects..."
 msgstr "正在載入重新導向…"
@@ -7638,7 +7634,7 @@ msgid "Loading sections..."
 msgstr "正在載入區段..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:242
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7706,7 +7702,7 @@ msgstr "載入中…"
 msgid "Loading…"
 msgstr "載入中…"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:110
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:111
 msgid "Local time"
 msgstr "當地時間"
 
@@ -7748,8 +7744,8 @@ msgid "Log out"
 msgstr "登出"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:421
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:362
+#: packages/admin/src/components/settings/GeneralSettings.tsx:369
 msgid "Logo"
 msgstr "標誌"
 
@@ -8138,7 +8134,7 @@ msgstr "區塊數量下限"
 msgid "Minor section heading"
 msgstr "小節標題"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:214
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:215
 msgid "Minute"
 msgstr "分鐘"
 
@@ -8158,7 +8154,7 @@ msgstr "審核訊號"
 msgid "Modify collection schemas"
 msgstr "修改內容集合結構描述"
 
-#: packages/admin/src/routes/calendar.tsx:293
+#: packages/admin/src/routes/calendar.tsx:294
 msgid "Month"
 msgstr "月份"
 
@@ -8827,7 +8823,7 @@ msgstr "找不到與這個帳號相符的通行密鑰。"
 msgid "No matching tags"
 msgstr "沒有符合的標籤"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:594
+#: packages/admin/src/components/settings/GeneralSettings.tsx:533
 msgid "No matching timezones"
 msgstr "沒有符合的時區"
 
@@ -9019,7 +9015,7 @@ msgstr "比對不成功"
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:366
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
 msgstr "未設定"
 
@@ -9027,7 +9023,7 @@ msgstr "未設定"
 msgid "Nothing else is scheduled this month."
 msgstr "這個月沒有其他排程。"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
 msgid "Nothing on this day."
 msgstr "這一天沒有內容項目。"
 
@@ -9058,7 +9054,7 @@ msgstr "數字"
 msgid "Number of posts"
 msgstr "文章數量"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:549
+#: packages/admin/src/components/settings/GeneralSettings.tsx:490
 msgid "Number of posts to show per page on list views"
 msgstr "清單檢視中每頁顯示的文章數"
 
@@ -9427,7 +9423,7 @@ msgstr "舊網址的通行密鑰無法在新網址使用。請透過電子郵件
 msgid "Passkeys Not Available Here"
 msgstr "此處無法使用通行密鑰"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:276
+#: packages/admin/src/components/settings/GeneralSettings.tsx:217
 msgid "Passkeys only work at the address where they were created."
 msgstr "通行密鑰只能在建立時的網址使用。"
 
@@ -9439,7 +9435,7 @@ msgstr "通行密鑰只能在建立時的網址使用。請在這裡新增一組
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "通行密鑰只能在建立時的網址使用。切換後，請繼續從目前的網址登入，或在新網址使用電子郵件登入連結。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:382
+#: packages/admin/src/components/settings/GeneralSettings.tsx:323
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr "通行密鑰只能在建立時的網址使用。請前往 {handoverHost}，以不需要通行密鑰的方式登入，再為該網址新增一組。"
 
@@ -9514,7 +9510,7 @@ msgstr "這篇文章中公開顯示的人員。"
 msgid "Per page"
 msgstr "每頁"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:234
 msgid "Period"
 msgstr "上午／下午"
 
@@ -9756,7 +9752,7 @@ msgstr "文章"
 msgid "Posts & Pages"
 msgstr "文章與頁面"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:543
+#: packages/admin/src/components/settings/GeneralSettings.tsx:484
 msgid "Posts Per Page"
 msgstr "每頁文章數"
 
@@ -9820,7 +9816,7 @@ msgstr "預覽草稿"
 msgid "Preview of {0}"
 msgstr "{0} 的預覽"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:500
 msgid "Preview unavailable for this format"
 msgstr "這個格式無法預覽"
 
@@ -9891,7 +9887,7 @@ msgstr "公開路由"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:971
 #: packages/admin/src/components/ContentSettingsPanel.tsx:976
 #: packages/admin/src/components/ContentSettingsPanel.tsx:987
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:631
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:632
 msgid "Publication date"
 msgstr "發佈日期"
 
@@ -9965,7 +9961,7 @@ msgstr "已於 {liveSince} 發佈"
 msgid "Published {total} items"
 msgstr "已發佈 {total} 個項目"
 
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:278
 msgid "Published and scheduled entries across collections, in the site's time zone."
 msgstr "跨集合顯示已發佈及已排程的內容項目，時間依網站時區顯示。"
 
@@ -10108,7 +10104,7 @@ msgstr "讀取您的分類法及分類項目"
 msgid "Read-only"
 msgstr "唯讀"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:540
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
 msgid "Reading"
 msgstr "閱讀"
 
@@ -10223,7 +10219,7 @@ msgstr "參照的集合"
 msgid "Referenced collection is required"
 msgstr "必須選擇參照的集合"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:499
+#: packages/admin/src/components/settings/GeneralSettings.tsx:440
 msgid "Referenced favicon unavailable."
 msgstr "參照的網站圖示無法使用。"
 
@@ -10325,8 +10321,8 @@ msgstr "移除"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6416
-#: packages/admin/src/components/settings/GeneralSettings.tsx:459
-#: packages/admin/src/components/settings/GeneralSettings.tsx:519
+#: packages/admin/src/components/settings/GeneralSettings.tsx:400
+#: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10746,7 +10742,7 @@ msgstr "已淘汰"
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3238
 #: packages/admin/src/routes/byline-schema.tsx:280
-#: packages/admin/src/routes/calendar.tsx:344
+#: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
 msgstr "重試"
 
@@ -11023,7 +11019,7 @@ msgstr "執行外掛操作前請先儲存變更"
 msgid "Save content as draft before publishing"
 msgstr "發佈前將內容儲存為草稿"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:634
 msgid "Save date"
 msgstr "儲存日期"
 
@@ -11044,7 +11040,7 @@ msgstr "裁切前，請先儲存或捨棄其他變更。"
 msgid "Save Relation"
 msgstr "儲存關聯"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Save schedule"
 msgstr "儲存排程"
 
@@ -11114,20 +11110,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "使用附近的手機或平板掃描。"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule"
 msgstr "排程"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule changes"
 msgstr "排程發佈變更"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:487
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:488
 msgid "Schedule date"
 msgstr "排程日期"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:471
 msgid "Schedule publication"
 msgstr "排程發佈"
 
@@ -11317,7 +11313,7 @@ msgstr "搜尋資料夾"
 msgid "Search for a language…"
 msgstr "搜尋程式語言…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:574
+#: packages/admin/src/components/settings/GeneralSettings.tsx:513
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "搜尋 IANA 時區 (例如 Europe/London)"
 
@@ -11378,7 +11374,7 @@ msgstr "搜尋佈景主題"
 msgid "Search themes..."
 msgstr "搜尋佈景主題..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:585
+#: packages/admin/src/components/settings/GeneralSettings.tsx:524
 msgid "Search timezones…"
 msgstr "搜尋時區…"
 
@@ -11584,11 +11580,11 @@ msgstr "選取 {label} 的深色模式版本"
 msgid "Select default social image"
 msgstr "選取預設社群分享圖片"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:624
+#: packages/admin/src/components/settings/GeneralSettings.tsx:563
 msgid "Select favicon"
 msgstr "選取網站圖示"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:531
+#: packages/admin/src/components/settings/GeneralSettings.tsx:472
 msgid "Select Favicon"
 msgstr "選取網站圖示"
 
@@ -11611,11 +11607,11 @@ msgstr "選取圖片"
 msgid "Select Image"
 msgstr "選取圖片"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:616
+#: packages/admin/src/components/settings/GeneralSettings.tsx:555
 msgid "Select logo"
 msgstr "選取標誌"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:471
+#: packages/admin/src/components/settings/GeneralSettings.tsx:412
 msgid "Select Logo"
 msgstr "選取標誌"
 
@@ -11697,7 +11693,7 @@ msgstr "傳送邀請電子郵件給新的團隊成員。"
 msgid "Send email through your site"
 msgstr "透過網站傳送電子郵件"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:582
 msgid "Send emails"
 msgstr "傳送電子郵件"
 
@@ -11723,7 +11719,7 @@ msgstr "傳送測試電子郵件"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:644
+#: packages/admin/src/components/settings/GeneralSettings.tsx:583
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11788,7 +11784,7 @@ msgstr "設為 0 即永不自動關閉留言。"
 msgid "Set to draft"
 msgstr "設為草稿"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:343
 msgid "Set up an email provider in Email settings to email users."
 msgstr "請在電子郵件設定中設定服務供應商，才能傳送電子郵件給使用者。"
 
@@ -11835,7 +11831,7 @@ msgid "Settings Read"
 msgstr "讀取設定"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:183
+#: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Settings saved successfully"
 msgstr "設定已成功儲存"
 
@@ -11990,7 +11986,7 @@ msgstr "網站匯出"
 msgid "Site identity"
 msgstr "網站識別"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:334
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site Identity"
 msgstr "網站識別資訊"
 
@@ -11999,7 +11995,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "已套用網站識別資訊 (標題、網站標語及標誌)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:291
+#: packages/admin/src/components/settings/GeneralSettings.tsx:232
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "網站識別、標誌、網站圖示及閱讀偏好"
 
@@ -12025,7 +12021,7 @@ msgstr "網站設定"
 msgid "Site title"
 msgstr "網站標題"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "網站標題"
@@ -12042,11 +12038,11 @@ msgstr "網站標題為必填"
 msgid "Site Transfer"
 msgstr "網站移轉"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Site URL"
 msgstr "網站網址"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site URL set to {url}"
 msgstr "網站網址已設為 {url}"
 
@@ -12436,7 +12432,7 @@ msgstr "表格大小"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "無法將表格貼在清單或引文中。請將表格貼到獨立的段落後再試一次。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:345
+#: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12518,7 +12514,7 @@ msgstr "技術細節"
 msgid "Technical verification details"
 msgstr "技術驗證細節"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:399
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "Tell users where to sign in"
 msgstr "告訴使用者登入位置"
 
@@ -12604,11 +12600,11 @@ msgstr "瀏覽器通常會顯示 QR Code。"
 msgid "The build provenance matches this release and its package."
 msgstr "建置來源資訊與這個版本及其套件相符。"
 
-#: packages/admin/src/routes/calendar.tsx:355
+#: packages/admin/src/routes/calendar.tsx:356
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr "行事曆顯示前 {maxEntries} 個內容項目，最後一筆在 {cutOffDay}。"
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:357
 msgid "The calendar shows the first {maxEntries}."
 msgstr "行事曆顯示前 {maxEntries} 個內容項目。"
 
@@ -12754,7 +12750,7 @@ msgstr "市集目前沒有內容。請稍後再回來查看新外掛。"
 msgid "The menu has been deleted."
 msgstr "選單已刪除。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:340
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "The name of your site, used in the header and metadata"
 msgstr "您的網站名稱，用於頁首及中繼資料"
 
@@ -12863,7 +12859,7 @@ msgstr "外掛尚未儲存這些變更。更新編輯器前請先檢查。"
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "外掛運作期間，編輯器已有變更，因此外掛結果已過時。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:356
+#: packages/admin/src/components/settings/GeneralSettings.tsx:297
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr "網站的公開網址，用於電子郵件與外掛中的連結、網站地圖，以及搜尋和社群中繼資料中的絕對網址"
 
@@ -12880,7 +12876,7 @@ msgstr "這個範圍的內容項目數量超過行事曆可顯示的上限。"
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "參照的圖片已無法使用。請選取新圖片或移除參照。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:439
+#: packages/admin/src/components/settings/GeneralSettings.tsx:380
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "參照的標誌已無法使用。請選取新標誌或移除參照。"
 
@@ -13029,7 +13025,7 @@ msgstr "無法安全編輯這份內容"
 msgid "This content will be visible on the site immediately."
 msgstr "這份內容會立即顯示在網站上。"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:598
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "這一天尚未載入。這個範圍的內容項目數量超過行事曆可顯示的上限。"
 
@@ -13260,7 +13256,7 @@ msgstr "這個發佈者身分已無法解析。"
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "這個發佈者的帳號代稱無法解析回對應身分。發佈者修正帳號代稱前，將停用安裝功能。"
 
-#: packages/admin/src/routes/calendar.tsx:352
+#: packages/admin/src/routes/calendar.tsx:353
 msgid "This range has more than {maxEntries} entries"
 msgstr "這個範圍超過 {maxEntries} 個內容項目"
 
@@ -13284,7 +13280,7 @@ msgstr "這會移除關聯、關聯下儲存的所有連結，以及使用此關
 msgid "This removes the schedule and publishes immediately."
 msgstr "這會移除排程並立即發佈。"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:515
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "無法辨識儲存的時區。請選取建議的時區，確保日期顯示正確。"
 
@@ -13404,7 +13400,7 @@ msgstr "這會還原至已發佈的版本。您的草稿變更將會遺失。"
 msgid "Thoughts, tutorials, and more"
 msgstr "想法、教學及更多內容"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:182
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:183
 msgid "Time"
 msgstr "時間"
 
@@ -13416,8 +13412,8 @@ msgstr "時間採用 {zoneName}。"
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "時間採用 {zoneName}。你的瀏覽器使用 {viewerZoneName}。"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:568
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:507
 msgid "Timezone"
 msgstr "時區"
 
@@ -13450,7 +13446,7 @@ msgid "to select"
 msgstr "選取"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:569
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
 msgid "Today"
 msgstr "今天"
@@ -14761,7 +14757,7 @@ msgstr "你沒有編輯這個媒體檔案的權限。"
 msgid "You don’t have permission to move this file."
 msgstr "你沒有移動這個檔案的權限。"
 
-#: packages/admin/src/routes/calendar.tsx:266
+#: packages/admin/src/routes/calendar.tsx:267
 msgid "You don't have permission to view the calendar."
 msgstr "你沒有查看行事曆的權限。"
 
@@ -14816,7 +14812,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "你將以 <0>{roleName}</0> 身分註冊"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:322
 msgid "You're signed in at {0}"
 msgstr "你已登入 {0}"
 

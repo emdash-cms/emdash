@@ -134,6 +134,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 				"rt.seedcheck",
 				"rt.plugins",
 				"rt.site",
+				"rt.hookselections",
 				"rt.sandbox",
 				"rt.hooks",
 				"rt.cron",
@@ -506,6 +507,60 @@ describe("EmDashRuntime.create — cold boot", () => {
 				await coalescingSetup.destroy();
 			} catch {
 				// already closed
+			}
+		}
+	});
+
+	it("resolves exclusive hooks from selections read in the cold-start batch", async () => {
+		const provider = (id: string) =>
+			definePlugin({
+				id,
+				version: "1.0.0",
+				capabilities: ["content:write", "content:read"],
+				hooks: {
+					"content:beforeSave": {
+						exclusive: true,
+						handler: vi.fn() as unknown as ContentBeforeSaveHandler,
+					},
+				},
+			});
+		const migratedDb = async (selection: string) => {
+			const sqlite = new Database(":memory:");
+			const setup = new Kysely<EmDashDatabase>({
+				dialect: new SqliteDialect({ database: sqlite }),
+			});
+			await runMigrations(setup);
+			await setup
+				.insertInto("options")
+				.values([
+					{ name: "emdash:setup_complete", value: "true" },
+					{
+						name: "emdash:exclusive_hook:content:beforeSave",
+						value: JSON.stringify(selection),
+					},
+				])
+				.execute();
+			return { sqlite, setup };
+		};
+		const singleton = await migratedDb("provider-a");
+		const coalescing = await migratedDb("provider-b");
+
+		const runtime = await EmDashRuntime.create({
+			...createDeps(),
+			plugins: [provider("provider-a"), provider("provider-b")],
+			createDialect: () => new SqliteDialect({ database: singleton.sqlite }),
+			createCoalescingDialect: () => new SqliteDialect({ database: coalescing.sqlite }),
+		});
+		try {
+			expect(runtime.hooks.getExclusiveSelection("content:beforeSave")).toBe("provider-b");
+		} finally {
+			await runtime.stopCron();
+			for (const handle of [singleton.setup, coalescing.setup]) {
+				try {
+					await handle.destroy();
+				} catch {
+					// already closed
+				}
 			}
 		}
 	});

@@ -525,7 +525,7 @@ msgstr "{dayLabel}, {entries}"
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr "{earlierCount, plural, one {Mostra # entrada anterior} other {Mostra # entrades anteriors}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:219
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {No s'ha pogut enviar # correu. Comprova el proveïdor de correu.} other {No s'han pogut enviar # correus. Comprova el proveïdor de correu.}}"
 
@@ -746,7 +746,7 @@ msgstr "{selectedCount, plural, one {# seleccionat} other {# seleccionats}}"
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Vols moure # element a la paperera? El podràs restaurar més tard.} other {Vols moure # elements a la paperera? Els podràs restaurar més tard.}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:216
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr "{sent, plural, one {# usuari notificat per correu} other {# usuaris notificats per correu}}"
 
@@ -1051,7 +1051,7 @@ msgstr "Una relació defineix com s'enllacen dos tipus de contingut. Els camps d
 msgid "A relationship is required"
 msgstr "Cal una relació"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:348
+#: packages/admin/src/components/settings/GeneralSettings.tsx:289
 msgid "A short description of your site"
 msgstr "Una breu descripció del teu lloc"
 
@@ -1461,7 +1461,7 @@ msgstr "Després d'invocar explícitament aquest connector, pot enviar contingut
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "Després d'invocar explícitament aquest connector, pot enviar contingut seleccionat de l'editor sense desar a: {0}"
 
-#: packages/admin/src/routes/calendar.tsx:307
+#: packages/admin/src/routes/calendar.tsx:308
 msgid "Agenda"
 msgstr "Agenda"
 
@@ -1673,10 +1673,10 @@ msgstr "Una clau digital xifrada que desbloquegen amb la teva empremta, la cara,
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:191
-#: packages/admin/src/components/settings/GeneralSettings.tsx:204
-#: packages/admin/src/components/settings/GeneralSettings.tsx:312
-#: packages/admin/src/components/settings/GeneralSettings.tsx:313
+#: packages/admin/src/components/settings/GeneralSettings.tsx:134
+#: packages/admin/src/components/settings/GeneralSettings.tsx:147
+#: packages/admin/src/components/settings/GeneralSettings.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:254
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2344,7 +2344,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:564
 #: packages/admin/src/components/Sidebar.tsx:614
-#: packages/admin/src/routes/calendar.tsx:276
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "Calendar"
 msgstr "Calendari"
 
@@ -2392,7 +2392,7 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/PortableTextEditor.tsx:5644
 #: packages/admin/src/components/PortableTextEditor.tsx:5670
 #: packages/admin/src/components/PortableTextEditor.tsx:6404
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:368
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2523,11 +2523,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "Vols canviar <0>{0}</0> de <1>{1}</1> a <2>{2}</2>? Perdrà l'accés a les funcions de nivell superior."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:79
-#: packages/admin/src/components/settings/GeneralSettings.tsx:374
+#: packages/admin/src/components/settings/GeneralSettings.tsx:315
 msgid "Change domain"
 msgstr "Canvia el domini"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:510
+#: packages/admin/src/components/settings/GeneralSettings.tsx:451
 msgid "Change Favicon"
 msgstr "Canvia la icona del lloc"
 
@@ -2535,20 +2535,20 @@ msgstr "Canvia la icona del lloc"
 msgid "Change Image"
 msgstr "Canvia la imatge"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:450
+#: packages/admin/src/components/settings/GeneralSettings.tsx:391
 msgid "Change Logo"
 msgstr "Canvia el logotip"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:627
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:628
 msgid "Change publication date"
 msgstr "Canvia la data de publicació"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:602
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:603
 msgid "Change publication date: {formattedValue}"
 msgstr "Canvia la data de publicació: {formattedValue}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:467
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:468
 msgid "Change schedule"
 msgstr "Canvia la programació"
 
@@ -2608,7 +2608,7 @@ msgstr "Comprova el lloc"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "Comprova els registres del servidor i després fes servir l'API de recuperació d'ús de multimèdia per a la tasca que ha fallat."
 
-#: packages/admin/src/routes/calendar.tsx:268
+#: packages/admin/src/routes/calendar.tsx:269
 msgid "Check your connection and try again."
 msgstr "Comprova la connexió i torna-ho a provar."
 
@@ -2686,7 +2686,7 @@ msgstr "Tria un interval de dates"
 msgid "Choose a file from the library or upload a new one."
 msgstr "Tria un fitxer de la biblioteca o puja'n un de nou."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
 msgid "Choose a new publication time for this draft."
 msgstr "Tria una hora de publicació nova per a aquest esborrany."
 
@@ -2695,7 +2695,7 @@ msgstr "Tria una hora de publicació nova per a aquest esborrany."
 msgid "Choose a non-empty {0} image."
 msgstr "Tria una imatge {0} no buida."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:577
+#: packages/admin/src/components/settings/GeneralSettings.tsx:516
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "Tria un fus horari reconegut per mostrar les dates de manera fiable."
 
@@ -2741,11 +2741,11 @@ msgstr "Torna a triar el mateix fitxer del paquet per acabar de pujar-lo."
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "Tria Touch ID o un altre gestor de credencials disponible i confirma-ho amb l'empremta o la contrasenya del Mac."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:473
 msgid "Choose when these changes replace the live version."
 msgstr "Tria quan aquests canvis substitueixen la versió publicada."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Choose when this draft becomes public."
 msgstr "Tria quan aquest esborrany es fa públic."
 
@@ -2858,7 +2858,7 @@ msgstr "Fes clic en aquest enllaç per iniciar la sessió a {siteName}:"
 #: packages/admin/src/components/PortableTextEditor.tsx:2674
 #: packages/admin/src/components/PortableTextEditor.tsx:2680
 #: packages/admin/src/components/PortableTextEditor.tsx:2684
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:348
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/RelationDialog.tsx:65
@@ -3245,7 +3245,7 @@ msgstr "Continua la importació"
 msgid "Continue numbering"
 msgstr "Continua la numeració"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:391
+#: packages/admin/src/components/settings/GeneralSettings.tsx:332
 msgid "Continue on {handoverHost}"
 msgstr "Continua a {handoverHost}"
 
@@ -3366,7 +3366,7 @@ msgstr "No s'ha pogut carregar la imatge des de l'URL"
 msgid "Could not load media."
 msgstr "No s'ha pogut carregar el multimèdia."
 
-#: packages/admin/src/routes/calendar.tsx:340
+#: packages/admin/src/routes/calendar.tsx:341
 msgid "Could not load the calendar"
 msgstr "No s'ha pogut carregar el calendari"
 
@@ -3850,7 +3850,7 @@ msgstr "Selector de data i hora"
 msgid "Date field to filter on"
 msgstr "Camp de data per filtrar"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:554
+#: packages/admin/src/components/settings/GeneralSettings.tsx:495
 msgid "Date Format"
 msgstr "Format de data"
 
@@ -4429,7 +4429,7 @@ msgstr "Domini"
 msgid "Domain added successfully"
 msgstr "S'ha afegit el domini correctament"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Domain changed to {url}"
 msgstr "Domini canviat a {url}"
 
@@ -4865,11 +4865,11 @@ msgstr "Correu electrònic"
 msgid "Email address"
 msgstr "Adreça electrònica"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:641
+#: packages/admin/src/components/settings/GeneralSettings.tsx:580
 msgid "Email all users?"
 msgstr "Vols enviar un correu a tots els usuaris?"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:403
+#: packages/admin/src/components/settings/GeneralSettings.tsx:344
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr "Envia a tots els altres usuaris un enllaç a la pàgina d'inici de sessió a {siteHost}."
 
@@ -4895,7 +4895,7 @@ msgstr "Proveïdor de correu actiu"
 msgid "Email Settings"
 msgstr "Configuració de correu"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:413
+#: packages/admin/src/components/settings/GeneralSettings.tsx:354
 msgid "Email users"
 msgstr "Envia un correu als usuaris"
 
@@ -5027,7 +5027,7 @@ msgstr "S'utilitza l'anglès perquè no hi ha cap idioma de contingut configurat
 msgid "Enter a name."
 msgstr "Introdueix un nom."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:581
+#: packages/admin/src/components/settings/GeneralSettings.tsx:520
 msgid "Enter a recognized timezone to save"
 msgstr "Introdueix un fus horari reconegut per desar"
 
@@ -5146,7 +5146,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "Cada registre i fitxer multimèdia importat s'ha tornat a llegir i coincidia amb el paquet. Conserva aquest rebut com a registre de la transferència."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:642
+#: packages/admin/src/components/settings/GeneralSettings.tsx:581
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "Tots els altres usuaris amb un compte actiu reben un correu que diu que el lloc ara és a {siteHost}, amb un enllaç per iniciar la sessió allà. Les claus d'accés d'una altra adreça no funcionen a {siteHost}, així que els usuaris inicien la sessió amb un enllaç per correu i afegeixen una clau d'accés nova."
 
@@ -5166,7 +5166,7 @@ msgstr "Totes les versions publicades d'aquest connector s'han retirat o no s'ha
 msgid "Every relationship this content type takes part in goes too:"
 msgstr "Totes les relacions en què participa aquest tipus de contingut també se'n van:"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:562
+#: packages/admin/src/components/settings/GeneralSettings.tsx:501
 msgid "Example: {pattern} → {preview}"
 msgstr "Exemple: {pattern} → {preview}"
 
@@ -5333,7 +5333,7 @@ msgstr "No s'ha pogut continuar la importació"
 msgid "Failed to create {0}"
 msgstr "No s'ha pogut crear {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:203
+#: packages/admin/src/components/settings/GeneralSettings.tsx:146
 #: packages/admin/src/lib/api/settings.ts:95
 msgid "Failed to create a sign-in link"
 msgstr "No s'ha pogut crear un enllaç d'inici de sessió"
@@ -5899,7 +5899,7 @@ msgid "Failed to save field"
 msgstr "No s'ha pogut desar el camp"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:190
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
 #: packages/admin/src/components/settings/SeoSettings.tsx:81
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -6037,8 +6037,8 @@ msgid "FAQ"
 msgstr "PMF"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:481
-#: packages/admin/src/components/settings/GeneralSettings.tsx:488
+#: packages/admin/src/components/settings/GeneralSettings.tsx:422
+#: packages/admin/src/components/settings/GeneralSettings.tsx:429
 msgid "Favicon"
 msgstr "Icona del lloc"
 
@@ -6335,7 +6335,7 @@ msgstr "Configuració de la galeria"
 msgid "General"
 msgstr "General"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:231
 msgid "General Settings"
 msgstr "Configuració general"
 
@@ -6570,7 +6570,7 @@ msgstr "Ganxos"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "Horitzontal {0}%, vertical {1}%"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:192
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:193
 msgid "Hour"
 msgstr "Hora"
 
@@ -7463,7 +7463,7 @@ msgid "Links from"
 msgstr "Enllaços des de"
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:360
+#: packages/admin/src/components/settings/GeneralSettings.tsx:301
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "Els enllaços en correus i connectors utilitzen {0}, definit per la configuració del desplegament."
 
@@ -7615,10 +7615,6 @@ msgstr "S'està carregant el tauler del connector"
 msgid "Loading plugins..."
 msgstr "S'estan carregant els connectors..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:559
-msgid "Loading preview…"
-msgstr "S'està carregant la previsualització…"
-
 #: packages/admin/src/components/Redirects.tsx:473
 msgid "Loading redirects..."
 msgstr "S'estan carregant les redireccions..."
@@ -7638,7 +7634,7 @@ msgid "Loading sections..."
 msgstr "S'estan carregant les seccions..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:242
 #: packages/admin/src/components/settings/SeoSettings.tsx:133
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -7706,7 +7702,7 @@ msgstr "visualEditing.loading"
 msgid "Loading…"
 msgstr "S'està carregant…"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:110
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:111
 msgid "Local time"
 msgstr "Hora local"
 
@@ -7748,8 +7744,8 @@ msgid "Log out"
 msgstr "Tanca la sessió"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:421
-#: packages/admin/src/components/settings/GeneralSettings.tsx:428
+#: packages/admin/src/components/settings/GeneralSettings.tsx:362
+#: packages/admin/src/components/settings/GeneralSettings.tsx:369
 msgid "Logo"
 msgstr "Logotip"
 
@@ -8138,7 +8134,7 @@ msgstr "Blocs mínims"
 msgid "Minor section heading"
 msgstr "Encapçalament de secció secundari"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:214
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:215
 msgid "Minute"
 msgstr "Minut"
 
@@ -8158,7 +8154,7 @@ msgstr "Senyals de moderació"
 msgid "Modify collection schemas"
 msgstr "Modifica els esquemes de col·lecció"
 
-#: packages/admin/src/routes/calendar.tsx:293
+#: packages/admin/src/routes/calendar.tsx:294
 msgid "Month"
 msgstr "Mes"
 
@@ -8827,7 +8823,7 @@ msgstr "No s'ha trobat cap clau d'accés coincident per a aquest compte."
 msgid "No matching tags"
 msgstr "Cap etiqueta coincident"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:594
+#: packages/admin/src/components/settings/GeneralSettings.tsx:533
 msgid "No matching timezones"
 msgstr "Cap fus horari coincident"
 
@@ -9019,7 +9015,7 @@ msgstr "No coincident"
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
-#: packages/admin/src/components/settings/GeneralSettings.tsx:366
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Not set"
 msgstr "No definit"
 
@@ -9027,7 +9023,7 @@ msgstr "No definit"
 msgid "Nothing else is scheduled this month."
 msgstr "No hi ha res més programat aquest mes."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
 msgid "Nothing on this day."
 msgstr "No hi ha res aquest dia."
 
@@ -9058,7 +9054,7 @@ msgstr "Nombre"
 msgid "Number of posts"
 msgstr "Nombre d'entrades"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:549
+#: packages/admin/src/components/settings/GeneralSettings.tsx:490
 msgid "Number of posts to show per page on list views"
 msgstr "Nombre d'entrades que es mostren per pàgina a les vistes de llista"
 
@@ -9427,7 +9423,7 @@ msgstr "Les claus d'accés de l'adreça antiga no funcionen allà. Inicia la ses
 msgid "Passkeys Not Available Here"
 msgstr "Les claus d'accés no estan disponibles aquí"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:276
+#: packages/admin/src/components/settings/GeneralSettings.tsx:217
 msgid "Passkeys only work at the address where they were created."
 msgstr "Les claus d'accés només funcionen a l'adreça on es van crear."
 
@@ -9439,7 +9435,7 @@ msgstr "Les claus d'accés només funcionen a l'adreça on es van crear. Afegeix
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "Les claus d'accés només funcionen a l'adreça on es van crear. Després de canviar, continua iniciant la sessió a l'adreça actual o fes servir un enllaç d'inici de sessió per correu a l'adreça nova."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:382
+#: packages/admin/src/components/settings/GeneralSettings.tsx:323
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr "Les claus d'accés només funcionen a l'adreça on es van crear. Continua a {handoverHost} per iniciar la sessió allà sense clau d'accés i després afegeix-n'hi una per a aquesta adreça."
 
@@ -9514,7 +9510,7 @@ msgstr "Persones que es mostren públicament en aquesta entrada."
 msgid "Per page"
 msgstr "Per pàgina"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:234
 msgid "Period"
 msgstr "Període"
 
@@ -9756,7 +9752,7 @@ msgstr "Entrades"
 msgid "Posts & Pages"
 msgstr "Entrades i pàgines"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:543
+#: packages/admin/src/components/settings/GeneralSettings.tsx:484
 msgid "Posts Per Page"
 msgstr "Entrades per pàgina"
 
@@ -9820,7 +9816,7 @@ msgstr "Previsualitza l'esborrany"
 msgid "Preview of {0}"
 msgstr "Previsualització de {0}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:561
+#: packages/admin/src/components/settings/GeneralSettings.tsx:500
 msgid "Preview unavailable for this format"
 msgstr "Previsualització no disponible per a aquest format"
 
@@ -9891,7 +9887,7 @@ msgstr "Rutes públiques"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:971
 #: packages/admin/src/components/ContentSettingsPanel.tsx:976
 #: packages/admin/src/components/ContentSettingsPanel.tsx:987
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:631
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:632
 msgid "Publication date"
 msgstr "Data de publicació"
 
@@ -9965,7 +9961,7 @@ msgstr "Publicat {liveSince}"
 msgid "Published {total} items"
 msgstr "S'han publicat {total} elements"
 
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:278
 msgid "Published and scheduled entries across collections, in the site's time zone."
 msgstr "Entrades publicades i programades de totes les col·leccions, en el fus horari del lloc."
 
@@ -10108,7 +10104,7 @@ msgstr "Llegeix les teves taxonomies i termes"
 msgid "Read-only"
 msgstr "Només lectura"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:540
+#: packages/admin/src/components/settings/GeneralSettings.tsx:481
 msgid "Reading"
 msgstr "Lectura"
 
@@ -10223,7 +10219,7 @@ msgstr "Col·lecció referenciada"
 msgid "Referenced collection is required"
 msgstr "La col·lecció referenciada és obligatòria"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:499
+#: packages/admin/src/components/settings/GeneralSettings.tsx:440
 msgid "Referenced favicon unavailable."
 msgstr "La icona del lloc referenciada no està disponible."
 
@@ -10325,8 +10321,8 @@ msgstr "visualEditing.removeImage"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6416
-#: packages/admin/src/components/settings/GeneralSettings.tsx:459
-#: packages/admin/src/components/settings/GeneralSettings.tsx:519
+#: packages/admin/src/components/settings/GeneralSettings.tsx:400
+#: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:217
@@ -10746,7 +10742,7 @@ msgstr "Retirat"
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3238
 #: packages/admin/src/routes/byline-schema.tsx:280
-#: packages/admin/src/routes/calendar.tsx:344
+#: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
 msgstr "Reintenta"
 
@@ -11023,7 +11019,7 @@ msgstr "Desa els canvis abans d'executar accions del connector"
 msgid "Save content as draft before publishing"
 msgstr "Desa el contingut com a esborrany abans de publicar-lo"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:634
 msgid "Save date"
 msgstr "Desa la data"
 
@@ -11044,7 +11040,7 @@ msgstr "Desa o descarta els altres canvis abans de retallar."
 msgid "Save Relation"
 msgstr "Desa la relació"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Save schedule"
 msgstr "Desa la programació"
 
@@ -11114,20 +11110,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "Escaneja'l amb un telèfon o tauleta a prop."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:606
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule"
 msgstr "Programa"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
 msgid "Schedule changes"
 msgstr "Canvis de programació"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:487
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:488
 msgid "Schedule date"
 msgstr "Data de programació"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:471
 msgid "Schedule publication"
 msgstr "Programa la publicació"
 
@@ -11317,7 +11313,7 @@ msgstr "Cerca carpetes"
 msgid "Search for a language…"
 msgstr "Cerca un idioma…"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:574
+#: packages/admin/src/components/settings/GeneralSettings.tsx:513
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "Cerca un fus horari IANA (p. ex., Europe/London)"
 
@@ -11378,7 +11374,7 @@ msgstr "Cerca temes"
 msgid "Search themes..."
 msgstr "Cerca temes..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:585
+#: packages/admin/src/components/settings/GeneralSettings.tsx:524
 msgid "Search timezones…"
 msgstr "Cerca fusos horaris…"
 
@@ -11584,11 +11580,11 @@ msgstr "Selecciona la variant de mode fosc de {label}"
 msgid "Select default social image"
 msgstr "Selecciona la imatge social per defecte"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:624
+#: packages/admin/src/components/settings/GeneralSettings.tsx:563
 msgid "Select favicon"
 msgstr "Selecciona el favicon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:531
+#: packages/admin/src/components/settings/GeneralSettings.tsx:472
 msgid "Select Favicon"
 msgstr "Selecciona la icona del lloc"
 
@@ -11611,11 +11607,11 @@ msgstr "Selecciona una imatge"
 msgid "Select Image"
 msgstr "Selecciona una imatge"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:616
+#: packages/admin/src/components/settings/GeneralSettings.tsx:555
 msgid "Select logo"
 msgstr "Selecciona el logotip"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:471
+#: packages/admin/src/components/settings/GeneralSettings.tsx:412
 msgid "Select Logo"
 msgstr "Selecciona el logotip"
 
@@ -11697,7 +11693,7 @@ msgstr "Envia un correu d'invitació a un membre nou de l'equip."
 msgid "Send email through your site"
 msgstr "Envia correu a través del teu lloc"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:643
+#: packages/admin/src/components/settings/GeneralSettings.tsx:582
 msgid "Send emails"
 msgstr "Envia correus"
 
@@ -11723,7 +11719,7 @@ msgstr "Envia un correu de prova"
 
 #: packages/admin/src/components/LoginPage.tsx:150
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
-#: packages/admin/src/components/settings/GeneralSettings.tsx:644
+#: packages/admin/src/components/settings/GeneralSettings.tsx:583
 #: packages/admin/src/components/SignupPage.tsx:106
 #: packages/admin/src/components/SignupPage.tsx:168
 #: packages/admin/src/components/users/InviteUserModal.tsx:201
@@ -11788,7 +11784,7 @@ msgstr "Defineix-ho a 0 per no tancar mai els comentaris automàticament."
 msgid "Set to draft"
 msgstr "Posa com a esborrany"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:402
+#: packages/admin/src/components/settings/GeneralSettings.tsx:343
 msgid "Set up an email provider in Email settings to email users."
 msgstr "Configura un proveïdor de correu a la configuració de Correu per enviar correus als usuaris."
 
@@ -11835,7 +11831,7 @@ msgid "Settings Read"
 msgstr "Lectura de la configuració"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:183
+#: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Settings saved successfully"
 msgstr "S'ha desat la configuració correctament"
 
@@ -11990,7 +11986,7 @@ msgstr "Exportació del lloc"
 msgid "Site identity"
 msgstr "Identitat del lloc"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:334
+#: packages/admin/src/components/settings/GeneralSettings.tsx:275
 msgid "Site Identity"
 msgstr "Identitat del lloc"
 
@@ -11999,7 +11995,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "identitat del lloc aplicada (títol, eslògan, logotip)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:291
+#: packages/admin/src/components/settings/GeneralSettings.tsx:232
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Identitat del lloc, logotip, icona del lloc i preferències de lectura"
 
@@ -12025,7 +12021,7 @@ msgstr "Configuració del lloc"
 msgid "Site title"
 msgstr "Títol del lloc"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:337
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 #: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "Títol del lloc"
@@ -12042,11 +12038,11 @@ msgstr "El títol del lloc és obligatori"
 msgid "Site Transfer"
 msgstr "Transferència del lloc"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:295
 msgid "Site URL"
 msgstr "URL del lloc"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "Site URL set to {url}"
 msgstr "URL del lloc definida com a {url}"
 
@@ -12436,7 +12432,7 @@ msgstr "Mida de la taula"
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Les taules no es poden enganxar dins de llistes o cites. Enganxa la taula en el seu propi paràgraf i torna-ho a provar."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:345
+#: packages/admin/src/components/settings/GeneralSettings.tsx:286
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
@@ -12518,7 +12514,7 @@ msgstr "Detalls tècnics"
 msgid "Technical verification details"
 msgstr "Detalls de la verificació tècnica"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:399
+#: packages/admin/src/components/settings/GeneralSettings.tsx:340
 msgid "Tell users where to sign in"
 msgstr "Digues als usuaris on iniciar la sessió"
 
@@ -12604,11 +12600,11 @@ msgstr "El navegador normalment mostrarà un codi QR."
 msgid "The build provenance matches this release and its package."
 msgstr "La procedència de la compilació coincideix amb aquesta versió i el seu paquet."
 
-#: packages/admin/src/routes/calendar.tsx:355
+#: packages/admin/src/routes/calendar.tsx:356
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr "El calendari mostra les primeres {maxEntries}, que acaben el {cutOffDay}."
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:357
 msgid "The calendar shows the first {maxEntries}."
 msgstr "El calendari mostra les primeres {maxEntries}."
 
@@ -12754,7 +12750,7 @@ msgstr "El mercat és buit. Torna-hi més tard per veure connectors nous."
 msgid "The menu has been deleted."
 msgstr "S'ha eliminat el menú."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:340
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "The name of your site, used in the header and metadata"
 msgstr "El nom del teu lloc, utilitzat a la capçalera i les metadades"
 
@@ -12863,7 +12859,7 @@ msgstr "El connector no ha desat aquests canvis. Revisa'ls abans d'actualitzar l
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "El resultat del connector està obsolet perquè l'editor ha canviat mentre treballava."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:356
+#: packages/admin/src/components/settings/GeneralSettings.tsx:297
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr "L'adreça pública del teu lloc, utilitzada per als enllaços en correus i connectors, mapes del lloc i URL absolutes a les metadades de cerca i socials"
 
@@ -12880,7 +12876,7 @@ msgstr "L'interval té més entrades de les que pot mostrar el calendari."
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "La imatge referenciada ja no està disponible. Tria'n una de nova o treu la referència."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:439
+#: packages/admin/src/components/settings/GeneralSettings.tsx:380
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "El logotip referenciat ja no està disponible. Tria'n un de nou o treu la referència."
 
@@ -13029,7 +13025,7 @@ msgstr "Aquest contingut no es pot editar de manera segura"
 msgid "This content will be visible on the site immediately."
 msgstr "Aquest contingut serà visible al lloc immediatament."
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:598
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Aquest dia no s'ha carregat. L'interval té més entrades de les que pot mostrar el calendari."
 
@@ -13260,7 +13256,7 @@ msgstr "Aquesta identitat d'editor ja no es resol."
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "L'identificador d'aquest editor no es resol cap a la seva identitat. La instal·lació està desactivada fins que l'editor corregeixi el seu identificador."
 
-#: packages/admin/src/routes/calendar.tsx:352
+#: packages/admin/src/routes/calendar.tsx:353
 msgid "This range has more than {maxEntries} entries"
 msgstr "Aquest interval té més de {maxEntries} entrades"
 
@@ -13284,7 +13280,7 @@ msgstr "Això elimina la relació, tots els enllaços emmagatzemats sota seu i e
 msgid "This removes the schedule and publishes immediately."
 msgstr "Això treu la programació i publica immediatament."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:576
+#: packages/admin/src/components/settings/GeneralSettings.tsx:515
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Aquest fus horari desat no es reconeix. Tria un suggeriment per mostrar les dates de manera fiable."
 
@@ -13404,7 +13400,7 @@ msgstr "Això revertirà a la versió publicada. Es perdran els canvis del teu e
 msgid "Thoughts, tutorials, and more"
 msgstr "Reflexions, tutorials i més"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:182
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:183
 msgid "Time"
 msgstr "Hora"
 
@@ -13416,8 +13412,8 @@ msgstr "Les hores són a {zoneName}."
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Les hores són a {zoneName}. El teu navegador utilitza {viewerZoneName}."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:568
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:253
+#: packages/admin/src/components/settings/GeneralSettings.tsx:507
 msgid "Timezone"
 msgstr "Fus horari"
 
@@ -13450,7 +13446,7 @@ msgid "to select"
 msgstr "per seleccionar"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:569
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
 msgid "Today"
 msgstr "Avui"
@@ -14761,7 +14757,7 @@ msgstr "No tens permís per editar aquest recurs."
 msgid "You don’t have permission to move this file."
 msgstr "No tens permís per moure aquest fitxer."
 
-#: packages/admin/src/routes/calendar.tsx:266
+#: packages/admin/src/routes/calendar.tsx:267
 msgid "You don't have permission to view the calendar."
 msgstr "No tens permís per veure el calendari."
 
@@ -14816,7 +14812,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "Et registraràs com a <0>{roleName}</0>"
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:381
+#: packages/admin/src/components/settings/GeneralSettings.tsx:322
 msgid "You're signed in at {0}"
 msgstr "Has iniciat la sessió a {0}"
 
