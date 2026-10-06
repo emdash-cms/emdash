@@ -28,8 +28,8 @@ test("the comment form doesn't widen a right-to-left page", async ({ page }) => 
 
 	const width = await page.locator("html").evaluate((html) => {
 		html.dir = "rtl";
-		// Chromium only widens the page for off-screen content that has a
-		// positioned ancestor. Many site layouts have one; Firefox needs none.
+		// Chromium leaves off-page absolutely positioned content out of the
+		// scroll width unless that content has a positioned ancestor.
 		document.body.style.position = "relative";
 		return { scroll: html.scrollWidth, client: html.clientWidth };
 	});
