@@ -971,6 +971,10 @@ function ContentEditPage() {
 	const toastManager = Toast.useToastManager();
 	const isEditorDirtyRef = React.useRef(false);
 	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
+	const [editorItemReset, setEditorItemReset] = React.useState({ entryId: "", token: 0 });
+	const resetEditorItem = React.useCallback((entryId: string) => {
+		setEditorItemReset((previous) => ({ entryId, token: previous.token + 1 }));
+	}, []);
 	const handleEditorDirtyChange = React.useCallback((isDirty: boolean) => {
 		isEditorDirtyRef.current = isDirty;
 		setIsEditorDirty(isDirty);
@@ -1002,8 +1006,9 @@ function ContentEditPage() {
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const revisionVersionsRef = React.useRef(new Map<string, number>());
 	const activeRevisionEntryRef = React.useRef("");
-	if (activeRevisionEntryRef.current !== id) {
-		activeRevisionEntryRef.current = id;
+	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
+	if (activeRevisionEntryRef.current !== revisionIdentity) {
+		activeRevisionEntryRef.current = revisionIdentity;
 		revisionTokensRef.current.delete(id);
 		revisionVersionsRef.current.delete(id);
 	}
@@ -1189,13 +1194,13 @@ function ContentEditPage() {
 	});
 
 	const handleContentUpdateSuccess = React.useCallback(
-		(targetId: string) => {
+		async (targetId: string) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
 			// locale-scoped invalidation key would not match and the item would never
 			// refetch — leaving the publish/save buttons stale until a hard refresh.
-			void queryClient.invalidateQueries({
+			const contentRefresh = queryClient.invalidateQueries({
 				queryKey: ["content", collection, targetId],
 			});
 			// Also invalidate revisions since a new one was created
@@ -1204,10 +1209,11 @@ function ContentEditPage() {
 			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
 			if (rawItem?.draftRevisionId) {
-				void queryClient.invalidateQueries({
+				await queryClient.invalidateQueries({
 					queryKey: ["revision", rawItem.draftRevisionId],
 				});
 			}
+			await contentRefresh;
 		},
 		[collection, queryClient, rawItem?.draftRevisionId],
 	);
@@ -1267,7 +1273,10 @@ function ContentEditPage() {
 			if (variables.source === "editor") {
 				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 			}
-			handleContentUpdateSuccess(variables.targetId);
+			void handleContentUpdateSuccess(variables.targetId).then(() => {
+				if (variables.source === "editor") resetEditorItem(variables.targetId);
+				return undefined;
+			});
 		},
 		onError: async (error, variables) => {
 			if (isSaveConflict(error) && (await recoverFromSaveConflict(variables.targetId))) return;
@@ -1292,7 +1301,7 @@ function ContentEditPage() {
 		},
 		onSuccess: () => {
 			setConflictedEntryId((current) => (current === id ? "" : current));
-			handleContentUpdateSuccess(id);
+			void handleContentUpdateSuccess(id);
 		},
 		onError: async (error) => {
 			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
@@ -1403,13 +1412,14 @@ function ContentEditPage() {
 
 	const discardDraftMutation = useMutation({
 		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: (discardedItem) => {
+		onSuccess: async (discardedItem) => {
 			setConflictedEntryId((conflicted) => (conflicted === id ? "" : conflicted));
 			recordWriteRevision(id, discardedItem);
-			void queryClient.invalidateQueries({
+			await queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			resetEditorItem(id);
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
@@ -1815,10 +1825,12 @@ function ContentEditPage() {
 		[updateBylineMutation.mutateAsync],
 	);
 	const handleRevisionRestored = React.useCallback(
-		(restoredItem: ContentItem) => {
+		async (restoredItem: ContentItem) => {
 			recordWriteRevision(id, restoredItem);
+			await handleContentUpdateSuccess(id);
+			resetEditorItem(id);
 		},
-		[id, recordWriteRevision],
+		[id, recordWriteRevision, handleContentUpdateSuccess, resetEditorItem],
 	);
 	const handlePluginEntryRefresh = React.useCallback(async () => {
 		await Promise.all([
@@ -1854,6 +1866,7 @@ function ContentEditPage() {
 			}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onDirtyChange={handleEditorDirtyChange}
+			itemResetToken={editorItemReset.entryId === id ? editorItemReset.token : 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
 			isAutosaving={autosaveMutation.isPending}

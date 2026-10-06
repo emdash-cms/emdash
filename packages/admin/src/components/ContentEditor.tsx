@@ -346,6 +346,8 @@ export interface ContentEditorProps {
 	hasSaveConflict?: boolean;
 	/** Called when the dirty state of the editor form changes. */
 	onDirtyChange?: (isDirty: boolean) => void;
+	/** Advanced after an explicit save, discard, or restore has refreshed the item. */
+	itemResetToken?: number;
 	onPublish?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -468,6 +470,7 @@ export function ContentEditor({
 	autosaveRejectionToken,
 	hasSaveConflict,
 	onDirtyChange,
+	itemResetToken = 0,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -629,9 +632,9 @@ export function ContentEditor({
 	// We also reset lastSavedData here (not just in the post-render effect) so
 	// that isDirty stays false through the switch -- otherwise SaveButton would
 	// briefly flip from "Saved" -> "Save" -> "Saved" within a single tick.
-	const [previousItemId, setPreviousItemId] = React.useState<string | null>(item?.id ?? null);
-	if (item && item.id !== previousItemId) {
-		setPreviousItemId(item.id);
+	const [previousEditorIdentity, setPreviousEditorIdentity] = React.useState(editorIdentity);
+	if (item && editorIdentity !== previousEditorIdentity) {
+		setPreviousEditorIdentity(editorIdentity);
 		setFormData(item.data);
 		setSlug(item.slug || "");
 		setSlugTouched(!!item.slug);
@@ -662,16 +665,22 @@ export function ContentEditor({
 		[item?.bylines],
 	);
 	const autosaveCompletionTokenRef = React.useRef(autosaveCompletionToken ?? 0);
+	const itemResetTokenRef = React.useRef(itemResetToken);
 	React.useEffect(() => {
 		if (item) {
-			editorGenerationRef.current++;
-			setHasAppliedEditorDraftPatch(false);
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
 			const previousAutosaveToken = autosaveCompletionTokenRef.current;
 			const autosaveJustCompleted =
 				(autosaveCompletionToken ?? 0) > 0 &&
 				(autosaveCompletionToken ?? 0) !== previousAutosaveToken;
 			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
+			const itemReset = itemResetToken > 0 && itemResetToken !== itemResetTokenRef.current;
+			itemResetTokenRef.current = itemResetToken;
+			setStatus(item.status);
+			// Background reads cannot replace the copy the writer has edited or its baseline.
+			if (isDirtyRef.current && !itemReset && !autosaveJustCompleted) return;
+			editorGenerationRef.current++;
+			setHasAppliedEditorDraftPatch(false);
 
 			// When an autosave resolves, the server payload is a snapshot from the
 			// moment the request was sent. Writing it back into formData would
@@ -687,7 +696,6 @@ export function ContentEditor({
 				setInternalBylines(nextBylines);
 				setBylinesTouched(false);
 			}
-			setStatus(item.status);
 			setLastSavedData(
 				serializeEditorState({
 					data: item.data,
@@ -717,6 +725,8 @@ export function ContentEditor({
 		item?.status,
 		item?.references,
 		autosaveCompletionToken,
+		itemResetToken,
+		editorIdentity,
 	]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
@@ -752,9 +762,12 @@ export function ContentEditor({
 	);
 	const isDirty =
 		isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData || referencesDirty;
+	const isDirtyRef = React.useRef(isDirty);
+	isDirtyRef.current = isDirty;
 	const onDirtyChangeRef = React.useRef(onDirtyChange);
 	onDirtyChangeRef.current = onDirtyChange;
 	const markDirty = React.useCallback(() => {
+		isDirtyRef.current = true;
 		onDirtyChangeRef.current?.(true);
 	}, []);
 	// Report both directions so the page never has to guess, but emit the

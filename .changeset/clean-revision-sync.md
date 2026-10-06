@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes a stale `_rev` token being sent when saving SEO fields after the editor loaded a cached entry and then refetched a newer, clean server snapshot. The write revision is now synchronized with the adopted entry snapshot only while the editor is clean, and it ratchets forward by version so a delayed old read cannot overwrite a newer successful-write token.
+Fixes false conflict errors when saving SEO fields, including OG images, after a clean content editor refreshes a cached entry. Background refreshes preserve unsaved edits and their conflict protection, and delayed older reads cannot replace the revision from a successful save.
