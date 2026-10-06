@@ -417,7 +417,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		queryFn: fetchCommentCounts,
 		staleTime: 60 * 1000,
 		retry: false,
-		enabled: userRole >= ROLE_EDITOR,
+		enabled: userRole >= ROLE_EDITOR && !manifest.admin?.hiddenNavItems?.includes("comments"),
 	});
 
 	// --- Build nav item groups ---

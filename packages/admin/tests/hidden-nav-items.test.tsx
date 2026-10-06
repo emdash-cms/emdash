@@ -40,6 +40,10 @@ function json(data: unknown) {
 	);
 }
 
+function requestUrl(input: string | URL | Request) {
+	return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+}
+
 let manifest: AdminManifest;
 
 async function sidebarLinks() {
@@ -99,8 +103,7 @@ describe("admin.hiddenNavItems", () => {
 		localStorage.clear();
 		i18n.loadAndActivate({ locale: "en", messages: {} });
 		globalThis.fetch = vi.fn((input: string | URL | Request) => {
-			const url =
-				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			const url = requestUrl(input);
 			if (url === "/_emdash/api/manifest") return json({ data: manifest });
 			if (url === "/_emdash/api/auth/me") {
 				return json({ data: { id: "admin", email: "admin@example.com", name: "Admin", role: 50 } });
@@ -110,6 +113,11 @@ describe("admin.hiddenNavItems", () => {
 			}
 			if (url === "/_emdash/api/dashboard") {
 				return json({ data: { collections: [], mediaCount: 0, userCount: 0, recentItems: [] } });
+			}
+			if (url === "/_emdash/api/admin/transfer/capabilities") {
+				return json({
+					data: { portableDomain: { empty: false, blockers: [], seededScaffold: [] } },
+				});
 			}
 			throw new Error(`Unexpected request: ${url}`);
 		}) as typeof fetch;
@@ -130,5 +138,13 @@ describe("admin.hiddenNavItems", () => {
 		const links = await sidebarLinks();
 		for (const label of LABELS) expect(links).not.toContain(label);
 		expect(links).toEqual(expect.arrayContaining(["Posts", "Settings"]));
+	});
+
+	it("skips the pending-comment count when comments are hidden", async () => {
+		manifest = manifestHiding(["comments"]);
+		await sidebarLinks();
+		const requested = vi.mocked(globalThis.fetch).mock.calls.map(([input]) => requestUrl(input));
+		expect(requested).toContain("/_emdash/api/auth/me");
+		expect(requested).not.toContain("/_emdash/api/admin/comments/counts");
 	});
 });
