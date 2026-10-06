@@ -9,6 +9,8 @@
  * since there's no standalone export.
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { closeHistory } from "@tiptap/pm/history";
 import { TableMap } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
@@ -1166,6 +1168,63 @@ describe("Slash Command Menu", () => {
 		expect(titles).toContain("Image");
 		expect(titles).toContain("Section");
 	});
+
+	it.each([
+		{
+			query: "section",
+			locale: "de",
+			messages: {
+				[msg`Section`.id!]: "Abschnitt",
+				[msg`Insert a reusable section`.id!]: "Einen wiederverwendbaren Abschnitt einfügen",
+			},
+			title: "Abschnitt",
+		},
+		{
+			query: "video",
+			locale: "fr",
+			messages: {
+				[msg`Video`.id!]: "Vidéo",
+				[msg`Upload or choose a video`.id!]: "Téléverser ou choisir une vidéo",
+			},
+			title: "Vidéo",
+		},
+		{
+			query: "iframe",
+			locale: "zh-CN",
+			messages: {
+				[msg`Iframe`.id!]: "内嵌框架",
+				[msg`Embed a page from another site`.id!]: "嵌入其他站点的页面",
+			},
+			title: "内嵌框架",
+		},
+	])(
+		"lists the $query command for its English name in a translated admin",
+		async ({ query, locale, messages, title }) => {
+			const previousLocale = i18n.locale;
+			i18n.load(locale, messages);
+			i18n.activate(locale);
+
+			try {
+				const { editor, pm } = await renderEditor();
+				await focusEditor(pm);
+				editor.commands.insertContent("/");
+				await waitForSlashMenu();
+
+				await userEvent.keyboard(query);
+
+				await vi.waitFor(
+					() => {
+						const menu = getSlashMenu();
+						expect(menu).toBeTruthy();
+						expect(getItemTitles(menu!)).toContain(title);
+					},
+					{ timeout: 3000 },
+				);
+			} finally {
+				i18n.activate(previousLocale);
+			}
+		},
+	);
 
 	it("matches a short query only against the starts of names", async () => {
 		const { editor, pm } = await renderEditor();
