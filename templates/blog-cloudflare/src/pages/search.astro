@@ -360,11 +360,15 @@ const countLabel = nextCursor
 	}
 
 	.result__path {
-		overflow: hidden;
 		margin-top: var(--spacing-1);
 		font-family: var(--font-mono);
 		font-size: var(--font-size-label);
 		color: var(--color-muted);
+	}
+
+	.result__path span {
+		display: block;
+		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}

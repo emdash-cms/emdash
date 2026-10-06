@@ -248,17 +248,22 @@ const hasHeadings = (post.data.content ?? []).some(
 					</section>
 				</div>
 
-				<div class="post-toc" hidden={!hasHeadings} data-toc>
-					<nav class="toc" aria-labelledby="toc-title">
+				<div class="post-rail">
+					<nav
+						class="toc"
+						aria-labelledby="toc-title"
+						hidden={!hasHeadings}
+						data-toc
+					>
 						<h2 id="toc-title" class="eyebrow">On this page</h2>
 						<ol class="toc__list" data-toc-list></ol>
 					</nav>
-				</div>
 
-				<aside class="post-widgets" aria-labelledby="widgets-title">
-					<h2 id="widgets-title" class="sr-only">More from the blog</h2>
-					<WidgetArea name="sidebar" />
-				</aside>
+					<aside class="post-widgets" aria-labelledby="widgets-title">
+						<h2 id="widgets-title" class="sr-only">More from the blog</h2>
+						<WidgetArea name="sidebar" />
+					</aside>
+				</div>
 			</div>
 		</div>
 	</article>
@@ -466,12 +471,12 @@ const hasHeadings = (post.data.content ?? []).some(
 	}
 
 	.post-meta,
-	.post-toc {
+	.toc {
 		display: none;
 	}
 
 	.post-main,
-	.post-widgets {
+	.post-rail {
 		width: 100%;
 		max-width: var(--content-width);
 		margin-inline: auto;
@@ -494,15 +499,6 @@ const hasHeadings = (post.data.content ?? []).some(
 	}
 
 	/* Table of contents */
-	.toc {
-		max-height: calc(100dvh - var(--nav-height) - var(--spacing-16));
-		overflow-y: auto;
-		margin: calc(-1 * var(--spacing-1));
-		padding: var(--spacing-1);
-		overscroll-behavior: contain;
-		scrollbar-width: thin;
-	}
-
 	.toc h2 {
 		margin-block-end: var(--spacing-4);
 	}
@@ -554,52 +550,45 @@ const hasHeadings = (post.data.content ?? []).some(
 				minmax(9rem, var(--meta-col-width))
 				minmax(36rem, var(--content-width))
 				minmax(10rem, var(--gutter-width));
-			grid-template-rows: 1fr auto;
-			grid-template-areas:
-				"meta main toc"
-				"meta main widgets";
+			align-items: start;
 			justify-content: space-between;
-			gap: var(--spacing-10) clamp(1.5rem, 1rem + 1.5vw, 2.5rem);
-		}
-
-		/* Without a table of contents, the widgets move to the top of the rail */
-		.post-layout:has(.post-toc[hidden]) {
-			grid-template-rows: auto 1fr;
-			grid-template-areas:
-				"meta main widgets"
-				"meta main .";
+			gap: var(--spacing-10) clamp(1.5rem, 1rem + 1.5vw, 2.25rem);
 		}
 
 		.post-meta,
-		.toc {
+		.post-rail {
 			position: sticky;
 			top: calc(var(--nav-height) + var(--spacing-8));
 		}
 
 		.post-meta {
 			display: block;
-			grid-area: meta;
-			align-self: start;
 		}
 
 		.post-main {
-			grid-area: main;
 			max-width: none;
 		}
 
-		/* The slot fills the first row, so the sticky list stops above the widgets */
-		.post-toc {
+		/* A rail taller than the viewport scrolls on its own, so every widget stays reachable */
+		.post-rail {
+			display: grid;
+			gap: var(--spacing-10);
+			max-width: none;
+			max-height: calc(100vh - var(--nav-height) - var(--spacing-16));
+			max-height: calc(100dvh - var(--nav-height) - var(--spacing-16));
+			margin: calc(-1 * var(--spacing-1));
+			padding: var(--spacing-1);
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			scrollbar-width: thin;
+		}
+
+		.toc {
 			display: block;
-			grid-area: toc;
 		}
 
-		.post-toc[hidden] {
+		.toc[hidden] {
 			display: none;
-		}
-
-		.post-widgets {
-			grid-area: widgets;
-			max-width: none;
 		}
 	}
 
@@ -707,7 +696,7 @@ const hasHeadings = (post.data.content ?? []).some(
 		:global(
 			.ec-comment-form .ec-comment-form-field :is(input, textarea):focus
 		) {
-		outline: none;
+		outline: 2px solid transparent;
 		border-color: var(--color-muted);
 		box-shadow: 0 0 0 3px var(--color-brand-ring);
 	}
@@ -765,15 +754,17 @@ const hasHeadings = (post.data.content ?? []).some(
 		border-block-start: 1px solid var(--color-border);
 	}
 
+	/* Columns rather than a grid, so short widgets don't leave holes beside tall ones */
 	.post-widgets :global(.widget-area) {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-		gap: var(--spacing-10) var(--spacing-8);
+		columns: 15rem 2;
+		column-gap: var(--spacing-8);
 	}
 
 	.post-widgets :global(.widget) {
 		min-width: 0;
+		margin-block-end: var(--spacing-10);
 		font-size: var(--font-size-sm);
+		break-inside: avoid;
 	}
 
 	.post-widgets :global(.widget__title) {
@@ -846,7 +837,7 @@ const hasHeadings = (post.data.content ?? []).some(
 	}
 
 	.post-widgets :global(.widget-search__input:focus) {
-		outline: none;
+		outline: 2px solid transparent;
 		border-color: var(--color-muted);
 		box-shadow: 0 0 0 3px var(--color-brand-ring);
 	}
@@ -1004,8 +995,11 @@ const hasHeadings = (post.data.content ?? []).some(
 		}
 
 		.post-widgets :global(.widget-area) {
-			grid-template-columns: minmax(0, 1fr);
-			gap: var(--spacing-8);
+			columns: auto;
+		}
+
+		.post-widgets :global(.widget) {
+			margin-block-end: var(--spacing-8);
 		}
 	}
 

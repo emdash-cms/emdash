@@ -203,9 +203,10 @@ const year = new Date().getFullYear();
 							resultsClass="site-search-results"
 							resultClass="site-search-result"
 							collections={["posts", "pages"]}
-							searchPage="/search"
 						/>
-						<kbd class="site-search__kbd" dir="ltr" aria-hidden="true">⌘K</kbd>
+						<kbd class="site-search__kbd" aria-hidden="true"
+							><span dir="ltr">⌘K</span></kbd
+						>
 					</div>
 					<a
 						href="/search"
@@ -579,6 +580,7 @@ const year = new Date().getFullYear();
 					font-weight: var(--font-weight-heading);
 					letter-spacing: var(--tracking-snug);
 					text-wrap: balance;
+					overflow-wrap: break-word;
 				}
 
 				h1 {
@@ -807,18 +809,21 @@ const year = new Date().getFullYear();
 				}
 
 				.chip {
-					display: inline-flex;
-					align-items: center;
-					min-height: 26px;
+					display: inline-block;
+					max-width: 100%;
+					overflow: hidden;
 					padding: var(--tag-padding-y) 10px;
 					border-radius: var(--radius-full);
 					background: var(--color-surface);
 					box-shadow: inset 0 0 0 1px var(--color-border);
 					font-size: var(--font-size-xs);
 					font-weight: 500;
-					line-height: 1.3;
+					line-height: 1.375rem;
 					color: var(--color-text-secondary);
 					text-decoration: none;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+					vertical-align: middle;
 					transition:
 						color var(--transition-fast),
 						box-shadow var(--transition-fast);
@@ -835,8 +840,8 @@ const year = new Date().getFullYear();
 					align-items: center;
 					justify-content: center;
 					gap: var(--spacing-2);
-					height: 40px;
-					padding-inline: var(--spacing-5);
+					min-height: 2.5rem;
+					padding: var(--spacing-2) var(--spacing-5);
 					border: 0;
 					border-radius: var(--radius-full);
 					background: var(--color-brand);
@@ -885,16 +890,16 @@ const year = new Date().getFullYear();
 				}
 
 				.btn--sm {
-					height: 32px;
-					padding-inline: var(--spacing-3);
+					min-height: 2rem;
+					padding: var(--spacing-1) var(--spacing-3);
 					font-size: var(--font-size-xs);
 				}
 
 				.icon-btn {
 					display: inline-grid;
 					place-items: center;
-					width: 36px;
-					height: 36px;
+					width: 2.25rem;
+					height: 2.25rem;
 					border-radius: var(--radius-full);
 					background: var(--color-surface);
 					box-shadow: inset 0 0 0 1px var(--color-border);
@@ -999,7 +1004,8 @@ const year = new Date().getFullYear();
 				display: flex;
 				align-items: center;
 				gap: var(--spacing-6);
-				height: var(--nav-height);
+				min-height: var(--nav-height);
+				padding-block: var(--spacing-2);
 				border-inline: 1px solid var(--color-border);
 			}
 
@@ -1007,7 +1013,6 @@ const year = new Date().getFullYear();
 				display: inline-flex;
 				align-items: center;
 				gap: 10px;
-				flex-shrink: 0;
 				min-width: 0;
 				font-size: var(--font-size-base);
 				font-weight: 600;
@@ -1019,8 +1024,9 @@ const year = new Date().getFullYear();
 			.brand__mark {
 				display: grid;
 				place-items: center;
-				width: 28px;
-				height: 28px;
+				flex-shrink: 0;
+				width: 1.75rem;
+				height: 1.75rem;
 				border-radius: var(--radius);
 				background: var(--color-brand);
 				color: var(--color-on-brand);
@@ -1030,6 +1036,7 @@ const year = new Date().getFullYear();
 			}
 
 			.brand__name {
+				max-width: 16rem;
 				overflow: hidden;
 				text-overflow: ellipsis;
 				white-space: nowrap;
@@ -1042,8 +1049,14 @@ const year = new Date().getFullYear();
 				object-fit: contain;
 			}
 
+			.site-nav {
+				min-width: 0;
+			}
+
+			/* Long menus wrap rather than push the page wider than the viewport */
 			.site-nav ul {
 				display: flex;
+				flex-wrap: wrap;
 				gap: 2px;
 				list-style: none;
 			}
@@ -1194,7 +1207,8 @@ const year = new Date().getFullYear();
 			.site-search :global(.site-search-result):focus,
 			.site-search :global(.site-search-result.focused) {
 				background: var(--color-fill);
-				outline: none;
+				outline: 2px solid transparent;
+				outline-offset: -2px;
 			}
 
 			.site-search :global(.emdash-live-search-result-title) {
@@ -1333,8 +1347,8 @@ const year = new Date().getFullYear();
 			.theme-btn {
 				display: grid;
 				place-items: center;
-				width: 28px;
-				height: 28px;
+				width: 1.75rem;
+				height: 1.75rem;
 				padding: 0;
 				border: 0;
 				border-radius: var(--radius-full);
@@ -1376,16 +1390,6 @@ const year = new Date().getFullYear();
 				}
 			}
 
-			@media (max-width: 720px) {
-				.site-search {
-					display: none;
-				}
-
-				.site-search-link {
-					display: inline-grid;
-				}
-			}
-
 			/* Phones: brand and actions on the first row, the nav on its own row */
 			@media (max-width: 640px) {
 				.site-header {
@@ -1395,25 +1399,27 @@ const year = new Date().getFullYear();
 				.site-header__inner {
 					flex-wrap: wrap;
 					row-gap: var(--spacing-1);
-					height: auto;
 					padding-block: var(--spacing-3) var(--spacing-2);
 				}
 
 				.site-nav {
 					order: 3;
 					flex-basis: 100%;
-					min-width: 0;
 					margin-inline-start: -10px;
-					overflow-x: auto;
-					scrollbar-width: none;
-				}
-
-				.site-nav::-webkit-scrollbar {
-					display: none;
 				}
 
 				.site-nav a {
-					padding-inline: 10px;
+					padding: 8px 10px;
+				}
+
+				.site-search {
+					display: none;
+				}
+
+				.site-search-link {
+					display: inline-grid;
+					width: 2.5rem;
+					height: 2.5rem;
 				}
 			}
 
@@ -1432,7 +1438,7 @@ const year = new Date().getFullYear();
 			// ⌘K / Ctrl+K focuses the header search
 			const searchInput =
 				document.querySelector<HTMLInputElement>(".site-search-input");
-			const kbd = document.querySelector(".site-search__kbd");
+			const kbd = document.querySelector(".site-search__kbd span");
 			if (kbd && !/Mac|iPhone|iPad|iPod/.test(navigator.platform)) {
 				kbd.textContent = "Ctrl K";
 			}

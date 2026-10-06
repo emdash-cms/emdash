@@ -4,7 +4,10 @@
 
   These rules sit in @layer base, so overrides in theme.css win without
   specificity tricks. The variables at the top theme EmDash's built-in
-  block components (images, pullquotes, buttons, files) to match.
+  block components (images, pullquotes, buttons, files, tables) to match.
+  The exception is the short unlayered block at the end, which needs
+  !important to restyle EmDash's code, button, and file blocks; override
+  those properties with !important too.
 */
 
 @layer base {
@@ -112,33 +115,6 @@
 		line-height: 0;
 	}
 
-	.prose abbr[title] {
-		text-decoration: underline dotted;
-		text-underline-offset: 0.2em;
-		cursor: help;
-	}
-
-	.prose mark {
-		padding: 0.05em 0.25em;
-		border-radius: 4px;
-		background: var(--color-fill-strong);
-		color: var(--color-text);
-		box-decoration-break: clone;
-		-webkit-box-decoration-break: clone;
-	}
-
-	.prose kbd {
-		padding: 0.1em 0.4em;
-		border-radius: var(--radius-sm);
-		background: var(--color-surface);
-		box-shadow:
-			inset 0 0 0 1px var(--color-border),
-			inset 0 -1px 0 var(--color-border-strong);
-		color: var(--color-text);
-		font-size: 0.8em;
-		line-height: 1.4;
-	}
-
 	.prose :not(pre) > code {
 		padding: 0.15em 0.35em;
 		border-radius: var(--radius-sm);
@@ -180,23 +156,6 @@
 		margin-block-start: 0.75em;
 	}
 
-	.prose pre {
-		overflow-x: auto;
-		padding: 1rem 1.25rem;
-		border-radius: var(--radius-lg);
-		background: var(--color-fill);
-		color: var(--color-text);
-		font-family: var(--font-mono);
-		font-size: var(--font-size-sm);
-		line-height: 1.7;
-		tab-size: 2;
-	}
-
-	.prose pre code {
-		font: inherit;
-		color: inherit;
-	}
-
 	.prose hr {
 		margin-block: 2.5em;
 		border: 0;
@@ -221,10 +180,6 @@
 		text-align: center;
 	}
 
-	.prose :is(video, iframe, embed, object) {
-		max-width: 100%;
-	}
-
 	.prose :is(.emdash-embed-video, .emdash-iframe),
 	.prose .emdash-video video {
 		overflow: hidden;
@@ -232,25 +187,10 @@
 		background: var(--color-fill);
 	}
 
-	/* Tables (EmDash's table block brings its own cell styles) */
-	.prose table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: var(--font-size-sm);
-		line-height: var(--leading-normal);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.prose :is(th, td) {
-		padding: 0.6em 0.8em;
-		border-block-end: 1px solid var(--color-border);
-		text-align: start;
-		vertical-align: top;
-	}
-
-	.prose th {
-		color: var(--color-text);
-		font-weight: 600;
+	/* EmDash's table block reads these for its header row and stripes */
+	.prose .emdash-table-wrapper {
+		--color-surface: var(--color-fill);
+		--color-bg-subtle: color-mix(in srgb, var(--color-fill) 50%, transparent);
 	}
 
 	@media (max-width: 640px) {

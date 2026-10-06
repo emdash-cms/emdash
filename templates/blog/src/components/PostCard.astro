@@ -282,7 +282,11 @@ const sizes = {
 		padding: var(--spacing-4) var(--spacing-3) var(--spacing-4);
 	}
 
+	/* Stacked, so footers line up across a row whatever their content */
 	.post--card .post__footer {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--spacing-3);
 		padding: 0 var(--spacing-3) var(--spacing-3);
 	}
 
@@ -424,6 +428,13 @@ const sizes = {
 
 		.post--row .post__excerpt {
 			font-size: var(--font-size-sm);
+		}
+	}
+
+	@media (max-width: 400px) {
+		.post--row {
+			grid-template-columns: minmax(0, 1fr) 4.5rem;
+			gap: var(--spacing-3);
 		}
 	}
 </style>
