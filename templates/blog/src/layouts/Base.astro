@@ -502,8 +502,16 @@ const year = new Date().getFullYear();
 
 				html {
 					scroll-behavior: smooth;
-					scroll-padding-top: calc(var(--nav-height) + var(--spacing-4));
 					-webkit-text-size-adjust: 100%;
+				}
+
+				/*
+				 * Fragment targets clear the sticky header. Not a scroll-padding
+				 * on html: that also applies to the search field inside the
+				 * header, and the page scrolls on every keystroke.
+				 */
+				:target {
+					scroll-margin-block-start: calc(var(--nav-height) + var(--spacing-6));
 				}
 
 				body {
@@ -598,8 +606,8 @@ const year = new Date().getFullYear();
 				}
 
 				@media (max-width: 640px) {
-					html {
-						scroll-padding-top: var(--spacing-4);
+					:target {
+						scroll-margin-block-start: var(--spacing-6);
 					}
 				}
 
