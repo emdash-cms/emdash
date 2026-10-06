@@ -672,6 +672,8 @@ export function createViteConfig(
 						"emdash > @emdash-cms/admin > @codemirror/state",
 						"emdash > @emdash-cms/admin > @codemirror/view",
 						"emdash > @emdash-cms/admin > @lezer/highlight",
+						// Each admin language loads its date locale on first use.
+						"emdash > @emdash-cms/admin > react-day-picker/locale/*",
 					]
 				: [
 						"@emdash-cms/admin",

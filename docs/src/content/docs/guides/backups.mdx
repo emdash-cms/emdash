@@ -1,94 +1,39 @@
 ---
 title: Backups and recovery
-description: Export selected site data, create restorable database and media backups, and recover D1 or SQLite deployments.
+description: Create and verify restorable database, media, and key backups for every supported EmDash database.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-Use a JSON backup when you need an offline copy of selected content data. EmDash cannot import that file. A recovery plan needs a raw database backup or point-in-time recovery and a separate copy of media binaries.
+A recovery point must restore the complete database. EmDash's JSON backups are useful for inspection and custom tooling, but EmDash cannot restore them. Use a raw database backup or point-in-time recovery before a database migration or destructive operation.
 
-To copy a site's content, settings, and media into a new EmDash site, including one on a different database, use a [site package](/guides/site-transfer/) instead.
+Back up media binaries separately. If the site stores encrypted plugin settings, keep the complete `EMDASH_ENCRYPTION_KEY` rotation list in a separate secret-manager backup. Database backups and exports do not contain those files or keys.
 
-If the site stores encrypted plugin settings, keep the complete `EMDASH_ENCRYPTION_KEY` rotation list in a separate secret-manager backup. The key is never stored in the database, D1 Time Travel, a SQL dump, or a JSON export.
+## Choose a recovery method
 
-## What's in a backup
+Use the method for the site's configured [database adapter](/deployment/database/):
 
-A JSON backup includes:
+| Database | Recovery point |
+| --- | --- |
+| Cloudflare D1 | Record a Time Travel bookmark. Create an offsite SQL dump when the required retention exceeds Time Travel or when a restore rehearsal is required. |
+| SQLite or local libSQL | Use SQLite's online backup command, then run an integrity check against the copy. |
+| PostgreSQL | Use the provider's point-in-time recovery or create a custom-format archive with `pg_dump`. |
+| Hyperdrive | Back up its PostgreSQL origin through a direct origin connection. A Hyperdrive binding is not a backup connection. |
+| Turso-hosted libSQL | Use Turso point-in-time recovery or create and rehearse a SQL dump. |
+| Another remote libSQL provider | Use the provider's full-database export or point-in-time recovery procedure and test it against an isolated database. |
 
-- All content entries, including drafts, scheduled posts, and trashed items
-- Collection and field definitions that make up the content model
-- Taxonomy definitions, terms, and the terms assigned to each entry
-- Menus and menu items, sections, widget areas and widgets, SEO records, revision history, media
-  metadata, and database migration history
-- Site settings such as the title, tagline, URL, locale, logo, display preferences, social profiles,
-  and SEO defaults. These come from the `site:` setting group and the `emdash:site_title`,
-  `emdash:site_tagline`, and `emdash:locale` settings.
-
-It omits all other database tables, including:
-
-- User accounts, sessions, passkeys, OAuth data, API tokens, and other authentication data
-- Plugin storage and plugin settings, including plugin secrets
-- Comments and reactions, redirects and 404 logs, bylines, content relations and references, audit logs, rate limits, and scheduled-task state
-- Media folders, records of where media is used, incomplete or in-progress uploads, and the media
-  files themselves
-- Other site options, including the deployment URL recorded at setup (`emdash:site_url`), the
-  preview signing secret, and the backup schedule
-
-Backups are JSON files in the same snapshot format used by EmDash's preview system, versioned with the EmDash release that created them.
-
-<Aside type="caution">
-	EmDash does not implement restoring this JSON format. Do not rely on a JSON export as a recovery
-	point before a destructive operation. Use a raw database backup or point-in-time recovery instead.
-</Aside>
-
-## One-click download
-
-Under **Settings → Backups** in the admin, the **Download backup** button generates a fresh backup and downloads it as a JSON file. Requires the admin role.
-
-The download is for inspection or custom tooling. Before bulk imports, schema changes, or
-major upgrades, create a restorable database backup using one of the options below. To move the
-site to another EmDash site, export a [site package](/guides/site-transfer/) under **Settings → Transfer**.
-
-## Automatic backups to storage
-
-If your site has a storage backend configured (R2 on Cloudflare, S3, or local storage), you can enable daily automatic backups:
-
-<Steps>
-
-1. Open **Settings → Backups** in the admin.
-
-2. Toggle **Daily automatic backups** on.
-
-3. Choose how many backups to keep (1–30). Older archives are pruned automatically.
-
-4. Save. Backups run as part of EmDash's scheduled maintenance — no extra cron setup needed.
-
-</Steps>
-
-Archives are stored under the `backups/` prefix in your bucket as `emdash-backup-<timestamp>-<random>.json`. The **Stored Backups** list in the admin lets you download or delete individual archives, and **Back up now** creates one on demand.
-
-<Aside type="caution">
-	Archives share the bucket with your media files. EmDash's media route refuses to serve anything
-	under `backups/`, and archive names carry a random suffix — but if you expose the bucket itself
-	through a public R2 domain or CDN, anything in it is reachable by URL. Prefer serving media
-	through EmDash (or scope your public domain to the media prefix).
-</Aside>
-
-Automatic backups piggyback on the scheduled maintenance tick (the same mechanism that powers
-scheduled publishing) — on Cloudflare this is the Worker's cron trigger, on Node the built-in
-scheduler. If your deployment has no cron trigger configured, use **Back up now** or the download
-button instead.
+Keep the recovery point with the matching application artifact, media backup, and key-list version. Before a planned migration, record the exact database and environment, stop application writes when the provider's procedure requires it, and confirm that the recovery point remains available for the intended rollback window.
 
 ## Back up and restore media objects
 
-R2 and S3-compatible buckets need an object-level backup in addition to the database. The following AWS CLI example copies every object, including EmDash's `backups/` archives, to a local backup directory. For AWS S3, omit `--endpoint-url`.
+R2 and S3-compatible buckets need an object-level backup in addition to the database. The following AWS CLI command copies every object, including EmDash JSON archives under `backups/`, to a local backup directory. For AWS S3, omit `--endpoint-url`.
 
 ```bash
 aws s3 sync s3://emdash-media ./emdash-media-backup \
   --endpoint-url https://<account-id>.r2.cloudflarestorage.com
 ```
 
-Use read-only bucket credentials for routine backup jobs. Store the backup outside the production account or failure domain, and record the database backup or Time Travel point created at the same time.
+Replace `<account-id>` with the Cloudflare account ID. Use read-only bucket credentials for routine backup jobs. Store the backup outside the production account or failure domain, and record the database recovery point created at the same time.
 
 Restore into an empty recovery bucket rather than overwriting production while it is serving requests:
 
@@ -97,25 +42,32 @@ aws s3 sync ./emdash-media-backup s3://emdash-media-recovery \
   --endpoint-url https://<account-id>.r2.cloudflarestorage.com
 ```
 
-Give the restore job write access only to the recovery bucket. Point a non-production deployment at that bucket, open several known media URLs, and upload and delete a disposable file. Switch the production binding or bucket configuration only after the restored database and media set pass their checks together.
+Give the restore job write access only to the recovery bucket. Point a non-production deployment at the restored database and bucket, open several known media URLs, and upload and delete a disposable file. Change the production binding or bucket configuration only after the database and media pass their checks together.
+
+For local storage, copy the directory configured by the [`local()` storage adapter](/deployment/storage/#local-filesystem). Stop media writes while copying it, then verify representative files from the copy.
 
 ## Recover a D1 database with Time Travel
 
-Before a risky operation, ask Time Travel for the current bookmark and record it with the deployment or change record:
+Before a migration, ask Time Travel for the database's current bookmark and record the complete output with the deployment:
 
 ```bash
 npx wrangler d1 time-travel info my-database
 ```
 
-If recovery is required, stop writes to the site and inspect the available restore point before running the destructive restore command:
+Time Travel recovery points expire. Cloudflare currently retains them for 7 days on the Workers Free plan and 30 days on the Workers Paid plan. Create an [offsite D1 dump](#create-an-offsite-d1-dump) when the rollback window must last longer.
+
+If recovery is required, stop writes to the site and restore the exact bookmark recorded before the migration:
 
 ```bash
-npx wrangler d1 time-travel restore my-database --timestamp=2026-07-08T13:00:00Z
+npx wrangler d1 time-travel restore my-database \
+  --bookmark="<pre-migration-bookmark>"
 ```
 
-Time Travel restores the entire database, including content, users, settings, plugin data, and migration records. It does not restore R2 media objects or `EMDASH_ENCRYPTION_KEY`. Before testing plugin integrations, restore every encryption key referenced by the recovered plugin settings. After the command completes, deploy the application version that matches the restored database, reopen traffic, and verify sign-in, content reads, schema changes, an encrypted plugin setting, and a write.
+Replace `<pre-migration-bookmark>` with the recorded bookmark. The command overwrites the database in place and cancels in-flight queries. Save the previous bookmark printed by the restore command so the restore itself can be undone.
 
-See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/reference/time-travel/) for details.
+Time Travel restores content, users, settings, plugin data, and migration records. It does not restore R2 media objects or `EMDASH_ENCRYPTION_KEY`. Restore the matching application artifact, media, and keys before reopening traffic. Verify sign-in, content reads, the schema, an encrypted plugin setting, and a write.
+
+See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/reference/time-travel/) for current retention, requirements, and restore behavior.
 
 ## Create an offsite D1 dump
 
@@ -166,22 +118,108 @@ npx wrangler d1 execute my-recovery-database --remote --file=backup-indexes.sql
 
 The restored database has no search index. EmDash rebuilds it the first time the search API (`/_emdash/api/search`) is called on the restored site, for example by the admin command palette or a search box that uses the API. Until then, pages that call `search()` directly return no results. To rebuild right away, request `/_emdash/api/search?q=a` once after the site is running.
 
-## SQLite backup and recovery
+## Back up SQLite and local libSQL
 
-For an offline SQLite backup, stop every process that writes the database and copy the database file together with any `-wal` and `-shm` files next to it. The `-wal` file can hold committed changes that are not yet in the main file. For a consistent online backup, use SQLite's backup command:
+For an offline backup, stop every process that writes the database and copy the database file together with any `-wal` and `-shm` files beside it. The `-wal` file can contain committed changes that are not yet in the main file.
+
+For a consistent online backup, use SQLite's backup command against the path configured by the database adapter:
 
 ```bash
 sqlite3 emdash.db ".backup backup.db"
 ```
 
-Back up the local upload directory or S3-compatible bucket and the `EMDASH_ENCRYPTION_KEY` rotation list separately. To recover, stop every server process, retain a copy of the damaged database, replace it with the verified backup, restore the runtime keys and any required media objects, and start the matching application version. Verify sign-in, public content, an encrypted plugin setting, an edit, and a media read before reopening traffic.
+Check the copied database. The command must print `ok`:
 
-## JSON exports cannot restore a site
+```bash
+sqlite3 backup.db "PRAGMA integrity_check"
+```
 
-EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw
-D1 SQL dump, or a copy of the SQLite database as described above.
+Open the copy with the matching application version in a non-production environment and verify sign-in, public content, an encrypted plugin setting, an edit, and a media read.
 
-To rebuild a site's content in a new, empty EmDash site, export a [site package](/guides/site-transfer/)
-from the original site while it is still available and import it into the new site. A site package
-does not restore users, API tokens, plugin data, or secrets, so it does not replace a database
-backup for disaster recovery.
+To recover, stop every process that writes the database, retain a copy of the damaged database and its `-wal` and `-shm` files, replace them with the verified backup, and restore the matching application artifact, media, and keys before reopening traffic.
+
+## Back up PostgreSQL and Hyperdrive
+
+Use the PostgreSQL provider's point-in-time recovery or snapshot feature when it offers an isolated restore that can be tested before production is changed. Record its exact timestamp or snapshot ID and retention period.
+
+For a portable backup, connect directly to the PostgreSQL origin and create a custom-format archive:
+
+```bash
+pg_dump --format=custom --file=emdash.dump "$DATABASE_URL"
+```
+
+`pg_dump` creates a transactionally consistent archive while the database remains in use. Inspect the archive table of contents before relying on it:
+
+```bash
+pg_restore --list emdash.dump > emdash.dump.list
+```
+
+Provision an empty recovery database. Connect as the canonical EmDash application role and restore without carrying source ownership into the recovery database:
+
+```bash
+pg_restore --exit-on-error --no-owner \
+  --dbname="$RECOVERY_DATABASE_URL" emdash.dump
+```
+
+The role in `RECOVERY_DATABASE_URL` becomes the owner of restored EmDash objects. Use the same stable role that the recovered application will use. Point a non-production deployment at the recovery database and verify sign-in, content reads, the schema, an encrypted plugin setting, and a write.
+
+For Hyperdrive, `DATABASE_URL` must be the direct PostgreSQL origin connection named by `migrationConnectionStringEnv`; the Worker binding cannot be passed to PostgreSQL backup tools. Follow the origin provider's recovery procedure and retain the Hyperdrive configuration with the application artifact.
+
+See the [PostgreSQL backup documentation](https://www.postgresql.org/docs/current/backup.html) for provider-managed recovery, large databases, and continuous archiving.
+
+## Back up Turso-hosted libSQL
+
+Turso point-in-time recovery creates a separate database from an earlier timestamp. Record an RFC 3339 timestamp immediately before the migration. If recovery is required, create an isolated database from that point:
+
+```bash
+turso db create emdash-recovery \
+  --from-db emdash-production \
+  --timestamp <pre-migration-rfc3339-timestamp>
+```
+
+Replace `<pre-migration-rfc3339-timestamp>` with the recorded timestamp. Create a token for the recovered database, point a non-production deployment at it, and verify the site before changing the production connection. Check [Turso point-in-time recovery](https://docs.turso.tech/features/point-in-time-recovery) for the retention provided by the site's plan.
+
+For an offsite copy, dump the complete database:
+
+```bash
+turso db shell emdash-production .dump > emdash.sql
+```
+
+Test the dump by creating an isolated database from it:
+
+```bash
+turso db create emdash-recovery --from-dump ./emdash.sql
+```
+
+For another remote libSQL provider, follow its full-database export or point-in-time recovery procedure. Do not apply a remote migration until that procedure has produced a recovery point and an isolated restore has been tested.
+
+## Use JSON backups for inspection
+
+A JSON backup includes:
+
+- All content entries, including drafts, scheduled posts, and trashed items
+- Collection and field definitions that make up the content model
+- Taxonomy definitions, terms, and the terms assigned to each entry
+- Menus and menu items, sections, widget areas and widgets, SEO records, revision history, media metadata, and database migration history
+- Site settings such as the title, tagline, URL, locale, logo, display preferences, social profiles, and SEO defaults from the `site:` setting group and the `emdash:site_title`, `emdash:site_tagline`, and `emdash:locale` settings
+
+It omits:
+
+- User accounts, sessions, passkeys, OAuth data, API tokens, and other authentication data
+- Plugin storage and plugin settings, including plugin secrets
+- Comments and reactions, redirects and 404 logs, bylines, content relations and references, audit logs, rate limits, and scheduled-task state
+- Media folders, records of where media is used, incomplete uploads, and the media files themselves
+- Other site options, including `emdash:site_url`, the preview signing secret, and the backup schedule
+
+Under **Settings → Backups**, **Download backup** generates a fresh JSON file. **Back up now** stores one under the `backups/` prefix when storage is configured. These files use the same versioned snapshot format as EmDash previews.
+
+<Aside type="caution">
+	EmDash has no admin action, API endpoint, or CLI command that restores this JSON format. Do not use
+	it as a recovery point before a migration or destructive operation.
+</Aside>
+
+To schedule JSON backups, enable **Daily automatic backups** under **Settings → Backups** and choose a retention of 1–30 files. They run during scheduled maintenance. On Cloudflare, the Worker needs a cron trigger; on Node, the built-in scheduler runs the task.
+
+If the bucket has a public R2 domain or content delivery network origin, restrict that origin to media objects or serve media through EmDash. The EmDash media route refuses to serve `backups/`, but a public bucket origin can expose every object by URL.
+
+To copy content, settings, and media into a new EmDash site, use a [site package](/guides/site-transfer/). A site package does not restore users, API tokens, plugin data, or secrets, so it does not replace a database recovery point.

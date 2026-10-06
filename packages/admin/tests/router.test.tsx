@@ -25,7 +25,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import type { AdminManifest } from "../src/lib/api";
+import type { AdminManifest, ContentItem } from "../src/lib/api";
 import { ConfigurationLoadingScreen, createAdminRouter } from "../src/router";
 import { render } from "./utils/render.tsx";
 import { createTestQueryClient, createMockFetch, waitFor } from "./utils/test-helpers";
@@ -50,6 +50,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onAuthorChange,
 		onSeoChange,
 		onPublishedAtChange,
+		onDirtyChange,
 		isSaving,
 		isAutosaving,
 		isSaveFeedbackActive,
@@ -63,62 +64,82 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onAuthorChange?: (authorId: string | null) => void;
 		onSeoChange?: (seo: { title: string }) => void;
 		onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
+		onDirtyChange?: (isDirty: boolean) => void;
 		isSaving?: boolean;
 		isAutosaving?: boolean;
 		isSaveFeedbackActive?: boolean;
 		isUpdatingPublishedAt?: boolean;
 		autosaveCompletionToken?: number;
 		autosaveRejectionToken?: number;
-	}) => (
-		<div data-testid="content-editor">
-			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
-			<div data-testid="mock-slug">{item?.slug ?? ""}</div>
-			<div data-testid="is-saving">{isSaveFeedbackActive ? "saving" : "idle"}</div>
-			<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
-			<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
-			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
-			<div data-testid="autosave-rejection-token">{autosaveRejectionToken ?? 0}</div>
-			<form
-				onSubmit={(e) => {
-					e.preventDefault();
-					onSave?.({ data: { title: "Test Post" } });
-				}}
-			>
-				<button type="submit" disabled={isSaving}>
-					Save
+	}) => {
+		const [isDirty, setIsDirty] = React.useState(false);
+		const onDirtyChangeRef = React.useRef(onDirtyChange);
+		onDirtyChangeRef.current = onDirtyChange;
+		React.useEffect(() => {
+			onDirtyChangeRef.current?.(isDirty);
+		}, [isDirty]);
+
+		return (
+			<div data-testid="content-editor">
+				<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
+				<div data-testid="mock-slug">{item?.slug ?? ""}</div>
+				<div data-testid="is-saving">{isSaveFeedbackActive ? "saving" : "idle"}</div>
+				<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
+				<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
+				<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
+				<div data-testid="autosave-rejection-token">{autosaveRejectionToken ?? 0}</div>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						onSave?.({ data: { title: "Test Post" } });
+					}}
+				>
+					<button type="submit" disabled={isSaving}>
+						Save
+					</button>
+				</form>
+				<button
+					type="button"
+					disabled={isSaving || isAutosaving}
+					onClick={() =>
+						onAutosave?.({
+							data: { title: "Autosaved Title" },
+							slug: "autosaved-title",
+						})
+					}
+				>
+					Trigger Draft Sync
 				</button>
-			</form>
-			<button
-				type="button"
-				disabled={isSaving || isAutosaving}
-				onClick={() =>
-					onAutosave?.({
-						data: { title: "Autosaved Title" },
-						slug: "autosaved-title",
-					})
-				}
-			>
-				Trigger Draft Sync
-			</button>
-			<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
-				Trigger SEO Sync
-			</button>
-			<button type="button" onClick={() => onAuthorChange?.("user_02")}>
-				Trigger Author Sync
-			</button>
-			<button
-				type="button"
-				disabled={isUpdatingPublishedAt}
-				onClick={(event) => {
-					const result = onPublishedAtChange?.("2020-06-01T08:45:00.000Z");
-					event.currentTarget.dataset.returnsPromise = String(result instanceof Promise);
-					if (result instanceof Promise) void result.catch(() => undefined);
-				}}
-			>
-				Trigger Publish Date Sync
-			</button>
-		</div>
-	),
+				<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
+					Trigger SEO Sync
+				</button>
+				<button type="button" onClick={() => onAuthorChange?.("user_02")}>
+					Trigger Author Sync
+				</button>
+				<button
+					type="button"
+					disabled={isUpdatingPublishedAt}
+					onClick={(event) => {
+						const result = onPublishedAtChange?.("2020-06-01T08:45:00.000Z");
+						event.currentTarget.dataset.returnsPromise = String(result instanceof Promise);
+						if (result instanceof Promise) void result.catch(() => undefined);
+					}}
+				>
+					Trigger Publish Date Sync
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						const next = !isDirty;
+						onDirtyChangeRef.current?.(next);
+						setIsDirty(next);
+					}}
+				>
+					{isDirty ? "Clear Dirty" : "Set Dirty"}
+				</button>
+			</div>
+		);
+	},
 }));
 
 vi.mock("../src/components/MediaLibrary", () => ({
@@ -2075,5 +2096,206 @@ describe("ContentEditPage – autosave cache patching", () => {
 			expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("ready");
 		});
 		expect(screen.getByTestId("autosave-rejection-token").element().textContent).toBe("0");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Tests: ContentEditPage – revision token stays synchronized with clean reads
+// ---------------------------------------------------------------------------
+
+describe("ContentEditPage – revision token synchronization", () => {
+	const rev1 = btoa("1:2025-01-01T00:00:00Z");
+	const rev2 = btoa("2:2025-01-02T00:00:00Z");
+	const rev3 = btoa("3:2025-01-03T00:00:00Z");
+
+	const manifestWithRevisions: AdminManifest = {
+		...MANIFEST,
+		i18n: undefined,
+		collections: {
+			posts: {
+				...MANIFEST.collections.posts,
+				supports: ["drafts", "revisions"],
+			},
+		},
+	};
+
+	function makeItem(overrides: Partial<ContentItem> = {}) {
+		return {
+			id: "post_1",
+			type: "posts",
+			slug: "published-slug",
+			status: "draft",
+			locale: "en",
+			translationGroup: null,
+			data: { title: "Published Title" },
+			authorId: null,
+			primaryBylineId: null,
+			createdAt: "2025-01-01T00:00:00Z",
+			updatedAt: "2025-01-01T00:00:00Z",
+			publishedAt: "2025-01-01T00:00:00Z",
+			scheduledAt: null,
+			liveRevisionId: "rev_live",
+			draftRevisionId: "rev_draft",
+			...overrides,
+		};
+	}
+
+	let originalFetch: typeof fetch;
+	let getCount = 0;
+	let putBodies: Record<string, unknown>[] = [];
+
+	function jsonResponse(body: unknown, status = 200) {
+		return new Response(JSON.stringify(body), {
+			status,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	beforeEach(() => {
+		originalFetch = globalThis.fetch;
+		getCount = 0;
+		putBodies = [];
+
+		globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			const method = init?.method ?? "GET";
+			const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+
+			if (method === "GET" && url === "/_emdash/api/manifest")
+				return jsonResponse({ data: manifestWithRevisions });
+			if (method === "GET" && url === "/_emdash/api/auth/me")
+				return jsonResponse({ data: { id: "user_01", role: 30 } });
+			if (method === "GET" && url === "/_emdash/api/bylines")
+				return jsonResponse({ data: { items: [] } });
+			if (method === "GET" && url.startsWith("/_emdash/api/revisions/rev_draft"))
+				return jsonResponse({
+					data: {
+						item: {
+							id: "rev_draft",
+							collection: "posts",
+							entryId: "post_1",
+							data: { title: "Draft Title", _slug: "draft-slug" },
+							authorId: null,
+							createdAt: "2025-01-01T00:00:00Z",
+						},
+					},
+				});
+			if (method === "POST" && url.includes("/_emdash/api/content/posts/post_1/lock"))
+				return jsonResponse({ data: { enabled: false, holder: null, heldByCaller: false } });
+			if (method === "DELETE" && url.includes("/_emdash/api/content/posts/post_1/lock"))
+				return jsonResponse({ data: { released: true } });
+			if (method === "GET" && url.startsWith("/_emdash/api/content/posts/post_1")) {
+				getCount++;
+				const revision = getCount === 1 ? rev1 : rev2;
+				return jsonResponse({
+					data: { _rev: revision, item: makeItem() },
+				});
+			}
+			if (method === "PUT" && url.startsWith("/_emdash/api/content/posts/post_1")) {
+				putBodies.push(body);
+				return jsonResponse({
+					data: { _rev: rev3, item: makeItem() },
+				});
+			}
+
+			throw new Error(`Unhandled request: ${method} ${url}`);
+		}) as typeof fetch;
+	});
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	it("adopts a newer revision after a clean refetch and sends it on SEO save", async () => {
+		const { router, queryClient, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+		expect(getCount).toBe(1);
+
+		await queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
+		await waitFor(() => expect(getCount).toBe(2));
+
+		await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+		await waitFor(() => expect(putBodies).toHaveLength(1));
+
+		expect(putBodies[0]).toEqual({ seo: { title: "Search title" }, _rev: rev2 });
+	});
+
+	it("keeps the base revision while the editor is dirty", async () => {
+		const { router, queryClient, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Set Dirty" }).click();
+		await queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
+		await waitFor(() => expect(getCount).toBe(2));
+
+		await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+		await waitFor(() => expect(putBodies).toHaveLength(1));
+
+		expect(putBodies[0]).toEqual({ seo: { title: "Search title" }, _rev: rev1 });
+	});
+
+	it("does not downgrade to a stale revision after a successful write", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+		await waitFor(() => expect(putBodies).toHaveLength(1));
+		expect(putBodies[0]).toEqual({ seo: { title: "Search title" }, _rev: rev1 });
+
+		// The mutation invalidates the content query; wait for the background
+		// refetch to return the stale rev2 while the token advanced to rev3.
+		await waitFor(() => expect(getCount).toBe(2));
+
+		await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+		await waitFor(() => expect(putBodies).toHaveLength(2));
+
+		expect(putBodies[1]).toEqual({ seo: { title: "Search title" }, _rev: rev3 });
+	});
+
+	it("keeps the stale token when a refetch resolves before the parent re-renders after a dirtying edit", async () => {
+		const { router, queryClient, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		// Mark the editor dirty and immediately refetch, without waiting for the
+		// parent's React state to reflect the new dirty flag. TheContentEditor
+		// calls onDirtyChange synchronously from the editing event path so the
+		// adoption effect still sees dirty=true and keeps the original rev1 token.
+		await screen.getByRole("button", { name: "Set Dirty" }).click();
+		await queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
+		await waitFor(() => expect(getCount).toBe(2));
+
+		await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+		await waitFor(() => expect(putBodies).toHaveLength(1));
+
+		expect(putBodies[0]).toEqual({ seo: { title: "Search title" }, _rev: rev1 });
 	});
 });
