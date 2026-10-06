@@ -173,6 +173,36 @@ describeEachDialect("RedirectRepository.log404 — path upsert", (dialect) => {
 		expect(fresh?.path).toBe("/brand-new");
 	});
 
+	it("returns 0 without running the eviction DELETE when under capacity", async () => {
+		// Regression: cleanup ran a `DELETE ... WHERE id NOT IN (SELECT ...
+		// LIMIT)` on every scheduled tick regardless of row count, scanning the
+		// table twice and sorting into a temp B-tree even when nothing needed
+		// evicting. On D1 (billed by rows read) that scheduled scan dominated
+		// total row reads on a healthy site. The guard skips the DELETE when the
+		// table is within cap.
+		const captured: string[] = [];
+		const loggedDb = new Kysely<Database>({
+			dialect: new SqliteDialect({ database: openNodeSqliteDatabase(":memory:") }),
+			log(event) {
+				if (event.level === "query") captured.push(event.query.sql);
+			},
+		});
+		await runMigrations(loggedDb);
+		const loggedRepo = new RedirectRepository(loggedDb);
+
+		try {
+			await loggedRepo.log404({ path: "/under-cap" });
+			captured.length = 0;
+
+			expect(await loggedRepo.cleanup404Log()).toBe(0);
+
+			const ranDelete = captured.some((sql) => /delete\s+from/i.test(sql));
+			expect(ranDelete).toBe(false);
+		} finally {
+			await loggedDb.destroy();
+		}
+	});
+
 	it("overlapping cleanup runs preserve the newest rows at capacity", async () => {
 		await seedToCapacity(ctx.db);
 		await repo.log404({ path: "/new-a" });

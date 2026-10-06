@@ -683,6 +683,19 @@ export class RedirectRepository {
 	 * Called by scheduled system cleanup, never by the anonymous request path.
 	 */
 	async cleanup404Log(): Promise<number> {
+		// The eviction DELETE below derives its victim set from a `NOT IN
+		// (SELECT ... LIMIT)` subquery, which scans the table twice and sorts
+		// into a temp B-tree every run. Gate it on a count first: `COUNT(*)` is
+		// served by a covering index here, so when the table is within cap —
+		// the common case on every scheduled tick — this returns without the
+		// double scan and sort. `>` not `>=`: at exactly the cap there is
+		// nothing to evict.
+		const { count } = await this.db
+			.selectFrom("_emdash_404_log")
+			.select((eb) => eb.fn.countAll<number>().as("count"))
+			.executeTakeFirstOrThrow();
+		if (Number(count) <= MAX_404_LOG_ROWS) return 0;
+
 		// Keep the newest rows in one statement. Deriving the victims inside the
 		// DELETE makes overlapping cleanup runs idempotent: each statement
 		// evaluates the current newest set instead of acting on a stale count.
