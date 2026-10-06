@@ -119,23 +119,52 @@ See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/refe
 
 ## Create an offsite D1 dump
 
-For a complete SQL dump of the raw database (including users and auth tables), use Wrangler:
+For a SQL dump of the raw database (including users and auth tables), use Wrangler. A plain `wrangler d1 export my-database --remote` fails with `D1 Export error: cannot export databases with Virtual Tables (fts5)` once any collection has search enabled, because EmDash keeps its search index in FTS5 virtual tables. Export the other tables by name and leave the search index out; the restored site rebuilds it.
+
+The dump is split into four files so that a restore succeeds:
+
+- `backup-schema.sql` creates the tables.
+- `backup-folders.sql` holds the media folders. Large imports run in parts, so a media item would otherwise be inserted before the folder it belongs to and fail the foreign key check.
+- `backup-data.sql` holds every other row.
+- `backup-indexes.sql` holds the indexes and triggers, which an export by table name leaves out. They are created last so that the triggers do not fire while rows are imported.
+
+These commands require [`jq`](https://jqlang.org/). The following commands write the four files:
 
 ```bash
-npx wrangler d1 export my-database --remote --output=backup.sql
+npx wrangler d1 execute my-database --remote --json \
+  --command "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT GLOB '_emdash_fts_*' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB '_cf_*' AND name != 'media_folders'" \
+  | jq -r '.[0].results[] | "--table=" + .name' > backup-tables.txt
+
+npx wrangler d1 export my-database --remote --no-data --output=backup-schema.sql \
+  --table=media_folders $(cat backup-tables.txt)
+npx wrangler d1 export my-database --remote --no-schema --output=backup-folders.sql \
+  --table=media_folders
+npx wrangler d1 export my-database --remote --no-schema --output=backup-data.sql \
+  $(cat backup-tables.txt)
+
+npx wrangler d1 execute my-database --remote --json \
+  --command "SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND sql IS NOT NULL AND name NOT GLOB '_emdash_fts_*' AND tbl_name NOT GLOB '_emdash_fts_*' AND tbl_name NOT GLOB '_cf_*'" \
+  | jq -r '.[0].results[] | .sql + ";"' > backup-indexes.sql
 ```
 
-Keep the SQL file with the matching application version, the media backup created at the same time, and a separately stored copy of the `EMDASH_ENCRYPTION_KEY` rotation list. Test recovery by importing the dump into a newly provisioned empty D1 database, restoring the runtime keys, updating a non-production binding to that database, and verifying the site.
+See the [D1 import and export documentation](https://developers.cloudflare.com/d1/best-practices/import-export-data/) for Wrangler's export options and limits.
+
+Keep the SQL files with the matching application version, the media backup created at the same time, and a separately stored copy of the `EMDASH_ENCRYPTION_KEY` rotation list. Test recovery by importing the files into a newly provisioned empty D1 database, restoring the runtime keys, updating a non-production binding to that database, and verifying the site.
 
 <Aside type="danger">
-	Do not execute a full dump against the existing production database. The dump contains schema and row creation statements that can conflict with existing objects or leave a mixed state. For recovery, create an empty D1 database, import the dump there, verify it, then change the production binding in a controlled deployment.
+	Do not execute the dump files against the existing production database. They contain schema and row creation statements that can conflict with existing objects or leave a mixed state. For recovery, create an empty D1 database, import the files there, verify it, then change the production binding in a controlled deployment.
 </Aside>
 
-Import into the empty recovery database with the following command:
+Import the files into the empty recovery database in this order:
 
 ```bash
-npx wrangler d1 execute my-recovery-database --remote --file=backup.sql
+npx wrangler d1 execute my-recovery-database --remote --file=backup-schema.sql
+npx wrangler d1 execute my-recovery-database --remote --file=backup-folders.sql
+npx wrangler d1 execute my-recovery-database --remote --file=backup-data.sql
+npx wrangler d1 execute my-recovery-database --remote --file=backup-indexes.sql
 ```
+
+The restored database has no search index. EmDash rebuilds it the first time the search API (`/_emdash/api/search`) is called on the restored site, for example by the admin command palette or a search box that uses the API. Until then, pages that call `search()` directly return no results. To rebuild right away, request `/_emdash/api/search?q=a` once after the site is running.
 
 ## SQLite backup and recovery
 

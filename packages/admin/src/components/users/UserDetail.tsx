@@ -26,6 +26,8 @@ export interface UserDetailProps {
 	recoverySent?: boolean;
 	recoveryError?: string | null;
 	currentUserId?: string;
+	/** The external auth provider overwrites names, so the name field is read-only. */
+	providerManagedName?: boolean;
 	onClose: () => void;
 	onSave: (data: UpdateUserInput) => void;
 	onDisable: () => void;
@@ -45,6 +47,7 @@ export function UserDetail({
 	recoverySent,
 	recoveryError,
 	currentUserId,
+	providerManagedName,
 	onClose,
 	onSave,
 	onDisable,
@@ -144,12 +147,21 @@ export function UserDetail({
 										</div>
 									)}
 									<div className="flex-1 min-w-0 space-y-3">
-										<Input
-											label={t`Name`}
-											value={name}
-											onChange={(e) => setName(e.target.value)}
-											placeholder={t`Enter name`}
-										/>
+										{providerManagedName ? (
+											<Input
+												label={t`Name`}
+												value={name}
+												readOnly
+												description={t`Managed by your identity provider. Change the name there.`}
+											/>
+										) : (
+											<Input
+												label={t`Name`}
+												value={name}
+												onChange={(e) => setName(e.target.value)}
+												placeholder={t`Enter name`}
+											/>
+										)}
 										<Input
 											label={t`Email`}
 											type="email"

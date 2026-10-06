@@ -27,11 +27,11 @@ import { getSiteSettingsWithDb } from "#settings/index.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { resolveLocalizedContentRoutePath } from "../../i18n/resolve.js";
 import { buildSeoImageUrl } from "../../seo/media-url.js";
+import { parseCollectionSitemapName } from "../../seo/sitemap-name.js";
 
 export const prerender = false;
 
 const TRAILING_SLASH_RE = /\/$/;
-const SITEMAP_PARAM_RE = /^([a-z][a-z0-9_]*)(?:-([2-9]|[1-9]\d{1,5}))?$/;
 const AMP_RE = /&/g;
 const LT_RE = /</g;
 const GT_RE = />/g;
@@ -41,22 +41,23 @@ const APOS_RE = /'/g;
 export const GET: APIRoute = async ({ params, locals, url }) => {
 	const { emdash } = locals;
 
-	if (!emdash?.db || !params.collection) {
-		return new Response("<!-- EmDash not configured -->", {
-			status: 500,
-			headers: { "Content-Type": "application/xml" },
-		});
-	}
-
-	const match = SITEMAP_PARAM_RE.exec(params.collection);
-	if (!match) {
+	// The middleware skips runtime setup for names no collection can have, so
+	// this check must run before the configuration check below.
+	const parsed = params.collection ? parseCollectionSitemapName(params.collection) : null;
+	if (!parsed) {
 		return new Response("<!-- Sitemap not found -->", {
 			status: 404,
 			headers: { "Content-Type": "application/xml" },
 		});
 	}
-	const collectionSlug = match[1]!;
-	const page = match[2] ? Number(match[2]) : 1;
+	const { collection: collectionSlug, page } = parsed;
+
+	if (!emdash?.db) {
+		return new Response("<!-- EmDash not configured -->", {
+			status: 500,
+			headers: { "Content-Type": "application/xml" },
+		});
+	}
 
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db);
