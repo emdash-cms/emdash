@@ -14,9 +14,15 @@ const hasError =
 	Boolean(result.error) ||
 	Astro.url.searchParams.get("registry") === "unavailable";
 if (!hasError) Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
+const websiteJsonLd = {
+	"@context": "https://schema.org",
+	"@type": "WebSite",
+	name: "EmDash Plugins",
+	url: new URL("/", Astro.site ?? Astro.url.origin).href,
+};
 ---
 
-<BaseLayout>
+<BaseLayout jsonLd={websiteJsonLd}>
 	<section class="hero shell">
 		<div class="hero-copy">
 			<p class="eyebrow">The EmDash plugin registry</p>

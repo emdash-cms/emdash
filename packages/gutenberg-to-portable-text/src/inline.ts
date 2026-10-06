@@ -398,7 +398,7 @@ export function extractSrc(html: string): string | undefined {
 /**
  * Decode HTML entities commonly found in URLs
  */
-function decodeUrlEntities(url: string): string {
+export function decodeUrlEntities(url: string): string {
 	return url
 		.replace(URL_AMP_ENTITY_PATTERN, "&")
 		.replace(URL_NUMERIC_AMP_ENTITY_PATTERN, "&")
