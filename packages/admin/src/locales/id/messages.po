@@ -255,7 +255,7 @@ msgstr "{0, plural, other {Tambahkan # gambar}}"
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:866
 msgid "{0, plural, one {Add # video} other {Add # videos}}"
-msgstr ""
+msgstr "{0, plural, other {Tambahkan # video}}"
 
 #. placeholder {0}: bounds.min
 #: packages/admin/src/components/ContentEditor.tsx:2891
@@ -859,19 +859,19 @@ msgstr "<0>{name}</0> sekarang memegang entri ini, sehingga perubahan Anda tidak
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:231
 msgid "<0>Alt-click</0> to add above"
-msgstr ""
+msgstr "<0>Klik-alt</0> untuk menambahkan di atas"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:227
 msgid "<0>Click</0> to add below"
-msgstr ""
+msgstr "<0>Klik</0> untuk menambahkan di bawah"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:273
 msgid "<0>Click</0> to open menu"
-msgstr ""
+msgstr "<0>Klik</0> untuk membuka menu"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:269
 msgid "<0>Drag</0> to move"
-msgstr ""
+msgstr "<0>Seret</0> untuk memindahkan"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:426
 msgid "1 post updated"
@@ -1033,7 +1033,7 @@ msgstr "Waktu publikasi belum dipilih"
 
 #: packages/admin/src/components/ContentEditor.tsx:1211
 msgid "A publishing action is already in progress"
-msgstr "Aksi publikasi sudah berlangsung"
+msgstr "Tindakan publikasi sudah berlangsung"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:124
 msgid "A record in the package is not valid"
@@ -1481,19 +1481,19 @@ msgstr "Alat MCP yang dapat dipanggil agen"
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
 #: packages/admin/src/components/PortableTextEditor.tsx:5184
 msgid "Align"
-msgstr ""
+msgstr "Rata"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6329
 msgid "Align center"
-msgstr ""
+msgstr "Rata tengah"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6321
 msgid "Align left"
-msgstr ""
+msgstr "Rata kiri"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6337
 msgid "Align right"
-msgstr ""
+msgstr "Rata kanan"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:722
@@ -2136,7 +2136,7 @@ msgstr "Bash"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1975
 msgid "Basic blocks"
-msgstr ""
+msgstr "Blok dasar"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:61
 msgid "Before"
@@ -2165,7 +2165,7 @@ msgstr "Bio"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:92
 msgid "Block"
-msgstr ""
+msgstr "Blok"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlocksField.tsx:406
@@ -2174,11 +2174,11 @@ msgstr "Blok {0}"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:138
 msgid "Block actions"
-msgstr ""
+msgstr "Tindakan blok"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:291
 msgid "Block actions - drag to reorder, click for menu"
-msgstr "Aksi blok - seret untuk mengurutkan, klik untuk menu"
+msgstr "Tindakan blok - seret untuk mengurutkan, klik untuk menu"
 
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:108
@@ -2705,7 +2705,7 @@ msgstr "Pilih istilah dan masukkan antara 1 dan 50 postingan."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:236
 msgid "Choose a video from the library or upload a new one."
-msgstr ""
+msgstr "Pilih video dari pustaka atau unggah yang baru."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Choose an image from the library or upload a new one."
@@ -2787,7 +2787,7 @@ msgstr "Bersihkan filter"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5198
 msgid "Clear formatting"
-msgstr ""
+msgstr "Bersihkan pemformatan"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/MediaLibrary.tsx:1055
@@ -4113,7 +4113,7 @@ msgstr "Hapus Taksonomi"
 #: packages/admin/src/components/editor/VideoNode.tsx:493
 #: packages/admin/src/components/editor/VideoNode.tsx:494
 msgid "Delete video"
-msgstr ""
+msgstr "Hapus video"
 
 #: packages/admin/src/components/Widgets.tsx:717
 msgid "Delete Widget Area?"
@@ -4534,7 +4534,7 @@ msgstr "Draf"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:196
 #: packages/admin/src/components/ContentSettingsPanel.tsx:218
 msgid "Draft changes"
-msgstr "    Perubahan draf"
+msgstr "Perubahan draf"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:162
 msgid "Draft version"
@@ -4611,7 +4611,7 @@ msgstr "Lepaskan untuk menambahkan widget"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 msgid "Drop to upload"
-msgstr ""
+msgstr "Lepaskan untuk mengunggah"
 
 #: packages/admin/src/components/WordPressImport.tsx:1611
 msgid "Drop your WordPress export file here"
@@ -4909,7 +4909,7 @@ msgstr "Surel terverifikasi!"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:49
 msgid "Embed"
-msgstr ""
+msgstr "Sematkan"
 
 #. placeholder {0}: block.label
 #: packages/admin/src/components/PortableTextEditor.tsx:3695
@@ -5136,7 +5136,7 @@ msgstr "Galat memperbarui widget"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2569
 msgid "esc"
-msgstr ""
+msgstr "esc"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:604
 msgid "Esc"
@@ -6276,7 +6276,7 @@ msgstr "Untuk pengalaman impor terbaik, pasang pengaya <0>EmDash Exporter</0> di
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4876
 msgid "Format selection"
-msgstr ""
+msgstr "Pemilihan format"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1348
 msgid "Format:"
@@ -6365,7 +6365,7 @@ msgstr "Berikan kunci sandi ini nama untuk membantu Anda mengidentifikasinya nan
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:36
 msgid "Go"
-msgstr "Pergi"
+msgstr "Go"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
 msgid "Go live {countdown}"
@@ -7036,7 +7036,7 @@ msgstr "Sisipkan tabel"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:521
 msgid "Insert video"
-msgstr ""
+msgstr "Sisipkan video"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:163
 msgid "Instagram"
@@ -7399,7 +7399,7 @@ msgstr "Tautan kedaluwarsa"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5008
 msgid "Link options"
-msgstr ""
+msgstr "Opsi tautan"
 
 #: packages/admin/src/routes/bylines.tsx:754
 msgid "Link this byline to a user or mark it as a guest profile."
@@ -7482,7 +7482,7 @@ msgstr "Ditautkan ke {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3466
 msgid "List"
-msgstr ""
+msgstr "Daftar"
 
 #: packages/admin/src/components/MediaLibrary.tsx:890
 #: packages/admin/src/components/MediaPickerModal.tsx:1250
@@ -8183,7 +8183,7 @@ msgstr "Tindakan lainnya untuk {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5154
 msgid "More formatting"
-msgstr ""
+msgstr "Pemformatan lainnya"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:511
 msgid "More information about {label}"
@@ -8981,7 +8981,7 @@ msgstr "Belum ada pengguna."
 
 #: packages/admin/src/components/editor/VideoNode.tsx:393
 msgid "No video"
-msgstr ""
+msgstr "Tidak ada video"
 
 #: packages/admin/src/components/Widgets.tsx:506
 msgid "No widget areas yet. Create one to get started."
@@ -9117,7 +9117,7 @@ msgstr "Hanya berkas gambar yang dapat diunggah di sini."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:264
 msgid "Only images and videos can be uploaded here."
-msgstr ""
+msgstr "Hanya gambar dan video dapat diunggah di sini."
 
 #: packages/admin/src/components/MenuList.tsx:168
 msgid "Only lowercase letters, numbers, and hyphens"
@@ -10547,7 +10547,7 @@ msgstr "Ganti konten situs ini dengan paket yang diekspor dari situs EmDash lain
 #: packages/admin/src/components/editor/VideoNode.tsx:480
 #: packages/admin/src/components/editor/VideoNode.tsx:520
 msgid "Replace video"
-msgstr ""
+msgstr "Ganti video"
 
 #: packages/admin/src/components/NonListFieldValue.tsx:30
 msgid "Replace with empty list"
@@ -11642,7 +11642,7 @@ msgstr "Pilih hingga 50 postingan sekaligus."
 #: packages/admin/src/components/editor/VideoNode.tsx:520
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 msgid "Select video"
-msgstr ""
+msgstr "Pilih video"
 
 #: packages/admin/src/components/WordPressImport.tsx:1755
 msgid "Select which content types to import."
@@ -12266,7 +12266,7 @@ msgstr "Mulai dengan contoh postingan dan halaman templat. Direkomendasikan untu
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2007
 msgid "Start writing with plain text"
-msgstr ""
+msgstr "Mulai menulis dengan teks biasa"
 
 #: packages/admin/src/components/ContentEditor.tsx:2261
 #: packages/admin/src/components/PortableTextEditor.tsx:3453
@@ -12943,7 +12943,7 @@ msgstr "Paket yang diunggah dibuang. Tidak ada di situs ini yang berubah."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:219
 msgid "The video is in the Media Library, but this entry is now read-only."
-msgstr ""
+msgstr "Video berada di Pustaka Media, tetapi entri ini sekarang hanya baca."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:179
 msgid "the Windows passkey prompt"
@@ -13168,7 +13168,7 @@ msgstr "Ini bukan paket yang digunakan untuk memulai impor. Pilih berkas yang sa
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:331
 msgid "This link can't be used. Enter a web address, such as https://example.com."
-msgstr ""
+msgstr "Tautan ini tidak dapat digunakan. Masukkan alamat web, seperti https://example.com."
 
 #: packages/admin/src/locales/emails.ts:66
 msgid "This link expires in 15 minutes."
@@ -13368,7 +13368,7 @@ msgstr "Versi ini tidak terlihat di situs"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:427
 msgid "This video can't be played."
-msgstr ""
+msgstr "Video ini tidak dapat diputar."
 
 #: packages/admin/src/components/Widgets.tsx:718
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
@@ -13695,11 +13695,11 @@ msgstr "Tipe"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:298
 msgid "Type caption for image (optional)"
-msgstr "Tuliskan takarir untuk gambar (opsional)"
+msgstr "Ketik takarir untuk gambar (opsional)"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:438
 msgid "Type caption for video (optional)"
-msgstr ""
+msgstr "Ketik takarir untuk video (opsional)"
 
 #. placeholder {0}: status.existingType
 #: packages/admin/src/components/WordPressImport.tsx:2041
@@ -13708,11 +13708,11 @@ msgstr "Ketidakcocokan tipe ({0})"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2566
 msgid "Type to filter"
-msgstr ""
+msgstr "Ketik untuk memfilter"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4562
 msgid "Type to search"
-msgstr ""
+msgstr "Ketik untuk mencari"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1447
 msgid "Type: Folder"
@@ -13957,7 +13957,7 @@ msgstr "Unggah berkas untuk memulai"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1423
 msgid "Upload a video to get started"
-msgstr ""
+msgstr "Unggah video untuk memulai"
 
 #: packages/admin/src/components/WordPressImport.tsx:1414
 msgid "Upload an export file"
@@ -14015,7 +14015,7 @@ msgstr "Unggah belum selesai"
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/PortableTextEditor.tsx:2102
 msgid "Upload or choose a video"
-msgstr ""
+msgstr "Unggah atau pilih video"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
 msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
@@ -14065,7 +14065,7 @@ msgstr "Mengunggah paket"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:126
 msgid "Uploading video…"
-msgstr ""
+msgstr "Mengunggah video…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
@@ -14329,11 +14329,11 @@ msgstr "Video"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:463
 msgid "Video actions"
-msgstr ""
+msgstr "Tindakan video"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:281
 msgid "Video upload failed. Try again."
-msgstr ""
+msgstr "Unggah video gagal. Coba lagi."
 
 #: packages/admin/src/components/Settings.tsx:113
 #: packages/admin/src/components/settings/EmailSettings.tsx:59
