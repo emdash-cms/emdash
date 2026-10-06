@@ -22,7 +22,7 @@ msgstr " (predeterminado)"
 msgid " (opens in new window)"
 msgstr " (se abre en una nueva ventana)"
 
-#: packages/admin/src/routes/bylines.tsx:958
+#: packages/admin/src/routes/bylines.tsx:957
 msgid "-- Select --"
 msgstr "-- Seleccionar --"
 
@@ -1417,7 +1417,7 @@ msgstr "Añadiendo…"
 msgid "Additional data to import."
 msgstr "Datos adicionales para importar."
 
-#: packages/admin/src/routes/bylines.tsx:789
+#: packages/admin/src/routes/bylines.tsx:787
 msgid "Additional details"
 msgstr "Detalles adicionales"
 
@@ -1894,7 +1894,7 @@ msgstr "Como máximo {max}"
 msgid "At most…"
 msgstr "Como máximo…"
 
-#: packages/admin/src/routes/bylines.tsx:752
+#: packages/admin/src/routes/bylines.tsx:750
 msgid "Attribution"
 msgstr "Atribución"
 
@@ -2159,7 +2159,7 @@ msgstr "Entre {min} y {max}"
 msgid "Bing Verification"
 msgstr "Verificación de Bing"
 
-#: packages/admin/src/routes/bylines.tsx:741
+#: packages/admin/src/routes/bylines.tsx:739
 msgid "Bio"
 msgstr "Biografía"
 
@@ -2268,7 +2268,7 @@ msgstr "Procedencia de compilación verificada"
 msgid "Bullet List"
 msgstr "Lista de viñetas"
 
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "byline"
 msgstr "firma"
 
@@ -2407,7 +2407,7 @@ msgstr "Puede ver contenido"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
 #: packages/admin/src/components/WordPressImport.tsx:1940
-#: packages/admin/src/routes/bylines.tsx:852
+#: packages/admin/src/routes/bylines.tsx:851
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -3414,7 +3414,7 @@ msgstr "No se pudieron cargar los campos de firma."
 msgid "Couldn't load content."
 msgstr "No se pudo cargar el contenido."
 
-#: packages/admin/src/routes/bylines.tsx:810
+#: packages/admin/src/routes/bylines.tsx:808
 msgid "Couldn't load custom fields."
 msgstr "No se pudieron cargar los campos personalizados."
 
@@ -3486,7 +3486,7 @@ msgstr "Recuento"
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/Widgets.tsx:455
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Create"
 msgstr "Crear"
 
@@ -3926,7 +3926,7 @@ msgstr "Definido en código"
 #: packages/admin/src/components/TaxonomyManager.tsx:1550
 #: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:847
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete"
 msgstr "Borrar"
 
@@ -3973,7 +3973,7 @@ msgstr "Eliminar área de widgets {0}"
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/TaxonomyManager.tsx:1530
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "Delete {0}?"
 msgstr "¿Eliminar {0}?"
 
@@ -3987,7 +3987,7 @@ msgid "Delete block"
 msgstr "Eliminar bloque"
 
 #: packages/admin/src/routes/bylines.tsx:614
-#: packages/admin/src/routes/bylines.tsx:876
+#: packages/admin/src/routes/bylines.tsx:875
 msgid "Delete byline"
 msgstr "Eliminar firma"
 
@@ -4148,7 +4148,7 @@ msgstr "Eliminar \"{0}\" también quitará {1, plural, one {# valor almacenado} 
 #: packages/admin/src/components/TaxonomyManager.tsx:1535
 #: packages/admin/src/components/TaxonomyManager.tsx:1551
 #: packages/admin/src/components/Widgets.tsx:720
-#: packages/admin/src/routes/bylines.tsx:877
+#: packages/admin/src/routes/bylines.tsx:876
 msgid "Deleting..."
 msgstr "Eliminando..."
 
@@ -4373,7 +4373,7 @@ msgstr "Mostrar un menú de navegación"
 msgid "Display category list"
 msgstr "Mostrar la lista de categorías"
 
-#: packages/admin/src/routes/bylines.tsx:724
+#: packages/admin/src/routes/bylines.tsx:722
 msgid "Display name"
 msgstr "Nombre para mostrar"
 
@@ -6418,7 +6418,7 @@ msgstr "Agrupar por"
 msgid "Guest"
 msgstr "Invitado"
 
-#: packages/admin/src/routes/bylines.tsx:775
+#: packages/admin/src/routes/bylines.tsx:773
 msgid "Guest byline"
 msgstr "Firma invitada"
 
@@ -7401,7 +7401,7 @@ msgstr "Enlace caducado"
 msgid "Link options"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:754
+#: packages/admin/src/routes/bylines.tsx:752
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr "Vincula esta firma a un usuario o márcala como perfil de invitado."
 
@@ -7433,7 +7433,7 @@ msgid "Linked side (singular)"
 msgstr "Lado vinculado (singular)"
 
 #: packages/admin/src/routes/bylines.tsx:565
-#: packages/admin/src/routes/bylines.tsx:758
+#: packages/admin/src/routes/bylines.tsx:756
 msgid "Linked user"
 msgstr "Usuario vinculado"
 
@@ -8781,7 +8781,7 @@ msgstr "Aún no hay artículos"
 msgid "No limit"
 msgstr "Sin límite"
 
-#: packages/admin/src/routes/bylines.tsx:769
+#: packages/admin/src/routes/bylines.tsx:767
 msgid "No linked user"
 msgstr "Sin usuario vinculado"
 
@@ -10989,7 +10989,7 @@ msgstr "Contenido de ejemplo"
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Save"
 msgstr "Guardar"
 
@@ -11087,7 +11087,7 @@ msgstr "Guardar una colección aquí convierte este campo en un selector de entr
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/users/UserDetail.tsx:323
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Saving..."
 msgstr "Guardando..."
 
@@ -12094,7 +12094,7 @@ msgstr "Saltado"
 #: packages/admin/src/components/TaxonomyManager.tsx:797
 #: packages/admin/src/components/TaxonomyManager.tsx:801
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:730
+#: packages/admin/src/routes/bylines.tsx:728
 msgid "Slug"
 msgstr "Slug"
 
@@ -13272,7 +13272,7 @@ msgstr "Esta regla de redirección se eliminará permanentemente."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Esta versión requiere un entorno más reciente que el que ejecuta tu sitio actualmente. Actualiza antes de instalar."
 
-#: packages/admin/src/routes/bylines.tsx:875
+#: packages/admin/src/routes/bylines.tsx:874
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Esto elimina el perfil de la firma. Se quitarán los enlaces de firma del contenido y se borrarán los punteros principales."
 
@@ -14452,7 +14452,7 @@ msgstr "WebAuthn no es compatible con este navegador"
 msgid "Website"
 msgstr "Sitio web"
 
-#: packages/admin/src/routes/bylines.tsx:736
+#: packages/admin/src/routes/bylines.tsx:734
 msgid "Website URL"
 msgstr "URL del sitio web"
 
@@ -14736,7 +14736,7 @@ msgstr "Puedes crear y editar tu propio contenido."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Puedes gestionar contenido, medios, menús y taxonomías."
 
-#: packages/admin/src/routes/bylines.tsx:812
+#: packages/admin/src/routes/bylines.tsx:810
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "Aún puedes editar los campos fijos de arriba. Al guardar no se modificará ningún valor almacenado de campos personalizados."
 
