@@ -771,10 +771,10 @@ The following example shows a basic binding and one with read replicas enabled:
 d1({ binding: "DB" });
 
 // With read replicas
-d1({ binding: "DB", session: "auto" });
+d1({ binding: "DB", session: "auto", coalesce: true });
 ```
 
-When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API to route read queries to nearby replicas. Authenticated users get bookmark-based read-your-writes consistency. See [Database Options — Read Replicas](/deployment/database/#read-replicas) for details.
+When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API to route read queries to nearby replicas. Authenticated users get bookmark-based read-your-writes consistency. A session runs a request's queries one at a time; `coalesce` lets reads issued together share one round trip. See [Database Options: Read Replicas](/deployment/database/#read-replicas) for details.
 
 <Aside>
 	D1 core migrations run automatically by default or through the deployment migration manifest.
