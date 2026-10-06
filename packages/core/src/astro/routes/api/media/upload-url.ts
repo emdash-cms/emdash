@@ -73,11 +73,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				500,
 			);
 		}
-		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
+		const uploadSchema = mediaUploadUrlBody(maxSize);
+		const body = await parseBody(request, uploadSchema);
 		if (isParseError(body)) return body;
 
-		// Run media:beforeUpload hooks before allocating the pending row so a
-		// plugin can rename, validate, or cancel the upload.
 		let beforeUploadFile = {
 			name: body.filename,
 			type: body.contentType,
@@ -85,7 +84,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		};
 		if (emdash.hooks?.hasHooks("media:beforeUpload")) {
 			const hookResult = await emdash.hooks.runMediaBeforeUpload(beforeUploadFile);
-			beforeUploadFile = hookResult.file;
+			const metadata = uploadSchema.safeParse({
+				filename: hookResult.file?.name,
+				contentType: hookResult.file?.type,
+				size: body.size,
+			});
+			if (!metadata.success) {
+				return apiError("VALIDATION_ERROR", "Invalid media:beforeUpload result", 400);
+			}
+			// Hooks change metadata, but the client still uploads the original bytes.
+			beforeUploadFile = {
+				name: metadata.data.filename,
+				type: metadata.data.contentType,
+				size: body.size,
+			};
 		}
 
 		// Clients that don't recognise an extension may send an empty or generic
@@ -106,13 +118,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const repo = new MediaRepository(emdash.db);
 
 		// Check for existing content with same hash (deduplication)
-		if (body.deduplicate !== false && body.contentHash && beforeUploadFile.size > 0) {
+		if (body.deduplicate !== false && body.contentHash && body.size > 0) {
 			const existing = await repo.findByContentHash(body.contentHash);
-			if (
-				existing &&
-				existing.mimeType === normalizedContentType &&
-				existing.size === beforeUploadFile.size
-			) {
+			if (existing && existing.mimeType === normalizedContentType && existing.size === body.size) {
 				const response: ExistingMediaResponse = {
 					existing: true,
 					mediaId: existing.id,
@@ -136,7 +144,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			signedUrl = await emdash.storage.getSignedUploadUrl({
 				key: storageKey,
 				contentType: mimeType,
-				size: beforeUploadFile.size,
+				size: body.size,
 				expiresIn: 3600,
 			});
 		} catch (error) {
@@ -147,7 +155,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const mediaItem = await repo.createPending({
 			filename,
 			mimeType: normalizedContentType,
-			size: beforeUploadFile.size,
+			size: body.size,
 			storageKey,
 			authorId: user?.id,
 			folderId: body.folderId,

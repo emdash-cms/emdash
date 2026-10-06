@@ -19,6 +19,8 @@ import { enrichImageMetadata } from "#media/enrich.js";
 import type { MediaItem } from "#types";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
 
+import { after } from "../../../../../after.js";
+
 export const prerender = false;
 
 /**
@@ -244,18 +246,21 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		// Add URL to the response (relative URL for portability)
 		const itemWithUrl = addUrlToMedia(item);
 
-		// Notify plugins that a new media item is ready.
 		if (emdash.hooks?.hasHooks("media:afterUpload")) {
-			emdash.hooks
-				.runMediaAfterUpload({
-					id: itemWithUrl.id,
-					filename: itemWithUrl.filename,
-					mimeType: itemWithUrl.mimeType,
-					size: itemWithUrl.size,
-					url: itemWithUrl.url,
-					createdAt: itemWithUrl.createdAt,
-				})
-				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+			after(async () => {
+				try {
+					await emdash.hooks.runMediaAfterUpload({
+						id: itemWithUrl.id,
+						filename: itemWithUrl.filename,
+						mimeType: itemWithUrl.mimeType,
+						size: itemWithUrl.size,
+						url: itemWithUrl.url,
+						createdAt: itemWithUrl.createdAt,
+					});
+				} catch (error) {
+					console.error("[media] afterUpload hook failed:", error);
+				}
+			});
 		}
 
 		return apiSuccess({ item: itemWithUrl });

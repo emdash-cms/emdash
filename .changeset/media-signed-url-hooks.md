@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Run `media:beforeUpload` and `media:afterUpload` hooks for admin signed-URL uploads. The `POST /_emdash/api/media/upload-url` endpoint now invokes `media:beforeUpload` before creating the pending upload, and `POST /_emdash/api/media/{id}/confirm` invokes `media:afterUpload` after the media item becomes ready.
+Fixes admin media uploads skipping `media:beforeUpload` and `media:afterUpload` plugin hooks. Plugins can validate, rename, change the file type, or cancel uploads before they are accepted, and receive a notification after a new media item becomes ready. Filename and type changes are validated; the upload size stays tied to the original client bytes.
