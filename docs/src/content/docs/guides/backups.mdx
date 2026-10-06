@@ -147,6 +147,16 @@ npx wrangler d1 execute my-database --remote --json \
   | jq -r '.[0].results[] | .sql + ";"' > backup-indexes.sql
 ```
 
+D1 rejects SQL statements of 100,000 bytes or more, and the export writes each row as one `INSERT` on its own line. A row with a long value, such as a long entry or one of its revisions, can exceed that limit. Check the files right after you create them. The following command prints the file and line of every statement that is too long for D1, and prints nothing when the files can be imported:
+
+```bash
+LC_ALL=C awk 'length($0) >= 100000 { print FILENAME ":" FNR }' backup-*.sql
+```
+
+<Aside type="caution">
+	If the command prints any lines, importing that file into D1 fails with an error containing `SQLITE_TOOBIG`, and no rows from the file are written. Keep the files anyway: they are a complete offsite copy that `sqlite3` can import, but they cannot be imported into D1 as they are. For D1 recovery, rely on [Time Travel](#recover-a-d1-database-with-time-travel), which reaches back 30 days on the Workers Paid plan and 7 days on the Workers Free plan.
+</Aside>
+
 See the [D1 import and export documentation](https://developers.cloudflare.com/d1/best-practices/import-export-data/) for Wrangler's export options and limits.
 
 Keep the SQL files with the matching application version, the media backup created at the same time, and a separately stored copy of the `EMDASH_ENCRYPTION_KEY` rotation list. Test recovery by importing the files into a newly provisioned empty D1 database, restoring the runtime keys, updating a non-production binding to that database, and verifying the site.
@@ -155,7 +165,7 @@ Keep the SQL files with the matching application version, the media backup creat
 	Do not execute the dump files against the existing production database. They contain schema and row creation statements that can conflict with existing objects or leave a mixed state. For recovery, create an empty D1 database, import the files there, verify it, then change the production binding in a controlled deployment.
 </Aside>
 
-Import the files into the empty recovery database in this order:
+If the dump was not checked when it was created, run the length check above first. Then import the files into the empty recovery database in this order:
 
 ```bash
 npx wrangler d1 execute my-recovery-database --remote --file=backup-schema.sql
