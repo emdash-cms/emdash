@@ -37,7 +37,9 @@ import type {
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
 	PortableTextIframeBlock,
+	PortableTextVideoBlock,
 } from "./types.js";
+import { videoBlockFields } from "./video.js";
 
 /**
  * Generate a unique key for Portable Text blocks
@@ -120,6 +122,9 @@ function convertNode(
 
 		case "image":
 			return convertImage(node);
+
+		case "videoBlock":
+			return convertVideo(node);
 
 		case "gallery":
 			return convertGallery(node);
@@ -379,6 +384,17 @@ function convertIframeBlock(node: ProseMirrorNode): PortableTextIframeBlock {
 	if (typeof allow === "string" && allow) block.allow = allow;
 	if (allowFullscreen === true) block.allowFullscreen = true;
 	return block;
+}
+
+/**
+ * Convert video block to Portable Text
+ */
+function convertVideo(node: ProseMirrorNode): PortableTextVideoBlock {
+	return {
+		_type: "video",
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+		...videoBlockFields(node.attrs ?? {}),
+	};
 }
 
 function isFrameDimension(value: unknown): value is number {

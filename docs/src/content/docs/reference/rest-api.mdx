@@ -440,7 +440,7 @@ Every usage result includes a coverage status:
 | `stale` | The index is older than the content it describes. |
 | `unknown` | The stored state is not recognized by this EmDash version. |
 
-Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image and gallery blocks, and media declared by retained block versions in EmDash collections. The site logo, favicon, and default social image settings are also reported. Usage does not include custom Portable Text blocks, application code, rendered HTML, other settings, menus, widgets, plugin data, external sites, or provider-only assets.
+Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image, gallery, and video blocks, and media declared by retained block versions in EmDash collections. The site logo, favicon, and default social image settings are also reported. Usage does not include custom Portable Text blocks, application code, rendered HTML, other settings, menus, widgets, plugin data, external sites, or provider-only assets.
 
 ### Direct multipart upload
 

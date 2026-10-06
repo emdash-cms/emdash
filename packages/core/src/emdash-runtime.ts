@@ -55,12 +55,12 @@ import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
 	enforceRuntimeMigrationPolicy,
-	PendingMigrationsError,
 	type RuntimeMigrationMode,
 } from "./database/migrations/policy.js";
 import {
-	ConcurrentMigrationTimeoutError,
 	MIGRATION_RACE_WAIT_MS,
+	MigrationFailedError,
+	MigrationLockHeldError,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
 import { CommentRepository } from "./database/repositories/comment.js";
@@ -353,7 +353,7 @@ export interface SandboxedPluginEntry {
 	/** Hook declarations this plugin implements */
 	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
-	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+	adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
 	/** Saved-entry Block Kit panels. */
@@ -2409,14 +2409,13 @@ export class EmDashRuntime {
 				try {
 					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
 				} catch (error) {
-					// Timing out behind another instance's in-flight migrations
-					// is not a failure of OUR migration — the holder may just be
-					// slow. Don't back off for it: the next request waits again
-					// and init recovers the moment the holder finishes.
-					if (
-						!(error instanceof ConcurrentMigrationTimeoutError) &&
-						!(error instanceof PendingMigrationsError)
-					) {
+					// Only a failed migration run, or a lock its holder left behind,
+					// backs off. Waiting behind a slow concurrent migrator, pending
+					// migrations in check mode, and errors from the applied-migration
+					// check on an up-to-date database (a lost connection, an
+					// unavailable replica) stay retryable, so the next request tries
+					// again.
+					if (error instanceof MigrationFailedError || error instanceof MigrationLockHeldError) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
 							message: error instanceof Error ? error.message : String(error),
@@ -2515,6 +2514,7 @@ export class EmDashRuntime {
 					path: p.path,
 					label: p.label ?? p.path,
 					icon: p.icon,
+					group: p.group,
 				}));
 				const adminWidgets:
 					| Array<{
@@ -2644,6 +2644,7 @@ export class EmDashRuntime {
 					path: page.path,
 					label: page.label ?? page.path,
 					icon: page.icon,
+					group: page.group,
 				}));
 				const adminWidgets: PluginDashboardWidget[] | undefined = entry.adminWidgets?.map(
 					(widget) => ({
@@ -3035,7 +3036,7 @@ export class EmDashRuntime {
 				enabled?: boolean;
 				sandboxed?: boolean;
 				adminMode?: "react" | "blocks" | "none";
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 				dashboardWidgets?: Array<{
 					id: string;
 					title?: string;
@@ -4925,14 +4926,18 @@ export class EmDashRuntime {
 				return result.result;
 			},
 			fireAfterCreate: (event) => {
-				void this.hooks
-					.runCommentAfterCreate(event)
-					.catch((error) =>
-						console.error(
-							"[comments] afterCreate error:",
-							error instanceof Error ? error.message : error,
+				// Deferred through after() so the host's waitUntil keeps the hooks
+				// alive past the response (see comments/public-submission.ts).
+				after(() =>
+					this.hooks
+						.runCommentAfterCreate(event)
+						.catch((error) =>
+							console.error(
+								"[comments] afterCreate error:",
+								error instanceof Error ? error.message : error,
+							),
 						),
-					);
+				);
 			},
 			fireAfterModerate: (event) => {
 				return this.hooks

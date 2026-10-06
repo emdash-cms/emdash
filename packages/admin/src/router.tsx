@@ -921,6 +921,7 @@ const contentEditRoute = createRoute({
 });
 
 // Role levels from @emdash-cms/auth
+const ROLE_CONTRIBUTOR = 20;
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
@@ -947,10 +948,16 @@ function ContentEditPage() {
 	const activeLocale = i18n ? (searchParams.locale ?? i18n.defaultLocale) : undefined;
 	const collectionFields = manifest?.collections[collection]?.fields ?? EMPTY_FIELDS;
 
-	const { data: rawItem, isLoading } = useQuery({
+	const {
+		data: rawItem,
+		isLoading,
+		error: itemError,
+	} = useQuery({
 		queryKey: ["content", collection, id, { locale: activeLocale }],
 		queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
 		enabled: !i18n || !!activeLocale,
+		retry: (failureCount, queryError) =>
+			!(queryError instanceof ApiResponseError && queryError.status === 404) && failureCount < 1,
 	});
 	const entryLock = useEntryLock({
 		collection,
@@ -1787,6 +1794,18 @@ function ContentEditPage() {
 
 	if (isLoading) {
 		return <LoadingScreen />;
+	}
+
+	if (itemError && !rawItem) {
+		if (itemError instanceof ApiResponseError && itemError.status === 404) {
+			// Users without content:read_drafts get 404 for anything not published.
+			const message =
+				currentUser && currentUser.role < ROLE_CONTRIBUTOR
+					? t`This entry doesn't exist or isn't published. Your role can only view published content.`
+					: t`This entry doesn't exist or was deleted.`;
+			return <NotFoundPage message={message} />;
+		}
+		return <ErrorScreen error={itemError.message} />;
 	}
 
 	return (

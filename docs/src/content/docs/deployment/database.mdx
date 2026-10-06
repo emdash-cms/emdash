@@ -160,13 +160,22 @@ export default defineConfig({
 	REST API. The `session` option only controls EmDash's client-side session management.
 </Aside>
 
-<Aside type="caution">
-	Sessions are incompatible with the
+<Aside type="caution" title="Incompatible with global_fetch_strictly_public">
+	Do not combine `session: "auto"` or `"primary-first"` with the
 	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
-	compatibility flag: the internal request the D1 Sessions API makes to route queries to replicas
-	is silently blocked, and every SSR request hangs with nothing in the logs. The hang may only
-	begin once replicas finish provisioning, so it can pass an initial post-deploy check. If your
-	Worker needs that flag, keep `session` disabled. See
+	compatibility flag. The flag blocks the internal Cloudflare request that the D1 Sessions API uses
+	to route queries, so session queries never complete.
+
+	Since `@emdash-cms/cloudflare` 0.34.0, EmDash waits five seconds on the first session query in each
+	Worker isolate, then logs `[emdash] A D1 session query hung for 5000ms`, re-runs `SELECT` queries on
+	the primary database, and turns sessions off for the rest of that isolate. A write caught in that
+	window fails and must be retried. Every new isolate repeats the delay, and no request reads from a
+	replica. Earlier versions have no timeout: every SSR request hangs with nothing in the logs. The
+	problem may only appear once replicas finish provisioning, so it can pass an initial post-deploy
+	check.
+
+	If your Worker needs `global_fetch_strictly_public`, keep `session` at its default, `"disabled"`.
+	All queries then go to the primary database. See
 	[#1273](https://github.com/emdash-cms/emdash/issues/1273).
 </Aside>
 

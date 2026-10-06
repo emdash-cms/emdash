@@ -627,7 +627,10 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 
 :is([data-emdash-editor-floating-root]:focus-within, [data-emdash-block-menu-open])
 	.ProseMirror
-	> :is(.ProseMirror-selectednode, .emdash-block-selected):not(.node-image)::after {
+	> :is(.ProseMirror-selectednode, .emdash-block-selected):not(
+		.node-image,
+		.node-videoBlock
+	)::after {
 	position: absolute;
 	inset: -1px -0.25rem;
 	border-radius: 0.375rem;

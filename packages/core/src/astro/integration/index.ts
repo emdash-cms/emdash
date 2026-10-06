@@ -36,6 +36,7 @@ import {
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
+import { loadDevEnv } from "./dev-env.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
@@ -589,6 +590,19 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					allowLocalhost: command === "dev" || command === "sync",
 				});
 				printBanner(logger);
+				if (command === "dev") {
+					// In Node `astro dev`, Vite loads `.env` into `import.meta.env`
+					// but not `process.env`. The plugin-secret encryption key
+					// intentionally reads only `process.env`, so a freshly
+					// scaffolded site can't save secret plugin settings until the
+					// key is copied over. Load only `EMDASH_ENCRYPTION_KEY` here,
+					// honoring any value already present in the shell.
+					try {
+						loadDevEnv(astroConfig.root);
+					} catch (error: unknown) {
+						logger.warn(`Failed to load EMDASH_ENCRYPTION_KEY from .env: ${String(error)}`);
+					}
+				}
 				// Capture the host's Astro version so the runtime can expose it
 				// to the admin and the registry install gate for `env:astro`
 				// constraint checks.

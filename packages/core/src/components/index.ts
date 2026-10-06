@@ -51,6 +51,7 @@ export { default as Columns } from "./Columns.astro";
 export { default as Break } from "./Break.astro";
 export { default as HtmlBlock } from "./HtmlBlock.astro";
 export { default as Iframe } from "./Iframe.astro";
+export { default as Video } from "./Video.astro";
 export { default as Table } from "./Table.astro";
 export { default as Button } from "./Button.astro";
 export { default as Buttons } from "./Buttons.astro";
@@ -84,6 +85,7 @@ import { emdashMarkComponents } from "./marks.js";
 import OrderedListComponent from "./OrderedList.astro";
 import PullquoteComponent from "./Pullquote.astro";
 import TableComponent from "./Table.astro";
+import VideoComponent from "./Video.astro";
 
 /**
  * Pre-configured components for EmDash Portable Text content
@@ -92,7 +94,7 @@ import TableComponent from "./Table.astro";
  * - Block styles: paragraph, h1..h6, blockquote — with `textAlign` honoured
  *   as a WordPress-style `has-text-align-{value}` class (#1201)
  * - Block types: image, code, embed, gallery, columns, break, htmlBlock, iframe,
- *   table, button, buttons, cover, file, pullquote
+ *   video, table, button, buttons, cover, file, pullquote
  * - Marks: superscript, subscript, underline, strike-through, link
  */
 export const emdashComponents = {
@@ -110,6 +112,7 @@ export const emdashComponents = {
 		break: BreakComponent,
 		htmlBlock: HtmlBlockComponent,
 		iframe: IframeComponent,
+		video: VideoComponent,
 		table: TableComponent,
 		button: ButtonComponent,
 		buttons: ButtonsComponent,

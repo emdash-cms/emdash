@@ -40,6 +40,7 @@ import {
 
 const NODE_LABELS: Record<string, MessageDescriptor> = {
 	image: msg`Image`,
+	videoBlock: msg`Video`,
 	gallery: msg`Gallery`,
 	table: msg`Table`,
 	horizontalRule: msg`Divider`,

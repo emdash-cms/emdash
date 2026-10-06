@@ -19,6 +19,18 @@ function stubFetch(items: unknown[], status = 200) {
 	return vi.fn<typeof fetch>(async () => Response.json({ data: { items } }, { status }));
 }
 
+/**
+ * What an agent receives, per the WebMCP "invoke a tool" steps: a fulfilled value is
+ * serialized to a JSON string and reported as success; a rejection is a failed call.
+ */
+async function invokeAsAgent(tool: ReturnType<typeof createSiteSearchTool>, input: object) {
+	try {
+		return { success: true, result: JSON.stringify(await tool.execute(input)) };
+	} catch {
+		return { success: false, result: null };
+	}
+}
+
 function requestedUrl(fetchImpl: ReturnType<typeof stubFetch>): URL {
 	const input = fetchImpl.mock.calls[0]?.[0];
 	return new URL(input instanceof Request ? input.url : String(input));
@@ -54,10 +66,10 @@ describe("WebMCP site search tool", () => {
 		]);
 		const tool = createSiteSearchTool(config, "https://example.com", fetchImpl);
 
-		const result = await tool.execute({ query: "cheese" });
+		const { success, result } = await invokeAsAgent(tool, { query: "cheese" });
 
-		expect(result.isError).toBeUndefined();
-		expect(JSON.parse(result.content[0]!.text)).toEqual([
+		expect(success).toBe(true);
+		expect(JSON.parse(result!)).toEqual([
 			{
 				title: "Brie",
 				url: "https://example.com/blog/brie",
@@ -68,18 +80,22 @@ describe("WebMCP site search tool", () => {
 		]);
 	});
 
-	it("reports an empty query or failed request as a tool error without throwing", async () => {
+	it("reports an empty query or failed request to the agent as a failed call", async () => {
 		const fetchImpl = stubFetch([], 500);
 		const tool = createSiteSearchTool(config, "https://example.com", fetchImpl);
 
-		expect((await tool.execute({ query: " " })).isError).toBe(true);
+		await expect(tool.execute({ query: " " })).rejects.toThrow("Provide a search query.");
 		expect(fetchImpl).not.toHaveBeenCalled();
-		expect((await tool.execute({ query: "cheese" })).isError).toBe(true);
+		await expect(tool.execute({ query: "cheese" })).rejects.toThrow("Search failed (HTTP 500).");
+		expect(await invokeAsAgent(tool, { query: "cheese" })).toEqual({
+			success: false,
+			result: null,
+		});
 
 		const offline = createSiteSearchTool(config, "https://example.com", async () => {
 			throw new TypeError("Failed to fetch");
 		});
-		expect((await offline.execute({ query: "cheese" })).isError).toBe(true);
+		expect((await invokeAsAgent(offline, { query: "cheese" })).success).toBe(false);
 	});
 
 	it("keeps the configured limit within what the search API accepts", async () => {

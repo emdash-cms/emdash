@@ -14,9 +14,11 @@ Bolder than the blog and portfolio templates: vibrant gradient accents, isometri
 
 There is no posts collection. Content is entirely authored as marketing blocks inside `pages`.
 
+Each route loads its entry by slug (`home`, `pricing`, `contact`). Publishing a renamed slug leaves its route showing an empty placeholder and adds an automatic redirect from the old URL (`/home`, `/pricing`, or `/contact`) to a path with no route. A page created in the admin needs its own route file in `src/pages/` before its URL, preview link, or sitemap entry works.
+
 ## Schema
 
-- `pages` collection: `title`, `content` (a first-class `blocks` field).
+- `pages` collection: `title`, `content` (a first-class `blocks` field). Its `/{slug}` URL pattern drives admin links, previews, and the sitemap; `src/pages/home.astro` redirects `/home` to `/`, keeping the query string so Home's preview links work.
 - No taxonomies.
 - Four menus: `primary`, `footer_product`, `footer_company`, `footer_support`.
 
