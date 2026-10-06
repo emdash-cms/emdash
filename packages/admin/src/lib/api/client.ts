@@ -203,6 +203,7 @@ export interface AdminManifest {
 				path: string;
 				label?: string;
 				icon?: string;
+				group?: string;
 			}>;
 			dashboardWidgets?: Array<{
 				id: string;

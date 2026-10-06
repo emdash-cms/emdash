@@ -67,7 +67,7 @@ export function parseInlineContent(html: string, generateKey: () => string): Par
 	const fragment = parseFragment(strippedHtml);
 
 	// Walk the tree and build spans
-	walkNodes(fragment.childNodes, [], children, markDefs, markDefMap, generateKey);
+	walkNodes(fragment.childNodes, children, markDefs, markDefMap, generateKey);
 
 	// Ensure at least one span exists
 	if (children.length === 0) {
@@ -103,17 +103,19 @@ function stripBlockTags(html: string): string {
 }
 
 /**
- * Recursively walk DOM nodes and build spans
+ * Walk DOM nodes in document order and build spans
  */
 function walkNodes(
 	nodes: Node[],
-	currentMarks: string[],
 	children: PortableTextSpan[],
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
 	generateKey: () => string,
 ): void {
-	for (const node of nodes) {
+	const pending: PendingNode[] = [];
+	pushChildren(pending, nodes, [], undefined);
+	for (let entry = pending.pop(); entry; entry = pending.pop()) {
+		const { node, marks: currentMarks, link: currentLink } = entry;
 		if (isTextNode(node)) {
 			const text = node.value;
 			if (text) {
@@ -172,11 +174,40 @@ function walkNodes(
 
 			// Get mark for this element
 			const markResult = getMarkForElement(node, markDefs, markDefMap, generateKey);
-			const newMarks = markResult ? [...currentMarks, markResult] : currentMarks;
+			let newMarks = currentMarks;
+			let newLink = currentLink;
+			if (markResult && !currentMarks.includes(markResult)) {
+				if (tagName === "a") {
+					// A span keeps only its innermost link
+					newMarks = [...currentMarks.filter((mark) => mark !== currentLink), markResult];
+					newLink = markResult;
+				} else {
+					newMarks = [...currentMarks, markResult];
+				}
+			}
 
-			// Recurse into children
-			walkNodes(node.childNodes, newMarks, children, markDefs, markDefMap, generateKey);
+			pushChildren(pending, node.childNodes, newMarks, newLink);
 		}
+	}
+}
+
+interface PendingNode {
+	node: Node;
+	marks: string[];
+	link: string | undefined;
+}
+
+/**
+ * Queue nodes so that popping them yields document order
+ */
+function pushChildren(
+	pending: PendingNode[],
+	nodes: Node[],
+	marks: string[],
+	link: string | undefined,
+): void {
+	for (let i = nodes.length - 1; i >= 0; i--) {
+		pending.push({ node: nodes[i]!, marks, link });
 	}
 }
 
@@ -278,16 +309,58 @@ export function extractText(html: string): string {
 	return getTextContent(fragment.childNodes);
 }
 
+/**
+ * Concatenate text content, trimming each element's text as a unit:
+ * whitespace is kept only when its innermost element has non-whitespace
+ * text both before and after it.
+ */
 function getTextContent(nodes: Node[]): string {
 	let text = "";
-	for (const node of nodes) {
-		if (isTextNode(node)) {
-			text += node.value;
+	const open: Array<{ nodes: Node[]; index: number; textStart: number }> = [
+		{ nodes, index: 0, textStart: 0 },
+	];
+	// Whitespace awaiting later text in the same element, in document order
+	const pendingSpace: Array<{ depth: number; space: string }> = [];
+
+	for (;;) {
+		const depth = open.length;
+		const current = open[depth - 1]!;
+		const node = current.nodes[current.index++];
+		if (node === undefined) {
+			open.pop();
+			while (pendingSpace.at(-1)?.depth === depth) {
+				pendingSpace.pop();
+			}
+			if (open.length === 0) {
+				return text;
+			}
+		} else if (isTextNode(node)) {
+			const value = node.value;
+			const afterLeading = value.trimStart();
+			const body = afterLeading.trimEnd();
+			const hasEarlierText = text.length > current.textStart;
+			if (!body) {
+				if (hasEarlierText && value) {
+					pendingSpace.push({ depth, space: value });
+				}
+				continue;
+			}
+			for (const pending of pendingSpace) {
+				text += pending.space;
+			}
+			pendingSpace.length = 0;
+			if (hasEarlierText) {
+				text += value.slice(0, value.length - afterLeading.length);
+			}
+			text += body;
+			const trailing = afterLeading.slice(body.length);
+			if (trailing) {
+				pendingSpace.push({ depth, space: trailing });
+			}
 		} else if (isElement(node)) {
-			text += getTextContent(node.childNodes);
+			open.push({ nodes: node.childNodes, index: 0, textStart: text.length });
 		}
 	}
-	return text.trim();
 }
 
 /**
