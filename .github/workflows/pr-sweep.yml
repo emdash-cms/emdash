@@ -24,7 +24,6 @@ jobs:
             const repo = context.repo.repo;
             const now = new Date();
             const DAY = 24 * 60 * 60 * 1000;
-            const PROPOSAL_PATH = /^proposals\/(?!README\.md$)(?!.*-template\.md$)[^/]+\.md$/;
             const isDesignPR = pr =>
               (pr.body || '').includes('<!-- design-pr -->') || /^design:/i.test(pr.title);
 
@@ -240,33 +239,23 @@ jobs:
               }
             }
 
-            // Label PRs with significant overlap: 3+ shared files with another PR,
-            // or any shared proposal document.
+            // Label PRs with significant overlap (3+ shared files with another PR)
             for (const [prNum, otherPRs] of overlaps) {
               // Count shared files per overlapping PR
               const sharedFileCounts = new Map();
-              const sharedProposals = new Map();
               for (const [file, prNumbers] of fileToPRs) {
                 if (prNumbers.includes(prNum)) {
                   for (const other of prNumbers) {
                     if (other !== prNum) {
                       sharedFileCounts.set(other, (sharedFileCounts.get(other) || 0) + 1);
-                      if (PROPOSAL_PATH.test(file)) {
-                        sharedProposals.set(other, [...(sharedProposals.get(other) || []), file]);
-                      }
                     }
                   }
                 }
               }
 
               const significantOverlaps = [...sharedFileCounts.entries()]
-                .filter(([otherPR, count]) => count >= 3 || sharedProposals.has(otherPR))
-                .map(([otherPR, count]) =>
-                  sharedProposals.has(otherPR)
-                    ? `#${otherPR} (${count} shared file${count === 1 ? '' : 's'}, including ${sharedProposals.get(otherPR).map(path => '`' + path + '`').join(', ')})`
-                    : `#${otherPR} (${count} shared files)`,
-                );
-              const proposalConflict = sharedProposals.size > 0;
+                .filter(([_, count]) => count >= 3)
+                .map(([otherPR, count]) => `#${otherPR} (${count} shared files)`);
 
               if (significantOverlaps.length > 0) {
                 const pr = prs.find(p => p.number === prNum);
@@ -297,7 +286,7 @@ jobs:
                       owner,
                       repo,
                       issue_number: prNum,
-                      body: `${marker}\n## Overlapping PRs\n\nThis PR modifies files that are also changed by other open PRs:\n\n${significantOverlaps.map(s => `- ${s}`).join('\n')}\n\nThis may cause merge conflicts or duplicated work. A maintainer will coordinate.${proposalConflict ? '\n\nOpen PRs that change the same proposal must be reconciled before either merges. See [proposals/README.md](https://github.com/emdash-cms/emdash/blob/main/proposals/README.md#change-an-accepted-proposal).' : ''}`,
+                      body: `${marker}\n## Overlapping PRs\n\nThis PR modifies files that are also changed by other open PRs:\n\n${significantOverlaps.map(s => `- ${s}`).join('\n')}\n\nThis may cause merge conflicts or duplicated work. A maintainer will coordinate.`,
                     });
                   }
 
