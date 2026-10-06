@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - name: Sweep PRs
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -23,7 +27,22 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const now = new Date();
-            const DAY = 24 * 60 * 60 * 1000;
+            const { fetchHumanActivity, sweepAction } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-staleness.mjs`
+            );
+            const markers = {
+              claReminder: '<!-- cla-reminder -->',
+              claClose: '<!-- cla-close -->',
+              staleWarning: '<!-- stale-author-warning -->',
+              staleClose: '<!-- stale-author-close -->',
+            };
+            const waitingFor = {
+              draft: 'it is still a draft',
+              'changes-requested': 'changes were requested',
+              conflicts: 'it has merge conflicts with `main`',
+            };
+            const reopenHint =
+              "When you're ready to continue, reopen it, or comment here and a Project Team member will reopen it.";
 
             // Label color map for auto-creation
             const labelColors = {
@@ -58,6 +77,7 @@ jobs:
             });
 
             core.info(`Sweeping ${prs.length} open PRs`);
+            const humanActivity = await fetchHumanActivity(github, owner, repo);
 
             // Build a file->PR map for overlap detection
             const fileToPRs = new Map();
@@ -97,12 +117,14 @@ jobs:
 
               // --- needs-rebase: PR has merge conflicts ---
               // mergeable is not included in the list endpoint; fetch individually
+              let mergeable = null;
               try {
                 const { data: fullPr } = await github.rest.pulls.get({
                   owner,
                   repo,
                   pull_number: pr.number,
                 });
+                mergeable = fullPr.mergeable;
                 if (fullPr.mergeable === false) {
                   if (!prLabels.has('needs-rebase')) toAdd.push('needs-rebase');
                 } else if (fullPr.mergeable === true) {
@@ -113,64 +135,64 @@ jobs:
                 // Ignore merge status lookup failures
               }
 
-              // --- Stale detection ---
-              const lastActivity = new Date(pr.updated_at);
-              const daysSinceActivity = (now - lastActivity) / DAY;
-
-              if (daysSinceActivity > 21) {
-                // 21 days with no activity -- close it
-                if (!prLabels.has('stale')) {
-                  // Should already be labeled stale from 14-day mark, but just in case
-                  toAdd.push('stale');
-                }
-
-                const marker = '<!-- stale-close -->';
-                await github.rest.issues.createComment({
+              // --- Stale and unsigned-CLA handling ---
+              const sweepState = {
+                now,
+                createdAt: new Date(pr.created_at),
+                isBotAuthor: pr.user?.type === 'Bot',
+                isDraft: pr.draft,
+                labels: prLabels,
+                mergeable,
+                lastActivity: humanActivity.get(pr.number) ?? new Date(pr.created_at),
+                claReminderAt: null,
+                staleWarningAt: null,
+              };
+              // Without notices the decision can only become more active, so a PR
+              // that needs nothing here skips the comment lookup.
+              let sweep = sweepAction(sweepState);
+              if (sweep.action !== 'none' || prLabels.has('stale')) {
+                const comments = await github.paginate(github.rest.issues.listComments, {
                   owner,
                   repo,
                   issue_number: pr.number,
-                  body: `${marker}\nThis PR has been inactive for 21 days and is being closed automatically. If you'd like to continue working on it, feel free to reopen it.`,
+                  per_page: 100,
                 });
-
-                await github.rest.pulls.update({
-                  owner,
-                  repo,
-                  pull_number: pr.number,
-                  state: 'closed',
+                const latestNotice = marker => {
+                  const notice = comments
+                    .filter(c => c.user?.login === 'github-actions[bot]' && c.body?.includes(marker))
+                    .at(-1);
+                  return notice ? new Date(notice.created_at) : null;
+                };
+                sweep = sweepAction({
+                  ...sweepState,
+                  claReminderAt: latestNotice(markers.claReminder),
+                  staleWarningAt: latestNotice(markers.staleWarning),
                 });
-
-                core.info(`#${pr.number}: closed (stale, ${Math.floor(daysSinceActivity)} days inactive)`);
-                continue; // Skip further processing for closed PRs
-              } else if (daysSinceActivity > 14) {
-                // 14 days -- label as stale and warn
-                if (!prLabels.has('stale')) {
-                  toAdd.push('stale');
-
-                  const marker = '<!-- stale-warning -->';
-                  // Check if we already left a stale warning
-                  const { data: comments } = await github.rest.issues.listComments({
-                    owner,
-                    repo,
-                    issue_number: pr.number,
-                    per_page: 10,
-                  });
-                  const hasWarning = comments.some(c =>
-                    c.user?.login === 'github-actions[bot]' && c.body?.includes(marker)
-                  );
-
-                  if (!hasWarning) {
-                    await github.rest.issues.createComment({
-                      owner,
-                      repo,
-                      issue_number: pr.number,
-                      body: `${marker}\nThis PR has been inactive for 14 days. It will be closed automatically in 7 days if there is no further activity.\n\nIf you're still working on this, please push an update or leave a comment.`,
-                    });
-                  }
-                }
-              } else {
-                // Active -- remove stale label if present
-                if (prLabels.has('stale')) toRemove.push('stale');
               }
+
+              const comment = body =>
+                github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+              const close = () =>
+                github.rest.pulls.update({ owner, repo, pull_number: pr.number, state: 'closed' });
+
+              if (sweep.action === 'cla-remind') {
+                await comment(`${markers.claReminder}\nThis PR can't be merged until the [Contributor License Agreement](https://www.cloudflare.com/cla/) is signed. The CLA comment above explains how to sign. If it is still unsigned 7 days after the PR was opened, the PR will be closed.`);
+              } else if (sweep.action === 'cla-close') {
+                await comment(`${markers.claClose}\nClosing because the Contributor License Agreement is still unsigned. Sign it using the CLA comment above, then reopen this PR, or comment here and a Project Team member will reopen it.`);
+                await close();
+                core.info(`#${pr.number}: closed (CLA unsigned)`);
+                continue;
+              } else if (sweep.action === 'stale-warn') {
+                await comment(`${markers.staleWarning}\nThis PR is waiting on its author because ${waitingFor[sweep.reason]}, and it has had no activity for 14 days. It will be closed in 7 days unless there is activity: push an update or leave a comment to keep it open.`);
+              } else if (sweep.action === 'stale-close') {
+                await comment(`${markers.staleClose}\nClosing after 21 days without activity while waiting on its author because ${waitingFor[sweep.reason]}. ${reopenHint}`);
+                await close();
+                core.info(`#${pr.number}: closed (stale, ${sweep.reason})`);
+                continue;
+              }
+
+              if (sweep.stale && !prLabels.has('stale')) toAdd.push('stale');
+              if (!sweep.stale && prLabels.has('stale')) toRemove.push('stale');
 
               // --- Collect files for overlap detection ---
               try {
