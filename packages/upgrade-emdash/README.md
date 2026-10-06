@@ -41,4 +41,4 @@ Apply without an interactive prompt:
 npx upgrade-emdash@latest --yes
 ```
 
-Dependencies must already be installed so the updater can identify the exact installed package versions and load `emdash/migrations`.
+Dependencies must already be installed so the updater can identify the exact installed package versions and load `emdash/migrations`. Yarn Plug'n'Play installs are not supported; set `nodeLinker: node-modules` in `.yarnrc.yml` first.

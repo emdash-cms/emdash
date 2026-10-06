@@ -1,11 +1,13 @@
 import { execFile, spawn } from "node:child_process";
 import { readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, parse, resolve } from "node:path";
+import { dirname, parse, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { applyEdits, modify } from "jsonc-parser";
+import { minimatch } from "minimatch";
 import semver from "semver";
+import { parse as parseYaml } from "yaml";
 
 import { applyCatalogEdits } from "./catalog.js";
 import type {
@@ -122,16 +124,52 @@ export async function findProjectRoot(start: string): Promise<string> {
 	throw new Error("Could not find a project package.json.");
 }
 
-async function isWorkspaceRoot(directory: string): Promise<boolean> {
-	if (await pathExists(resolve(directory, "pnpm-workspace.yaml"))) return true;
-	const packageJsonPath = resolve(directory, "package.json");
-	if (!(await pathExists(packageJsonPath))) return false;
+function stringArray(value: unknown): string[] | undefined {
+	return Array.isArray(value) && value.every((entry) => typeof entry === "string")
+		? value
+		: undefined;
+}
+
+async function workspacePatterns(directory: string): Promise<string[] | undefined> {
 	try {
+		const pnpmWorkspacePath = resolve(directory, "pnpm-workspace.yaml");
+		if (await pathExists(pnpmWorkspacePath)) {
+			const value: unknown = parseYaml(await readFile(pnpmWorkspacePath, "utf8"));
+			const packages =
+				typeof value === "object" && value !== null ? Reflect.get(value, "packages") : undefined;
+			return stringArray(packages) ?? [];
+		}
+		const packageJsonPath = resolve(directory, "package.json");
+		if (!(await pathExists(packageJsonPath))) return undefined;
 		const value: unknown = JSON.parse(await readFile(packageJsonPath, "utf8"));
-		return typeof value === "object" && value !== null && Reflect.has(value, "workspaces");
+		if (typeof value !== "object" || value === null) return undefined;
+		const workspaces: unknown = Reflect.get(value, "workspaces");
+		if (typeof workspaces === "object" && workspaces !== null && !Array.isArray(workspaces)) {
+			return stringArray(Reflect.get(workspaces, "packages"));
+		}
+		return stringArray(workspaces);
 	} catch {
-		return false;
+		return undefined;
 	}
+}
+
+const LEADING_DOT_SLASH = /^\.\//;
+const TRAILING_SLASHES = /\/+$/;
+
+function normalizeWorkspacePattern(pattern: string): string {
+	return pattern.replace(LEADING_DOT_SLASH, "").replace(TRAILING_SLASHES, "");
+}
+
+function workspaceIncludes(patterns: readonly string[], packagePath: string): boolean {
+	let included = false;
+	for (const pattern of patterns) {
+		if (pattern.startsWith("!")) {
+			if (minimatch(packagePath, normalizeWorkspacePattern(pattern.slice(1)))) return false;
+		} else if (minimatch(packagePath, normalizeWorkspacePattern(pattern))) {
+			included = true;
+		}
+	}
+	return included;
 }
 
 export async function findInstallRoot(root: string): Promise<string> {
@@ -139,7 +177,10 @@ export async function findInstallRoot(root: string): Promise<string> {
 	let current = root;
 	while (current !== filesystemRoot) {
 		current = dirname(current);
-		if (await isWorkspaceRoot(current)) return current;
+		const patterns = await workspacePatterns(current);
+		if (patterns && workspaceIncludes(patterns, relative(current, root).split(sep).join("/"))) {
+			return current;
+		}
 	}
 	return root;
 }
@@ -256,6 +297,11 @@ export async function loadProject(start: string): Promise<ProjectState> {
 	const packageJson: unknown = JSON.parse(packageJsonSource);
 	if (!isProjectPackage(packageJson)) throw new Error("The project package.json is invalid.");
 	const installRoot = await findInstallRoot(root);
+	if (await pathExists(resolve(installRoot, ".pnp.cjs"))) {
+		throw new Error(
+			"This project uses Yarn Plug'n'Play, which installs packages without node_modules. upgrade-emdash needs a node_modules install: set nodeLinker: node-modules in .yarnrc.yml and run yarn install, or update the EmDash packages with yarn up.",
+		);
+	}
 	const packageManager = await detectPackageManager(installRoot, packageJson.packageManager);
 	const workspaceManifestPath = resolve(installRoot, "pnpm-workspace.yaml");
 	const workspaceManifest =
@@ -437,36 +483,35 @@ export async function writeDependenciesAndInstall<T>(
 	if (catalogEdits.length > 0 && !workspaceManifest) {
 		throw new Error(`The pnpm catalog changes need pnpm-workspace.yaml in ${project.installRoot}.`);
 	}
-	const originals = [
-		{ path: project.packageJsonPath, source: project.packageJsonSource },
-		...(workspaceManifest ? [workspaceManifest] : []),
-		...(await Promise.all(
-			lockfiles.map(async (name) => {
-				const path = resolve(project.installRoot, name);
-				return { path, source: (await pathExists(path)) ? await readFile(path) : null };
-			}),
-		)),
-	];
-	await writeFile(
-		project.packageJsonPath,
-		applyDependencyEdits(project.packageJsonSource, changes),
+	const packageJsonOriginal = { path: project.packageJsonPath, source: project.packageJsonSource };
+	const lockfileOriginals = await Promise.all(
+		lockfiles.map(async (name) => {
+			const path = resolve(project.installRoot, name);
+			return { path, source: (await pathExists(path)) ? await readFile(path) : null };
+		}),
 	);
-	if (workspaceManifest) {
+	const changed: { path: string; source: string | Buffer | null }[] = [];
+	let installStarted = false;
+	try {
 		await writeFile(
-			workspaceManifest.path,
-			applyCatalogEdits(workspaceManifest.source, catalogEdits),
+			project.packageJsonPath,
+			applyDependencyEdits(project.packageJsonSource, changes),
 		);
-	}
-	try {
+		changed.push(packageJsonOriginal);
+		if (workspaceManifest) {
+			await writeFile(
+				workspaceManifest.path,
+				applyCatalogEdits(workspaceManifest.source, catalogEdits),
+			);
+			changed.push(workspaceManifest);
+		}
+		installStarted = true;
+		changed.push(...lockfileOriginals);
 		await run(install.command, install.args, project.installRoot);
-	} catch (error) {
-		await restoreFiles(originals);
-		throw error;
-	}
-	try {
 		return await verify();
 	} catch (error) {
-		await restoreFiles(originals);
+		await restoreFiles(changed);
+		if (!installStarted) throw error;
 		const message = error instanceof Error ? error.message : String(error);
 		try {
 			await run(install.command, install.args, project.installRoot);

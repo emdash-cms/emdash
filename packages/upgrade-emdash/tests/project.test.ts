@@ -187,6 +187,49 @@ describe("project loading", () => {
 		});
 	});
 
+	it("installs in the site when an ancestor workspace does not include it", async () => {
+		const workspace = await temporaryDirectory();
+		await writeFile(join(workspace, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+		await writeFile(join(workspace, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+		const standalone = await project("1.0.0", join(workspace, "sites/blog"));
+		await writeFile(join(standalone, "package-lock.json"), "{}\n");
+
+		await expect(loadProject(standalone)).resolves.toMatchObject({
+			installRoot: standalone,
+			packageManager: "npm",
+		});
+	});
+
+	it("follows workspace exclusions and the object form of package.json workspaces", async () => {
+		const pnpmWorkspace = await temporaryDirectory();
+		await writeFile(
+			join(pnpmWorkspace, "pnpm-workspace.yaml"),
+			"packages:\n  - sites/*\n  - '!sites/blog'\n",
+		);
+		const excluded = await project("1.0.0", join(pnpmWorkspace, "sites/blog"));
+
+		const npmWorkspace = await temporaryDirectory();
+		await writeJson(join(npmWorkspace, "package.json"), {
+			private: true,
+			workspaces: { packages: ["./sites/**"] },
+		});
+		await writeFile(join(npmWorkspace, "package-lock.json"), "{}\n");
+		const member = await project("1.0.0", join(npmWorkspace, "sites/marketing/blog"));
+
+		await expect(loadProject(excluded)).resolves.toMatchObject({ installRoot: excluded });
+		await expect(loadProject(member)).resolves.toMatchObject({ installRoot: npmWorkspace });
+	});
+
+	it("explains that Yarn Plug'n'Play installs are not supported", async () => {
+		const site = await project("1.0.0");
+		await writeFile(join(site, "yarn.lock"), "");
+		await writeFile(join(site, ".pnp.cjs"), "");
+
+		await expect(loadProject(site)).rejects.toThrow(
+			"This project uses Yarn Plug'n'Play, which installs packages without node_modules.",
+		);
+	});
+
 	it("explains that emdash releases without a migration identity need a manual update first", async () => {
 		const root = await project("0.34.0");
 
@@ -239,6 +282,99 @@ describe("project loading", () => {
 			expect(await readFile(join(workspace, "pnpm-workspace.yaml"), "utf8")).toBe(manifest);
 			expect(await readFile(join(site, "package.json"), "utf8")).toBe(sitePackageJson);
 			expect(await readFile(join(workspace, "pnpm.log"), "utf8")).toBe("install\ninstall\n");
+		},
+	);
+
+	async function withFakePackageManager<T>(
+		name: string,
+		script: string,
+		run: () => Promise<T>,
+	): Promise<T> {
+		const bin = await temporaryDirectory();
+		await writeFile(join(bin, name), `#!/bin/sh\n${script}`);
+		await chmod(join(bin, name), 0o755);
+		const path = process.env.PATH;
+		process.env.PATH = `${bin}${delimiter}${path ?? ""}`;
+		try {
+			return await run();
+		} finally {
+			process.env.PATH = path;
+		}
+	}
+
+	const emdashChange: DependencyChange = {
+		name: "emdash",
+		section: "dependencies",
+		from: "^1.0.0",
+		to: "^1.1.0",
+		fromVersion: "1.0.0",
+		toVersion: "1.1.0",
+	};
+
+	it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+		"leaves package.json unchanged when the catalog manifest cannot be written",
+		async () => {
+			const workspace = await temporaryDirectory();
+			await writeFile(
+				join(workspace, "pnpm-workspace.yaml"),
+				"packages:\n  - sites/*\ncatalog:\n  emdash: ^1.0.0\n",
+			);
+			await writeFile(join(workspace, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+			await chmod(join(workspace, "pnpm-workspace.yaml"), 0o444);
+			const site = await project("1.0.0", join(workspace, "sites/blog"));
+			await writeJson(join(site, "package.json"), {
+				dependencies: { emdash: "catalog:", "@emdash-cms/cloudflare": "^1.0.0" },
+			});
+			await writeEmDashPackage(join(site, "node_modules/@emdash-cms/cloudflare"), "1.0.0");
+			const sitePackageJson = await readFile(join(site, "package.json"), "utf8");
+
+			await withFakePackageManager("pnpm", 'echo "$*" >> pnpm.log\n', async () => {
+				await expect(
+					writeDependenciesAndInstall(
+						await loadProject(site),
+						[
+							{
+								...emdashChange,
+								name: "@emdash-cms/cloudflare",
+							},
+							{ ...emdashChange, catalog: "default" },
+						],
+						async () => undefined,
+					),
+				).rejects.toThrow(/EACCES/);
+			});
+
+			expect(await readFile(join(site, "package.json"), "utf8")).toBe(sitePackageJson);
+			await expect(readFile(join(workspace, "pnpm.log"), "utf8")).rejects.toThrow();
+		},
+	);
+
+	it.skipIf(process.platform === "win32")(
+		"reinstalls the previous dependencies when the install fails partway",
+		async () => {
+			const site = await project("1.0.0");
+			await writeFile(join(site, "package-lock.json"), "original lockfile\n");
+			const originalPackageJson = await readFile(join(site, "package.json"), "utf8");
+
+			await withFakePackageManager(
+				"npm",
+				'echo "$*" >> npm.log\nif [ ! -f failed-once ]; then touch failed-once; echo partial > package-lock.json; exit 1; fi\n',
+				async () => {
+					await expect(
+						writeDependenciesAndInstall(
+							await loadProject(site),
+							[emdashChange],
+							async () => undefined,
+						),
+					).rejects.toThrow(
+						"npm failed with exit code 1. The previous dependencies were restored.",
+					);
+				},
+			);
+
+			expect(await readFile(join(site, "package.json"), "utf8")).toBe(originalPackageJson);
+			expect(await readFile(join(site, "package-lock.json"), "utf8")).toBe("original lockfile\n");
+			expect(await readFile(join(site, "npm.log"), "utf8")).toBe("install\ninstall\n");
 		},
 	);
 
