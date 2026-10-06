@@ -1,7 +1,8 @@
 ---
 "@emdash-cms/cloudflare": patch
+"@emdash-cms/plugin-test": patch
 ---
 
-Fix Cloudflare sandbox `ctx.media.readBytes()` when media storage is configured
+Fixes sandboxed plugins' `ctx.media.readBytes()` calls failing with "Media storage is not configured" under concurrent requests on Cloudflare Workers with an R2 `MEDIA` binding. Sites without that binding continue to use the existing storage callback fallback.
 
-`PluginBridge.mediaReadBytes()` now reads bytes directly from the `MEDIA` R2 binding, matching `mediaUpload` and `mediaDelete`. It no longer relies solely on a media-storage callback registered on module-level state, which did not survive Worker Loader isolate/context boundaries under concurrent traffic and caused "Media storage is not configured" errors for sandboxed plugins with the `media:bytes:read` capability.
+Updates `createPluginRuntimeTestHost()` to store media fixtures and uploads in its local R2 binding, so plugins can read their bytes through the production bridge.

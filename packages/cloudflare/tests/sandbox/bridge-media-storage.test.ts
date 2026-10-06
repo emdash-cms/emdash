@@ -31,7 +31,7 @@ vi.mock("../../src/sandbox/bridge-runtime.js", () => ({
 
 afterEach(async () => {
 	const { setMediaStorageCallback } = await import("../../src/sandbox/bridge.js");
-	setMediaStorageCallback("test-media-key", null);
+	setMediaStorageCallback("media-storage-key-1", null);
 	runtimeMocks.readPluginMediaBytes.mockClear();
 });
 
@@ -78,7 +78,6 @@ describe("PluginBridge media storage", () => {
 			{ maxBytes: undefined },
 		);
 
-		// Verify the storage wrapper reads from the R2 binding when downloaded
 		const storage = runtimeMocks.readPluginMediaBytes.mock.calls[0]?.[1] as {
 			download: (key: string) => Promise<unknown>;
 		};
@@ -153,5 +152,21 @@ describe("PluginBridge media storage", () => {
 			"Media storage is not configured",
 		);
 		expect(runtimeMocks.readPluginMediaBytes).not.toHaveBeenCalled();
+	});
+
+	it("rejects reads after the fallback callback is removed", async () => {
+		const { setMediaStorageCallback, PluginBridge } = await import("../../src/sandbox/bridge.js");
+		const bridge = new PluginBridge(
+			{ props: makeProps({ mediaStorageKey: "media-storage-key-1" }) } as never,
+			makeEnv(),
+		);
+		setMediaStorageCallback("media-storage-key-1", { download: vi.fn() });
+		await bridge.mediaReadBytes("media-1");
+
+		setMediaStorageCallback("media-storage-key-1", null);
+
+		await expect(bridge.mediaReadBytes("media-1")).rejects.toThrow(
+			"Media storage is not configured",
+		);
 	});
 });
