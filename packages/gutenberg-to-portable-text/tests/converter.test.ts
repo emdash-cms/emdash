@@ -176,6 +176,17 @@ describe("gutenbergToPortableText", () => {
 			const result = gutenbergToPortableText(content);
 			expect(result).toHaveLength(2);
 		});
+
+		it("converts a paragraph with formatting nested thousands of levels deep", () => {
+			const content = `<!-- wp:paragraph -->
+<p>${"<strong>".repeat(20_000)}deep</p>
+<!-- /wp:paragraph -->`;
+
+			const result = gutenbergToPortableText(content);
+			const block = result[0] as PortableTextTextBlock;
+
+			expect(block.children).toMatchObject([{ text: "deep", marks: ["strong"] }]);
+		});
 	});
 
 	describe("heading blocks", () => {

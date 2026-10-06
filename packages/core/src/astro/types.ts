@@ -109,6 +109,7 @@ export interface ManifestPlugin {
 		path: string;
 		label?: string;
 		icon?: string;
+		group?: string;
 	}>;
 	dashboardWidgets?: Array<{
 		id: string;

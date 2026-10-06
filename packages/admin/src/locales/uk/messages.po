@@ -1426,12 +1426,12 @@ msgid "admin"
 msgstr "адмін"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:629
+#: packages/admin/src/components/Sidebar.tsx:640
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Адмін"
 
-#: packages/admin/src/components/Sidebar.tsx:571
+#: packages/admin/src/components/Sidebar.tsx:582
 msgid "Admin navigation"
 msgstr "Навігація адмін-панелі"
 
@@ -2310,7 +2310,7 @@ msgstr ""
 msgid "Byline schema"
 msgstr "Схема підпису"
 
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:484
 msgid "Byline Schema"
 msgstr "Схема підпису"
 
@@ -2324,7 +2324,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1131
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:448
+#: packages/admin/src/components/Sidebar.tsx:454
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Bylines"
 msgstr "Підписи"
@@ -2343,7 +2343,7 @@ msgstr "C++"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:564
-#: packages/admin/src/components/Sidebar.tsx:603
+#: packages/admin/src/components/Sidebar.tsx:614
 #: packages/admin/src/routes/calendar.tsx:276
 msgid "Calendar"
 msgstr ""
@@ -3030,7 +3030,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeEditor.tsx:656
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:434
+#: packages/admin/src/components/Sidebar.tsx:440
 msgid "Comments"
 msgstr "Коментарі"
 
@@ -3120,7 +3120,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
 #: packages/admin/src/components/Dashboard.tsx:479
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:613
+#: packages/admin/src/components/Sidebar.tsx:624
 #: packages/admin/src/components/Widgets.tsx:902
 msgid "Content"
 msgstr "Вміст"
@@ -3205,7 +3205,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:131
-#: packages/admin/src/components/Sidebar.tsx:474
+#: packages/admin/src/components/Sidebar.tsx:480
 msgid "Content Types"
 msgstr "Типи вмісту"
 
@@ -3823,8 +3823,8 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:390
 #: packages/admin/src/components/Dashboard.tsx:71
-#: packages/admin/src/components/Sidebar.tsx:412
-#: packages/admin/src/components/Sidebar.tsx:598
+#: packages/admin/src/components/Sidebar.tsx:415
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Dashboard"
 msgstr "Панель керування"
 
@@ -5528,7 +5528,7 @@ msgstr "Не вдалося увімкнути користувача"
 msgid "Failed to execute import"
 msgstr "Не вдалося виконати імпорт"
 
-#: packages/admin/src/lib/api/client.ts:368
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "Не вдалося отримати режим автентифікації"
 
@@ -5553,7 +5553,7 @@ msgstr "Не вдалося отримати налаштування email"
 msgid "Failed to fetch entry terms"
 msgstr "Не вдалося отримати терміни запису"
 
-#: packages/admin/src/lib/api/client.ts:351
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "Не вдалося отримати маніфест"
 
@@ -6757,7 +6757,7 @@ msgstr "Зображення"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:506
 #: packages/admin/src/components/WordPressImport.tsx:758
 msgid "Import"
 msgstr "Імпорт"
@@ -7791,7 +7791,7 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Головна бічна панель"
 
-#: packages/admin/src/components/Sidebar.tsx:621
+#: packages/admin/src/components/Sidebar.tsx:632
 msgid "Manage"
 msgstr "Керувати"
 
@@ -7921,7 +7921,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:425
+#: packages/admin/src/components/Sidebar.tsx:428
 #: packages/admin/src/components/WordPressImport.tsx:772
 #: packages/admin/src/components/WordPressImport.tsx:1170
 #: packages/admin/src/components/WordPressImport.tsx:1357
@@ -8071,7 +8071,7 @@ msgstr "Порядок меню оновлено."
 #: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:445
 #: packages/admin/src/components/WordPressImport.tsx:1174
 msgid "Menus"
 msgstr "Меню"
@@ -9711,8 +9711,8 @@ msgstr "Помилка віджета плагіна"
 #: packages/admin/src/components/PluginManager.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:192
-#: packages/admin/src/components/Sidebar.tsx:482
-#: packages/admin/src/components/Sidebar.tsx:637
+#: packages/admin/src/components/Sidebar.tsx:488
+#: packages/admin/src/components/Sidebar.tsx:648
 msgid "Plugins"
 msgstr "Плагіни"
 
@@ -10189,7 +10189,7 @@ msgstr "Перенаправлення на вхід..."
 #: packages/admin/src/components/Redirects.tsx:416
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:442
+#: packages/admin/src/components/Sidebar.tsx:448
 msgid "Redirects"
 msgstr "Перенаправлення"
 
@@ -10262,7 +10262,7 @@ msgstr "Реєстрацію скасовано або час очікуванн
 
 #: packages/admin/src/components/PluginManager.tsx:210
 #: packages/admin/src/components/PluginManager.tsx:447
-#: packages/admin/src/components/Sidebar.tsx:491
+#: packages/admin/src/components/Sidebar.tsx:497
 msgid "Registry"
 msgstr "Реєстр"
 
@@ -10571,7 +10571,7 @@ msgstr "Репозиторій"
 msgid "Request a new link"
 msgstr "Запросити нове посилання"
 
-#: packages/admin/src/lib/api/client.ts:339
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "Запит не вдався"
 
@@ -11436,7 +11436,7 @@ msgstr "Назва секції"
 #: packages/admin/src/components/Sections.tsx:150
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:447
+#: packages/admin/src/components/Sidebar.tsx:453
 msgid "Sections"
 msgstr "Секції"
 
@@ -11816,7 +11816,7 @@ msgstr "Налаштування..."
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:530
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:504
+#: packages/admin/src/components/Sidebar.tsx:510
 #: packages/admin/src/components/WordPressImport.tsx:1834
 msgid "Settings"
 msgstr "Налаштування"
@@ -14220,7 +14220,7 @@ msgid "User not found"
 msgstr "Користувача не знайдено"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:223
-#: packages/admin/src/components/Sidebar.tsx:479
+#: packages/admin/src/components/Sidebar.tsx:485
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "Користувачі"
@@ -14601,7 +14601,7 @@ msgstr "Віджет оновлено"
 #: packages/admin/src/components/PluginManager.tsx:478
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:446
+#: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Widgets.tsx:389
 #: packages/admin/src/components/WordPressImport.tsx:1182
 msgid "Widgets"
