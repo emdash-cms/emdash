@@ -59,11 +59,15 @@ async function readBytes(maxBytes?: number) {
 
 describe("sandbox media bytes through R2 bridge RPC", () => {
 	it("reads exact bytes before, during, and after concurrent calls without a storage callback", async () => {
-		const expected = { bytes, size: bytes.byteLength, filename: "probe.bin" };
-		await expect(readBytes()).resolves.toMatchObject(expected);
+		const expectedHash = await crypto.subtle.digest("SHA-256", bytes);
+		async function expectExactBytes(result: Awaited<ReturnType<typeof readBytes>>) {
+			expect(result).toMatchObject({ size: bytes.byteLength, filename: "probe.bin" });
+			expect(await crypto.subtle.digest("SHA-256", result.bytes)).toEqual(expectedHash);
+		}
+		await expectExactBytes(await readBytes());
 		const results = await Promise.all(Array.from({ length: 24 }, () => readBytes()));
-		for (const result of results) expect(result).toMatchObject(expected);
-		await expect(readBytes()).resolves.toMatchObject(expected);
+		await Promise.all(results.map(expectExactBytes));
+		await expectExactBytes(await readBytes());
 	});
 
 	it("enforces the stream byte limit even when the stored size is smaller", async () => {
