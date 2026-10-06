@@ -66,7 +66,7 @@ A blog with posts, pages, categories, tags, full-text search, and RSS. Designed 
 - Taxonomies: `category`, `tag`.
 - Single `primary` menu (Home, About, Posts by default).
 
-Site settings have `title` and `tagline` -- both render in the header, the home page intro, and the footer.
+Site settings have `title` and `tagline`. The title renders in the header, the home page intro, and the footer; the tagline renders under the title in the home page intro and in the footer.
 
 ## Visual character
 
