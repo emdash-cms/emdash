@@ -123,7 +123,7 @@ describe("Header", () => {
 				<Header />
 			</TestWrapper>,
 		);
-		expect(screen.getByRole("link", { name: "Staging" }).query()).toBeNull();
+		expect(screen.getByText("Staging").query()).toBeNull();
 	});
 
 	it("shows the staging badge without a settings link to users who cannot change settings", async () => {
