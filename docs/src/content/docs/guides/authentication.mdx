@@ -418,6 +418,7 @@ The application audience identifies which Access application issued the JWT. EmD
 | `autoProvision` | `boolean` | `true`   | Create EmDash users on first Access login                   |
 | `defaultRole`   | `number`  | `30`     | Role for users not matching any group (30 = Author)           |
 | `syncRoles`     | `boolean` | `false`  | Update role on each login based on IdP groups                 |
+| `syncName`      | `boolean` | `true`   | Update the user's name from the IdP on every authenticated request |
 | `roleMapping`   | `object`  | —        | Map IdP group names to role levels                            |
 | `audienceEnvVar`| `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable containing the audience tag. Used when `audience` is omitted. |
 
@@ -450,6 +451,12 @@ By default (`syncRoles: false`), a user's role is set when they first log in and
 
 Set `syncRoles: true` if you want IdP groups to be authoritative — the user's role will update on every login based on their current groups.
 
+### Name sync behavior
+
+By default (`syncName: true`), EmDash replaces a user's name with the name from Access on every authenticated request. When the Access identity has no name, EmDash uses the part of the email address before the `@`. The admin user editor shows the name as read-only, with a hint to change it in Access.
+
+Set `syncName: false` to keep names editable in EmDash. The name from Access is then used only when the user is first provisioned.
+
 ### Request and session flow
 
 1. The user visits a path protected by the Access application.
@@ -475,7 +482,7 @@ When Access is enabled, these features are unavailable:
 - Self-signup
 - User invites
 
-Access policies decide who reaches EmDash. EmDash still owns local roles, content ownership, and the disabled-user flag. With `syncRoles: false`, administrators can change a provisioned user's role in EmDash. With `syncRoles: true`, the mapped Access groups replace that role on each login.
+Access policies decide who reaches EmDash. EmDash still owns local roles, content ownership, and the disabled-user flag. With `syncRoles: false`, administrators can change a provisioned user's role in EmDash. With `syncRoles: true`, the mapped Access groups replace that role on each login. User names follow the same pattern with `syncName`, except that it defaults to `true`.
 
 ### Troubleshooting
 

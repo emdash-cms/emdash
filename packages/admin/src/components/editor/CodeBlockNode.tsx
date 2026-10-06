@@ -39,6 +39,7 @@ import {
 	languageLabelDescriptor,
 	normalizeLanguage,
 } from "./codeBlockLanguages";
+import { useAttachedKey } from "./useAttachedKey.js";
 
 const ADMIN_CODE_BLOCK_LOWLIGHT_KEY = Symbol.for("emdash:admin-code-block-lowlight");
 const globalStore = globalThis as Record<symbol, unknown>;
@@ -103,6 +104,8 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied" | "failed">("idle");
 	const copyResetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const copyRequestId = React.useRef(0);
+	const controlsRef = React.useRef<HTMLDivElement>(null);
+	const toolbarKey = useAttachedKey(controlsRef);
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
 
 	const labelText = React.useCallback(
@@ -211,7 +214,8 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 			</pre>
 
 			<div
-				className="absolute end-1 top-0 z-10 select-none"
+				ref={controlsRef}
+				className="absolute end-1 top-1 z-10 select-none"
 				style={{ width: "max-content", maxWidth: "calc(100% - 0.25rem)" }}
 				contentEditable={false}
 			>
@@ -221,6 +225,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 				>
 					<TooltipProvider>
 						<Toolbar
+							key={toolbarKey}
 							size="sm"
 							className="emdash-code-block-controls max-w-full border border-kumo-line text-[13px] ring-0 shadow-none"
 							data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}

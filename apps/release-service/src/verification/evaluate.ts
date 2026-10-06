@@ -389,7 +389,7 @@ export async function evaluateWorkloadAttestation(
 	if (provenance.builderId !== expectedBuilderId) {
 		return { ok: false, reasonCode: "ATTESTED_WORKFLOW_MISMATCH" };
 	}
-	const workflowRef = identity.workflow.ref.slice(identity.workflow.ref.lastIndexOf("@") + 1);
+	const workflowRef = identity.workflow.ref.slice(identity.workflow.ref.indexOf("@") + 1);
 	if (provenance.workflowRef !== workflowRef) {
 		return { ok: false, reasonCode: "ATTESTED_REF_MISMATCH" };
 	}

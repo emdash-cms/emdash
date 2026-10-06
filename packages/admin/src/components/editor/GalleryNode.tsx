@@ -23,7 +23,6 @@ import {
 	getMediaPreviewUrl,
 	localMediaFileUrl,
 } from "../../lib/media-utils.js";
-import { cn } from "../../lib/utils";
 
 /** One image inside a gallery block — mirrors the Portable Text shape. */
 export interface GalleryImage {
@@ -178,12 +177,7 @@ function GalleryNodeView({
 	}, [selected]);
 
 	return (
-		<NodeViewWrapper
-			className={cn(
-				"relative my-4 group",
-				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
-			)}
-		>
+		<NodeViewWrapper className="relative my-4 group">
 			{images.length === 0 ? (
 				<Button
 					type="button"

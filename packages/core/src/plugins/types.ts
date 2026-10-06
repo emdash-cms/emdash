@@ -1969,6 +1969,12 @@ export interface PluginAdminPage {
 	path: string;
 	label: string;
 	icon?: string;
+	/**
+	 * Admin sidebar folder. Pages sharing a group with a collection shown in
+	 * the sidebar join that folder; pages with any other group share a folder
+	 * with that label in the Plugins section, across plugins.
+	 */
+	group?: string;
 }
 
 /**

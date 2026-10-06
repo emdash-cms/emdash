@@ -273,10 +273,9 @@ export function ImageFieldRenderer({
 		<div
 			className={
 				isFeatured
-					? "-m-0.5 hidden w-full min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain p-0.5 [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden"
+					? "hidden w-full min-w-0 flex-wrap items-center gap-2 @lg/featured:flex"
 					: "flex flex-wrap items-center gap-2"
 			}
-			style={isFeatured ? { scrollbarWidth: "none" } : undefined}
 		>
 			<Button
 				type="button"
@@ -330,6 +329,7 @@ export function ImageFieldRenderer({
 								type="button"
 								shape="square"
 								variant="ghost"
+								className="pointer-coarse:size-11"
 								icon={<DotsThree aria-hidden="true" />}
 								loading={assetEditor.isOpening && pickerTarget === "image"}
 								disabled={assetEditor.isActive}
@@ -341,7 +341,7 @@ export function ImageFieldRenderer({
 					/>
 				}
 			/>
-			<DropdownMenu.Content align="end" className="min-w-40 sm:hidden">
+			<DropdownMenu.Content align="end" className="min-w-40">
 				<DropdownMenu.Item
 					icon={<ImageSquare className="me-1.5 size-4" aria-hidden="true" />}
 					onClick={() => openPicker("image")}
@@ -456,9 +456,9 @@ export function ImageFieldRenderer({
 		) : null;
 
 	const featuredCard = displayUrl ? (
-		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)_auto] items-center rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-stretch">
+		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)_auto] items-center rounded-xl p-0 @lg/featured:grid-cols-[12rem_minmax(0,1fr)] @lg/featured:items-stretch">
 			<div
-				className="emdash-featured-image-preview m-2 overflow-hidden rounded bg-kumo-tint ring ring-kumo-line"
+				className="emdash-featured-image-preview m-2 overflow-hidden rounded bg-kumo-tint ring ring-kumo-line @lg/featured:self-center"
 				style={{ aspectRatio: "16 / 9" }}
 			>
 				{imageBroken ? (
@@ -468,7 +468,7 @@ export function ImageFieldRenderer({
 							as="span"
 							variant="secondary"
 							size="xs"
-							DANGEROUS_className="sr-only sm:not-sr-only"
+							DANGEROUS_className="sr-only @lg/featured:not-sr-only"
 						>
 							{t`Image not found`}
 						</Text>
@@ -483,8 +483,8 @@ export function ImageFieldRenderer({
 					/>
 				)}
 			</div>
-			<div className="flex min-w-0 flex-col justify-center px-2 py-2 sm:px-4 sm:py-3">
-				<div className="flex w-full min-w-0 flex-col gap-1.5 sm:translate-y-1.5 sm:gap-3">
+			<div className="flex min-w-0 flex-col justify-center px-2 py-2 @lg/featured:px-4 @lg/featured:py-3">
+				<div className="flex w-full min-w-0 flex-col gap-1.5 @lg/featured:translate-y-1.5 @lg/featured:gap-3">
 					<div className="grid min-w-0 gap-1">
 						<Text as="p" bold truncate>
 							{selectedFilename}
@@ -498,12 +498,13 @@ export function ImageFieldRenderer({
 					{primaryActions}
 				</div>
 			</div>
-			<div className="me-2 sm:hidden">{mobileFeaturedActions}</div>
+			<div className="me-2 @lg/featured:hidden">{mobileFeaturedActions}</div>
 		</LayerCard>
 	) : null;
 
 	return (
-		<div id={id} className="grid gap-2">
+		// The featured card lays out by its own width, which the editor's column keeps well below the viewport's.
+		<div id={id} className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}>
 			{description ? (
 				<FieldHelpLabel
 					help={description}

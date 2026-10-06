@@ -221,7 +221,7 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 - image and file fields
 - image fields inside repeaters
 - image, file, and Portable Text fields inside `blocks` fields
-- image and gallery blocks in Portable Text fields
+- image, gallery, and video blocks in Portable Text fields
 - the site logo, favicon, and default social image
 
 When usage coverage is complete and the file has none of these references, the list shows **No
@@ -296,6 +296,41 @@ The template receives the media metadata stored with the content reference witho
 Library query. If a custom integration requires the provider's latest metadata, request that item
 explicitly and avoid one provider lookup per image on a collection page. The
 [field type reference](/reference/field-types/#file) describes stored file and image values.
+
+## Render a file in a template
+
+A file field value from the Media Library has no ready-made URL. Pass its `meta.storageKey` to
+`Astro.locals.emdash.getPublicMediaUrl()`, which returns the public URL and respects a configured R2
+or S3 public domain without querying the media table. Older values without a storage key keep their
+URL in `url`, and files added by URL (stored with `provider: "external"`) keep it in `src`.
+
+For a file from a registered media provider, such as Cloudflare Stream, `src` holds a preview image
+rather than the file itself, so this approach does not apply to it.
+
+The following page renders a video stored in a `video` file field:
+
+```astro title="src/pages/videos/[slug].astro (excerpt)"
+---
+import { getEmDashEntry } from "emdash";
+
+const { entry, error } = await getEmDashEntry("videos", Astro.params.slug);
+if (error) return new Response("Unable to load video", { status: 500 });
+if (!entry) return Astro.rewrite("/404");
+
+const file = entry.data.video;
+const storageKey = typeof file?.meta?.storageKey === "string" ? file.meta.storageKey : undefined;
+const url = storageKey
+  ? Astro.locals.emdash?.getPublicMediaUrl?.(storageKey)
+  : file?.provider === "external"
+    ? file.src
+    : file?.url;
+---
+
+{url && <video src={url} controls preload="metadata" />}
+```
+
+The same URL works for a download link or any other element that needs the file's address. The
+filename, MIME type, and size in the value are the ones stored when the file was selected.
 
 ## Configure storage and providers
 

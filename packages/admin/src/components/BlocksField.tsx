@@ -192,7 +192,7 @@ export function BlocksField({
 										<Button
 											key={blockType.slug}
 											variant="ghost"
-											className="h-auto justify-start text-start"
+											className="h-auto w-full justify-start text-start"
 											onClick={() => {
 												onChange([...blocks, createBlockValue(blockType, createBlockKey())]);
 												setPickerOpen(false);

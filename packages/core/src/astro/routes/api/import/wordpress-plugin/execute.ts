@@ -1068,6 +1068,21 @@ export async function importContent(
 				if (item.translationGroup && !translationGroupMap.has(item.translationGroup) && createdId) {
 					translationGroupMap.set(item.translationGroup, createdId);
 				}
+
+				if (
+					createdId &&
+					item.status === "future" &&
+					createdAt &&
+					Date.parse(createdAt) > Date.now()
+				) {
+					const scheduled = await emdash.handleContentSchedule(collection, createdId, createdAt);
+					if (!scheduled.success) {
+						result.errors.push({
+							title: item.title || "Untitled",
+							error: `Imported as draft but failed to schedule: ${scheduled.error?.message ?? "Unknown error"}`,
+						});
+					}
+				}
 			} else {
 				result.errors.push({
 					title: item.title || "Untitled",

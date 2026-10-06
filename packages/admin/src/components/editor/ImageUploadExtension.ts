@@ -3,7 +3,7 @@ import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Extension } from "@tiptap/core";
 import type { Node } from "@tiptap/pm/model";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -11,15 +11,21 @@ import { createRoot, type Root } from "react-dom/client";
 import { createUploadPreviewUrl } from "../../lib/media-utils.js";
 import { matchesMimeAllowlist } from "../../lib/mime-utils.js";
 import { getMutationError } from "../DialogError.js";
+import { isEmptyVideo } from "./VideoNode.js";
 
 export interface ImageUploadOptions {
-	/** Uploads a file and resolves to the attributes of the image node to insert. */
+	/** Uploads a file and resolves to the attributes of the image or video node to insert. */
 	upload: ((file: File, signal: AbortSignal) => Promise<Record<string, unknown>>) | null;
+	/** Whether video files become video blocks, read when files are dropped or pasted. */
+	acceptsVideo: () => boolean;
 }
+
+type MediaKind = "image" | "video";
 
 interface Placeholder {
 	id: number;
 	pos: number;
+	kind?: MediaKind;
 	previewUrl?: string;
 	error?: string;
 }
@@ -34,6 +40,7 @@ type DismissHandler = (view: EditorView, id: number) => void;
 const imageUploadKey = new PluginKey<Placeholder[]>("imageUpload");
 
 const IMAGE_TYPES = ["image/"];
+const VIDEO_TYPES = ["video/"];
 
 const DROP_EVENTS = new Set(["dragenter", "dragover", "drop"]);
 
@@ -79,7 +86,11 @@ function renderPlaceholder(placeholder: Placeholder, onDismiss: () => void) {
 	root.dataset.imageUploadPlaceholder = "";
 	root.contentEditable = "false";
 	root.className = `relative my-4 flex min-h-24 max-w-full overflow-hidden rounded-md bg-kumo-tint ${
-		placeholder.previewUrl ? "w-fit min-w-72" : "w-full"
+		placeholder.previewUrl
+			? "w-fit min-w-72"
+			: placeholder.kind === "video"
+				? "aspect-video w-full"
+				: "w-full"
 	}`;
 
 	if (placeholder.previewUrl) {
@@ -111,7 +122,8 @@ function renderPlaceholder(placeholder: Placeholder, onDismiss: () => void) {
 		const label = document.createElement("span");
 		label.setAttribute("role", "status");
 		label.className = "text-kumo-subtle";
-		label.textContent = i18n._(msg`Uploading image…`);
+		label.textContent =
+			placeholder.kind === "video" ? i18n._(msg`Uploading video…`) : i18n._(msg`Uploading image…`);
 		status.append(renderSpinner(root), label);
 	}
 	root.append(status);
@@ -123,6 +135,13 @@ function blockBoundary(doc: Node, pos: number) {
 	const $pos = doc.resolve(pos);
 	if ($pos.depth === 0) return pos;
 	return pos <= ($pos.start(1) + $pos.end(1)) / 2 ? $pos.before(1) : $pos.after(1);
+}
+
+/** The range of the empty video block at `pos`, which files dropped or pasted on it replace. */
+function emptyVideoAt(doc: Node, pos: number) {
+	const node = pos >= 0 ? doc.nodeAt(pos) : null;
+	if (node?.type.name !== "videoBlock" || !isEmptyVideo(node.attrs)) return undefined;
+	return { from: pos, to: pos + node.nodeSize };
 }
 
 function hasText(html: string) {
@@ -138,7 +157,7 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 	name: "imageUpload",
 
 	addOptions() {
-		return { upload: null };
+		return { upload: null, acceptsVideo: () => false };
 	},
 
 	addStorage() {
@@ -154,7 +173,7 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 	},
 
 	addProseMirrorPlugins() {
-		const upload = this.options.upload;
+		const { upload, acceptsVideo } = this.options;
 		if (!upload) return [];
 
 		const { controller, previewUrls } = this.storage;
@@ -176,53 +195,91 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 			view.focus();
 		};
 
-		const insertImage = (view: EditorView, id: number, attrs: Record<string, unknown>) => {
+		const takesVideo = (view: EditorView) =>
+			Boolean(view.state.schema.nodes.videoBlock) && acceptsVideo();
+
+		const kindOf = (view: EditorView, file: File): MediaKind | null => {
+			if (matchesMimeAllowlist(file.type, IMAGE_TYPES)) return "image";
+			if (matchesMimeAllowlist(file.type, VIDEO_TYPES) && takesVideo(view)) return "video";
+			return null;
+		};
+
+		const insertMedia = (
+			view: EditorView,
+			id: number,
+			kind: MediaKind,
+			attrs: Record<string, unknown>,
+		) => {
 			if (view.isDestroyed) return;
 			if (!view.editable) {
 				dispatchMeta(view, {
 					fail: id,
-					error: i18n._(msg`The image is in the Media Library, but this entry is now read-only.`),
+					error:
+						kind === "video"
+							? i18n._(msg`The video is in the Media Library, but this entry is now read-only.`)
+							: i18n._(msg`The image is in the Media Library, but this entry is now read-only.`),
 				});
 				return;
 			}
 			const placeholder = imageUploadKey.getState(view.state)?.find((item) => item.id === id);
-			const imageType = view.state.schema.nodes.image;
+			const nodeType = view.state.schema.nodes[kind === "video" ? "videoBlock" : "image"];
 			const tr = view.state.tr.setMeta(imageUploadKey, { remove: id } satisfies PlaceholderMeta);
-			if (placeholder && imageType) {
-				tr.insert(placeholder.pos, imageType.create(attrs));
+			if (placeholder && nodeType) {
+				tr.insert(placeholder.pos, nodeType.create(attrs));
 			}
 			view.dispatch(tr);
 			releasePreview(id);
 		};
 
-		const start = (view: EditorView, files: File[], dropPos: number) => {
-			const pos = blockBoundary(view.state.doc, dropPos);
-			const images = files.filter((file) => matchesMimeAllowlist(file.type, IMAGE_TYPES));
-			const uploads = images.map((file) => {
+		const start = (
+			view: EditorView,
+			files: File[],
+			dropPos: number,
+			emptyVideo?: { from: number; to: number },
+		) => {
+			const media = files.flatMap((file) => {
+				const kind = kindOf(view, file);
+				return kind ? [{ file, kind }] : [];
+			});
+			const tr = view.state.tr;
+			let pos: number;
+			if (emptyVideo && media.length > 0) {
+				tr.delete(emptyVideo.from, emptyVideo.to);
+				pos = emptyVideo.from;
+			} else {
+				pos = blockBoundary(view.state.doc, dropPos);
+			}
+			const uploads = media.map(({ file, kind }) => {
 				const id = ++nextId;
-				const previewUrl = createUploadPreviewUrl(file);
+				const previewUrl = kind === "image" ? createUploadPreviewUrl(file) : undefined;
 				if (previewUrl) previewUrls.set(id, previewUrl);
-				return { file, placeholder: { id, pos, previewUrl } };
+				return { file, kind, placeholder: { id, pos, kind, previewUrl } };
 			});
 			const placeholders: Placeholder[] = uploads.map(({ placeholder }) => placeholder);
-			if (images.length < files.length) {
+			if (uploads.length < files.length) {
 				placeholders.push({
 					id: ++nextId,
 					pos,
-					error: i18n._(msg`Only image files can be uploaded here.`),
+					error: takesVideo(view)
+						? i18n._(msg`Only images and videos can be uploaded here.`)
+						: i18n._(msg`Only image files can be uploaded here.`),
 				});
 			}
-			dispatchMeta(view, { add: placeholders });
+			view.dispatch(tr.setMeta(imageUploadKey, { add: placeholders } satisfies PlaceholderMeta));
 
 			void (async () => {
-				for (const { file, placeholder } of uploads) {
+				for (const { file, kind, placeholder } of uploads) {
 					try {
-						insertImage(view, placeholder.id, await upload(file, controller.signal));
+						insertMedia(view, placeholder.id, kind, await upload(file, controller.signal));
 					} catch (error) {
 						if (controller.signal.aborted) return;
 						dispatchMeta(view, {
 							fail: placeholder.id,
-							error: getMutationError(error) ?? i18n._(msg`Image upload failed. Try again.`),
+							error:
+								getMutationError(error) ??
+								(kind === "video"
+									? i18n._(msg`Video upload failed. Try again.`)
+									: i18n._(msg`Image upload failed. Try again.`)),
 						});
 					}
 				}
@@ -269,20 +326,23 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 						const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
 						if (!coords) return false;
 						event.preventDefault();
-						start(view, files, coords.pos);
+						start(view, files, coords.pos, emptyVideoAt(view.state.doc, coords.inside));
 						return true;
 					},
 					handlePaste(view, event) {
 						const data = event.clipboardData;
-						const hasImage = [...(data?.files ?? [])].some((file) =>
-							matchesMimeAllowlist(file.type, IMAGE_TYPES),
-						);
-						if (!data || !hasImage) return false;
+						const hasMedia = [...(data?.files ?? [])].some((file) => kindOf(view, file) !== null);
+						if (!data || !hasMedia) return false;
 						// Word, Excel and similar apps put a picture of the selection beside the real content.
 						const html = data.getData("text/html");
 						if (html && hasText(html)) return false;
 						event.preventDefault();
-						start(view, [...data.files], view.state.selection.from);
+						const { selection } = view.state;
+						const emptyVideo =
+							selection instanceof NodeSelection
+								? emptyVideoAt(view.state.doc, selection.from)
+								: undefined;
+						start(view, [...data.files], selection.from, emptyVideo);
 						return true;
 					},
 				},

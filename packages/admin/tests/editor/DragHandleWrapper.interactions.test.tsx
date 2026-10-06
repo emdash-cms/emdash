@@ -3,8 +3,11 @@ import type { Editor } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { DragHandleWrapper } from "../../src/components/editor/DragHandleWrapper";
+
+import "../../dist/styles.css";
 import { render } from "../utils/render";
 
 type NodeChangeHandler = (data: { node: PMNode | null; editor: Editor; pos: number }) => void;
@@ -100,7 +103,7 @@ describe("DragHandleWrapper interactions", () => {
 
 	it("uses Kumo buttons for both drag-handle controls", async () => {
 		const editor = {
-			view: { dom: document.createElement("div") },
+			view: { dom: document.createElement("div"), nodeDOM: () => null },
 		} as unknown as Editor;
 		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
 
@@ -116,6 +119,27 @@ describe("DragHandleWrapper interactions", () => {
 			.toHaveAttribute("data-kumo-component", "Button");
 	});
 
+	it("keeps the handle in place while the pointer is on +, so a key press can't hide it", async () => {
+		const locks: boolean[] = [];
+		const editor = {
+			view: { dom: document.createElement("div"), nodeDOM: () => null },
+			commands: {
+				setMeta: (_key: string, locked: boolean) => {
+					locks.push(locked);
+					return true;
+				},
+			},
+		} as unknown as Editor;
+		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
+		const insertButton = screen.getByRole("button", { name: "Insert block below" });
+
+		await userEvent.hover(insertButton);
+		expect(locks.at(-1)).toBe(true);
+
+		await userEvent.unhover(insertButton);
+		expect(locks.at(-1)).toBe(false);
+	});
+
 	it("disables native block dragging while pressing the insert button", async () => {
 		const editorElement = document.createElement("div");
 		const setMeta = vi.fn((_key: string, locked: boolean) => {
@@ -124,7 +148,7 @@ describe("DragHandleWrapper interactions", () => {
 			return true;
 		});
 		const editor = {
-			view: { dom: editorElement },
+			view: { dom: editorElement, nodeDOM: () => null },
 			commands: { setMeta },
 		} as unknown as Editor;
 		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
@@ -150,7 +174,7 @@ describe("DragHandleWrapper interactions", () => {
 		const editorElement = document.createElement("div");
 		editorElement.dir = "ltr";
 		const editor = {
-			view: { dom: editorElement },
+			view: { dom: editorElement, nodeDOM: () => null },
 		} as unknown as Editor;
 
 		try {
@@ -162,14 +186,53 @@ describe("DragHandleWrapper interactions", () => {
 			expect(insertButton.closest("[data-offset]")?.getAttribute("data-offset")).toBe("4");
 
 			i18n.activate("ar");
+			document.documentElement.dir = "rtl";
 			await vi.waitFor(() => {
 				expect(insertButton.closest("[data-placement]")?.getAttribute("data-placement")).toBe(
 					"right-start",
 				);
 			});
-			expect(insertButton.parentElement?.className).toContain("rtl:flex-row-reverse");
+			// Mirrored, so + stays outermost and the grip stays beside the text.
+			const grip = screen
+				.getByRole("button", { name: "Block actions - drag to reorder, click for menu" })
+				.element();
+			expect(insertButton.getBoundingClientRect().left).toBeGreaterThan(
+				grip.getBoundingClientRect().left,
+			);
 		} finally {
+			document.documentElement.dir = "";
 			i18n.activate(previousLocale);
+		}
+	});
+
+	it("centers the handle on a code block's header row rather than its first line of code", async () => {
+		const block = document.createElement("div");
+		block.className = "node-codeBlock";
+		block.style.position = "relative";
+		block.innerHTML =
+			'<pre class="emdash-code-block" style="margin: 0; padding-top: 36px; line-height: 20px">code</pre>' +
+			'<div class="emdash-code-block-controls" style="position: absolute; top: 4px; height: 28px"></div>';
+		document.body.append(block);
+		const editor = {
+			view: { dom: document.createElement("div"), nodeDOM: () => block },
+		} as unknown as Editor;
+
+		try {
+			const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
+			await hoverBlock(editor, {} as PMNode, 0);
+
+			// The handle is placed at the block's top, so compare offsets from each one's top.
+			const insertButton = screen.getByRole("button", { name: "Insert block below" }).element();
+			const handleTop = insertButton.closest(".drag-handle")!.getBoundingClientRect().top;
+			const handle = insertButton.getBoundingClientRect();
+			const row = block.querySelector(".emdash-code-block-controls")!.getBoundingClientRect();
+			const blockTop = block.getBoundingClientRect().top;
+			expect(handle.top + handle.height / 2 - handleTop).toBeCloseTo(
+				row.top + row.height / 2 - blockTop,
+				0,
+			);
+		} finally {
+			block.remove();
 		}
 	});
 
@@ -180,7 +243,7 @@ describe("DragHandleWrapper interactions", () => {
 			return true;
 		});
 		const editor = {
-			view: { dom: document.createElement("div") },
+			view: { dom: document.createElement("div"), nodeDOM: () => null },
 			commands: { setMeta },
 			chain: () => ({
 				setNodeSelection(pos: number) {
@@ -222,7 +285,7 @@ describe("DragHandleWrapper interactions", () => {
 			return true;
 		});
 		const editor = {
-			view: { dom: document.createElement("div") },
+			view: { dom: document.createElement("div"), nodeDOM: () => null },
 			commands: { setMeta },
 			chain: () => ({
 				setNodeSelection() {

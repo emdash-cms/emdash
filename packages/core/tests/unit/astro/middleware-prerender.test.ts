@@ -377,7 +377,7 @@ describe("astro middleware prerendered routes", () => {
 		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
-	it.each(["/sitemap-post.xml", "/sitemap-post-2.xml"])(
+	it.each(["/sitemap-post.xml", "/sitemap-post-2.xml", `/sitemap-${"a".repeat(63)}.xml`])(
 		"initializes the runtime for collection sitemap %s",
 		async (path) => {
 			const locals: Record<string, unknown> = {};
@@ -397,6 +397,31 @@ describe("astro middleware prerendered routes", () => {
 			);
 		},
 	);
+
+	it.each([
+		"/sitemap-0.xml",
+		"/sitemap-Post.xml",
+		"/sitemap-a.b.xml",
+		"/sitemap-.xml",
+		"/sitemap-post-1.xml",
+		`/sitemap-${"a".repeat(64)}.xml`,
+	])("skips runtime setup for %s, which no collection can have", async (path) => {
+		const locals: Record<string, unknown> = {};
+		const context = {
+			request: new Request(`https://example.com${path}`),
+			url: new URL(`https://example.com${path}`),
+			cookies: { get: vi.fn(() => undefined) },
+			locals,
+			redirect: vi.fn(),
+			isPrerendered: true,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(
+			(locals.emdash as Record<string, unknown> | undefined)?.handlePluginApiRoute,
+		).toBeUndefined();
+	});
 
 	it("does not access context.session when prerendering public pages", async () => {
 		const cookies = {
@@ -939,9 +964,45 @@ describe("astro middleware setup probe", () => {
 		expect(response.status).toBe(200);
 	});
 
-	it("does not initialize the runtime after the probe failed to reach the database", async () => {
+	it("starts runtime init without waiting for the probe", async () => {
+		let releaseProbe = () => {};
+		const probeHeld = new Promise<void>((resolve) => {
+			releaseProbe = resolve;
+		});
+		vi.mocked(getDb).mockResolvedValue({
+			selectFrom: () => ({
+				selectAll: () => ({
+					limit: () => ({
+						execute: async () => {
+							await probeHeld;
+							return [];
+						},
+					}),
+				}),
+			}),
+		} as never);
+
+		const { context } = anonymousCategoryPageContext();
+		const pending = onRequest(
+			context as Parameters<typeof onRequest>[0],
+			async () => new Response("page"),
+		);
+		await vi.waitFor(() => expect(mockCreateRuntime).toHaveBeenCalledTimes(1));
+
+		releaseProbe();
+		expect((await pending).status).toBe(200);
+		expect(typeof (context.locals as Record<string, unknown>).emdash).toBe("object");
+	});
+
+	it("does not wait for runtime init after the probe failed to reach the database", async () => {
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+		let releaseInit = () => {};
+		mockCreateRuntime.mockReturnValue(
+			new Promise((resolve) => {
+				releaseInit = () => resolve(MOCK_RUNTIME);
+			}),
 		);
 
 		const { context } = anonymousCategoryPageContext();
@@ -949,10 +1010,13 @@ describe("astro middleware setup probe", () => {
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect(mockCreateRuntime).not.toHaveBeenCalled();
-		expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
-		expect(next).toHaveBeenCalledTimes(1);
-		expect(response.status).toBe(200);
+		try {
+			expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
+			expect(next).toHaveBeenCalledTimes(1);
+			expect(response.status).toBe(200);
+		} finally {
+			releaseInit();
+		}
 	});
 
 	it("still uses an already-running runtime when the probe fails", async () => {
@@ -975,7 +1039,7 @@ describe("astro middleware setup probe", () => {
 		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
 	});
 
-	it("initializes the runtime on the next request once the probe succeeds", async () => {
+	it("serves the next request from the runtime a failed-probe request started", async () => {
 		vi.mocked(getDb).mockResolvedValueOnce(
 			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
 		);

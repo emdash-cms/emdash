@@ -55,12 +55,12 @@ import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
 	enforceRuntimeMigrationPolicy,
-	PendingMigrationsError,
 	type RuntimeMigrationMode,
 } from "./database/migrations/policy.js";
 import {
-	ConcurrentMigrationTimeoutError,
 	MIGRATION_RACE_WAIT_MS,
+	MigrationFailedError,
+	MigrationLockHeldError,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
 import { CommentRepository } from "./database/repositories/comment.js";
@@ -200,7 +200,10 @@ import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
 import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
-import { runSystemCleanup } from "./cleanup.js";
+import {
+	runSystemCleanup,
+	shouldRunSystemCleanup as shouldRunSystemCleanupNow,
+} from "./cleanup.js";
 import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
@@ -350,7 +353,7 @@ export interface SandboxedPluginEntry {
 	/** Hook declarations this plugin implements */
 	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
-	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+	adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
 	/** Saved-entry Block Kit panels. */
@@ -910,10 +913,14 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Run the full scheduled-maintenance batch: cron tasks, scheduled
-	 * publishing, and system cleanup. For request-less drivers — the
-	 * Cloudflare `scheduled()` handler invokes this from a Cron Trigger.
-	 * (On Node the timer-based scheduler drives the same work itself.)
+	 * Run the scheduled-maintenance batch: cron tasks, scheduled publishing,
+	 * and hourly system cleanup. For request-less drivers — the Cloudflare
+	 * `scheduled()` handler invokes this from a Cron Trigger. (On Node the
+	 * timer-based scheduler drives the same work itself.)
+	 *
+	 * Full cleanup runs only on the top of the hour so per-minute work stays
+	 * proportional to what is due; the heartbeat and scheduled publish sweep
+	 * still run every tick.
 	 *
 	 * Each step is independent and non-fatal. Returns the content promoted
 	 * by the publishing sweep so the caller can purge edge-cache tags.
@@ -956,6 +963,26 @@ export class EmDashRuntime {
 			}
 		}
 
+		const currentTime = this.runtimeDeps.now?.() ?? new Date();
+		const { published } = await this.runScheduledMaintenanceTick(options, currentTime);
+
+		return { processed, published };
+	}
+
+	/**
+	 * Time-gated maintenance pass shared by Cloudflare `scheduled()` and the
+	 * Node timer scheduler. Scheduled publishing and the heartbeat run every
+	 * tick; the heavier bookkeeping cleanups run only on the top of the hour so
+	 * per-minute work stays proportional to what is actually due. This keeps the
+	 * cold-start CPU budget on Workers Free from being consumed by cleanup
+	 * queries on every quiet-hours tick.
+	 */
+	private async runScheduledMaintenanceTick(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		},
+		currentTime: Date,
+	): Promise<{ published: PublishedRef[] }> {
 		let published: PublishedRef[] = [];
 		try {
 			published = await this.publishScheduledWithFence(options.onPublished);
@@ -963,11 +990,7 @@ export class EmDashRuntime {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
 
-		try {
-			await runSystemCleanup(this.db, this.storage ?? undefined);
-		} catch (error) {
-			console.error("[cleanup] System cleanup failed:", error);
-		}
+		await this.runSystemCleanupIfDue(currentTime);
 
 		try {
 			await this.syncPluginStorageIndexesOnce();
@@ -977,9 +1000,25 @@ export class EmDashRuntime {
 
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
-		await recordSchedulerHeartbeatSafely(this.db);
+		await recordSchedulerHeartbeatSafely(this.db, currentTime);
 
-		return { processed, published };
+		return { published };
+	}
+
+	private lastSystemCleanupAt: Date | null = null;
+
+	private shouldRunSystemCleanup(currentTime: Date): boolean {
+		return shouldRunSystemCleanupNow(currentTime, this.lastSystemCleanupAt);
+	}
+
+	private async runSystemCleanupIfDue(currentTime: Date): Promise<void> {
+		if (!this.shouldRunSystemCleanup(currentTime)) return;
+		this.lastSystemCleanupAt = currentTime;
+		try {
+			await runSystemCleanup(this.db, this.storage ?? undefined);
+		} catch (error) {
+			console.error("[cleanup] System cleanup failed:", error);
+		}
 	}
 
 	/**
@@ -2179,37 +2218,19 @@ export class EmDashRuntime {
 					cronScheduler = scheduler;
 
 					// Run scheduled publishing and system cleanup alongside each tick.
-					// Pass storage so cleanupPendingUploads can delete orphaned files.
+					// The heavier bookkeeping cleanup is time-gated to once per hour;
+					// per-minute work stays limited to publishing, cron tasks, and the
+					// heartbeat so cold isolates on tight CPU budgets don't pay for
+					// full cleanup on every quiet-hours tick.
 					scheduler.setSystemCleanup(async () => {
+						const runtime = runtimeRef.current;
+						if (!runtime) return;
+						const currentTime = deps.now?.() ?? new Date();
 						try {
-							// Route through the runtime so content:afterPublish hooks fire.
-							// Falls back to the raw handler if (improbably) the tick beats
-							// the post-construction ref assignment.
-							const runtime = runtimeRef.current;
-							if (runtime) {
-								await runtime.publishScheduled();
-							} else {
-								const recordWrite = await assertSiteWriteAllowed(db);
-								if ((await publishDueContent(db)).length > 0) await recordWrite();
-							}
+							await runtime.runScheduledMaintenanceTick({}, currentTime);
 						} catch (error) {
-							console.error("[scheduled-publish] Sweep failed:", error);
+							console.error("[scheduled] Maintenance tick failed:", error);
 						}
-						try {
-							await runSystemCleanup(db, storage ?? undefined);
-						} catch (error) {
-							// Non-fatal -- individual cleanup failures are already logged
-							// by runSystemCleanup. This catches unexpected errors.
-							console.error("[cleanup] System cleanup failed:", error);
-						}
-						try {
-							await runtimeRef.current?.syncPluginStorageIndexesOnce();
-						} catch (error) {
-							console.error("[plugins] Storage index sync failed:", error);
-						}
-						// Never throws; no-op unless scheduled backups are enabled and due.
-						await maybeRunScheduledBackup(db, storage ?? undefined);
-						await recordSchedulerHeartbeatSafely(db);
 					});
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.
@@ -2388,14 +2409,13 @@ export class EmDashRuntime {
 				try {
 					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
 				} catch (error) {
-					// Timing out behind another instance's in-flight migrations
-					// is not a failure of OUR migration — the holder may just be
-					// slow. Don't back off for it: the next request waits again
-					// and init recovers the moment the holder finishes.
-					if (
-						!(error instanceof ConcurrentMigrationTimeoutError) &&
-						!(error instanceof PendingMigrationsError)
-					) {
+					// Only a failed migration run, or a lock its holder left behind,
+					// backs off. Waiting behind a slow concurrent migrator, pending
+					// migrations in check mode, and errors from the applied-migration
+					// check on an up-to-date database (a lost connection, an
+					// unavailable replica) stay retryable, so the next request tries
+					// again.
+					if (error instanceof MigrationFailedError || error instanceof MigrationLockHeldError) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
 							message: error instanceof Error ? error.message : String(error),
@@ -2494,6 +2514,7 @@ export class EmDashRuntime {
 					path: p.path,
 					label: p.label ?? p.path,
 					icon: p.icon,
+					group: p.group,
 				}));
 				const adminWidgets:
 					| Array<{
@@ -2623,6 +2644,7 @@ export class EmDashRuntime {
 					path: page.path,
 					label: page.label ?? page.path,
 					icon: page.icon,
+					group: page.group,
 				}));
 				const adminWidgets: PluginDashboardWidget[] | undefined = entry.adminWidgets?.map(
 					(widget) => ({
@@ -3014,7 +3036,7 @@ export class EmDashRuntime {
 				enabled?: boolean;
 				sandboxed?: boolean;
 				adminMode?: "react" | "blocks" | "none";
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 				dashboardWidgets?: Array<{
 					id: string;
 					title?: string;
@@ -4904,14 +4926,18 @@ export class EmDashRuntime {
 				return result.result;
 			},
 			fireAfterCreate: (event) => {
-				void this.hooks
-					.runCommentAfterCreate(event)
-					.catch((error) =>
-						console.error(
-							"[comments] afterCreate error:",
-							error instanceof Error ? error.message : error,
+				// Deferred through after() so the host's waitUntil keeps the hooks
+				// alive past the response (see comments/public-submission.ts).
+				after(() =>
+					this.hooks
+						.runCommentAfterCreate(event)
+						.catch((error) =>
+							console.error(
+								"[comments] afterCreate error:",
+								error instanceof Error ? error.message : error,
+							),
 						),
-					);
+				);
 			},
 			fireAfterModerate: (event) => {
 				return this.hooks
