@@ -1454,9 +1454,10 @@ describe("Editor component behaviour", () => {
 		const lineStart = editor.state.doc.child(0).nodeSize * 40 + 1;
 		await focusEditor(editor.view.dom);
 		editor.commands.setTextSelection(lineStart);
+		scroller.scrollTop = 200;
+		await vi.waitFor(() => expect(toolbar.hasAttribute("data-stuck")).toBe(true));
 		scroller.scrollTop +=
 			editor.view.coordsAtPos(lineStart).top - toolbar.getBoundingClientRect().bottom - 30;
-		await vi.waitFor(() => expect(toolbar.hasAttribute("data-stuck")).toBe(true));
 
 		await userEvent.keyboard("{ArrowUp}");
 
