@@ -46,3 +46,7 @@ The Project Lead decides roadmap placement, including each initiative's horizon,
 Accepting a design permits implementation. It does not make the work a project priority or promise it for a release.
 
 A contributor who proposes and intends to implement an accepted design can proceed without roadmap placement. An accepted design without an implementer remains in the [proposals index](proposals/README.md) and enters the roadmap only if the project later decides to drive the work.
+
+## Next major release
+
+Deprecated behavior and APIs stay supported through 1.x and are removed in the next major release. The [deprecations tracking issue](https://github.com/emdash-cms/emdash/issues/3917) lists them. Removing them needs an RFC before the next major.

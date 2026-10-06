@@ -28,7 +28,7 @@ A feature plan can merge after one human Maintainer other than the author approv
 
 ### RFC
 
-Use an RFC when the change affects a public API, stored data, plugin surface, security boundary, default, backwards compatibility, several packages or runtimes, critical-path performance, a privileged supply-chain system, a breaking change, or another decision that would be expensive to reverse. A design that deprecates existing behavior or an API almost always needs an RFC.
+Use an RFC when the change affects a public API, stored data, plugin surface, security boundary, default, backwards compatibility, several packages or runtimes, critical-path performance, a privileged supply-chain system, a breaking change, or another decision that would be expensive to reverse. A design that deprecates existing behavior or an API almost always needs an RFC. When it merges, the Maintainer who merges it adds each deprecated item to the [deprecations tracking issue](https://github.com/emdash-cms/emdash/issues/3917).
 
 Start with an [Ideas Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) to establish the problem, demand, and broad scope. Then copy [`rfc-template.md`](./rfc-template.md) to a descriptive filename and open a design pull request.
 
