@@ -2752,6 +2752,17 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
+				.emdash-inline-editor p.is-editor-empty {
+					display: flow-root;
+				}
+				.emdash-inline-editor p.is-editor-empty::before {
+					content: attr(data-placeholder);
+					float: inline-start;
+					width: 100%;
+					margin-inline-end: -100%;
+					opacity: 0.5;
+					pointer-events: none;
+				}
 				.emdash-inline-editor-guidance {
 					margin-block-start: 0.75rem;
 					padding-block: 0.625rem;
