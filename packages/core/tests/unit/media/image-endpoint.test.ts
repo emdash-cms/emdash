@@ -276,6 +276,12 @@ describe("makeWeakEtag", () => {
 });
 
 describe("getTransformFingerprint", () => {
+	it("distinguishes crops with different positions", () => {
+		const top = new URLSearchParams("w=32&h=32&fit=cover&position=top");
+		const bottom = new URLSearchParams("w=32&h=32&fit=cover&position=bottom");
+		expect(getTransformFingerprint(top)).not.toBe(getTransformFingerprint(bottom));
+	});
+
 	it("serializes the relevant query params in a stable order", () => {
 		const params = new URLSearchParams("h=150&f=webp&q=85&w=100&fit=cover&extra=ignored");
 		expect(getTransformFingerprint(params)).toBe("w=100&h=150&f=webp&q=85&fit=cover");

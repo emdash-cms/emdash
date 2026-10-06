@@ -135,6 +135,7 @@ export function getTransformFingerprint(params: URLSearchParams): string {
 	append("f");
 	append("q");
 	append("fit");
+	append("position");
 	return parts.join("&");
 }
 

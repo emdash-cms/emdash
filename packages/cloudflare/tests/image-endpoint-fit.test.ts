@@ -1,4 +1,5 @@
 import type { APIContext } from "astro";
+import { makeWeakEtag } from "emdash/media/image-endpoint";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { adapterGET, transform, images } = vi.hoisted(() => {
@@ -35,14 +36,16 @@ const storage = {
 			},
 		}),
 		contentType: "image/jpeg",
+		size: 3,
+		lastModified: new Date("2026-10-01T12:00:00.000Z"),
 	}),
 };
 
 /** Request the endpoint the way Astro's image service does. */
-function request(params: string): Promise<Response> {
+function request(params: string, headers?: HeadersInit): Promise<Response> {
 	const href = encodeURIComponent("/_emdash/api/media/file/01J5ABC.webp");
 	const ctx = {
-		request: new Request(`https://example.com/_image?href=${href}&${params}`),
+		request: new Request(`https://example.com/_image?href=${href}&${params}`, { headers }),
 		locals: { emdash: { storage } },
 	} as unknown as APIContext;
 	return GET(ctx) as Promise<Response>;
@@ -66,9 +69,14 @@ describe("Cloudflare image endpoint: fit and position", () => {
 	});
 
 	it("never asks the binding to enlarge, matching Astro's sharp service", async () => {
-		for (const fit of ["cover", "contain", "inside", "scale-down"]) {
+		for (const [fit, bindingFit] of [
+			["cover", "crop"],
+			["contain", "scale-down"],
+			["inside", "scale-down"],
+			["scale-down", "scale-down"],
+		]) {
 			await request(`w=64&h=64&fit=${fit}`);
-			expect(["crop", "scale-down"]).toContain(lastTransform().fit);
+			expect(lastTransform().fit).toBe(bindingFit);
 		}
 	});
 
@@ -83,6 +91,36 @@ describe("Cloudflare image endpoint: fit and position", () => {
 
 		await request("w=32&h=32&fit=cover&position=attention");
 		expect(lastTransform().gravity).toBe("auto");
+	});
+
+	it("revalidates the same crop but transforms when its position changes", async () => {
+		const params = "w=32&h=32&fit=cover&position=top";
+		const original = await request(params);
+		const etag = original.headers.get("ETag") ?? "";
+		expect(original.status).toBe(200);
+		expect(etag).not.toBe("");
+		transform.mockClear();
+
+		const cached = await request(params, { "If-None-Match": etag });
+		expect(cached.status).toBe(304);
+		expect(transform).not.toHaveBeenCalled();
+
+		const changed = await request("w=32&h=32&fit=cover&position=bottom", {
+			"If-None-Match": etag,
+		});
+		expect(changed.status).toBe(200);
+		expect(changed.headers.get("ETag")).not.toBe(etag);
+		expect(lastTransform().gravity).toBe("bottom");
+	});
+
+	it("replaces cached renditions from before fit was forwarded", async () => {
+		const params = "w=32&h=32&fit=cover";
+		const oldEtag = makeWeakEtag(3, new Date("2026-10-01T12:00:00.000Z"), params);
+		const response = await request(params, { "If-None-Match": oldEtag });
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("ETag")).not.toBe(oldEtag);
+		expect(lastTransform().fit).toBe("crop");
 	});
 
 	it("maps sharp's compass names onto the edges they mean", async () => {

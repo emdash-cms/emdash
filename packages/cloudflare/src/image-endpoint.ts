@@ -38,10 +38,8 @@ const FORMAT_MIME: Record<ImageTransformFormat, ImageOutputOptions["format"]> = 
 };
 
 /**
- * Maps Astro `fit` values to the Cloudflare Images binding's fit vocabulary.
- * Astro's sharp service never enlarges, so the cropping and fitting values map
- * to the binding's non-enlarging fits. Unmapped values (e.g. `outside`) become `undefined`,
- * leaving the binding's default behaviour unchanged.
+ * Astro's cover, contain, and inside fits map to non-enlarging binding fits.
+ * fill may enlarge small sources. Unmapped fits use the binding's default.
  */
 const FIT_TO_BINDING: Record<ImageTransformFit, ImageTransform["fit"] | undefined> = {
 	fill: "squeeze",
@@ -169,7 +167,7 @@ export const GET: APIRoute = async (ctx) => {
 		// No binding or unparseable params: serve the original so the URL resolves.
 		if (!images || !parsed.ok) return serveOriginal(source);
 
-		const fingerprint = getTransformFingerprint(url.searchParams);
+		const fingerprint = `cf-images-v2:${getTransformFingerprint(url.searchParams)}`;
 		if (isNotModified(ctx.request, source.size, source.lastModified, fingerprint)) {
 			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
 		}

@@ -3,4 +3,6 @@
 "emdash": patch
 ---
 
-Fixes images on Cloudflare that set both `width` and `height` (including EmDash's `<Image>` and Astro's `<Image>` and `<Picture>`) being scaled down inside the box instead of cropped to fill it. `fit` is now honored, cropping and fitting never enlarge small sources, and a single-keyword `position` such as `top` or `left` controls which part is kept.
+Fixes Cloudflare image renditions ignoring Astro's `fit` and single-keyword `position` options. Images requested with `fit="cover"` now crop to fill their box, and `cover`, `contain`, and `inside` never enlarge small sources. `fill` uses Cloudflare's `squeeze` mode, which can enlarge small sources.
+
+Cached renditions refresh after upgrading and whenever the crop position changes.
