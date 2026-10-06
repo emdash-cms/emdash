@@ -38,10 +38,6 @@ const formatDate = (date: Date) =>
 	<div class="posts-page">
 		<header class="page-header">
 			<h1 class="page-title">All Posts</h1>
-			<p class="page-description">
-				{posts.length}
-				{posts.length === 1 ? "article" : "articles"}
-			</p>
 		</header>
 
 		{
@@ -124,11 +120,6 @@ const formatDate = (date: Date) =>
 		font-weight: 700;
 		letter-spacing: var(--tracking-tight);
 		margin-bottom: var(--spacing-2);
-	}
-
-	.page-description {
-		font-size: var(--font-size-lg);
-		color: var(--color-muted);
 	}
 
 	.empty {

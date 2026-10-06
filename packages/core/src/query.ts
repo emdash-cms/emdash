@@ -907,6 +907,13 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 			: filter?.offset !== undefined
 				? { offset: filter.offset }
 				: {};
+	// Same draft access as `getEmDashEntry`: editors see every entry's draft,
+	// a preview token only the draft of the entry it was issued for.
+	const draftRevisions = ctx?.editMode
+		? "all"
+		: ctx?.preview?.collection === type
+			? { id: ctx.preview.id }
+			: undefined;
 	const result = await getLiveCollection(COLLECTION_NAME, {
 		type,
 		status: filter?.status,
@@ -915,6 +922,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
+		draftRevisions,
 	});
 
 	const { entries, error, cacheHint } = result;

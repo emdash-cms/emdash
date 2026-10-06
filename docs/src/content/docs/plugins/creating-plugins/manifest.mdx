@@ -140,6 +140,8 @@ Sandboxed plugins render admin pages and dashboard widgets with [Block Kit](/plu
 
 Page paths begin with `/` and contain letters, digits, `/`, `_`, or `-`. Widget IDs use the same lowercase identifier characters as plugin slugs. Widget sizes are `full`, `half`, or `third`.
 
+A page may also set `group` to join a collapsible sidebar folder. Matching is case-sensitive and surrounding whitespace is ignored. A group that matches the group of a collection shown in the sidebar puts the page in that folder; pages sharing any other group, from any plugin, form a folder with that label in the Plugins section.
+
 A plugin that declares a page or widget must define a route named `admin` in `src/plugin.ts`. The bundle check fails if that route is missing because EmDash would have nothing to call for the Block Kit response.
 
 ## Release fields
