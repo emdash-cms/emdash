@@ -5,7 +5,7 @@
  * caption under it and Replace and Delete in a pill over its corner.
  * Round-trips through Portable Text as
  * `{ _type: "video", _key, asset?: { _ref, url?, provider? }, caption?, width?, height? }`,
- * without `asset` while empty.
+ * without `asset` when it has no video.
  * Keep the shape in sync with core's `content/converters/video.ts`.
  */
 
@@ -318,7 +318,7 @@ function VideoNodeView({
 				</div>
 
 				{editable ? (
-					// Inline-size containment keeps the placeholder from widening the block.
+					// Inline-size containment keeps the caption's placeholder text from widening the block.
 					<figcaption className="mt-2 [contain:inline-size]">
 						<textarea
 							ref={captionRef}
