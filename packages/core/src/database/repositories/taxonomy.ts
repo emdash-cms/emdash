@@ -645,14 +645,20 @@ export class TaxonomyRepository {
 		taxonomyGroups: string[],
 	): Promise<number> {
 		let inserted = 0;
-		for (const batch of chunks(taxonomyGroups, ASSIGNMENTS_PER_INSERT)) {
-			// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
-			const result = await this.db
-				.insertInto("content_taxonomies")
-				.values(batch.map((taxonomy_id) => ({ collection, entry_id: entryGroup, taxonomy_id })))
-				.onConflict((oc) => oc.doNothing())
-				.executeTakeFirst();
-			inserted += Number(result.numInsertedOrUpdatedRows ?? 0n);
+		try {
+			for (const batch of chunks(taxonomyGroups, ASSIGNMENTS_PER_INSERT)) {
+				// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
+				const result = await this.db
+					.insertInto("content_taxonomies")
+					.values(batch.map((taxonomy_id) => ({ collection, entry_id: entryGroup, taxonomy_id })))
+					.onConflict((oc) => oc.doNothing())
+					.executeTakeFirst();
+				inserted += Number(result.numInsertedOrUpdatedRows ?? 0n);
+			}
+		} catch (error) {
+			// Earlier batches are already written.
+			if (inserted > 0) invalidateTaxonomyObjectCache();
+			throw error;
 		}
 		return inserted;
 	}
@@ -663,15 +669,21 @@ export class TaxonomyRepository {
 		taxonomyGroups: string[],
 	): Promise<number> {
 		let removed = 0;
-		for (const batch of chunks(taxonomyGroups, SQL_BATCH_SIZE)) {
-			// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
-			const result = await this.db
-				.deleteFrom("content_taxonomies")
-				.where("collection", "=", collection)
-				.where("entry_id", "=", entryGroup)
-				.where("taxonomy_id", "in", batch)
-				.executeTakeFirst();
-			removed += Number(result.numDeletedRows ?? 0n);
+		try {
+			for (const batch of chunks(taxonomyGroups, SQL_BATCH_SIZE)) {
+				// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
+				const result = await this.db
+					.deleteFrom("content_taxonomies")
+					.where("collection", "=", collection)
+					.where("entry_id", "=", entryGroup)
+					.where("taxonomy_id", "in", batch)
+					.executeTakeFirst();
+				removed += Number(result.numDeletedRows ?? 0n);
+			}
+		} catch (error) {
+			// Earlier batches are already deleted.
+			if (removed > 0) invalidateTaxonomyObjectCache();
+			throw error;
 		}
 		return removed;
 	}
@@ -815,12 +827,13 @@ export class TaxonomyRepository {
 		const currentGroups = new Set(current.map((r) => r.group));
 
 		const toRemove = [...currentGroups].filter((g) => !newGroups.has(g));
-		if (toRemove.length > 0) await this.deleteAssignments(collection, entryGroup, toRemove);
-
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
-		if (toAdd.length > 0) await this.insertAssignments(collection, entryGroup, toAdd);
-
-		if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
+		try {
+			if (toRemove.length > 0) await this.deleteAssignments(collection, entryGroup, toRemove);
+			if (toAdd.length > 0) await this.insertAssignments(collection, entryGroup, toAdd);
+		} finally {
+			if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
+		}
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
