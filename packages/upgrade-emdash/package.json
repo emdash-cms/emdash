@@ -1,6 +1,6 @@
 {
   "name": "upgrade-emdash",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Upgrade an EmDash project and prepare its migration work",
   "type": "module",
   "bin": "./dist/index.mjs",
