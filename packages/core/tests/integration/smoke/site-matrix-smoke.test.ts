@@ -25,6 +25,10 @@ interface SiteCase {
 	requireDoctype?: boolean;
 	verifyMcp?: boolean;
 	frontendExpectations?: Array<{ path: string; text: string }>;
+	/** Every URL this sitemap lists must load. */
+	sitemapPath?: string;
+	/** Entry whose signed preview link must serve its draft title. */
+	previewEntry?: { collection: string; id: string };
 }
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
@@ -76,6 +80,8 @@ const SITE_MATRIX: SiteCase[] = [
 			{ path: "/", text: "Build products people actually want" },
 			{ path: "/pricing", text: "Simple, transparent pricing" },
 		],
+		sitemapPath: "/sitemap-pages.xml",
+		previewEntry: { collection: "pages", id: "home" },
 	},
 	{
 		name: "templates/marketing-cloudflare",
@@ -86,6 +92,8 @@ const SITE_MATRIX: SiteCase[] = [
 			{ path: "/", text: "Build products people actually want" },
 			{ path: "/pricing", text: "Simple, transparent pricing" },
 		],
+		sitemapPath: "/sitemap-pages.xml",
+		previewEntry: { collection: "pages", id: "home" },
 	},
 	{
 		name: "templates/portfolio",
@@ -126,13 +134,18 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
 	throw new Error(`Server at ${url} did not start within ${timeoutMs}ms`);
 }
 
-async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promise<Response> {
+async function fetchWithRetry(
+	url: string | URL,
+	{ redirect = "manual" }: { redirect?: RequestRedirect } = {},
+	retries = 10,
+	delayMs = 1500,
+): Promise<Response> {
 	let lastError: unknown;
 
 	for (let attempt = 0; attempt <= retries; attempt++) {
 		try {
 			const res = await fetch(url, {
-				redirect: "manual",
+				redirect,
 				signal: AbortSignal.timeout(15_000),
 			});
 			if (res.status < 500) return res;
@@ -315,6 +328,67 @@ async function verifyCoreMcp(baseUrl: string, token: string): Promise<void> {
 	);
 }
 
+const SITEMAP_LOC = /<loc>([^<]+)<\/loc>/g;
+
+async function verifySitemapUrlsLoad(baseUrl: string, sitemapPath: string): Promise<void> {
+	const sitemapRes = await fetchWithRetry(`${baseUrl}${sitemapPath}`);
+	expect(sitemapRes.status).toBe(200);
+	const paths = Array.from(
+		(await sitemapRes.text()).matchAll(SITEMAP_LOC),
+		(match) => new URL(match[1] ?? "/", baseUrl).pathname,
+	);
+	expect(paths).not.toHaveLength(0);
+
+	const statuses: Record<string, number> = {};
+	for (const path of paths) {
+		statuses[path] = (await fetchWithRetry(`${baseUrl}${path}`, { redirect: "follow" })).status;
+	}
+	expect(statuses).toEqual(Object.fromEntries(paths.map((path) => [path, 200])));
+}
+
+async function verifyDraftPreview(
+	baseUrl: string,
+	token: string,
+	entry: { collection: string; id: string },
+): Promise<void> {
+	const headers = {
+		Authorization: `Bearer ${token}`,
+		"Content-Type": "application/json",
+		"X-EmDash-Request": "1",
+	};
+	const entryUrl = `${baseUrl}/_emdash/api/content/${entry.collection}/${entry.id}`;
+	const draftTitle = `Draft preview ${Date.now()}`;
+
+	const updateRes = await fetch(entryUrl, {
+		method: "PUT",
+		headers,
+		body: JSON.stringify({ data: { title: draftTitle } }),
+		signal: AbortSignal.timeout(15_000),
+	});
+	expect(updateRes.status).toBe(200);
+
+	const previewUrlRes = await fetch(`${entryUrl}/preview-url`, {
+		method: "POST",
+		headers,
+		body: "{}",
+		signal: AbortSignal.timeout(15_000),
+	});
+	expect(previewUrlRes.status).toBe(200);
+	const { data } = (await previewUrlRes.json()) as { data?: { url?: string } };
+	const previewUrl = new URL(data?.url ?? "", baseUrl);
+	expect(previewUrl.searchParams.has("_preview")).toBe(true);
+
+	const draftRes = await fetchWithRetry(previewUrl, { redirect: "follow" });
+	expect(draftRes.status).toBe(200);
+	expect(await draftRes.text()).toContain(draftTitle);
+
+	const publishedRes = await fetchWithRetry(new URL(previewUrl.pathname, baseUrl), {
+		redirect: "follow",
+	});
+	expect(publishedRes.status).toBe(200);
+	expect(await publishedRes.text()).not.toContain(draftTitle);
+}
+
 // ---------------------------------------------------------------------------
 // Runtime verification — boots each site with `astro dev` and checks that
 // admin + frontend respond.
@@ -326,6 +400,7 @@ describe.sequential("Site runtime verification", () => {
 		const frontendPath = site.frontendPath ?? "/";
 		const frontendStatuses = site.frontendStatuses ?? [200, 302, 307, 308];
 		const requireDoctype = site.requireDoctype ?? true;
+		const needsToken = site.verifyMcp || site.previewEntry !== undefined;
 
 		it(
 			`${site.name} boots and serves admin + frontend${site.verifyMcp ? " + MCP" : ""}`,
@@ -334,16 +409,16 @@ describe.sequential("Site runtime verification", () => {
 				const server = await bootSite(site);
 
 				try {
-					let mcpToken: string | undefined;
+					let apiToken: string | undefined;
 					if (setupPath) {
 						const setupRes = await fetchSetupOnce(
-							`${server.baseUrl}${site.verifyMcp ? "/_emdash/api/setup/dev-bypass?token=1" : setupPath}`,
+							`${server.baseUrl}${needsToken ? "/_emdash/api/setup/dev-bypass?token=1" : setupPath}`,
 						);
 						expect(setupRes.status).toBeLessThan(500);
-						if (site.verifyMcp) {
+						if (needsToken) {
 							const setup = (await setupRes.json()) as { data?: { token?: string } };
-							mcpToken = setup.data?.token;
-							expect(mcpToken).toBeTruthy();
+							apiToken = setup.data?.token;
+							expect(apiToken).toBeTruthy();
 						}
 					}
 
@@ -362,8 +437,14 @@ describe.sequential("Site runtime verification", () => {
 						expect(response.status).toBe(200);
 						expect(await response.text()).toContain(expectation.text);
 					}
-					if (site.verifyMcp && mcpToken) {
-						await verifyCoreMcp(server.baseUrl, mcpToken);
+					if (site.sitemapPath) {
+						await verifySitemapUrlsLoad(server.baseUrl, site.sitemapPath);
+					}
+					if (site.previewEntry && apiToken) {
+						await verifyDraftPreview(server.baseUrl, apiToken, site.previewEntry);
+					}
+					if (site.verifyMcp && apiToken) {
+						await verifyCoreMcp(server.baseUrl, apiToken);
 					}
 				} catch (error) {
 					throw new Error(
