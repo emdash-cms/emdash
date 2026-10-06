@@ -88,7 +88,7 @@ A rate-limited purge fails without an error in the admin, and the affected pages
 
 ## Keep responses out of the cache
 
-Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash opts its own editor-facing responses out automatically; error responses and middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
+Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash keeps responses rendered for a signed-in user, and responses sent with `Cache-Control: private` or `no-store`, out of the route cache automatically. Error responses and middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
 
 `Astro.cache.set(false)` only holds until the next `Astro.cache.set()` call. A layout renders after the page frontmatter, so a layout that sets a cache hint turns caching back on for a page that opted out. Pass the opt-out to the layout (for example as a prop) and skip its `Astro.cache.set()` calls when it is set.
 
@@ -118,7 +118,7 @@ Middleware that short-circuits with a redirect (for example, host canonicalizati
 
 ## Editors and cached pages
 
-The edge cache stores one shared variant per URL and answers before the Worker runs, so it never sees an editor's session. With the default server-rendered toolbar, an editor browsing the public site is usually served the cached anonymous variant, without the toolbar, and the `emdash-edit-mode` cookie has no effect on a cached URL. Responses rendered with the toolbar opt out of the route cache and are never stored in the shared cache.
+The edge cache stores one shared variant per URL and answers before the Worker runs, so it never sees an editor's session. With the default server-rendered toolbar, an editor browsing the public site is usually served the cached anonymous variant, without the toolbar, and the `emdash-edit-mode` cookie has no effect on a cached URL. A page rendered for a signed-in editor is never stored in the shared cache; the next anonymous visitor fills it.
 
 Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites behind the edge cache. A small script then shows the edit pill to signed-in editors on cached pages, and the edit view loads from an `?_edit` URL that is always rendered fresh. Preview links bypass the cache in either mode.
 
