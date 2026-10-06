@@ -254,6 +254,11 @@ export interface AdminManifest {
 	 */
 	authMode: string;
 	/**
+	 * Whether the external auth provider replaces user names on every
+	 * authenticated request, so names cannot be edited in the admin.
+	 */
+	providerManagedName?: boolean;
+	/**
 	 * Whether self-signup is enabled (at least one allowed domain is active).
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */

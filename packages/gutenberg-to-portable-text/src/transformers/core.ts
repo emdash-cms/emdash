@@ -2,10 +2,17 @@
  * Transformers for WordPress core/* blocks
  */
 
-import { extractAlt, extractCaption, extractSrc, extractText } from "../inline.js";
+import {
+	decodeUrlEntities,
+	extractAlt,
+	extractCaption,
+	extractSrc,
+	extractText,
+} from "../inline.js";
 import type {
 	GutenbergBlock,
 	PortableTextBlock,
+	PortableTextButtonBlock,
 	PortableTextTextBlock,
 	BlockTransformer,
 	TransformContext,
@@ -22,6 +29,7 @@ const NESTED_LIST_PATTERN = /<[uo]l[^>]*>[\s\S]*<\/[uo]l>/gi;
 const P_TAG_PATTERN = /<p[^>]*>([\s\S]*?)<\/p>/gi;
 const P_TAG_SINGLE_PATTERN = /<p[^>]*>([\s\S]*?)<\/p>/i;
 const HREF_PATTERN = /href="([^"]*)"/i;
+const ANCHOR_HREF_PATTERN = /<a\b[^>]*?\shref="([^"]*)"/i;
 const DATA_ID_PATTERN = /data-id=["'](\d+)["']/i;
 const CODE_TAG_PATTERN_SINGLE = /<code[^>]*>([\s\S]*?)<\/code>/i;
 const IMG_TAG_GLOBAL = /<img[^>]+>/gi;
@@ -783,14 +791,13 @@ function decodeHtmlEntities(html: string): string {
 		.replace(NBSP_ENTITY_PATTERN, " ");
 }
 
-/**
- * core/button → button block
- */
-export const button: BlockTransformer = (block, _options, context) => {
-	const url = sanitizeHref(attrString(block.attrs, "url"));
+function toButton(block: GutenbergBlock, context: TransformContext): PortableTextButtonBlock {
+	// WordPress stores the button link in the markup, not in the block comment attributes
+	const rawUrl =
+		attrString(block.attrs, "url") ||
+		decodeUrlEntities(block.innerHTML.match(ANCHOR_HREF_PATTERN)?.[1] ?? "");
 	const text = extractText(block.innerHTML).trim() || "Button";
 
-	// Detect button style from className
 	let style: "default" | "outline" | "fill" = "default";
 	const className = attrString(block.attrs, "className");
 	if (className?.includes("is-style-outline")) {
@@ -799,51 +806,27 @@ export const button: BlockTransformer = (block, _options, context) => {
 		style = "fill";
 	}
 
-	return [
-		{
-			_type: "button",
-			_key: context.generateKey(),
-			text,
-			url,
-			style,
-		},
-	];
-};
+	return {
+		_type: "button",
+		_key: context.generateKey(),
+		text,
+		url: sanitizeHref(rawUrl),
+		style,
+	};
+}
+
+/**
+ * core/button → button block
+ */
+export const button: BlockTransformer = (block, _options, context) => [toButton(block, context)];
 
 /**
  * core/buttons → buttons container block
  */
 export const buttons: BlockTransformer = (block, _options, context) => {
-	const buttonBlocks: Array<{
-		_type: "button";
-		_key: string;
-		text: string;
-		url?: string;
-		style?: "default" | "outline" | "fill";
-	}> = [];
-
-	for (const innerBlock of block.innerBlocks) {
-		if (innerBlock.blockName === "core/button") {
-			const url = attrString(innerBlock.attrs, "url");
-			const text = extractText(innerBlock.innerHTML).trim() || "Button";
-
-			let style: "default" | "outline" | "fill" = "default";
-			const className = attrString(innerBlock.attrs, "className");
-			if (className?.includes("is-style-outline")) {
-				style = "outline";
-			} else if (className?.includes("is-style-fill")) {
-				style = "fill";
-			}
-
-			buttonBlocks.push({
-				_type: "button",
-				_key: context.generateKey(),
-				text,
-				url,
-				style,
-			});
-		}
-	}
+	const buttonBlocks = block.innerBlocks
+		.filter((innerBlock) => innerBlock.blockName === "core/button")
+		.map((innerBlock) => toButton(innerBlock, context));
 
 	// Detect layout from attrs
 	const layoutObj = attrObject(block.attrs, "layout");

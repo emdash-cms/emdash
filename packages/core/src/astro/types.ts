@@ -167,6 +167,12 @@ export interface EmDashManifest {
 	 */
 	authMode: ManifestAuthMode;
 	/**
+	 * Whether the external auth provider replaces user names on every
+	 * authenticated request (`syncName` is not `false`). The admin shows the
+	 * name as managed by the identity provider instead of editable.
+	 */
+	providerManagedName?: boolean;
+	/**
 	 * Whether self-signup is enabled (at least one allowed domain is active).
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */

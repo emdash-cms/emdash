@@ -377,7 +377,7 @@ describe("astro middleware prerendered routes", () => {
 		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
-	it.each(["/sitemap-post.xml", "/sitemap-post-2.xml"])(
+	it.each(["/sitemap-post.xml", "/sitemap-post-2.xml", `/sitemap-${"a".repeat(63)}.xml`])(
 		"initializes the runtime for collection sitemap %s",
 		async (path) => {
 			const locals: Record<string, unknown> = {};
@@ -397,6 +397,31 @@ describe("astro middleware prerendered routes", () => {
 			);
 		},
 	);
+
+	it.each([
+		"/sitemap-0.xml",
+		"/sitemap-Post.xml",
+		"/sitemap-a.b.xml",
+		"/sitemap-.xml",
+		"/sitemap-post-1.xml",
+		`/sitemap-${"a".repeat(64)}.xml`,
+	])("skips runtime setup for %s, which no collection can have", async (path) => {
+		const locals: Record<string, unknown> = {};
+		const context = {
+			request: new Request(`https://example.com${path}`),
+			url: new URL(`https://example.com${path}`),
+			cookies: { get: vi.fn(() => undefined) },
+			locals,
+			redirect: vi.fn(),
+			isPrerendered: true,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(
+			(locals.emdash as Record<string, unknown> | undefined)?.handlePluginApiRoute,
+		).toBeUndefined();
+	});
 
 	it("does not access context.session when prerendering public pages", async () => {
 		const cookies = {
