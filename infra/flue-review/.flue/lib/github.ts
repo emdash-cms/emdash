@@ -927,6 +927,58 @@ export async function fetchPriorReview(
 	}
 }
 
+const DESIGN_PR_LINK =
+	/New features link to their merged design PR:\s*https:\/\/github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/(\d+)/i;
+const PROPOSAL_PATH = /^proposals\/(?!README\.md$)(?!.*-template\.md$)[^/]+\.md$/;
+
+export interface AcceptedDesign {
+	prNumber: number;
+	proposals: string[];
+}
+
+/**
+ * The proposals accepted by the merged design PR that a feature PR links in its
+ * template checklist. Undefined when there is no link to a merged design PR in
+ * this repository or the lookup fails: the review proceeds without it.
+ */
+export async function fetchAcceptedDesign(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prBody: string,
+): Promise<AcceptedDesign | undefined> {
+	const link = prBody.match(DESIGN_PR_LINK);
+	if (
+		!link ||
+		link[1]?.toLowerCase() !== owner.toLowerCase() ||
+		link[2]?.toLowerCase() !== repo.toLowerCase()
+	) {
+		return undefined;
+	}
+	const prNumber = Number(link[3]);
+	const pullApiUrl = `${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`;
+	try {
+		const pullRes = await coordinatedFetch(token, pullApiUrl, {
+			headers: installationHeaders(token),
+		});
+		if (!pullRes.ok) return undefined;
+		const pull = await pullRes.json<{ merged_at?: string | null }>();
+		if (!pull.merged_at) return undefined;
+
+		const filesRes = await coordinatedFetch(token, `${pullApiUrl}/files?per_page=100`, {
+			headers: installationHeaders(token),
+		});
+		if (!filesRes.ok) return undefined;
+		const files = await filesRes.json<Array<{ filename: string; status: string }>>();
+		const proposals = files
+			.filter((file) => file.status !== "removed" && PROPOSAL_PATH.test(file.filename))
+			.map((file) => file.filename);
+		return proposals.length > 0 ? { prNumber, proposals } : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * Add an 👀 reaction to the PR to signal "review in progress". Returns the
  * reaction id (to remove later) or undefined on failure. Non-fatal: a missing

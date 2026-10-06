@@ -20,8 +20,7 @@ Discussion: <!-- link to relevant discussion -->
 
 ## Readiness
 
-- [ ] The proposal identifies its author and, for an RFC, its champion and Maintainer sponsor
-- [ ] The proposal's `design-pr` field contains this pull request number
+- [ ] The proposal identifies its author and, for an RFC, its champion and Maintainer sponsor (required)
 - [ ] The proposal describes observable behavior, compatibility, failure handling, and verification in proportion to its risk
 - [ ] Conflicting accepted or pending proposals are reconciled in this pull request
 - [ ] This pull request contains no implementation code

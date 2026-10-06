@@ -50,8 +50,6 @@ Draft design pull requests are encouraged. A draft can contain unresolved questi
 
 Prototyping is encouraged during design. Test feasibility, interfaces, performance, or interactions locally or in a fork, then link the findings from the design pull request. Do not open prototype implementation pull requests against EmDash before the design is accepted.
 
-After opening the design pull request, replace `pending` in the proposal's `design-pr` field with its pull request number. The number is assigned by GitHub, so it cannot collide with another proposal.
-
 Set the proposal status to `accepted` in the revision that the Maintainers approve. Merging the design pull request accepts the design and permits implementation. Close the design pull request after rejection or withdrawal; do not keep it open during implementation.
 
 ## Implement an accepted design

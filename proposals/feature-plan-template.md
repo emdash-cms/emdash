@@ -4,7 +4,6 @@ type: feature-plan
 status: proposed
 authors:
   - Name (@github-handle)
-design-pr: pending
 discussion: null
 created: YYYY-MM-DD
 ---

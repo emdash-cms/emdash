@@ -23,7 +23,7 @@ The repo's AGENTS.md is loaded into your context separately. **Read it carefully
 
 ## How to investigate
 
-1. **Start with author intent.** Read the PR description and changeset. What is this PR claiming to fix or change? Verify the description matches the diff. For a feature, find the linked merged design PR number, then locate the proposal under `proposals/` whose `design-pr` field matches it. Check the implementation against every behavior, interface, compatibility constraint, edge case, and verification requirement in that accepted design. If the description overstates the impact (e.g. claims a function "would have stripped data" when that function has zero production call sites), that's a finding.
+1. **Start with author intent.** Read the PR description and changeset. What is this PR claiming to fix or change? Verify the description matches the diff. For a feature, find the linked merged design PR number, then read the `proposals/*.md` files that design PR added or changed (`gh pr view <number> --json files`) from the current `proposals/` directory. Check the implementation against every behavior, interface, compatibility constraint, edge case, and verification requirement in that accepted design. If the description overstates the impact (e.g. claims a function "would have stripped data" when that function has zero production call sites), that's a finding.
 
 2. **Read the full PR diff.** `gh pr diff <PR> --repo emdash-cms/emdash` and `gh api repos/emdash-cms/emdash/pulls/<PR>/files` for the file list with addition/deletion counts.
 

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	completeReviewCheck,
 	createReviewCheck,
+	fetchAcceptedDesign,
 	fetchPriorReview,
 	findReviewCheck,
 	classifyPullRequestHeadMove,
@@ -1155,5 +1156,62 @@ describe("fetchPriorReview", () => {
 		await expect(fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42)).resolves.toBe(
 			"Your previous review (state: COMMENTED):\n\nThe artifact upload path should be fixed before merge.",
 		);
+	});
+});
+
+describe("fetchAcceptedDesign", () => {
+	const body = [
+		"## Checklist",
+		"",
+		"- [x] New features link to their merged design PR: https://github.com/emdash-cms/emdash/pull/42",
+	].join("\n");
+
+	function stubDesignPullRequest(mergedAt: string | null): ReturnType<typeof vi.fn<typeof fetch>> {
+		const fetchMock = vi.fn<typeof fetch>(async (input) => {
+			const url = new Request(input).url;
+			if (url.endsWith("/pulls/42")) return Response.json({ number: 42, merged_at: mergedAt });
+			if (url.includes("/pulls/42/files")) {
+				return Response.json([
+					{ filename: "proposals/content-locking.md", status: "added" },
+					{ filename: "proposals/README.md", status: "modified" },
+					{ filename: "proposals/old-locking.md", status: "removed" },
+				]);
+			}
+			return new Response(null, { status: 404 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		return fetchMock;
+	}
+
+	it("lists the proposals accepted by the linked merged design PR", async () => {
+		stubDesignPullRequest("2026-10-06T09:00:00Z");
+
+		await expect(fetchAcceptedDesign(TOKEN, "emdash-cms", "emdash", body)).resolves.toEqual({
+			prNumber: 42,
+			proposals: ["proposals/content-locking.md"],
+		});
+	});
+
+	it("ignores a design PR that has not merged", async () => {
+		stubDesignPullRequest(null);
+
+		await expect(fetchAcceptedDesign(TOKEN, "emdash-cms", "emdash", body)).resolves.toBeUndefined();
+	});
+
+	it("ignores PRs without a design link or with a link to another repository", async () => {
+		const fetchMock = stubDesignPullRequest("2026-10-06T09:00:00Z");
+
+		await expect(
+			fetchAcceptedDesign(TOKEN, "emdash-cms", "emdash", "## Checklist\n\nNo feature."),
+		).resolves.toBeUndefined();
+		await expect(
+			fetchAcceptedDesign(
+				TOKEN,
+				"emdash-cms",
+				"emdash",
+				body.replace("emdash-cms/emdash", "someone/fork"),
+			),
+		).resolves.toBeUndefined();
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

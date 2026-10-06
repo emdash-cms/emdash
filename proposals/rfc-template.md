@@ -6,7 +6,6 @@ authors:
   - Name (@github-handle)
 champion: Name (@github-handle)
 sponsor: Name (@github-handle)
-design-pr: pending
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/XXX
 created: YYYY-MM-DD
