@@ -385,7 +385,7 @@ Options for `access()`:
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
 | `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
-| `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to keep names edited in the admin |
+| `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names to EmDash role levels; first match wins                                  |
 
 <Aside>
