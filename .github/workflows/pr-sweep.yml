@@ -49,7 +49,6 @@ jobs:
               'needs-approval': 'fbca04',
               'needs-rebase': 'e11d48',
               'stale': 'ededed',
-              'overlap': 'c5def5',
             };
 
             // Ensure labels exist
@@ -78,9 +77,6 @@ jobs:
 
             core.info(`Sweeping ${prs.length} open PRs`);
             const humanActivity = await fetchHumanActivity(github, owner, repo);
-
-            // Build a file->PR map for overlap detection
-            const fileToPRs = new Map();
 
             for (const pr of prs) {
               const prLabels = new Set(pr.labels.map(l => l.name));
@@ -194,24 +190,6 @@ jobs:
               if (sweep.stale && !prLabels.has('stale')) toAdd.push('stale');
               if (!sweep.stale && prLabels.has('stale')) toRemove.push('stale');
 
-              // --- Collect files for overlap detection ---
-              try {
-                const { data: files } = await github.rest.pulls.listFiles({
-                  owner,
-                  repo,
-                  pull_number: pr.number,
-                  per_page: 100,
-                });
-                for (const file of files) {
-                  if (!fileToPRs.has(file.filename)) {
-                    fileToPRs.set(file.filename, []);
-                  }
-                  fileToPRs.get(file.filename).push(pr.number);
-                }
-              } catch {
-                // Ignore file listing failures
-              }
-
               // --- Apply label changes ---
               if (toAdd.length > 0) {
                 await github.rest.issues.addLabels({
@@ -236,75 +214,5 @@ jobs:
 
               if (toAdd.length > 0 || toRemove.length > 0) {
                 core.info(`#${pr.number}: +[${toAdd.join(',')}] -[${toRemove.join(',')}]`);
-              }
-            }
-
-            // --- Overlap detection ---
-            // Find files changed by multiple PRs
-            const overlaps = new Map(); // pr number -> set of overlapping PR numbers
-            for (const [file, prNumbers] of fileToPRs) {
-              if (prNumbers.length > 1) {
-                for (const prNum of prNumbers) {
-                  if (!overlaps.has(prNum)) overlaps.set(prNum, new Set());
-                  for (const other of prNumbers) {
-                    if (other !== prNum) overlaps.get(prNum).add(other);
-                  }
-                }
-              }
-            }
-
-            // Label PRs with significant overlap (3+ shared files with another PR)
-            for (const [prNum, otherPRs] of overlaps) {
-              // Count shared files per overlapping PR
-              const sharedFileCounts = new Map();
-              for (const [file, prNumbers] of fileToPRs) {
-                if (prNumbers.includes(prNum)) {
-                  for (const other of prNumbers) {
-                    if (other !== prNum) {
-                      sharedFileCounts.set(other, (sharedFileCounts.get(other) || 0) + 1);
-                    }
-                  }
-                }
-              }
-
-              const significantOverlaps = [...sharedFileCounts.entries()]
-                .filter(([_, count]) => count >= 3)
-                .map(([otherPR, count]) => `#${otherPR} (${count} shared files)`);
-
-              if (significantOverlaps.length > 0) {
-                const pr = prs.find(p => p.number === prNum);
-                const prLabels = new Set(pr?.labels.map(l => l.name) || []);
-
-                if (!prLabels.has('overlap')) {
-                  await github.rest.issues.addLabels({
-                    owner,
-                    repo,
-                    issue_number: prNum,
-                    labels: ['overlap'],
-                  });
-
-                  // Leave a comment about the overlap (only once)
-                  const marker = '<!-- overlap-notice -->';
-                  const { data: comments } = await github.rest.issues.listComments({
-                    owner,
-                    repo,
-                    issue_number: prNum,
-                    per_page: 20,
-                  });
-                  const hasNotice = comments.some(c =>
-                    c.user?.login === 'github-actions[bot]' && c.body?.includes(marker)
-                  );
-
-                  if (!hasNotice) {
-                    await github.rest.issues.createComment({
-                      owner,
-                      repo,
-                      issue_number: prNum,
-                      body: `${marker}\n## Overlapping PRs\n\nThis PR modifies files that are also changed by other open PRs:\n\n${significantOverlaps.map(s => `- ${s}`).join('\n')}\n\nThis may cause merge conflicts or duplicated work. A maintainer will coordinate.`,
-                    });
-                  }
-
-                  core.info(`#${prNum}: overlap with ${significantOverlaps.join(', ')}`);
-                }
               }
             }
