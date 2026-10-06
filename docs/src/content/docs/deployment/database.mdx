@@ -92,6 +92,7 @@ export default defineConfig({
 | `binding`        | `string` | —                    | D1 binding name from `wrangler.jsonc` |
 | `session`        | `string` | `"disabled"`         | Read replication mode (see below)     |
 | `bookmarkCookie` | `string` | `"__em_d1_bookmark"` | Cookie name for session bookmarks     |
+| `coalesce`       | `boolean` | `false`             | Experimental: batch reads issued together into one round trip (see below) |
 
 ### Wrangler binding
 
@@ -134,11 +135,16 @@ export default defineConfig({
 			database: d1({
 				binding: "DB",
 				session: "auto",
+				coalesce: true,
 			}),
 		}),
 	],
 });
 ```
+
+A session runs the queries of a request one at a time, to keep its bookmark in order. Without `coalesce`, every query of a page therefore waits for the previous one. The experimental `coalesce` option sends reads that a request issues together as one D1 batch, so they share a round trip. It also lets EmDash batch the site settings, menus, widget areas, and taxonomy terms of an HTML page into the same round trips as the page's own reads; without `coalesce`, EmDash skips that preload. With `coalesce`, a read and a write started together may run write-first, so await a read before a write that must not affect it.
+
+Sessions only pay off once read replication is enabled on the database. Until then, keep `session` at its default, `"disabled"`: queries go straight to the primary and can run in parallel.
 
 #### Session modes
 
