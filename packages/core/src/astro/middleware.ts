@@ -71,6 +71,7 @@ import {
 	runWithContext,
 } from "../request-context.js";
 import type { PublishedRef } from "../scheduled-publish.js";
+import { parseCollectionSitemapName } from "../seo/sitemap-name.js";
 import { EmDashStorageError } from "../storage/types.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
@@ -590,7 +591,13 @@ function pushMetricsTimings(
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
-const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*(?:-[1-9]\d*)?\.xml$/;
+const SITEMAP_COLLECTION_RE = /^\/sitemap-([^/]+)\.xml$/;
+
+/** Whether `pathname` is a per-collection sitemap a collection could have. */
+function isCollectionSitemapPath(pathname: string): boolean {
+	const match = SITEMAP_COLLECTION_RE.exec(pathname);
+	return match !== null && parseCollectionSitemapName(match[1]!) !== null;
+}
 
 function isImageEndpointRequest(context: APIContext): boolean {
 	const route = virtualConfig?.imageEndpointRoute;
@@ -762,7 +769,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 		const isEmDashRoute = url.pathname.startsWith("/_emdash");
 		const isPublicRuntimeRoute =
-			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || SITEMAP_COLLECTION_RE.test(url.pathname);
+			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || isCollectionSitemapPath(url.pathname);
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing

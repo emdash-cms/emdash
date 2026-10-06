@@ -205,6 +205,28 @@ describe("BylinesPage directory", () => {
 		await expect.element(dialog).not.toBeInTheDocument();
 	});
 
+	it("scrolls the edit dialog down to its last control with the mouse wheel", async () => {
+		await page.viewport(1280, 400);
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Edit byline" });
+		const displayName = dialog.getByRole("textbox", { name: "Display name" });
+		const lastControl = dialog.getByRole("switch", { name: "Guest byline" });
+		await expect.element(displayName).toBeEnabled();
+		await expect.element(lastControl).not.toBeInViewport();
+
+		await userEvent.wheel(displayName, { delta: { y: 5000 } });
+
+		await expect.element(lastControl).toBeInViewport({ ratio: 1 });
+	});
+
 	it("includes the visible delete label in the action's accessible name", async () => {
 		const screen = await render(
 			<QueryWrapper>

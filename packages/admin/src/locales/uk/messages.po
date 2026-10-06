@@ -22,7 +22,7 @@ msgstr " (за замовчуванням)"
 msgid " (opens in new window)"
 msgstr " (відкривається в новому вікні)"
 
-#: packages/admin/src/routes/bylines.tsx:958
+#: packages/admin/src/routes/bylines.tsx:957
 msgid "-- Select --"
 msgstr "-- Оберіть --"
 
@@ -1417,7 +1417,7 @@ msgstr ""
 msgid "Additional data to import."
 msgstr "Додаткові дані для імпорту."
 
-#: packages/admin/src/routes/bylines.tsx:789
+#: packages/admin/src/routes/bylines.tsx:787
 msgid "Additional details"
 msgstr ""
 
@@ -1894,7 +1894,7 @@ msgstr ""
 msgid "At most…"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:752
+#: packages/admin/src/routes/bylines.tsx:750
 msgid "Attribution"
 msgstr ""
 
@@ -2159,7 +2159,7 @@ msgstr ""
 msgid "Bing Verification"
 msgstr "Верифікація Bing"
 
-#: packages/admin/src/routes/bylines.tsx:741
+#: packages/admin/src/routes/bylines.tsx:739
 msgid "Bio"
 msgstr "Біо"
 
@@ -2268,7 +2268,7 @@ msgstr ""
 msgid "Bullet List"
 msgstr "Маркований список"
 
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "byline"
 msgstr ""
 
@@ -2407,7 +2407,7 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
 #: packages/admin/src/components/WordPressImport.tsx:1940
-#: packages/admin/src/routes/bylines.tsx:852
+#: packages/admin/src/routes/bylines.tsx:851
 msgid "Cancel"
 msgstr "Скасувати"
 
@@ -3414,7 +3414,7 @@ msgstr "Не вдалося завантажити поля підпису."
 msgid "Couldn't load content."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:810
+#: packages/admin/src/routes/bylines.tsx:808
 msgid "Couldn't load custom fields."
 msgstr "Не вдалося завантажити власні поля."
 
@@ -3486,7 +3486,7 @@ msgstr "Кількість"
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/Widgets.tsx:455
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Create"
 msgstr "Створити"
 
@@ -3926,7 +3926,7 @@ msgstr "Визначено в коді"
 #: packages/admin/src/components/TaxonomyManager.tsx:1550
 #: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:847
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete"
 msgstr "Видалити"
 
@@ -3973,7 +3973,7 @@ msgstr "Видалити область віджетів {0}"
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/TaxonomyManager.tsx:1530
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "Delete {0}?"
 msgstr "Видалити {0}?"
 
@@ -3987,7 +3987,7 @@ msgid "Delete block"
 msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:614
-#: packages/admin/src/routes/bylines.tsx:876
+#: packages/admin/src/routes/bylines.tsx:875
 msgid "Delete byline"
 msgstr ""
 
@@ -4148,7 +4148,7 @@ msgstr "Видалення \"{0}\" також прибере {1, plural, one {# 
 #: packages/admin/src/components/TaxonomyManager.tsx:1535
 #: packages/admin/src/components/TaxonomyManager.tsx:1551
 #: packages/admin/src/components/Widgets.tsx:720
-#: packages/admin/src/routes/bylines.tsx:877
+#: packages/admin/src/routes/bylines.tsx:876
 msgid "Deleting..."
 msgstr "Видалення..."
 
@@ -4373,7 +4373,7 @@ msgstr "Показати навігаційне меню"
 msgid "Display category list"
 msgstr "Показати список категорій"
 
-#: packages/admin/src/routes/bylines.tsx:724
+#: packages/admin/src/routes/bylines.tsx:722
 msgid "Display name"
 msgstr "Відображуване ім'я"
 
@@ -6418,7 +6418,7 @@ msgstr "Групувати за"
 msgid "Guest"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:775
+#: packages/admin/src/routes/bylines.tsx:773
 msgid "Guest byline"
 msgstr "Гостьовий підпис"
 
@@ -7401,7 +7401,7 @@ msgstr "Посилання прострочено"
 msgid "Link options"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:754
+#: packages/admin/src/routes/bylines.tsx:752
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr ""
 
@@ -7433,7 +7433,7 @@ msgid "Linked side (singular)"
 msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:565
-#: packages/admin/src/routes/bylines.tsx:758
+#: packages/admin/src/routes/bylines.tsx:756
 msgid "Linked user"
 msgstr "Пов'язаний користувач"
 
@@ -8781,7 +8781,7 @@ msgstr "Ще немає елементів"
 msgid "No limit"
 msgstr "Без ліміту"
 
-#: packages/admin/src/routes/bylines.tsx:769
+#: packages/admin/src/routes/bylines.tsx:767
 msgid "No linked user"
 msgstr "Немає пов'язаного користувача"
 
@@ -10989,7 +10989,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Save"
 msgstr "Зберегти"
 
@@ -11087,7 +11087,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/users/UserDetail.tsx:323
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Saving..."
 msgstr "Збереження..."
 
@@ -12094,7 +12094,7 @@ msgstr "Пропущено"
 #: packages/admin/src/components/TaxonomyManager.tsx:797
 #: packages/admin/src/components/TaxonomyManager.tsx:801
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:730
+#: packages/admin/src/routes/bylines.tsx:728
 msgid "Slug"
 msgstr "Slug"
 
@@ -13272,7 +13272,7 @@ msgstr "Це правило перенаправлення буде остато
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Цей випуск потребує новішого середовища, ніж зараз на вашому сайті. Оновіть середовище перед встановленням."
 
-#: packages/admin/src/routes/bylines.tsx:875
+#: packages/admin/src/routes/bylines.tsx:874
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Це видалить профіль підпису автора. Посилання на авторські рядки в контенті буде прибрано, а вказівники lead очищено."
 
@@ -14452,7 +14452,7 @@ msgstr "WebAuthn не підтримується в цьому браузері"
 msgid "Website"
 msgstr "Вебсайт"
 
-#: packages/admin/src/routes/bylines.tsx:736
+#: packages/admin/src/routes/bylines.tsx:734
 msgid "Website URL"
 msgstr "URL вебсайту"
 
@@ -14736,7 +14736,7 @@ msgstr "Ви можете створювати та редагувати вла�
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Ви можете керувати контентом, медіа, меню та таксономіями."
 
-#: packages/admin/src/routes/bylines.tsx:812
+#: packages/admin/src/routes/bylines.tsx:810
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "Ви ще можете редагувати поля вище. Збереження не змінить збережені значення власних полів."
 

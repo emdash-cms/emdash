@@ -22,7 +22,7 @@ msgstr " (standard)"
 msgid " (opens in new window)"
 msgstr " (åbner i nyt vindue)"
 
-#: packages/admin/src/routes/bylines.tsx:958
+#: packages/admin/src/routes/bylines.tsx:957
 msgid "-- Select --"
 msgstr "-- Vælg --"
 
@@ -1417,7 +1417,7 @@ msgstr "Tilføjer…"
 msgid "Additional data to import."
 msgstr "Yderligere data, der skal importeres."
 
-#: packages/admin/src/routes/bylines.tsx:789
+#: packages/admin/src/routes/bylines.tsx:787
 msgid "Additional details"
 msgstr "Yderligere oplysninger"
 
@@ -1894,7 +1894,7 @@ msgstr "Højst {max}"
 msgid "At most…"
 msgstr "Højst…"
 
-#: packages/admin/src/routes/bylines.tsx:752
+#: packages/admin/src/routes/bylines.tsx:750
 msgid "Attribution"
 msgstr "Kreditering"
 
@@ -2159,7 +2159,7 @@ msgstr "Mellem {min} og {max}"
 msgid "Bing Verification"
 msgstr "Bing verifikation"
 
-#: packages/admin/src/routes/bylines.tsx:741
+#: packages/admin/src/routes/bylines.tsx:739
 msgid "Bio"
 msgstr "Biografi"
 
@@ -2268,7 +2268,7 @@ msgstr "Build-oprindelse verificeret"
 msgid "Bullet List"
 msgstr "Punktopstilling"
 
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "byline"
 msgstr "byline"
 
@@ -2407,7 +2407,7 @@ msgstr "Kan se indhold"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
 #: packages/admin/src/components/WordPressImport.tsx:1940
-#: packages/admin/src/routes/bylines.tsx:852
+#: packages/admin/src/routes/bylines.tsx:851
 msgid "Cancel"
 msgstr "Annuller"
 
@@ -3414,7 +3414,7 @@ msgstr "Byline felter kunne ikke indlæses."
 msgid "Couldn't load content."
 msgstr "Indhold kunne ikke indlæses."
 
-#: packages/admin/src/routes/bylines.tsx:810
+#: packages/admin/src/routes/bylines.tsx:808
 msgid "Couldn't load custom fields."
 msgstr "Brugerdefinerede felter kunne ikke indlæses."
 
@@ -3486,7 +3486,7 @@ msgstr "Antal"
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/Widgets.tsx:455
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Create"
 msgstr "Opret"
 
@@ -3926,7 +3926,7 @@ msgstr "Defineret i kode"
 #: packages/admin/src/components/TaxonomyManager.tsx:1550
 #: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:847
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete"
 msgstr "Slet"
 
@@ -3973,7 +3973,7 @@ msgstr "Slet widgetområdet {0}"
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/TaxonomyManager.tsx:1530
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "Delete {0}?"
 msgstr "Slet {0}?"
 
@@ -3987,7 +3987,7 @@ msgid "Delete block"
 msgstr "Slet blok"
 
 #: packages/admin/src/routes/bylines.tsx:614
-#: packages/admin/src/routes/bylines.tsx:876
+#: packages/admin/src/routes/bylines.tsx:875
 msgid "Delete byline"
 msgstr "Slet byline"
 
@@ -4148,7 +4148,7 @@ msgstr "Hvis du sletter \"{0}\", fjernes også {1, plural, one {# gemt værdi} o
 #: packages/admin/src/components/TaxonomyManager.tsx:1535
 #: packages/admin/src/components/TaxonomyManager.tsx:1551
 #: packages/admin/src/components/Widgets.tsx:720
-#: packages/admin/src/routes/bylines.tsx:877
+#: packages/admin/src/routes/bylines.tsx:876
 msgid "Deleting..."
 msgstr "Sletter..."
 
@@ -4373,7 +4373,7 @@ msgstr "Vis en navigationsmenu"
 msgid "Display category list"
 msgstr "Vis kategoriliste"
 
-#: packages/admin/src/routes/bylines.tsx:724
+#: packages/admin/src/routes/bylines.tsx:722
 msgid "Display name"
 msgstr "Visningsnavn"
 
@@ -6418,7 +6418,7 @@ msgstr "Grupper efter"
 msgid "Guest"
 msgstr "Gæst"
 
-#: packages/admin/src/routes/bylines.tsx:775
+#: packages/admin/src/routes/bylines.tsx:773
 msgid "Guest byline"
 msgstr "Gæstebyline"
 
@@ -7401,7 +7401,7 @@ msgstr "Linket er udløbet"
 msgid "Link options"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:754
+#: packages/admin/src/routes/bylines.tsx:752
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr "Knyt denne byline til en bruger, eller markér den som en gæsteprofil."
 
@@ -7433,7 +7433,7 @@ msgid "Linked side (singular)"
 msgstr "Linket side (ental)"
 
 #: packages/admin/src/routes/bylines.tsx:565
-#: packages/admin/src/routes/bylines.tsx:758
+#: packages/admin/src/routes/bylines.tsx:756
 msgid "Linked user"
 msgstr "Tilknyttet bruger"
 
@@ -8781,7 +8781,7 @@ msgstr "Ingen elementer endnu"
 msgid "No limit"
 msgstr "Ingen grænse"
 
-#: packages/admin/src/routes/bylines.tsx:769
+#: packages/admin/src/routes/bylines.tsx:767
 msgid "No linked user"
 msgstr "Ingen tilknyttet bruger"
 
@@ -10989,7 +10989,7 @@ msgstr "Eksempelindhold"
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Save"
 msgstr "Gem"
 
@@ -11087,7 +11087,7 @@ msgstr "Hvis du gemmer en samling her, bliver dette felt til en indlægsvælger.
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/users/UserDetail.tsx:323
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Saving..."
 msgstr "Gemmer..."
 
@@ -12094,7 +12094,7 @@ msgstr "Sprunget over"
 #: packages/admin/src/components/TaxonomyManager.tsx:797
 #: packages/admin/src/components/TaxonomyManager.tsx:801
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:730
+#: packages/admin/src/routes/bylines.tsx:728
 msgid "Slug"
 msgstr "Slug"
 
@@ -13272,7 +13272,7 @@ msgstr "Denne omdirigeringsregel bliver fjernet permanent."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Denne udgivelse kræver et nyere miljø, end dit websted kører i øjeblikket. Opgrader før installation."
 
-#: packages/admin/src/routes/bylines.tsx:875
+#: packages/admin/src/routes/bylines.tsx:874
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Dette fjerner byline profilen. Indholdets byline links fjernes, og henvisninger til den primære byline ryddes."
 
@@ -14452,7 +14452,7 @@ msgstr "WebAuthn understøttes ikke i denne browser"
 msgid "Website"
 msgstr "Websted"
 
-#: packages/admin/src/routes/bylines.tsx:736
+#: packages/admin/src/routes/bylines.tsx:734
 msgid "Website URL"
 msgstr "Webstedets URL"
 
@@ -14736,7 +14736,7 @@ msgstr "Du kan oprette og redigere dit eget indhold."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Du kan administrere indhold, media, menuer og taksonomier."
 
-#: packages/admin/src/routes/bylines.tsx:812
+#: packages/admin/src/routes/bylines.tsx:810
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "Du kan stadig redigere de faste felter ovenfor. Når du gemmer, berøres ingen gemte værdier i brugerdefinerede felter."
 
