@@ -1426,12 +1426,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:629
+#: packages/admin/src/components/Sidebar.tsx:640
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Administratör"
 
-#: packages/admin/src/components/Sidebar.tsx:571
+#: packages/admin/src/components/Sidebar.tsx:582
 msgid "Admin navigation"
 msgstr "Administrationsnavigering"
 
@@ -2310,7 +2310,7 @@ msgstr "Skribentfält"
 msgid "Byline schema"
 msgstr "Skribentschema"
 
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:484
 msgid "Byline Schema"
 msgstr "Skribentschema"
 
@@ -2324,7 +2324,7 @@ msgstr "Skribenten har uppdaterats"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1131
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:448
+#: packages/admin/src/components/Sidebar.tsx:454
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Bylines"
 msgstr "Skribenter"
@@ -2343,7 +2343,7 @@ msgstr "C++"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:564
-#: packages/admin/src/components/Sidebar.tsx:603
+#: packages/admin/src/components/Sidebar.tsx:614
 #: packages/admin/src/routes/calendar.tsx:276
 msgid "Calendar"
 msgstr "Kalender"
@@ -3030,7 +3030,7 @@ msgstr "Reaktioner på kommentarer"
 #: packages/admin/src/components/ContentTypeEditor.tsx:656
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:434
+#: packages/admin/src/components/Sidebar.tsx:440
 msgid "Comments"
 msgstr "Kommentarer"
 
@@ -3120,7 +3120,7 @@ msgstr "innehåll"
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
 #: packages/admin/src/components/Dashboard.tsx:479
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:613
+#: packages/admin/src/components/Sidebar.tsx:624
 #: packages/admin/src/components/Widgets.tsx:902
 msgid "Content"
 msgstr "Innehåll"
@@ -3205,7 +3205,7 @@ msgstr "Innehållstyper"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:131
-#: packages/admin/src/components/Sidebar.tsx:474
+#: packages/admin/src/components/Sidebar.tsx:480
 msgid "Content Types"
 msgstr "Innehållstyper"
 
@@ -3823,8 +3823,8 @@ msgstr "Variant för mörkt läge"
 #: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:390
 #: packages/admin/src/components/Dashboard.tsx:71
-#: packages/admin/src/components/Sidebar.tsx:412
-#: packages/admin/src/components/Sidebar.tsx:598
+#: packages/admin/src/components/Sidebar.tsx:415
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Dashboard"
 msgstr "Översikt"
 
@@ -5528,7 +5528,7 @@ msgstr "Det gick inte att aktivera användaren"
 msgid "Failed to execute import"
 msgstr "Det gick inte att köra importen"
 
-#: packages/admin/src/lib/api/client.ts:368
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "Det gick inte att hämta autentiseringsläge"
 
@@ -5553,7 +5553,7 @@ msgstr "Det gick inte att hämta e-postinställningar"
 msgid "Failed to fetch entry terms"
 msgstr "Det gick inte att hämta termer för posten"
 
-#: packages/admin/src/lib/api/client.ts:351
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "Det gick inte att hämta manifestet"
 
@@ -6757,7 +6757,7 @@ msgstr "Bilder"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:506
 #: packages/admin/src/components/WordPressImport.tsx:758
 msgid "Import"
 msgstr "Importera"
@@ -7791,7 +7791,7 @@ msgstr "Huvudbibliotek"
 msgid "Main Sidebar"
 msgstr "Huvudsidofält"
 
-#: packages/admin/src/components/Sidebar.tsx:621
+#: packages/admin/src/components/Sidebar.tsx:632
 msgid "Manage"
 msgstr "Hantera"
 
@@ -7921,7 +7921,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:425
+#: packages/admin/src/components/Sidebar.tsx:428
 #: packages/admin/src/components/WordPressImport.tsx:772
 #: packages/admin/src/components/WordPressImport.tsx:1170
 #: packages/admin/src/components/WordPressImport.tsx:1357
@@ -8071,7 +8071,7 @@ msgstr "Menyordningen har uppdaterats."
 #: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:445
 #: packages/admin/src/components/WordPressImport.tsx:1174
 msgid "Menus"
 msgstr "Menyer"
@@ -9711,8 +9711,8 @@ msgstr "Fel i tilläggswidget"
 #: packages/admin/src/components/PluginManager.tsx:173
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:192
-#: packages/admin/src/components/Sidebar.tsx:482
-#: packages/admin/src/components/Sidebar.tsx:637
+#: packages/admin/src/components/Sidebar.tsx:488
+#: packages/admin/src/components/Sidebar.tsx:648
 msgid "Plugins"
 msgstr "Tillägg"
 
@@ -10189,7 +10189,7 @@ msgstr "Omdirigerar till inloggning …"
 #: packages/admin/src/components/Redirects.tsx:416
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:442
+#: packages/admin/src/components/Sidebar.tsx:448
 msgid "Redirects"
 msgstr "Omdirigeringar"
 
@@ -10262,7 +10262,7 @@ msgstr "Registreringen avbröts eller tog för lång tid. Försök igen."
 
 #: packages/admin/src/components/PluginManager.tsx:210
 #: packages/admin/src/components/PluginManager.tsx:447
-#: packages/admin/src/components/Sidebar.tsx:491
+#: packages/admin/src/components/Sidebar.tsx:497
 msgid "Registry"
 msgstr "Register"
 
@@ -10571,7 +10571,7 @@ msgstr "Kodarkiv"
 msgid "Request a new link"
 msgstr "Begär en ny länk"
 
-#: packages/admin/src/lib/api/client.ts:339
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "Begäran misslyckades"
 
@@ -11436,7 +11436,7 @@ msgstr "Sektionstitel"
 #: packages/admin/src/components/Sections.tsx:150
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:447
+#: packages/admin/src/components/Sidebar.tsx:453
 msgid "Sections"
 msgstr "Sektioner"
 
@@ -11816,7 +11816,7 @@ msgstr "Konfigurerar …"
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:530
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:504
+#: packages/admin/src/components/Sidebar.tsx:510
 #: packages/admin/src/components/WordPressImport.tsx:1834
 msgid "Settings"
 msgstr "Inställningar"
@@ -14220,7 +14220,7 @@ msgid "User not found"
 msgstr "Användaren hittades inte"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:223
-#: packages/admin/src/components/Sidebar.tsx:479
+#: packages/admin/src/components/Sidebar.tsx:485
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "Användare"
@@ -14601,7 +14601,7 @@ msgstr "Widget uppdaterad"
 #: packages/admin/src/components/PluginManager.tsx:478
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:446
+#: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Widgets.tsx:389
 #: packages/admin/src/components/WordPressImport.tsx:1182
 msgid "Widgets"

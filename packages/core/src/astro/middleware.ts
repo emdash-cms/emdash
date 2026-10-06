@@ -711,6 +711,26 @@ function applyBuildValidator(context: APIContext): void {
 	context.cache.set({ lastModified: buildDate });
 }
 
+const UNSHARED_CACHE_CONTROL_RE = /\b(?:private|no-store)\b/i;
+
+/**
+ * Route rules match by path, so a rule can cover responses rendered for a
+ * signed-in user or marked private by the route itself. Opting them out of the
+ * route cache keeps the shared edge cache from serving them to anyone else.
+ *
+ * Must run after next(): the route and its layout call `cache.set()` while
+ * rendering, which turns caching back on.
+ */
+function keepUnsharedResponsesOutOfRouteCache(context: APIContext, response: Response): void {
+	if (!context.cache?.enabled) return;
+	if (
+		context.locals.user ||
+		UNSHARED_CACHE_CONTROL_RE.test(response.headers.get("Cache-Control") ?? "")
+	) {
+		context.cache.set(false);
+	}
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
@@ -1213,6 +1233,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	try {
 		const response = await runWithContext({ editMode: false, queryRecorder, metrics }, run);
 		applyBuildValidator(context);
+		keepUnsharedResponsesOutOfRouteCache(context, response);
 		return response;
 	} finally {
 		// Streamed responses defer the flush to stream end (see
