@@ -39,16 +39,21 @@ jobs:
               if (!/^design:/i.test(pr.title)) {
                 errors.push('Prefix a design PR title with `design:`.');
               }
-              const proposalLink = body.match(/Proposal:\s*`?(proposals\/[a-z0-9][a-z0-9-]*\.md)`?/i);
-              if (!proposalLink) {
-                errors.push('Link the descriptive `proposals/*.md` file in the "Design proposal" section.');
-              }
               const files = await github.paginate(github.rest.pulls.listFiles, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
                 per_page: 100,
               });
+              const proposalLink = body.match(/Proposal:\s*\[[^\]]*\]\(https:\/\/github\.com\/[^/\s)]+\/[^/\s)]+\/blob\/[^\s)]+?\/(proposals\/[a-z0-9][a-z0-9-]*\.md)\)/i);
+              const proposalPaths = files
+                .filter(file => file.status !== 'removed')
+                .map(file => file.filename);
+              if (!proposalLink) {
+                errors.push('In the "Design proposal" section, link the `proposals/*.md` file on your branch so reviewers can open the rendered proposal, for example `Proposal: [proposals/my-feature.md](https://github.com/you/emdash/blob/my-branch/proposals/my-feature.md)`.');
+              } else if (!proposalPaths.includes(proposalLink[1])) {
+                errors.push(`The proposal link points to \`${proposalLink[1]}\`, which this PR does not add or change.`);
+              }
               const implementationFiles = files.filter(file => !file.filename.startsWith('proposals/'));
               if (implementationFiles.length > 0) {
                 errors.push(`Design PRs contain proposal files only. Move implementation changes out of this PR: ${implementationFiles.map(file => `\`${file.filename}\``).join(', ')}`);

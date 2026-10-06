@@ -44,7 +44,7 @@ The Project Lead can extend the review period when the decision needs more evide
 
 ## Open a design pull request
 
-Use the [design pull request template](../.github/PULL_REQUEST_TEMPLATE/design.md), prefix the title with `design:`, and keep the pull request limited to files under `proposals/`. A design pull request contains no implementation code.
+Use the [design pull request template](../.github/PULL_REQUEST_TEMPLATE/design.md), prefix the title with `design:`, and keep the pull request limited to files under `proposals/`. A design pull request contains no implementation code. Link the proposal file on your branch in the template's `Proposal:` line so reviewers can open the rendered proposal.
 
 Draft design pull requests are encouraged. A draft can contain unresolved questions or lack a sponsor when it states what remains open.
 

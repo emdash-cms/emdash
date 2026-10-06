@@ -2,9 +2,9 @@
 
 ## Design proposal
 
-<!-- Link the proposal file and explain the problem and intended outcome. Design PRs contain proposal documents only, not implementation code. -->
+<!-- Link the proposal file on your branch so reviewers can open the rendered Markdown, then explain the problem and intended outcome. Design PRs contain proposal documents only, not implementation code. -->
 
-Proposal: `proposals/...`
+Proposal: [proposals/...](https://github.com/OWNER/emdash/blob/BRANCH/proposals/...)
 
 ## Proposal type
 
@@ -16,7 +16,7 @@ Proposal: `proposals/...`
 
 <!-- RFCs require an Ideas Discussion. Link related issues, Discussions, roadmap initiatives, and conflicting or amended proposals. -->
 
-Discussion: https://github.com/emdash-cms/emdash/discussions/...
+Discussion: <!-- link to relevant discussion -->
 
 ## Readiness
 
