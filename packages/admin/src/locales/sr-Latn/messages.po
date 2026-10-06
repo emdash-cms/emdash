@@ -22,7 +22,7 @@ msgstr " (podrazumevano)"
 msgid " (opens in new window)"
 msgstr " (otvara se u novom prozoru)"
 
-#: packages/admin/src/routes/bylines.tsx:958
+#: packages/admin/src/routes/bylines.tsx:957
 msgid "-- Select --"
 msgstr "-- Izaberi --"
 
@@ -1417,7 +1417,7 @@ msgstr "Dodavanje…"
 msgid "Additional data to import."
 msgstr "Dodatni podaci za uvoz."
 
-#: packages/admin/src/routes/bylines.tsx:789
+#: packages/admin/src/routes/bylines.tsx:787
 msgid "Additional details"
 msgstr "Dodatni detalji"
 
@@ -1894,7 +1894,7 @@ msgstr "Najviše {max}"
 msgid "At most…"
 msgstr "Najviše…"
 
-#: packages/admin/src/routes/bylines.tsx:752
+#: packages/admin/src/routes/bylines.tsx:750
 msgid "Attribution"
 msgstr "Pripisivanje"
 
@@ -2159,7 +2159,7 @@ msgstr "Između {min} i {max}"
 msgid "Bing Verification"
 msgstr "Bing verifikacija"
 
-#: packages/admin/src/routes/bylines.tsx:741
+#: packages/admin/src/routes/bylines.tsx:739
 msgid "Bio"
 msgstr "Biografija"
 
@@ -2268,7 +2268,7 @@ msgstr "Verifikovano je poreklo build-a"
 msgid "Bullet List"
 msgstr "Lista sa tačkama"
 
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "byline"
 msgstr "potpis"
 
@@ -2407,7 +2407,7 @@ msgstr "Može pregledati sadržaj"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
 #: packages/admin/src/components/WordPressImport.tsx:1940
-#: packages/admin/src/routes/bylines.tsx:852
+#: packages/admin/src/routes/bylines.tsx:851
 msgid "Cancel"
 msgstr "Otkaži"
 
@@ -3414,7 +3414,7 @@ msgstr "Nije moguće učitati polja potpisa autora."
 msgid "Couldn't load content."
 msgstr "Nije moguće učitati sadržaj."
 
-#: packages/admin/src/routes/bylines.tsx:810
+#: packages/admin/src/routes/bylines.tsx:808
 msgid "Couldn't load custom fields."
 msgstr "Nije moguće učitati prilagođena polja."
 
@@ -3486,7 +3486,7 @@ msgstr "Broj"
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/Widgets.tsx:455
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Create"
 msgstr "Kreiraj"
 
@@ -3926,7 +3926,7 @@ msgstr "Definisano u kodu"
 #: packages/admin/src/components/TaxonomyManager.tsx:1550
 #: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:847
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete"
 msgstr "Obriši"
 
@@ -3973,7 +3973,7 @@ msgstr "Obriši oblast vidžeta {0}"
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/TaxonomyManager.tsx:1530
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "Delete {0}?"
 msgstr "Obrisati {0}?"
 
@@ -3987,7 +3987,7 @@ msgid "Delete block"
 msgstr "Obriši blok"
 
 #: packages/admin/src/routes/bylines.tsx:614
-#: packages/admin/src/routes/bylines.tsx:876
+#: packages/admin/src/routes/bylines.tsx:875
 msgid "Delete byline"
 msgstr "Obriši potpis"
 
@@ -4148,7 +4148,7 @@ msgstr "Brisanje \"{0}\" će takođe ukloniti {1, plural, one {# sačuvanu vredn
 #: packages/admin/src/components/TaxonomyManager.tsx:1535
 #: packages/admin/src/components/TaxonomyManager.tsx:1551
 #: packages/admin/src/components/Widgets.tsx:720
-#: packages/admin/src/routes/bylines.tsx:877
+#: packages/admin/src/routes/bylines.tsx:876
 msgid "Deleting..."
 msgstr "Brisanje..."
 
@@ -4373,7 +4373,7 @@ msgstr "Prikaži navigacioni meni"
 msgid "Display category list"
 msgstr "Prikaži listu kategorija"
 
-#: packages/admin/src/routes/bylines.tsx:724
+#: packages/admin/src/routes/bylines.tsx:722
 msgid "Display name"
 msgstr "Ime za prikaz"
 
@@ -6418,7 +6418,7 @@ msgstr "Grupiši po"
 msgid "Guest"
 msgstr "Gost"
 
-#: packages/admin/src/routes/bylines.tsx:775
+#: packages/admin/src/routes/bylines.tsx:773
 msgid "Guest byline"
 msgstr "Gost potpis autora"
 
@@ -7401,7 +7401,7 @@ msgstr "Link je istekao"
 msgid "Link options"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:754
+#: packages/admin/src/routes/bylines.tsx:752
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr "Poveži ovaj potpis sa korisnikom ili ga označi kao profil gosta."
 
@@ -7433,7 +7433,7 @@ msgid "Linked side (singular)"
 msgstr "Povezana strana (jednina)"
 
 #: packages/admin/src/routes/bylines.tsx:565
-#: packages/admin/src/routes/bylines.tsx:758
+#: packages/admin/src/routes/bylines.tsx:756
 msgid "Linked user"
 msgstr "Povezani korisnik"
 
@@ -8781,7 +8781,7 @@ msgstr "Još nema stavki"
 msgid "No limit"
 msgstr "Bez limita"
 
-#: packages/admin/src/routes/bylines.tsx:769
+#: packages/admin/src/routes/bylines.tsx:767
 msgid "No linked user"
 msgstr "Nema povezanog korisnika"
 
@@ -10989,7 +10989,7 @@ msgstr "Primer sadržaja"
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Save"
 msgstr "Sačuvaj"
 
@@ -11087,7 +11087,7 @@ msgstr "Čuvanjem kolekcije ovde ovo polje postaje birač unosa. Sačuvani ID-ov
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/users/UserDetail.tsx:323
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Saving..."
 msgstr "Čuvanje..."
 
@@ -12094,7 +12094,7 @@ msgstr "Preskočeno"
 #: packages/admin/src/components/TaxonomyManager.tsx:797
 #: packages/admin/src/components/TaxonomyManager.tsx:801
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:730
+#: packages/admin/src/routes/bylines.tsx:728
 msgid "Slug"
 msgstr "Slug"
 
@@ -13272,7 +13272,7 @@ msgstr "Ovo pravilo preusmeravanja će se trajno ukloniti."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Ovo izdanje zahteva novije okruženje nego što ga sajt trenutno koristi. Ažuriraj pre instalacije."
 
-#: packages/admin/src/routes/bylines.tsx:875
+#: packages/admin/src/routes/bylines.tsx:874
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Ovo uklanja profil potpisa autora. Linkovi potpisa autora u sadržaju se uklanjaju i pokazivači se brišu."
 
@@ -14452,7 +14452,7 @@ msgstr "WebAuthn nije podržan u ovom pregledaču"
 msgid "Website"
 msgstr "Sajt"
 
-#: packages/admin/src/routes/bylines.tsx:736
+#: packages/admin/src/routes/bylines.tsx:734
 msgid "Website URL"
 msgstr "URL veb sajta"
 
@@ -14736,7 +14736,7 @@ msgstr "Možeš kreirati i uređivati svoj sadržaj."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Možeš upravljati sadržajem, medijima, menijima i taksonomijama."
 
-#: packages/admin/src/routes/bylines.tsx:812
+#: packages/admin/src/routes/bylines.tsx:810
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "Još uvek možeš uređivati fiksna polja iznad. Čuvanje neće dirati sačuvane vrednosti prilagođenih polja."
 

@@ -23,7 +23,7 @@ msgstr " (ברירת מחדל)"
 msgid " (opens in new window)"
 msgstr " (נפתח בחלון חדש)"
 
-#: packages/admin/src/routes/bylines.tsx:958
+#: packages/admin/src/routes/bylines.tsx:957
 msgid "-- Select --"
 msgstr "-- בחירה --"
 
@@ -1418,7 +1418,7 @@ msgstr "בהוספה…"
 msgid "Additional data to import."
 msgstr "נתונים נוספים לייבוא."
 
-#: packages/admin/src/routes/bylines.tsx:789
+#: packages/admin/src/routes/bylines.tsx:787
 msgid "Additional details"
 msgstr "פרטים נוספים"
 
@@ -1895,7 +1895,7 @@ msgstr "לכל היותר {max}"
 msgid "At most…"
 msgstr "לכל היותר…"
 
-#: packages/admin/src/routes/bylines.tsx:752
+#: packages/admin/src/routes/bylines.tsx:750
 msgid "Attribution"
 msgstr "ייחוס"
 
@@ -2160,7 +2160,7 @@ msgstr "בין {min} ל-{max}"
 msgid "Bing Verification"
 msgstr "אימות Bing"
 
-#: packages/admin/src/routes/bylines.tsx:741
+#: packages/admin/src/routes/bylines.tsx:739
 msgid "Bio"
 msgstr "ביוגרפיה"
 
@@ -2269,7 +2269,7 @@ msgstr "מקור הבנייה אומת"
 msgid "Bullet List"
 msgstr "רשימת תבליטים"
 
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "byline"
 msgstr "קרדיט"
 
@@ -2408,7 +2408,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
 #: packages/admin/src/components/WordPressImport.tsx:1940
-#: packages/admin/src/routes/bylines.tsx:852
+#: packages/admin/src/routes/bylines.tsx:851
 msgid "Cancel"
 msgstr "ביטול"
 
@@ -3415,7 +3415,7 @@ msgstr "לא ניתן לטעון שדות קרדיט."
 msgid "Couldn't load content."
 msgstr "לא ניתן לטעון תוכן."
 
-#: packages/admin/src/routes/bylines.tsx:810
+#: packages/admin/src/routes/bylines.tsx:808
 msgid "Couldn't load custom fields."
 msgstr "לא ניתן לטעון שדות מותאמים אישית."
 
@@ -3487,7 +3487,7 @@ msgstr "ספירה"
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/Widgets.tsx:455
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Create"
 msgstr "יצירה"
 
@@ -3927,7 +3927,7 @@ msgstr "מוגדר בקוד"
 #: packages/admin/src/components/TaxonomyManager.tsx:1550
 #: packages/admin/src/components/Widgets.tsx:719
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:847
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete"
 msgstr "מחיקה"
 
@@ -3974,7 +3974,7 @@ msgstr "מחיקת אזור וידג׳טים {0}"
 #. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/TaxonomyManager.tsx:1530
-#: packages/admin/src/routes/bylines.tsx:874
+#: packages/admin/src/routes/bylines.tsx:873
 msgid "Delete {0}?"
 msgstr "למחוק את {0}?"
 
@@ -3988,7 +3988,7 @@ msgid "Delete block"
 msgstr "מחיקת הבלוק"
 
 #: packages/admin/src/routes/bylines.tsx:614
-#: packages/admin/src/routes/bylines.tsx:876
+#: packages/admin/src/routes/bylines.tsx:875
 msgid "Delete byline"
 msgstr "מחיקת קרדיט"
 
@@ -4149,7 +4149,7 @@ msgstr "מחיקת \"{0}\" תסיר גם {1, plural, one {ערך שמור אחד
 #: packages/admin/src/components/TaxonomyManager.tsx:1535
 #: packages/admin/src/components/TaxonomyManager.tsx:1551
 #: packages/admin/src/components/Widgets.tsx:720
-#: packages/admin/src/routes/bylines.tsx:877
+#: packages/admin/src/routes/bylines.tsx:876
 msgid "Deleting..."
 msgstr "במחיקה..."
 
@@ -4374,7 +4374,7 @@ msgstr "הצגת תפריט ניווט"
 msgid "Display category list"
 msgstr "הצגת רשימת קטגוריות"
 
-#: packages/admin/src/routes/bylines.tsx:724
+#: packages/admin/src/routes/bylines.tsx:722
 msgid "Display name"
 msgstr "שם תצוגה"
 
@@ -6419,7 +6419,7 @@ msgstr "קיבוץ לפי"
 msgid "Guest"
 msgstr "אורח/ת"
 
-#: packages/admin/src/routes/bylines.tsx:775
+#: packages/admin/src/routes/bylines.tsx:773
 msgid "Guest byline"
 msgstr "קרדיט אורח"
 
@@ -7402,7 +7402,7 @@ msgstr "תוקף הקישור פג"
 msgid "Link options"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:754
+#: packages/admin/src/routes/bylines.tsx:752
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr "קשרו את הקרדיט הזה למשתמש/ת או סמנו אותו כפרופיל אורח."
 
@@ -7434,7 +7434,7 @@ msgid "Linked side (singular)"
 msgstr "הצד המקושר (יחיד)"
 
 #: packages/admin/src/routes/bylines.tsx:565
-#: packages/admin/src/routes/bylines.tsx:758
+#: packages/admin/src/routes/bylines.tsx:756
 msgid "Linked user"
 msgstr "משתמש מקושר"
 
@@ -8782,7 +8782,7 @@ msgstr "עדיין אין פריטים"
 msgid "No limit"
 msgstr "ללא מגבלה"
 
-#: packages/admin/src/routes/bylines.tsx:769
+#: packages/admin/src/routes/bylines.tsx:767
 msgid "No linked user"
 msgstr "אין משתמש מקושר"
 
@@ -10990,7 +10990,7 @@ msgstr "תוכן לדוגמה"
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Save"
 msgstr "שמירה"
 
@@ -11088,7 +11088,7 @@ msgstr "שמירת אוסף כאן הופכת את השדה הזה לבורר פ
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/users/UserDetail.tsx:323
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/routes/bylines.tsx:859
+#: packages/admin/src/routes/bylines.tsx:858
 msgid "Saving..."
 msgstr "בשמירה..."
 
@@ -12095,7 +12095,7 @@ msgstr "דולג"
 #: packages/admin/src/components/TaxonomyManager.tsx:797
 #: packages/admin/src/components/TaxonomyManager.tsx:801
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:730
+#: packages/admin/src/routes/bylines.tsx:728
 msgid "Slug"
 msgstr "slug"
 
@@ -13273,7 +13273,7 @@ msgstr "כלל הפניה זה יוסר לצמיתות."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "גרסה זו דורשת סביבה חדשה יותר מזו שהאתר שלכם מפעיל כעת. שדרגו לפני ההתקנה."
 
-#: packages/admin/src/routes/bylines.tsx:875
+#: packages/admin/src/routes/bylines.tsx:874
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "פעולה זו מסירה את פרופיל הקרדיט. קישורי קרדיט בתוכן מוסרים ומצביעי קרדיט ראשי מתנקים."
 
@@ -14453,7 +14453,7 @@ msgstr "WebAuthn אינו נתמך בדפדפן זה"
 msgid "Website"
 msgstr "אתר אינטרנט"
 
-#: packages/admin/src/routes/bylines.tsx:736
+#: packages/admin/src/routes/bylines.tsx:734
 msgid "Website URL"
 msgstr "URL של אתר אינטרנט"
 
@@ -14737,7 +14737,7 @@ msgstr "תוכלו ליצור ולערוך את התוכן שלכם."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "תוכלו לנהל תוכן, מדיה, תפריטים וטקסונומיות."
 
-#: packages/admin/src/routes/bylines.tsx:812
+#: packages/admin/src/routes/bylines.tsx:810
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "עדיין תוכלו לערוך את השדות הקבועים למעלה. השמירה לא תיגע בערכים שמורים של שדות מותאמים אישית."
 
