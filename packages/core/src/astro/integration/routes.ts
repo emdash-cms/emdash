@@ -485,6 +485,12 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings/email.ts"),
 	});
 
+	// Cloudflare Email binding check (sub-action of email settings)
+	injectRoute({
+		pattern: "/_emdash/api/settings/email/test-binding",
+		entrypoint: resolveRoute("api/settings/email/test-binding.ts"),
+	});
+
 	injectRoute({
 		pattern: "/_emdash/api/settings/domain",
 		entrypoint: resolveRoute("api/settings/domain.ts"),

@@ -51,10 +51,13 @@ import {
 	RESOLVED_VIRTUAL_ENV_ID,
 	VIRTUAL_BUILD_ID,
 	RESOLVED_VIRTUAL_BUILD_ID,
+	VIRTUAL_SOCKETS_ID,
+	RESOLVED_VIRTUAL_SOCKETS_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
 	generateEnvModule,
+	generateSocketsModule,
 	generateBuildModule,
 	generateConfigModule,
 	generateDialectModule,
@@ -253,6 +256,9 @@ export function createVirtualModulesPlugin(
 			if (id === VIRTUAL_BUILD_ID) {
 				return RESOLVED_VIRTUAL_BUILD_ID;
 			}
+			if (id === VIRTUAL_SOCKETS_ID) {
+				return RESOLVED_VIRTUAL_SOCKETS_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -357,6 +363,9 @@ export function createVirtualModulesPlugin(
 			}
 			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
 				return generateBuildModule(buildTime);
+			}
+			if (id === RESOLVED_VIRTUAL_SOCKETS_ID) {
+				return generateSocketsModule(astroConfig.adapter?.name);
 			}
 		},
 	};
