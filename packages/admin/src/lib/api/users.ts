@@ -185,7 +185,7 @@ export async function validateInviteToken(token: string): Promise<InviteVerifyRe
 
 	if (!response.ok) {
 		const errorData: unknown = await response.json().catch(() => ({}));
-		let message = `Invite validation failed: ${response.statusText}`;
+		let message = i18n._(msg`Invite validation failed`);
 		let code: string | undefined;
 		if (typeof errorData === "object" && errorData !== null && "error" in errorData) {
 			const err = errorData.error;
@@ -381,7 +381,7 @@ export async function verifySignupToken(token: string): Promise<SignupVerifyResu
 
 	if (!response.ok) {
 		const errorData: unknown = await response.json().catch(() => ({}));
-		let message = `Token verification failed: ${response.statusText}`;
+		let message = i18n._(msg`Token verification failed`);
 		let code: string | undefined;
 		if (typeof errorData === "object" && errorData !== null && "error" in errorData) {
 			const err = errorData.error;
@@ -419,7 +419,7 @@ export async function completeSignup(
 
 	if (!response.ok) {
 		const errorData: unknown = await response.json().catch(() => ({}));
-		let message = `Signup completion failed: ${response.statusText}`;
+		let message = i18n._(msg`Signup completion failed`);
 		let code: string | undefined;
 		if (typeof errorData === "object" && errorData !== null && "error" in errorData) {
 			const err = errorData.error;

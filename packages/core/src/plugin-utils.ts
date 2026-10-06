@@ -64,7 +64,7 @@ export async function parseApiResponse<T>(
 	fallbackMessage = "Request failed",
 ): Promise<T> {
 	if (!response.ok) {
-		throw new Error(await getErrorMessage(response, `${fallbackMessage}: ${response.statusText}`));
+		throw new Error(await getErrorMessage(response, fallbackMessage));
 	}
 	const body: { data: T } = await response.json();
 	return body.data;
