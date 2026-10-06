@@ -13,6 +13,8 @@ A normal pull request can merge when:
 
 These requirements apply to the Project Lead, Cloudflare employees, external Maintainers, and other contributors. Routine self-merge is not permitted.
 
+The author is the pull request's main author. A Maintainer who has made substantial changes to someone else's pull request, including an EmDashBot pull request, also counts as an author and cannot provide its approval. Automation only excludes the account that opened the pull request, so Maintainers apply this rule themselves.
+
 An approval applies to the reviewed revision. A later substantive commit requires another approval. A merge commit that only updates the branch from `main` does not invalidate an approval.
 
 Project Team reviews, automated reviews, test results, and static analysis help the human reviewer. They do not replace Maintainer approval. A bot with repository permissions is still a bot, not a Maintainer.
@@ -47,7 +49,7 @@ An accepted design reduces implementation review, but it does not make review me
 
 Maintainers can merge, close, or redirect work where documented policy or an accepted design supplies the direction. Escalate to the Project Lead when a decision establishes new direction, conflicts with an accepted design, changes governance, or cannot reach agreement.
 
-Explain a public decision in the relevant public GitHub artifact. Keep personnel, conduct, embargoed security, credentials, legal, and privacy matters in the restricted channels defined by [GOVERNANCE.md](GOVERNANCE.md#work-in-public-by-default).
+Explain a public decision in the relevant public GitHub artifact. Keep personnel, conduct, embargoed security, credentials, legal, and privacy matters in the restricted channels defined by [GOVERNANCE.md](GOVERNANCE.md#public-and-private-channels).
 
 ## Emergency bypass
 
@@ -59,4 +61,4 @@ Record the bypass and obtain retrospective review as soon as it is safe to discl
 
 Grant only the access needed for an agreed responsibility. Review GitHub Write or Admin access, package publishing, releases, production systems, secrets, and Discord administration independently.
 
-The canonical Maintainer list is in [GOVERNANCE.md](GOVERNANCE.md#maintainers). Repository automation checks that a qualifying reviewer is human, appears on that list, is not the author, and approved the current revision. GitHub permissions alone do not establish Maintainer status.
+The canonical Maintainer list is in [GOVERNANCE.md](GOVERNANCE.md#maintainers). Repository automation checks that a qualifying reviewer is human, appears on that list, did not open the pull request, and approved the current revision. GitHub permissions alone do not establish Maintainer status.

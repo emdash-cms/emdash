@@ -1,6 +1,6 @@
 # AI usage policy
 
-EmDash welcomes contributions created with AI tools. The human contributor remains responsible for the result, and conversations with community members remain human except for the narrow implementation-pull-request review cases below.
+EmDash welcomes contributions created with AI tools. The human contributor remains responsible for the result, and conversations with community members remain human except for the narrow implementation-pull-request review cases and the EmDashBot issue work described below.
 
 This policy covers generative AI agents. Ordinary CI automation, dependency updates, test results, and deterministic status comments are outside its scope.
 
@@ -13,6 +13,8 @@ This policy covers generative AI agents. Ordinary CI automation, dependency upda
 - Do not use an agent to reply to a human except for the implementation-pull-request review cases permitted below.
 
 Posting from an identifiable bot account removes the need for a signature. It does not override a surface where AI participation is prohibited.
+
+Spelling, grammar, and translation help with text you wrote yourself is allowed anywhere. It does not make the text agent-written and does not need a signature. Do not let it become a rewrite. In an ordinary comment, your own uncorrected wording is preferred.
 
 ## Pull request eligibility
 
@@ -70,11 +72,17 @@ Name the actual model used. Add the signature to each agent-written comment rath
 
 ## Project-operated bots
 
-Project-operated AI bots can perform narrowly configured code-review tasks on implementation pull requests. They use identifiable bot accounts and must not:
+Project-operated AI bots use identifiable bot accounts. Unless this section grants an exception, they can only perform narrowly configured code-review tasks on implementation pull requests, and must not:
 
 - open contribution pull requests or issues autonomously;
 - participate in Discussions;
 - comment on issues; or
 - comment on design pull requests.
 
+EmDashBot's issue work is exempt from these rules. It triages and investigates issues, comments on them, and opens pull requests for the fixes it prepares, as described in [TRIAGE.md](TRIAGE.md#issue-work-and-bot-labels). Its pull requests need human Maintainer approval to merge like any other. The exemption does not extend to Discussions or design pull requests.
+
 Deterministic repository automation can report status or perform an action explicitly requested through a documented repository command.
+
+## When the policy is not followed
+
+Start with a reminder of this policy. Most people who break it do not yet know the rules. Ask a Maintainer to step in if the behavior continues.

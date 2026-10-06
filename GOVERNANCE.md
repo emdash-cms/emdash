@@ -2,7 +2,7 @@
 
 EmDash is led by a Project Lead and operated by a Project Team and Maintainers. This document defines those roles, how decisions are made, and how people join or leave the teams.
 
-The role lists in this file are canonical. GitHub, Discord, publishing, infrastructure, and administrative access support a role but do not define it.
+The role lists in this file are canonical. GitHub, Discord, publishing, infrastructure, and administrative access support a role but do not define it. Someone can hold Write or Admin access for technical or administrative reasons without being a Maintainer. Bots can hold repository permissions and review pull requests, but a bot is never a Maintainer or Project Team member.
 
 ## Current team
 
@@ -35,6 +35,10 @@ Maintainers are also members of the Project Team. Former members can be recognis
 Product direction, architecture, roadmap priorities, feature acceptance, proposals, bug evidence, review judgments, and project policy belong in public GitHub Discussions, issues, design pull requests, and implementation pull requests.
 
 Discord can help people discover and coordinate work, but it must not hold the only record of a decision. Record the conclusion of a private, synchronous, or Discord conversation in the relevant public GitHub artifact.
+
+## Public and private channels
+
+A channel is any place where project discussion happens: GitHub Discussions, issues, and pull requests as well as Discord channels and calls. Use public channels for discovery and informal community input. Use the relevant GitHub Discussion, issue, design pull request, or implementation pull request for substantive reasoning and the durable decision record.
 
 Use the public `#contributing` Discord channel for contributing, triage, roadmap, proposals, implementation, and project operations. Threads keep individual subjects together.
 
@@ -105,6 +109,8 @@ The Project Lead is the Maintainer accountable for the project's overall directi
 The Project Lead seeks public input on public project decisions and consults the Maintainers before exercising this authority. Ordinary work within an accepted design or documented policy does not require separate Project Lead approval.
 
 Cloudflare appoints the Project Lead.
+
+When the Project Lead is away, they designate a Maintainer to act for them and set the scope of that delegation. RFC acceptance normally waits for the Project Lead's return. Other decisions within the delegated scope, including design pull requests, can be made by the designated Maintainer.
 
 ## Decision-making
 
