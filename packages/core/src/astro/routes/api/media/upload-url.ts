@@ -76,9 +76,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
 		if (isParseError(body)) return body;
 
+		// Run media:beforeUpload hooks before allocating the pending row so a
+		// plugin can rename, validate, or cancel the upload.
+		let beforeUploadFile = {
+			name: body.filename,
+			type: body.contentType,
+			size: body.size,
+		};
+		if (emdash.hooks?.hasHooks("media:beforeUpload")) {
+			const hookResult = await emdash.hooks.runMediaBeforeUpload(beforeUploadFile);
+			beforeUploadFile = hookResult.file;
+		}
+
 		// Clients that don't recognise an extension may send an empty or generic
 		// content type; fall back to the filename extension before allowlisting.
-		const mimeType = resolveUploadMimeType(body.filename, body.contentType);
+		const mimeType = resolveUploadMimeType(beforeUploadFile.name, beforeUploadFile.type);
 		const normalizedContentType = normalizeMime(mimeType);
 
 		// Validate content type (field-aware widening)
@@ -94,9 +106,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const repo = new MediaRepository(emdash.db);
 
 		// Check for existing content with same hash (deduplication)
-		if (body.deduplicate !== false && body.contentHash && body.size > 0) {
+		if (body.deduplicate !== false && body.contentHash && beforeUploadFile.size > 0) {
 			const existing = await repo.findByContentHash(body.contentHash);
-			if (existing && existing.mimeType === normalizedContentType && existing.size === body.size) {
+			if (
+				existing &&
+				existing.mimeType === normalizedContentType &&
+				existing.size === beforeUploadFile.size
+			) {
 				const response: ExistingMediaResponse = {
 					existing: true,
 					mediaId: existing.id,
@@ -107,8 +123,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			}
 		}
 		const filename = body.ensureUniqueFilename
-			? await repo.findAvailableFilename(body.filename)
-			: body.filename;
+			? await repo.findAvailableFilename(beforeUploadFile.name)
+			: beforeUploadFile.name;
 
 		// Generate unique storage key
 		const id = ulid();
@@ -120,7 +136,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			signedUrl = await emdash.storage.getSignedUploadUrl({
 				key: storageKey,
 				contentType: mimeType,
-				size: body.size,
+				size: beforeUploadFile.size,
 				expiresIn: 3600,
 			});
 		} catch (error) {
@@ -131,7 +147,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const mediaItem = await repo.createPending({
 			filename,
 			mimeType: normalizedContentType,
-			size: body.size,
+			size: beforeUploadFile.size,
 			storageKey,
 			authorId: user?.id,
 			folderId: body.folderId,

@@ -244,6 +244,20 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		// Add URL to the response (relative URL for portability)
 		const itemWithUrl = addUrlToMedia(item);
 
+		// Notify plugins that a new media item is ready.
+		if (emdash.hooks?.hasHooks("media:afterUpload")) {
+			emdash.hooks
+				.runMediaAfterUpload({
+					id: itemWithUrl.id,
+					filename: itemWithUrl.filename,
+					mimeType: itemWithUrl.mimeType,
+					size: itemWithUrl.size,
+					url: itemWithUrl.url,
+					createdAt: itemWithUrl.createdAt,
+				})
+				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+		}
+
 		return apiSuccess({ item: itemWithUrl });
 	} catch (error) {
 		return handleError(error, "Failed to confirm upload", "CONFIRM_ERROR");
