@@ -39,7 +39,7 @@ Each initiative has a public tracking issue and an item in the public GitHub Roa
 
 One initiative can produce several designs and implementation pull requests. Now and Next items require an active champion, a Maintainer sponsor, and a defined next step.
 
-The Project Lead decides roadmap placement after public reasoning and consultation. Review the roadmap every few months and whenever priorities materially change.
+The Project Lead decides roadmap placement, including each initiative's horizon, after public reasoning and consultation. The initiative's champion keeps its stage current. Review the roadmap every few months and whenever priorities materially change.
 
 ## Contributor-led work
 

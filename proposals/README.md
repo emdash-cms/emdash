@@ -28,7 +28,7 @@ A feature plan can merge after one human Maintainer other than the author approv
 
 ### RFC
 
-Use an RFC when the change affects a public API, stored data, plugin surface, security boundary, default, backwards compatibility, several packages or runtimes, critical-path performance, a privileged supply-chain system, a breaking change, or another decision that would be expensive to reverse.
+Use an RFC when the change affects a public API, stored data, plugin surface, security boundary, default, backwards compatibility, several packages or runtimes, critical-path performance, a privileged supply-chain system, a breaking change, or another decision that would be expensive to reverse. A design that deprecates existing behavior or an API almost always needs an RFC.
 
 Start with an [Ideas Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) to establish the problem, demand, and broad scope. Then copy [`rfc-template.md`](./rfc-template.md) to a descriptive filename and open a design pull request.
 
@@ -62,6 +62,18 @@ Implementation review verifies correctness, security, compatibility, tests, and 
 
 The automated reviewer loads the linked accepted proposal and reports omissions, divergences, unplanned scope, and missing tests. Its report is evidence for the human Maintainer who approves the implementation.
 
+The implementation pull request that completes the proposal sets its status to `implemented` and records itself in the proposal index.
+
+## Linked Ideas Discussions
+
+Link the proposal's Ideas Discussions in its front matter (`discussion` in a feature plan, `discussions` in an RFC). Automation keeps each linked Ideas Discussion in step with the proposal:
+
+- When the design pull request opens, it comments on the Discussion with a link to the pull request.
+- When the design pull request merges with the status `accepted`, it comments with a link to the accepted proposal and closes the Discussion as resolved.
+- When an implementation pull request sets the status to `implemented`, it comments with a link to that pull request.
+
+Continue the conversation on the design pull request once it opens.
+
 ## Change an accepted proposal
 
 A design pull request can amend, supersede, or withdraw an accepted proposal. Resolve conflicts between accepted or pending proposals before merging a conflicting design. The later proposal must update the affected existing proposal in the same design pull request so readers have one consistent plan of record.
@@ -71,6 +83,8 @@ Small corrections that do not change the design can use a normal documentation p
 ## Transition for existing feature pull requests
 
 Feature pull requests opened before 3 October 2026 are not failed automatically for lacking a design PR. A settled design can be recorded retrospectively in a feature plan. When product or architecture decisions remain unresolved, move those decisions into a proposal before continuing implementation review.
+
+Ideas Discussions labelled `Approved for PR` under the previous process now carry the `Design PR welcome` label. They proceed with a feature plan like any other welcomed Idea, and an approved Discussion counts as the Ideas Discussion an RFC requires.
 
 ## Proposal index
 

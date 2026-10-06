@@ -299,6 +299,18 @@ Ideas Discussions are the request inbox and the first step for full RFCs. They c
 
 Triage does not accept a design or commit the project to implementation. A merged design PR accepts a feature plan or RFC. Roadmap placement is a separate decision for project-led work.
 
+### Sorting Ideas
+
+Most Ideas need sorting rather than detailed discussion. Sort an Idea with one of these labels:
+
+- `Design PR welcome` — the project would consider the feature, and anyone can propose it in a feature plan or RFC.
+- `Better as a plugin` — the feature fits an independently published plugin better than EmDash itself.
+- `Out of scope` — the feature does not fit the project. Explain why, then close the Discussion.
+
+Sort an Idea yourself when the answer is clear from documented policy or earlier decisions. Otherwise flag it in `#project-team` or bring it to a regular project call, where Ideas can be evaluated together. There is no deadline for a first response.
+
+A `Design PR welcome` Idea stays open until its design is accepted. Automation links the design PR from the Idea when the PR opens and closes the Idea when the design PR merges (see [Linked Ideas Discussions](proposals/README.md#linked-ideas-discussions)).
+
 ## Area Labels
 
 On PRs, area labels are applied automatically from the changed file paths. On issues, they are a human call — useful when they are obvious, but not the main goal of triage. Do not spend much time guessing; a clear comment and a good priority label are usually worth more than a perfect area label.
