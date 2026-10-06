@@ -482,6 +482,10 @@ const hasHeadings = (post.data.content ?? []).some(
 		margin-inline: auto;
 	}
 
+	.post-rail {
+		overflow-wrap: break-word;
+	}
+
 	/* Meta rail */
 	.post-facts {
 		display: grid;
@@ -572,6 +576,7 @@ const hasHeadings = (post.data.content ?? []).some(
 		/* A rail taller than the viewport scrolls on its own, so every widget stays reachable */
 		.post-rail {
 			display: grid;
+			grid-template-columns: minmax(0, 1fr);
 			gap: var(--spacing-10);
 			max-width: none;
 			max-height: calc(100vh - var(--nav-height) - var(--spacing-16));
