@@ -50,7 +50,7 @@ export default defineConfig({
 			},
 		}),
 		emdash({
-			database: d1({ binding: "DB", session: "auto" }),
+			database: d1({ binding: "DB" }),
 			storage: r2({ binding: "MEDIA" }),
 		}),
 	],
