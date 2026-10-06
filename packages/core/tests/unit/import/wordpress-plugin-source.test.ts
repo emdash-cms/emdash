@@ -128,6 +128,31 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		expect(items[0]!.customTaxonomies).toEqual({ genre: ["sci-fi", "fantasy"] });
 	});
 
+	it("reads the exporter's GMT date as UTC regardless of the server time zone", async () => {
+		vi.stubEnv("TZ", "Europe/Zurich");
+		try {
+			mockFetch.mockResolvedValueOnce(
+				contentResponse([
+					makePost({ date: "2099-06-01 11:30:00", date_gmt: "2099-06-01 09:30:00" }),
+					makePost({ id: 2, date: "2099-06-01 11:30:00", date_gmt: "0000-00-00 00:00:00" }),
+				]),
+			);
+
+			const items = [];
+			for await (const item of wordpressPluginSource.fetchContent(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{ postTypes: ["post"] },
+			)) {
+				items.push(item);
+			}
+
+			expect(items[0]!.date.toISOString()).toBe("2099-06-01T09:30:00.000Z");
+			expect(items[1]!.date.toISOString()).toBe(new Date("2099-06-01T11:30:00").toISOString());
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
 	it("surfaces custom fields (ACF/meta) as suggested fields with sanitized slugs", async () => {
 		const analyzeResponse = {
 			...makeAnalyzeResponse(0),

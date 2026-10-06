@@ -131,7 +131,11 @@ export async function dispatchPluginApiRequest({
 				? "Plugin route error"
 				: (result.error?.message ?? "Plugin route error");
 		const status = (result as { status?: number }).status ?? (code === "NOT_FOUND" ? 404 : 400);
-		return apiError(code, message, status);
+		const details =
+			code !== "INTERNAL_ERROR" && result.error && "details" in result.error
+				? result.error.details
+				: undefined;
+		return apiError(code, message, status, isRecord(details) ? details : undefined);
 	}
 
 	let response: Response;

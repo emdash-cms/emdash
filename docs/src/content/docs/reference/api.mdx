@@ -426,6 +426,11 @@ const portableText = prosemirrorToPortableText(prosemirrorDoc);
 const prosemirrorDoc = portableTextToProsemirror(portableText);
 ```
 
+The ProseMirror document uses EmDash's own nodes for built-in blocks, such as `image`, `table`,
+`iframeBlock` and `videoBlock`. A TipTap editor that loads it needs those nodes in its schema, or it
+can't load documents that use them. A `videoBlock` node has the attributes `src`, `mediaId`,
+`provider`, `caption`, `width` and `height`.
+
 ## Site settings
 
 Read site-wide settings with `getSiteSettings` and `getSiteSetting`:

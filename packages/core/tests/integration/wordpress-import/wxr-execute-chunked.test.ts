@@ -204,6 +204,35 @@ describe("WXR execute chunked import", () => {
 		expect(sections).toEqual([{ slug: "call-to-action" }]);
 	});
 
+	it("schedules future posts and keeps missed schedules as drafts", async () => {
+		const wxr = makeWxr(2)
+			.replace(
+				"<wp:status>publish</wp:status>\n\t\t\t<wp:post_name>post-1</wp:post_name>\n\t\t\t<wp:post_date>2024-01-01 12:00:00</wp:post_date>\n\t\t\t<wp:post_date_gmt>2024-01-01 12:00:00</wp:post_date_gmt>",
+				"<wp:status>future</wp:status>\n\t\t\t<wp:post_name>post-1</wp:post_name>\n\t\t\t<wp:post_date>2099-06-01 09:30:00</wp:post_date>\n\t\t\t<wp:post_date_gmt>2099-06-01 09:30:00</wp:post_date_gmt>",
+			)
+			.replace(
+				"<wp:status>publish</wp:status>\n\t\t\t<wp:post_name>post-2</wp:post_name>",
+				"<wp:status>future</wp:status>\n\t\t\t<wp:post_name>post-2</wp:post_name>",
+			);
+
+		const response = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(buildFormData(wxr), harness.emdash) as any,
+		);
+		expect(response.status).toBe(200);
+		expect((await response.json()).data.errors).toEqual([]);
+
+		const rows = await harness.db
+			.selectFrom("ec_post")
+			.select(["slug", "status", "scheduled_at"])
+			.orderBy("slug")
+			.execute();
+		expect(rows).toEqual([
+			{ slug: "post-1", status: "scheduled", scheduled_at: "2099-06-01T09:30:00.000Z" },
+			{ slug: "post-2", status: "draft", scheduled_at: null },
+		]);
+	});
+
 	it("rejects a cursor when the WXR file changes", async () => {
 		const wxr = makeWxr(35);
 		const prepared = await prepareChunkedImport(wxr, harness.emdash);

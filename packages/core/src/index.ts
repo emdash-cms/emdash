@@ -132,6 +132,7 @@ export type {
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
 	PortableTextIframeBlock,
+	PortableTextVideoBlock,
 	PortableTextTableAlignment,
 	PortableTextTableBlock,
 	PortableTextTableCell,

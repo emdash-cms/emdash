@@ -54,16 +54,16 @@ explains both values.
 ## Write rich text
 
 Portable Text fields provide a block editor for headings, paragraphs, quotations, lists, links,
-images, galleries, code blocks, tables, HTML blocks, and reusable sections. Installed plugins may
-add more blocks.
+images, videos, galleries, code blocks, tables, HTML blocks, and reusable sections. Installed
+plugins may add more blocks.
 
 Use the toolbar to format the selected text. To insert a block, select the add-block control beside
 a paragraph or type `/` and search for a block by name. Image and gallery blocks open the same media
 picker used by image fields.
 
-You can also drag image files into the editor or paste a copied image or screenshot. Each image
-uploads to the Media Library and appears between the surrounding blocks when the upload finishes. If
-an upload fails, the reason appears where the image would have gone.
+You can also drag image and video files into the editor or paste a copied image or screenshot. Each
+file uploads to the Media Library and appears between the surrounding blocks when the upload
+finishes. If an upload fails, the reason appears where the file would have gone.
 
 When you select an image block, a toolbar appears above it. Use it to replace the image, edit its alt
 text, align it, add a link, or delete the block. The **Alt text** button is highlighted once the image
@@ -75,6 +75,23 @@ writing below it. From a selected image, Tab moves to the caption and then the t
 display size and optional tooltip. **Edit asset** there opens the underlying Media Library item,
 where changing or replacing the asset can affect other entries that use it. See
 [Media Library](/guides/media-library/#edit-an-image-used-in-content) for that distinction.
+
+### Add a video
+
+Type `/video` to add a video block, and choose a video from the Media Library or upload one in the
+picker that opens. If you close the picker, the empty video block stays where you put it, so you can
+fill it later: click it, press Enter while it's selected, or drop a video file on it. An empty video
+block shows nothing on your site. You can also drop a video file anywhere in the text.
+
+The video plays in the editor as it will on your site, at the width of the text. Type a caption in
+the field under it, and press Enter to keep writing below it.
+
+Hover over a video, or select it, to show **Replace video** and **Delete video** in its corner.
+From a selected video, Tab moves to the player, where Space plays it, then to the caption and the
+two buttons. Escape returns to the block.
+
+Uploads follow the Media Library's size limit,
+[`maxUploadSize`](/reference/configuration/#maxuploadsize), which is 50 MiB unless you raise it.
 
 ### Add HTML, CSS and JavaScript
 

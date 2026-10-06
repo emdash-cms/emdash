@@ -33,6 +33,33 @@ describe("pluginManifestSchema — content policy", () => {
 	});
 });
 
+describe("pluginManifestSchema — admin pages", () => {
+	it("keeps a page's sidebar group", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: ["admin"],
+			admin: {
+				pages: [
+					{ path: "/sync", label: "Sync", group: " Calendar " },
+					{ path: "/log", label: "Log" },
+				],
+			},
+		});
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.data.admin.pages?.map((page) => page.group)).toEqual(["Calendar", undefined]);
+	});
+
+	it("rejects a blank group", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: ["admin"],
+			admin: { pages: [{ path: "/sync", label: "Sync", group: "  " }] },
+		});
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("pluginManifestSchema — route entries", () => {
 	it("rejects duplicate route names before runtime last-write-wins normalization", () => {
 		const result = pluginManifestSchema.safeParse({

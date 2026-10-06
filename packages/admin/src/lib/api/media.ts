@@ -49,7 +49,12 @@ export interface MediaUsageOccurrenceDetail {
 	fieldSlug: string;
 	fieldPath: string;
 	occurrenceIndex: number;
-	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+	referenceType:
+		| "image_field"
+		| "file_field"
+		| "portable_text_image"
+		| "portable_text_video"
+		| "unknown";
 }
 
 export interface MediaUsageSourceDetail {

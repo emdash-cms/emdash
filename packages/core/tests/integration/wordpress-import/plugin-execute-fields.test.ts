@@ -19,6 +19,7 @@ import {
 import type { EmDashHandlers, EmDashManifest } from "../../../src/astro/types.js";
 import type { Database } from "../../../src/database/types.js";
 import type { NormalizedItem } from "../../../src/import/types.js";
+import { createTestRuntime, handlersFromRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 function makeItem(overrides: Partial<NormalizedItem>): NormalizedItem {
@@ -232,5 +233,55 @@ describe("coerceToFieldType", () => {
 		expect(coerceToFieldType("not a date", "datetime")).toBeUndefined();
 		expect(coerceToFieldType({ a: 1 }, "json")).toEqual({ a: 1 });
 		expect(coerceToFieldType("123", "image")).toBeUndefined();
+	});
+});
+
+describe("WordPress plugin import: scheduled posts", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("schedules future posts and keeps missed schedules as drafts", async () => {
+		const emdash = handlersFromRuntime(createTestRuntime(db));
+		const items = [
+			makeItem({
+				sourceId: 1,
+				slug: "upcoming",
+				status: "future",
+				date: new Date("2099-06-01T09:30:00Z"),
+			}),
+			makeItem({
+				sourceId: 2,
+				slug: "missed",
+				status: "future",
+				date: new Date("2020-06-01T09:30:00Z"),
+			}),
+		];
+
+		const { result } = await importContent(
+			generate(items),
+			{ postTypeMappings: { post: { collection: "post", enabled: true } }, skipExisting: false },
+			emdash,
+			await emdash.getManifest(),
+			undefined,
+		);
+		expect(result.errors).toEqual([]);
+
+		const rows = await db
+			// eslint-disable-next-line typescript/no-explicit-any -- dynamic ec_ table not in the static schema
+			.selectFrom("ec_post" as any)
+			.select(["slug", "status", "scheduled_at"])
+			.orderBy("slug")
+			.execute();
+		expect(rows).toEqual([
+			{ slug: "missed", status: "draft", scheduled_at: null },
+			{ slug: "upcoming", status: "scheduled", scheduled_at: "2099-06-01T09:30:00.000Z" },
+		]);
 	});
 });

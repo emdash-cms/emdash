@@ -85,6 +85,7 @@ import {
 	CodeBlock,
 	Stack,
 	Table as TableIcon,
+	VideoCamera,
 	Plus,
 	Trash,
 	RowsPlusBottom,
@@ -218,6 +219,14 @@ import {
 	selectionTouchesTable,
 } from "./editor/TableExtensions.js";
 import { createTableResize } from "./editor/TableResize.js";
+import {
+	VideoExtension,
+	isVideoBlock,
+	mediaItemToVideoAttrs,
+	openPickerOnInsert,
+	videoBlockFields,
+	videoNodeAttrs,
+} from "./editor/VideoNode";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { SectionPickerModal } from "./SectionPickerModal";
@@ -646,6 +655,7 @@ const PortableTextIdentityExtension = Extension.create({
 					"htmlBlock",
 					"iframeBlock",
 					"image",
+					"videoBlock",
 					"horizontalRule",
 					"gallery",
 					"table",
@@ -997,6 +1007,13 @@ function convertPMNode(
 				_type: "iframe",
 				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				...iframeEmbedFromAttrs(node.attrs ?? {}),
+			};
+
+		case "videoBlock":
+			return {
+				_type: "video",
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				...videoBlockFields(node.attrs ?? {}),
 			};
 
 		case "image": {
@@ -1598,6 +1615,14 @@ function convertPTBlock(
 					}
 				: convertCustomBlock(block);
 
+		case "video":
+			return isVideoBlock(block) && !pluginTypes.has("video")
+				? {
+						type: "videoBlock",
+						attrs: attrsWithPortableTextKey(videoNodeAttrs(block), block._key),
+					}
+				: convertCustomBlock(block);
+
 		case "table": {
 			const result = portableTextTableToProseMirror(block, {
 				path,
@@ -1930,6 +1955,14 @@ function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(editor, editor.schema.nodes.iframeBlock!.create(), range, position);
 }
 
+// The new block opens its picker over the editor, which keeps focus underneath: closing the
+// picker returns focus there, with the empty block selected so Enter reopens it.
+function insertVideoBlock(editor: Editor, range?: Range, position?: number) {
+	openPickerOnInsert(editor);
+	insertTopLevelBlock(editor, editor.schema.nodes.videoBlock!.create(), range, position);
+	editor.view.focus();
+}
+
 function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(
 		editor,
@@ -2063,12 +2096,22 @@ const htmlSlashCommand: SlashCommandItem = {
 	command: ({ editor, range }) => insertHtmlBlock(editor, range),
 };
 
+const videoSlashCommand: SlashCommandItem = {
+	id: "video",
+	title: msg`Video`,
+	description: msg`Upload or choose a video`,
+	icon: VideoCamera,
+	aliases: ["movie", "clip", "mp4", "film"],
+	category: MEDIA_CATEGORY,
+	command: ({ editor, range }) => insertVideoBlock(editor, range),
+};
+
 const iframeSlashCommand: SlashCommandItem = {
 	id: "iframe",
 	title: msg`Iframe`,
 	description: msg`Embed a page from another site`,
 	icon: FrameCorners,
-	aliases: ["embed", "youtube", "vimeo", "video", "map"],
+	aliases: ["embed", "youtube", "vimeo", "map"],
 	category: EMBEDS_CATEGORY,
 	command: ({ editor, range }) => insertIframeBlock(editor, range),
 };
@@ -3501,6 +3544,7 @@ export function PortableTextEditor({
 	const uploadImageRef = React.useRef(async (file: File, signal: AbortSignal) => {
 		const item = await uploadMedia(file, { signal });
 		void queryClient.invalidateQueries({ queryKey: ["media"] });
+		if (file.type.startsWith("video/")) return mediaItemToVideoAttrs(item);
 		return mediaItemToImageAttrs({ ...item, url: item.url || localMediaFileUrl(item.storageKey) });
 	});
 
@@ -3571,6 +3615,8 @@ export function PortableTextEditor({
 		() => new Set(pluginBlocks.map((block) => block.type)),
 		[pluginBlocks],
 	);
+	const pluginBlockTypesRef = React.useRef(pluginBlockTypes);
+	pluginBlockTypesRef.current = pluginBlockTypes;
 
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
@@ -3617,21 +3663,24 @@ export function PortableTextEditor({
 					setGalleryPickerOpen(true);
 				},
 			},
-			topLevelInsert(htmlSlashCommand, insertHtmlBlock),
-			{
-				id: "section",
-				title: msg`Section`,
-				description: msg`Insert a reusable section`,
-				icon: Stack,
-				aliases: ["pattern", "block", "template"],
-				category: ADVANCED_CATEGORY,
-				deferInsertion: true,
-				command: ({ editor, range }) => {
-					editor.chain().focus().deleteRange(range).run();
-					setSectionPickerOpen(true);
-				},
-			},
 		);
+		// A plugin's own video block replaces the built-in one.
+		if (!pluginBlockTypes.has("video")) {
+			cmds.push(topLevelInsert(videoSlashCommand, insertVideoBlock));
+		}
+		cmds.push(topLevelInsert(htmlSlashCommand, insertHtmlBlock), {
+			id: "section",
+			title: msg`Section`,
+			description: msg`Insert a reusable section`,
+			icon: Stack,
+			aliases: ["pattern", "block", "template"],
+			category: ADVANCED_CATEGORY,
+			deferInsertion: true,
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).run();
+				setSectionPickerOpen(true);
+			},
+		});
 		// A plugin's own iframe block replaces the built-in one.
 		if (!pluginBlockTypes.has("iframe")) {
 			cmds.push(topLevelInsert(iframeSlashCommand, insertIframeBlock));
@@ -3790,10 +3839,13 @@ export function PortableTextEditor({
 			CodeBlockExtension,
 			HtmlBlockExtension,
 			IframeBlockExtension,
+			VideoExtension,
 			GalleryExtension,
 			ImageExtension,
 			ImageUploadExtension.configure({
 				upload: (file, signal) => uploadImageRef.current(file, signal),
+				// A plugin's own video block replaces the built-in one.
+				acceptsVideo: () => !pluginBlockTypesRef.current.has("video"),
 			}),
 			MarkdownLinkExtension,
 			PluginBlockExtension,
