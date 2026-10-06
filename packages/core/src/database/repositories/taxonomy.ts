@@ -815,10 +815,10 @@ export class TaxonomyRepository {
 		const currentGroups = new Set(current.map((r) => r.group));
 
 		const toRemove = [...currentGroups].filter((g) => !newGroups.has(g));
-		await this.deleteAssignments(collection, entryGroup, toRemove);
+		if (toRemove.length > 0) await this.deleteAssignments(collection, entryGroup, toRemove);
 
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
-		await this.insertAssignments(collection, entryGroup, toAdd);
+		if (toAdd.length > 0) await this.insertAssignments(collection, entryGroup, toAdd);
 
 		if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 	}
