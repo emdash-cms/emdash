@@ -6,6 +6,7 @@ import { enUS } from "react-day-picker/locale/en-US";
 import { LOCALES } from "./locales.js";
 
 const loadedDateLocales = new Map<string, DayPickerLocale>();
+const pendingDateLocales = new Map<string, Promise<DayPickerLocale>>();
 
 /**
  * The date locale for an admin locale if it is available without loading:
@@ -18,16 +19,44 @@ export function getLoadedDateLocale(code: string): DayPickerLocale | undefined {
 	return loadedDateLocales.get(code);
 }
 
-/** Loads the date locale for an admin locale, falling back to US English. */
-export async function loadDateLocale(code: string): Promise<DayPickerLocale> {
+/**
+ * Loads the date locale for an admin locale. A locale that fails to load falls
+ * back to US English and is not retried. Concurrent callers share one load.
+ */
+export function loadDateLocale(code: string): Promise<DayPickerLocale> {
 	const loaded = getLoadedDateLocale(code);
-	if (loaded) return loaded;
+	if (loaded) return Promise.resolve(loaded);
+	let pending = pendingDateLocales.get(code);
+	if (!pending) {
+		pending = (async () => {
+			let dateLocale = enUS;
+			try {
+				dateLocale = await LOCALES.find((locale) => locale.code === code)!.dateLocale!();
+			} catch {
+				// Fall back to US English for the rest of the session.
+			}
+			loadedDateLocales.set(code, dateLocale);
+			pendingDateLocales.delete(code);
+			return dateLocale;
+		})();
+		pendingDateLocales.set(code, pending);
+	}
+	return pending;
+}
+
+/**
+ * Resolves once the date locale has loaded or `timeoutMs` has passed. The load
+ * continues after a timeout, and `useDateLocale()` picks up its result.
+ */
+export async function waitForDateLocale(code: string, timeoutMs: number): Promise<void> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<void>((resolve) => {
+		timer = setTimeout(resolve, timeoutMs);
+	});
 	try {
-		const dateLocale = await LOCALES.find((locale) => locale.code === code)!.dateLocale!();
-		loadedDateLocales.set(code, dateLocale);
-		return dateLocale;
-	} catch {
-		return enUS;
+		await Promise.race([loadDateLocale(code), timeout]);
+	} finally {
+		clearTimeout(timer);
 	}
 }
 

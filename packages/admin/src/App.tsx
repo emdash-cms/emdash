@@ -20,7 +20,7 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-context";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
-import { getLoadedDateLocale, loadDateLocale } from "./locales/date-locale.js";
+import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
 import { LocaleDirectionProvider } from "./locales/index.js";
 import { createAdminRouter } from "./router";
 
@@ -37,6 +37,7 @@ const queryClient = new QueryClient({
 // Create the router with query client context
 const router = createAdminRouter(queryClient);
 const ADMIN_BASEPATH = "/_emdash/admin";
+const DATE_LOCALE_BOOT_TIMEOUT_MS = 3000;
 
 export function normalizeAdminHref(href: string): string {
 	if (href === ADMIN_BASEPATH) return "/";
@@ -134,7 +135,7 @@ export function AdminApp({
 }: AdminAppProps) {
 	// Date locales can't be serialized from the server, so the first render waits
 	// for the active one. Otherwise calendars would render with the US week start
-	// and then shift.
+	// and then shift. The timeout keeps a stalled request from blocking the admin.
 	const [dateLocaleReady, setDateLocaleReady] = React.useState(
 		() => getLoadedDateLocale(locale) !== undefined,
 	);
@@ -142,7 +143,7 @@ export function AdminApp({
 		if (dateLocaleReady) return;
 		let active = true;
 		void (async () => {
-			await loadDateLocale(locale);
+			await waitForDateLocale(locale, DATE_LOCALE_BOOT_TIMEOUT_MS);
 			if (active) setDateLocaleReady(true);
 		})();
 		return () => {
