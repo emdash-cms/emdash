@@ -3,12 +3,12 @@
  *
  * Delivers EmDash emails (magic links, invites, comment notifications)
  * through Cloudflare Email Sending via a `send_email` Worker binding.
- * Registers `email:deliver` as an exclusive hook — activate the plugin,
- * then select it as the provider under Settings → Email.
+ * Registers `email:deliver` as an exclusive hook. EmDash selects this
+ * plugin automatically when it is the only active email provider.
  *
- * Without a production provider, deployments on Cloudflare only have the
- * dev console stub, and email-dependent auth flows (magic link login,
- * invites) fail with "Email is not configured".
+ * Without an email provider, magic link sign-in on a Cloudflare
+ * deployment fails with "Email is not configured", and invites return a
+ * link to share manually.
  *
  * @example
  * ```typescript
@@ -191,8 +191,9 @@ export function createPlugin(config: CloudflareEmailConfig): ResolvedPlugin {
 /**
  * Create a Cloudflare Email Sending provider plugin descriptor.
  *
- * Pass it to the emdash() integration's plugins array, activate it under
- * Admin → Plugins, then select it under Settings → Email.
+ * Pass it to the emdash() integration's plugins array. The plugin is active
+ * from the first deployment, and EmDash selects it automatically when it is
+ * the only active email provider.
  *
  * Returns a `PluginDescriptor` (not an in-process definition): the astro
  * integration requires every `plugins: []` entry to resolve to a bundlable
