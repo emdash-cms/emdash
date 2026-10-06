@@ -36,6 +36,12 @@ jobs:
         || (github.event_name == 'pull_request_review'
           && (contains(github.event.review.body, '/bonk') || contains(github.event.review.body, '@ask-bonk')))
       )
+      && !(
+        (github.event.issue.pull_request
+          && (startsWith(github.event.issue.title, 'design:') || contains(github.event.issue.body, '<!-- design-pr -->')))
+        || startsWith(github.event.pull_request.title, 'design:')
+        || contains(github.event.pull_request.body, '<!-- design-pr -->')
+      )
     # Per-workflow group key so /bonk and /review have independent queues per
     # target. Spamming /bonk on the same issue/PR serializes; different actions
     # on the same target run in parallel.
