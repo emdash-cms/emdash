@@ -2281,7 +2281,9 @@ export function InlinePortableTextEditor({
 						method: "PUT",
 						credentials: "same-origin",
 						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-						body: JSON.stringify({ data: { [field]: blocks } }),
+						// Every blur saves, so this replaces the draft revision like the admin's
+						// autosave instead of adding one per save.
+						body: JSON.stringify({ data: { [field]: blocks }, skipRevision: true }),
 						keepalive: options?.keepalive ?? false,
 					},
 				);
