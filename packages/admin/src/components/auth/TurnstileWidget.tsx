@@ -46,16 +46,20 @@ declare global {
 	}
 }
 
-let scriptPromise: Promise<TurnstileApi> | null = null;
+const SCRIPT_PROMISE_KEY = Symbol.for("emdash:admin-turnstile-script");
+const globalStore = globalThis as Record<symbol, unknown>;
 
 function loadTurnstile(): Promise<TurnstileApi> {
 	if (window.turnstile) return Promise.resolve(window.turnstile);
-	scriptPromise ??= new Promise<TurnstileApi>((resolve, reject) => {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	const pending = globalStore[SCRIPT_PROMISE_KEY] as Promise<TurnstileApi> | undefined;
+	if (pending) return pending;
+	const scriptPromise = new Promise<TurnstileApi>((resolve, reject) => {
 		const script = document.createElement("script");
 		script.src = SCRIPT_URL;
 		script.async = true;
 		const fail = (message: string) => {
-			scriptPromise = null;
+			delete globalStore[SCRIPT_PROMISE_KEY];
 			script.remove();
 			reject(new Error(message));
 		};
@@ -66,6 +70,7 @@ function loadTurnstile(): Promise<TurnstileApi> {
 		script.onerror = () => fail("Turnstile failed to load");
 		document.head.append(script);
 	});
+	globalStore[SCRIPT_PROMISE_KEY] = scriptPromise;
 	return scriptPromise;
 }
 
