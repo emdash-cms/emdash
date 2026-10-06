@@ -22,11 +22,11 @@ If the site sets [`siteUrl`](/reference/configuration/#siteurl), `EMDASH_SITE_UR
 
 ### While the new domain still serves the old site
 
-When EmDash runs at a temporary address, such as `https://new.example.com`, while `https://example.com` still serves the site you are replacing, keep `siteUrl` on the address that serves EmDash until the new domain points at it.
+When EmDash runs at a temporary address, such as `https://new.example.com`, while `https://example.com` still serves the site you are replacing, point [`siteUrl`](/reference/configuration/#siteurl) at the final domain and add the temporary address to [`allowedOrigins`](/reference/configuration/#allowedorigins).
 
-A configured `siteUrl` is the address passkeys belong to: it sets the relying party ID and the single browser origin that passkey verification accepts. Setting it to the final domain before that domain serves EmDash leaves no address where a passkey works, because passkeys registered at the temporary address are no longer accepted there.
+A configured `siteUrl` is the address passkeys belong to: it sets the relying party ID and the single browser origin that passkey verification accepts. Listing the temporary address keeps passkey sign-in working there, and since the relying party ID is the final domain from the start, those passkeys keep working after the move.
 
-To use the final domain for email and plugin links before the move, add the temporary address to [`allowedOrigins`](/reference/configuration/#allowedorigins). Passkeys then keep working at the temporary address. Each entry must be the same hostname as `siteUrl` or a subdomain of it, so this works for a subdomain of the final domain, not for an unrelated staging host:
+Each entry must be the same hostname as `siteUrl` or a subdomain of it, so this works for a temporary subdomain of the final domain, not for an unrelated staging host:
 
 ```js title="astro.config.mjs"
 emdash({
@@ -35,10 +35,12 @@ emdash({
 });
 ```
 
-<Aside type="tip">
-	Set up [email](/guides/email/) before you move. A [magic
-	link](/guides/authentication/#log-in-with-a-magic-link) signs you in at an address where you have
-	no passkey yet.
+<Aside type="caution">
+	Links in emails, including [magic
+	links](/guides/authentication/#log-in-with-a-magic-link), use the configured `siteUrl`. Until DNS
+	points the final domain at EmDash they lead to the old site and sign nobody in. Give every
+	administrator a passkey that works at the temporary address before the cutover, or keep one
+	administrator signed in who can send an invite.
 </Aside>
 
 ## Change the domain
