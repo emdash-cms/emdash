@@ -11,7 +11,8 @@
  * no DOM access. connect-src stays at 'self' unless the experimental registry
  * and/or the configured storage endpoint (for direct-to-S3 signed uploads)
  * are configured, in which case those origins are allowed too. Turnstile's
- * script and iframe origin is allowed only when the admin auth forms use it.
+ * script origin is allowed only when the admin auth forms use it; its iframe
+ * is covered by frame-src https:.
  */
 import type { RegistryConfigInput } from "../../registry/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -99,7 +100,6 @@ export function buildEmDashCsp(
 		allowTurnstile
 			? `script-src 'self' 'unsafe-inline' ${TURNSTILE_ORIGIN}`
 			: "script-src 'self' 'unsafe-inline'",
-		...(allowTurnstile ? [`frame-src 'self' ${TURNSTILE_ORIGIN}`] : []),
 		"style-src 'self' 'unsafe-inline'",
 		connectSrc.join(" "),
 		"form-action 'self'",

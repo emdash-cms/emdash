@@ -139,10 +139,11 @@ describe("Turnstile on admin auth forms", () => {
 
 		const off = buildEmDashCsp();
 		expect(directive(off, "script-src")).toBe("script-src 'self' 'unsafe-inline'");
-		expect(directive(off, "frame-src")).toBeUndefined();
 
 		const on = buildEmDashCsp(undefined, undefined, true);
 		expect(directive(on, "script-src")).toContain("https://challenges.cloudflare.com");
-		expect(directive(on, "frame-src")).toBe("frame-src 'self' https://challenges.cloudflare.com");
+		expect(on.split("; ").filter((d) => d.startsWith("frame-src "))).toEqual([
+			"frame-src 'self' https:",
+		]);
 	});
 });
