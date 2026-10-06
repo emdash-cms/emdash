@@ -687,7 +687,7 @@ Notes on `"client"` mode:
 - Logged-out visitors who open a shared `?_edit` URL are redirected to the canonical URL, so the param can't leak drafts or prime extra cache entries with page content.
 - The "logged in" signal is a non-secret `localStorage` flag set by the admin; the pill verifies the real session before entering the edit view.
 - The bootstrap is a small inline `<script>`. If your site sends a strict `Content-Security-Policy` without `'unsafe-inline'`, add a hash for it — the same applies to the server-injected toolbar.
-- EmDash injects nothing session-specific, but your own templates may branch on `Astro.locals.user` (for example an "Admin" nav link for logged-in users). Astro's route cache never stores pages rendered for a signed-in user, so on a cache hit an editor still sees the anonymous variant. Other shared caches in front of the site may store the signed-in variant unless you exclude it.
+- EmDash injects nothing session-specific, but your own templates may branch on `Astro.locals.user` (for example an "Admin" nav link for logged-in users). EmDash keeps pages rendered for a signed-in user out of Astro's route cache, so on a cache hit an editor still sees the anonymous variant. Other shared caches in front of the site may store the signed-in variant unless you exclude it.
 
 In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
 
