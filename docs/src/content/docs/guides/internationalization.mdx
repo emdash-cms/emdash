@@ -79,7 +79,8 @@ This design means:
 
 An entry has two identifiers with different purposes:
 
-- `entry.id` is the entry's slug. Use it when building the public URL.
+- `entry.id` is the slug, prefixed with the locale whenever the locale's URLs are prefixed (`en/my-post` for a non-default locale, `my-post` for the default locale unless `prefixDefaultLocale` is set). Use it as is when entries are routed at the site root, such as `/${entry.id}`.
+- `entry.data.slug` is the slug without a locale. Use it when the route already adds the locale segment, and when you pass a slug to `getEmDashEntry()`.
 - `entry.data.id` is the database ID. Use it for API operations and helpers that refer to a stored content row, including `getTranslations()` and `getEntryTerms()`.
 
 Translations have different database IDs because each locale is a separate row. Their shared `translation_group` records that the rows are translations of the same content. EmDash manages that group when you create a translation; templates normally only need the database ID of any row in the group.

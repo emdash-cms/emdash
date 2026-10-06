@@ -52,7 +52,7 @@ import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, parseTimestamp } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
-import { getDayPickerLocale } from "../locales/day-picker.js";
+import { useDateLocale } from "../locales/date-locale.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { BulkTagDialog, type BulkTagTaxonomy, type SelectedBulkTagPost } from "./BulkTagDialog.js";
 import {
@@ -1152,7 +1152,7 @@ function DateRangeFilter({
 			? t`Until ${formatter.format(to)}`
 			: t`Date range`;
 	const selected: DateRange | undefined = from ? { from, to } : to ? { from: to, to } : undefined;
-	const dayPickerLocale = getDayPickerLocale(i18n.locale);
+	const dayPickerLocale = useDateLocale();
 	const direction = getLocaleDir(i18n.locale);
 	const isUpperBoundOnly = !from && !!to;
 	const canUseAsEndDate = !!from && (!to || value.from === value.to);
