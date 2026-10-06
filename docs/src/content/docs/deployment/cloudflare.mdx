@@ -323,8 +323,8 @@ Configure it under **Settings → Email** in the admin, where the password is st
 | `EMAIL_SMTP_PASS`       | `xsmtpsib-…`                    | SMTP auth password (store as a secret)                                      |
 | `EMAIL_SMTP_SECURE`     | `tls` or `starttls`             | Optional; inferred from the port (465 is `tls`, otherwise `starttls`)       |
 | `EMAIL_SMTP_FROM`       | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER`                    |
-| `EMAIL_SMTP_FROM_NAME`  | `My Site`                       | Optional structured alternative to `EMAIL_SMTP_FROM`, with `EMAIL_SMTP_FROM_EMAIL` |
-| `EMAIL_SMTP_FROM_EMAIL` | `noreply@example.com`           | Optional structured alternative to `EMAIL_SMTP_FROM`, with `EMAIL_SMTP_FROM_NAME`  |
+| `EMAIL_SMTP_FROM_NAME`  | `My Site`                       | Optional display name for `EMAIL_SMTP_FROM_EMAIL`                                  |
+| `EMAIL_SMTP_FROM_EMAIL` | `noreply@example.com`           | Optional sender address; takes precedence over `EMAIL_SMTP_FROM`                    |
 | `EMAIL_SMTP_REPLY_TO`   | `hello@example.com`             | Optional Reply-To header                                                    |
 
 <Aside type="caution">

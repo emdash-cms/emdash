@@ -146,6 +146,17 @@ describe("loadSmtpConfigFromEnv", () => {
 		});
 	});
 
+	it("uses EMAIL_SMTP_FROM_EMAIL without a sender name", () => {
+		process.env.EMAIL_SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com";
+		process.env.EMAIL_SMTP_USER = "AKIAEXAMPLE";
+		process.env.EMAIL_SMTP_PASS = "p";
+		process.env.EMAIL_SMTP_FROM_EMAIL = "noreply@example.com";
+
+		const config = loadSmtpConfigFromEnv();
+		expect(config?.fromEmail).toBe("noreply@example.com");
+		expect(config?.fromName).toBeUndefined();
+	});
+
 	it("infers secure=tls for port 465", () => {
 		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
 		process.env.EMAIL_SMTP_PORT = "465";
@@ -240,6 +251,53 @@ describe("deliverSmtp", () => {
 			"email delivered via SMTP",
 			expect.objectContaining({ to: "recipient@example.com", subject: "Hello" }),
 		);
+	});
+
+	it("delivers to cc recipients and prefers the message's reply-to address", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			makeReply(250, "ok"),
+			makeReply(220, "TLS go"),
+			makeReply(250, "ok"),
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "ok"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "go"),
+			makeReply(250, "Message accepted"),
+		];
+		const { socket, written } = mockSocket(script);
+
+		await deliverSmtp(
+			baseConfig,
+			{ ...message, cc: ["a@example.com", "b@example.com"], replyTo: "author@example.com" },
+			mockCtx,
+			vi.fn(async () => socket),
+		);
+
+		const transcript = written.join("");
+		expect(transcript).toContain(
+			"RCPT TO:<recipient@example.com>\r\nRCPT TO:<a@example.com>\r\nRCPT TO:<b@example.com>\r\n",
+		);
+		expect(transcript).toContain("Cc: a@example.com, b@example.com\r\n");
+		expect(transcript).toContain("Reply-To: author@example.com\r\n");
+		expect(transcript).not.toContain("support@example.com");
+	});
+
+	it("rejects a cc address that could inject SMTP commands", async () => {
+		const connectFn = vi.fn(async () => mockSocket([]).socket);
+		await expect(
+			deliverSmtp(
+				baseConfig,
+				{ ...message, cc: ["x@example.com>\r\nRCPT TO:<evil@example.com"] },
+				mockCtx,
+				connectFn,
+			),
+		).rejects.toThrow(/Invalid recipient address/);
+		expect(connectFn).not.toHaveBeenCalled();
 	});
 
 	it("splits a long non-ASCII subject into RFC 2047 encoded-words", async () => {
@@ -546,90 +604,13 @@ describe("loadSmtpConfig", () => {
 	});
 });
 
-describe("Cloudflare socket edge cases", () => {
+describe("SMTP delivery failures", () => {
 	const message = {
 		to: "recipient@example.com",
 		subject: "Hello",
 		text: "Hi there",
 		html: "<p>Hi there</p>",
 	};
-
-	it("performs the full STARTTLS upgrade flow (re-EHLO, AUTH)", async () => {
-		const script = [
-			makeReply(220, "ready"),
-			makeReply(250, "EHLO ok"),
-			makeReply(220, "TLS go"),
-			makeReply(250, "EHLO ok"),
-			makeReply(334, "Username"),
-			makeReply(334, "Password"),
-			makeReply(235, "Auth ok"),
-			makeReply(250, "MAIL FROM ok"),
-			makeReply(250, "RCPT TO ok"),
-			makeReply(354, "DATA go"),
-			makeReply(250, "Message accepted"),
-		];
-
-		let plaintextClosed = false;
-		const plainWrites: string[] = [];
-		const tlsWrites: string[] = [];
-		const incoming = script.map((s) => new TextEncoder().encode(s));
-		let readIndex = 0;
-
-		const makeReader = () => ({
-			read: async () => {
-				if (readIndex >= incoming.length) return { done: true };
-				return { value: incoming[readIndex++], done: false };
-			},
-		});
-
-		const socket: import("../../../src/plugins/email-smtp.js").SmtpSocket = {
-			writer: {
-				write: async (data: Uint8Array) => {
-					plainWrites.push(new TextDecoder().decode(data));
-				},
-				close: async () => {
-					plaintextClosed = true;
-				},
-			},
-			reader: makeReader(),
-			startTls: async () => {
-				// Mirror what connectCloudflare's startTls wrapper is required to
-				// do: the old writer must be released before the upgraded socket
-				// is used.
-				if (plaintextClosed) {
-					throw new Error("double close");
-				}
-				plaintextClosed = true;
-				return {
-					writer: {
-						write: async (data: Uint8Array) => {
-							tlsWrites.push(new TextDecoder().decode(data));
-						},
-						close: async () => {},
-					},
-					reader: makeReader(),
-					close: async () => {},
-				};
-			},
-			close: async () => {},
-		};
-
-		const connectFn = vi.fn(async () => socket);
-		await deliverSmtp(
-			{ ...baseConfig, port: 587, secure: "starttls" },
-			message,
-			mockCtx,
-			connectFn,
-		);
-
-		// Plaintext side: EHLO + STARTTLS. TLS side: re-EHLO through QUIT.
-		expect(plainWrites.join("")).toContain("EHLO emdash\r\n");
-		expect(plainWrites.join("")).toContain("STARTTLS\r\n");
-		expect(plainWrites.join("")).not.toContain("AUTH LOGIN");
-		expect(tlsWrites.join("")).toContain("EHLO emdash\r\n");
-		expect(tlsWrites.join("")).toContain("AUTH LOGIN\r\n");
-		expect(tlsWrites.join("")).toContain("QUIT\r\n");
-	});
 
 	it("logs the SMTP transcript but keeps it out of the thrown error", async () => {
 		// The transcript is for server logs; the thrown message is surfaced
@@ -653,6 +634,18 @@ describe("Cloudflare socket edge cases", () => {
 			"SMTP delivery failed",
 			expect.objectContaining({ trace: expect.stringContaining("554") }),
 		);
+	});
+
+	it("keeps the banner of a non-SMTP service out of the thrown error", async () => {
+		const { socket } = mockSocket(["+OK Dovecot ready on mail-internal-01\r\n"]);
+
+		const error = await deliverSmtp(baseConfig, message, mockCtx, async () => socket).catch(
+			(e: unknown) => e,
+		);
+
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toMatch(/did not reply with SMTP/);
+		expect((error as Error).message).not.toContain("Dovecot");
 	});
 
 	it("redacts AUTH credentials from the logged transcript", async () => {

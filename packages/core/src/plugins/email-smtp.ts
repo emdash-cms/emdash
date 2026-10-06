@@ -172,6 +172,11 @@ function expectCode(
 	context: string,
 ): void {
 	const codes = Array.isArray(expected) ? expected : [expected];
+	if (!(reply.code >= 200 && reply.code < 600)) {
+		// The reply is not SMTP, so the host is another kind of service. Its
+		// banner is logged with the transcript but never returned to the client.
+		throw new SmtpDeliveryError(`SMTP ${context} failed: the server did not reply with SMTP`);
+	}
 	if (!codes.includes(reply.code)) {
 		const serverLine = reply.lines.join(" | ");
 		throw new SmtpDeliveryError(humanizeSmtpError(reply.code, context, serverLine));
@@ -312,14 +317,16 @@ function buildMime(params: {
 	from: { email: string; name?: string };
 	replyTo?: string;
 	to: string;
+	cc?: string[];
 	subject: string;
 	text: string;
 	html?: string;
 }): string {
-	const { from, replyTo, to, subject, text, html } = params;
+	const { from, replyTo, to, cc, subject, text, html } = params;
 	const headers: string[] = [
 		`From: ${from.name ? formatNameAddress(from.name, from.email) : from.email}`,
 		`To: ${sanitizeHeader(to)}`,
+		...(cc?.length ? [`Cc: ${cc.map(sanitizeHeader).join(", ")}`] : []),
 		`Subject: ${encodeHeader(subject)}`,
 		`Date: ${new Date().toUTCString()}`,
 		`Message-ID: <${crypto.randomUUID()}@${from.email.split("@")[1] || "emdash.invalid"}>`,
@@ -417,13 +424,10 @@ async function connectCloudflare(
 
 	return {
 		...wrapped,
-		startTls: async () => {
-			// Cloudflare: the plaintext socket's writer holds the stream lock.
-			// Release it BEFORE startTls(): otherwise the upgraded socket's
-			// writable is still locked and the first write throws.
-			await wrapped.writer.close().catch(() => {});
-			return wrapCloudflareSocket(sock.startTls());
-		},
+		// Closing the plaintext writable first would shut down the write side of
+		// the TCP connection the TLS session runs on. startTls() retires the
+		// old readers and writers itself.
+		startTls: () => wrapCloudflareSocket(sock.startTls()),
 	};
 }
 
@@ -604,8 +608,8 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 	// Support both structured fields and legacy EMAIL_SMTP_FROM
 	let fromName: string | undefined;
 	let fromEmail: string | undefined;
-	if (process.env.EMAIL_SMTP_FROM_NAME && process.env.EMAIL_SMTP_FROM_EMAIL) {
-		fromName = process.env.EMAIL_SMTP_FROM_NAME;
+	if (process.env.EMAIL_SMTP_FROM_EMAIL) {
+		fromName = process.env.EMAIL_SMTP_FROM_NAME || undefined;
 		fromEmail = process.env.EMAIL_SMTP_FROM_EMAIL;
 	} else if (process.env.EMAIL_SMTP_FROM) {
 		const parsed = parseAddress(process.env.EMAIL_SMTP_FROM);
@@ -795,7 +799,9 @@ export async function deliverSmtp(
 		...(config.fromName ? { name: config.fromName } : {}),
 	};
 	assertEnvelopeAddress(from.email, "sender");
-	assertEnvelopeAddress(message.to, "recipient");
+	const recipients = [message.to, ...(message.cc ?? [])];
+	for (const recipient of recipients) assertEnvelopeAddress(recipient, "recipient");
+	const replyTo = message.replyTo ?? config.replyTo;
 	// SMTP timeout must be SHORTER than the hook timeout, otherwise the hook
 	// kills the promise before we can log the transcript. 25s vs 30s hook.
 	const timeoutMs = config.timeoutMs ?? 25_000;
@@ -811,12 +817,19 @@ export async function deliverSmtp(
 				try {
 					return await connectNode(host, port, secure);
 				} catch (nodeError) {
-					throw new SmtpDeliveryError(
-						`Failed to connect to SMTP server ${host}:${port}: ` +
-							`Cloudflare sockets: ${cfError instanceof Error ? cfError.message : String(cfError)}; ` +
-							`Node sockets: ${nodeError instanceof Error ? nodeError.message : String(nodeError)}`,
-						{ cause: nodeError },
-					);
+					ctx.log.error("SMTP connection failed", {
+						host,
+						port,
+						cloudflare: cfError instanceof Error ? cfError.message : String(cfError),
+						node: nodeError instanceof Error ? nodeError.message : String(nodeError),
+					});
+					const code =
+						nodeError instanceof Error && "code" in nodeError && typeof nodeError.code === "string"
+							? ` (${nodeError.code})`
+							: "";
+					throw new SmtpDeliveryError(`Failed to connect to SMTP server ${host}:${port}${code}`, {
+						cause: nodeError,
+					});
 				}
 			}
 		});
@@ -912,16 +925,19 @@ export async function deliverSmtp(
 		// Envelope
 		await send(`MAIL FROM:<${from.email}>`);
 		await recv("MAIL FROM", 250);
-		await send(`RCPT TO:<${message.to}>`);
-		await recv("RCPT TO", [250, 251]);
+		for (const recipient of recipients) {
+			await send(`RCPT TO:<${recipient}>`);
+			await recv("RCPT TO", [250, 251]);
+		}
 
 		// Data
 		await send("DATA");
 		await recv("DATA", 354);
 		const mime = buildMime({
 			from,
-			...(config.replyTo ? { replyTo: config.replyTo } : {}),
+			...(replyTo ? { replyTo } : {}),
 			to: message.to,
+			...(message.cc?.length ? { cc: message.cc } : {}),
 			subject: message.subject,
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),

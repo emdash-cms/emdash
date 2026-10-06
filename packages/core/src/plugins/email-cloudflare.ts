@@ -41,6 +41,7 @@ export interface CloudflareEmailConfig {
 interface SendEmailBinding {
 	send(message: {
 		to: string | string[];
+		cc?: string[];
 		from: { email: string; name?: string };
 		subject: string;
 		text?: string;
@@ -98,13 +99,15 @@ export function createCloudflareEmailDeliver(
 			);
 		}
 
+		const replyTo = message.replyTo ?? config.replyTo;
 		const result = await binding.send({
 			from,
 			to: message.to,
 			subject: message.subject,
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),
-			...(config.replyTo ? { replyTo: config.replyTo } : {}),
+			...(message.cc?.length ? { cc: message.cc } : {}),
+			...(replyTo ? { replyTo } : {}),
 		});
 
 		ctx.log.info("email delivered via Cloudflare Email Sending", {

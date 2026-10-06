@@ -205,6 +205,23 @@ describe("createCloudflareEmailDeliver", () => {
 		);
 	});
 
+	it("passes cc recipients and prefers the message's reply-to address", async () => {
+		const binding = makeBinding();
+		const deliver = createCloudflareEmailDeliver(baseConfig, async () => ({ EMAIL: binding }));
+
+		await deliver(
+			{
+				message: { ...makeMessage(), cc: ["a@example.com"], replyTo: "author@example.com" },
+				source: "test",
+			},
+			mockCtx,
+		);
+
+		expect(binding.send).toHaveBeenCalledWith(
+			expect.objectContaining({ cc: ["a@example.com"], replyTo: "author@example.com" }),
+		);
+	});
+
 	it("throws when the binding is missing", async () => {
 		const deliver = createCloudflareEmailDeliver(baseConfig, async () => ({}));
 
