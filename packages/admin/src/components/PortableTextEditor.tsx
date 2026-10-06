@@ -223,7 +223,6 @@ import {
 	VideoExtension,
 	isVideoBlock,
 	mediaItemToVideoAttrs,
-	openPickerOnInsert,
 	videoBlockFields,
 	videoNodeAttrs,
 } from "./editor/VideoNode";
@@ -1955,14 +1954,6 @@ function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(editor, editor.schema.nodes.iframeBlock!.create(), range, position);
 }
 
-// The new block opens its picker over the editor, which keeps focus underneath: closing the
-// picker returns focus there, with the empty block selected so Enter reopens it.
-function insertVideoBlock(editor: Editor, range?: Range, position?: number) {
-	openPickerOnInsert(editor);
-	insertTopLevelBlock(editor, editor.schema.nodes.videoBlock!.create(), range, position);
-	editor.view.focus();
-}
-
 function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(
 		editor,
@@ -2094,16 +2085,6 @@ const htmlSlashCommand: SlashCommandItem = {
 	aliases: ["html", "raw", "markup"],
 	category: ADVANCED_CATEGORY,
 	command: ({ editor, range }) => insertHtmlBlock(editor, range),
-};
-
-const videoSlashCommand: SlashCommandItem = {
-	id: "video",
-	title: msg`Video`,
-	description: msg`Upload or choose a video`,
-	icon: VideoCamera,
-	aliases: ["movie", "clip", "mp4", "film"],
-	category: MEDIA_CATEGORY,
-	command: ({ editor, range }) => insertVideoBlock(editor, range),
 };
 
 const iframeSlashCommand: SlashCommandItem = {
@@ -3510,6 +3491,8 @@ export function PortableTextEditor({
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 
+	const [videoPickerOpen, setVideoPickerOpen] = React.useState(false);
+
 	// Multi-select media picker state (for gallery insertion)
 	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
 	const [conversionErrorMarks, setConversionErrorMarks] = React.useState<string[]>([]);
@@ -3666,7 +3649,19 @@ export function PortableTextEditor({
 		);
 		// A plugin's own video block replaces the built-in one.
 		if (!pluginBlockTypes.has("video")) {
-			cmds.push(topLevelInsert(videoSlashCommand, insertVideoBlock));
+			cmds.push({
+				id: "video",
+				title: msg`Video`,
+				description: msg`Upload or choose a video`,
+				icon: VideoCamera,
+				aliases: ["movie", "clip", "mp4", "film"],
+				category: MEDIA_CATEGORY,
+				deferInsertion: true,
+				command: ({ editor, range }) => {
+					editor.chain().focus().deleteRange(range).run();
+					setVideoPickerOpen(true);
+				},
+			});
 		}
 		cmds.push(topLevelInsert(htmlSlashCommand, insertHtmlBlock), {
 			id: "section",
@@ -4202,6 +4197,23 @@ export function PortableTextEditor({
 		};
 	}, [editor]);
 
+	// A picker can stay open while an upload lands, so the insert position follows the document.
+	React.useEffect(() => {
+		if (!editor) return;
+		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
+			const position = pendingBlockInsertPosRef.current;
+			if (position === null) return;
+			pendingBlockInsertPosRef.current = [transaction, ...appendedTransactions].reduce(
+				(pos, tr) => tr.mapping.map(pos, -1),
+				position,
+			);
+		};
+		editor.on("transaction", follow);
+		return () => {
+			editor.off("transaction", follow);
+		};
+	}, [editor]);
+
 	// Handle image selection from media picker
 	const handleImageSelect = React.useCallback(
 		(item: MediaItem) => {
@@ -4221,6 +4233,20 @@ export function PortableTextEditor({
 			}
 			pendingBlockInsertPosRef.current = null;
 			setMediaPickerOpen(false);
+		},
+		[editor],
+	);
+
+	const handleVideoSelect = React.useCallback(
+		(item: MediaItem) => {
+			if (editor?.isEditable) {
+				const video = editor.schema.nodes.videoBlock!.create(mediaItemToVideoAttrs(item));
+				const position = pendingBlockInsertPosRef.current ?? undefined;
+				insertTopLevelBlock(editor, video, undefined, position);
+				editor.view.focus();
+			}
+			pendingBlockInsertPosRef.current = null;
+			setVideoPickerOpen(false);
 		},
 		[editor],
 	);
@@ -4600,6 +4626,20 @@ export function PortableTextEditor({
 					mimeTypeFilter="image/"
 					title={t`Select image`}
 					confirmLabel={t`Insert image`}
+				/>
+
+				<MediaPickerModal
+					open={videoPickerOpen}
+					onOpenChange={(open) => {
+						setVideoPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					onSelect={handleVideoSelect}
+					mimeTypeFilter="video/"
+					mediaKind="video"
+					localOnly
+					title={t`Select video`}
+					confirmLabel={t`Insert video`}
 				/>
 
 				{/* Multi-select media picker for gallery insertion */}
