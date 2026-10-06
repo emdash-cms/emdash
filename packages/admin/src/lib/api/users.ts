@@ -72,7 +72,10 @@ export async function fetchUsers(options?: {
 
 	const url = `${API_BASE}/admin/users${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<FindManyResult<UserListItem>>(response, "Failed to fetch users");
+	return parseApiResponse<FindManyResult<UserListItem>>(
+		response,
+		i18n._(msg`Failed to fetch users`),
+	);
 }
 
 /**
@@ -104,7 +107,10 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Us
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: UserDetail }>(response, "Failed to update user");
+	const data = await parseApiResponse<{ item: UserDetail }>(
+		response,
+		i18n._(msg`Failed to update user`),
+	);
 	return data.item;
 }
 
@@ -159,7 +165,7 @@ export async function inviteUser(email: string, role?: number): Promise<InviteRe
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ email, role }),
 	});
-	return parseApiResponse<InviteResult>(response, "Failed to invite user");
+	return parseApiResponse<InviteResult>(response, i18n._(msg`Failed to invite user`));
 }
 
 // =============================================================================
@@ -225,7 +231,7 @@ export async function fetchPasskeys(): Promise<PasskeyInfo[]> {
 	const response = await apiFetch(`${API_BASE}/auth/passkey`);
 	const data = await parseApiResponse<{ items: PasskeyInfo[] }>(
 		response,
-		"Failed to fetch passkeys",
+		i18n._(msg`Failed to fetch passkeys`),
 	);
 	return data.items;
 }
@@ -241,7 +247,7 @@ export async function renamePasskey(id: string, name: string): Promise<PasskeyIn
 	});
 	const data = await parseApiResponse<{ passkey: PasskeyInfo }>(
 		response,
-		"Failed to rename passkey",
+		i18n._(msg`Failed to rename passkey`),
 	);
 	return data.passkey;
 }
@@ -288,7 +294,7 @@ export async function fetchAllowedDomains(): Promise<AllowedDomain[]> {
 	const response = await apiFetch(`${API_BASE}/admin/allowed-domains`);
 	const data = await parseApiResponse<{ domains: AllowedDomain[] }>(
 		response,
-		"Failed to fetch allowed domains",
+		i18n._(msg`Failed to fetch allowed domains`),
 	);
 	return data.domains;
 }
@@ -304,7 +310,7 @@ export async function createAllowedDomain(input: CreateAllowedDomainInput): Prom
 	});
 	const data = await parseApiResponse<{ domain: AllowedDomain }>(
 		response,
-		"Failed to create allowed domain",
+		i18n._(msg`Failed to create allowed domain`),
 	);
 	return data.domain;
 }
@@ -326,7 +332,7 @@ export async function updateAllowedDomain(
 	);
 	const data = await parseApiResponse<{ domain: AllowedDomain }>(
 		response,
-		"Failed to update allowed domain",
+		i18n._(msg`Failed to update allowed domain`),
 	);
 	return data.domain;
 }
@@ -366,7 +372,10 @@ export async function requestSignup(email: string): Promise<{ success: true; mes
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ email }),
 	});
-	return parseApiResponse<{ success: true; message: string }>(response, "Signup request failed");
+	return parseApiResponse<{ success: true; message: string }>(
+		response,
+		i18n._(msg`Signup request failed`),
+	);
 }
 
 /**
