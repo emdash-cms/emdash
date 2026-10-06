@@ -72,7 +72,7 @@ export const GET: APIRoute = async ({ locals }) => {
 			.getHookProviders(EMAIL_AFTER_SEND_HOOK)
 			.map((p) => p.pluginId);
 
-		// Cloudflare Email config — DB takes precedence over env vars
+		// Cloudflare Email config: DB takes precedence over env vars
 		let cloudflareStatus: {
 			configured: boolean;
 			source: "db" | "env" | null;
@@ -102,7 +102,7 @@ export const GET: APIRoute = async ({ locals }) => {
 			}
 		}
 
-		// SMTP transport status — DB config takes precedence over env vars
+		// SMTP transport status: DB config takes precedence over env vars
 		let smtpStatus: {
 			configured: boolean;
 			source: "db" | "env" | null;
@@ -145,7 +145,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				};
 			}
 		} catch {
-			// Invalid SMTP config — show as unconfigured rather than breaking the page
+			// Invalid SMTP config: show as unconfigured rather than breaking the page
 		}
 
 		const explicitlyDisabled = selectedProviderId === EXCLUSIVE_HOOK_NONE_VALUE;
@@ -246,7 +246,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 };
 
 // ---------------------------------------------------------------------------
-// PUT /_emdash/api/settings/email — configure email provider
+// PUT /_emdash/api/settings/email: configure email provider
 // ---------------------------------------------------------------------------
 
 const smtpConfigSchema = z.object({

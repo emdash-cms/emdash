@@ -1,10 +1,10 @@
 /**
- * Email Settings — Cloudflare Email binding check
+ * Email Settings: Cloudflare Email binding check
  *
  * POST /_emdash/api/settings/email/test-binding
  *
  * Reports whether the Cloudflare `send_email` binding is present in the
- * Worker runtime. Does not send an email — only checks the binding exists,
+ * Worker runtime. Does not send an email: only checks the binding exists,
  * so admins can validate their wrangler.jsonc before configuring the provider.
  */
 

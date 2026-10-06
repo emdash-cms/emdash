@@ -1384,7 +1384,7 @@ export interface HookConfig<THandler> {
 	 * Whether this exclusive provider may be auto-selected when it is the
 	 * only candidate (default true). Built-in providers that are registered
 	 * unconfigured set this to false so they only activate when explicitly
-	 * selected — otherwise their mere presence would block auto-selection
+	 * selected: otherwise their mere presence would block auto-selection
 	 * of a site's single real provider plugin.
 	 */
 	autoSelect?: boolean;

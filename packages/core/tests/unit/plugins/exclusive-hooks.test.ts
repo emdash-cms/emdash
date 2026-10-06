@@ -527,7 +527,7 @@ describe("resolveExclusiveHooks — shared function", () => {
 			ephemeralProviders: new Set(["dev-console"]),
 		});
 
-		// Selected for this process, but not written to the store — the
+		// Selected for this process, but not written to the store: the
 		// selection must not leak into other environments via a shared DB.
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("dev-console");
 		expect(store.size).toBe(0);
@@ -612,7 +612,7 @@ describe("resolveExclusiveHooks — shared function", () => {
 			},
 		});
 
-		// Explicit "none" must survive resolution — no auto-select, no overwrite
+		// Explicit "none" must survive resolution: no auto-select, no overwrite
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
 		expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe(EXCLUSIVE_HOOK_NONE_VALUE);
 	});
@@ -646,7 +646,7 @@ describe("resolveExclusiveHooks — shared function", () => {
 			},
 		});
 
-		// provider-a is preserved in DB — not deleted. In-memory selection
+		// provider-a is preserved in DB: not deleted. In-memory selection
 		// stays unset so delivery fails with a clear error until provider-a
 		// is registered again.
 		expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("provider-a");
@@ -871,7 +871,7 @@ describe("PluginManager — resolveExclusiveHooks", () => {
 		// Deactivate the selected plugin
 		await manager.deactivate("provider-a");
 
-		// Selection is preserved in DB — not deleted. provider-b is NOT
+		// Selection is preserved in DB: not deleted. provider-b is NOT
 		// auto-selected because a selection already exists.
 		const selection = await manager.getExclusiveHookSelection("content:beforeSave");
 		expect(selection).toBe("provider-a");
@@ -969,7 +969,7 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 	/**
 	 * Three plugins / three exclusive hooks covering every resolution branch:
 	 * - content:beforeSave: providers a+b active, valid stored selection (kept)
-	 * - content:afterSave: provider c stale (inactive) — selection preserved
+	 * - content:afterSave: provider c stale (inactive): selection preserved
 	 * - content:beforeDelete: providers a+b active, no selection (unselected)
 	 */
 	function createScenarioPipeline(): HookPipeline {

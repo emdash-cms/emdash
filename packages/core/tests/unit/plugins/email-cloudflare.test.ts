@@ -267,7 +267,7 @@ describe("createCloudflareEmailPlugin", () => {
 			await saveCloudflareConfigToDb(db, baseConfig);
 			const hook = plugin.hooks["email:deliver"];
 			// Not on Workers: the lazy config load succeeds, then the env
-			// lookup fails — proving the handler read the fresh DB config.
+			// lookup fails: proving the handler read the fresh DB config.
 			await expect(
 				hook!.handler({ message: makeMessage(), source: "test" }, mockCtx),
 			).rejects.toThrow(/Worker env is not available/);

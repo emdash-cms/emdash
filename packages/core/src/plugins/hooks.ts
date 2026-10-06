@@ -1620,7 +1620,7 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		const activeProviderIds = new Set(
 			providers.map((p) => p.pluginId).filter((id) => isActive(id)),
 		);
-		// Unconfigured built-ins register with autoSelect: false — they can be
+		// Unconfigured built-ins register with autoSelect: false, so they can be
 		// explicitly selected but never block or win sole-provider selection.
 		const autoSelectCandidates = new Set(
 			providers.filter((p) => p.autoSelect && isActive(p.pluginId)).map((p) => p.pluginId),
@@ -1639,7 +1639,7 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 			}
 		}
 
-		// Explicitly disabled by the admin ("None") — never auto-select.
+		// Explicitly disabled by the admin ("None"): never auto-select.
 		if (currentSelection === EXCLUSIVE_HOOK_NONE_VALUE) {
 			pipeline.clearExclusiveSelection(hookName);
 			continue;
@@ -1666,7 +1666,7 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 			continue;
 		}
 
-		// No usable selection — auto-select if only one candidate
+		// No usable selection: auto-select if only one candidate
 		const candidates =
 			autoSelectCandidates.size > 1 && fallbackProviders
 				? [...autoSelectCandidates].filter((id) => !fallbackProviders.has(id))

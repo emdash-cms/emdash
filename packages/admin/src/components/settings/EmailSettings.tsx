@@ -52,7 +52,7 @@ export function EmailSettings() {
 	const [smtpSecure, setSmtpSecure] = React.useState<"starttls" | "tls">("starttls");
 	const [smtpUser, setSmtpUser] = React.useState("");
 	const [smtpPass, setSmtpPass] = React.useState("");
-	// Track whether the user has manually overridden encryption — if not,
+	// Track whether the user has manually overridden encryption: if not,
 	// changing the port auto-suggests the matching security mode. Prevents
 	// the classic "587 + implicit TLS" mismatch.
 	const [smtpSecureTouched, setSmtpSecureTouched] = React.useState(false);
@@ -83,7 +83,7 @@ export function EmailSettings() {
 		} else if (settings.selectedProviderId === CLOUDFLARE_PROVIDER_ID) {
 			setProvider("cloudflare");
 		} else if (settings.selectedProviderId) {
-			// A plugin provider (resend, postmark, …) — represent it verbatim
+			// A plugin provider (resend, postmark, …): represent it verbatim
 			// so saving does not silently disable a working provider.
 			setProvider(settings.selectedProviderId);
 		} else {
@@ -386,7 +386,7 @@ export function EmailSettings() {
 										{t`465 (implicit TLS) is recommended on Cloudflare Workers. 587 (STARTTLS) works on Node but is unreliable on Workers.`}
 									</p>
 									<p className="text-xs text-kumo-subtle">
-										{t`SMTP credentials are encrypted and stored in the database. The password field is write-only — leave it empty to keep the current password.`}
+										{t`SMTP credentials are encrypted and stored in the database. The password field is write-only: leave it empty to keep the current password.`}
 									</p>
 								</div>
 							)}

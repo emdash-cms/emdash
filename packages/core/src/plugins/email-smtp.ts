@@ -3,7 +3,7 @@
  *
  * Delivers EmDash emails through any standard SMTP server (Brevo relay,
  * Office365, Google Workspace, Fastmail, Amazon SES, self-hosted Postfix)
- * via raw TCP — the one network primitive sandboxed plugins cannot use.
+ * via raw TCP: the one network primitive sandboxed plugins cannot use.
  *
  * Registered as a built-in `email:deliver` provider. On Cloudflare Workers it
  * uses `cloudflare:sockets`; on Node it uses `node:net` / `node:tls`.
@@ -18,7 +18,7 @@
  *   EMAIL_SMTP_PASS     xsmtpsib-…
  *   EMAIL_SMTP_FROM     Site <noreply@example.com>  (optional default sender)
  *
- * Cloudflare blocks outbound port 25 — this transport refuses port 25 with
+ * Cloudflare blocks outbound port 25: this transport refuses port 25 with
  * a clear error. TLS is always required; plaintext auth is never attempted.
  */
 
@@ -54,7 +54,7 @@ async function toKeyMaterials(encryptionKey: string): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Socket abstraction — cloudflare:sockets on Workers, node:net/tls on Node
+// Socket abstraction: cloudflare:sockets on Workers, node:net/tls on Node
 // ---------------------------------------------------------------------------
 
 interface SocketReader {
@@ -193,7 +193,7 @@ class SmtpTrace {
 		this.events.push(`[+${elapsed}ms] ${direction === "send" ? "C>" : "S<"} ${safe}`);
 	}
 
-	/** Last few events — enough context to see where the conversation stalled. */
+	/** Last few events: enough context to see where the conversation stalled. */
 	tail(n = 6): string {
 		return this.events.slice(-n).join(" | ");
 	}
@@ -242,7 +242,7 @@ function encodedWord(text: string): string {
 
 function encodeHeader(value: string): string {
 	const sanitized = sanitizeHeader(value);
-	// Only encode when non-ASCII is present — ASCII headers stay readable.
+	// Only encode when non-ASCII is present: ASCII headers stay readable.
 	if (!NON_ASCII_REGEX.test(sanitized)) return sanitized;
 	const words: string[] = [];
 	let chunk = "";
@@ -372,7 +372,7 @@ export type CloudflareConnect = (
 	options: { secureTransport: "on" | "starttls"; allowHalfOpen: boolean },
 ) => CloudflareSocket;
 
-// Cloudflare sockets need `await sock.opened` before the stream is usable —
+// Cloudflare sockets need `await sock.opened` before the stream is usable:
 // unlike Node, where the connect callback signals readiness. Skipping this
 // makes writes hang silently after STARTTLS.
 async function wrapCloudflareSocket(sock: CloudflareSocket): Promise<SmtpSocket> {
@@ -419,7 +419,7 @@ async function connectCloudflare(
 		...wrapped,
 		startTls: async () => {
 			// Cloudflare: the plaintext socket's writer holds the stream lock.
-			// Release it BEFORE startTls() — otherwise the upgraded socket's
+			// Release it BEFORE startTls(): otherwise the upgraded socket's
 			// writable is still locked and the first write throws.
 			await wrapped.writer.close().catch(() => {});
 			return wrapCloudflareSocket(sock.startTls());
@@ -531,7 +531,7 @@ async function connectNode(
 				...makeSocket(sock),
 				startTls: () =>
 					new Promise((res, rej) => {
-						// Detach the plaintext listeners first — they share the
+						// Detach the plaintext listeners first: they share the
 						// read-buffer state with the TLS listeners below and would
 						// otherwise deliver raw TLS record bytes into it.
 						sock.removeAllListeners("data");
@@ -630,7 +630,7 @@ export async function loadSmtpConfigFromDb(
 	encryptionKey: string,
 ): Promise<SmtpConfig | null> {
 	const repo = new OptionsRepository(db);
-	// One round trip for all fields — this runs on every send.
+	// One round trip for all fields: this runs on every send.
 	const values = await repo.getMany<string | number>([
 		`${SMTP_OPTION_PREFIX}host`,
 		`${SMTP_OPTION_PREFIX}port`,
@@ -660,20 +660,20 @@ export async function loadSmtpConfigFromDb(
 	}
 	if (port === 25) {
 		console.warn(
-			"[email-smtp] Stored SMTP port 25 cannot be used (Cloudflare blocks outbound port 25) — " +
+			"[email-smtp] Stored SMTP port 25 cannot be used (Cloudflare blocks outbound port 25): " +
 				"save 587 or 465 in Settings → Email.",
 		);
 		return null;
 	}
 	if (!Number.isInteger(port) || port < 1 || port > 65535) {
 		console.warn(
-			`[email-smtp] Stored SMTP port ${port} is not a valid port number — ` +
+			`[email-smtp] Stored SMTP port ${port} is not a valid port number: ` +
 				"save a whole number between 1 and 65535 in Settings → Email.",
 		);
 		return null;
 	}
 
-	// Try every configured key (rotation) — the password may have been
+	// Try every configured key (rotation): the password may have been
 	// encrypted with a key that is no longer primary.
 	let pass: string | null = null;
 	for (const keyMaterial of await toKeyMaterials(encryptionKey)) {
@@ -681,13 +681,13 @@ export async function loadSmtpConfigFromDb(
 			pass = await decrypt(encryptedPass, keyMaterial);
 			break;
 		} catch {
-			// Not this key — try the next one.
+			// Not this key: try the next one.
 		}
 	}
 	if (pass === null) {
 		console.warn(
 			"[email-smtp] Stored SMTP password cannot be decrypted with the configured " +
-				"encryption key(s) — re-save the password in Settings → Email.",
+				"encryption key(s): re-save the password in Settings → Email.",
 		);
 		return null;
 	}
@@ -757,7 +757,7 @@ export async function clearSmtpConfigFromDb(db: Kysely<Database>): Promise<void>
  * every send reads the options table, even when only env vars are set.
  *
  * The encryption key is the same `EMDASH_ENCRYPTION_KEY` used for plugin
- * secrets — the SMTP password is a plugin secret in spirit.
+ * secrets: the SMTP password is a plugin secret in spirit.
  */
 export async function loadSmtpConfig(
 	db: Kysely<Database>,
@@ -770,7 +770,7 @@ export async function loadSmtpConfig(
 
 /**
  * A partial config (host but no password, e.g. a half-saved form) must not
- * even attempt delivery — the resulting 535 is more confusing than a clear
+ * even attempt delivery: the resulting 535 is more confusing than a clear
  * "not fully configured" error.
  */
 export function isSmtpConfigComplete(config: SmtpConfig | null): config is SmtpConfig {
@@ -812,7 +812,7 @@ export async function deliverSmtp(
 					return await connectNode(host, port, secure);
 				} catch (nodeError) {
 					throw new SmtpDeliveryError(
-						`Failed to connect to SMTP server ${host}:${port} — ` +
+						`Failed to connect to SMTP server ${host}:${port}: ` +
 							`Cloudflare sockets: ${cfError instanceof Error ? cfError.message : String(cfError)}; ` +
 							`Node sockets: ${nodeError instanceof Error ? nodeError.message : String(nodeError)}`,
 						{ cause: nodeError },
@@ -901,7 +901,7 @@ export async function deliverSmtp(
 			await recv("EHLO after STARTTLS", 250);
 		}
 
-		// AUTH LOGIN — credentials are redacted from the trace
+		// AUTH LOGIN: credentials are redacted from the trace
 		await send("AUTH LOGIN");
 		await recv("AUTH LOGIN", 334);
 		await send(b64(config.user), true);
@@ -944,7 +944,7 @@ export async function deliverSmtp(
 /**
  * Build the email:deliver handler.
  *
- * Exported for testing — production code registers the handler through
+ * Exported for testing: production code registers the handler through
  * `definePlugin()` in `emdash-runtime.ts`.
  */
 export function createSmtpEmailDeliver(
@@ -956,7 +956,7 @@ export function createSmtpEmailDeliver(
 
 /**
  * Build an email:deliver handler that loads the SMTP config lazily on
- * every send — DB config first (when an encryption key is available to
+ * every send: DB config first (when an encryption key is available to
  * decrypt the stored password), env vars as fallback. Loading per send
  * makes admin-saved settings work immediately, no runtime restart.
  */

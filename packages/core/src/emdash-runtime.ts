@@ -1934,7 +1934,7 @@ export class EmDashRuntime {
 		// appears in the Settings → Email provider list. The handler loads its
 		// config (DB first, env fallback) on every send. Only env config makes
 		// it an auto-select candidate; saving DB config also stores the selection.
-		// Secrets read process.env only — import.meta.env is statically inlined
+		// Secrets read process.env only: import.meta.env is statically inlined
 		// at build time and would bake the build machine's key into the bundle.
 		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
 		try {
@@ -1942,7 +1942,7 @@ export class EmDashRuntime {
 			try {
 				smtpEnvConfigured = isSmtpConfigComplete(loadSmtpConfigFromEnv());
 			} catch {
-				// Invalid env config (e.g. port 25) — surfaced at delivery time.
+				// Invalid env config (e.g. port 25): surfaced at delivery time.
 			}
 			const smtpPlugin = definePlugin({
 				id: SMTP_EMAIL_PLUGIN_ID,
