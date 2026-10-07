@@ -9,6 +9,7 @@ import {
 import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
 import { Font } from "astro:assets";
+import { getSiteLocale } from "../utils/locale";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import "../styles/tokens.css";
 import "../styles/theme.css";
@@ -101,12 +102,13 @@ function navCurrent(url: string): "page" | "true" | undefined {
 	return undefined;
 }
 
+const lang = getSiteLocale() ?? "en";
 const monogram = [...siteTitle.trim()][0]?.toUpperCase() ?? "";
 const year = new Date().getFullYear();
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
