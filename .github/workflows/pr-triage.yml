@@ -20,11 +20,9 @@ jobs:
           persist-credentials: false
       - name: Check PR template
         if: >-
-          (github.event.action == 'opened' || github.event.action == 'edited') &&
           github.event.pull_request.user.login != 'dependabot[bot]' &&
           github.event.pull_request.user.login != 'renovate[bot]' &&
-          github.event.pull_request.user.login != 'emdashbot[bot]' &&
-          github.event.pull_request.user.login != 'ask-bonk[bot]'
+          github.event.pull_request.user.login != 'emdashbot[bot]'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -83,7 +81,7 @@ jobs:
                 errors.push('Check at least one "Type of change" checkbox.');
               }
 
-              const isFeature = /- \[x\] Feature/i.test(body);
+              const isFeature = /- \[x\] Feature/i.test(body) || /^feat(\([^)]*\))?!?:/i.test(pr.title);
               const designProcessApplies = Date.parse(pr.created_at) >= Date.parse('2026-10-03T00:00:00Z');
               if (isFeature && designProcessApplies) {
                 const designMatch = body.match(/New features link to their merged design PR:\s*https:\/\/github\.com\/emdash-cms\/emdash\/pull\/(\d+)/i);
