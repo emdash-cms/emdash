@@ -103,29 +103,22 @@ jobs:
               /^infra\/flue-review\//,
             ];
 
-            const existingLabels = new Map();
-            for await (const response of github.paginate.iterator(
-              github.rest.issues.listLabelsForRepo,
-              { owner, repo, per_page: 100 },
-            )) {
-              for (const label of response.data) existingLabels.set(label.name, label);
-            }
-            for (const [name, meta] of Object.entries(stateLabels)) {
-              const existing = existingLabels.get(name);
-              if (!existing) {
-                await github.rest.issues.createLabel({ owner, repo, name, ...meta });
-              } else if (existing.description !== meta.description) {
-                await github.rest.issues.updateLabel({ owner, repo, name, ...meta });
-              }
-            }
-
             // Read from the default branch, so neither a PR nor its base branch can
             // change who counts as a Maintainer.
-            const { data: governanceFile } = await github.rest.repos.getContent({
-              owner,
-              repo,
-              path: 'GOVERNANCE.md',
-            });
+            let governanceFile;
+            try {
+              ({ data: governanceFile } = await github.rest.repos.getContent({
+                owner,
+                repo,
+                path: 'GOVERNANCE.md',
+              }));
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              // Without a Maintainers list on the default branch no check is created,
+              // so a required approval check stays missing and blocks merging.
+              core.notice('GOVERNANCE.md is not on the default branch, so no approval can be evaluated.');
+              return;
+            }
             if (Array.isArray(governanceFile) || governanceFile.type !== 'file') {
               core.setFailed('GOVERNANCE.md was not returned as a file.');
               return;
@@ -141,6 +134,22 @@ jobs:
             if (maintainers.size === 0) {
               core.setFailed('GOVERNANCE.md does not contain a marked Maintainers list.');
               return;
+            }
+
+            const existingLabels = new Map();
+            for await (const response of github.paginate.iterator(
+              github.rest.issues.listLabelsForRepo,
+              { owner, repo, per_page: 100 },
+            )) {
+              for (const label of response.data) existingLabels.set(label.name, label);
+            }
+            for (const [name, meta] of Object.entries(stateLabels)) {
+              const existing = existingLabels.get(name);
+              if (!existing) {
+                await github.rest.issues.createLabel({ owner, repo, name, ...meta });
+              } else if (existing.description !== meta.description) {
+                await github.rest.issues.updateLabel({ owner, repo, name, ...meta });
+              }
             }
 
             async function setReviewLabel(pr, desired) {
