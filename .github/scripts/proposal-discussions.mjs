@@ -7,7 +7,7 @@
 //       Comment on each linked Ideas Discussion that a design PR now proposes it.
 //   node .github/scripts/proposal-discussions.mjs push --before <sha> --after <sha>
 //       For proposals that became `accepted` or `implemented` on main, comment on
-//       each linked Ideas Discussion with the merged PR and close it.
+//       each linked Ideas Discussion with the merged PR, closing it on `implemented`.
 //
 // Requires an authenticated `gh` CLI and GITHUB_REPOSITORY. Proposal content is
 // read through the API and only parsed, never executed.
@@ -44,8 +44,9 @@ export function parseProposal(text, repo) {
 	return { status, discussions: [...new Set(discussions)] };
 }
 
-// Returns the status a proposal newly reached (`accepted` or `implemented`) and
-// its linked discussions, or null when there is nothing to announce.
+// Returns the status a proposal newly reached (`accepted` or `implemented`), its
+// linked discussions, and whether to close them, or null when there is nothing
+// to announce.
 export function statusTransition(beforeText, afterText, repo) {
 	if (afterText === null) return null;
 	const after = parseProposal(afterText, repo);
@@ -53,7 +54,11 @@ export function statusTransition(beforeText, afterText, repo) {
 	const before = beforeText === null ? null : parseProposal(beforeText, repo);
 	if (before?.status === after.status) return null;
 	if (before?.status === "implemented") return null;
-	return { status: after.status, discussions: after.discussions };
+	return {
+		status: after.status,
+		discussions: after.discussions,
+		close: after.status === "implemented",
+	};
 }
 
 function gh(args, { allowNotFound = false } = {}) {
@@ -193,13 +198,13 @@ function announceStatusChanges(repo, before, after) {
 		const link = `[\`${path}\`](${fileUrl(repo, "main", path)})`;
 		const body =
 			transition.status === "accepted"
-				? `Accepted in ${source}. The design for this Idea is now the plan of record in ${link}, so this Discussion is closed as resolved.`
-				: `Implemented in ${source}. The proposal ${link} is now marked implemented.`;
+				? `Accepted in ${source}. The design for this Idea is now the plan of record in ${link}, and this Discussion closes when it is implemented.`
+				: `Implemented in ${source}. The proposal ${link} is now marked implemented, so this Discussion is closed as resolved.`;
 		for (const discussion of transition.discussions) {
 			updateDiscussion(repo, discussion, {
 				marker: `${transition.status}:${path}`,
 				body,
-				close: true,
+				close: transition.close,
 			});
 		}
 	}

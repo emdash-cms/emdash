@@ -67,8 +67,8 @@ The implementation pull request that completes the proposal sets its status to `
 Link the proposal's Ideas Discussions in its front matter (`discussion` in a feature plan, `discussions` in an RFC). Automation keeps each linked Ideas Discussion in step with the proposal:
 
 - When the design pull request opens, it comments on the Discussion with a link to the pull request.
-- When the design pull request merges with the status `accepted`, it comments with a link to the accepted proposal and closes the Discussion as resolved.
-- When an implementation pull request sets the status to `implemented`, it comments with a link to that pull request.
+- When the design pull request merges with the status `accepted`, it comments with a link to the accepted proposal.
+- When an implementation pull request sets the status to `implemented`, it comments with a link to that pull request and closes the Discussion as resolved.
 
 Continue the conversation on the design pull request once it opens.
 

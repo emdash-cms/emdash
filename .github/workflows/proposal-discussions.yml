@@ -1,8 +1,8 @@
 name: Proposal Discussions
 
 # Keeps the Ideas Discussions linked from a proposal's front matter in step
-# with it: a comment when a design PR opens, then a comment and close when the
-# proposal is accepted or implemented on main.
+# with it: a comment when a design PR opens, a comment when the proposal is
+# accepted on main, and a comment and close when it is implemented.
 # Only the base branch's script is checked out. PR content is read through the
 # API as data.
 

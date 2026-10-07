@@ -80,13 +80,14 @@ describe("isDesignPullRequest", () => {
 describe("statusTransition", () => {
 	const url = `https://github.com/${REPO}/discussions/12`;
 
-	it("reports acceptance when a proposal becomes accepted", () => {
+	it("reports acceptance without closing the Discussion", () => {
 		const before = proposal({ status: "proposed", discussion: url });
 		const after = proposal({ status: "accepted", discussion: url });
 
 		assert.deepEqual(statusTransition(before, after, REPO), {
 			status: "accepted",
 			discussions: [12],
+			close: false,
 		});
 	});
 
@@ -96,16 +97,18 @@ describe("statusTransition", () => {
 		assert.deepEqual(statusTransition(null, after, REPO), {
 			status: "accepted",
 			discussions: [12],
+			close: false,
 		});
 	});
 
-	it("reports implementation when an accepted proposal becomes implemented", () => {
+	it("reports implementation and closes the Discussion", () => {
 		const before = proposal({ status: "accepted", discussion: url });
 		const after = proposal({ status: "implemented", discussion: url });
 
 		assert.deepEqual(statusTransition(before, after, REPO), {
 			status: "implemented",
 			discussions: [12],
+			close: true,
 		});
 	});
 

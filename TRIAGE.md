@@ -309,7 +309,7 @@ Most Ideas need sorting rather than detailed discussion. Sort an Idea with one o
 
 Sort an Idea yourself when the answer is clear from documented policy or earlier decisions. Otherwise flag it in `#project-team` or bring it to a regular project call, where Ideas can be evaluated together. There is no deadline for a first response.
 
-A `Design PR welcome` Idea stays open until its design is accepted. Automation links the design PR from the Idea when the PR opens and closes the Idea when the design PR merges (see [Linked Ideas Discussions](proposals/README.md#linked-ideas-discussions)).
+A `Design PR welcome` Idea stays open until its design is implemented. Automation links the design PR from the Idea when the PR opens, comments when the design PR merges, and closes the Idea when the implementation that completes the proposal merges (see [Linked Ideas Discussions](proposals/README.md#linked-ideas-discussions)).
 
 ## Area Labels
 
