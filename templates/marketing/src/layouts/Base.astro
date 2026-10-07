@@ -50,6 +50,7 @@ const isButtonItem = (item: (typeof menuItems)[number]) =>
 	item.cssClasses?.split(WHITESPACE).includes("button") ?? false;
 const navLinks = menuItems.filter((item) => !isButtonItem(item));
 const navButtons = menuItems.filter(isButtonItem);
+const panelButtons = navButtons.slice(1);
 
 const footerColumns = [footerProductResult, footerCompanyResult, footerSupportResult]
 	.map((result) => ({ heading: result.data?.label, items: result.data?.items ?? [] }))
@@ -70,7 +71,7 @@ const pageCtx = createPublicPageContext({
 });
 
 const isLoggedIn = !!Astro.locals.user;
-const hasMenuPanel = navLinks.length > 0 || isLoggedIn;
+const hasMenuPanel = navLinks.length > 0 || panelButtons.length > 0 || isLoggedIn;
 const year = new Date().getFullYear();
 const wordmarkLength = [...siteTitle].length;
 ---
@@ -162,7 +163,7 @@ const wordmarkLength = [...siteTitle].length;
 				{
 					hasMenuPanel && (
 						<nav id="mobile-menu" class="nav__panel" aria-label="Primary" hidden>
-							{navLinks.map((item) => (
+							{[...navLinks, ...panelButtons].map((item) => (
 								<a
 									href={item.url}
 									target={item.target}
@@ -1288,7 +1289,8 @@ const wordmarkLength = [...siteTitle].length;
 				}
 
 				.nav__links,
-				.nav__admin {
+				.nav__admin,
+				.nav__cta ~ .nav__cta {
 					display: none;
 				}
 
