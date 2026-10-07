@@ -1,0 +1,240 @@
+/*
+  prose.css -- reading typography for Portable Text bodies. Wrap rendered
+  content in an element with class="prose".
+
+  These rules sit in @layer base, so overrides in theme.css win without
+  specificity tricks. The variables at the top theme EmDash's built-in
+  block components (images, pullquotes, buttons, files, tables) to match.
+  The exception is the short unlayered block at the end, which needs
+  !important to restyle EmDash's code, button, and file blocks; override
+  those properties with !important too.
+*/
+
+@layer base {
+	.prose {
+		--prose-color: color-mix(in srgb, var(--color-text) 82%, var(--color-bg));
+		--emdash-caption-color: var(--color-muted);
+		--emdash-break-color: var(--color-border);
+		--emdash-break-dots-color: var(--color-muted);
+		--emdash-pullquote-border: var(--color-border);
+		--emdash-pullquote-color: var(--color-text);
+		--emdash-pullquote-citation-color: var(--color-muted);
+		--emdash-button-bg: var(--color-brand);
+		--emdash-button-bg-hover: var(--color-brand-hover);
+		--emdash-button-color: var(--color-on-brand);
+		--emdash-file-bg: var(--color-surface);
+		--emdash-file-border: var(--color-border);
+		--emdash-file-color: var(--color-text);
+		--emdash-file-icon-color: var(--color-muted);
+
+		max-width: var(--content-width);
+		font-size: var(--font-size-lg);
+		line-height: 1.75;
+		color: var(--prose-color);
+		overflow-wrap: break-word;
+	}
+
+	/* Vertical rhythm */
+	.prose > * {
+		margin-block: 0;
+	}
+
+	.prose > * + * {
+		margin-block-start: 1.25em;
+	}
+
+	.prose > :is(h1, h2) {
+		margin-block-start: 2em;
+	}
+
+	.prose > :is(h3, h4, h5, h6) {
+		margin-block-start: 1.75em;
+	}
+
+	.prose > :is(h1, h2, h3, h4, h5, h6) + * {
+		margin-block-start: 0.75em;
+	}
+
+	.prose > :first-child {
+		margin-block-start: 0;
+	}
+
+	/* Headings */
+	.prose :is(h1, h2, h3, h4, h5, h6) {
+		color: var(--color-text);
+		line-height: var(--leading-snug);
+	}
+
+	.prose h1 {
+		font-size: var(--font-size-3xl);
+		line-height: var(--leading-tight);
+	}
+
+	.prose h2 {
+		font-size: var(--font-size-2xl);
+	}
+
+	.prose h3 {
+		font-size: var(--font-size-xl);
+	}
+
+	.prose h4 {
+		font-size: var(--font-size-lg);
+	}
+
+	.prose :is(h5, h6) {
+		font-size: var(--font-size-base);
+	}
+
+	.prose h6 {
+		color: var(--color-text-secondary);
+	}
+
+	/* Inline text */
+	.prose a:where(:not([class*="emdash"])) {
+		color: var(--color-text);
+		text-decoration-line: underline;
+		text-decoration-thickness: 1px;
+		text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+		text-decoration-skip-ink: auto;
+		text-underline-offset: 0.2em;
+	}
+
+	.prose a:where(:not([class*="emdash"])):hover {
+		text-decoration-color: currentColor;
+	}
+
+	.prose :is(strong, b) {
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.prose :is(sub, sup) {
+		font-size: 0.75em;
+		line-height: 0;
+	}
+
+	.prose :not(pre) > code {
+		padding: 0.15em 0.35em;
+		border-radius: var(--radius-sm);
+		background: var(--color-fill);
+		color: var(--color-text);
+		font-family: var(--font-mono);
+		font-size: 0.85em;
+		box-decoration-break: clone;
+		-webkit-box-decoration-break: clone;
+	}
+
+	/* Lists */
+	.prose :is(ul, ol) {
+		padding-inline-start: 1.5em;
+	}
+
+	.prose li {
+		padding-inline-start: 0.25em;
+	}
+
+	.prose li + li,
+	.prose li > :is(ul, ol) {
+		margin-block-start: 0.5em;
+	}
+
+	.prose li::marker {
+		color: var(--color-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* Quotes, code, rules */
+	.prose blockquote:where(:not([class*="emdash"])) {
+		padding-inline-start: 1.25em;
+		border-inline-start: 2px solid var(--color-border-strong);
+		color: var(--color-text);
+	}
+
+	.prose blockquote > * + * {
+		margin-block-start: 0.75em;
+	}
+
+	.prose hr {
+		margin-block: 2.5em;
+		border: 0;
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	/* Media */
+	.prose img {
+		border-radius: var(--radius-lg);
+	}
+
+	.prose :is(figure > img, figure > a > img, .emdash-gallery-item img) {
+		outline: 1px solid var(--color-media-outline);
+		outline-offset: -1px;
+	}
+
+	.prose figcaption {
+		margin-block-start: 0.75em;
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-normal);
+		text-align: center;
+	}
+
+	.prose :is(.emdash-embed-video, .emdash-iframe),
+	.prose .emdash-video video {
+		overflow: hidden;
+		border-radius: var(--radius-lg);
+		background: var(--color-fill);
+	}
+
+	/* EmDash's table block reads these for its header row and stripes */
+	.prose .emdash-table-wrapper {
+		--color-surface: var(--color-fill);
+		--color-bg-subtle: color-mix(in srgb, var(--color-fill) 50%, transparent);
+	}
+
+	@media (max-width: 640px) {
+		.prose {
+			font-size: 1.0625rem;
+			line-height: 1.7;
+		}
+	}
+}
+
+/*
+  EmDash's code, button, and file blocks ship scoped, unlayered styles.
+  !important lets these few overrides win without copying their generated
+  selectors.
+*/
+.prose .emdash-code pre {
+	padding: 1rem 1.25rem !important;
+	border-radius: var(--radius-lg) !important;
+	background: var(--color-fill) !important;
+}
+
+.prose .emdash-code-filename + pre {
+	border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+}
+
+.prose .emdash-code code {
+	color: var(--color-text) !important;
+	font-family: var(--font-mono) !important;
+	font-size: var(--font-size-sm) !important;
+	line-height: 1.7;
+}
+
+.prose .emdash-code-filename {
+	padding: 0.5rem 1.25rem !important;
+	border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+	border-block-end: 1px solid var(--color-border);
+	background: var(--color-fill-strong) !important;
+	color: var(--color-text-secondary) !important;
+	font-family: var(--font-mono) !important;
+}
+
+.prose .emdash-button {
+	border-radius: var(--radius-full) !important;
+}
+
+.prose .emdash-file {
+	border-radius: var(--radius-lg) !important;
+}
