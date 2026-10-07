@@ -32,12 +32,19 @@ if (Astro.cache?.enabled) {
 	Astro.cache.set(tagsResult.cacheHint);
 }
 
-const activeLabel = activeTag
-	? tags.find((t) => t.slug === activeTag)?.label || activeTag
-	: null;
+const activeTerm = activeTag
+	? tags.find((t) => t.slug === activeTag)
+	: undefined;
+const activeLabel = activeTerm?.label || activeTag;
 
 // A count is only accurate when the whole list fits on this page.
 const showCount = projects.length > 0 && !cursor && !nextCursor;
+
+// Rows are numbered across pages: the next-page link carries the number
+// its first row starts from.
+const firstNumber = cursor
+	? Math.max(1, Number.parseInt(Astro.url.searchParams.get("from") ?? "", 10) || 1)
+	: 1;
 
 function pad(n: number): string {
 	return String(n).padStart(2, "0");
@@ -46,13 +53,15 @@ function pad(n: number): string {
 function workUrl(next: string): string {
 	const params = new URLSearchParams({ cursor: next });
 	if (activeTag) params.set("tag", activeTag);
+	params.set("from", String(firstNumber + projects.length));
 	return `/work?${params.toString()}`;
 }
 
 // Each row renders its image twice: an inline thumbnail for touch screens
-// and narrow windows, and a preview beside the list on wide screens with a
-// pointer. Both are lazy, so the one hidden at the current width is never
-// downloaded.
+// and narrower windows, and a preview beside the list on wide screens with
+// a pointer. Both are lazy, so only the kind shown at the current width
+// downloads; on wide screens every row's preview loads with the page so a
+// hover shows it at once.
 const thumbSizes = "(min-width: 1024px) 128px, (min-width: 768px) 112px, 88px";
 const previewSizes = "(min-width: 1680px) 384px, 25vw";
 ---
@@ -138,7 +147,7 @@ const previewSizes = "(min-width: 1680px) 384px, 25vw";
 												)}
 											</span>
 											<span class="work-row__num col-num label" aria-hidden="true">
-												{pad(i + 1)}
+												{pad(firstNumber + i)}
 											</span>
 											<h2 class="work-row__name col-name">
 												<a href={`/work/${project.id}`} class="work-row__link">
@@ -212,7 +221,11 @@ const previewSizes = "(min-width: 1680px) 384px, 25vw";
 				<div class="work-empty">
 					{activeTag ? (
 						<>
-							<h2 class="work-empty__title">No {activeLabel} projects yet.</h2>
+							<h2 class="work-empty__title">
+								{activeTerm
+									? `No ${activeTerm.label} projects yet.`
+									: "No projects found with this tag."}
+							</h2>
 							<a href="/work" class="btn btn--ghost">
 								View all projects
 							</a>
@@ -275,6 +288,7 @@ const previewSizes = "(min-width: 1680px) 384px, 25vw";
 	.work-filter a {
 		display: inline-block;
 		padding-block: 0.4rem;
+		overflow-wrap: anywhere;
 		text-decoration-line: none;
 		text-underline-offset: 0.4em;
 		transition: color var(--transition-fast);
@@ -447,14 +461,14 @@ const previewSizes = "(min-width: 1680px) 384px, 25vw";
 		}
 	}
 
-	@media (min-width: 1024px) and (hover: none) {
+	@media (min-width: 1024px) {
 		.work-row {
 			--thumb: 8rem;
 		}
 	}
 
-	/* Index: one row per project in columns, for wide screens with a pointer */
-	@media (min-width: 1024px) and (hover: hover) {
+	/* Index: one row per project in columns, beside the preview */
+	@media (min-width: 1280px) and (hover: hover) {
 		.work-cols,
 		.work-row {
 			display: grid;

@@ -14,7 +14,7 @@ The design is intentionally restrained. Don't pile on colour, gradients, or deco
 | About          | `/about`       | Page title and Portable Text content; the first paragraph is set as a lead and each `h2` section hangs in the left column       |
 | Contact        | `/contact`     | A large email link, studio details, and the social profiles from site settings                                                  |
 
-On wide screens with a mouse or trackpad, hovering or focusing a row on `/work` shows that project's featured image beside the list. On touch screens and windows narrower than 1024px, each row shows a thumbnail instead.
+On wide screens with a mouse or trackpad, hovering or focusing a row on `/work` shows that project's featured image beside the list. On touch screens and windows narrower than 1280px, each row shows a thumbnail instead.
 
 ## Schema
 
