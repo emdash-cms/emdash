@@ -61,7 +61,7 @@ Use `#maintainers` only for subjects that cannot be discussed safely in public:
 - credentials, secrets, and production administration; and
 - legal, privacy, or confidential partner information.
 
-Calls can be used for coordination. Publish an agenda beforehand when practical and record decisions on GitHub. Attendance at calls is not required to participate in governance.
+Calls can be used for coordination. Publish an agenda beforehand when practical, and record decisions on GitHub. Attendance at calls is not required to participate in governance.
 
 ## Project roles
 

@@ -54,7 +54,7 @@ Set the proposal status to `accepted` in the revision that the Maintainers appro
 
 ## Implement an accepted design
 
-Every implementation pull request marked as a Feature links a merged design pull request in the EmDash repository. This applies to Maintainers, the Project Lead, employees, and external contributors. There is no routine exemption for small features.
+Every implementation pull request marked as a Feature links a merged design pull request in the EmDash repository. This applies to Maintainers, the Project Lead, Cloudflare employees, and external contributors. There is no routine exemption for small features.
 
 Implementation review verifies correctness, security, compatibility, tests, and conformance with the accepted design. If implementation exposes a design flaw, open a design pull request that amends the accepted proposal before changing the behavior.
 
@@ -86,7 +86,10 @@ Ideas Discussions labelled `Approved for PR` under the previous process now carr
 
 ## Proposal index
 
-Add each accepted proposal to this index in its design pull request. Record implementation pull requests when they merge.
+Add a row for each accepted proposal in its design pull request, keeping the rows sorted by proposal filename. The implementation pull request that completes a proposal adds itself under "Implemented in". A proposal's status stays in its front matter.
+
+| Proposal | Type | Design PR | Implemented in |
+| -------- | ---- | --------- | -------------- |
 
 No proposals have yet been accepted under this process.
 

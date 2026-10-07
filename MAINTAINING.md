@@ -28,7 +28,7 @@ The following changes require approval from two human Maintainers other than the
 - governance and contribution policy;
 - protected-branch and required-check automation;
 - release and package-publishing automation;
-- repository, package, production, credential, or access controls; and
+- settings or automation that control access to the repository, published packages, production systems, or credentials; and
 - another privileged supply-chain path where a compromise could approve, alter, or publish a release.
 
 The approval workflow (`.github/workflows/approval.yml`) lists the repository paths that enforce these controls. When a change affects the same privileged boundary through a new path, apply the two-approval rule even before the path list is updated.
@@ -38,7 +38,7 @@ The approval workflow (`.github/workflows/approval.yml`) lists the repository pa
 Before approving, verify the parts relevant to the change:
 
 - the contribution is in scope and uses the correct contribution path;
-- the implementation matches its linked accepted design;
+- the implementation matches its linked accepted design, if it has one;
 - backwards compatibility, data, security, localization, accessibility, and performance constraints are addressed;
 - the tests exercise observable behavior and the reported bug when applicable;
 - user-facing package changes have a useful changeset;

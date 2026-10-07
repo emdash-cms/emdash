@@ -17,6 +17,14 @@ Closes #
 - [ ] Tests
 - [ ] Chore (dependencies, CI, tooling)
 
+## Your connection to this change
+
+<!-- Check at least one. If none applies, ask a Maintainer to approve the change before opening a PR. See the [AI usage policy](https://github.com/emdash-cms/emdash/blob/main/AI_POLICY.md#pull-request-eligibility). -->
+
+- [ ] I use EmDash and ran into the problem this PR addresses
+- [ ] I maintain a tool, dependency, or service that EmDash uses, and this change concerns that integration
+- [ ] A Maintainer approved this specific change before I opened the PR
+
 ## Checklist
 
 - [ ] I have read [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md)
@@ -28,7 +36,6 @@ Closes #
 - [ ] User-visible strings in the admin UI are [wrapped for translation](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#internationalization-i18n) (if applicable). Do not include `messages.po` changes except in translation PRs — a workflow extracts catalogs on merge to `main`.
 - [ ] I have added and reviewed the user-facing [changeset](https://github.com/emdash-cms/emdash/blob/main/.changeset/README.md) (if this PR changes a published package)
 - [ ] New features link to their merged design PR: https://github.com/emdash-cms/emdash/pull/...
-- [ ] I use EmDash, maintain the affected upstream integration, or received Maintainer approval for this specific change
 - [ ] I have included screenshots below if this PR changes the UI
 
 ## AI assistance disclosure

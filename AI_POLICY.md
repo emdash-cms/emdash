@@ -46,7 +46,7 @@ Agents must not write or post comments or replies on issues after they are opene
 
 ## Discussions and design pull requests
 
-AI can help prepare the initial text of a proposal for a Discussion. Before posting it, a human must review and edit it for correctness, coherence, and length, disclose the assistance, and post it manually.
+AI can help prepare the opening post of a Discussion, such as a new Idea. Before posting it, a human must review and edit it for correctness, coherence, and length, disclose the assistance, and post it manually.
 
 AI agents and AI bots must not write or post comments or replies in Discussions. Discussions are spaces for direct human deliberation, including comments on proposals. Deterministic repository automation can post status updates, such as linking a Discussion to its design pull request.
 
@@ -59,7 +59,6 @@ AI participation in pull request conversation is limited to code review and repl
 - An agent can help reply to review comments on your implementation pull request under human control.
 - An agent can review another person's implementation pull request only when a human explicitly requests that specific code review.
 - An agent must not post other comments on another person's pull request.
-- An agent must not comment on a design pull request.
 - An authorised project bot can perform only its configured implementation-pull-request review task.
 
 A code review examines code for correctness, security, compatibility, tests, and conformance with an accepted design. It does not include project-management discussion, persuasion, general conversation, or replying on a human's behalf.
