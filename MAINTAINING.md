@@ -31,7 +31,7 @@ The following changes require approval from two human Maintainers other than the
 - repository, package, production, credential, or access controls; and
 - another privileged supply-chain path where a compromise could approve, alter, or publish a release.
 
-The human-approval check identifies the repository paths that enforce these controls. When a change affects the same privileged boundary through a new path, apply the two-approval rule even before the path list is updated.
+The approval workflow (`.github/workflows/approval.yml`) lists the repository paths that enforce these controls. When a change affects the same privileged boundary through a new path, apply the two-approval rule even before the path list is updated.
 
 ## Review responsibilities
 

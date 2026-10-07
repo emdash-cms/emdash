@@ -199,7 +199,7 @@ export type NormalizeResult =
 			event: Omit<NormalizedEvent, "anchorNumber">;
 	  }
 	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
-	| { kind: "review_state"; pullRequestNumber: number; authorLogin: string; draft: boolean }
+	| { kind: "review_state"; pullRequestNumber: number; draft: boolean }
 	| { kind: "skip"; reason: string }
 	| { kind: "pong" };
 
@@ -581,9 +581,9 @@ function firstRecord(value: unknown): Record<string, unknown> | undefined {
 }
 
 /**
- * A review on a fork PR the bot did not open only refreshes that PR's review/*
- * label (see review-state.ts). review-state.yml handles reviews on same-repo
- * PRs itself. Bot-authored PRs carry no review label.
+ * A review on a fork PR the bot did not open only re-applies that PR's review/*
+ * label so approval.yml re-runs (see review-state.ts). approval.yml handles
+ * reviews on same-repo PRs itself. Bot-authored PRs carry no review label.
  */
 function normalizeReviewState(
 	action: string | undefined,
@@ -605,7 +605,7 @@ function normalizeReviewState(
 	if (readString(author?.type) === "Bot" || authorLogin.endsWith("[bot]")) {
 		return { kind: "skip", reason: "pull_request_review on a bot-authored PR" };
 	}
-	return { kind: "review_state", pullRequestNumber, authorLogin, draft: pr?.draft === true };
+	return { kind: "review_state", pullRequestNumber, draft: pr?.draft === true };
 }
 
 /**

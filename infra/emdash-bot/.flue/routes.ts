@@ -14,7 +14,7 @@ import {
 	readRepoContext,
 	type GitHubToken,
 } from "./lib/github.js";
-import { syncReviewStateLabel } from "./lib/review-state.js";
+import { refreshApprovalState } from "./lib/review-state.js";
 import {
 	normalizeWebhook,
 	resolvePullRequestWebhook,
@@ -317,7 +317,7 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 					c.env,
 					`webhook-review-state:${deliveryId ?? result.pullRequestNumber}`,
 				);
-				const reviewState = await syncReviewStateLabel(token, repo, result, signal);
+				const reviewState = await refreshApprovalState(token, repo, result, signal);
 				console.log("[webhook] review state", {
 					delivery: deliveryId,
 					pullRequest: result.pullRequestNumber,

@@ -587,7 +587,6 @@ describe("normalizeWebhook", () => {
 				expect(normalizeWebhook({ eventType: "pull_request_review", payload })).toEqual({
 					kind: "review_state",
 					pullRequestNumber: 120,
-					authorLogin: "contributor",
 					draft: false,
 				});
 			},

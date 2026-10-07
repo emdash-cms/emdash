@@ -273,7 +273,11 @@ Request a rewrite when technically accurate prose is still vague, implementation
 
 Almost every label you'll see on a PR is applied and removed automatically. You read them to scan the queue; you don't manage them:
 
-- `review/needs-review`, `review/awaiting-author`, `review/needs-rereview`, `review/approved` — four mutually exclusive review states, kept in sync with actual review activity.
+- `review/*` — four mutually exclusive review states, set by the same automation as the `Human Maintainer approval` check, so they always agree with it. Only reviews from Maintainers listed in [GOVERNANCE.md](GOVERNANCE.md#maintainers) count:
+  - `review/approved` — the approval requirement is met: enough Maintainer approvals on the current revision (two for governance and privileged paths) and no outstanding change requests.
+  - `review/needs-rereview` — commits have landed since the last Maintainer review, or since a Maintainer requested changes. Merging `main` into the branch doesn't count; a rebase does.
+  - `review/awaiting-author` — a Maintainer requested changes or commented on the current revision.
+  - `review/needs-review` — no Maintainer has reviewed yet, or the PR needs another approval.
 - `type/design` — a feature plan, RFC, or proposal amendment. AI reviewers skip these PRs.
 - `needs-approval` — CI hasn't run because the workflows are waiting for maintainer approval, which is normal for first-time contributors. Despite the name, it has nothing to do with Discussion approval.
 - `needs-rebase` — the branch has merge conflicts with `main`.
