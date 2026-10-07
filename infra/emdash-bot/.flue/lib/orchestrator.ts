@@ -8,6 +8,11 @@ import { dispatch, init } from "@flue/runtime";
 import { DurableObject } from "cloudflare:workers";
 
 import { Investigate } from "../agents/investigate.js";
+import {
+	type AutomaticRecovery,
+	automaticRecoveryNote,
+	planAutomaticRecovery,
+} from "./automatic-recovery.js";
 import { classifyComment, type ClassifierInput, type ClassifyResult } from "./classifier-client.js";
 import {
 	type PullRequestCopy,
@@ -321,6 +326,8 @@ const STORAGE = {
 	prPollNextAt: "o:prPollNextAt",
 	prRepairFingerprint: "o:prRepairFingerprint",
 	prRepairCount: "o:prRepairCount",
+	automaticRecovery: "o:automaticRecovery",
+	automaticRecoveryCount: "o:automaticRecoveryCount",
 	prGreenHeadSha: "o:prGreenHeadSha",
 	eventLog: "o:eventLog",
 	seenDeliveries: "o:seenDeliveries",
@@ -1152,6 +1159,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "rate-limit-paused", runId: input.runId, retryAt: rateLimitResumeAt };
 		}
 		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
+		const checkpointSaved = Boolean(
+			event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state,
+		);
 		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
 			await this.ctx.storage.put<ResumableRunCheckpoint>(STORAGE.resumableRun, {
 				runId: input.runId,
@@ -1167,8 +1177,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 
 		const labels = await this.projectLabels();
+		const failureStage =
+			typeof input.result.failureStage === "string" ? input.result.failureStage : null;
+		const recovery =
+			event === "agent.failed" ? await this.planRecovery(failureStage, checkpointSaved) : null;
+		const recoveryNote =
+			event === "agent.failed" ? `\n\n${automaticRecoveryNote(recovery, Date.now())}` : "";
 		const agentSummary =
-			typeof input.result?.summary === "string" ? input.result.summary : undefined;
+			typeof input.result?.summary === "string"
+				? `${input.result.summary}${recoveryNote}`
+				: undefined;
 		const agentPullRequest = normalizePullRequestCopy(input.result.pullRequest);
 		const runStatus: Exclude<WorkCommentStatus, "running"> =
 			event === "agent.failed"
@@ -1180,12 +1198,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 					  (event === "agent.reproduced" && currentRunMode !== "diagnose")
 					? "needs_follow_up"
 					: "succeeded";
-		const failureStage =
-			typeof input.result.failureStage === "string" ? input.result.failureStage : null;
 		const finalizedWorkComment = await this.finalizeWorkPlanComment({
 			runId: input.runId,
 			status: runStatus,
-			outcome: `${agentSummary ?? "The run completed without a summary."}${failureStage ? `\n\nFailed stage: ${failureStage}` : ""}`,
+			outcome: `${agentSummary ?? `The run completed without a summary.${recoveryNote}`}${failureStage ? `\n\nFailed stage: ${failureStage}` : ""}`,
 		});
 		const agentScreenshots = Array.isArray(input.result?.screenshots)
 			? input.result.screenshots
@@ -1209,7 +1225,39 @@ export class OrchestratorDO extends DurableObject<Env> {
 			...(agentLabels.length > 0 ? { agentLabels } : {}),
 		});
 		await this.clearRun(input.runId);
+		if (event === "agent.failed") {
+			await this.scheduleRecovery(recovery);
+		} else {
+			await this.ctx.storage.delete([STORAGE.automaticRecovery, STORAGE.automaticRecoveryCount]);
+		}
 		return outcome;
+	}
+
+	/** The automatic recovery a failed run gets, if any. Read before the run is cleared. */
+	private async planRecovery(
+		failureStage: string | null,
+		checkpoint: boolean,
+	): Promise<AutomaticRecovery | null> {
+		const [previousAttempts, dryRun] = await Promise.all([
+			this.ctx.storage.get<number>(STORAGE.automaticRecoveryCount),
+			this.ctx.storage.get<boolean>(STORAGE.currentRunDryRun),
+		]);
+		return planAutomaticRecovery({
+			failureStage,
+			checkpoint,
+			previousAttempts: previousAttempts ?? 0,
+			now: Date.now(),
+			dryRun: dryRun === true,
+		});
+	}
+
+	private async scheduleRecovery(recovery: AutomaticRecovery | null): Promise<void> {
+		if (!recovery) return;
+		await this.ctx.storage.put({
+			[STORAGE.automaticRecovery]: recovery,
+			[STORAGE.automaticRecoveryCount]: recovery.attempt,
+		});
+		await this.armAlarm();
 	}
 
 	/**
@@ -1294,6 +1342,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				throw error;
 			}
 		}
+		await this.runDueRecovery(now);
 
 		let processedInboxItem = false;
 		let inboxError: string | null = null;
@@ -1787,6 +1836,34 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 	}
 
+	private async runDueRecovery(now: number): Promise<void> {
+		const recovery = await this.ctx.storage.get<AutomaticRecovery>(STORAGE.automaticRecovery);
+		if (!recovery || recovery.at > now) return;
+		await this.ctx.storage.delete(STORAGE.automaticRecovery);
+		const state = await this.ctx.storage.get<StateId>(STORAGE.state);
+		if (state !== "needs_attention" && state !== "failed") return;
+		try {
+			await this.processEvent({
+				event: recovery.action,
+				arg: null,
+				actor: "system",
+				labels: await this.projectLabels(),
+				needsClassify: false,
+				...(recovery.dryRun ? { dryRun: true } : {}),
+			});
+		} catch (error) {
+			await this.ctx.storage.put(STORAGE.automaticRecovery, {
+				...recovery,
+				at: Date.now() + RECOVERY_RETRY_BASE_MS,
+			} satisfies AutomaticRecovery);
+			console.error("[orchestrator] automatic recovery failed", {
+				action: recovery.action,
+				attempt: recovery.attempt,
+				error: errorMessage(error),
+			});
+		}
+	}
+
 	private async cleanupSchedulingState(reason: string): Promise<void> {
 		const [anchorNumber, state, prNumber, alarmAt] = await Promise.all([
 			this.ctx.storage.get<number>(STORAGE.anchorNumber),
@@ -1802,6 +1879,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				transaction.delete(STORAGE.prPollNextAt),
 				transaction.delete(STORAGE.githubRetryAt),
 				transaction.delete(STORAGE.rateLimitResumeAt),
+				transaction.delete(STORAGE.automaticRecovery),
 				transaction.delete(STORAGE.recoveryRetry),
 				transaction.delete(STORAGE.labelReconcileNextAt),
 				transaction.deleteAlarm(),
@@ -1840,6 +1918,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			prPollNextAt,
 			githubRetryAt,
 			rateLimitResumeAt,
+			automaticRecovery,
 			recoveryRetry,
 			recoveryTerminal,
 			labelReconcileNextAt,
@@ -1864,6 +1943,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
 			this.ctx.storage.get<number>(STORAGE.rateLimitResumeAt),
+			this.ctx.storage.get<AutomaticRecovery>(STORAGE.automaticRecovery),
 			this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry),
 			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
 			this.ctx.storage.get<number>(STORAGE.labelReconcileNextAt),
@@ -1902,7 +1982,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			runAlarmAt !== null ||
 			hasPreviewWork ||
 			hasPullRequestWork ||
-			rateLimitResumeAt !== undefined;
+			rateLimitResumeAt !== undefined ||
+			automaticRecovery !== undefined;
 		const hasRecoveryWork = recoveryRetry !== undefined && recoveryRetry.path !== "labels";
 		const terminalAtRest =
 			state !== undefined && STATES[state].terminal && !hasImmediateWork && runAlarmAt === null;
@@ -1934,6 +2015,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		if (rateLimitResumeAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, rateLimitResumeAt));
+		}
+		if (automaticRecovery !== undefined) {
+			desired = Math.min(desired, Math.max(now + 1_000, automaticRecovery.at));
 		}
 		const retryAt = Math.max(githubRetryAt ?? 0, recoveryRetry?.nextAt ?? 0);
 		if (retryAt > now) desired = Math.max(desired, retryAt);
@@ -2158,7 +2242,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// Commit the failed transition before deleting retry evidence. If this
 		// throws, the run markers remain and the next alarm retries recovery.
 		const labels = await this.projectLabels();
-		const timeoutSummary = `${checkpoint.summary}\n\nThe conversation and workspace are saved. A maintainer can continue with \`@emdashbot retry\`.`;
+		const recovery = await this.planRecovery("timeout", true);
+		const timeoutSummary = `${checkpoint.summary}\n\nThe conversation and workspace are saved. ${automaticRecoveryNote(recovery, now)}`;
 		const finalizedWorkComment = await this.finalizeWorkPlanComment({
 			runId,
 			status: "timed_out",
@@ -2178,6 +2263,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			...(deliveryId ? { settlesDeliveryId: deliveryId } : {}),
 		});
 		await this.clearRun(runId);
+		await this.scheduleRecovery(recovery);
 		return true;
 	}
 
@@ -2192,6 +2278,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		await this.discardLaunchSideEffects(runId);
 		const labels = await this.projectLabels();
+		const recovery = await this.planRecovery(null, Boolean(pendingResume));
 		await this.processEvent(
 			{
 				event: "agent.failed",
@@ -2199,14 +2286,17 @@ export class OrchestratorDO extends DurableObject<Env> {
 				actor: "system",
 				labels,
 				needsClassify: false,
-				agentSummary: pendingResume
-					? `I couldn't resume the saved run: ${dispatchError}`
-					: `I couldn't start this run: ${dispatchError}`,
+				agentSummary: `${
+					pendingResume
+						? `I couldn't resume the saved run: ${dispatchError}`
+						: `I couldn't start this run: ${dispatchError}`
+				}\n\n${automaticRecoveryNote(recovery, Date.now())}`,
 				settlesRunId: runId,
 			},
 			false,
 		);
 		await this.clearRun(runId);
+		await this.scheduleRecovery(recovery);
 		const deliveryId = pending?.deliveryId ?? pendingResume?.deliveryId;
 		if (deliveryId) await this.recordDelivery(deliveryId);
 		return deliveryId ?? null;
@@ -3227,7 +3317,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (decision.event === "pr.updated" || decision.event === "agent.revised") {
 				puts.push(transaction.delete(STORAGE.prStatus), transaction.delete(STORAGE.prGreenHeadSha));
 			}
-			if (input.actor !== "system") puts.push(transaction.delete(STORAGE.prRepairCount));
+			if (input.actor !== "system") {
+				puts.push(
+					transaction.delete(STORAGE.prRepairCount),
+					transaction.delete(STORAGE.automaticRecovery),
+					transaction.delete(STORAGE.automaticRecoveryCount),
+				);
+			}
 			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
 				const pullRequest = await transaction.get<PullRequestStatus>(STORAGE.prStatus);
 				puts.push(transaction.delete(STORAGE.prPollNextAt));

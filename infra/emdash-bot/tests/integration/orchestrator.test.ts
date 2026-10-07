@@ -1655,9 +1655,156 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments.at(-1)).toContain(
 			"The run stopped at its execution deadline before it could provide a checkpoint summary.",
 		);
-		expect(comments.at(-1)).toContain("`@emdashbot retry`");
+		expect(comments.at(-1)).toContain("I'll continue from this checkpoint automatically");
 		expect(comments.at(-1)).toContain("Failed stage: `timeout`");
 		expect(comments.at(-1)).toContain("Run: `timed-out-comment-run`");
+	});
+
+	test("a timed-out run past its automatic recoveries asks a maintainer to retry", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put("o:automaticRecoveryCount", 2);
+		});
+		await stub.debugSetStaleRun(
+			"exhausted-run",
+			Date.now() - 61 * 60_000,
+			"investigate-42-exhausted-run",
+			"implement",
+		);
+
+		expect((await stub.tick()).droppedStaleRun).toBe(true);
+		expect(comments.at(-1)).toContain("`@emdashbot retry`");
+		const recovery = await runInDurableObject(stub, async (_instance, state) =>
+			state.storage.get("o:automaticRecovery"),
+		);
+		expect(recovery).toBeUndefined();
+	});
+
+	describe("automatic recovery", () => {
+		async function scheduledRecovery(
+			stub: ReturnType<TestEnv["Orchestrator"]["getByName"]>,
+		): Promise<Record<string, unknown> | undefined> {
+			return runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<Record<string, unknown>>("o:automaticRecovery"),
+			);
+		}
+
+		async function makeRecoveryDue(
+			stub: ReturnType<TestEnv["Orchestrator"]["getByName"]>,
+		): Promise<void> {
+			await runInDurableObject(stub, async (_instance, state) => {
+				const recovery = await state.storage.get<Record<string, unknown>>("o:automaticRecovery");
+				await state.storage.put("o:automaticRecovery", { ...recovery, at: Date.now() - 1_000 });
+			});
+		}
+
+		test("a timed-out run schedules its own resume and continues from the checkpoint", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.debugPrimeFixing(42);
+			await stub.debugSetStaleRun(
+				"timed-out-run",
+				Date.now() - 61 * 60_000,
+				"investigate-42-timed-out-run",
+				"implement",
+			);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put("o:currentRunDryRun", true);
+			});
+
+			expect((await stub.tick()).droppedStaleRun).toBe(true);
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(await scheduledRecovery(stub)).toMatchObject({
+				action: "resume",
+				attempt: 1,
+				dryRun: true,
+			});
+
+			await makeRecoveryDue(stub);
+			await stub.tick();
+			expect(await stub.getPersistedState()).toMatchObject({
+				state: "fixing",
+				currentRunId: "timed-out-run",
+			});
+			expect(await scheduledRecovery(stub)).toBeUndefined();
+		});
+
+		test("a workspace failure schedules a retry of the same mode", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.event(makeEvent({ anchorNumber: 42 }));
+			await stub.debugSetStaleRun(
+				"workspace-run",
+				Date.now(),
+				"investigate-42-workspace-run",
+				"implement",
+			);
+			await stub.applyAgentResult({
+				runId: "workspace-run",
+				result: {
+					implemented: false,
+					summary: "Container service disconnected.",
+					failureStage: "workspace",
+				},
+				pushed: false,
+				ok: true,
+			});
+
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(await scheduledRecovery(stub)).toMatchObject({ action: "retry", attempt: 1 });
+
+			await makeRecoveryDue(stub);
+			await stub.tick();
+			expect((await stub.getPersistedState()).state).toBe("working");
+		});
+
+		test("a change that failed its own verification waits for a maintainer", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.event(makeEvent({ anchorNumber: 42 }));
+			await stub.debugSetStaleRun(
+				"verification-run",
+				Date.now(),
+				"investigate-42-verification-run",
+				"implement",
+			);
+			await stub.applyAgentResult({
+				runId: "verification-run",
+				result: {
+					implemented: false,
+					summary: "The focused tests still fail.",
+					failureStage: "verification",
+				},
+				pushed: false,
+				ok: true,
+			});
+
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(await scheduledRecovery(stub)).toBeUndefined();
+		});
+
+		test("a maintainer command cancels a scheduled recovery", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:state": "needs_attention",
+					"o:kind": "bug",
+					"o:automaticRecovery": { action: "retry", at: Date.now() + 60_000, attempt: 1 },
+					"o:automaticRecoveryCount": 1,
+				});
+			});
+
+			await stub.event(makeEvent({ event: "take_over", arg: null, actor: "maintainer" }));
+			expect(await scheduledRecovery(stub)).toBeUndefined();
+			const count = await runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<number>("o:automaticRecoveryCount"),
+			);
+			expect(count).toBeUndefined();
+		});
 	});
 
 	test("tick recovers a stale run", async () => {

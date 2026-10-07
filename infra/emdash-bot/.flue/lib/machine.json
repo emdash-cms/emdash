@@ -415,7 +415,8 @@
 		"retry": {
 			"description": "Retry the last triage, investigation, work, or PR repair run.",
 			"actors": [
-				"maintainer"
+				"maintainer",
+				"system"
 			]
 		},
 		"resume": {

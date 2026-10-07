@@ -52,7 +52,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `accept` | command | reporter, maintainer | — | Confirm the candidate change works. |
 | `needs_changes` | command | reporter, maintainer | `feedback` | Explain what is still wrong so the bot can revise the candidate. |
 | `investigate` | command | maintainer | `directive` | Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix. |
-| `retry` | command | maintainer | — | Retry the last triage, investigation, work, or PR repair run. |
+| `retry` | command | maintainer, system | — | Retry the last triage, investigation, work, or PR repair run. |
 | `decline` | command | maintainer | — | Won't be actioned; move to declined. |
 | `reopen` | command | maintainer | — | Bring a terminal item back into triage. |
 | `take_over` | command | maintainer | — | A maintainer takes the item; the bot disengages but stays on the board. |

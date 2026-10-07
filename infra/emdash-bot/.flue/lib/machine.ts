@@ -562,7 +562,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	// last run's mode when one is known; the table entries are the fallback.
 	retry: {
 		description: "Retry the last triage, investigation, work, or PR repair run.",
-		actors: ["maintainer"],
+		actors: ["maintainer", "system"],
 	},
 	resume: {
 		description: "Continue the saved conversation and workspace from a timed-out run.",
