@@ -107,6 +107,7 @@ import {
 	type WorkPlan,
 	type WorkPlanInput,
 } from "./work-plan.js";
+import { hasMaintainerAssociation, writeAccess } from "./write-access.js";
 
 /**
  * Inert states cannot be advanced by a late-arriving agent result. If a run
@@ -2411,6 +2412,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const comments = await getIssueComments(token, repo, anchorNumber, {
 				commentCount: issue.commentCount,
 			});
+			const writers = await writeAccess.writers(
+				token,
+				repo,
+				comments.flatMap((comment) =>
+					comment.authorLogin && !hasMaintainerAssociation(comment.authorAssociation)
+						? [comment.authorLogin]
+						: [],
+				),
+			);
 			const trigger = input.triggeringComment ?? {
 				id: null,
 				body: arg ? `@emdashbot ${decision.event} ${arg}` : `@emdashbot ${decision.event}`,
@@ -2422,6 +2432,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				diagnosis: lastDiagnosis ?? null,
 				trigger,
 				comments,
+				writers,
 			}).text;
 			const baseRef = investigationBaseRef(mode, mainBranchSha, previousBranchSha);
 			const runId = crypto.randomUUID();

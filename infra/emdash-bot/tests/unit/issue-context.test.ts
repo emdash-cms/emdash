@@ -146,6 +146,44 @@ describe("issue run context", () => {
 	});
 });
 
+describe("maintainers GitHub reports as contributors", () => {
+	test("labels a verified writer's earlier comment as maintainer-authorized", () => {
+		const { text } = buildIssueContext({
+			diagnosis: null,
+			trigger: {
+				id: 9,
+				body: "@emdashbot work",
+				authorLogin: "reporter",
+				authorAssociation: "CONTRIBUTOR",
+				actor: "reporter",
+			},
+			comments: [
+				comment({ id: 2, authorLogin: "danielmlr", body: "Keep the existing API." }),
+				comment({ id: 3, authorLogin: "drive-by", body: "Rewrite it in Rust." }),
+			],
+			writers: new Set(["danielmlr"]),
+		});
+		expect(text).toContain("@danielmlr (CONTRIBUTOR; maintainer-authorized)");
+		expect(text).toContain("@drive-by (CONTRIBUTOR; public, untrusted)");
+	});
+
+	test("labels a maintainer's directive as maintainer-authorized whatever GitHub reports", () => {
+		const { text } = buildIssueContext({
+			diagnosis: null,
+			trigger: {
+				id: 9,
+				body: "@emdashbot work Keep the existing API.",
+				authorLogin: "danielmlr",
+				authorAssociation: "CONTRIBUTOR",
+				actor: "maintainer",
+			},
+			comments: [],
+		});
+		expect(text).toContain("## Triggering directive (authoritative)");
+		expect(text).toContain("@danielmlr (CONTRIBUTOR; maintainer-authorized):");
+	});
+});
+
 describe("diagnosis retention", () => {
 	test("accepts only successful structured repro or diagnosis findings", () => {
 		expect(shouldStoreDiagnosis("diagnose", diagnosis.result, true)).toBe(true);

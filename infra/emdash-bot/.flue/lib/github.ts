@@ -464,6 +464,27 @@ export async function getIssueLabels(
 	return out;
 }
 
+/**
+ * The account's permission on the repository: `admin`, `write`, `read`, or
+ * `none`. GitHub answers 404 for an account that isn't a collaborator.
+ */
+export async function getCollaboratorPermission(
+	token: GitHubToken,
+	ctx: RepoContext,
+	login: string,
+	signal?: AbortSignal,
+): Promise<string> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/collaborators/${encodeURIComponent(login)}/permission`,
+		{ headers: authHeaders(token), signal },
+	);
+	if (res.status === 404) return "none";
+	if (!res.ok) throw new Error(`getCollaboratorPermission failed: ${res.status}`);
+	const json = await res.json<{ permission?: unknown }>();
+	return typeof json.permission === "string" ? json.permission : "none";
+}
+
 export async function confirmAnchorMissing(
 	token: GitHubToken,
 	ctx: RepoContext,

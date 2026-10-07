@@ -240,6 +240,44 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(await stub.getPersistedState()).toMatchObject({ state: "triaging", kind: "task" });
 	});
 
+	test("an issue from a maintainer GitHub reports as a contributor waits for a command", async () => {
+		const issueNumber = uniqueIssueNumber();
+		await configureGitHubToken();
+		const requested: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			requested.push(url);
+			return Promise.resolve(
+				Response.json(
+					url.endsWith("/collaborators/private-maintainer/permission")
+						? { permission: "write" }
+						: {},
+				),
+			);
+		});
+
+		const res = await postWebhook({
+			eventType: "issues",
+			delivery: `opened-${issueNumber}`,
+			payload: {
+				action: "opened",
+				issue: {
+					number: issueNumber,
+					user: { login: "private-maintainer" },
+					labels: [],
+					author_association: "CONTRIBUTOR",
+				},
+				sender: { login: "private-maintainer" },
+			},
+		});
+
+		expect(res.status).toBe(202);
+		expect(await res.text()).toBe("skipped: issues.opened by a maintainer waits for a command");
+		expect(requested).toEqual([
+			`https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}/collaborators/private-maintainer/permission`,
+		]);
+	});
+
 	test("issue_comment.created with bare verb advances the DO state", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({

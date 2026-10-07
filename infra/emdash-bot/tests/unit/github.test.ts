@@ -5,6 +5,7 @@ import {
 	confirmPullRequestMissing,
 	createIssueComment,
 	findIssueCommentByMarker,
+	getCollaboratorPermission,
 	getIssueComments,
 	getPullRequestReviewComments,
 	getPullRequestStatus,
@@ -429,5 +430,34 @@ describe("GitHub submitted review comments", () => {
 	test("fails rather than omitting unavailable review comments", async () => {
 		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 403)));
 		await expect(getPullRequestReviewComments("token", repo, 99, 77)).rejects.toThrow("403");
+	});
+});
+
+describe("GitHub collaborator permission", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("reads the user's permission on the repository", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValue(jsonResponse({ permission: "write", role_name: "maintain" }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getCollaboratorPermission("token", repo, "danielmlr")).resolves.toBe("write");
+		expect(fetchMock).toHaveBeenCalledWith(
+			"https://api.github.com/repos/emdash-cms/emdash/collaborators/danielmlr/permission",
+			expect.objectContaining({
+				headers: expect.objectContaining({ authorization: "Bearer token" }),
+			}),
+		);
+	});
+
+	test("treats a user who isn't a collaborator as having no permission", async () => {
+		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 404)));
+		await expect(getCollaboratorPermission("token", repo, "drive-by")).resolves.toBe("none");
+	});
+
+	test("fails rather than guessing when the lookup errors", async () => {
+		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 502)));
+		await expect(getCollaboratorPermission("token", repo, "danielmlr")).rejects.toThrow("502");
 	});
 });

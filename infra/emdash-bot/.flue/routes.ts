@@ -11,6 +11,7 @@ import { githubRateLimitGate } from "./lib/github-rate-limit-client.js";
 import {
 	getPullRequestHeadBranch,
 	getPullRequestReviewComments,
+	readAppCreds,
 	readRepoContext,
 	type GitHubToken,
 } from "./lib/github.js";
@@ -19,7 +20,9 @@ import {
 	normalizeWebhook,
 	resolvePullRequestWebhook,
 	verifyWebhookSignature,
+	writeAccessCandidate,
 } from "./lib/webhook.js";
+import { writeAccess } from "./lib/write-access.js";
 
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
 const OPERATOR_IDEMPOTENCY_KEY = /^[a-zA-Z0-9._-]+$/;
@@ -212,7 +215,8 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			}
 		}
 
-		let result = normalizeWebhook({ eventType, deliveryId, payload });
+		const writers = await lookUpWriters(c.env, eventType, payload, deliveryId);
+		let result = normalizeWebhook({ eventType, deliveryId, payload, writers });
 		if (result.kind === "pong") {
 			console.log("[webhook] ping", { delivery: deliveryId });
 			return c.text("pong", 200);
@@ -354,6 +358,37 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 	});
 
 	return app;
+}
+
+/**
+ * Write access for the one account whose authority decides this delivery. A
+ * failed lookup leaves the decision to `author_association`.
+ */
+async function lookUpWriters(
+	env: Env,
+	eventType: string,
+	payload: unknown,
+	deliveryId: string | undefined,
+): Promise<ReadonlySet<string> | undefined> {
+	const login = writeAccessCandidate({ eventType, payload });
+	const repo = readRepoContext(env);
+	if (!login || !repo || !readAppCreds(env)) return undefined;
+	try {
+		const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+		const token = await coordinatedInstallationToken(
+			env,
+			`webhook-write-access:${deliveryId ?? login}`,
+		);
+		return await writeAccess.writers(token, repo, [login], signal);
+	} catch (error) {
+		console.error("[webhook] write access lookup failed", {
+			event: eventType,
+			delivery: deliveryId,
+			login,
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return undefined;
+	}
 }
 
 async function operatorAuthorized(header: string | undefined, secret: string): Promise<boolean> {
