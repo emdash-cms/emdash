@@ -3,12 +3,12 @@
 	"version": "1",
 	"meta": {
 		"name": "Portfolio Starter",
-		"description": "A portfolio for showcasing creative work",
+		"description": "An editorial portfolio for studios and independent designers, with an indexed work list, case studies and galleries",
 		"author": "EmDash"
 	},
 	"settings": {
-		"title": "Studio",
-		"tagline": "Design & Development"
+		"title": "Norma",
+		"tagline": "An independent design studio making identities, books and websites for culture and commerce."
 	},
 	"collections": [
 		{
@@ -117,28 +117,24 @@
 					"label": "Identity"
 				},
 				{
-					"slug": "ui-ux",
-					"label": "UI/UX"
-				},
-				{
-					"slug": "development",
-					"label": "Development"
-				},
-				{
-					"slug": "art-direction",
-					"label": "Art Direction"
+					"slug": "editorial",
+					"label": "Editorial"
 				},
 				{
 					"slug": "packaging",
 					"label": "Packaging"
 				},
 				{
-					"slug": "ecommerce",
-					"label": "E-commerce"
+					"slug": "digital",
+					"label": "Digital"
 				},
 				{
-					"slug": "editorial",
-					"label": "Editorial"
+					"slug": "spatial",
+					"label": "Spatial"
+				},
+				{
+					"slug": "art-direction",
+					"label": "Art Direction"
 				}
 			]
 		}
@@ -152,6 +148,11 @@
 					"type": "custom",
 					"label": "Work",
 					"url": "/work"
+				},
+				{
+					"type": "custom",
+					"label": "About",
+					"url": "/about"
 				},
 				{
 					"type": "custom",
@@ -176,23 +177,24 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "We are a small design studio focused on creating meaningful work for thoughtful clients. Founded in 2020, we've had the privilege of working with brands across technology, culture, and the arts.",
-									"_key": "k1"
+									"text": "Norma is an independent design studio in Rotterdam. We make identities, books, packaging, websites and spaces for cultural institutions, hospitality and independent brands.",
+									"_key": "about-01"
 								}
 							],
-							"_key": "k0"
+							"_key": "about-02"
 						},
 						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Our approach is simple: listen carefully, think deeply, and craft with intention. We believe that good design is invisible — it gets out of the way and lets the work speak for itself.",
-									"_key": "k3"
+							"_type": "image",
+							"_key": "about-03",
+							"asset": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1565791380713-1756b9a05343?w=2000&h=1333&fit=crop&crop=bottom&q=80&fm=jpg",
+									"alt": "A plywood table on orange trestle legs and a metal stool in a white studio, with sunlight falling across the wall",
+									"filename": "norma-studio.jpg"
 								}
-							],
-							"_key": "k2"
+							},
+							"alt": "A plywood table on orange trestle legs and a metal stool in a white studio, with sunlight falling across the wall",
+							"caption": "The long table in the studio, where most projects start on paper"
 						},
 						{
 							"_type": "block",
@@ -201,10 +203,252 @@
 								{
 									"_type": "span",
 									"text": "What we do",
-									"_key": "k5"
+									"_key": "about-04"
 								}
 							],
-							"_key": "k4"
+							"_key": "about-05"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Identity.",
+									"_key": "about-06",
+									"marks": ["strong"]
+								},
+								{
+									"_type": "span",
+									"text": " Names, wordmarks and the systems that carry them.",
+									"_key": "about-07"
+								}
+							],
+							"_key": "about-08"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Editorial.",
+									"_key": "about-09",
+									"marks": ["strong"]
+								},
+								{
+									"_type": "span",
+									"text": " Magazines, catalogues and books, from format to final proof.",
+									"_key": "about-10"
+								}
+							],
+							"_key": "about-11"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Packaging.",
+									"_key": "about-12",
+									"marks": ["strong"]
+								},
+								{
+									"_type": "span",
+									"text": " Labels, bags and boxes that are cheap to run and easy to change.",
+									"_key": "about-13"
+								}
+							],
+							"_key": "about-14"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Digital.",
+									"_key": "about-15",
+									"marks": ["strong"]
+								},
+								{
+									"_type": "span",
+									"text": " Websites and online shops, built to be maintained by the people who use them.",
+									"_key": "about-16"
+								}
+							],
+							"_key": "about-17"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Spatial.",
+									"_key": "about-18",
+									"marks": ["strong"]
+								},
+								{
+									"_type": "span",
+									"text": " Wayfinding, signage and exhibition graphics.",
+									"_key": "about-19"
+								}
+							],
+							"_key": "about-20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Art direction.",
+									"_key": "about-21",
+									"marks": ["strong"]
+								},
+								{
+									"_type": "span",
+									"text": " Photography and image-making for campaigns and products.",
+									"_key": "about-22"
+								}
+							],
+							"_key": "about-23"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Selected clients",
+									"_key": "about-24"
+								}
+							],
+							"_key": "about-25"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Het Bouwhuis, Rotterdam",
+									"_key": "about-26"
+								}
+							],
+							"_key": "about-27"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Hotel Wilde, Rotterdam",
+									"_key": "about-28"
+								}
+							],
+							"_key": "about-29"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Field Publishing, Amsterdam",
+									"_key": "about-30"
+								}
+							],
+							"_key": "about-31"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Ola Ceramics, Rotterdam",
+									"_key": "about-32"
+								}
+							],
+							"_key": "about-33"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Lowland Roasters, Rotterdam",
+									"_key": "about-34"
+								}
+							],
+							"_key": "about-35"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "North Bakehouse, Rotterdam",
+									"_key": "about-36"
+								}
+							],
+							"_key": "about-37"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Okerrood Gallery, Antwerp",
+									"_key": "about-38"
+								}
+							],
+							"_key": "about-39"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "How we work",
+									"_key": "about-40"
+								}
+							],
+							"_key": "about-41"
 						},
 						{
 							"_type": "block",
@@ -212,11 +456,59 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "We specialize in brand identity, web design, and art direction. Whether you need a complete visual identity or a single website, we bring the same level of care and attention to every project.",
-									"_key": "k7"
+									"text": "We keep the studio small on purpose. One of the founders leads every project from the first conversation to the last proof, and most are designed by two or three people. We take on fewer projects so that we can see each one through to production.",
+									"_key": "about-42"
 								}
 							],
-							"_key": "k6"
+							"_key": "about-43"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We start with what already exists: the building, the archive, the way a business actually runs. Most of what we design is used day to day by the people who commissioned it, so we hand over templates and short guides instead of thick manuals, and check in a few months later to see what needs adjusting.",
+									"_key": "about-44"
+								}
+							],
+							"_key": "about-45"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The studio",
+									"_key": "about-46"
+								}
+							],
+							"_key": "about-47"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Norma is five people in a former printworks in Delfshaven. Marit Hoekstra and Felix Aalbers founded the studio in 2019, she from book publishing and he from an architecture practice. They work with the designers Jun Park and Sara Belhaj and the studio manager Pim de Wit.",
+									"_key": "about-48"
+								}
+							],
+							"_key": "about-49"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The name is Latin for a carpenter's square, the L-shaped tool used to check that a frame is true. It describes the job well. Most of our work is making sure things line up, from a grid to a sign on a wall, so that whatever sits inside the frame can be seen clearly.",
+									"_key": "about-50"
+								}
+							],
+							"_key": "about-51"
 						}
 					]
 				}
@@ -224,19 +516,19 @@
 		],
 		"projects": [
 			{
-				"id": "meridian-brand",
-				"slug": "meridian-brand",
+				"id": "north-bakehouse",
+				"slug": "north-bakehouse",
 				"status": "published",
 				"data": {
-					"title": "Meridian",
-					"client": "Meridian Collective",
-					"year": "2024",
-					"summary": "A complete brand identity for a creative collective bringing together artists and technologists.",
+					"title": "North Bakehouse",
+					"client": "North Bakehouse",
+					"year": "2022",
+					"summary": "A one-colour identity for a sourdough bakery in Rotterdam-Noord, stamped by hand onto kraft bags every morning.",
 					"featured_image": {
 						"$media": {
-							"url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&h=900&fit=crop",
-							"alt": "Meridian cover image",
-							"filename": "photo-1558618666-fcd25c85cd64.jpg"
+							"url": "https://images.unsplash.com/photo-1586765501019-cbe3973ef8fa?w=2000&q=80&fm=jpg",
+							"alt": "Two floured sourdough loaves with diagonal scores, side by side on a wooden board",
+							"filename": "north-bakehouse-cover.jpg"
 						}
 					},
 					"content": [
@@ -246,11 +538,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Meridian Collective needed a visual identity that could bridge the gap between traditional art and emerging technology. The challenge was to create something that felt timeless yet forward-looking.",
-									"_key": "k1"
+									"text": "North Bakehouse opened in 2022 in a former butcher's shop in Rotterdam-Noord. Lotte Brouwer bakes four kinds of loaf every day with grain milled at a windmill in Schiedam. She asked us for an identity that would cost almost nothing to run and still hold its own on a busy street.",
+									"_key": "north-01"
 								}
 							],
-							"_key": "k0"
+							"_key": "north-02"
 						},
 						{
 							"_type": "block",
@@ -258,11 +550,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The approach",
-									"_key": "k3"
+									"text": "One colour, applied by hand",
+									"_key": "north-03"
 								}
 							],
-							"_key": "k2"
+							"_key": "north-04"
 						},
 						{
 							"_type": "block",
@@ -270,11 +562,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "We developed a wordmark that combines classical typography with subtle geometric forms. The color palette draws from both digital interfaces and natural materials, creating a bridge between worlds.",
-									"_key": "k5"
+									"text": "We drew a compact wordmark and had it cut into a rubber stamp 60 millimetres wide. Every bag, box and sheet of wrapping paper is unbleached kraft, stamped in one deep blue by whoever opens the shop. There is no printed packaging to reorder and nothing to throw away when the range changes, and the small differences from one impression to the next became part of the identity rather than a fault to correct.",
+									"_key": "north-05"
 								}
 							],
-							"_key": "k4"
+							"_key": "north-06"
 						},
 						{
 							"_type": "block",
@@ -282,11 +574,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The result",
-									"_key": "k7"
+									"text": "A label that tells the time",
+									"_key": "north-07"
 								}
 							],
-							"_key": "k6"
+							"_key": "north-08"
 						},
 						{
 							"_type": "block",
@@ -294,114 +586,422 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The new identity has been applied across print and digital touchpoints, from business cards to a fully responsive website. Meridian has received positive feedback from both artists and technologists alike.",
-									"_key": "k9"
+									"text": "Each loaf leaves with a narrow paper band giving its name and the time it came out of the oven. The bands come from a receipt printer behind the counter, set in the same typeface as the wordmark, so the busiest hour of the morning needs no design decisions at all.",
+									"_key": "north-09"
 								}
 							],
-							"_key": "k8"
+							"_key": "north-10"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Signwriting, not a lightbox",
+									"_key": "north-11"
+								}
+							],
+							"_key": "north-12"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The shop sits in a protected streetscape, so we left the façade alone. A signwriter painted the name in gold leaf on the inside of the glass in a single afternoon, with the opening hours in smaller letters beneath it.",
+									"_key": "north-13"
+								}
+							],
+							"_key": "north-14"
+						},
+						{
+							"_type": "block",
+							"style": "blockquote",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We wanted people to know it was a bakery before they could read the sign. Now there is a queue before we open.",
+									"_key": "north-15"
+								}
+							],
+							"_key": "north-16"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "— Lotte Brouwer, founder and head baker",
+									"_key": "north-17"
+								}
+							],
+							"_key": "north-18"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "What we made",
+									"_key": "north-19"
+								}
+							],
+							"_key": "north-20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wordmark and hand stamp",
+									"_key": "north-21"
+								}
+							],
+							"_key": "north-22"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Bags, boxes and wrapping paper",
+									"_key": "north-23"
+								}
+							],
+							"_key": "north-24"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Bake-time labels for the receipt printer",
+									"_key": "north-25"
+								}
+							],
+							"_key": "north-26"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Window signwriting and price boards",
+									"_key": "north-27"
+								}
+							],
+							"_key": "north-28"
 						}
 					],
 					"gallery": [
 						{
 							"image": {
 								"$media": {
-									"url": "https://images.unsplash.com/photo-1523726491678-bf852e717f6a?w=1200&h=900&fit=crop",
-									"alt": "Brand identity sketches and colour studies arranged on a desk",
-									"filename": "meridian-process.jpg"
+									"url": "https://images.unsplash.com/photo-1597604391235-a7429b4b350c?w=1600&q=80&fm=jpg",
+									"alt": "A sourdough loaf cut into slices on a wooden board beside a linen cloth on a speckled surface",
+									"filename": "north-bakehouse-sliced-loaf.jpg"
 								}
 							},
-							"caption": "Early identity studies for Meridian Collective."
+							"caption": "The house loaf, photographed on the shop counter for the opening posters"
 						},
 						{
 							"image": {
 								"$media": {
-									"url": "https://images.unsplash.com/photo-1558655146-d09347e92766?w=1200&h=900&fit=crop",
-									"alt": "Meridian website layouts displayed on a designer's monitor",
-									"filename": "meridian-digital.jpg"
+									"url": "https://images.unsplash.com/photo-1585478259844-06d7b756b082?w=1600&q=80&fm=jpg",
+									"alt": "A round sourdough loaf dusted with flour and scored in a leaf pattern, on a wooden board",
+									"filename": "north-bakehouse-scored-loaf.jpg"
 								}
 							},
-							"caption": "The identity applied to Meridian's digital experience."
+							"caption": "The baker's leaf scoring, redrawn as the border of the stamp"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1616841888027-89693dec0827?w=1600&q=80&fm=jpg",
+									"alt": "A crusty round loaf resting on a crumpled linen cloth against a pale backdrop",
+									"filename": "north-bakehouse-loaf-on-linen.jpg"
+								}
+							},
+							"caption": "Product photography in daylight, taken in the shop before opening"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1633414654227-2b5ea828b3ef?w=1600&q=80&fm=jpg",
+									"alt": "A plain brown paper carrier bag with flat handles on a white marble surface",
+									"filename": "north-bakehouse-kraft-bag.jpg"
+								}
+							},
+							"caption": "A kraft bag before the morning's stamp"
 						}
 					]
 				},
 				"taxonomies": {
-					"tag": ["identity", "art-direction"]
+					"tag": ["identity", "packaging"]
 				}
 			},
 			{
-				"id": "volta-web",
-				"slug": "volta-web",
+				"id": "lowland-coffee",
+				"slug": "lowland-coffee",
 				"status": "published",
 				"data": {
-					"title": "Volta",
-					"client": "Volta Energy",
-					"year": "2024",
-					"summary": "Website design for a renewable energy startup making clean power accessible to everyone.",
-					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=900&fit=crop",
-							"alt": "Volta cover image",
-							"filename": "photo-1497366216548-37526070297c.jpg"
-						}
-					},
-					"url": "https://volta.example.com",
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Volta is on a mission to make renewable energy accessible to everyone. They needed a website that could explain complex technology simply while inspiring trust in potential customers.",
-									"_key": "k1"
-								}
-							],
-							"_key": "k0"
-						},
-						{
-							"_type": "block",
-							"style": "h2",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Design principles",
-									"_key": "k3"
-								}
-							],
-							"_key": "k2"
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "We focused on clarity and warmth. The design uses generous whitespace and a vibrant green accent that evokes growth and sustainability without feeling clichéd.",
-									"_key": "k5"
-								}
-							],
-							"_key": "k4"
-						}
-					]
-				},
-				"taxonomies": {
-					"tag": ["ui-ux", "development"]
-				}
-			},
-			{
-				"id": "archive-print",
-				"slug": "archive-print",
-				"status": "published",
-				"data": {
-					"title": "The Archive",
-					"client": "City Museum",
+					"title": "Lowland Coffee",
+					"client": "Lowland Roasters",
 					"year": "2023",
-					"summary": "Exhibition catalog and print materials for a retrospective on modernist architecture.",
+					"summary": "Packaging for a Rotterdam roaster that marks each coffee's altitude on the bag, measured from a roastery below sea level.",
 					"featured_image": {
 						"$media": {
-							"url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=900&fit=crop",
-							"alt": "The Archive cover image",
-							"filename": "photo-1507003211169-0a1dd7228f2d.jpg"
+							"url": "https://images.unsplash.com/photo-1790861286814-0fcb8ed0a4c9?w=2000&q=80&fm=jpg",
+							"alt": "A plain brown kraft pouch with a sealed top, lying on a white surface",
+							"filename": "lowland-coffee-cover.jpg"
+						}
+					},
+					"url": "https://lowland.example",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Lowland Roasters buy green coffee from eleven farms and roast it in a warehouse in Rotterdam's old port, two metres below sea level. Their coffees change every few weeks, and the old packaging could not keep up: each new origin meant another print run and another box of bags that would never be used.",
+									"_key": "lowland-01"
+								}
+							],
+							"_key": "lowland-02"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Two metres below sea level",
+									"_key": "lowland-03"
+								}
+							],
+							"_key": "lowland-04"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The identity starts from the roastery's own altitude. Every label carries a single horizontal line, placed to show how far above the roastery each coffee was grown, from 1,200 to 2,100 metres. It is one small piece of information, but it gives every coffee a place on the bag without a map or an illustration.",
+									"_key": "lowland-05"
+								}
+							],
+							"_key": "lowland-06"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A label that changes every week",
+									"_key": "lowland-07"
+								}
+							],
+							"_key": "lowland-08"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The pouches are blank, unbleached kraft with a compostable liner. Everything that changes sits on one label, printed in runs of two hundred on a small printer at the roastery. We built the templates so the roasters can set up a new coffee in ten minutes without opening design software. Tasting notes are written by the roasters in their own words and kept to three lines.",
+									"_key": "lowland-09"
+								}
+							],
+							"_key": "lowland-10"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "From café to wholesale",
+									"_key": "lowland-11"
+								}
+							],
+							"_key": "lowland-12"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The same system runs from 250-gram retail pouches to five-kilo wholesale bags and the cups in Lowland's café. The wordmark appears once on each object, always at the foot. Cafés return the wholesale bags, which are washed, relabelled and filled again.",
+									"_key": "lowland-13"
+								}
+							],
+							"_key": "lowland-14"
+						},
+						{
+							"_type": "block",
+							"style": "blockquote",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Our coffees change every few weeks. Now the packaging keeps up, and we have not thrown away a single bag.",
+									"_key": "lowland-15"
+								}
+							],
+							"_key": "lowland-16"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "— Tomas Verhoef, co-founder and head roaster",
+									"_key": "lowland-17"
+								}
+							],
+							"_key": "lowland-18"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "What we made",
+									"_key": "lowland-19"
+								}
+							],
+							"_key": "lowland-20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wordmark and altitude line",
+									"_key": "lowland-21"
+								}
+							],
+							"_key": "lowland-22"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Pouch and label system in three sizes",
+									"_key": "lowland-23"
+								}
+							],
+							"_key": "lowland-24"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Label templates for printing at the roastery",
+									"_key": "lowland-25"
+								}
+							],
+							"_key": "lowland-26"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Café cups, menu and price list",
+									"_key": "lowland-27"
+								}
+							],
+							"_key": "lowland-28"
+						}
+					],
+					"gallery": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1565466603532-c82e565f269e?w=1600&q=80&fm=jpg",
+									"alt": "Coffee being poured from a glass carafe into a white mug in warm sunlight",
+									"filename": "lowland-coffee-pour.jpg"
+								}
+							},
+							"caption": "Filter coffee at the roastery café, served in the house stoneware"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1761384595903-9b339edd72ed?w=1600&q=80&fm=jpg",
+									"alt": "A small white cup casting a long shadow across a wooden table in dappled light",
+									"filename": "lowland-coffee-cup.jpg"
+								}
+							},
+							"caption": "The café cup, glazed white and left without a logo"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1562051036-e0eea191d42f?w=1600&q=80&fm=jpg",
+									"alt": "Roasted coffee beans inside an open white bag, seen from above",
+									"filename": "lowland-coffee-beans.jpg"
+								}
+							},
+							"caption": "A batch roasted in the morning and packed the same afternoon"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": ["packaging", "identity"]
+				}
+			},
+			{
+				"id": "field-quarterly",
+				"slug": "field-quarterly",
+				"status": "published",
+				"data": {
+					"title": "Field Quarterly",
+					"client": "Field Publishing",
+					"year": "2024",
+					"summary": "A redesign of an independent quarterly about Dutch farmland: a smaller format, uncoated paper and covers with one photograph.",
+					"featured_image": {
+						"$media": {
+							"url": "https://images.unsplash.com/photo-1606607299522-14b35fc4679c?w=2000&q=80&fm=jpg",
+							"alt": "An open handmade booklet with deckle-edged blank pages on a wooden table in low sunlight",
+							"filename": "field-quarterly-cover.jpg"
 						}
 					},
 					"content": [
@@ -411,11 +1011,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The Archive was a major exhibition at the City Museum, showcasing 50 years of modernist architecture through photographs, drawings, and models. We designed the complete print identity.",
-									"_key": "k1"
+									"text": "Field Quarterly has reported on Dutch farming, land and food since 2016. By issue 30 it had grown thick and crowded, and readers told the editors they skimmed it. Field Publishing asked us to redesign the magazine without losing what its regular readers valued: long reporting and patient photography.",
+									"_key": "field-01"
 								}
 							],
-							"_key": "k0"
+							"_key": "field-02"
 						},
 						{
 							"_type": "block",
@@ -423,11 +1023,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The catalog",
-									"_key": "k3"
+									"text": "A smaller, quieter object",
+									"_key": "field-03"
 								}
 							],
-							"_key": "k2"
+							"_key": "field-04"
 						},
 						{
 							"_type": "block",
@@ -435,11 +1035,193 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The 240-page catalog uses a strict grid system inspired by the work being exhibited. Full-bleed photography alternates with dense text spreads, creating a rhythm that echoes the exhibition layout.",
-									"_key": "k5"
+									"text": "We reduced the format to 170 × 240 millimetres, small enough for a coat pocket, and moved to an uncoated, slightly warm stock that takes photographs softly and type sharply. The cover carries one photograph and the issue number. There are no cover lines; the contents page does that job.",
+									"_key": "field-05"
 								}
 							],
-							"_key": "k4"
+							"_key": "field-06"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A grid with room for notes",
+									"_key": "field-07"
+								}
+							],
+							"_key": "field-08"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Features run in a single wide column with a generous outer margin for captions, sources and the occasional chart. Each one opens on a full-bleed photograph. A serif sets every feature, and a grotesk is kept for numbers, tables and the field reports at the back, which gather each season's yields, prices and rainfall into one table per province.",
+									"_key": "field-09"
+								}
+							],
+							"_key": "field-10"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Photographing at first light",
+									"_key": "field-11"
+								}
+							],
+							"_key": "field-12"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We now commission two photographers for each issue and brief them on one rule: photograph the land as it is, early in the day, without staging. Every cover since issue 31 has been made before eight in the morning. The contact sheets come back to the studio, and we make the edit with the editors in a single afternoon.",
+									"_key": "field-13"
+								}
+							],
+							"_key": "field-14"
+						},
+						{
+							"_type": "block",
+							"style": "blockquote",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Readers tell us they keep it now. Before the redesign, most of them passed it on.",
+									"_key": "field-15"
+								}
+							],
+							"_key": "field-16"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "— Wietske Dijkstra, editor-in-chief",
+									"_key": "field-17"
+								}
+							],
+							"_key": "field-18"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "What we made",
+									"_key": "field-19"
+								}
+							],
+							"_key": "field-20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Format, grid and typographic system",
+									"_key": "field-21"
+								}
+							],
+							"_key": "field-22"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Cover and section design",
+									"_key": "field-23"
+								}
+							],
+							"_key": "field-24"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Photography direction for four issues a year",
+									"_key": "field-25"
+								}
+							],
+							"_key": "field-26"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Page templates for the editorial team",
+									"_key": "field-27"
+								}
+							],
+							"_key": "field-28"
+						}
+					],
+					"gallery": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1593455071238-92dd081a39b1?w=1600&q=80&fm=jpg",
+									"alt": "A field of ripe wheat under a hazy, pale sky, softly out of focus",
+									"filename": "field-quarterly-wheat-field.jpg"
+								}
+							},
+							"caption": "Cover photograph for issue 31, taken in Flevoland at a quarter to seven"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1693592772086-e80960b134ed?w=1600&q=80&fm=jpg",
+									"alt": "Sheets of textured white paper fanned out over a dark surface",
+									"filename": "field-quarterly-paper-trials.jpg"
+								}
+							},
+							"caption": "Paper trials: nine uncoated stocks were tested before we chose one"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1521572063439-8a4186b6d843?w=1600&q=80&fm=jpg",
+									"alt": "A hand turning a page of a blank booklet lying open on a pale stone surface",
+									"filename": "field-quarterly-dummy.jpg"
+								}
+							},
+							"caption": "A blank dummy in the new format, made to check weight and spine"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1780536890847-f94c7f3fc410?w=1600&q=80&fm=jpg",
+									"alt": "A stack of black-and-white photographic prints with deckled edges, showing trees by the water",
+									"filename": "field-quarterly-work-prints.jpg"
+								}
+							},
+							"caption": "Work prints from the photo edit for the water issue"
 						}
 					]
 				},
@@ -448,19 +1230,251 @@
 				}
 			},
 			{
-				"id": "coastal-photo",
-				"slug": "coastal-photo",
+				"id": "ola-ceramics",
+				"slug": "ola-ceramics",
 				"status": "published",
 				"data": {
-					"title": "Coastal",
-					"client": "Personal Project",
-					"year": "2023",
-					"summary": "A photographic study of the Pacific coastline, exploring the intersection of land, sea, and sky.",
+					"title": "Ola Ceramics",
+					"client": "Ola Ceramics",
+					"year": "2025",
+					"summary": "An online shop for a stoneware studio, organised by kiln firing, with every piece photographed on its own in the same light.",
 					"featured_image": {
 						"$media": {
-							"url": "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=1200&h=900&fit=crop",
-							"alt": "Coastal cover image",
-							"filename": "photo-1505142468610-359e7d316be0.jpg"
+							"url": "https://images.unsplash.com/photo-1525974160448-038dacadcc71?w=2000&q=80&fm=jpg",
+							"alt": "A speckled white stoneware bottle and two small bowls on a white table against a grey wall",
+							"filename": "ola-ceramics-cover.jpg"
+						}
+					},
+					"url": "https://olaceramics.example",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Ola Nowak throws stoneware in a studio in Delfshaven and fires her kiln every five weeks. Each firing yields around 140 pieces, and no two glazes come out quite alike. Her old shop listed products by type with one photograph per design, so customers often received a bowl that looked nothing like the picture.",
+									"_key": "ola-01"
+								}
+							],
+							"_key": "ola-02"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Organised by firing",
+									"_key": "ola-03"
+								}
+							],
+							"_key": "ola-04"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The new shop is built around the kiln. Each firing becomes a numbered collection that opens on a set date, announced to a waiting list a week before. Past firings stay online as an archive, with sold pieces marked rather than removed, so the shop doubles as a record of the studio's work. Most firings sell out within two days of opening.",
+									"_key": "ola-05"
+								}
+							],
+							"_key": "ola-06"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Every piece photographed alone",
+									"_key": "ola-07"
+								}
+							],
+							"_key": "ola-08"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "We art-directed a photography setup that Ola can run herself in a day: one grey backdrop, one north-facing window, a fixed camera height and a scale reference just out of frame. Each piece is photographed on its own from the same distance, so a cup and a bowl can be compared by size at a glance.",
+									"_key": "ola-09"
+								}
+							],
+							"_key": "ola-10"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Measurements you can trust",
+									"_key": "ola-11"
+								}
+							],
+							"_key": "ola-12"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Product pages give height, diameter, weight and capacity, measured for each piece rather than each design. Each listing also carries a short note from Ola on the clay and the glaze. Returns fell by two-thirds in the first year.",
+									"_key": "ola-13"
+								}
+							],
+							"_key": "ola-14"
+						},
+						{
+							"_type": "block",
+							"style": "blockquote",
+							"children": [
+								{
+									"_type": "span",
+									"text": "People used to email to ask how big a bowl really was. Now they can see it next to everything else.",
+									"_key": "ola-15"
+								}
+							],
+							"_key": "ola-16"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "— Ola Nowak, potter and founder",
+									"_key": "ola-17"
+								}
+							],
+							"_key": "ola-18"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "What we made",
+									"_key": "ola-19"
+								}
+							],
+							"_key": "ola-20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Online shop and waiting list",
+									"_key": "ola-21"
+								}
+							],
+							"_key": "ola-22"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Photography setup and art direction",
+									"_key": "ola-23"
+								}
+							],
+							"_key": "ola-24"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Care cards and packaging inserts",
+									"_key": "ola-25"
+								}
+							],
+							"_key": "ola-26"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Newsletter templates for each firing",
+									"_key": "ola-27"
+								}
+							],
+							"_key": "ola-28"
+						}
+					],
+					"gallery": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1556205801-a0bf81cdc90d?w=1600&q=80&fm=jpg",
+									"alt": "Three speckled white stoneware bowls on a white surface against a grey wall",
+									"filename": "ola-ceramics-tea-bowls.jpg"
+								}
+							},
+							"caption": "Tea bowls from firing 22, photographed against the studio's grey backdrop"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1605117012605-b68dedd4accc?w=1600&q=80&fm=jpg",
+									"alt": "A speckled stoneware cup on a matching saucer beside a tall jug, in strong sunlight",
+									"filename": "ola-ceramics-cup-and-saucer.jpg"
+								}
+							},
+							"caption": "Journal photography in afternoon light, kept apart from the product images"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1557644978-f61037cfbe49?w=1600&q=80&fm=jpg",
+									"alt": "A group of grey speckled stoneware jugs, bottles, cups and bowls on a white surface",
+									"filename": "ola-ceramics-firing.jpg"
+								}
+							},
+							"caption": "Part of a firing laid out before each piece is photographed alone"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": ["digital", "art-direction"]
+				}
+			},
+			{
+				"id": "concrete-futures",
+				"slug": "concrete-futures",
+				"status": "published",
+				"data": {
+					"title": "Concrete Futures",
+					"client": "Het Bouwhuis",
+					"year": "2025",
+					"summary": "Identity, catalogue and gallery graphics for an exhibition on the reuse of post-war concrete buildings in the Netherlands.",
+					"featured_image": {
+						"$media": {
+							"url": "https://images.unsplash.com/photo-1625390711106-3728815ebcd9?w=2000&q=80&fm=jpg",
+							"alt": "A courtyard of board-marked concrete with stacked volumes, deep openings and a planted ledge",
+							"filename": "concrete-futures-cover.jpg"
 						}
 					},
 					"content": [
@@ -470,11 +1484,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Coastal began as a weekend project and grew into a year-long exploration of the Pacific shoreline. Shot entirely on medium format film, the series captures the quiet drama of the coast.",
-									"_key": "k1"
+									"text": "Concrete Futures, at Het Bouwhuis in Rotterdam, looked at thirty-one post-war concrete buildings in the Netherlands that were adapted rather than demolished: a church that became a library, a car park turned into housing, a grain silo now full of studios. We designed the exhibition identity, the catalogue and the graphics in the galleries.",
+									"_key": "concrete-01"
 								}
 							],
-							"_key": "k0"
+							"_key": "concrete-02"
 						},
 						{
 							"_type": "block",
@@ -482,11 +1496,11 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Process",
-									"_key": "k3"
+									"text": "Thirty-one buildings at one scale",
+									"_key": "concrete-03"
 								}
 							],
-							"_key": "k2"
+							"_key": "concrete-04"
 						},
 						{
 							"_type": "block",
@@ -494,16 +1508,430 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Each image was made at dawn or dusk, when the light is softest and the beaches are empty. The slow process of shooting film encourages patience and intentionality — qualities that show in the final work.",
-									"_key": "k5"
+									"text": "Every building in the show is drawn at 1:500 and printed at the same size, from a six-storey office block to a bus shelter, so visitors can compare a church with a garage without reading a caption. The drawings also became the campaign: thirty-one posters, one building each, rotated across the city's poster columns during the run.",
+									"_key": "concrete-05"
 								}
 							],
-							"_key": "k4"
+							"_key": "concrete-06"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A catalogue that wears well",
+									"_key": "concrete-07"
+								}
+							],
+							"_key": "concrete-08"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The 312-page catalogue is bound in black cloth that softens and scuffs with use, much as the buildings do. Photographs and drawings are printed on separate stocks: a smooth paper for the photography and an uncoated one for plans, sections and essays. Each essay is followed by the drawings of the building it discusses, so the book can be read in any order.",
+									"_key": "concrete-09"
+								}
+							],
+							"_key": "concrete-10"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wall texts at reading height",
+									"_key": "concrete-11"
+								}
+							],
+							"_key": "concrete-12"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wall texts hang with their centre at 1.35 metres, comfortable for visitors who are standing or seated, and are set large enough to read from two metres away. Every caption repeats the scale bar, so no drawing appears without one. Texts are in Dutch and English at the same size, and neither is set as a translation of the other.",
+									"_key": "concrete-13"
+								}
+							],
+							"_key": "concrete-14"
+						},
+						{
+							"_type": "block",
+							"style": "blockquote",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The catalogue sold out before the exhibition closed. That had never happened here before.",
+									"_key": "concrete-15"
+								}
+							],
+							"_key": "concrete-16"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "— Hanna de Graaf, head of exhibitions, Het Bouwhuis",
+									"_key": "concrete-17"
+								}
+							],
+							"_key": "concrete-18"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "What we made",
+									"_key": "concrete-19"
+								}
+							],
+							"_key": "concrete-20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Exhibition identity and poster campaign",
+									"_key": "concrete-21"
+								}
+							],
+							"_key": "concrete-22"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "312-page catalogue",
+									"_key": "concrete-23"
+								}
+							],
+							"_key": "concrete-24"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wall texts, captions and wayfinding",
+									"_key": "concrete-25"
+								}
+							],
+							"_key": "concrete-26"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Drawings of thirty-one buildings at 1:500",
+									"_key": "concrete-27"
+								}
+							],
+							"_key": "concrete-28"
+						}
+					],
+					"gallery": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1653164494885-a8526f62678c?w=1600&q=80&fm=jpg",
+									"alt": "A white architectural model of a pavilion with a pool, on a thick card base",
+									"filename": "concrete-futures-model.jpg"
+								}
+							},
+							"caption": "One of the 1:500 models in the first room, made from card and lime wood"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1496236436299-cde70e3587cf?w=1600&q=80&fm=jpg",
+									"alt": "Close-up of a grey concrete façade with deep, angled window reveals casting sharp shadows",
+									"filename": "concrete-futures-facade.jpg"
+								}
+							},
+							"caption": "A façade study used to open each chapter of the catalogue"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1709158997589-c547225f86f3?w=1600&q=80&fm=jpg",
+									"alt": "The corner of a black hardback book on a wooden table, with a thin wooden bookmark between the pages",
+									"filename": "concrete-futures-catalogue.jpg"
+								}
+							},
+							"caption": "The catalogue, 312 pages, bound in black cloth with a walnut bookmark"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1598138967311-98e4bdc1fea1?w=1600&q=80&fm=jpg",
+									"alt": "An empty concrete hall with angled columns, strip lights and a polished floor",
+									"filename": "concrete-futures-gallery.jpg"
+								}
+							},
+							"caption": "The lower gallery, a former car park, before the wall texts went up"
 						}
 					]
 				},
 				"taxonomies": {
-					"tag": ["art-direction", "editorial"]
+					"tag": ["editorial", "identity"]
+				}
+			},
+			{
+				"id": "hotel-wilde",
+				"slug": "hotel-wilde",
+				"status": "published",
+				"data": {
+					"title": "Hotel Wilde",
+					"client": "Hotel Wilde",
+					"year": "2026",
+					"summary": "Identity and wayfinding for a 24-room hotel in a converted 1920s schoolhouse, from the room numbers to the breakfast menu.",
+					"featured_image": {
+						"$media": {
+							"url": "https://images.unsplash.com/photo-1621293954908-907159247fc8?w=2000&q=80&fm=jpg",
+							"alt": "A hotel lobby with timber slat walls, a terrazzo floor and groups of low chairs, tables and potted plants",
+							"filename": "hotel-wilde-cover.jpg"
+						}
+					},
+					"url": "https://hotelwilde.example",
+					"content": [
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Hotel Wilde occupies a 1920s schoolhouse in Rotterdam-Kralingen and is named after Johanna Wilde, who ran the school for thirty years. The owners turned twelve classrooms into twenty-four rooms and asked us for an identity that would feel as if it had always belonged to the building.",
+									"_key": "wilde-01"
+								}
+							],
+							"_key": "wilde-02"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Lettering from the façade",
+									"_key": "wilde-03"
+								}
+							],
+							"_key": "wilde-04"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "The school's name is cast into the brickwork above the entrance in tall, narrow capitals. We redrew those letters, completed the alphabet and use it for the wordmark, the room numbers and the signs, with a plain grotesk for anything guests need to read quickly. Letters missing from the façade were drawn from the original building drawings of 1926, which we found in the city archive.",
+									"_key": "wilde-05"
+								}
+							],
+							"_key": "wilde-06"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wayfinding in steel and leather",
+									"_key": "wilde-07"
+								}
+							],
+							"_key": "wilde-08"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Room numbers are cut from blackened steel and fixed to saddle-leather straps beside each door, at hand height, so they can also be read by touch. Floor numbers are painted straight onto the plaster at the top of each staircase. We tested the numbers with guests who have low vision before the steel was cut. The corridors carry no other signs.",
+									"_key": "wilde-09"
+								}
+							],
+							"_key": "wilde-10"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "A breakfast menu that changes weekly",
+									"_key": "wilde-11"
+								}
+							],
+							"_key": "wilde-12"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Printed matter is kept to a few things: a key fob, a room card, a guest book and a breakfast menu printed every Monday on a risograph in the old staff room. All of them use the same two typefaces and one colour, the green of the school's original doors. The kitchen writes the menu on Sunday evening, and the template does the rest.",
+									"_key": "wilde-13"
+								}
+							],
+							"_key": "wilde-14"
+						},
+						{
+							"_type": "block",
+							"style": "blockquote",
+							"children": [
+								{
+									"_type": "span",
+									"text": "Guests photograph the room numbers. We did not expect that, and we like it.",
+									"_key": "wilde-15"
+								}
+							],
+							"_key": "wilde-16"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"text": "— Esther Hoogendijk, co-owner",
+									"_key": "wilde-17"
+								}
+							],
+							"_key": "wilde-18"
+						},
+						{
+							"_type": "block",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"text": "What we made",
+									"_key": "wilde-19"
+								}
+							],
+							"_key": "wilde-20"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wordmark and display alphabet",
+									"_key": "wilde-21"
+								}
+							],
+							"_key": "wilde-22"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Wayfinding and room numbers",
+									"_key": "wilde-23"
+								}
+							],
+							"_key": "wilde-24"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Key fobs, room cards and the breakfast menu",
+									"_key": "wilde-25"
+								}
+							],
+							"_key": "wilde-26"
+						},
+						{
+							"_type": "block",
+							"style": "normal",
+							"listItem": "bullet",
+							"level": 1,
+							"children": [
+								{
+									"_type": "span",
+									"text": "Website and booking pages",
+									"_key": "wilde-27"
+								}
+							],
+							"_key": "wilde-28"
+						}
+					],
+					"gallery": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1660662735785-6e7c067d6cd0?w=1600&q=80&fm=jpg",
+									"alt": "A long corridor with timber-panelled walls, warm recessed lighting and doors on both sides",
+									"filename": "hotel-wilde-corridor.jpg"
+								}
+							},
+							"caption": "A guest corridor, lit warm and left free of signs beyond the room numbers"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1787168295572-5705a08cd5a6?w=1600&q=80&fm=jpg",
+									"alt": "The number 310 in black metal digits on a stitched beige leather strip beside a wooden door",
+									"filename": "hotel-wilde-room-number.jpg"
+								}
+							},
+							"caption": "Room numbers in blackened steel on saddle leather, fixed at hand height"
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://images.unsplash.com/photo-1612736228052-80e7f381690c?w=1600&q=80&fm=jpg",
+									"alt": "A brass desk lamp, a small potted plant, a reed diffuser and a candle on a white table by a window",
+									"filename": "hotel-wilde-desk-lamp.jpg"
+								}
+							},
+							"caption": "Brass fittings in the rooms pick up the finish of the key fobs"
+						}
+					]
+				},
+				"taxonomies": {
+					"tag": ["identity", "spatial"]
 				}
 			}
 		]
