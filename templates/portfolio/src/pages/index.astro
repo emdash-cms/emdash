@@ -1,22 +1,38 @@
 ---
-import { getEmDashCollection, getSiteSettings } from "emdash";
+import { getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
+import type { PageLayoutBlock } from "../../emdash-env";
 import Base from "../layouts/Base.astro";
-import ProjectCard from "../components/ProjectCard.astro";
+import HomeBlocks from "../components/HomeBlocks.astro";
+import { getSelectedWork } from "../utils/selected-work";
 
-const [settings, projectsResult] = await Promise.all([
+const [settings, homeResult, projectsResult] = await Promise.all([
 	getSiteSettings(),
-	getEmDashCollection("projects", {
-		orderBy: { published_at: "desc" },
-		limit: 6,
-	}),
+	getEmDashEntry("pages", "home"),
+	getSelectedWork(),
 ]);
-if (projectsResult.error) {
+if (homeResult.error || projectsResult.error) {
 	return new Response("Could not load the portfolio", { status: 500 });
 }
-const { entries: projects, cacheHint } = projectsResult;
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const home = homeResult.entry;
+if (Astro.cache?.enabled) {
+	Astro.cache.set(homeResult.cacheHint);
+	Astro.cache.set(projectsResult.cacheHint);
+	// A missing entry carries no tags, so publishing a Home page later
+	// wouldn't clear the cached default layout.
+	if (!home) Astro.cache.set({ tags: ["pages"] });
+}
 
-const statement = settings?.tagline || settings?.title || "Studio";
+const projects = projectsResult.entries;
+const siteTitle = settings?.title || "Studio";
+
+const seo = home
+	? getSeoMeta(home, {
+			siteUrl: Astro.url.origin,
+			path: "/",
+			defaultTitle: siteTitle,
+			defaultDescription: settings?.tagline,
+		})
+	: null;
 
 const years = projects
 	.flatMap((project) => project.data.year?.match(/\b\d{4}\b/g) ?? [])
@@ -28,73 +44,6 @@ if (years.length > 0) {
 	yearRange = first === last ? String(first) : `${first}–${last}`;
 }
 
-// Column widths by breakpoint, as [minimum viewport width, CSS length]
-type ColumnWidths = ReadonlyArray<readonly [string | null, string]>;
-const FULL: ColumnWidths = [
-	["1680px", "1600px"],
-	["768px", "100vw - 5rem"],
-	[null, "100vw - 2rem"],
-];
-const SEVEN_COLUMNS: ColumnWidths = [
-	["1680px", "924px"],
-	["1024px", "58vw - 3rem"],
-	["768px", "50vw - 2.5rem"],
-	[null, "100vw - 2rem"],
-];
-const FIVE_COLUMNS: ColumnWidths = [
-	["1680px", "653px"],
-	["1024px", "41vw - 2rem"],
-	["768px", "50vw - 2.5rem"],
-	[null, "100vw - 2rem"],
-];
-const FRAME_ASPECT = { wide: 21 / 9, landscape: 4 / 3, portrait: 4 / 5 };
-
-// The grid repeats every five cards: a wide card, then two pairs that
-// mirror each other.
-const pattern = [
-	{ layout: "wide", placement: "wide", widths: FULL },
-	{ layout: "landscape", placement: "start-7", widths: SEVEN_COLUMNS },
-	{ layout: "portrait", placement: "end-5", widths: FIVE_COLUMNS },
-	{ layout: "portrait", placement: "start-5", widths: FIVE_COLUMNS },
-	{ layout: "landscape", placement: "end-7", widths: SEVEN_COLUMNS },
-] as const;
-
-/**
- * A frame narrower than its image crops the sides, so the image is drawn
- * wider than its column; ask for a source that is sharp at that width.
- */
-function sizesFor(
-	slot: (typeof pattern)[number],
-	image?: { width?: number; height?: number } | null,
-): string {
-	const imageAspect =
-		image?.width && image.height ? image.width / image.height : 3 / 2;
-	const scale = Math.max(1, imageAspect / FRAME_ASPECT[slot.layout]);
-	return slot.widths
-		.map(([minWidth, width]) => {
-			const size =
-				scale > 1 ? `calc((${width}) * ${scale.toFixed(2)})` : `calc(${width})`;
-			return minWidth ? `(min-width: ${minWidth}) ${size}` : size;
-		})
-		.join(", ");
-}
-
-// A last card that would open a pair has no partner, so it goes wide
-// instead of leaving half a row empty.
-const cards = projects.map((project, i) => {
-	const next = pattern[i % pattern.length] ?? pattern[0];
-	const isLonely =
-		i === projects.length - 1 && next.placement.startsWith("start");
-	const slot = isLonely ? pattern[0] : next;
-	return {
-		project,
-		layout: slot.layout,
-		placement: slot.placement,
-		sizes: sizesFor(slot, project.data.featured_image),
-	};
-});
-
-const count = String(projects.length).padStart(2, "0");
 const clients = [
 	...new Set(
 		projects
@@ -102,251 +51,71 @@ const clients = [
 			.filter((client): client is string => Boolean(client)),
 	),
 ];
+
+// Without a published Home page, as on a site set up without the sample
+// content, or with an empty one, the page shows the tagline, the selected
+// work and its clients.
+const defaultLayout: PageLayoutBlock[] = [
+	{
+		_type: "portfolio_statement",
+		_version: 1,
+		_key: "statement",
+		label: yearRange ? `Selected work ${yearRange}` : null,
+		text: settings?.tagline || siteTitle,
+	},
+	{
+		_type: "portfolio_selected_work",
+		_version: 1,
+		_key: "selected-work",
+		heading: "Selected work",
+	},
+];
+if (clients.length >= 2) {
+	defaultLayout.push({
+		_type: "portfolio_clients",
+		_version: 1,
+		_key: "clients",
+		heading: "Clients",
+		clients: clients.map((name) => ({ name })),
+	});
+}
+
+const layout = home?.data.layout?.length ? home.data.layout : defaultLayout;
 ---
 
-<Base>
-	<section class="intro frame">
-		{yearRange && <p class="label intro__label">Selected work {yearRange}</p>}
-		<h1 class="intro__statement">{statement}</h1>
-	</section>
-
+<Base
+	title={seo?.title}
+	pageTitle={seo?.ogTitle}
+	description={seo?.description}
+	image={seo?.ogImage}
+	canonical={seo?.canonical}
+	robots={seo?.robots}
+	content={home
+		? { collection: "pages", id: home.data.id, slug: home.id }
+		: undefined}
+>
+	{/* Statement.astro renders the h1 only when it is the first block */}
 	{
-		projects.length > 0 ? (
-			<>
-				<section class="work frame" aria-labelledby="work-heading">
-					<div class="work__head">
-						<h2 class="label work__heading" id="work-heading">
-							Selected work ({count})
-						</h2>
-						<a href="/work" class="arrow-link work__index-link">
-							Full index
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.5"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-							>
-								<path d="M4 12h16M13 5l7 7-7 7" />
-							</svg>
-						</a>
-					</div>
-					<ol class="work__grid" role="list">
-						{cards.map(({ project, layout, placement, sizes }, i) => (
-							<li class:list={["work__item", `work__item--${placement}`]}>
-								<ProjectCard
-									title={project.data.title}
-									href={`/work/${project.id}`}
-									featuredImage={project.data.featured_image}
-									client={project.data.client}
-									year={project.data.year}
-									tags={project.data.terms?.tag?.map((term) => term.label)}
-									index={i + 1}
-									layout={layout}
-									sizes={sizes}
-									priority={i === 0}
-									edit={project.edit}
-								/>
-							</li>
-						))}
-					</ol>
-				</section>
-				{clients.length >= 2 && (
-					<section class="frame" aria-labelledby="clients-heading">
-						<div class="clients">
-							<h2 class="label clients__heading" id="clients-heading">
-								Clients
-							</h2>
-							<ul class="clients__list" role="list">
-								{clients.map((client) => (
-									<li>{client}</li>
-								))}
-							</ul>
-						</div>
-					</section>
-				)}
-			</>
-		) : (
-			<section class="frame" aria-labelledby="empty-heading">
-				<div class="empty">
-					<div class="empty__body">
-						<h2 id="empty-heading">No projects yet</h2>
-						<p class="empty__text">
-							Add your first project in the admin. Published projects appear
-							here, newest first.
-						</p>
-						<a href="/_emdash/admin/content/projects/new" class="btn">
-							Add a project
-						</a>
-					</div>
-				</div>
-			</section>
+		layout[0]?._type !== "portfolio_statement" && (
+			<h1 class="sr-only">{siteTitle}</h1>
 		)
 	}
+	<div class="home-layout" {...home?.edit.layout}>
+		<HomeBlocks value={layout} />
+	</div>
 </Base>
 
 <style>
-	.intro {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		row-gap: var(--spacing-lg);
-		padding-block: clamp(var(--spacing-2xl), 1rem + 6vw, var(--spacing-5xl))
-			var(--section-gap);
-	}
-
-	.intro__statement {
-		max-width: 22ch;
-		font-size: var(--font-size-display);
-		overflow-wrap: anywhere;
-	}
-
-	.work__head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: var(--spacing-sm) var(--spacing-lg);
-		margin-block-end: var(--spacing-xl);
-		padding-block-start: var(--spacing-md);
-		border-block-start: 1px solid var(--color-border);
-	}
-
-	.work__index-link {
-		padding-block: 0.25rem;
-		font-size: var(--font-size-sm);
-	}
-
-	.work__grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		align-items: start;
-		gap: clamp(var(--spacing-2xl), 1rem + 5vw, var(--spacing-5xl))
-			var(--gutter);
-		list-style: none;
-	}
-
-	.work__item {
-		min-width: 0;
-	}
-
-	.clients {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		row-gap: var(--spacing-md);
+	/* Blocks don't space themselves, so sections sit the same way in any order */
+	.home-layout > :global(*) {
 		margin-block-start: var(--section-gap);
-		padding-block-start: var(--spacing-md);
-		border-block-start: 1px solid var(--color-border);
 	}
 
-	.clients__list {
-		list-style: none;
-		font-size: var(--font-size-2xl);
-		font-weight: var(--font-weight-heading);
-		line-height: var(--leading-snug);
-		letter-spacing: var(--tracking-tight);
-		overflow-wrap: anywhere;
-	}
-
-	/* Inline blocks keep each name, and the slash after it, on one line */
-	.clients__list li {
-		display: inline-block;
-		max-width: 100%;
-		margin-inline-end: 0.25em;
-	}
-
-	.clients__list li:not(:last-child)::after {
-		content: "\00a0/";
-		content: "\00a0/" / "";
-		color: var(--color-muted);
-	}
-
-	.empty {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		padding-block-start: var(--spacing-md);
-		border-block-start: 1px solid var(--color-border);
-	}
-
-	.empty__body {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: var(--spacing-md);
-		max-width: 36rem;
-	}
-
-	.empty__text {
-		margin-block-end: var(--spacing-sm);
-		color: var(--color-text-secondary);
-	}
-
-	@media (min-width: 768px) {
-		.intro,
-		.clients,
-		.empty {
-			grid-template-columns: repeat(12, minmax(0, 1fr));
-			column-gap: var(--gutter);
-			align-items: baseline;
-		}
-
-		.intro__label,
-		.clients__heading {
-			grid-column: 1 / span 3;
-			position: relative;
-		}
-
-		/*
-		 * The label shares the first baseline of the large text beside it;
-		 * lifting it by the difference in cap heights lines up their tops.
-		 */
-		.intro__label {
-			inset-block-start: calc(
-				(var(--font-size-label) - var(--font-size-display)) * 0.7
-			);
-		}
-
-		.clients__heading {
-			inset-block-start: calc(
-				(var(--font-size-label) - var(--font-size-2xl)) * 0.7
-			);
-		}
-
-		.intro__statement,
-		.clients__list,
-		.empty__body {
-			grid-column: 4 / -1;
-		}
-
-		.work__grid {
-			grid-template-columns: repeat(12, minmax(0, 1fr));
-		}
-
-		.work__item {
-			grid-column: span 6;
-		}
-
-		.work__item--wide {
-			grid-column: 1 / -1;
-		}
-	}
-
-	@media (min-width: 1024px) {
-		.work__item--start-7 {
-			grid-column: 1 / span 7;
-		}
-
-		.work__item--end-5 {
-			grid-column: 8 / span 5;
-		}
-
-		.work__item--start-5 {
-			grid-column: 1 / span 5;
-		}
-
-		.work__item--end-7 {
-			grid-column: 6 / span 7;
-		}
+	.home-layout > :global(:first-child) {
+		margin-block-start: clamp(
+			var(--spacing-2xl),
+			1rem + 6vw,
+			var(--spacing-5xl)
+		);
 	}
 </style>

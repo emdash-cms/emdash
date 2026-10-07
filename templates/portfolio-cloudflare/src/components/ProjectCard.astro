@@ -19,6 +19,8 @@ interface Props {
 	/** Load the image eagerly; use for the first card above the fold */
 	priority?: boolean;
 	headingLevel?: 2 | 3;
+	/** Starts the title id; give each grid its own when a project can appear in two */
+	idPrefix?: string;
 	edit?: EditProxy;
 }
 
@@ -34,11 +36,12 @@ const {
 	sizes,
 	priority = false,
 	headingLevel = 3,
+	idPrefix = "card",
 	edit,
 } = Astro.props;
 
 const Heading = `h${headingLevel}` as const;
-const titleId = `card-${encodeURIComponent(href)}`;
+const titleId = `${idPrefix}-${encodeURIComponent(href)}`;
 const number = index === undefined ? null : String(index).padStart(2, "0");
 const disciplines = tags.filter(Boolean).join(", ");
 const imageSizes =

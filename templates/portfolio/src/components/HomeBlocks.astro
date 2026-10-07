@@ -1,0 +1,21 @@
+---
+import { Blocks, defineBlockComponents } from "emdash/ui";
+import type { PageLayoutBlock } from "../../emdash-env";
+import Clients from "./blocks/Clients.astro";
+import SelectedWork from "./blocks/SelectedWork.astro";
+import Statement from "./blocks/Statement.astro";
+
+interface Props {
+	value?: PageLayoutBlock[] | null;
+}
+
+const { value } = Astro.props;
+
+const homeComponents = defineBlockComponents<PageLayoutBlock>({
+	portfolio_statement: Statement,
+	portfolio_selected_work: SelectedWork,
+	portfolio_clients: Clients,
+});
+---
+
+<Blocks {value} components={homeComponents} />

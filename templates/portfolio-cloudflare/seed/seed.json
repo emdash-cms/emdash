@@ -10,6 +10,91 @@
 		"title": "Norma",
 		"tagline": "An independent design studio making identities, books and websites for culture and commerce."
 	},
+	"blockTypes": [
+		{
+			"slug": "portfolio_statement",
+			"label": "Statement",
+			"description": "A large opening statement with an optional small label beside it",
+			"category": "Portfolio",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "label",
+							"label": "Label",
+							"type": "string"
+						},
+						{
+							"slug": "text",
+							"label": "Statement",
+							"type": "text",
+							"required": true
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "portfolio_selected_work",
+			"label": "Selected work",
+			"description": "A grid of the projects marked Feature on home page, or the six newest when none are",
+			"category": "Portfolio",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "heading",
+							"label": "Heading",
+							"type": "string",
+							"required": true
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "portfolio_clients",
+			"label": "Clients",
+			"description": "A line of client names",
+			"category": "Portfolio",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "heading",
+							"label": "Heading",
+							"type": "string",
+							"required": true
+						},
+						{
+							"slug": "clients",
+							"label": "Clients",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 40,
+								"subFields": [
+									{
+										"slug": "name",
+										"label": "Name",
+										"type": "string",
+										"required": true
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	],
 	"collections": [
 		{
 			"slug": "projects",
@@ -78,6 +163,12 @@
 					"slug": "url",
 					"label": "Project URL",
 					"type": "url"
+				},
+				{
+					"slug": "featured",
+					"label": "Feature on home page",
+					"type": "boolean",
+					"defaultValue": false
 				}
 			]
 		},
@@ -100,6 +191,15 @@
 					"label": "Content",
 					"type": "portableText",
 					"searchable": true
+				},
+				{
+					"slug": "layout",
+					"label": "Layout",
+					"type": "blocks",
+					"validation": {
+						"allowedTypes": ["portfolio_statement", "portfolio_selected_work", "portfolio_clients"],
+						"maxItems": 20
+					}
 				}
 			]
 		}
@@ -164,6 +264,55 @@
 	],
 	"content": {
 		"pages": [
+			{
+				"id": "home",
+				"slug": "home",
+				"status": "published",
+				"data": {
+					"title": "Home",
+					"layout": [
+						{
+							"_type": "portfolio_statement",
+							"_version": 1,
+							"_key": "statement",
+							"label": "Selected work 2022–2026",
+							"text": "An independent design studio making identities, books and websites for culture and commerce."
+						},
+						{
+							"_type": "portfolio_selected_work",
+							"_version": 1,
+							"_key": "selected-work",
+							"heading": "Selected work"
+						},
+						{
+							"_type": "portfolio_clients",
+							"_version": 1,
+							"_key": "clients",
+							"heading": "Clients",
+							"clients": [
+								{
+									"name": "Hotel Wilde"
+								},
+								{
+									"name": "Het Bouwhuis"
+								},
+								{
+									"name": "Ola Ceramics"
+								},
+								{
+									"name": "Field Publishing"
+								},
+								{
+									"name": "Lowland Roasters"
+								},
+								{
+									"name": "North Bakehouse"
+								}
+							]
+						}
+					]
+				}
+			},
 			{
 				"id": "about",
 				"slug": "about",
@@ -523,6 +672,7 @@
 					"title": "North Bakehouse",
 					"client": "North Bakehouse",
 					"year": "2022",
+					"featured": true,
 					"summary": "A one-colour identity for a sourdough bakery in Rotterdam-Noord, stamped by hand onto kraft bags every morning.",
 					"featured_image": {
 						"$media": {
@@ -764,6 +914,7 @@
 					"title": "Lowland Coffee",
 					"client": "Lowland Roasters",
 					"year": "2023",
+					"featured": true,
 					"summary": "Packaging for a Rotterdam roaster that marks each coffee's altitude on the bag, measured from a roastery below sea level.",
 					"featured_image": {
 						"$media": {
@@ -996,6 +1147,7 @@
 					"title": "Field Quarterly",
 					"client": "Field Publishing",
 					"year": "2024",
+					"featured": true,
 					"summary": "A redesign of an independent quarterly about Dutch farmland: a smaller format, uncoated paper and covers with one photograph.",
 					"featured_image": {
 						"$media": {
@@ -1237,6 +1389,7 @@
 					"title": "Ola Ceramics",
 					"client": "Ola Ceramics",
 					"year": "2025",
+					"featured": true,
 					"summary": "An online shop for a stoneware studio, organised by kiln firing, with every piece photographed on its own in the same light.",
 					"featured_image": {
 						"$media": {
@@ -1469,6 +1622,7 @@
 					"title": "Concrete Futures",
 					"client": "Het Bouwhuis",
 					"year": "2025",
+					"featured": true,
 					"summary": "Identity, catalogue and gallery graphics for an exhibition on the reuse of post-war concrete buildings in the Netherlands.",
 					"featured_image": {
 						"$media": {
@@ -1710,6 +1864,7 @@
 					"title": "Hotel Wilde",
 					"client": "Hotel Wilde",
 					"year": "2026",
+					"featured": true,
 					"summary": "Identity and wayfinding for a 24-room hotel in a converted 1920s schoolhouse, from the room numbers to the breakfast menu.",
 					"featured_image": {
 						"$media": {

@@ -5,12 +5,44 @@
 
 import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
+export interface PageLayoutPortfolioStatementV1Block {
+  _type: "portfolio_statement";
+  _version: 1;
+  _key: string;
+  "label"?: string | null;
+  "text": string;
+}
+
+export type PageLayoutPortfolioStatementBlock = PageLayoutPortfolioStatementV1Block;
+
+export interface PageLayoutPortfolioSelectedWorkV1Block {
+  _type: "portfolio_selected_work";
+  _version: 1;
+  _key: string;
+  "heading": string;
+}
+
+export type PageLayoutPortfolioSelectedWorkBlock = PageLayoutPortfolioSelectedWorkV1Block;
+
+export interface PageLayoutPortfolioClientsV1Block {
+  _type: "portfolio_clients";
+  _version: 1;
+  _key: string;
+  "heading": string;
+  "clients": { "name": string }[];
+}
+
+export type PageLayoutPortfolioClientsBlock = PageLayoutPortfolioClientsV1Block;
+
+export type PageLayoutBlock = PageLayoutPortfolioStatementBlock | PageLayoutPortfolioSelectedWorkBlock | PageLayoutPortfolioClientsBlock;
+
 export interface Page {
   id: string;
   slug: string | null;
   status: string;
   title: string;
   content?: PortableTextBlock[];
+  layout?: PageLayoutBlock[];
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -31,6 +63,7 @@ export interface Project {
   content?: PortableTextBlock[];
   gallery?: { "image": { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }; "caption"?: string | null }[];
   url?: string;
+  featured?: boolean;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
