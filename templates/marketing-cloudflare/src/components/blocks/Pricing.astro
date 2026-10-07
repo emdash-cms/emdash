@@ -9,6 +9,7 @@ type Props = BlockComponentProps<PricingBlock>;
 
 const { value } = Astro.props;
 const { anchor_id, headline, plans: rawPlans } = value;
+const PlanHeading = headline ? "h3" : "h2";
 
 const plans = rawPlans.map((plan) => ({
 	...plan,
@@ -40,7 +41,7 @@ const plans = rawPlans.map((plan) => ({
 			plans.map((plan) => (
 				<li class:list={["card", "plan", { "plan--highlighted": plan.highlighted }]}>
 					<div class="plan__head">
-						<h3 class="plan__name">{plan.name}</h3>
+						<PlanHeading class="plan__name">{plan.name}</PlanHeading>
 						{plan.badge && <span class="plan__badge">{plan.badge}</span>}
 					</div>
 					<p class="plan__price">
