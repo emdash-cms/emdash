@@ -62,9 +62,13 @@ const secondaryCta =
 	</div>
 	{
 		image && (
-			<figure class="sheet media settle rise hero__media">
+			<figure class="sheet media settle hero__media">
 				<div class="media__img">
-					<Image image={image} priority />
+					<Image
+						image={image}
+						priority
+						sizes="(max-width: 960px) 178vw, min(100vw, 1680px)"
+					/>
 				</div>
 				{image_caption && (
 					<figcaption class="media-chip">
@@ -143,7 +147,6 @@ const secondaryCta =
 	}
 
 	.hero__media {
-		--rise-index: 3;
 		margin-block-start: clamp(48px, 5vw, 72px);
 		aspect-ratio: 21 / 9;
 		border-radius: var(--radius-sheet);
