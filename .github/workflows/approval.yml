@@ -53,25 +53,12 @@ jobs:
             const checkName = 'Human Maintainer approval';
             const detailsUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
 
-            const stateLabels = {
-              'review/needs-review': {
-                color: 'fbca04',
-                description: 'Needs a human Maintainer review or another approval',
-              },
-              'review/awaiting-author': {
-                color: 'c5def5',
-                description: 'Reviewed; waiting on the author to respond',
-              },
-              'review/needs-rereview': {
-                color: 'd93f0b',
-                description: 'New commits since the last Maintainer review',
-              },
-              'review/approved': {
-                color: '0e8a16',
-                description: 'Human Maintainer approval requirement met',
-              },
-            };
-            const stateNames = Object.keys(stateLabels);
+            const stateNames = [
+              'review/needs-review',
+              'review/awaiting-author',
+              'review/needs-rereview',
+              'review/approved',
+            ];
 
             const privilegedPaths = [
               /^GOVERNANCE\.md$/,
@@ -134,22 +121,6 @@ jobs:
             if (maintainers.size === 0) {
               core.setFailed('GOVERNANCE.md does not contain a marked Maintainers list.');
               return;
-            }
-
-            const existingLabels = new Map();
-            for await (const response of github.paginate.iterator(
-              github.rest.issues.listLabelsForRepo,
-              { owner, repo, per_page: 100 },
-            )) {
-              for (const label of response.data) existingLabels.set(label.name, label);
-            }
-            for (const [name, meta] of Object.entries(stateLabels)) {
-              const existing = existingLabels.get(name);
-              if (!existing) {
-                await github.rest.issues.createLabel({ owner, repo, name, ...meta });
-              } else if (existing.description !== meta.description) {
-                await github.rest.issues.updateLabel({ owner, repo, name, ...meta });
-              }
             }
 
             async function setReviewLabel(pr, desired) {
