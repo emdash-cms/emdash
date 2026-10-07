@@ -3,95 +3,90 @@ import Base from "../layouts/Base.astro";
 ---
 
 <Base title="Page not found">
-	<div class="not-found">
-		<span class="not-found-code">404</span>
-		<h1>Page not found</h1>
-		<p>The page you're looking for doesn't exist or has been moved.</p>
-		<div class="not-found-links">
-			<a href="/" class="link-primary">Go home</a>
-			<a href="/work" class="link-secondary">View our work</a>
+	<div class="frame not-found">
+		<p class="label">Error 404</p>
+		<h1 class="not-found__title">Page not found</h1>
+		<div class="not-found__body">
+			<p class="not-found__text">
+				This page isn’t in the index. It may have moved, or the link may be
+				wrong.
+			</p>
+			<ul class="not-found__links">
+				<li>
+					<a href="/" class="arrow-link">
+						Back to home
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M4 12h16M13 5l7 7-7 7"></path>
+						</svg>
+					</a>
+				</li>
+				<li>
+					<a href="/work" class="arrow-link">
+						Browse the work
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M4 12h16M13 5l7 7-7 7"></path>
+						</svg>
+					</a>
+				</li>
+			</ul>
 		</div>
 	</div>
 </Base>
 
 <style>
 	.not-found {
-		text-align: center;
-		padding: var(--spacing-4xl) var(--spacing-lg);
-		max-width: var(--max-width);
-		margin: 0 auto;
+		padding-block-start: var(--page-head-space);
 	}
 
-	.not-found-code {
-		display: block;
-		font-family: var(--font-heading);
-		font-size: 8rem;
-		font-weight: var(--font-weight-display);
-		line-height: 1;
-		color: var(--color-border);
-		margin-bottom: var(--spacing-lg);
+	.not-found__title {
+		margin-block-start: var(--spacing-md);
+		font-size: var(--font-size-title);
+		line-height: var(--leading-none);
+		letter-spacing: var(--tracking-display);
+		overflow-wrap: anywhere;
 	}
 
-	.not-found h1 {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-2xl);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-sm);
+	.not-found__body {
+		display: grid;
+		justify-items: start;
+		gap: var(--spacing-lg);
+		margin-block-start: clamp(2.5rem, 1.5rem + 3vw, 4.5rem);
+		padding-block-start: var(--spacing-lg);
+		border-block-start: 1px solid var(--color-border);
 	}
 
-	.not-found p {
-		color: var(--color-muted);
-		margin-bottom: var(--spacing-2xl);
+	.not-found__text {
+		max-width: 36ch;
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-snug);
+		color: var(--color-text-secondary);
 	}
 
-	.not-found-links {
+	.not-found__links {
 		display: flex;
-		gap: var(--spacing-md);
-		justify-content: center;
+		flex-wrap: wrap;
+		gap: var(--spacing-sm) var(--spacing-xl);
+		list-style: none;
 	}
 
-	.link-primary {
-		padding: var(--spacing-sm) var(--spacing-lg);
-		font-size: var(--font-size-sm);
-		color: var(--color-bg);
-		background: var(--color-text);
-		text-decoration: none;
-		border-radius: var(--radius);
-		transition:
-			background var(--transition-fast),
-			transform var(--transition-fast);
-	}
-
-	.link-primary:hover {
-		background: var(--color-brand);
-		color: var(--color-on-brand);
-		transform: translateY(-1px);
-	}
-
-	.link-secondary {
-		padding: var(--spacing-sm) var(--spacing-lg);
-		font-size: var(--font-size-sm);
-		color: var(--color-text);
-		text-decoration: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
-		transition:
-			border-color var(--transition-fast),
-			transform var(--transition-fast);
-	}
-
-	.link-secondary:hover {
-		border-color: var(--color-text);
-		transform: translateY(-1px);
-	}
-
-	@media (max-width: 480px) {
-		.not-found-code {
-			font-size: 5rem;
-		}
-
-		.not-found-links {
-			flex-direction: column;
-		}
+	.not-found__links a {
+		padding-block: var(--spacing-xs);
+		font-size: var(--font-size-md);
 	}
 </style>

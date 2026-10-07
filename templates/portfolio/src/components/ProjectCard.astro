@@ -4,61 +4,92 @@ import { Image } from "emdash/ui";
 
 interface Props {
 	title: string;
-	summary?: string;
-	featuredImage: MediaValue;
 	href: string;
+	featuredImage?: MediaValue | null;
 	client?: string;
 	year?: string;
+	/** Discipline labels */
 	tags?: string[];
+	/** 1-based position, shown as "01" */
+	index?: number;
+	/** Image aspect ratio: wide is 21/9 (16/9 on phones), landscape 4/3, portrait 4/5 */
+	layout?: "wide" | "landscape" | "portrait";
+	/** The rendered image width; pass one that matches the card's grid column */
+	sizes?: string;
+	/** Load the image eagerly; use for the first card above the fold */
+	priority?: boolean;
+	headingLevel?: 2 | 3;
 	edit?: EditProxy;
 }
 
-const { title, summary, featuredImage, href, client, year, tags, edit } =
-	Astro.props;
-const allTags = tags || [];
+const {
+	title,
+	href,
+	featuredImage,
+	client,
+	year,
+	tags = [],
+	index,
+	layout = "landscape",
+	sizes,
+	priority = false,
+	headingLevel = 3,
+	edit,
+} = Astro.props;
+
+const Heading = `h${headingLevel}` as const;
+const titleId = `card-${href.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "")}`;
+const number = index === undefined ? null : String(index).padStart(2, "0");
+const disciplines = tags.filter(Boolean).join(", ");
+const imageSizes =
+	sizes ??
+	(layout === "wide"
+		? "(min-width: 1680px) 1600px, 100vw"
+		: "(min-width: 1680px) 800px, (min-width: 768px) 50vw, 100vw");
 ---
 
-<article class="project-card">
-	<a href={href} class="card-link">
-		<div class="card-image" {...edit?.featured_image}>
-			<Image image={featuredImage} />
-			<div class="card-overlay">
-				<span class="card-view">View Project</span>
-			</div>
-		</div>
-		<div class="card-content">
-			<h2 class="card-title" {...edit?.title}>{title}</h2>
-			<div class="card-meta">
-				{
-					client && (
-						<span class="card-client" {...edit?.client}>
-							{client}
-						</span>
-					)
-				}
-				{client && year && <span class="card-separator">·</span>}
-				{
-					year && (
-						<span class="card-year" {...edit?.year}>
-							{year}
-						</span>
-					)
-				}
-			</div>
+<article class:list={["card", "media-group", `card--${layout}`]}>
+	<a href={href} class="card__media media" tabindex="-1" aria-hidden="true">
+		<div class="card__image" {...edit?.featured_image}>
 			{
-				summary && (
-					<p class="card-summary" {...edit?.summary}>
-						{summary}
-					</p>
+				featuredImage && (
+					<Image
+						image={featuredImage}
+						alt=""
+						sizes={imageSizes}
+						priority={priority}
+					/>
 				)
 			}
+		</div>
+	</a>
+	<a href={href} class="card__link" aria-labelledby={titleId}>
+		{
+			number && (
+				<span class="card__index label" aria-hidden="true">
+					{number}
+				</span>
+			)
+		}
+		<div class="card__text">
+			<Heading class="card__title" id={titleId}>
+				<span {...edit?.title}>{title || "Untitled"}</span>
+			</Heading>
 			{
-				allTags.length > 0 && (
-					<div class="card-categories">
-						{allTags.map((tag) => (
-							<span class="card-category">{tag}</span>
-						))}
-					</div>
+				(client || disciplines || year) && (
+					<p class="card__meta">
+						{client && (
+							<span class="card__meta-item">
+								<span {...edit?.client}>{client}</span>
+							</span>
+						)}
+						{disciplines && <span class="card__meta-item">{disciplines}</span>}
+						{year && (
+							<span class="card__meta-item card__year">
+								<span {...edit?.year}>{year}</span>
+							</span>
+						)}
+					</p>
 				)
 			}
 		</div>
@@ -66,133 +97,93 @@ const allTags = tags || [];
 </article>
 
 <style>
-	.project-card {
-		position: relative;
-	}
-
-	.card-link {
+	.card {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
-		text-decoration: none;
-		color: inherit;
+		align-items: flex-start;
+		gap: var(--spacing-md);
+		min-width: 0;
 	}
 
-	.card-image {
-		position: relative;
-		overflow: hidden;
-		border-radius: var(--radius);
-	}
-
-	.card-image img {
-		width: 100%;
-		height: auto;
+	.card__media {
+		display: block;
+		align-self: stretch;
 		aspect-ratio: 4 / 3;
-		object-fit: cover;
-		transition: transform var(--transition-slow);
 	}
 
-	.card-overlay {
+	.card--wide .card__media {
+		aspect-ratio: 16 / 9;
+	}
+
+	.card--portrait .card__media {
+		aspect-ratio: 4 / 5;
+	}
+
+	.card__image {
 		position: absolute;
 		inset: 0;
+	}
+
+	.card__link {
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(0, 0, 0, 0);
-		transition: background var(--transition-base);
+		align-items: baseline;
+		gap: var(--spacing-md);
+		max-width: 100%;
+		min-width: 0;
+		color: var(--color-text);
+		text-decoration: none;
 	}
 
-	/* Over-image chip: white regardless of theme */
-	.card-view {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-sm);
-		color: white;
-		padding: var(--spacing-sm) var(--spacing-md);
-		border: 1px solid white;
-		border-radius: var(--radius);
-		opacity: 0;
-		transform: translateY(10px);
-		transition:
-			opacity var(--transition-base),
-			transform var(--transition-base);
+	.card__index {
+		flex: none;
 	}
 
-	.project-card:hover .card-image img {
-		transform: scale(1.03);
-	}
-
-	.card-link:focus-visible .card-image img {
-		transform: scale(1.03);
-	}
-
-	.project-card:hover .card-overlay {
-		background: rgba(0, 0, 0, 0.4);
-	}
-
-	.card-link:focus-visible .card-overlay {
-		background: rgba(0, 0, 0, 0.4);
-	}
-
-	.project-card:hover .card-view {
-		opacity: 1;
-		transform: translateY(0);
-	}
-
-	.card-link:focus-visible .card-view {
-		opacity: 1;
-		transform: translateY(0);
-	}
-
-	.card-content {
+	.card__text {
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-xs);
+		min-width: 0;
 	}
 
-	.card-title {
-		font-family: var(--font-heading);
+	.card__title {
 		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-heading);
-		transition: color var(--transition-fast);
+		overflow-wrap: anywhere;
+		text-decoration-line: underline;
+		text-decoration-thickness: 1px;
+		text-decoration-color: transparent;
+		text-underline-offset: 0.15em;
+		transition: text-decoration-color var(--transition-fast);
 	}
 
-	.project-card:hover .card-title {
-		color: var(--color-brand);
+	.card__link:is(:hover, :focus-visible) .card__title,
+	.card:has(.card__media:hover) .card__title {
+		text-decoration-color: currentColor;
 	}
 
-	.card-meta {
+	.card__meta {
 		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-	}
-
-	.card-separator {
-		margin: 0 var(--spacing-xs);
-	}
-
-	.card-summary {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
 		line-height: var(--leading-normal);
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-
-	.card-categories {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--spacing-sm);
-		margin-top: var(--spacing-sm);
-	}
-
-	.card-category {
-		font-size: var(--font-size-xs);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wide);
 		color: var(--color-muted);
-		padding: var(--spacing-xs) var(--spacing-sm);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
+		overflow-wrap: anywhere;
+	}
+
+	/* Trailing separators, so a wrapped line never starts with a dot */
+	.card__meta-item:not(:last-child)::after {
+		content: "·";
+		content: "·" / "";
+		margin-inline: 0.5em;
+	}
+
+	.card__year {
+		font-family: var(--font-label);
+		font-size: var(--font-size-label);
+		letter-spacing: var(--tracking-label);
+		font-variant-numeric: tabular-nums;
+	}
+
+	@media (min-width: 768px) {
+		.card--wide .card__media {
+			aspect-ratio: 21 / 9;
+		}
 	}
 </style>

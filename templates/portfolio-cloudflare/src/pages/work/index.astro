@@ -1,13 +1,9 @@
 ---
 export const prerender = false;
 
-import {
-	getEmDashCollection,
-	getTaxonomyTermsWithCacheHint,
-	getTermsForEntries,
-} from "emdash";
+import { getEmDashCollection, getTaxonomyTermsWithCacheHint } from "emdash";
+import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
-import ProjectCard from "../../components/ProjectCard.astro";
 
 // Get filter from query param. When set, push the filter down to the
 // database via `where` instead of loading every project and filtering
@@ -29,238 +25,581 @@ if (projectsResult.error) {
 	return new Response("Could not load the portfolio", { status: 500 });
 }
 
-const { entries: sortedProjects, nextCursor } = projectsResult;
+const { entries: projects, nextCursor } = projectsResult;
 const tags = tagsResult.data;
 if (Astro.cache?.enabled) {
 	Astro.cache.set(projectsResult.cacheHint);
 	Astro.cache.set(tagsResult.cacheHint);
 }
 
-// Single batched JOIN for the tag pills shown on each card, instead of
-// one getEntryTerms() round-trip per card.
-const tagsByEntry = await getTermsForEntries(
-	"projects",
-	sortedProjects.map((p) => p.data.id),
-	"tag",
-);
-const projectsWithTags = sortedProjects.map((project) => ({
-	project,
-	projectTags: tagsByEntry.get(project.data.id) ?? [],
-}));
+const activeLabel = activeTag
+	? tags.find((t) => t.slug === activeTag)?.label || activeTag
+	: null;
+
+// A count is only accurate when the whole list fits on this page.
+const showCount = projects.length > 0 && !cursor && !nextCursor;
+
+function pad(n: number): string {
+	return String(n).padStart(2, "0");
+}
 
 function workUrl(next: string): string {
 	const params = new URLSearchParams({ cursor: next });
 	if (activeTag) params.set("tag", activeTag);
 	return `/work?${params.toString()}`;
 }
+
+// Each row renders its image twice: an inline thumbnail for touch screens
+// and narrow windows, and a preview beside the list on wide screens with a
+// pointer. Both are lazy, so the one hidden at the current width is never
+// downloaded.
+const thumbSizes = "(min-width: 1024px) 128px, (min-width: 768px) 112px, 88px";
+const previewSizes = "(min-width: 1680px) 384px, 25vw";
 ---
 
-<Base
-	title={activeTag
-		? `${tags.find((t) => t.slug === activeTag)?.label || activeTag} — Work`
-		: "Work"}
->
-	<section class="work-header">
-		<h1>Work</h1>
-		<p class="work-intro">
-			A selection of projects spanning identity, interface design, development,
-			and art direction.
-		</p>
+<Base title={activeLabel ? `${activeLabel} — Work` : "Work"}>
+	<div class="work frame">
+		<header class="work-head">
+			<h1 class="work-title">
+				Work
+				{
+					showCount && (
+						<span class="work-count label" aria-hidden="true">
+							({pad(projects.length)})
+						</span>
+					)
+				}
+			</h1>
+			<p class="work-intro">An index of every project, newest first.</p>
+			{
+				tags.length > 0 && (
+					<nav class="work-filter" aria-label="Filter by discipline">
+						<ul role="list">
+							<li>
+								<a
+									href="/work"
+									class="label"
+									aria-current={activeTag ? undefined : "page"}
+								>
+									All
+								</a>
+							</li>
+							{tags.map((tag) => (
+								<li>
+									<a
+										href={`/work?tag=${encodeURIComponent(tag.slug)}`}
+										class="label"
+										aria-current={activeTag === tag.slug ? "page" : undefined}
+									>
+										{tag.label}
+									</a>
+								</li>
+							))}
+						</ul>
+					</nav>
+				)
+			}
+		</header>
 
 		{
-			tags.length > 0 && (
-				<nav class="tag-filters" aria-label="Filter by tag">
-					{tags.map((tag) => (
-						<a
-							href={`/work?tag=${tag.slug}`}
-							class:list={["tag-filter", { active: activeTag === tag.slug }]}
-							aria-current={activeTag === tag.slug ? "page" : undefined}
-						>
-							{tag.label}
-						</a>
-					))}
-					{activeTag && (
-						<a href="/work" class="tag-clear" aria-label="Clear filter">
-							Clear
-						</a>
+			projects.length > 0 ? (
+				<>
+					<div class="work-ledger">
+						<div class="work-cols label" aria-hidden="true">
+							<span class="col-num">No.</span>
+							<span class="col-name">Project</span>
+							<span class="col-client">Client</span>
+							<span class="col-tags">Discipline</span>
+							<span class="col-year">Year</span>
+						</div>
+						<ol class="work-list" role="list">
+							{projects.map((project, i) => {
+								const image = project.data.featured_image;
+								const { client, year } = project.data;
+								const disciplines = (project.data.terms?.tag ?? [])
+									.map((term) => term.label)
+									.join(", ");
+								return (
+									<li class="work-item">
+										<div class="work-row media-group">
+											<span
+												class="work-row__thumb media"
+												aria-hidden="true"
+												{...project.edit.featured_image}
+											>
+												{image && (
+													<Image
+														image={image}
+														alt=""
+														width={320}
+														height={240}
+														sizes={thumbSizes}
+													/>
+												)}
+											</span>
+											<span class="work-row__num col-num label" aria-hidden="true">
+												{pad(i + 1)}
+											</span>
+											<h2 class="work-row__name col-name">
+												<a href={`/work/${project.id}`} class="work-row__link">
+													<span {...project.edit.title}>
+														{project.data.title || "Untitled"}
+													</span>
+												</a>
+											</h2>
+											{(client || disciplines) && (
+												<div class="work-row__meta">
+													{client && (
+														<span
+															class="work-row__client col-client"
+															{...project.edit.client}
+														>
+															{client}
+														</span>
+													)}
+													{disciplines && (
+														<span class="work-row__tags col-tags">{disciplines}</span>
+													)}
+												</div>
+											)}
+											{year && (
+												<span
+													class="work-row__year col-year label"
+													{...project.edit.year}
+												>
+													{year}
+												</span>
+											)}
+										</div>
+										{image && (
+											<div class="work-preview" aria-hidden="true">
+												<div class="work-preview__plate media">
+													<Image
+														image={image}
+														alt=""
+														width={480}
+														height={600}
+														sizes={previewSizes}
+													/>
+												</div>
+											</div>
+										)}
+									</li>
+								);
+							})}
+						</ol>
+					</div>
+					{nextCursor && (
+						<nav class="work-more" aria-label="Pagination">
+							<a href={workUrl(nextCursor)} rel="next" class="arrow-link">
+								More projects
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<path d="M4 12h16M13 5l7 7-7 7" />
+								</svg>
+							</a>
+						</nav>
 					)}
-				</nav>
+				</>
+			) : (
+				<div class="work-empty">
+					{activeTag ? (
+						<>
+							<h2 class="work-empty__title">No {activeLabel} projects yet.</h2>
+							<a href="/work" class="btn btn--ghost">
+								View all projects
+							</a>
+						</>
+					) : (
+						<>
+							<h2 class="work-empty__title">No projects yet.</h2>
+							<p class="work-empty__text">
+								Add your first project in the admin and it will appear here.
+							</p>
+							<a href="/_emdash/admin/content/projects/new" class="btn">
+								Add a project
+							</a>
+						</>
+					)}
+				</div>
 			)
 		}
-	</section>
-
-	{
-		projectsWithTags.length > 0 ? (
-			<section class="projects">
-				<div class="projects-grid">
-					{projectsWithTags.map(({ project, projectTags }) => (
-						<ProjectCard
-							title={project.data.title}
-							summary={project.data.summary}
-							featuredImage={project.data.featured_image}
-							href={`/work/${project.id}`}
-							client={project.data.client}
-							year={project.data.year}
-							tags={projectTags.map((t) => t.label)}
-							edit={project.edit}
-						/>
-					))}
-				</div>
-			</section>
-		) : (
-			<section class="empty-state">
-				{activeTag ? (
-					<>
-						<p>No projects found with this tag.</p>
-						<a href="/work" class="btn">
-							View all projects
-						</a>
-					</>
-				) : (
-					<>
-						<p>No projects yet. Add your first project in the admin panel.</p>
-						<a href="/_emdash/admin/content/projects/new" class="btn">
-							Add a project
-						</a>
-					</>
-				)}
-			</section>
-		)
-	}
-
-	{
-		nextCursor && (
-			<nav class="pagination" aria-label="Portfolio pagination">
-				<a href={workUrl(nextCursor)} rel="next">
-					More projects
-				</a>
-			</nav>
-		)
-	}
+	</div>
 </Base>
 
 <style>
-	.work-header {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: var(--spacing-3xl) var(--spacing-lg) var(--spacing-2xl);
+	/* Head */
+	.work-head {
+		padding-block: var(--page-head-space) var(--spacing-2xl);
 	}
 
-	.work-header h1 {
-		font-size: var(--font-size-3xl);
-		margin-bottom: var(--spacing-md);
+	.work-title {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.1em;
+		font-size: var(--font-size-title);
+		line-height: var(--leading-none);
+		overflow-wrap: anywhere;
+	}
+
+	.work-count {
+		margin-block-start: 0.5em;
 	}
 
 	.work-intro {
+		max-width: 34ch;
+		margin-block-start: var(--spacing-lg);
 		font-size: var(--font-size-lg);
-		color: var(--color-muted);
-		max-width: 600px;
+		line-height: var(--leading-snug);
+		color: var(--color-text-secondary);
 	}
 
-	.tag-filters {
+	.work-filter {
+		margin-block-start: var(--spacing-2xl);
+	}
+
+	.work-filter ul {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--spacing-sm);
-		margin-top: var(--spacing-xl);
+		gap: 0 var(--spacing-lg);
+		list-style: none;
 	}
 
-	.tag-filter {
+	.work-filter a {
 		display: inline-block;
-		padding: var(--spacing-xs) var(--spacing-md);
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-		text-decoration: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
-		transition:
-			color var(--transition-fast),
-			border-color var(--transition-fast),
-			background var(--transition-fast);
-	}
-
-	.tag-filter:hover {
-		color: var(--color-text);
-		border-color: var(--color-text);
-	}
-
-	.tag-filter.active {
-		color: var(--color-bg);
-		background: var(--color-text);
-		border-color: var(--color-text);
-	}
-
-	.tag-clear {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--spacing-xs);
-		padding: var(--spacing-xs) var(--spacing-md);
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-		text-decoration: none;
+		padding-block: 0.4rem;
+		text-decoration-line: none;
+		text-underline-offset: 0.4em;
 		transition: color var(--transition-fast);
 	}
 
-	.tag-clear:hover {
+	.work-filter a:is(:hover, :focus-visible) {
 		color: var(--color-text);
 	}
 
-	.tag-clear::before {
-		content: "×";
-		font-size: 1.1em;
+	.work-filter a[aria-current="page"] {
+		color: var(--color-text);
+		text-decoration-line: underline;
 	}
 
-	.projects {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: 0 var(--spacing-lg) var(--spacing-4xl);
+	/* Index: two-line rows with a thumbnail, for touch and narrow screens */
+	.work-cols {
+		display: none;
 	}
 
-	.projects-grid {
+	.work-list {
+		list-style: none;
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.work-row {
+		--bleed: min(0.75rem, var(--page-margin) / 2);
+		--thumb: clamp(4rem, 20vw, 5.5rem);
+
+		position: relative;
+		isolation: isolate;
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--spacing-2xl);
+		grid-template-columns: var(--thumb) minmax(0, 1fr) auto;
+		grid-template-areas:
+			"thumb name year"
+			"thumb meta meta";
+		column-gap: var(--spacing-md);
+		row-gap: 0.125rem;
+		padding-block: var(--spacing-md);
+		border-block-end: 1px solid var(--color-border);
 	}
 
-	.empty-state {
-		text-align: center;
-		padding: var(--spacing-4xl) var(--spacing-lg);
-		color: var(--color-muted);
+	/* The hover fill runs slightly past the rules so text never touches its edge */
+	.work-row::before {
+		content: "";
+		position: absolute;
+		inset-block: 0;
+		inset-inline: calc(-1 * var(--bleed));
+		z-index: -1;
+		background: var(--color-fill);
+		opacity: 0;
+		transition: opacity var(--transition-fast);
 	}
 
-	.pagination {
-		max-width: var(--wide-width);
-		margin: calc(-1 * var(--spacing-2xl)) auto var(--spacing-4xl);
-		padding: 0 var(--spacing-lg);
-		text-align: center;
+	.work-row:is(:hover, :has(.work-row__link:focus-visible))::before {
+		opacity: 1;
 	}
 
-	.pagination a {
-		display: inline-block;
-		padding: var(--spacing-sm) var(--spacing-lg);
-		color: var(--color-text);
+	.work-row__thumb {
+		grid-area: thumb;
+		align-self: center;
+		aspect-ratio: 4 / 3;
+	}
+
+	.work-row__num {
+		display: none;
+	}
+
+	.work-row__name {
+		grid-area: name;
+		align-self: last baseline;
+		min-width: 0;
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-tight);
+		text-wrap: pretty;
+		overflow-wrap: anywhere;
+	}
+
+	.work-row__link {
+		color: inherit;
 		text-decoration: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
 	}
 
-	.pagination a:hover {
-		border-color: var(--color-text);
+	/* One link per row: its hit area covers the whole row */
+	.work-row__link::after {
+		content: "";
+		position: absolute;
+		inset-block: 0;
+		inset-inline: calc(-1 * var(--bleed));
+		z-index: 1;
 	}
 
-	.btn {
-		display: inline-block;
-		margin-top: var(--spacing-lg);
-		padding: var(--spacing-sm) var(--spacing-lg);
-		background: var(--color-text);
-		color: var(--color-bg);
-		text-decoration: none;
-		border-radius: var(--radius);
+	.work-row__link:focus-visible {
+		outline: none;
+	}
+
+	.work-row__link:focus-visible::after {
+		outline: 2px solid var(--color-brand);
+		outline-offset: -2px;
+	}
+
+	/* Visual editing: annotated fields sit above the row link so they stay clickable */
+	.work-row [data-emdash-ref] {
+		position: relative;
+		z-index: 2;
+	}
+
+	.work-row__meta {
+		grid-area: meta;
+		align-self: start;
+		min-width: 0;
 		font-size: var(--font-size-sm);
+		line-height: var(--leading-snug);
+		color: var(--color-muted);
+		overflow-wrap: anywhere;
 	}
 
-	@media (max-width: 768px) {
-		.projects-grid {
-			grid-template-columns: 1fr;
+	.work-row__client + .work-row__tags::before {
+		content: "·";
+		content: "·" / "";
+		margin-inline: 0.4em;
+	}
+
+	.work-row__year {
+		grid-area: year;
+		align-self: last baseline;
+		min-width: 0;
+		text-align: end;
+		overflow-wrap: anywhere;
+	}
+
+	.work-preview {
+		display: none;
+	}
+
+	.work-more {
+		padding-block-start: var(--spacing-xl);
+		font-size: var(--font-size-lg);
+	}
+
+	/* Empty states */
+	.work-empty__title {
+		padding-block-start: var(--spacing-xl);
+		border-block-start: 1px solid var(--color-border);
+		font-size: var(--font-size-2xl);
+		line-height: var(--leading-snug);
+		overflow-wrap: anywhere;
+	}
+
+	.work-empty__text {
+		max-width: 44ch;
+		margin-block-start: var(--spacing-sm);
+		color: var(--color-text-secondary);
+	}
+
+	.work-empty .btn {
+		margin-block-start: var(--spacing-xl);
+	}
+
+	@media (min-width: 768px) {
+		.work-row {
+			--thumb: 7rem;
+
+			column-gap: var(--gutter);
+			padding-block: 1.125rem;
+		}
+
+		.work-row__name {
+			font-size: var(--font-size-xl);
+		}
+	}
+
+	@media (min-width: 1024px) and (hover: none) {
+		.work-row {
+			--thumb: 8rem;
+		}
+	}
+
+	/* Index: one row per project in columns, for wide screens with a pointer */
+	@media (min-width: 1024px) and (hover: hover) {
+		.work-cols,
+		.work-row {
+			display: grid;
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+			grid-template-areas: none;
+			align-items: baseline;
+			column-gap: var(--gutter);
+			row-gap: 0;
+		}
+
+		.work-cols {
+			padding-block-end: var(--spacing-sm);
+		}
+
+		.work-row__thumb {
+			display: none;
+		}
+
+		.work-row__meta {
+			display: contents;
+		}
+
+		.work-row__client + .work-row__tags::before {
+			content: none;
+		}
+
+		.work-row :is(.work-row__client, .work-row__tags) {
+			font-size: var(--font-size-base);
+			color: var(--color-text-secondary);
+		}
+
+		:is(.col-num, .col-name, .col-client, .col-tags, .col-year) {
+			grid-row: 1;
+			align-self: baseline;
+		}
+
+		.col-num {
+			display: block;
+			grid-column: 1;
+		}
+
+		.col-name {
+			grid-column: 2 / span 4;
+		}
+
+		.col-client {
+			grid-column: 6 / span 3;
+		}
+
+		.col-tags {
+			grid-column: 9 / span 3;
+		}
+
+		.col-year {
+			grid-column: 12;
+			text-align: end;
+		}
+	}
+
+	/*
+	 * From 1280px the list gives up its last three columns to a preview of
+	 * the hovered or focused project. Each row's preview is a column as tall
+	 * as the whole frame with the image stuck inside it, so the image stays
+	 * centred in the window as the list scrolls but never leaves the frame.
+	 */
+	@media (min-width: 1280px) and (hover: hover) {
+		.work {
+			--rows-width: calc(75% - var(--gutter) / 4);
+			--plate-width: calc(
+				(min(100vw, var(--frame-width)) - 2 * var(--page-margin) - 3 * var(--gutter)) / 4
+			);
+			--plate-height: min(var(--plate-width) * 1.25, 100vh - 2 * var(--spacing-xl));
+
+			position: relative;
+			min-height: var(--plate-height);
+		}
+
+		.work-head,
+		.work-ledger {
+			max-width: var(--rows-width);
+		}
+
+		.work-cols,
+		.work-row {
+			grid-template-columns: repeat(9, minmax(0, 1fr));
+		}
+
+		.col-name {
+			grid-column: 2 / span 3;
+		}
+
+		.col-client {
+			grid-column: 5 / span 2;
+		}
+
+		.col-tags {
+			grid-column: 7 / span 2;
+		}
+
+		.col-year {
+			grid-column: 9;
+		}
+
+		.work-preview {
+			display: block;
+			position: absolute;
+			inset-block: 0;
+			inset-inline-end: var(--page-margin);
+			width: calc((100% - 2 * var(--page-margin) - 3 * var(--gutter)) / 4);
+			pointer-events: none;
+			opacity: 0;
+			transition: opacity 200ms var(--ease-out);
+		}
+
+		.work-preview__plate {
+			position: sticky;
+			top: max(var(--spacing-xl), 50vh - var(--plate-height) / 2);
+			height: var(--plate-height);
+			scale: 0.96;
+			transition: scale 450ms var(--ease-out);
+		}
+
+		.work-item:is(:hover, :has(.work-row__link:focus-visible)) .work-preview {
+			opacity: 1;
+		}
+
+		.work-item:is(:hover, :has(.work-row__link:focus-visible)) .work-preview__plate {
+			scale: 1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.work-preview,
+		.work-preview__plate {
+			transition: none;
+		}
+
+		.work-preview__plate {
+			scale: none;
+		}
+	}
+
+	@media (forced-colors: active) {
+		.work-filter a[aria-current="page"] {
+			text-decoration-thickness: 2px;
 		}
 	}
 </style>

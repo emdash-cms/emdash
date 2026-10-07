@@ -17,6 +17,7 @@ const seo = getSeoMeta(page, {
 	path: "/about",
 	defaultDescription: "Learn more about who we are and what we do.",
 });
+const content = page.data.content;
 ---
 
 <Base
@@ -28,164 +29,71 @@ const seo = getSeoMeta(page, {
 	robots={seo.robots}
 	content={{ collection: "pages", id: page.data.id, slug: "about" }}
 >
-	<div class="about-page">
-		<header class="about-header">
-			<h1 class="about-title" {...page.edit.title}>
+	<article class="frame about">
+		<header class="about__head">
+			<h1 class="about__title" {...page.edit.title}>
 				{page.data.title}
 			</h1>
 		</header>
 
-		<div class="about-content" {...page.edit.content}>
+		<div class="prose prose-hang about__body" {...page.edit.content}>
 			{
-				page.data.content ? (
-					<PortableText value={page.data.content} />
+				content && content.length > 0 ? (
+					<PortableText value={content} />
 				) : (
-					<p>Content coming soon.</p>
+					<p class="about__empty">Content coming soon.</p>
 				)
 			}
 		</div>
-
-		<aside class="about-sidebar">
-			<div class="sidebar-section">
-				<h3>Services</h3>
-				<ul>
-					<li>Brand Identity</li>
-					<li>Web Design & Development</li>
-					<li>Print Design</li>
-					<li>Photography & Art Direction</li>
-				</ul>
-			</div>
-
-			<div class="sidebar-section">
-				<h3>Contact</h3>
-				<p>
-					<a href="mailto:hello@studio.example">hello@studio.example</a>
-				</p>
-				<p>
-					<a href="/contact">Send us a message →</a>
-				</p>
-			</div>
-		</aside>
-	</div>
+	</article>
 </Base>
 
 <style>
-	.about-page {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: var(--spacing-2xl) var(--spacing-lg) var(--spacing-4xl);
-		display: grid;
-		grid-template-columns: 2fr 1fr;
-		grid-template-rows: auto 1fr;
-		gap: var(--spacing-4xl);
+	.about {
+		padding-block-start: var(--page-head-space);
 	}
 
-	.about-header {
-		grid-column: 1 / -1;
+	.about__head {
+		margin-block-end: clamp(2.5rem, 1.5rem + 4vw, 6rem);
 	}
 
-	.about-title {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-4xl);
+	.about__title {
+		font-size: var(--font-size-title);
 		font-weight: var(--font-weight-display);
-		line-height: var(--leading-tight);
+		line-height: var(--leading-none);
+		letter-spacing: var(--tracking-display);
+		text-wrap: balance;
+		overflow-wrap: anywhere;
 	}
 
-	.about-content {
-		font-size: var(--font-size-base);
-		line-height: var(--leading-relaxed);
+	.about__body {
+		--prose-media-column: 1 / -1;
 	}
 
-	.about-content :global(p) {
-		margin-bottom: 1.5em;
-	}
-
-	.about-content :global(h2) {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-2xl);
-		font-weight: var(--font-weight-heading);
-		margin-top: 2.5em;
-		margin-bottom: 0.75em;
-	}
-
-	.about-content :global(h3) {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-heading);
-		margin-top: 2em;
-		margin-bottom: 0.5em;
-	}
-
-	.about-sidebar {
-		position: sticky;
-		top: var(--spacing-xl);
-		align-self: start;
-	}
-
-	.sidebar-section {
-		margin-bottom: var(--spacing-2xl);
-	}
-
-	.sidebar-section h3 {
-		font-family: var(--font-heading);
-		font-size: var(--font-size-lg);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-md);
-	}
-
-	.sidebar-section ul {
-		list-style: none;
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-	}
-
-	.sidebar-section li {
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.sidebar-section p {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.sidebar-section a {
+	/* The opening paragraph is the page's lead. */
+	.about__body > :global(p:first-child:not(.about__empty)) {
+		max-width: none;
 		color: var(--color-text);
-		text-decoration: none;
-		transition: color var(--transition-fast);
+		font-size: var(--font-size-2xl);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-tight);
 	}
 
-	.sidebar-section a:hover {
-		color: var(--color-brand);
+	.about__body > :global(p:first-child + :is(p, ul, ol)) {
+		margin-block-start: var(--prose-media);
 	}
 
-	@media (max-width: 768px) {
-		.about-page {
-			grid-template-columns: 1fr;
-			gap: var(--spacing-2xl);
-		}
+	.about__empty {
+		grid-column: 1 / -1;
+		color: var(--color-muted);
+	}
 
-		.about-title {
+	@media (min-width: 1024px) {
+		.about__body > :global(p:first-child:not(.about__empty)) {
+			grid-column: 1 / 11;
 			font-size: var(--font-size-3xl);
-		}
-
-		.about-sidebar {
-			position: static;
-			display: grid;
-			grid-template-columns: repeat(2, 1fr);
-			gap: var(--spacing-xl);
-			padding-top: var(--spacing-xl);
-			border-top: 1px solid var(--color-border);
-		}
-
-		.sidebar-section {
-			margin-bottom: 0;
-		}
-	}
-
-	@media (max-width: 480px) {
-		.about-sidebar {
-			grid-template-columns: 1fr;
+			line-height: 1.1;
 		}
 	}
 </style>
