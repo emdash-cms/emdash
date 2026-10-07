@@ -13,6 +13,16 @@ describe("test plan", () => {
 		for (const lane of TEST_LANES) assert.equal(plan[lane], false, lane);
 	});
 
+	it("does not run test lanes for issue and Discussion form changes", () => {
+		const plan = createTestPlan([
+			".github/ISSUE_TEMPLATE/bug_report.yml",
+			".github/DISCUSSION_TEMPLATE/ideas.yml",
+		]);
+
+		assert.equal(plan.full, false);
+		for (const lane of TEST_LANES) assert.equal(plan[lane], false, lane);
+	});
+
 	it("identifies proposal-only design changes", () => {
 		const design = createTestPlan(["proposals/content-locking.md", "proposals/README.md"]);
 		assert.equal(design.design_only, true);

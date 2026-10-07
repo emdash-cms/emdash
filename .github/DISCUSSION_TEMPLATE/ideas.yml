@@ -1,0 +1,37 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem you want EmDash to solve. You don't need to design or implement the solution. A bounded feature can go straight to a feature-plan design PR; a broader change starts here before its RFC. See [Feature plans and RFCs](https://github.com/emdash-cms/emdash/blob/main/proposals/README.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you do today, or what is harder than it should be?
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: Describe the site, workflow, or integration where you hit this, and who is affected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workarounds
+    attributes:
+      label: Current workarounds
+      description: How do you handle this today? Could a plugin cover it?
+
+  - type: checkboxes
+    id: involvement
+    attributes:
+      label: Your involvement
+      description: Check every option that applies.
+      options:
+        - label: I am requesting this capability.
+        - label: I am offering to champion the design in a feature plan or RFC.
+        - label: I am offering to implement it after the design is accepted.

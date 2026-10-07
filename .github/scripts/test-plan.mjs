@@ -22,7 +22,7 @@ export const TEST_LANES = [
 
 const BROWSER_SUITES = ["browser_admin", "browser_embeds", "browser_release"];
 const REPOSITORY_METADATA_PATTERN =
-	/^\.github\/(?:dependabot\.yml|bonk-models\.json|codeql-config\.yml|zizmor\.yml)$/;
+	/^\.github\/(?:dependabot\.yml|codeql-config\.yml|zizmor\.yml)$/;
 const UNIT_PACKAGE_PATH_PATTERN =
 	/^packages\/(?:blocks|gutenberg-to-portable-text|plugin-(?:cli|types)|registry-(?:client|lexicons|moderation|verification))\//;
 
@@ -86,7 +86,8 @@ const RULES = [
 			path.startsWith("docs/") ||
 			path.startsWith("skills/") ||
 			path.startsWith(".changeset/") ||
-			path.startsWith(".github/ISSUE_TEMPLATE/"),
+			path.startsWith(".github/ISSUE_TEMPLATE/") ||
+			path.startsWith(".github/DISCUSSION_TEMPLATE/"),
 		lanes: [],
 	},
 	{
