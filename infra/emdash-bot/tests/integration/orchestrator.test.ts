@@ -267,6 +267,175 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(graphqlRequests).toBe(1);
 	});
 
+	describe("automatic PR repairs", () => {
+		const instances: Array<ReturnType<TestEnv["Orchestrator"]["getByName"]>> = [];
+
+		afterEach(async () => {
+			for (const stub of instances.splice(0)) {
+				await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+			}
+		});
+
+		function orchestrator(): ReturnType<TestEnv["Orchestrator"]["getByName"]> {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			instances.push(stub);
+			return stub;
+		}
+
+		function stubPullRequest(pullRequest: () => Record<string, unknown>): {
+			comments: string[];
+			graphqlRequests: () => number;
+		} {
+			testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+			const comments: string[] = [];
+			let graphqlRequests = 0;
+			vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				const method = (init?.method ?? "GET").toUpperCase();
+				if (method === "POST" && url.endsWith("/graphql")) {
+					graphqlRequests += 1;
+					return Promise.resolve(
+						Response.json({ data: { repository: { pullRequest: pullRequest() } } }),
+					);
+				}
+				if (method === "POST" && url.endsWith("/comments")) {
+					comments.push(typeof init?.body === "string" ? init.body : "");
+					return Promise.resolve(Response.json({ id: 501 }));
+				}
+				if (url.includes("/issues/42/labels?")) {
+					return Promise.resolve(Response.json([{ name: "bot:in-review" }, { name: "bot:bug" }]));
+				}
+				return Promise.resolve(Response.json({}));
+			});
+			return { comments, graphqlRequests: () => graphqlRequests };
+		}
+
+		function openPullRequest(overrides: Record<string, unknown>): Record<string, unknown> {
+			return {
+				number: 99,
+				state: "OPEN",
+				isDraft: false,
+				merged: false,
+				mergeable: "MERGEABLE",
+				headRefOid: "head-a",
+				reviewDecision: null,
+				commits: {
+					nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [] } } } }],
+				},
+				...overrides,
+			};
+		}
+
+		const failingTypecheck = {
+			commits: {
+				nodes: [
+					{
+						commit: {
+							statusCheckRollup: {
+								state: "FAILURE",
+								contexts: {
+									nodes: [{ name: "Typecheck", status: "COMPLETED", conclusion: "FAILURE" }],
+								},
+							},
+						},
+					},
+				],
+			},
+		};
+
+		async function primeInReview(
+			stub: ReturnType<TestEnv["Orchestrator"]["getByName"]>,
+			extra: Record<string, unknown> = {},
+		): Promise<void> {
+			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:prPollNextAt": Date.now() - 1_000,
+					"o:state": "in_review",
+					"o:kind": "bug",
+					...extra,
+				});
+			});
+		}
+
+		test("a change request handled during a revision is not repaired again after it pushes", async () => {
+			let head = "head-a";
+			stubPullRequest(() =>
+				openPullRequest({
+					headRefOid: head,
+					reviewDecision: "CHANGES_REQUESTED",
+					latestOpinionatedReviews: { nodes: [{ databaseId: 5, state: "CHANGES_REQUESTED" }] },
+				}),
+			);
+			const stub = orchestrator();
+			await primeInReview(stub);
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+
+			expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+
+			head = "head-b";
+			await runInDurableObject(stub, async (_instance, state) => {
+				const run = await state.storage.get<Record<string, unknown>>("o:runLifecycle");
+				await state.storage.put({
+					"o:runLifecycle": { ...run, status: "succeeded" },
+					"o:prPollNextAt": Date.now() - 1_000,
+				});
+			});
+			expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+			expect((await stub.getPersistedState()).state).toBe("in_review");
+		});
+
+		test("hands the issue to a maintainer once the automatic repairs are used up", async () => {
+			const github = stubPullRequest(() => openPullRequest(failingTypecheck));
+			const stub = orchestrator();
+			await primeInReview(stub, { "o:prRepairCount": 3 });
+
+			expect((await stub.tick()).pullRequestPoll).toBe("exhausted");
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(github.comments.join("\n")).toContain("3 automatic repairs");
+			expect(github.comments.join("\n")).toContain("Typecheck");
+
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put("o:prPollNextAt", Date.now() - 1_000);
+			});
+			expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+			expect(github.comments).toHaveLength(1);
+		});
+
+		test("a green pull request resets the automatic repair count", async () => {
+			stubPullRequest(() => openPullRequest({}));
+			const stub = orchestrator();
+			await primeInReview(stub, { "o:prRepairCount": 2 });
+
+			expect((await stub.tick()).pullRequestPoll).toBe("green");
+			const count = await runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<number>("o:prRepairCount"),
+			);
+			expect(count).toBeUndefined();
+		});
+
+		test("a maintainer action resets the automatic repair count", async () => {
+			const stub = orchestrator();
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:state": "needs_attention",
+					"o:kind": "bug",
+					"o:prRepairCount": 3,
+				});
+			});
+
+			await stub.event(makeEvent({ event: "take_over", arg: null, actor: "maintainer" }));
+			const count = await runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<number>("o:prRepairCount"),
+			);
+			expect(count).toBeUndefined();
+		});
+	});
+
 	test.each([
 		["pr.closed", "blocked"],
 		["pr.merged", "done"],

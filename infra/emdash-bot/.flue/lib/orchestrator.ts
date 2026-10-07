@@ -19,6 +19,7 @@ import {
 	renderPullRequestBody,
 	renderVerifiedThanks,
 	renderReadonlyReply,
+	renderRepairsExhausted,
 	shouldPostReadonlyReply,
 } from "./comments.js";
 import { githubRateLimitGate } from "./github-rate-limit-client.js";
@@ -61,7 +62,7 @@ import {
 } from "./issue-context.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
 import { branchesToReap, previewUrl, probePreviewReady } from "./preview.js";
-import { assessPullRequest } from "./pull-request-monitor.js";
+import { assessPullRequest, MAX_AUTOMATIC_REPAIRS } from "./pull-request-monitor.js";
 import {
 	currentState,
 	type Decision,
@@ -319,6 +320,7 @@ const STORAGE = {
 	prStatus: "o:prStatus",
 	prPollNextAt: "o:prPollNextAt",
 	prRepairFingerprint: "o:prRepairFingerprint",
+	prRepairCount: "o:prRepairCount",
 	prGreenHeadSha: "o:prGreenHeadSha",
 	eventLog: "o:eventLog",
 	seenDeliveries: "o:seenDeliveries",
@@ -1456,14 +1458,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async pollPullRequest(now: number): Promise<PullRequestPollOutcome> {
-		const [state, prNumber, nextAt, lastRepairFingerprint, greenHeadSha, run] = await Promise.all([
-			this.ctx.storage.get<StateId>(STORAGE.state),
-			this.ctx.storage.get<number>(STORAGE.prNumber),
-			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
-			this.ctx.storage.get<string>(STORAGE.prRepairFingerprint),
-			this.ctx.storage.get<string>(STORAGE.prGreenHeadSha),
-			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
-		]);
+		const [state, prNumber, nextAt, lastRepairFingerprint, repairCount, greenHeadSha, run] =
+			await Promise.all([
+				this.ctx.storage.get<StateId>(STORAGE.state),
+				this.ctx.storage.get<number>(STORAGE.prNumber),
+				this.ctx.storage.get<number>(STORAGE.prPollNextAt),
+				this.ctx.storage.get<string>(STORAGE.prRepairFingerprint),
+				this.ctx.storage.get<number>(STORAGE.prRepairCount),
+				this.ctx.storage.get<string>(STORAGE.prGreenHeadSha),
+				this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+			]);
 		if (
 			prNumber === undefined ||
 			(state !== "in_review" && state !== "needs_attention") ||
@@ -1498,7 +1502,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			throw error;
 		}
 		await this.ctx.storage.put(STORAGE.prStatus, status);
-		const assessment = assessPullRequest(status, lastRepairFingerprint ?? null);
+		const assessment = assessPullRequest(status, lastRepairFingerprint ?? null, repairCount ?? 0);
 		if (assessment.kind === "merged" || assessment.kind === "closed") {
 			await this.ctx.storage.delete(STORAGE.prPollNextAt);
 			await this.processEvent({
@@ -1516,6 +1520,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await Promise.all([
 				this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS),
 				this.ctx.storage.delete(STORAGE.prRepairFingerprint),
+				this.ctx.storage.delete(STORAGE.prRepairCount),
 				this.ctx.storage.put(STORAGE.prGreenHeadSha, status.headSha),
 			]);
 			if (state === "in_review" && greenHeadSha !== status.headSha) {
@@ -1531,13 +1536,44 @@ export class OrchestratorDO extends DurableObject<Env> {
 			}
 			return "green";
 		}
-		if (assessment.kind === "repair") {
-			if (run?.status === "running") {
-				await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS);
-				return "waiting";
-			}
+		// The run in flight was started for what is visible now; recording it
+		// stops the same change request being repaired again once it pushes.
+		if (
+			(assessment.kind === "repair" || assessment.kind === "exhausted") &&
+			run?.status === "running"
+		) {
 			await Promise.all([
 				this.ctx.storage.put(STORAGE.prRepairFingerprint, assessment.fingerprint),
+				this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS),
+			]);
+			return "waiting";
+		}
+		if (assessment.kind === "exhausted") {
+			await Promise.all([
+				this.ctx.storage.put(STORAGE.prRepairFingerprint, assessment.fingerprint),
+				this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS),
+			]);
+			if (state === "in_review") {
+				await this.processEvent({
+					event: "agent.failed",
+					arg: null,
+					actor: "system",
+					labels: await this.projectLabels(),
+					needsClassify: false,
+					pullRequestNumber: prNumber,
+					commentBodyOverride: renderRepairsExhausted({
+						pullRequestNumber: prNumber,
+						repairs: MAX_AUTOMATIC_REPAIRS,
+						summary: assessment.summary,
+					}),
+				});
+			}
+			return "exhausted";
+		}
+		if (assessment.kind === "repair") {
+			await Promise.all([
+				this.ctx.storage.put(STORAGE.prRepairFingerprint, assessment.fingerprint),
+				this.ctx.storage.put(STORAGE.prRepairCount, (repairCount ?? 0) + 1),
 				this.ctx.storage.delete(STORAGE.prPollNextAt),
 				this.ctx.storage.delete(STORAGE.prGreenHeadSha),
 			]);
@@ -3189,16 +3225,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 				);
 			}
 			if (decision.event === "pr.updated" || decision.event === "agent.revised") {
-				puts.push(
-					transaction.delete(STORAGE.prRepairFingerprint),
-					transaction.delete(STORAGE.prStatus),
-					transaction.delete(STORAGE.prGreenHeadSha),
-				);
+				puts.push(transaction.delete(STORAGE.prStatus), transaction.delete(STORAGE.prGreenHeadSha));
 			}
+			if (input.actor !== "system") puts.push(transaction.delete(STORAGE.prRepairCount));
 			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
 				const pullRequest = await transaction.get<PullRequestStatus>(STORAGE.prStatus);
 				puts.push(transaction.delete(STORAGE.prPollNextAt));
 				puts.push(transaction.delete(STORAGE.prGreenHeadSha));
+				puts.push(transaction.delete(STORAGE.prRepairCount));
 				if (pullRequest) {
 					puts.push(
 						transaction.put(STORAGE.prStatus, {
@@ -4217,6 +4251,7 @@ export type PullRequestPollOutcome =
 	| "idle"
 	| "waiting"
 	| "repairing"
+	| "exhausted"
 	| "green"
 	| "merged"
 	| "closed";

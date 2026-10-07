@@ -300,6 +300,71 @@ describe("GitHub pull request lookup", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
+	test("reads change requests, the bot's latest review, and failures on the base branch", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				jsonResponse({
+					data: {
+						repository: {
+							pullRequest: {
+								number: 99,
+								state: "OPEN",
+								merged: false,
+								mergeable: "MERGEABLE",
+								headRefOid: "abc123",
+								reviewDecision: "CHANGES_REQUESTED",
+								latestOpinionatedReviews: {
+									nodes: [
+										{ databaseId: 12, state: "CHANGES_REQUESTED" },
+										{ databaseId: 9, state: "APPROVED" },
+										{ databaseId: 11, state: "CHANGES_REQUESTED" },
+									],
+								},
+								reviews: {
+									nodes: [
+										{
+											author: { login: "emdashbot" },
+											body: "Older finding",
+											commit: { oid: "old000" },
+										},
+										{ author: { login: "alice" }, body: "Looks fine", commit: { oid: "abc123" } },
+										{
+											author: { login: "emdashbot" },
+											body: "Blocking: the cursor overflows",
+											commit: { oid: "abc123" },
+										},
+									],
+								},
+								baseRef: {
+									target: {
+										statusCheckRollup: {
+											contexts: {
+												nodes: [
+													{ name: "Tests", status: "COMPLETED", conclusion: "FAILURE" },
+													{ name: "Typecheck", status: "COMPLETED", conclusion: "SUCCESS" },
+													{ context: "Preview", state: "ERROR" },
+												],
+											},
+										},
+									},
+								},
+								commits: { nodes: [] },
+							},
+						},
+					},
+				}),
+			),
+		);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			review: "changes-requested",
+			changesRequestedReviewIds: [11, 12],
+			latestBotReview: { body: "Blocking: the cursor overflows", commitSha: "abc123" },
+			baseFailingChecks: ["Preview", "Tests"],
+		});
+	});
+
 	test("keeps PR monitoring pending when the status rollup is incomplete", async () => {
 		vi.stubGlobal(
 			"fetch",

@@ -348,6 +348,21 @@ export function renderVerifiedThanks(input: {
 	return `Thanks for confirming the change works! I've marked the issue as verified, and a maintainer will review ${target}.`;
 }
 
+/** Why the bot stopped repairing its own PR. */
+export function renderRepairsExhausted(input: {
+	pullRequestNumber: number;
+	repairs: number;
+	summary: string;
+}): string {
+	return [
+		`I've stopped after ${input.repairs} automatic repairs of #${input.pullRequestNumber} without getting it green. What still needs attention:`,
+		"",
+		input.summary,
+		"",
+		`A maintainer can comment on #${input.pullRequestNumber} with \`@emdashbot\` and what to change, or take it over.`,
+	].join("\n");
+}
+
 function pullRequestLink(owner: string, repo: string, pullRequestNumber: number): string {
 	return `[PR #${pullRequestNumber}](https://github.com/${owner}/${repo}/pull/${pullRequestNumber})`;
 }

@@ -620,9 +620,17 @@ export interface PullRequestStatus {
 	readonly failingChecks: ReadonlyArray<{ name: string; url: string | null }>;
 	readonly pendingChecks: string[];
 	readonly updatedAt: string;
+	/** Ids of the reviews currently requesting changes, ascending. */
+	readonly changesRequestedReviewIds?: readonly number[];
+	/** Checks failing on the base branch's head, so not caused by this PR. */
+	readonly baseFailingChecks?: readonly string[];
+	/** The bot's own most recent review, and the commit it reviewed. */
+	readonly latestBotReview?: { readonly body: string; readonly commitSha: string | null } | null;
 }
 
 const PASSING_CHECK_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
+// GraphQL reports an app's login without the `[bot]` suffix that REST uses.
+const BOT_REVIEW_LOGINS: ReadonlySet<string> = new Set(["emdashbot", "emdashbot[bot]"]);
 const FAILING_CHECK_CONCLUSIONS = new Set([
 	"action_required",
 	"cancelled",
@@ -645,6 +653,22 @@ export async function getPullRequestStatus(
 				repository(owner: $owner, name: $repo) {
 					pullRequest(number: $number) {
 						number url state isDraft merged mergeable headRefOid reviewDecision updatedAt
+						latestOpinionatedReviews(first: 50) { nodes { databaseId state } }
+						reviews(last: 20) { nodes { author { login } body commit { oid } } }
+						baseRef {
+							target {
+								... on Commit {
+									statusCheckRollup {
+										contexts(first: 100) {
+											nodes {
+												... on CheckRun { name status conclusion }
+												... on StatusContext { context state }
+											}
+										}
+									}
+								}
+							}
+						}
 						commits(last: 1) {
 							nodes {
 								commit {
@@ -680,6 +704,23 @@ export async function getPullRequestStatus(
 					headRefOid?: string;
 					reviewDecision?: string | null;
 					updatedAt?: string;
+					latestOpinionatedReviews?: {
+						nodes?: Array<{ databaseId?: number | null; state?: string } | null>;
+					};
+					reviews?: {
+						nodes?: Array<{
+							author?: { login?: string } | null;
+							body?: string;
+							commit?: { oid?: string } | null;
+						} | null>;
+					};
+					baseRef?: {
+						target?: {
+							statusCheckRollup?: {
+								contexts?: { nodes?: Array<Record<string, unknown>> };
+							} | null;
+						} | null;
+					} | null;
 					commits?: {
 						nodes?: Array<{
 							commit?: {
@@ -700,34 +741,24 @@ export async function getPullRequestStatus(
 	if (!pull) throw new GitHubPullRequestNotFoundError(prNumber);
 	if (!pull.headRefOid) throw new Error("getPullRequestStatus response had no head SHA");
 	const rollup = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup;
-	const contexts = rollup?.contexts?.nodes ?? [];
-
-	const failingChecks: Array<{ name: string; url: string | null }> = [];
-	const pendingChecks: string[] = [];
-	let passingCount = 0;
-	for (const context of contexts) {
-		if (typeof context.name === "string") {
-			const status = typeof context.status === "string" ? context.status.toLowerCase() : "";
-			const conclusion =
-				typeof context.conclusion === "string" ? context.conclusion.toLowerCase() : null;
-			if (status !== "completed" || conclusion === null) pendingChecks.push(context.name);
-			else if (FAILING_CHECK_CONCLUSIONS.has(conclusion)) {
-				failingChecks.push({
-					name: context.name,
-					url: typeof context.detailsUrl === "string" ? context.detailsUrl : null,
-				});
-			} else if (PASSING_CHECK_CONCLUSIONS.has(conclusion)) passingCount += 1;
-		} else if (typeof context.context === "string") {
-			const state = typeof context.state === "string" ? context.state.toLowerCase() : "";
-			if (state === "pending" || state === "expected") pendingChecks.push(context.context);
-			else if (state === "failure" || state === "error") {
-				failingChecks.push({
-					name: context.context,
-					url: typeof context.targetUrl === "string" ? context.targetUrl : null,
-				});
-			} else if (state === "success") passingCount += 1;
-		}
-	}
+	const { failingChecks, pendingChecks, passingCount } = classifyCheckContexts(
+		rollup?.contexts?.nodes ?? [],
+	);
+	const baseFailingChecks = classifyCheckContexts(
+		pull.baseRef?.target?.statusCheckRollup?.contexts?.nodes ?? [],
+	)
+		.failingChecks.map(({ name }) => name)
+		.toSorted();
+	const changesRequestedReviewIds = (pull.latestOpinionatedReviews?.nodes ?? [])
+		.flatMap((node) =>
+			node?.state === "CHANGES_REQUESTED" && typeof node.databaseId === "number"
+				? [node.databaseId]
+				: [],
+		)
+		.toSorted((left, right) => left - right);
+	const botReview = (pull.reviews?.nodes ?? []).findLast((node) =>
+		BOT_REVIEW_LOGINS.has(node?.author?.login ?? ""),
+	);
 	const rollupState = rollup?.state?.toLowerCase();
 	const checks =
 		failingChecks.length > 0
@@ -761,7 +792,46 @@ export async function getPullRequestStatus(
 		failingChecks,
 		pendingChecks,
 		updatedAt: pull.updatedAt ?? new Date().toISOString(),
+		changesRequestedReviewIds,
+		baseFailingChecks,
+		latestBotReview: botReview
+			? { body: botReview.body ?? "", commitSha: botReview.commit?.oid ?? null }
+			: null,
 	};
+}
+
+function classifyCheckContexts(contexts: ReadonlyArray<Record<string, unknown>>): {
+	failingChecks: Array<{ name: string; url: string | null }>;
+	pendingChecks: string[];
+	passingCount: number;
+} {
+	const failingChecks: Array<{ name: string; url: string | null }> = [];
+	const pendingChecks: string[] = [];
+	let passingCount = 0;
+	for (const context of contexts) {
+		if (typeof context.name === "string") {
+			const status = typeof context.status === "string" ? context.status.toLowerCase() : "";
+			const conclusion =
+				typeof context.conclusion === "string" ? context.conclusion.toLowerCase() : null;
+			if (status !== "completed" || conclusion === null) pendingChecks.push(context.name);
+			else if (FAILING_CHECK_CONCLUSIONS.has(conclusion)) {
+				failingChecks.push({
+					name: context.name,
+					url: typeof context.detailsUrl === "string" ? context.detailsUrl : null,
+				});
+			} else if (PASSING_CHECK_CONCLUSIONS.has(conclusion)) passingCount += 1;
+		} else if (typeof context.context === "string") {
+			const state = typeof context.state === "string" ? context.state.toLowerCase() : "";
+			if (state === "pending" || state === "expected") pendingChecks.push(context.context);
+			else if (state === "failure" || state === "error") {
+				failingChecks.push({
+					name: context.context,
+					url: typeof context.targetUrl === "string" ? context.targetUrl : null,
+				});
+			} else if (state === "success") passingCount += 1;
+		}
+	}
+	return { failingChecks, pendingChecks, passingCount };
 }
 
 export async function getPullRequestHeadBranch(
