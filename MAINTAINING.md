@@ -19,6 +19,8 @@ An approval applies to the reviewed revision. A later substantive commit require
 
 Project Team reviews, automated reviews, test results, and static analysis help the human reviewer. They do not replace Maintainer approval. A bot with repository permissions is still a bot, not a Maintainer.
 
+An approval means the approving Maintainer reviewed and verified the change themselves. An agent-written review, including one posted from the Maintainer's own account under the [AI usage policy](AI_POLICY.md#implementation-pull-request-comments-and-reviews), is evidence for that decision, not a substitute for it.
+
 ## Changes that require two approvals
 
 The following changes require approval from two human Maintainers other than the author:

@@ -168,7 +168,7 @@ Do not open prototype or draft implementation PRs against EmDash while the desig
 
 AI-assisted contributions are welcome. The human submitter remains responsible for the change, reviews the complete output, tests it, and discloses the models or tools used.
 
-Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue or pull request or to participate in project communication. Agents cannot comment on issues, Discussions, or design PRs. Their participation in implementation-PR conversation is limited to explicitly requested code review and replies to code review.
+Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue or pull request or to participate in project communication. Agents cannot open design PRs or comment on issues, Discussions, or design PRs. Their participation in implementation-PR conversation is limited to explicitly requested code review and replies to code review.
 
 ### Interface screenshots
 

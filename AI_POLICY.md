@@ -8,7 +8,7 @@ This policy covers generative AI agents. Ordinary CI automation, dependency upda
 
 - Disclose material AI assistance and name the model or tool used.
 - Review all generated work before submitting it. Inspect the complete diff, run the relevant tests, and exercise changed behavior yourself.
-- Authorise each external action separately. An agent can open a particular pull request or issue only after a human explicitly authorises that item.
+- Authorise each external action separately. An agent can open a particular implementation pull request or issue only after a human explicitly authorises that item.
 - Do not give an agent standing permission to choose work and open pull requests or issues. Autonomous contribution agents such as Claws are not permitted.
 - Do not use an agent to reply to a human except for the implementation-pull-request review cases permitted below.
 
@@ -32,7 +32,7 @@ Explain your connection to the change and how you verified it in the pull reques
 
 AI-generated code is held to the same quality standard as human-written code. The submitter must understand, review, test, and be able to maintain the change.
 
-An agent can create commits, draft a pull request description, and open a pull request under direct human control. The human must authorise that specific pull request and review the complete change before submission.
+An agent can create commits, draft a pull request description, and open an implementation pull request under direct human control. The human must authorise that specific pull request and review the complete change before submission.
 
 Use the repository pull request template and complete every applicable section. The AI disclosure names every model or tool that materially generated code or pull request text. The template disclosure is sufficient for the pull request body; it does not need a separate bot signature.
 
@@ -48,9 +48,9 @@ Agents must not write or post comments or replies on issues after they are opene
 
 AI can help prepare the initial text of a proposal for a Discussion. Before posting it, a human must review and edit it for correctness, coherence, and length, disclose the assistance, and post it manually.
 
-Agents and bots must not write or post comments or replies in Discussions. Discussions are spaces for direct human deliberation, including comments on proposals.
+AI agents and AI bots must not write or post comments or replies in Discussions. Discussions are spaces for direct human deliberation, including comments on proposals. Deterministic repository automation can post status updates, such as linking a Discussion to its design pull request.
 
-AI can help prepare the initial proposal in a design pull request under the same human-review and disclosure rules. All reviews, comments, and replies on design pull requests must be written and posted by humans. Automated AI reviewers skip design pull requests.
+AI can help prepare the initial proposal in a design pull request under the same rules: a human reviews and edits it, discloses the assistance, and opens the pull request manually. An agent must not open a design pull request. All reviews, comments, and replies on design pull requests must be written and posted by humans. Automated AI reviewers skip design pull requests.
 
 ## Implementation pull request comments and reviews
 
@@ -69,6 +69,8 @@ Sign every substantially agent-written review, inline comment, and review reply 
 > ~ 🤖 Agent name (model name)
 
 Name the actual model used. Add the signature to each agent-written comment rather than only the final comment in a thread.
+
+A Maintainer's approval means the Maintainer reviewed and verified the change themselves. An agent-written review, including one posted from the Maintainer's own account, is evidence for that decision, not a substitute for it.
 
 ## Project-operated bots
 
