@@ -426,19 +426,57 @@ export function getEditMeta(value: unknown): EditFieldMeta | undefined {
 	return undefined;
 }
 
+/** Slugs of a collection's Portable Text fields; empty when they can't be read. */
+function getPortableTextFieldSlugs(collection: string): Promise<ReadonlySet<string>> {
+	return requestCached(`portable-text-fields:${collection}`, async () => {
+		try {
+			const { getDb } = await import("./loader.js");
+			const db = await getDb();
+			const rows = await db
+				.selectFrom("_emdash_fields as f")
+				.innerJoin("_emdash_collections as c", "c.id", "f.collection_id")
+				.select("f.slug")
+				.where("c.slug", "=", collection)
+				.where("f.type", "=", "portableText")
+				.execute();
+			return new Set(rows.map((row) => row.slug));
+		} catch (error) {
+			if (!isMissingTableError(error)) {
+				const msg = error instanceof Error ? error.message : String(error);
+				console.warn("[emdash] Failed to load Portable Text fields:", msg);
+			}
+			return new Set<string>();
+		}
+	});
+}
+
 /**
  * Tag PT-like arrays in entry data with edit metadata (non-enumerable).
  * A PT array is identified by: is an array, first element has _type property.
+ * An empty one is identified by its field being in `portableTextFields`, and
+ * a missing or blank one becomes an empty array, so the page can still render
+ * an editor for it.
  */
-function tagEditableFields(data: Record<string, unknown>, collection: string, id: string): void {
+function tagEditableFields(
+	data: Record<string, unknown>,
+	collection: string,
+	id: string,
+	portableTextFields: ReadonlySet<string> = new Set(),
+): void {
+	for (const field of portableTextFields) {
+		const value = data[field];
+		if (value == null || (typeof value === "string" && !value.trim())) {
+			data[field] = [];
+		}
+	}
 	for (const [field, value] of Object.entries(data)) {
-		if (
-			Array.isArray(value) &&
-			value.length > 0 &&
-			value[0] &&
-			typeof value[0] === "object" &&
-			"_type" in value[0]
-		) {
+		if (!Array.isArray(value)) continue;
+		const first: unknown = value[0];
+		const isPortableText =
+			value.length === 0
+				? portableTextFields.has(field)
+				: typeof first === "object" && first !== null && "_type" in first;
+		if (isPortableText) {
 			Object.defineProperty(value, EMDASH_EDIT, {
 				value: { collection, id, field } satisfies EditFieldMeta,
 				enumerable: false,
@@ -939,10 +977,12 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const hasMoreResult = requestedLimit != null && requestedLimit > 0 ? hasMore : undefined;
 
 	const isEditMode = ctx?.editMode ?? false;
+	const portableTextFields =
+		isEditMode && pageEntries.length > 0 ? await getPortableTextFieldSlugs(type) : undefined;
 	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
 		const dbId = entryDatabaseId(entry);
 		if (isEditMode) {
-			tagEditableFields(entryData(entry), type, dbId);
+			tagEditableFields(entryData(entry), type, dbId, portableTextFields);
 		}
 		if (!canExposeRevisionMetadata(entry, type)) {
 			stripRevisionMetadata(entry);
@@ -1159,12 +1199,13 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	// Resolve locale: explicit option > ALS context > undefined (no filter)
 	const requestedLocale = options?.locale ?? ctx?.locale;
 	const references = options?.references;
+	const portableTextFields = isEditMode ? await getPortableTextFieldSlugs(type) : undefined;
 
 	/** Wrap a raw Astro entry with edit proxy, tagging editable fields if needed */
 	function wrapEntry(raw: ContentEntry<D>): ContentEntry<D> {
 		const dbId = entryDatabaseId(raw);
 		if (isEditMode) {
-			tagEditableFields(entryData(raw), type, dbId);
+			tagEditableFields(entryData(raw), type, dbId, portableTextFields);
 		}
 		return {
 			...raw,

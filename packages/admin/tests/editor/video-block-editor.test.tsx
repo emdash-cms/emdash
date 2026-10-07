@@ -1,6 +1,6 @@
 /**
- * Video block editing through the full editor: adding an empty block from
- * /video and filling it, the caption, the Replace and Delete actions, keyboard
+ * Video block editing through the full editor: adding a video from /video
+ * and the add-block menu, the caption, the Replace and Delete actions, keyboard
  * order, the broken state, the clipboard, plugin video blocks, and conversion.
  */
 
@@ -79,7 +79,12 @@ vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
 		editor: Editor;
 		onInsertBlock?: (position: number) => void;
 	}) => (
-		<button type="button" onClick={() => onInsertBlock?.(editor.state.doc.content.size)}>
+		<button
+			type="button"
+			// Like the real insert button, a click leaves focus in the editor.
+			onMouseDown={(event) => event.preventDefault()}
+			onClick={() => onInsertBlock?.(editor.state.doc.content.size)}
+		>
 			Test gutter insert
 		</button>
 	),
@@ -266,12 +271,13 @@ describe("Video block editor", () => {
 		await userEvent.keyboard("{Enter}");
 	}
 
-	it("adds a video from /video through the picker that opens right away", async () => {
+	it("adds a video from /video once one is chosen in the picker", async () => {
 		picker.item = mediaItem("01VIDEO", playableUrl);
 		const { screen, editor, pm, latest } = await renderEditor({ value: [INTRO] });
 
 		await insertFromSlashMenu(editor);
 		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
+		expect(blockTexts(editor)).toEqual(["Intro", ""]);
 		await userEvent.click(screen.getByRole("button", { name: "Choose video" }));
 
 		await vi.waitFor(() =>
@@ -285,47 +291,31 @@ describe("Video block editor", () => {
 				},
 			]),
 		);
+		expect(blockTexts(editor)).toEqual(["Intro", "videoBlock", ""]);
 		expect(player().getAttribute("src")).toBe(playableUrl);
 		expect(selectedNodeName(editor)).toBe("videoBlock");
 		expect(document.activeElement).toBe(pm);
 	});
 
-	it("keeps an empty block to fill later when the picker that opened is closed", async () => {
+	it("adds nothing from /video when the picker is closed", async () => {
 		const { screen, editor, pm, latest } = await renderEditor({ value: [INTRO] });
 
 		await insertFromSlashMenu(editor);
 		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+		await settle();
 
-		await expect
-			.element(screen.getByRole("button", { name: "Upload or choose a video" }))
-			.toBeVisible();
-		await vi.waitFor(() =>
-			expect(videos(latest())).toEqual([{ _type: "video", _key: expect.any(String) }]),
-		);
-		expect(selectedNodeName(editor)).toBe("videoBlock");
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+		expect(blockTexts(editor)).toEqual(["Intro", ""]);
+		expect(videos(latest())).toEqual([]);
 		expect(document.activeElement).toBe(pm);
-		await userEvent.keyboard("{Enter}");
-		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
 	});
 
-	it("opens the picker when an empty block is clicked, and stays empty when it's cancelled", async () => {
-		const empty: Block = { _type: "video", _key: "video1" };
-		const { screen, editor, latest } = await renderEditor({ value: [INTRO, empty] });
-		expect(document.querySelector('[role="dialog"]')).toBeNull();
-
-		await userEvent.click(screen.getByRole("button", { name: "Upload or choose a video" }));
-		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
-		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-		expect(document.querySelector('[role="dialog"]')).toBeNull();
-		expect(selectedNodeName(editor)).toBe("videoBlock");
-		expect(videos(latest())).toEqual([empty]);
-	});
-
-	it("undoes an empty block added from the gutter in one step", async () => {
+	it("adds a video chosen from the gutter where its line was, and undoes it in one step", async () => {
+		picker.item = mediaItem("01VIDEO", playableUrl);
 		const { screen, editor } = await renderEditor({ value: [INTRO] });
 		const before = editor.getJSON();
 
+		editor.view.focus();
 		await screen.getByRole("button", { name: "Test gutter insert" }).click();
 		const menu = await vi.waitFor(() => {
 			const element = document.querySelector<HTMLElement>("[data-slash-command-menu]");
@@ -336,30 +326,48 @@ describe("Video block editor", () => {
 			(button) => button.querySelector("[data-slash-item-title]")?.textContent === "Video",
 		);
 		item!.click();
-		await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-		await expect
-			.element(screen.getByRole("button", { name: "Upload or choose a video" }))
-			.toBeVisible();
+		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
+		expect(blockTexts(editor)).toEqual(["Intro"]);
+		await userEvent.click(screen.getByRole("button", { name: "Choose video" }));
+		await vi.waitFor(() => expect(blockTexts(editor)).toEqual(["Intro", "videoBlock", ""]));
 		expect(document.activeElement).toBe(editor.view.dom);
 		await userEvent.keyboard("{ControlOrMeta>}z{/ControlOrMeta}");
 
 		expect(editor.getJSON()).toEqual(before);
 	});
 
-	it("deletes only the empty block when Backspace is pressed on its placeholder", async () => {
-		const { screen, editor, latest } = await renderEditor({
-			value: [INTRO, { _type: "video", _key: "video1" }, OUTRO],
-		});
-
-		selectVideo(editor);
-		await userEvent.keyboard("{Tab}");
-		expect(document.activeElement).toBe(
-			screen.getByRole("button", { name: "Upload or choose a video" }).element(),
+	it("adds a video chosen from the gutter after an upload lands while its picker is open", async () => {
+		picker.item = mediaItem("01VIDEO", playableUrl);
+		let finishUpload: (item: MediaItem) => void = () => {};
+		vi.mocked(uploadMedia).mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					finishUpload = resolve;
+				}),
 		);
-		await userEvent.keyboard("{Backspace}");
+		const { screen, editor, pm } = await renderEditor({ value: [INTRO, OUTRO] });
+		dropFiles(pm.querySelector("p")!, [videoFile("demo.webm")]);
+		await vi.waitFor(() => expect(vi.mocked(uploadMedia)).toHaveBeenCalledTimes(1));
 
-		await vi.waitFor(() => expect(videos(latest())).toEqual([]));
-		expect(blockTexts(editor)).toEqual(["Intro", "Outro"]);
+		editor.view.focus();
+		await screen.getByRole("button", { name: "Test gutter insert" }).click();
+		const menu = await vi.waitFor(() => {
+			const element = document.querySelector<HTMLElement>("[data-slash-command-menu]");
+			expect(element).toBeTruthy();
+			return element!;
+		});
+		const item = [...menu.querySelectorAll("button")].find(
+			(button) => button.querySelector("[data-slash-item-title]")?.textContent === "Video",
+		);
+		item!.click();
+		await expect.element(screen.getByRole("dialog", { name: "Select video" })).toBeVisible();
+		finishUpload(mediaItem("03VIDEO", playableUrl));
+		await vi.waitFor(() => expect(blockTexts(editor)).toEqual(["Intro", "videoBlock", "Outro"]));
+		await userEvent.click(screen.getByRole("button", { name: "Choose video" }));
+
+		await vi.waitFor(() =>
+			expect(blockTexts(editor)).toEqual(["Intro", "videoBlock", "Outro", "videoBlock", ""]),
+		);
 	});
 
 	const press = (keys: string) => () => userEvent.keyboard(keys);
@@ -367,13 +375,11 @@ describe("Video block editor", () => {
 		await cdp().send("Input.imeSetComposition", { text: "k", selectionStart: 1, selectionEnd: 1 });
 		await cdp().send("Input.insertText", { text: "か" });
 	};
-	const empty = (): Block => ({ _type: "video", _key: "video1" });
 
 	it.each([
 		["a letter on the player", press("x"), "VIDEO", () => videoBlock()],
 		["Backspace on the player", press("{Backspace}"), "VIDEO", () => videoBlock()],
 		["input method text on the player", compose, "VIDEO", () => videoBlock()],
-		["a letter on an empty block", press("x"), "BUTTON", empty],
 	])("leaves the text around the block alone for %s", async (_, input, focused, block) => {
 		const { editor } = await renderEditor({ value: [INTRO, block(), OUTRO] });
 
@@ -399,44 +405,6 @@ describe("Video block editor", () => {
 
 		await played;
 		expect(blockTexts(editor)).toEqual(["Intro", "videoBlock", "Outro"]);
-	});
-
-	it("highlights an empty block under dragged files, without an insertion line", async () => {
-		const { screen } = await renderEditor({ value: [INTRO, { _type: "video", _key: "video1" }] });
-		const placeholder = screen.getByRole("button", { name: "Upload or choose a video" }).element();
-		const dataTransfer = new DataTransfer();
-		dataTransfer.items.add(videoFile("demo.webm"));
-		const rect = placeholder.getBoundingClientRect();
-		const drag = (type: string) =>
-			placeholder.dispatchEvent(
-				new DragEvent(type, {
-					bubbles: true,
-					cancelable: true,
-					dataTransfer,
-					clientX: rect.left + rect.width / 2,
-					clientY: rect.top + rect.height / 2,
-				}),
-			);
-
-		drag("dragenter");
-		drag("dragover");
-
-		await expect.element(screen.getByRole("button", { name: "Drop to upload" })).toBeVisible();
-		expect(document.querySelector(".prosemirror-dropcursor-block")).toBeNull();
-		drag("dragleave");
-		await expect
-			.element(screen.getByRole("button", { name: "Upload or choose a video" }))
-			.toBeVisible();
-	});
-
-	it("shows an empty block as a plain box in a read-only entry", async () => {
-		const { screen } = await renderEditor({
-			value: [{ _type: "video", _key: "video1" }],
-			editable: false,
-		});
-
-		await expect.element(screen.getByText("No video")).toBeVisible();
-		expect(document.querySelector(".ProseMirror figure button")).toBeNull();
 	});
 
 	it("saves a caption and keeps writing below it on Enter", async () => {
@@ -592,13 +560,10 @@ describe("Video block editor", () => {
 		expect(player().getAttribute("src")).toBe("/_emdash/api/media/file/01GONE.mp4");
 	});
 
-	it.each([
-		[
-			"This video can't be played.",
-			videoBlock({ asset: { _ref: "01GONE", url: "/_emdash/api/media/file/01GONE.mp4" } }),
-		],
-		["Upload or choose a video", { _type: "video", _key: "video1" }],
-	])("keeps %s out of the direction the editor reads from the text", async (message, block) => {
+	it("keeps the unplayable message out of the direction the editor reads from the text", async () => {
+		const block = videoBlock({
+			asset: { _ref: "01GONE", url: "/_emdash/api/media/file/01GONE.mp4" },
+		});
 		const arabic: Block = {
 			...INTRO,
 			_key: "arabic",
@@ -606,7 +571,7 @@ describe("Video block editor", () => {
 		};
 		const { screen, pm } = await renderEditor({ value: [block, arabic] });
 
-		await expect.element(screen.getByText(message)).toBeVisible();
+		await expect.element(screen.getByText("This video can't be played.")).toBeVisible();
 		expect(getComputedStyle(pm).direction).toBe("rtl");
 	});
 

@@ -12,6 +12,7 @@ import { Comments, CommentForm } from "emdash/ui/comments";
 import Base from "../../layouts/Base.astro";
 import Byline from "../../components/Byline.astro";
 import PostCard from "../../components/PostCard.astro";
+import { formatDate } from "../../utils/locale";
 import { getReadingTime } from "../../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../../utils/site-identity";
 import "../../styles/prose.css";
@@ -97,12 +98,7 @@ const otherPostsWithTags = otherPosts.map((p) => ({
 }));
 
 const publishedAt = post.data.publishedAt ?? null;
-const publishDate =
-	publishedAt?.toLocaleDateString("en-US", {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	}) ?? null;
+const publishDate = publishedAt ? formatDate(publishedAt, "long") : null;
 
 // The script below builds the table of contents and has the final say; this
 // guess keeps the sidebar from shifting when the page loads.
