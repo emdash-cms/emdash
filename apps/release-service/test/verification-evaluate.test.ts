@@ -305,6 +305,36 @@ describe("verification evaluation", () => {
 		});
 	});
 
+	it("accepts a manifest whose declared access is not in canonical order", async () => {
+		const declaredAccess = {
+			content: { read: {} },
+			schema: { read: {} },
+			network: { request: { allowedHosts: ["b.example.com", "a.example.com"] } },
+		};
+		const release = proposedRelease();
+		release.extensions["com.emdashcms.experimental.package.releaseExtension"]!.declaredAccess =
+			structuredClone(declaredAccess);
+		const report = verifierReport();
+		if (!report.success) throw new Error("Expected successful fixture");
+		report.value.artifact.manifest.declaredAccess = structuredClone(declaredAccess);
+		const profile = structuredClone(profileFixture) as PackageProfile.Main & {
+			extensions: Record<string, { repository: string; releasePolicy?: Record<string, unknown> }>;
+		};
+		profile.extensions["com.emdashcms.experimental.package.profileExtension"]!.releasePolicy = {
+			approvers: ["did:plc:approver"],
+		};
+
+		await expect(
+			evaluateVerifiedRelease(
+				PUBLISHER_DID,
+				await intent(release),
+				snapshot(profile),
+				WORKLOAD_POLICY,
+				report,
+			),
+		).resolves.toMatchObject({ success: true });
+	});
+
 	it("requires approval when the signed profile says always", async () => {
 		const profile = structuredClone(profileFixture) as PackageProfile.Main & {
 			extensions: Record<string, { repository: string; releasePolicy?: Record<string, unknown> }>;
@@ -342,6 +372,18 @@ describe("verification evaluation", () => {
 				snapshot(),
 				WORKLOAD_POLICY,
 				mismatched,
+			),
+		).resolves.toMatchObject({ success: false, code: "ARTIFACT_RECORD_MISMATCH" });
+		const malformed = normalizeVerifierReport(verifierReport());
+		if (!malformed.success) throw new Error("Expected successful fixture");
+		malformed.value.artifact.manifest.declaredAccess = "network";
+		await expect(
+			evaluateVerifiedRelease(
+				PUBLISHER_DID,
+				await intent(),
+				snapshot(),
+				WORKLOAD_POLICY,
+				malformed,
 			),
 		).resolves.toMatchObject({ success: false, code: "ARTIFACT_RECORD_MISMATCH" });
 	});

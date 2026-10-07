@@ -73,12 +73,36 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				500,
 			);
 		}
-		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
+		const uploadSchema = mediaUploadUrlBody(maxSize);
+		const body = await parseBody(request, uploadSchema);
 		if (isParseError(body)) return body;
+
+		let beforeUploadFile = {
+			name: body.filename,
+			type: body.contentType,
+			size: body.size,
+		};
+		if (emdash.hooks?.hasHooks("media:beforeUpload")) {
+			const hookResult = await emdash.hooks.runMediaBeforeUpload(beforeUploadFile);
+			const metadata = uploadSchema.safeParse({
+				filename: hookResult.file?.name,
+				contentType: hookResult.file?.type,
+				size: body.size,
+			});
+			if (!metadata.success) {
+				return apiError("VALIDATION_ERROR", "Invalid media:beforeUpload result", 400);
+			}
+			// Hooks change metadata, but the client still uploads the original bytes.
+			beforeUploadFile = {
+				name: metadata.data.filename,
+				type: metadata.data.contentType,
+				size: body.size,
+			};
+		}
 
 		// Clients that don't recognise an extension may send an empty or generic
 		// content type; fall back to the filename extension before allowlisting.
-		const mimeType = resolveUploadMimeType(body.filename, body.contentType);
+		const mimeType = resolveUploadMimeType(beforeUploadFile.name, beforeUploadFile.type);
 		const normalizedContentType = normalizeMime(mimeType);
 
 		// Validate content type (field-aware widening)
@@ -107,8 +131,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			}
 		}
 		const filename = body.ensureUniqueFilename
-			? await repo.findAvailableFilename(body.filename)
-			: body.filename;
+			? await repo.findAvailableFilename(beforeUploadFile.name)
+			: beforeUploadFile.name;
 
 		// Generate unique storage key
 		const id = ulid();

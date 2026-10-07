@@ -1,5 +1,21 @@
 # @emdash-cms/gutenberg-to-portable-text
 
+## 1.2.0
+
+### Patch Changes
+
+- [#3762](https://github.com/emdash-cms/emdash/pull/3762) [`f09797c`](https://github.com/emdash-cms/emdash/commit/f09797c847778e29a697f83ae76f9e7f253cbdcf) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes WordPress imports turning tables in Classic editor posts into a single paragraph. Tables whose cells hold only text now import as tables, keeping their rows, header row, formatting and links. Tables with images, headings, lists or merged cells, with a caption or footer rows, or inside a `<div>` or `<figure>` keep their previous output.
+  
+  `gutenbergToPortableText()` also sets `hasHeaderRow: true` on tables whose first row holds only `<th>` cells.
+
+- [#3837](https://github.com/emdash-cms/emdash/pull/3837) [`bfd05b0`](https://github.com/emdash-cms/emdash/commit/bfd05b08043017ee45a76fa7bb3fd72969fb3767) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes WordPress imports failing with "Maximum call stack size exceeded" when a post contains thousands of nested inline tags, such as unclosed `<b>` or `<span>` tags. Preformatted, verse, pullquote, and button blocks, and image and gallery captions, no longer fail on this markup either.
+  
+  Formatting that is nested inside the same formatting, such as `<strong><b>bold</b></strong>`, now gives the span a single `strong` mark instead of repeating it. Text inside a link nested in another link, which HTML only allows inside elements such as `<svg>` or `<object>`, now carries only the innermost link.
+
+- [#3893](https://github.com/emdash-cms/emdash/pull/3893) [`d1065a1`](https://github.com/emdash-cms/emdash/commit/d1065a157eb1009f649c06e6c6b49130f60bbf27) Thanks [@swissky](https://github.com/swissky)! - Fixes buttons imported from WordPress losing their link. WordPress stores the button link in the block markup, which the converter ignored. Buttons inside a button group now also drop unsafe links such as `javascript:` URLs, matching single buttons, and a button in a group without a usable link now gets an empty `url` instead of none.
+
+- [#3792](https://github.com/emdash-cms/emdash/pull/3792) [`2881234`](https://github.com/emdash-cms/emdash/commit/2881234fad52162ea730bba3cd57919526dc5d3e) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes WordPress imports stalling on `core/table` blocks that contain many unclosed tags, such as thousands of `<tr>` or `<td>` tags without a closing tag. Conversion time for this markup grew with the square of its length and now grows linearly. Converted tables are unchanged.
+
 ## 1.1.0
 
 No changes in this release.

@@ -11,7 +11,6 @@ import { useLingui } from "@lingui/react/macro";
 import { ArrowSquareOut, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, type Locale } from "date-fns";
-import { enUS } from "date-fns/locale/en-US";
 import * as React from "react";
 
 import {
@@ -26,6 +25,7 @@ import {
 	type SiteSettings,
 	type SiteSettingsUpdate,
 } from "../../lib/api";
+import { useDateLocale } from "../../locales/date-locale.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
@@ -34,39 +34,6 @@ import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js"
 
 const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
 const exampleDate = new Date(2026, 0, 23);
-const previewLocaleLoaders: Record<string, () => Promise<Locale>> = {
-	ar: () => import("date-fns/locale/ar").then(({ ar }) => ar),
-	eu: () => import("date-fns/locale/eu").then(({ eu }) => eu),
-	bn: () => import("date-fns/locale/bn").then(({ bn }) => bn),
-	ca: () => import("date-fns/locale/ca").then(({ ca }) => ca),
-	"zh-CN": () => import("date-fns/locale/zh-CN").then(({ zhCN }) => zhCN),
-	"zh-TW": () => import("date-fns/locale/zh-TW").then(({ zhTW }) => zhTW),
-	cs: () => import("date-fns/locale/cs").then(({ cs }) => cs),
-	da: () => import("date-fns/locale/da").then(({ da }) => da),
-	nl: () => import("date-fns/locale/nl").then(({ nl }) => nl),
-	"en-GB": () => import("date-fns/locale/en-GB").then(({ enGB }) => enGB),
-	fa: () => import("date-fns/locale/fa-IR").then(({ faIR }) => faIR),
-	fr: () => import("date-fns/locale/fr").then(({ fr }) => fr),
-	ka: () => import("date-fns/locale/ka").then(({ ka }) => ka),
-	de: () => import("date-fns/locale/de").then(({ de }) => de),
-	he: () => import("date-fns/locale/he").then(({ he }) => he),
-	hi: () => import("date-fns/locale/hi").then(({ hi }) => hi),
-	hu: () => import("date-fns/locale/hu").then(({ hu }) => hu),
-	id: () => import("date-fns/locale/id").then(({ id }) => id),
-	ja: () => import("date-fns/locale/ja").then(({ ja }) => ja),
-	nb: () => import("date-fns/locale/nb").then(({ nb }) => nb),
-	pl: () => import("date-fns/locale/pl").then(({ pl }) => pl),
-	"pt-BR": () => import("date-fns/locale/pt-BR").then(({ ptBR }) => ptBR),
-	"pt-PT": () => import("date-fns/locale/pt").then(({ pt }) => pt),
-	"sr-Latn": () => import("date-fns/locale/sr-Latn").then(({ srLatn }) => srLatn),
-	"es-419": () => import("date-fns/locale/es").then(({ es }) => es),
-	"es-ES": () => import("date-fns/locale/es").then(({ es }) => es),
-	sv: () => import("date-fns/locale/sv").then(({ sv }) => sv),
-	th: () => import("date-fns/locale/th").then(({ th }) => th),
-	tr: () => import("date-fns/locale/tr").then(({ tr }) => tr),
-	uk: () => import("date-fns/locale/uk").then(({ uk }) => uk),
-};
-
 function datePreview(pattern: string, locale: Locale): string | null {
 	try {
 		return pattern.trim() ? format(exampleDate, pattern, { locale }) : null;
@@ -97,7 +64,7 @@ function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 }
 
 export function GeneralSettings() {
-	const { t, i18n } = useLingui();
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 
@@ -135,31 +102,7 @@ export function GeneralSettings() {
 	const [domainDialogOpen, setDomainDialogOpen] = React.useState(false);
 	const [notifyDialogOpen, setNotifyDialogOpen] = React.useState(false);
 	const [showTimezoneError, setShowTimezoneError] = React.useState(false);
-	const [previewLocale, setPreviewLocale] = React.useState<{ code: string; value: Locale | null }>({
-		code: "en",
-		value: enUS,
-	});
-
-	React.useEffect(() => {
-		const code = i18n.locale;
-		const load = previewLocaleLoaders[code];
-		if (!load) {
-			setPreviewLocale({ code, value: enUS });
-			return;
-		}
-		let active = true;
-		void (async () => {
-			try {
-				const value = await load();
-				if (active) setPreviewLocale({ code, value });
-			} catch {
-				if (active) setPreviewLocale({ code, value: null });
-			}
-		})();
-		return () => {
-			active = false;
-		};
-	}, [i18n.locale]);
+	const dateLocale = useDateLocale();
 
 	React.useEffect(() => {
 		if (settings) {
@@ -228,9 +171,7 @@ export function GeneralSettings() {
 	});
 
 	const pattern = formData.dateFormat ?? "MMMM d, yyyy";
-	const previewLoading = previewLocale.code !== i18n.locale;
-	const preview =
-		previewLoading || !previewLocale.value ? null : datePreview(pattern, previewLocale.value);
+	const preview = datePreview(pattern, dateLocale);
 	const timezone = formData.timezone ?? "UTC";
 	const recognizedTimezone = isValidTimezone(timezone);
 	const savedTimezoneUnchanged = timezone === savedFormData.timezone;
@@ -555,11 +496,9 @@ export function GeneralSettings() {
 							value={pattern}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
 							description={
-								previewLoading
-									? t`Loading preview…`
-									: preview === null
-										? t`Preview unavailable for this format`
-										: t`Example: ${pattern} → ${preview}`
+								preview === null
+									? t`Preview unavailable for this format`
+									: t`Example: ${pattern} → ${preview}`
 							}
 						/>
 					</SettingRow>

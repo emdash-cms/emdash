@@ -266,6 +266,7 @@ import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/e
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
+	EXCLUSIVE_HOOK_KEY_PREFIX,
 	getActiveContentSaveHookName,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
@@ -285,7 +286,8 @@ import {
 } from "./plugins/routes.js";
 import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
-import { PluginStateRepository } from "./plugins/state.js";
+import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
+import type { PluginState } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
@@ -1634,6 +1636,8 @@ export class EmDashRuntime {
 
 		let pluginStates: Map<string, string> = new Map();
 		let pluginStatesRead = false;
+		let installedPluginStates: PluginState[] = [];
+		let exclusiveHookSelections: Map<string, string | undefined> | undefined;
 		const configuredLocales: string[] =
 			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
 		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
@@ -1732,12 +1736,12 @@ export class EmDashRuntime {
 		const coldStartReads: Array<Promise<void>> = [
 			phase("rt.plugins", "Plugin states", async () => {
 				try {
-					const states = await readDb
-						.selectFrom("_plugin_state")
-						.select(["plugin_id", "status"])
-						.execute();
+					const states = await readDb.selectFrom("_plugin_state").selectAll().execute();
 					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
 					pluginStatesRead = true;
+					installedPluginStates = states
+						.filter((s) => s.source === "marketplace" || s.source === "registry")
+						.map(rowToPluginState);
 				} catch (error) {
 					captureMissingManualSchema(error);
 					// _plugin_state may not exist yet on a pre-migration db.
@@ -1749,6 +1753,29 @@ export class EmDashRuntime {
 				} catch (error) {
 					captureMissingManualSchema(error);
 					// options may not exist yet on a pre-migration db.
+				}
+			}),
+			phase("rt.hookselections", "Exclusive hook selections", async () => {
+				// Built-in and sandboxed providers register after these reads, so
+				// only configured plugins' hooks and the always-present
+				// comment:moderate are known here. Hook resolution reads the rest.
+				const keys = Array.from(
+					new Set([
+						"comment:moderate",
+						...deps.plugins.flatMap((plugin) =>
+							Object.entries(plugin.hooks)
+								.filter(([, hook]) => hook?.exclusive)
+								.map(([name]) => name),
+						),
+					]),
+					(name) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${name}`,
+				);
+				try {
+					const stored = await optionsRepo.getMany<string>(keys);
+					exclusiveHookSelections = new Map(keys.map((key) => [key, stored.get(key)]));
+				} catch (error) {
+					captureMissingManualSchema(error);
+					// Hook resolution reads the selections itself when this fails.
 				}
 			}),
 		];
@@ -1955,7 +1982,10 @@ export class EmDashRuntime {
 		// in-process plugins BEFORE pipeline creation. They need to be in the
 		// pipeline to participate in hook dispatch.
 		if (deps.sandboxBypassed && deps.config.marketplace && storage) {
-			const marketplaceBypassed = await EmDashRuntime.loadMarketplacePluginsBypassed(db, storage);
+			const marketplaceBypassed = await EmDashRuntime.loadMarketplacePluginsBypassed(
+				storage,
+				installedPluginStates,
+			);
 			for (const plugin of marketplaceBypassed) {
 				allPipelinePlugins.push(plugin);
 				bypassedPluginsList.push(plugin);
@@ -1991,6 +2021,7 @@ export class EmDashRuntime {
 						storage,
 						deps,
 						sandboxedPluginPool,
+						installedPluginStates,
 						siteInfo,
 					),
 				),
@@ -2007,6 +2038,7 @@ export class EmDashRuntime {
 						storage,
 						deps,
 						sandboxedPluginPool,
+						installedPluginStates,
 						siteInfo,
 					),
 				),
@@ -2139,7 +2171,7 @@ export class EmDashRuntime {
 
 		// Resolve exclusive hooks — auto-select providers and sync with DB
 		await phase("rt.hooks", "Exclusive hook resolution", () =>
-			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps),
+			EmDashRuntime.resolveExclusiveHooks(pipeline, db, deps, exclusiveHookSelections),
 		);
 
 		// ── Email pipeline ───────────────────────────────────────────────
@@ -2708,18 +2740,13 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Cold-start: load marketplace-installed plugins from site-local R2 storage
-	 *
-	 * Queries _plugin_state for source='marketplace' rows, fetches each bundle
-	 * from R2, and loads via SandboxRunner.
-	 */
-	/**
 	 * Cold-start load of all active sandboxed plugins for one install
 	 * tier (marketplace or registry) from site-local R2.
 	 *
 	 * Mirrors {@link syncSandboxedSourcePlugins} but runs once at runtime
 	 * creation, before request traffic arrives; the sync method runs on
-	 * demand after install / update / uninstall handlers.
+	 * demand after install / update / uninstall handlers. `states` are the
+	 * `_plugin_state` rows read in the cold-start batch.
 	 */
 	private static async loadInstalledSandboxedPlugins(
 		source: "marketplace" | "registry",
@@ -2727,6 +2754,7 @@ export class EmDashRuntime {
 		storage: Storage,
 		deps: RuntimeDependencies,
 		cache: Map<string, SandboxedPluginInstance>,
+		states: readonly PluginState[],
 		siteInfo?: {
 			siteName?: string;
 			siteUrl?: string;
@@ -2769,67 +2797,57 @@ export class EmDashRuntime {
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
 
-		try {
-			const stateRepo = new PluginStateRepository(db);
-			const plugins =
-				source === "marketplace"
-					? await stateRepo.getMarketplacePlugins()
-					: await stateRepo.getRegistryPlugins();
+		for (const plugin of states.filter((state) => state.source === source)) {
+			if (plugin.status !== "active") continue;
 
-			for (const plugin of plugins) {
-				if (plugin.status !== "active") continue;
+			// Marketplace plugins record the live version in
+			// `marketplaceVersion`; registry plugins use `version` directly.
+			const version =
+				source === "marketplace" ? (plugin.marketplaceVersion ?? plugin.version) : plugin.version;
+			const pluginKey = `${plugin.pluginId}:${version}`;
 
-				// Marketplace plugins record the live version in
-				// `marketplaceVersion`; registry plugins use `version` directly.
-				const version =
-					source === "marketplace" ? (plugin.marketplaceVersion ?? plugin.version) : plugin.version;
-				const pluginKey = `${plugin.pluginId}:${version}`;
+			// Skip if already loaded (shouldn't happen, but guard)
+			if (cache.has(pluginKey)) continue;
 
-				// Skip if already loaded (shouldn't happen, but guard)
-				if (cache.has(pluginKey)) continue;
-
-				try {
-					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version, source);
-					if (!bundle) {
-						console.warn(`EmDash: ${source} plugin ${plugin.pluginId}@${version} not found in R2`);
-						continue;
-					}
-
-					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
-					cache.set(pluginKey, loaded);
-					sandboxedManifestCache.set(pluginKey, bundle.manifest);
-					keySet.add(pluginKey);
-
-					// Cache manifest admin config for getManifest()
-					marketplaceManifestCache.set(plugin.pluginId, {
-						id: bundle.manifest.id,
-						version: bundle.manifest.version,
-						admin: bundle.manifest.admin,
-						mcp: bundle.manifest.mcp,
-						storage: bundle.manifest.storage,
-						allowedHosts: bundle.manifest.allowedHosts,
-						capabilities: bundle.manifest.capabilities,
-					});
-
-					// Cache route metadata from manifest for auth decisions
-					if (bundle.manifest.routes.length > 0) {
-						const routeMeta = new Map<string, RouteMeta>();
-						for (const entry of bundle.manifest.routes) {
-							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, buildRouteMeta(normalized));
-						}
-						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
-					}
-
-					console.log(
-						`EmDash: Loaded ${source} plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
-					);
-				} catch (error) {
-					console.error(`EmDash: Failed to load ${source} plugin ${plugin.pluginId}:`, error);
+			try {
+				const bundle = await loadBundleFromR2(storage, plugin.pluginId, version, source);
+				if (!bundle) {
+					console.warn(`EmDash: ${source} plugin ${plugin.pluginId}@${version} not found in R2`);
+					continue;
 				}
+
+				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+				cache.set(pluginKey, loaded);
+				sandboxedManifestCache.set(pluginKey, bundle.manifest);
+				keySet.add(pluginKey);
+
+				// Cache manifest admin config for getManifest()
+				marketplaceManifestCache.set(plugin.pluginId, {
+					id: bundle.manifest.id,
+					version: bundle.manifest.version,
+					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
+				});
+
+				// Cache route metadata from manifest for auth decisions
+				if (bundle.manifest.routes.length > 0) {
+					const routeMeta = new Map<string, RouteMeta>();
+					for (const entry of bundle.manifest.routes) {
+						const normalized = normalizeManifestRoute(entry);
+						routeMeta.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
+				}
+
+				console.log(
+					`EmDash: Loaded ${source} plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
+				);
+			} catch (error) {
+				console.error(`EmDash: Failed to load ${source} plugin ${plugin.pluginId}:`, error);
 			}
-		} catch {
-			// _plugin_state table may not exist yet (pre-migration)
 		}
 	}
 
@@ -2847,96 +2865,85 @@ export class EmDashRuntime {
 	 * Returns ResolvedPlugins to be merged into the pipeline.
 	 */
 	private static async loadMarketplacePluginsBypassed(
-		db: Kysely<Database>,
 		storage: Storage,
+		states: readonly PluginState[],
 	): Promise<ResolvedPlugin[]> {
 		const resolved: ResolvedPlugin[] = [];
-		try {
-			const stateRepo = new PluginStateRepository(db);
-			const marketplacePlugins = await stateRepo.getMarketplacePlugins();
-			if (marketplacePlugins.length === 0) return resolved;
+		const marketplacePlugins = states.filter((state) => state.source === "marketplace");
+		if (marketplacePlugins.length === 0) return resolved;
 
-			console.info(
-				"EmDash: Sandbox disabled (sandbox: false). " +
-					"Marketplace plugins will run in-process without isolation.",
-			);
+		console.info(
+			"EmDash: Sandbox disabled (sandbox: false). " +
+				"Marketplace plugins will run in-process without isolation.",
+		);
 
-			const { adaptSandboxEntry } = await import("./plugins/adapt-sandbox-entry.js");
+		const { adaptSandboxEntry } = await import("./plugins/adapt-sandbox-entry.js");
 
-			for (const plugin of marketplacePlugins) {
-				if (plugin.status !== "active") continue;
-				const version = plugin.marketplaceVersion ?? plugin.version;
-				try {
-					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version);
-					if (!bundle) {
-						console.warn(
-							`EmDash: Marketplace plugin ${plugin.pluginId}@${version} not found in R2`,
-						);
-						continue;
-					}
-
-					// Cache manifest and route metadata for admin UI and route auth
-					marketplaceManifestCache.set(plugin.pluginId, {
-						id: bundle.manifest.id,
-						version: bundle.manifest.version,
-						admin: bundle.manifest.admin,
-						mcp: bundle.manifest.mcp,
-						storage: bundle.manifest.storage,
-						allowedHosts: bundle.manifest.allowedHosts,
-						capabilities: bundle.manifest.capabilities,
-					});
-					if (bundle.manifest.routes.length > 0) {
-						const routeMeta = new Map<string, RouteMeta>();
-						for (const entry of bundle.manifest.routes) {
-							const normalized = normalizeManifestRoute(entry);
-							routeMeta.set(normalized.name, buildRouteMeta(normalized));
-						}
-						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
-					}
-
-					// Evaluate the bundled ESM and adapt it as a trusted plugin
-					const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
-					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle (built by plugin-cli); adaptSandboxEntry validates required fields.
-					const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<
-						string,
-						unknown
-					>;
-					const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
-						typeof adaptSandboxEntry
-					>[0];
-					const adapted = adaptSandboxEntry(pluginDef, {
-						id: bundle.manifest.id,
-						version: bundle.manifest.version,
-						entrypoint: "",
-						capabilities: bundle.manifest.capabilities ?? [],
-						allowedHosts: bundle.manifest.allowedHosts ?? [],
-						// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- adaptSandboxEntry copies storage through
-						storage: (bundle.manifest.storage ?? {}) as never,
-						adminPages: bundle.manifest.admin?.pages,
-						adminWidgets: bundle.manifest.admin?.widgets?.map((w) => ({
-							id: w.id,
-							title: w.title,
-							size:
-								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
-						})),
-						settingsSchema: bundle.manifest.admin?.settingsSchema,
-						editorPanels: bundle.manifest.admin?.editorPanels,
-						editorActions: bundle.manifest.admin?.editorActions,
-						mcp: bundle.manifest.mcp,
-					});
-					resolved.push(adapted);
-					console.log(
-						`EmDash: Loaded marketplace plugin ${plugin.pluginId}@${version} in-process (sandbox bypassed)`,
-					);
-				} catch (error) {
-					console.error(
-						`EmDash: Failed to load marketplace plugin ${plugin.pluginId} in-process:`,
-						error,
-					);
+		for (const plugin of marketplacePlugins) {
+			if (plugin.status !== "active") continue;
+			const version = plugin.marketplaceVersion ?? plugin.version;
+			try {
+				const bundle = await loadBundleFromR2(storage, plugin.pluginId, version);
+				if (!bundle) {
+					console.warn(`EmDash: Marketplace plugin ${plugin.pluginId}@${version} not found in R2`);
+					continue;
 				}
+
+				// Cache manifest and route metadata for admin UI and route auth
+				marketplaceManifestCache.set(plugin.pluginId, {
+					id: bundle.manifest.id,
+					version: bundle.manifest.version,
+					admin: bundle.manifest.admin,
+					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
+				});
+				if (bundle.manifest.routes.length > 0) {
+					const routeMeta = new Map<string, RouteMeta>();
+					for (const entry of bundle.manifest.routes) {
+						const normalized = normalizeManifestRoute(entry);
+						routeMeta.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
+				}
+
+				// Evaluate the bundled ESM and adapt it as a trusted plugin
+				const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
+				// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle (built by plugin-cli); adaptSandboxEntry validates required fields.
+				const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<string, unknown>;
+				const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
+					typeof adaptSandboxEntry
+				>[0];
+				const adapted = adaptSandboxEntry(pluginDef, {
+					id: bundle.manifest.id,
+					version: bundle.manifest.version,
+					entrypoint: "",
+					capabilities: bundle.manifest.capabilities ?? [],
+					allowedHosts: bundle.manifest.allowedHosts ?? [],
+					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- adaptSandboxEntry copies storage through
+					storage: (bundle.manifest.storage ?? {}) as never,
+					adminPages: bundle.manifest.admin?.pages,
+					adminWidgets: bundle.manifest.admin?.widgets?.map((w) => ({
+						id: w.id,
+						title: w.title,
+						size: w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
+					})),
+					settingsSchema: bundle.manifest.admin?.settingsSchema,
+					editorPanels: bundle.manifest.admin?.editorPanels,
+					editorActions: bundle.manifest.admin?.editorActions,
+					mcp: bundle.manifest.mcp,
+				});
+				resolved.push(adapted);
+				console.log(
+					`EmDash: Loaded marketplace plugin ${plugin.pluginId}@${version} in-process (sandbox bypassed)`,
+				);
+			} catch (error) {
+				console.error(
+					`EmDash: Failed to load marketplace plugin ${plugin.pluginId} in-process:`,
+					error,
+				);
 			}
-		} catch {
-			// _plugin_state table may not exist yet
 		}
 		return resolved;
 	}
@@ -2952,6 +2959,7 @@ export class EmDashRuntime {
 		pipeline: HookPipeline,
 		db: Kysely<Database>,
 		deps: RuntimeDependencies,
+		storedSelections?: ReadonlyMap<string, string | undefined>,
 	): Promise<void> {
 		const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 		if (exclusiveHookNames.length === 0) return;
@@ -2977,7 +2985,16 @@ export class EmDashRuntime {
 			pipeline,
 			isActive: () => true,
 			getOption: (key) => optionsRepo.get<string>(key),
-			getOptions: (keys) => optionsRepo.getMany<string>(keys),
+			getOptions: async (keys) => {
+				const unread = keys.filter((key) => !storedSelections?.has(key));
+				const selections =
+					unread.length > 0 ? await optionsRepo.getMany<string>(unread) : new Map<string, string>();
+				for (const key of keys) {
+					const value = storedSelections?.get(key);
+					if (value !== undefined) selections.set(key, value);
+				}
+				return selections;
+			},
 			setOption: (key, value) => optionsRepo.set(key, value),
 			deleteOption: async (key) => {
 				await optionsRepo.delete(key);
@@ -3650,9 +3667,10 @@ export class EmDashRuntime {
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
 
-		// Validate _rev early — before draft revision writes which modify updated_at.
-		// After validation, strip _rev so the handler doesn't double-check against
-		// the now-modified timestamp.
+		// Validate _rev early — before draft revision writes which modify the version.
+		// The token is checked again against the row the draft UPDATE is conditioned
+		// on, and reaches the column handler only when no draft revision was staged,
+		// since staging advances the version the token encodes.
 		if (body._rev) {
 			if (!resolvedItem) {
 				return {
@@ -3833,6 +3851,15 @@ export class EmDashRuntime {
 
 				const revisionRepo = new RevisionRepository(this.db);
 				let existing = await repo.findById(collection, resolvedId);
+				if (body._rev && existing) {
+					const revCheck = validateRev(body._rev, existing);
+					if (!revCheck.valid) {
+						return {
+							success: false as const,
+							error: { code: "CONFLICT", message: revCheck.message },
+						};
+					}
+				}
 
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 					let baseData: Record<string, unknown>;
@@ -3983,6 +4010,7 @@ export class EmDashRuntime {
 				? await handleContentGet(this.db, collection, resolvedId)
 				: await handleContentUpdate(this.db, collection, resolvedId, {
 						...bodyWithoutRev,
+						_rev: draftStorageChanged ? undefined : body._rev,
 						data: usesDraftRevisions ? undefined : processedData,
 						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
 						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,

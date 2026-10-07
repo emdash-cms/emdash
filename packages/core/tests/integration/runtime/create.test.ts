@@ -134,6 +134,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 				"rt.seedcheck",
 				"rt.plugins",
 				"rt.site",
+				"rt.hookselections",
 				"rt.sandbox",
 				"rt.hooks",
 				"rt.cron",
@@ -446,6 +447,95 @@ describe("EmDashRuntime.create — cold boot", () => {
 		}
 	});
 
+	it.each([
+		{
+			sandboxBypassed: false,
+			mode: "sandboxed",
+			manifests: [
+				"marketplace/market-active/1.2.0/manifest.json",
+				"registry/from-registry/2.0.0/manifest.json",
+			],
+		},
+		{
+			sandboxBypassed: true,
+			mode: "in-process",
+			manifests: ["marketplace/market-active/1.2.0/manifest.json"],
+		},
+	])(
+		"loads $mode installed plugins from the plugin states read once at cold start",
+		async ({ sandboxBypassed, manifests }) => {
+			const sqlite = new Database(":memory:");
+			const setupDb = new Kysely<EmDashDatabase>({
+				dialect: new SqliteDialect({ database: sqlite }),
+			});
+			await runMigrations(setupDb);
+			await setupDb
+				.insertInto("_plugin_state")
+				.values([
+					{
+						plugin_id: "market-active",
+						version: "1.0.0",
+						marketplace_version: "1.2.0",
+						status: "active",
+						source: "marketplace",
+					},
+					{
+						plugin_id: "market-inactive",
+						version: "1.0.0",
+						status: "inactive",
+						source: "marketplace",
+					},
+					{ plugin_id: "from-registry", version: "2.0.0", status: "active", source: "registry" },
+				])
+				.execute();
+			await setupDb
+				.insertInto("options")
+				.values({ name: "emdash:setup_complete", value: "true" })
+				.execute();
+
+			const pluginStateStatements: string[] = [];
+			const prepare = sqlite.prepare.bind(sqlite);
+			sqlite.prepare = ((statement: string) => {
+				if (statement.includes('"_plugin_state"')) pluginStateStatements.push(statement);
+				return prepare(statement);
+			}) as typeof sqlite.prepare;
+
+			const download = vi.fn(() => Promise.reject(new Error("not found")));
+			const runner = {
+				isAvailable: () => true,
+				isHealthy: () => true,
+				load: vi.fn(),
+				setEmailSend: vi.fn(),
+				terminateAll: vi.fn(),
+			};
+			const base = createDeps();
+			const deps: RuntimeDependencies = {
+				...base,
+				config: {
+					...base.config,
+					marketplace: "https://marketplace.example.com",
+					registry: "https://registry.example.com",
+					storage: { entrypoint: `test-storage-${randomUUID()}`, config: {} },
+				},
+				createDialect: () => new SqliteDialect({ database: sqlite }),
+				createStorage: () => ({ download }) as never,
+				sandboxEnabled: true,
+				sandboxBypassed,
+				createSandboxRunner: () => runner as never,
+			};
+
+			const runtime = await EmDashRuntime.create(deps);
+			try {
+				expect(download.mock.calls.map(([key]) => key)).toEqual(expect.arrayContaining(manifests));
+				expect(download).toHaveBeenCalledTimes(manifests.length);
+				expect(pluginStateStatements.filter((s) => s.startsWith("select"))).toHaveLength(1);
+			} finally {
+				await runtime.stopCron();
+				await setupDb.destroy();
+			}
+		},
+	);
+
 	// When a coalescing dialect is provided, the cold-start read phase must run
 	// on it (one batched round trip), not the singleton. Prove the routing: the
 	// coalescing db marks the provider inactive while the singleton leaves it
@@ -506,6 +596,60 @@ describe("EmDashRuntime.create — cold boot", () => {
 				await coalescingSetup.destroy();
 			} catch {
 				// already closed
+			}
+		}
+	});
+
+	it("resolves exclusive hooks from selections read in the cold-start batch", async () => {
+		const provider = (id: string) =>
+			definePlugin({
+				id,
+				version: "1.0.0",
+				capabilities: ["content:write", "content:read"],
+				hooks: {
+					"content:beforeSave": {
+						exclusive: true,
+						handler: vi.fn() as unknown as ContentBeforeSaveHandler,
+					},
+				},
+			});
+		const migratedDb = async (selection: string) => {
+			const sqlite = new Database(":memory:");
+			const setup = new Kysely<EmDashDatabase>({
+				dialect: new SqliteDialect({ database: sqlite }),
+			});
+			await runMigrations(setup);
+			await setup
+				.insertInto("options")
+				.values([
+					{ name: "emdash:setup_complete", value: "true" },
+					{
+						name: "emdash:exclusive_hook:content:beforeSave",
+						value: JSON.stringify(selection),
+					},
+				])
+				.execute();
+			return { sqlite, setup };
+		};
+		const singleton = await migratedDb("provider-a");
+		const coalescing = await migratedDb("provider-b");
+
+		const runtime = await EmDashRuntime.create({
+			...createDeps(),
+			plugins: [provider("provider-a"), provider("provider-b")],
+			createDialect: () => new SqliteDialect({ database: singleton.sqlite }),
+			createCoalescingDialect: () => new SqliteDialect({ database: coalescing.sqlite }),
+		});
+		try {
+			expect(runtime.hooks.getExclusiveSelection("content:beforeSave")).toBe("provider-b");
+		} finally {
+			await runtime.stopCron();
+			for (const handle of [singleton.setup, coalescing.setup]) {
+				try {
+					await handle.destroy();
+				} catch {
+					// already closed
+				}
 			}
 		}
 	});
