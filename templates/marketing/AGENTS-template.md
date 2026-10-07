@@ -48,7 +48,7 @@ Constraints worth remembering:
 - Repeaters have fixed limits: 1 to 3 pricing plans, 1 to 6 stats or contact options, 1 to 12 features, testimonials, or questions, and 1 to 24 logos. A page holds at most 20 blocks.
 - Every image field (hero and Text and image photos, the call to action background, logos, avatars) is an EmDash image field. Render it with `<Image>` from `emdash/ui`, not a raw URL, and treat it as optional: a failed download during setup leaves it empty.
 - The Hero block has no fallback illustration. Without an image it renders text only; with one, the photo runs below the text as a near full-width rounded sheet. `centered` centres the text and uses a smaller headline.
-- `image_caption` (Hero, Text and image) renders a glass chip with a pulsing green dot at the photo's bottom-start corner. It only appears when there is a photo.
+- `image_caption` (Hero, Text and image) renders a frosted glass chip at the photo's bottom-start corner. It only appears when there is a photo.
 - `image_first` puts the Text and image photo before the copy on desktop. When the columns stack on narrow screens, the copy always comes first. With no image, only the copy renders.
 - A logo without an image renders the company name as a typographic wordmark, cycling through six text styles. Logo images render monochrome at 28px tall. The row scrolls as a marquee that pauses on hover and has a pause button for keyboard and touch users; with reduced motion it becomes a static, centred row.
 - A highlighted pricing plan renders on the dark night panel with its `badge` (default "Most popular"). A `badge` on any other plan shows as a neutral pill.
@@ -62,7 +62,7 @@ Constraints worth remembering:
 
 ## Visual character
 
-The palette is warm and neutral: an off-white canvas (`--color-bg`), white surfaces (`--color-surface`), a sunken tone (`--color-sunken`) for panels and icon tiles, and near-black ink (`--color-text`) with secondary (`--color-text-secondary`) and muted (`--color-muted`) steps. `--color-brand` is the ink too -- it fills the primary buttons. The only accent colour is a daylight amber, `--color-accent`, kept to small marks: the eyebrow and announcement dots and the featured testimonial's quote mark. `--color-live` is the green dot on caption chips. The night tone (`--color-night`, `--color-on-night`) sets the stats panel, the highlighted pricing plan, and a call to action without a photo. Dark mode inverts the scale.
+The palette is warm and neutral: an off-white canvas (`--color-bg`), white surfaces (`--color-surface`), a sunken tone (`--color-sunken`) for panels and icon tiles, and near-black ink (`--color-text`) with secondary (`--color-text-secondary`) and muted (`--color-muted`) steps. `--color-brand` is the ink too -- it fills the primary buttons. The only accent colour is a daylight amber, `--color-accent`, kept to one small mark: the featured testimonial's quote mark. The night tone (`--color-night`, `--color-on-night`) sets the stats panel, the highlighted pricing plan, and a call to action without a photo. Dark mode inverts the scale.
 
 Typography pairs **Instrument Serif** on `--font-display` with **Inter** on `--font-body`. The serif, in its single 400 weight, sets the hero headline (`--font-size-display`), section headlines (`.section-headline`, `--font-size-h2`), the featured testimonial, stat values, prices, the call to action headline, and the wordmarks. Inter sets everything else; `--font-heading` is Inter at weight 500 for card titles and other small headings. Section headlines are often two-tone: `.section-headline__muted` mutes a trailing sentence inside the same `h2`.
 
@@ -70,10 +70,10 @@ Structure comes from whitespace, rounded surfaces, and soft shadows. There are n
 
 - A floating glass header: a sticky, rounded pill inset from the viewport edge, translucent with a backdrop blur. At 960px and narrower, its links move into a dropdown menu.
 - Sheets: rounded panels that run almost edge to edge (`.sheet`). The Features block sits on a sunken sheet with a warm daylight glow (`.sheet--sunken`), the Stats block on a night sheet with a dusk glow (`.sheet--night`), and the hero photo and a call to action with an image are photo sheets.
-- Glass caption chips on photos (`.media-chip` with a `.live-dot`), driven by `image_caption`.
+- Glass caption chips on photos (`.media-chip`), driven by `image_caption`.
 - A slow logo marquee, and a giant cropped serif wordmark at the bottom of the footer.
 
-Motion is CSS only and switches off under `prefers-reduced-motion: reduce`: a staggered entrance on the hero (`.rise`), a scroll-linked zoom as photos come into view (`.settle`, only where `animation-timeline: view()` is supported), the marquee, and the pulsing live dot.
+Motion is CSS only and switches off under `prefers-reduced-motion: reduce`: a staggered entrance on the hero (`.rise`), a scroll-linked zoom as photos come into view (`.settle`, only where `animation-timeline: view()` is supported), and the marquee.
 
 The demo photography comes from Unsplash, whose licence allows free commercial use without attribution. With sample content, setup downloads four photos into the media library. The testimonials show initials instead of portraits: the quoted people are fictional, and a stock portrait would present a real person as one of them.
 
@@ -92,7 +92,7 @@ Webfonts are configured in `astro.config.mjs` under `fonts:`. Inter is bound to 
 - Layout and rhythm: `.container`, `.section`, `.sheet` with `.sheet--sunken` or `.sheet--night`, and `.sheet-section` with an inner `.sheet-body`. A plain section adds half of `--section-space` above and below, and a section-level sheet adds the same as margin, so any two neighbouring blocks sit one `--section-space` apart in any order.
 - Type: `.section-header` (and `.section-header--center`), `.section-headline`, `.section-headline__muted`, `.section-subheadline`, `.eyebrow`, `.display`, `.lead`.
 - Controls: `.btn` with `.btn-primary`, `.btn-secondary`, `.btn-light` and `.btn-glass` (for dark or photo backgrounds), and `.btn-sm` / `.btn-lg`; `.actions` for button rows; `.text-link`. An icon with the class `arrow` inside a button or text link nudges forward on hover.
-- Surfaces and media: `.card` (with `.card--lift` for a hover lift), `.media` (a rounded photo frame; wrap the `<Image>` in `.media__img`), `.media-chip` and `.live-dot`, `.tick` (the round checklist badge), `.avatar` (the initials circle), and the `.settle` and `.rise` motion classes.
+- Surfaces and media: `.card` (with `.card--lift` for a hover lift), `.media` (a rounded photo frame; wrap the `<Image>` in `.media__img`), `.media-chip`, `.tick` (the round checklist badge), `.avatar` (the initials circle), and the `.settle` and `.rise` motion classes.
 
 Use logical properties (`margin-inline`, `padding-block`, `inset-inline-start`) in new blocks, as the existing blocks do, so the layout mirrors in right-to-left languages.
 
@@ -100,7 +100,7 @@ CSS variables worth knowing (see `tokens.css` for the full list):
 
 - `--color-bg`, `--color-surface`, `--color-sunken`, `--color-text`, `--color-text-secondary`, `--color-muted`, `--color-border`, `--color-border-strong`
 - `--color-brand`, `--color-brand-strong`, `--color-brand-soft`, `--color-on-brand`, `--color-brand-ring`
-- `--color-accent`, `--color-accent-soft`, `--color-live`
+- `--color-accent`, `--color-accent-soft`
 - `--color-night`, `--color-on-night`, `--color-on-night-muted` -- the dark panels
 - `--glass-bg`, `--chip-bg`, `--chip-text` -- the header pill and caption chips
 - `--glow-daylight`, `--glow-dusk` -- the radial glows on sunken and night sheets
@@ -122,7 +122,7 @@ To re-brand, the highest-leverage moves are:
 
 - Don't write stock SaaS copy: "Build products people actually want", "Elevate your workflow", "The all-in-one platform for modern teams". These are placeholders. Write what the product actually does, for whom, with one specific outcome.
 - Don't draw structure with lines: no hairline rules between sections, bordered logo or feature grids, or divided stats, FAQ rows, and checklists. Space, cards, and sheets separate content in this design.
-- Don't spread the accent colour onto buttons, panels, or headlines. It marks dots and the quote mark; on everything, it stops signalling.
+- Don't spread the accent colour onto buttons, panels, or headlines. It marks the quote mark; on everything, it stops signalling.
 - Don't use stock portraits for fictional people. Leave testimonial avatars empty so initials show, and add photos only of real customers who agreed to be quoted.
 - Don't ship more than three pricing tiers. Three is the default for a reason -- more makes choice harder, not easier -- and the pricing block allows no more.
 - Don't put sentences in stat values. A value is a short figure (`23%`, `4,800`, `9 mo`); the label carries the explanation.

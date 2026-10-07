@@ -638,25 +638,13 @@ const wordmarkLength = [...siteTitle].length;
 				}
 
 				.eyebrow {
-					display: inline-flex;
-					align-items: center;
-					gap: 8px;
+					display: inline-block;
 					font-family: var(--font-body);
 					font-size: 13px;
 					font-weight: 500;
 					line-height: 1.4;
 					letter-spacing: normal;
 					color: var(--color-text-secondary);
-				}
-
-				.eyebrow::before {
-					content: "";
-					flex: none;
-					width: 6px;
-					height: 6px;
-					border-radius: 50%;
-					background: var(--color-accent);
-					box-shadow: 0 0 0 3px var(--color-accent-soft);
 				}
 
 				.eyebrow + :is(h1, h2, h3) {
@@ -836,11 +824,10 @@ const wordmarkLength = [...siteTitle].length;
 					z-index: 1;
 					display: inline-flex;
 					align-items: center;
-					gap: 10px;
 					max-width: calc(100% - 2 * clamp(12px, 1.6vw, 24px));
 					min-height: 40px;
 					padding-block: 9px;
-					padding-inline: 14px 16px;
+					padding-inline: 16px;
 					border-radius: var(--radius-full);
 					background: var(--chip-bg);
 					color: var(--chip-text);
@@ -852,24 +839,6 @@ const wordmarkLength = [...siteTitle].length;
 						0 10px 30px -10px light-dark(rgb(0 0 0 / 0.35), rgb(0 0 0 / 0.5));
 					-webkit-backdrop-filter: blur(16px) saturate(1.5);
 					backdrop-filter: blur(16px) saturate(1.5);
-				}
-
-				.live-dot {
-					position: relative;
-					flex: none;
-					width: 8px;
-					height: 8px;
-					border-radius: 50%;
-					background: var(--color-live);
-				}
-
-				.live-dot::after {
-					content: "";
-					position: absolute;
-					inset: -4px;
-					border-radius: 50%;
-					background: var(--color-live);
-					opacity: 0.25;
 				}
 
 				.tick {
@@ -940,10 +909,6 @@ const wordmarkLength = [...siteTitle].length;
 						animation-delay: calc(var(--rise-index, 0) * 90ms);
 					}
 
-					.live-dot::after {
-						animation: live-pulse 2.4s var(--ease-out) infinite;
-					}
-
 					@supports (animation-timeline: view()) {
 						.settle img {
 							animation: media-settle linear both;
@@ -961,18 +926,6 @@ const wordmarkLength = [...siteTitle].length;
 					}
 				}
 
-				@keyframes live-pulse {
-					0% {
-						scale: 0.6;
-						opacity: 0.45;
-					}
-
-					70%,
-					100% {
-						scale: 1.9;
-						opacity: 0;
-					}
-				}
 
 				@keyframes media-settle {
 					from {

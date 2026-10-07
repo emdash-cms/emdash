@@ -12,11 +12,11 @@
 
   The palette is warm off-white and ink. Ink is the brand: --color-brand
   follows --color-text and fills the primary buttons. The amber
-  --color-accent is for small marks only, such as the dot beside an
-  eyebrow. Large rounded panels ("sheets") give the page its structure:
-  the sunken features panel is lit by --glow-daylight and the dark
-  --color-night panels by --glow-dusk. Set a glow to none for a flat
-  panel.
+  --color-accent is for small marks only, such as the featured
+  testimonial's quote mark. Large rounded panels ("sheets") give the
+  page its structure: the sunken features panel is lit by
+  --glow-daylight and the dark --color-night panels by --glow-dusk. Set
+  a glow to none for a flat panel.
 
   --font-body (Inter) and --font-display (Instrument Serif, for
   headlines) are defined by the font pipeline in astro.config.mjs, not
@@ -45,7 +45,6 @@
 		--color-brand-ring: color-mix(in srgb, var(--color-brand) 14%, transparent);
 		--color-accent: light-dark(#d97706, #fbbf24);
 		--color-accent-soft: color-mix(in srgb, var(--color-accent) 22%, transparent);
-		--color-live: #22c55e; /* pulsing dot on photo captions */
 		--color-success: #22c55e;
 		--color-warning: #f59e0b;
 		--color-danger: light-dark(#dc2626, #f87171);

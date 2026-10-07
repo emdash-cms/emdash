@@ -13,8 +13,8 @@
 
   Ink is the brand: --color-brand follows --color-text. To give the
   buttons a color, set --color-brand and --color-on-brand together.
-  --color-accent colors the dot beside eyebrows. Set --glow-daylight or
-  --glow-dusk to none for flat panels.
+  --color-accent colors the featured testimonial's quote mark. Set
+  --glow-daylight or --glow-dusk to none for flat panels.
 
   Webfonts are loaded in astro.config.mjs (--font-body for text,
   --font-display for headlines). Swap the loaded fonts there; use

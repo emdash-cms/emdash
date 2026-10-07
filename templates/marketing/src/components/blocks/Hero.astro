@@ -72,7 +72,6 @@ const secondaryCta =
 				</div>
 				{image_caption && (
 					<figcaption class="media-chip">
-						<span class="live-dot" aria-hidden="true"></span>
 						{image_caption}
 					</figcaption>
 				)}
@@ -92,7 +91,7 @@ const secondaryCta =
 		gap: 10px;
 		min-height: 34px;
 		padding-block: 6px;
-		padding-inline: 13px 14px;
+		padding-inline: 14px;
 		border-radius: 17px;
 		background: var(--color-surface);
 		box-shadow: var(--shadow-card);
@@ -100,16 +99,6 @@ const secondaryCta =
 		line-height: 1.35;
 		color: var(--color-text-secondary);
 		transition: box-shadow 160ms var(--ease-out);
-	}
-
-	.hero__announce::before {
-		content: "";
-		flex: none;
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--color-accent);
-		box-shadow: 0 0 0 3px var(--color-accent-soft);
 	}
 
 	.hero__announce :global(.arrow) {
