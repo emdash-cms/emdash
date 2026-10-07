@@ -5597,6 +5597,10 @@ msgstr "ユーザーの無効化に失敗しました"
 msgid "Failed to discard changes"
 msgstr "変更の破棄に失敗しました"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "認証モードの取得に失敗しました"
 
@@ -5725,7 +5729,7 @@ msgstr "コンテンツに設定された分類項目の取得に失敗しまし
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "マニフェストの取得に失敗しました"
 
@@ -6088,6 +6092,10 @@ msgstr ""
 msgid "Failed to publish"
 msgstr "公開に失敗しました"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "執筆者情報の項目の使用状況を取得できませんでした"
@@ -6194,6 +6202,10 @@ msgstr "設定の保存に失敗しました"
 msgid "Failed to schedule"
 msgstr "公開予約に失敗しました"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "プラグインのアンインストールに失敗しました"
 msgid "Failed to unpublish"
 msgstr "非公開化に失敗しました"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "公開予約の解除に失敗しました"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr ""
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "リポジトリ"
 msgid "Request a new link"
 msgstr "新しいリンクをリクエスト"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "リクエストに失敗しました"
 

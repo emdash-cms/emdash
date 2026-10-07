@@ -5597,6 +5597,10 @@ msgstr "無法停用使用者"
 msgid "Failed to discard changes"
 msgstr "捨棄變更失敗"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "無法擷取驗證模式"
 
@@ -5725,7 +5729,7 @@ msgstr "無法擷取內容項目的分類項目"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "無法擷取資訊清單"
 
@@ -6088,6 +6092,10 @@ msgstr ""
 msgid "Failed to publish"
 msgstr "發佈失敗"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "無法讀取署名欄位的使用情況"
@@ -6194,6 +6202,10 @@ msgstr "無法儲存設定"
 msgid "Failed to schedule"
 msgstr "無法排程"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "無法解除安裝外掛"
 msgid "Failed to unpublish"
 msgstr "取消發佈失敗"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "無法取消排程"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr ""
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "程式碼儲存庫"
 msgid "Request a new link"
 msgstr "索取新連結"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "要求失敗"
 

@@ -5597,6 +5597,10 @@ msgstr "Failed to disable user"
 msgid "Failed to discard changes"
 msgstr "Failed to discard changes"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr "Failed to discard draft"
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr "Failed to fetch allowed domains"
 msgid "Failed to fetch API tokens"
 msgstr "Failed to fetch API tokens"
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "Failed to fetch auth mode"
 
@@ -5725,7 +5729,7 @@ msgstr "Failed to fetch entry terms"
 msgid "Failed to fetch fields"
 msgstr "Failed to fetch fields"
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "Failed to fetch manifest"
 
@@ -6088,6 +6092,10 @@ msgstr "Failed to probe URL"
 msgid "Failed to publish"
 msgstr "Failed to publish"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr "Failed to publish content"
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "Failed to read byline field usage"
@@ -6194,6 +6202,10 @@ msgstr "Failed to save settings"
 msgid "Failed to schedule"
 msgstr "Failed to schedule"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr "Failed to schedule content"
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "Failed to uninstall plugin"
 msgid "Failed to unpublish"
 msgstr "Failed to unpublish"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr "Failed to unpublish content"
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "Failed to unschedule"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr "Failed to unschedule content"
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "Repository"
 msgid "Request a new link"
 msgstr "Request a new link"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "Request failed"
 

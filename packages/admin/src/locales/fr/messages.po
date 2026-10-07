@@ -5597,6 +5597,10 @@ msgstr "Échec lors de la désactivation de l'utilisateur"
 msgid "Failed to discard changes"
 msgstr "Échec lors de l'annulation des modifications"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "Échec lors de la récupération du mode d'authentification"
 
@@ -5725,7 +5729,7 @@ msgstr "Échec lors de la récupération des termes d'entrée"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "Échec lors de la récupération du manifeste"
 
@@ -6088,6 +6092,10 @@ msgstr ""
 msgid "Failed to publish"
 msgstr "Échec lors de la publication"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "Échec lors de la lecture de l'utilisation du champ de collaborateur"
@@ -6194,6 +6202,10 @@ msgstr "Échec lors de l'enregistrement des paramètres"
 msgid "Failed to schedule"
 msgstr "Échec lors de la planification"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "Échec lors de la désinstallation du module d'extension"
 msgid "Failed to unpublish"
 msgstr "Échec lors de l'annulation de la publication"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "Échec lors de la déprogrammation"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr ""
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "Dépôt"
 msgid "Request a new link"
 msgstr "Demander un nouveau lien"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "La requête a échoué"
 

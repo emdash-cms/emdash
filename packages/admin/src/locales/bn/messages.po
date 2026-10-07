@@ -5597,6 +5597,10 @@ msgstr "ব্যবহারকারীকে নিষ্ক্রিয় �
 msgid "Failed to discard changes"
 msgstr "পরিবর্তনগুলো বাতিল করতে ব্যর্থ হয়েছে"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "প্রমাণীকরণ মোড আনতে ব্যর্থ হয়েছে"
 
@@ -5725,7 +5729,7 @@ msgstr "এন্ট্রির টার্ম আনতে ব্যর্থ
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "ম্যানিফেস্ট আনতে ব্যর্থ হয়েছে"
 
@@ -6088,6 +6092,10 @@ msgstr ""
 msgid "Failed to publish"
 msgstr "প্রকাশ করতে ব্যর্থ হয়েছে"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "বাইলাইন ফিল্ডের ব্যবহার পড়তে ব্যর্থ হয়েছে"
@@ -6194,6 +6202,10 @@ msgstr "সেটিংস সংরক্ষণ করতে ব্যর্থ
 msgid "Failed to schedule"
 msgstr "সময় নির্ধারণ করতে ব্যর্থ হয়েছে"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "প্লাগইন আনইনস্টল করতে ব্যর
 msgid "Failed to unpublish"
 msgstr "অপ্রকাশিত করতে ব্যর্থ হয়েছে"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "নির্ধারিত সময় বাতিল করতে ব্যর্থ হয়েছে"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr ""
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "রিপোজিটরি"
 msgid "Request a new link"
 msgstr "নতুন লিঙ্কের অনুরোধ করুন"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "অনুরোধ ব্যর্থ হয়েছে"
 

@@ -5596,6 +5596,10 @@ msgstr ""
 msgid "Failed to discard changes"
 msgstr ""
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5650,7 +5654,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr ""
 
@@ -5724,7 +5728,7 @@ msgstr ""
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr ""
 
@@ -6087,6 +6091,10 @@ msgstr ""
 msgid "Failed to publish"
 msgstr ""
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr ""
@@ -6193,6 +6201,10 @@ msgstr "ذخیره تنظیمات ناموفق بود"
 msgid "Failed to schedule"
 msgstr ""
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6233,8 +6245,16 @@ msgstr ""
 msgid "Failed to unpublish"
 msgstr ""
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
+msgstr ""
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
 msgstr ""
 
 #: packages/admin/src/router.tsx:671
@@ -10913,7 +10933,7 @@ msgstr "مخزن"
 msgid "Request a new link"
 msgstr "درخواست لینک جدید"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr ""
 

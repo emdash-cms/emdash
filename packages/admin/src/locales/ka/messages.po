@@ -5597,6 +5597,10 @@ msgstr "მომხმარებლის გამორთვა ვერ 
 msgid "Failed to discard changes"
 msgstr "ცვლილებების გაუქმება ვერ მოხერხდა"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "ავტორიზაციის რეჟიმის ჩატვირთვა ვერ მოხერხდა"
 
@@ -5725,7 +5729,7 @@ msgstr "ჩანაწერის ტერმინების ჩატვ�
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "მანიფესტის ჩატვირთვა ვერ მოხერხდა"
 
@@ -6088,6 +6092,10 @@ msgstr ""
 msgid "Failed to publish"
 msgstr "გამოქვეყნება ვერ მოხერხდა"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "ბაილაინის ველის გამოყენების წაკითხვა ვერ მოხერხდა"
@@ -6194,6 +6202,10 @@ msgstr "პარამეტრების შენახვა ვერ მ
 msgid "Failed to schedule"
 msgstr "დაგეგმვა ვერ მოხერხდა"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "პლაგინის დეინსტალაცია ვერ 
 msgid "Failed to unpublish"
 msgstr "გამოქვეყნების გაუქმება ვერ მოხერხდა"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "დაგეგმვის გაუქმება ვერ მოხერხდა"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr ""
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "რეპოზიტორია"
 msgid "Request a new link"
 msgstr "ახალი ბმულის მოთხოვნა"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "მოთხოვნა ვერ მოხერხდა"
 

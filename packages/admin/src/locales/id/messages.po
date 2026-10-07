@@ -5597,6 +5597,10 @@ msgstr "Gagal menonaktifkan pengguna"
 msgid "Failed to discard changes"
 msgstr "Gagal membuang perubahan"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr "Gagal mengambiil domain yang diizinkan"
 msgid "Failed to fetch API tokens"
 msgstr "Gagal mengambil token API"
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "Gagal mengambil mode otentikasi"
 
@@ -5725,7 +5729,7 @@ msgstr "Gagal mengambil istilah entri"
 msgid "Failed to fetch fields"
 msgstr "Gagal mengambil kolom"
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "Gagal mengambil manifes"
 
@@ -6088,6 +6092,10 @@ msgstr "Gagal menyelidiki URL"
 msgid "Failed to publish"
 msgstr "Gagal memublikasikan"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "Gagal membaca penggunaan kolom byline"
@@ -6194,6 +6202,10 @@ msgstr "Gagal menyimpan pengaturan"
 msgid "Failed to schedule"
 msgstr "Gagal menjadwalkan"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "Gagal mencopot pengaya"
 msgid "Failed to unpublish"
 msgstr "Gagal membatalkan publikasi"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "Gagal membatalkan penjadwalan"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr ""
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "Repositori"
 msgid "Request a new link"
 msgstr "Minta tautan baru"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "Permintaan gagal"
 

@@ -192,7 +192,7 @@ export function createPlugin(config: CloudflareEmailConfig): ResolvedPlugin {
  * Create a Cloudflare Email Sending provider plugin descriptor.
  *
  * Pass it to the emdash() integration's plugins array, activate it under
- * Admin → Extensions, then select it under Settings → Email.
+ * Admin → Plugins, then select it under Settings → Email.
  *
  * Returns a `PluginDescriptor` (not an in-process definition): the astro
  * integration requires every `plugins: []` entry to resolve to a bundlable

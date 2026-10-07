@@ -5597,6 +5597,10 @@ msgstr "उपयोगकर्ता को अक्षम करने म�
 msgid "Failed to discard changes"
 msgstr "परिवर्तन त्यागने में विफल"
 
+#: packages/admin/src/lib/api/content.ts:573
+msgid "Failed to discard draft"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
@@ -5651,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:374
+#: packages/admin/src/lib/api/client.ts:369
 msgid "Failed to fetch auth mode"
 msgstr "प्रमाणीकरण मोड लाने में विफल"
 
@@ -5725,7 +5729,7 @@ msgstr "प्रवेश शर्तें लाने में विफ�
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:357
+#: packages/admin/src/lib/api/client.ts:352
 msgid "Failed to fetch manifest"
 msgstr "मेनिफ़ेस्ट लाने में विफल"
 
@@ -6088,6 +6092,10 @@ msgstr ""
 msgid "Failed to publish"
 msgstr "प्रकाशित करने में विफल"
 
+#: packages/admin/src/lib/api/content.ts:529
+msgid "Failed to publish content"
+msgstr ""
+
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "बायलाइन फ़ील्ड उपयोग को पढ़ने में विफल"
@@ -6194,6 +6202,10 @@ msgstr "सेटिंग्स सहेजने में विफल"
 msgid "Failed to schedule"
 msgstr "शेड्यूल करने में विफल"
 
+#: packages/admin/src/lib/api/content.ts:433
+msgid "Failed to schedule content"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
 msgid "Failed to send magic link"
@@ -6234,9 +6246,17 @@ msgstr "प्लगइन अनइंस्टॉल करने में �
 msgid "Failed to unpublish"
 msgstr "अप्रकाशित करने में विफल"
 
+#: packages/admin/src/lib/api/content.ts:552
+msgid "Failed to unpublish content"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
 msgstr "शेड्यूल अनिर्धारित करने में विफल"
+
+#: packages/admin/src/lib/api/content.ts:454
+msgid "Failed to unschedule content"
+msgstr ""
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -10917,7 +10937,7 @@ msgstr "कोष"
 msgid "Request a new link"
 msgstr "एक नये लिंक का अनुरोध करें"
 
-#: packages/admin/src/lib/api/client.ts:345
+#: packages/admin/src/lib/api/client.ts:340
 msgid "Request failed"
 msgstr "अनुरोध विफल रहा"
 
