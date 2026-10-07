@@ -34,6 +34,7 @@ import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
+import { OptionalLabel } from "./OptionalLabel.js";
 
 /**
  * Image field value - matches emdash's MediaValue type
@@ -108,6 +109,8 @@ export interface ImageFieldRendererProps {
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
+	/** Show "(optional)" after the label */
+	showOptional?: boolean;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
 	variant?: "default" | "featured";
@@ -122,6 +125,7 @@ export function ImageFieldRenderer({
 	value,
 	onChange,
 	required,
+	showOptional,
 	allowedMimeTypes,
 	fieldId,
 	variant = "default",
@@ -502,6 +506,8 @@ export function ImageFieldRenderer({
 		</LayerCard>
 	) : null;
 
+	const labelContent = showOptional ? <OptionalLabel>{label}</OptionalLabel> : label;
+
 	return (
 		// The featured card lays out by its own width, which the editor's column keeps well below the viewport's.
 		<div id={id} className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}>
@@ -511,10 +517,10 @@ export function ImageFieldRenderer({
 					helpLabel={t`More information about ${label}`}
 					labelClassName="text-base font-medium text-kumo-default"
 				>
-					{label}
+					{labelContent}
 				</FieldHelpLabel>
 			) : (
-				<Label>{label}</Label>
+				<Label>{labelContent}</Label>
 			)}
 			{isFeatured && displayUrl ? (
 				featuredCard

@@ -17,11 +17,14 @@ import { DotsThree, IdentificationCard, Pencil, Plus, Trash, X } from "@phosphor
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import { BylineAvatarField } from "../components/BylineAvatarField.js";
+import { BYLINE_SLUG_PATTERN, toBylineSlug } from "../components/BylineCreditsEditor.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
 import { DialogError, getMutationError } from "../components/DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
+import { OptionalLabel } from "../components/OptionalLabel.js";
 import { RouterLinkButton } from "../components/RouterLinkButton.js";
 import { BYLINE_SCHEMA_NAV_ITEM } from "../components/Sidebar.js";
 import { TableToolbar, TableToolbarSearch } from "../components/TableToolbar.js";
@@ -61,7 +64,14 @@ interface BylineFormState {
 	customFields: Record<string, unknown>;
 }
 
+interface BylineFormErrors {
+	displayName?: string;
+	slug?: string;
+	websiteUrl?: string;
+}
+
 const BYLINE_NAME_SEPARATOR = /\s+/;
+const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 const BYLINE_INITIAL_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 export interface LoadMoreSnapshot {
@@ -114,6 +124,10 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 		avatarMediaId: byline.avatarMediaId ?? null,
 		customFields: byline.customFields ?? {},
 	};
+}
+
+function isHttpUrl(value: string): boolean {
+	return HTTP_SCHEME_PATTERN.test(value) && URL.canParse(value);
 }
 
 function getUserLabel(user: UserListItem): string {
@@ -279,6 +293,12 @@ export function BylinesPage() {
 	// resolves after the editor has started typing, and repopulating then
 	// discards those edits.
 	const [formSource, setFormSource] = React.useState<BylineSummary | null>(null);
+	const [formErrors, setFormErrors] = React.useState<BylineFormErrors>({});
+	// A new byline's slug follows its display name until the slug is edited.
+	const [slugEdited, setSlugEdited] = React.useState(false);
+	const displayNameRef = React.useRef<HTMLInputElement>(null);
+	const slugRef = React.useRef<HTMLInputElement>(null);
+	const websiteUrlRef = React.useRef<HTMLInputElement>(null);
 
 	React.useEffect(() => {
 		if (selectedId === null) {
@@ -413,6 +433,7 @@ export function BylinesPage() {
 				search: { locale: created.locale },
 			});
 			setSelectedId(created.id);
+			setFormErrors({});
 		},
 	});
 
@@ -434,6 +455,8 @@ export function BylinesPage() {
 		setSelectedId(null);
 		setForm(toFormState(null));
 		setFormSource(null);
+		setFormErrors({});
+		setSlugEdited(false);
 		createMutation.reset();
 		updateMutation.reset();
 		translateMutation.reset();
@@ -443,6 +466,7 @@ export function BylinesPage() {
 		setSelectedId(item.id);
 		setForm(toFormState(item));
 		setFormSource(item);
+		setFormErrors({});
 		createMutation.reset();
 		updateMutation.reset();
 		translateMutation.reset();
@@ -455,9 +479,36 @@ export function BylinesPage() {
 		updateMutation.reset();
 		translateMutation.reset();
 	};
+	const validateForm = (): BylineFormErrors => {
+		const errors: BylineFormErrors = {};
+		if (!form.displayName.trim()) errors.displayName = t`Enter a display name.`;
+		if (!form.slug) {
+			errors.slug = t`Enter a slug.`;
+		} else if (!BYLINE_SLUG_PATTERN.test(form.slug)) {
+			errors.slug = t`Use lowercase letters, numbers, and hyphens, starting with a letter.`;
+		}
+		if (form.websiteUrl && !isHttpUrl(form.websiteUrl)) {
+			errors.websiteUrl = t`Enter a full URL that starts with https:// or http://.`;
+		}
+		return errors;
+	};
 	const submitForm = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (isSaving || !formLoaded || !form.displayName || !form.slug) return;
+		if (isSaving || !formLoaded) return;
+		const errors = validateForm();
+		// Render the errors before focusing so the field is announced as invalid.
+		flushSync(() => setFormErrors(errors));
+		const firstInvalid = errors.displayName
+			? displayNameRef
+			: errors.slug
+				? slugRef
+				: errors.websiteUrl
+					? websiteUrlRef
+					: null;
+		if (firstInvalid) {
+			firstInvalid.current?.focus();
+			return;
+		}
 		if (selectedId) {
 			updateMutation.mutate();
 		} else {
@@ -686,7 +737,7 @@ export function BylinesPage() {
 					className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[36rem]"
 					size="lg"
 				>
-					<form onSubmit={submitForm} className="flex min-h-0 flex-1 flex-col">
+					<form noValidate onSubmit={submitForm} className="flex min-h-0 flex-1 flex-col">
 						<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
 							<div className="min-w-0">
 								<Dialog.Title className="text-lg font-semibold">
@@ -719,24 +770,65 @@ export function BylinesPage() {
 						<div className="emdash-auto-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-6">
 							<fieldset disabled={!formLoaded} className="min-w-0 space-y-5">
 								<Input
+									ref={displayNameRef}
 									label={t`Display name`}
 									value={form.displayName}
-									onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value }))}
+									onChange={(e) => {
+										const displayName = e.target.value;
+										const followName = !selectedId && !slugEdited;
+										const nameSlug = displayName.trim() ? toBylineSlug(displayName) : "";
+										setForm((prev) => ({
+											...prev,
+											displayName,
+											slug: followName ? nameSlug : prev.slug,
+										}));
+										setFormErrors((prev) => ({
+											...prev,
+											displayName: undefined,
+											slug: followName ? undefined : prev.slug,
+										}));
+									}}
+									error={formErrors.displayName}
+									aria-invalid={!!formErrors.displayName || undefined}
 									required
 								/>
 								<Input
+									ref={slugRef}
 									label={t`Slug`}
+									dir="ltr"
 									value={form.slug}
-									onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
+									onChange={(e) => {
+										const slug = e.target.value;
+										setSlugEdited(slug !== "");
+										setForm((prev) => ({ ...prev, slug }));
+										setFormErrors((prev) => ({ ...prev, slug: undefined }));
+									}}
+									description={
+										!selectedId && !slugEdited
+											? t`Filled in from the display name. Use lowercase letters, numbers, and hyphens.`
+											: t`Use lowercase letters, numbers, and hyphens.`
+									}
+									error={formErrors.slug}
+									aria-invalid={!!formErrors.slug || undefined}
 									required
 								/>
 								<Input
-									label={t`Website URL`}
+									ref={websiteUrlRef}
+									type="url"
+									label={<OptionalLabel>{t`Website URL`}</OptionalLabel>}
+									dir="ltr"
+									placeholder="https://example.com"
 									value={form.websiteUrl}
-									onChange={(e) => setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))}
+									onChange={(e) => {
+										const websiteUrl = e.target.value;
+										setForm((prev) => ({ ...prev, websiteUrl }));
+										setFormErrors((prev) => ({ ...prev, websiteUrl: undefined }));
+									}}
+									error={formErrors.websiteUrl}
+									aria-invalid={!!formErrors.websiteUrl || undefined}
 								/>
 								<InputArea
-									label={t`Bio`}
+									label={<OptionalLabel>{t`Bio`}</OptionalLabel>}
 									value={form.bio}
 									onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
 									rows={5}
@@ -753,7 +845,8 @@ export function BylinesPage() {
 										</p>
 									</div>
 									<Select
-										label={t`Linked user`}
+										label={<OptionalLabel>{t`Linked user`}</OptionalLabel>}
+										aria-label={t`Linked user`}
 										value={form.userId ?? ""}
 										onValueChange={(value) => {
 											const userId = (value as string) || null;
@@ -825,6 +918,7 @@ export function BylinesPage() {
 													search: { locale: summary.locale },
 												});
 												setSelectedId(summary.id);
+												setFormErrors({});
 											}}
 											onCreate={(locale) => translateMutation.mutate(locale)}
 											pendingLocale={pendingTranslationLocale}
@@ -850,11 +944,7 @@ export function BylinesPage() {
 								<Button type="button" variant="secondary" onClick={closeForm} disabled={isSaving}>
 									{t`Cancel`}
 								</Button>
-								<Button
-									type="submit"
-									variant="primary"
-									disabled={!formLoaded || !form.displayName || !form.slug || isSaving}
-								>
+								<Button type="submit" variant="primary" disabled={!formLoaded || isSaving}>
 									{isSaving ? t`Saving...` : selectedId ? t`Save` : t`Create`}
 								</Button>
 							</div>
@@ -892,10 +982,9 @@ export function BylinesPage() {
  * storage semantic engages — server-side `BylineRepository.update`
  * deletes the value row rather than storing an empty-string JSON.
  *
- * `field.required` adds a `*` after the label as a visual hint; the
- * server is authoritative on validation (Phase 6 ACs don't include a
- * client-side required check — the registry's `required` flag is
- * descriptive rather than enforced in the write path today).
+ * Fields that aren't `required` get an "(optional)" label marker. The
+ * registry's `required` flag is descriptive rather than enforced in the
+ * write path today, so required fields aren't blocked client-side.
  */
 function CustomFieldInput({
 	field,
@@ -907,7 +996,7 @@ function CustomFieldInput({
 	onChange: (next: unknown) => void;
 }) {
 	const { t } = useLingui();
-	const label = field.required ? `${field.label} *` : field.label;
+	const label = field.required ? field.label : <OptionalLabel>{field.label}</OptionalLabel>;
 	const stringValue = typeof value === "string" ? value : "";
 
 	switch (field.type) {
@@ -944,7 +1033,7 @@ function CustomFieldInput({
 			// boolean and the storage path persists it verbatim.
 			return (
 				<Switch
-					label={label}
+					label={field.label}
 					checked={value === true}
 					onCheckedChange={(checked) => onChange(checked)}
 				/>
@@ -959,6 +1048,7 @@ function CustomFieldInput({
 			return (
 				<Select
 					label={label}
+					aria-label={field.label}
 					value={stringValue}
 					onValueChange={(v) => onChange(!v ? null : v)}
 					items={items}

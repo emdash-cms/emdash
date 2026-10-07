@@ -88,7 +88,7 @@ test.describe("Bylines", () => {
 
 		// Open the byline in the editor and confirm the avatar field renders.
 		await page.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
-		await expect(page.getByText("Avatar", { exact: true })).toBeVisible();
+		await expect(page.getByText("Avatar (optional)", { exact: true })).toBeVisible();
 
 		// Open the avatar picker and upload an image. The upload stays inside
 		// this picker and becomes the selected library card when it finishes.
