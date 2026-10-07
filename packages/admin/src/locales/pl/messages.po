@@ -5599,7 +5599,7 @@ msgstr "Nie udało się odrzucić zmian"
 
 #: packages/admin/src/lib/api/content.ts:573
 msgid "Failed to discard draft"
-msgstr ""
+msgstr "Nie udało się odrzucić szkicu"
 
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
@@ -6094,7 +6094,7 @@ msgstr "Nie udało się opublikować"
 
 #: packages/admin/src/lib/api/content.ts:529
 msgid "Failed to publish content"
-msgstr ""
+msgstr "Nie udało się opublikować treści"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
@@ -6204,7 +6204,7 @@ msgstr "Nie udało się zaplanować"
 
 #: packages/admin/src/lib/api/content.ts:433
 msgid "Failed to schedule content"
-msgstr ""
+msgstr "Nie udało się zaplanować publikacji treści"
 
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
@@ -6248,7 +6248,7 @@ msgstr "Nie udało się cofnąć publikacji"
 
 #: packages/admin/src/lib/api/content.ts:552
 msgid "Failed to unpublish content"
-msgstr ""
+msgstr "Nie udało się cofnąć publikacji treści"
 
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
@@ -6256,7 +6256,7 @@ msgstr "Nie udało się anulować zaplanowanej publikacji"
 
 #: packages/admin/src/lib/api/content.ts:454
 msgid "Failed to unschedule content"
-msgstr ""
+msgstr "Nie udało się anulować zaplanowanej publikacji treści"
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
