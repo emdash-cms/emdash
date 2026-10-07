@@ -25,20 +25,26 @@ if (!project) {
 	return Astro.rewrite("/404");
 }
 
-// The next project is the newest one that isn't this one. Two entries are
-// enough: when this project is the newest, the next is the second.
-const latestResult = await getEmDashCollection("projects", {
+// The next project is the next older one, so the links walk the whole
+// archive. The range includes this project, so two entries are enough; the
+// oldest project gets no next project. Without a date (a draft in preview)
+// the next is the newest project.
+const publishedAt = project.data.publishedAt;
+const olderResult = await getEmDashCollection("projects", {
 	orderBy: { published_at: "desc" },
 	limit: 2,
+	...(publishedAt
+		? { where: { published_at: { lte: publishedAt.toISOString() } } }
+		: {}),
 });
-if (latestResult.error) {
+if (olderResult.error) {
 	return new Response("Could not load related projects", { status: 500 });
 }
-const { entries: latestProjects, cacheHint: latestCacheHint } = latestResult;
-const nextProject = latestProjects.find((p) => p.id !== project.id);
+const { entries: olderProjects, cacheHint: olderCacheHint } = olderResult;
+const nextProject = olderProjects.find((p) => p.id !== project.id);
 if (Astro.cache?.enabled) {
 	Astro.cache.set(projectCacheHint);
-	Astro.cache.set(latestCacheHint);
+	Astro.cache.set(olderCacheHint);
 }
 
 function safeExternalUrl(value: string | undefined): string | undefined {
@@ -343,6 +349,8 @@ const halfSizes = "(min-width: 1680px) 1200px, (min-width: 768px) 72vw, 150vw";
 	}
 
 	.case-meta a {
+		display: inline-block;
+		padding-block: 0.125rem;
 		color: inherit;
 		text-decoration-line: underline;
 		text-decoration-color: var(--color-border-strong);
