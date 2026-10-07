@@ -26,7 +26,18 @@ interface TestEnv {
 
 const testEnv = env as unknown as TestEnv;
 
-afterEach(() => {
+// An admitted issue keeps retrying its GitHub updates from its alarm. Left
+// running, it fires during a later test and sends those updates through that
+// test's fetch stub.
+const issueNumbers: number[] = [];
+
+afterEach(async () => {
+	for (const issueNumber of issueNumbers.splice(0)) {
+		await runInDurableObject(
+			testEnv.Orchestrator.getByName(`issue-${issueNumber}`),
+			(_instance, state) => state.storage.deleteAlarm(),
+		);
+	}
 	testEnv.GITHUB_APP_PRIVATE_KEY = "";
 	vi.unstubAllGlobals();
 });
@@ -80,7 +91,9 @@ function uniqueIssueNumber(): number {
 	// Random number per test so each lands in a fresh DO instance and doesn't
 	// observe state leakage from a prior test in the same file. Using a
 	// 24-bit window keeps the numbers human-readable in logs.
-	return 1_000_000 + Math.floor(Math.random() * 0xff_ffff);
+	const issueNumber = 1_000_000 + Math.floor(Math.random() * 0xff_ffff);
+	issueNumbers.push(issueNumber);
+	return issueNumber;
 }
 
 async function postWebhook(opts: {
