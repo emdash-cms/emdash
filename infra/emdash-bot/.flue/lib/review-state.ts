@@ -1,7 +1,8 @@
 // .github/workflows/approval.yml maintains the review/* labels and the human
-// approval check. A review on a fork PR does not give that workflow write access,
-// so the bot re-applies the PR's review label from the review webhook. The
-// labeled event re-runs the workflow, which then sets the correct label.
+// approval check. A review event would run the PR branch's copy of that workflow,
+// so it does not trigger on reviews. Instead the bot re-applies the PR's review
+// label from the review webhook; the labeled event runs the default branch's copy,
+// which then sets the correct label.
 
 import {
 	addLabels,
@@ -20,19 +21,12 @@ const REVIEW_STATE_LABELS = [
 
 type ReviewStateLabel = (typeof REVIEW_STATE_LABELS)[number];
 
-export interface ReviewStateTarget {
-	readonly pullRequestNumber: number;
-	readonly draft: boolean;
-}
-
 export async function refreshApprovalState(
 	token: GitHubToken,
 	ctx: RepoContext,
-	target: ReviewStateTarget,
+	number: number,
 	signal?: AbortSignal,
-): Promise<ReviewStateLabel | null> {
-	if (target.draft) return null;
-	const number = target.pullRequestNumber;
+): Promise<ReviewStateLabel> {
 	const current = await getIssueLabels(token, ctx, number, signal);
 	const existing = REVIEW_STATE_LABELS.find((label) => current.includes(label));
 	if (existing) await removeLabel(token, ctx, number, existing, signal);

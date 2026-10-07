@@ -24,9 +24,7 @@ describe("refreshApprovalState", () => {
 	test("re-applies the PR's current review label so the approval workflow re-runs", async () => {
 		const requests = stubLabels(["area/core", "review/approved"]);
 
-		await expect(
-			refreshApprovalState("token", repo, { pullRequestNumber: 42, draft: false }),
-		).resolves.toBe("review/approved");
+		await expect(refreshApprovalState("token", repo, 42)).resolves.toBe("review/approved");
 		expect(requests).toEqual([
 			`GET ${api}/issues/42/labels?per_page=100`,
 			`DELETE ${api}/issues/42/labels/review%2Fapproved`,
@@ -37,21 +35,10 @@ describe("refreshApprovalState", () => {
 	test("applies needs-review when the PR has no review label yet", async () => {
 		const requests = stubLabels(["area/core"]);
 
-		await expect(
-			refreshApprovalState("token", repo, { pullRequestNumber: 42, draft: false }),
-		).resolves.toBe("review/needs-review");
+		await expect(refreshApprovalState("token", repo, 42)).resolves.toBe("review/needs-review");
 		expect(requests).toEqual([
 			`GET ${api}/issues/42/labels?per_page=100`,
 			`POST ${api}/issues/42/labels {"labels":["review/needs-review"]}`,
 		]);
-	});
-
-	test("leaves a draft alone", async () => {
-		const requests = stubLabels(["review/approved"]);
-
-		await expect(
-			refreshApprovalState("token", repo, { pullRequestNumber: 42, draft: true }),
-		).resolves.toBeNull();
-		expect(requests).toEqual([]);
 	});
 });

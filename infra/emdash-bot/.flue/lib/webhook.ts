@@ -199,7 +199,6 @@ export type NormalizeResult =
 			event: Omit<NormalizedEvent, "anchorNumber">;
 	  }
 	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
-	| { kind: "review_state"; pullRequestNumber: number; draft: boolean }
 	| { kind: "skip"; reason: string }
 	| { kind: "pong" };
 
@@ -483,7 +482,9 @@ function normalizePullRequestReview(
 	const action = readString(event?.action);
 	const pr = asRecord(event?.pull_request);
 	const issueNumber = botFixIssueNumber(pr);
-	if (issueNumber === null) return normalizeReviewState(action, pr);
+	if (issueNumber === null) {
+		return { kind: "skip", reason: "pull_request_review is not on an emdashbot fix PR" };
+	}
 	if (action === "dismissed") {
 		const pullRequestNumber = readNumber(pr?.number);
 		if (!pullRequestNumber) return { kind: "skip", reason: "dismissed review missing PR number" };
@@ -581,31 +582,19 @@ function firstRecord(value: unknown): Record<string, unknown> | undefined {
 }
 
 /**
- * A review on a fork PR the bot did not open only re-applies that PR's review/*
- * label so approval.yml re-runs (see review-state.ts). approval.yml handles
- * reviews on same-repo PRs itself. Bot-authored PRs carry no review label.
+ * The PR whose approval state a review changed: every submitted or dismissed
+ * review on an open, ready PR, whoever opened it (see review-state.ts). This is
+ * separate from `normalizeWebhook`, which also routes reviews on the bot's own
+ * PRs as revision feedback.
  */
-function normalizeReviewState(
-	action: string | undefined,
-	pr: Record<string, unknown> | undefined,
-): NormalizeResult {
-	if (action !== "submitted" && action !== "dismissed") {
-		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
-	}
-	const pullRequestNumber = readNumber(pr?.number);
-	if (!pullRequestNumber) return { kind: "skip", reason: "pull_request_review missing PR number" };
-	if (pr?.state === "closed") return { kind: "skip", reason: "pull_request_review on a closed PR" };
-	const headRepo = readString(asRecord(asRecord(pr?.head)?.repo)?.full_name);
-	if (headRepo && headRepo === readString(asRecord(asRecord(pr?.base)?.repo)?.full_name)) {
-		return { kind: "skip", reason: "pull_request_review on a same-repo PR" };
-	}
-	const author = asRecord(pr?.user);
-	const authorLogin = readString(author?.login);
-	if (!authorLogin) return { kind: "skip", reason: "pull_request_review missing PR author" };
-	if (readString(author?.type) === "Bot" || authorLogin.endsWith("[bot]")) {
-		return { kind: "skip", reason: "pull_request_review on a bot-authored PR" };
-	}
-	return { kind: "review_state", pullRequestNumber, draft: pr?.draft === true };
+export function approvalRefreshTarget(eventType: string, payload: unknown): number | null {
+	if (eventType !== "pull_request_review") return null;
+	const event = asRecord(payload);
+	const action = readString(event?.action);
+	if (action !== "submitted" && action !== "dismissed") return null;
+	const pr = asRecord(event?.pull_request);
+	if (pr?.state === "closed" || pr?.draft === true) return null;
+	return readNumber(pr?.number) ?? null;
 }
 
 /**

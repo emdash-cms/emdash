@@ -323,12 +323,14 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(await res.text()).toMatch(/skipped/);
 	});
 
-	test("submitted review batches its body and inline comments before admission", async () => {
+	test("submitted review on a bot PR refreshes its approval state and batches its feedback before admission", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const pullRequestNumber = uniqueIssueNumber();
 		await configureGitHubToken();
-		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) => {
+		const labelWrites: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (init?.method === "POST" && url.endsWith("/labels")) labelWrites.push(url);
 			return Promise.resolve(
 				new Response(
 					JSON.stringify(
@@ -383,6 +385,10 @@ describe("POST /webhook/github (workers-pool)", () => {
 			admission: { kind: "duplicate" },
 		});
 		expect(await stub.getInboxDepth()).toBe(1);
+		expect(labelWrites.every((url) => url.endsWith(`/issues/${pullRequestNumber}/labels`))).toBe(
+			true,
+		);
+		expect(labelWrites.length).toBeGreaterThan(0);
 		await runInDurableObject(stub, async (_instance, state) => {
 			const inbox =
 				await state.storage.get<

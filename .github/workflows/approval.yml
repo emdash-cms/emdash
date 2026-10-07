@@ -4,17 +4,15 @@ name: Approval
 # exclusive review/* labels from one calculation, so a label never disagrees
 # with the check. Pure actions/github-script: no checkout, no secrets, no agent.
 #
-# A review on a fork PR gets a read-only token here, so the job skips it.
-# emdash-bot re-applies the PR's review label from the review webhook
-# (infra/emdash-bot/.flue/lib/review-state.ts), and that labeled event re-runs
-# this workflow with write access. Label changes made here use GITHUB_TOKEN and
-# do not trigger it again.
+# Do not add a pull_request_review trigger: it would run the PR branch's copy of
+# this workflow. Instead emdash-bot re-applies the PR's review label from the
+# review webhook (infra/emdash-bot/.flue/lib/review-state.ts), and the labeled
+# event runs the default branch's copy. Label changes made here use GITHUB_TOKEN
+# and do not trigger it again.
 
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, labeled]
-  pull_request_review:
-    types: [submitted, dismissed]
   push:
     # Re-evaluate every open PR when the rules or the Maintainers list change.
     branches: [main]
@@ -32,9 +30,6 @@ permissions:
 jobs:
   approval:
     name: Update human approval gate
-    if: >-
-      github.event_name != 'pull_request_review'
-      || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -307,8 +302,9 @@ jobs:
                 );
               }
 
-              // Bot-authored PRs need the approval check but carry no review label.
-              if (pr.user.type !== 'Bot') await setReviewLabel(pr, label);
+              // Bot-authored PRs need the approval check but carry no review label. This
+              // also removes the label emdash-bot adds to re-run the workflow.
+              await setReviewLabel(pr, pr.user.type === 'Bot' ? null : label);
               core.info(`#${pr.number}: ${label}${met ? '' : ', approval pending'}`);
             }
 
