@@ -390,16 +390,20 @@ The setup wizard lets a user omit seeded entries, bylines, and taxonomy terms. S
 
 Use a [`blocks` field](/guides/blocks/) when the page itself is an ordered composition of typed sections. Use a custom Portable Text block when the object belongs inside a rich-text document and participates in its paragraph flow.
 
-The marketing template seeds five retained block types and allows them in the Pages `content` field. Its wrapper maps every generated `_type` to an Astro component:
+The marketing template seeds nine retained block types and allows them in the Pages `content` field. Its wrapper maps every generated `_type` to an Astro component:
 
 ```astro title="src/components/MarketingBlocks.astro"
 ---
 import { Blocks, defineBlockComponents } from "emdash/ui";
 import type { PageContentBlock } from "../../emdash-env";
+import CTA from "./blocks/CTA.astro";
 import FAQ from "./blocks/FAQ.astro";
 import Features from "./blocks/Features.astro";
 import Hero from "./blocks/Hero.astro";
+import Logos from "./blocks/Logos.astro";
 import Pricing from "./blocks/Pricing.astro";
+import Split from "./blocks/Split.astro";
+import Stats from "./blocks/Stats.astro";
 import Testimonials from "./blocks/Testimonials.astro";
 
 const components = defineBlockComponents<PageContentBlock>({
@@ -408,6 +412,10 @@ const components = defineBlockComponents<PageContentBlock>({
   marketing_testimonials: Testimonials,
   marketing_pricing: Pricing,
   marketing_faq: FAQ,
+  marketing_logos: Logos,
+  marketing_split: Split,
+  marketing_stats: Stats,
+  marketing_cta: CTA,
 });
 ---
 
