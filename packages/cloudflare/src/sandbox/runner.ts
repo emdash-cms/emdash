@@ -81,6 +81,7 @@ export interface PluginBridgeProps {
 		trailingSlash?: "always" | "never" | "ignore";
 	};
 	httpFetchKey?: string;
+	mediaStorageKey?: string;
 	storageConfig?: Record<
 		string,
 		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
@@ -145,6 +146,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		trailingSlash?: "always" | "never" | "ignore";
 	};
 	private httpFetchKey?: string;
+	private mediaStorageKey?: string;
 
 	constructor(options: SandboxOptions) {
 		this.options = options;
@@ -159,7 +161,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		setEmailSendCallback(options.emailSend ?? null);
 		setContentActionsCallback(this.contentActionsRuntimeId, options.contentActions ?? null);
 		setCronNowCallback(options.now ?? null);
-		setMediaStorageCallback(options.mediaStorage ?? null);
+		if (options.mediaStorage) {
+			this.mediaStorageKey = crypto.randomUUID();
+			setMediaStorageCallback(this.mediaStorageKey, options.mediaStorage);
+		}
 		setCommentModerateCallback(options.commentModerate ?? null);
 		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, options.taxonomyWrite ?? null);
 	}
@@ -220,6 +225,9 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		if (this.httpFetchKey && this.options.httpFetch) {
 			setHttpFetchCallback(this.httpFetchKey, this.options.httpFetch);
 		}
+		if (this.mediaStorageKey && this.options.mediaStorage) {
+			setMediaStorageCallback(this.mediaStorageKey, this.options.mediaStorage);
+		}
 		const pluginId = `${manifest.id}:${manifest.version}`;
 
 		// Return cached plugin if available
@@ -253,6 +261,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.contentActionsRuntimeId,
 			this.taxonomyWriteRuntimeId,
 			this.httpFetchKey,
+			this.mediaStorageKey,
 		);
 
 		this.plugins.set(pluginId, plugin);
@@ -271,6 +280,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		setContentActionsCallback(this.contentActionsRuntimeId, null);
 		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, null);
 		if (this.httpFetchKey) setHttpFetchCallback(this.httpFetchKey, null);
+		if (this.mediaStorageKey) setMediaStorageCallback(this.mediaStorageKey, null);
 	}
 }
 
@@ -314,6 +324,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		private contentActionsRuntimeId?: string,
 		private taxonomyWriteRuntimeId?: string,
 		private readonly httpFetchKey?: string,
+		private readonly mediaStorageKey?: string,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
@@ -361,6 +372,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				storageConfig: this.manifest.storage,
 				settingsSchema: this.manifest.admin?.settingsSchema,
 				httpFetchKey: this.httpFetchKey,
+				mediaStorageKey: this.mediaStorageKey,
 			},
 		});
 

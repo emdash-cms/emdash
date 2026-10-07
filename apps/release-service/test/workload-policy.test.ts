@@ -85,6 +85,23 @@ describe("publisher workload policies", () => {
 		});
 	});
 
+	it("stores workflow restrictions for package version tags", async () => {
+		const workflowRef = "EmDash-CMS/Gallery/.github/workflows/release.yml@refs/tags/gallery@1.2.3";
+		await expect(
+			publisher().putWorkloadPolicy(
+				input({
+					workflowRef,
+					allowedRefs: ["refs/tags/gallery@1.2.3"],
+				}),
+			),
+		).resolves.toMatchObject({
+			ok: true,
+			policy: {
+				workflowRef: "emdash-cms/gallery/.github/workflows/release.yml@refs/tags/gallery@1.2.3",
+			},
+		});
+	});
+
 	it("requires compare-and-set for replacement and preserves creation time", async () => {
 		const stub = publisher();
 		await stub.putWorkloadPolicy(input());

@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - name: Check PR template
         if: >-
           (github.event.action == 'opened' || github.event.action == 'edited') &&
@@ -265,36 +269,42 @@ jobs:
 
             core.info(`Applied labels: ${[...labels].join(', ')}`);
 
-            // --- Scope guard: comment on oversized PRs ---
-            // Only on open (not synchronize) to avoid spamming on every push
-            if (context.payload.action === 'opened') {
-              const warnings = [];
-
-              if (linesChanged > 500) {
-                warnings.push(`This PR changes **${linesChanged.toLocaleString()} lines** across **${files.length} files**. Large PRs are harder to review and more likely to be closed without review.`);
-              } else if (files.length > 20) {
-                warnings.push(`This PR touches **${files.length} files**. PRs with a broad scope are harder to review. Please confirm the scope hasn't drifted beyond the intended change.`);
-              }
-
-              // Check for cross-area changes (touching multiple packages)
-              const areas = Object.keys(areaMap).filter(a => labels.has(a));
-              if (areas.length > 3) {
-                warnings.push(`This PR spans ${areas.length} different areas (${areas.join(', ')}). Consider breaking it into smaller, focused PRs.`);
-              }
-
-              if (warnings.length > 0) {
-                const marker = '<!-- scope-guard -->';
-                const body = [
-                  marker,
-                  '## Scope check',
-                  '',
-                  ...warnings,
-                  '',
-                  'If this scope is intentional, no action needed. A maintainer will review it. If not, please consider splitting this into smaller PRs.',
-                  '',
-                  'See [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) for contribution guidelines.',
-                ].join('\n');
-
+            // --- Translation scope ---
+            const { unexpectedTranslationFiles } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/translation-scope.mjs`
+            );
+            const unexpected = unexpectedTranslationFiles(files.map(f => f.filename));
+            const scopeMarker = '<!-- translation-scope -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const scopeComment = comments.find(c =>
+              c.user?.login === 'github-actions[bot]' && c.body?.includes(scopeMarker)
+            );
+            if (unexpected.length > 0) {
+              const body = [
+                scopeMarker,
+                '## Translation PR scope',
+                '',
+                'This PR changes translation catalogs (`messages.po`) and also changes:',
+                '',
+                ...unexpected.map(path => `- \`${path}\``),
+                '',
+                'A translation PR should change only catalogs, a changeset, and `locales.ts` and `day-picker.ts` when adding a language. Move other changes to a separate PR.',
+                '',
+                "If this isn't a translation PR, remove the catalog changes: catalogs are extracted automatically after a PR merges to `main`.",
+              ].join('\n');
+              if (scopeComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: scopeComment.id,
+                  body,
+                });
+              } else {
                 await github.rest.issues.createComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -302,4 +312,10 @@ jobs:
                   body,
                 });
               }
+            } else if (scopeComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: scopeComment.id,
+              });
             }

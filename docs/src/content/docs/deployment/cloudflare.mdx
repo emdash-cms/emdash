@@ -280,7 +280,7 @@ Set `CF_ACCESS_AUDIENCE` with `pnpm wrangler secret put CF_ACCESS_AUDIENCE`. The
 
 ## Email
 
-Production Workers have no default email delivery service. Magic-link sign-in, team invitations, and comment notifications return **Email is not configured** until an email plugin is active.
+Production Workers have no default email delivery service. Magic-link sign-in returns **Email is not configured** until an email plugin is active.
 
 The Cloudflare email plugin uses a `send_email` binding. First [onboard and verify the sender domain](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/) with Cloudflare Email Sending. Cloudflare rejects messages whose From address is not an accepted sender.
 
@@ -305,7 +305,7 @@ emdash({
 }),
 ```
 
-After deployment, activate the plugin under **Extensions** and select it under **Settings → Email**. Sending fails until the sender is accepted and the binding exists.
+The plugin is active from its first deployment. **Settings → Email** shows the selected provider and can send a test email. Sending fails until the sender is accepted and the binding exists.
 
 The plugin uses the binding named `EMAIL` unless its `binding` option names another one. If it is the only active email provider, EmDash selects it automatically. If more than one provider is active, choose the Cloudflare provider under **Settings → Email**. The optional `replyTo` address receives replies without changing the accepted From address. A plugin can set `replyTo` on an individual message, which overrides this option for that message.
 
@@ -359,6 +359,69 @@ The preview HMAC secret and commenter-IP salt are generated and stored in the da
 
 ## Preview deployments
 
+A preview can run as a [Worker Preview](https://developers.cloudflare.com/workers/previews/), which gives each branch its own URL on the production Worker, or as a separate Worker in a named Wrangler environment. Either way, the preview needs a database and bucket separate from production. Never point a preview binding at a production database or bucket.
+
+### Worker Previews
+
+Worker Previews require Wrangler 4.135.0 or later in the project's dependencies. Projects created from an older EmDash template may pin an earlier version; upgrade it with `pnpm add -D wrangler@latest`. Previews do not inherit bindings or `vars` from the top-level configuration; list every binding the preview uses in a `previews` block.
+
+The Astro Cloudflare adapter adds a `SESSION` KV binding. `wrangler deploy` provisions it automatically, but `wrangler preview` rejects it without a namespace ID. Create the preview resources, including a KV namespace for sessions:
+
+```bash
+pnpm wrangler d1 create my-emdash-site-preview
+pnpm wrangler r2 bucket create my-emdash-media-preview
+pnpm wrangler kv namespace create my-emdash-site-preview-session
+```
+
+Add the resource identifiers that Wrangler prints to `wrangler.jsonc`:
+
+```jsonc title="wrangler.jsonc"
+{
+	"previews": {
+		"d1_databases": [
+			{
+				"binding": "DB",
+				"database_name": "my-emdash-site-preview",
+				"database_id": "00000000-0000-0000-0000-000000000000",
+			},
+		],
+		"r2_buckets": [
+			{
+				"binding": "MEDIA",
+				"bucket_name": "my-emdash-media-preview",
+			},
+		],
+		"kv_namespaces": [{ "binding": "SESSION", "id": "00000000000000000000000000000000" }],
+		"worker_loaders": [{ "binding": "LOADER" }],
+	},
+}
+```
+
+Repeat `send_email`, AI Search, `vars`, and other bindings when the preview uses those features.
+
+The setup wizard and passkeys need the site URL of the preview. Without `siteUrl` or `EMDASH_SITE_URL`, setup fails with `SITE_URL_REQUIRED`. Pass the preview URL, `https://<preview-name>-<worker-name>.<subdomain>.workers.dev`, on every preview deployment:
+
+```bash
+pnpm build
+pnpm wrangler preview --name my-branch \
+  --var EMDASH_SITE_URL:https://my-branch-my-emdash-site.example.workers.dev
+```
+
+Use the same preview name in `--name` and in the URL. A `siteUrl` in `astro.config.mjs` overrides `EMDASH_SITE_URL` and is built into every preview, so passkeys on the preview are bound to the production domain and neither setup nor sign-in works there. Set the production URL with `EMDASH_SITE_URL` in the top-level `vars` instead.
+
+If the Worker sets `workers_dev` to `false`, previews have no URL until you set `"preview_urls": true` at the top level of `wrangler.jsonc` and run `wrangler deploy` once. `wrangler preview` does not apply this setting. `wrangler deploy` publishes the code in your current checkout to production, not only the setting, so commit the change and deploy from a clean checkout of your production branch. Then return to your branch and run `wrangler preview` again.
+
+Set a secret for one preview with `pnpm wrangler preview secret put <NAME> --name my-branch`. `pnpm wrangler preview base-config secret put <NAME>` sets a secret for previews created afterwards; existing previews keep their secrets.
+
+Keep these differences from production in mind:
+
+- **Previews share the resources in the `previews` block.** `wrangler preview` reads the `previews` block of the branch it deploys, so every branch that keeps the base branch's configuration uses the same database. The first request to a preview applies pending core migrations, so a branch that upgrades EmDash also migrates the database the other previews use. To [isolate a branch](https://developers.cloudflare.com/workers/previews/resources/#d1-migrations), create another D1 database and change `database_name` and `database_id` in that branch's `previews` block before deploying it.
+- **An empty preview database shows the setup wizard.** Preview URLs are public, and the first visitor to finish the wizard becomes the administrator. Finish setup immediately after creating the preview, or protect preview URLs with [Cloudflare Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/).
+- **Cron Triggers do not run.** Scheduled posts are not published, and plugin cron tasks and scheduled backups do not run on a preview.
+- **Passkeys work only on the hostname that registered them.** Production passkeys do not work on a preview, and the administrator created on the first preview can sign in with a passkey only on that preview URL. On another preview that shares the database, sign in with a magic link, which needs an email provider and its binding in the `previews` block, and add a passkey there. Alternatively, isolate the branch with its own database as described above and run setup on it.
+
+### Named environments
+
 Named Wrangler environments do not inherit bindings. Create separate preview resources and write them to the `preview` environment before building:
 
 ```bash
@@ -402,7 +465,7 @@ pnpm build
 pnpm wrangler deploy --env preview
 ```
 
-Verify the preview URL, admin sign-in, media upload, and any optional binding before sharing it. Never point a preview binding at a production database or bucket.
+Verify the preview URL, admin sign-in, media upload, and any optional binding before sharing it.
 
 ## Verify the deployment
 

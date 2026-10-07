@@ -2,7 +2,9 @@
 import { getEmDashCollection } from "../../query.js";
 import { getI18nConfig } from "../../i18n/config.js";
 import { getSiteSettings } from "../../settings/index.js";
+import { sanitizeHref } from "../../utils/url.js";
 import EmDashImage from "../EmDashImage.astro";
+import { buildLiveSearchResultUrl } from "../live-search-routing.js";
 import {
 	createPublishedDateFormatter,
 	isThumbnailImage,
@@ -13,9 +15,11 @@ interface Props {
 	count?: number;
 	showThumbnails?: boolean;
 	showDate?: boolean;
+	/** URL template for post links, e.g. "/blog/:slug" (tokens: :collection, :id, :slug, :path) */
+	urlTemplate?: string;
 }
 
-const { count = 5, showThumbnails = false, showDate = true } = Astro.props;
+const { count = 5, showThumbnails = false, showDate = true, urlTemplate } = Astro.props;
 
 const [{ entries: posts }, settings] = await Promise.all([
 	getEmDashCollection("posts", {
@@ -41,6 +45,23 @@ function getTitle(data: Record<string, unknown>): string | undefined {
 			const title = getTitle(post.data);
 			const publishedAt = toPublishedDate(post.data.publishedAt);
 			const featuredImage = post.data.featured_image;
+			// Without a template, keep the widget's long-standing default:
+			// `post.id` is the loader's slug (or `locale/slug` with i18n
+			// prefixing), so the locale prefix is preserved. With a template,
+			// use the same token semantics as LiveSearch's routeMap — `:id`
+			// is the content ULID (`data.id`), `:slug` the bare slug.
+			const href = urlTemplate
+				? sanitizeHref(
+						buildLiveSearchResultUrl(
+							{
+								collection: "posts",
+								id: typeof post.data.id === "string" ? post.data.id : post.id,
+								slug: typeof post.data.slug === "string" ? post.data.slug : post.id,
+							},
+							{ posts: urlTemplate },
+						),
+					)
+				: `/posts/${post.id}`;
 			return (
 				<li>
 					{showThumbnails && isThumbnailImage(featuredImage) && (
@@ -52,7 +73,7 @@ function getTitle(data: Record<string, unknown>): string | undefined {
 							class="widget-recent-posts__thumbnail"
 						/>
 					)}
-					<a href={`/posts/${post.id}`} class="widget-recent-posts__link">
+					<a href={href} class="widget-recent-posts__link">
 						{title}
 					</a>
 					{showDate && publishedAt && (

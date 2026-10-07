@@ -474,7 +474,11 @@ export class RedirectRepository {
 	 */
 	async matchPath(path: string): Promise<RedirectMatch | null> {
 		// 1. Exact match (fast, indexed)
-		const exact = await this.findExactMatch(path);
+		let exact = await this.findExactMatch(path);
+		if (!exact && path.length > 1) {
+			const alt = path.endsWith("/") ? path.slice(0, -1) : `${path}/`;
+			exact = await this.findExactMatch(alt);
+		}
 		if (exact && isSiteRelativeDestination(exact.destination)) {
 			return { redirect: exact, resolvedDestination: exact.destination };
 		}
@@ -638,7 +642,7 @@ export class RedirectRepository {
 	 *
 	 * This is called from the public redirect middleware on every 404 and
 	 * must never throw for an unauthenticated caller — failures bubble up to
-	 * the middleware, which swallows them.
+	 * the middleware, which catches and logs them.
 	 */
 	async log404(entry: {
 		path: string;

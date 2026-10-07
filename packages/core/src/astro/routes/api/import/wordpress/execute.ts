@@ -678,6 +678,25 @@ export async function importContent(
 						});
 					}
 				}
+
+				if (
+					createdItem &&
+					post.status === "future" &&
+					createdAt &&
+					Date.parse(createdAt) > Date.now()
+				) {
+					const scheduled = await emdash.handleContentSchedule(
+						collection,
+						createdItem.id,
+						createdAt,
+					);
+					if (!scheduled.success) {
+						result.errors.push({
+							title: post.title || "Untitled",
+							error: `Imported as draft but failed to schedule: ${scheduled.error?.message ?? "Unknown error"}`,
+						});
+					}
+				}
 			} else {
 				result.errors.push({
 					title: post.title || "Untitled",

@@ -58,6 +58,7 @@ export default defineConfig({
 												workflowRef: "refs/heads/main",
 												commitSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 												invocationId: "https://github.com/example/gallery/actions/runs/100/attempts/1",
+												artifactDigest: new Uint8Array(32),
 											},
 										},
 									};

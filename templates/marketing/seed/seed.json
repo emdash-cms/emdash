@@ -235,7 +235,8 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
-			"supports": ["drafts", "revisions", "seo"],
+			"urlPattern": "/{slug}",
+			"supports": ["drafts", "revisions", "preview", "seo"],
 			"fields": [
 				{
 					"slug": "title",

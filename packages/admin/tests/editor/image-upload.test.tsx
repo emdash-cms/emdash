@@ -5,12 +5,16 @@ import StarterKit from "@tiptap/starter-kit";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
+import { TopBlockDocument } from "../../src/components/editor/EmbedBlockShell.js";
 import { ImageExtension } from "../../src/components/editor/ImageNode.js";
 import {
 	ImageUploadExtension,
 	type ImageUploadOptions,
 } from "../../src/components/editor/ImageUploadExtension.js";
+import { VideoExtension } from "../../src/components/editor/VideoNode.js";
 import { render } from "../utils/render.js";
+
+import "../../dist/styles.css";
 
 const PNG_BYTES = Uint8Array.from(
 	atob(
@@ -21,6 +25,10 @@ const PNG_BYTES = Uint8Array.from(
 
 function imageFile(name: string) {
 	return new File([PNG_BYTES], name, { type: "image/png" });
+}
+
+function videoFile(name: string) {
+	return new File([new Uint8Array(16)], name, { type: "video/mp4" });
 }
 
 function deferred<T>() {
@@ -49,17 +57,27 @@ const TWO_PARAGRAPHS = [textBlock("First"), textBlock("Second")];
 
 function TestEditor({
 	upload,
+	acceptsVideo,
 	editable = true,
 	content = TWO_PARAGRAPHS,
 	onReady,
 }: {
 	upload: ImageUploadOptions["upload"];
+	acceptsVideo?: () => boolean;
 	editable?: boolean;
 	content?: JSONContent[];
 	onReady: (editor: Editor) => void;
 }) {
 	const editor = useEditor({
-		extensions: [StarterKit, ImageExtension, ImageUploadExtension.configure({ upload })],
+		extensions: acceptsVideo
+			? [
+					StarterKit.configure({ document: false }),
+					TopBlockDocument,
+					ImageExtension,
+					VideoExtension,
+					ImageUploadExtension.configure({ upload, acceptsVideo }),
+				]
+			: [StarterKit, ImageExtension, ImageUploadExtension.configure({ upload })],
 		content: { type: "doc", content },
 		editable,
 		immediatelyRender: true,
@@ -73,12 +91,13 @@ function TestEditor({
 
 async function setup(
 	upload: ImageUploadOptions["upload"],
-	options: { editable?: boolean; content?: JSONContent[] } = {},
+	options: { editable?: boolean; content?: JSONContent[]; acceptsVideo?: () => boolean } = {},
 ) {
 	let editor: Editor | undefined;
 	await render(
 		<TestEditor
 			upload={upload}
+			acceptsVideo={options.acceptsVideo}
 			editable={options.editable}
 			content={options.content}
 			onReady={(instance) => {
@@ -126,6 +145,7 @@ function pasteData(target: HTMLElement, data: { files?: File[]; html?: string; t
 function blockTypes(editor: Editor) {
 	return (editor.getJSON().content ?? []).map((node) => {
 		if (node.type === "image") return `image:${String(node.attrs?.mediaId)}`;
+		if (node.type === "videoBlock") return `video:${String(node.attrs?.mediaId)}`;
 		return node.type === "paragraph" ? node.content?.[0]?.text : node.type;
 	});
 }
@@ -420,5 +440,91 @@ describe("ImageUploadExtension", () => {
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		expect(upload).not.toHaveBeenCalled();
 		expect(document.querySelector("[data-image-upload-placeholder]")).toBeNull();
+	});
+});
+
+describe("ImageUploadExtension with videos", () => {
+	const acceptsVideo = () => true;
+
+	function videoAttrsFor(file: File) {
+		return { src: `/_emdash/api/media/file/${file.name}`, mediaId: `media-${file.name}` };
+	}
+
+	it("shows a video-shaped placeholder while uploading, then inserts a video block between blocks", async () => {
+		const pending = deferred<Record<string, unknown>>();
+		const editor = await setup(() => pending.promise, { acceptsVideo });
+
+		dropFiles(paragraph("First"), [videoFile("launch.mp4")]);
+
+		const placeholder = await waitForPlaceholder();
+		expect(placeholder.textContent).toContain("Uploading video…");
+		expect(placeholder.querySelector("img")).toBeNull();
+		const { width, height } = placeholder.getBoundingClientRect();
+		expect(width / height).toBeCloseTo(16 / 9, 1);
+
+		pending.resolve(videoAttrsFor(videoFile("launch.mp4")));
+		await vi.waitFor(() =>
+			expect(blockTypes(editor)).toEqual(["First", "video:media-launch.mp4", "Second"]),
+		);
+	});
+
+	it("keeps dropped images and videos in the order they were dropped", async () => {
+		const editor = await setup(
+			async (file) => (file.type.startsWith("video/") ? videoAttrsFor(file) : attrsFor(file)),
+			{ acceptsVideo },
+		);
+
+		dropFiles(paragraph("First"), [imageFile("a.png"), videoFile("b.mp4"), imageFile("c.png")]);
+
+		await vi.waitFor(() =>
+			expect(blockTypes(editor)).toEqual([
+				"First",
+				"image:media-a.png",
+				"video:media-b.mp4",
+				"image:media-c.png",
+				"Second",
+			]),
+		);
+	});
+
+	it("uploads a pasted video", async () => {
+		const editor = await setup(async (file) => videoAttrsFor(file), { acceptsVideo });
+		editor.commands.setTextSelection(6);
+
+		const event = pasteData(editor.view.dom, { files: [videoFile("clip.mp4")] });
+
+		expect(event.defaultPrevented).toBe(true);
+		await vi.waitFor(() =>
+			expect(blockTypes(editor)).toEqual(["First", "video:media-clip.mp4", "Second"]),
+		);
+	});
+
+	it("says images and videos can be dropped when a file is neither", async () => {
+		const upload = vi.fn(async (file: File) => videoAttrsFor(file));
+		await setup(upload, { acceptsVideo });
+
+		dropFiles(paragraph("First"), [new File(["%PDF"], "report.pdf", { type: "application/pdf" })]);
+
+		await vi.waitFor(() =>
+			expect(
+				document.querySelector("[data-image-upload-placeholder] [role='alert']")?.textContent,
+			).toContain("Only images and videos can be uploaded here."),
+		);
+		expect(upload).not.toHaveBeenCalled();
+	});
+
+	it("refuses videos while the editor doesn't take them", async () => {
+		const upload = vi.fn(async (file: File) => videoAttrsFor(file));
+		const editor = await setup(upload, { acceptsVideo: () => false });
+
+		dropFiles(paragraph("First"), [videoFile("launch.mp4")]);
+
+		await vi.waitFor(() =>
+			expect(
+				document.querySelector("[data-image-upload-placeholder] [role='alert']")?.textContent,
+			).toContain("Only image files can be uploaded here."),
+		);
+		expect(upload).not.toHaveBeenCalled();
+		expect(blockTypes(editor)).toEqual(["First", "Second"]);
 	});
 });

@@ -39,6 +39,7 @@ import type {
 	ContentItem,
 	TrashedContentItem,
 } from "../lib/api.js";
+import { getDraftStatus } from "../lib/api.js";
 import {
 	ContentListColumnBoundary,
 	resolveContentListColumns,
@@ -51,7 +52,7 @@ import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, formatDate, parseTimestamp } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
-import { getDayPickerLocale } from "../locales/day-picker.js";
+import { useDateLocale } from "../locales/date-locale.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { BulkTagDialog, type BulkTagTaxonomy, type SelectedBulkTagPost } from "./BulkTagDialog.js";
 import {
@@ -1151,7 +1152,7 @@ function DateRangeFilter({
 			? t`Until ${formatter.format(to)}`
 			: t`Date range`;
 	const selected: DateRange | undefined = from ? { from, to } : to ? { from: to, to } : undefined;
-	const dayPickerLocale = getDayPickerLocale(i18n.locale);
+	const dayPickerLocale = useDateLocale();
 	const direction = getLocaleDir(i18n.locale);
 	const isUpperBoundOnly = !from && !!to;
 	const canUseAsEndDate = !!from && (!to || value.from === value.to);
@@ -1441,7 +1442,7 @@ function ContentListItem({
 			<td className="px-4 py-3">
 				<StatusBadge
 					status={item.status}
-					hasPendingChanges={!!item.draftRevisionId && item.draftRevisionId !== item.liveRevisionId}
+					hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
 				/>
 			</td>
 			{showLocale && (
