@@ -514,12 +514,18 @@
 					"type": "custom",
 					"label": "Contact",
 					"url": "/contact"
+				},
+				{
+					"type": "custom",
+					"label": "Book a demo",
+					"url": "/contact",
+					"cssClasses": "button"
 				}
 			]
 		},
 		{
 			"name": "footer_product",
-			"label": "Footer: Product",
+			"label": "Product",
 			"items": [
 				{ "type": "custom", "label": "Platform", "url": "/#platform" },
 				{ "type": "custom", "label": "Monitoring", "url": "/#monitoring" },
@@ -529,7 +535,7 @@
 		},
 		{
 			"name": "footer_company",
-			"label": "Footer: Company",
+			"label": "Company",
 			"items": [
 				{ "type": "custom", "label": "Customers", "url": "/#customers" },
 				{ "type": "custom", "label": "FAQ", "url": "/#faq" },
@@ -538,7 +544,7 @@
 		},
 		{
 			"name": "footer_support",
-			"label": "Footer: Support",
+			"label": "Support",
 			"items": [
 				{ "type": "custom", "label": "Talk to sales", "url": "mailto:sales@halden.example" },
 				{ "type": "custom", "label": "Support", "url": "mailto:support@halden.example" },

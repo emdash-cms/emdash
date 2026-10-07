@@ -44,13 +44,16 @@ const siteTitle = settings?.title || "Halden";
 const fullTitle = title ? (title.includes(siteTitle) ? title : `${title} — ${siteTitle}`) : siteTitle;
 const siteDescription = settings?.tagline || "Energy intelligence for commercial buildings";
 const siteLogo = settings?.logo?.url ? settings.logo : null;
+const WHITESPACE = /\s+/;
 const menuItems = menuResult.data?.items ?? [];
+const isButtonItem = (item: (typeof menuItems)[number]) =>
+	item.cssClasses?.split(WHITESPACE).includes("button") ?? false;
+const navLinks = menuItems.filter((item) => !isButtonItem(item));
+const navButtons = menuItems.filter(isButtonItem);
 
-const footerColumns = [
-	{ heading: "Product", items: footerProductResult.data?.items ?? [] },
-	{ heading: "Company", items: footerCompanyResult.data?.items ?? [] },
-	{ heading: "Support", items: footerSupportResult.data?.items ?? [] },
-].filter((column) => column.items.length > 0);
+const footerColumns = [footerProductResult, footerCompanyResult, footerSupportResult]
+	.map((result) => ({ heading: result.data?.label, items: result.data?.items ?? [] }))
+	.filter((column) => column.items.length > 0);
 
 const pageCtx = createPublicPageContext({
 	Astro,
@@ -67,7 +70,7 @@ const pageCtx = createPublicPageContext({
 });
 
 const isLoggedIn = !!Astro.locals.user;
-const hasMenuPanel = menuItems.length > 0 || isLoggedIn;
+const hasMenuPanel = navLinks.length > 0 || isLoggedIn;
 const year = new Date().getFullYear();
 const wordmarkLength = [...siteTitle].length;
 ---
@@ -115,9 +118,9 @@ const wordmarkLength = [...siteTitle].length;
 					}
 				</a>
 				{
-					menuItems.length > 0 && (
+					navLinks.length > 0 && (
 						<nav class="nav__links" aria-label="Primary">
-							{menuItems.map((item) => (
+							{navLinks.map((item) => (
 								<a
 									href={item.url}
 									target={item.target}
@@ -131,7 +134,16 @@ const wordmarkLength = [...siteTitle].length;
 				}
 				<div class="nav__actions">
 					{isLoggedIn && <a href="/_emdash/admin" class="nav__admin">Admin</a>}
-					<a href="/contact" class="btn btn-sm nav__cta">Book a demo</a>
+					{navButtons.map((item) => (
+						<a
+							href={item.url}
+							target={item.target}
+							rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+							class="btn btn-sm nav__cta"
+						>
+							{item.label}
+						</a>
+					))}
 					{
 						hasMenuPanel && (
 							<button
@@ -150,7 +162,7 @@ const wordmarkLength = [...siteTitle].length;
 				{
 					hasMenuPanel && (
 						<nav id="mobile-menu" class="nav__panel" aria-label="Primary" hidden>
-							{menuItems.map((item) => (
+							{navLinks.map((item) => (
 								<a
 									href={item.url}
 									target={item.target}
@@ -198,7 +210,7 @@ const wordmarkLength = [...siteTitle].length;
 					{
 						footerColumns.map((column) => (
 							<div class="footer__column">
-								<h2 class="footer__heading">{column.heading}</h2>
+								{column.heading && <h2 class="footer__heading">{column.heading}</h2>}
 								<ul class="footer__links">
 									{column.items.map((item) => (
 										<li>

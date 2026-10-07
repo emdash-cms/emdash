@@ -64,7 +64,7 @@ Each route loads its entry by slug (`home`, `pricing`, `contact`). Publishing a 
 
 - `pages` collection: `title`, `content` (a first-class `blocks` field). Its `/{slug}` URL pattern drives admin links, previews, and the sitemap; `src/pages/home.astro` redirects `/home` to `/`, keeping the query string so Home's preview links work.
 - No taxonomies.
-- Four menus: `primary` (the header links), plus `footer_product`, `footer_company`, and `footer_support` (the footer's Product, Company, and Support columns). The seeded links point at home page sections (`/#platform`, `/#monitoring`, `/#planning`, `/#customers`, `/#faq`), the pricing and contact pages, and `mailto:` addresses. The header's Book a demo button links to `/contact` and is not a menu item.
+- Four menus: `primary` (the header links), plus `footer_product`, `footer_company`, and `footer_support` (the footer's Product, Company, and Support columns). The seeded links point at home page sections (`/#platform`, `/#monitoring`, `/#planning`, `/#customers`, `/#faq`), the pricing and contact pages, and `mailto:` addresses. A `primary` item with the CSS class `button` renders as the header button instead of a link (the seeded Book a demo item); the seed sets the class, and editors can change the item's label and URL in the admin. Each footer column's heading is its menu's label.
 
 Site settings have `title` and `tagline`. The title renders as the serif wordmark in the header and footer (a logo set in site settings replaces it there) and as the giant cropped wordmark at the bottom of every page. The tagline renders in the footer and is the fallback meta description.
 
