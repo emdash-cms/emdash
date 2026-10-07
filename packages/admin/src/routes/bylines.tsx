@@ -817,7 +817,7 @@ export function BylinesPage() {
 									type="url"
 									label={<OptionalLabel>{t`Website URL`}</OptionalLabel>}
 									dir="ltr"
-									placeholder="https://example.com"
+									placeholder={t`https://example.com`}
 									value={form.websiteUrl}
 									onChange={(e) => {
 										const websiteUrl = e.target.value;

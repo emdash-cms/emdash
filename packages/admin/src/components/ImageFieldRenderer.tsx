@@ -109,7 +109,6 @@ export interface ImageFieldRendererProps {
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
-	/** Show "(optional)" after the label */
 	showOptional?: boolean;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
