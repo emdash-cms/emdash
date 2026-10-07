@@ -33,10 +33,15 @@ const issueNumbers: number[] = [];
 
 afterEach(async () => {
 	for (const issueNumber of issueNumbers.splice(0)) {
-		await runInDurableObject(
-			testEnv.Orchestrator.getByName(`issue-${issueNumber}`),
-			(_instance, state) => state.storage.deleteAlarm(),
-		);
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		// Wipe the DO before waiting on its in-flight work, so the tick that
+		// queues behind that work finds nothing left to do.
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.deleteAlarm();
+			await state.storage.deleteAll();
+		});
+		await stub.tick();
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
 	}
 	testEnv.GITHUB_APP_PRIVATE_KEY = "";
 	vi.unstubAllGlobals();
