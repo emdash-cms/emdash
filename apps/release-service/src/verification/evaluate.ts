@@ -1,5 +1,11 @@
 import { safeParse } from "@atcute/lexicons";
-import { diffDeclaredAccess, type AccessDiff, type DeclaredAccess } from "@emdash-cms/plugin-types";
+import {
+	canonicalizeDeclaredAccess,
+	diffDeclaredAccess,
+	type AccessDiff,
+	type CanonicalDeclaredAccess,
+	type DeclaredAccess,
+} from "@emdash-cms/plugin-types";
 import { parseDelegatedReleaseSourceRecord } from "@emdash-cms/registry-client/release-service";
 import {
 	NSID,
@@ -260,8 +266,11 @@ function parseReleaseIntent(value: string): ReleaseIntentPayload | null {
 	return { release: parsed["release"] };
 }
 
-function equalJson(left: unknown, right: unknown): boolean {
-	return JSON.stringify(left) === JSON.stringify(right);
+function sameDeclaredAccess(record: CanonicalDeclaredAccess, manifest: unknown): boolean {
+	const parsed = safeParse(PackageReleaseExtension.declaredAccessSchema, manifest);
+	return (
+		parsed.ok && JSON.stringify(record) === JSON.stringify(canonicalizeDeclaredAccess(parsed.value))
+	);
 }
 
 async function digest(value: unknown): Promise<string> {
@@ -445,7 +454,10 @@ export async function evaluateVerifiedRelease(
 	});
 	if (!records.success) return failed("RECORD_INVALID", records.code);
 	if (
-		!equalJson(records.value.declaredAccess, verifierReport.value.artifact.manifest.declaredAccess)
+		!sameDeclaredAccess(
+			records.value.declaredAccess,
+			verifierReport.value.artifact.manifest.declaredAccess,
+		)
 	) {
 		return failed("ARTIFACT_RECORD_MISMATCH");
 	}
