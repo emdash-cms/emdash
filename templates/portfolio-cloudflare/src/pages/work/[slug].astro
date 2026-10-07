@@ -26,13 +26,14 @@ if (!project) {
 }
 
 // The next project is the next older one, so the links walk the whole
-// archive. The range includes this project, so two entries are enough; the
-// oldest project gets no next project. Without a date (a draft in preview)
+// archive. The range includes this project and any that share its publish
+// date, so the next one is whichever entry follows this project in the same
+// order; the oldest project gets none. Without a date (a draft in preview)
 // the next is the newest project.
 const publishedAt = project.data.publishedAt;
 const olderResult = await getEmDashCollection("projects", {
 	orderBy: { published_at: "desc" },
-	limit: 2,
+	limit: 4,
 	...(publishedAt
 		? { where: { published_at: { lte: publishedAt.toISOString() } } }
 		: {}),
@@ -41,7 +42,11 @@ if (olderResult.error) {
 	return new Response("Could not load related projects", { status: 500 });
 }
 const { entries: olderProjects, cacheHint: olderCacheHint } = olderResult;
-const nextProject = olderProjects.find((p) => p.id !== project.id);
+const currentIndex = olderProjects.findIndex((p) => p.id === project.id);
+const nextProject =
+	currentIndex >= 0
+		? olderProjects[currentIndex + 1]
+		: olderProjects.find((p) => p.id !== project.id);
 if (Astro.cache?.enabled) {
 	Astro.cache.set(projectCacheHint);
 	Astro.cache.set(olderCacheHint);
