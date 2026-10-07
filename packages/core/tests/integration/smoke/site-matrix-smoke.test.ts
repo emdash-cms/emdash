@@ -77,8 +77,8 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4614,
 		startupTimeoutMs: 90_000,
 		frontendExpectations: [
-			{ path: "/", text: "Build products people actually want" },
-			{ path: "/pricing", text: "Simple, transparent pricing" },
+			{ path: "/", text: "Every building, running at its best." },
+			{ path: "/pricing", text: "Pricing that pays for itself." },
 		],
 		sitemapPath: "/sitemap-pages.xml",
 		previewEntry: { collection: "pages", id: "home" },
@@ -89,8 +89,8 @@ const SITE_MATRIX: SiteCase[] = [
 		port: 4615,
 		startupTimeoutMs: 120_000,
 		frontendExpectations: [
-			{ path: "/", text: "Build products people actually want" },
-			{ path: "/pricing", text: "Simple, transparent pricing" },
+			{ path: "/", text: "Every building, running at its best." },
+			{ path: "/pricing", text: "Pricing that pays for itself." },
 		],
 		sitemapPath: "/sitemap-pages.xml",
 		previewEntry: { collection: "pages", id: "home" },

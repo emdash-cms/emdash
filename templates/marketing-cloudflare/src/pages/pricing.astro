@@ -12,7 +12,8 @@ const seo = page
 	? getSeoMeta(page, {
 			siteUrl: Astro.url.origin,
 			path: "/pricing",
-			defaultDescription: "Simple, transparent pricing. No hidden fees. No surprises.",
+			defaultDescription:
+				"Start with one building for free. Every Halden plan includes onboarding, live metering and support from energy engineers.",
 		})
 	: null;
 ---
@@ -28,37 +29,21 @@ const seo = page
 >
 	{
 		page && pageContent ? (
-			<div {...page.edit.content}>
+			<div class="page-blocks" {...page.edit.content}>
 				<MarketingBlocks value={pageContent} />
 			</div>
 		) : (
-			<div class="empty-state">
-				<h1>Pricing</h1>
-				<p>Add pricing content in the admin.</p>
-					{Astro.locals.user && (
-						<a href="/_emdash/admin" class="btn btn-primary">
-							Open Admin
+			<section class="container empty-state">
+				<h1 class="display empty-state__title">Pricing</h1>
+				<p class="lead">Add blocks to this page in the admin to get started.</p>
+				{Astro.locals.user && (
+					<div class="actions">
+						<a href="/_emdash/admin" class="btn btn-lg">
+							Open admin
 						</a>
-					)}
-			</div>
+					</div>
+				)}
+			</section>
 		)
 	}
 </Base>
-
-<style>
-	.empty-state {
-		text-align: center;
-		padding: var(--spacing-5xl) var(--spacing-lg);
-		max-width: var(--max-width);
-		margin: 0 auto;
-	}
-
-	.empty-state h1 {
-		margin-bottom: var(--spacing-md);
-	}
-
-	.empty-state p {
-		color: var(--color-muted);
-		margin-bottom: var(--spacing-xl);
-	}
-</style>

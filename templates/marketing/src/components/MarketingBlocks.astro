@@ -1,10 +1,14 @@
 ---
 import { Blocks, defineBlockComponents } from "emdash/ui";
 import type { PageContentBlock } from "../../emdash-env";
+import CTA from "./blocks/CTA.astro";
 import FAQ from "./blocks/FAQ.astro";
 import Features from "./blocks/Features.astro";
 import Hero from "./blocks/Hero.astro";
+import Logos from "./blocks/Logos.astro";
 import Pricing from "./blocks/Pricing.astro";
+import Split from "./blocks/Split.astro";
+import Stats from "./blocks/Stats.astro";
 import Testimonials from "./blocks/Testimonials.astro";
 
 interface Props {
@@ -19,6 +23,10 @@ const marketingComponents = defineBlockComponents<PageContentBlock>({
 	marketing_testimonials: Testimonials,
 	marketing_pricing: Pricing,
 	marketing_faq: FAQ,
+	marketing_logos: Logos,
+	marketing_split: Split,
+	marketing_stats: Stats,
+	marketing_cta: CTA,
 });
 ---
 

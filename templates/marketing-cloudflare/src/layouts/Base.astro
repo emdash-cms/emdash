@@ -1,4 +1,5 @@
 ---
+import { Icon } from "astro-iconset/components";
 import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
@@ -39,21 +40,17 @@ if (Astro.cache?.enabled) {
 }
 
 const settings = settingsResult.data;
-const siteTitle = settings?.title || "Acme";
+const siteTitle = settings?.title || "Halden";
 const fullTitle = title ? (title.includes(siteTitle) ? title : `${title} — ${siteTitle}`) : siteTitle;
-const siteDescription =
-	settings?.tagline || "Build products people actually want";
-const siteLogo = settings.logo?.url ? settings.logo : null;
-const menu = menuResult.data;
-const footerProduct = footerProductResult.data;
-const footerCompany = footerCompanyResult.data;
-const footerSupport = footerSupportResult.data;
+const siteDescription = settings?.tagline || "Energy intelligence for commercial buildings";
+const siteLogo = settings?.logo?.url ? settings.logo : null;
+const menuItems = menuResult.data?.items ?? [];
 
 const footerColumns = [
-	{ heading: "Product", menu: footerProduct },
-	{ heading: "Company", menu: footerCompany },
-	{ heading: "Support", menu: footerSupport },
-].filter((col) => col.menu && col.menu.items.length > 0);
+	{ heading: "Product", items: footerProductResult.data?.items ?? [] },
+	{ heading: "Company", items: footerCompanyResult.data?.items ?? [] },
+	{ heading: "Support", items: footerSupportResult.data?.items ?? [] },
+].filter((column) => column.items.length > 0);
 
 const pageCtx = createPublicPageContext({
 	Astro,
@@ -70,6 +67,9 @@ const pageCtx = createPublicPageContext({
 });
 
 const isLoggedIn = !!Astro.locals.user;
+const hasMenuPanel = menuItems.length > 0 || isLoggedIn;
+const year = new Date().getFullYear();
+const wordmarkLength = [...siteTitle].length;
 ---
 
 <!doctype html>
@@ -80,6 +80,7 @@ const isLoggedIn = !!Astro.locals.user;
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
 		<Font cssVariable="--font-body" preload />
+		<Font cssVariable="--font-display" preload={[{ style: "normal" }]} />
 		<script is:inline>
 			// Apply an explicit theme choice immediately to prevent flash.
 			// With no cookie, color-scheme: light dark follows the OS.
@@ -95,112 +96,163 @@ const isLoggedIn = !!Astro.locals.user;
 	</head>
 	<body>
 		<EmDashBodyStart page={pageCtx} />
+		<a href="#main" class="skip-link">Skip to content</a>
 		<header class="site-header">
-			<nav class="nav">
-				<a href="/" class="site-logo">
-					{siteLogo
-						? <img
-							src={siteLogo.url}
-							alt={siteLogo.alt || siteTitle}
-							width={siteLogo.width}
-							height={siteLogo.height}
-							class="site-logo-img"
-						/>
-						: siteTitle
+			<div class="nav">
+				<a href="/" class="nav__logo">
+					{
+						siteLogo ? (
+							<img
+								src={siteLogo.url}
+								alt={siteLogo.alt || siteTitle}
+								width={siteLogo.width}
+								height={siteLogo.height}
+								class="nav__logo-img"
+							/>
+						) : (
+							siteTitle
+						)
 					}
 				</a>
-				<div class="nav-links">
+				{
+					menuItems.length > 0 && (
+						<nav class="nav__links" aria-label="Primary">
+							{menuItems.map((item) => (
+								<a
+									href={item.url}
+									target={item.target}
+									rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+								>
+									{item.label}
+								</a>
+							))}
+						</nav>
+					)
+				}
+				<div class="nav__actions">
+					{isLoggedIn && <a href="/_emdash/admin" class="nav__admin">Admin</a>}
+					<a href="/contact" class="btn btn-sm nav__cta">Book a demo</a>
 					{
-						menu?.items.map((item) => (
-							<a
-								href={item.url}
-								target={item.target}
-								rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+						hasMenuPanel && (
+							<button
+								type="button"
+								class="nav__menu-btn"
+								aria-expanded="false"
+								aria-controls="mobile-menu"
+								aria-label="Menu"
 							>
-								{item.label}
-							</a>
-						))
+								<Icon name="ph:list" class="nav__menu-open" aria-hidden="true" />
+								<Icon name="ph:x" class="nav__menu-close" aria-hidden="true" />
+							</button>
+						)
 					}
 				</div>
-				<div class="nav-actions">
-					{isLoggedIn && <a href="/_emdash/admin" class="nav-admin">Admin</a>}
-					<a href="/contact" class="btn btn-primary nav-cta">Get Started</a>
-				</div>
-			</nav>
+				{
+					hasMenuPanel && (
+						<nav id="mobile-menu" class="nav__panel" aria-label="Primary" hidden>
+							{menuItems.map((item) => (
+								<a
+									href={item.url}
+									target={item.target}
+									rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+								>
+									{item.label}
+								</a>
+							))}
+							{isLoggedIn && (
+								<a href="/_emdash/admin" class="nav__panel-admin">
+									Admin
+								</a>
+							)}
+						</nav>
+					)
+				}
+			</div>
 		</header>
 
-		<main>
+		<main id="main" tabindex="-1">
 			<slot />
 		</main>
 
 		<footer class="site-footer">
-			<div class="footer-content">
-				<div class="footer-brand">
-					<span class="footer-logo">
-						{siteLogo
-								? <img
-									src={siteLogo.url}
-									alt={siteLogo.alt || siteTitle}
-									width={siteLogo.width}
-									height={siteLogo.height}
-									class="footer-logo-img"
-								/>
-							: siteTitle
-						}
-					</span>
-					<p class="footer-tagline">
-						{settings?.tagline || "Build something amazing"}
-					</p>
-				</div>
-				<div class="footer-links">
+			<div class="container">
+				<div class="footer__grid">
+					<div class="footer__brand">
+						<a href="/" class="footer__logo">
+							{
+								siteLogo ? (
+									<img
+										src={siteLogo.url}
+										alt={siteLogo.alt || siteTitle}
+										width={siteLogo.width}
+										height={siteLogo.height}
+										class="footer__logo-img"
+									/>
+								) : (
+									siteTitle
+								)
+							}
+						</a>
+						<p class="footer__tagline">{siteDescription}</p>
+					</div>
 					{
-						footerColumns.map((col) => (
-							<div class="footer-col">
-								<h4>{col.heading}</h4>
-								{col.menu!.items.map((item) => (
-									<a
-										href={item.url}
-										target={item.target}
-										rel={item.target ? "noopener noreferrer" : undefined}>
-										{item.label}
-									</a>
-								))}
+						footerColumns.map((column) => (
+							<div class="footer__column">
+								<h2 class="footer__heading">{column.heading}</h2>
+								<ul class="footer__links">
+									{column.items.map((item) => (
+										<li>
+											<a
+												href={item.url}
+												target={item.target}
+												rel={item.target ? "noopener noreferrer" : undefined}
+												class="footer__link"
+											>
+												{item.label}
+											</a>
+										</li>
+									))}
+								</ul>
 							</div>
 						))
 					}
 				</div>
-			</div>
-			<div class="footer-bottom">
-				<p>
-					&copy; {new Date().getFullYear()}
-					{siteTitle}. All rights reserved.
-				</p>
-				<div class="theme-switcher">
-					<button
-						type="button"
-						class="theme-btn"
-						data-theme="light"
-						aria-pressed="false"
-						aria-label="Light mode">Light</button
-					>
-					<button
-						type="button"
-						class="theme-btn"
-						data-theme="dark"
-						aria-pressed="false"
-						aria-label="Dark mode">Dark</button
-					>
-					<button
-						type="button"
-						class="theme-btn"
-						data-theme="system"
-						aria-pressed="false"
-						aria-label="System theme">System</button
-					>
+				<div class="footer__legal">
+					<p>&copy; {year} {siteTitle}. All rights reserved.</p>
+					<div class="theme-switcher" role="group" aria-label="Theme">
+						<button
+							type="button"
+							class="theme-btn"
+							data-theme="light"
+							aria-pressed="false"
+							aria-label="Light mode">Light</button
+						>
+						<button
+							type="button"
+							class="theme-btn"
+							data-theme="dark"
+							aria-pressed="false"
+							aria-label="Dark mode">Dark</button
+						>
+						<button
+							type="button"
+							class="theme-btn"
+							data-theme="system"
+							aria-pressed="false"
+							aria-label="System theme">System</button
+						>
+					</div>
+					<p class="footer__powered">
+						Powered by <a href="https://emdashcms.com">EmDash</a>
+					</p>
 				</div>
-				<p class="footer-powered">
-					Powered by <a href="https://emdashcms.com">EmDash</a>
-				</p>
+			</div>
+			<div
+				class="footer__wordmark"
+				aria-hidden="true"
+				style={`--wordmark-length: ${wordmarkLength}`}
+			>
+				{siteTitle}
 			</div>
 		</footer>
 
@@ -248,6 +300,61 @@ const isLoggedIn = !!Astro.locals.user;
 					setTheme(btn.dataset.theme || "system");
 				});
 			});
+		</script>
+
+		<script>
+			const header = document.querySelector<HTMLElement>(".site-header");
+			const menuButton =
+				header?.querySelector<HTMLButtonElement>(".nav__menu-btn");
+			const menuPanel = header?.querySelector<HTMLElement>(".nav__panel");
+
+			if (header && menuButton && menuPanel) {
+				const setOpen = (open: boolean) => {
+					menuButton.setAttribute("aria-expanded", String(open));
+					menuPanel.hidden = !open;
+				};
+
+				menuButton.addEventListener("click", () =>
+					setOpen(menuButton.getAttribute("aria-expanded") !== "true"),
+				);
+
+				menuPanel.addEventListener("click", (event) => {
+					if (event.target instanceof Element && event.target.closest("a")) {
+						setOpen(false);
+					}
+				});
+
+				document.addEventListener("click", (event) => {
+					if (
+						!menuPanel.hidden &&
+						event.target instanceof Node &&
+						!header.contains(event.target)
+					) {
+						setOpen(false);
+					}
+				});
+
+				document.addEventListener("keydown", (event) => {
+					if (event.key !== "Escape" || menuPanel.hidden) return;
+					setOpen(false);
+					menuButton.focus();
+				});
+
+				header.addEventListener("focusout", (event) => {
+					if (
+						event.relatedTarget instanceof Node &&
+						!header.contains(event.relatedTarget)
+					) {
+						setOpen(false);
+					}
+				});
+
+				window
+					.matchMedia("(max-width: 960px)")
+					.addEventListener("change", (event) => {
+						if (!event.matches) setOpen(false);
+					});
+			}
 		</script>
 
 		<style is:global>
@@ -299,17 +406,31 @@ const isLoggedIn = !!Astro.locals.user;
 					*::after {
 						scroll-behavior: auto !important;
 						transition-duration: 0.01ms !important;
+						animation-duration: 0.01ms !important;
+						animation-iteration-count: 1 !important;
 					}
 				}
 
 				body {
+					display: flex;
+					flex-direction: column;
+					min-height: 100vh;
 					font-family: var(--font-body);
 					font-size: var(--font-size-base);
+					font-feature-settings: "cv11", "ss01";
 					line-height: var(--leading-normal);
 					color: var(--color-text);
 					background: var(--color-bg);
 					-webkit-font-smoothing: antialiased;
-					min-height: 100vh;
+					-moz-osx-font-smoothing: grayscale;
+				}
+
+				main {
+					flex: 1;
+				}
+
+				main:focus {
+					outline: none;
 				}
 
 				a:where(:not([class*="emdash"]):not([class*="ec-"])) {
@@ -317,8 +438,8 @@ const isLoggedIn = !!Astro.locals.user;
 					text-decoration: none;
 				}
 
-					/* Bare links in authored content need a visible style; component
-					   links restyle themselves via classes. */
+				/* Bare links in authored content need a visible style; component
+				   links restyle themselves via classes. */
 				p a:not([class]),
 				li a:not([class]) {
 					color: var(--color-brand);
@@ -326,10 +447,26 @@ const isLoggedIn = !!Astro.locals.user;
 					text-underline-offset: 2px;
 				}
 
+				:where(:not([class*="emdash"]):not([class*="ec-"])):focus-visible {
+					outline: 2px solid var(--color-text);
+					outline-offset: 2px;
+				}
+
+				/* Light buttons sit on dark panels and photos, so their ring is light too */
+				:where(.sheet--night) :focus-visible,
+				.btn-light:focus-visible,
+				.btn-glass:focus-visible {
+					outline-color: var(--color-on-night);
+				}
+
 				img {
 					max-width: 100%;
 					height: auto;
 					display: block;
+				}
+
+				ul {
+					list-style: none;
 				}
 
 				h1,
@@ -340,8 +477,9 @@ const isLoggedIn = !!Astro.locals.user;
 				h6 {
 					font-family: var(--font-heading);
 					font-weight: var(--font-weight-heading);
-					line-height: var(--leading-snug);
-					letter-spacing: var(--tracking-snug);
+					line-height: 1.3;
+					letter-spacing: -0.01em;
+					text-wrap: balance;
 				}
 
 				h1 {
@@ -357,102 +495,496 @@ const isLoggedIn = !!Astro.locals.user;
 					font-size: var(--font-size-xl);
 				}
 
-				/* Utility classes */
-				.container {
-					max-width: var(--wide-width);
-					margin: 0 auto;
-					padding: 0 var(--spacing-lg);
+				.skip-link {
+					position: fixed;
+					inset-block-start: 12px;
+					inset-inline-start: 12px;
+					z-index: 100;
+					padding: 10px 18px;
+					border-radius: var(--radius-full);
+					background: var(--color-brand);
+					color: var(--color-on-brand);
+					font-size: 14px;
+					font-weight: 500;
+					translate: 0 calc(-100% - 24px);
+					transition: translate var(--transition-fast);
 				}
 
-				.section {
-					padding: var(--spacing-5xl) 0;
+				.skip-link:focus {
+					translate: 0 0;
 				}
+
+				/* Layout */
+
+				.container {
+					width: min(100% - var(--gutter) * 2, var(--wide-width));
+					margin-inline: auto;
+				}
+
+				/*
+				 * Blocks can come in any order, so every gap is the same: a plain
+				 * section pads half of --section-space and a sheet keeps half of
+				 * it as margin, putting any two neighbours one space apart.
+				 */
+				.section {
+					padding-block: calc(var(--section-space) / 2);
+				}
+
+				.sheet-section {
+					margin-block: calc(var(--section-space) / 2);
+				}
+
+				.sheet-body {
+					padding-block: var(--section-space);
+				}
+
+				/* A flex column, so the margins of two neighbouring sheets add up instead of collapsing */
+				.page-blocks {
+					display: flex;
+					flex-direction: column;
+				}
+
+				/* Anchor targets land below the floating header */
+				section[id],
+				main {
+					scroll-margin-top: 88px;
+				}
+
+				.media {
+					position: relative;
+					isolation: isolate;
+					overflow: hidden;
+					border-radius: var(--radius-media);
+				}
+
+				.media::after {
+					content: "";
+					position: absolute;
+					inset: 0;
+					border-radius: inherit;
+					box-shadow: inset 0 0 0 1px light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
+					pointer-events: none;
+				}
+
+				.media__img {
+					display: block;
+				}
+
+				/* After .media, so a photo sheet keeps the sheet radius */
+				.sheet {
+					position: relative;
+					isolation: isolate;
+					width: min(100% - var(--sheet-inset) * 2, var(--sheet-max));
+					margin-inline: auto;
+					border-radius: var(--radius-sheet);
+					overflow: hidden;
+				}
+
+				.sheet--sunken {
+					background: var(--glow-daylight), var(--color-sunken);
+				}
+
+				.sheet--night {
+					color: var(--color-on-night);
+					background: var(--glow-dusk), var(--color-night);
+					box-shadow: inset 0 0 0 1px light-dark(transparent, var(--color-border));
+				}
+
+				/* Type */
 
 				.section-header {
+					max-width: 780px;
+					margin-bottom: clamp(40px, 5vw, 64px);
+				}
+
+				.section-header--center {
+					margin-inline: auto;
 					text-align: center;
-					max-width: var(--max-width);
-					margin: 0 auto var(--spacing-4xl);
 				}
 
 				.section-headline {
-					font-size: var(--font-size-3xl);
+					font-family: var(--font-display);
+					font-size: var(--font-size-h2);
 					font-weight: var(--font-weight-display);
+					line-height: var(--leading-snug);
+					letter-spacing: var(--tracking-snug);
+					text-wrap: balance;
 				}
 
-				.section-subheadline {
-					margin-top: var(--spacing-md);
-					font-size: var(--font-size-lg);
+				.section-headline__muted {
 					color: var(--color-muted);
 				}
 
-				.icon-tile {
-					width: 48px;
-					height: 48px;
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					flex-shrink: 0;
-					font-size: 1.5rem;
-					color: var(--color-on-brand);
-					background: var(--gradient-brand);
-					border-radius: var(--radius);
+				.section-subheadline {
+					margin-top: 20px;
+					font-size: 18px;
+					line-height: 1.55;
+					color: var(--color-text-secondary);
+					text-wrap: pretty;
 				}
 
-				.btn {
+				.eyebrow {
+					display: inline-flex;
+					align-items: center;
+					gap: 8px;
+					font-family: var(--font-body);
+					font-size: 13px;
+					font-weight: 500;
+					line-height: 1.4;
+					letter-spacing: normal;
+					color: var(--color-text-secondary);
+				}
+
+				.eyebrow::before {
+					content: "";
+					flex: none;
+					width: 6px;
+					height: 6px;
+					border-radius: 50%;
+					background: var(--color-accent);
+					box-shadow: 0 0 0 3px var(--color-accent-soft);
+				}
+
+				.eyebrow + :is(h1, h2, h3) {
+					margin-top: 18px;
+				}
+
+				.display {
+					font-family: var(--font-display);
+					font-weight: var(--font-weight-display);
+					line-height: var(--leading-snug);
+					letter-spacing: var(--tracking-snug);
+					text-wrap: balance;
+				}
+
+				.lead {
+					font-size: 19px;
+					line-height: 1.55;
+					color: var(--color-text-secondary);
+					text-wrap: pretty;
+				}
+
+				.sheet--night
+					:is(.eyebrow, .lead, .section-subheadline, .section-headline__muted) {
+					color: var(--color-on-night-muted);
+				}
+
+				/* Buttons and links */
+
+				.btn,
+				.btn-primary {
 					display: inline-flex;
 					align-items: center;
 					justify-content: center;
-					gap: var(--spacing-sm);
-					padding: var(--spacing-sm) var(--spacing-lg);
+					gap: 8px;
+					min-height: 44px;
+					padding: 10px 20px;
+					border: 0;
+					border-radius: var(--radius-full);
+					background: var(--color-brand);
+					color: var(--color-on-brand);
 					font-family: inherit;
-					font-size: var(--font-size-sm);
-					font-weight: 600;
-					border-radius: var(--radius);
+					font-size: 15px;
+					font-weight: 500;
+					line-height: 1.2;
+					text-align: center;
+					text-decoration: none;
 					cursor: pointer;
 					transition:
-						background var(--transition-fast),
-						transform var(--transition-fast),
-						box-shadow var(--transition-fast);
+						background-color var(--transition-fast),
+						box-shadow var(--transition-fast),
+						scale var(--transition-fast);
 				}
 
-				.btn:hover {
-					transform: translateY(-1px);
-				}
-
-				.btn:active {
-					transform: translateY(0);
-				}
-
-				.btn-primary {
-					color: var(--color-on-brand);
-					background: var(--gradient-brand-strong);
-					border: none;
-					transition:
-						background 0.3s ease,
-						box-shadow 0.3s ease,
-						transform var(--transition-fast);
-				}
-
+				.btn:hover,
 				.btn-primary:hover {
-					background: var(--gradient-brand);
-					box-shadow: var(--shadow-lg);
+					background: var(--color-brand-strong);
+				}
+
+				.btn:active,
+				.btn-primary:active {
+					scale: 0.96;
 				}
 
 				.btn-secondary {
+					background: var(--color-surface);
 					color: var(--color-text);
-					background: transparent;
-					border: 1px solid var(--color-border);
+					box-shadow: var(--shadow-card);
 				}
 
 				.btn-secondary:hover {
 					background: var(--color-surface);
-					border-color: var(--color-muted);
+					box-shadow: var(--shadow-card-hover);
+				}
+
+				.btn-light {
+					background: #fafaf9;
+					color: #141312;
+				}
+
+				.btn-light:hover {
+					background: #ffffff;
+				}
+
+				.btn-glass {
+					background: rgb(255 255 255 / 0.12);
+					color: #ffffff;
+					box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3);
+					-webkit-backdrop-filter: blur(12px);
+					backdrop-filter: blur(12px);
+				}
+
+				.btn-glass:hover {
+					background: rgb(255 255 255 / 0.2);
+				}
+
+				.btn-sm {
+					min-height: 40px;
+					padding-inline: 16px;
+					font-size: 14px;
 				}
 
 				.btn-lg {
-					padding: var(--spacing-md) var(--spacing-xl);
-					font-size: var(--font-size-base);
+					min-height: 50px;
+					padding-inline: 24px;
+					font-size: 15.5px;
 				}
+
+				.actions {
+					display: flex;
+					flex-wrap: wrap;
+					gap: 10px;
+				}
+
+				.text-link {
+					display: inline-flex;
+					align-items: center;
+					gap: 6px;
+					font-size: 15px;
+					font-weight: 500;
+				}
+
+				.arrow {
+					flex: none;
+					transition: translate var(--transition-base);
+				}
+
+				:is(.btn, .text-link) .arrow {
+					font-size: 15px;
+				}
+
+				:is(.btn, .text-link):hover .arrow {
+					translate: 2px 0;
+				}
+
+				:dir(rtl) .arrow {
+					scale: -1 1;
+				}
+
+				:dir(rtl) :is(.btn, .text-link):hover .arrow {
+					translate: -2px 0;
+				}
+
+				/* Surfaces */
+
+				.card {
+					background: var(--color-surface);
+					color: var(--color-text);
+					border-radius: var(--radius-xl);
+					box-shadow: var(--shadow-card);
+					transition:
+						box-shadow var(--transition-base),
+						translate var(--transition-base);
+				}
+
+				.card--lift:hover {
+					box-shadow: var(--shadow-card-hover);
+					translate: 0 -2px;
+				}
+
+				.icon-tile {
+					display: grid;
+					place-items: center;
+					flex: none;
+					width: 44px;
+					height: 44px;
+					border-radius: var(--radius);
+					background: var(--color-sunken);
+					color: var(--color-text);
+					font-size: 21px;
+				}
+
+				.media-chip {
+					position: absolute;
+					inset-block-end: clamp(12px, 1.6vw, 24px);
+					inset-inline-start: clamp(12px, 1.6vw, 24px);
+					z-index: 1;
+					display: inline-flex;
+					align-items: center;
+					gap: 10px;
+					max-width: calc(100% - 2 * clamp(12px, 1.6vw, 24px));
+					min-height: 40px;
+					padding-block: 9px;
+					padding-inline: 14px 16px;
+					border-radius: var(--radius-full);
+					background: var(--chip-bg);
+					color: var(--chip-text);
+					font-size: 13.5px;
+					font-weight: 500;
+					line-height: 1.3;
+					box-shadow:
+						inset 0 0 0 1px light-dark(rgb(255 255 255 / 0.6), rgb(255 255 255 / 0.1)),
+						0 10px 30px -10px light-dark(rgb(0 0 0 / 0.35), rgb(0 0 0 / 0.5));
+					-webkit-backdrop-filter: blur(16px) saturate(1.5);
+					backdrop-filter: blur(16px) saturate(1.5);
+				}
+
+				.live-dot {
+					position: relative;
+					flex: none;
+					width: 8px;
+					height: 8px;
+					border-radius: 50%;
+					background: var(--color-live);
+				}
+
+				.live-dot::after {
+					content: "";
+					position: absolute;
+					inset: -4px;
+					border-radius: 50%;
+					background: var(--color-live);
+					opacity: 0.25;
+				}
+
+				.tick {
+					display: grid;
+					place-items: center;
+					flex: none;
+					width: 22px;
+					height: 22px;
+					margin-top: 1px;
+					border-radius: 50%;
+					background: var(--color-sunken);
+					color: var(--color-text);
+					font-size: 12px;
+				}
+
+				.sheet--night .tick {
+					background: rgb(255 255 255 / 0.12);
+					color: var(--color-on-night);
+				}
+
+				.avatar {
+					display: grid;
+					place-items: center;
+					flex: none;
+					width: 44px;
+					height: 44px;
+					border-radius: 50%;
+					background: var(--color-sunken);
+					box-shadow: inset 0 0 0 1px var(--color-border);
+					color: var(--color-text-secondary);
+					font-size: 13.5px;
+					font-weight: 500;
+					letter-spacing: 0.02em;
+				}
+
+				.empty-state {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					gap: 20px;
+					max-width: 640px;
+					padding-block: var(--section-space);
+					text-align: center;
+				}
+
+				.empty-state__title {
+					font-size: var(--font-size-h2);
+					line-height: var(--leading-snug);
+				}
+
+				.empty-state .actions {
+					justify-content: center;
+					margin-top: 12px;
+				}
+
+				@media (max-width: 640px) {
+					.media-chip {
+						border-radius: 16px;
+						font-size: 12.5px;
+					}
+				}
+
+				/* Motion */
+
+				@media (prefers-reduced-motion: no-preference) {
+					.rise {
+						animation: rise-in 900ms var(--ease-out) both;
+						animation-delay: calc(var(--rise-index, 0) * 90ms);
+					}
+
+					.live-dot::after {
+						animation: live-pulse 2.4s var(--ease-out) infinite;
+					}
+
+					@supports (animation-timeline: view()) {
+						.settle img {
+							animation: media-settle linear both;
+							animation-timeline: view();
+							animation-range: entry 0% cover 45%;
+						}
+					}
+				}
+
+				@keyframes rise-in {
+					from {
+						opacity: 0;
+						translate: 0 14px;
+						filter: blur(6px);
+					}
+				}
+
+				@keyframes live-pulse {
+					0% {
+						scale: 0.6;
+						opacity: 0.45;
+					}
+
+					70%,
+					100% {
+						scale: 1.9;
+						opacity: 0;
+					}
+				}
+
+				@keyframes media-settle {
+					from {
+						scale: 1.12;
+					}
+
+					to {
+						scale: 1;
+					}
+				}
+			}
+
+			/*
+			 * Outside the layer, and more specific than EmDash's unlayered
+			 * ".emdash-image-media { max-width: 100%; height: auto }", so a photo
+			 * fills its frame whichever way <Image> renders it. No display here:
+			 * EmDash hides the inactive light or dark variant with display: none.
+			 */
+			.media__img,
+			.media__img img,
+			.media__img img.emdash-image-media,
+			img.media__img.emdash-image-media {
+				width: 100%;
+				height: 100%;
+				max-width: none;
+				max-height: none;
+				object-fit: cover;
 			}
 		</style>
 
@@ -460,223 +992,318 @@ const isLoggedIn = !!Astro.locals.user;
 			.site-header {
 				position: sticky;
 				top: 0;
-				z-index: 100;
-				background: var(--color-bg);
-				border-bottom: 1px solid var(--color-border);
+				z-index: 50;
+				padding-block-start: 12px;
+				padding-inline: var(--sheet-inset);
+				pointer-events: none;
 			}
 
 			.nav {
-				max-width: var(--wide-width);
-				margin: 0 auto;
-				padding: var(--spacing-md) var(--spacing-lg);
+				position: relative;
 				display: flex;
-				flex-wrap: nowrap;
 				align-items: center;
-				gap: var(--spacing-lg);
+				gap: 36px;
+				width: min(100%, var(--wide-width) + 40px);
+				height: 60px;
+				margin-inline: auto;
+				padding-inline: 24px 10px;
+				border-radius: var(--radius-full);
+				background: var(--glass-bg);
+				box-shadow: var(--shadow-glass);
+				-webkit-backdrop-filter: saturate(1.6) blur(18px);
+				backdrop-filter: saturate(1.6) blur(18px);
+				pointer-events: auto;
 			}
 
-			.site-logo {
-				font-size: var(--font-size-xl);
-				font-weight: var(--font-weight-display);
-				letter-spacing: var(--tracking-tight);
-				background: var(--gradient-brand);
-				-webkit-background-clip: text;
-				-webkit-text-fill-color: transparent;
-				background-clip: text;
+			.nav__logo {
+				min-width: 0;
+				overflow: hidden;
+				font-family: var(--font-display);
+				font-size: 28px;
+				line-height: 1.2;
+				letter-spacing: -0.01em;
+				text-overflow: ellipsis;
+				white-space: nowrap;
 			}
 
-			.site-logo-img {
-				height: 48px;
+			.nav__logo-img {
 				width: auto;
-				display: block;
-				margin: -8px 0;
+				height: 32px;
+				max-width: 180px;
+				object-fit: contain;
 			}
 
-			.nav-links {
+			.nav__links {
 				display: flex;
-				flex-wrap: wrap;
-				gap: var(--spacing-lg);
-				margin-left: auto;
+				gap: 28px;
+				font-size: 14.5px;
+				color: var(--color-text-secondary);
 			}
 
-			.nav-links a {
-				font-size: var(--font-size-sm);
-				font-weight: 500;
+			.nav__links a {
+				white-space: nowrap;
+				transition: color var(--transition-fast);
+			}
+
+			.nav__links a:hover {
+				color: var(--color-text);
+			}
+
+			.nav__actions {
+				display: flex;
+				flex: none;
+				align-items: center;
+				gap: 6px;
+				margin-inline-start: auto;
+			}
+
+			.nav__admin {
+				padding-inline: 10px;
+				font-size: 14px;
 				color: var(--color-muted);
 				transition: color var(--transition-fast);
 			}
 
-			.nav-links a:hover {
+			.nav__admin:hover {
 				color: var(--color-text);
 			}
 
-			.nav-actions {
+			.nav__cta {
+				white-space: nowrap;
+			}
+
+			.nav__menu-btn {
+				display: none;
+				place-items: center;
+				width: 40px;
+				height: 40px;
+				padding: 0;
+				border: 0;
+				border-radius: 50%;
+				background: none;
+				color: inherit;
+				font-size: 20px;
+				cursor: pointer;
+				transition: background-color var(--transition-fast);
+			}
+
+			.nav__menu-btn:hover,
+			.nav__menu-btn[aria-expanded="true"] {
+				background: var(--color-sunken);
+			}
+
+			.nav__menu-btn[aria-expanded="true"] .nav__menu-open,
+			.nav__menu-btn[aria-expanded="false"] .nav__menu-close {
+				display: none;
+			}
+
+			.nav__panel {
+				position: absolute;
+				inset-block-start: calc(100% + 8px);
+				inset-inline: 0;
+				display: none;
+				max-height: calc(100dvh - 96px);
+				overflow-y: auto;
+				padding: 8px;
+				border-radius: 26px;
+				background: var(--color-surface);
+				box-shadow: var(--shadow-glass);
+			}
+
+			.nav__panel a {
 				display: flex;
 				align-items: center;
-				gap: var(--spacing-lg);
+				min-height: 48px;
+				padding-inline: 18px;
+				border-radius: 18px;
+				font-size: 16px;
+				transition: background-color var(--transition-fast);
 			}
 
-			.nav-admin {
-				font-size: var(--font-size-sm);
+			.nav__panel a:hover {
+				background: var(--color-sunken);
+			}
+
+			.nav__panel .nav__panel-admin {
 				color: var(--color-muted);
-				opacity: 0.5;
-			}
-
-			/* Compact variant of .btn.btn-primary for the header */
-			.nav-cta {
-				padding: var(--spacing-sm) var(--spacing-md);
-				border-radius: var(--radius-sm);
-			}
-
-			main {
-				min-height: calc(100vh - 200px);
 			}
 
 			.site-footer {
-				background: var(--color-surface);
-				border-top: 1px solid var(--color-border);
+				overflow: hidden;
+				padding-top: calc(var(--section-space) / 2);
 			}
 
-			.footer-content {
-				max-width: var(--wide-width);
-				margin: 0 auto;
-				padding: var(--spacing-4xl) var(--spacing-lg) var(--spacing-2xl);
+			.footer__grid {
 				display: grid;
-				grid-template-columns: 1fr 2fr;
-				gap: var(--spacing-4xl);
+				grid-template-columns: minmax(0, 1.5fr);
+				grid-auto-columns: minmax(0, 1fr);
+				grid-auto-flow: column;
+				gap: 48px;
 			}
 
-			.footer-logo {
-				font-size: var(--font-size-xl);
-				font-weight: var(--font-weight-display);
-				letter-spacing: var(--tracking-tight);
+			.footer__logo {
+				display: inline-block;
+				font-family: var(--font-display);
+				font-size: 28px;
+				line-height: 1;
+				letter-spacing: -0.01em;
 			}
 
-			.footer-logo-img {
-				height: 24px;
+			.footer__logo-img {
 				width: auto;
+				height: 32px;
+				max-width: 180px;
+				object-fit: contain;
 			}
 
-			.footer-tagline {
-				margin-top: var(--spacing-sm);
-				font-size: var(--font-size-sm);
+			.footer__tagline {
+				max-width: 30ch;
+				margin-top: 14px;
+				font-size: 14.5px;
 				color: var(--color-muted);
 			}
 
-			.footer-links {
+			.footer__heading {
+				margin-bottom: 16px;
+				font-size: 13px;
+				font-weight: 500;
+				line-height: 1.4;
+				letter-spacing: normal;
+				color: var(--color-muted);
+			}
+
+			.footer__links {
 				display: grid;
-				grid-template-columns: repeat(3, 1fr);
-				gap: var(--spacing-xl);
+				gap: 10px;
 			}
 
-			.footer-col h4 {
-				font-size: var(--font-size-sm);
-				font-weight: 600;
-				margin-bottom: var(--spacing-md);
-			}
-
-			.footer-col a {
-				display: block;
-				font-size: var(--font-size-sm);
-				color: var(--color-muted);
-				padding: var(--spacing-xs) 0;
+			.footer__link {
+				font-size: 14.5px;
+				color: var(--color-text-secondary);
+				overflow-wrap: anywhere;
 				transition: color var(--transition-fast);
 			}
 
-			.footer-col a:hover {
+			.footer__link:hover {
 				color: var(--color-text);
 			}
 
-			.footer-bottom {
-				max-width: var(--wide-width);
-				margin: 0 auto;
-				padding: var(--spacing-lg);
+			.footer__legal {
 				display: flex;
-				justify-content: space-between;
+				flex-wrap: wrap;
 				align-items: center;
-				font-size: var(--font-size-sm);
+				justify-content: space-between;
+				gap: 16px;
+				margin-top: 72px;
+				font-size: 13.5px;
 				color: var(--color-muted);
-				border-top: 1px solid var(--color-border);
 			}
 
-			.footer-powered a {
+			.footer__powered a {
 				color: var(--color-text);
+				text-decoration: underline;
+				text-decoration-color: var(--color-border-strong);
+				text-underline-offset: 3px;
+				transition: text-decoration-color var(--transition-fast);
+			}
+
+			.footer__powered a:hover {
+				text-decoration-color: currentColor;
 			}
 
 			.theme-switcher {
-				display: flex;
-				gap: var(--spacing-xs);
+				display: inline-flex;
+				padding: 3px;
+				border-radius: var(--radius-full);
+				background: var(--color-sunken);
 			}
 
 			.theme-btn {
+				height: 28px;
+				padding-block: 0;
+				padding-inline: 12px;
+				border: 0;
+				border-radius: var(--radius-full);
 				background: transparent;
-				border: 1px solid var(--color-border);
-				color: var(--color-muted);
-				font-family: var(--font-body);
-				font-size: var(--font-size-sm);
-				padding: var(--spacing-xs) var(--spacing-sm);
-				border-radius: var(--radius-sm);
+				color: var(--color-text-secondary);
+				font-family: inherit;
+				font-size: 12.5px;
 				cursor: pointer;
-				transition: all var(--transition-fast);
+				transition:
+					background-color var(--transition-fast),
+					color var(--transition-fast),
+					box-shadow var(--transition-fast);
 			}
 
 			.theme-btn:hover {
 				color: var(--color-text);
-				border-color: var(--color-text);
 			}
 
-			.theme-btn.active {
-				background: var(--color-bg);
+			.theme-btn[aria-pressed="true"] {
+				background: var(--color-surface);
 				color: var(--color-text);
-				border-color: var(--color-brand);
+				box-shadow: var(--shadow-card);
 			}
 
-			@media (max-width: 768px) {
-				.footer-content {
-					grid-template-columns: 1fr;
-					gap: var(--spacing-2xl);
-				}
-
-				.footer-links {
-					grid-template-columns: repeat(2, 1fr);
-				}
-
-				.footer-bottom {
-					flex-direction: column;
-					gap: var(--spacing-md);
-					text-align: center;
-				}
-
-				.theme-switcher {
-					order: -1;
-				}
-
-				h1 {
-					font-size: var(--font-size-4xl);
-				}
-				h2 {
-					font-size: var(--font-size-2xl);
-				}
+			.footer__wordmark {
+				margin-top: 40px;
+				margin-bottom: -0.2em;
+				font-family: var(--font-display);
+				/* About 0.35em per letter, so 250vw / letters keeps a long title within the page */
+				font-size: min(clamp(128px, 27vw, 440px), 250vw / var(--wordmark-length, 6));
+				line-height: 0.8;
+				letter-spacing: -0.045em;
+				text-align: center;
+				white-space: nowrap;
+				color: transparent;
+				background: linear-gradient(
+					180deg,
+					color-mix(in srgb, var(--color-text) 9%, transparent),
+					color-mix(in srgb, var(--color-text) 2%, transparent) 75%
+				);
+				-webkit-background-clip: text;
+				background-clip: text;
+				-webkit-user-select: none;
+				user-select: none;
 			}
 
-			@media (max-width: 540px) {
+			@media (max-width: 960px) {
 				.nav {
-					flex-wrap: wrap;
-					row-gap: var(--spacing-md);
-					justify-content: space-between;
+					gap: 16px;
+					padding-inline-start: 20px;
 				}
 
-				.nav-links {
-					order: 3;
-					width: 100%;
-					justify-content: flex-end;
-					margin-left: 0;
+				.nav__links,
+				.nav__admin {
+					display: none;
+				}
+
+				.nav__menu-btn {
+					display: grid;
+				}
+
+				.nav__panel:not([hidden]) {
+					display: grid;
+				}
+
+				.footer__grid {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+					grid-auto-flow: row;
+					gap: 40px 24px;
+				}
+
+				.footer__brand {
+					grid-column: 1 / -1;
 				}
 			}
 
-			@media (max-width: 480px) {
-				.footer-links {
-					grid-template-columns: 1fr;
+			@media (forced-colors: active) {
+				.theme-btn[aria-pressed="true"] {
+					outline: 1px solid CanvasText;
+				}
+
+				.footer__wordmark {
+					display: none;
 				}
 			}
 		</style>

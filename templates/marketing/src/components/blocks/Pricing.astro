@@ -1,4 +1,5 @@
 ---
+import { Icon } from "astro-iconset/components";
 import { sanitizeHref } from "emdash";
 import type { BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
@@ -11,6 +12,7 @@ const { anchor_id, headline, plans: rawPlans } = value;
 
 const plans = rawPlans.map((plan) => ({
 	...plan,
+	badge: plan.badge?.trim() || (plan.highlighted ? "Most popular" : undefined),
 	features: (plan.features ?? "")
 		.split("\n")
 		.map((s) => s.trim())
@@ -22,164 +24,182 @@ const plans = rawPlans.map((plan) => ({
 }));
 ---
 
-<section class="pricing section" id={anchor_id || undefined}>
-	<div class="container">
-		{headline && (
-			<header class="section-header pricing-header">
+<section id={anchor_id || undefined} class="container section">
+	{
+		headline && (
+			<header class="section-header section-header--center">
 				<h2 class="section-headline">{headline}</h2>
 			</header>
-		)}
-		<div class="pricing-grid">
-			{plans.map((plan) => (
-				<div class:list={["pricing-card", { "pricing-highlighted": plan.highlighted }]}>
-					{plan.highlighted && <div class="pricing-badge">Most popular</div>}
-					<div class="pricing-plan-header">
-						<h3 class="pricing-name">{plan.name}</h3>
-						<div class="pricing-price">
-							<span class="pricing-amount">{plan.price}</span>
-							{plan.period && <span class="pricing-period">{plan.period}</span>}
-						</div>
-						{plan.description && (
-							<p class="pricing-description">{plan.description}</p>
-						)}
+		)
+	}
+	<ul
+		class:list={["plans", { "plans--single": plans.length === 1 }]}
+		role="list"
+	>
+		{
+			plans.map((plan) => (
+				<li class:list={["card", "plan", { "plan--highlighted": plan.highlighted }]}>
+					<div class="plan__head">
+						<h3 class="plan__name">{plan.name}</h3>
+						{plan.badge && <span class="plan__badge">{plan.badge}</span>}
 					</div>
-					<ul class="pricing-features">
-						{plan.features.map((feature) => (
-							<li>
-								<svg class="check-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-									<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-								</svg>
-								{feature}
-							</li>
-						))}
-					</ul>
-					<a
-						href={plan.cta.url}
-						class:list={["btn", "btn-lg", "pricing-cta", { "btn-primary": plan.highlighted, "btn-secondary": !plan.highlighted }]}
-					>
-						{plan.cta.label}
-					</a>
-				</div>
-			))}
-		</div>
-	</div>
+					<p class="plan__price">
+						<span class="display plan__amount">{plan.price}</span>
+						{plan.period && " "}
+						{plan.period && <span class="plan__period">{plan.period}</span>}
+					</p>
+					{plan.description && (
+						<p class="plan__description">{plan.description}</p>
+					)}
+					{plan.features.length > 0 && (
+						<ul class="plan__features" role="list">
+							{plan.features.map((feature) => (
+								<li>
+									<span class="tick" aria-hidden="true">
+										<Icon name="ph:check" />
+									</span>
+									{feature}
+								</li>
+							))}
+						</ul>
+					)}
+					<div class="plan__action">
+						<a
+							href={plan.cta.url}
+							class:list={[
+								"btn",
+								"btn-lg",
+								plan.highlighted ? "btn-light" : "btn-secondary",
+							]}
+						>
+							{plan.cta.label}
+						</a>
+					</div>
+				</li>
+			))
+		}
+	</ul>
 </section>
 
 <style>
-	.pricing-header {
-		margin-bottom: var(--spacing-2xl);
-	}
-
-	.pricing-grid {
+	.plans {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-xl);
-		align-items: start;
-	}
-
-	.pricing-card {
-		position: relative;
-		padding: var(--spacing-xl);
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-lg);
-	}
-
-	.pricing-highlighted {
-		background: var(--color-bg);
-		border-color: var(--color-brand);
-		box-shadow: var(--shadow-xl);
-		transform: scale(1.02);
-	}
-
-	.pricing-badge {
-		position: absolute;
-		top: 0;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		padding: var(--spacing-xs) var(--spacing-md);
-		font-size: var(--font-size-xs);
-		font-weight: 600;
-		color: var(--color-on-brand);
-		background: var(--gradient-brand);
-		border-radius: var(--radius-full);
-	}
-
-	.pricing-plan-header {
-		text-align: center;
-		padding-bottom: var(--spacing-lg);
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.pricing-name {
-		font-size: var(--font-size-lg);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.pricing-price {
-		display: flex;
-		align-items: baseline;
-		justify-content: center;
-		gap: var(--spacing-xs);
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.pricing-amount {
-		font-size: var(--font-size-4xl);
-		font-weight: var(--font-weight-display);
-		letter-spacing: var(--tracking-tight);
-	}
-
-	.pricing-period {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-	}
-
-	.pricing-description {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-	}
-
-	.pricing-features {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+		align-items: stretch;
+		gap: 16px;
 		list-style: none;
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-sm);
 	}
 
-	.pricing-features li {
+	.plans--single {
+		max-width: 440px;
+		margin-inline: auto;
+	}
+
+	.plan {
+		display: flex;
+		flex-direction: column;
+		padding: 32px;
+		border-radius: 24px;
+	}
+
+	.plan__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px 12px;
+		/* The badge height, so prices line up across plans with and without a badge */
+		min-height: 24px;
+	}
+
+	.plan__name {
+		font-size: 15px;
+		line-height: 1.4;
+		letter-spacing: normal;
+		color: var(--color-text-secondary);
+	}
+
+	.plan__badge {
+		display: inline-flex;
+		align-items: center;
+		height: 24px;
+		margin-inline-start: auto;
+		padding-inline: 10px;
+		border-radius: var(--radius-full);
+		background: var(--color-sunken);
+		color: var(--color-text-secondary);
+		font-size: 12.5px;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.plan__price {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 4px 8px;
+		margin-block-start: 20px;
+	}
+
+	.plan__amount {
+		font-size: clamp(48px, 4.6vw, 64px);
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.plan__period {
+		font-size: 14px;
+		color: var(--color-muted);
+	}
+
+	.plan__description {
+		margin-block-start: 16px;
+		font-size: 15px;
+		line-height: 1.55;
+		color: var(--color-text-secondary);
+		text-wrap: pretty;
+	}
+
+	.plan__features {
+		display: grid;
+		gap: 12px;
+		margin-block-start: 28px;
+		list-style: none;
+	}
+
+	.plan__features li {
 		display: flex;
 		align-items: flex-start;
-		gap: var(--spacing-sm);
-		font-size: var(--font-size-sm);
+		gap: 12px;
+		font-size: 14.5px;
+		color: var(--color-text-secondary);
 	}
 
-	.check-icon {
-		width: 18px;
-		height: 18px;
-		flex-shrink: 0;
-		color: var(--color-success);
-		margin-top: 2px;
+	.plan__action {
+		margin-block-start: auto;
+		padding-block-start: 32px;
 	}
 
-	.pricing-cta {
+	.plan__action .btn {
 		width: 100%;
 	}
 
-	@media (max-width: 900px) {
-		.pricing-grid {
-			grid-template-columns: 1fr;
-			max-width: 400px;
-			margin: 0 auto;
-		}
+	.plan--highlighted {
+		background: var(--glow-dusk), var(--color-night);
+		color: var(--color-on-night);
+	}
 
-		.pricing-highlighted {
-			transform: none;
-		}
+	.plan--highlighted :is(.plan__name, .plan__period, .plan__description, .plan__features li) {
+		color: var(--color-on-night-muted);
+	}
+
+	.plan--highlighted .plan__badge {
+		background: rgb(255 255 255 / 0.12);
+		color: var(--color-on-night);
+	}
+
+	.plan--highlighted .tick {
+		background: rgb(255 255 255 / 0.12);
+		color: var(--color-on-night);
 	}
 </style>
