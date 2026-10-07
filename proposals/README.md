@@ -80,7 +80,7 @@ Small corrections that do not change the design can use a normal documentation p
 
 ## Transition for existing feature pull requests
 
-Feature pull requests opened before 3 October 2026 are not failed automatically for lacking a design PR. A settled design can be recorded retrospectively in a feature plan. When product or architecture decisions remain unresolved, move those decisions into a proposal before continuing implementation review.
+Feature pull requests opened before 3 October 2026, or opened with the pull request template from before this process, are not failed automatically for lacking a design PR. A settled design can be recorded retrospectively in a feature plan. When product or architecture decisions remain unresolved, move those decisions into a proposal before continuing implementation review.
 
 Ideas Discussions labelled `Approved for PR` under the previous process now carry the `Design PR welcome` label. They proceed with a feature plan like any other welcomed Idea, and an approved Discussion counts as the Ideas Discussion an RFC requires.
 

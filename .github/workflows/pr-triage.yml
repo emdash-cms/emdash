@@ -82,7 +82,11 @@ jobs:
               }
 
               const isFeature = /- \[x\] Feature/i.test(body) || /^feat(\([^)]*\))?!?:/i.test(pr.title);
-              const designProcessApplies = Date.parse(pr.created_at) >= Date.parse('2026-10-03T00:00:00Z');
+              // PRs opened before the process was proposed, or from the template used
+              // before design PRs, are not checked for a design PR link.
+              const designProcessApplies =
+                Date.parse(pr.created_at) >= Date.parse('2026-10-03T00:00:00Z') &&
+                !/New features link to an approved Discussion/i.test(body);
               if (isFeature && designProcessApplies) {
                 const designMatch = body.match(/New features link to their merged design PR:\s*https:\/\/github\.com\/emdash-cms\/emdash\/pull\/(\d+)/i);
                 if (!designMatch) {
