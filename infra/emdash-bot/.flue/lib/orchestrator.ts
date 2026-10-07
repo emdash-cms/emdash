@@ -892,7 +892,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 		};
 	}
 
-	async prepareWorkPlanComment(input: { runId: string; summary: string }): Promise<boolean> {
+	prepareWorkPlanComment(input: { runId: string; summary: string }): Promise<boolean> {
+		return this.runExclusive(() => this.processWorkPlanPreparation(input));
+	}
+
+	private async processWorkPlanPreparation(input: {
+		runId: string;
+		summary: string;
+	}): Promise<boolean> {
 		const result = await this.ctx.storage.transaction(async (transaction) => {
 			const [currentRunId, run, storedPlan, comments, anchorNumber, dryRun] = await Promise.all([
 				transaction.get<string>(STORAGE.currentRunId),

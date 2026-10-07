@@ -86,6 +86,35 @@ describe("OrchestratorDO (workers-pool)", () => {
 		await expect(stub.getInstallationTokenForGitProxy()).resolves.toBe("cached-token");
 	});
 
+	test("workspace preparation posts one comment while the alarm flushes the same comment", async () => {
+		const posts: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = init?.method ?? "GET";
+			if (method === "POST" && url.endsWith("/comments")) {
+				posts.push(url);
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				return Response.json({ id: 776 });
+			}
+			return Response.json(method === "GET" && url.includes("/comments") ? [] : {});
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:anchorNumber": 42, "o:state": "working", "o:kind": "bug" });
+		});
+		await stub.debugSetStaleRun("work-run", Date.now(), "investigate-work", "work");
+
+		await Promise.all([
+			stub.prepareWorkPlanComment({ runId: "work-run", summary: "Fix the adapter" }),
+			stub.tick(),
+		]);
+
+		expect(posts).toHaveLength(1);
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
 	test("review revisions publish progress and completion on the PR and remain reviewable", async () => {
 		const requests: Array<{ method: string; url: string; body: string }> = [];
 		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
