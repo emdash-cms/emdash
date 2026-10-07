@@ -37,8 +37,10 @@ export function buildTimeoutSummaryPrompt(input: {
 	].join("\n");
 }
 
+const FINAL_ANSWER = /<final_answer>([\s\S]*?)<\/final_answer>/;
+
 export function normalizeTimeoutSummary(text: string): string {
-	const summary = text.trim();
+	const summary = (FINAL_ANSWER.exec(text)?.[1] ?? text).trim();
 	if (summary === "") {
 		return "The run stopped at its execution deadline before it could provide a checkpoint summary.";
 	}
