@@ -5,7 +5,7 @@ import type { PortableDomainBlocker, ScaffoldItem } from "../../../lib/api/trans
 import type { PackageErrorReason } from "../../../lib/transfer-package.js";
 
 const RECORD_KIND_LABELS: Record<string, MessageDescriptor> = {
-	principal: msg`Authors`,
+	principal: msg({ message: "Authors", context: "site transfer record kind: user accounts" }),
 	block_type: msg`Block types`,
 	block_type_version: msg`Block type versions`,
 	collection: msg`Collections`,
