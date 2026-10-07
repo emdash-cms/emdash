@@ -5,6 +5,7 @@ import {
 	confirmPullRequestMissing,
 	createIssueComment,
 	findIssueCommentByMarker,
+	getBranchCheckRun,
 	getCollaboratorPermission,
 	getCompetingWork,
 	getIssueComments,
@@ -602,5 +603,52 @@ describe("GitHub competing work", () => {
 			),
 		);
 		await expect(getCompetingWork("token", repo, 42)).rejects.toThrow("502");
+	});
+});
+
+describe("getBranchCheckRun", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	function stubCheckRuns(checkRuns: unknown[]): string[] {
+		const urls: string[] = [];
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) => {
+				const url = requestUrl(input);
+				urls.push(url);
+				if (url.includes("/branches/"))
+					return Promise.resolve(jsonResponse({ commit: { sha: "abc123" } }));
+				return Promise.resolve(jsonResponse({ check_runs: checkRuns }));
+			}),
+		);
+		return urls;
+	}
+
+	test("looks up the named check run on the branch head", async () => {
+		const urls = stubCheckRuns([{ status: "in_progress", conclusion: null }]);
+		await expect(getBranchCheckRun("token", repo, "bot/fix-42", "Publish Preview")).resolves.toBe(
+			"pending",
+		);
+		expect(urls[0]).toContain("/branches/bot%2Ffix-42");
+		expect(urls[1]).toContain("/commits/abc123/check-runs?check_name=Publish%20Preview");
+	});
+
+	test.each([
+		["queued", null, "pending"],
+		["completed", "success", "succeeded"],
+		["completed", "failure", "failed"],
+		["completed", "cancelled", "failed"],
+	])("reads a %s run concluding %s as %s", async (status, conclusion, expected) => {
+		stubCheckRuns([{ status, conclusion }]);
+		await expect(getBranchCheckRun("token", repo, "bot/fix-42", "Publish Preview")).resolves.toBe(
+			expected,
+		);
+	});
+
+	test("is null when the run hasn't been created", async () => {
+		stubCheckRuns([]);
+		await expect(
+			getBranchCheckRun("token", repo, "bot/fix-42", "Publish Preview"),
+		).resolves.toBeNull();
 	});
 });

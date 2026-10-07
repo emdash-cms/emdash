@@ -608,6 +608,39 @@ export async function getBranchSha(
 	return json.commit?.sha ?? null;
 }
 
+export type CheckRunProgress = "pending" | "succeeded" | "failed";
+
+/**
+ * The latest run of the named check on a branch's head commit, or null when
+ * the branch is gone or the run hasn't been created yet.
+ */
+export async function getBranchCheckRun(
+	token: GitHubToken,
+	ctx: RepoContext,
+	branch: string,
+	checkName: string,
+): Promise<CheckRunProgress | null> {
+	const sha = await getBranchSha(token, ctx, branch);
+	if (!sha) return null;
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/commits/${sha}/check-runs?check_name=${encodeURIComponent(checkName)}&filter=latest`,
+		{ headers: authHeaders(token) },
+	);
+	if (!res.ok) throw new Error(`getBranchCheckRun failed: ${res.status}`);
+	const json = await res.json<{
+		check_runs?: Array<{ status?: string; conclusion?: string | null }>;
+	}>();
+	const run = json.check_runs?.[0];
+	if (!run) return null;
+	if (run.status !== "completed") return "pending";
+	return run.conclusion === "success" ||
+		run.conclusion === "neutral" ||
+		run.conclusion === "skipped"
+		? "succeeded"
+		: "failed";
+}
+
 /** Deletes a branch ref. A 404/422 means it is already gone, which is fine. */
 export async function deleteBranch(
 	token: GitHubToken,

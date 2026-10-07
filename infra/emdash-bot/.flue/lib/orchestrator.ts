@@ -38,6 +38,7 @@ import {
 	createPullRequest,
 	deleteBranch,
 	findIssueCommentByMarker,
+	getBranchCheckRun,
 	getBranchSha,
 	getIssue,
 	getCompetingWork,
@@ -54,6 +55,7 @@ import {
 	readRepoContext,
 	removeLabels,
 	updateIssueComment,
+	type CheckRunProgress,
 	type CoordinatedGitHubToken,
 	type GitHubAppCreds,
 	type GitHubToken,
@@ -68,7 +70,7 @@ import {
 	type TriggeringComment,
 } from "./issue-context.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
-import { branchesToReap, previewUrl, probePreviewReady } from "./preview.js";
+import { branchesToReap, fixBranch, previewUrl, probePreviewReady } from "./preview.js";
 import { assessPullRequest, MAX_AUTOMATIC_REPAIRS } from "./pull-request-monitor.js";
 import {
 	currentState,
@@ -362,9 +364,14 @@ const STORAGE = {
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
-/** Overall budget for a candidate preview to publish on pkg.pr.new before we
- * give up and fire `preview.failed`. Publishing normally lands within ~60s. */
+/** Budget for a candidate preview to publish on pkg.pr.new before we give up
+ * and fire `preview.failed`. Publishing normally lands in 3-7 minutes. */
 const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
+/** Extra time past the budget while the preview workflow is still queued or
+ * running, so a slow Actions queue doesn't cost the preview. */
+const PREVIEW_BUILD_RUNNING_GRACE_MS = 20 * 60 * 1000;
+/** The preview-releases.yml job whose check run tracks the preview build. */
+const PREVIEW_CHECK_NAME = "Publish Preview";
 /** First poll waits for the push→publish lag; later polls back off to this. */
 const PREVIEW_POLL_INITIAL_MS = 45 * 1000;
 const PREVIEW_POLL_INTERVAL_MS = 30 * 1000;
@@ -1688,9 +1695,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			console.error("[orchestrator] invalid preview configuration", {
 				error: errorMessage(error),
 			});
-			await this.firePreviewEvent(
+			await this.firePreviewFailed(
 				anchorNumber,
-				"preview.failed",
 				"The preview package configuration is invalid, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.",
 			);
 			return "failed";
@@ -1702,11 +1708,45 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return "ready";
 		}
 		if (now >= deadline) {
-			await this.firePreviewEvent(anchorNumber, "preview.failed");
-			return "failed";
+			const build = await this.previewBuildProgress(anchorNumber);
+			if (build === "failed") {
+				await this.firePreviewFailed(
+					anchorNumber,
+					"The preview build failed, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show what went wrong.",
+				);
+				return "failed";
+			}
+			if (build !== "pending" || now >= deadline + PREVIEW_BUILD_RUNNING_GRACE_MS) {
+				const waited =
+					build === "pending"
+						? PREVIEW_BUILD_TIMEOUT_MS + PREVIEW_BUILD_RUNNING_GRACE_MS
+						: PREVIEW_BUILD_TIMEOUT_MS;
+				await this.firePreviewFailed(
+					anchorNumber,
+					`The preview build for the candidate change didn't publish within ${Math.round(waited / 60_000)} minutes, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.`,
+				);
+				return "failed";
+			}
 		}
 		await this.ctx.storage.put(STORAGE.previewPollNextAt, now + PREVIEW_POLL_INTERVAL_MS);
 		return "polling";
+	}
+
+	/** The preview workflow's check run on the fix branch, or null when it can't be read. */
+	private async previewBuildProgress(anchorNumber: number): Promise<CheckRunProgress | null> {
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) return null;
+		try {
+			const token = await this.getInstallationToken(creds);
+			return await getBranchCheckRun(token, repo, fixBranch(anchorNumber), PREVIEW_CHECK_NAME);
+		} catch (error) {
+			console.warn("[orchestrator] preview check run lookup failed", {
+				anchorNumber,
+				error: errorMessage(error),
+			});
+			return null;
+		}
 	}
 
 	/**
@@ -1753,25 +1793,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
-	private async firePreviewEvent(
+	private async firePreviewFailed(
 		anchorNumber: number,
-		event: EventId,
-		failureComment?: string,
+		commentBodyOverride: string,
 	): Promise<void> {
 		const labels = await this.projectLabels();
-		const commentBodyOverride =
-			event === "preview.failed"
-				? (failureComment ??
-					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.`)
-				: undefined;
 		await this.processEvent({
-			event,
+			event: "preview.failed",
 			arg: null,
 			actor: "system",
 			labels,
 			needsClassify: false,
 			anchorNumber,
-			...(commentBodyOverride ? { commentBodyOverride } : {}),
+			commentBodyOverride,
 		});
 	}
 

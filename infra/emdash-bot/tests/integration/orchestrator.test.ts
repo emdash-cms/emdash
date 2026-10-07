@@ -2413,6 +2413,67 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).state).toBe("in_review");
 	});
 
+	async function pollPreviewWithBuild(
+		checkRun: { status: string; conclusion: string | null },
+		deadline: number,
+	): Promise<{ previewPoll: string; state: string | null; comments: string[] }> {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await driveToPreviewBuilding(stub, 42);
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		const comments: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			if (url.startsWith("https://pkg.pr.new/")) {
+				return Promise.resolve(new Response("", { status: 404 }));
+			}
+			if (url.includes("/branches/bot%2Ffix-42")) {
+				return Promise.resolve(Response.json({ commit: { sha: "abc123" } }));
+			}
+			if (url.includes("/commits/abc123/check-runs")) {
+				return Promise.resolve(Response.json({ check_runs: [checkRun] }));
+			}
+			if (method === "POST" && url.endsWith("/comments")) {
+				comments.push(typeof init?.body === "string" ? init.body : "");
+			}
+			return Promise.resolve(Response.json({ id: 1, number: 500 }));
+		});
+		await stub.debugSetPreviewPoll(deadline, Date.now() - 1_000);
+		const tick = await stub.tick();
+		vi.unstubAllGlobals();
+		const { state } = await stub.getPersistedState();
+		await runInDurableObject(stub, (_instance, storage) => storage.storage.deleteAlarm());
+		return { previewPoll: tick.previewPoll, state, comments };
+	}
+
+	test("preview poll keeps waiting past the budget while the preview build is running", async () => {
+		const result = await pollPreviewWithBuild(
+			{ status: "in_progress", conclusion: null },
+			Date.now() - 1_000,
+		);
+		expect(result.previewPoll).toBe("polling");
+		expect(result.state).toBe("preview_building");
+	});
+
+	test("preview poll stops waiting for a running build at the hard cap", async () => {
+		const result = await pollPreviewWithBuild(
+			{ status: "in_progress", conclusion: null },
+			Date.now() - 21 * 60_000,
+		);
+		expect(result.previewPoll).toBe("failed");
+		expect(result.comments.join("\n")).toContain("within 30 minutes");
+	});
+
+	test("preview poll says when the preview build itself failed", async () => {
+		const result = await pollPreviewWithBuild(
+			{ status: "completed", conclusion: "failure" },
+			Date.now() - 1_000,
+		);
+		expect(result.previewPoll).toBe("failed");
+		expect(result.comments.join("\n")).toContain("The preview build failed");
+	});
+
 	test("invalid preview package configuration fails instead of retrying forever", async () => {
 		testEnv.PREVIEW_PACKAGE = "../invalid";
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
