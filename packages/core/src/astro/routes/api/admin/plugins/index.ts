@@ -28,6 +28,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		emdash.sandboxedPluginEntries,
 		emdash.config.marketplace,
 		(pluginId) => emdash.getRuntimePluginSettingsSchema(pluginId),
+		(pluginId) => emdash.getSandboxedPluginLoadIncompatibility(pluginId),
 	);
 	if (result.success) {
 		const tools = await emdash.getPluginMcpTools();

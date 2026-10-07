@@ -46,6 +46,38 @@ function isPermission(value: string): value is Permission {
 	return Object.hasOwn(Permissions, value);
 }
 
+/**
+ * Apply the dispatch layer's Cache-Control policy to a trusted handler's
+ * raw `Response`. A handler that set its own Cache-Control is passed through
+ * untouched; everything else gets `private, no-store` unless the route is
+ * public, declares `cacheControl`, and the request is a GET/HEAD. Rebuilds
+ * the Response because a handler may return a proxied response whose headers
+ * are guard-protected against mutation.
+ */
+function applyPluginRouteCachePolicy(
+	response: Response,
+	routeMeta: RouteMeta,
+	method: string,
+): Response {
+	if (response.headers.has("Cache-Control")) return response;
+	const headers = new Headers(response.headers);
+	if (
+		response.ok &&
+		routeMeta.public &&
+		routeMeta.cacheControl &&
+		(method === "GET" || method === "HEAD")
+	) {
+		headers.set("Cache-Control", routeMeta.cacheControl);
+	} else {
+		headers.set("Cache-Control", "private, no-store");
+	}
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers,
+	});
+}
+
 function authorizePrivatePluginRouteRequest(
 	routeMeta: RouteMeta,
 	request: Request,
@@ -153,6 +185,15 @@ export async function dispatchPluginApiRequest({
 			return apiError("INVALID_PLUGIN_RESPONSE", "Plugin returned an invalid response", 500);
 		}
 	} else {
+		// Trusted plugin handlers may return a raw `Response` (redirects,
+		// `Set-Cookie` session flows). Pass it through without `apiSuccess`
+		// wrapping or a header allowlist — only the Cache-Control policy
+		// below is applied, and only when the handler didn't set its own.
+		// Sandboxed plugin wire results are plain deserialized objects, so
+		// this can only fire on the trusted path.
+		if (result.data instanceof Response) {
+			return applyPluginRouteCachePolicy(result.data, routeMeta, method);
+		}
 		response = apiSuccess(result.data);
 	}
 	if (

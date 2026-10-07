@@ -463,6 +463,35 @@ describe("PluginManager", () => {
 		expect(badges.length).toBeGreaterThanOrEqual(1);
 	});
 
+	it("distinguishes an active-but-incompatible plugin from a healthy one", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "registry-plugin",
+				name: "Incompatible Plugin",
+				source: "registry",
+				enabled: true,
+				status: "active",
+				incompatibleWithHost: [{ key: "env:astro", required: "^5.6.0", host: "6.0.0" }],
+			}),
+			makePlugin({ id: "healthy-plugin", name: "Healthy Plugin", source: "registry" }),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("Incompatible with host")).toBeInTheDocument();
+		await expect
+			.element(
+				screen.getByText(
+					"Not loaded: env:astro requires ^5.6.0, this host is 6.0.0. Upgrade or remove the plugin.",
+				),
+			)
+			.toBeInTheDocument();
+		// The healthy card carries neither the badge nor the constraint line.
+		expect(screen.getByText("Incompatible with host").all()).toHaveLength(1);
+	});
+
 	it("shows 'Check for updates' button when marketplace plugins exist", async () => {
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({

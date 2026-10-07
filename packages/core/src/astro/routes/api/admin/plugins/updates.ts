@@ -12,6 +12,7 @@
  * aggregator outage still returns marketplace updates and vice versa.
  */
 
+import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -19,6 +20,7 @@ import { apiError, apiSuccess } from "#api/error.js";
 import { handleMarketplaceUpdateCheck, handleRegistryUpdateCheck } from "#api/index.js";
 
 import { getRegistryConfigInput } from "../../../../../registry/config.js";
+import { VERSION } from "../../../../../version.js";
 
 export const prerender = false;
 
@@ -41,12 +43,12 @@ export const GET: APIRoute = async ({ locals }) => {
 			console.warn("[plugins/updates] marketplace check threw:", err);
 			return null;
 		}),
-		handleRegistryUpdateCheck(emdash.db, getRegistryConfigInput(emdash.config.registry)).catch(
-			(err) => {
-				console.warn("[plugins/updates] registry check threw:", err);
-				return null;
-			},
-		),
+		handleRegistryUpdateCheck(emdash.db, getRegistryConfigInput(emdash.config.registry), {
+			hostEnv: hostEnvFromVersions(VERSION, emdash.config.astroVersion),
+		}).catch((err) => {
+			console.warn("[plugins/updates] registry check threw:", err);
+			return null;
+		}),
 	]);
 	if (marketplace && !marketplace.success) {
 		console.warn(

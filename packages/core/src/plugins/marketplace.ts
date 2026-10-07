@@ -508,6 +508,11 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 			);
 		}
 		manifest = reconcileManifestAccess(result.data);
+		// Marketplace manifests are publisher-authored and unsigned, so any
+		// `requires` they carry is not authoritative and must never persist
+		// into the stored bundle — the registry tier injects `requires` from
+		// the signed release record instead.
+		delete manifest.requires;
 	} catch (err) {
 		if (err instanceof MarketplaceError) throw err;
 		throw new MarketplaceError(

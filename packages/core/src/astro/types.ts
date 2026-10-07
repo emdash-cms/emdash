@@ -670,6 +670,11 @@ export interface EmDashHandlers {
 	runPluginUninstallLifecycle: (pluginId: string, deleteData: boolean) => Promise<void>;
 	// Read settings metadata for runtime-installed plugins.
 	getRuntimePluginSettingsSchema: (pluginId: string) => Record<string, unknown> | null;
+	// Unsatisfied host-env constraints when a runtime-installed plugin was
+	// skipped at load time; null when it loaded normally.
+	getSandboxedPluginLoadIncompatibility: (
+		pluginId: string,
+	) => import("@emdash-cms/registry-client/env").EnvMismatch[] | null;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;

@@ -18,6 +18,12 @@ import {
 	type PluginUiContext,
 } from "@emdash-cms/blocks/server";
 import { isJsonPostRouteContract } from "@emdash-cms/plugin-types";
+import {
+	checkEnvCompatibility,
+	findSkippedEnvConstraints,
+	hostEnvFromVersions,
+} from "@emdash-cms/registry-client/env";
+import type { EnvMismatch, HostEnv } from "@emdash-cms/registry-client/env";
 import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
@@ -714,6 +720,92 @@ const marketplaceManifestCache = new Map<
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
+/**
+ * Load-time env-compat record for sandboxed plugins skipped because their
+ * `requires` exclude this host: pluginId → unsatisfied constraints. The
+ * cold-start loader is static while the sync loader runs on the instance, so
+ * both maintain this shared record; it lives on globalThis behind a Symbol
+ * (same bundler-duplication reasoning as the db cache above). Never written
+ * to `_plugin_state` — the DB row stays `active` so the plugin resumes on a
+ * compatible host without a status flip.
+ */
+const LOAD_INCOMPATIBILITIES_KEY = Symbol.for("emdash:sandboxed-plugin-load-incompatibilities");
+function getSandboxedPluginLoadIncompatibilities(): Map<string, EnvMismatch[]> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let map = globalSymbolStore[LOAD_INCOMPATIBILITIES_KEY] as Map<string, EnvMismatch[]> | undefined;
+	if (!map) {
+		map = new Map();
+		globalSymbolStore[LOAD_INCOMPATIBILITIES_KEY] = map;
+	}
+	return map;
+}
+
+/**
+ * Read the raw `requires` block from a stored bundle's manifest.json.
+ *
+ * The typed {@link PluginManifest} surface does not carry `requires` — the
+ * manifest schema strips unknown keys before a bundle is stored — so the
+ * load-time env gate reads the stored JSON instead of the typed surface. A
+ * missing or malformed manifest yields `undefined`, which the gate treats as
+ * "no constraints" (fails open), matching how a missing `requires` on the
+ * release record behaves at install/update time.
+ */
+async function readStoredBundleRequires(
+	storage: Storage,
+	source: "marketplace" | "registry",
+	pluginId: string,
+	version: string,
+): Promise<unknown> {
+	try {
+		const result = await storage.download(`${source}/${pluginId}/${version}/manifest.json`);
+		const text = await new Response(result.body).text();
+		const parsed: unknown = JSON.parse(text);
+		if (isRecord(parsed)) return parsed.requires;
+	} catch {
+		// Missing/unreadable manifest — loadBundleFromR2 reports it downstream;
+		// the gate has no constraints to evaluate.
+	}
+	return undefined;
+}
+
+/**
+ * Load-time env gate shared by the cold-start loader and the install-sync
+ * loader: evaluate a stored bundle's `requires` against the host environment
+ * and record the outcome in {@link getSandboxedPluginLoadIncompatibilities}.
+ * Returns the unsatisfied constraints when the bundle must be skipped, `null`
+ * when it may load. Unparseable or missing `requires` fails open (returns
+ * `null`), mirroring the install/update gate; constraints the host can't
+ * evaluate are logged so a degraded gate is observable rather than silent.
+ */
+async function gateStoredBundleOnHostEnv(
+	storage: Storage,
+	source: "marketplace" | "registry",
+	pluginId: string,
+	version: string,
+	hostEnv: HostEnv,
+): Promise<EnvMismatch[] | null> {
+	const requires = await readStoredBundleRequires(storage, source, pluginId, version);
+	for (const skipped of findSkippedEnvConstraints(requires, hostEnv)) {
+		console.warn(
+			`[emdash] load-time env compatibility constraint skipped for ${pluginId}@${version}: ` +
+				`${skipped.key} requires ${skipped.required} but host version is ${skipped.reason}`,
+		);
+	}
+	const mismatches = checkEnvCompatibility(requires, hostEnv);
+	if (mismatches.length === 0) {
+		getSandboxedPluginLoadIncompatibilities().delete(pluginId);
+		return null;
+	}
+	getSandboxedPluginLoadIncompatibilities().set(pluginId, mismatches);
+	const summary = mismatches
+		.map((m) => `${m.key} requires ${m.required} but host is ${m.host}`)
+		.join("; ");
+	console.warn(
+		`[emdash] Skipping ${source} plugin ${pluginId}@${version}: ` +
+			`incompatible with this host — ${summary}`,
+	);
+	return mismatches;
+}
 
 function allowedBrowserImageHosts(
 	capabilities: readonly PluginCapability[],
@@ -1059,6 +1151,7 @@ export class EmDashRuntime {
 		sandboxedPluginCache.clear();
 		sandboxedManifestCache.clear();
 		sandboxedRouteMetaCache.clear();
+		getSandboxedPluginLoadIncompatibilities().clear();
 		marketplaceManifestCache.clear();
 		marketplacePluginKeys.clear();
 		registryPluginKeys.clear();
@@ -1327,6 +1420,7 @@ export class EmDashRuntime {
 				if (!desiredVersion) {
 					this.pluginStates.delete(pluginId);
 					this.enabledPlugins.delete(pluginId);
+					getSandboxedPluginLoadIncompatibilities().delete(pluginId);
 				}
 
 				const existing = sandboxedPluginCache.get(key);
@@ -1351,12 +1445,29 @@ export class EmDashRuntime {
 			}
 
 			// Load newly active plugins.
+			const hostEnv = hostEnvFromVersions(VERSION, this.config.astroVersion);
 			for (const [pluginId, version] of desired) {
 				const key = `${pluginId}:${version}`;
 				if (sandboxedPluginCache.has(key)) {
 					keySet.add(key);
 					continue;
 				}
+
+				// Load-time env gate: re-check the stored manifest's `requires`
+				// against this host so a plugin whose constraints exclude the
+				// running core never executes silently after an upgrade. Mirrors
+				// the install/update gate; unparseable or missing `requires`
+				// fails open and loads. Intentionally reads manifest.json again
+				// (raw JSON for the gate vs typed bundle in loadBundleFromR2
+				// below); one extra storage read per plugin per sync is accepted.
+				const incompatible = await gateStoredBundleOnHostEnv(
+					this.storage,
+					source,
+					pluginId,
+					version,
+					hostEnv,
+				);
+				if (incompatible) continue;
 
 				const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
 				if (!bundle) {
@@ -2793,6 +2904,7 @@ export class EmDashRuntime {
 		}
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
+		const hostEnv = hostEnvFromVersions(VERSION, deps.config.astroVersion);
 
 		try {
 			const stateRepo = new PluginStateRepository(db);
@@ -2812,6 +2924,20 @@ export class EmDashRuntime {
 
 				// Skip if already loaded (shouldn't happen, but guard)
 				if (cache.has(pluginKey)) continue;
+
+				// Load-time env gate (mirrors syncSandboxedSourcePlugins): a
+				// plugin whose stored `requires` exclude this host must not run
+				// after a core upgrade. Intentionally re-reads manifest.json
+				// (raw JSON for the gate vs typed bundle in loadBundleFromR2
+				// below); one extra storage read per plugin per sync is accepted.
+				const incompatible = await gateStoredBundleOnHostEnv(
+					storage,
+					source,
+					plugin.pluginId,
+					version,
+					hostEnv,
+				);
+				if (incompatible) continue;
 
 				try {
 					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version, source);
@@ -5592,6 +5718,17 @@ export class EmDashRuntime {
 		const meta = marketplaceManifestCache.get(pluginId);
 		if (!meta) return null;
 		return meta.admin?.settingsSchema ?? {};
+	}
+
+	/**
+	 * Unsatisfied host-env constraints for a sandboxed plugin that was skipped
+	 * at load time because its `requires` exclude this host. Returns `null`
+	 * when the plugin loaded normally (or is unknown), so the admin plugin
+	 * list can distinguish "active but incompatible" from "active". In-memory
+	 * only — consult after a sync.
+	 */
+	getSandboxedPluginLoadIncompatibility(pluginId: string): EnvMismatch[] | null {
+		return getSandboxedPluginLoadIncompatibilities().get(pluginId) ?? null;
 	}
 
 	async handlePluginApiRoute(

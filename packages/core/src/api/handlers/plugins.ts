@@ -2,6 +2,7 @@
  * Plugin management handlers
  */
 
+import type { EnvMismatch } from "@emdash-cms/registry-client/env";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -46,6 +47,14 @@ export interface PluginInfo {
 		permission: string;
 		destructive: boolean;
 	}>;
+	/**
+	 * Host-env constraints unsatisfied by this host when the plugin was
+	 * skipped at load time (its manifest `requires` exclude the running
+	 * core/astro). The DB row stays `active`, so `enabled`/`status` alone
+	 * can't distinguish this state — this field carries the mismatch list.
+	 * Absent when the plugin loaded normally.
+	 */
+	incompatibleWithHost?: EnvMismatch[];
 }
 
 export interface PluginListResponse {
@@ -160,6 +169,13 @@ export async function handlePluginList(
 	 * `EmDashRuntime.getRuntimePluginSettingsSchema`.
 	 */
 	runtimeSettingsSchemaLookup?: (pluginId: string) => Record<string, unknown> | null,
+	/**
+	 * Load-time env-compat lookup for runtime-installed plugins, typically
+	 * `EmDashRuntime.getSandboxedPluginLoadIncompatibility`. Returns the
+	 * unsatisfied `requires` constraints when the plugin was skipped at load
+	 * time, `null` when it loaded normally.
+	 */
+	loadIncompatibilityLookup?: (pluginId: string) => EnvMismatch[] | null,
 ): Promise<ApiResult<PluginListResponse>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -187,7 +203,14 @@ export async function handlePluginList(
 			if (state.source !== "marketplace" && state.source !== "registry") continue;
 			if (configuredIds.has(state.pluginId)) continue;
 
-			items.push(buildStateOnlyPluginInfo(state, marketplaceUrl, runtimeSettingsSchemaLookup));
+			items.push(
+				buildStateOnlyPluginInfo(
+					state,
+					marketplaceUrl,
+					runtimeSettingsSchemaLookup,
+					loadIncompatibilityLookup,
+				),
+			);
 		}
 
 		return {
@@ -277,6 +300,7 @@ function buildStateOnlyPluginInfo(
 	state: NonNullable<Awaited<ReturnType<PluginStateRepository["get"]>>>,
 	marketplaceUrl?: string,
 	runtimeSettingsSchemaLookup?: (pluginId: string) => Record<string, unknown> | null,
+	loadIncompatibilityLookup?: (pluginId: string) => EnvMismatch[] | null,
 ): PluginInfo {
 	return {
 		id: state.pluginId,
@@ -303,6 +327,7 @@ function buildStateOnlyPluginInfo(
 				: undefined,
 		mcpToolsEnabled: state.mcpToolsEnabled,
 		mcpTools: [],
+		incompatibleWithHost: loadIncompatibilityLookup?.(state.pluginId) ?? undefined,
 	};
 }
 

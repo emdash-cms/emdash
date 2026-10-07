@@ -268,11 +268,19 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 
 	const isMarketplace = plugin.source === "marketplace";
 	const isRegistry = plugin.source === "registry";
+	const incompatibleWithHost = plugin.incompatibleWithHost ?? [];
 	const registryIdentity = useRegistryPluginIdentity(
 		isRegistry ? plugin.registryPublisherDid : undefined,
 		isRegistry ? plugin.registrySlug : undefined,
 	);
-	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
+	const hasUpdate =
+		!!updateInfo && (updateInfo.hasUpdate ?? updateInfo.installed !== updateInfo.latest);
+	// A newer latest whose `requires` excludes the host: the update check
+	// refuses it (hasUpdate false) but the admin should say why, not omit it.
+	const updateIncompatible =
+		!!updateInfo &&
+		updateInfo.installed !== updateInfo.latest &&
+		updateInfo.envCompatible === false;
 	const mcpTools = plugin.mcpTools ?? [];
 
 	const updateMutation = useMutation({
@@ -445,9 +453,17 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 							{!plugin.enabled && <Badge variant="secondary">{t`Disabled`}</Badge>}
 							{isMarketplace && <Badge variant="secondary">{t`Marketplace`}</Badge>}
 							{isRegistry && <Badge variant="secondary">{t`Registry`}</Badge>}
+							{incompatibleWithHost.length > 0 && (
+								<Badge variant="destructive">{t`Incompatible with host`}</Badge>
+							)}
 							{hasUpdate && (
 								<Badge variant="outline" className="border-kumo-brand text-kumo-link">
 									{t`v${updateInfo.latest} available`}
+								</Badge>
+							)}
+							{updateIncompatible && (
+								<Badge variant="outline" className="border-kumo-danger text-kumo-danger">
+									{t`v${updateInfo.latest} incompatible`}
 								</Badge>
 							)}
 						</div>
@@ -463,6 +479,20 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 						{plugin.description && registryIdentity?.status !== "invalid" && (
 							<p className="mt-0.5 text-sm text-kumo-subtle line-clamp-1">{plugin.description}</p>
 						)}
+
+						{/* Active but not loaded: the stored `requires` exclude this host. */}
+						{incompatibleWithHost.map((mismatch) => (
+							<p key={mismatch.key} className="mt-0.5 text-sm text-kumo-danger line-clamp-2">
+								{t`Not loaded: ${mismatch.key} requires ${mismatch.required}, this host is ${mismatch.host}. Upgrade or remove the plugin.`}
+							</p>
+						))}
+
+						{/* Newer release exists but its `requires` exclude this host. */}
+						{updateInfo?.incompatibleConstraints?.map((mismatch) => (
+							<p key={mismatch.key} className="mt-0.5 text-sm text-kumo-danger line-clamp-2">
+								{t`Update to v${updateInfo.latest} requires ${mismatch.key} ${mismatch.required}; this host is ${mismatch.host}.`}
+							</p>
+						))}
 
 						{/* Feature indicators + inline capabilities */}
 						<div className="flex items-center gap-3 mt-1 text-sm text-kumo-subtle">
@@ -520,6 +550,12 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 								disabled={updateMutation.isPending}
 							>
 								{updateMutation.isPending ? t`Updating...` : t`Update to v${updateInfo.latest}`}
+							</Button>
+						)}
+
+						{updateIncompatible && (
+							<Button variant="outline" size="sm" disabled>
+								{t`Update to v${updateInfo.latest}`}
 							</Button>
 						)}
 

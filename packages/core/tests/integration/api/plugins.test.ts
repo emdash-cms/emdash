@@ -94,6 +94,38 @@ describe("plugin admin handlers: sandboxed plugins", () => {
 		expect(withSettings?.hasSettings).toBe(true);
 		expect(withoutSettings?.hasSettings).toBe(false);
 	});
+
+	it("annotates runtime-installed plugins skipped at load time as host-incompatible", async () => {
+		const stateRepo = new PluginStateRepository(db);
+		await stateRepo.upsert("mp-incompatible", "1.0.0", "active", { source: "marketplace" });
+		await stateRepo.upsert("mp-loaded", "1.0.0", "active", { source: "marketplace" });
+
+		const result = await handlePluginList(
+			db,
+			[],
+			[],
+			undefined,
+			() => null,
+			(pluginId) =>
+				pluginId === "mp-incompatible"
+					? [{ key: "env:astro", required: "^4.0.0", host: "5.6.0" }]
+					: null,
+		);
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+
+		// "active but incompatible" stays enabled (DB row untouched) but carries
+		// the mismatch list; a normally loaded plugin has no annotation.
+		const incompatible = result.data.items.find((p) => p.id === "mp-incompatible");
+		expect(incompatible?.enabled).toBe(true);
+		expect(incompatible?.status).toBe("active");
+		expect(incompatible?.incompatibleWithHost).toEqual([
+			{ key: "env:astro", required: "^4.0.0", host: "5.6.0" },
+		]);
+		const loaded = result.data.items.find((p) => p.id === "mp-loaded");
+		expect(loaded?.incompatibleWithHost).toBeUndefined();
+	});
 });
 
 describe("plugin admin handlers: runtime-installed plugins", () => {
