@@ -439,7 +439,7 @@
 										"type": "string",
 										"required": true
 									},
-									{ "slug": "link_url", "label": "Link URL", "type": "string", "required": true }
+									{ "slug": "link_url", "label": "Link URL", "type": "url", "required": true }
 								]
 							}
 						}
