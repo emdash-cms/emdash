@@ -2281,7 +2281,7 @@ export function InlinePortableTextEditor({
 						method: "PUT",
 						credentials: "same-origin",
 						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-						body: JSON.stringify({ data: { [field]: blocks } }),
+						body: JSON.stringify({ data: { [field]: blocks }, skipRevision: true }),
 						keepalive: options?.keepalive ?? false,
 					},
 				);
@@ -2751,6 +2751,17 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor:focus {
 					outline: none;
+				}
+				.emdash-inline-editor:focus p.is-editor-empty {
+					display: flow-root;
+				}
+				.emdash-inline-editor:focus p.is-editor-empty::before {
+					content: attr(data-placeholder);
+					float: inline-start;
+					width: 100%;
+					margin-inline-end: -100%;
+					opacity: 0.5;
+					pointer-events: none;
 				}
 				.emdash-inline-editor-guidance {
 					margin-block-start: 0.75rem;

@@ -7,7 +7,12 @@
 import type { APIRoute } from "astro";
 
 import { apiError, handleError } from "#api/error.js";
-import { IMMUTABLE_IMAGE_CACHE, MUTABLE_MEDIA_CACHE_CONTROL } from "#media/image-endpoint.js";
+import {
+	IMMUTABLE_IMAGE_CACHE,
+	MUTABLE_MEDIA_CACHE_CONTROL,
+	isNotModified,
+	validatorHeaders,
+} from "#media/image-endpoint.js";
 
 import { parseRangeHeader, resolveByteRange } from "../../../../../storage/range.js";
 import { isRefusedStorageKey } from "../../../../../transfer/staging/keys.js";
@@ -76,8 +81,8 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 	}
 
 	try {
-		// No ETag or Last-Modified is sent, so an If-Range can never match and
-		// the whole file must be served.
+		// Range requests that include If-Range are served as whole-file responses
+		// because this route does not compare If-Range validators.
 		const range = request.headers.has("If-Range")
 			? null
 			: parseRangeHeader(request.headers.get("Range"));
@@ -98,17 +103,31 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 			return response;
 		}
 
+		const cacheControl = result.contentType.startsWith("image/")
+			? MUTABLE_MEDIA_CACHE_CONTROL
+			: IMMUTABLE_IMAGE_CACHE;
+
+		if (isNotModified(request, result.size, result.lastModified)) {
+			return new Response(null, {
+				status: 304,
+				headers: {
+					"Content-Type": result.contentType,
+					"Cache-Control": cacheControl,
+					...validatorHeaders(result.size, result.lastModified),
+				},
+			});
+		}
+
 		const headers: Record<string, string> = {
 			"Content-Type": result.contentType,
-			"Cache-Control": result.contentType.startsWith("image/")
-				? MUTABLE_MEDIA_CACHE_CONTROL
-				: IMMUTABLE_IMAGE_CACHE,
+			"Cache-Control": cacheControl,
 			"Accept-Ranges": "bytes",
 			"X-Content-Type-Options": "nosniff",
 			// Sandbox CSP on all user-uploaded content — prevents script execution
 			// even for SVGs navigated to directly or content types that support scripting.
 			"Content-Security-Policy":
 				"sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+			...validatorHeaders(result.size, result.lastModified),
 		};
 
 		// Safe image/media types can render inline; everything else (SVG, PDF,

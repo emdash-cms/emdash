@@ -365,6 +365,37 @@ describe("RedirectRepository", () => {
 			expect(match!.resolvedDestination).toBe("/special-page");
 		});
 
+		it("matches [param] pattern redirects with a trailing slash", async () => {
+			await repo.create({
+				source: "/category/[slug]/feed",
+				destination: "/tags/[slug]/feed",
+			});
+
+			const withSlash = await repo.matchPath("/category/arts/feed/");
+			expect(withSlash).not.toBeNull();
+			expect(withSlash!.resolvedDestination).toBe("/tags/arts/feed");
+
+			const withoutSlash = await repo.matchPath("/category/arts/feed");
+			expect(withoutSlash).not.toBeNull();
+			expect(withoutSlash!.resolvedDestination).toBe("/tags/arts/feed");
+		});
+
+		it("matches exact redirects with a trailing slash", async () => {
+			await repo.create({ source: "/old", destination: "/new" });
+
+			const match = await repo.matchPath("/old/");
+			expect(match).not.toBeNull();
+			expect(match!.resolvedDestination).toBe("/new");
+		});
+
+		it("matches exact redirects when the source has a trailing slash and the request omits it", async () => {
+			await repo.create({ source: "/old/", destination: "/new" });
+
+			const match = await repo.matchPath("/old");
+			expect(match).not.toBeNull();
+			expect(match!.resolvedDestination).toBe("/new");
+		});
+
 		it("matches [param] in single segment", async () => {
 			await repo.create({
 				source: "/category/[slug]",

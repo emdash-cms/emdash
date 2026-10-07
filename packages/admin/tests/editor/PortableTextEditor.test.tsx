@@ -757,22 +757,33 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(editor.getJSON()).toEqual(before);
 	});
 
-	it("explains that tables cannot be pasted inside lists or quotes", async () => {
-		const { screen, editor } = await renderAndGetEditor();
-		const before = editor.getJSON();
+	function pasteHtml(editor: Editor, html: string) {
 		const clipboardData = {
 			files: [],
 			items: [],
 			types: ["text/html", "text/plain"],
-			getData: (type: string) =>
-				type === "text/html"
-					? "<blockquote><table><tbody><tr><td>Cell</td></tr></tbody></table></blockquote>"
-					: "",
+			getData: (type: string) => (type === "text/html" ? html : ""),
 		};
 		const paste = new Event("paste", { bubbles: true, cancelable: true });
 		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
-
 		editor.view.dom.dispatchEvent(paste);
+	}
+
+	it("explains that tables cannot be pasted inside lists or quotes", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "quote",
+					style: "blockquote",
+					children: [{ _type: "span", _key: "s1", text: "Quoted" }],
+				},
+			],
+		});
+		editor.commands.setTextSelection(3);
+		const before = editor.getJSON();
+
+		pasteHtml(editor, "<table><tbody><tr><td>Cell</td></tr></tbody></table>");
 
 		await expect
 			.element(screen.getByRole("alert"))
@@ -780,6 +791,68 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 				"Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again.",
 			);
 		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("pastes content copied from inside a quote or list beside it instead of losing it", async () => {
+		const { editor } = await renderAndGetEditor({ value: [textBlock("Intro"), textBlock("")] });
+		editor.commands.setTextSelection(8);
+
+		pasteHtml(
+			editor,
+			"<blockquote><h2>Heading</h2><table><tbody><tr><td>Cell</td></tr></tbody></table></blockquote><ul><li><p>Item</p><hr></li></ul>",
+		);
+
+		await vi.waitFor(() => expect(editor.getText()).toContain("Cell"));
+		const topLevel: string[] = [];
+		editor.state.doc.forEach((node) => topLevel.push(node.type.name));
+		expect(topLevel).toEqual(expect.arrayContaining(["heading", "table", "horizontalRule"]));
+		const values = _prosemirrorToPortableText(editor.getJSON() as never);
+		expect(values.map((block) => block._type)).toEqual(expect.arrayContaining(["table", "break"]));
+		expect(JSON.stringify(values)).toContain("Heading");
+	});
+
+	function blockRows(editor: Editor) {
+		return _prosemirrorToPortableText(editor.getJSON() as never).map((block) => [
+			block.listItem ?? block.style,
+			(block.children as Array<{ text?: string }> | undefined)?.map((span) => span.text).join(""),
+		]);
+	}
+
+	it("splits a pasted quote around a heading in it", async () => {
+		const { editor } = await renderAndGetEditor({ value: [textBlock("Intro"), textBlock("")] });
+		editor.commands.setTextSelection(8);
+
+		pasteHtml(editor, "<blockquote><h3>Heading</h3><p>one</p><p>two</p></blockquote>");
+
+		await vi.waitFor(() => expect(editor.getText()).toContain("two"));
+		expect(blockRows(editor)).toEqual([
+			["normal", "Intro"],
+			["h3", "Heading"],
+			["blockquote", "one"],
+			["blockquote", "two"],
+		]);
+	});
+
+	it("splits a pasted list around a heading in an item, and keeps counting", async () => {
+		const { editor, pm } = await renderAndGetEditor({
+			value: [textBlock("Intro"), textBlock("")],
+		});
+		editor.commands.setTextSelection(8);
+
+		pasteHtml(
+			editor,
+			'<ol start="3"><li><p>a</p></li><li><h3>Heading</h3><p>b</p></li><li><p>c</p></li></ol>',
+		);
+
+		await vi.waitFor(() => expect(editor.getText()).toContain("c"));
+		expect(blockRows(editor)).toEqual([
+			["normal", "Intro"],
+			["number", "a"],
+			["h3", "Heading"],
+			["number", "b"],
+			["number", "c"],
+		]);
+		expect(Array.from(pm.querySelectorAll("ol"), (list) => list.start)).toEqual([3, 4]);
 	});
 
 	it("does not open block slash commands inside a table cell", async () => {
@@ -1027,6 +1100,91 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(linkedText).toBe("https://example.com/docs");
 	});
 
+	it("types before a link that opens a block instead of extending it", async () => {
+		const { editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "b1",
+					style: "normal",
+					children: [
+						{ _type: "span", _key: "s1", text: "Docs", marks: ["l1"] },
+						{ _type: "span", _key: "s2", text: " page", marks: [] },
+					],
+					markDefs: [{ _type: "link", _key: "l1", href: "https://example.com" }],
+				},
+			],
+		});
+		editor.commands.setTextSelection(1);
+
+		simulateTyping(editor, "See ");
+
+		const first = editor.state.doc.firstChild!.firstChild!;
+		expect(first.text).toBe("See ");
+		expect(first.marks.some((mark) => mark.type.name === "link")).toBe(false);
+	});
+
+	it("adds a divider typed in a list after the list, leaving no empty item", async () => {
+		const { editor } = await renderAndGetEditor({
+			value: [textBlock("one", { listItem: "bullet" })],
+		});
+		editor.chain().focus().setTextSelection(6).splitListItem("listItem").run();
+
+		simulateTyping(editor, "---");
+
+		const topLevel: string[] = [];
+		editor.state.doc.forEach((node) => topLevel.push(node.type.name));
+		expect(topLevel.slice(0, 2)).toEqual(["bulletList", "horizontalRule"]);
+		expect(editor.state.doc.firstChild?.childCount).toBe(1);
+	});
+
+	it("adds a divider from a quote's last line at the end of the document, with the caret after it", async () => {
+		const { editor } = await renderAndGetEditor({
+			value: [textBlock("quoted", { style: "blockquote" })],
+		});
+		editor.chain().focus().setTextSelection(8).splitBlock().run();
+
+		simulateTyping(editor, "---");
+
+		const topLevel: string[] = [];
+		editor.state.doc.forEach((node) => topLevel.push(node.type.name));
+		expect(topLevel).toEqual(["blockquote", "horizontalRule", "paragraph"]);
+		expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
+	});
+
+	it("keeps --- typed in a table cell as text", async () => {
+		const { editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+
+		simulateTyping(editor, "---");
+
+		expect(editor.isActive("table")).toBe(true);
+		expect(editor.state.selection.$from.parent.textContent).toMatch(/^[—-]+$/);
+	});
+
+	it("turns a list item into a quote with Mod+Shift+B, like the toolbar's Quote", async () => {
+		const { editor } = await renderAndGetEditor({
+			value: [textBlock("one", { listItem: "bullet" })],
+		});
+		editor.chain().focus().setTextSelection(4).run();
+		await vi.waitFor(() => expect(editor.view.hasFocus()).toBe(true));
+		const mod = navigator.platform.includes("Mac") ? "Meta" : "Control";
+
+		await userEvent.keyboard(`{${mod}>}{Shift>}B{/Shift}{/${mod}}`);
+
+		expect(editor.state.doc.firstChild?.type.name).toBe("blockquote");
+		expect(editor.isActive("bold")).toBe(false);
+	});
+
+	it("keeps subscript and superscript apart", async () => {
+		const { editor } = await renderAndGetEditor({ value: [textBlock("H2O")] });
+
+		editor.chain().setTextSelection({ from: 2, to: 3 }).toggleSubscript().toggleSuperscript().run();
+
+		expect(editor.isActive("superscript")).toBe(true);
+		expect(editor.isActive("subscript")).toBe(false);
+	});
+
 	it("renders a bullet list", async () => {
 		await render(
 			<PortableTextEditor
@@ -1226,6 +1384,135 @@ describe("Editor component behaviour", () => {
 		}
 	});
 
+	it("continues writing at the end when the space below the page is clicked", async () => {
+		const { screen, editor, pm } = await renderAndGetEditor({
+			variant: "document",
+			value: [textBlock("Hello")],
+		});
+		const before = editor.getJSON();
+
+		await userEvent.click(screen.getByText("1 word"));
+
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+		expect(editor.state.selection.empty).toBe(true);
+		expect(editor.state.selection.from).toBe(editor.state.doc.content.size - 1);
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("extends the selection to the end on a shift-click below the page", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			variant: "document",
+			value: [textBlock("Hello"), textBlock("world")],
+		});
+		editor.chain().focus().setTextSelection(2).run();
+
+		await userEvent.keyboard("{Shift>}");
+		await userEvent.click(screen.getByText("2 words"));
+		await userEvent.keyboard("{/Shift}");
+
+		expect(editor.state.selection).toMatchObject({
+			from: 2,
+			to: editor.state.doc.content.size - 1,
+		});
+	});
+
+	it("keeps a selected image in the selection on a shift-click below the page", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			variant: "document",
+			value: [
+				textBlock("Above"),
+				{ _type: "image", _key: "img", asset: { _ref: "a", url: "/a.png" } },
+				textBlock("Below"),
+			],
+		});
+		editor.chain().focus().setNodeSelection(editor.state.doc.child(0).nodeSize).run();
+
+		await userEvent.keyboard("{Shift>}");
+		await userEvent.click(screen.getByText("2 words"));
+		await userEvent.keyboard("{/Shift}");
+
+		const { from, to } = editor.state.selection;
+		expect(from).toBe(editor.state.doc.child(0).nodeSize - 1);
+		expect(to).toBe(editor.state.doc.content.size - 1);
+	});
+
+	it("scrolls the caret out from under the stuck document toolbar", async () => {
+		let editorInstance: Editor | null = null;
+		await render(
+			<div style={{ height: 400, overflowY: "auto" }} data-testid="scroller">
+				<PortableTextEditor
+					variant="document"
+					value={Array.from({ length: 60 }, (_, index) => textBlock(`Line ${index}`))}
+					onEditorReady={(editor) => (editorInstance = editor)}
+				/>
+			</div>,
+		);
+		await vi.waitFor(() => expect(editorInstance).toBeTruthy());
+		const editor = editorInstance!;
+		const scroller = document.querySelector<HTMLElement>('[data-testid="scroller"]')!;
+		const toolbar = document.querySelector<HTMLElement>('[data-emdash-editor-toolbar="document"]')!;
+		const lineStart = editor.state.doc.child(0).nodeSize * 40 + 1;
+		await focusEditor(editor.view.dom);
+		editor.commands.setTextSelection(lineStart);
+		scroller.scrollTop = 200;
+		await vi.waitFor(() => expect(toolbar.hasAttribute("data-stuck")).toBe(true));
+		scroller.scrollTop +=
+			editor.view.coordsAtPos(lineStart).top - toolbar.getBoundingClientRect().bottom - 30;
+
+		await userEvent.keyboard("{ArrowUp}");
+
+		await vi.waitFor(() =>
+			expect(editor.view.coordsAtPos(editor.state.selection.from).top).toBeGreaterThanOrEqual(
+				toolbar.getBoundingClientRect().bottom,
+			),
+		);
+	});
+
+	it.each([
+		["heading", textBlock("Title", { style: "h2" })],
+		["code block", { _type: "code" as const, _key: "c1", code: "let a = 1;", language: "js" }],
+	])("turns a %s into text with Backspace at its start", async (_name, block) => {
+		const { editor, pm } = await renderAndGetEditor({ value: [textBlock("Above"), block] });
+		await focusEditor(pm);
+		editor.commands.setTextSelection(editor.state.doc.child(0).nodeSize + 1);
+
+		await userEvent.keyboard("{Backspace}");
+
+		expect(editor.state.doc.child(0).textContent).toBe("Above");
+		expect(editor.state.doc.child(1).type.name).toBe("paragraph");
+	});
+
+	it("names an empty heading's level when the caret is elsewhere", async () => {
+		const { editor, pm } = await renderAndGetEditor({
+			variant: "document",
+			value: [textBlock("Intro"), textBlock("", { style: "h2" })],
+		});
+		editor.commands.setTextSelection(1);
+
+		const heading = pm.querySelector("h2")!;
+		await vi.waitFor(() => expect(heading.getAttribute("data-placeholder")).toBe("Heading 2"));
+		expect(getComputedStyle(heading, "::before").content).toBe('"Heading 2"');
+	});
+
+	it("fades text under the document toolbar only while it's stuck", async () => {
+		await render(
+			<div style={{ height: 300, overflowY: "auto" }} data-testid="scroller">
+				<PortableTextEditor
+					variant="document"
+					value={Array.from({ length: 30 }, (_, index) => textBlock(`Line ${index}`))}
+				/>
+			</div>,
+		);
+		await waitForEditor();
+		const toolbar = document.querySelector<HTMLElement>('[data-emdash-editor-toolbar="document"]')!;
+		const fade = () => getComputedStyle(toolbar, "::after").opacity;
+		expect(fade()).toBe("0");
+
+		document.querySelector<HTMLElement>('[data-testid="scroller"]')!.scrollTop = 200;
+
+		await vi.waitFor(() => expect(fade()).toBe("1"));
+	});
+
 	it("sets contenteditable=false when editable is false", async () => {
 		await render(<PortableTextEditor editable={false} value={[textBlock("Read only")]} />);
 		const pm = await waitForEditor();
@@ -1382,14 +1669,22 @@ describe("Toolbar", () => {
 		const { editor } = await renderAndGetEditor({ onChange, value: [textBlock("2")] });
 		editor.chain().focus().selectAll().run();
 
-		let bubbleButton: HTMLButtonElement | null = null;
+		let moreFormatting: HTMLButtonElement | null = null;
 		await vi.waitFor(() => {
-			bubbleButton = document.querySelector(
-				`[data-emdash-inline-bubble-menu] [aria-label="${label}"]`,
+			moreFormatting = document.querySelector(
+				'[data-emdash-inline-bubble-menu] [aria-label="More formatting"]',
 			);
-			expect(bubbleButton).toBeTruthy();
+			expect(moreFormatting).toBeTruthy();
 		});
-		bubbleButton!.click();
+		moreFormatting!.click();
+		const item = await vi.waitFor(() => {
+			const match = [...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find(
+				(candidate) => candidate.textContent?.includes(label),
+			);
+			expect(match).toBeTruthy();
+			return match!;
+		});
+		item.click();
 
 		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
 		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
@@ -1424,15 +1719,15 @@ describe("Toolbar", () => {
 
 	it("has alignment buttons", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Align Left" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Align Center" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Align left" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Align center" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Align right" })).toBeInTheDocument();
 	});
 
 	it("keeps extended insertion actions out of the formatting toolbar", async () => {
 		const screen = await renderWithToolbar();
 		const toolbar = screen.getByRole("toolbar").element();
-		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Add link" })).toBeInTheDocument();
 		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
 		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
@@ -1690,6 +1985,22 @@ describe("onChange output shape", () => {
 		const json = capturedEditor!.getJSON();
 		const listNode = json.content?.find((n: { type: string }) => n.type === "bulletList");
 		expect(listNode).toBeTruthy();
+	});
+});
+
+describe("Code block toolbar", () => {
+	it("takes keyboard focus and arrow keys in a newly inserted block", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+
+		editor.commands.insertContent({ type: "codeBlock", content: [{ type: "text", text: "a" }] });
+
+		const languageButton = screen.getByRole("button", {
+			name: "Set language (current: Plain text)",
+		});
+		await expect.element(languageButton).toHaveAttribute("tabindex", "0");
+		languageButton.element().focus();
+		await userEvent.keyboard("{ArrowRight}");
+		await expect.element(screen.getByRole("button", { name: "Copy code" })).toHaveFocus();
 	});
 });
 

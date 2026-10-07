@@ -138,6 +138,19 @@ describe("inline Portable Text editor saves", () => {
 		expect(puts).toHaveLength(1);
 	});
 
+	it("saves each blur as an autosave, so it doesn't add a revision every time", async () => {
+		const editable = await mount();
+		for (const text of ["One. ", "Two. "]) {
+			await act(async () => {
+				editorOf(editable).commands.insertContentAt(1, text);
+			});
+			await blur(editable);
+		}
+
+		expect(puts).toHaveLength(2);
+		for (const put of puts) expect(put.body).toMatchObject({ skipRevision: true });
+	});
+
 	it("keeps custom image dimensions when saving another inline edit", async () => {
 		const editable = await mount([
 			{

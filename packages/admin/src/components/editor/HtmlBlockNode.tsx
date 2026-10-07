@@ -87,7 +87,7 @@ const PREVIEW_TAB: EmbedBlockTab = { value: "preview", label: PREVIEW_LABEL, Ico
 const isEmpty = (attrs: Record<string, unknown>) =>
 	FIELDS.every((field) => !fieldValue(attrs, field));
 
-function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }: NodeViewProps) {
+function HtmlBlockNodeView({ editor, node, getPos, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
 	const editable = editor.isEditable;
 	const isolated = node.attrs.isolated === true;
@@ -175,7 +175,6 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 	return (
 		<EmbedBlockCard
 			className="html-block"
-			selected={selected}
 			editable={editable}
 			tabs={tabs}
 			activeTab={activeTab}

@@ -565,6 +565,21 @@ function mapRowToData(
 		}
 	}
 
+	stashSortValue(data, row, sortColumn, rawValues);
+
+	return data;
+}
+
+/**
+ * Keep the row's raw sort value on `data` (non-enumerable) so the next-page
+ * cursor is encoded from the same value the keyset query compares against.
+ */
+function stashSortValue(
+	data: Record<string, unknown>,
+	row: Record<string, unknown>,
+	sortColumn: string | undefined,
+	rawValues: Record<string, SortCursorValue> = {},
+): void {
 	if (sortColumn !== undefined && sortColumn in row) {
 		rawValues[sortColumn] = sortCursorValue(row[sortColumn]);
 	}
@@ -574,8 +589,92 @@ function mapRowToData(
 		configurable: false,
 		writable: false,
 	});
+}
 
-	return data;
+/**
+ * Fetch the draft revision snapshots for the rows a collection read should
+ * serve as drafts, keyed by content row ID. One query per `SQL_BATCH_SIZE`
+ * revisions; nothing runs unless `scope` is set.
+ */
+async function loadDraftRevisions(
+	db: Kysely<Database>,
+	rows: Record<string, unknown>[],
+	scope: DraftRevisionScope | undefined,
+): Promise<Map<string, Record<string, unknown>>> {
+	const drafts = new Map<string, Record<string, unknown>>();
+	if (!scope) return drafts;
+	const wanted = new Map<string, string>();
+	for (const row of rows) {
+		const draftId = rowStr(row, "draft_revision_id");
+		if (!draftId) continue;
+		if (
+			scope !== "all" &&
+			scope.id !== rowStr(row, "id") &&
+			scope.id !== rowStr(row, "slug") &&
+			scope.id !== entryIdForRow(row)
+		) {
+			continue;
+		}
+		wanted.set(draftId, rowStr(row, "id"));
+	}
+	for (const ids of chunks([...wanted.keys()], SQL_BATCH_SIZE)) {
+		const result = await sql<{ id: string; data: string }>`
+			SELECT id, data FROM revisions WHERE id IN (${sql.join(ids)})
+		`.execute(db);
+		for (const revision of result.rows) {
+			const rowId = wanted.get(revision.id);
+			if (rowId) drafts.set(rowId, JSON.parse(revision.data));
+		}
+	}
+	return drafts;
+}
+
+/**
+ * Build an entry whose content fields come from a revision snapshot, keeping
+ * the system metadata of the content table row.
+ */
+function revisionEntry(
+	row: Record<string, unknown>,
+	parsed: Record<string, unknown>,
+	booleanFields: ReturnType<typeof parseFoldedBooleanFields>,
+	sortColumn?: string,
+) {
+	const systemData: Record<string, unknown> = {};
+	for (const [key, mappedKey] of Object.entries(INCLUDE_IN_DATA)) {
+		if (key in row) {
+			if (DATE_COLUMNS.has(key)) {
+				systemData[mappedKey] = typeof row[key] === "string" ? new Date(row[key]) : null;
+			} else {
+				systemData[mappedKey] = row[key];
+			}
+		}
+	}
+	// Use slug from revision metadata if present, else from content table
+	const slug = typeof parsed._slug === "string" ? parsed._slug : rowStr(row, "slug");
+	const revSlug = slug || rowStr(row, "id");
+	const i18nConfig = virtualConfig?.i18n;
+	const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
+	const revLocale = rowStr(row, "locale");
+	const shouldPrefixRev =
+		i18nEnabled &&
+		revLocale !== "" &&
+		(revLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
+	const data: Record<string, unknown> = {
+		...systemData,
+		slug,
+		...mapRevisionData(parsed, booleanFields),
+	};
+	stashSortValue(data, row, sortColumn);
+	return {
+		id: shouldPrefixRev ? `${revLocale}/${revSlug}` : revSlug,
+		slug,
+		status: rowStr(row, "status", "draft"),
+		data,
+		cacheHint: {
+			tags: [rowStr(row, "id")],
+			lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
+		},
+	};
 }
 
 /**
@@ -723,13 +822,17 @@ let virtualConfig:
 	| undefined;
 let virtualCreateDialect: ((config: unknown) => Dialect) | undefined;
 
-async function loadVirtualModules() {
+async function loadVirtualConfig() {
 	if (virtualConfig === undefined) {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore - virtual module
 		const configModule = await import("virtual:emdash/config");
 		virtualConfig = configModule.default;
 	}
+}
+
+async function loadVirtualModules() {
+	await loadVirtualConfig();
 	if (virtualCreateDialect === undefined) {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore - virtual module
@@ -1430,6 +1533,16 @@ export interface OffsetCollectionFilter extends CollectionFilterBase {
 export type CollectionFilter = CursorCollectionFilter | OffsetCollectionFilter;
 
 /**
+ * Which entries a collection read serves from their draft revision: `"all"`
+ * (edit mode) or one entry's ID or slug (a preview token, scoped to that
+ * entry). Set by `getEmDashCollection` from the request context; not part of
+ * the public filter.
+ */
+type DraftRevisionScope = "all" | { id: string };
+
+type LoaderCollectionFilter = CollectionFilter & { draftRevisions?: DraftRevisionScope };
+
+/**
  * Filter for loadEntry - type and id are required
  */
 export interface EntryFilter {
@@ -1461,6 +1574,9 @@ let dbInstance: Kysely<Database> | null = null;
  * Initializes the default database on first call using config from virtual module.
  */
 export async function getDb(): Promise<Kysely<Database>> {
+	// Entry IDs depend on the i18n config, so it must be loaded on the
+	// request-scoped path too, not only when the default database is opened.
+	await loadVirtualConfig();
 	// Per-request DB override via ALS (normal mode)
 	const ctx = getRequestContext();
 	if (ctx?.db) {
@@ -1516,7 +1632,7 @@ export async function loadPublishedDates(type: string, locale?: string) {
  * };
  * ```
  */
-export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFilter> {
+export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollectionFilter> {
 	return {
 		name: "emdash",
 
@@ -1790,7 +1906,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				// Map rows to entries
 				const booleanFields = parseFoldedBooleanFields(rows[0]);
+				const drafts = await loadDraftRevisions(db, rows, filter?.draftRevisions);
 				const entries = rows.map((row) => {
+					const draft = drafts.get(rowStr(row, "id"));
+					if (draft) {
+						const revEntry = revisionEntry(row, draft, booleanFields, sortColumn);
+						stashFolded(revEntry.data, row);
+						return revEntry;
+					}
 					const id = entryIdForRow(row);
 					const data = mapRowToData(row, booleanFields, sortColumn);
 					stashFolded(data, row);
@@ -1941,8 +2064,6 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// no-op: extractSeo() returns null when the aliases are absent.
 				expandFoldedSeo(row);
 
-				const i18nConfig = virtualConfig?.i18n;
-				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
 				const entryId = entryIdForRow(row);
 
 				// Preview mode: override content fields with revision data,
@@ -1957,52 +2078,22 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 					const revData = revRow.rows[0];
 					if (revData) {
-						const parsed: Record<string, unknown> = JSON.parse(revData.data);
-						// System metadata from content table + content fields from revision
-						const systemData: Record<string, unknown> = {};
-						for (const [key, mappedKey] of Object.entries(INCLUDE_IN_DATA)) {
-							if (key in row) {
-								if (DATE_COLUMNS.has(key)) {
-									systemData[mappedKey] = typeof row[key] === "string" ? new Date(row[key]) : null;
-								} else {
-									systemData[mappedKey] = row[key];
-								}
-							}
-						}
-						// Use slug from revision metadata if present, else from content table
-						const slug = typeof parsed._slug === "string" ? parsed._slug : rowStr(row, "slug");
-						const revSlug = slug || rowStr(row, "id");
-						const revLocale = rowStr(row, "locale");
-						const shouldPrefixRev =
-							i18nEnabled &&
-							revLocale !== "" &&
-							(revLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
-						const revId = shouldPrefixRev ? `${revLocale}/${revSlug}` : revSlug;
+						const revEntry = revisionEntry(
+							row,
+							JSON.parse(revData.data),
+							parseFoldedBooleanFields(row),
+						);
 						// SEO is not revisioned — it comes from the content row's
 						// joined _emdash_seo columns, not the revision snapshot.
-						const revEntryData: Record<string, unknown> = {
-							...systemData,
-							slug,
-							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
-						};
 						const revSeo = extractSeo(row);
 						if (revSeo) {
-							revEntryData.seo = revSeo;
+							revEntry.data.seo = revSeo;
 							// SEO comes from the content row, so the panel data is
 							// valid for the entry regardless of the revision shown.
 							primeSeoPanel(type, rowStr(row, "id"), revSeo);
 						}
-						stashFolded(revEntryData, row);
-						return {
-							id: revId,
-							slug,
-							status: rowStr(row, "status", "draft"),
-							data: revEntryData,
-							cacheHint: {
-								tags: [rowStr(row, "id")],
-								lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
-							},
-						};
+						stashFolded(revEntry.data, row);
+						return revEntry;
 					}
 				}
 

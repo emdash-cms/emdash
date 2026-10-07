@@ -474,7 +474,11 @@ export class RedirectRepository {
 	 */
 	async matchPath(path: string): Promise<RedirectMatch | null> {
 		// 1. Exact match (fast, indexed)
-		const exact = await this.findExactMatch(path);
+		let exact = await this.findExactMatch(path);
+		if (!exact && path.length > 1) {
+			const alt = path.endsWith("/") ? path.slice(0, -1) : `${path}/`;
+			exact = await this.findExactMatch(alt);
+		}
 		if (exact && isSiteRelativeDestination(exact.destination)) {
 			return { redirect: exact, resolvedDestination: exact.destination };
 		}

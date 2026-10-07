@@ -1,0 +1,71 @@
+---
+interface Props {
+	/** Path of the first page, e.g. "/posts" */
+	basePath: string;
+	cursor?: string;
+	nextCursor?: string;
+}
+
+const { basePath, cursor, nextCursor } = Astro.props;
+---
+
+{
+	(cursor || nextCursor) && (
+		<nav class="pagination" aria-label="Pagination">
+			{cursor && (
+				<a href={basePath} class="btn btn--ghost">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.75"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M19 12H5" />
+						<path d="m12 19-7-7 7-7" />
+					</svg>
+					First page
+				</a>
+			)}
+			{nextCursor && (
+				<a
+					href={`${basePath}?cursor=${encodeURIComponent(nextCursor)}`}
+					class="btn btn--ghost pagination__next"
+				>
+					Next page
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.75"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M5 12h14" />
+						<path d="m12 5 7 7-7 7" />
+					</svg>
+				</a>
+			)}
+		</nav>
+	)
+}
+
+<style>
+	.pagination {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-3);
+		margin-top: var(--spacing-10);
+	}
+
+	.pagination__next {
+		margin-inline-start: auto;
+	}
+
+	.pagination svg:dir(rtl) {
+		scale: -1 1;
+	}
+</style>

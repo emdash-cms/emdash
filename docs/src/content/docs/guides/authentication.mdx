@@ -280,7 +280,7 @@ Admins can invite new users via the admin panel:
 
 <Steps>
 
-1. Go to **Settings** > **Users**
+1. In the admin sidebar, select **Users**
 
 2. Click **Invite User**
 
@@ -453,7 +453,7 @@ Set `syncRoles: true` if you want IdP groups to be authoritative — the user's 
 
 ### Name sync behavior
 
-By default (`syncName: true`), EmDash replaces a user's name with the name from Access on every authenticated request. When the Access identity has no name, EmDash uses the part of the email address before the `@`. A name edited in the admin is overwritten on that user's next request, even if it is only replaced by that email prefix.
+By default (`syncName: true`), EmDash replaces a user's name with the name from Access on every authenticated request. When the Access identity has no name, EmDash uses the part of the email address before the `@`. The admin user editor shows the name as read-only, with a hint to change it in Access.
 
 Set `syncName: false` to keep names editable in EmDash. The name from Access is then used only when the user is first provisioned.
 

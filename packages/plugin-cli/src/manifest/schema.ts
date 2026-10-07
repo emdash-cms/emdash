@@ -547,6 +547,12 @@ export const AdminPageSchema = z
 			.min(1, "admin page label cannot be empty")
 			.max(128, "admin page label must be <= 128 characters"),
 		icon: z.string().min(1).max(64).optional(),
+		group: z
+			.string()
+			.trim()
+			.min(1, "admin page group cannot be empty")
+			.max(100, "admin page group must be <= 100 characters")
+			.optional(),
 	})
 	.strict()
 	.meta({

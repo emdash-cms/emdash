@@ -1,5 +1,11 @@
 import { safeParse } from "@atcute/lexicons";
-import { diffDeclaredAccess, type AccessDiff, type DeclaredAccess } from "@emdash-cms/plugin-types";
+import {
+	canonicalizeDeclaredAccess,
+	diffDeclaredAccess,
+	type AccessDiff,
+	type CanonicalDeclaredAccess,
+	type DeclaredAccess,
+} from "@emdash-cms/plugin-types";
 import { parseDelegatedReleaseSourceRecord } from "@emdash-cms/registry-client/release-service";
 import {
 	NSID,
@@ -128,7 +134,19 @@ export function normalizeVerifierReport(
 					adminBytes: report.value.artifact.bundle.adminBytes,
 				},
 			},
-			provenance: { ...report.value.provenance },
+			provenance: {
+				requestedUrl: report.value.provenance.requestedUrl,
+				resolvedUrl: report.value.provenance.resolvedUrl,
+				checksum: report.value.provenance.checksum,
+				documentBytes: report.value.provenance.documentBytes,
+				predicateType: report.value.provenance.predicateType,
+				sourceRepository: report.value.provenance.sourceRepository,
+				builderId: report.value.provenance.builderId,
+				repositoryId: report.value.provenance.repositoryId,
+				workflowRef: report.value.provenance.workflowRef,
+				commitSha: report.value.provenance.commitSha,
+				invocationId: report.value.provenance.invocationId,
+			},
 		},
 	};
 }
@@ -260,8 +278,11 @@ function parseReleaseIntent(value: string): ReleaseIntentPayload | null {
 	return { release: parsed["release"] };
 }
 
-function equalJson(left: unknown, right: unknown): boolean {
-	return JSON.stringify(left) === JSON.stringify(right);
+function sameDeclaredAccess(record: CanonicalDeclaredAccess, manifest: unknown): boolean {
+	const parsed = safeParse(PackageReleaseExtension.declaredAccessSchema, manifest);
+	return (
+		parsed.ok && JSON.stringify(record) === JSON.stringify(canonicalizeDeclaredAccess(parsed.value))
+	);
 }
 
 async function digest(value: unknown): Promise<string> {
@@ -389,7 +410,7 @@ export async function evaluateWorkloadAttestation(
 	if (provenance.builderId !== expectedBuilderId) {
 		return { ok: false, reasonCode: "ATTESTED_WORKFLOW_MISMATCH" };
 	}
-	const workflowRef = identity.workflow.ref.slice(identity.workflow.ref.lastIndexOf("@") + 1);
+	const workflowRef = identity.workflow.ref.slice(identity.workflow.ref.indexOf("@") + 1);
 	if (provenance.workflowRef !== workflowRef) {
 		return { ok: false, reasonCode: "ATTESTED_REF_MISMATCH" };
 	}
@@ -445,7 +466,10 @@ export async function evaluateVerifiedRelease(
 	});
 	if (!records.success) return failed("RECORD_INVALID", records.code);
 	if (
-		!equalJson(records.value.declaredAccess, verifierReport.value.artifact.manifest.declaredAccess)
+		!sameDeclaredAccess(
+			records.value.declaredAccess,
+			verifierReport.value.artifact.manifest.declaredAccess,
+		)
 	) {
 		return failed("ARTIFACT_RECORD_MISMATCH");
 	}
