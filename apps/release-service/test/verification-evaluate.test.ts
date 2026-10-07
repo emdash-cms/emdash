@@ -305,6 +305,25 @@ describe("verification evaluation", () => {
 		});
 	});
 
+	it("derives the same approval evidence from a fresh and a persisted verifier report", async () => {
+		const fresh = normalizeVerifierReport(verifierReport());
+		const persisted = parseNormalizedVerifierReport(JSON.stringify(fresh));
+		if (!persisted) throw new Error("Expected persisted verifier report");
+		const evaluate = async (report: typeof fresh) => {
+			const result = await evaluateVerifiedRelease(
+				PUBLISHER_DID,
+				await intent(),
+				snapshot(),
+				WORKLOAD_POLICY,
+				report,
+			);
+			if (!result.success) throw new Error(`${result.code}:${result.reasonCode}`);
+			return result.value.approvalEvidence;
+		};
+
+		expect(await evaluate(fresh)).toEqual(await evaluate(persisted));
+	});
+
 	it("accepts a manifest whose declared access is not in canonical order", async () => {
 		const declaredAccess = {
 			content: { read: {} },

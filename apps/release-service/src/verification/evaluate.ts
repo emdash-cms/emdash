@@ -134,7 +134,19 @@ export function normalizeVerifierReport(
 					adminBytes: report.value.artifact.bundle.adminBytes,
 				},
 			},
-			provenance: { ...report.value.provenance },
+			provenance: {
+				requestedUrl: report.value.provenance.requestedUrl,
+				resolvedUrl: report.value.provenance.resolvedUrl,
+				checksum: report.value.provenance.checksum,
+				documentBytes: report.value.provenance.documentBytes,
+				predicateType: report.value.provenance.predicateType,
+				sourceRepository: report.value.provenance.sourceRepository,
+				builderId: report.value.provenance.builderId,
+				repositoryId: report.value.provenance.repositoryId,
+				workflowRef: report.value.provenance.workflowRef,
+				commitSha: report.value.provenance.commitSha,
+				invocationId: report.value.provenance.invocationId,
+			},
 		},
 	};
 }
