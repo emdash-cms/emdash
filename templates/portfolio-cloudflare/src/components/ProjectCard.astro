@@ -38,7 +38,7 @@ const {
 } = Astro.props;
 
 const Heading = `h${headingLevel}` as const;
-const titleId = `card-${href.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "")}`;
+const titleId = `card-${encodeURIComponent(href)}`;
 const number = index === undefined ? null : String(index).padStart(2, "0");
 const disciplines = tags.filter(Boolean).join(", ");
 const imageSizes =
