@@ -470,7 +470,7 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "update_work_plan",
 			description:
-				"Create or update the public task-specific plan for this run. Call this before substantial work, keep stable step ids, mark exactly one current step in_progress, and update statuses as work advances. Completed and skipped steps remain in history.",
+				"Create or update the public task-specific plan for this run. Call this before substantial work, keep stable step ids, mark exactly one current step in_progress, and update statuses as work advances. Completed and skipped steps remain in history. Before your final answer, mark every step completed or skipped.",
 			input: workPlanInputSchema,
 			async run({ data }) {
 				const next = updateWorkPlan(workPlan, data, Date.now());
