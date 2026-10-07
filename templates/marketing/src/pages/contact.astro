@@ -1,13 +1,13 @@
 ---
-import { Icon } from "astro-iconset/components";
 import { getEmDashEntry, getSeoMeta } from "emdash";
-import MarketingBlocks from "../components/MarketingBlocks.astro";
 import Base from "../layouts/Base.astro";
+import MarketingBlocks from "../components/MarketingBlocks.astro";
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", "contact");
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
+const pageContent = page?.data.content;
 const seo = page
 	? getSeoMeta(page, {
 			siteUrl: Astro.url.origin,
@@ -16,35 +16,6 @@ const seo = page
 				"Questions, a demo, or a building you want us to look at? Talk directly with the Halden team.",
 		})
 	: null;
-
-const hasHero = page?.data.content?.some((block) => block._type === "marketing_hero") ?? false;
-const Heading = hasHero ? "h2" : "h1";
-const CardHeading = hasHero ? "h3" : "h2";
-
-const contactMethods = [
-	{
-		icon: "ph:envelope",
-		title: "General questions",
-		description: "Ask about Halden, partnerships, press, or a building you’d like us to look at.",
-		label: "hello@halden.example",
-		href: "mailto:hello@halden.example",
-	},
-	{
-		icon: "ph:lifebuoy",
-		title: "Customer support",
-		description:
-			"Get help with your account, a meter integration, or a building that’s already connected.",
-		label: "support@halden.example",
-		href: "mailto:support@halden.example",
-	},
-	{
-		icon: "ph:currency-dollar",
-		title: "Sales",
-		description: "Talk through pricing, a pilot, procurement or a security review for your portfolio.",
-		label: "sales@halden.example",
-		href: "mailto:sales@halden.example",
-	},
-];
 ---
 
 <Base
@@ -56,91 +27,23 @@ const contactMethods = [
 	robots={seo?.robots}
 	content={page ? { collection: "pages", id: page.data.id, slug: page.id } : undefined}
 >
-	{page?.data.content && (
-		<div class="page-blocks" {...page.edit.content}>
-			<MarketingBlocks value={page.data.content} />
-		</div>
-	)}
-
-	<section class="contact section" aria-labelledby="contact-heading">
-		<div class="container">
-			<header class="section-header section-header--center">
-				<p class="eyebrow">Talk to a real person</p>
-				<Heading
-					id="contact-heading"
-					class:list={["section-headline", { "contact__heading--follows-hero": hasHero }]}
-				>
-					Choose the team that can help
-				</Heading>
-				<p class="section-subheadline">
-					Email us directly and include any useful context, like the building or account you’re
-					asking about. We’ll reply from the address you wrote to.
-				</p>
-			</header>
-
-			<ul class="contact__grid">
-				{contactMethods.map((method) => (
-					<li class="card contact__card">
-						<span class="icon-tile">
-							<Icon name={method.icon} aria-hidden="true" />
-						</span>
-						<CardHeading class="contact__title">{method.title}</CardHeading>
-						<p class="contact__description">{method.description}</p>
-						<a class="text-link contact__link" href={method.href}>
-							{method.label}
-							<Icon name="ph:arrow-right" class="arrow" aria-hidden="true" />
+	{
+		page && pageContent ? (
+			<div class="page-blocks" {...page.edit.content}>
+				<MarketingBlocks value={pageContent} />
+			</div>
+		) : (
+			<section class="container empty-state">
+				<h1 class="display empty-state__title">Contact</h1>
+				<p class="lead">Add blocks to this page in the admin to get started.</p>
+				{Astro.locals.user && (
+					<div class="actions">
+						<a href="/_emdash/admin" class="btn btn-lg">
+							Open admin
 						</a>
-					</li>
-				))}
-			</ul>
-		</div>
-	</section>
+					</div>
+				)}
+			</section>
+		)
+	}
 </Base>
-
-<style>
-	.contact__heading--follows-hero {
-		font-size: clamp(30px, 3.2vw, 44px);
-	}
-
-	.contact__grid {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 16px;
-	}
-
-	.contact__card {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		padding: 28px 28px 32px;
-	}
-
-	.contact__title {
-		margin-top: 28px;
-		font-size: 16px;
-		font-weight: 500;
-		line-height: 1.4;
-		letter-spacing: -0.005em;
-	}
-
-	.contact__description {
-		flex: 1;
-		margin-top: 8px;
-		font-size: 15px;
-		line-height: 1.6;
-		color: var(--color-muted);
-		text-wrap: pretty;
-	}
-
-	.contact__link {
-		max-width: 100%;
-		margin-top: 24px;
-		overflow-wrap: anywhere;
-	}
-
-	@media (max-width: 960px) {
-		.contact__grid {
-			grid-template-columns: minmax(0, 1fr);
-		}
-	}
-</style>

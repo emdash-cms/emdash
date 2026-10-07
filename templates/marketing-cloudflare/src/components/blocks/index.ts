@@ -7,3 +7,4 @@ export { default as Logos } from "./Logos.astro";
 export { default as Split } from "./Split.astro";
 export { default as Stats } from "./Stats.astro";
 export { default as CTA } from "./CTA.astro";
+export { default as Contact } from "./Contact.astro";

@@ -395,6 +395,57 @@
 					]
 				}
 			]
+		},
+		{
+			"slug": "marketing_contact",
+			"label": "Contact options",
+			"description": "Cards that point readers to the right email address, phone number or page",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "anchor_id",
+							"label": "Anchor ID",
+							"type": "string",
+							"validation": { "pattern": "^(?:$|[a-z][a-z0-9_-]*)$" }
+						},
+						{ "slug": "eyebrow", "label": "Eyebrow", "type": "string" },
+						{ "slug": "headline", "label": "Headline", "type": "string" },
+						{ "slug": "subheadline", "label": "Subheadline", "type": "text" },
+						{
+							"slug": "options",
+							"label": "Contact options",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 6,
+								"subFields": [
+									{
+										"slug": "icon",
+										"label": "Icon",
+										"type": "select",
+										"required": true,
+										"options": ["email", "support", "sales", "phone", "chat", "location"]
+									},
+									{ "slug": "title", "label": "Title", "type": "string", "required": true },
+									{ "slug": "description", "label": "Description", "type": "text" },
+									{
+										"slug": "link_label",
+										"label": "Link label",
+										"type": "string",
+										"required": true
+									},
+									{ "slug": "link_url", "label": "Link URL", "type": "string", "required": true }
+								]
+							}
+						}
+					]
+				}
+			]
 		}
 	],
 	"collections": [
@@ -425,7 +476,8 @@
 							"marketing_logos",
 							"marketing_split",
 							"marketing_stats",
-							"marketing_cta"
+							"marketing_cta",
+							"marketing_contact"
 						],
 						"maxItems": 20
 					}
@@ -812,8 +864,36 @@
 							"_version": 1,
 							"_key": "contact-hero",
 							"headline": "Talk to the Halden team",
-							"subheadline": "Questions, a demo, or a building you want us to look at? We reply within one working day.",
+							"subheadline": "Questions, a demo, or a building you want us to look at? Email the team that can help and include any useful context. We reply within one working day.",
 							"centered": true
+						},
+						{
+							"_type": "marketing_contact",
+							"_version": 1,
+							"_key": "contact-options",
+							"options": [
+								{
+									"icon": "email",
+									"title": "General questions",
+									"description": "Ask about Halden, partnerships, press, or a building you’d like us to look at.",
+									"link_label": "hello@halden.example",
+									"link_url": "mailto:hello@halden.example"
+								},
+								{
+									"icon": "support",
+									"title": "Customer support",
+									"description": "Get help with your account, a meter integration, or a building that’s already connected.",
+									"link_label": "support@halden.example",
+									"link_url": "mailto:support@halden.example"
+								},
+								{
+									"icon": "sales",
+									"title": "Sales",
+									"description": "Talk through pricing, a pilot, procurement or a security review for your portfolio.",
+									"link_label": "sales@halden.example",
+									"link_url": "mailto:sales@halden.example"
+								}
+							]
 						}
 					]
 				}

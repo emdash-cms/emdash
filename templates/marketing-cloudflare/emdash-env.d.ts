@@ -129,7 +129,20 @@ export interface PageContentMarketingCtaV1Block {
 
 export type PageContentMarketingCtaBlock = PageContentMarketingCtaV1Block;
 
-export type PageContentBlock = PageContentMarketingHeroBlock | PageContentMarketingFeaturesBlock | PageContentMarketingTestimonialsBlock | PageContentMarketingPricingBlock | PageContentMarketingFaqBlock | PageContentMarketingLogosBlock | PageContentMarketingSplitBlock | PageContentMarketingStatsBlock | PageContentMarketingCtaBlock;
+export interface PageContentMarketingContactV1Block {
+  _type: "marketing_contact";
+  _version: 1;
+  _key: string;
+  "anchor_id"?: string | null;
+  "eyebrow"?: string | null;
+  "headline"?: string | null;
+  "subheadline"?: string | null;
+  "options": { "icon": "email" | "support" | "sales" | "phone" | "chat" | "location"; "title": string; "description"?: string | null; "link_label": string; "link_url": string }[];
+}
+
+export type PageContentMarketingContactBlock = PageContentMarketingContactV1Block;
+
+export type PageContentBlock = PageContentMarketingHeroBlock | PageContentMarketingFeaturesBlock | PageContentMarketingTestimonialsBlock | PageContentMarketingPricingBlock | PageContentMarketingFaqBlock | PageContentMarketingLogosBlock | PageContentMarketingSplitBlock | PageContentMarketingStatsBlock | PageContentMarketingCtaBlock | PageContentMarketingContactBlock;
 
 export interface Page {
   id: string;

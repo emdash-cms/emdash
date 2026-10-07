@@ -1,6 +1,6 @@
 ## This Template
 
-A photo-led marketing site template built from modular content blocks: hero, logo wall, features, text and image, stats, testimonials, pricing, FAQ, and call to action, plus a contact page with direct email links. Designed for product and service marketing sites that need a hero, supporting sections, pricing, and a closing call to action.
+A photo-led marketing site template built entirely from modular content blocks: hero, logo wall, features, text and image, stats, testimonials, pricing, FAQ, call to action, and contact options. Designed for product and service marketing sites that need a hero, supporting sections, pricing, and a closing call to action.
 
 The demo content is Halden, a fictional energy-intelligence company for commercial buildings. The voice is calm and specific, with concrete outcomes instead of superlatives. Replace the copy and photos with your own.
 
@@ -10,7 +10,7 @@ The demo content is Halden, a fictional energy-intelligence company for commerci
 | ------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Home    | `/`        | Marketing blocks in any order, authored in the Home page's blocks field. The demo uses every block type except pricing: hero, logo wall, features, two text-and-image blocks, stats, testimonials, FAQ, and CTA |
 | Pricing | `/pricing` | The same block editor, with a centred hero, three pricing plans, a pricing FAQ, and a call to action without a photo                                                                                            |
-| Contact | `/contact` | CMS-authored hero followed by direct email contacts for general questions, support, and sales                                                                                                                   |
+| Contact | `/contact` | The same block editor, with a centred hero and contact options linking to the general, support, and sales email addresses                                                                                       |
 
 There is no posts collection. Content is entirely authored as marketing blocks inside `pages`.
 
@@ -26,25 +26,26 @@ Site settings have `title` and `tagline`. The title renders as the serif wordmar
 
 ## Marketing blocks
 
-The seed declares nine versioned block types. Editors add, reorder, duplicate, and edit them with the built-in blocks field editor. `MarketingBlocks.astro` maps the generated `PageContentBlock` union to `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ,Logos,Split,Stats,CTA}.astro` with `defineBlockComponents()`.
+The seed declares ten versioned block types. Editors add, reorder, duplicate, and edit them with the built-in blocks field editor. `MarketingBlocks.astro` maps the generated `PageContentBlock` union to `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ,Logos,Split,Stats,CTA,Contact}.astro` with `defineBlockComponents()`.
 
-| Block                    | Admin label    | Fields                                                                                                                                                                                 |
-| ------------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `marketing_hero`         | Hero           | `anchor_id`, `eyebrow` and `eyebrow_url` (the announcement pill), `headline`, `subheadline`, flattened primary and secondary CTA label/URL pairs, `image`, `image_caption`, `centered` |
-| `marketing_features`     | Features       | `anchor_id`, `eyebrow`, `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                                                          |
-| `marketing_testimonials` | Testimonials   | `anchor_id`, `headline`, repeater of `{ quote, author, role, company, avatar }` where `avatar` is an image field                                                                       |
-| `marketing_pricing`      | Pricing        | `anchor_id`, `headline`, repeater of `{ name, price, period, description, features, cta_label, cta_url, highlighted, badge }`                                                          |
-| `marketing_faq`          | FAQ            | `anchor_id`, `headline`, `subheadline`, repeater of `{ question, answer }`                                                                                                             |
-| `marketing_logos`        | Logo wall      | `anchor_id`, `headline`, repeater of `{ name, logo }` where `logo` is an image field                                                                                                   |
-| `marketing_split`        | Text and image | `anchor_id`, `eyebrow`, `headline`, `body`, `points`, `cta_label`, `cta_url`, `image`, `image_caption`, `image_first`                                                                  |
-| `marketing_stats`        | Stats          | `anchor_id`, `headline`, `subheadline`, repeater of `{ value, label }`                                                                                                                 |
-| `marketing_cta`          | Call to action | `anchor_id`, `headline`, `body`, flattened primary and secondary CTA label/URL pairs, `image`                                                                                          |
+| Block                    | Admin label     | Fields                                                                                                                                                                                 |
+| ------------------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `marketing_hero`         | Hero            | `anchor_id`, `eyebrow` and `eyebrow_url` (the announcement pill), `headline`, `subheadline`, flattened primary and secondary CTA label/URL pairs, `image`, `image_caption`, `centered` |
+| `marketing_features`     | Features        | `anchor_id`, `eyebrow`, `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                                                          |
+| `marketing_testimonials` | Testimonials    | `anchor_id`, `headline`, repeater of `{ quote, author, role, company, avatar }` where `avatar` is an image field                                                                       |
+| `marketing_pricing`      | Pricing         | `anchor_id`, `headline`, repeater of `{ name, price, period, description, features, cta_label, cta_url, highlighted, badge }`                                                          |
+| `marketing_faq`          | FAQ             | `anchor_id`, `headline`, `subheadline`, repeater of `{ question, answer }`                                                                                                             |
+| `marketing_logos`        | Logo wall       | `anchor_id`, `headline`, repeater of `{ name, logo }` where `logo` is an image field                                                                                                   |
+| `marketing_split`        | Text and image  | `anchor_id`, `eyebrow`, `headline`, `body`, `points`, `cta_label`, `cta_url`, `image`, `image_caption`, `image_first`                                                                  |
+| `marketing_stats`        | Stats           | `anchor_id`, `headline`, `subheadline`, repeater of `{ value, label }`                                                                                                                 |
+| `marketing_cta`          | Call to action  | `anchor_id`, `headline`, `body`, flattened primary and secondary CTA label/URL pairs, `image`                                                                                          |
+| `marketing_contact`      | Contact options | `anchor_id`, `eyebrow`, `headline`, `subheadline`, repeater of `{ icon, title, description, link_label, link_url }`                                                                    |
 
 Constraints worth remembering:
 
 - Block fields cannot contain nested object groups, so CTA labels and URLs remain sibling fields.
 - Repeaters cannot contain nested repeaters. Pricing `features` and the Text and image `points` checklist are therefore multiline text values: the renderers split them on newlines and drop empty lines. `body` fields split into paragraphs on blank lines.
-- Repeaters have fixed limits: 1 to 3 pricing plans, 1 to 6 stats, 1 to 12 features, testimonials, or questions, and 1 to 24 logos. A page holds at most 20 blocks.
+- Repeaters have fixed limits: 1 to 3 pricing plans, 1 to 6 stats or contact options, 1 to 12 features, testimonials, or questions, and 1 to 24 logos. A page holds at most 20 blocks.
 - Every image field (hero and Text and image photos, the call to action background, logos, avatars) is an EmDash image field. Render it with `<Image>` from `emdash/ui`, not a raw URL, and treat it as optional: a failed download during setup leaves it empty.
 - The Hero block has no fallback illustration. Without an image it renders text only; with one, the photo runs below the text as a near full-width rounded sheet. `centered` centres the text and uses a smaller headline.
 - `image_caption` (Hero, Text and image) renders a glass chip with a pulsing green dot at the photo's bottom-start corner. It only appears when there is a photo.
@@ -53,6 +54,7 @@ Constraints worth remembering:
 - A highlighted pricing plan renders on the dark night panel with its `badge` (default "Most popular"). A `badge` on any other plan shows as a neutral pill.
 - The Call to action block sets its copy over `image` behind a dark scrim, or on the dark night panel when `image` is empty. The photo is decorative there and renders with empty alt text.
 - Each FAQ block is its own exclusive accordion: opening a question closes the others in that block.
+- Contact options icons come from a fixed set: `email, support, sales, phone, chat, location`. Option titles render as `h3` under the block's headline, or as `h2` when the block has none (as on the seeded contact page, where the hero holds the page heading).
 - Every stored block has immutable `_type`, `_version`, and `_key` values. Components receive the generated value as `value` plus `index` and `blockKey`; do not treat blocks as Portable Text nodes.
 - Render stored CTA and link URLs through `sanitizeHref()` even when their field validation rejects unsafe-looking values.
 - Menu links such as `/#platform` target a block's `anchor_id`. Change both together.

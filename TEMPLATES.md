@@ -26,10 +26,10 @@ A landing page template for products and services with modular content blocks.
 
 **Features:**
 
-- Hero, logo wall, features, text and image, stats, testimonials, pricing, FAQ, and call to action blocks
+- Hero, logo wall, features, text and image, stats, testimonials, pricing, FAQ, call to action, and contact options blocks
 - Add, reorder, and duplicate blocks in the admin's blocks editor
 - Seeded demo photography from Unsplash
-- Contact page with direct email links
+- Contact page built from blocks, with direct email links
 - SEO metadata and JSON-LD
 - Dark/light mode
 
