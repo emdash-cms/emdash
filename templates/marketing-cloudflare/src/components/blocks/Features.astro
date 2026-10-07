@@ -55,7 +55,7 @@ const iconMap: Record<string, string> = {
 			{
 				features.map((feature) => (
 					<li class="card card--lift feature">
-						<span class="feature__icon" aria-hidden="true">
+						<span class="icon-tile" aria-hidden="true">
 							<Icon name={iconMap[feature.icon] ?? "ph:sparkle"} />
 						</span>
 						<h3 class="feature__title">{feature.title}</h3>
@@ -68,10 +68,6 @@ const iconMap: Record<string, string> = {
 </section>
 
 <style>
-	.eyebrow + .section-headline {
-		margin-block-start: 18px;
-	}
-
 	.features {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -81,17 +77,6 @@ const iconMap: Record<string, string> = {
 
 	.feature {
 		padding: 28px 28px 32px;
-	}
-
-	.feature__icon {
-		display: grid;
-		place-items: center;
-		width: 44px;
-		height: 44px;
-		border-radius: var(--radius);
-		background: var(--color-sunken);
-		color: var(--color-text);
-		font-size: 21px;
 	}
 
 	.feature__title {
