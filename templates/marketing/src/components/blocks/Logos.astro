@@ -1,4 +1,5 @@
 ---
+import { Icon } from "astro-iconset/components";
 import { Image, type BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
 
@@ -11,18 +12,36 @@ const { anchor_id, headline, logos } = value;
 
 <section class="logos section" id={anchor_id || undefined}>
 	{headline && <h2 class="container logos__label">{headline}</h2>}
-	<div class="marquee" style={`--logo-count: ${Math.max(logos.length, 6)}`}>
-		{[false, true].map((duplicate) => (
-			<ul class="marquee__group" role="list" aria-hidden={duplicate ? "true" : undefined}>
-				{logos.map((logo) => (
-					<li>
-						{logo.logo ? <Image image={logo.logo} alt={logo.name} sizes="140px" /> : logo.name}
-					</li>
-				))}
-			</ul>
-		))}
+	<div class="logos__track">
+		<div class="marquee" style={`--logo-count: ${Math.max(logos.length, 6)}`}>
+			{[false, true].map((duplicate) => (
+				<ul class="marquee__group" role="list" aria-hidden={duplicate ? "true" : undefined}>
+					{logos.map((logo) => (
+						<li>
+							{logo.logo ? <Image image={logo.logo} alt={logo.name} sizes="140px" /> : logo.name}
+						</li>
+					))}
+				</ul>
+			))}
+		</div>
+		<button type="button" class="logos__toggle" aria-pressed="false" aria-label="Pause the logo animation">
+			<Icon name="ph:pause" aria-hidden="true" class="logos__toggle-pause" />
+			<Icon name="ph:play" aria-hidden="true" class="logos__toggle-play" />
+		</button>
 	</div>
 </section>
+
+<script>
+	for (const toggle of document.querySelectorAll<HTMLButtonElement>(".logos__toggle")) {
+		const marquee = toggle.parentElement?.querySelector<HTMLElement>(".marquee");
+		if (!marquee) continue;
+		toggle.addEventListener("click", () => {
+			const paused = toggle.getAttribute("aria-pressed") !== "true";
+			toggle.setAttribute("aria-pressed", String(paused));
+			marquee.toggleAttribute("data-paused", paused);
+		});
+	}
+</script>
 
 <style>
 	.logos__label {
@@ -37,6 +56,10 @@ const { anchor_id, headline, logos } = value;
 		color: var(--color-muted);
 	}
 
+	.logos__track {
+		position: relative;
+	}
+
 	.marquee {
 		--marquee-gap: clamp(48px, 6vw, 96px);
 		display: flex;
@@ -44,7 +67,23 @@ const { anchor_id, headline, logos } = value;
 		width: min(100%, var(--sheet-max));
 		margin-inline: auto;
 		overflow: hidden;
-		mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+		mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 12%,
+			#000 calc(88% - var(--gutter) - 40px),
+			transparent calc(100% - var(--gutter) - 40px)
+		);
+	}
+
+	.marquee:dir(rtl) {
+		mask-image: linear-gradient(
+			to left,
+			transparent,
+			#000 12%,
+			#000 calc(88% - var(--gutter) - 40px),
+			transparent calc(100% - var(--gutter) - 40px)
+		);
 	}
 
 	.marquee__group {
@@ -113,9 +152,40 @@ const { anchor_id, headline, logos } = value;
 			animation-name: logos-marquee-rtl;
 		}
 
-		.marquee:is(:hover, :focus-within) .marquee__group {
+		.marquee:is(:hover, [data-paused]) .marquee__group {
 			animation-play-state: paused;
 		}
+	}
+
+	.logos__toggle {
+		position: absolute;
+		inset-block-start: 50%;
+		inset-inline-end: max(var(--gutter), (100% - var(--sheet-max)) / 2 + var(--gutter));
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		translate: 0 -50%;
+		border: 0;
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
+		color: var(--color-muted);
+		font-size: 14px;
+		cursor: pointer;
+		transition:
+			color 160ms var(--ease-out),
+			box-shadow 160ms var(--ease-out);
+	}
+
+	.logos__toggle:hover {
+		color: var(--color-text);
+		box-shadow: var(--shadow-card-hover);
+	}
+
+	.logos__toggle[aria-pressed="true"] :global(.logos__toggle-pause),
+	.logos__toggle:not([aria-pressed="true"]) :global(.logos__toggle-play) {
+		display: none;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -132,7 +202,8 @@ const { anchor_id, headline, logos } = value;
 			height: auto;
 		}
 
-		.marquee__group[aria-hidden="true"] {
+		.marquee__group[aria-hidden="true"],
+		.logos__toggle {
 			display: none;
 		}
 	}

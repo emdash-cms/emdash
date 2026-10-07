@@ -50,6 +50,8 @@ export default defineConfig({
 					"lightning",
 					"list",
 					"lock",
+					"pause",
+					"play",
 					"plug",
 					"plus",
 					"shield-check",

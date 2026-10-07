@@ -49,7 +49,7 @@ Constraints worth remembering:
 - The Hero block has no fallback illustration. Without an image it renders text only; with one, the photo runs below the text as a near full-width rounded sheet. `centered` centres the text and uses a smaller headline.
 - `image_caption` (Hero, Text and image) renders a glass chip with a pulsing green dot at the photo's bottom-start corner. It only appears when there is a photo.
 - `image_first` puts the Text and image photo before the copy on desktop. When the columns stack on narrow screens, the copy always comes first. With no image, only the copy renders.
-- A logo without an image renders the company name as a typographic wordmark, cycling through six text styles. Logo images render monochrome at 28px tall. The row scrolls as a marquee that pauses on hover and focus; with reduced motion it becomes a static, centred row.
+- A logo without an image renders the company name as a typographic wordmark, cycling through six text styles. Logo images render monochrome at 28px tall. The row scrolls as a marquee that pauses on hover and has a pause button for keyboard and touch users; with reduced motion it becomes a static, centred row.
 - A highlighted pricing plan renders on the dark night panel with its `badge` (default "Most popular"). A `badge` on any other plan shows as a neutral pill.
 - The Call to action block sets its copy over `image` behind a dark scrim, or on the dark night panel when `image` is empty. The photo is decorative there and renders with empty alt text.
 - Each FAQ block is its own exclusive accordion: opening a question closes the others in that block.
