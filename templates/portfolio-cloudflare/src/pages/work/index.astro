@@ -42,9 +42,11 @@ const showCount = projects.length > 0 && !cursor && !nextCursor;
 
 // Rows are numbered across pages: the next-page link carries the number
 // its first row starts from.
-const firstNumber = cursor
-	? Math.max(1, Number.parseInt(Astro.url.searchParams.get("from") ?? "", 10) || 1)
-	: 1;
+const fromParam = Number(Astro.url.searchParams.get("from"));
+const firstNumber =
+	cursor && Number.isSafeInteger(fromParam) && fromParam > 0
+		? Math.min(fromParam, 99_999)
+		: 1;
 
 function pad(n: number): string {
 	return String(n).padStart(2, "0");
