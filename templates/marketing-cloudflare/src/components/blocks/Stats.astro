@@ -64,6 +64,7 @@ const { anchor_id, headline, subheadline, stats } = value;
 		font-variant-numeric: tabular-nums;
 		line-height: 0.95;
 		letter-spacing: -0.025em;
+		overflow-wrap: anywhere;
 	}
 
 	.stats__label {
@@ -77,6 +78,10 @@ const { anchor_id, headline, subheadline, stats } = value;
 	@media (max-width: 960px) {
 		.stats__list {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.stats__value {
+			font-size: clamp(40px, 14vw, 72px);
 		}
 	}
 </style>

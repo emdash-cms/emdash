@@ -164,8 +164,7 @@ const secondaryCta =
 			min-height: 560px;
 		}
 
-		.cta--photo::before,
-		.cta--photo:dir(rtl)::before {
+		:is(.cta--photo, .cta--photo:dir(rtl))::before {
 			background: linear-gradient(
 				to top,
 				rgb(15 14 13 / 0.9),
