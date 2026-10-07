@@ -132,6 +132,8 @@ interface IssueLike {
 	/** Set on PR-as-issue payloads (issue_comment on a PR). */
 	pull_request?: unknown;
 	author_association?: string;
+	/** Set on closed issues: `completed`, `not_planned`, `duplicate`, or null. */
+	state_reason?: string | null;
 }
 
 interface CommentLike {
@@ -203,10 +205,19 @@ export type NormalizeResult =
 			pullRequestNumber: number;
 			event: Omit<NormalizedEvent, "anchorNumber">;
 	  }
-	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
+	| {
+			kind: "cleanup";
+			anchor: string;
+			anchorNumber: number;
+			closedAs: IssueClosedAs;
+			deliveryId?: string;
+	  }
 	| { kind: "review_state"; pullRequestNumber: number; authorLogin: string; draft: boolean }
 	| { kind: "skip"; reason: string }
 	| { kind: "pong" };
+
+/** A duplicate counts as not planned: the bot has nothing to ship for it. */
+export type IssueClosedAs = "completed" | "not_planned";
 
 export interface NormalizeContext {
 	/** GitHub delivery id for idempotency tracking. */
@@ -334,7 +345,7 @@ function normalizeIssues(
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action) ?? "";
-	// A closed issue reaps its fix-loop branches.
+	// A closed issue settles its state and reaps its fix-loop branches.
 	// PR-as-issue closes arrive as pull_request events too; skip them here.
 	if (action === "closed") {
 		const issue = asRecord(event?.issue);
@@ -345,6 +356,10 @@ function normalizeIssues(
 			kind: "cleanup",
 			anchor: anchorForIssue(number),
 			anchorNumber: number,
+			closedAs:
+				issue?.state_reason === "not_planned" || issue?.state_reason === "duplicate"
+					? "not_planned"
+					: "completed",
 			...(deliveryId ? { deliveryId } : {}),
 		};
 	}

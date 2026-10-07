@@ -407,6 +407,23 @@ describe("normalizeWebhook", () => {
 			}
 		});
 
+		test.each([
+			["completed", "completed"],
+			[null, "completed"],
+			["not_planned", "not_planned"],
+			["duplicate", "not_planned"],
+		])("closed with state_reason %s is treated as %s", (stateReason, closedAs) => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" }, state_reason: stateReason },
+				sender: { login: "alice" },
+			};
+			expect(normalizeWebhook({ eventType: "issues", payload })).toMatchObject({
+				kind: "cleanup",
+				closedAs,
+			});
+		});
+
 		test("closed on a PR-as-issue is skipped (handled by pull_request)", () => {
 			const payload: IssuesEvent = {
 				action: "closed",

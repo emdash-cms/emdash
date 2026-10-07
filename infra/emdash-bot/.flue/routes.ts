@@ -298,12 +298,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.text(`skipped: ${result.reason}`, 202);
 		}
 
-		// Issue-close cleanup reaps the fix-loop branches directly (a few fast
-		// GitHub calls, well within the ack budget); it is not a machine event,
-		// so it bypasses the DO inbox and runs synchronously.
+		// Issue-close cleanup settles the item's state and reaps the fix-loop
+		// branches synchronously (a few fast GitHub calls, well within the ack
+		// budget), outside the DO inbox.
 		if (result.kind === "cleanup") {
 			const stub = c.env.Orchestrator.getByName(result.anchor);
-			const cleanup = await stub.cleanupOnClose(result.anchorNumber);
+			const cleanup = await stub.cleanupOnClose(result.anchorNumber, result.closedAs);
 			console.log("[webhook] cleanup", {
 				event: eventType,
 				delivery: deliveryId,

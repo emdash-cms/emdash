@@ -2778,6 +2778,57 @@ describe("OrchestratorDO (workers-pool)", () => {
 		]);
 	});
 
+	test.each([
+		["not_planned", "declined"],
+		["completed", "done"],
+	] as const)("closing an issue as %s settles it as %s", async (closedAs, settled) => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "awaiting_approval", "o:kind": "bug" });
+		});
+		await stub.cleanupOnClose(42, closedAs);
+		expect((await stub.getPersistedState()).state).toBe(settled);
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
+	test("closing an issue cancels the run working on it", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "triaging", "o:kind": "bug", "o:anchorNumber": 42 });
+		});
+		await stub.debugSetStaleRun("triage-run", Date.now(), "investigate-42-triage-run", "triage");
+		await stub.cleanupOnClose(42, "not_planned");
+		expect((await stub.getPersistedState()).state).toBe("declined");
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.get("o:runLifecycle")).toMatchObject({ status: "cancelled" });
+			await state.storage.deleteAlarm();
+		});
+	});
+
+	test("a completed close leaves an open bot PR's issue for the PR's own merge to settle", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:state": "in_review",
+				"o:kind": "bug",
+				"o:prNumber": 500,
+				"o:prStatus": { number: 500, state: "open" },
+			});
+		});
+		await stub.cleanupOnClose(42, "completed");
+		expect((await stub.getPersistedState()).state).toBe("in_review");
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
+	test("closing leaves an issue a maintainer took over alone", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "human_owned", "o:kind": "bug" });
+		});
+		await stub.cleanupOnClose(42, "completed");
+		expect((await stub.getPersistedState()).state).toBe("human_owned");
+	});
+
 	test("cleanupOnClose clears idle scheduling state without live credentials", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await runInDurableObject(stub, async (_instance, state) => {
@@ -2787,7 +2838,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 			});
 			await state.storage.setAlarm(Date.now() + 15 * 60_000);
 		});
-		const outcome = await stub.cleanupOnClose(42);
+		const outcome = await stub.cleanupOnClose(42, "completed");
 		expect(outcome.kind).toBe("skipped");
 		await runInDurableObject(stub, async (_instance, state) => {
 			expect(await state.storage.getAlarm()).toBeNull();

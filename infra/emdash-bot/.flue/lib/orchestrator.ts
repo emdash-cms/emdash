@@ -69,7 +69,7 @@ import {
 	type StoredDiagnosis,
 	type TriggeringComment,
 } from "./issue-context.js";
-import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
+import { findTransition, STATES, type EventId, type Kind, type StateId } from "./machine.js";
 import { branchesToReap, fixBranch, previewUrl, probePreviewReady } from "./preview.js";
 import { assessPullRequest, MAX_AUTOMATIC_REPAIRS } from "./pull-request-monitor.js";
 import {
@@ -109,6 +109,7 @@ import {
 	TIMEOUT_SUMMARY_SIGNAL_TYPE,
 	TIMEOUT_SUMMARY_TIMEOUT_MS,
 } from "./timeout-recovery.js";
+import type { IssueClosedAs } from "./webhook.js";
 import {
 	renderPreparingWorkPlanComment,
 	renderWorkPlanComment,
@@ -386,6 +387,15 @@ const INBOX_BATCH_LIMIT = 10;
 const INBOX_ENTRY_MAX_ATTEMPTS = 3;
 const SIDE_EFFECT_MAX_ATTEMPTS = 8;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
+/** Events that settle a running agent's run as cancelled. */
+const CANCELLING_EVENTS: ReadonlySet<EventId> = new Set<EventId>([
+	"reset",
+	"decline",
+	"take_over",
+	"issue.resolved",
+	"issue.dismissed",
+]);
+
 const PR_FEEDBACK_EVENTS: ReadonlySet<EventId | null> = new Set([
 	"revise",
 	"work",
@@ -680,10 +690,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			throw new Error(runError);
 		}
 
-		const cancellationRun =
-			decision.event === "reset" || decision.event === "decline" || decision.event === "take_over"
-				? await this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle)
-				: null;
+		const cancellationRun = CANCELLING_EVENTS.has(decision.event)
+			? await this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle)
+			: null;
 		const sideEffectId = await this.persistDecision(
 			decision,
 			input,
@@ -1296,16 +1305,37 @@ export class OrchestratorDO extends DurableObject<Env> {
 	 * legitimately keep its in_review/PR state, and the branches are a
 	 * projection we clean up regardless.
 	 */
-	cleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
-		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber));
+	cleanupOnClose(anchorNumber: number, closedAs: IssueClosedAs): Promise<CleanupOutcome> {
+		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber, closedAs));
 	}
 
 	getInstallationTokenForGitProxy(): Promise<string> {
 		return githubRateLimitGate(this.env).getInstallationToken();
 	}
 
-	private async processCleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
+	private async processCleanupOnClose(
+		anchorNumber: number,
+		closedAs: IssueClosedAs,
+	): Promise<CleanupOutcome> {
 		await this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber);
+		const [state, pullRequest] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<PullRequestStatus>(STORAGE.prStatus),
+		]);
+		const event = closedAs === "completed" ? "issue.resolved" : "issue.dismissed";
+		// A bot PR merging with "Fixes #n" closes the issue too; `pr.merged` settles that.
+		const awaitingMerge = event === "issue.resolved" && pullRequest?.state === "open";
+		if (state && !awaitingMerge && findTransition(state, event)) {
+			await this.processEvent({
+				event,
+				arg: null,
+				actor: "system",
+				labels: await this.projectLabels(),
+				needsClassify: false,
+				anchorNumber,
+				commentBodyOverride: "",
+			});
+		}
 		const creds = readAppCreds(this.env);
 		const repo = readRepoContext(this.env);
 		let outcome: CleanupOutcome;
@@ -3446,12 +3476,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.rateLimitResumeAt),
 				);
 			}
-			if (
-				!preparedResume &&
-				(decision.event === "reset" ||
-					decision.event === "decline" ||
-					decision.event === "take_over")
-			) {
+			if (!preparedResume && CANCELLING_EVENTS.has(decision.event)) {
 				const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
 				puts.push(
 					transaction.delete(STORAGE.resumableRun),
