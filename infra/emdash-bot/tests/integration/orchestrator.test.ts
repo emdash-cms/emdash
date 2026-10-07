@@ -1807,6 +1807,62 @@ describe("OrchestratorDO (workers-pool)", () => {
 		});
 	});
 
+	test("triage holds off automatic work when someone is already on the issue", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		const { GITHUB_OWNER: owner, GITHUB_REPO: repo } = env as unknown as {
+			GITHUB_OWNER: string;
+			GITHUB_REPO: string;
+		};
+		const comments: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			if (method === "GET" && url.endsWith("/issues/42")) {
+				return Promise.resolve(Response.json({ assignees: [] }));
+			}
+			if (method === "GET" && url.includes("/issues/42/timeline")) {
+				return Promise.resolve(
+					Response.json([
+						{
+							event: "cross-referenced",
+							source: {
+								issue: {
+									number: 3010,
+									state: "open",
+									pull_request: {},
+									user: { login: "contributor" },
+									repository_url: `https://api.github.com/repos/${owner}/${repo}`,
+								},
+							},
+						},
+					]),
+				);
+			}
+			if (method === "POST" && url.endsWith("/comments")) {
+				comments.push(typeof init?.body === "string" ? init.body : "");
+				return Promise.resolve(Response.json({ id: 1 }));
+			}
+			return Promise.resolve(Response.json({}));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "triaging", "o:kind": "bug", "o:anchorNumber": 42 });
+		});
+		await stub.debugSetStaleRun("triage-run", Date.now(), "investigate-42-triage-run", "triage");
+
+		await stub.applyAgentResult({
+			runId: "triage-run",
+			result: { disposition: "auto-work", kind: "bug", summary: "The slug helper drops accents." },
+			pushed: false,
+			ok: true,
+		});
+
+		expect((await stub.getPersistedState()).state).toBe("awaiting_approval");
+		expect(comments.join("\n")).toContain("#3010");
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
 	test("tick recovers a stale run", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		// Run() the DO with a synthetic stale run set in storage. The stale-

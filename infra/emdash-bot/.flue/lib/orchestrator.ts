@@ -23,6 +23,7 @@ import {
 	renderPreviewReadyAsk,
 	renderPullRequestBody,
 	renderVerifiedThanks,
+	renderCompetingWork,
 	renderReadonlyReply,
 	renderRepairsExhausted,
 	shouldPostReadonlyReply,
@@ -39,6 +40,7 @@ import {
 	findIssueCommentByMarker,
 	getBranchSha,
 	getIssue,
+	getCompetingWork,
 	getIssueComments,
 	getIssueLabels,
 	getOpenPullRequest,
@@ -1133,6 +1135,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		) {
 			event = "agent.revised";
 		}
+		const competingWork = event === "agent.auto_work" ? await this.competingWorkNote() : null;
+		if (competingWork) event = "agent.awaiting_approval";
 		const rateLimitResumeAt =
 			typeof input.result.failureRetryAt === "number" &&
 			Number.isFinite(input.result.failureRetryAt) &&
@@ -1185,7 +1189,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			event === "agent.failed" ? `\n\n${automaticRecoveryNote(recovery, Date.now())}` : "";
 		const agentSummary =
 			typeof input.result?.summary === "string"
-				? `${input.result.summary}${recoveryNote}`
+				? `${input.result.summary}${competingWork ? `\n\n${competingWork}` : ""}${recoveryNote}`
 				: undefined;
 		const agentPullRequest = normalizePullRequestCopy(input.result.pullRequest);
 		const runStatus: Exclude<WorkCommentStatus, "running"> =
@@ -1231,6 +1235,24 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.ctx.storage.delete([STORAGE.automaticRecovery, STORAGE.automaticRecoveryCount]);
 		}
 		return outcome;
+	}
+
+	/** Why automatic work shouldn't start, when someone is already on the issue. */
+	private async competingWorkNote(): Promise<string | null> {
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
+		if (!creds || !repo || anchorNumber === undefined) return null;
+		try {
+			const token = await this.getInstallationToken(creds);
+			return renderCompetingWork(await getCompetingWork(token, repo, anchorNumber));
+		} catch (error) {
+			console.warn("[orchestrator] competing work lookup failed", {
+				anchorNumber,
+				error: errorMessage(error),
+			});
+			return null;
+		}
 	}
 
 	/** The automatic recovery a failed run gets, if any. Read before the run is cleared. */

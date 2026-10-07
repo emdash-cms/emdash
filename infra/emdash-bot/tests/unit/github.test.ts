@@ -6,6 +6,7 @@ import {
 	createIssueComment,
 	findIssueCommentByMarker,
 	getCollaboratorPermission,
+	getCompetingWork,
 	getIssueComments,
 	getPullRequestReviewComments,
 	getPullRequestStatus,
@@ -524,5 +525,82 @@ describe("GitHub collaborator permission", () => {
 	test("fails rather than guessing when the lookup errors", async () => {
 		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 502)));
 		await expect(getCollaboratorPermission("token", repo, "danielmlr")).rejects.toThrow("502");
+	});
+});
+
+describe("GitHub competing work", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("finds people assigned to the issue and their open pull requests that reference it", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) => {
+				const url = requestUrl(input);
+				if (url.endsWith("/issues/42")) {
+					return Promise.resolve(
+						jsonResponse({
+							assignees: [
+								{ login: "alice", type: "User" },
+								{ login: "helper[bot]", type: "Bot" },
+							],
+						}),
+					);
+				}
+				const pull = (
+					number: number,
+					login: string,
+					state = "open",
+					repository = "emdash-cms/emdash",
+				) => ({
+					event: "cross-referenced",
+					source: {
+						issue: {
+							number,
+							state,
+							pull_request: {},
+							user: { login },
+							repository_url: `https://api.github.com/repos/${repository}`,
+						},
+					},
+				});
+				return Promise.resolve(
+					jsonResponse([
+						pull(3010, "contributor"),
+						pull(3011, "contributor", "closed"),
+						pull(3012, "emdashbot[bot]"),
+						pull(3013, "contributor", "open", "someone/fork"),
+						{ event: "labeled" },
+						{
+							event: "cross-referenced",
+							source: {
+								issue: {
+									number: 3014,
+									state: "open",
+									user: { login: "contributor" },
+									repository_url: "https://api.github.com/repos/emdash-cms/emdash",
+								},
+							},
+						},
+					]),
+				);
+			}),
+		);
+
+		await expect(getCompetingWork("token", repo, 42)).resolves.toEqual({
+			pullRequests: [3010],
+			assignees: ["alice"],
+		});
+	});
+
+	test("fails rather than guessing when the timeline can't be read", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) =>
+				Promise.resolve(
+					requestUrl(input).endsWith("/issues/42") ? jsonResponse({}) : jsonResponse({}, 502),
+				),
+			),
+		);
+		await expect(getCompetingWork("token", repo, 42)).rejects.toThrow("502");
 	});
 });

@@ -485,6 +485,76 @@ export async function getCollaboratorPermission(
 	return typeof json.permission === "string" ? json.permission : "none";
 }
 
+export interface CompetingWork {
+	/** Open pull requests in this repository, from people, that reference the issue. */
+	readonly pullRequests: readonly number[];
+	/** People assigned to the issue. */
+	readonly assignees: readonly string[];
+}
+
+/** Signs that someone is already working on an issue. */
+export async function getCompetingWork(
+	token: GitHubToken,
+	ctx: RepoContext,
+	issueNumber: number,
+	signal?: AbortSignal,
+): Promise<CompetingWork> {
+	const issueUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}`;
+	const [issueResponse, timelineResponse] = await Promise.all([
+		coordinatedFetch(token, issueUrl, { headers: authHeaders(token), signal }),
+		coordinatedFetch(token, `${issueUrl}/timeline?per_page=100`, {
+			headers: authHeaders(token),
+			signal,
+		}),
+	]);
+	if (!issueResponse.ok) throw new Error(`getCompetingWork issue failed: ${issueResponse.status}`);
+	if (!timelineResponse.ok) {
+		throw new Error(`getCompetingWork timeline failed: ${timelineResponse.status}`);
+	}
+	const issue = await issueResponse.json<{
+		assignees?: Array<{ login?: string; type?: string } | null>;
+	}>();
+	const timeline = await timelineResponse.json<
+		Array<{
+			event?: string;
+			source?: {
+				issue?: {
+					number?: number;
+					state?: string;
+					pull_request?: unknown;
+					user?: { login?: string; type?: string } | null;
+					repository_url?: string;
+				};
+			};
+		}>
+	>();
+	const repositoryUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}`.toLowerCase();
+	const pullRequests = new Set<number>();
+	for (const entry of timeline) {
+		const source = entry.source?.issue;
+		if (
+			entry.event === "cross-referenced" &&
+			source?.pull_request &&
+			source.state === "open" &&
+			typeof source.number === "number" &&
+			source.repository_url?.toLowerCase() === repositoryUrl &&
+			isPerson(source.user)
+		) {
+			pullRequests.add(source.number);
+		}
+	}
+	return {
+		pullRequests: [...pullRequests].toSorted((left, right) => left - right),
+		assignees: (issue.assignees ?? []).flatMap((assignee) =>
+			assignee?.login && isPerson(assignee) ? [assignee.login] : [],
+		),
+	};
+}
+
+function isPerson(user: { login?: string; type?: string } | null | undefined): boolean {
+	return !!user?.login && user.type !== "Bot" && !user.login.endsWith("[bot]");
+}
+
 export async function confirmAnchorMissing(
 	token: GitHubToken,
 	ctx: RepoContext,
