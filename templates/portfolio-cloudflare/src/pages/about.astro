@@ -1,5 +1,5 @@
 ---
-import { getEmDashEntry, getSeoMeta } from "emdash";
+import { getEditMeta, getEmDashEntry, getSeoMeta } from "emdash";
 import { PortableText } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 
@@ -18,6 +18,11 @@ const seo = getSeoMeta(page, {
 	defaultDescription: "Learn more about who we are and what we do.",
 });
 const content = page.data.content;
+// In edit mode an empty body carries edit metadata; render it so the
+// inline editor has somewhere to start.
+const showContent = Boolean(
+	content && (content.length > 0 || getEditMeta(content)),
+);
 ---
 
 <Base
@@ -38,7 +43,7 @@ const content = page.data.content;
 
 		<div class="prose prose-hang about__body" {...page.edit.content}>
 			{
-				content && content.length > 0 ? (
+				showContent ? (
 					<PortableText value={content} />
 				) : (
 					<p class="about__empty">Content coming soon.</p>
