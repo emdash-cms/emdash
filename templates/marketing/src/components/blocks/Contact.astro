@@ -31,7 +31,7 @@ const iconMap: Record<string, string> = {
 			</header>
 		)
 	}
-	<ul class="contact" role="list">
+	<ul class:list={["contact", { "contact--single": options.length === 1 }]} role="list">
 		{
 			options.map((option) => (
 				<li class="card contact__card">
@@ -62,6 +62,11 @@ const iconMap: Record<string, string> = {
 		);
 		gap: var(--contact-gap);
 		list-style: none;
+	}
+
+	.contact--single {
+		grid-template-columns: minmax(0, 440px);
+		justify-content: center;
 	}
 
 	.contact__card {
