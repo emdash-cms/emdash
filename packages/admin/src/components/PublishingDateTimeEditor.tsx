@@ -12,7 +12,7 @@ import {
 	type PublishingDateTimeError,
 } from "../lib/publishing-datetime.js";
 import { getLocaleDir } from "../locales/config.js";
-import { getDayPickerLocale } from "../locales/day-picker.js";
+import { useDateLocale } from "../locales/date-locale.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
 interface PublishingDateTimeFieldsProps {
@@ -98,6 +98,7 @@ export function PublishingDateTimeFields({
 	onTimeChange,
 }: PublishingDateTimeFieldsProps) {
 	const { i18n, t } = useLingui();
+	const dateLocale = useDateLocale();
 	const today = getLocalToday();
 	const [month, setMonth] = React.useState(date ?? today);
 	React.useEffect(() => {
@@ -166,7 +167,7 @@ export function PublishingDateTimeFields({
 				onMonthChange={setMonth}
 				onChange={onDateChange}
 				disabled={disabled ? true : restrictToFuture ? { before: today } : undefined}
-				locale={getDayPickerLocale(i18n.locale)}
+				locale={dateLocale}
 				dir={getLocaleDir(i18n.locale)}
 				aria-label={dateAriaLabel}
 				className="w-full"

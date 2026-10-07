@@ -91,7 +91,7 @@ export async function fetchRelations(
 	const response = await apiFetch(`${API_BASE}/relations${qs}`);
 	const data = await parseApiResponse<{ relations: RelationWithUsage[] }>(
 		response,
-		"Failed to fetch relations",
+		i18n._(msg`Failed to fetch relations`),
 	);
 	return data.relations;
 }
@@ -103,7 +103,7 @@ export async function fetchRelation(id: string): Promise<RelationWithUsage> {
 	const response = await apiFetch(`${API_BASE}/relations/${encodeURIComponent(id)}`);
 	const data = await parseApiResponse<{ relation: RelationWithUsage }>(
 		response,
-		"Failed to fetch relation",
+		i18n._(msg`Failed to fetch relation`),
 	);
 	return data.relation;
 }
@@ -116,7 +116,7 @@ export async function createRelation(input: CreateRelationInput): Promise<Relati
 	});
 	const data = await parseApiResponse<{ relation: RelationDef }>(
 		response,
-		"Failed to create relation",
+		i18n._(msg`Failed to create relation`),
 	);
 	return data.relation;
 }
@@ -129,7 +129,7 @@ export async function updateRelation(id: string, input: UpdateRelationInput): Pr
 	});
 	const data = await parseApiResponse<{ relation: RelationDef }>(
 		response,
-		"Failed to update relation",
+		i18n._(msg`Failed to update relation`),
 	);
 	return data.relation;
 }
@@ -171,7 +171,7 @@ export async function fetchReferenceChildren(
 	);
 	return parseApiResponse<{ children: EntryRef[]; nextCursor?: string }>(
 		response,
-		"Failed to fetch reference children",
+		i18n._(msg`Failed to fetch reference children`),
 	);
 }
 
@@ -190,6 +190,6 @@ export async function fetchReferenceParents(
 	);
 	return parseApiResponse<{ parents: EntryRef[]; nextCursor?: string }>(
 		response,
-		"Failed to fetch reference parents",
+		i18n._(msg`Failed to fetch reference parents`),
 	);
 }

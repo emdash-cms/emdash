@@ -27,6 +27,34 @@ describe("test plan", () => {
 		assert.equal(plan.d1, false);
 	});
 
+	it("runs no browser coverage for translation catalog changes", () => {
+		const plan = createTestPlan([
+			"packages/admin/src/locales/de/messages.po",
+			".changeset/german-admin-translations.md",
+		]);
+
+		for (const lane of TEST_LANES) assert.equal(plan[lane], false, lane);
+		assert.equal(plan.browser_admin, false);
+	});
+
+	it("runs visual coverage for the Arabic catalog, which the RTL snapshots render", () => {
+		const plan = createTestPlan(["packages/admin/src/locales/ar/messages.po"]);
+
+		assert.equal(plan.visual, true);
+		assert.equal(plan.browser, false);
+		assert.equal(plan.e2e_node, false);
+	});
+
+	it("keeps admin UI coverage when a catalog changes alongside admin code", () => {
+		const plan = createTestPlan([
+			"packages/admin/src/locales/de/messages.po",
+			"packages/admin/src/locales/locales.ts",
+		]);
+
+		assert.equal(plan.browser_admin, true);
+		assert.equal(plan.e2e_node, true);
+	});
+
 	it("selects runtime and database boundaries for core changes", () => {
 		const plan = createTestPlan(["packages/core/src/database/migrations/020_example.ts"]);
 

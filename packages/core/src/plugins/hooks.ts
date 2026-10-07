@@ -1549,7 +1549,7 @@ export interface ExclusiveHookResolutionOptions {
 }
 
 /** Options table key prefix for exclusive hook selections */
-const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
+export const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
 
 /**
  * Resolve exclusive hook selections.

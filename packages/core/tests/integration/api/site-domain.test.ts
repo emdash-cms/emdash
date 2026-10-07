@@ -1,6 +1,16 @@
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	onTestFinished,
+	vi,
+} from "vitest";
 
 import { handleSiteDomainChange, parseSiteDomain } from "../../../src/api/handlers/site-domain.js";
 import { _resetEnvCache } from "../../../src/api/public-url.js";
@@ -92,13 +102,67 @@ describe("changing the site domain", () => {
 		expect((await getSiteSettingsWithDb(db)).url).toBeUndefined();
 	});
 
-	it("reports an unreachable domain", async () => {
-		serveSite("elsewhere.example", db);
+	it.each([
+		{
+			case: "a host without a public address",
+			arrange: () => {
+				const previous = setDefaultDnsResolver(async () => ["10.0.0.1"]);
+				onTestFinished(() => {
+					setDefaultDnsResolver(previous);
+				});
+			},
+			message: "new.example does not resolve to a public address",
+			details: { reason: "NO_PUBLIC_ADDRESS", host: "new.example" },
+		},
+		{
+			case: "an unreachable domain",
+			arrange: () => serveSite("elsewhere.example", db),
+			message: "Could not reach https://new.example",
+			details: { reason: "UNREACHABLE", origin: "https://new.example" },
+		},
+		{
+			case: "a redirect to another address",
+			arrange: () =>
+				vi.stubGlobal(
+					"fetch",
+					async () =>
+						new Response(null, {
+							status: 302,
+							headers: { Location: "https://www.new.example/_emdash/api/site/domain-proof" },
+						}),
+				),
+			message:
+				"https://new.example redirects to https://www.new.example. Enter that address instead.",
+			details: {
+				reason: "REDIRECT",
+				origin: "https://new.example",
+				target: "https://www.new.example",
+			},
+		},
+		{
+			case: "a redirect without a location",
+			arrange: () => vi.stubGlobal("fetch", async () => new Response(null, { status: 302 })),
+			message: "https://new.example redirects elsewhere",
+			details: { reason: "REDIRECT", origin: "https://new.example" },
+		},
+		{
+			case: "a domain serving another site",
+			arrange: () =>
+				vi.stubGlobal("fetch", async () =>
+					Response.json({ data: { token: "another-sites-token" } }),
+				),
+			message: "https://new.example does not serve this site yet",
+			details: { reason: "NOT_SERVING", origin: "https://new.example" },
+		},
+	])("reports the reason and address for $case", async ({ arrange, message, details }) => {
+		arrange();
 
 		const result = await handleSiteDomainChange(db, "new.example");
 
-		expect(result.success).toBe(false);
-		if (!result.success) expect(result.error.code).toBe("DOMAIN_CHECK_FAILED");
+		expect(result).toEqual({
+			success: false,
+			error: { code: "DOMAIN_CHECK_FAILED", message, details },
+		});
 	});
 
 	it("leaves the token of a check that started later in place", async () => {

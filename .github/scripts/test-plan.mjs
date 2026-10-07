@@ -3,6 +3,8 @@
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
+import { isTranslationCatalog } from "./translation-scope.mjs";
+
 export const TEST_LANES = [
 	"unit",
 	"smoke",
@@ -23,6 +25,7 @@ const REPOSITORY_METADATA_PATTERN =
 	/^\.github\/(?:dependabot\.yml|bonk-models\.json|codeql-config\.yml|zizmor\.yml)$/;
 const UNIT_PACKAGE_PATH_PATTERN =
 	/^packages\/(?:blocks|gutenberg-to-portable-text|plugin-(?:cli|types)|registry-(?:client|lexicons|moderation|verification))\//;
+
 const TABLE_E2E_PATH_PATTERN = /^e2e\/tests\/.*(?:table|data-grid).*\.(?:spec|test)\.[cm]?[jt]sx?$/;
 const LINE_BREAK_PATTERN = /\r?\n/;
 
@@ -84,6 +87,16 @@ const RULES = [
 			path.startsWith("skills/") ||
 			path.startsWith(".changeset/") ||
 			path.startsWith(".github/ISSUE_TEMPLATE/"),
+		lanes: [],
+	},
+	{
+		name: "Arabic translation catalog",
+		matches: (path) => path === "packages/admin/src/locales/ar/messages.po",
+		lanes: ["visual"],
+	},
+	{
+		name: "translation catalogs",
+		matches: isTranslationCatalog,
 		lanes: [],
 	},
 	{
@@ -223,7 +236,7 @@ const FULL_PLAN_PATHS = [
 	/^tsconfig(?:\..+)?\.json$/,
 	/^vitest(?:\..+)?\.config\.[cm]?[jt]s$/,
 	/^playwright\.config\.[cm]?[jt]s$/,
-	/^\.github\/scripts\/test-plan(?:\.test)?\.mjs$/,
+	/^\.github\/scripts\/(?:test-plan|translation-scope)(?:\.test)?\.mjs$/,
 	/^\.github\/workflows\//,
 	/^patches\//,
 ];

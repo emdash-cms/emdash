@@ -422,10 +422,12 @@ describe("Slash Command Menu", () => {
 			editor.commands.setContent("<p>First</p><p>Second</p>");
 			await screen.getByRole("button", { name: "Test insert after first block" }).click();
 			await waitForSlashMenu();
-			await userEvent.keyboard("h{ArrowLeft}");
-			await vi.waitFor(() =>
-				expect(editor.state.selection.from).toBe(editor.state.doc.child(0).nodeSize + 2),
-			);
+			await focusEditor(pm);
+			await userEvent.keyboard("h");
+			await vi.waitFor(() => expect(blockTexts(editor)).toEqual(["First", "/h", "Second"]));
+			await vi.waitFor(() => expect(getItemTitles(getSlashMenu()!)).not.toContain("Paragraph"));
+			editor.commands.setTextSelection(editor.state.doc.child(0).nodeSize + 2);
+			await vi.waitFor(() => expect(getItemTitles(getSlashMenu()!)).toContain("Paragraph"));
 
 			await close();
 
