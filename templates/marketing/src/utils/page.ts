@@ -3,11 +3,20 @@ import type { PageContentBlock } from "../../emdash-env";
 type HeroBlock = Extract<PageContentBlock, { _type: "marketing_hero" }>;
 type HeroImage = NonNullable<HeroBlock["image"]>;
 
+// Image values written through the API can hold strings that aren't valid URLs.
+function absoluteUrl(value: string, origin: string): string | undefined {
+	try {
+		return new URL(value, origin).href;
+	} catch {
+		return undefined;
+	}
+}
+
 function absoluteImageUrl(image: HeroImage, origin: string): string | undefined {
-	if (image.src) return new URL(image.src, origin).href;
+	if (image.src) return absoluteUrl(image.src, origin);
 	// Only media in the site's own storage is served by the media file route.
 	if ((image.provider ?? "local") !== "local") {
-		return image.previewUrl ? new URL(image.previewUrl, origin).href : undefined;
+		return image.previewUrl ? absoluteUrl(image.previewUrl, origin) : undefined;
 	}
 	const storageKey = typeof image.meta?.storageKey === "string" ? image.meta.storageKey : image.id;
 	return `${origin}/_emdash/api/media/file/${storageKey}`;
