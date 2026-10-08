@@ -397,6 +397,38 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(onChange).not.toHaveBeenCalled();
 	});
 
+	it("does not fire onChange on mount when the last block is not a paragraph and text blocks have empty markDefs/marks", async () => {
+		const onChange = vi.fn();
+		const value = [
+			{
+				_type: "block" as const,
+				_key: "k1",
+				style: "normal" as const,
+				markDefs: [],
+				children: [
+					{
+						_type: "span" as const,
+						_key: "k0",
+						text: "Intro paragraph.",
+						marks: [],
+					},
+				],
+			},
+			{
+				_type: "code" as const,
+				_key: "k2",
+				language: "js",
+				code: "const a = 1;",
+			},
+		];
+		await renderAndGetEditor({ value, onChange });
+		// The StarterKit TrailingNode transaction and the EditorBubbleMenu mount
+		// transaction are handled during initialization; give any delayed
+		// onUpdate handlers time to fire before asserting.
+		await new Promise((resolve) => setTimeout(resolve, 2500));
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
 	it("keeps span keys unique when an edit splits existing text", async () => {
 		const onChange = vi.fn();
 		const { editor } = await renderAndGetEditor({

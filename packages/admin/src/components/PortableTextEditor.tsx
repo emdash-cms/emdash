@@ -639,6 +639,29 @@ function equalJsonValues(left: unknown, right: unknown): boolean {
 	);
 }
 
+/**
+ * Portable Text treats empty `markDefs`/`marks` arrays as equivalent to the
+ * keys being absent. Normalising them before comparison stops the editor from
+ * reporting a no-op change when the incoming value contains empty arrays but
+ * the converter omits them.
+ */
+function normalizeEmptyPortableTextArrays(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map(normalizeEmptyPortableTextArrays);
+	}
+	if (!isRecord(value)) {
+		return value;
+	}
+	const normalized: Record<string, unknown> = {};
+	for (const [key, entry] of Object.entries(value)) {
+		if ((key === "markDefs" || key === "marks") && Array.isArray(entry) && entry.length === 0) {
+			continue;
+		}
+		normalized[key] = normalizeEmptyPortableTextArrays(entry);
+	}
+	return normalized;
+}
+
 const PortableTextIdentityExtension = Extension.create({
 	name: "emdashPortableTextIdentity",
 
@@ -3481,7 +3504,9 @@ export function PortableTextEditor({
 
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
-	const lastPortableTextValueRef = React.useRef(value || []);
+	const lastPortableTextValueRef = React.useRef(
+		normalizeEmptyPortableTextArrays(value || []) as PortableTextBlock[],
+	);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
@@ -3776,7 +3801,7 @@ export function PortableTextEditor({
 		// TipTap's getJSON() returns JSONContent which is structurally compatible
 		const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
 		try {
-			const portableText = prosemirrorToPortableText(pmDoc);
+			const portableText = normalizeEmptyPortableTextArrays(prosemirrorToPortableText(pmDoc)) as PortableTextBlock[];
 			if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
 			lastPortableTextValueRef.current = portableText;
 			cb(portableText);
