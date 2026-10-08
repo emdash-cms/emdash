@@ -656,7 +656,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The name is Latin for a carpenter's square, the L-shaped tool used to check that a frame is true. It describes the job well. Most of our work is making sure things line up, from a grid to a sign on a wall, so that whatever sits inside the frame can be seen clearly.",
+									"text": "The name is Latin for a carpenter’s square, the L-shaped tool used to check that a frame is true. It describes the job well. Most of our work is making sure things line up, from a grid to a sign on a wall, so that whatever sits inside the frame can be seen clearly.",
 									"_key": "about-50"
 								}
 							],
@@ -691,7 +691,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "North Bakehouse opened in 2022 in a former butcher's shop in Rotterdam-Noord. Lotte Brouwer bakes four kinds of loaf every day with grain milled at a windmill in Schiedam. She asked us for an identity that would cost almost nothing to run and still hold its own on a busy street.",
+									"text": "North Bakehouse opened in 2022 in a former butcher’s shop in Rotterdam-Noord. Lotte Brouwer bakes four kinds of loaf every day with grain milled at a windmill in Schiedam. She asked us for an identity that would cost almost nothing to run and still hold its own on a busy street.",
 									"_key": "north-01"
 								}
 							],
@@ -877,11 +877,11 @@
 							"image": {
 								"$media": {
 									"url": "https://images.unsplash.com/photo-1585478259844-06d7b756b082?w=1600&q=80&fm=jpg",
-									"alt": "A round sourdough loaf dusted with flour and scored in a leaf pattern, on a wooden board",
+									"alt": "An oval sourdough loaf dusted with flour and scored in a leaf pattern, on a wooden board",
 									"filename": "north-bakehouse-scored-loaf.jpg"
 								}
 							},
-							"caption": "The baker's leaf scoring, redrawn as the border of the stamp"
+							"caption": "The baker’s leaf scoring, redrawn as the border of the stamp"
 						},
 						{
 							"image": {
@@ -901,7 +901,7 @@
 									"filename": "north-bakehouse-kraft-bag.jpg"
 								}
 							},
-							"caption": "A kraft bag before the morning's stamp"
+							"caption": "A kraft bag before the morning’s stamp"
 						}
 					]
 				},
@@ -918,7 +918,7 @@
 					"client": "Lowland Roasters",
 					"year": "2023",
 					"featured": true,
-					"summary": "Packaging for a Rotterdam roaster that marks each coffee's altitude on the bag, measured from a roastery below sea level.",
+					"summary": "Packaging for a Rotterdam roaster that marks each coffee’s altitude on the bag, measured from a roastery below sea level.",
 					"featured_image": {
 						"$media": {
 							"url": "https://images.unsplash.com/photo-1790861286814-0fcb8ed0a4c9?w=2000&q=80&fm=jpg",
@@ -934,7 +934,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Lowland Roasters buy green coffee from eleven farms and roast it in a warehouse in Rotterdam's old port, two metres below sea level. Their coffees change every few weeks, and the old packaging could not keep up: each new origin meant another print run and another box of bags that would never be used.",
+									"text": "Lowland Roasters buy green coffee from eleven farms and roast it in a warehouse in Rotterdam’s old port, two metres below sea level. Their coffees change every few weeks, and the old packaging could not keep up: each new origin meant another print run and another box of bags that would never be used.",
 									"_key": "lowland-01"
 								}
 							],
@@ -958,7 +958,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The identity starts from the roastery's own altitude. Every label carries a single horizontal line, placed to show how far above the roastery each coffee was grown, from 1,200 to 2,100 metres. It is one small piece of information, but it gives every coffee a place on the bag without a map or an illustration.",
+									"text": "The identity starts from the roastery’s own altitude. Every label carries a single horizontal line, placed to show how far above the roastery each coffee was grown, from 1,200 to 2,100 metres. It is one small piece of information, but it gives every coffee a place on the bag without a map or an illustration.",
 									"_key": "lowland-05"
 								}
 							],
@@ -970,7 +970,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "A label that changes every week",
+									"text": "A new label for every coffee",
 									"_key": "lowland-07"
 								}
 							],
@@ -1006,7 +1006,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The same system runs from 250-gram retail pouches to five-kilo wholesale bags and the cups in Lowland's café. The wordmark appears once on each object, always at the foot. Cafés return the wholesale bags, which are washed, relabelled and filled again.",
+									"text": "The same system runs from 250-gram retail pouches to five-kilo wholesale bags and the cups in Lowland’s café. The wordmark appears once on each bag, always at the foot. Cafés return the wholesale bags, which are washed, relabelled and filled again.",
 									"_key": "lowland-13"
 								}
 							],
@@ -1214,7 +1214,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Features run in a single wide column with a generous outer margin for captions, sources and the occasional chart. Each one opens on a full-bleed photograph. A serif sets every feature, and a grotesk is kept for numbers, tables and the field reports at the back, which gather each season's yields, prices and rainfall into one table per province.",
+									"text": "Features run in a single wide column with a generous outer margin for captions, sources and the occasional chart. Each one opens on a full-bleed photograph. A serif sets every feature, and a grotesk is kept for numbers, tables and the field reports at the back, which gather each season’s yields, prices and rainfall into one table per province.",
 									"_key": "field-09"
 								}
 							],
@@ -1433,7 +1433,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The new shop is built around the kiln. Each firing becomes a numbered collection that opens on a set date, announced to a waiting list a week before. Past firings stay online as an archive, with sold pieces marked rather than removed, so the shop doubles as a record of the studio's work. Most firings sell out within two days of opening.",
+									"text": "The new shop is built around the kiln. Each firing becomes a numbered collection that opens on a set date, announced to a waiting list a week before. Past firings stay online as an archive, with sold pieces marked rather than removed, so the shop doubles as a record of the studio’s work. Most firings sell out within two days of opening.",
 									"_key": "ola-05"
 								}
 							],
@@ -1589,7 +1589,7 @@
 									"filename": "ola-ceramics-tea-bowls.jpg"
 								}
 							},
-							"caption": "Tea bowls from firing 22, photographed against the studio's grey backdrop"
+							"caption": "Tea bowls from firing 22, photographed against the studio’s grey backdrop"
 						},
 						{
 							"image": {
@@ -1665,7 +1665,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Every building in the show is drawn at 1:500 and printed at the same size, from a six-storey office block to a bus shelter, so visitors can compare a church with a garage without reading a caption. The drawings also became the campaign: thirty-one posters, one building each, rotated across the city's poster columns during the run.",
+									"text": "Every building in the show is drawn at 1:500 and printed at the same size, from a six-storey office block to a bus shelter, so visitors can compare a church with a garage without reading a caption. The drawings also became the campaign: thirty-one posters, one building each, rotated across the city’s poster columns during the run.",
 									"_key": "concrete-05"
 								}
 							],
@@ -1821,7 +1821,7 @@
 									"filename": "concrete-futures-model.jpg"
 								}
 							},
-							"caption": "One of the 1:500 models in the first room, made from card and lime wood"
+							"caption": "One of the models in the first room, made from card and lime wood"
 						},
 						{
 							"image": {
@@ -1908,7 +1908,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "The school's name is cast into the brickwork above the entrance in tall, narrow capitals. We redrew those letters, completed the alphabet and use it for the wordmark, the room numbers and the signs, with a plain grotesk for anything guests need to read quickly. Letters missing from the façade were drawn from the original building drawings of 1926, which we found in the city archive.",
+									"text": "The school’s name is cast into the brickwork above the entrance in tall, narrow capitals. We redrew those letters, completed the alphabet and used it for the wordmark, the room numbers and the signs, with a plain grotesk for anything guests need to read quickly. Letters missing from the façade were drawn from the original building drawings of 1926, which we found in the city archive.",
 									"_key": "wilde-05"
 								}
 							],
@@ -1956,7 +1956,7 @@
 							"children": [
 								{
 									"_type": "span",
-									"text": "Printed matter is kept to a few things: a key fob, a room card, a guest book and a breakfast menu printed every Monday on a risograph in the old staff room. All of them use the same two typefaces and one colour, the green of the school's original doors. The kitchen writes the menu on Sunday evening, and the template does the rest.",
+									"text": "Printed matter is kept to a few things: a key fob, a room card, a guest book and a breakfast menu printed every Monday on a risograph in the old staff room. All of them use the same two typefaces and one colour, the green of the school’s original doors. The kitchen writes the menu on Sunday evening, and the template does the rest.",
 									"_key": "wilde-13"
 								}
 							],

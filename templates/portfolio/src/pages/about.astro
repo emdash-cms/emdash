@@ -15,7 +15,6 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const seo = getSeoMeta(page, {
 	siteUrl: Astro.url.origin,
 	path: "/about",
-	defaultDescription: "Learn more about who we are and what we do.",
 });
 const content = page.data.content;
 // In edit mode an empty body carries edit metadata; render it so the
