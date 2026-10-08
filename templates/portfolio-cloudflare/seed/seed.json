@@ -22,15 +22,15 @@
 					"version": 1,
 					"fields": [
 						{
-							"slug": "label",
-							"label": "Label",
-							"type": "string"
-						},
-						{
 							"slug": "text",
 							"label": "Statement",
 							"type": "text",
 							"required": true
+						},
+						{
+							"slug": "label",
+							"label": "Small label",
+							"type": "string"
 						}
 					]
 				}
@@ -39,7 +39,7 @@
 		{
 			"slug": "portfolio_selected_work",
 			"label": "Selected work",
-			"description": "A grid of the projects marked Feature on home page, or the six newest when none are",
+			"description": "Featured projects in a grid, or the six newest when none are featured",
 			"category": "Portfolio",
 			"currentVersion": 1,
 			"versions": [
@@ -50,7 +50,8 @@
 							"slug": "heading",
 							"label": "Heading",
 							"type": "string",
-							"required": true
+							"required": true,
+							"defaultValue": "Selected work"
 						}
 					]
 				}
@@ -70,7 +71,8 @@
 							"slug": "heading",
 							"label": "Heading",
 							"type": "string",
-							"required": true
+							"required": true,
+							"defaultValue": "Clients"
 						},
 						{
 							"slug": "clients",
@@ -127,6 +129,13 @@
 					"type": "string"
 				},
 				{
+					"slug": "featured",
+					"label": "Feature on home page",
+					"type": "boolean",
+					"defaultValue": false,
+					"translatable": false
+				},
+				{
 					"slug": "summary",
 					"label": "Summary",
 					"type": "text",
@@ -163,12 +172,6 @@
 					"slug": "url",
 					"label": "Project URL",
 					"type": "url"
-				},
-				{
-					"slug": "featured",
-					"label": "Feature on home page",
-					"type": "boolean",
-					"defaultValue": false
 				}
 			]
 		},

@@ -9,8 +9,8 @@ export interface PageLayoutPortfolioStatementV1Block {
   _type: "portfolio_statement";
   _version: 1;
   _key: string;
-  "label"?: string | null;
   "text": string;
+  "label"?: string | null;
 }
 
 export type PageLayoutPortfolioStatementBlock = PageLayoutPortfolioStatementV1Block;
@@ -59,11 +59,11 @@ export interface Project {
   featured_image: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
   client?: string;
   year?: string;
+  featured?: boolean;
   summary?: string;
   content?: PortableTextBlock[];
   gallery?: { "image": { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }; "caption"?: string | null }[];
   url?: string;
-  featured?: boolean;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
