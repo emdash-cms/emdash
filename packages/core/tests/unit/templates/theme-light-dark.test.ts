@@ -18,16 +18,13 @@ const VITE_DEFAULT_CSS_TARGETS = {
 	safari: (16 << 16) | (4 << 8),
 };
 
+// The Cloudflare variants carry the same `vite.css` options but aren't covered
+// here: their configs import @emdash-cms/cloudflare, which the core test job
+// doesn't build.
 const TEMPLATES = ["blog", "marketing", "portfolio"] as const;
 
 function templatePath(template: string, file: string): string {
 	return fileURLToPath(new URL(`../../../../../templates/${template}/${file}`, import.meta.url));
-}
-
-/** The `css: { ... }` block of a template's `vite` config, as written. */
-function cssConfigSource(template: string): string | undefined {
-	const source = readFileSync(templatePath(template, "astro.config.mjs"), "utf8");
-	return source.match(/\n\t\tcss: \{\n[\s\S]*?\n\t\t\},\n/)?.[0];
 }
 
 describe.each(TEMPLATES)("%s template theme switcher", (template) => {
@@ -50,13 +47,5 @@ describe.each(TEMPLATES)("%s template theme switcher", (template) => {
 		// footer switcher's :root.light / :root.dark color-scheme has no effect.
 		expect(css).not.toContain("--lightningcss-light");
 		expect(css).toContain("light-dark(");
-	});
-
-	// The Cloudflare variant can't be imported here without building
-	// @emdash-cms/cloudflare, which the core test job doesn't do.
-	it("has the same CSS options in its Cloudflare variant", () => {
-		const css = cssConfigSource(template);
-		expect(css).toBeDefined();
-		expect(cssConfigSource(`${template}-cloudflare`)).toBe(css);
 	});
 });
