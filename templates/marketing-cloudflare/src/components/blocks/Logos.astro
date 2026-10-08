@@ -189,8 +189,7 @@ const { anchor_id, headline, logos } = value;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.marquee,
-		.marquee:dir(rtl) {
+		:is(.marquee, .marquee:dir(rtl)) {
 			display: block;
 			padding-inline: var(--gutter);
 			mask-image: none;
