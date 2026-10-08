@@ -3,15 +3,12 @@
 
 /// <reference types="emdash/locals" />
 
-import type { BylineSummary, ContentBylineCredit, TaxonomyTerm } from "emdash";
+import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
 export interface PageContentMarketingHeroV1Block {
   _type: "marketing_hero";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
-  "eyebrow"?: string | null;
-  "eyebrow_url"?: string | null;
   "headline": string;
   "subheadline"?: string | null;
   "primary_cta_label"?: string | null;
@@ -20,7 +17,10 @@ export interface PageContentMarketingHeroV1Block {
   "secondary_cta_url"?: string | null;
   "image"?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } } | null;
   "image_caption"?: string | null;
+  "eyebrow"?: string | null;
+  "eyebrow_url"?: string | null;
   "centered"?: boolean | null;
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingHeroBlock = PageContentMarketingHeroV1Block;
@@ -29,11 +29,11 @@ export interface PageContentMarketingFeaturesV1Block {
   _type: "marketing_features";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
-  "eyebrow"?: string | null;
   "headline": string;
   "subheadline"?: string | null;
+  "eyebrow"?: string | null;
   "features": { "icon": "zap" | "shield" | "users" | "chart" | "code" | "globe" | "heart" | "star" | "check" | "lock" | "clock" | "cloud" | "building" | "leaf" | "gauge" | "thermometer" | "plug" | "bell" | "file" | "sun" | "trend"; "title": string; "description": string }[];
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingFeaturesBlock = PageContentMarketingFeaturesV1Block;
@@ -42,9 +42,9 @@ export interface PageContentMarketingTestimonialsV1Block {
   _type: "marketing_testimonials";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
   "headline"?: string | null;
   "testimonials": { "quote": string; "author": string; "role"?: string | null; "company"?: string | null; "avatar"?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } } | null }[];
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingTestimonialsBlock = PageContentMarketingTestimonialsV1Block;
@@ -53,9 +53,9 @@ export interface PageContentMarketingPricingV1Block {
   _type: "marketing_pricing";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
   "headline"?: string | null;
   "plans": { "name": string; "price": string; "period"?: string | null; "description"?: string | null; "features"?: string | null; "cta_label": string; "cta_url": string; "highlighted"?: boolean | null; "badge"?: string | null }[];
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingPricingBlock = PageContentMarketingPricingV1Block;
@@ -64,10 +64,10 @@ export interface PageContentMarketingFaqV1Block {
   _type: "marketing_faq";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
   "headline"?: string | null;
   "subheadline"?: string | null;
   "items": { "question": string; "answer": string }[];
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingFaqBlock = PageContentMarketingFaqV1Block;
@@ -76,9 +76,9 @@ export interface PageContentMarketingLogosV1Block {
   _type: "marketing_logos";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
   "headline"?: string | null;
   "logos": { "name": string; "logo"?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } } | null }[];
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingLogosBlock = PageContentMarketingLogosV1Block;
@@ -87,9 +87,8 @@ export interface PageContentMarketingSplitV1Block {
   _type: "marketing_split";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
-  "eyebrow"?: string | null;
   "headline": string;
+  "eyebrow"?: string | null;
   "body"?: string | null;
   "points"?: string | null;
   "cta_label"?: string | null;
@@ -97,6 +96,7 @@ export interface PageContentMarketingSplitV1Block {
   "image"?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } } | null;
   "image_caption"?: string | null;
   "image_first"?: boolean | null;
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingSplitBlock = PageContentMarketingSplitV1Block;
@@ -105,10 +105,10 @@ export interface PageContentMarketingStatsV1Block {
   _type: "marketing_stats";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
   "headline"?: string | null;
   "subheadline"?: string | null;
   "stats": { "value": string; "label": string }[];
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingStatsBlock = PageContentMarketingStatsV1Block;
@@ -117,7 +117,6 @@ export interface PageContentMarketingCtaV1Block {
   _type: "marketing_cta";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
   "headline": string;
   "body"?: string | null;
   "primary_cta_label"?: string | null;
@@ -125,6 +124,7 @@ export interface PageContentMarketingCtaV1Block {
   "secondary_cta_label"?: string | null;
   "secondary_cta_url"?: string | null;
   "image"?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } } | null;
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingCtaBlock = PageContentMarketingCtaV1Block;
@@ -133,16 +133,27 @@ export interface PageContentMarketingContactV1Block {
   _type: "marketing_contact";
   _version: 1;
   _key: string;
-  "anchor_id"?: string | null;
-  "eyebrow"?: string | null;
   "headline"?: string | null;
+  "eyebrow"?: string | null;
   "subheadline"?: string | null;
   "options": { "icon": "email" | "support" | "sales" | "phone" | "chat" | "location"; "title": string; "description"?: string | null; "link_label": string; "link_url": string }[];
+  "anchor_id"?: string | null;
 }
 
 export type PageContentMarketingContactBlock = PageContentMarketingContactV1Block;
 
-export type PageContentBlock = PageContentMarketingHeroBlock | PageContentMarketingFeaturesBlock | PageContentMarketingTestimonialsBlock | PageContentMarketingPricingBlock | PageContentMarketingFaqBlock | PageContentMarketingLogosBlock | PageContentMarketingSplitBlock | PageContentMarketingStatsBlock | PageContentMarketingCtaBlock | PageContentMarketingContactBlock;
+export interface PageContentMarketingTextV1Block {
+  _type: "marketing_text";
+  _version: 1;
+  _key: string;
+  "headline"?: string | null;
+  "body": PortableTextBlock[];
+  "anchor_id"?: string | null;
+}
+
+export type PageContentMarketingTextBlock = PageContentMarketingTextV1Block;
+
+export type PageContentBlock = PageContentMarketingHeroBlock | PageContentMarketingFeaturesBlock | PageContentMarketingTestimonialsBlock | PageContentMarketingPricingBlock | PageContentMarketingFaqBlock | PageContentMarketingLogosBlock | PageContentMarketingSplitBlock | PageContentMarketingStatsBlock | PageContentMarketingCtaBlock | PageContentMarketingContactBlock | PageContentMarketingTextBlock;
 
 export interface Page {
   id: string;

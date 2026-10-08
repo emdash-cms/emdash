@@ -11,6 +11,7 @@ import Pricing from "./blocks/Pricing.astro";
 import Split from "./blocks/Split.astro";
 import Stats from "./blocks/Stats.astro";
 import Testimonials from "./blocks/Testimonials.astro";
+import Text from "./blocks/Text.astro";
 
 interface Props {
 	value?: PageContentBlock[] | null;
@@ -29,6 +30,7 @@ const marketingComponents = defineBlockComponents<PageContentBlock>({
 	marketing_stats: Stats,
 	marketing_cta: CTA,
 	marketing_contact: Contact,
+	marketing_text: Text,
 });
 ---
 
