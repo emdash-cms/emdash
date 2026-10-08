@@ -84,7 +84,10 @@ import {
 } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
-import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
+import {
+	createPublicPluginApiRouteHandler,
+	getPublicPluginRouteMeta,
+} from "./public-plugin-api-routes.js";
 import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -895,6 +898,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
+							getPluginRouteMeta: (pluginId, path) =>
+								getPublicPluginRouteMeta(runtime, pluginId, path),
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
