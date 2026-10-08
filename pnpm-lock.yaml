@@ -824,12 +824,12 @@ importers:
       '@astrojs/react':
         specifier: 'catalog:'
         version: 7.0.0(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.2.11)(vite@8.3.1(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)))(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.7.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tsx@4.21.0)(yaml@2.9.1)
-      '@cloudflare/ai-search-snippet':
-        specifier: ^0.0.40
-        version: 0.0.40
       '@emdash-cms/cloudflare':
         specifier: workspace:*
         version: link:../../packages/cloudflare
+      '@emdash-cms/plugin-ai-search':
+        specifier: workspace:*
+        version: link:../../packages/plugins/ai-search
       '@emdash-cms/plugin-cli':
         specifier: workspace:*
         version: link:../../packages/plugin-cli
@@ -4471,10 +4471,6 @@ packages:
   '@clack/prompts@1.8.0':
     resolution: {integrity: sha512-PXzLZ8N34rxmuo4dJg3xtOXhcBse94qGjDqsteoEYrFrrZ5FSjIGwMAuOcv64ln8rHVBBD06XeVGr+/JX+plcA==}
     engines: {node: '>= 20.12.0'}
-
-  '@cloudflare/ai-search-snippet@0.0.40':
-    resolution: {integrity: sha512-DB2sUIT7ZASoIv2bGNK6OzfUSEF6qNZJ/pz7opbLasgMPDz9e5ArtNEp3UyyNjy8Pfj+2sGsNcHpESHUkbGTuw==}
-    engines: {node: '>=16.0.0'}
 
   '@cloudflare/ai-search-snippet@0.0.42':
     resolution: {integrity: sha512-LSNCvszcgEb+hgH1jpKCGaBrXScbahpjFVoXuDGiUyC9Td7hDR57+YdMMcBbhDa7S4GYaoCO1aziJYjvC0fwnw==}
@@ -15015,8 +15011,6 @@ snapshots:
       fast-string-width: 3.0.2
       fast-wrap-ansi: 0.2.0
       sisteransi: 1.0.5
-
-  '@cloudflare/ai-search-snippet@0.0.40': {}
 
   '@cloudflare/ai-search-snippet@0.0.42': {}
 
