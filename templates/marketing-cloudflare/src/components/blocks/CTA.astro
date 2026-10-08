@@ -2,6 +2,7 @@
 import { sanitizeHref } from "emdash";
 import { Image, type BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type CTABlock = Extract<PageContentBlock, { _type: "marketing_cta" }>;
 type Props = BlockComponentProps<CTABlock>;
@@ -9,10 +10,7 @@ type Props = BlockComponentProps<CTABlock>;
 const { value } = Astro.props;
 const { anchor_id, headline, image } = value;
 
-const paragraphs = (value.body ?? "")
-	.split(/\n\s*\n/)
-	.map((paragraph) => paragraph.trim())
-	.filter(Boolean);
+const paragraphs = toParagraphs(value.body);
 const primaryCta =
 	value.primary_cta_label && value.primary_cta_url
 		? { label: value.primary_cta_label, url: sanitizeHref(value.primary_cta_url) }

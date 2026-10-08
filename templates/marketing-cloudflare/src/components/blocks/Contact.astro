@@ -3,6 +3,7 @@ import { Icon } from "astro-iconset/components";
 import { sanitizeHref } from "emdash";
 import type { BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type ContactBlock = Extract<PageContentBlock, { _type: "marketing_contact" }>;
 type Props = BlockComponentProps<ContactBlock>;
@@ -39,7 +40,9 @@ const iconMap: Record<string, string> = {
 						<Icon name={iconMap[option.icon] ?? "ph:envelope"} />
 					</span>
 					<OptionHeading class="contact__title">{option.title}</OptionHeading>
-					{option.description && <p class="contact__description">{option.description}</p>}
+					{toParagraphs(option.description).map((paragraph) => (
+						<p class="contact__description">{paragraph}</p>
+					))}
 					<div class="contact__action">
 						<a class="text-link contact__link" href={sanitizeHref(option.link_url)}>
 							{option.link_label}

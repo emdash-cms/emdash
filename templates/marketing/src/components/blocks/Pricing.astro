@@ -3,6 +3,7 @@ import { Icon } from "astro-iconset/components";
 import { sanitizeHref } from "emdash";
 import type { BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type PricingBlock = Extract<PageContentBlock, { _type: "marketing_pricing" }>;
 type Props = BlockComponentProps<PricingBlock>;
@@ -13,7 +14,10 @@ const PlanHeading = headline ? "h3" : "h2";
 
 const plans = rawPlans.map((plan) => ({
 	...plan,
-	badge: plan.badge?.trim() || (plan.highlighted ? "Most popular" : undefined),
+	// Plans stored before the badge field existed have no badge value and keep their "Most popular" badge; an emptied field hides it.
+	badge:
+		plan.badge == null ? (plan.highlighted ? "Most popular" : undefined) : plan.badge.trim() || undefined,
+	description: toParagraphs(plan.description),
 	features: (plan.features ?? "")
 		.split("\n")
 		.map((s) => s.trim())
@@ -49,9 +53,9 @@ const plans = rawPlans.map((plan) => ({
 						{plan.period && " "}
 						{plan.period && <span class="plan__period">{plan.period}</span>}
 					</p>
-					{plan.description && (
-						<p class="plan__description">{plan.description}</p>
-					)}
+					{plan.description.map((paragraph) => (
+						<p class="plan__description">{paragraph}</p>
+					))}
 					{plan.features.length > 0 && (
 						<ul class="plan__features" role="list">
 							{plan.features.map((feature) => (

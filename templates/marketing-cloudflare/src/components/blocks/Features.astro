@@ -2,6 +2,7 @@
 import { Icon } from "astro-iconset/components";
 import type { BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type FeaturesBlock = Extract<PageContentBlock, { _type: "marketing_features" }>;
 type Props = BlockComponentProps<FeaturesBlock>;
@@ -59,7 +60,9 @@ const iconMap: Record<string, string> = {
 							<Icon name={iconMap[feature.icon] ?? "ph:sparkle"} />
 						</span>
 						<h3 class="feature__title">{feature.title}</h3>
-						<p class="feature__description">{feature.description}</p>
+						{toParagraphs(feature.description).map((paragraph) => (
+							<p class="feature__description">{paragraph}</p>
+						))}
 					</li>
 				))
 			}

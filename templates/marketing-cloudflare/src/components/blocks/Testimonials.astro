@@ -1,6 +1,7 @@
 ---
 import { Image, type BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type TestimonialsBlock = Extract<PageContentBlock, { _type: "marketing_testimonials" }>;
 type Props = BlockComponentProps<TestimonialsBlock>;
@@ -32,7 +33,9 @@ const [featured, ...others] = value.testimonials.map((testimonial) => ({
 			<figure class="testimonials__featured">
 				<span class="testimonials__mark" aria-hidden="true">“</span>
 				<blockquote class="display testimonials__featured-quote">
-					<p>{featured.quote}</p>
+					{toParagraphs(featured.quote).map((paragraph) => (
+						<p>{paragraph}</p>
+					))}
 				</blockquote>
 				<figcaption class="testimonials__who">
 					{featured.avatar ? (
@@ -65,7 +68,9 @@ const [featured, ...others] = value.testimonials.map((testimonial) => ({
 				{others.map((testimonial) => (
 					<figure class="card testimonials__card">
 						<blockquote class="testimonials__quote">
-							<p>{testimonial.quote}</p>
+							{toParagraphs(testimonial.quote).map((paragraph) => (
+								<p>{paragraph}</p>
+							))}
 						</blockquote>
 						<figcaption class="testimonials__who">
 							{testimonial.avatar ? (
@@ -179,11 +184,15 @@ const [featured, ...others] = value.testimonials.map((testimonial) => ({
 		quotes: "\201C" "\201D";
 	}
 
-	.testimonials__quote p::before {
+	.testimonials__quote p:first-child::before {
 		content: open-quote;
 	}
 
-	.testimonials__quote p::after {
+	.testimonials__quote p:last-child::after {
 		content: close-quote;
+	}
+
+	:is(.testimonials__featured-quote, .testimonials__quote) p + p {
+		margin-block-start: 0.6em;
 	}
 </style>

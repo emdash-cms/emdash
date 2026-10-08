@@ -2,6 +2,7 @@
 import { Icon } from "astro-iconset/components";
 import type { BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type FAQBlock = Extract<PageContentBlock, { _type: "marketing_faq" }>;
 type Props = BlockComponentProps<FAQBlock>;
@@ -33,7 +34,11 @@ const hasIntro = Boolean(headline || subheadline);
 							<Icon name="ph:plus" />
 						</span>
 					</summary>
-					<p class="faq__answer">{item.answer}</p>
+					<div class="faq__answer">
+						{toParagraphs(item.answer).map((paragraph) => (
+							<p>{paragraph}</p>
+						))}
+					</div>
 				</details>
 			))
 		}
@@ -119,6 +124,10 @@ const hasIntro = Boolean(headline || subheadline);
 		padding-block-end: 24px;
 		color: var(--color-text-secondary);
 		text-wrap: pretty;
+	}
+
+	.faq__answer p + p {
+		margin-block-start: 12px;
 	}
 
 	@media (prefers-reduced-motion: no-preference) {

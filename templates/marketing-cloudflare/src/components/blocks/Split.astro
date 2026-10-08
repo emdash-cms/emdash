@@ -3,6 +3,7 @@ import { Icon } from "astro-iconset/components";
 import { sanitizeHref } from "emdash";
 import { Image, type BlockComponentProps } from "emdash/ui";
 import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
 
 type SplitBlock = Extract<PageContentBlock, { _type: "marketing_split" }>;
 type Props = BlockComponentProps<SplitBlock>;
@@ -10,10 +11,7 @@ type Props = BlockComponentProps<SplitBlock>;
 const { value } = Astro.props;
 const { anchor_id, eyebrow, headline, image, image_caption, image_first } = value;
 
-const paragraphs = (value.body ?? "")
-	.split(/\n\s*\n/)
-	.map((paragraph) => paragraph.trim())
-	.filter(Boolean);
+const paragraphs = toParagraphs(value.body);
 const points = (value.points ?? "")
 	.split("\n")
 	.map((point) => point.trim())
