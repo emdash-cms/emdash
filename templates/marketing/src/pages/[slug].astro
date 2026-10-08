@@ -1,10 +1,10 @@
 ---
-import { getEmDashEntry, getSeoMeta } from "emdash";
+import { decodeSlug, getEmDashEntry, getSeoMeta } from "emdash";
 import Base from "../layouts/Base.astro";
 import PageView from "../components/PageView.astro";
 import { heroSeoDefaults } from "../utils/page";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
