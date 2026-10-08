@@ -6,35 +6,33 @@ The design is intentionally restrained. Don't pile on colour, gradients, or deco
 
 ## Pages
 
-| Page           | Path           | What it shows                                                                                                                   |
-| -------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Home           | `/`            | The Layout blocks of the Pages entry `home`; by default a large statement, a "Selected work" grid, and a line of clients        |
-| Work index     | `/work`        | A numbered list of every project (number, project, client, discipline, year), a discipline filter, and 12 projects per page     |
-| Project detail | `/work/[slug]` | Title, summary, a facts list (client, year, disciplines, website), cover image, Portable Text body, gallery, and a next project |
-| About          | `/about`       | Page title and Portable Text content; the first paragraph is set as a lead and each `h2` section hangs in the left column       |
-| Contact        | `/contact`     | A large email link, studio details, and the social profiles from site settings                                                  |
-
-Without a published `home` entry, or when its Layout is empty, `/` renders the same default sections from site settings and projects. `/home` redirects to `/`.
+| Page           | Path           | What it shows                                                                                                                                     |
+| -------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Home           | `/`            | The Layout blocks of the Pages entry `home`; by default a large statement, a "Selected work" grid, and a line of clients                          |
+| Work index     | `/work`        | A numbered list of every project (number, project, client, discipline, year), a discipline filter, and 12 projects per page                       |
+| Project detail | `/work/[slug]` | Title, summary, a facts list (client, year, disciplines, website), cover image, Portable Text body, gallery, and a link to the next older project |
+| About          | `/about`       | Page title and Portable Text content; the first paragraph is set as a lead, headings hang in the left column, and images run full width           |
+| Contact        | `/contact`     | A large email link, studio details, and the social profiles from site settings                                                                    |
 
 On wide screens with a mouse or trackpad, hovering or focusing a row on `/work` shows that project's featured image beside the list. On touch screens and windows narrower than 1280px, each row shows a thumbnail instead.
 
 ## Schema
 
-- `projects` collection: `title`, `featured_image`, `client`, `year`, `summary` (text), `content` (Portable Text), `gallery` (repeater of media-library image + optional caption), `url`, `featured` (boolean labelled "Feature on home page").
+- `projects` collection: `title`, `featured_image`, `client`, `year`, `featured` (boolean labelled "Feature on home page", synced across translations), `summary` (text), `content` (Portable Text), `gallery` (repeater of a required media-library image and an optional caption), `url`.
 - `pages` collection: `title`, `content` (Portable Text), `layout` (blocks). `/about` renders the `about` entry's `content`, and `/` renders the `home` entry's `layout`.
 - Taxonomy: `tag`, used as the project's disciplines. Entries from `getEmDashCollection` and `getEmDashEntry` already carry their terms at `entry.data.terms.tag`, so pages read disciplines from there without another query.
 - Single `primary` menu.
 
-Selected work on the home page shows the featured projects, newest first, up to 12. When no project is featured, it shows the six newest. Editors feature a project with the **Feature on home page** switch in the project editor. The field defaults to off: once any project is featured, a project created through the API or MCP appears there only when its data sets `featured: true`.
+Selected work on the home page shows the featured projects, newest first, up to 12, or the six newest when no project is featured. Editors feature a project with the **Feature on home page** switch in the project editor. The field defaults to off, so once any project is featured, a project created through the API or MCP appears there only when its data sets `featured: true`.
 
 Site settings drive the identity:
 
 - `title` -- the header wordmark, the footer wordmark (sized to fill the page width), and the copyright line.
-- `tagline` -- the footer text and the default meta description. It is also the home page statement when there is no `home` entry. The seeded `home` entry stores its own statement, label and client names, so they don't follow changes to the tagline or to projects.
+- `tagline` -- the footer text, the default meta description, and the home page statement when there is no `home` entry or its Layout is empty. The seeded `home` entry stores its own statement, label and client names, so they don't follow changes to the tagline or to projects.
 - `logo` -- replaces the title in the header when set.
-- Social profiles (Settings → Social) -- the footer's "Follow" links and the contact page's "Elsewhere" list. Settings store handles, and `src/utils/social.ts` turns them into profile URLs.
+- Social profiles (Settings → Social Links) -- the footer's "Follow" links and the contact page's "Elsewhere" list. Settings store handles or URLs, and `src/utils/social.ts` turns handles into profile URLs.
 
-The `gallery` field is a repeater. Each row contains a required `image` selected from the EmDash media library and an optional `caption`. Render gallery images with `<Image>` from `emdash/ui`; do not reduce media values to raw URLs.
+Render `gallery` images with `<Image>` from `emdash/ui`; do not reduce media values to raw URLs.
 
 The contact page sends visitors to their email app instead of accepting a form submission. Replace the example address and the studio details in `src/pages/contact.astro` before publishing the site.
 
@@ -42,13 +40,13 @@ The contact page sends visitors to their email app instead of accepting a form s
 
 The home page renders the Pages entry `home`. Its `layout` field is a blocks field, so editors add, reorder, duplicate, remove, and edit the home page sections in the admin. The seed defines three block types in the "Portfolio" category and gives the `home` entry one of each, in this order:
 
-| Block type                | Fields                                                  | What it renders                                                                                                                                                                                                                                                          |
-| ------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `portfolio_statement`     | `label` (optional), `text`                              | The large statement, keeping its line breaks, with `label` as the small label beside it. The statement is the page's `h1` when the block comes first and an `h2` anywhere else; when another block comes first, the page adds a visually hidden `h1` with the site title |
-| `portfolio_selected_work` | `heading`                                               | The heading and project count, a "Full index" link to `/work`, and the project grid; a "No projects yet" message when there are no projects                                                                                                                              |
-| `portfolio_clients`       | `heading`, `clients` (repeater of `name`, 1 to 40 rows) | The client names in a row, separated by slashes                                                                                                                                                                                                                          |
+| Block type                | Fields                                                                      | What it renders                                                                                                                                                                                                                                                          |
+| ------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `portfolio_statement`     | `text`, `label` (optional)                                                  | The large statement, keeping its line breaks, with `label` as the small label beside it. The statement is the page's `h1` when the block comes first and an `h2` anywhere else; when another block comes first, the page adds a visually hidden `h1` with the site title |
+| `portfolio_selected_work` | `heading` (default "Selected work")                                         | The heading and project count, a "Full index" link to `/work`, and the project grid; a "No projects yet" message when there are no projects                                                                                                                              |
+| `portfolio_clients`       | `heading` (default "Clients"), `clients` (repeater of `name`, 1 to 40 rows) | The client names in a row, separated by slashes                                                                                                                                                                                                                          |
 
-`src/components/HomeBlocks.astro` maps each type in the generated `PageLayoutBlock` union to a component in `src/components/blocks/` (`Statement.astro`, `SelectedWork.astro`, `Clients.astro`) with `defineBlockComponents()`. A component receives the stored block as `value`, plus `index` and `blockKey`. Selected work loads its own projects with `getSelectedWork()` from `src/utils/selected-work.ts`. EmDash caches those queries for the request, so the page and the block share one result.
+`src/components/HomeBlocks.astro` maps each type in the generated `PageLayoutBlock` union to a component in `src/components/blocks/` (`Statement.astro`, `SelectedWork.astro`, `Clients.astro`) with `defineBlockComponents()`. A component receives the stored block as `value`, plus `index` and `blockKey`. Selected work loads its own projects with `getSelectedWork()` from `src/utils/selected-work.ts`; EmDash caches those queries for the request, so the page and the block share one result.
 
 Keep the `.home-layout` wrapper around the blocks in `src/pages/index.astro`. It spaces the sections, and in edit mode its `{...home?.edit.layout}` attributes open the Layout field in the admin when an editor clicks a home page section. The `home` entry's SEO panel sets the home page title and meta description; when it is empty, the site title and tagline apply.
 
@@ -59,7 +57,7 @@ The Pages collection's `/{slug}` URL pattern gives the `home` entry the URL `/ho
 To add a home page section, add a block type:
 
 1. Add its definition to `blockTypes` in `seed/seed.json` and its slug to the `layout` field's `validation.allowedTypes`. New sites get both at setup.
-2. Add it to your database. The seed applies only at first setup, so create the block type through the schema API or MCP (`schema_create_block_type`), then allow it on the Layout field, in the admin under **Content Types** → Pages or through the same API. The dev server then regenerates `emdash-env.d.ts` with the new type in `PageLayoutBlock`; `npx emdash types` does the same.
+2. Add it to your database. Editing the seed doesn't change a site that is already set up, so create the block type through the schema API or MCP (`schema_create_block_type`), then allow it on the Layout field in the admin (**Content Types** → Pages) or through the same API. The dev server then regenerates `emdash-env.d.ts` with the new type in `PageLayoutBlock`; `npx emdash types` does the same.
 3. Add a component in `src/components/blocks/`. The existing components show the `BlockComponentProps` typing. Don't give its outer element a block margin: the `.home-layout` wrapper in `index.astro` spaces every section the same way, whatever the order.
 4. Map the type to the component in `HomeBlocks.astro`. `defineBlockComponents()` reports a type error until every type in `PageLayoutBlock` has a component.
 
@@ -73,7 +71,7 @@ The typeface is **Host Grotesk** on `--font-sans`, used for headings and body te
 
 The palette is paper (`--color-bg`) and ink (`--color-text`). The brand colour is ink too, so the only saturated colour on the page should be inside images.
 
-Structure comes from hairline rules, numbering, and a 12-column grid, not from boxes or shadows. Whitespace is generous. Sections breathe. Don't fight that.
+Structure comes from hairline rules, numbering, and a 12-column grid, not from boxes or shadows. Keep the generous whitespace between sections (`--section-gap`).
 
 ## Customisation
 
