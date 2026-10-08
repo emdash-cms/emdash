@@ -81,7 +81,7 @@ const SITE_MATRIX: SiteCase[] = [
 			{ path: "/pricing", text: "Pricing that pays for itself." },
 		],
 		sitemapPath: "/sitemap-pages.xml",
-		previewEntry: { collection: "pages", id: "home" },
+		previewEntry: { collection: "pages", id: "pricing" },
 	},
 	{
 		name: "templates/marketing-cloudflare",
@@ -93,7 +93,7 @@ const SITE_MATRIX: SiteCase[] = [
 			{ path: "/pricing", text: "Pricing that pays for itself." },
 		],
 		sitemapPath: "/sitemap-pages.xml",
-		previewEntry: { collection: "pages", id: "home" },
+		previewEntry: { collection: "pages", id: "pricing" },
 	},
 	{
 		name: "templates/portfolio",
