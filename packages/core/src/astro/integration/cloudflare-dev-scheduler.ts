@@ -1,18 +1,13 @@
-import { readFile } from "node:fs/promises";
 import type { Server } from "node:http";
-import { request as requestHttps, type ServerOptions } from "node:https";
-import { Socket } from "node:net";
-import { createSecureContext, TLSSocket } from "node:tls";
+import { request as requestHttps } from "node:https";
 
 import type { AstroIntegrationLogger } from "astro";
 
 const DEFAULT_INTERVAL_MS = 60_000;
-type DevHttpsOptions = Pick<ServerOptions, "cert" | "ca" | "pfx" | "passphrase">;
 
 interface DevServer {
 	httpServer: Pick<Server, "once"> | null;
 	resolvedUrls: { local: string[]; network: string[] } | null;
-	config?: { server: { https?: DevHttpsOptions } };
 }
 
 interface SchedulerOptions {
@@ -20,44 +15,15 @@ interface SchedulerOptions {
 	fetch?: typeof fetch;
 }
 
-async function postMaintenance(
-	url: URL,
-	https?: DevHttpsOptions,
-): Promise<{ ok: boolean; status: number }> {
+function postMaintenance(url: URL): Promise<{ ok: boolean; status: number }> {
 	if (url.protocol !== "https:") return fetch(url, { method: "POST" });
-	let certificate = https?.cert ?? https?.ca;
-	if (!certificate && https?.pfx) {
-		const pfx =
-			typeof https.pfx === "string" ? await readFile(https.pfx).catch(() => https.pfx) : https.pfx;
-		// Extract only the public certificate without opening a connection or
-		// forwarding the server's private key to the maintenance client.
-		const socket = new TLSSocket(new Socket(), {
-			secureContext: createSecureContext({ pfx, passphrase: https.passphrase }),
-		});
-		try {
-			certificate = socket.getX509Certificate()?.toString();
-		} finally {
-			socket.destroy();
-		}
-	}
-
-	// Vite accepts either PEM contents or a certificate file path.
-	const ca =
-		typeof certificate === "string"
-			? await readFile(certificate).catch(() => certificate)
-			: certificate;
+	// Empty POST to the dev server's own origin. Only the status is read, so
+	// certificate checks add no protection and can stop maintenance when the
+	// certificate name does not match the resolved host.
 	return new Promise((resolve, reject) => {
-		// Generated dev certificates may not be exposed in Vite's config.
-		// Keep that exception local to this maintenance request.
 		const request = requestHttps(
 			url,
-			{
-				method: "POST",
-				ca,
-				allowPartialTrustChain: true,
-				rejectUnauthorized: Boolean(certificate),
-				agent: false,
-			},
+			{ method: "POST", rejectUnauthorized: false, agent: false },
 			(response) => {
 				const status = response.statusCode ?? 500;
 				response.once("error", reject);
@@ -100,7 +66,7 @@ export function startCloudflareDevScheduler(
 			const url = new URL("_emdash/api/dev/scheduled-tasks", base);
 			const response = options.fetch
 				? await options.fetch(url, { method: "POST" })
-				: await postMaintenance(url, server.config?.server.https);
+				: await postMaintenance(url);
 			if (!response.ok) {
 				logger.warn(
 					`Cloudflare dev scheduler request failed with status ${response.status}. ` +
