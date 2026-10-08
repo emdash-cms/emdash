@@ -390,7 +390,7 @@ The setup wizard lets a user omit seeded entries, bylines, and taxonomy terms. S
 
 Use a [`blocks` field](/guides/blocks/) when the page itself is an ordered composition of typed sections. Use a custom Portable Text block when the object belongs inside a rich-text document and participates in its paragraph flow.
 
-The marketing template seeds ten retained block types and allows them in the Pages `content` field. Its wrapper maps every generated `_type` to an Astro component:
+The marketing template seeds eleven retained block types and allows them in the Pages `content` field. Its wrapper maps every generated `_type` to an Astro component:
 
 ```astro title="src/components/MarketingBlocks.astro"
 ---
@@ -406,6 +406,7 @@ import Pricing from "./blocks/Pricing.astro";
 import Split from "./blocks/Split.astro";
 import Stats from "./blocks/Stats.astro";
 import Testimonials from "./blocks/Testimonials.astro";
+import Text from "./blocks/Text.astro";
 
 const components = defineBlockComponents<PageContentBlock>({
   marketing_hero: Hero,
@@ -418,6 +419,7 @@ const components = defineBlockComponents<PageContentBlock>({
   marketing_stats: Stats,
   marketing_cta: CTA,
   marketing_contact: Contact,
+  marketing_text: Text,
 });
 ---
 
