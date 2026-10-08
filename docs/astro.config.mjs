@@ -203,6 +203,7 @@ export default defineConfig({
 							slug: "plugins/registry-client",
 						},
 						{ label: "Field Kit", slug: "plugins/field-kit" },
+						{ label: "AI Search", slug: "plugins/ai-search" },
 					],
 				},
 				{

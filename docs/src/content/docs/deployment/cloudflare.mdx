@@ -311,39 +311,7 @@ The plugin uses the binding named `EMAIL` unless its `binding` option names anot
 
 ## Cloudflare AI Search
 
-The AI Search plugin needs both a native plugin registration and an `ai_search_namespaces` binding. After deploying them, open **Cloudflare AI Search** in the admin, choose the collections, and run **Sync All Content**. The initial sync indexes content published before the plugin was enabled; hooks keep later changes synchronized.
-
-```js title="astro.config.mjs"
-import { aiSearch } from "@emdash-cms/cloudflare/plugins";
-
-emdash({
-	plugins: [aiSearch()],
-}),
-```
-
-```jsonc title="wrangler.jsonc"
-{
-	"ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "default" }],
-}
-```
-
-Expose the search route from the site:
-
-```ts title="src/pages/api/ai-search/search.ts"
-export { POST, prerender } from "@emdash-cms/cloudflare/plugins/ai-search";
-```
-
-Add the search interface to a layout. The trigger slot accepts a button that matches the site's design:
-
-```astro title="src/layouts/Base.astro"
----
-import AISearchSnippet from "@emdash-cms/cloudflare/plugins/ai-search/astro";
----
-
-<AISearchSnippet apiUrl="/api/ai-search" placeholder="Search content">
-	<button slot="trigger" type="button">Search</button>
-</AISearchSnippet>
-```
+To add Cloudflare AI Search to the site, install the [AI Search plugin](/plugins/ai-search/).
 
 ## Worker secrets
 
