@@ -17,9 +17,10 @@ interface SchedulerOptions {
 
 function postMaintenance(url: URL): Promise<{ ok: boolean; status: number }> {
 	if (url.protocol !== "https:") return fetch(url, { method: "POST" });
-	// Empty POST to the dev server's own origin. Only the status is read, so
-	// certificate checks add no protection and can stop maintenance when the
-	// certificate name does not match the resolved host.
+	// Dev servers commonly run on self-signed or host-mismatch certificates
+	// that Node would reject by default. This request stays inside the local
+	// dev server and the route is dev-only, so accept the certificate to keep
+	// maintenance running without requiring a matching SAN/CN or trusted CA.
 	return new Promise((resolve, reject) => {
 		const request = requestHttps(
 			url,
