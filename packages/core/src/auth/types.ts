@@ -167,6 +167,12 @@ export interface AuthProviderAdminExports {
 	LoginForm?: import("react").ComponentType;
 
 	/**
+	 * Optional help text shown below the provider's LoginForm. Providers can
+	 * export a string or a component; components keep text localisable.
+	 */
+	loginHelp?: string | import("react").ComponentType;
+
+	/**
 	 * Setup wizard step for creating the admin account via this provider.
 	 * When present, this provider appears as an option in the setup wizard's
 	 * "Create admin account" step.
