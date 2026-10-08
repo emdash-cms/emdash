@@ -100,12 +100,16 @@ const SITE_MATRIX: SiteCase[] = [
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio"),
 		port: 4616,
 		startupTimeoutMs: 90_000,
+		frontendExpectations: [{ path: "/", text: "Full index" }],
+		sitemapPath: "/sitemap-pages.xml",
 	},
 	{
 		name: "templates/portfolio-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio-cloudflare"),
 		port: 4617,
 		startupTimeoutMs: 120_000,
+		frontendExpectations: [{ path: "/", text: "Full index" }],
+		sitemapPath: "/sitemap-pages.xml",
 	},
 	{
 		name: "templates/starter-cloudflare",
