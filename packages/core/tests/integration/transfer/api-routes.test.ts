@@ -13,6 +13,7 @@ import { GET as approvalsGet } from "../../../src/astro/routes/api/admin/transfe
 import { GET as capabilitiesGet } from "../../../src/astro/routes/api/admin/transfer/capabilities.js";
 import { POST as exportAdvancePost } from "../../../src/astro/routes/api/admin/transfer/exports/[id]/advance.js";
 import { GET as exportArchiveGet } from "../../../src/astro/routes/api/admin/transfer/exports/[id]/archive.js";
+import { POST as exportCancelPost } from "../../../src/astro/routes/api/admin/transfer/exports/[id]/cancel.js";
 import { GET as exportFileGet } from "../../../src/astro/routes/api/admin/transfer/exports/[id]/files/[...path].js";
 import { GET as exportGet } from "../../../src/astro/routes/api/admin/transfer/exports/[id]/index.js";
 import { GET as exportManifestGet } from "../../../src/astro/routes/api/admin/transfer/exports/[id]/manifest.js";
@@ -273,6 +274,12 @@ describeEachDialect("site transfer API routes", (dialect) => {
 			{
 				name: "POST export advance",
 				handler: exportAdvancePost,
+				method: "POST",
+				scope: "transfer:export",
+			},
+			{
+				name: "POST export cancel",
+				handler: exportCancelPost,
 				method: "POST",
 				scope: "transfer:export",
 			},
@@ -802,6 +809,26 @@ describeEachDialect("site transfer API routes", (dialect) => {
 				"TRANSFER_INVALID_STATE",
 			);
 			expect((await createImport()).status).toBe(201);
+		});
+
+		it("cancels a pending export", async () => {
+			const { operation } = await new TransferOperationRepository(ctx.db).create({
+				kind: "export",
+				createdBy: ADMIN.id,
+			});
+			const cancelled = await call(exportCancelPost, "x", {
+				method: "POST",
+				params: { id: operation.id },
+			});
+			expect(cancelled.status).toBe(200);
+			expect((await json<{ operation: PublicOperation }>(cancelled)).data.operation.state).toBe(
+				"cancelled",
+			);
+			await expectError(
+				await call(exportCancelPost, "x", { method: "POST", params: { id: operation.id } }),
+				409,
+				"TRANSFER_INVALID_STATE",
+			);
 		});
 	});
 

@@ -1404,6 +1404,20 @@ export class EmDashClient {
 		return this.request("POST", `/admin/transfer/exports/${encodeURIComponent(id)}/advance`);
 	}
 
+	/**
+	 * Cancel an export. An idle export is cancelled at once; a step in
+	 * progress stops after its current batch, so the returned operation may
+	 * still be running with `cancelRequestedAt` set.
+	 */
+	async transferExportCancel(id: string): Promise<{ operation: TransferOperation }> {
+		return this.request("POST", `/admin/transfer/exports/${encodeURIComponent(id)}/cancel`);
+	}
+
+	/** Abandon a failed or cancelled export so its staging can be collected. */
+	async transferExportAbandon(id: string): Promise<{ operation: TransferOperation }> {
+		return this.request("POST", `/admin/transfer/exports/${encodeURIComponent(id)}/abandon`);
+	}
+
 	/** The complete export's `manifest.json`, byte for byte */
 	async transferExportManifest(id: string): Promise<Uint8Array> {
 		const response = await this.requestRaw(

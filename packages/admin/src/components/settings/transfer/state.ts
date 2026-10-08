@@ -36,6 +36,12 @@ export function canCancelImport(operation: TransferOperation): boolean {
 	);
 }
 
+const RUNNING_EXPORT_STATES = new Set<TransferOperation["state"]>(["pending", "running"]);
+
+export function canCancelExport(operation: TransferOperation): boolean {
+	return RUNNING_EXPORT_STATES.has(operation.state) && operation.cancelRequestedAt === null;
+}
+
 export function canAbandonImport(operation: TransferOperation): boolean {
 	return STOPPED.has(operation.state) && operation.mutationStartedAt !== null;
 }

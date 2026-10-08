@@ -230,7 +230,10 @@ describeEachDialect("transfer operations", (dialect) => {
 		expect(cancelled.leaseToken).toBeNull();
 
 		const exported = await repo.create({ kind: "export", createdBy: "u1" });
-		expect(await codeOf(repo.requestCancel(exported.operation.id))).toBe("TRANSFER_INVALID_STATE");
+		expect((await repo.requestExportCancel(exported.operation.id)).state).toBe("cancelled");
+		expect(await codeOf(repo.requestExportCancel(exported.operation.id))).toBe(
+			"TRANSFER_INVALID_STATE",
+		);
 	});
 
 	it("only abandons failed or cancelled imports", async () => {

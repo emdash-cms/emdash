@@ -14,7 +14,7 @@ import { consola } from "consola";
 import type { SiteImportPlan, TransferOperation } from "../../client/index.js";
 import { connectionArgs, createClientFromArgs, resolveBaseUrl } from "../client-factory.js";
 import { configureOutputMode, output } from "../output.js";
-import { runSiteExport } from "../site/export.js";
+import { abandonExport, cancelExport, exportStatus, runSiteExport } from "../site/export.js";
 import {
 	abandonImport,
 	analyzePackage,
@@ -42,6 +42,31 @@ import {
 export const EXIT_PLAN_BLOCKED = 2;
 
 const IMPORT_ACTIONS = new Set(["status", "resume", "receipt", "cancel", "abandon"]);
+
+function printCancelledExport(operation: TransferOperation): void {
+	if (operation.state === "cancelled") {
+		consola.success(`Export ${operation.id} is cancelled.`);
+		return;
+	}
+	consola.success(
+		`Cancellation requested. Export ${operation.id} stops after its current batch; check it with: emdash site export status ${operation.id}`,
+	);
+}
+
+function printAbandonedExport(operation: TransferOperation): void {
+	consola.success(`Export ${operation.id} is abandoned; its staging can now be collected.`);
+}
+
+function printExportOperation(operation: TransferOperation): void {
+	consola.log(
+		`Export ${operation.id}: ${operation.state}${operation.stage ? ` (${operation.stage})` : ""}`,
+	);
+	const progress = formatProgress(operation.progress);
+	if (progress) consola.log(`  Progress: ${progress}`);
+	if (operation.errorCode) {
+		consola.warn(`  Error: ${operation.errorCode}`);
+	}
+}
 
 /** Import states `import status` reports with exit status 1. */
 const UNSUCCESSFUL_STATES = new Set(["failed", "cancelled", "abandoned", "expired"]);
@@ -354,26 +379,135 @@ function report(
 const exportCommand = defineCommand({
 	meta: {
 		name: "export",
-		description: "Export the whole site to a .emdash package file",
+		description:
+			"Export the whole site to a .emdash package file. Manage an export with `export status|cancel <operation-id>`.",
 	},
 	args: {
+		action: {
+			type: "positional",
+			description: "Use 'cancel <operation-id>' to stop a running export",
+			required: false,
+		},
+		"operation-id": {
+			type: "positional",
+			description: "Operation id for cancel or status",
+			required: false,
+		},
 		...connectionArgs,
 		output: {
 			type: "string",
 			alias: "o",
 			description: "Package file to write (e.g. site.emdash)",
-			required: true,
+			required: false,
 		},
 		comments: {
 			type: "boolean",
 			default: true,
 			description: "Include comments and reactions (--no-comments leaves them out)",
 		},
+		yes: {
+			type: "boolean",
+			alias: "y",
+			description: "With cancel: skip the confirmation prompt",
+		},
 	},
 	async run({ args }) {
 		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
+			const runtime = runtimeFor();
+
+			const action = typeof args.action === "string" ? (args.action as string) : undefined;
+			const operationId =
+				typeof args["operation-id"] === "string" ? (args["operation-id"] as string) : undefined;
+
+			if (action === "cancel") {
+				if (!operationId) {
+					throw new SiteTransferCliError(
+						"INVALID_ARGUMENT",
+						"Usage: emdash site export cancel <operation-id>",
+					);
+				}
+				if (
+					!(await confirmed(
+						args,
+						"cancel",
+						operationId,
+						`Cancel export ${operationId}? A running export stops after its current batch.`,
+					))
+				) {
+					consola.info("Nothing was changed.");
+					process.exitCode = 1;
+					return;
+				}
+				const operation = await cancelExport(client, operationId, runtime);
+				if (wantsJson(args)) {
+					output(operationJson(operation), args);
+				} else {
+					printCancelledExport(operation);
+				}
+				return;
+			}
+
+			if (action === "abandon") {
+				if (!operationId) {
+					throw new SiteTransferCliError(
+						"INVALID_ARGUMENT",
+						"Usage: emdash site export abandon <operation-id>",
+					);
+				}
+				if (
+					!(await confirmed(
+						args,
+						"abandon",
+						operationId,
+						`Abandon export ${operationId}? Any staged files will be collected during cleanup.`,
+					))
+				) {
+					consola.info("Nothing was changed.");
+					process.exitCode = 1;
+					return;
+				}
+				const operation = await abandonExport(client, operationId, runtime);
+				if (wantsJson(args)) {
+					output(operationJson(operation), args);
+				} else {
+					printAbandonedExport(operation);
+				}
+				return;
+			}
+
+			if (action === "status") {
+				if (!operationId) {
+					throw new SiteTransferCliError(
+						"INVALID_ARGUMENT",
+						"Usage: emdash site export status <operation-id>",
+					);
+				}
+				const { operation } = await exportStatus(client, operationId, runtime);
+				if (wantsJson(args)) {
+					output(operationJson(operation), args);
+				} else {
+					printExportOperation(operation);
+				}
+				if (operation.state !== "complete") process.exitCode = 1;
+				return;
+			}
+
+			if (action) {
+				throw new SiteTransferCliError(
+					"INVALID_ARGUMENT",
+					`Unknown export action: ${action}. Use 'emdash site export cancel <operation-id>'.`,
+				);
+			}
+
+			if (!args.output) {
+				throw new SiteTransferCliError(
+					"INVALID_ARGUMENT",
+					"Usage: emdash site export --output <file>",
+				);
+			}
+
 			const result = await runSiteExport(
 				{
 					client,
@@ -381,7 +515,7 @@ const exportCommand = defineCommand({
 					outputPath: resolve(args.output),
 					comments: args.comments !== false,
 				},
-				runtimeFor(),
+				runtime,
 			);
 			if (wantsJson(args)) {
 				output(result, args);

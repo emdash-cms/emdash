@@ -8,6 +8,7 @@ import * as React from "react";
 import { isTerminalRequestError } from "../../../lib/api/client.js";
 import {
 	advanceTransferExport,
+	cancelTransferExport,
 	createTransferExport,
 	fetchTransferExportManifest,
 	fetchTransferExports,
@@ -18,6 +19,7 @@ import {
 } from "../../../lib/api/transfer.js";
 import { formatFileSize } from "../../../lib/media-utils.js";
 import { canStreamToDisk } from "../../../lib/save-file.js";
+import { ConfirmDialog } from "../../ConfirmDialog.js";
 import { getMutationError } from "../../DialogError.js";
 import { SettingRow, SettingsSection } from "../SettingsLayout.js";
 import { CopyableDigest } from "./CopyableDigest.js";
@@ -29,7 +31,7 @@ import {
 	stageLabel,
 	transferErrorLabel,
 } from "./labels.js";
-import { replaceOperation } from "./state.js";
+import { canCancelExport, replaceOperation } from "./state.js";
 import { useAdvanceLoop } from "./useAdvanceLoop.js";
 
 const RECENT_EXPORTS = 10;
@@ -51,6 +53,7 @@ export function ExportSection() {
 	const [includeComments, setIncludeComments] = React.useState(true);
 	const [loopError, setLoopError] = React.useState<unknown>(null);
 	const [resumeToken, setResumeToken] = React.useState(0);
+	const [confirmCancel, setConfirmCancel] = React.useState(false);
 	const download = useExportDownload();
 
 	const exportsQuery = useQuery({
@@ -65,6 +68,18 @@ export function ExportSection() {
 		mutationFn: createTransferExport,
 		retry: (failureCount, error) => failureCount < START_RETRIES && !isTerminalRequestError(error),
 		onSuccess: (operation) => {
+			setLoopError(null);
+			queryClient.setQueryData<TransferPage<TransferOperation>>(
+				TRANSFER_EXPORTS_QUERY_KEY,
+				(page) => replaceOperation(page ?? { items: [] }, operation),
+			);
+		},
+	});
+
+	const cancelMutation = useMutation({
+		mutationFn: cancelTransferExport,
+		onSuccess: (operation) => {
+			setConfirmCancel(false);
 			setLoopError(null);
 			queryClient.setQueryData<TransferPage<TransferOperation>>(
 				TRANSFER_EXPORTS_QUERY_KEY,
@@ -97,6 +112,13 @@ export function ExportSection() {
 		<SettingsSection
 			title={t`Export`}
 			description={t`Download this site as a single .emdash package file that another EmDash site can import.`}
+			actions={
+				running && canCancelExport(running) ? (
+					<Button variant="secondary" onClick={() => setConfirmCancel(true)}>
+						{t`Cancel export`}
+					</Button>
+				) : undefined
+			}
 		>
 			<SettingRow>
 				<div className="grid gap-3 text-sm leading-5">
@@ -290,6 +312,21 @@ export function ExportSection() {
 					</ul>
 				</SettingRow>
 			) : null}
+			<ConfirmDialog
+				open={confirmCancel && running !== null}
+				onClose={() => {
+					setConfirmCancel(false);
+					cancelMutation.reset();
+				}}
+				title={t`Cancel this export?`}
+				description={t`The export stops after its current batch. Any files it already created stay in staging until they expire or are collected.`}
+				confirmLabel={t`Cancel export`}
+				cancelLabel={t`Keep exporting`}
+				pendingLabel={t`Cancelling…`}
+				isPending={cancelMutation.isPending}
+				error={cancelMutation.error}
+				onConfirm={() => running && cancelMutation.mutate(running.id)}
+			/>
 		</SettingsSection>
 	);
 }
@@ -304,6 +341,7 @@ function ExportStateBadge({ operation }: { operation: TransferOperation }) {
 		);
 	}
 	if (operation.state === "failed") return <Badge variant="error">{t`Failed`}</Badge>;
+	if (operation.state === "cancelled") return <Badge variant="neutral">{t`Cancelled`}</Badge>;
 	if (operation.state === "expired") return <Badge variant="neutral">{t`Expired`}</Badge>;
 	return <Badge variant="warning">{t`Exporting`}</Badge>;
 }
@@ -321,6 +359,7 @@ function ExportProgress({
 	const stage = stageLabel(i18n, operation.stage) ?? t`Starting`;
 	const progress = operation.progress;
 	const records = progress?.records ?? null;
+	const title = operation.cancelRequestedAt ? t`Stopping export` : t`Exporting: ${stage}`;
 	if (error) {
 		return (
 			<Banner
@@ -340,7 +379,7 @@ function ExportProgress({
 		<div className="flex items-start gap-3" role="status" aria-live="polite">
 			<Loader size="sm" />
 			<div className="min-w-0 flex-1 text-sm leading-5">
-				<p className="font-medium">{t`Exporting: ${stage}`}</p>
+				<p className="font-medium">{title}</p>
 				{progress && progress.total > 0 ? (
 					<Meter
 						className="my-2"

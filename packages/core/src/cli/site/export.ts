@@ -171,6 +171,71 @@ export async function driveExport(
 }
 
 /**
+ * Read the current state of an export. Use this before a cancel or resume to
+ * decide whether the operation is still active.
+ */
+export async function exportStatus(
+	client: EmDashClient,
+	operationId: string,
+	runtime: TransferRuntime,
+): Promise<{ operation: TransferOperation }> {
+	return withRetry(runtime, "Reading the export", () => client.transferExportGet(operationId));
+}
+
+/**
+ * Cancel an export. An idle export is cancelled at once; a running export stops
+ * after its current batch.
+ */
+export async function cancelExport(
+	client: EmDashClient,
+	operationId: string,
+	runtime: TransferRuntime,
+): Promise<TransferOperation> {
+	return withRetry(runtime, "Cancelling the export", () =>
+		client.transferExportCancel(operationId),
+	).then(
+		(result) => result.operation,
+		async (error: unknown) => {
+			if (!(error instanceof EmDashApiError) || error.code !== "TRANSFER_INVALID_STATE") {
+				throw error;
+			}
+			const { operation } = await exportStatus(client, operationId, runtime);
+			if (operation.state === "cancelled") return operation;
+			throw new SiteTransferCliError(
+				"TRANSFER_INVALID_STATE",
+				`Export ${operationId} has already ended as ${operation.state}.`,
+			);
+		},
+	);
+}
+
+/**
+ * Abandon a failed or cancelled export so its staging can be collected.
+ */
+export async function abandonExport(
+	client: EmDashClient,
+	operationId: string,
+	runtime: TransferRuntime,
+): Promise<TransferOperation> {
+	return withRetry(runtime, "Abandoning the export", () =>
+		client.transferExportAbandon(operationId),
+	).then(
+		(result) => result.operation,
+		async (error: unknown) => {
+			if (!(error instanceof EmDashApiError) || error.code !== "TRANSFER_INVALID_STATE") {
+				throw error;
+			}
+			const { operation } = await exportStatus(client, operationId, runtime);
+			if (operation.state === "abandoned") return operation;
+			throw new SiteTransferCliError(
+				"TRANSFER_INVALID_STATE",
+				`Export ${operationId} cannot be abandoned because it is ${operation.state}.`,
+			);
+		},
+	);
+}
+
+/**
  * Directory next to the output where downloaded files are kept, by digest,
  * until the package is assembled. A re-run reuses every file there that
  * still verifies.

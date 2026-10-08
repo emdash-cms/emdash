@@ -324,6 +324,15 @@ export async function advanceTransferExport(id: string): Promise<AdvanceResult> 
 	return parseApiResponse<AdvanceResult>(res, i18n._(msg`Failed to continue export`));
 }
 
+export async function cancelTransferExport(id: string): Promise<TransferOperation> {
+	const res = await apiFetch(operationUrl("exports", id, "/cancel"), { method: "POST" });
+	const data = await parseApiResponse<{ operation: TransferOperation }>(
+		res,
+		i18n._(msg`Failed to cancel export`),
+	);
+	return data.operation;
+}
+
 export async function fetchTransferExportManifest(id: string): Promise<SitePackageManifestSummary> {
 	const res = await apiFetch(operationUrl("exports", id, "/manifest"));
 	if (!res.ok) await throwResponseError(res, i18n._(msg`Failed to load export manifest`));

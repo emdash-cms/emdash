@@ -17,6 +17,8 @@ export type AuditAction =
 	| "schema_change"
 	| "plugin_tool_invoke"
 	| "transfer_export_create"
+	| "transfer_export_cancel"
+	| "transfer_export_abandon"
 	| "transfer_import_create"
 	| "transfer_import_execute"
 	| "transfer_import_cancel"

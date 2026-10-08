@@ -595,8 +595,19 @@ npx emdash site export --output site.emdash
 
 | Option          | Alias | Description                                        | Default           |
 | --------------- | ----- | -------------------------------------------------- | ----------------- |
-| `--output`      | `-o`  | Package file to write (required)                   |                   |
+| `--output`      | `-o`  | Package file to write (required for a new export)  |                   |
 | `--no-comments` |       | Leave comments and comment reactions out           | Comments included |
+| `--yes`         | `-y`  | With `cancel` or `abandon`: skip the confirmation prompt | `false`     |
+
+These forms operate on an export by its operation ID:
+
+| Command | Description |
+| --- | --- |
+| `emdash site export status <operation-id>` | Print the export's state, stage, progress, and error. The JSON result is `{ operation }`. |
+| `emdash site export cancel <operation-id>` | Cancel the export. A running export stops after its current batch. Any files it already created stay in staging until they expire or are collected. |
+| `emdash site export abandon <operation-id>` | Clean up a failed or cancelled export so its staging files can be collected. |
+
+`cancel` and `abandon` ask for confirmation. Pass `--yes` to skip the prompt; the prompt is also skipped with `--json` or when stdout is not a terminal. When stdin is not a terminal and neither applies, the command fails with `INVALID_ARGUMENT`. Declining the prompt changes nothing and exits with code `1`. The JSON result of both is `{ operation }`.
 
 The command starts an export, advances it until it completes, and downloads the package file by file. It checks that the downloaded manifest matches the export's package digest, and fails with `TRANSFER_PACKAGE_DIGEST_MISMATCH` before writing anything if it does not. It checks each file's size and SHA-256 digest before writing it. The package is written to `<output>.partial` and renamed to the output path when it is complete.
 

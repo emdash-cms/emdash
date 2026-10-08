@@ -3505,6 +3505,40 @@ const transferPaths = {
 			},
 		},
 	},
+	"/_emdash/api/admin/transfer/exports/{id}/cancel": {
+		post: {
+			operationId: "cancelTransferExport",
+			summary: "Cancel a site export",
+			description: `Cancels a pending or running export. A step in progress stops after its current batch. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestParams: { path: exportPathParams },
+			responses: {
+				"200": {
+					description: "The export is cancelled, or the cancellation was requested",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(transferOperationResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/exports/{id}/abandon": {
+		post: {
+			operationId: "abandonTransferExport",
+			summary: "Abandon a failed or cancelled export",
+			description: `Marks a failed or cancelled export as abandoned so its staging can be collected. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestParams: { path: exportPathParams },
+			responses: {
+				"200": {
+					description: "The export is abandoned",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(transferOperationResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500, 503),
+			},
+		},
+	},
 	"/_emdash/api/admin/transfer/exports/{id}/manifest": {
 		get: {
 			operationId: "getTransferExportManifest",
