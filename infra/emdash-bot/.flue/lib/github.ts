@@ -500,34 +500,14 @@ export async function getCompetingWork(
 	signal?: AbortSignal,
 ): Promise<CompetingWork> {
 	const issueUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}`;
-	const [issueResponse, timelineResponse] = await Promise.all([
+	const [issueResponse, timeline] = await Promise.all([
 		coordinatedFetch(token, issueUrl, { headers: authHeaders(token), signal }),
-		coordinatedFetch(token, `${issueUrl}/timeline?per_page=100`, {
-			headers: authHeaders(token),
-			signal,
-		}),
+		listIssueTimeline(token, issueUrl, signal),
 	]);
 	if (!issueResponse.ok) throw new Error(`getCompetingWork issue failed: ${issueResponse.status}`);
-	if (!timelineResponse.ok) {
-		throw new Error(`getCompetingWork timeline failed: ${timelineResponse.status}`);
-	}
 	const issue = await issueResponse.json<{
 		assignees?: Array<{ login?: string; type?: string } | null>;
 	}>();
-	const timeline = await timelineResponse.json<
-		Array<{
-			event?: string;
-			source?: {
-				issue?: {
-					number?: number;
-					state?: string;
-					pull_request?: unknown;
-					user?: { login?: string; type?: string } | null;
-					repository_url?: string;
-				};
-			};
-		}>
-	>();
 	const repositoryUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}`.toLowerCase();
 	const pullRequests = new Set<number>();
 	for (const entry of timeline) {
@@ -549,6 +529,37 @@ export async function getCompetingWork(
 			assignee?.login && isPerson(assignee) ? [assignee.login] : [],
 		),
 	};
+}
+
+interface TimelineEntry {
+	event?: string;
+	source?: {
+		issue?: {
+			number?: number;
+			state?: string;
+			pull_request?: unknown;
+			user?: { login?: string; type?: string } | null;
+			repository_url?: string;
+		};
+	};
+}
+
+async function listIssueTimeline(
+	token: GitHubToken,
+	issueUrl: string,
+	signal?: AbortSignal,
+): Promise<TimelineEntry[]> {
+	const entries: TimelineEntry[] = [];
+	for (let page = 1; ; page += 1) {
+		const res = await coordinatedFetch(token, `${issueUrl}/timeline?per_page=100&page=${page}`, {
+			headers: authHeaders(token),
+			signal,
+		});
+		if (!res.ok) throw new Error(`getCompetingWork timeline failed: ${res.status}`);
+		const items = await res.json<TimelineEntry[]>();
+		entries.push(...items);
+		if (items.length < 100) return entries;
+	}
 }
 
 function isPerson(user: { login?: string; type?: string } | null | undefined): boolean {

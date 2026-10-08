@@ -1274,7 +1274,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				anchorNumber,
 				error: errorMessage(error),
 			});
-			return null;
+			return "I couldn't check whether someone is already working on this, so I haven't started.";
 		}
 	}
 
@@ -1306,11 +1306,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Reap the fix loop's branches when the anchoring issue closes: always
-	 * delete bot/artifacts-<n>, delete bot/fix-<n> only when no open PR
-	 * references it. Does not touch machine state -- a closed issue may
-	 * legitimately keep its in_review/PR state, and the branches are a
-	 * projection we clean up regardless.
+	 * Settle the item when the anchoring issue closes, then reap the fix loop's
+	 * branches: always delete bot/artifacts-<n>, delete bot/fix-<n> only when no
+	 * open PR references it. A completed close while the bot PR is still open
+	 * keeps its state until `pr.merged` settles it.
 	 */
 	cleanupOnClose(anchorNumber: number, closedAs: IssueClosedAs): Promise<CleanupOutcome> {
 		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber, closedAs));

@@ -1892,6 +1892,42 @@ describe("OrchestratorDO (workers-pool)", () => {
 		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
 	});
 
+	test("triage waits for approval when it can't check whether someone is on the issue", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		const comments: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			if (method === "GET" && url.includes("/issues/42/timeline")) {
+				return Promise.resolve(new Response("unavailable", { status: 502 }));
+			}
+			if (method === "POST" && url.endsWith("/comments")) {
+				comments.push(typeof init?.body === "string" ? init.body : "");
+				return Promise.resolve(Response.json({ id: 1 }));
+			}
+			return Promise.resolve(Response.json({}));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "triaging", "o:kind": "bug", "o:anchorNumber": 42 });
+		});
+		await stub.debugSetStaleRun("triage-run", Date.now(), "investigate-42-triage-run", "triage");
+
+		await stub.applyAgentResult({
+			runId: "triage-run",
+			result: { disposition: "auto-work", kind: "bug", summary: "The slug helper drops accents." },
+			pushed: false,
+			ok: true,
+		});
+
+		expect((await stub.getPersistedState()).state).toBe("awaiting_approval");
+		expect(comments.join("\n")).toContain(
+			"couldn't check whether someone is already working on this",
+		);
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
 	test("tick recovers a stale run", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		// Run() the DO with a synthetic stale run set in storage. The stale-

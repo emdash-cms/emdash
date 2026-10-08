@@ -62,12 +62,13 @@ describe("write access", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(2);
 	});
 
-	test("looks up at most the configured number of logins", async () => {
-		const fetchMock = permissionFetch({});
-		vi.stubGlobal("fetch", fetchMock);
+	test("recognises a maintainer however many other people commented first", async () => {
+		const logins = Array.from({ length: 30 }, (_, index) => `commenter${index}`);
+		vi.stubGlobal("fetch", permissionFetch({ commenter29: "write" }));
 
-		await createWriteAccessResolver({ maxLookups: 2 }).writers("token", repo, ["a", "b", "c"]);
-		expect(fetchMock).toHaveBeenCalledTimes(2);
+		await expect(createWriteAccessResolver().writers("token", repo, logins)).resolves.toEqual(
+			new Set(["commenter29"]),
+		);
 	});
 
 	test("skips bot accounts", async () => {

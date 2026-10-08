@@ -593,6 +593,42 @@ describe("GitHub competing work", () => {
 		});
 	});
 
+	test("reads past the first page of a long timeline", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) => {
+				const url = requestUrl(input);
+				if (url.endsWith("/issues/42")) return Promise.resolve(jsonResponse({ assignees: [] }));
+				if ((new URL(url).searchParams.get("page") ?? "1") === "1") {
+					return Promise.resolve(
+						jsonResponse(Array.from({ length: 100 }, () => ({ event: "labeled" }))),
+					);
+				}
+				return Promise.resolve(
+					jsonResponse([
+						{
+							event: "cross-referenced",
+							source: {
+								issue: {
+									number: 3010,
+									state: "open",
+									pull_request: {},
+									user: { login: "contributor" },
+									repository_url: "https://api.github.com/repos/emdash-cms/emdash",
+								},
+							},
+						},
+					]),
+				);
+			}),
+		);
+
+		await expect(getCompetingWork("token", repo, 42)).resolves.toEqual({
+			pullRequests: [3010],
+			assignees: [],
+		});
+	});
+
 	test("fails rather than guessing when the timeline can't be read", async () => {
 		vi.stubGlobal(
 			"fetch",

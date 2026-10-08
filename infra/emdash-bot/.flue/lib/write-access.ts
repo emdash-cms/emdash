@@ -8,7 +8,6 @@ import { getCollaboratorPermission, type GitHubToken, type RepoContext } from ".
 const MAINTAINER_ASSOCIATIONS: ReadonlySet<string> = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 const WRITE_PERMISSIONS: ReadonlySet<string> = new Set(["admin", "write"]);
 const DEFAULT_TTL_MS = 10 * 60_000;
-const DEFAULT_MAX_LOOKUPS = 10;
 
 /** True when GitHub's reported association already shows maintainer access. */
 export function hasMaintainerAssociation(association: string | null | undefined): boolean {
@@ -26,10 +25,9 @@ export interface WriteAccessResolver {
 }
 
 export function createWriteAccessResolver(
-	options: { ttlMs?: number; maxLookups?: number; now?: () => number } = {},
+	options: { ttlMs?: number; now?: () => number } = {},
 ): WriteAccessResolver {
 	const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
-	const maxLookups = options.maxLookups ?? DEFAULT_MAX_LOOKUPS;
 	const now = options.now ?? Date.now;
 	const cache = new Map<string, { writer: boolean; expiresAt: number }>();
 
@@ -51,7 +49,7 @@ export function createWriteAccessResolver(
 				}
 			}
 			await Promise.all(
-				pending.slice(0, maxLookups).map(async (login) => {
+				pending.map(async (login) => {
 					try {
 						const permission = await getCollaboratorPermission(token, ctx, login, signal);
 						const writer = WRITE_PERMISSIONS.has(permission);
