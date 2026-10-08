@@ -962,6 +962,24 @@ export function renderToolbar(config: ToolbarConfig): string {
     return document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
   }
 
+  function selectionPoints() {
+    var selection = window.getSelection();
+    return [selection.anchorNode, selection.anchorOffset, selection.focusNode, selection.focusOffset];
+  }
+
+  // A click on text moves the selection to where it landed (a caret, or the
+  // end of a drag), and focusing the field keeps it there. A click on a link
+  // leaves the selection where it was.
+  var selectionAtMousedown = null;
+
+  // Where to put the caret for a click, or null when the click placed it.
+  function caretForClick(e) {
+    var moved = !selectionAtMousedown || selectionPoints().some(function(point, i) {
+      return point !== selectionAtMousedown[i];
+    });
+    return moved ? null : caretRangeAt(e.clientX, e.clientY);
+  }
+
   function startTextEdit(element, annotation, caret, multiline) {
     if (currentlyEditing === element) return;
     if (currentlyEditing) endCurrentEdit();
@@ -977,16 +995,8 @@ export function renderToolbar(config: ToolbarConfig): string {
     element.setAttribute("data-emdash-editing", "");
     element.contentEditable = "plaintext-only";
     element.focus();
-
-    // A click on a link doesn't move the selection, so unless the selection
-    // already ends where the click landed (a caret, or a drag), put the caret there.
-    var selection = window.getSelection();
-    if (
-      caret &&
-      element.contains(caret.startContainer) &&
-      (selection.focusNode !== caret.startContainer || selection.focusOffset !== caret.startOffset)
-    ) {
-      selection.collapse(caret.startContainer, caret.startOffset);
+    if (caret && element.contains(caret.startContainer)) {
+      window.getSelection().collapse(caret.startContainer, caret.startOffset);
     }
 
     // Track dirty state via input events
@@ -1523,6 +1533,10 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Click handler for edit mode
   if (isEditMode) {
+    document.addEventListener("mousedown", function() {
+      selectionAtMousedown = selectionPoints();
+    }, true);
+
     document.addEventListener("click", function(e) {
       var target = e.target;
 
@@ -1548,7 +1562,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
             // Read now: editing may only start once the manifest or the stored
             // value has loaded, and the page can scroll in the meantime.
-            var caret = caretRangeAt(e.clientX, e.clientY);
+            var caret = caretForClick(e);
 
             function dispatchInline(kind) {
               closeImagePopover();
