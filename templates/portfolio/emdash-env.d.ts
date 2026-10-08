@@ -5,6 +5,27 @@
 
 import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
+export interface Project {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  featured_image: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
+  summary?: string;
+  client?: string;
+  year?: string;
+  url?: string;
+  featured?: boolean;
+  content?: PortableTextBlock[];
+  gallery?: { "image": { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }; "caption"?: string | null }[];
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
 export interface PageLayoutPortfolioStatementV1Block {
   _type: "portfolio_statement";
   _version: 1;
@@ -34,7 +55,21 @@ export interface PageLayoutPortfolioClientsV1Block {
 
 export type PageLayoutPortfolioClientsBlock = PageLayoutPortfolioClientsV1Block;
 
-export type PageLayoutBlock = PageLayoutPortfolioStatementBlock | PageLayoutPortfolioSelectedWorkBlock | PageLayoutPortfolioClientsBlock;
+export interface PageLayoutPortfolioContactV1Block {
+  _type: "portfolio_contact";
+  _version: 1;
+  _key: string;
+  "heading": string;
+  "label"?: string | null;
+  "intro"?: string | null;
+  "email": string;
+  "email_label"?: string | null;
+  "details"?: { "label": string; "text": string; "note"?: string | null }[] | null;
+}
+
+export type PageLayoutPortfolioContactBlock = PageLayoutPortfolioContactV1Block;
+
+export type PageLayoutBlock = PageLayoutPortfolioStatementBlock | PageLayoutPortfolioSelectedWorkBlock | PageLayoutPortfolioClientsBlock | PageLayoutPortfolioContactBlock;
 
 export interface Page {
   id: string;
@@ -51,30 +86,9 @@ export interface Page {
   terms?: Record<string, TaxonomyTerm[]>;
 }
 
-export interface Project {
-  id: string;
-  slug: string | null;
-  status: string;
-  title: string;
-  featured_image: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
-  client?: string;
-  year?: string;
-  featured?: boolean;
-  summary?: string;
-  content?: PortableTextBlock[];
-  gallery?: { "image": { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }; "caption"?: string | null }[];
-  url?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  byline?: BylineSummary | null;
-  bylines?: ContentBylineCredit[];
-  terms?: Record<string, TaxonomyTerm[]>;
-}
-
 declare module "emdash" {
   interface EmDashCollections {
-    pages: Page;
     projects: Project;
+    pages: Page;
   }
 }

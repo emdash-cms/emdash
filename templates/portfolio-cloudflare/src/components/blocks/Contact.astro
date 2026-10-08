@@ -1,72 +1,84 @@
 ---
 import { getSiteSettings } from "emdash";
-import Base from "../layouts/Base.astro";
-import { getSocialLinks } from "../utils/social";
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageLayoutBlock } from "../../../emdash-env";
+import { getSocialLinks } from "../../utils/social";
 
-const contactEmail = "hello@norma.example";
+type ContactBlock = Extract<PageLayoutBlock, { _type: "portfolio_contact" }>;
+type Props = BlockComponentProps<ContactBlock>;
+
+const { value, index } = Astro.props;
+const Heading = index === 0 ? "h1" : "h2";
+const label = value.label?.trim();
+const intro = value.intro?.trim();
+const email = value.email.trim();
+const emailLabel = value.email_label?.trim();
+const details = value.details ?? [];
 
 const settings = await getSiteSettings();
-
-const socialLinks = getSocialLinks(settings.social);
+const socialLinks = getSocialLinks(settings?.social);
+const hasDetails =
+	Boolean(emailLabel) || details.length > 0 || socialLinks.length > 0;
 
 // Wrap opportunities after the @ and before each dot. The last part stays
 // joined to the arrow so the arrow never wraps onto a line of its own.
-const emailParts = contactEmail.split(/(?<=@)|(?=\.)/);
+const emailParts = email.split(/(?<=@)|(?=\.)/);
 const emailEnd = emailParts.pop();
 ---
 
-<Base title="Contact" description="Get in touch about your next project.">
-	<div class="frame contact">
-		<header class="contact__head">
-			<p class="label">Contact</p>
-			<h1 class="contact__title">Tell us what you’re making.</h1>
-			<p class="contact__intro">
-				Share what you’re working on, the problem to solve and any timing you
-				have in mind. We reply by email within two working days.
-			</p>
-		</header>
+<section class="frame contact">
+	<header class="contact__head">
+		{label && <p class="label">{label}</p>}
+		<Heading class="contact__title">{value.heading}</Heading>
+		{intro && <p class="contact__intro">{intro}</p>}
+	</header>
 
-		<p class="contact__cta">
-			<a class="contact__email" href={`mailto:${contactEmail}`}
-				>{
-					emailParts.map((part) => (
-						<Fragment>
-							{part}
-							<wbr />
-						</Fragment>
-					))
-				}<span class="contact__email-end"
-					>{emailEnd}<svg
-						class="contact__arrow"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
-						><path d="M4 12h16"></path><path d="m13 5 7 7-7 7"></path></svg
-					></span
-				></a
-			>
-		</p>
+	<p class="contact__cta">
+		<a class="contact__email" href={`mailto:${email}`}
+			>{
+				emailParts.map((part) => (
+					<Fragment>
+						{part}
+						<wbr />
+					</Fragment>
+				))
+			}<span class="contact__email-end"
+				>{emailEnd}<svg
+					class="contact__arrow"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+					><path d="M4 12h16"></path><path d="m13 5 7 7-7 7"></path></svg
+				></span
+			></a
+		>
+	</p>
 
-		<dl class="contact__details">
-			<div class="contact__detail">
-				<dt class="label">New projects</dt>
-				<dd>
-					<a class="contact__link" href={`mailto:${contactEmail}`}
-						>{contactEmail}</a
-					>
-				</dd>
-			</div>
-			<div class="contact__detail">
-				<dt class="label">Studio</dt>
-				<dd>Rotterdam, the Netherlands</dd>
-				<dd class="contact__note">Visits by appointment</dd>
-			</div>
-			{
-				socialLinks.length > 0 && (
+	{
+		hasDetails && (
+			<dl class="contact__details">
+				{emailLabel && (
+					<div class="contact__detail">
+						<dt class="label">{emailLabel}</dt>
+						<dd>
+							<a class="contact__link" href={`mailto:${email}`}>
+								{email}
+							</a>
+						</dd>
+					</div>
+				)}
+				{details.map((detail) => (
+					<div class="contact__detail">
+						<dt class="label">{detail.label}</dt>
+						<dd>{detail.text}</dd>
+						{detail.note && <dd class="contact__note">{detail.note}</dd>}
+					</div>
+				))}
+				{socialLinks.length > 0 && (
 					<div class="contact__detail">
 						<dt class="label">Elsewhere</dt>
 						<dd>
@@ -81,17 +93,13 @@ const emailEnd = emailParts.pop();
 							</ul>
 						</dd>
 					</div>
-				)
-			}
-		</dl>
-	</div>
-</Base>
+				)}
+			</dl>
+		)
+	}
+</section>
 
 <style>
-	.contact {
-		padding-block-start: var(--page-head-space);
-	}
-
 	.contact__head {
 		display: grid;
 		gap: var(--spacing-lg);
@@ -225,6 +233,10 @@ const emailEnd = emailParts.pop();
 
 		.contact__detail {
 			border-block-start: 0;
+		}
+
+		.contact__detail:nth-child(n + 4) {
+			border-block-start: 1px solid var(--color-border);
 		}
 	}
 

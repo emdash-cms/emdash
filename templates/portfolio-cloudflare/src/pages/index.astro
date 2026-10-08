@@ -1,8 +1,16 @@
 ---
-import { getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
+import {
+	getEditMeta,
+	getEmDashEntry,
+	getSeoMeta,
+	getSiteSettings,
+} from "emdash";
+import { PortableText } from "emdash/ui";
 import type { PageLayoutBlock } from "../../emdash-env";
 import Base from "../layouts/Base.astro";
-import HomeBlocks from "../components/HomeBlocks.astro";
+import EditorNote from "../components/EditorNote.astro";
+import PageBlocks from "../components/PageBlocks.astro";
+import { startsWithHeading } from "../utils/page";
 import { getSelectedWork } from "../utils/selected-work";
 
 const [settings, homeResult, projectsResult] = await Promise.all([
@@ -81,6 +89,12 @@ if (clients.length >= 2) {
 }
 
 const layout = home?.data.layout?.length ? home.data.layout : defaultLayout;
+const content = home?.data.content;
+// In edit mode an empty body carries edit metadata; render it so the
+// inline editor has somewhere to start.
+const showContent = Boolean(
+	content && (content.length > 0 || getEditMeta(content)),
+);
 ---
 
 <Base
@@ -94,20 +108,42 @@ const layout = home?.data.layout?.length ? home.data.layout : defaultLayout;
 		? { collection: "pages", id: home.data.id, slug: home.id }
 		: undefined}
 >
-	{/* Statement.astro renders the h1 only when it is the first block */}
 	{
-		layout[0]?._type !== "portfolio_statement" && (
-			<h1 class="sr-only">{siteTitle}</h1>
+		layout === defaultLayout && (
+			<EditorNote
+				href={home
+					? `/_emdash/admin/content/pages/${home.data.id}`
+					: "/_emdash/admin/content/pages"}
+				action={home ? "Edit the home page" : "Go to Pages"}
+			>
+				{home
+					? "The home page’s Layout is empty, so the default sections show. Add blocks to its Layout to replace them."
+					: "These are the default home page sections. To change them, create or publish a page with the slug “home” in Pages and add blocks to its Layout."}
+			</EditorNote>
 		)
 	}
+	{/* The statement and contact blocks render the h1 when they come first */}
+	{!startsWithHeading(layout) && <h1 class="sr-only">{siteTitle}</h1>}
 	<div class="home-layout" {...home?.edit.layout}>
-		<HomeBlocks value={layout} />
+		<PageBlocks value={layout} />
 	</div>
+	{
+		showContent && (
+			<div class="frame prose prose-hang home-body" {...home?.edit.content}>
+				<PortableText value={content} />
+			</div>
+		)
+	}
 </Base>
 
 <style>
 	/* Blocks don't space themselves, so sections sit the same way in any order */
 	.home-layout > :global(*) {
+		margin-block-start: var(--section-gap);
+	}
+
+	.home-body {
+		--prose-media-column: 1 / -1;
 		margin-block-start: var(--section-gap);
 	}
 

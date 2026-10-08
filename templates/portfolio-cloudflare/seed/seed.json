@@ -8,13 +8,16 @@
 	},
 	"settings": {
 		"title": "Norma",
-		"tagline": "An independent design studio making identities, books and websites for culture and commerce."
+		"tagline": "An independent design studio making identities, books and websites for culture and commerce.",
+		"seo": {
+			"titleSeparator": "—"
+		}
 	},
 	"blockTypes": [
 		{
 			"slug": "portfolio_statement",
 			"label": "Statement",
-			"description": "A large opening statement with an optional small label beside it",
+			"description": "A large statement with an optional small label beside it. As the first block, it is the page heading. Line breaks are kept.",
 			"category": "Portfolio",
 			"currentVersion": 1,
 			"versions": [
@@ -25,12 +28,18 @@
 							"slug": "text",
 							"label": "Statement",
 							"type": "text",
-							"required": true
+							"required": true,
+							"validation": {
+								"maxLength": 160
+							}
 						},
 						{
 							"slug": "label",
 							"label": "Small label",
-							"type": "string"
+							"type": "string",
+							"validation": {
+								"maxLength": 40
+							}
 						}
 					]
 				}
@@ -39,7 +48,7 @@
 		{
 			"slug": "portfolio_selected_work",
 			"label": "Selected work",
-			"description": "Featured projects in a grid, or the six newest when none are featured",
+			"description": "Projects with Feature on home page switched on, newest first and up to 12, or the six newest when none are.",
 			"category": "Portfolio",
 			"currentVersion": 1,
 			"versions": [
@@ -51,7 +60,10 @@
 							"label": "Heading",
 							"type": "string",
 							"required": true,
-							"defaultValue": "Selected work"
+							"defaultValue": "Selected work",
+							"validation": {
+								"maxLength": 40
+							}
 						}
 					]
 				}
@@ -72,7 +84,10 @@
 							"label": "Heading",
 							"type": "string",
 							"required": true,
-							"defaultValue": "Clients"
+							"defaultValue": "Clients",
+							"validation": {
+								"maxLength": 40
+							}
 						},
 						{
 							"slug": "clients",
@@ -95,6 +110,92 @@
 					]
 				}
 			]
+		},
+		{
+			"slug": "portfolio_contact",
+			"label": "Contact details",
+			"description": "A heading, an introduction, a large email link and studio details, followed by the social profiles from Settings. As the first block, it is the page heading.",
+			"category": "Portfolio",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "heading",
+							"label": "Heading",
+							"type": "string",
+							"required": true,
+							"defaultValue": "Get in touch",
+							"validation": {
+								"maxLength": 80
+							}
+						},
+						{
+							"slug": "label",
+							"label": "Small label",
+							"type": "string",
+							"validation": {
+								"maxLength": 40
+							}
+						},
+						{
+							"slug": "intro",
+							"label": "Introduction",
+							"type": "text",
+							"validation": {
+								"maxLength": 400
+							}
+						},
+						{
+							"slug": "email",
+							"label": "Email address",
+							"type": "string",
+							"required": true,
+							"validation": {
+								"maxLength": 254,
+								"pattern": "^[^\\s@:/]+@[^\\s@:/]+\\.[^\\s@:/]+$"
+							}
+						},
+						{
+							"slug": "email_label",
+							"label": "Label above the email in the details",
+							"type": "string",
+							"defaultValue": "Email",
+							"validation": {
+								"maxLength": 40
+							}
+						},
+						{
+							"slug": "details",
+							"label": "Studio details",
+							"type": "repeater",
+							"validation": {
+								"maxItems": 6,
+								"subFields": [
+									{
+										"slug": "label",
+										"label": "Label",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "text",
+										"label": "Text",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "note",
+										"label": "Note (smaller, below the text)",
+										"type": "string"
+									}
+								]
+							}
+						}
+					]
+				}
+			]
 		}
 	],
 	"collections": [
@@ -102,6 +203,12 @@
 			"slug": "projects",
 			"label": "Projects",
 			"labelSingular": "Project",
+			"description": "Case studies, listed at /work. Switch on Feature on home page to show a project in Selected work.",
+			"icon": "briefcase",
+			"sortOrder": 1,
+			"admin": {
+				"listColumns": ["client", "year", "featured"]
+			},
 			"supports": ["drafts", "revisions", "preview", "search", "seo"],
 			"urlPattern": "/work/{slug}",
 			"fields": [
@@ -114,19 +221,38 @@
 				},
 				{
 					"slug": "featured_image",
-					"label": "Featured Image",
+					"label": "Cover image",
 					"type": "image",
 					"required": true
 				},
 				{
+					"slug": "summary",
+					"label": "Summary",
+					"type": "text",
+					"searchable": true,
+					"validation": {
+						"maxLength": 200
+					}
+				},
+				{
 					"slug": "client",
 					"label": "Client",
-					"type": "string"
+					"type": "string",
+					"searchable": true
 				},
 				{
 					"slug": "year",
 					"label": "Year",
-					"type": "string"
+					"type": "string",
+					"translatable": false
+				},
+				{
+					"slug": "url",
+					"label": "Website",
+					"type": "url",
+					"validation": {
+						"pattern": "^https?://"
+					}
 				},
 				{
 					"slug": "featured",
@@ -134,12 +260,6 @@
 					"type": "boolean",
 					"defaultValue": false,
 					"translatable": false
-				},
-				{
-					"slug": "summary",
-					"label": "Summary",
-					"type": "text",
-					"searchable": true
 				},
 				{
 					"slug": "content",
@@ -163,15 +283,10 @@
 							{
 								"slug": "caption",
 								"label": "Caption",
-								"type": "text"
+								"type": "string"
 							}
 						]
 					}
-				},
-				{
-					"slug": "url",
-					"label": "Project URL",
-					"type": "url"
 				}
 			]
 		},
@@ -179,6 +294,8 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
+			"description": "About, Contact, the home page (slug home, shown at /) and any other page, each at /{slug}.",
+			"sortOrder": 2,
 			"supports": ["drafts", "revisions", "preview", "search", "seo"],
 			"urlPattern": "/{slug}",
 			"fields": [
@@ -200,7 +317,12 @@
 					"label": "Layout",
 					"type": "blocks",
 					"validation": {
-						"allowedTypes": ["portfolio_statement", "portfolio_selected_work", "portfolio_clients"],
+						"allowedTypes": [
+							"portfolio_statement",
+							"portfolio_selected_work",
+							"portfolio_clients",
+							"portfolio_contact"
+						],
 						"maxItems": 20
 					}
 				}
@@ -210,8 +332,8 @@
 	"taxonomies": [
 		{
 			"name": "tag",
-			"label": "Tags",
-			"labelSingular": "Tag",
+			"label": "Disciplines",
+			"labelSingular": "Discipline",
 			"hierarchical": false,
 			"collections": ["projects"],
 			"terms": [
@@ -237,7 +359,7 @@
 				},
 				{
 					"slug": "art-direction",
-					"label": "Art Direction"
+					"label": "Art direction"
 				}
 			]
 		}
@@ -245,7 +367,7 @@
 	"menus": [
 		{
 			"name": "primary",
-			"label": "Primary Navigation",
+			"label": "Primary navigation",
 			"items": [
 				{
 					"type": "custom",
@@ -661,6 +783,33 @@
 								}
 							],
 							"_key": "about-51"
+						}
+					]
+				}
+			},
+			{
+				"id": "contact",
+				"slug": "contact",
+				"status": "published",
+				"data": {
+					"title": "Contact",
+					"layout": [
+						{
+							"_type": "portfolio_contact",
+							"_version": 1,
+							"_key": "contact",
+							"heading": "Tell us what you’re making.",
+							"label": "Contact",
+							"intro": "Share what you’re working on, the problem to solve and any timing you have in mind. We reply by email within two working days.",
+							"email": "hello@norma.example",
+							"email_label": "New projects",
+							"details": [
+								{
+									"label": "Studio",
+									"text": "Rotterdam, the Netherlands",
+									"note": "Visits by appointment"
+								}
+							]
 						}
 					]
 				}
