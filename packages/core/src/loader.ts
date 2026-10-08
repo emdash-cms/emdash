@@ -25,7 +25,11 @@ import type { Database } from "./index.js";
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
-import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
+import {
+	isMissingColumnError,
+	isMissingSystemColumnError,
+	isMissingTableError,
+} from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -1992,12 +1996,22 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 			} catch (error) {
 				// Handle missing table/column gracefully - return empty collection.
 				// Missing table happens before migrations have run.
-				// Missing column happens when a where filter references a non-existent field.
+				// Missing column on a content/user field happens when a where filter
+				// references a non-existent field. A missing column on a system table
+				// (anything `_emdash_*`) means a pending migration is incomplete:
+				// surface the error so it is visible instead of silently emptying the
+				// listing and blaming the caller's filter.
 				const message = error instanceof Error ? error.message : String(error);
-				if (isMissingTableError(error) || isMissingColumnError(error)) {
-					if (isMissingColumnError(error)) {
-						console.warn(`[emdash] where filter: ${message}`);
-					}
+				if (isMissingTableError(error)) {
+					return { entries: [] };
+				}
+				if (isMissingSystemColumnError(error)) {
+					return {
+						error: new Error(`Failed to load collection: ${message}`),
+					};
+				}
+				if (isMissingColumnError(error)) {
+					console.warn(`[emdash] where filter: ${message}`);
 					return { entries: [] };
 				}
 
