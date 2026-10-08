@@ -33,6 +33,9 @@ const CAPABILITIES: PluginCapability[] = [
 	"media:read",
 	"taxonomies:read",
 ];
+const ADMIN_ENTRY = "@emdash-cms/plugin-ai-search/admin";
+const ADMIN_PAGES = [{ path: "/settings", label: "AI Search", icon: "search" }];
+const ADMIN_WIDGETS = [{ id: "status", title: "AI Search", size: "half" as const }];
 const STORAGE = { [SNAPSHOT]: { indexes: ["source"] } };
 
 export function aiSearch(
@@ -45,6 +48,9 @@ export function aiSearch(
 		format: "native",
 		options,
 		capabilities: CAPABILITIES,
+		adminEntry: ADMIN_ENTRY,
+		adminPages: ADMIN_PAGES,
+		adminWidgets: ADMIN_WIDGETS,
 		storage: STORAGE,
 	};
 }
@@ -55,6 +61,7 @@ export function createPlugin(options: Partial<AiSearchOptions> = {}): ResolvedPl
 		id: ID,
 		version,
 		capabilities: CAPABILITIES,
+		admin: { entry: ADMIN_ENTRY, pages: ADMIN_PAGES, widgets: ADMIN_WIDGETS },
 		storage: STORAGE,
 		hooks: createHooks(resolved),
 		routes: createRoutes(resolved),
