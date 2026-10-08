@@ -519,21 +519,15 @@ function positionBeforeCharacter(field: import("@playwright/test").Locator, inde
 test.describe("Text field editing", () => {
 	test.beforeEach(async ({ page }) => {
 		await enableEditMode(page);
-		await gotoWithRetry(page, "/");
+		await gotoWithRetry(page, "/text-fields");
 	});
 
-	function listedPost(page: import("@playwright/test").Page) {
-		return page.locator("#post-list li", {
-			has: page.locator(`a[href="${POST_WITH_IMAGE_PATH}"]`),
-		});
-	}
-
 	for (const { name, selector } of [
-		{ name: "a text field", selector: ".excerpt" },
-		{ name: "a text field inside a link", selector: "a" },
+		{ name: "a text field", selector: "#excerpt" },
+		{ name: "a text field inside a link", selector: "#linked-title" },
 	]) {
 		test(`places the caret where ${name} is clicked`, async ({ page }) => {
-			const field = listedPost(page).locator(selector);
+			const field = page.locator(selector);
 			const text = (await field.textContent())!;
 
 			await field.click({ position: await positionBeforeCharacter(field, -1) });
@@ -547,7 +541,7 @@ test.describe("Text field editing", () => {
 	}
 
 	test("keeps text selected by dragging across a text field", async ({ page }) => {
-		const field = listedPost(page).locator(".excerpt");
+		const field = page.locator("#excerpt");
 		const text = (await field.textContent())!;
 
 		await field.dragTo(field, {
