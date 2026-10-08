@@ -107,7 +107,17 @@ vi.mock("@cloudflare/kumo", () => ({
 			/>
 		</div>
 	),
-	Dialog: ({ children }: any) => <div data-testid="dialog">{children}</div>,
+	Dialog: Object.assign(
+		({ children, className, size }: any) => (
+			<div data-testid="dialog" className={className} data-size={size}>
+				{children}
+			</div>
+		),
+		{
+			Title: ({ children }: any) => <h2 data-testid="dialog-title">{children}</h2>,
+			Description: ({ children }: any) => <p data-testid="dialog-description">{children}</p>,
+		},
+	),
 	DialogRoot: ({ children, open }: any) =>
 		open ? <div data-testid="dialog-root">{children}</div> : null,
 	Banner: ({ title, description, variant, icon }: any) => (
@@ -850,5 +860,39 @@ describe("BlockRenderer", () => {
 			action_id: "delete_item",
 			value: "item_1",
 		});
+	});
+
+	it("button confirm dialog is padded and names itself with its title and text", () => {
+		renderBlocks([
+			{
+				type: "actions",
+				elements: [
+					{
+						type: "button",
+						action_id: "delete_item",
+						label: "Delete",
+						confirm: {
+							title: "Delete item?",
+							text: "This cannot be undone.",
+							confirm: "Yes, delete",
+							deny: "Cancel",
+						},
+					},
+				],
+			},
+		]);
+
+		fireEvent.click(screen.getByText("Delete"));
+
+		// Kumo's Dialog has no padding of its own; without it the content sits
+		// flush against the dialog's edges.
+		const dialog = screen.getByTestId("dialog");
+		expect(dialog.className).toContain("p-6");
+		expect(dialog.getAttribute("data-size")).toBe("sm");
+
+		// Dialog.Title and Dialog.Description give the dialog its accessible
+		// name and description.
+		expect(screen.getByTestId("dialog-title").textContent).toBe("Delete item?");
+		expect(screen.getByTestId("dialog-description").textContent).toBe("This cannot be undone.");
 	});
 });
