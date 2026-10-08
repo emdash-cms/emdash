@@ -131,9 +131,7 @@ describe("ContentEditPage opened from a field link on the site", () => {
 		mockFetch
 			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
 			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 50 } })
-			.on("GET", "/_emdash/api/content/pages/page_1", { data: { item: PAGE } })
-			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
-			.on("GET", "/_emdash/api/users", { data: { items: [] } });
+			.on("GET", "/_emdash/api/content/pages/page_1", { data: { item: PAGE } });
 	});
 
 	afterEach(() => {
@@ -154,6 +152,7 @@ describe("ContentEditPage opened from a field link on the site", () => {
 		const header = document.querySelector("header")!;
 		const bar = document.querySelector("[data-emdash-editor-bar]")!;
 		expect(document.querySelector("[data-emdash-editor-canvas]")!.scrollTop).toBeGreaterThan(0);
+		expect(header.getBoundingClientRect().top).toBe(0);
 		expect(bar.getBoundingClientRect().top).toBe(header.getBoundingClientRect().bottom);
 	});
 });
