@@ -270,7 +270,7 @@ msgstr ""
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:756
 msgid "{0, plural, one {field} other {fields}}"
-msgstr "{0, plural, one {{field}} other {{fields}}}"
+msgstr "{0, plural, one {alan} other {alan}}"
 
 #. placeholder {0}: stats.mediaCount
 #: packages/admin/src/components/Dashboard.tsx:408
