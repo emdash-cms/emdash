@@ -6,6 +6,7 @@
  * - Inline editor loading with image nodes
  * - Slash commands and media picker
  * - Save on image insert
+ * - Click-to-edit of plain text fields
  */
 
 import { test, expect } from "../fixtures";
@@ -492,5 +493,65 @@ test.describe("Inline Editor", () => {
 
 		// Picker should close
 		await expect(picker).toBeHidden({ timeout: 3000 });
+	});
+});
+
+/**
+ * A point a quarter into the character at `index` of a field's text (negative
+ * counts from the end), where a click puts the caret right before it.
+ */
+function positionBeforeCharacter(field: import("@playwright/test").Locator, index: number) {
+	return field.evaluate((element, at) => {
+		const text = element.firstChild!;
+		const start = at < 0 ? text.textContent!.length + at : at;
+		const range = document.createRange();
+		range.setStart(text, start);
+		range.setEnd(text, start + 1);
+		const character = range.getBoundingClientRect();
+		const box = element.getBoundingClientRect();
+		return {
+			x: character.left - box.left + character.width / 4,
+			y: character.top - box.top + character.height / 2,
+		};
+	}, index);
+}
+
+test.describe("Text field editing", () => {
+	test.beforeEach(async ({ page }) => {
+		await enableEditMode(page);
+		await gotoWithRetry(page, "/text-fields");
+	});
+
+	for (const { name, selector } of [
+		{ name: "a text field", selector: "#excerpt" },
+		{ name: "a text field inside a link", selector: "#linked-title" },
+	]) {
+		test(`places the caret where ${name} is clicked`, async ({ page }) => {
+			const field = page.locator(selector);
+			const text = (await field.textContent())!;
+
+			await field.click({ position: await positionBeforeCharacter(field, -1) });
+			await expect(field).toHaveAttribute("data-emdash-editing", "");
+			await page.keyboard.type("X");
+
+			await expect(field).toHaveText(`${text.slice(0, -1)}X${text.slice(-1)}`);
+			// Discard the edit so the seeded post stays unchanged.
+			await page.keyboard.press("Escape");
+		});
+	}
+
+	test("keeps text selected by dragging across a text field", async ({ page }) => {
+		const field = page.locator("#excerpt");
+		const text = (await field.textContent())!;
+
+		await field.dragTo(field, {
+			sourcePosition: await positionBeforeCharacter(field, 1),
+			targetPosition: await positionBeforeCharacter(field, -1),
+		});
+		await expect(field).toHaveAttribute("data-emdash-editing", "");
+		await page.keyboard.type("X");
+
+		await expect(field).toHaveText(`${text[0]}X${text.slice(-1)}`);
+		await page.keyboard.press("Escape");
 	});
 });

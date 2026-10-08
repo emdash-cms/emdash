@@ -108,12 +108,7 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 		if (typeof error.code === "string") code = error.code;
 		if (isRecord(error.details)) details = error.details;
 	}
-	throw new ApiResponseError(
-		res.status,
-		code,
-		message || `${fallback}: ${res.statusText}`,
-		details,
-	);
+	throw new ApiResponseError(res.status, code, message || fallback, details);
 }
 
 /**
