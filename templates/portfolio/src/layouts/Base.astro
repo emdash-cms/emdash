@@ -29,15 +29,18 @@ const {
 	type = "website",
 	content,
 } = Astro.props;
-const [settingsResult, menuResult] = await Promise.all([
+const [settingsResult, menuResult, footerMenuResult] = await Promise.all([
 	getSiteSettingsWithCacheHint(),
 	getMenuWithCacheHint("primary"),
+	getMenuWithCacheHint("footer"),
 ]);
 const settings = settingsResult.data;
 const menu = menuResult.data;
+const footerMenu = footerMenuResult.data;
 if (Astro.cache?.enabled) {
 	Astro.cache.set(settingsResult.cacheHint);
 	Astro.cache.set(menuResult.cacheHint);
+	Astro.cache.set(footerMenuResult.cacheHint);
 }
 
 const siteTitle = settings?.title || "Studio";
@@ -118,7 +121,12 @@ function letterCount(text: string): number {
 }
 
 const tagline = settings?.tagline?.trim();
-const showCta = !isCurrent("/contact");
+// The footer menu is the call to action: its name is the heading and its
+// items are the links. It isn't repeated on the pages it links to.
+const ctaHeading = footerMenu?.label.trim();
+const ctaLinks = (footerMenu?.items ?? []).filter((item) => item.label.trim());
+const showCta =
+	ctaLinks.length > 0 && !ctaLinks.some((item) => isCurrent(item.url));
 const wordmarkChars = letterCount(siteTitle);
 const year = new Date().getFullYear();
 ---
@@ -222,21 +230,36 @@ const year = new Date().getFullYear();
 				{
 					showCta && (
 						<div class="site-footer__cta">
-							<h2 class="site-footer__cta-title">Have a project in mind?</h2>
-							<a href="/contact" class="arrow-link site-footer__cta-link">
-								Start a conversation
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.5"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									aria-hidden="true"
-								>
-									<path d="M4 12h16M13 5l7 7-7 7" />
-								</svg>
-							</a>
+							{ctaHeading && (
+								<h2 class="site-footer__cta-title">{ctaHeading}</h2>
+							)}
+							<div class="site-footer__cta-links">
+								{ctaLinks.map((item) => (
+									<a
+										href={item.url}
+										target={item.target}
+										rel={
+											item.target === "_blank"
+												? "noopener noreferrer"
+												: undefined
+										}
+										class="arrow-link site-footer__cta-link"
+									>
+										{item.label}
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.5"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M4 12h16M13 5l7 7-7 7" />
+										</svg>
+									</a>
+								))}
+							</div>
 						</div>
 					)
 				}
@@ -805,6 +828,12 @@ const year = new Date().getFullYear();
 				font-weight: var(--font-weight-display);
 				line-height: var(--leading-tight);
 				letter-spacing: var(--tracking-display);
+			}
+
+			.site-footer__cta-links {
+				display: flex;
+				flex-wrap: wrap;
+				gap: var(--spacing-sm) var(--spacing-xl);
 			}
 
 			.site-footer__cta-link {

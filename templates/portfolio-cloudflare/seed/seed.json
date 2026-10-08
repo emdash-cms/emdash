@@ -385,6 +385,17 @@
 					"url": "/contact"
 				}
 			]
+		},
+		{
+			"name": "footer",
+			"label": "Have a project in mind?",
+			"items": [
+				{
+					"type": "custom",
+					"label": "Start a conversation",
+					"url": "/contact"
+				}
+			]
 		}
 	],
 	"content": {

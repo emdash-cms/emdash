@@ -22,7 +22,7 @@ On wide screens with a mouse or trackpad, hovering or focusing a row on `/work` 
 - `projects` collection: `title`, `featured_image` (labelled "Cover image"), `summary` (text, up to 200 characters), `client`, `year`, `url` (labelled "Website", starting with `http://` or `https://`), `featured` (boolean labelled "Feature on home page", synced across translations), `content` (Portable Text), `gallery` (repeater of a required media-library image and an optional one-line caption). The admin's Projects list shows the Client, Year and Feature on home page columns.
 - `pages` collection: `title`, `content` (Portable Text), `layout` (blocks). Every page renders both `content` and `layout`; see "Pages".
 - Taxonomy: `tag`, labelled "Disciplines" in the admin and used as the project's disciplines. Entries from `getEmDashCollection` and `getEmDashEntry` already carry their terms at `entry.data.terms.tag`, so pages read disciplines from there without another query.
-- Single `primary` menu.
+- Two menus. `primary` holds the header navigation, which the footer's Index column repeats. `footer` is the footer's call to action: the menu's name is the heading, its items are the links, and with no items the call to action is hidden. It's also hidden on the pages its links point to, so the seeded "Start a conversation" link doesn't show on `/contact`.
 
 Projects are ordered newest first by publication date on `/work`, in Selected work, for the next-project link and in the RSS feed. To place an older project correctly, set its publication date in the project editor's Publish panel.
 
@@ -52,7 +52,7 @@ The seeded menu links to `/about` and `/contact`. While the primary menu links t
 
 Keep the slug `home` on the home page entry: `/` loads the entry by that slug. Routes in `src/pages/` take precedence over `[slug].astro`, so a page with the slug `work` is hidden behind the work index. Slugs the admin creates never contain dots, so `[slug].astro` sends dotted paths such as `/favicon.ico` to the 404 page without looking them up.
 
-A site set up from an older version of this template has no `layout` field on Pages, no block types and no `contact` entry. Its pages render their title and Content, and `/contact` shows the placeholder until the block types and the Layout field are added as in step 2 of "To add a page section", and a `contact` page with a Contact details block is published.
+A site set up from an older version of this template has no `layout` field on Pages, no block types, no `contact` entry and no `footer` menu. Its pages render their title and Content, and `/contact` shows the placeholder until the block types and the Layout field are added as in step 2 of "To add a page section", and a `contact` page with a Contact details block is published. The footer shows no call to action until a menu named `footer` exists.
 
 ## Page blocks
 
@@ -88,7 +88,7 @@ Block definitions can't contain reference fields, so Selected work picks project
 
 ## Text in code
 
-Some text belongs to the template rather than the content, so it is written in the Astro files instead of the admin: the footer's "Have a project in mind?" call to action, the footer's column labels, the `/work` heading and introduction, the labels in a project's facts list, "Full index", "Elsewhere", the empty states, and the 404 page. Change them in `src/`. The footer's call to action links to `/contact` and is hidden on that page.
+Some text belongs to the template rather than the content, so it is written in the Astro files instead of the admin: the footer's column labels, the `/work` heading and introduction, the labels in a project's facts list, "Full index", "Elsewhere", the empty states, and the 404 page. Change them in `src/`.
 
 ## Visual character
 

@@ -102,6 +102,7 @@ const SITE_MATRIX: SiteCase[] = [
 		startupTimeoutMs: 90_000,
 		frontendExpectations: [
 			{ path: "/", text: "Full index" },
+			{ path: "/", text: "Have a project in mind?" },
 			{ path: "/contact", text: "hello@norma.example" },
 		],
 		sitemapPath: "/sitemap-pages.xml",
@@ -113,6 +114,7 @@ const SITE_MATRIX: SiteCase[] = [
 		startupTimeoutMs: 120_000,
 		frontendExpectations: [
 			{ path: "/", text: "Full index" },
+			{ path: "/", text: "Have a project in mind?" },
 			{ path: "/contact", text: "hello@norma.example" },
 		],
 		sitemapPath: "/sitemap-pages.xml",
