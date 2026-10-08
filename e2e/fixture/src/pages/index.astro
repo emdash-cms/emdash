@@ -10,8 +10,12 @@ const { entries: posts } = await getEmDashCollection("posts");
 			{
 				posts.map((p) => (
 					<li>
-						<a href={`/posts/${p.id}`}>{p.data.title}</a>
-						{p.data.excerpt && <span class="excerpt">{p.data.excerpt}</span>}
+						<a href={`/posts/${p.id}`} {...p.edit.title}>{p.data.title}</a>
+						{p.data.excerpt && (
+							<span class="excerpt" {...p.edit.excerpt}>
+								{p.data.excerpt}
+							</span>
+						)}
 					</li>
 				))
 			}
