@@ -3801,7 +3801,9 @@ export function PortableTextEditor({
 		// TipTap's getJSON() returns JSONContent which is structurally compatible
 		const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
 		try {
-			const portableText = normalizeEmptyPortableTextArrays(prosemirrorToPortableText(pmDoc)) as PortableTextBlock[];
+			const portableText = normalizeEmptyPortableTextArrays(
+				prosemirrorToPortableText(pmDoc),
+			) as PortableTextBlock[];
 			if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
 			lastPortableTextValueRef.current = portableText;
 			cb(portableText);
