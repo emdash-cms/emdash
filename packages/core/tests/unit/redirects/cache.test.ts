@@ -280,4 +280,44 @@ describe("redirect cache", () => {
 			);
 		});
 	});
+
+	describe("verify", () => {
+		it("reloads stale rules before answering and keeps them for later requests", async () => {
+			const source = new FakeSource(ruleSet("v1", "/new"));
+			await destinationOf(source);
+			source.current = ruleSet("v2", "/newer");
+
+			expect(await destinationOf(source)).toBe("/new");
+			const verified = await loadCachedRedirects(source, { verify: true });
+
+			expect(verified.exact.get("/old")?.destination).toBe("/newer");
+			expect(await destinationOf(source)).toBe("/newer");
+			expect(source.loads).toBe(2);
+		});
+
+		it("costs one version check and no load when the rules are current", async () => {
+			const source = new FakeSource(ruleSet("v1", "/new"));
+			await destinationOf(source);
+
+			const verified = await loadCachedRedirects(source, { verify: true });
+
+			expect(verified.exact.get("/old")?.destination).toBe("/new");
+			expect(source.checks).toBe(1);
+			expect(source.loads).toBe(1);
+		});
+
+		it("serves the cached rules when the check fails", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => {});
+			const source = new FakeSource(ruleSet("v1", "/new"));
+			await destinationOf(source);
+			source.current = ruleSet("v2", "/newer");
+			source.checkError = new Error("db down");
+
+			const verified = await loadCachedRedirects(source, { verify: true });
+
+			expect(verified.exact.get("/old")?.destination).toBe("/new");
+			expect(error).toHaveBeenCalled();
+			error.mockRestore();
+		});
+	});
 });
