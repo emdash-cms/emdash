@@ -53,7 +53,7 @@
 							"slug": "eyebrow_url",
 							"label": "Announcement link (starts with /, https://, mailto:, tel: or #)",
 							"type": "string",
-							"validation": { "pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$" }
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
 						},
 						{
 							"slug": "centered",
@@ -360,7 +360,7 @@
 							"slug": "cta_url",
 							"label": "Link (starts with /, https://, mailto:, tel: or #)",
 							"type": "string",
-							"validation": { "pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$" }
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
 						},
 						{ "slug": "image", "label": "Image", "type": "image" },
 						{
@@ -445,14 +445,14 @@
 							"slug": "primary_cta_url",
 							"label": "Primary button link (starts with /, https://, mailto:, tel: or #)",
 							"type": "string",
-							"validation": { "pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$" }
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
 						},
 						{ "slug": "secondary_cta_label", "label": "Secondary button text", "type": "string" },
 						{
 							"slug": "secondary_cta_url",
 							"label": "Secondary button link (starts with /, https://, mailto:, tel: or #)",
 							"type": "string",
-							"validation": { "pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$" }
+							"validation": { "pattern": "^(?:$|/(?!/|\\\\).*|(?:https?://|mailto:|tel:|#).+)$" }
 						},
 						{ "slug": "image", "label": "Background image", "type": "image" },
 						{
