@@ -12,6 +12,7 @@ type Props = BlockComponentProps<SelectedWorkBlock>;
 
 const { value, blockKey } = Astro.props;
 const { entries: projects } = await getSelectedWork();
+const isLoggedIn = Boolean(Astro.locals.user);
 const idPrefix = encodeURIComponent(blockKey);
 const headingId = `${idPrefix}-heading`;
 const emptyHeadingId = `${idPrefix}-empty-heading`;
@@ -133,13 +134,17 @@ const count = String(projects.length).padStart(2, "0");
 			<div class="empty">
 				<div class="empty__body">
 					<h2 id={emptyHeadingId}>No projects yet</h2>
-					<p class="empty__text">
-						Add your first project in the admin. Published projects appear
-						here, newest first.
-					</p>
-					<a href="/_emdash/admin/content/projects/new" class="btn">
-						Add a project
-					</a>
+					{isLoggedIn && (
+						<>
+							<p class="empty__text">
+								Add your first project in the admin. Published projects appear
+								here, newest first.
+							</p>
+							<a href="/_emdash/admin/content/projects/new" class="btn">
+								Add a project
+							</a>
+						</>
+					)}
 				</div>
 			</div>
 		</section>

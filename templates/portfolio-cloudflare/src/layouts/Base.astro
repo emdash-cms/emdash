@@ -41,15 +41,15 @@ if (Astro.cache?.enabled) {
 }
 
 const siteTitle = settings?.title || "Studio";
-const separator = settings?.seo?.titleSeparator || " — ";
+const separator = settings?.seo?.titleSeparator?.trim() || "—";
 const fullTitle = !title
 	? siteTitle
 	: title === siteTitle ||
 		  title.endsWith(` — ${siteTitle}`) ||
-		  title.endsWith(` | ${siteTitle}`)
+		  title.endsWith(` | ${siteTitle}`) ||
+		  title.endsWith(` ${separator} ${siteTitle}`)
 		? title
-		: `${title}${separator}${siteTitle}`;
-const siteDescription = settings?.tagline || "Design & Development";
+		: `${title} ${separator} ${siteTitle}`;
 const siteLogo = settings?.logo?.url ? settings.logo : null;
 const canonicalUrl =
 	canonical ?? new URL(Astro.url.pathname, Astro.url.origin).href;
@@ -60,7 +60,7 @@ const pageCtx = createPublicPageContext({
 	pageType: type,
 	title: fullTitle,
 	pageTitle: pageTitle ?? title ?? siteTitle,
-	description: description || siteDescription,
+	description: description || settings?.tagline || undefined,
 	canonical: canonicalUrl,
 	image,
 	content,
@@ -169,6 +169,8 @@ const year = new Date().getFullYear();
 								<img
 									src={siteLogo.url}
 									alt={siteLogo.alt || siteTitle}
+									width={siteLogo.width}
+									height={siteLogo.height}
 									class="site-brand__logo"
 								/>
 							) : (

@@ -7,6 +7,7 @@ import {
 } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
+import { absoluteImageUrl } from "../../utils/media";
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -69,7 +70,9 @@ const seo = getSeoMeta(project, {
 	siteUrl: Astro.url.origin,
 	path: `/work/${slug}`,
 	defaultDescription: project.data.summary,
-	defaultOgImage: project.data.featured_image?.src,
+	defaultOgImage: project.data.featured_image
+		? absoluteImageUrl(project.data.featured_image, Astro.url.origin)
+		: undefined,
 });
 
 const { client, year, summary } = project.data;
@@ -327,6 +330,7 @@ const halfSizes = "(min-width: 1680px) 1200px, (min-width: 768px) 72vw, 150vw";
 		line-height: var(--leading-snug);
 		letter-spacing: var(--tracking-tight);
 		color: var(--color-text);
+		white-space: pre-line;
 	}
 
 	.case-meta {
