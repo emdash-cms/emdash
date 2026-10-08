@@ -521,7 +521,8 @@ describe("astro middleware anonymous session reads", () => {
 		);
 		expect(mockGetPublicUrl).toHaveBeenCalledWith("01ABC.jpg");
 		expect("handlePluginApiRoute" in emdash).toBe(false);
-		expect(typeof emdash.getPluginRouteMeta).toBe("function");
+		expect("getPluginRouteMeta" in emdash).toBe(false);
+		expect(typeof emdash.getPublicPluginRouteMeta).toBe("function");
 		expect("handleContentList" in emdash).toBe(false);
 		expect("db" in emdash).toBe(false);
 		expect("config" in emdash).toBe(false);
@@ -534,11 +535,11 @@ describe("astro middleware anonymous session reads", () => {
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
 		const emdash = locals.emdash as Record<string, unknown>;
-		const getPluginRouteMeta = emdash.getPluginRouteMeta as (
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
 			pluginId: string,
 			path: string,
 		) => unknown;
-		expect(getPluginRouteMeta("emdash-forms", "/catalog")).toEqual({
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toEqual({
 			public: true,
 			methods: ["GET"],
 		});
@@ -577,12 +578,12 @@ describe("astro middleware anonymous session reads", () => {
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
 		const emdash = locals.emdash as Record<string, unknown>;
-		const getPluginRouteMeta = emdash.getPluginRouteMeta as (
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
 			pluginId: string,
 			path: string,
 		) => unknown;
-		expect(getPluginRouteMeta("emdash-forms", "/private")).toBeNull();
-		expect(getPluginRouteMeta("emdash-forms", "/missing")).toBeNull();
+		expect(getPublicPluginRouteMeta("emdash-forms", "/private")).toBeNull();
+		expect(getPublicPluginRouteMeta("emdash-forms", "/missing")).toBeNull();
 
 		await expect(
 			(
@@ -614,11 +615,11 @@ describe("astro middleware anonymous session reads", () => {
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
 		const emdash = locals.emdash as Record<string, unknown>;
-		const getPluginRouteMeta = emdash.getPluginRouteMeta as (
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
 			pluginId: string,
 			path: string,
 		) => unknown;
-		expect(getPluginRouteMeta("emdash-forms", "/catalog")).toMatchObject({ public: true });
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toMatchObject({ public: true });
 		mockGetPluginRouteMeta.mockReturnValueOnce({ public: false });
 		await expect(
 			(
@@ -657,7 +658,16 @@ describe("astro middleware anonymous session reads", () => {
 			pluginId: string,
 			path: string,
 		) => unknown;
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
 		expect(getPluginRouteMeta("emdash-forms", "/private")).toEqual({ public: false });
+		expect(getPublicPluginRouteMeta("emdash-forms", "/private")).toBeNull();
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toEqual({
+			public: true,
+			methods: ["GET"],
+		});
 	});
 
 	it("reads the Astro session when an astro-session cookie is present", async () => {

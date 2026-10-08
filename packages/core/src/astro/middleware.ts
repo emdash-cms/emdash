@@ -898,7 +898,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
-							getPluginRouteMeta: (pluginId, path) =>
+							getPublicPluginRouteMeta: (pluginId, path) =>
 								getPublicPluginRouteMeta(runtime, pluginId, path),
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
@@ -1097,6 +1097,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					getPluginEditorExtension: runtime.getPluginEditorExtension.bind(runtime),
 					getPluginEditorDraftSchema: runtime.getPluginEditorDraftSchema.bind(runtime),
 					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
+					getPublicPluginRouteMeta: (pluginId, path) =>
+						getPublicPluginRouteMeta(runtime, pluginId, path),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 					getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
 					getEnabledPluginMcpTools: runtime.getEnabledPluginMcpTools.bind(runtime),

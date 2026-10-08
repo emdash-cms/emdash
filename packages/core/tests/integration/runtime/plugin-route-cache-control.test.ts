@@ -124,21 +124,21 @@ describe("plugin route cacheControl — runtime wiring", () => {
 
 	it("dispatches only public metadata through the anonymous facade on SQLite", async () => {
 		const anonymousRuntime = {
-			getPluginRouteMeta: (pluginId: string, path: string) =>
+			getPublicPluginRouteMeta: (pluginId: string, path: string) =>
 				getPublicPluginRouteMeta(runtime, pluginId, path),
 			handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
 		};
 
-		expect(anonymousRuntime.getPluginRouteMeta("cache-demo", "/catalog")).toEqual({
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/catalog")).toEqual({
 			public: true,
 			cacheControl: CACHE_VALUE,
 		});
-		expect(anonymousRuntime.getPluginRouteMeta("cache-demo", "/get-only")).toEqual({
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/get-only")).toEqual({
 			public: true,
 			methods: ["GET"],
 		});
-		expect(anonymousRuntime.getPluginRouteMeta("cache-demo", "/admin")).toBeNull();
-		expect(anonymousRuntime.getPluginRouteMeta("cache-demo", "/missing")).toBeNull();
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/admin")).toBeNull();
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/missing")).toBeNull();
 
 		await expect(
 			anonymousRuntime.handlePublicPluginApiRoute(
