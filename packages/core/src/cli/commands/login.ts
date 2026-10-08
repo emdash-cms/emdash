@@ -23,6 +23,7 @@ import {
 	resolveCustomHeaders,
 	runCloudflaredLogin,
 } from "../../client/cf-access.js";
+import { connectionArgs, resolveBaseUrl } from "../client-factory.js";
 import {
 	getCredentials,
 	removeCredentials,
@@ -409,42 +410,27 @@ export const whoamiCommand = defineCommand({
 		name: "whoami",
 		description: "Show current user and auth method",
 	},
-	args: {
-		url: {
-			type: "string",
-			alias: "u",
-			description: "EmDash instance URL",
-			default: "http://localhost:4321",
-		},
-		token: {
-			type: "string",
-			alias: "t",
-			description: "Auth token",
-		},
-		json: {
-			type: "boolean",
-			description: "Output as JSON",
-		},
-	},
+	args: { ...connectionArgs },
 	async run({ args }) {
 		configureOutputMode(args);
-		const baseUrl = args.url || "http://localhost:4321";
+		const baseUrl = resolveBaseUrl(args);
 
 		// Resolve token: --token flag > EMDASH_TOKEN env > stored credentials
 		let token = args.token || process.env["EMDASH_TOKEN"];
 		let authMethod = token ? "token" : "none";
-		let storedHeaders: Record<string, string> = {};
+		const cred = token ? null : getCredentials(baseUrl);
+		const headerFetch = createHeaderAwareFetch({
+			...cred?.customHeaders,
+			...resolveCustomHeaders(),
+		});
 
 		if (!token) {
-			const cred = getCredentials(baseUrl);
 			if (cred) {
 				token = cred.accessToken;
 				authMethod = "stored";
-				storedHeaders = cred.customHeaders ?? {};
 
 				// Check if expired
 				if (new Date(cred.expiresAt) < new Date()) {
-					const headerFetch = createHeaderAwareFetch(storedHeaders);
 					// Try to refresh
 					try {
 						const refreshRes = await headerFetch(
@@ -490,40 +476,46 @@ export const whoamiCommand = defineCommand({
 			const isLocal = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
 			if (isLocal) {
 				authMethod = "dev-bypass";
-				consola.info(`Auth method: ${pc.cyan("dev-bypass")}`);
-				consola.info("No stored credentials. Client will use dev bypass for localhost.");
-				return;
+			} else {
+				consola.error("Not logged in. Run: emdash login");
+				process.exit(2);
 			}
-
-			consola.error("Not logged in. Run: emdash login");
-			process.exit(2);
 		}
 
-		const headerFetch = createHeaderAwareFetch(storedHeaders);
-
 		try {
-			const meRes = await headerFetch(new URL("/_emdash/api/auth/me", baseUrl), {
-				headers: { Authorization: `Bearer ${token}` },
-			});
+			const meRes = token
+				? await headerFetch(new URL("/_emdash/api/auth/me", baseUrl), {
+						headers: { Authorization: `Bearer ${token}` },
+					})
+				: await headerFetch(new URL("/_emdash/api/auth/dev-bypass", baseUrl), {
+						redirect: "manual",
+					});
 
 			if (!meRes.ok) {
-				if (meRes.status === 401) {
+				if (token && meRes.status === 401) {
 					consola.error("Token is invalid or expired. Run: emdash login");
+					process.exit(1);
+				}
+				if (!token && meRes.status === 403) {
+					consola.error("The dev bypass only works under `astro dev`. Run: emdash login");
+					process.exit(1);
+				}
+				if (!token && meRes.status === 404) {
+					consola.error("The dev bypass is not available on this site. Run: emdash login");
 					process.exit(1);
 				}
 				consola.error(`Failed to fetch user info: ${meRes.status}`);
 				process.exit(1);
 			}
 
-			const raw = (await meRes.json()) as {
-				data: {
-					id: string;
-					email: string;
-					name: string | null;
-					role: number;
-				};
-			};
-			const me = raw.data;
+			interface Me {
+				id: string;
+				email: string;
+				name: string | null;
+				role: number;
+			}
+			const raw = (await meRes.json()) as { data: Me | { user: Me } };
+			const me = "user" in raw.data ? raw.data.user : raw.data;
 
 			const roleNames: Record<number, string> = {
 				10: "subscriber",
