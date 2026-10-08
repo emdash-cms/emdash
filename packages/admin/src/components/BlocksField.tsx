@@ -159,7 +159,7 @@ export function BlocksField({
 	};
 
 	return (
-		<div id={id} className="grid gap-3">
+		<div id={id} className="grid grid-cols-1 gap-3">
 			<div className="flex items-center justify-between gap-3">
 				<Label>{label}</Label>
 				{!readOnly && (
