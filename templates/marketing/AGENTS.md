@@ -58,7 +58,7 @@ The demo content is Halden, a fictional energy-intelligence company for commerci
 
 There is no posts collection. Content is entirely authored as marketing blocks inside `pages`.
 
-`src/pages/index.astro` renders the `home` entry at `/`, and `src/pages/[slug].astro` renders every other page at `/{slug}`, so a page created or renamed in the admin works without a new route file; renaming a slug also adds an automatic redirect from the old URL. A slug with no page renders the 404 page. When a page has no hero, its title renders above the blocks as the `h1`. A page without blocks shows only its title to visitors, plus a link to edit it for logged-in editors; if the `home` entry is missing, the home page shows the site title and tagline, and editors get a link to create the page.
+`src/pages/index.astro` renders the `home` entry at `/`, and `src/pages/[slug].astro` renders every other page at `/{slug}`, so a page created or renamed in the admin works without a new route file; renaming a slug also adds an automatic redirect from the old URL. A slug with no page renders the 404 page. When a page has no hero, its title renders above the blocks as the `h1` (the home page shows the site title instead). A page without blocks shows only that heading to visitors, plus a link to edit it for logged-in editors; if the `home` entry is missing, the home page shows the site title and tagline, and editors get a link to create the page.
 
 ## Schema
 
