@@ -350,6 +350,7 @@
     "@vitest/ui": "catalog:",
     "astro": "catalog:",
     "image-size": "catalog:",
+    "lightningcss": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

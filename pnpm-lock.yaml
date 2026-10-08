@@ -288,6 +288,9 @@ catalogs:
     kysely:
       specifier: ^0.29.0
       version: 0.29.2
+    lightningcss:
+      specifier: 1.32.0
+      version: 1.32.0
     lowlight:
       specifier: ^3.3.0
       version: 3.3.0
@@ -2329,6 +2332,9 @@ importers:
       image-size:
         specifier: 'catalog:'
         version: 2.0.2(patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595)
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.32.0
       publint:
         specifier: 'catalog:'
         version: 0.3.17
@@ -3177,6 +3183,9 @@ importers:
       '@astrojs/check':
         specifier: 'catalog:'
         version: 0.9.10(prettier-plugin-astro@0.14.1)(prettier@3.9.5)(typescript@6.0.0-beta)
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.32.0
 
   templates/blog-cloudflare:
     dependencies:
@@ -3208,6 +3217,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.32.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -3242,6 +3254,9 @@ importers:
       '@astrojs/check':
         specifier: 'catalog:'
         version: 0.9.10(prettier-plugin-astro@0.14.1)(prettier@3.9.5)(typescript@6.0.0-beta)
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.32.0
 
   templates/marketing-cloudflare:
     dependencies:
@@ -3279,6 +3294,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.32.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -3307,6 +3325,9 @@ importers:
       '@astrojs/check':
         specifier: 'catalog:'
         version: 0.9.10(prettier-plugin-astro@0.14.1)(prettier@3.9.5)(typescript@6.0.0-beta)
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.32.0
 
   templates/portfolio-cloudflare:
     dependencies:
@@ -3338,6 +3359,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.32.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
