@@ -155,7 +155,9 @@ export function MenuList() {
 											required
 											placeholder={t`Primary navigation`}
 										/>
-										<p className="mt-1 text-sm text-kumo-subtle">{t`Shown in the admin menu list.`}</p>
+										<p className="mt-1 text-sm text-kumo-subtle">
+											{t`Shown in the admin. Some themes also show it on the site.`}
+										</p>
 									</div>
 									<div>
 										<Input

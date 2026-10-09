@@ -13,15 +13,17 @@ Create and arrange menus in **Menus** in the EmDash admin.
 
 <Steps>
 
-1. Click **Create Menu** and enter a name and label. Templates query the name, while the label identifies the menu in the admin.
+1. Click **Create Menu** and enter a name and label. Templates query the name. The label identifies the menu in the admin, and some templates also show it on the site. To change the label later, open the menu and click the pencil button next to its title.
 
 2. Click **Add Content** to link an entry, or **Add Custom Link** to enter an external URL or a root-relative site path.
 
 3. Use **Move up** and **Move down** to set the order. Edit an item and choose a **Parent** to nest it.
 
+4. To style an item differently, edit it and enter its **CSS classes**, separated by spaces. The template decides what each class does. For example, the marketing template shows a `primary` menu item with the `button` class as a button in the header.
+
 </Steps>
 
-Use the same menu name in every locale. On a multilingual site, open a menu and use its **Translations** panel to create and edit the other locale versions. EmDash keeps the translations of the same content or taxonomy term connected, so `getMenu()` can use the label and slug for the requested locale.
+Use the same menu name in every locale. On a multilingual site, open a menu and use its **Translations** panel to create and edit the other locale versions. Each locale version has its own label, so renaming a menu changes only the version you are editing. EmDash keeps the translations of the same content or taxonomy term connected, so `getMenu()` can use the label and slug for the requested locale.
 
 ## How menu links resolve
 
