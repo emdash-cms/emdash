@@ -312,7 +312,7 @@ export async function runAction(
 	}
 	if (FAILURE_STATES.has(intent.state)) {
 		throw new ActionConfigurationError(
-			`Release intent ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}`,
+			`Release intent ${intent.id} ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}${intent.reasonMessage ? `: ${intent.reasonMessage}` : ""}`,
 		);
 	}
 	throw new ActionConfigurationError(`Release intent stopped in unexpected state ${intent.state}`);

@@ -281,9 +281,8 @@ Almost every label you'll see on a PR is applied and removed automatically. You 
 - `type/design` — a feature plan, RFC, or proposal amendment. AI reviewers skip these PRs.
 - `needs-approval` — CI hasn't run because the workflows are waiting for maintainer approval, which is normal for first-time contributors. Despite the name, it has nothing to do with Discussion approval.
 - `needs-rebase` — the branch has merge conflicts with `main`.
-- `overlap` — another open PR touches the same files; the bot leaves a comment identifying it.
-- `stale` — no activity for two weeks. Stale PRs are closed automatically after three, except design PRs, which stay open until someone closes them; a comment from you can keep a promising one alive.
-- `size/*`, `area/*`, `bot`, and the CLA labels are applied when the PR is opened or updated.
+- `stale` — the PR is waiting on its author (changes requested, merge conflicts, or still a draft) and has had no human activity for two weeks. Implementation PRs are closed a week after the warning unless someone responds; design PRs are warned but never closed for inactivity. A human comment or update keeps a promising PR alive. PRs waiting on a review never go stale.
+- `size/*`, `area/*`, `bot`, and the CLA labels are applied when the PR is opened or updated. A PR whose CLA is still unsigned a day after it opens gets a reminder, and is closed at seven days.
 
 The labels you apply by hand on a PR:
 

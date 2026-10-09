@@ -27,13 +27,20 @@ describe("create-only release client", () => {
 		).rejects.toMatchObject({ code: "CREATE_RESPONSE_INVALID" });
 	});
 
-	it("calls only createRecord with validation enabled", async () => {
-		const handle = vi.fn(async (_pathname: string, _init: RequestInit) =>
-			Response.json({
+	it("publishes to a PDS that has not bundled the release lexicon", async () => {
+		const handle = vi.fn(async (_pathname: string, init: RequestInit) => {
+			const body = JSON.parse(init.body as string);
+			if (body.validate === true) {
+				return Response.json(
+					{ error: "InvalidRecord", message: "Unknown lexicon type" },
+					{ status: 400 },
+				);
+			}
+			return Response.json({
 				uri: `at://did:plc:publisher/${NSID.packageRelease}/gallery:1.2.3`,
 				cid: "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe",
-			}),
-		);
+			});
+		});
 		const session: FetchHandlerObject = { handle };
 		await expect(
 			createReleaseRecord(session, {
@@ -52,7 +59,47 @@ describe("create-only release client", () => {
 			repo: "did:plc:publisher",
 			collection: NSID.packageRelease,
 			rkey: "gallery:1.2.3",
-			validate: true,
+		});
+	});
+
+	it("rejects an invalid release locally before contacting the PDS", async () => {
+		const handle = vi.fn();
+		const record = structuredClone(releaseFixture) as PackageRelease.Main;
+		Reflect.deleteProperty(record.artifacts.package, "checksum");
+		await expect(
+			createReleaseRecord(
+				{ handle },
+				{
+					publisherDid: "did:plc:publisher",
+					rkey: "gallery:1.2.3",
+					record,
+				},
+			),
+		).rejects.toMatchObject({ code: "CREATE_INPUT_INVALID" });
+		expect(handle).not.toHaveBeenCalled();
+	});
+
+	it("keeps the PDS rejection code and status without its raw message", async () => {
+		const handle = vi.fn(async () =>
+			Response.json(
+				{ error: "InvalidRecord", message: "private provider detail" },
+				{ status: 400 },
+			),
+		);
+		await expect(
+			createReleaseRecord(
+				{ handle },
+				{
+					publisherDid: "did:plc:publisher",
+					rkey: "gallery:1.2.3",
+					record: structuredClone(releaseFixture) as PackageRelease.Main,
+				},
+			),
+		).rejects.toMatchObject({
+			code: "PDS_RECORD_INVALID",
+			status: 400,
+			pdsError: "InvalidRecord",
+			message: "PDS_RECORD_INVALID",
 		});
 	});
 

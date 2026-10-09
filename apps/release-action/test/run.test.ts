@@ -91,7 +91,12 @@ class FakeRuntime implements ActionRuntime {
 
 function intent(
 	state: string,
-	options: { approvalUrl?: string | null; reasonCode?: string | null; result?: unknown } = {},
+	options: {
+		approvalUrl?: string | null;
+		reasonCode?: string | null;
+		reasonMessage?: string | null;
+		result?: unknown;
+	} = {},
 ) {
 	return {
 		id: INTENT_ID,
@@ -101,6 +106,7 @@ function intent(
 		state,
 		stateGeneration: 5,
 		reasonCode: options.reasonCode ?? null,
+		...(options.reasonMessage ? { reasonMessage: options.reasonMessage } : {}),
 		workflowId: INTENT_ID,
 		expiresAt: 1_800_000_000_000,
 		createdAt: 1_799_999_000_000,
@@ -405,8 +411,26 @@ describe("delegated release Action", () => {
 			]),
 		});
 
-		expect(runtime.failures).toEqual(["Release intent ended in invalid (PROVENANCE_INVALID)"]);
+		expect(runtime.failures).toEqual([
+			`Release intent ${INTENT_ID} ended in invalid (PROVENANCE_INVALID)`,
+		]);
 		expect(runtime.outputs.get("reason-code")).toBe("PROVENANCE_INVALID");
+	});
+
+	it("shows actionable service errors and the intent ID to the publisher", async () => {
+		const runtime = new FakeRuntime();
+		const reasonMessage = "Your PDS rejected the release record. Start a fresh workflow dispatch.";
+		await executeAction(runtime, {
+			...dependencies,
+			fetch: sequenceFetch([
+				success({ status: "connected", policy: policy() }),
+				success({ intent: intent("received"), replayed: false }, 202),
+				success({ intent: intent("failed", { reasonCode: "PDS_RETRY_EXHAUSTED", reasonMessage }) }),
+			]),
+		});
+		expect(runtime.failures).toEqual([
+			`Release intent ${INTENT_ID} ended in failed (PDS_RETRY_EXHAUSTED): ${reasonMessage}`,
+		]);
 	});
 
 	it("does not expose provider failures or OIDC tokens", async () => {
