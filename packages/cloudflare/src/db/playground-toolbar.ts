@@ -63,6 +63,7 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
     </button>
   </div>
 </div>
+<div id="ec-pg-spacer" aria-hidden="true"></div>
 
 <style>
   #emdash-playground-toolbar {
@@ -85,6 +86,26 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
   }
 
   #emdash-playground-toolbar.ec-pg-hidden {
+    display: none;
+  }
+
+  /* Lets visitors scroll the end of the page out from under the fixed toolbar. */
+  #ec-pg-spacer {
+    height: 72px;
+  }
+
+  @media (max-width: 639px) {
+    #ec-pg-spacer {
+      height: 104px;
+    }
+  }
+
+  #emdash-playground-toolbar.ec-pg-hidden + #ec-pg-spacer {
+    display: none;
+  }
+
+  /* The admin scrolls inside its own viewport-height shell. */
+  #admin-root ~ #ec-pg-spacer {
     display: none;
   }
 
@@ -308,6 +329,13 @@ export function renderPlaygroundToolbar(config: PlaygroundToolbarConfig): string
     } else {
       statusEl.className = "ec-pg-status";
     }
+  }
+
+  var spacer = document.getElementById("ec-pg-spacer");
+  if (spacer && typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(function() {
+      if (toolbar.offsetHeight) spacer.style.height = toolbar.offsetHeight + 32 + "px";
+    }).observe(toolbar);
   }
 
   updateStatus();
