@@ -16,7 +16,7 @@ import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import { requestCached } from "../request-cache.js";
-import { isMissingTableError } from "../utils/db-errors.js";
+import { isMissingColumnError, isMissingTableError } from "../utils/db-errors.js";
 
 /** One reference field, as a render needs it. */
 export interface ReferenceFieldBinding {
@@ -62,7 +62,12 @@ async function loadBindings(
 		`.execute(db);
 		rows = result.rows;
 	} catch (error) {
-		if (isMissingTableError(error)) return [];
+		// When core migrations are pending, `_emdash_relations` may exist without
+		// the `slug` column that this query joins on (added in 086). Treat that
+		// exactly like a missing table: no bound reference fields are known yet,
+		// so filtering/sorting by an ordinary custom field can still fall through
+		// to the content table instead of being misread as a bad filter.
+		if (isMissingTableError(error) || isMissingColumnError(error)) return [];
 		throw error;
 	}
 
