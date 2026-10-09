@@ -833,9 +833,8 @@ export async function importContent(
 
 		const mapping = config.postTypeMappings[item.postType];
 
-		// Skip if not mapped or disabled
+		// Unmapped or disabled post types are not part of the import.
 		if (!mapping || !mapping.enabled) {
-			result.skipped++;
 			continue;
 		}
 

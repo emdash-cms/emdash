@@ -350,6 +350,7 @@ export interface FetchOptions {
 export interface ImportResult {
 	success: boolean;
 	imported: number;
+	/** Entries not imported because the slug already exists in the collection and locale. */
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
