@@ -19,7 +19,7 @@ export interface AuthResult {
 	email: string;
 	/** User's display name */
 	name: string;
-	/** Resolved role level (e.g., 50 for Admin, 30 for Author) */
+	/** Resolved role level (e.g., 50 for Admin, 40 for Editor, 30 for Author) */
 	role: number;
 	/** Provider-specific subject ID */
 	subject?: string;
