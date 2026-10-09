@@ -725,7 +725,15 @@ describe("$media seed resolution", () => {
 	});
 
 	it("downloads no more files per call than its budget allows", async () => {
-		mockFetch.mockImplementation(async () => createMockResponse(MOCK_PNG, "image/png"));
+		mockFetch.mockImplementation(async (requestUrl) => {
+			// Vary the response body by URL so content-hash deduplication
+			// does not collapse the three distinct files into one row.
+			const slug = new URL(String(requestUrl)).pathname.slice(1);
+			const body = new Uint8Array(MOCK_PNG.length + slug.length);
+			body.set(MOCK_PNG);
+			body.set(new TextEncoder().encode(slug), MOCK_PNG.length);
+			return createMockResponse(body, "image/png");
+		});
 		const seed: SeedFile = {
 			version: "1",
 			content: {

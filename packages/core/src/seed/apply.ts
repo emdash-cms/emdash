@@ -50,6 +50,7 @@ import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { computeContentHash } from "../utils/hash.js";
 import type {
 	SeedFile,
 	SeedField,
@@ -206,8 +207,9 @@ export interface SeedApplyProgress {
  * the platform's. A call that stops returns `complete: false`; applying the
  * same seed again continues with the first item not yet created. A call
  * creates at least one item before it stops, so repeated calls finish. A
- * `$media` URL used by entries in different calls is downloaded and stored
- * again, as a new media row, in each of those calls. Requires
+ * `$media` URL used by entries in different calls is still downloaded each time
+ * so its content hash can be computed, but the resulting media row is reused
+ * when an existing ready row has the same hash. Requires
  * `onConflict: "skip"`.
  */
 export async function applySeedWithinBudget(
@@ -2324,7 +2326,7 @@ async function resolveMedia(
 			filename: filename ?? undefined,
 		};
 		ctx.mediaCache.set(url, mediaValue);
-		result.media.created++;
+		result.media.skipped++;
 		return mediaValue;
 	}
 
@@ -2359,14 +2361,36 @@ async function resolveMedia(
 		const contentType = response.headers.get("content-type") || "application/octet-stream";
 		const ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(url) || ".bin";
 
+		// Get the body as buffer
+		const arrayBuffer = await response.arrayBuffer();
+		const body = new Uint8Array(arrayBuffer);
+
+		// Deduplicate by content hash so re-running a seed does not mint a
+		// fresh media row for a file that already exists in the library.
+		const contentHash = await computeContentHash(body);
+		const mediaRepo = new MediaRepository(ctx.db);
+		const existing = await mediaRepo.findByContentHash(contentHash);
+		if (existing) {
+			const mediaValue: MediaValue = {
+				provider: "local",
+				id: existing.id,
+				alt: alt ?? existing.alt ?? undefined,
+				width: existing.width ?? undefined,
+				height: existing.height ?? undefined,
+				mimeType: existing.mimeType,
+				filename: existing.filename,
+				meta: { storageKey: existing.storageKey },
+			};
+			ctx.mediaCache.set(url, mediaValue);
+			result.media.skipped++;
+			console.log(`  ✅ Reused: ${existing.filename}`);
+			return mediaValue;
+		}
+
 		// Generate filename and storage key
 		const storageId = ulid();
 		const finalFilename = filename || generateFilename(url, ext);
 		const storageKey = `${storageId}${ext}`;
-
-		// Get the body as buffer
-		const arrayBuffer = await response.arrayBuffer();
-		const body = new Uint8Array(arrayBuffer);
 
 		// Get image dimensions if it's an image
 		let width: number | undefined;
@@ -2385,7 +2409,6 @@ async function resolveMedia(
 		});
 
 		// Create media record
-		const mediaRepo = new MediaRepository(ctx.db);
 		const media = await mediaRepo.create({
 			filename: finalFilename,
 			mimeType: contentType,
@@ -2395,6 +2418,7 @@ async function resolveMedia(
 			alt,
 			caption,
 			storageKey,
+			contentHash,
 			status: "ready",
 		});
 
