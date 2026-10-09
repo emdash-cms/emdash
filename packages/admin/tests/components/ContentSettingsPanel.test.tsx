@@ -1027,6 +1027,47 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
 	});
 
+	it("keeps the saved section order when sections are reordered on a new entry", async () => {
+		const storageKey = "emdash:content-settings-layout:v1:u1:posts";
+		const savedLayout = JSON.stringify({
+			version: 1,
+			order: ["seo", "taxonomies", "url-language", "ownership", "bylines"],
+		});
+		window.localStorage.setItem(storageKey, savedLayout);
+		try {
+			const screen = await render(
+				<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+			);
+			const headings = () =>
+				Array.from(
+					screen.container.querySelectorAll("section h3"),
+					(heading) => heading.textContent,
+				);
+			await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeVisible();
+			expect(headings().indexOf("Bylines")).toBeGreaterThan(headings().indexOf("Ownership"));
+
+			const handle = screen.getByRole("button", { name: "Drag to reorder Bylines" }).element();
+			handle.focus();
+			for (const [target, key, code] of [
+				[handle, " ", "Space"],
+				[document, "ArrowUp", "ArrowUp"],
+				[document, " ", "Space"],
+			] as const) {
+				await act(async () => {
+					fireEvent.keyDown(target, { key, code });
+					await new Promise((resolve) => setTimeout(resolve, 0));
+				});
+			}
+
+			await vi.waitFor(() =>
+				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
+			);
+			expect(window.localStorage.getItem(storageKey)).toBe(savedLayout);
+		} finally {
+			window.localStorage.removeItem(storageKey);
+		}
+	});
+
 	it("does not render an empty publishing summary for a new collection without drafts", async () => {
 		const screen = await render(
 			<ContentSettingsPanel

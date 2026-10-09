@@ -807,6 +807,7 @@ function ContentNewPage() {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
+	const { data: currentUser } = useCurrentUser();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -934,6 +935,7 @@ function ContentNewPage() {
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
+			currentUser={currentUser}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>

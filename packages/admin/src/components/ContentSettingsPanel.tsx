@@ -933,7 +933,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
 			<SortableContentSettingsSections
 				collection={collection}
-				userId={currentUser?.id}
+				// A new entry shows fewer sections, and saving its order would drop the rest.
+				userId={isNew ? undefined : currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
