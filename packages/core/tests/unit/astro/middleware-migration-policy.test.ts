@@ -160,6 +160,31 @@ describe("middleware migration check failures", () => {
 			);
 		});
 
+		it("logs a migration it waits for at most once every 30 seconds", async () => {
+			mockRuntimeCreate.mockRejectedValue(lockHeld);
+			const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+			errorLog.mockClear();
+			const start = Date.now() + 60_000;
+			const now = vi.spyOn(Date, "now").mockReturnValue(start);
+			const requiredLogs = () =>
+				errorLog.mock.calls.filter(
+					([message]) => message === "[emdash] database migrations are required:",
+				).length;
+			const request = () => onRequest(contextFor("/") as never, vi.fn());
+
+			try {
+				await request();
+				await request();
+				expect(requiredLogs()).toBe(1);
+
+				now.mockReturnValue(start + 30_000);
+				await request();
+				expect(requiredLogs()).toBe(2);
+			} finally {
+				now.mockRestore();
+			}
+		});
+
 		it("still renders a public page when runtime init fails for another reason", async () => {
 			mockRuntimeCreate.mockRejectedValue(new Error("connection reset"));
 			const next = vi.fn(async () => new Response("route response"));

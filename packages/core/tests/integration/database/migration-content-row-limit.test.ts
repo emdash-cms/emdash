@@ -144,5 +144,11 @@ describeEachDialect("content row limit for runtime migrations", (dialect) => {
 
 			await expect(run(3)).rejects.toBeInstanceOf(MigrationRowLimitError);
 		});
+
+		it("still refuses when a collection's table is missing", async () => {
+			await ctx.db.schema.dropTable("ec_pages").execute();
+
+			await expect(run(1)).rejects.toBeInstanceOf(MigrationRowLimitError);
+		});
 	});
 });
