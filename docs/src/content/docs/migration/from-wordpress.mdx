@@ -77,6 +77,8 @@ Scheduled dates and WordPress visibility rules are not reconstructed from these 
 
 Gutenberg markup is converted to Portable Text. Classic HTML is processed by the same converter. Inspect complex blocks, embeds, shortcodes, page-builder markup, and plugin-defined blocks in the rendered EmDash site.
 
+Blocks that WordPress renders on the server, such as Latest Posts or blocks from plugins, have no saved markup. They are imported as HTML blocks that contain the original block comment, for example `<!-- wp:latest-posts {"postsToShow":3} /-->`. These blocks show no content on the site. Open the block's HTML tab in the editor to see what it was, then rebuild it or remove it.
+
 WXR `wp_block` entries are imported as sections. They are not imported into an ordinary content collection.
 
 ### Collections and fields
