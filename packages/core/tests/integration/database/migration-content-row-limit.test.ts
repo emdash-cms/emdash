@@ -109,5 +109,40 @@ describeEachDialect("content row limit for runtime migrations", (dialect) => {
 			);
 			expect(await postCreatedAt()).toBe("2012-09-12T18:00:00.000Z");
 		});
+
+		async function insertRevisions(collection: string, count: number) {
+			await ctx.db
+				.insertInto("revisions")
+				.values(
+					Array.from({ length: count }, (_, index) => ({
+						id: `${collection}-revision-${index}`,
+						collection,
+						entry_id: collection,
+						data: JSON.stringify({}),
+						author_id: null,
+						created_at: NAIVE,
+					})),
+				)
+				.execute();
+		}
+
+		it("counts revisions it only reads at a fraction of a row", async () => {
+			await insertRevisions("pages", 15);
+
+			const { applied } = await run(3);
+
+			expect(applied[0]).toBe("079_datetime_normalization");
+		});
+
+		it("counts every revision of a collection with datetime fields", async () => {
+			await new SchemaRegistry(ctx.db).createField("posts", {
+				slug: "starts_at",
+				label: "Starts at",
+				type: "datetime",
+			});
+			await insertRevisions("posts", 1);
+
+			await expect(run(3)).rejects.toBeInstanceOf(MigrationRowLimitError);
+		});
 	});
 });

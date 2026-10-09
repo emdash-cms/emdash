@@ -487,7 +487,13 @@ function pendingMigrationsResponse(error: PendingMigrationsError): Response {
 
 function migrationRequiredErrorResponse(error: unknown): Response {
 	if (error instanceof PendingMigrationsError) return pendingMigrationsResponse(error);
-	console.error("[emdash] database migrations are required:", error);
+	if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+		lastRuntimeInitErrorLogAt = Date.now();
+		console.error(
+			"[emdash] database migrations are required:",
+			error instanceof Error ? error.message : error,
+		);
+	}
 	return migrationRequiredResponse();
 }
 

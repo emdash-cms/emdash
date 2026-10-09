@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type RawBuilder } from "kysely";
 
 import { isMissingTableError } from "../../utils/db-errors.js";
 import type { Database } from "../types.js";
@@ -10,14 +10,21 @@ import { validateIdentifier } from "../validate.js";
  * row count with its limit before it takes the migration lock.
  */
 export interface ContentSizedMigration {
-	/** Counts the rows the migration processes, stopping once `cap` rows are counted. */
+	/**
+	 * Counts the rows the migration writes, with rows it only reads weighted by
+	 * their share of a statement. Stops once `cap` is reached.
+	 */
 	countRows(db: Kysely<Database>, cap: number): Promise<number>;
 }
 
-async function countTableRows(db: Kysely<Database>, table: string, cap: number): Promise<number> {
+async function countCapped(
+	db: Kysely<Database>,
+	rows: RawBuilder<unknown>,
+	cap: number,
+): Promise<number> {
 	try {
 		const result = await sql<{ count: number | string | bigint }>`
-			SELECT COUNT(*) AS count FROM (SELECT 1 FROM ${sql.ref(table)} LIMIT ${cap}) AS capped
+			SELECT COUNT(*) AS count FROM (${rows} LIMIT ${cap}) AS capped
 		`.execute(db);
 		return Number(result.rows[0]?.count ?? 0);
 	} catch (error) {
@@ -26,7 +33,21 @@ async function countTableRows(db: Kysely<Database>, table: string, cap: number):
 	}
 }
 
-async function countContentAndRevisionRows(db: Kysely<Database>, cap: number): Promise<number> {
+const DATETIME_COLLECTIONS = sql`
+	SELECT collection.slug FROM _emdash_collections AS collection
+	INNER JOIN _emdash_fields AS field ON field.collection_id = collection.id
+	WHERE field.type IN ('datetime', 'repeater')
+`;
+
+/**
+ * 079 can update every entry and every revision of a collection with datetime
+ * fields, one statement each. It only reads the other revisions, 50 per
+ * statement in each of its three passes, so about 16 of them cost what one
+ * written row does.
+ */
+const READ_ONLY_REVISIONS_PER_ROW = 16;
+
+async function countDatetimeNormalizationRows(db: Kysely<Database>, cap: number): Promise<number> {
 	let slugs: string[];
 	try {
 		const collections = await db.selectFrom("_emdash_collections").select("slug").execute();
@@ -35,20 +56,27 @@ async function countContentAndRevisionRows(db: Kysely<Database>, cap: number): P
 		if (isMissingTableError(error)) return 0;
 		throw error;
 	}
-	let rows = await countTableRows(db, "revisions", cap);
+	let rows = await countCapped(
+		db,
+		sql`SELECT 1 FROM revisions WHERE collection IN (${DATETIME_COLLECTIONS})`,
+		cap,
+	);
 	for (const slug of slugs) {
-		if (rows >= cap) break;
+		if (rows >= cap) return rows;
 		validateIdentifier(slug, "collection slug");
 		// oxlint-disable-next-line no-await-in-loop -- each count is capped by what the previous ones left
-		rows += await countTableRows(db, `ec_${slug}`, cap - rows);
+		rows += await countCapped(db, sql`SELECT 1 FROM ${sql.ref(`ec_${slug}`)}`, cap - rows);
 	}
-	return rows;
+	if (rows >= cap) return rows;
+	const readOnly = await countCapped(
+		db,
+		sql`SELECT 1 FROM revisions WHERE collection NOT IN (${DATETIME_COLLECTIONS})`,
+		(cap - rows) * READ_ONLY_REVISIONS_PER_ROW,
+	);
+	return rows + Math.ceil(readOnly / READ_ONLY_REVISIONS_PER_ROW);
 }
 
-/**
- * Registered by migration name. Published migrations are immutable, so an
- * existing migration is marked here instead of in its own module.
- */
+/** Keyed by migration name, since a published migration's module must not change. */
 export const CONTENT_SIZED_MIGRATIONS: ReadonlyMap<string, ContentSizedMigration> = new Map([
-	["079_datetime_normalization", { countRows: countContentAndRevisionRows }],
+	["079_datetime_normalization", { countRows: countDatetimeNormalizationRows }],
 ]);
