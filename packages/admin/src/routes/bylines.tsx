@@ -1,30 +1,22 @@
 import {
 	Badge,
 	Button,
-	Dialog,
 	DropdownMenu,
-	Input,
-	InputArea,
 	LayerCard,
 	Loader,
 	Select,
-	Switch,
 	Table,
 	Toast,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { DotsThree, IdentificationCard, Pencil, Plus, Trash, X } from "@phosphor-icons/react";
+import { DotsThree, IdentificationCard, Pencil, Plus, Trash } from "@phosphor-icons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
-import { flushSync } from "react-dom";
 
-import { BylineAvatarField } from "../components/BylineAvatarField.js";
-import { BYLINE_SLUG_PATTERN, toBylineSlug } from "../components/BylineCreditsEditor.js";
+import { BylineFormDialog, type BylineFormValues } from "../components/BylineFormDialog.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
-import { DialogError, getMutationError } from "../components/DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
-import { OptionalLabel } from "../components/OptionalLabel.js";
 import { RouterLinkButton } from "../components/RouterLinkButton.js";
 import { BYLINE_SCHEMA_NAV_ITEM } from "../components/Sidebar.js";
 import { TableToolbar, TableToolbarSearch } from "../components/TableToolbar.js";
@@ -33,43 +25,14 @@ import {
 	createByline,
 	createBylineTranslation,
 	deleteByline,
-	fetchByline,
 	fetchBylineTranslations,
 	fetchBylines,
-	fetchUsers,
 	updateByline,
 	type BylineSummary,
-	type UserListItem,
 } from "../lib/api";
-import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-fields.js";
 import { fetchManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user.js";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { isSafeUrl } from "../lib/url.js";
-
-interface BylineFormState {
-	slug: string;
-	displayName: string;
-	bio: string;
-	websiteUrl: string;
-	userId: string | null;
-	isGuest: boolean;
-	/** Media id of the byline's avatar image, or null when unset (#1250). */
-	avatarMediaId: string | null;
-	/**
-	 * Custom-field values keyed by field slug (Phase 6 of #1174). Always
-	 * a defined object — `{}` when no fields are registered or the byline
-	 * has no stored values — so callers can spread it into update bodies
-	 * unconditionally.
-	 */
-	customFields: Record<string, unknown>;
-}
-
-interface BylineFormErrors {
-	displayName?: string;
-	slug?: string;
-	websiteUrl?: string;
-}
 
 const BYLINE_NAME_SEPARATOR = /\s+/;
 const BYLINE_INITIAL_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" });
@@ -94,45 +57,6 @@ export function loadMoreSnapshotMatches(
 		snapshot.guestFilter === current.guestFilter &&
 		snapshot.locale === current.locale
 	);
-}
-
-function isSameFormState(a: BylineFormState, b: BylineFormState): boolean {
-	return JSON.stringify(a) === JSON.stringify(b);
-}
-
-function toFormState(byline?: BylineSummary | null): BylineFormState {
-	if (!byline) {
-		return {
-			slug: "",
-			displayName: "",
-			bio: "",
-			websiteUrl: "",
-			userId: null,
-			isGuest: false,
-			avatarMediaId: null,
-			customFields: {},
-		};
-	}
-
-	return {
-		slug: byline.slug,
-		displayName: byline.displayName,
-		bio: byline.bio ?? "",
-		websiteUrl: byline.websiteUrl ?? "",
-		userId: byline.userId,
-		isGuest: byline.isGuest,
-		avatarMediaId: byline.avatarMediaId ?? null,
-		customFields: byline.customFields ?? {},
-	};
-}
-
-function isHttpUrl(value: string): boolean {
-	return isSafeUrl(value) && URL.canParse(value);
-}
-
-function getUserLabel(user: UserListItem): string {
-	if (user.name) return `${user.name} (${user.email})`;
-	return user.email;
 }
 
 function BylineMonogram({ name }: { name: string }) {
@@ -226,26 +150,6 @@ export function BylinesPage() {
 		}
 	}, [data]);
 
-	const { data: usersData } = useQuery({
-		queryKey: ["users", "byline-linking"],
-		queryFn: () => fetchUsers({ limit: 100 }),
-	});
-
-	const users = usersData?.items ?? [];
-
-	// Phase 6 of #1174: render registered custom fields as inputs in the
-	// edit form. List is fetched once per page mount; the registry's
-	// version counter invalidates content-side caches but the admin UI
-	// just relies on react-query's staleTime for now — admins rarely
-	// add/remove fields while another admin is editing a byline, and the
-	// next page navigation refetches anyway.
-	const { data: customFieldsList, error: customFieldsError } = useQuery({
-		queryKey: ["byline-fields"],
-		queryFn: listBylineFields,
-		staleTime: 60 * 1000,
-	});
-	const customFieldDefs = customFieldsList?.items ?? [];
-
 	// Snapshot filters at click-time and discard the response if the user
 	// changed any of them while the request was in flight — otherwise stale
 	// pages from a different filter set get appended to the visible list.
@@ -276,46 +180,9 @@ export function BylinesPage() {
 	});
 
 	const items = allItems;
-	// The selected row may live in `allItems` (visible at the active locale)
-	// or be a sibling of the open byline reached via TranslationsPanel. Fetch
-	// directly by id so the editor stays consistent when the selection
-	// crosses locale boundaries.
-	const { data: selectedRemote } = useQuery({
-		queryKey: ["byline", selectedId],
-		queryFn: () => (selectedId ? fetchByline(selectedId) : Promise.resolve(null)),
-		enabled: !!selectedId,
-	});
-	const selected = selectedRemote ?? items.find((item) => item.id === selectedId) ?? null;
-
-	const [form, setForm] = React.useState<BylineFormState>(() => toFormState(null));
-	// The byline record the form was populated from. Newer data for the same
-	// byline only replaces the form while it is unedited: the by-id query often
-	// resolves after the editor has started typing, and repopulating then
-	// discards those edits.
-	const [formSource, setFormSource] = React.useState<BylineSummary | null>(null);
-	const [formErrors, setFormErrors] = React.useState<BylineFormErrors>({});
-	// A new byline's slug follows its display name until the slug is edited.
-	const [slugEdited, setSlugEdited] = React.useState(false);
-	const displayNameRef = React.useRef<HTMLInputElement>(null);
-	const slugRef = React.useRef<HTMLInputElement>(null);
-	const websiteUrlRef = React.useRef<HTMLInputElement>(null);
-
-	React.useEffect(() => {
-		if (selectedId === null) {
-			if (formSource !== null) {
-				setForm(toFormState(null));
-				setFormSource(null);
-			}
-			return;
-		}
-		if (!selected || selected === formSource) return;
-		const edited =
-			formSource?.id === selected.id && !isSameFormState(form, toFormState(formSource));
-		if (edited) return;
-		setForm(toFormState(selected));
-		setFormSource(selected);
-	}, [selectedId, selected, formSource, form]);
-	const formLoaded = selectedId === null || formSource?.id === selectedId;
+	// The selected byline may be a sibling of the open byline reached via
+	// TranslationsPanel, which isn't in the list; the form dialog loads it.
+	const selected = items.find((item) => item.id === selectedId) ?? null;
 
 	// Translations: only fetched when a multi-locale install has a byline
 	// open. The panel renders one row per configured locale, with Translate
@@ -325,72 +192,6 @@ export function BylinesPage() {
 		queryFn: () =>
 			selectedId ? fetchBylineTranslations(selectedId) : Promise.resolve({ items: [] }),
 		enabled: !!selectedId && isMultiLocale,
-	});
-
-	const createMutation = useMutation({
-		mutationFn: () => {
-			// Mirrors updateMutation's customFields guard: omit the key
-			// when field-defs failed to load so the new row starts blank
-			// instead of echoing an empty hydration back.
-			const body: Parameters<typeof createByline>[0] = {
-				slug: form.slug,
-				displayName: form.displayName,
-				bio: form.bio || null,
-				websiteUrl: form.websiteUrl || null,
-				userId: form.userId,
-				isGuest: form.isGuest,
-				avatarMediaId: form.avatarMediaId,
-				locale: activeLocale,
-			};
-			if (!customFieldsError && Object.keys(form.customFields).length > 0) {
-				body.customFields = form.customFields;
-			}
-			return createByline(body);
-		},
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
-			setFormOpen(false);
-			setSelectedId(null);
-			toastManager.add({ title: t`Byline created` });
-		},
-	});
-
-	const updateMutation = useMutation({
-		mutationFn: () => {
-			if (!selectedId) throw new Error("No byline selected");
-			// Phase 6 of #1174: forward registered custom-field values
-			// when we have field-defs to render them. If the
-			// `byline-fields` list failed to load, the inputs aren't
-			// rendered so the editor cannot see what they'd be saving;
-			// omit the key entirely so the server-side repo skips the
-			// customFields branch and preserves stored values verbatim
-			// (`undefined` triggers the skip path in
-			// `BylineRepository.update`). Sending `form.customFields`
-			// would echo the hydrated values back — usually a no-op,
-			// but in a "field deleted server-side mid-session" scenario
-			// it would surface as a 400, surprising the editor.
-			const body: Parameters<typeof updateByline>[1] = {
-				slug: form.slug,
-				displayName: form.displayName,
-				bio: form.bio || null,
-				websiteUrl: form.websiteUrl || null,
-				userId: form.userId,
-				isGuest: form.isGuest,
-				avatarMediaId: form.avatarMediaId,
-			};
-			if (!customFieldsError) {
-				body.customFields = form.customFields;
-			}
-			return updateByline(selectedId, body);
-		},
-		onSuccess: (updated) => {
-			queryClient.setQueryData(["byline", updated.id], updated);
-			setAllItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
-			setFormOpen(false);
-			setSelectedId(null);
-			toastManager.add({ title: t`Byline updated` });
-		},
 	});
 
 	const deleteMutation = useMutation({
@@ -433,7 +234,6 @@ export function BylinesPage() {
 				search: { locale: created.locale },
 			});
 			setSelectedId(created.id);
-			setFormErrors({});
 		},
 	});
 
@@ -449,74 +249,33 @@ export function BylinesPage() {
 		return <div className="text-kumo-danger">{t`Failed to load bylines: ${error.message}`}</div>;
 	}
 
-	const isSaving = createMutation.isPending || updateMutation.isPending;
-	const mutationError = createMutation.error || updateMutation.error || translateMutation.error;
 	const openCreate = () => {
 		setSelectedId(null);
-		setForm(toFormState(null));
-		setFormSource(null);
-		setFormErrors({});
-		setSlugEdited(false);
-		createMutation.reset();
-		updateMutation.reset();
 		translateMutation.reset();
 		setFormOpen(true);
 	};
 	const openEdit = (item: BylineSummary) => {
 		setSelectedId(item.id);
-		setForm(toFormState(item));
-		setFormSource(item);
-		setFormErrors({});
-		createMutation.reset();
-		updateMutation.reset();
 		translateMutation.reset();
 		setFormOpen(true);
 	};
 	const closeForm = () => {
 		setFormOpen(false);
 		setSelectedId(null);
-		createMutation.reset();
-		updateMutation.reset();
 		translateMutation.reset();
 	};
-	const validateForm = (): BylineFormErrors => {
-		const errors: BylineFormErrors = {};
-		if (!form.displayName.trim()) errors.displayName = t`Enter a display name.`;
-		if (!form.slug) {
-			errors.slug = t`Enter a slug.`;
-		} else if (!BYLINE_SLUG_PATTERN.test(form.slug)) {
-			errors.slug = t`Use lowercase letters, numbers, and hyphens, starting with a letter.`;
-		}
-		if (form.websiteUrl && !isHttpUrl(form.websiteUrl)) {
-			errors.websiteUrl = t`Enter a full URL that starts with https:// or http://.`;
-		}
-		return errors;
-	};
-	const submitForm = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		if (isSaving || !formLoaded) return;
-		const formElement = event.currentTarget;
-		const errors = validateForm();
-		// Render the errors before focusing so the field is announced as invalid.
-		flushSync(() => setFormErrors(errors));
-		const firstInvalid = errors.displayName
-			? displayNameRef
-			: errors.slug
-				? slugRef
-				: errors.websiteUrl
-					? websiteUrlRef
-					: null;
-		if (firstInvalid) {
-			firstInvalid.current?.focus();
-			return;
-		}
-		// The form is noValidate, so custom URL fields need the browser's check run here.
-		if (!formElement.reportValidity()) return;
+	const saveByline = (values: BylineFormValues) =>
+		selectedId
+			? updateByline(selectedId, values)
+			: createByline({ ...values, locale: activeLocale });
+	const handleBylineSaved = (saved: BylineSummary) => {
 		if (selectedId) {
-			updateMutation.mutate();
-		} else {
-			createMutation.mutate();
+			setAllItems((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
 		}
+		void queryClient.invalidateQueries({ queryKey: ["bylines"] });
+		setFormOpen(false);
+		setSelectedId(null);
+		toastManager.add({ title: selectedId ? t`Byline updated` : t`Byline created` });
 	};
 
 	return (
@@ -729,232 +488,39 @@ export function BylinesPage() {
 				</div>
 			)}
 
-			<Dialog.Root
+			<BylineFormDialog
 				open={formOpen}
 				onOpenChange={(open) => {
-					if (!open && !isSaving && !deleteTarget) closeForm();
+					if (!open && !deleteTarget) closeForm();
 				}}
-				disablePointerDismissal={isSaving || !!deleteTarget}
-			>
-				<Dialog
-					className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[36rem]"
-					size="lg"
-				>
-					<form noValidate onSubmit={submitForm} className="flex min-h-0 flex-1 flex-col">
-						<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-							<div className="min-w-0">
-								<Dialog.Title className="text-lg font-semibold">
-									{selectedId ? t`Edit byline` : t`New byline`}
-								</Dialog.Title>
-								<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
-									{selected
-										? t`Update the profile for ${selected.displayName}.`
-										: selectedId
-											? null
-											: t`Add a person or team to credit on your content.`}
-								</Dialog.Description>
-							</div>
-							<Dialog.Close
-								aria-label={t`Close`}
-								render={(props) => (
-									<Button
-										{...props}
-										type="button"
-										variant="ghost"
-										shape="square"
-										icon={<X className="size-4" aria-hidden="true" />}
-										aria-label={t`Close`}
-										disabled={isSaving}
-									/>
-								)}
+				bylineId={selectedId}
+				byline={selected}
+				onSubmit={saveByline}
+				onSaved={handleBylineSaved}
+				error={translateMutation.error}
+				onDelete={setDeleteTarget}
+				renderExtra={(byline) =>
+					isMultiLocale && i18n ? (
+						<div className="border-t border-kumo-line pt-5">
+							<TranslationsPanel
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								currentLocale={byline.locale}
+								translations={translationsData?.items ?? []}
+								onOpen={(summary) => {
+									void navigate({
+										to: "/bylines",
+										search: { locale: summary.locale },
+									});
+									setSelectedId(summary.id);
+								}}
+								onCreate={(locale) => translateMutation.mutate(locale)}
+								pendingLocale={pendingTranslationLocale}
 							/>
 						</div>
-
-						<div className="emdash-auto-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-6">
-							<fieldset disabled={!formLoaded} className="min-w-0 space-y-5">
-								<Input
-									ref={displayNameRef}
-									label={t`Display name`}
-									value={form.displayName}
-									onChange={(e) => {
-										const displayName = e.target.value;
-										const followName = !selectedId && !slugEdited;
-										const nameSlug = displayName.trim() ? toBylineSlug(displayName) : "";
-										setForm((prev) => ({
-											...prev,
-											displayName,
-											slug: followName ? nameSlug : prev.slug,
-										}));
-										setFormErrors((prev) => ({
-											...prev,
-											displayName: undefined,
-											slug: followName ? undefined : prev.slug,
-										}));
-									}}
-									error={formErrors.displayName}
-									aria-invalid={!!formErrors.displayName || undefined}
-									required
-								/>
-								<Input
-									ref={slugRef}
-									label={t`Slug`}
-									dir="ltr"
-									value={form.slug}
-									onChange={(e) => {
-										const slug = e.target.value;
-										setSlugEdited(slug !== "");
-										setForm((prev) => ({ ...prev, slug }));
-										setFormErrors((prev) => ({ ...prev, slug: undefined }));
-									}}
-									description={
-										!selectedId && !slugEdited
-											? t`Filled in from the display name. Use lowercase letters, numbers, and hyphens.`
-											: t`Use lowercase letters, numbers, and hyphens.`
-									}
-									error={formErrors.slug}
-									aria-invalid={!!formErrors.slug || undefined}
-									required
-								/>
-								<Input
-									ref={websiteUrlRef}
-									type="url"
-									label={<OptionalLabel>{t`Website URL`}</OptionalLabel>}
-									dir="ltr"
-									placeholder={t`https://example.com`}
-									value={form.websiteUrl}
-									onChange={(e) => {
-										const websiteUrl = e.target.value;
-										setForm((prev) => ({ ...prev, websiteUrl }));
-										setFormErrors((prev) => ({ ...prev, websiteUrl: undefined }));
-									}}
-									error={formErrors.websiteUrl}
-									aria-invalid={!!formErrors.websiteUrl || undefined}
-								/>
-								<InputArea
-									label={<OptionalLabel>{t`Bio`}</OptionalLabel>}
-									value={form.bio}
-									onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
-									rows={5}
-								/>
-								<BylineAvatarField
-									value={form.avatarMediaId}
-									onChange={(mediaId) => setForm((prev) => ({ ...prev, avatarMediaId: mediaId }))}
-								/>
-								<div className="space-y-4 border-t border-kumo-line pt-5">
-									<div className="space-y-1">
-										<h3 className="text-sm font-semibold">{t`Attribution`}</h3>
-										<p className="text-sm text-kumo-subtle">
-											{t`Link this byline to a user or mark it as a guest profile.`}
-										</p>
-									</div>
-									<Select
-										label={<OptionalLabel>{t`Linked user`}</OptionalLabel>}
-										aria-label={t`Linked user`}
-										value={form.userId ?? ""}
-										onValueChange={(value) => {
-											const userId = (value as string) || null;
-											setForm((prev) => ({
-												...prev,
-												userId,
-												isGuest: userId ? false : prev.isGuest,
-											}));
-										}}
-										items={{
-											"": t`No linked user`,
-											...Object.fromEntries(users.map((user) => [user.id, getUserLabel(user)])),
-										}}
-										className="w-full"
-									/>
-									<Switch
-										label={t`Guest byline`}
-										checked={form.isGuest}
-										onCheckedChange={(checked) =>
-											setForm((prev) => ({
-												...prev,
-												isGuest: checked,
-												userId: checked ? null : prev.userId,
-											}))
-										}
-									/>
-								</div>
-
-								{customFieldDefs.length > 0 && (
-									<div className="space-y-4 border-t border-kumo-line pt-5">
-										<h3 className="text-sm font-semibold">{t`Additional details`}</h3>
-										{customFieldDefs.map((field) => (
-											<CustomFieldInput
-												key={field.id}
-												field={field}
-												value={form.customFields[field.slug]}
-												onChange={(next) =>
-													setForm((prev) => ({
-														...prev,
-														customFields: {
-															...prev.customFields,
-															[field.slug]: next,
-														},
-													}))
-												}
-											/>
-										))}
-									</div>
-								)}
-								{customFieldsError && (
-									<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
-										<p className="font-medium text-kumo-danger">{t`Couldn't load custom fields.`}</p>
-										<p className="mt-1 text-xs text-kumo-subtle">
-											{t`You can still edit the fixed fields above. Saving will not touch any stored custom-field values.`}
-										</p>
-									</div>
-								)}
-
-								{selected && isMultiLocale && i18n ? (
-									<div className="border-t border-kumo-line pt-5">
-										<TranslationsPanel
-											locales={i18n.locales}
-											defaultLocale={i18n.defaultLocale}
-											currentLocale={selected.locale}
-											translations={translationsData?.items ?? []}
-											onOpen={(summary) => {
-												void navigate({
-													to: "/bylines",
-													search: { locale: summary.locale },
-												});
-												setSelectedId(summary.id);
-												setFormErrors({});
-											}}
-											onCreate={(locale) => translateMutation.mutate(locale)}
-											pendingLocale={pendingTranslationLocale}
-										/>
-									</div>
-								) : null}
-							</fieldset>
-						</div>
-						<DialogError message={getMutationError(mutationError)} className="mx-6 mt-3" />
-
-						<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-kumo-line px-6 py-4">
-							{selected && (
-								<Button
-									type="button"
-									variant="secondary-destructive"
-									onClick={() => setDeleteTarget(selected)}
-									disabled={isSaving}
-								>
-									{t`Delete`}
-								</Button>
-							)}
-							<div className="ms-auto flex items-center gap-2">
-								<Button type="button" variant="secondary" onClick={closeForm} disabled={isSaving}>
-									{t`Cancel`}
-								</Button>
-								<Button type="submit" variant="primary" disabled={!formLoaded || isSaving}>
-									{isSaving ? t`Saving...` : selectedId ? t`Save` : t`Create`}
-								</Button>
-							</div>
-						</div>
-					</form>
-				</Dialog>
-			</Dialog.Root>
+					) : null
+				}
+			/>
 
 			<ConfirmDialog
 				open={!!deleteTarget}
@@ -973,91 +539,4 @@ export function BylinesPage() {
 			/>
 		</div>
 	);
-}
-
-/**
- * Renders a single registered byline custom field as the appropriate
- * Kumo input for its type (Phase 6 of #1174).
- *
- * Five v1 type cases mirror `BylineFieldType` and the inputs that
- * `BylineFieldEditor` allows admins to register. Empty string inputs
- * coerce to `null` on save so the repo's "null clears the row"
- * storage semantic engages — server-side `BylineRepository.update`
- * deletes the value row rather than storing an empty-string JSON.
- *
- * Fields that aren't `required` get an "(optional)" label marker. The
- * registry's `required` flag is descriptive rather than enforced in the
- * write path today, so required fields aren't blocked client-side.
- */
-function CustomFieldInput({
-	field,
-	value,
-	onChange,
-}: {
-	field: BylineFieldDefinition;
-	value: unknown;
-	onChange: (next: unknown) => void;
-}) {
-	const { t } = useLingui();
-	const label = field.required ? field.label : <OptionalLabel>{field.label}</OptionalLabel>;
-	const stringValue = typeof value === "string" ? value : "";
-
-	switch (field.type) {
-		case "string":
-			return (
-				<Input
-					label={label}
-					value={stringValue}
-					onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
-				/>
-			);
-		case "text":
-			return (
-				<InputArea
-					label={label}
-					value={stringValue}
-					onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
-					rows={3}
-				/>
-			);
-		case "url":
-			return (
-				<Input
-					type="url"
-					label={label}
-					value={stringValue}
-					onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
-				/>
-			);
-		case "boolean":
-			// Booleans are always definite once the field is registered —
-			// `null` would mean "no row stored", which conceptually maps
-			// to `false` for a yes/no toggle. The Switch sends a real
-			// boolean and the storage path persists it verbatim.
-			return (
-				<Switch
-					label={field.label}
-					checked={value === true}
-					onCheckedChange={(checked) => onChange(checked)}
-				/>
-			);
-		case "select": {
-			const options = field.validation?.options ?? [];
-			// Null-prototype object so options that collide with
-			// `Object.prototype` keys (`__proto__`, `toString`) survive.
-			const items: Record<string, string> = Object.create(null);
-			items[""] = t`-- Select --`;
-			for (const opt of options) items[opt] = opt;
-			return (
-				<Select
-					label={label}
-					aria-label={field.label}
-					value={stringValue}
-					onValueChange={(v) => onChange(!v ? null : v)}
-					items={items}
-					className="w-full"
-				/>
-			);
-		}
-	}
 }

@@ -64,6 +64,7 @@ import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { BlocksField } from "./BlocksField.js";
+import type { BylineFormValues } from "./BylineFormDialog.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
 	ContentSettingsPanel,
@@ -415,12 +416,9 @@ export interface ContentEditorProps {
 	/** Callback when byline credits are changed */
 	onBylinesChange?: (bylines: BylineCreditInput[]) => void;
 	/** Callback for creating a byline inline from the editor */
-	onQuickCreateByline?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
+	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
 	/** Callback for updating a byline inline from the editor */
-	onQuickEditByline?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
+	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
 	/** Callback when item is deleted (moved to trash) */
 	onDelete?: () => void;
 	/** Whether delete is in progress */

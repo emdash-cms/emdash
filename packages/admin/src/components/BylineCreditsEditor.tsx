@@ -2,7 +2,6 @@ import {
 	Badge,
 	Button,
 	Collapsible,
-	Dialog,
 	DropdownMenu,
 	Input,
 	LayerCard,
@@ -44,17 +43,8 @@ import * as React from "react";
 
 import { fetchBylines, type BylineCreditInput, type BylineSummary } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { DialogError, getMutationError } from "./DialogError.js";
+import { BylineFormDialog, toBylineSlug, type BylineFormValues } from "./BylineFormDialog.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
-
-export const BYLINE_SLUG_PATTERN = /^[a-z][a-z0-9-]*$/;
-const BYLINE_SLUG_MAX_LENGTH = 80;
-const COMBINING_MARK_PATTERN = /[\u0300-\u036f]/g;
-const UNSAFE_SLUG_PATTERN = /[^a-z0-9]+/g;
-const MULTIPLE_HYPHENS_PATTERN = /-+/g;
-const EDGE_HYPHENS_PATTERN = /^-+|-+$/g;
-const LEADING_LETTER_PATTERN = /^[a-z]/;
-const TRAILING_HYPHENS_PATTERN = /-+$/g;
 
 const restrictToBylineList: Modifier = ({ activeNodeRect, containerNodeRect, transform }) => {
 	if (!containerNodeRect || !activeNodeRect) return { ...transform, x: 0 };
@@ -67,32 +57,14 @@ const restrictToBylineList: Modifier = ({ activeNodeRect, containerNodeRect, tra
 	};
 };
 
-function stableHash(value: string): string {
-	let hash = 2_166_136_261;
-	for (let index = 0; index < value.length; index++) {
-		hash ^= value.charCodeAt(index);
-		hash = Math.imul(hash, 16_777_619);
-	}
-	return (hash >>> 0).toString(36).padStart(7, "0");
-}
-
-export function toBylineSlug(value: string): string {
-	const normalized = value
-		.normalize("NFKD")
-		.toLowerCase()
-		.replace(COMBINING_MARK_PATTERN, "")
-		.replace(UNSAFE_SLUG_PATTERN, "-")
-		.replace(MULTIPLE_HYPHENS_PATTERN, "-")
-		.replace(EDGE_HYPHENS_PATTERN, "");
-	const withLeadingLetter = LEADING_LETTER_PATTERN.test(normalized)
-		? normalized
-		: normalized
-			? `byline-${normalized}`
-			: `byline-${stableHash(value.normalize("NFKC").toLowerCase())}`;
-	return withLeadingLetter.slice(0, BYLINE_SLUG_MAX_LENGTH).replace(TRAILING_HYPHENS_PATTERN, "");
-}
-
 type BylineOption = { type: "byline"; byline: BylineSummary } | { type: "create"; label: string };
+
+/** The byline the form dialog opened for: an existing one, or a new one with a starting name. */
+interface BylineFormTarget {
+	byline: BylineSummary | null;
+	displayName: string;
+	submit: (values: BylineFormValues) => Promise<BylineSummary>;
+}
 
 export interface BylineCreditsEditorProps {
 	credits: BylineCreditInput[];
@@ -101,11 +73,8 @@ export interface BylineCreditsEditorProps {
 	selectedBylineDetails?: BylineSummary[];
 	bylinesLoaded?: boolean;
 	onChange: (bylines: BylineCreditInput[]) => void;
-	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEdit?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
+	onQuickCreate?: (input: BylineFormValues) => Promise<BylineSummary>;
+	onQuickEdit?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
 	entryLocale?: string | null;
 	i18n?: { defaultLocale: string; locales: string[] } | null;
 }
@@ -130,35 +99,15 @@ export function BylineCreditsEditor({
 	const [activeDragId, setActiveDragId] = React.useState<string | null>(null);
 	const [roleEditorId, setRoleEditorId] = React.useState<string | null>(null);
 	const [roleDraft, setRoleDraft] = React.useState("");
-	const [createOpen, setCreateOpen] = React.useState(false);
-	const [createName, setCreateName] = React.useState("");
-	const [createSlug, setCreateSlug] = React.useState("");
-	const [createSlugTouched, setCreateSlugTouched] = React.useState(false);
-	const [createErrors, setCreateErrors] = React.useState<{ name?: string; slug?: string }>({});
-	const [createError, setCreateError] = React.useState<unknown>(null);
-	const [isCreating, setIsCreating] = React.useState(false);
-	const [createAdvancedOpen, setCreateAdvancedOpen] = React.useState(false);
-	const [createPendingOpen, setCreatePendingOpen] = React.useState(false);
-	const [editBylineId, setEditBylineId] = React.useState<string | null>(null);
-	const [editName, setEditName] = React.useState("");
-	const [editSlug, setEditSlug] = React.useState("");
-	const [editErrors, setEditErrors] = React.useState<{ name?: string; slug?: string }>({});
-	const [editError, setEditError] = React.useState<unknown>(null);
-	const [isEditing, setIsEditing] = React.useState(false);
-	const [editAdvancedOpen, setEditAdvancedOpen] = React.useState(false);
+	const [formTarget, setFormTarget] = React.useState<BylineFormTarget | null>(null);
+	const [formOpen, setFormOpen] = React.useState(false);
+	const [formPendingOpen, setFormPendingOpen] = React.useState(false);
 	const chooserRef = React.useRef<HTMLDivElement>(null);
 	const chooserTriggerRef = React.useRef<HTMLButtonElement | null>(null);
-	const activeInstanceRef = React.useRef(false);
 	const pendingRowFocusRef = React.useRef<string | null>(null);
 	const rowRefs = React.useRef(new Map<string, HTMLDivElement>());
 	const creditsRef = React.useRef(credits);
 	creditsRef.current = credits;
-	React.useLayoutEffect(() => {
-		activeInstanceRef.current = true;
-		return () => {
-			activeInstanceRef.current = false;
-		};
-	}, []);
 
 	const debouncedSearch = useDebouncedValue(search, 300);
 	const currentSearch = search.trim();
@@ -295,91 +244,38 @@ export function BylineCreditsEditor({
 	);
 
 	const openCreate = React.useCallback(() => {
-		const name = search.trim();
-		setCreateName(name);
-		setCreateSlug(toBylineSlug(name));
-		setCreateSlugTouched(false);
-		setCreateErrors({});
-		setCreateError(null);
-		setCreateAdvancedOpen(false);
-		setCreatePendingOpen(true);
+		if (!onQuickCreate) return;
+		setFormTarget({ byline: null, displayName: search.trim(), submit: onQuickCreate });
+		setFormPendingOpen(true);
 		setChooserOpen(false);
-	}, [search]);
+	}, [onQuickCreate, search]);
 
-	const validateProfile = React.useCallback(
-		(name: string, slug: string) => {
-			const errors: { name?: string; slug?: string } = {};
-			if (!name.trim()) errors.name = t`Enter a name.`;
-			if (!BYLINE_SLUG_PATTERN.test(slug)) {
-				errors.slug = t`Use lowercase letters, numbers, and hyphens, starting with a letter.`;
-			}
-			return errors;
+	const openEdit = React.useCallback(
+		(byline: BylineSummary) => {
+			if (!onQuickEdit) return;
+			setFormTarget({
+				byline,
+				displayName: byline.displayName,
+				submit: (values) => onQuickEdit(byline.id, values),
+			});
+			requestAnimationFrame(() => setFormOpen(true));
 		},
-		[t],
+		[onQuickEdit],
 	);
 
-	const submitCreate = React.useCallback(async () => {
-		if (!onQuickCreate || isCreating) return;
-		const errors = validateProfile(createName, createSlug);
-		setCreateErrors(errors);
-		if (errors.name || errors.slug) {
-			if (errors.slug) setCreateAdvancedOpen(true);
-			requestAnimationFrame(() =>
-				document.getElementById(errors.name ? "byline-create-name" : "byline-create-slug")?.focus(),
-			);
-			return;
-		}
-		setCreateError(null);
-		setIsCreating(true);
-		try {
-			const created = await onQuickCreate({ displayName: createName.trim(), slug: createSlug });
-			if (!activeInstanceRef.current) return;
-			setCreateOpen(false);
-			addByline(created);
-		} catch (error) {
-			if (activeInstanceRef.current) setCreateError(error);
-		} finally {
-			if (activeInstanceRef.current) setIsCreating(false);
-		}
-	}, [addByline, createName, createSlug, isCreating, onQuickCreate, validateProfile]);
-
-	const openEdit = React.useCallback((byline: BylineSummary) => {
-		setEditName(byline.displayName);
-		setEditSlug(byline.slug);
-		setEditErrors({});
-		setEditError(null);
-		setEditAdvancedOpen(false);
-		requestAnimationFrame(() => setEditBylineId(byline.id));
-	}, []);
-
-	const submitEdit = React.useCallback(async () => {
-		if (!editBylineId || !onQuickEdit || isEditing) return;
-		const errors = validateProfile(editName, editSlug);
-		setEditErrors(errors);
-		if (errors.name || errors.slug) {
-			if (errors.slug) setEditAdvancedOpen(true);
-			requestAnimationFrame(() =>
-				document.getElementById(errors.name ? "byline-edit-name" : "byline-edit-slug")?.focus(),
-			);
-			return;
-		}
-		setEditError(null);
-		setIsEditing(true);
-		try {
-			const updated = await onQuickEdit(editBylineId, {
-				displayName: editName.trim(),
-				slug: editSlug,
-			});
-			setKnownBylines((known) => ({ ...known, [updated.id]: updated }));
-			setEditBylineId(null);
-			setAnnouncement(t`${updated.displayName} updated everywhere it appears.`);
-			focusRow(updated.id);
-		} catch (error) {
-			setEditError(error);
-		} finally {
-			setIsEditing(false);
-		}
-	}, [editBylineId, editName, editSlug, focusRow, isEditing, onQuickEdit, t, validateProfile]);
+	const handleBylineSaved = React.useCallback(
+		(saved: BylineSummary) => {
+			setFormOpen(false);
+			if (!formTarget?.byline) {
+				addByline(saved);
+				return;
+			}
+			setKnownBylines((known) => ({ ...known, [saved.id]: saved }));
+			setAnnouncement(t`${saved.displayName} updated everywhere it appears.`);
+			focusRow(saved.id);
+		},
+		[addByline, focusRow, formTarget, t],
+	);
 
 	const isMultiLocale = !!i18n && i18n.locales.length > 1;
 	const showLocaleEmptyState =
@@ -392,9 +288,9 @@ export function BylineCreditsEditor({
 				onOpenChange={(open) => (open ? openChooser() : closeChooser(false))}
 				onOpenChangeComplete={(open) => {
 					if (open) return;
-					if (createPendingOpen) {
-						setCreatePendingOpen(false);
-						setCreateOpen(true);
+					if (formPendingOpen) {
+						setFormPendingOpen(false);
+						setFormOpen(true);
 						return;
 					}
 					focusPendingRow();
@@ -711,67 +607,25 @@ export function BylineCreditsEditor({
 				{announcement}
 			</p>
 
-			<BylineProfileDialog
-				kind="create"
-				open={createOpen}
-				onOpenChange={(open) => {
-					if (!open && isCreating) return;
-					setCreateOpen(open);
-					if (!open) {
-						requestAnimationFrame(openChooser);
-					}
-				}}
-				onOpenChangeComplete={(open) => !open && focusPendingRow()}
-				name={createName}
-				slug={createSlug}
-				onNameChange={(value) => {
-					setCreateName(value);
-					setCreateErrors((errors) => ({ ...errors, name: undefined }));
-					if (!createSlugTouched) setCreateSlug(toBylineSlug(value));
-				}}
-				onSlugChange={(value) => {
-					setCreateSlug(value);
-					setCreateSlugTouched(true);
-					setCreateErrors((errors) => ({ ...errors, slug: undefined }));
-				}}
-				nameError={createErrors.name}
-				slugError={createErrors.slug}
-				mutationError={createError}
-				pending={isCreating}
-				advancedOpen={createAdvancedOpen}
-				onAdvancedOpenChange={setCreateAdvancedOpen}
-				onSubmit={submitCreate}
-			/>
-
-			<BylineProfileDialog
-				kind="edit"
-				open={editBylineId !== null}
-				onOpenChange={(open) => {
-					if (!open && isEditing) return;
-					if (!open) {
-						const id = editBylineId;
-						setEditBylineId(null);
-						if (id) focusRow(id);
-					}
-				}}
-				name={editName}
-				slug={editSlug}
-				onNameChange={(value) => {
-					setEditName(value);
-					setEditErrors((errors) => ({ ...errors, name: undefined }));
-				}}
-				onSlugChange={(value) => {
-					setEditSlug(value);
-					setEditErrors((errors) => ({ ...errors, slug: undefined }));
-				}}
-				nameError={editErrors.name}
-				slugError={editErrors.slug}
-				mutationError={editError}
-				pending={isEditing}
-				advancedOpen={editAdvancedOpen}
-				onAdvancedOpenChange={setEditAdvancedOpen}
-				onSubmit={submitEdit}
-			/>
+			{formTarget ? (
+				<BylineFormDialog
+					open={formOpen}
+					onOpenChange={(open) => {
+						if (open) return;
+						setFormOpen(false);
+						if (formTarget.byline) focusRow(formTarget.byline.id);
+						else requestAnimationFrame(openChooser);
+					}}
+					onOpenChangeComplete={(open) => !open && focusPendingRow()}
+					bylineId={formTarget.byline?.id ?? null}
+					byline={formTarget.byline}
+					initialDisplayName={formTarget.displayName}
+					onSubmit={formTarget.submit}
+					onSaved={handleBylineSaved}
+					createLabel={t`Create and add`}
+					editDescription={t`Changes apply everywhere this byline appears.`}
+				/>
+			) : null}
 		</div>
 	);
 }
@@ -878,7 +732,7 @@ function SortableBylineRow({
 							icon={<PencilSimple className="me-1.5 size-3.5" aria-hidden="true" />}
 							onClick={onEdit}
 						>
-							{t`Edit name and slug`}
+							{t`Edit byline`}
 						</DropdownMenu.Item>
 					) : null}
 					<DropdownMenu.Separator className="my-0.5" />
@@ -923,108 +777,5 @@ function SortableBylineRow({
 				</Collapsible.Panel>
 			</Collapsible.Root>
 		</LayerCard>
-	);
-}
-
-interface BylineProfileDialogProps {
-	kind: "create" | "edit";
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onOpenChangeComplete?: (open: boolean) => void;
-	name: string;
-	slug: string;
-	onNameChange: (value: string) => void;
-	onSlugChange: (value: string) => void;
-	nameError?: string;
-	slugError?: string;
-	mutationError: unknown;
-	pending: boolean;
-	advancedOpen: boolean;
-	onAdvancedOpenChange: (open: boolean) => void;
-	onSubmit: () => void;
-}
-
-function BylineProfileDialog({
-	kind,
-	open,
-	onOpenChange,
-	onOpenChangeComplete,
-	name,
-	slug,
-	onNameChange,
-	onSlugChange,
-	nameError,
-	slugError,
-	mutationError,
-	pending,
-	advancedOpen,
-	onAdvancedOpenChange,
-	onSubmit,
-}: BylineProfileDialogProps) {
-	const { t } = useLingui();
-	const prefix = kind === "create" ? "byline-create" : "byline-edit";
-	return (
-		<Dialog.Root
-			open={open}
-			onOpenChange={onOpenChange}
-			onOpenChangeComplete={onOpenChangeComplete}
-			disablePointerDismissal
-		>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">
-					{kind === "create" ? t`Create byline` : t`Edit name and slug`}
-				</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{kind === "create"
-						? t`Create a reusable public profile, then add it to this post.`
-						: t`Changes apply everywhere this byline appears.`}
-				</Dialog.Description>
-
-				<div className="mt-4 space-y-3">
-					<Input
-						id={`${prefix}-name`}
-						size="base"
-						label={t`Name`}
-						value={name}
-						onChange={(event) => onNameChange(event.target.value)}
-						error={nameError}
-						autoFocus={open}
-					/>
-
-					<Collapsible.Root open={advancedOpen} onOpenChange={onAdvancedOpenChange}>
-						<Collapsible.DefaultTrigger>{t`Advanced`}</Collapsible.DefaultTrigger>
-						<Collapsible.DefaultPanel>
-							<div className="pt-3">
-								<Input
-									id={`${prefix}-slug`}
-									size="base"
-									label={t`URL slug`}
-									description={t`Generated automatically.`}
-									value={slug}
-									onChange={(event) => onSlugChange(event.target.value)}
-									error={slugError}
-								/>
-							</div>
-						</Collapsible.DefaultPanel>
-					</Collapsible.Root>
-
-					<DialogError message={getMutationError(mutationError)} />
-				</div>
-
-				<div className="mt-6 flex flex-wrap justify-end gap-2">
-					<Button
-						type="button"
-						variant="secondary"
-						disabled={pending}
-						onClick={() => onOpenChange(false)}
-					>
-						{t`Cancel`}
-					</Button>
-					<Button type="button" variant="primary" loading={pending} onClick={onSubmit}>
-						{kind === "create" ? t`Create and add` : t`Save changes`}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
 	);
 }

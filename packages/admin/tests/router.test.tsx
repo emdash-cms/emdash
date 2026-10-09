@@ -34,6 +34,18 @@ import { createTestQueryClient, createMockFetch, waitFor } from "./utils/test-he
 // Component mocks – keep layout plumbing out of these tests
 // ---------------------------------------------------------------------------
 
+const { MOCK_BYLINE_VALUES } = vi.hoisted(() => ({
+	MOCK_BYLINE_VALUES: {
+		slug: "rebekah-aultman",
+		displayName: "Rebekah Aultman",
+		bio: "Staff writer.",
+		websiteUrl: "https://rebekah.example",
+		userId: null,
+		isGuest: false,
+		avatarMediaId: null,
+	},
+}));
+
 vi.mock("../src/components/Shell", () => ({
 	Shell: ({ children }: { children: React.ReactNode }) => <div data-testid="shell">{children}</div>,
 }));
@@ -57,6 +69,8 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isUpdatingPublishedAt,
 		autosaveCompletionToken,
 		autosaveRejectionToken,
+		onQuickCreateByline,
+		onQuickEditByline,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
@@ -71,6 +85,8 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isUpdatingPublishedAt?: boolean;
 		autosaveCompletionToken?: number;
 		autosaveRejectionToken?: number;
+		onQuickCreateByline?: (input: typeof MOCK_BYLINE_VALUES) => Promise<unknown>;
+		onQuickEditByline?: (bylineId: string, input: typeof MOCK_BYLINE_VALUES) => Promise<unknown>;
 	}) => {
 		const [isDirty, setIsDirty] = React.useState(false);
 		const onDirtyChangeRef = React.useRef(onDirtyChange);
@@ -136,6 +152,20 @@ vi.mock("../src/components/ContentEditor", () => ({
 					}}
 				>
 					{isDirty ? "Clear Dirty" : "Set Dirty"}
+				</button>
+				<button
+					type="button"
+					onClick={() => void onQuickCreateByline?.(MOCK_BYLINE_VALUES).catch(() => undefined)}
+				>
+					Trigger Byline Create
+				</button>
+				<button
+					type="button"
+					onClick={() =>
+						void onQuickEditByline?.("byline_01", MOCK_BYLINE_VALUES).catch(() => undefined)
+					}
+				>
+					Trigger Byline Edit
 				</button>
 			</div>
 		);
@@ -1496,6 +1526,119 @@ describe("ContentNewPage – create failure surfaces the server's error", () => 
 		expect(screen.getByText("expected string, received undefined", { exact: false }).query()).toBe(
 			null,
 		);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Tests: bylines created and edited from the editor keep the form's values
+// ---------------------------------------------------------------------------
+
+describe("Content editor routes – byline profiles saved from the editor", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+	let mockedFetch: typeof fetch;
+	let bylineWrites: { method: string; url: string; body: unknown }[];
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 60 } })
+			.on("GET", "/_emdash/api/content/posts/post_1", {
+				data: {
+					item: {
+						id: "post_1",
+						type: "posts",
+						slug: "post-1",
+						status: "draft",
+						locale: "en",
+						translationGroup: null,
+						data: { title: "Post 1" },
+						authorId: null,
+						primaryBylineId: null,
+						createdAt: "2025-01-01T00:00:00Z",
+						updatedAt: "2025-01-01T00:00:00Z",
+						publishedAt: null,
+						scheduledAt: null,
+						liveRevisionId: null,
+						draftRevisionId: null,
+					},
+				},
+			})
+			.on("GET", "/_emdash/api/admin/bylines", { data: { items: [] } })
+			.on("POST", "/_emdash/api/admin/bylines", { data: { id: "byline_02" } })
+			.on("PUT", "/_emdash/api/admin/bylines/byline_01", { data: { id: "byline_01" } });
+
+		bylineWrites = [];
+		mockedFetch = globalThis.fetch;
+		globalThis.fetch = async (input, init) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			const method = init?.method ?? "GET";
+			if (url.startsWith("/_emdash/api/admin/bylines") && method !== "GET") {
+				bylineWrites.push({ method, url, body: JSON.parse(init?.body as string) });
+			}
+			return mockedFetch(input, init);
+		};
+	});
+
+	afterEach(() => {
+		globalThis.fetch = mockedFetch;
+		mockFetch.restore();
+	});
+
+	it("creates a byline from a new post with the form's values in the post's locale", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/new",
+			params: { collection: "posts" },
+			search: { locale: "de" },
+		});
+		const screen = await render(<TestApp />);
+
+		await screen.getByRole("button", { name: "Trigger Byline Create" }).click();
+
+		await vi.waitFor(() => expect(bylineWrites).toHaveLength(1));
+		expect(bylineWrites[0]).toEqual({
+			method: "POST",
+			url: "/_emdash/api/admin/bylines",
+			body: { ...MOCK_BYLINE_VALUES, locale: "de" },
+		});
+	});
+
+	it("creates a byline from an existing post with the form's values in the post's locale", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+
+		await screen.getByRole("button", { name: "Trigger Byline Create" }).click();
+
+		await vi.waitFor(() => expect(bylineWrites).toHaveLength(1));
+		expect(bylineWrites[0]).toEqual({
+			method: "POST",
+			url: "/_emdash/api/admin/bylines",
+			body: { ...MOCK_BYLINE_VALUES, locale: "en" },
+		});
+	});
+
+	it("saves every form field when a byline is edited from a post", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+
+		await screen.getByRole("button", { name: "Trigger Byline Edit" }).click();
+
+		await vi.waitFor(() => expect(bylineWrites).toHaveLength(1));
+		expect(bylineWrites[0]).toEqual({
+			method: "PUT",
+			url: "/_emdash/api/admin/bylines/byline_01",
+			body: MOCK_BYLINE_VALUES,
+		});
 	});
 });
 
