@@ -40,8 +40,11 @@ export interface AccessConfig {
 	audienceEnvVar?: string;
 
 	/**
-	 * Role level for users not matching any group in roleMapping
-	 * @default 30 (Editor)
+	 * Role level for users not matching any group in roleMapping.
+	 * The default, 30, is the Author role: it can create and edit its own entries
+	 * and publish its own drafts. Use a lower level if unmapped users should not
+	 * publish.
+	 * @default 30 (Author: can publish own content)
 	 */
 	defaultRole?: number;
 
@@ -216,10 +219,10 @@ export async function getAccessIdentity(jwt: string, teamDomain: string): Promis
  *
  * @param groups User's groups from IdP
  * @param config Access configuration
- * @returns Role level (e.g., 50 for Admin, 30 for Editor)
+ * @returns Role level (e.g., 50 for Admin, 30 for Author)
  */
 export function resolveRoleFromGroups(groups: AccessGroup[], config: AccessConfig): number {
-	const defaultRole = config.defaultRole ?? 30; // Editor
+	const defaultRole = config.defaultRole ?? 30; // Author
 
 	if (!config.roleMapping) {
 		return defaultRole;

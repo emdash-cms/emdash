@@ -244,8 +244,11 @@ export interface AccessConfig {
 	autoProvision?: boolean;
 
 	/**
-	 * Role level for users not matching any group in roleMapping
-	 * @default 30 (Editor)
+	 * Role level for users not matching any group in roleMapping.
+	 * The default, 30, is the Author role: it can create and edit its own entries
+	 * and publish its own drafts. Use a lower level if unmapped users should not
+	 * publish.
+	 * @default 30 (Author: can publish own content)
 	 */
 	defaultRole?: number;
 
@@ -271,8 +274,8 @@ export interface AccessConfig {
 	 * ```ts
 	 * roleMapping: {
 	 *   "Admins": 50,        // Admin
-	 *   "Developers": 40,    // Developer
-	 *   "Content Team": 30,  // Editor
+	 *   "Editors": 40,       // Editor
+	 *   "Authors": 30,       // Author: can create, edit, and publish own content
 	 * }
 	 * ```
 	 */
@@ -524,7 +527,7 @@ export function r2(config: R2StorageConfig): StorageDescriptor {
  *   audience: "abc123...",
  *   roleMapping: {
  *     "Admins": 50,
- *     "Editors": 30,
+ *     "Authors": 30,
  *   },
  * })
  * ```
