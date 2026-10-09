@@ -426,7 +426,7 @@ describe("RevisionHistory", () => {
 
 	// ---- Visual diff view ----
 
-	it("shows visual diff when selecting a non-latest revision", async () => {
+	it("shows what a revision changed against the one saved before it", async () => {
 		const revisions = [
 			makeRevision({
 				id: "rev-1",
@@ -448,23 +448,19 @@ describe("RevisionHistory", () => {
 		);
 
 		await screen.getByText("Revisions").click();
-		await expect.element(screen.getByText("Current")).toBeInTheDocument();
 
-		// Click the second (non-latest) revision
-		const revisionButtons = screen.getByText("yesterday").element().closest("button")!;
-		await userEvent.click(revisionButtons);
+		// The latest revision is compared with the one before it
+		const latestButton = screen.getByText("Current").element().closest("button")!;
+		await userEvent.click(latestButton);
+		await expect.element(screen.getByText("in this save", { exact: false })).toBeInTheDocument();
 
-		// Should show diff, not raw snapshot
-		await expect
-			.element(screen.getByText("from next revision", { exact: false }))
-			.toBeInTheDocument();
-
-		// Changed field values should appear in the diff
-		await expect.element(screen.getByText("Original Title")).toBeInTheDocument();
-		await expect.element(screen.getByText("Updated Title")).toBeInTheDocument();
+		// A changed text field shows only the words that changed
+		await expect.element(screen.getByText("Original", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Updated", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Show full values")).toBeInTheDocument();
 	});
 
-	it("shows raw snapshot for latest revision (no diff target)", async () => {
+	it("shows a raw snapshot for the oldest loaded revision (nothing before it)", async () => {
 		const revisions = [
 			makeRevision({
 				id: "rev-1",
@@ -486,12 +482,74 @@ describe("RevisionHistory", () => {
 		);
 
 		await screen.getByText("Revisions").click();
+		await expect.element(screen.getByText("Current")).toBeInTheDocument();
 
-		// Click the latest revision
-		const latestButton = screen.getByText("Current").element().closest("button")!;
-		await userEvent.click(latestButton);
+		const oldestButton = screen.getByText("yesterday").element().closest("button")!;
+		await userEvent.click(oldestButton);
 
-		// Should show raw JSON snapshot, not diff
 		await expect.element(screen.getByText("Content snapshot:")).toBeInTheDocument();
+	});
+
+	it("compares with the live revision, names fields by label and says who saved it", async () => {
+		const revisions = [
+			makeRevision({
+				id: "rev-1",
+				data: { title: "Draft Title" },
+				authorId: "user-1",
+				createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+			}),
+			makeRevision({
+				id: "rev-2",
+				data: { title: "Middle Title" },
+				createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+			}),
+			makeRevision({
+				id: "rev-3",
+				data: { title: "Live Title" },
+				createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+			}),
+		];
+		mockFetchRevisions.mockResolvedValue(makeRevisionList(revisions));
+
+		const screen = await render(
+			<QueryWrapper>
+				<RevisionHistory
+					collection="posts"
+					entryId="entry-1"
+					liveRevisionId="rev-3"
+					fieldLabels={{ title: "Headline" }}
+					users={[
+						{
+							id: "user-1",
+							email: "ana@example.com",
+							name: "Ana",
+							avatarUrl: null,
+							role: 40,
+							emailVerified: true,
+							disabled: false,
+							createdAt: "2026-01-01T00:00:00.000Z",
+							updatedAt: "2026-01-01T00:00:00.000Z",
+							lastLogin: null,
+							credentialCount: 1,
+							oauthProviders: [],
+						},
+					]}
+				/>
+			</QueryWrapper>,
+		);
+
+		await screen.getByText("Revisions").click();
+		await expect.element(screen.getByText("Live", { exact: true })).toBeInTheDocument();
+
+		const latestButton = screen.getByText("Current").element().closest("button")!;
+		await expect.element(screen.getByText("Ana", { exact: false }).first()).toBeInTheDocument();
+		await userEvent.click(latestButton);
+		await expect.element(screen.getByText("Headline")).toBeInTheDocument();
+
+		await userEvent.click(screen.getByText("Compared with live").element());
+		await expect
+			.element(screen.getByText("from the live version", { exact: false }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Live", { exact: true }).last()).toBeInTheDocument();
 	});
 });

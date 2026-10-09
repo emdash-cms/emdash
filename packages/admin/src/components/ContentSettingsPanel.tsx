@@ -851,6 +851,14 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				: [],
 		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
 	);
+	const revisionFieldLabels = React.useMemo(() => {
+		const fields = manifest?.collections[collection]?.fields ?? {};
+		return Object.fromEntries(
+			Object.entries(fields).flatMap(([fieldSlug, field]) =>
+				field.label ? [[fieldSlug, field.label]] : [],
+			),
+		);
+	}, [manifest?.collections, collection]);
 	const sandboxedExtensionPanels = React.useMemo(
 		() => (!isNew && item ? resolveSandboxedEditorPanels(manifest?.plugins, collection) : []),
 		[collection, isNew, item, manifest?.plugins],
@@ -1310,6 +1318,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								entryId={item.id}
 								onRestored={onRevisionRestored}
 								reserveHeaderEnd
+								liveRevisionId={item.liveRevisionId}
+								fieldLabels={revisionFieldLabels}
+								users={users}
 							/>
 						</div>
 					</SortableContentSettingsSection>

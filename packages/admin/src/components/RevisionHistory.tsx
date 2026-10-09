@@ -5,7 +5,20 @@ import { ArrowCounterClockwise, CaretDown, Plus, Minus, PencilSimple } from "@ph
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchRevisions, restoreRevision, type ContentItem, type Revision } from "../lib/api";
+import {
+	fetchRevision,
+	fetchRevisions,
+	restoreRevision,
+	type ContentItem,
+	type Revision,
+	type UserListItem,
+} from "../lib/api";
+import {
+	diffPortableText,
+	diffWords,
+	isPortableText,
+	type WordSegment,
+} from "../lib/revision-diff";
 import { cn, formatRelativeTime, parseTimestamp } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -24,7 +37,7 @@ interface FieldDiff {
 
 /**
  * Compute field-level diff between two revision data snapshots.
- * `older` is the revision being viewed, `newer` is the next revision after it.
+ * `older` is the revision compared against (the one before, or the live one), `newer` is the revision being viewed.
  */
 function computeFieldDiff(
 	older: Record<string, unknown>,
@@ -73,6 +86,12 @@ interface RevisionHistoryProps {
 	onRestored?: (item: ContentItem) => void;
 	/** Reserve the inline end of the disclosure header for an external control. */
 	reserveHeaderEnd?: boolean;
+	/** The entry's live revision, offered as a second point of comparison and badged "Live". */
+	liveRevisionId?: string | null;
+	/** Field labels by slug, so a diff names the field the way the editor does. */
+	fieldLabels?: Record<string, string>;
+	/** Users, to name who saved each revision. */
+	users?: UserListItem[];
 }
 
 /**
@@ -98,6 +117,9 @@ export function RevisionHistory({
 	entryId,
 	onRestored,
 	reserveHeaderEnd = false,
+	liveRevisionId,
+	fieldLabels,
+	users,
 }: RevisionHistoryProps) {
 	const { t } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(false);
@@ -145,6 +167,18 @@ export function RevisionHistory({
 
 	const revisions = data?.items ?? [];
 	const total = data?.total ?? 0;
+	const liveLoaded = liveRevisionId ? revisions.find((r) => r.id === liveRevisionId) : undefined;
+	// The live revision can be older than the loaded page; fetch it on its own so "Compared with live" still works.
+	const { data: liveFetched } = useQuery({
+		queryKey: ["revision", liveRevisionId],
+		queryFn: () => fetchRevision(liveRevisionId!),
+		enabled: isExpanded && !!liveRevisionId && !!data && !liveLoaded,
+	});
+	const liveRevision = liveLoaded ?? liveFetched;
+	const authorName = (id: string | null) => {
+		const user = id ? users?.find((u) => u.id === id) : undefined;
+		return user ? user.name || user.email : undefined;
+	};
 
 	return (
 		<>
@@ -209,7 +243,10 @@ export function RevisionHistory({
 									<RevisionItem
 										key={revision.id}
 										revision={revision}
-										compareRevision={index > 0 ? revisions[index - 1] : undefined}
+										compareRevision={revisions[index + 1]}
+										liveRevision={liveRevision}
+										authorName={authorName(revision.authorId)}
+										fieldLabels={fieldLabels}
 										isLatest={index === 0}
 										isRestoring={
 											restoreMutation.isPending && restoreMutation.variables === revision.id
@@ -254,8 +291,13 @@ export function RevisionHistory({
 
 interface RevisionItemProps {
 	revision: Revision;
-	/** The next newer revision to compare against (undefined for the latest) */
+	/** The revision saved before this one, to compare against (undefined for the oldest loaded) */
 	compareRevision?: Revision;
+	/** The live revision */
+	liveRevision?: Revision;
+	/** Who saved this revision, when known */
+	authorName?: string;
+	fieldLabels?: Record<string, string>;
 	isLatest: boolean;
 	isRestoring: boolean;
 	isSelected: boolean;
@@ -266,6 +308,9 @@ interface RevisionItemProps {
 function RevisionItem({
 	revision,
 	compareRevision,
+	liveRevision,
+	authorName,
+	fieldLabels,
 	isLatest,
 	isRestoring,
 	isSelected,
@@ -273,6 +318,9 @@ function RevisionItem({
 	onSelect,
 }: RevisionItemProps) {
 	const { t, i18n } = useLingui();
+	const [compareWith, setCompareWith] = React.useState<"previous" | "live">("previous");
+	const isLive = liveRevision?.id === revision.id;
+	const canCompareLive = !!liveRevision && !isLive;
 	return (
 		<div
 			className={`rounded-lg border p-3 transition-colors ${
@@ -286,9 +334,11 @@ function RevisionItem({
 							{formatRelativeTime(revision.createdAt, i18n.locale)}
 						</span>
 						{isLatest && <Badge variant="outline">{t`Current`}</Badge>}
+						{isLive && <Badge variant="outline">{t`Live`}</Badge>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-0.5">
 						{formatFullDate(revision.createdAt)}
+						{authorName ? ` · ${authorName}` : ""}
 					</div>
 				</button>
 
@@ -313,8 +363,45 @@ function RevisionItem({
 			{/* Diff view or snapshot - shown when selected */}
 			{isSelected && (
 				<div className="mt-3 pt-3 border-t">
-					{compareRevision ? (
-						<RevisionDiffView older={revision.data} newer={compareRevision.data} />
+					{canCompareLive && (
+						<div className="mb-2 flex gap-1 text-xs" role="group" aria-label={t`Compare with`}>
+							{(
+								[
+									["previous", t`Changes in this save`],
+									["live", t`Compared with live`],
+								] as const
+							).map(([value, label]) => (
+								<button
+									key={value}
+									type="button"
+									aria-pressed={compareWith === value}
+									onClick={() => setCompareWith(value)}
+									className={cn(
+										"rounded-md border px-2 py-1",
+										compareWith === value
+											? "border-kumo-brand bg-kumo-brand/10 font-medium"
+											: "border-kumo-line hover:bg-kumo-tint",
+									)}
+								>
+									{label}
+								</button>
+							))}
+						</div>
+					)}
+					{liveRevision && canCompareLive && compareWith === "live" ? (
+						<RevisionDiffView
+							older={liveRevision.data}
+							newer={revision.data}
+							against="live"
+							fieldLabels={fieldLabels}
+						/>
+					) : compareRevision ? (
+						<RevisionDiffView
+							older={compareRevision.data}
+							newer={revision.data}
+							against="previous"
+							fieldLabels={fieldLabels}
+						/>
 					) : (
 						<>
 							<div className="text-xs font-medium text-kumo-subtle mb-2">{t`Content snapshot:`}</div>
@@ -336,9 +423,12 @@ function RevisionItem({
 interface RevisionDiffViewProps {
 	older: Record<string, unknown>;
 	newer: Record<string, unknown>;
+	/** What `older` is: the revision saved before this one, or the live revision */
+	against: "previous" | "live";
+	fieldLabels?: Record<string, string>;
 }
 
-function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
+function RevisionDiffView({ older, newer, against, fieldLabels }: RevisionDiffViewProps) {
 	const { t } = useLingui();
 	const [showUnchanged, setShowUnchanged] = React.useState(false);
 	const diffs = React.useMemo(() => computeFieldDiff(older, newer), [older, newer]);
@@ -358,10 +448,15 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
 				<div className="text-xs font-medium text-kumo-subtle">
-					{plural(changedCount, {
-						one: "# change from next revision",
-						other: "# changes from next revision",
-					})}
+					{against === "live"
+						? plural(changedCount, {
+								one: "# change from the live version",
+								other: "# changes from the live version",
+							})
+						: plural(changedCount, {
+								one: "# change in this save",
+								other: "# changes in this save",
+							})}
 				</div>
 				{unchangedCount > 0 && (
 					<button
@@ -376,9 +471,15 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 				)}
 			</div>
 
+			{changedCount === 0 && (
+				<div className="text-xs text-kumo-subtle">
+					{t`No field changed. SEO, bylines and taxonomies are not part of a revision, so a save that changed only those looks like this.`}
+				</div>
+			)}
+
 			<div className="space-y-1.5">
 				{visibleDiffs.map((diff) => (
-					<DiffFieldRow key={diff.field} diff={diff} />
+					<DiffFieldRow key={diff.field} diff={diff} label={fieldLabels?.[diff.field]} />
 				))}
 			</div>
 		</div>
@@ -410,17 +511,108 @@ const DIFF_STYLES: Record<DiffKind, { bg: string; icon: React.ReactNode; label: 
 	},
 };
 
-function DiffFieldRow({ diff }: { diff: FieldDiff }) {
+function WordDiff({ segments }: { segments: WordSegment[] }) {
+	return (
+		<p className="whitespace-pre-wrap break-words leading-5">
+			{segments.map(([op, text], i) =>
+				op === "=" ? (
+					text
+				) : op === "+" ? (
+					<ins key={i} className="rounded-sm bg-green-200 no-underline dark:bg-green-900/70">
+						{text}
+					</ins>
+				) : (
+					<del key={i} className="rounded-sm bg-red-200 dark:bg-red-900/70">
+						{text}
+					</del>
+				),
+			)}
+		</p>
+	);
+}
+
+function PortableTextDiff({ oldValue, newValue }: { oldValue: unknown[]; newValue: unknown[] }) {
+	const { t } = useLingui();
+	const result = React.useMemo(() => diffPortableText(oldValue, newValue), [oldValue, newValue]);
+	if (!result) {
+		return <div className="text-kumo-subtle">{t`Too long to compare; show the full values.`}</div>;
+	}
+	if (result.changes.length === 0) {
+		return <div className="text-kumo-subtle">{t`Only formatting or settings changed.`}</div>;
+	}
+	return (
+		<div className="space-y-2">
+			{result.changes.map((change, i) => (
+				<div
+					key={i}
+					className={cn(
+						"border-s-2 ps-2",
+						change.kind === "added"
+							? "border-green-500"
+							: change.kind === "removed"
+								? "border-red-500"
+								: "border-amber-500",
+					)}
+				>
+					<WordDiff
+						segments={
+							change.kind === "changed"
+								? change.segments
+								: [[change.kind === "added" ? "+" : "-", change.text]]
+						}
+					/>
+				</div>
+			))}
+			<div className="text-kumo-subtle">
+				{plural(result.unchanged, { one: "# block unchanged", other: "# blocks unchanged" })}
+			</div>
+		</div>
+	);
+}
+
+function DiffFieldRow({ diff, label }: { diff: FieldDiff; label?: string }) {
+	const { t } = useLingui();
 	const style = DIFF_STYLES[diff.kind];
+	const [showFull, setShowFull] = React.useState(false);
+	const readable =
+		diff.kind !== "changed"
+			? null
+			: isPortableText(diff.oldValue) || isPortableText(diff.newValue)
+				? "portableText"
+				: typeof diff.oldValue === "string" && typeof diff.newValue === "string"
+					? "text"
+					: null;
 
 	return (
 		<div className={`rounded-lg border px-3 py-2 text-xs ${style.bg}`}>
 			<div className="flex items-center gap-1.5 mb-1">
 				{style.icon}
-				<span className="font-medium">{diff.field}</span>
+				<span className="font-medium" title={diff.field}>
+					{label || diff.field}
+				</span>
 			</div>
 
-			{diff.kind === "changed" && (
+			{readable && (
+				<div className="mt-1.5 space-y-1.5">
+					{readable === "portableText" ? (
+						<PortableTextDiff
+							oldValue={Array.isArray(diff.oldValue) ? diff.oldValue : []}
+							newValue={Array.isArray(diff.newValue) ? diff.newValue : []}
+						/>
+					) : (
+						<WordDiff segments={diffWords(String(diff.oldValue), String(diff.newValue))} />
+					)}
+					<button
+						type="button"
+						onClick={() => setShowFull(!showFull)}
+						className="text-kumo-link hover:underline"
+					>
+						{showFull ? t`Hide full values` : t`Show full values`}
+					</button>
+				</div>
+			)}
+
+			{diff.kind === "changed" && (!readable || showFull) && (
 				<div className="space-y-1 mt-1.5">
 					<div className="flex gap-2">
 						<span className="text-red-600 dark:text-red-400 shrink-0">−</span>
