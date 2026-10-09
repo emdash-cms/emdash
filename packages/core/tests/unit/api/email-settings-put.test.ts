@@ -6,7 +6,6 @@ import { PUT as putEmailSettings } from "../../../src/astro/routes/api/settings/
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import { loadSmtpConfigFromDb } from "../../../src/plugins/email-smtp.js";
-import { EXCLUSIVE_HOOK_NONE_VALUE } from "../../../src/plugins/hooks.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const TEST_ENCRYPTION_KEY = "emdash_enc_v1_U-1To8mS9tyTfAFz8KHAsCVo1fvktqbq0y5JxBiXgIU";
@@ -17,25 +16,22 @@ describe("PUT /_emdash/api/settings/email", () => {
 	let hooks: {
 		getExclusiveHookProviders: ReturnType<typeof vi.fn>;
 		setExclusiveSelection: ReturnType<typeof vi.fn>;
-		clearExclusiveSelection: ReturnType<typeof vi.fn>;
 	};
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
 		hooks = {
-			getExclusiveHookProviders: vi.fn().mockReturnValue([
-				{ pluginId: "emdash-smtp", autoSelect: false },
-				{ pluginId: "resend", autoSelect: true },
-			]),
+			getExclusiveHookProviders: vi
+				.fn()
+				.mockReturnValue([{ pluginId: "emdash-builtin-smtp" }, { pluginId: "resend" }]),
 			setExclusiveSelection: vi.fn(),
-			clearExclusiveSelection: vi.fn(),
 		};
-		process.env.EMDASH_ENCRYPTION_KEY = TEST_ENCRYPTION_KEY;
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
 	});
 
 	afterEach(async () => {
 		await teardownTestDatabase(db);
-		delete process.env.EMDASH_ENCRYPTION_KEY;
+		vi.unstubAllEnvs();
 	});
 
 	const put = (body: unknown) =>
@@ -84,29 +80,58 @@ describe("PUT /_emdash/api/settings/email", () => {
 		const first = await put(smtpBody({ pass: "s3cret" }));
 		expect(first.status).toBe(200);
 
-		const second = await put(smtpBody({ host: "smtp2.example.com" }));
+		const second = await put(smtpBody({ port: 587, secure: "starttls" }));
 		expect(second.status).toBe(200);
 
 		const stored = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
-		expect(stored?.host).toBe("smtp2.example.com");
+		expect(stored?.port).toBe(587);
 		expect(stored?.pass).toBe("s3cret");
+	});
+
+	it("requires the password again when the host changes", async () => {
+		await put(smtpBody({ pass: "s3cret" }));
+
+		const response = await put(smtpBody({ host: "attacker.example.com" }));
+		expect(response.status).toBe(400);
+		expect((await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY))?.host).toBe("smtp.example.com");
+	});
+
+	it("re-selects saved SMTP without resending its settings", async () => {
+		await put(smtpBody({ pass: "s3cret" }));
+		await put({ provider: "plugin", pluginId: "resend" });
+
+		const response = await put({ provider: "smtp" });
+		expect(response.status).toBe(200);
+		expect(await new OptionsRepository(db).get<string>(OPTION_KEY)).toBe("emdash-builtin-smtp");
 	});
 
 	it("activates SMTP as the selected provider on save", async () => {
 		await put(smtpBody({ pass: "s3cret" }));
 
 		const optionsRepo = new OptionsRepository(db);
-		expect(await optionsRepo.get<string>(OPTION_KEY)).toBe("emdash-smtp");
-		expect(hooks.setExclusiveSelection).toHaveBeenCalledWith("email:deliver", "emdash-smtp");
+		expect(await optionsRepo.get<string>(OPTION_KEY)).toBe("emdash-builtin-smtp");
+		expect(hooks.setExclusiveSelection).toHaveBeenCalledWith(
+			"email:deliver",
+			"emdash-builtin-smtp",
+		);
 	});
 
-	it("stores the none-sentinel and clears the in-memory selection", async () => {
-		const response = await put({ provider: "none" });
-		expect(response.status).toBe(200);
+	it("selects env-configured SMTP without storing credentials", async () => {
+		vi.stubEnv("EMAIL_SMTP_HOST", "smtp.example.com");
+		vi.stubEnv("EMAIL_SMTP_USER", "user@example.com");
+		vi.stubEnv("EMAIL_SMTP_PASS", "env-secret");
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", "");
 
-		const optionsRepo = new OptionsRepository(db);
-		expect(await optionsRepo.get<string>(OPTION_KEY)).toBe(EXCLUSIVE_HOOK_NONE_VALUE);
-		expect(hooks.clearExclusiveSelection).toHaveBeenCalledWith("email:deliver");
+		const response = await put({ provider: "smtp" });
+		expect(response.status).toBe(200);
+		expect(await new OptionsRepository(db).get<string>(OPTION_KEY)).toBe("emdash-builtin-smtp");
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+	});
+
+	it("requires SMTP settings when SMTP has no env config", async () => {
+		const response = await put({ provider: "smtp" });
+		expect(response.status).toBe(400);
+		expect(await new OptionsRepository(db).get<string>(OPTION_KEY)).toBeNull();
 	});
 
 	it("selects a registered plugin provider", async () => {
@@ -125,8 +150,8 @@ describe("PUT /_emdash/api/settings/email", () => {
 		expect(await optionsRepo.get<string>(OPTION_KEY)).toBeNull();
 	});
 
-	it("rejects built-in IDs via the plugin variant", async () => {
-		const response = await put({ provider: "plugin", pluginId: "emdash-smtp" });
+	it("rejects the SMTP ID via the plugin variant", async () => {
+		const response = await put({ provider: "plugin", pluginId: "emdash-builtin-smtp" });
 		expect(response.status).toBe(400);
 	});
 
@@ -135,7 +160,7 @@ describe("PUT /_emdash/api/settings/email", () => {
 			request: new Request("http://localhost/_emdash/api/settings/email", {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ provider: "none" }),
+				body: JSON.stringify({ provider: "plugin", pluginId: "resend" }),
 			}),
 			locals: {
 				emdash: { db, hooks },

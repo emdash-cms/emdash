@@ -1,25 +1,26 @@
 /**
  * Unit tests for the built-in SMTP email transport.
  *
- * Mocks the socket layer to verify protocol flow (EHLO → STARTTLS → AUTH →
+ * Scripts the socket layer to verify protocol flow (EHLO → STARTTLS → AUTH →
  * MAIL FROM → RCPT TO → DATA → QUIT), error handling on bad reply codes,
- * and config parsing from env vars.
+ * and config parsing from env vars. email-smtp-socket.test.ts covers the
+ * socket layer itself.
  */
 
 import type { Kysely } from "kysely";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import {
-	createSmtpEmailDeliver,
 	deliverSmtp,
 	dotStuff,
 	loadSmtpConfig,
 	loadSmtpConfigFromDb,
 	loadSmtpConfigFromEnv,
 	saveSmtpConfigToDb,
-	clearSmtpConfigFromDb,
 	type SmtpConfig,
+	type SmtpSocket,
 } from "../../../src/plugins/email-smtp.js";
 import type { EmailDeliverEvent, PluginContext } from "../../../src/plugins/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -32,41 +33,32 @@ function makeReply(code: number, message = "OK"): string {
 	return `${code} ${message}\r\n`;
 }
 
-/** Build a mock SmtpSocket that replays a scripted server conversation. */
-function mockSocket(script: string[]): {
-	socket: import("../../../src/plugins/email-smtp.js").SmtpSocket;
-	written: string[];
-} {
+/** First EHLO reply of a server offering STARTTLS and AUTH LOGIN only. */
+const EHLO_STARTTLS = "250-smtp.example.com\r\n250-STARTTLS\r\n250 AUTH LOGIN\r\n";
+/** EHLO reply after the TLS upgrade. */
+const EHLO_AUTH_LOGIN = "250-smtp.example.com\r\n250 AUTH LOGIN\r\n";
+
+/** A scripted SmtpSocket: each script entry is one (possibly multi-line) server reply. */
+function mockSocket(script: string[]): { socket: SmtpSocket; written: string[] } {
 	const written: string[] = [];
-	const incoming = script.map((s) => new TextEncoder().encode(s));
-	let readIndex = 0;
-
-	const makeReader = () => ({
-		read: async () => {
-			if (readIndex >= incoming.length) return { done: true };
-			return { value: incoming[readIndex++], done: false };
-		},
-	});
-
-	const socket: import("../../../src/plugins/email-smtp.js").SmtpSocket = {
-		writer: {
-			write: async (data: Uint8Array) => {
-				written.push(new TextDecoder().decode(data));
-			},
-			close: async () => {},
-		},
-		reader: makeReader(),
-		startTls: async () => {
-			// TLS upgrade: same underlying stream, continue with same reader queue
-			return {
-				writer: socket.writer,
-				reader: makeReader(),
-				close: socket.close,
-			};
-		},
-		close: async () => {},
+	const replies = [...script];
+	const readReply = async () => {
+		const raw = replies.shift();
+		if (raw === undefined) throw new Error("SMTP connection closed unexpectedly");
+		const lines = raw.split("\r\n").filter(Boolean);
+		return { code: Number.parseInt(lines[0]!.slice(0, 3), 10), lines };
 	};
-
+	const socket: SmtpSocket = {
+		readReply,
+		write: async (data) => {
+			written.push(data);
+		},
+		startTls: async () => {
+			written.push("STARTTLS\r\n");
+			return readReply();
+		},
+		destroy: () => {},
+	};
 	return { written, socket };
 }
 
@@ -174,7 +166,7 @@ describe("loadSmtpConfigFromEnv", () => {
 		process.env.EMAIL_SMTP_USER = "u";
 		process.env.EMAIL_SMTP_PASS = "p";
 
-		expect(() => loadSmtpConfigFromEnv()).toThrow(/port 25/);
+		expect(() => loadSmtpConfigFromEnv()).toThrow(/EMAIL_SMTP_PORT=25 is not supported/);
 	});
 
 	it.each(["abc", "587abc", "0", "70000", "58.7"])("refuses EMAIL_SMTP_PORT=%s", (port) => {
@@ -216,9 +208,9 @@ describe("deliverSmtp", () => {
 	it("completes a full STARTTLS session", async () => {
 		const script = [
 			makeReply(220, "smtp.example.com ESMTP ready"),
-			makeReply(250, "smtp.example.com greets emdash"),
+			EHLO_STARTTLS,
 			makeReply(220, "Go ahead with TLS"),
-			makeReply(250, "smtp.example.com greets emdash"),
+			EHLO_AUTH_LOGIN,
 			makeReply(334, "VXNlciBOYW1lAA=="),
 			makeReply(334, "UGFzc3dvcmQA"),
 			makeReply(235, "Authentication successful"),
@@ -233,10 +225,15 @@ describe("deliverSmtp", () => {
 
 		await deliverSmtp(baseConfig, message, mockCtx, connectFn);
 
-		expect(connectFn).toHaveBeenCalledWith("smtp.example.com", 587, "starttls");
+		expect(connectFn).toHaveBeenCalledWith(
+			"smtp.example.com",
+			587,
+			"starttls",
+			expect.any(AbortSignal),
+		);
 
 		const transcript = written.join("");
-		expect(transcript).toContain("EHLO emdash\r\n");
+		expect(transcript).toContain("EHLO example.com\r\n");
 		expect(transcript).toContain("STARTTLS\r\n");
 		expect(transcript).toContain("AUTH LOGIN\r\n");
 		expect(transcript).toContain("MAIL FROM:<noreply@example.com>\r\n");
@@ -256,9 +253,9 @@ describe("deliverSmtp", () => {
 	it("delivers to cc recipients and prefers the message's reply-to address", async () => {
 		const script = [
 			makeReply(220, "ready"),
-			makeReply(250, "ok"),
+			EHLO_STARTTLS,
 			makeReply(220, "TLS go"),
-			makeReply(250, "ok"),
+			EHLO_AUTH_LOGIN,
 			makeReply(334, "Username"),
 			makeReply(334, "Password"),
 			makeReply(235, "ok"),
@@ -287,6 +284,39 @@ describe("deliverSmtp", () => {
 		expect(transcript).not.toContain("support@example.com");
 	});
 
+	it("encodes only the display name of a non-ASCII Reply-To", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "ok"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "go"),
+			makeReply(250, "Message accepted"),
+		]);
+
+		await deliverSmtp(
+			baseConfig,
+			{ ...message, replyTo: "Jörg <joerg@example.com>" },
+			mockCtx,
+			vi.fn(async () => socket),
+		);
+
+		expect(written.join("")).toMatch(/Reply-To: =\?UTF-8\?B\?[^?]+\?= <joerg@example\.com>\r\n/);
+	});
+
+	it("rejects an invalid Reply-To address", async () => {
+		const connectFn = vi.fn(async () => mockSocket([]).socket);
+		await expect(
+			deliverSmtp(baseConfig, { ...message, replyTo: "not an address" }, mockCtx, connectFn),
+		).rejects.toThrow(/Invalid reply-to address/);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
 	it("rejects a cc address that could inject SMTP commands", async () => {
 		const connectFn = vi.fn(async () => mockSocket([]).socket);
 		await expect(
@@ -303,9 +333,9 @@ describe("deliverSmtp", () => {
 	it("splits a long non-ASCII subject into RFC 2047 encoded-words", async () => {
 		const script = [
 			makeReply(220, "ready"),
-			makeReply(250, "EHLO ok"),
+			EHLO_STARTTLS,
 			makeReply(220, "TLS go"),
-			makeReply(250, "EHLO ok"),
+			EHLO_AUTH_LOGIN,
 			makeReply(334, "Username"),
 			makeReply(334, "Password"),
 			makeReply(235, "ok"),
@@ -315,13 +345,13 @@ describe("deliverSmtp", () => {
 			makeReply(250, "ok"),
 		];
 		const { socket, written } = mockSocket(script);
-		const subject = "مرحبا بكم في موقعنا — نشرة الأخبار الأسبوعية للمحررين والقراء".repeat(2);
+		const subject = "مرحبا بكم في موقعنا، نشرة الأخبار الأسبوعية للمحررين والقراء".repeat(2);
 
 		await deliverSmtp(baseConfig, { ...message, subject }, mockCtx, async () => socket);
 
-		const subjectLine = written.join("").match(/^Subject: (.*)\r\n/m)?.[1];
-		expect(subjectLine).toBeDefined();
-		const words = subjectLine!.split(" ");
+		const subjectHeader = written.join("").match(/^Subject: (.*(?:\r\n .*)*)\r\n/m)?.[1];
+		expect(subjectHeader).toBeDefined();
+		const words = subjectHeader!.split("\r\n ");
 		expect(words.length).toBeGreaterThan(1);
 		for (const word of words) {
 			expect(word).toMatch(/^=\?UTF-8\?B\?[A-Za-z0-9+/=]+\?=$/);
@@ -339,9 +369,9 @@ describe("deliverSmtp", () => {
 	it("throws on AUTH failure", async () => {
 		const script = [
 			makeReply(220, "ready"),
-			makeReply(250, "EHLO ok"),
+			EHLO_STARTTLS,
 			makeReply(220, "TLS go"),
-			makeReply(250, "EHLO ok"),
+			EHLO_AUTH_LOGIN,
 			makeReply(334, "Username"),
 			makeReply(334, "Password"),
 			makeReply(535, "Authentication failed"),
@@ -352,6 +382,51 @@ describe("deliverSmtp", () => {
 
 		await expect(deliverSmtp(baseConfig, message, mockCtx, connectFn)).rejects.toThrow(
 			/Authentication failed \(535/,
+		);
+	});
+
+	it("prefers AUTH PLAIN when the server offers it", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			"250-smtp.example.com\r\n250 AUTH LOGIN PLAIN\r\n",
+			makeReply(235, "ok"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "go"),
+			makeReply(250, "Message accepted"),
+		]);
+
+		await deliverSmtp(baseConfig, message, mockCtx, async () => socket);
+
+		const transcript = written.join("");
+		expect(transcript).toContain(`AUTH PLAIN ${btoa("\0user@example.com\0secret")}\r\n`);
+		expect(transcript).not.toContain("AUTH LOGIN");
+	});
+
+	it("refuses to authenticate when the server does not offer STARTTLS", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			"250-smtp.example.com\r\n250 AUTH LOGIN\r\n",
+		]);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, async () => socket)).rejects.toThrow(
+			/does not offer STARTTLS/,
+		);
+		expect(written.join("")).not.toContain("AUTH");
+	});
+
+	it("fails clearly when the server offers no supported login method", async () => {
+		const { socket } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			"250-smtp.example.com\r\n250 AUTH XOAUTH2\r\n",
+		]);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, async () => socket)).rejects.toThrow(
+			/no supported login method \(XOAUTH2\)/,
 		);
 	});
 
@@ -373,9 +448,9 @@ describe("deliverSmtp", () => {
 	it("base64-encodes bodies so a line starting with a period arrives intact", async () => {
 		const script = [
 			makeReply(220, "ready"),
-			makeReply(250, "EHLO ok"),
+			EHLO_STARTTLS,
 			makeReply(220, "TLS go"),
-			makeReply(250, "EHLO ok"),
+			EHLO_AUTH_LOGIN,
 			makeReply(334, "Username"),
 			makeReply(334, "Password"),
 			makeReply(235, "Auth ok"),
@@ -409,43 +484,13 @@ describe("deliverSmtp", () => {
 	});
 });
 
-describe("createSmtpEmailDeliver", () => {
-	it("returns a handler that calls deliverSmtp", async () => {
-		const script = [
-			makeReply(220, "ready"),
-			makeReply(250, "EHLO ok"),
-			makeReply(220, "TLS go"),
-			makeReply(250, "EHLO ok"),
-			makeReply(334, "Username"),
-			makeReply(334, "Password"),
-			makeReply(235, "Auth ok"),
-			makeReply(250, "Sender OK"),
-			makeReply(250, "Recipient OK"),
-			makeReply(354, "Go ahead"),
-			makeReply(250, "Accepted"),
-		];
-
-		const { socket } = mockSocket(script);
-		const connectFn = vi.fn(async () => socket);
-		const handler = createSmtpEmailDeliver(baseConfig, connectFn);
-
-		const event: EmailDeliverEvent = {
-			message: { to: "a@b.com", subject: "S", text: "T" },
-			source: "test",
-		};
-
-		await expect(handler(event, mockCtx)).resolves.toBeUndefined();
-		expect(connectFn).toHaveBeenCalled();
-	});
-});
-
 // ---------------------------------------------------------------------------
 // DB-backed config
 // ---------------------------------------------------------------------------
 
 const TEST_ENCRYPTION_KEY = "emdash_enc_v1_U-1To8mS9tyTfAFz8KHAsCVo1fvktqbq0y5JxBiXgIU";
 
-describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", () => {
+describe("loadSmtpConfigFromDb / saveSmtpConfigToDb", () => {
 	let db: Kysely<DatabaseSchema>;
 
 	beforeEach(async () => {
@@ -496,27 +541,68 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 	});
 
 	it("encrypts the password in the database", async () => {
-		const input: SmtpConfig = {
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+
+		const raw = await new OptionsRepository(db).get("emdash:email:smtp:password");
+		expect(raw).toBeTruthy();
+		expect(JSON.stringify(raw)).not.toContain("super-secret");
+	});
+
+	it("ignores a password stored without encryption", async () => {
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+		await new OptionsRepository(db).set("emdash:email:smtp:password", "plain-text");
+
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+	});
+
+	it("does not pair a saved password with a different host", async () => {
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+		await new OptionsRepository(db).set("emdash:email:smtp:host", "attacker.example.com");
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+		warn.mockRestore();
+	});
+
+	it("removes optional sender fields cleared on a later save", async () => {
+		const base: SmtpConfig = {
 			host: "smtp.example.com",
 			port: 587,
 			secure: "starttls",
 			user: "user@example.com",
 			pass: "super-secret",
 		};
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			...base,
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
+			replyTo: "support@example.com",
+		});
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, base);
 
-		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
-
-		const repo = new (
-			await import("../../../src/database/repositories/options.js")
-		).OptionsRepository(db);
-		const raw = await repo.get<string>("emdash:email:smtp:password");
-		expect(raw).toBeDefined();
-		expect(raw).not.toBe("super-secret");
-		expect(typeof raw).toBe("string");
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toEqual(base);
 	});
 
 	it.each([
-		[25, "Cloudflare blocks outbound port 25"],
+		[25, "port 25 is not supported"],
 		[70000, "not a valid port number"],
 		[587.5, "not a valid port number"],
 	])("ignores a stored port %s the transport cannot use", async (port, reason) => {
@@ -532,22 +618,6 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
 		expect(warn).toHaveBeenCalledWith(expect.stringContaining(reason));
 		warn.mockRestore();
-	});
-
-	it("clears all config", async () => {
-		const input: SmtpConfig = {
-			host: "smtp.example.com",
-			port: 587,
-			secure: "starttls",
-			user: "user@example.com",
-			pass: "super-secret",
-		};
-
-		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
-		await clearSmtpConfigFromDb(db);
-
-		const loaded = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
-		expect(loaded).toBeNull();
 	});
 });
 
@@ -566,13 +636,11 @@ describe("loadSmtpConfig", () => {
 	});
 
 	it("prefers DB config over env vars", async () => {
-		// Set env vars
 		process.env.EMAIL_SMTP_HOST = "env-smtp.example.com";
 		process.env.EMAIL_SMTP_PORT = "587";
 		process.env.EMAIL_SMTP_USER = "env-user";
 		process.env.EMAIL_SMTP_PASS = "env-pass";
 
-		// Set DB config
 		const dbConfig: SmtpConfig = {
 			host: "db-smtp.example.com",
 			port: 465,
@@ -651,9 +719,9 @@ describe("SMTP delivery failures", () => {
 	it("redacts AUTH credentials from the logged transcript", async () => {
 		const script = [
 			makeReply(220, "ready"),
-			makeReply(250, "EHLO ok"),
+			EHLO_STARTTLS,
 			makeReply(220, "TLS go"),
-			makeReply(250, "EHLO ok"),
+			EHLO_AUTH_LOGIN,
 			makeReply(334, "Username"),
 			makeReply(334, "Password"),
 			makeReply(535, "Authentication credentials invalid"),
@@ -706,7 +774,7 @@ describe("SMTP delivery failures", () => {
 			const { socket } = mockSocket([]);
 			const neverConnect = vi.fn(async () => ({
 				...socket,
-				reader: { read: () => new Promise<never>(() => {}) },
+				readReply: () => new Promise<never>(() => {}),
 			}));
 
 			const delivery = deliverSmtp(baseConfig, message, mockCtx, neverConnect);

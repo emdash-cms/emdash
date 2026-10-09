@@ -17,11 +17,7 @@ import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
-import {
-	EXCLUSIVE_HOOK_NONE_VALUE,
-	HookPipeline,
-	resolveExclusiveHooks,
-} from "../../../src/plugins/hooks.js";
+import { HookPipeline, resolveExclusiveHooks } from "../../../src/plugins/hooks.js";
 import { PluginManager } from "../../../src/plugins/manager.js";
 import { normalizeManifestHook } from "../../../src/plugins/manifest-schema.js";
 import type {
@@ -69,7 +65,6 @@ function createTestHook<T>(
 		dependencies: [],
 		errorPolicy: "continue",
 		exclusive: false,
-		autoSelect: true,
 		...overrides,
 	};
 }
@@ -471,93 +466,12 @@ describe("resolveExclusiveHooks — shared function", () => {
 			setOption: async (key, value) => {
 				store.set(key, value);
 			},
+			deleteOption: async (key) => {
+				store.delete(key);
+			},
 		});
 
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("only-provider");
-	});
-
-	it("auto-selects the sole real provider past unconfigured built-ins", async () => {
-		const realProvider = createTestPlugin({
-			id: "resend-plugin",
-			hooks: {
-				"content:beforeSave": createTestHook("resend-plugin", vi.fn(), { exclusive: true }),
-			},
-		});
-		const unconfiguredBuiltin = createTestPlugin({
-			id: "builtin-smtp",
-			hooks: {
-				"content:beforeSave": createTestHook("builtin-smtp", vi.fn(), {
-					exclusive: true,
-					autoSelect: false,
-				}),
-			},
-		});
-		const pipeline = new HookPipeline([realProvider, unconfiguredBuiltin]);
-
-		const store = new Map<string, string>();
-		await resolveExclusiveHooks({
-			pipeline,
-			isActive: () => true,
-			getOption: async (key) => store.get(key) ?? null,
-			setOption: async (key, value) => {
-				store.set(key, value);
-			},
-		});
-
-		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("resend-plugin");
-	});
-
-	it("does not persist the auto-selection of an ephemeral provider", async () => {
-		const devProvider = createTestPlugin({
-			id: "dev-console",
-			hooks: {
-				"content:beforeSave": createTestHook("dev-console", vi.fn(), { exclusive: true }),
-			},
-		});
-		const pipeline = new HookPipeline([devProvider]);
-
-		const store = new Map<string, string>();
-		await resolveExclusiveHooks({
-			pipeline,
-			isActive: () => true,
-			getOption: async (key) => store.get(key) ?? null,
-			setOption: async (key, value) => {
-				store.set(key, value);
-			},
-			ephemeralProviders: new Set(["dev-console"]),
-		});
-
-		// Selected for this process, but not written to the store: the
-		// selection must not leak into other environments via a shared DB.
-		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("dev-console");
-		expect(store.size).toBe(0);
-	});
-
-	it("re-resolves past a stored ephemeral selection from another environment", async () => {
-		const realProvider = createTestPlugin({
-			id: "real-provider",
-			hooks: {
-				"content:beforeSave": createTestHook("real-provider", vi.fn(), { exclusive: true }),
-			},
-		});
-		const pipeline = new HookPipeline([realProvider]);
-
-		// A dev session against a shared DB stored the dev-only provider
-		const store = new Map<string, string>([
-			["emdash:exclusive_hook:content:beforeSave", "dev-console"],
-		]);
-		await resolveExclusiveHooks({
-			pipeline,
-			isActive: () => true,
-			getOption: async (key) => store.get(key) ?? null,
-			setOption: async (key, value) => {
-				store.set(key, value);
-			},
-			ephemeralProviders: new Set(["dev-console"]),
-		});
-
-		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("real-provider");
-		expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("real-provider");
 	});
 
 	it("filters out inactive providers", async () => {
@@ -584,40 +498,16 @@ describe("resolveExclusiveHooks — shared function", () => {
 			setOption: async (key, value) => {
 				store.set(key, value);
 			},
+			deleteOption: async (key) => {
+				store.delete(key);
+			},
 		});
 
 		// Only active-provider is active, so it should be auto-selected
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("active-provider");
 	});
 
-	it("does not auto-select when admin explicitly chose none", async () => {
-		const plugin = createTestPlugin({
-			id: "only-provider",
-			hooks: {
-				"content:beforeSave": createTestHook("only-provider", vi.fn(), { exclusive: true }),
-			},
-		});
-		const pipeline = new HookPipeline([plugin]);
-
-		const store = new Map<string, string>([
-			["emdash:exclusive_hook:content:beforeSave", EXCLUSIVE_HOOK_NONE_VALUE],
-		]);
-
-		await resolveExclusiveHooks({
-			pipeline,
-			isActive: () => true,
-			getOption: async (key) => store.get(key) ?? null,
-			setOption: async (key, value) => {
-				store.set(key, value);
-			},
-		});
-
-		// Explicit "none" must survive resolution: no auto-select, no overwrite
-		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
-		expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe(EXCLUSIVE_HOOK_NONE_VALUE);
-	});
-
-	it("preserves stale selection when selected provider is inactive", async () => {
+	it("clears stale selection when selected provider is inactive", async () => {
 		const pluginA = createTestPlugin({
 			id: "provider-a",
 			hooks: {
@@ -644,13 +534,13 @@ describe("resolveExclusiveHooks — shared function", () => {
 			setOption: async (key, value) => {
 				store.set(key, value);
 			},
+			deleteOption: async (key) => {
+				store.delete(key);
+			},
 		});
 
-		// provider-a is preserved in DB: not deleted. In-memory selection
-		// stays unset so delivery fails with a clear error until provider-a
-		// is registered again.
-		expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("provider-a");
-		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
+		// provider-a was stale, cleared. provider-b is the only active one → auto-selected
+		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("provider-b");
 	});
 
 	describe("with a fallback provider", () => {
@@ -677,6 +567,9 @@ describe("resolveExclusiveHooks — shared function", () => {
 				getOption: async (key) => store.get(key) ?? null,
 				setOption: async (key, value) => {
 					store.set(key, value);
+				},
+				deleteOption: async (key) => {
+					store.delete(key);
 				},
 				fallbackProviders: new Set(["built-in"]),
 			});
@@ -711,37 +604,75 @@ describe("resolveExclusiveHooks — shared function", () => {
 			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("built-in");
 		});
 
-		it("serves the hook with the fallback while a stored provider is missing, keeping the stored choice", async () => {
-			const key = "emdash:exclusive_hook:content:beforeSave";
-			const store = new Map([[key, "plugin-a"]]);
-
-			const withoutPlugin = providerPipeline("built-in");
-			await resolveWithFallback(withoutPlugin, store);
-			expect(withoutPlugin.getExclusiveSelection("content:beforeSave")).toBe("built-in");
-			expect(store.get(key)).toBe("plugin-a");
-
-			const withPlugin = providerPipeline("built-in", "plugin-a");
-			await resolveWithFallback(withPlugin, store);
-			expect(withPlugin.getExclusiveSelection("content:beforeSave")).toBe("plugin-a");
-		});
-
-		it("serves the hook with the one other provider over the fallback while a stored provider is missing", async () => {
-			const key = "emdash:exclusive_hook:content:beforeSave";
-			const store = new Map([[key, "plugin-a"]]);
-
-			const pipeline = providerPipeline("built-in", "plugin-b");
-			await resolveWithFallback(pipeline, store);
-
-			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("plugin-b");
-			expect(store.get(key)).toBe("plugin-a");
-		});
-
 		it("leaves the hook unselected when several other providers compete", async () => {
 			const pipeline = providerPipeline("built-in", "plugin-a", "plugin-b");
 
 			await resolveWithFallback(pipeline, new Map());
 
 			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
+		});
+	});
+
+	describe("with a manual provider", () => {
+		function providerPipeline(...ids: string[]): HookPipeline {
+			return new HookPipeline(
+				ids.map((id) =>
+					createTestPlugin({
+						id,
+						hooks: {
+							"content:beforeSave": createTestHook(id, vi.fn(), { exclusive: true }),
+						},
+					}),
+				),
+			);
+		}
+
+		async function resolveWithManual(
+			pipeline: HookPipeline,
+			store: Map<string, string>,
+		): Promise<void> {
+			await resolveExclusiveHooks({
+				pipeline,
+				isActive: () => true,
+				getOption: async (key) => store.get(key) ?? null,
+				setOption: async (key, value) => {
+					store.set(key, value);
+				},
+				deleteOption: async (key) => {
+					store.delete(key);
+				},
+				preferredHints: new Map([["built-in", ["content:beforeSave"]]]),
+				manualProviders: new Set(["built-in"]),
+			});
+		}
+
+		it("never auto-selects it, even as the only provider or a preferred one", async () => {
+			const pipeline = providerPipeline("built-in");
+			const store = new Map<string, string>();
+
+			await resolveWithManual(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
+			expect(store.size).toBe(0);
+		});
+
+		it("does not block auto-selection of the one other provider", async () => {
+			const pipeline = providerPipeline("built-in", "plugin-a");
+			const store = new Map<string, string>();
+
+			await resolveWithManual(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("plugin-a");
+			expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("plugin-a");
+		});
+
+		it("keeps a stored selection of it", async () => {
+			const pipeline = providerPipeline("built-in", "plugin-a");
+			const store = new Map([["emdash:exclusive_hook:content:beforeSave", "built-in"]]);
+
+			await resolveWithManual(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("built-in");
 		});
 	});
 });
@@ -843,7 +774,7 @@ describe("PluginManager — resolveExclusiveHooks", () => {
 		expect(selection).toBeNull();
 	});
 
-	it("preserves stale selection when selected plugin is deactivated", async () => {
+	it("clears stale selection when selected plugin is deactivated", async () => {
 		const handlerA = vi.fn() as unknown as ContentBeforeSaveHandler;
 		const handlerB = vi.fn() as unknown as ContentBeforeSaveHandler;
 
@@ -871,10 +802,9 @@ describe("PluginManager — resolveExclusiveHooks", () => {
 		// Deactivate the selected plugin
 		await manager.deactivate("provider-a");
 
-		// Selection is preserved in DB: not deleted. provider-b is NOT
-		// auto-selected because a selection already exists.
+		// After deactivation, provider-b is the only one left → auto-selects
 		const selection = await manager.getExclusiveHookSelection("content:beforeSave");
-		expect(selection).toBe("provider-a");
+		expect(selection).toBe("provider-b");
 	});
 
 	it("uses preferred hints when no selection exists", async () => {
@@ -969,7 +899,7 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 	/**
 	 * Three plugins / three exclusive hooks covering every resolution branch:
 	 * - content:beforeSave: providers a+b active, valid stored selection (kept)
-	 * - content:afterSave: provider c stale (inactive): selection preserved
+	 * - content:afterSave: provider c stale (inactive), a remains (auto-select)
 	 * - content:beforeDelete: providers a+b active, no selection (unselected)
 	 */
 	function createScenarioPipeline(): HookPipeline {
@@ -1017,6 +947,9 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 			}),
 			setOption: vi.fn(async (key: string, value: string) => {
 				store.set(key, value);
+			}),
+			deleteOption: vi.fn(async (key: string) => {
+				store.delete(key);
 			}),
 		};
 	}
@@ -1070,10 +1003,7 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 
 		// Sanity-check the actual outcomes, not just parity
 		expect(batchedPipeline.getExclusiveSelection("content:beforeSave")).toBe("provider-a");
-		// content:afterSave selection is preserved in DB (provider-c) but not
-		// set in-memory since provider-c is inactive
-		expect(batchedPipeline.getExclusiveSelection("content:afterSave")).toBeUndefined();
-		expect(batchedStore.get("emdash:exclusive_hook:content:afterSave")).toBe("provider-c");
+		expect(batchedPipeline.getExclusiveSelection("content:afterSave")).toBe("provider-a");
 		expect(batchedPipeline.getExclusiveSelection("content:beforeDelete")).toBeUndefined();
 	});
 
@@ -1088,6 +1018,7 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 
 		// Matches the per-key tolerance: nothing written, nothing selected
 		expect(callbacks.setOption).not.toHaveBeenCalled();
+		expect(callbacks.deleteOption).not.toHaveBeenCalled();
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
 		expect(pipeline.getExclusiveSelection("content:afterSave")).toBeUndefined();
 		expect(pipeline.getExclusiveSelection("content:beforeDelete")).toBeUndefined();

@@ -5,15 +5,15 @@ description: Configure email delivery for magic links, invites, and account reco
 
 import { Steps } from "@astrojs/starlight/components";
 
-EmDash uses email for **magic link login**, **user invites**, and **account recovery**. A provider plugin delivers the mail; you choose and configure the provider by installing its plugin.
+EmDash uses email for **magic link login**, **user invites**, and **account recovery**. A provider delivers the mail: either the SMTP transport built into EmDash or a provider plugin.
 
 This guide covers how the email pipeline works, what you get out of the box in development, and how to wire up a real provider for production.
 
 ## How Email Delivery Works
 
-A single active provider plugin delivers all outgoing mail. If no provider is active, features that need email are unavailable — invite links must then be copied and shared manually from the Users page.
+A single active provider delivers all outgoing mail. If no provider is active, features that need email are unavailable, and invite links must then be copied and shared manually from the Users page.
 
-You can see the current state under **Settings → Email** in the admin: whether a provider is active, which plugin it is, and a **send test email** button that exercises the full pipeline.
+You can see the current state under **Settings → Email** in the admin: whether a provider is active, which provider it is, and a **send test email** button that exercises the full pipeline.
 
 ## Development: Built-in Console Provider
 
@@ -22,6 +22,33 @@ In development (`astro dev`), EmDash auto-activates a built-in console provider 
 That means magic links and invites work out of the box in dev: request a magic link, then copy the URL from your terminal output. You can also list captured emails at the dev-only endpoint `GET /_emdash/api/dev/emails` (and clear them with `DELETE`).
 
 The console provider is dev-only and never runs in production builds.
+
+## Production: Built-in SMTP transport
+
+If you have SMTP credentials (for example Brevo, Office 365, Fastmail, Amazon SES, or your own mail server), EmDash can send through them without a plugin. The transport requires TLS before it authenticates, supports `AUTH PLAIN` and `AUTH LOGIN`, and refuses port 25.
+
+Configure it in one of two ways:
+
+- **In the admin:** open **Settings → Email**, choose **SMTP**, fill in the server details, and save. Saving stores the settings in the database and selects SMTP. EmDash encrypts the password with `EMDASH_ENCRYPTION_KEY`, so that key must be set. Settings saved in the admin take precedence over environment variables, so change the password in the admin when you rotate it.
+- **With environment variables:** set the following variables in the server's process environment. On Cloudflare, use `wrangler secret put`, and `.env` for local development. On Node, neither `astro dev` nor the built server loads `.env`, so export the variables or start the server with `node --env-file=.env`. See [Secrets & Key Management](/deployment/secrets/#user-provided-service-credentials).
+
+| Variable                | Example                         | Notes                                                                   |
+| ----------------------- | ------------------------------- | ----------------------------------------------------------------------- |
+| `EMAIL_SMTP_HOST`       | `smtp-relay.brevo.com`          | Required                                                                |
+| `EMAIL_SMTP_PORT`       | `587`                           | Optional; defaults to 587. Use 465 for implicit TLS                     |
+| `EMAIL_SMTP_USER`       | `you@example.com`               | Required; the SMTP login                                                |
+| `EMAIL_SMTP_PASS`       | `xsmtpsib-…`                    | Required; store it as a secret                                          |
+| `EMAIL_SMTP_SECURE`     | `tls` or `starttls`             | Optional; port 465 uses `tls`, every other port uses `starttls`         |
+| `EMAIL_SMTP_FROM`       | `My Site <noreply@example.com>` | Optional default sender                                                 |
+| `EMAIL_SMTP_FROM_NAME`  | `My Site`                       | Optional display name for `EMAIL_SMTP_FROM_EMAIL`                       |
+| `EMAIL_SMTP_FROM_EMAIL` | `noreply@example.com`           | Optional sender address; takes precedence over `EMAIL_SMTP_FROM`        |
+| `EMAIL_SMTP_REPLY_TO`   | `hello@example.com`             | Optional Reply-To address                                               |
+
+Without a sender variable, EmDash sends from `EMAIL_SMTP_USER`. If your SMTP login is not an email address, set `EMAIL_SMTP_FROM_EMAIL` or `EMAIL_SMTP_FROM`, or delivery fails with **Invalid sender address for SMTP delivery**.
+
+When the environment variables are complete, EmDash sends through SMTP unless an email provider plugin is active or another provider is selected under **Settings → Email**. To keep using SMTP alongside a provider plugin, select **SMTP** there and save.
+
+On Cloudflare Workers, the transport needs the `nodejs_compat` compatibility flag. See [Cloudflare deployment](/deployment/cloudflare/#built-in-smtp-transport).
 
 ## Production: Install a Provider Plugin
 
@@ -76,7 +103,7 @@ Whether a plugin can read a deployment secret (`wrangler secret put`, `.env`) in
 
 ## Troubleshooting
 
-- **"No email provider is configured"** — no provider plugin is active. Install and activate one, then select it in Settings → Email.
+- **"No email provider is configured"**: no provider is active. Configure SMTP or activate a provider plugin, then select it in Settings → Email.
 - **Magic links / invites silently unavailable** — same cause. Without a provider, the Users page still creates invites, but you must copy the invite link manually.
 - **Works in dev, fails in production** — dev uses the built-in console provider, which masks a missing production provider. Check Settings → Email on the deployed site.
 - **Emails land in spam** — configure SPF/DKIM/DMARC for your sending domain at your email provider; this is provider-side, not an EmDash setting.

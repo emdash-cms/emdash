@@ -1,8 +1,9 @@
 /**
  * Email Settings API endpoint
  *
- * GET  /_emdash/api/settings/email      — current provider, available providers, middleware
- * POST /_emdash/api/settings/email/test — send a test email through the full pipeline
+ * GET  /_emdash/api/settings/email: current provider, available providers, middleware
+ * POST /_emdash/api/settings/email: send a test email through the full pipeline
+ * PUT  /_emdash/api/settings/email: save SMTP settings or select the provider
  */
 
 import { escapeHtml } from "@emdash-cms/auth";
@@ -14,19 +15,14 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 import {
-	CLOUDFLARE_EMAIL_PLUGIN_ID,
-	loadCloudflareConfigFromDb,
-	loadCloudflareConfigFromEnv,
-	saveCloudflareConfigToDb,
-} from "#plugins/email-cloudflare.js";
-import {
 	loadSmtpConfigFromDb,
+	isSmtpEnvConfigured,
 	loadSmtpConfigFromEnv,
 	saveSmtpConfigToDb,
 	SMTP_EMAIL_PLUGIN_ID,
 	SmtpDeliveryError,
+	type SmtpConfig,
 } from "#plugins/email-smtp.js";
-import { EXCLUSIVE_HOOK_NONE_VALUE } from "#plugins/hooks.js";
 
 export const prerender = false;
 
@@ -59,9 +55,10 @@ export const GET: APIRoute = async ({ locals }) => {
 
 		// Get email:deliver providers and current selection
 		const providers = pipeline.getExclusiveHookProviders(EMAIL_DELIVER_HOOK);
-		const selectedProviderId = await optionsRepo.get<string>(
-			`emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`,
-		);
+		// Env-configured SMTP can be selected in memory only, without a stored option.
+		const selectedProviderId =
+			(await optionsRepo.get<string>(`emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`)) ??
+			pipeline.getExclusiveSelection(EMAIL_DELIVER_HOOK);
 
 		// Get middleware hooks (beforeSend / afterSend). These are non-exclusive —
 		// many plugins can subscribe — so we enumerate non-exclusive providers.
@@ -71,36 +68,6 @@ export const GET: APIRoute = async ({ locals }) => {
 		const afterSendPlugins = pipeline
 			.getHookProviders(EMAIL_AFTER_SEND_HOOK)
 			.map((p) => p.pluginId);
-
-		// Cloudflare Email config: DB takes precedence over env vars
-		let cloudflareStatus: {
-			configured: boolean;
-			source: "db" | "env" | null;
-			fromName?: string;
-			fromEmail?: string;
-			replyTo?: string;
-		} = { configured: false, source: null };
-		const dbCfConfig = await loadCloudflareConfigFromDb(emdash.db);
-		if (dbCfConfig) {
-			cloudflareStatus = {
-				configured: true,
-				source: "db",
-				fromName: dbCfConfig.fromName,
-				fromEmail: dbCfConfig.fromEmail,
-				...(dbCfConfig.replyTo ? { replyTo: dbCfConfig.replyTo } : {}),
-			};
-		} else {
-			const envCfConfig = loadCloudflareConfigFromEnv();
-			if (envCfConfig) {
-				cloudflareStatus = {
-					configured: true,
-					source: "env",
-					fromName: envCfConfig.fromName,
-					fromEmail: envCfConfig.fromEmail,
-					...(envCfConfig.replyTo ? { replyTo: envCfConfig.replyTo } : {}),
-				};
-			}
-		}
 
 		// SMTP transport status: DB config takes precedence over env vars
 		let smtpStatus: {
@@ -114,54 +81,42 @@ export const GET: APIRoute = async ({ locals }) => {
 			fromEmail?: string;
 			replyTo?: string;
 		} = { configured: false, source: null };
-		try {
-			const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
-			const dbConfig = encryptionKey ? await loadSmtpConfigFromDb(emdash.db, encryptionKey) : null;
-			const envConfig = loadSmtpConfigFromEnv();
-
-			if (dbConfig) {
-				smtpStatus = {
-					configured: true,
-					source: "db",
-					host: dbConfig.host,
-					port: dbConfig.port,
-					secure: dbConfig.secure,
-					user: dbConfig.user,
-					...(dbConfig.fromName ? { fromName: dbConfig.fromName } : {}),
-					...(dbConfig.fromEmail ? { fromEmail: dbConfig.fromEmail } : {}),
-					...(dbConfig.replyTo ? { replyTo: dbConfig.replyTo } : {}),
-				};
-			} else if (envConfig) {
-				smtpStatus = {
-					configured: true,
-					source: "env",
-					host: envConfig.host,
-					port: envConfig.port,
-					secure: envConfig.secure,
-					user: envConfig.user,
-					...(envConfig.fromName ? { fromName: envConfig.fromName } : {}),
-					...(envConfig.fromEmail ? { fromEmail: envConfig.fromEmail } : {}),
-					...(envConfig.replyTo ? { replyTo: envConfig.replyTo } : {}),
-				};
+		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
+		const dbConfig = encryptionKey ? await loadSmtpConfigFromDb(emdash.db, encryptionKey) : null;
+		let envConfig: SmtpConfig | null = null;
+		if (!dbConfig) {
+			try {
+				envConfig = loadSmtpConfigFromEnv();
+			} catch {
+				// Shown as unconfigured; the runtime logs why the env config is ignored.
 			}
-		} catch {
-			// Invalid SMTP config: show as unconfigured rather than breaking the page
+		}
+		const smtpConfig = dbConfig ?? envConfig;
+		if (smtpConfig) {
+			smtpStatus = {
+				configured: true,
+				source: dbConfig ? "db" : "env",
+				host: smtpConfig.host,
+				port: smtpConfig.port,
+				secure: smtpConfig.secure,
+				user: smtpConfig.user,
+				...(smtpConfig.fromName ? { fromName: smtpConfig.fromName } : {}),
+				...(smtpConfig.fromEmail ? { fromEmail: smtpConfig.fromEmail } : {}),
+				...(smtpConfig.replyTo ? { replyTo: smtpConfig.replyTo } : {}),
+			};
 		}
 
-		const explicitlyDisabled = selectedProviderId === EXCLUSIVE_HOOK_NONE_VALUE;
-
 		return apiSuccess({
-			available: explicitlyDisabled ? false : (emdash.email?.isAvailable() ?? false),
+			available: emdash.email?.isAvailable() ?? false,
 			providers: providers.map((p) => ({
 				pluginId: p.pluginId,
 			})),
-			selectedProviderId: explicitlyDisabled ? null : (selectedProviderId ?? null),
+			selectedProviderId: selectedProviderId ?? null,
 			middleware: {
 				beforeSend: beforeSendPlugins,
 				afterSend: afterSendPlugins,
 			},
 			smtp: smtpStatus,
-			cloudflare: cloudflareStatus,
 		});
 	} catch (error) {
 		return handleError(error, "Failed to get email settings", "EMAIL_SETTINGS_READ_ERROR");
@@ -169,7 +124,7 @@ export const GET: APIRoute = async ({ locals }) => {
 };
 
 /**
- * POST /_emdash/api/settings/email/test
+ * POST /_emdash/api/settings/email
  *
  * Send a test email through the full pipeline.
  * Validates the pipeline is configured and the provider works.
@@ -191,7 +146,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	if (!emdash.email?.isAvailable()) {
 		return apiError(
 			"EMAIL_NOT_CONFIGURED",
-			"No email provider is configured. Install and activate an email provider plugin.",
+			"No email provider is configured. Configure SMTP or activate an email provider plugin.",
 			503,
 		);
 	}
@@ -234,9 +189,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			message: `Test email sent to ${body.to}`,
 		});
 	} catch (error) {
-		// SmtpDeliveryError messages are humanized and credential-free, so the
-		// admin can act on them (auth rejected vs relay denied vs timeout).
-		// Anything else goes through the generic handler.
 		if (error instanceof SmtpDeliveryError) {
 			console.error("[EMAIL_TEST_ERROR]", error);
 			return apiError("EMAIL_TEST_ERROR", `Failed to send test email: ${error.message}`, 502);
@@ -257,8 +209,7 @@ const smtpConfigSchema = z.object({
 		.min(1)
 		.max(65535)
 		.refine((p) => p !== 25, {
-			message:
-				"Port 25 is not supported: Cloudflare blocks outbound port 25. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
+			message: "Port 25 is not supported. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
 		}),
 	secure: z.enum(["starttls", "tls"]),
 	user: z.string().min(1),
@@ -268,16 +219,9 @@ const smtpConfigSchema = z.object({
 	replyTo: z.string().email().optional(),
 });
 
-const cloudflareConfigSchema = z.object({
-	fromName: z.string().min(1),
-	fromEmail: z.string().email(),
-	replyTo: z.string().email().optional(),
-});
-
 const emailSettingsBody = z.discriminatedUnion("provider", [
-	z.object({ provider: z.literal("none") }),
-	z.object({ provider: z.literal("smtp"), smtp: smtpConfigSchema }),
-	z.object({ provider: z.literal("cloudflare"), cloudflare: cloudflareConfigSchema }),
+	// Without `smtp`, selects SMTP configured through environment variables.
+	z.object({ provider: z.literal("smtp"), smtp: smtpConfigSchema.optional() }),
 	z.object({ provider: z.literal("plugin"), pluginId: z.string().min(1) }),
 ]);
 
@@ -300,16 +244,16 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 		const optionKey = `emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`;
 
 		switch (body.provider) {
-			case "none": {
-				// Explicitly disable: store the none-sentinel (not a delete) so
-				// exclusive-hook resolution does not auto-select a provider again
-				// on the next startup. SMTP/Cloudflare config is kept for re-use.
-				await optionsRepo.set(optionKey, EXCLUSIVE_HOOK_NONE_VALUE);
-				emdash.hooks.clearExclusiveSelection(EMAIL_DELIVER_HOOK);
-				return apiSuccess({ success: true, message: "Email provider disabled" });
-			}
-
 			case "smtp": {
+				if (!body.smtp) {
+					const saved = encryptionKey ? await loadSmtpConfigFromDb(emdash.db, encryptionKey) : null;
+					if (!saved && !isSmtpEnvConfigured()) {
+						return apiError("VALIDATION_ERROR", "SMTP settings are required", 400);
+					}
+					await optionsRepo.set(optionKey, SMTP_EMAIL_PLUGIN_ID);
+					emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, SMTP_EMAIL_PLUGIN_ID);
+					return apiSuccess({ success: true, message: "SMTP activated" });
+				}
 				if (!encryptionKey) {
 					return apiError(
 						"ENCRYPTION_KEY_MISSING",
@@ -318,7 +262,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 					);
 				}
 
-				// If no new password provided, keep the existing one from DB
+				// The saved password is only reused for the same server and login, so
+				// it cannot be sent to a host chosen by someone who never knew it.
 				let pass = body.smtp.pass;
 				if (!pass) {
 					const existing = await loadSmtpConfigFromDb(emdash.db, encryptionKey);
@@ -326,6 +271,13 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 						return apiError(
 							"VALIDATION_ERROR",
 							"Password is required for initial SMTP configuration",
+							400,
+						);
+					}
+					if (existing.host !== body.smtp.host || existing.user !== body.smtp.user) {
+						return apiError(
+							"VALIDATION_ERROR",
+							"Re-enter the password when changing the SMTP host or username",
 							400,
 						);
 					}
@@ -343,41 +295,15 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 					...(body.smtp.replyTo ? { replyTo: body.smtp.replyTo } : {}),
 				});
 
-				// Persist and activate SMTP as the selected provider
 				await optionsRepo.set(optionKey, SMTP_EMAIL_PLUGIN_ID);
 				emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, SMTP_EMAIL_PLUGIN_ID);
 
 				return apiSuccess({ success: true, message: "SMTP configured and activated" });
 			}
 
-			case "cloudflare": {
-				// Save Cloudflare config to DB and select as active provider
-				await saveCloudflareConfigToDb(emdash.db, {
-					fromName: body.cloudflare.fromName,
-					fromEmail: body.cloudflare.fromEmail,
-					...(body.cloudflare.replyTo ? { replyTo: body.cloudflare.replyTo } : {}),
-				});
-
-				await optionsRepo.set(optionKey, CLOUDFLARE_EMAIL_PLUGIN_ID);
-				emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, CLOUDFLARE_EMAIL_PLUGIN_ID);
-				return apiSuccess({
-					success: true,
-					message: "Cloudflare Email configured and activated",
-				});
-			}
-
 			case "plugin": {
-				// Select a plugin-provided email:deliver provider. The built-ins
-				// have dedicated variants above that also persist their config.
-				if (
-					body.pluginId === SMTP_EMAIL_PLUGIN_ID ||
-					body.pluginId === CLOUDFLARE_EMAIL_PLUGIN_ID
-				) {
-					return apiError(
-						"VALIDATION_ERROR",
-						"Use the smtp or cloudflare provider variants for built-in providers",
-						400,
-					);
+				if (body.pluginId === SMTP_EMAIL_PLUGIN_ID) {
+					return apiError("VALIDATION_ERROR", "Use the smtp provider variant for SMTP", 400);
 				}
 				const registered = emdash.hooks
 					.getExclusiveHookProviders(EMAIL_DELIVER_HOOK)

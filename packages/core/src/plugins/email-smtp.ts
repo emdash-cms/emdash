@@ -2,73 +2,84 @@
  * Built-in SMTP Email Transport
  *
  * Delivers EmDash emails through any standard SMTP server (Brevo relay,
- * Office365, Google Workspace, Fastmail, Amazon SES, self-hosted Postfix)
- * via raw TCP: the one network primitive sandboxed plugins cannot use.
+ * Office365, Google Workspace, Fastmail, Amazon SES, self-hosted Postfix).
  *
- * Registered as a built-in `email:deliver` provider. On Cloudflare Workers it
- * uses `cloudflare:sockets`; on Node it uses `node:net` / `node:tls`.
+ * Registered as a built-in `email:deliver` provider. It uses `node:net` and
+ * `node:tls`, which Cloudflare Workers provide under `nodejs_compat`.
  * Configuration comes from env vars (see below) or the Settings → Email
  * admin UI (stored encrypted in the database).
  *
  * Env vars:
- *   EMAIL_SMTP_HOST     smtp-relay.brevo.com
- *   EMAIL_SMTP_PORT     587 (STARTTLS) or 465 (implicit TLS)
- *   EMAIL_SMTP_SECURE   "starttls" | "tls"  (default: inferred from port)
- *   EMAIL_SMTP_USER     you@example.com
- *   EMAIL_SMTP_PASS     xsmtpsib-…
- *   EMAIL_SMTP_FROM     Site <noreply@example.com>  (optional default sender)
+ *   EMAIL_SMTP_HOST        smtp-relay.brevo.com
+ *   EMAIL_SMTP_PORT        587 (STARTTLS) or 465 (implicit TLS)
+ *   EMAIL_SMTP_SECURE      "starttls" | "tls"  (default: inferred from port)
+ *   EMAIL_SMTP_USER        you@example.com
+ *   EMAIL_SMTP_PASS        xsmtpsib-…
+ *   EMAIL_SMTP_FROM        Site <noreply@example.com>  (optional default sender)
+ *   EMAIL_SMTP_FROM_NAME   Site  (optional, with EMAIL_SMTP_FROM_EMAIL)
+ *   EMAIL_SMTP_FROM_EMAIL  noreply@example.com  (optional, overrides EMAIL_SMTP_FROM)
+ *   EMAIL_SMTP_REPLY_TO    support@example.com  (optional)
  *
- * Cloudflare blocks outbound port 25: this transport refuses port 25 with
- * a clear error. TLS is always required; plaintext auth is never attempted.
+ * Port 25 is refused with a clear error (Cloudflare and most hosts block it).
+ * TLS is always required; plaintext auth is never attempted.
  */
 
-import { promisify } from "node:util";
+import type { Socket } from "node:net";
+import type { connect as tlsConnectFn } from "node:tls";
 
-import { decrypt, encrypt } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 
-import { ENCRYPTION_KEY_PREFIX, parseEncryptionKeys } from "../config/secrets.js";
+import { parseEncryptionKeys } from "../config/secrets.js";
 import { OptionsRepository } from "../database/repositories/options.js";
+import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import {
+	decryptPluginSetting,
+	encryptPluginSetting,
+	isEncryptedPluginSetting,
+} from "./settings.js";
 import type { EmailDeliverEvent, PluginContext } from "./types.js";
 
-/** Plugin ID for the built-in SMTP email provider */
-export const SMTP_EMAIL_PLUGIN_ID = "emdash-smtp";
+/**
+ * Plugin ID for the built-in SMTP email provider. Distinct from the
+ * community `emdash-smtp` plugin, which sites may run alongside it.
+ */
+export const SMTP_EMAIL_PLUGIN_ID = "emdash-builtin-smtp";
 
 /** Options key prefix for SMTP settings */
 const SMTP_OPTION_PREFIX = "emdash:email:smtp:";
 const SMTP_OPTION_PASSWORD = `${SMTP_OPTION_PREFIX}password`;
 
-/**
- * `EMDASH_ENCRYPTION_KEY` may hold a comma-separated key list (rotation);
- * `encrypt()`/`decrypt()` from `@emdash-cms/auth` expect one raw base64url
- * key material string. The first key encrypts; all keys are tried for
- * decryption.
- */
-async function toKeyMaterials(encryptionKey: string): Promise<string[]> {
-	const parsed = await parseEncryptionKeys(encryptionKey);
-	if (!parsed || parsed.length === 0) {
-		throw new Error("EMDASH_ENCRYPTION_KEY is empty");
-	}
-	return parsed.map((k) => k.raw.slice(ENCRYPTION_KEY_PREFIX.length));
-}
-
 // ---------------------------------------------------------------------------
-// Socket abstraction: cloudflare:sockets on Workers, node:net/tls on Node
+// Socket layer
 // ---------------------------------------------------------------------------
 
-interface SocketReader {
-	read(): Promise<{ value?: Uint8Array; done: boolean }>;
+/** Longest reply line accepted from the server, in bytes. */
+const SMTP_LINE_LIMIT = 8192;
+
+interface SmtpReply {
+	code: number;
+	lines: string[];
 }
 
 export interface SmtpSocket {
-	writer: { write(data: Uint8Array): Promise<void>; close(): Promise<void> };
-	reader: SocketReader;
-	startTls?(): Promise<SmtpSocket>;
-	close(): Promise<void>;
+	/** Next complete (possibly multi-line) server reply. */
+	readReply(): Promise<SmtpReply>;
+	write(data: string): Promise<void>;
+	/**
+	 * Send STARTTLS and, when the server answers 220, upgrade the connection
+	 * to TLS. Resolves with the server's reply once the handshake is done.
+	 */
+	startTls(): Promise<SmtpReply>;
+	destroy(): void;
 }
 
-type ConnectFn = (host: string, port: number, secure: "starttls" | "tls") => Promise<SmtpSocket>;
+export type ConnectFn = (
+	host: string,
+	port: number,
+	secure: "starttls" | "tls",
+	signal: AbortSignal,
+) => Promise<SmtpSocket>;
 
 function encodeUtf8(input: string): Uint8Array {
 	return new TextEncoder().encode(input);
@@ -99,43 +110,174 @@ function indexOfCrlf(buf: Uint8Array): number {
 	return -1;
 }
 
-/** Read until CRLF or buffer exceeds limit. Returns decoded line without CRLF. */
-async function readLine(reader: SocketReader, buffered: Uint8Array[]): Promise<string> {
-	const LIMIT = 8192;
-	while (true) {
-		const joined = concat(buffered);
-		const idx = indexOfCrlf(joined);
-		if (idx >= 0) {
-			const line = decodeUtf8(joined.slice(0, idx));
-			const rest = joined.slice(idx + 2);
-			buffered.length = 0;
-			if (rest.length > 0) buffered.push(rest);
-			return line;
-		}
-		if (joined.length > LIMIT) {
-			throw new SmtpDeliveryError("SMTP line too long");
-		}
-		const { value, done } = await reader.read();
-		if (done) throw new SmtpDeliveryError("SMTP connection closed unexpectedly");
-		if (value) buffered.push(value);
-	}
+function isWorkerd(): boolean {
+	return (
+		typeof navigator !== "undefined" &&
+		typeof navigator.userAgent === "string" &&
+		navigator.userAgent.includes("Cloudflare-Workers")
+	);
 }
 
-/** Read a full SMTP reply (possibly multi-line: "250-...", "250 ..."). */
-async function readReply(
-	reader: SocketReader,
-	buffered: Uint8Array[],
-): Promise<{ code: number; lines: string[] }> {
-	const lines: string[] = [];
-	while (true) {
-		const line = await readLine(reader, buffered);
-		lines.push(line);
-		// "250 OK" (space) = final line; "250-..." (hyphen) = more to come
-		if (line.length < 4 || line[3] !== "-") break;
-	}
-	const code = Number.parseInt(lines[0]?.slice(0, 3) ?? "0", 10);
-	return { code, lines };
+/**
+ * TLS options naming the server. Node only sends SNI when `servername` is
+ * set, but workerd rejects `servername` and derives SNI from `host` itself.
+ */
+function tlsServerName(host: string, isIp: boolean): { host: string; servername?: string } {
+	return isWorkerd() || isIp ? { host } : { host, servername: host };
 }
+
+/**
+ * Wrap a connected socket in the reply reader the SMTP session uses.
+ * Replies are parsed inside the 'data' handler so STARTTLS can hand the
+ * socket to TLS from that same handler.
+ */
+function wrapNodeSocket(
+	initial: Socket,
+	host: string,
+	tlsConnect: typeof tlsConnectFn,
+	isIp: boolean,
+): SmtpSocket {
+	let current = initial;
+	let pending: Uint8Array = new Uint8Array(0);
+	let lines: string[] = [];
+	const replies: SmtpReply[] = [];
+	let waiter: { resolve: (reply: SmtpReply) => void; reject: (error: Error) => void } | null = null;
+	let failure: Error | null = null;
+
+	const fail = (error: Error) => {
+		if (failure) return;
+		failure = error;
+		const w = waiter;
+		waiter = null;
+		w?.reject(error);
+		current.destroy();
+	};
+	const onData = (chunk: Uint8Array) => {
+		pending = concat([pending, chunk]);
+		for (let idx = indexOfCrlf(pending); idx >= 0; idx = indexOfCrlf(pending)) {
+			const line = decodeUtf8(pending.subarray(0, idx));
+			pending = pending.slice(idx + 2);
+			lines.push(line);
+			// "250-..." continues a multi-line reply, "250 ..." ends it
+			if (line[3] === "-") continue;
+			const reply = { code: Number.parseInt(lines[0]?.slice(0, 3) ?? "", 10), lines };
+			lines = [];
+			const w = waiter;
+			waiter = null;
+			if (w) w.resolve(reply);
+			else replies.push(reply);
+		}
+		if (pending.length > SMTP_LINE_LIMIT) fail(new SmtpDeliveryError("SMTP line too long"));
+	};
+	const onEnd = () => fail(new SmtpDeliveryError("SMTP connection closed unexpectedly"));
+	const attach = (sock: Socket) => {
+		sock.on("data", onData);
+		sock.on("end", onEnd);
+		sock.on("close", onEnd);
+		sock.on("error", fail);
+	};
+	const detach = (sock: Socket) => {
+		sock.off("data", onData);
+		sock.off("end", onEnd);
+		sock.off("close", onEnd);
+		sock.off("error", fail);
+	};
+	attach(initial);
+
+	const write = (data: string) =>
+		new Promise<void>((resolve, reject) => {
+			if (failure) {
+				reject(failure);
+				return;
+			}
+			current.write(encodeUtf8(data), (error) => {
+				if (error) reject(error);
+				else resolve();
+			});
+		});
+
+	return {
+		readReply: () =>
+			new Promise((resolve, reject) => {
+				const queued = replies.shift();
+				if (queued) return resolve(queued);
+				if (failure) return reject(failure);
+				waiter = { resolve, reject };
+			}),
+		write,
+		startTls: () =>
+			new Promise((resolve, reject) => {
+				if (replies.length > 0) {
+					return reject(new SmtpDeliveryError("SMTP server sent an unexpected reply"));
+				}
+				waiter = {
+					reject,
+					resolve: (reply) => {
+						if (reply.code !== 220) return resolve(reply);
+						// Bytes after the 220 arrived in plaintext and would be read as
+						// if they came over TLS (STARTTLS command injection).
+						if (pending.length > 0) {
+							const error = new SmtpDeliveryError("SMTP server sent data after STARTTLS");
+							reject(error);
+							fail(error);
+							return;
+						}
+						const plain = current;
+						detach(plain);
+						// Errors of the plain socket surface on the TLS socket.
+						plain.on("error", () => {});
+						// workerd only lets TLS take over the socket synchronously, inside
+						// the 'data' handler that delivered the 220.
+						const secured = tlsConnect({ socket: plain, ...tlsServerName(host, isIp) });
+						current = secured;
+						attach(secured);
+						const handshake = { resolve: () => {}, reject };
+						waiter = handshake;
+						secured.once("secureConnect", () => {
+							if (waiter === handshake) waiter = null;
+							resolve(reply);
+						});
+					},
+				};
+				write("STARTTLS\r\n").catch(reject);
+			}),
+		destroy: () => current.destroy(),
+	};
+}
+
+/** Open an SMTP connection over `node:net` (STARTTLS) or `node:tls` (implicit TLS). */
+export const connectSmtpSocket: ConnectFn = async (host, port, secure, signal) => {
+	// Loaded on first send, which keeps node:tls off the cold-start path.
+	const [{ connect: netConnect, isIP }, { connect: tlsConnect }] = await Promise.all([
+		import("node:net"),
+		import("node:tls"),
+	]);
+	signal.throwIfAborted();
+	const isIp = isIP(host) !== 0;
+	return new Promise((resolve, reject) => {
+		const sock: Socket =
+			secure === "tls"
+				? tlsConnect({ port, ...tlsServerName(host, isIp) })
+				: netConnect({ host, port });
+		const onAbort = () => {
+			sock.destroy();
+			reject(signal.reason);
+		};
+		const onError = (error: Error) => {
+			signal.removeEventListener("abort", onAbort);
+			reject(error);
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		sock.once("error", onError);
+		sock.once(secure === "tls" ? "secureConnect" : "connect", () => {
+			signal.removeEventListener("abort", onAbort);
+			sock.off("error", onError);
+			const smtp = wrapNodeSocket(sock, host, tlsConnect, isIp);
+			signal.addEventListener("abort", () => smtp.destroy(), { once: true });
+			resolve(smtp);
+		});
+	});
+};
 
 /**
  * Map raw SMTP failures to actionable messages.
@@ -143,16 +285,18 @@ async function readReply(
  */
 function humanizeSmtpError(code: number, context: string, serverLine: string): string {
 	const raw = `${code} ${serverLine}`.trim();
-	// 535 = auth rejected at AUTH; 530 = auth required / relay denied at MAIL FROM
 	if (code === 535) {
 		return (
 			`Authentication failed (${raw}). Username or password rejected by the server. ` +
-			`For Brevo, use your login email as username and an SMTP key (xsmtpsib-…), not your account password.`
+			`Some providers require an SMTP key or app password instead of the account password.`
 		);
 	}
-	if (code === 530 || code === 550) {
+	if (code === 530) {
+		return `Authentication required (${raw}). Check the SMTP username and password.`;
+	}
+	if (code === 550) {
 		return (
-			`Relay denied (${raw}). The server rejected the sender or recipient. ` +
+			`Mailbox unavailable (${raw}). The server rejected the sender or recipient. ` +
 			`Check that the "From" address belongs to a domain verified with your provider.`
 		);
 	}
@@ -214,7 +358,6 @@ export class SmtpDeliveryError extends Error {
 
 /** Base64 encode a UTF-8 string (bare `btoa` throws on non-Latin-1 input). */
 function b64(input: string): string {
-	// Workers + Node both have btoa
 	return btoa(unescape(encodeURIComponent(input)));
 }
 
@@ -234,7 +377,7 @@ function sanitizeHeader(value: string): string {
 
 const NON_ASCII_REGEX = /[^\x20-\x7E]/;
 
-/** RFC 2047 encoded-word for UTF-8 headers (Subject, From, Reply-To). */
+/** RFC 2047 encoded-word for UTF-8 headers (Subject and display names). */
 // RFC 2047 caps an encoded-word at 75 octets and forbids splitting a
 // multi-byte character across two words. 36 UTF-8 bytes become 48 base64
 // chars, which plus the `=?UTF-8?B?…?=` wrapper stays within the cap; the
@@ -263,7 +406,8 @@ function encodeHeader(value: string): string {
 		chunkBytes += bytes;
 	}
 	if (chunk) words.push(encodedWord(chunk));
-	return words.join(" ");
+	// Folding keeps each header line within the RFC 5322 length limits.
+	return words.join("\r\n ");
 }
 
 const ENVELOPE_ADDRESS_REGEX = /^[^\s<>,;"\\]+@[^\s<>,;"\\]+$/;
@@ -333,7 +477,8 @@ function buildMime(params: {
 		`MIME-Version: 1.0`,
 	];
 	if (replyTo) {
-		headers.push(`Reply-To: ${encodeHeader(replyTo)}`);
+		const { email, name } = parseAddress(replyTo);
+		headers.push(`Reply-To: ${name ? formatNameAddress(name, email) : email}`);
 	}
 
 	let body: string;
@@ -360,207 +505,6 @@ function buildMime(params: {
 	}
 
 	return `${headers.join("\r\n")}\r\n\r\n${body}`;
-}
-
-// ---------------------------------------------------------------------------
-// Runtime-specific connect implementations
-// ---------------------------------------------------------------------------
-
-interface CloudflareSocket {
-	readable: ReadableStream<Uint8Array>;
-	writable: WritableStream<Uint8Array>;
-	close(): Promise<void>;
-	opened: Promise<unknown>;
-	startTls(): CloudflareSocket;
-}
-
-export type CloudflareConnect = (
-	address: string,
-	options: { secureTransport: "on" | "starttls"; allowHalfOpen: boolean },
-) => CloudflareSocket;
-
-// Cloudflare sockets need `await sock.opened` before the stream is usable:
-// unlike Node, where the connect callback signals readiness. Skipping this
-// makes writes hang silently after STARTTLS.
-async function wrapCloudflareSocket(sock: CloudflareSocket): Promise<SmtpSocket> {
-	await sock.opened;
-	let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
-	return {
-		writer: {
-			write: async (data) => {
-				if (!writer) writer = sock.writable.getWriter();
-				await writer.write(data);
-			},
-			close: async () => {
-				await writer?.close();
-				writer = null;
-			},
-		},
-		reader: sock.readable.getReader(),
-		close: () => sock.close(),
-	};
-}
-
-async function connectCloudflare(
-	host: string,
-	port: number,
-	secure: "starttls" | "tls",
-): Promise<SmtpSocket> {
-	// @ts-ignore - virtual module, generated by the Astro integration
-	const { connect } = await import("virtual:emdash/sockets");
-	if (!connect) {
-		throw new Error("Cloudflare sockets are not available on this runtime");
-	}
-
-	if (secure === "tls") {
-		const sock = connect(`${host}:${port}`, { secureTransport: "on", allowHalfOpen: false });
-		return wrapCloudflareSocket(sock);
-	}
-
-	// STARTTLS: connect plaintext, upgrade after EHLO. Cloudflare requires
-	// `secureTransport: "starttls"` (not "off") to later allow `sock.startTls()`.
-	const sock = connect(`${host}:${port}`, { secureTransport: "starttls", allowHalfOpen: false });
-	const wrapped = await wrapCloudflareSocket(sock);
-
-	return {
-		...wrapped,
-		// Closing the plaintext writable first would shut down the write side of
-		// the TCP connection the TLS session runs on. startTls() retires the
-		// old readers and writers itself.
-		startTls: () => wrapCloudflareSocket(sock.startTls()),
-	};
-}
-
-async function connectNode(
-	host: string,
-	port: number,
-	secure: "starttls" | "tls",
-): Promise<SmtpSocket> {
-	if (secure === "tls") {
-		const { connect: tlsConnect } = await import("node:tls");
-		return new Promise((resolve, reject) => {
-			const sock = tlsConnect({ host, port, servername: host }, () => {
-				const chunks: Uint8Array[] = [];
-				let ended = false;
-				let resolveRead: ((r: { value?: Uint8Array; done: boolean }) => void) | null = null;
-				const finish = () => {
-					ended = true;
-					resolveRead?.({ done: true });
-					resolveRead = null;
-				};
-				sock.on("data", (chunk: Buffer) => {
-					const u8 = new Uint8Array(chunk);
-					if (resolveRead) {
-						resolveRead({ value: u8, done: false });
-						resolveRead = null;
-					} else {
-						chunks.push(u8);
-					}
-				});
-				sock.on("end", finish);
-				// A mid-session socket error must complete pending and future
-				// reads (as EOF) instead of leaving them hanging until timeout.
-				sock.on("error", finish);
-				const sockWrite = promisify(sock.write.bind(sock));
-				const sockEnd = promisify(sock.end.bind(sock));
-				resolve({
-					writer: {
-						write: (data: Uint8Array) => sockWrite(data),
-						close: () => sockEnd(),
-					},
-					reader: {
-						read: () =>
-							new Promise((res) => {
-								if (chunks.length > 0) return res({ value: chunks.shift()!, done: false });
-								if (ended) return res({ done: true });
-								resolveRead = res;
-							}),
-					},
-					close: () => sockEnd(),
-				});
-			});
-			sock.on("error", reject);
-		});
-	}
-
-	// STARTTLS on Node: plain socket, upgrade after EHLO
-	const { connect: netConnect } = await import("node:net");
-	const { connect: tlsConnect, TLSSocket } = await import("node:tls");
-
-	return new Promise((resolve, reject) => {
-		const sock = netConnect({ host, port }, () => {
-			const chunks: Uint8Array[] = [];
-			let ended = false;
-			let resolveRead: ((r: { value?: Uint8Array; done: boolean }) => void) | null = null;
-			const finish = () => {
-				ended = true;
-				resolveRead?.({ done: true });
-				resolveRead = null;
-			};
-			sock.on("data", (chunk: Buffer) => {
-				const u8 = new Uint8Array(chunk);
-				if (resolveRead) {
-					resolveRead({ value: u8, done: false });
-					resolveRead = null;
-				} else {
-					chunks.push(u8);
-				}
-			});
-			sock.on("end", finish);
-			// A mid-session socket error must complete pending and future
-			// reads (as EOF) instead of leaving them hanging until timeout.
-			sock.on("error", finish);
-
-			const makeSocket = (s: InstanceType<typeof TLSSocket> | typeof sock): SmtpSocket => {
-				const sWrite = promisify(s.write.bind(s));
-				const sEnd = promisify(s.end.bind(s));
-				return {
-					writer: {
-						write: (data: Uint8Array) => sWrite(data),
-						close: () => sEnd(),
-					},
-					reader: {
-						read: () =>
-							new Promise((res) => {
-								if (chunks.length > 0) return res({ value: chunks.shift()!, done: false });
-								if (ended) return res({ done: true });
-								resolveRead = res;
-							}),
-					},
-					close: () => sEnd(),
-				};
-			};
-
-			resolve({
-				...makeSocket(sock),
-				startTls: () =>
-					new Promise((res, rej) => {
-						// Detach the plaintext listeners first: they share the
-						// read-buffer state with the TLS listeners below and would
-						// otherwise deliver raw TLS record bytes into it.
-						sock.removeAllListeners("data");
-						sock.removeAllListeners("end");
-						const tlsSock = tlsConnect({ socket: sock, servername: host }, () => {
-							chunks.length = 0;
-							tlsSock.on("data", (chunk: Buffer) => {
-								const u8 = new Uint8Array(chunk);
-								if (resolveRead) {
-									resolveRead({ value: u8, done: false });
-									resolveRead = null;
-								} else {
-									chunks.push(u8);
-								}
-							});
-							tlsSock.on("end", finish);
-							tlsSock.on("error", finish);
-							res(makeSocket(tlsSock));
-						});
-						tlsSock.on("error", rej);
-					}),
-			});
-		});
-		sock.on("error", reject);
-	});
 }
 
 // ---------------------------------------------------------------------------
@@ -591,8 +535,7 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 	}
 	if (port === 25) {
 		throw new Error(
-			"EMAIL_SMTP_PORT=25 is not supported: Cloudflare blocks outbound port 25. " +
-				"Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
+			"EMAIL_SMTP_PORT=25 is not supported. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
 		);
 	}
 	const secureRaw = process.env.EMAIL_SMTP_SECURE ?? (port === 465 ? "tls" : "starttls");
@@ -605,7 +548,7 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 	if (!user || !pass) {
 		throw new Error("EMAIL_SMTP_USER and EMAIL_SMTP_PASS are required when EMAIL_SMTP_HOST is set");
 	}
-	// Support both structured fields and legacy EMAIL_SMTP_FROM
+	// The structured fields take precedence over EMAIL_SMTP_FROM.
 	let fromName: string | undefined;
 	let fromEmail: string | undefined;
 	if (process.env.EMAIL_SMTP_FROM_EMAIL) {
@@ -628,6 +571,12 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 	};
 }
 
+// Binding host and user into the encryption context means a password from a
+// partially written save never decrypts for a different server or login.
+function passwordSettingKey(host: string, user: string): string {
+	return JSON.stringify(["password", host, user]);
+}
+
 /** Load SMTP config from DB, decrypting the password with the encryption key. */
 export async function loadSmtpConfigFromDb(
 	db: Kysely<Database>,
@@ -635,7 +584,7 @@ export async function loadSmtpConfigFromDb(
 ): Promise<SmtpConfig | null> {
 	const repo = new OptionsRepository(db);
 	// One round trip for all fields: this runs on every send.
-	const values = await repo.getMany<string | number>([
+	const values = await repo.getMany([
 		`${SMTP_OPTION_PREFIX}host`,
 		`${SMTP_OPTION_PREFIX}port`,
 		`${SMTP_OPTION_PREFIX}secure`,
@@ -654,18 +603,17 @@ export async function loadSmtpConfigFromDb(
 	const secureRaw = str(`${SMTP_OPTION_PREFIX}secure`);
 	const secure = secureRaw === "tls" || secureRaw === "starttls" ? secureRaw : undefined;
 	const user = str(`${SMTP_OPTION_PREFIX}user`);
-	const encryptedPass = str(SMTP_OPTION_PASSWORD);
+	const encryptedPass = values.get(SMTP_OPTION_PASSWORD);
 	const fromName = str(`${SMTP_OPTION_PREFIX}fromName`);
 	const fromEmail = str(`${SMTP_OPTION_PREFIX}fromEmail`);
 	const replyTo = str(`${SMTP_OPTION_PREFIX}replyTo`);
 
-	if (!host || !port || !secure || !user || !encryptedPass) {
+	if (!host || !port || !secure || !user || !isEncryptedPluginSetting(encryptedPass)) {
 		return null;
 	}
 	if (port === 25) {
 		console.warn(
-			"[email-smtp] Stored SMTP port 25 cannot be used (Cloudflare blocks outbound port 25): " +
-				"save 587 or 465 in Settings → Email.",
+			"[email-smtp] Stored SMTP port 25 is not supported: save 587 or 465 in Settings → Email.",
 		);
 		return null;
 	}
@@ -677,21 +625,18 @@ export async function loadSmtpConfigFromDb(
 		return null;
 	}
 
-	// Try every configured key (rotation): the password may have been
-	// encrypted with a key that is no longer primary.
-	let pass: string | null = null;
-	for (const keyMaterial of await toKeyMaterials(encryptionKey)) {
-		try {
-			pass = await decrypt(encryptedPass, keyMaterial);
-			break;
-		} catch {
-			// Not this key: try the next one.
-		}
-	}
-	if (pass === null) {
+	let pass: string;
+	try {
+		pass = await decryptPluginSetting(
+			SMTP_EMAIL_PLUGIN_ID,
+			passwordSettingKey(host, user),
+			encryptedPass,
+			await parseEncryptionKeys(encryptionKey),
+		);
+	} catch {
 		console.warn(
-			"[email-smtp] Stored SMTP password cannot be decrypted with the configured " +
-				"encryption key(s): re-save the password in Settings → Email.",
+			"[email-smtp] Stored SMTP password cannot be decrypted for this host and username " +
+				"with the configured encryption key(s): re-save the password in Settings → Email.",
 		);
 		return null;
 	}
@@ -713,44 +658,32 @@ export async function saveSmtpConfigToDb(
 	encryptionKey: string,
 	config: SmtpConfig,
 ): Promise<void> {
-	const repo = new OptionsRepository(db);
-	await repo.set(`${SMTP_OPTION_PREFIX}host`, config.host);
-	await repo.set(`${SMTP_OPTION_PREFIX}port`, config.port);
-	await repo.set(`${SMTP_OPTION_PREFIX}secure`, config.secure);
-	await repo.set(`${SMTP_OPTION_PREFIX}user`, config.user);
-	const [primaryKey] = await toKeyMaterials(encryptionKey);
-	if (primaryKey === undefined) {
-		throw new Error("EMDASH_ENCRYPTION_KEY is empty");
-	}
-	await repo.set(SMTP_OPTION_PASSWORD, await encrypt(config.pass, primaryKey));
-	if (config.fromName) {
-		await repo.set(`${SMTP_OPTION_PREFIX}fromName`, config.fromName);
-	} else {
-		await repo.delete(`${SMTP_OPTION_PREFIX}fromName`);
-	}
-	if (config.fromEmail) {
-		await repo.set(`${SMTP_OPTION_PREFIX}fromEmail`, config.fromEmail);
-	} else {
-		await repo.delete(`${SMTP_OPTION_PREFIX}fromEmail`);
-	}
-	if (config.replyTo) {
-		await repo.set(`${SMTP_OPTION_PREFIX}replyTo`, config.replyTo);
-	} else {
-		await repo.delete(`${SMTP_OPTION_PREFIX}replyTo`);
-	}
-}
-
-/** Clear all SMTP config from DB. */
-export async function clearSmtpConfigFromDb(db: Kysely<Database>): Promise<void> {
-	const repo = new OptionsRepository(db);
-	await repo.delete(`${SMTP_OPTION_PREFIX}host`);
-	await repo.delete(`${SMTP_OPTION_PREFIX}port`);
-	await repo.delete(`${SMTP_OPTION_PREFIX}secure`);
-	await repo.delete(`${SMTP_OPTION_PREFIX}user`);
-	await repo.delete(SMTP_OPTION_PASSWORD);
-	await repo.delete(`${SMTP_OPTION_PREFIX}fromName`);
-	await repo.delete(`${SMTP_OPTION_PREFIX}fromEmail`);
-	await repo.delete(`${SMTP_OPTION_PREFIX}replyTo`);
+	const password = await encryptPluginSetting(
+		SMTP_EMAIL_PLUGIN_ID,
+		passwordSettingKey(config.host, config.user),
+		config.pass,
+		await parseEncryptionKeys(encryptionKey),
+	);
+	const optional = {
+		fromName: config.fromName,
+		fromEmail: config.fromEmail,
+		replyTo: config.replyTo,
+	};
+	await withTransaction(db, async (trx) => {
+		const repo = new OptionsRepository(trx);
+		await repo.set(`${SMTP_OPTION_PREFIX}host`, config.host);
+		await repo.set(`${SMTP_OPTION_PREFIX}port`, config.port);
+		await repo.set(`${SMTP_OPTION_PREFIX}secure`, config.secure);
+		await repo.set(`${SMTP_OPTION_PREFIX}user`, config.user);
+		await repo.set(SMTP_OPTION_PASSWORD, password);
+		for (const [field, value] of Object.entries(optional)) {
+			if (value) await repo.set(`${SMTP_OPTION_PREFIX}${field}`, value);
+		}
+		const cleared = Object.entries(optional)
+			.filter(([, value]) => !value)
+			.map(([field]) => `${SMTP_OPTION_PREFIX}${field}`);
+		if (cleared.length > 0) await repo.deleteMany(cleared);
+	});
 }
 
 /**
@@ -759,9 +692,6 @@ export async function clearSmtpConfigFromDb(db: Kysely<Database>): Promise<void>
  *
  * DB settings take precedence so admin changes apply without a restart, so
  * every send reads the options table, even when only env vars are set.
- *
- * The encryption key is the same `EMDASH_ENCRYPTION_KEY` used for plugin
- * secrets: the SMTP password is a plugin secret in spirit.
  */
 export async function loadSmtpConfig(
 	db: Kysely<Database>,
@@ -781,6 +711,30 @@ export function isSmtpConfigComplete(config: SmtpConfig | null): config is SmtpC
 	return Boolean(config?.host && config?.port && config?.user && config?.pass);
 }
 
+/** Whether env vars hold a complete SMTP config. Logs why an invalid env config is ignored. */
+export function isSmtpEnvConfigured(): boolean {
+	try {
+		return isSmtpConfigComplete(loadSmtpConfigFromEnv());
+	} catch (error) {
+		console.warn(
+			`[email-smtp] Ignoring SMTP environment variables: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		return false;
+	}
+}
+
+const EHLO_PARAM_SEPARATOR = /[\s=]+/;
+
+/** EHLO keywords mapped to their parameters ("AUTH LOGIN PLAIN" and legacy "AUTH=LOGIN"). */
+function parseEhloExtensions(reply: SmtpReply): Map<string, string[]> {
+	const extensions = new Map<string, string[]>();
+	for (const line of reply.lines.slice(1)) {
+		const [keyword, ...params] = line.slice(4).toUpperCase().split(EHLO_PARAM_SEPARATOR);
+		if (keyword) extensions.set(keyword, [...(extensions.get(keyword) ?? []), ...params]);
+	}
+	return extensions;
+}
+
 /** Deliver one message over SMTP. Throws on any protocol or network error. */
 export async function deliverSmtp(
 	config: SmtpConfig,
@@ -790,8 +744,7 @@ export async function deliverSmtp(
 ): Promise<void> {
 	if (config.port === 25) {
 		throw new SmtpDeliveryError(
-			"SMTP port 25 is not supported: Cloudflare blocks outbound port 25. " +
-				"Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
+			"SMTP port 25 is not supported. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
 		);
 	}
 	const from = {
@@ -802,54 +755,44 @@ export async function deliverSmtp(
 	const recipients = [message.to, ...(message.cc ?? [])];
 	for (const recipient of recipients) assertEnvelopeAddress(recipient, "recipient");
 	const replyTo = message.replyTo ?? config.replyTo;
+	if (replyTo) assertEnvelopeAddress(parseAddress(replyTo).email, "reply-to");
 	// SMTP timeout must be SHORTER than the hook timeout, otherwise the hook
 	// kills the promise before we can log the transcript. 25s vs 30s hook.
 	const timeoutMs = config.timeoutMs ?? 25_000;
+	// Strict servers reject an EHLO name that is not a fully qualified domain.
+	const ehloName = from.email.slice(from.email.lastIndexOf("@") + 1);
 
-	const connect: ConnectFn =
-		connectFn ??
-		(async (host, port, secure) => {
-			// Prefer Cloudflare sockets when available (Workers runtime)
-			try {
-				return await connectCloudflare(host, port, secure);
-			} catch (cfError) {
-				// Fall back to Node sockets (astro dev, Node deployments)
-				try {
-					return await connectNode(host, port, secure);
-				} catch (nodeError) {
-					ctx.log.error("SMTP connection failed", {
-						host,
-						port,
-						cloudflare: cfError instanceof Error ? cfError.message : String(cfError),
-						node: nodeError instanceof Error ? nodeError.message : String(nodeError),
-					});
-					const code =
-						nodeError instanceof Error && "code" in nodeError && typeof nodeError.code === "string"
-							? ` (${nodeError.code})`
-							: "";
-					throw new SmtpDeliveryError(`Failed to connect to SMTP server ${host}:${port}${code}`, {
-						cause: nodeError,
-					});
-				}
-			}
+	const connect = connectFn ?? connectSmtpSocket;
+	const controller = new AbortController();
+	const aborted = new Promise<never>((_, reject) => {
+		controller.signal.addEventListener("abort", () => reject(controller.signal.reason), {
+			once: true,
 		});
-
-	let socket: SmtpSocket | null = null;
-	let fail!: (error: Error) => void;
-	const timeout = new Promise<never>((_, reject) => {
-		fail = reject;
 	});
 	const timer = setTimeout(() => {
-		socket?.close().catch(() => {});
-		fail(new SmtpDeliveryError(`SMTP operation timed out after ${timeoutMs}ms`));
+		controller.abort(new SmtpDeliveryError(`SMTP operation timed out after ${timeoutMs}ms`));
 	}, timeoutMs);
 
 	const trace = new SmtpTrace();
-	// Closed in finally even when it resolves after the timeout.
-	const connecting = connect(config.host, config.port, config.secure);
+	let socket: SmtpSocket | undefined;
 	try {
-		socket = await Promise.race([connecting, timeout]);
-		return await Promise.race([deliver(socket), timeout]);
+		try {
+			socket = await Promise.race([
+				connect(config.host, config.port, config.secure, controller.signal),
+				aborted,
+			]);
+		} catch (error) {
+			if (controller.signal.aborted) throw error;
+			const code =
+				error instanceof Error && "code" in error && typeof error.code === "string"
+					? ` (${error.code})`
+					: "";
+			throw new SmtpDeliveryError(
+				`Failed to connect to SMTP server ${config.host}:${config.port}${code}`,
+				{ cause: error },
+			);
+		}
+		return await Promise.race([deliver(socket), aborted]);
 	} catch (error) {
 		const detail = error instanceof Error ? error.message : String(error);
 		ctx.log.error("SMTP delivery failed", {
@@ -869,58 +812,60 @@ export async function deliverSmtp(
 		});
 	} finally {
 		clearTimeout(timer);
-		await socket?.close().catch(() => {});
-		void connecting
-			.then((late) => {
-				if (late !== socket) void late.close().catch(() => {});
-				return undefined;
-			})
-			.catch(() => {});
+		socket?.destroy();
 	}
 
 	async function deliver(sock: SmtpSocket): Promise<void> {
-		let active = sock;
-		const buffered: Uint8Array[] = [];
-
 		const send = async (line: string, sensitive = false) => {
 			trace.record("send", line, sensitive);
-			await active.writer.write(encodeUtf8(`${line}\r\n`));
+			await sock.write(`${line}\r\n`);
 		};
-		const recv = async (context: string, expected: number | number[]) => {
-			const reply = await readReply(active.reader, buffered);
+		const check = (reply: SmtpReply, context: string, expected: number | number[]) => {
 			trace.record("recv", reply.lines.join(" / "));
 			expectCode(reply, expected, context);
 			return reply;
 		};
+		const recv = async (context: string, expected: number | number[]) =>
+			check(await sock.readReply(), context, expected);
 
-		// Greeting
 		await recv("greeting", 220);
 
-		// EHLO
-		await send(`EHLO emdash`);
-		await recv("EHLO", 250);
+		await send(`EHLO ${ehloName}`);
+		let extensions = parseEhloExtensions(await recv("EHLO", 250));
 
-		// STARTTLS upgrade
 		if (config.secure === "starttls") {
-			if (!active.startTls)
-				throw new SmtpDeliveryError("STARTTLS requested but socket does not support upgrade");
-			await send("STARTTLS");
-			await recv("STARTTLS", 220);
-			active = await active.startTls();
-			socket = active; // close the upgraded socket on timeout
-			buffered.length = 0;
-			// Re-EHLO after TLS upgrade
-			await send(`EHLO emdash`);
-			await recv("EHLO after STARTTLS", 250);
+			if (!extensions.has("STARTTLS")) {
+				throw new SmtpDeliveryError(
+					`${config.host} does not offer STARTTLS on port ${config.port}. ` +
+						"Use port 465 (implicit TLS) instead.",
+				);
+			}
+			trace.record("send", "STARTTLS");
+			check(await sock.startTls(), "STARTTLS", 220);
+			await send(`EHLO ${ehloName}`);
+			extensions = parseEhloExtensions(await recv("EHLO after STARTTLS", 250));
 		}
 
-		// AUTH LOGIN: credentials are redacted from the trace
-		await send("AUTH LOGIN");
-		await recv("AUTH LOGIN", 334);
-		await send(b64(config.user), true);
-		await recv("AUTH username", 334);
-		await send(b64(config.pass), true);
-		await recv("AUTH password", 235);
+		// Credentials are redacted from the trace
+		const mechanisms = extensions.get("AUTH") ?? [];
+		if (mechanisms.includes("PLAIN")) {
+			await send(`AUTH PLAIN ${b64(`\0${config.user}\0${config.pass}`)}`, true);
+			await recv("AUTH PLAIN", 235);
+		} else if (mechanisms.includes("LOGIN")) {
+			await send("AUTH LOGIN");
+			await recv("AUTH LOGIN", 334);
+			await send(b64(config.user), true);
+			await recv("AUTH username", 334);
+			await send(b64(config.pass), true);
+			await recv("AUTH password", 235);
+		} else {
+			throw new SmtpDeliveryError(
+				mechanisms.length > 0
+					? `${config.host} offers no supported login method (${mechanisms.join(", ")}). ` +
+							"EmDash supports PLAIN and LOGIN."
+					: `${config.host} does not offer authentication on this connection.`,
+			);
+		}
 
 		// Envelope
 		await send(`MAIL FROM:<${from.email}>`);
@@ -942,10 +887,9 @@ export async function deliverSmtp(
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),
 		});
-		await active.writer.write(encodeUtf8(`${dotStuff(mime)}\r\n.\r\n`));
+		await sock.write(`${dotStuff(mime)}\r\n.\r\n`);
 		await recv("message accepted", 250);
 
-		// Quit
 		await send("QUIT");
 
 		ctx.log.info("email delivered via SMTP", {
@@ -958,32 +902,19 @@ export async function deliverSmtp(
 }
 
 /**
- * Build the email:deliver handler.
- *
- * Exported for testing: production code registers the handler through
- * `definePlugin()` in `emdash-runtime.ts`.
- */
-export function createSmtpEmailDeliver(
-	config: SmtpConfig,
-	connectFn?: ConnectFn,
-): (event: EmailDeliverEvent, ctx: PluginContext) => Promise<void> {
-	return async (event, ctx) => deliverSmtp(config, event.message, ctx, connectFn);
-}
-
-/**
  * Build an email:deliver handler that loads the SMTP config lazily on
  * every send: DB config first (when an encryption key is available to
  * decrypt the stored password), env vars as fallback. Loading per send
  * makes admin-saved settings work immediately, no runtime restart.
  */
 export function createSmtpEmailDeliverFromDb(
-	db: Kysely<Database>,
+	getDb: () => Kysely<Database>,
 	encryptionKey: string | null,
 	connectFn?: ConnectFn,
 ): (event: EmailDeliverEvent, ctx: PluginContext) => Promise<void> {
 	return async (event, ctx) => {
 		const config = encryptionKey
-			? await loadSmtpConfig(db, encryptionKey)
+			? await loadSmtpConfig(getDb(), encryptionKey)
 			: loadSmtpConfigFromEnv();
 		if (!isSmtpConfigComplete(config)) {
 			throw new SmtpDeliveryError(

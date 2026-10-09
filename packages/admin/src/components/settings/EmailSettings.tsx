@@ -17,27 +17,15 @@ import {
 	fetchEmailSettings,
 	saveEmailSettings,
 	sendTestEmail,
-	testCloudflareBinding,
 	type EmailSettings as EmailSettingsData,
 } from "../../lib/api/email-settings.js";
 import { getMutationError } from "../DialogError.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-const SMTP_PROVIDER_ID = "emdash-smtp";
-const CLOUDFLARE_PROVIDER_ID = "emdash-cloudflare-email";
-const WRANGLER_EMAIL_BINDING = '"send_email": [{ "name": "EMAIL" }]';
+const SMTP_PROVIDER_ID = "emdash-builtin-smtp";
 const PROVIDER_LABELS: Record<string, MessageDescriptor> = {
 	[SMTP_PROVIDER_ID]: msg`SMTP`,
-	[CLOUDFLARE_PROVIDER_ID]: msg`Cloudflare Email`,
 };
-
-// Select values: "none", the two built-ins under stable aliases, or a
-// plugin ID verbatim (plugin providers are listed dynamically).
-const BUILTIN_OPTIONS: { value: string; label: MessageDescriptor }[] = [
-	{ value: "none", label: msg`None` },
-	{ value: "smtp", label: msg`SMTP` },
-	{ value: "cloudflare", label: msg`Cloudflare Email` },
-];
 
 export function EmailSettings() {
 	const { t } = useLingui();
@@ -45,24 +33,18 @@ export function EmailSettings() {
 	const queryClient = useQueryClient();
 	const [testEmail, setTestEmail] = React.useState("");
 
-	// Provider selection + SMTP form state
-	const [provider, setProvider] = React.useState<string>("none");
+	// "smtp", a plugin ID verbatim, or "" while nothing is selected
+	const [provider, setProvider] = React.useState("");
 	const [smtpHost, setSmtpHost] = React.useState("");
 	const [smtpPort, setSmtpPort] = React.useState("587");
 	const [smtpSecure, setSmtpSecure] = React.useState<"starttls" | "tls">("starttls");
 	const [smtpUser, setSmtpUser] = React.useState("");
 	const [smtpPass, setSmtpPass] = React.useState("");
-	// Track whether the user has manually overridden encryption: if not,
-	// changing the port auto-suggests the matching security mode. Prevents
-	// the classic "587 + implicit TLS" mismatch.
+	// Once the user picks a security mode, port changes stop suggesting one.
 	const [smtpSecureTouched, setSmtpSecureTouched] = React.useState(false);
 	const [smtpFromName, setSmtpFromName] = React.useState("");
 	const [smtpFromEmail, setSmtpFromEmail] = React.useState("");
 	const [smtpReplyTo, setSmtpReplyTo] = React.useState("");
-	// Cloudflare form state
-	const [cfFromName, setCfFromName] = React.useState("");
-	const [cfFromEmail, setCfFromEmail] = React.useState("");
-	const [cfReplyTo, setCfReplyTo] = React.useState("");
 
 	const {
 		data: settings,
@@ -73,21 +55,15 @@ export function EmailSettings() {
 		queryFn: fetchEmailSettings,
 	});
 
-	// Sync form state from fetched settings. Saved transport config is
-	// prefilled regardless of which provider is selected, so switching back
-	// to a previously configured provider does not require retyping.
+	// Sync form state from fetched settings. Saved SMTP config is prefilled
+	// regardless of which provider is selected, so switching back to SMTP
+	// does not require retyping.
 	React.useEffect(() => {
 		if (!settings) return;
 		if (settings.selectedProviderId === SMTP_PROVIDER_ID) {
 			setProvider("smtp");
-		} else if (settings.selectedProviderId === CLOUDFLARE_PROVIDER_ID) {
-			setProvider("cloudflare");
-		} else if (settings.selectedProviderId) {
-			// A plugin provider (resend, postmark, …): represent it verbatim
-			// so saving does not silently disable a working provider.
-			setProvider(settings.selectedProviderId);
 		} else {
-			setProvider("none");
+			setProvider(settings.selectedProviderId ?? "");
 		}
 		if (settings.smtp.configured) {
 			if (settings.smtp.host) setSmtpHost(settings.smtp.host);
@@ -98,18 +74,13 @@ export function EmailSettings() {
 			if (settings.smtp.fromEmail) setSmtpFromEmail(settings.smtp.fromEmail);
 			if (settings.smtp.replyTo) setSmtpReplyTo(settings.smtp.replyTo);
 		}
-		if (settings.cloudflare.configured) {
-			if (settings.cloudflare.fromName) setCfFromName(settings.cloudflare.fromName);
-			if (settings.cloudflare.fromEmail) setCfFromEmail(settings.cloudflare.fromEmail);
-			if (settings.cloudflare.replyTo) setCfReplyTo(settings.cloudflare.replyTo);
-		}
 	}, [settings]);
 
 	const saveMutation = useMutation({
 		mutationFn: saveEmailSettings,
 		onSuccess: () => {
 			toastManager.add({ title: t`Email settings saved`, variant: "success", timeout: 5000 });
-			setSmtpPass(""); // clear password field after save
+			setSmtpPass("");
 			void queryClient.invalidateQueries({ queryKey: ["email-settings"] });
 		},
 		onError: (error) => {
@@ -131,39 +102,6 @@ export function EmailSettings() {
 		onError: (error) => {
 			toastManager.add({
 				title: t`Failed to send test email`,
-				description: getMutationError(error) || t`An error occurred`,
-				variant: "error",
-				timeout: 5000,
-			});
-		},
-	});
-
-	const bindingMutation = useMutation({
-		mutationFn: testCloudflareBinding,
-		onSuccess: (result) => {
-			if (result.available) {
-				toastManager.add({
-					title: t`Cloudflare Email binding is available`,
-					variant: "success",
-					timeout: 5000,
-				});
-			} else {
-				toastManager.add({
-					title: t`Binding not available`,
-					description:
-						result.code === "NOT_WORKERS"
-							? t`Cloudflare Workers runtime not detected. The send_email binding only works on Cloudflare Workers, deployed or through astro dev with the Cloudflare adapter.`
-							: result.code === "BINDING_MISSING"
-								? t`send_email binding "EMAIL" not found. Add ${WRANGLER_EMAIL_BINDING} to wrangler.jsonc, then redeploy.`
-								: t`The Cloudflare Email binding is not available.`,
-					variant: "warning",
-					timeout: 8000,
-				});
-			}
-		},
-		onError: (error) => {
-			toastManager.add({
-				title: t`Failed to test binding`,
 				description: getMutationError(error) || t`An error occurred`,
 				variant: "error",
 				timeout: 5000,
@@ -195,10 +133,25 @@ export function EmailSettings() {
 			if (port === 25) {
 				toastManager.add({
 					title: t`Port 25 is not supported`,
-					description: t`Cloudflare blocks outbound port 25. Use 587 (STARTTLS) or 465 (implicit TLS).`,
+					description: t`Use 587 (STARTTLS) or 465 (implicit TLS).`,
 					variant: "error",
 					timeout: 5000,
 				});
+				return;
+			}
+			const env = settings?.smtp.source === "env" ? settings.smtp : undefined;
+			const usesEnvConfig =
+				env &&
+				!smtpPass &&
+				smtpHost === env.host &&
+				port === env.port &&
+				smtpSecure === env.secure &&
+				smtpUser === env.user &&
+				smtpFromName.trim() === (env.fromName ?? "") &&
+				smtpFromEmail.trim() === (env.fromEmail ?? "") &&
+				smtpReplyTo.trim() === (env.replyTo ?? "");
+			if (usesEnvConfig) {
+				saveMutation.mutate({ provider: "smtp" });
 				return;
 			}
 			saveMutation.mutate({
@@ -214,27 +167,7 @@ export function EmailSettings() {
 					...(smtpReplyTo.trim() ? { replyTo: smtpReplyTo.trim() } : {}),
 				},
 			});
-		} else if (provider === "cloudflare") {
-			if (!cfFromName.trim() || !cfFromEmail.trim()) {
-				toastManager.add({
-					title: t`Missing Cloudflare Email configuration`,
-					description: t`Sender name and email are required.`,
-					variant: "error",
-					timeout: 5000,
-				});
-				return;
-			}
-			saveMutation.mutate({
-				provider: "cloudflare",
-				cloudflare: {
-					fromName: cfFromName.trim(),
-					fromEmail: cfFromEmail.trim(),
-					...(cfReplyTo.trim() ? { replyTo: cfReplyTo.trim() } : {}),
-				},
-			});
-		} else if (provider === "none") {
-			saveMutation.mutate({ provider: "none" });
-		} else {
+		} else if (provider) {
 			saveMutation.mutate({ provider: "plugin", pluginId: provider });
 		}
 	};
@@ -275,12 +208,9 @@ export function EmailSettings() {
 		);
 	}
 
-	const hasCloudflareProvider = settings?.providers.some(
-		(p) => p.pluginId === CLOUDFLARE_PROVIDER_ID,
-	);
-	// Plugin providers (resend, postmark, …) selectable alongside the built-ins
+	// Plugin providers (resend, postmark, …) selectable alongside SMTP
 	const pluginProviders = (settings?.providers ?? []).filter(
-		(p) => p.pluginId !== SMTP_PROVIDER_ID && p.pluginId !== CLOUDFLARE_PROVIDER_ID,
+		(p) => p.pluginId !== SMTP_PROVIDER_ID,
 	);
 
 	return (
@@ -295,13 +225,9 @@ export function EmailSettings() {
 							<Select
 								label={t`Provider`}
 								value={provider}
-								onValueChange={(value) => setProvider(value ?? "none")}
+								onValueChange={(value) => setProvider(value ?? "")}
 								items={[
-									...BUILTIN_OPTIONS.map((opt) => ({
-										value: opt.value,
-										label: t(opt.label),
-										disabled: opt.value === "cloudflare" && !hasCloudflareProvider,
-									})),
+									{ value: "smtp", label: t`SMTP` },
 									...pluginProviders.map((p) => ({ value: p.pluginId, label: p.pluginId })),
 								]}
 							/>
@@ -328,7 +254,7 @@ export function EmailSettings() {
 													else if (port === 587) setSmtpSecure("starttls");
 												}
 											}}
-											placeholder={t`465`}
+											placeholder="587"
 											required
 										/>
 										<Select
@@ -382,43 +308,10 @@ export function EmailSettings() {
 											placeholder={t`support@example.com`}
 										/>
 									</div>
-									<p className="text-sm leading-5 text-kumo-subtle">
-										{t`465 (implicit TLS) is recommended on Cloudflare Workers. 587 (STARTTLS) works on Node but is unreliable on Workers.`}
-									</p>
 									<p className="text-xs text-kumo-subtle">
-										{t`SMTP credentials are encrypted and stored in the database. The password field is write-only: leave it empty to keep the current password.`}
-									</p>
-								</div>
-							)}
-
-							{provider === "cloudflare" && (
-								<div className="grid gap-4">
-									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-										<Input
-											label={t`Sender name`}
-											value={cfFromName}
-											onChange={(event) => setCfFromName(event.target.value)}
-											placeholder={t`Jane Doe`}
-											required
-										/>
-										<Input
-											label={t`Sender email`}
-											type="email"
-											value={cfFromEmail}
-											onChange={(event) => setCfFromEmail(event.target.value)}
-											placeholder={t`noreply@example.com`}
-											required
-										/>
-										<Input
-											label={t`Reply-to email (optional)`}
-											type="email"
-											value={cfReplyTo}
-											onChange={(event) => setCfReplyTo(event.target.value)}
-											placeholder={t`support@example.com`}
-										/>
-									</div>
-									<p className="text-xs text-kumo-subtle">
-										{t`Cloudflare Email uses the native send_email binding. Add the EMAIL binding to wrangler.jsonc. The sender must be a verified address on your Cloudflare account.`}
+										{settings?.smtp.source === "db"
+											? t`The SMTP password is encrypted before it is stored in the database. Leave the password empty to keep the saved one.`
+											: t`The SMTP password is encrypted before it is stored in the database.`}
 									</p>
 								</div>
 							)}
@@ -427,20 +320,10 @@ export function EmailSettings() {
 								<Button
 									onClick={handleSave}
 									loading={saveMutation.isPending}
-									disabled={saveMutation.isPending}
+									disabled={saveMutation.isPending || !provider}
 								>
 									{saveMutation.isPending ? t`Saving...` : t`Save Settings`}
 								</Button>
-								{provider === "cloudflare" && (
-									<Button
-										variant="secondary"
-										onClick={() => bindingMutation.mutate()}
-										loading={bindingMutation.isPending}
-										disabled={bindingMutation.isPending}
-									>
-										{bindingMutation.isPending ? t`Testing...` : t`Test Binding`}
-									</Button>
-								)}
 							</div>
 						</div>
 					</SettingRow>
@@ -450,7 +333,7 @@ export function EmailSettings() {
 					<PipelineStatus settings={settings} />
 				</SettingsSection>
 
-				{settings?.smtp.configured && settings.selectedProviderId === "emdash-smtp" && (
+				{settings?.smtp.configured && settings.selectedProviderId === SMTP_PROVIDER_ID && (
 					<SettingsSection title={t`SMTP Transport`}>
 						<SettingRow>
 							<div className="grid gap-3">
@@ -488,7 +371,7 @@ export function EmailSettings() {
 								</div>
 								<p className="text-xs text-kumo-subtle">
 									{settings.smtp.source === "db"
-										? t`SMTP is configured in the admin UI. Credentials are encrypted in the database.`
+										? t`SMTP is configured in the admin UI. The password is encrypted in the database.`
 										: t`SMTP is configured via environment variables on the server.`}
 								</p>
 							</div>
@@ -552,7 +435,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 					title={t`No email provider configured`}
 					description={
 						<div className="grid gap-1.5">
-							<p>{t`Choose a provider above (built-in SMTP or Cloudflare Email) or install an email provider plugin to enable email features like invitations, magic links, and password recovery.`}</p>
+							<p>{t`Choose SMTP above or install an email provider plugin to enable email features like invitations, magic links, and password recovery.`}</p>
 							<p>{t`Without an email provider, invite links must be shared manually.`}</p>
 						</div>
 					}

@@ -191,11 +191,9 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		expect(metadata).toContainEqual({ kind: "meta", name: "sandbox", content: "active" });
 		expect(runtime.hooks.getExclusiveHookProviders("email:deliver")).toContainEqual({
 			pluginId: "sandbox-host",
-			autoSelect: true,
 		});
 		expect(runtime.hooks.getExclusiveHookProviders("comment:moderate")).toContainEqual({
 			pluginId: "sandbox-host",
-			autoSelect: true,
 		});
 		expect(runtime.hooks.getHookCount("page:fragments")).toBe(0);
 	});

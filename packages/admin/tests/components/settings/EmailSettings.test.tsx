@@ -3,17 +3,13 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type {
-	CloudflareBindingResult,
-	EmailSettings as EmailSettingsData,
-} from "../../../src/lib/api/email-settings";
+import type { EmailSettings as EmailSettingsData } from "../../../src/lib/api/email-settings";
 import { render } from "../../utils/render";
 
 const mockFetchEmailSettings = vi.fn<() => Promise<EmailSettingsData>>();
 const mockSendTestEmail = vi.fn<(to: string) => Promise<{ success: boolean; message: string }>>();
 const mockSaveEmailSettings =
 	vi.fn<(input: unknown) => Promise<{ success: boolean; message: string }>>();
-const mockTestCloudflareBinding = vi.fn<() => Promise<CloudflareBindingResult>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -34,7 +30,6 @@ vi.mock("../../../src/lib/api/email-settings", async () => {
 		fetchEmailSettings: () => mockFetchEmailSettings(),
 		sendTestEmail: (to: string) => mockSendTestEmail(to),
 		saveEmailSettings: (input: unknown) => mockSaveEmailSettings(input),
-		testCloudflareBinding: () => mockTestCloudflareBinding(),
 	};
 });
 
@@ -42,8 +37,7 @@ const { EmailSettings } = await import("../../../src/components/settings/EmailSe
 
 const unconfiguredTransports = {
 	smtp: { configured: false, source: null },
-	cloudflare: { configured: false, source: null },
-} satisfies Pick<EmailSettingsData, "smtp" | "cloudflare">;
+} satisfies Pick<EmailSettingsData, "smtp">;
 
 const availableSettings: EmailSettingsData = {
 	available: true,
@@ -169,27 +163,21 @@ describe("EmailSettings", () => {
 		});
 	});
 
-	it("saves the none selection", async () => {
+	it("does not save while no provider is selected", async () => {
 		mockFetchEmailSettings.mockResolvedValue({
 			...availableSettings,
 			selectedProviderId: null,
 		});
 		const screen = await renderEmailSettings();
-		await expect
-			.element(screen.getByRole("combobox", { name: "Provider" }))
-			.toHaveTextContent("None");
 
-		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
-		await vi.waitFor(() => {
-			expect(mockSaveEmailSettings).toHaveBeenCalledWith({ provider: "none" });
-		});
+		await expect.element(screen.getByRole("button", { name: "Save Settings" })).toBeDisabled();
 	});
 
 	it("blocks saving SMTP without host and user", async () => {
 		mockFetchEmailSettings.mockResolvedValue({
 			...availableSettings,
-			selectedProviderId: "emdash-smtp",
-			providers: [{ pluginId: "emdash-smtp" }],
+			selectedProviderId: "emdash-builtin-smtp",
+			providers: [{ pluginId: "emdash-builtin-smtp" }],
 		});
 		const screen = await renderEmailSettings();
 		await expect.element(screen.getByLabelText("Host")).toBeInTheDocument();
@@ -199,11 +187,34 @@ describe("EmailSettings", () => {
 		expect(mockSaveEmailSettings).not.toHaveBeenCalled();
 	});
 
+	it("selects env-configured SMTP without copying it into the database", async () => {
+		mockFetchEmailSettings.mockResolvedValue({
+			...availableSettings,
+			selectedProviderId: "emdash-builtin-smtp",
+			providers: [{ pluginId: "emdash-builtin-smtp" }],
+			smtp: {
+				configured: true,
+				source: "env",
+				host: "smtp.example.com",
+				port: 587,
+				secure: "starttls",
+				user: "mailer@example.com",
+			},
+		});
+		const screen = await renderEmailSettings();
+		await expect.element(screen.getByLabelText("Host")).toHaveValue("smtp.example.com");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
+		await vi.waitFor(() => {
+			expect(mockSaveEmailSettings).toHaveBeenCalledWith({ provider: "smtp" });
+		});
+	});
+
 	it("blocks saving SMTP on port 25", async () => {
 		mockFetchEmailSettings.mockResolvedValue({
 			...availableSettings,
-			selectedProviderId: "emdash-smtp",
-			providers: [{ pluginId: "emdash-smtp" }],
+			selectedProviderId: "emdash-builtin-smtp",
+			providers: [{ pluginId: "emdash-builtin-smtp" }],
 		});
 		const screen = await renderEmailSettings();
 		await screen.getByLabelText("Host").fill("smtp.example.com");
@@ -213,25 +224,5 @@ describe("EmailSettings", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
 		await expect.element(screen.getByText("Port 25 is not supported")).toBeInTheDocument();
 		expect(mockSaveEmailSettings).not.toHaveBeenCalled();
-	});
-
-	it("describes a missing Cloudflare binding from the response code, not the server message", async () => {
-		mockFetchEmailSettings.mockResolvedValue({
-			...availableSettings,
-			selectedProviderId: "emdash-cloudflare-email",
-			providers: [{ pluginId: "emdash-cloudflare-email" }],
-		});
-		mockTestCloudflareBinding.mockResolvedValue({
-			available: false,
-			code: "BINDING_MISSING",
-			message: "server diagnostic",
-		});
-		const screen = await renderEmailSettings();
-
-		await userEvent.click(screen.getByRole("button", { name: "Test Binding" }));
-		await expect
-			.element(screen.getByText(/send_email binding "EMAIL" not found/))
-			.toBeInTheDocument();
-		expect(screen.getByText("server diagnostic").query()).toBeNull();
 	});
 });

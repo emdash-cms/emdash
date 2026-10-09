@@ -262,12 +262,10 @@ import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
-import { createCloudflareEmailPlugin } from "./plugins/email-cloudflare.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import {
 	createSmtpEmailDeliverFromDb,
-	isSmtpConfigComplete,
-	loadSmtpConfigFromEnv,
+	isSmtpEnvConfigured,
 	SMTP_EMAIL_PLUGIN_ID,
 } from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
@@ -1765,10 +1763,12 @@ export class EmDashRuntime {
 			phase("rt.hookselections", "Exclusive hook selections", async () => {
 				// Built-in and sandboxed providers register after these reads, so
 				// only configured plugins' hooks and the always-present
-				// comment:moderate are known here. Hook resolution reads the rest.
+				// comment:moderate and email:deliver are known here. Hook
+				// resolution reads the rest.
 				const keys = Array.from(
 					new Set([
 						"comment:moderate",
+						"email:deliver",
 						...deps.plugins.flatMap((plugin) =>
 							Object.entries(plugin.hooks)
 								.filter(([, hook]) => hook?.exclusive)
@@ -1932,18 +1932,9 @@ export class EmDashRuntime {
 
 		// Register the built-in SMTP email provider, even unconfigured, so it
 		// appears in the Settings → Email provider list. The handler loads its
-		// config (DB first, env fallback) on every send. Only env config makes
-		// it an auto-select candidate; saving DB config also stores the selection.
-		// Secrets read process.env only: import.meta.env is statically inlined
-		// at build time and would bake the build machine's key into the bundle.
-		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
+		// config (DB first, env fallback) on every send. Secrets read
+		// process.env only: import.meta.env is inlined at build time.
 		try {
-			let smtpEnvConfigured = false;
-			try {
-				smtpEnvConfigured = isSmtpConfigComplete(loadSmtpConfigFromEnv());
-			} catch {
-				// Invalid env config (e.g. port 25): surfaced at delivery time.
-			}
 			const smtpPlugin = definePlugin({
 				id: SMTP_EMAIL_PLUGIN_ID,
 				version: "1.0.0",
@@ -1951,11 +1942,13 @@ export class EmDashRuntime {
 				hooks: {
 					"email:deliver": {
 						exclusive: true,
-						autoSelect: smtpEnvConfigured,
-						// SMTP over public internet (EHLO → STARTTLS → AUTH → DATA)
-						// needs far more than the 5s default hook timeout.
+						// EHLO, STARTTLS, AUTH and DATA over the public internet need far
+						// more than the 5s default hook timeout.
 						timeout: 30_000,
-						handler: createSmtpEmailDeliverFromDb(db, encryptionKey ?? null),
+						handler: createSmtpEmailDeliverFromDb(
+							resolveDb,
+							process.env.EMDASH_ENCRYPTION_KEY ?? null,
+						),
 					},
 				},
 			});
@@ -1963,18 +1956,6 @@ export class EmDashRuntime {
 			enabledPlugins.add(smtpPlugin.id);
 		} catch (error) {
 			console.warn("[email] Failed to register SMTP email provider:", error);
-		}
-
-		// Register the built-in Cloudflare Email provider. Always registered
-		// (even unconfigured) so it appears in the Settings → Email list; the
-		// handler loads config (DB first, env fallback) lazily per send and
-		// checks the send_email binding at delivery time with a clear error.
-		try {
-			const cloudflarePlugin = createCloudflareEmailPlugin(db);
-			allPipelinePlugins.push(cloudflarePlugin);
-			enabledPlugins.add(cloudflarePlugin.id);
-		} catch (error) {
-			console.warn("[email] Failed to register Cloudflare Email provider:", error);
 		}
 
 		// Register built-in default comment moderator.
@@ -3035,6 +3016,7 @@ export class EmDashRuntime {
 
 		// The pipeline was created from only enabled plugins, so all providers
 		// in it are active. The isActive check always returns true.
+		const smtpFromEnv = isSmtpEnvConfigured();
 		await resolveExclusiveHooksShared({
 			pipeline,
 			isActive: () => true,
@@ -3050,9 +3032,17 @@ export class EmDashRuntime {
 				return selections;
 			},
 			setOption: (key, value) => optionsRepo.set(key, value),
+			deleteOption: async (key) => {
+				await optionsRepo.delete(key);
+			},
 			preferredHints,
-			ephemeralProviders: new Set([DEV_CONSOLE_EMAIL_PLUGIN_ID]),
-			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
+			// Env-configured SMTP gives way to an email plugin. Without env config,
+			// SMTP serves email only once selected in Settings → Email.
+			fallbackProviders: new Set([
+				DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+				...(smtpFromEnv ? [SMTP_EMAIL_PLUGIN_ID] : []),
+			]),
+			manualProviders: smtpFromEnv ? undefined : new Set([SMTP_EMAIL_PLUGIN_ID]),
 		});
 	}
 

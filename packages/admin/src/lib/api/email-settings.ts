@@ -27,14 +27,6 @@ export interface SmtpConfigStatus {
 	replyTo?: string;
 }
 
-export interface CloudflareConfigStatus {
-	configured: boolean;
-	source: "db" | "env" | null;
-	fromName?: string;
-	fromEmail?: string;
-	replyTo?: string;
-}
-
 export interface EmailSettings {
 	available: boolean;
 	providers: EmailProvider[];
@@ -44,7 +36,6 @@ export interface EmailSettings {
 		afterSend: string[];
 	};
 	smtp: SmtpConfigStatus;
-	cloudflare: CloudflareConfigStatus;
 }
 
 // =============================================================================
@@ -68,7 +59,7 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; mes
 	);
 }
 
-export type EmailProviderChoice = "none" | "smtp" | "cloudflare" | "plugin";
+export type EmailProviderChoice = "smtp" | "plugin";
 
 export interface SaveEmailSettingsInput {
 	provider: EmailProviderChoice;
@@ -84,11 +75,6 @@ export interface SaveEmailSettingsInput {
 		fromEmail?: string;
 		replyTo?: string;
 	};
-	cloudflare?: {
-		fromName: string;
-		fromEmail: string;
-		replyTo?: string;
-	};
 }
 
 export async function saveEmailSettings(
@@ -102,21 +88,5 @@ export async function saveEmailSettings(
 	return parseApiResponse<{ success: boolean; message: string }>(
 		res,
 		i18n._(msg`Failed to save email settings`),
-	);
-}
-
-export interface CloudflareBindingResult {
-	available: boolean;
-	code?: "NOT_WORKERS" | "BINDING_MISSING";
-	message: string;
-}
-
-export async function testCloudflareBinding(): Promise<CloudflareBindingResult> {
-	const res = await apiFetch(`${API_BASE}/settings/email/test-binding`, {
-		method: "POST",
-	});
-	return parseApiResponse<CloudflareBindingResult>(
-		res,
-		i18n._(msg`Failed to test Cloudflare Email binding`),
 	);
 }

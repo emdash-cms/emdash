@@ -1443,11 +1443,9 @@ export class HookPipeline {
 	/**
 	 * Get all plugins that registered a handler for a given exclusive hook.
 	 */
-	getExclusiveHookProviders(hookName: string): Array<{ pluginId: string; autoSelect: boolean }> {
+	getExclusiveHookProviders(hookName: string): Array<{ pluginId: string }> {
 		const hooks = this.hooks.get(hookName as HookNameV2) ?? [];
-		return hooks
-			.filter((h) => h.exclusive)
-			.map((h) => ({ pluginId: h.pluginId, autoSelect: h.autoSelect }));
+		return hooks.filter((h) => h.exclusive).map((h) => ({ pluginId: h.pluginId }));
 	}
 
 	/**
@@ -1534,54 +1532,43 @@ export interface ExclusiveHookResolutionOptions {
 	getOptions?: (keys: string[]) => Promise<ReadonlyMap<string, string>>;
 	/** Write an option value to persistent storage. */
 	setOption: (key: string, value: string) => Promise<void>;
+	/** Delete an option from persistent storage. */
+	deleteOption: (key: string) => Promise<void>;
 	/**
 	 * Map of pluginId → hook names the plugin prefers to handle.
 	 * Used as a tiebreaker when no DB selection exists and multiple providers are active.
 	 */
 	preferredHints?: Map<string, string[]>;
 	/**
-	 * Providers whose selection must never be persisted (e.g. the dev-only
-	 * console email provider). Auto-selecting one sets the in-memory
-	 * selection only, and a persisted selection naming one (written by an
-	 * older version against a shared database) does not block re-resolution
-	 * in an environment where that provider is not registered.
-	 */
-	ephemeralProviders?: ReadonlySet<string>;
-	/**
 	 * Plugin IDs of built-in providers that give way to a plugin. When no
 	 * selection is stored, a fallback is auto-selected only if no other
 	 * provider of the hook is active, and that selection is not stored, so a
 	 * plugin provider that becomes active later is selected in its place.
-	 * While a stored selection names an inactive provider, a sole active
-	 * fallback serves the hook in memory.
 	 */
 	fallbackProviders?: ReadonlySet<string>;
+	/**
+	 * Plugin IDs of providers that serve a hook only when explicitly selected.
+	 * They are never auto-selected and are not counted when looking for a
+	 * sole provider, so an unconfigured built-in does not block auto-selection
+	 * of a site's single provider plugin.
+	 */
+	manualProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
 export const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
 
 /**
- * Sentinel value stored in the options table when the admin explicitly
- * chooses "no provider" for an exclusive hook. Distinguishes "explicitly
- * disabled" from "no selection yet" so resolution does not auto-select
- * a provider again on the next startup.
- */
-export const EXCLUSIVE_HOOK_NONE_VALUE = "__none__";
-
-/**
  * Resolve exclusive hook selections.
  *
  * Shared algorithm used by both PluginManager and EmDashRuntime:
  * 1. If a DB selection exists and that plugin is active → keep it.
- * 2. If the selected provider is not currently registered → keep the DB
- *    value and select a sole active fallback in memory, otherwise leave the
- *    hook unselected (unless the selection names an ephemeral provider,
- *    which is ignored and re-resolved).
- * 3. If no selection and only one auto-select candidate → auto-select it.
- *    Fallback providers are not counted when another candidate is active,
- *    so a single plugin provider is selected over a built-in fallback. A
- *    fallback selection is kept in memory only.
+ * 2. If DB selection is stale (plugin inactive/gone) → clear it.
+ * 3. If no selection and only one active provider → auto-select it. Fallback
+ *    providers are not counted when another provider is active, so a single
+ *    plugin provider is selected over a built-in fallback. A fallback
+ *    selection is kept in memory only. Manual providers are never
+ *    auto-selected.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
@@ -1592,9 +1579,10 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		getOption,
 		getOptions,
 		setOption,
+		deleteOption,
 		preferredHints,
-		ephemeralProviders,
 		fallbackProviders,
+		manualProviders,
 	} = opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
@@ -1620,11 +1608,6 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		const activeProviderIds = new Set(
 			providers.map((p) => p.pluginId).filter((id) => isActive(id)),
 		);
-		// Unconfigured built-ins register with autoSelect: false, so they can be
-		// explicitly selected but never block or win sole-provider selection.
-		const autoSelectCandidates = new Set(
-			providers.filter((p) => p.autoSelect && isActive(p.pluginId)).map((p) => p.pluginId),
-		);
 
 		const key = `${EXCLUSIVE_HOOK_KEY_PREFIX}${hookName}`;
 		let currentSelection: string | null = null;
@@ -1639,41 +1622,30 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 			}
 		}
 
-		// Explicitly disabled by the admin ("None"): never auto-select.
-		if (currentSelection === EXCLUSIVE_HOOK_NONE_VALUE) {
-			pipeline.clearExclusiveSelection(hookName);
-			continue;
-		}
-
 		// If selection exists and the plugin is still active → keep it
 		if (currentSelection && activeProviderIds.has(currentSelection)) {
 			pipeline.setExclusiveSelection(hookName, currentSelection);
 			continue;
 		}
 
-		// Keep a stored selection whose provider is not registered; a hook with
-		// a fallback is served in memory until that provider returns. Ephemeral
-		// selections are re-resolved so they cannot turn delivery off outside
-		// the environment that wrote them.
-		if (currentSelection && !ephemeralProviders?.has(currentSelection)) {
-			const fallbacks = [...autoSelectCandidates].filter((id) => fallbackProviders?.has(id));
-			const others = [...autoSelectCandidates].filter((id) => !fallbackProviders?.has(id));
-			const standIn =
-				others.length === 1 ? others[0] : others.length === 0 ? fallbacks[0] : undefined;
-			if (fallbacks.length > 0 && standIn) {
-				pipeline.setExclusiveSelection(hookName, standIn);
+		// Selection is stale or missing — clear it
+		if (currentSelection) {
+			try {
+				await deleteOption(key);
+			} catch {
+				// Non-fatal
 			}
-			continue;
 		}
 
-		// No usable selection: auto-select if only one candidate
+		// Auto-select if only one active provider
+		const autoSelectable = [...activeProviderIds].filter((id) => !manualProviders?.has(id));
 		const candidates =
-			autoSelectCandidates.size > 1 && fallbackProviders
-				? [...autoSelectCandidates].filter((id) => !fallbackProviders.has(id))
-				: [...autoSelectCandidates];
+			autoSelectable.length > 1 && fallbackProviders
+				? autoSelectable.filter((id) => !fallbackProviders.has(id))
+				: autoSelectable;
 		if (candidates.length === 1) {
 			const [onlyProvider] = candidates;
-			if (!ephemeralProviders?.has(onlyProvider) && !fallbackProviders?.has(onlyProvider)) {
+			if (!fallbackProviders?.has(onlyProvider)) {
 				try {
 					await setOption(key, onlyProvider);
 				} catch {
@@ -1688,7 +1660,11 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		if (preferredHints) {
 			let found = false;
 			for (const [pluginId, hooks] of preferredHints) {
-				if (hooks.includes(hookName) && activeProviderIds.has(pluginId)) {
+				if (
+					hooks.includes(hookName) &&
+					activeProviderIds.has(pluginId) &&
+					!manualProviders?.has(pluginId)
+				) {
 					try {
 						await setOption(key, pluginId);
 					} catch {

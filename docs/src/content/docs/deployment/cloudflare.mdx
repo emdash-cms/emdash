@@ -280,7 +280,7 @@ Set `CF_ACCESS_AUDIENCE` with `pnpm wrangler secret put CF_ACCESS_AUDIENCE`. The
 
 ## Email
 
-Production Workers have no default email delivery service. Magic-link sign-in returns **Email is not configured** until an email plugin is active.
+Production Workers have no default email delivery service. Magic-link sign-in returns **Email is not configured** until an email provider is active.
 
 The Cloudflare email plugin uses a `send_email` binding. First [onboard and verify the sender domain](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/) with Cloudflare Email Sending. Cloudflare rejects messages whose From address is not an accepted sender.
 
@@ -311,27 +311,11 @@ The plugin uses the binding named `EMAIL` unless its `binding` option names anot
 
 ### Built-in SMTP transport
 
-If you already have SMTP credentials (for example Brevo relay, Office 365, Fastmail, Amazon SES, or a self-hosted Postfix relay), use the SMTP transport built into EmDash instead of Cloudflare Email Sending. It connects through `cloudflare:sockets` on Workers and `node:net`/`node:tls` on Node.
-
-Configure it under **Settings → Email** in the admin, where the password is stored encrypted with `EMDASH_ENCRYPTION_KEY`, or set these values as Worker secrets or environment variables:
-
-| Variable                | Example                         | Notes                                                                       |
-| ----------------------- | ------------------------------- | --------------------------------------------------------------------------- |
-| `EMAIL_SMTP_HOST`       | `smtp-relay.brevo.com`          | Any SMTP server reachable from your deployment                              |
-| `EMAIL_SMTP_PORT`       | `465` or `587`                  | 465 uses implicit TLS (recommended on Workers), 587 uses STARTTLS. Port 25 is refused. |
-| `EMAIL_SMTP_USER`       | `you@example.com`               | SMTP auth username                                                          |
-| `EMAIL_SMTP_PASS`       | `xsmtpsib-…`                    | SMTP auth password (store as a secret)                                      |
-| `EMAIL_SMTP_SECURE`     | `tls` or `starttls`             | Optional; inferred from the port (465 is `tls`, otherwise `starttls`)       |
-| `EMAIL_SMTP_FROM`       | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER`                    |
-| `EMAIL_SMTP_FROM_NAME`  | `My Site`                       | Optional display name for `EMAIL_SMTP_FROM_EMAIL`                                  |
-| `EMAIL_SMTP_FROM_EMAIL` | `noreply@example.com`           | Optional sender address; takes precedence over `EMAIL_SMTP_FROM`                    |
-| `EMAIL_SMTP_REPLY_TO`   | `hello@example.com`             | Optional Reply-To header                                                    |
+If you already have SMTP credentials, you can use the [SMTP transport built into EmDash](/guides/email/#production-built-in-smtp-transport) instead of Cloudflare Email Sending. It connects through `node:net` and `node:tls`, so the Worker needs the `nodejs_compat` compatibility flag. Set the `EMAIL_SMTP_*` values with `wrangler secret put`, or configure SMTP under **Settings → Email**. EmDash reads both the SMTP variables and `EMDASH_ENCRYPTION_KEY` through `process.env`, which needs a compatibility date on or after `2025-04-01` or the `nodejs_compat_populate_process_env` flag.
 
 <Aside type="caution">
-	Cloudflare blocks outbound port 25. The transport supports only submission ports 465 (implicit TLS) and 587 (STARTTLS), and always requires TLS before authenticating. Prefer port 465 on Workers: STARTTLS upgrades over `cloudflare:sockets` are less reliable than implicit TLS.
+	Cloudflare blocks outbound port 25, so the transport refuses it. Use port 465 (implicit TLS) or 587 (STARTTLS). Other ports use STARTTLS unless you set the security mode to `tls`.
 </Aside>
-
-The SMTP transport registers as a built-in email provider. When these variables are set and no other provider is configured, EmDash selects it automatically; otherwise choose it under **Settings → Email**. An explicitly selected provider, plugin or built-in, always takes precedence.
 
 ## Cloudflare AI Search
 

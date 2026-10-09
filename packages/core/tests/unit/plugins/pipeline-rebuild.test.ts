@@ -50,7 +50,6 @@ function createTestHook<T>(
 		dependencies: [],
 		errorPolicy: "continue",
 		exclusive: false,
-		autoSelect: true,
 		...overrides,
 	};
 }
@@ -215,6 +214,9 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 			getOption: async (key) => options.get(key) ?? null,
 			setOption: async (key, value) => {
 				options.set(key, value);
+			},
+			deleteOption: async (key) => {
+				options.delete(key);
 			},
 		});
 

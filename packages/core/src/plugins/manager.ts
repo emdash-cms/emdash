@@ -593,6 +593,9 @@ export class PluginManager {
 			getOption: (key) => optionsRepo.get<string>(key),
 			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
+			deleteOption: async (key) => {
+				await optionsRepo.delete(key);
+			},
 			preferredHints,
 		});
 	}
@@ -604,7 +607,7 @@ export class PluginManager {
 	async getExclusiveHooksInfo(): Promise<
 		Array<{
 			hookName: string;
-			providers: Array<{ pluginId: string; autoSelect: boolean }>;
+			providers: Array<{ pluginId: string }>;
 			selectedPluginId: string | null;
 		}>
 	> {

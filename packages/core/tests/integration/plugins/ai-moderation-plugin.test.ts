@@ -82,7 +82,6 @@ describe("ai-moderation plugin", () => {
 		});
 		expect(hooks.getExclusiveHookProviders("comment:moderate")).toContainEqual({
 			pluginId: "ai-moderation",
-			autoSelect: true,
 		});
 	});
 
