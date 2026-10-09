@@ -72,6 +72,8 @@ jobs:
           cache: pnpm
       - name: Check package versions
         run: node .github/scripts/check-no-major.mjs
+      - name: Test the test plan
+        run: node --test .github/scripts/test-plan.test.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
@@ -201,7 +203,8 @@ jobs:
 
           pnpm run --if-present "${build_filters[@]}" build
           if [ "${#test_filters[@]}" -gt 0 ]; then
-            pnpm run "${test_filters[@]}" test
+            # In parallel on the four-core runner, slow tests pass vitest's 5 s timeout.
+            pnpm run --workspace-concurrency=1 "${test_filters[@]}" test
           fi
           if [ "$check_registry_verification" = true ]; then
             pnpm --filter @emdash-cms/registry-verification test:package
