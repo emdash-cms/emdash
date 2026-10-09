@@ -1,0 +1,788 @@
+/**
+ * Unit tests for the built-in SMTP email transport.
+ *
+ * Scripts the socket layer to verify protocol flow (EHLO → STARTTLS → AUTH →
+ * MAIL FROM → RCPT TO → DATA → QUIT), error handling on bad reply codes,
+ * and config parsing from env vars. email-smtp-socket.test.ts covers the
+ * socket layer itself.
+ */
+
+import type { Kysely } from "kysely";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import type { Database as DatabaseSchema } from "../../../src/database/types.js";
+import {
+	deliverSmtp,
+	dotStuff,
+	loadSmtpConfig,
+	loadSmtpConfigFromDb,
+	loadSmtpConfigFromEnv,
+	saveSmtpConfigToDb,
+	type SmtpConfig,
+	type SmtpSocket,
+} from "../../../src/plugins/email-smtp.js";
+import type { EmailDeliverEvent, PluginContext } from "../../../src/plugins/types.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+// ---------------------------------------------------------------------------
+// Mock socket helpers
+// ---------------------------------------------------------------------------
+
+function makeReply(code: number, message = "OK"): string {
+	return `${code} ${message}\r\n`;
+}
+
+/** First EHLO reply of a server offering STARTTLS and AUTH LOGIN only. */
+const EHLO_STARTTLS = "250-smtp.example.com\r\n250-STARTTLS\r\n250 AUTH LOGIN\r\n";
+/** EHLO reply after the TLS upgrade. */
+const EHLO_AUTH_LOGIN = "250-smtp.example.com\r\n250 AUTH LOGIN\r\n";
+
+/** A scripted SmtpSocket: each script entry is one (possibly multi-line) server reply. */
+function mockSocket(script: string[]): { socket: SmtpSocket; written: string[] } {
+	const written: string[] = [];
+	const replies = [...script];
+	const readReply = async () => {
+		const raw = replies.shift();
+		if (raw === undefined) throw new Error("SMTP connection closed unexpectedly");
+		const lines = raw.split("\r\n").filter(Boolean);
+		return { code: Number.parseInt(lines[0]!.slice(0, 3), 10), lines };
+	};
+	const socket: SmtpSocket = {
+		readReply,
+		write: async (data) => {
+			written.push(data);
+		},
+		startTls: async () => {
+			written.push("STARTTLS\r\n");
+			return readReply();
+		},
+		destroy: () => {},
+	};
+	return { written, socket };
+}
+
+const baseConfig: SmtpConfig = {
+	host: "smtp.example.com",
+	port: 587,
+	secure: "starttls",
+	user: "user@example.com",
+	pass: "secret",
+	fromName: "Site",
+	fromEmail: "noreply@example.com",
+	replyTo: "support@example.com",
+};
+
+const mockCtx = {
+	log: {
+		info: vi.fn(),
+		warn: vi.fn(),
+		error: vi.fn(),
+	},
+} as unknown as PluginContext;
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("loadSmtpConfigFromEnv", () => {
+	afterEach(() => {
+		for (const key of Object.keys(process.env)) {
+			if (key.startsWith("EMAIL_SMTP_")) delete process.env[key];
+		}
+	});
+
+	it("returns null when EMAIL_SMTP_HOST is unset", () => {
+		delete process.env.EMAIL_SMTP_HOST;
+		expect(loadSmtpConfigFromEnv()).toBeNull();
+	});
+
+	it("parses a complete config with structured sender fields", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp-relay.brevo.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+		process.env.EMAIL_SMTP_FROM_NAME = "Site";
+		process.env.EMAIL_SMTP_FROM_EMAIL = "noreply@example.com";
+		process.env.EMAIL_SMTP_REPLY_TO = "support@example.com";
+
+		const config = loadSmtpConfigFromEnv();
+		expect(config).toEqual({
+			host: "smtp-relay.brevo.com",
+			port: 587,
+			secure: "starttls",
+			user: "u",
+			pass: "p",
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
+			replyTo: "support@example.com",
+		});
+	});
+
+	it("parses legacy EMAIL_SMTP_FROM into structured fields", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp-relay.brevo.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+		process.env.EMAIL_SMTP_FROM = "Site <noreply@example.com>";
+
+		const config = loadSmtpConfigFromEnv();
+		expect(config).toEqual({
+			host: "smtp-relay.brevo.com",
+			port: 587,
+			secure: "starttls",
+			user: "u",
+			pass: "p",
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
+		});
+	});
+
+	it("uses EMAIL_SMTP_FROM_EMAIL without a sender name", () => {
+		process.env.EMAIL_SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com";
+		process.env.EMAIL_SMTP_USER = "AKIAEXAMPLE";
+		process.env.EMAIL_SMTP_PASS = "p";
+		process.env.EMAIL_SMTP_FROM_EMAIL = "noreply@example.com";
+
+		const config = loadSmtpConfigFromEnv();
+		expect(config?.fromEmail).toBe("noreply@example.com");
+		expect(config?.fromName).toBeUndefined();
+	});
+
+	it("infers secure=tls for port 465", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "465";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+		delete process.env.EMAIL_SMTP_SECURE;
+
+		const config = loadSmtpConfigFromEnv();
+		expect(config?.secure).toBe("tls");
+	});
+
+	it("refuses port 25", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "25";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+
+		expect(() => loadSmtpConfigFromEnv()).toThrow(/EMAIL_SMTP_PORT=25 is not supported/);
+	});
+
+	it.each(["abc", "587abc", "0", "70000", "58.7"])("refuses EMAIL_SMTP_PORT=%s", (port) => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = port;
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+
+		expect(() => loadSmtpConfigFromEnv()).toThrow(/EMAIL_SMTP_PORT must be a port number/);
+	});
+
+	it("uses port 587 when EMAIL_SMTP_PORT is empty", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+
+		expect(loadSmtpConfigFromEnv()?.port).toBe(587);
+	});
+
+	it("throws when credentials are missing", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		delete process.env.EMAIL_SMTP_USER;
+		delete process.env.EMAIL_SMTP_PASS;
+
+		expect(() => loadSmtpConfigFromEnv()).toThrow(/EMAIL_SMTP_USER/);
+	});
+});
+
+describe("deliverSmtp", () => {
+	const message: EmailDeliverEvent["message"] = {
+		to: "recipient@example.com",
+		subject: "Hello",
+		text: "Plain body",
+		html: "<p>HTML body</p>",
+	};
+
+	it("completes a full STARTTLS session", async () => {
+		const script = [
+			makeReply(220, "smtp.example.com ESMTP ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "Go ahead with TLS"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "VXNlciBOYW1lAA=="),
+			makeReply(334, "UGFzc3dvcmQA"),
+			makeReply(235, "Authentication successful"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "End data with <CR><LF>.<CR><LF>"),
+			makeReply(250, "Message accepted"),
+		];
+
+		const { socket, written } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		await deliverSmtp(baseConfig, message, mockCtx, connectFn);
+
+		expect(connectFn).toHaveBeenCalledWith(
+			"smtp.example.com",
+			587,
+			"starttls",
+			expect.any(AbortSignal),
+		);
+
+		const transcript = written.join("");
+		expect(transcript).toContain("EHLO example.com\r\n");
+		expect(transcript).toContain("STARTTLS\r\n");
+		expect(transcript).toContain("AUTH LOGIN\r\n");
+		expect(transcript).toContain("MAIL FROM:<noreply@example.com>\r\n");
+		expect(transcript).toContain("RCPT TO:<recipient@example.com>\r\n");
+		expect(transcript).toContain("DATA\r\n");
+		expect(transcript).toContain("Subject: Hello\r\n");
+		expect(transcript).toContain('From: "Site" <noreply@example.com>\r\n');
+		expect(transcript).toContain("Reply-To: support@example.com\r\n");
+		expect(transcript).toContain("QUIT\r\n");
+
+		expect(mockCtx.log.info).toHaveBeenCalledWith(
+			"email delivered via SMTP",
+			expect.objectContaining({ to: "recipient@example.com", subject: "Hello" }),
+		);
+	});
+
+	it("delivers to cc recipients and prefers the message's reply-to address", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "ok"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "go"),
+			makeReply(250, "Message accepted"),
+		];
+		const { socket, written } = mockSocket(script);
+
+		await deliverSmtp(
+			baseConfig,
+			{ ...message, cc: ["a@example.com", "b@example.com"], replyTo: "author@example.com" },
+			mockCtx,
+			vi.fn(async () => socket),
+		);
+
+		const transcript = written.join("");
+		expect(transcript).toContain(
+			"RCPT TO:<recipient@example.com>\r\nRCPT TO:<a@example.com>\r\nRCPT TO:<b@example.com>\r\n",
+		);
+		expect(transcript).toContain("Cc: a@example.com, b@example.com\r\n");
+		expect(transcript).toContain("Reply-To: author@example.com\r\n");
+		expect(transcript).not.toContain("support@example.com");
+	});
+
+	it("encodes only the display name of a non-ASCII Reply-To", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "ok"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "go"),
+			makeReply(250, "Message accepted"),
+		]);
+
+		await deliverSmtp(
+			baseConfig,
+			{ ...message, replyTo: "Jörg <joerg@example.com>" },
+			mockCtx,
+			vi.fn(async () => socket),
+		);
+
+		expect(written.join("")).toMatch(/Reply-To: =\?UTF-8\?B\?[^?]+\?= <joerg@example\.com>\r\n/);
+	});
+
+	it("rejects an invalid Reply-To address", async () => {
+		const connectFn = vi.fn(async () => mockSocket([]).socket);
+		await expect(
+			deliverSmtp(baseConfig, { ...message, replyTo: "not an address" }, mockCtx, connectFn),
+		).rejects.toThrow(/Invalid reply-to address/);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
+	it("rejects a cc address that could inject SMTP commands", async () => {
+		const connectFn = vi.fn(async () => mockSocket([]).socket);
+		await expect(
+			deliverSmtp(
+				baseConfig,
+				{ ...message, cc: ["x@example.com>\r\nRCPT TO:<evil@example.com"] },
+				mockCtx,
+				connectFn,
+			),
+		).rejects.toThrow(/Invalid recipient address/);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
+	it("splits a long non-ASCII subject into RFC 2047 encoded-words", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "ok"),
+			makeReply(250, "ok"),
+			makeReply(250, "ok"),
+			makeReply(354, "go"),
+			makeReply(250, "ok"),
+		];
+		const { socket, written } = mockSocket(script);
+		const subject = "مرحبا بكم في موقعنا، نشرة الأخبار الأسبوعية للمحررين والقراء".repeat(2);
+
+		await deliverSmtp(baseConfig, { ...message, subject }, mockCtx, async () => socket);
+
+		const subjectHeader = written.join("").match(/^Subject: (.*(?:\r\n .*)*)\r\n/m)?.[1];
+		expect(subjectHeader).toBeDefined();
+		const words = subjectHeader!.split("\r\n ");
+		expect(words.length).toBeGreaterThan(1);
+		for (const word of words) {
+			expect(word).toMatch(/^=\?UTF-8\?B\?[A-Za-z0-9+/=]+\?=$/);
+			expect(word.length).toBeLessThanOrEqual(75);
+		}
+		// Decoding each word on its own proves no multi-byte character was split.
+		const decoder = new TextDecoder("utf-8", { fatal: true });
+		const decoded = words
+			.map((w) => atob(w.slice("=?UTF-8?B?".length, -"?=".length)))
+			.map((bin) => decoder.decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))))
+			.join("");
+		expect(decoded).toBe(subject);
+	});
+
+	it("throws on AUTH failure", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(535, "Authentication failed"),
+		];
+
+		const { socket } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, connectFn)).rejects.toThrow(
+			/Authentication failed \(535/,
+		);
+	});
+
+	it("prefers AUTH PLAIN when the server offers it", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			"250-smtp.example.com\r\n250 AUTH LOGIN PLAIN\r\n",
+			makeReply(235, "ok"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "go"),
+			makeReply(250, "Message accepted"),
+		]);
+
+		await deliverSmtp(baseConfig, message, mockCtx, async () => socket);
+
+		const transcript = written.join("");
+		expect(transcript).toContain(`AUTH PLAIN ${btoa("\0user@example.com\0secret")}\r\n`);
+		expect(transcript).not.toContain("AUTH LOGIN");
+	});
+
+	it("refuses to authenticate when the server does not offer STARTTLS", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			"250-smtp.example.com\r\n250 AUTH LOGIN\r\n",
+		]);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, async () => socket)).rejects.toThrow(
+			/does not offer STARTTLS/,
+		);
+		expect(written.join("")).not.toContain("AUTH");
+	});
+
+	it("fails clearly when the server offers no supported login method", async () => {
+		const { socket } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			"250-smtp.example.com\r\n250 AUTH XOAUTH2\r\n",
+		]);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, async () => socket)).rejects.toThrow(
+			/no supported login method \(XOAUTH2\)/,
+		);
+	});
+
+	it("throws on bad greeting", async () => {
+		const script = [makeReply(554, "Service unavailable")];
+		const { socket } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, connectFn)).rejects.toThrow(
+			/greeting failed.*554/,
+		);
+	});
+
+	it("doubles a period at the start of any DATA line", () => {
+		expect(dotStuff(".one\r\ntwo\r\n.three\r\n..four")).toBe("..one\r\ntwo\r\n..three\r\n...four");
+		expect(dotStuff("a.b\r\n c")).toBe("a.b\r\n c");
+	});
+
+	it("base64-encodes bodies so a line starting with a period arrives intact", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "Auth ok"),
+			makeReply(250, "Sender OK"),
+			makeReply(250, "Recipient OK"),
+			makeReply(354, "Go ahead"),
+			makeReply(250, "Accepted"),
+		];
+
+		const { socket, written } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		await deliverSmtp(
+			baseConfig,
+			{ ...message, text: "Line one\n.Line two starts with dot\nLine three" },
+			mockCtx,
+			connectFn,
+		);
+
+		const transcript = written.join("");
+		const plainPartStart = transcript.indexOf("Content-Type: text/plain");
+		const plainBodyStart = transcript.indexOf("\r\n\r\n", plainPartStart) + 4;
+		const plainBodyEnd = transcript.indexOf("\r\n--", plainBodyStart);
+		const encodedBody = transcript.slice(plainBodyStart, plainBodyEnd);
+		for (const line of encodedBody.split("\r\n")) {
+			expect(line.startsWith(".")).toBe(false);
+			expect(line.length).toBeLessThanOrEqual(76);
+		}
+		const decodedBody = Buffer.from(encodedBody, "base64").toString("utf-8");
+		expect(decodedBody).toBe("Line one\n.Line two starts with dot\nLine three");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// DB-backed config
+// ---------------------------------------------------------------------------
+
+const TEST_ENCRYPTION_KEY = "emdash_enc_v1_U-1To8mS9tyTfAFz8KHAsCVo1fvktqbq0y5JxBiXgIU";
+
+describe("loadSmtpConfigFromDb / saveSmtpConfigToDb", () => {
+	let db: Kysely<DatabaseSchema>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("returns null when no config is stored", async () => {
+		const config = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
+		expect(config).toBeNull();
+	});
+
+	it("saves and loads a full config with structured sender fields", async () => {
+		const input: SmtpConfig = {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
+			replyTo: "support@example.com",
+		};
+
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
+		const loaded = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
+
+		expect(loaded).toEqual(input);
+	});
+
+	it("decrypts a password encrypted with a rotated (non-primary) key", async () => {
+		const rotatedList = `emdash_enc_v1_kBb9BcXJ0v3n8Qq2mZxWlY4rT6uHsD1eFgA5cN7iPjM,${TEST_ENCRYPTION_KEY}`;
+		const input: SmtpConfig = {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		};
+
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
+		const loaded = await loadSmtpConfigFromDb(db, rotatedList);
+
+		expect(loaded?.pass).toBe("super-secret");
+	});
+
+	it("encrypts the password in the database", async () => {
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+
+		const raw = await new OptionsRepository(db).get("emdash:email:smtp:password");
+		expect(raw).toBeTruthy();
+		expect(JSON.stringify(raw)).not.toContain("super-secret");
+	});
+
+	it("ignores a password stored without encryption", async () => {
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+		await new OptionsRepository(db).set("emdash:email:smtp:password", "plain-text");
+
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+	});
+
+	it("does not pair a saved password with a different host", async () => {
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+		await new OptionsRepository(db).set("emdash:email:smtp:host", "attacker.example.com");
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+		warn.mockRestore();
+	});
+
+	it("removes optional sender fields cleared on a later save", async () => {
+		const base: SmtpConfig = {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		};
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			...base,
+			fromName: "Site",
+			fromEmail: "noreply@example.com",
+			replyTo: "support@example.com",
+		});
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, base);
+
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toEqual(base);
+	});
+
+	it.each([
+		[25, "port 25 is not supported"],
+		[70000, "not a valid port number"],
+		[587.5, "not a valid port number"],
+	])("ignores a stored port %s the transport cannot use", async (port, reason) => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining(reason));
+		warn.mockRestore();
+	});
+});
+
+describe("loadSmtpConfig", () => {
+	let db: Kysely<DatabaseSchema>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+		for (const key of Object.keys(process.env)) {
+			if (key.startsWith("EMAIL_SMTP_")) delete process.env[key];
+		}
+	});
+
+	it("prefers DB config over env vars", async () => {
+		process.env.EMAIL_SMTP_HOST = "env-smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		process.env.EMAIL_SMTP_USER = "env-user";
+		process.env.EMAIL_SMTP_PASS = "env-pass";
+
+		const dbConfig: SmtpConfig = {
+			host: "db-smtp.example.com",
+			port: 465,
+			secure: "tls",
+			user: "db-user",
+			pass: "db-pass",
+		};
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, dbConfig);
+
+		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
+		expect(loaded?.host).toBe("db-smtp.example.com");
+		expect(loaded?.port).toBe(465);
+	});
+
+	it("falls back to env vars when DB is empty", async () => {
+		process.env.EMAIL_SMTP_HOST = "env-smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "587";
+		process.env.EMAIL_SMTP_USER = "env-user";
+		process.env.EMAIL_SMTP_PASS = "env-pass";
+
+		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
+		expect(loaded?.host).toBe("env-smtp.example.com");
+	});
+
+	it("returns null when neither DB nor env is configured", async () => {
+		delete process.env.EMAIL_SMTP_HOST;
+		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
+		expect(loaded).toBeNull();
+	});
+});
+
+describe("SMTP delivery failures", () => {
+	const message = {
+		to: "recipient@example.com",
+		subject: "Hello",
+		text: "Hi there",
+		html: "<p>Hi there</p>",
+	};
+
+	it("logs the SMTP transcript but keeps it out of the thrown error", async () => {
+		// The transcript is for server logs; the thrown message is surfaced
+		// to admins and must stay free of wire details and credentials.
+		const script = [makeReply(554, "Service unavailable")];
+		const { socket } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		try {
+			await deliverSmtp(baseConfig, message, mockCtx, connectFn);
+			expect.unreachable("should have thrown");
+		} catch (error) {
+			const err = error as Error;
+			expect(err.message).toContain("greeting failed");
+			expect(err.message).toContain("554");
+			// Wire-level transcript markers must not leak into the message
+			expect(err.message).not.toContain("S< ");
+			expect(err.message).not.toContain("C> ");
+		}
+		expect(mockCtx.log.error).toHaveBeenCalledWith(
+			"SMTP delivery failed",
+			expect.objectContaining({ trace: expect.stringContaining("554") }),
+		);
+	});
+
+	it("keeps the banner of a non-SMTP service out of the thrown error", async () => {
+		const { socket } = mockSocket(["+OK Dovecot ready on mail-internal-01\r\n"]);
+
+		const error = await deliverSmtp(baseConfig, message, mockCtx, async () => socket).catch(
+			(e: unknown) => e,
+		);
+
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toMatch(/did not reply with SMTP/);
+		expect((error as Error).message).not.toContain("Dovecot");
+	});
+
+	it("redacts AUTH credentials from the logged transcript", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(535, "Authentication credentials invalid"),
+		];
+		const { socket } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, connectFn)).rejects.toThrow(
+			/Authentication failed/,
+		);
+
+		const logCall = vi
+			.mocked(mockCtx.log.error)
+			.mock.calls.findLast(([msg]) => msg === "SMTP delivery failed");
+		expect(logCall).toBeDefined();
+		const trace = (logCall![1] as { trace: string }).trace;
+		expect(trace).toContain("[credentials]");
+		expect(trace).not.toContain(btoa(baseConfig.user));
+		expect(trace).not.toContain(btoa(baseConfig.pass));
+	});
+
+	it("rejects envelope addresses that could inject SMTP commands", async () => {
+		const { socket } = mockSocket([]);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(
+			deliverSmtp(
+				baseConfig,
+				{ ...message, to: "victim@example.com>\r\nRCPT TO:<evil@example.com" },
+				mockCtx,
+				connectFn,
+			),
+		).rejects.toThrow(/Invalid recipient address/);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
+	it("refuses port 25 regardless of config source", async () => {
+		const { socket } = mockSocket([]);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(
+			deliverSmtp({ ...baseConfig, port: 25 }, message, mockCtx, connectFn),
+		).rejects.toThrow(/port 25/);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
+	it("fails with its own timeout error after 25 s when the server never responds", async () => {
+		vi.useFakeTimers();
+		try {
+			const { socket } = mockSocket([]);
+			const neverConnect = vi.fn(async () => ({
+				...socket,
+				readReply: () => new Promise<never>(() => {}),
+			}));
+
+			const delivery = deliverSmtp(baseConfig, message, mockCtx, neverConnect);
+			const rejected = expect(delivery).rejects.toThrow(/timed out after 25000ms/);
+			await vi.advanceTimersByTimeAsync(25_001);
+			await rejected;
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});

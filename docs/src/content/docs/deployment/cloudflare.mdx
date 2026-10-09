@@ -280,7 +280,7 @@ Set `CF_ACCESS_AUDIENCE` with `pnpm wrangler secret put CF_ACCESS_AUDIENCE`. The
 
 ## Email
 
-Production Workers have no default email delivery service. Magic-link sign-in returns **Email is not configured** until an email plugin is active.
+Production Workers have no default email delivery service. Magic-link sign-in returns **Email is not configured** until an email provider is active.
 
 The Cloudflare email plugin uses a `send_email` binding. First [onboard and verify the sender domain](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/) with Cloudflare Email Sending. Cloudflare rejects messages whose From address is not an accepted sender.
 
@@ -308,6 +308,14 @@ emdash({
 The plugin is active from its first deployment. **Settings → Email** shows the selected provider and can send a test email. Sending fails until the sender is accepted and the binding exists.
 
 The plugin uses the binding named `EMAIL` unless its `binding` option names another one. If it is the only active email provider, EmDash selects it automatically. If more than one provider is active, choose the Cloudflare provider under **Settings → Email**. The optional `replyTo` address receives replies without changing the accepted From address. A plugin can set `replyTo` on an individual message, which overrides this option for that message.
+
+### Built-in SMTP transport
+
+If you already have SMTP credentials, you can use the [SMTP transport built into EmDash](/guides/email/#production-built-in-smtp-transport) instead of Cloudflare Email Sending. It connects through `node:net` and `node:tls`, so the Worker needs the `nodejs_compat` compatibility flag. Set the `EMAIL_SMTP_*` values with `wrangler secret put`, or configure SMTP under **Settings → Email**. EmDash reads both the SMTP variables and `EMDASH_ENCRYPTION_KEY` through `process.env`, which needs a compatibility date on or after `2025-04-01` or the `nodejs_compat_populate_process_env` flag.
+
+<Aside type="caution">
+	Cloudflare blocks outbound port 25, so the transport refuses it. Use port 465 (implicit TLS) or 587 (STARTTLS). Other ports use STARTTLS unless you set the security mode to `tls`.
+</Aside>
 
 ## Cloudflare AI Search
 

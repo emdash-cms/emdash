@@ -263,6 +263,11 @@ import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
+import {
+	createSmtpEmailDeliverFromDb,
+	isSmtpEnvConfigured,
+	SMTP_EMAIL_PLUGIN_ID,
+} from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
@@ -1758,10 +1763,12 @@ export class EmDashRuntime {
 			phase("rt.hookselections", "Exclusive hook selections", async () => {
 				// Built-in and sandboxed providers register after these reads, so
 				// only configured plugins' hooks and the always-present
-				// comment:moderate are known here. Hook resolution reads the rest.
+				// comment:moderate and email:deliver are known here. Hook
+				// resolution reads the rest.
 				const keys = Array.from(
 					new Set([
 						"comment:moderate",
+						"email:deliver",
 						...deps.plugins.flatMap((plugin) =>
 							Object.entries(plugin.hooks)
 								.filter(([, hook]) => hook?.exclusive)
@@ -1921,6 +1928,34 @@ export class EmDashRuntime {
 			} catch (error) {
 				console.warn("[email] Failed to register dev console email provider:", error);
 			}
+		}
+
+		// Register the built-in SMTP email provider, even unconfigured, so it
+		// appears in the Settings → Email provider list. The handler loads its
+		// config (DB first, env fallback) on every send. Secrets read
+		// process.env only: import.meta.env is inlined at build time.
+		try {
+			const smtpPlugin = definePlugin({
+				id: SMTP_EMAIL_PLUGIN_ID,
+				version: "1.0.0",
+				capabilities: ["hooks.email-transport:register"],
+				hooks: {
+					"email:deliver": {
+						exclusive: true,
+						// EHLO, STARTTLS, AUTH and DATA over the public internet need far
+						// more than the 5s default hook timeout.
+						timeout: 30_000,
+						handler: createSmtpEmailDeliverFromDb(
+							resolveDb,
+							process.env.EMDASH_ENCRYPTION_KEY ?? null,
+						),
+					},
+				},
+			});
+			allPipelinePlugins.push(smtpPlugin);
+			enabledPlugins.add(smtpPlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register SMTP email provider:", error);
 		}
 
 		// Register built-in default comment moderator.
@@ -2981,6 +3016,7 @@ export class EmDashRuntime {
 
 		// The pipeline was created from only enabled plugins, so all providers
 		// in it are active. The isActive check always returns true.
+		const smtpFromEnv = isSmtpEnvConfigured();
 		await resolveExclusiveHooksShared({
 			pipeline,
 			isActive: () => true,
@@ -3000,7 +3036,13 @@ export class EmDashRuntime {
 				await optionsRepo.delete(key);
 			},
 			preferredHints,
-			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
+			// Env-configured SMTP gives way to an email plugin. Without env config,
+			// SMTP serves email only once selected in Settings → Email.
+			fallbackProviders: new Set([
+				DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+				...(smtpFromEnv ? [SMTP_EMAIL_PLUGIN_ID] : []),
+			]),
+			manualProviders: smtpFromEnv ? undefined : new Set([SMTP_EMAIL_PLUGIN_ID]),
 		});
 	}
 

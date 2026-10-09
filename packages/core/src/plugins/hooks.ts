@@ -1546,6 +1546,13 @@ export interface ExclusiveHookResolutionOptions {
 	 * plugin provider that becomes active later is selected in its place.
 	 */
 	fallbackProviders?: ReadonlySet<string>;
+	/**
+	 * Plugin IDs of providers that serve a hook only when explicitly selected.
+	 * They are never auto-selected and are not counted when looking for a
+	 * sole provider, so an unconfigured built-in does not block auto-selection
+	 * of a site's single provider plugin.
+	 */
+	manualProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
@@ -1560,7 +1567,8 @@ export const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
  * 3. If no selection and only one active provider → auto-select it. Fallback
  *    providers are not counted when another provider is active, so a single
  *    plugin provider is selected over a built-in fallback. A fallback
- *    selection is kept in memory only.
+ *    selection is kept in memory only. Manual providers are never
+ *    auto-selected.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
@@ -1574,6 +1582,7 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		deleteOption,
 		preferredHints,
 		fallbackProviders,
+		manualProviders,
 	} = opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
@@ -1629,10 +1638,11 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		}
 
 		// Auto-select if only one active provider
+		const autoSelectable = [...activeProviderIds].filter((id) => !manualProviders?.has(id));
 		const candidates =
-			activeProviderIds.size > 1 && fallbackProviders
-				? [...activeProviderIds].filter((id) => !fallbackProviders.has(id))
-				: [...activeProviderIds];
+			autoSelectable.length > 1 && fallbackProviders
+				? autoSelectable.filter((id) => !fallbackProviders.has(id))
+				: autoSelectable;
 		if (candidates.length === 1) {
 			const [onlyProvider] = candidates;
 			if (!fallbackProviders?.has(onlyProvider)) {
@@ -1650,7 +1660,11 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		if (preferredHints) {
 			let found = false;
 			for (const [pluginId, hooks] of preferredHints) {
-				if (hooks.includes(hookName) && activeProviderIds.has(pluginId)) {
+				if (
+					hooks.includes(hookName) &&
+					activeProviderIds.has(pluginId) &&
+					!manualProviders?.has(pluginId)
+				) {
 					try {
 						await setOption(key, pluginId);
 					} catch {
