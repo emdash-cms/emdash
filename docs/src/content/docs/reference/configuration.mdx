@@ -639,6 +639,19 @@ emdash({
 | `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
 | `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
 | `locales`     | `string[]`        | Admin languages to include, such as `["en", "de"]`. Catalogs for other languages are left out of the admin bundle, and only the listed languages appear in the language switcher. Users whose preferred languages are not listed see English. `en` is always included as the fallback, even if you omit it, so `admin: { locales: ["en-GB"] }` ships both English and British English. An unknown code fails the build and the error lists the available codes. |
+| `hiddenNavItems` | `string[]`     | Built-in admin areas to leave out of the sidebar, the command palette, and the dashboard shortcuts. Valid names (TypeScript accepts only these): `calendar`, `media`, `comments`, `menus`, `redirects`, `widgets`, `sections`, `bylines`, `import`. An unknown name fails the build and the error lists the valid names. |
+
+To keep the sidebar focused on what a site uses, hide the built-in areas it doesn't need:
+
+```js
+emdash({
+	admin: {
+		hiddenNavItems: ["comments", "redirects", "widgets"],
+	},
+});
+```
+
+Hiding an area only removes the links to it. The pages, API routes, and permissions stay unchanged, so anyone with the URL and the required role can still open them.
 
 ### `updateCheck`
 

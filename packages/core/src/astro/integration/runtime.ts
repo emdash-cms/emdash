@@ -25,6 +25,7 @@ import type {
 } from "../../plugins/types.js";
 import type { RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+import type { HideableAdminNavItem } from "./admin-nav.js";
 
 export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";
 
@@ -667,6 +668,19 @@ export interface EmDashConfig {
 		 * ```
 		 */
 		locales?: string[];
+		/**
+		 * Built-in sidebar and command palette entries to hide, for sites that
+		 * don't use those features. The pages stay reachable by URL. Unknown
+		 * names fail the build.
+		 *
+		 * @example
+		 * ```ts
+		 * emdash({
+		 *   admin: { hiddenNavItems: ["comments", "redirects", "widgets"] },
+		 * })
+		 * ```
+		 */
+		hiddenNavItems?: HideableAdminNavItem[];
 	};
 
 	/**

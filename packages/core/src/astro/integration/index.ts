@@ -36,6 +36,7 @@ import {
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
+import { resolveHiddenNavItems } from "./admin-nav.js";
 import { loadDevEnv } from "./dev-env.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
@@ -554,6 +555,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		resolvedConfig.admin = {
 			...config.admin,
 			locales: resolveAdminLocales(config.admin.locales, Object.keys(manifest)),
+		};
+	}
+	if (config.admin?.hiddenNavItems !== undefined) {
+		resolvedConfig.admin = {
+			...resolvedConfig.admin,
+			hiddenNavItems: resolveHiddenNavItems(config.admin.hiddenNavItems),
 		};
 	}
 
