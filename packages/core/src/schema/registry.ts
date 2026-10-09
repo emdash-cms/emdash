@@ -10,6 +10,7 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import { refreshDevTypes } from "../astro/dev-typegen.js";
+import { deleteSharedCollectionRecords } from "../database/collection-cleanup.js";
 import {
 	columnExists,
 	currentTimestamp,
@@ -1211,10 +1212,17 @@ export class SchemaRegistry {
 				const ftsManager = new FTSManager(trx);
 				await ftsManager.dropFtsTable(slug);
 
-				// Drop the content table
+				// Drop the content table first: ec_* rows hold foreign keys to
+				// revisions.id, so the content table must go before revisions can
+				// be removed.
 				const tableName = this.getTableName(slug);
 				await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(trx);
 				contentTableDropped = true;
+
+				// Remove shared-table records that are keyed by collection slug.
+				// Dropping the content table or deleting the collection row does not
+				// cascade to these, so they have to be cleared explicitly.
+				await deleteSharedCollectionRecords(trx, slug);
 
 				// Delete the collection record (fields will cascade)
 				await trx.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
