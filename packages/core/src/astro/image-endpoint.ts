@@ -1,14 +1,14 @@
 /**
  * Node image endpoint -- the `image.endpoint` EmDash installs on non-Cloudflare
- * platforms whose image service is local (sharp).
+ * platforms.
  *
  * It wraps Astro's generic endpoint: for an EmDash media URL it loads the source
  * bytes straight from the storage adapter (no HTTP, so it works behind any auth
- * gate) and runs the configured image service's `transform`; every other image
- * is delegated to the stock endpoint unchanged.
+ * gate) and runs a local image service's `transform`. External services receive
+ * the storage adapter's public URL. Other images use the stock endpoint.
  */
 
-import type { APIRoute } from "astro";
+import type { APIRoute, ImageTransform } from "astro";
 // @ts-ignore - astro/assets internal endpoint, resolved by the consumer's Astro build
 import { GET as genericGET } from "astro/assets/endpoint/generic";
 // @ts-ignore - astro:assets is resolved by the consumer's Astro build
@@ -19,9 +19,11 @@ import {
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
+	parseTransformParams,
 	validatorHeaders,
 	isNotModified,
 } from "../media/image-endpoint.js";
+import { INTERNAL_MEDIA_PREFIX } from "../media/normalize.js";
 
 export const prerender = false;
 
@@ -80,9 +82,46 @@ export const GET: APIRoute = async (ctx) => {
 	if (!key || !storage) return genericGET(ctx);
 
 	const service = await getConfiguredImageService();
-	if (!("transform" in service)) return genericGET(ctx);
 
 	try {
+		if (!("transform" in service)) {
+			const source = new URL(storage.getPublicUrl(key), url.origin);
+			if (
+				(source.protocol !== "http:" && source.protocol !== "https:") ||
+				source.pathname.startsWith(INTERNAL_MEDIA_PREFIX)
+			) {
+				return genericGET(ctx);
+			}
+
+			const parsed = parseTransformParams(url.searchParams);
+			if (!parsed.ok) return new Response(parsed.message, { status: 400 });
+			const version = new URL(url.searchParams.get("href")!, url).searchParams.get("_emdash_media");
+			if (version) source.searchParams.set("_emdash_media", version);
+
+			const options: ImageTransform = { src: source.href, ...parsed.options };
+			const validated = service.validateOptions
+				? await service.validateOptions(options, imageConfig, ctx.logger)
+				: options;
+			const destination = new URL(
+				await service.getURL(validated, imageConfig, ctx.logger),
+				url.origin,
+			);
+			if (
+				(destination.protocol !== "http:" && destination.protocol !== "https:") ||
+				(destination.origin === url.origin && destination.pathname === url.pathname)
+			) {
+				return new Response("Invalid image service URL", { status: 500 });
+			}
+			return new Response(null, {
+				status: 302,
+				headers: {
+					Location: destination.href,
+					"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
+					"X-Content-Type-Options": "nosniff",
+				},
+			});
+		}
+
 		const source = await storage.download(key);
 
 		// Only raster images are transformable; serve anything else unchanged.
