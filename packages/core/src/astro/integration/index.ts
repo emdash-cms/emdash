@@ -36,8 +36,8 @@ import {
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
-import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { loadDevEnv } from "./dev-env.js";
+import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
