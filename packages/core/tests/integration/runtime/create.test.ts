@@ -720,33 +720,10 @@ describe("EmDashRuntime.create — cold boot", () => {
 		};
 
 		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(MigrationLockHeldError);
-		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
+		const backedOff = EmDashRuntime.create(deps);
+		await expect(backedOff).rejects.toThrow(/backing off/i);
+		await expect(backedOff).rejects.toSatisfy(isMigrationRequiredError);
 		expect(dialectCalls).toBe(1);
-	});
-
-	it("keeps a backed-off migration lock recognisable as waiting for migrations", async () => {
-		const sqlite = new Database(":memory:");
-		const setupDb = new Kysely<EmDashDatabase>({
-			dialect: new SqliteDialect({ database: sqlite }),
-		});
-		await runMigrations(setupDb);
-		await sql`DELETE FROM _emdash_migrations WHERE name = ${MIGRATION_NAMES.at(-1)}`.execute(
-			setupDb,
-		);
-		await sql`UPDATE _emdash_migrations_lock SET is_locked = ${Date.now() - 10 * 60_000}`.execute(
-			setupDb,
-		);
-		const deps: RuntimeDependencies = {
-			...createDeps(),
-			createDialect: () => new LockingSqliteDialect({ database: sqlite }),
-		};
-
-		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(MigrationLockHeldError);
-		const backedOff: unknown = await EmDashRuntime.create(deps).catch((error: unknown) => error);
-
-		expect(backedOff).toBeInstanceOf(Error);
-		expect((backedOff as Error).message).toMatch(/backing off/i);
-		expect(isMigrationRequiredError(backedOff)).toBe(true);
 	});
 
 	describe("a datetime migration over the Worker row limit", () => {

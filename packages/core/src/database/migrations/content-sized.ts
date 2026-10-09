@@ -40,10 +40,10 @@ const DATETIME_COLLECTIONS = sql`
 `;
 
 /**
- * 079 can update every entry and every revision of a collection with datetime
- * fields, one statement each. It only reads the other revisions, 50 per
- * statement in each of its three passes, so about 16 of them cost what one
- * written row does.
+ * 079 can update every content entry, and every revision of a collection with
+ * datetime or repeater fields, one statement each. It only reads the other
+ * revisions, 50 per statement in each of its three passes, so about 16 of them
+ * cost what one written row does.
  */
 const READ_ONLY_REVISIONS_PER_ROW = 16;
 
