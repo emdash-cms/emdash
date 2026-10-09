@@ -83,6 +83,7 @@ export interface ReleaseIntentResource {
 	state: ReleaseIntentState;
 	stateGeneration: number;
 	reasonCode: string | null;
+	reasonMessage?: string | null;
 	workflowId: string | null;
 	expiresAt: number;
 	createdAt: number;

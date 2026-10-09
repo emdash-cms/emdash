@@ -11,6 +11,7 @@ import type ReleaseVerifier from "../../release-verifier/src/index.js";
 import { decodeAwaitingApprovalState } from "../src/approvals/digest.js";
 import { loadConfiguration } from "../src/config.js";
 import { SERVICE_CONTROL_OBJECT_NAME } from "../src/control-do/service-control-do.js";
+import { serializeIntentResource } from "../src/intents/routes.js";
 import { createPublisherOAuthStores } from "../src/oauth/custody.js";
 import { publishVerifiedIntent } from "../src/publishing/workflow.js";
 import {
@@ -768,95 +769,111 @@ describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 		expect(authoritativeReads).toBeGreaterThanOrEqual(3);
 	});
 
-	it("publishes private workflow uploads and promotes only verified provenance", async () => {
-		const provenanceBytes = new TextEncoder().encode('{"sigstore":"bundle"}\n');
-		const provenanceChecksum = await checksumFor(provenanceBytes);
-		const release = releaseRecord();
-		release.artifacts.package.url = workloadArtifactSourceUrl(
-			TEST_BINDINGS.PUBLIC_ORIGIN,
-			"package",
-			ARTIFACT_CHECKSUM,
-		);
-		const provenanceUrl = workloadArtifactSourceUrl(
-			TEST_BINDINGS.PUBLIC_ORIGIN,
-			"provenance",
-			provenanceChecksum,
-		);
-		const releaseExtension = release.extensions[NSID.packageReleaseExtension]! as {
-			declaredAccess: Record<string, unknown>;
-			provenance?: {
-				url: `${string}:${string}`;
-				checksum: string;
-				predicateType: "https://slsa.dev/provenance/v1";
-				sourceRepository: `${string}:${string}`;
-				builderId: `${string}:${string}`;
+	it.each([false, true])(
+		"retains private uploads through publication retries and reconciliation (retry=%s)",
+		async (retry) => {
+			const provenanceBytes = new TextEncoder().encode('{"sigstore":"bundle"}\n');
+			const provenanceChecksum = await checksumFor(provenanceBytes);
+			const release = releaseRecord();
+			release.artifacts.package.url = workloadArtifactSourceUrl(
+				TEST_BINDINGS.PUBLIC_ORIGIN,
+				"package",
+				ARTIFACT_CHECKSUM,
+			);
+			const provenanceUrl = workloadArtifactSourceUrl(
+				TEST_BINDINGS.PUBLIC_ORIGIN,
+				"provenance",
+				provenanceChecksum,
+			);
+			const releaseExtension = release.extensions[NSID.packageReleaseExtension]! as {
+				declaredAccess: Record<string, unknown>;
+				provenance?: {
+					url: `${string}:${string}`;
+					checksum: string;
+					predicateType: "https://slsa.dev/provenance/v1";
+					sourceRepository: `${string}:${string}`;
+					builderId: `${string}:${string}`;
+				};
 			};
-		};
-		releaseExtension.provenance = {
-			...releaseExtension.provenance!,
-			url: provenanceUrl,
-			checksum: provenanceChecksum,
-		};
-		for (const artifact of [
-			{
-				slot: "package" as const,
-				checksum: ARTIFACT_CHECKSUM,
-				contentType: "application/gzip",
-				bytes: PACKAGE_BYTES,
-			},
-			{
-				slot: "provenance" as const,
+			releaseExtension.provenance = {
+				...releaseExtension.provenance!,
+				url: provenanceUrl,
 				checksum: provenanceChecksum,
-				contentType: "application/json",
-				bytes: provenanceBytes,
-			},
-		]) {
-			await persistWorkloadStagedArtifact(env.PUBLICATION_STAGING, {
-				publisherDid: PUBLISHER_DID,
-				workloadDigest: "I".repeat(43),
-				packageSlug: "gallery",
-				version: "1.2.3",
-				slot: artifact.slot,
-				checksum: artifact.checksum,
-				contentType: artifact.contentType,
-				contentLength: artifact.bytes.byteLength,
-				body: new Response(artifact.bytes).body!,
-			});
-		}
-		let createdRecord:
-			| (PackageRelease.Main & {
-					extensions: Record<string, { provenance?: { url: string } }>;
-			  })
-			| null = null;
-		vi.stubGlobal(
-			"fetch",
-			workflowNetwork({
-				onCreateRecord: async (request) => {
-					const body = await request.clone().json<{ record: NonNullable<typeof createdRecord> }>();
-					createdRecord = body.record;
-					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+			};
+			for (const artifact of [
+				{
+					slot: "package" as const,
+					checksum: ARTIFACT_CHECKSUM,
+					contentType: "application/gzip",
+					bytes: PACKAGE_BYTES,
 				},
-			}),
-		);
-		await createVerifyingIntent(true, JSON.stringify({ release }));
-		await using introspector = await introspectWorkflowInstance(
-			env.RELEASE_INTENT_WORKFLOW,
-			INTENT_ID,
-		);
-		await env.RELEASE_INTENT_WORKFLOW.create({
-			id: INTENT_ID,
-			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
-		});
-		await introspector.waitForStatus("complete");
+				{
+					slot: "provenance" as const,
+					checksum: provenanceChecksum,
+					contentType: "application/json",
+					bytes: provenanceBytes,
+				},
+			]) {
+				await persistWorkloadStagedArtifact(env.PUBLICATION_STAGING, {
+					publisherDid: PUBLISHER_DID,
+					workloadDigest: "I".repeat(43),
+					packageSlug: "gallery",
+					version: "1.2.3",
+					slot: artifact.slot,
+					checksum: artifact.checksum,
+					contentType: artifact.contentType,
+					contentLength: artifact.bytes.byteLength,
+					body: new Response(artifact.bytes).body!,
+				});
+			}
+			let createAttempts = 0;
+			const stagedCounts: number[] = [];
+			let createdRecord:
+				| (PackageRelease.Main & {
+						extensions: Record<string, { provenance?: { url: string } }>;
+				  })
+				| null = null;
+			vi.stubGlobal(
+				"fetch",
+				workflowNetwork({
+					onCreateRecord: async (request) => {
+						createAttempts += 1;
+						stagedCounts.push((await env.PUBLICATION_STAGING.list()).objects.length);
+						if (retry && createAttempts === 1) throw new Error("Timeout before commit");
+						const body = await request
+							.clone()
+							.json<{ record: NonNullable<typeof createdRecord> }>();
+						createdRecord = body.record;
+						return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+					},
+				}),
+			);
+			await createVerifyingIntent(true, JSON.stringify({ release }));
+			await using introspector = await introspectWorkflowInstance(
+				env.RELEASE_INTENT_WORKFLOW,
+				INTENT_ID,
+			);
+			await env.RELEASE_INTENT_WORKFLOW.create({
+				id: INTENT_ID,
+				params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+			});
+			await introspector.waitForStatus("complete");
 
-		expect(createdRecord).not.toBeNull();
-		expect(createdRecord!.artifacts.package).not.toHaveProperty("url");
-		expect(createdRecord!.extensions[NSID.packageReleaseExtension]!.provenance!.url).toBe(
-			provenanceUrl,
-		);
-		expect((await env.PUBLICATION_STAGING.list()).objects).toHaveLength(0);
-		expect(await env.PROVENANCE_STORE.head(`provenance/${provenanceChecksum}`)).not.toBeNull();
-	});
+			await expect(introspector.getOutput()).resolves.toMatchObject({
+				state: "conflict",
+				reasonCode: "RELEASE_CONFLICT",
+			});
+			expect(createAttempts).toBe(retry ? 2 : 1);
+			expect(stagedCounts.every((count) => count >= 3)).toBe(true);
+			expect(createdRecord).not.toBeNull();
+			expect(createdRecord!.artifacts.package).not.toHaveProperty("url");
+			expect(createdRecord!.extensions[NSID.packageReleaseExtension]!.provenance!.url).toBe(
+				provenanceUrl,
+			);
+			expect((await env.PUBLICATION_STAGING.list()).objects).toHaveLength(0);
+			expect(await env.PROVENANCE_STORE.head(`provenance/${provenanceChecksum}`)).not.toBeNull();
+		},
+	);
 
 	it("uploads every artifact before permitting a blob-only canonical create", async () => {
 		const full = await fullReleaseRecord();
@@ -1051,6 +1068,7 @@ describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 			state: "published",
 			reasonCode: null,
 		});
+		expect((await env.PUBLICATION_STAGING.list()).objects).toHaveLength(0);
 		expect(createAttempts).toBe(1);
 		await expect(
 			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
@@ -1233,62 +1251,88 @@ describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 		});
 	}, 15_000);
 
-	it("uses a fresh permit and publication generation after each confirmed absence", async () => {
-		let createAttempts = 0;
-		vi.stubGlobal(
-			"fetch",
-			workflowNetwork({
-				onCreateRecord: () => {
-					createAttempts += 1;
-					throw new Error("Simulated timeout before the PDS committed the record");
-				},
-			}),
-		);
-		await createVerifyingIntent();
-		await using introspector = await introspectWorkflowInstance(
-			env.RELEASE_INTENT_WORKFLOW,
-			INTENT_ID,
-		);
-		await env.RELEASE_INTENT_WORKFLOW.create({
-			id: INTENT_ID,
-			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
-		});
-		await introspector.waitForStatus("complete");
+	it.each([false, true])(
+		"uses a fresh permit and publication generation after each confirmed absence",
+		async (pdsRejected) => {
+			let createAttempts = 0;
+			vi.stubGlobal(
+				"fetch",
+				workflowNetwork({
+					onCreateRecord: () => {
+						createAttempts += 1;
+						if (pdsRejected)
+							return Response.json(
+								{ error: "InvalidRecord", message: "private provider detail" },
+								{ status: 400 },
+							);
+						throw new Error("Simulated timeout before the PDS committed the record");
+					},
+				}),
+			);
+			await createVerifyingIntent();
+			await using introspector = await introspectWorkflowInstance(
+				env.RELEASE_INTENT_WORKFLOW,
+				INTENT_ID,
+			);
+			await env.RELEASE_INTENT_WORKFLOW.create({
+				id: INTENT_ID,
+				params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+			});
+			await introspector.waitForStatus("complete");
 
-		await expect(introspector.getOutput()).resolves.toEqual({
-			intentId: INTENT_ID,
-			state: "failed",
-			reasonCode: "PDS_RETRY_EXHAUSTED",
-		});
-		expect(createAttempts).toBe(3);
-		await expect(
-			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
-		).resolves.toMatchObject({ state: "failed", stateGeneration: 13 });
+			await expect(introspector.getOutput()).resolves.toEqual({
+				intentId: INTENT_ID,
+				state: "failed",
+				reasonCode: "PDS_RETRY_EXHAUSTED",
+			});
+			expect(createAttempts).toBe(3);
+			expect((await env.PUBLICATION_STAGING.list()).objects).toHaveLength(0);
+			const storedIntent = await env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(
+				PUBLISHER_DID,
+				INTENT_ID,
+			);
+			expect(JSON.parse(storedIntent!.stateDataJson!)).toMatchObject({
+				publicationErrorCode: pdsRejected ? "PDS_RECORD_INVALID" : "PUBLICATION_AMBIGUOUS",
+			});
+			const resource = await serializeIntentResource(
+				PUBLISHER_DID,
+				storedIntent!,
+				TEST_BINDINGS.PUBLIC_ORIGIN,
+			);
+			expect(resource.reasonMessage).toContain(
+				pdsRejected ? "Your PDS rejected the release record" : "three publication attempts",
+			);
+			expect(resource.reasonMessage).toContain("fresh workflow dispatch");
+			expect(JSON.stringify(resource)).not.toContain("private provider detail");
+			await expect(
+				env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
+			).resolves.toMatchObject({ state: "failed", stateGeneration: 13 });
 
-		const operation = await runInDurableObject(
-			env.PUBLISHER_DO.getByName(PUBLISHER_DID),
-			(_instance, state) =>
-				state.storage.sql
-					.exec<{ generation: number; outcome: string; status: string }>(
-						"SELECT generation, outcome, status FROM publication_operations WHERE intent_id = ?",
-						INTENT_ID,
-					)
-					.one(),
-		);
-		expect(operation).toEqual({ generation: 3, outcome: "ambiguous", status: "completed" });
-		const permits = await runInDurableObject(
-			env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME),
-			(_instance, state) =>
-				state.storage.sql
-					.exec<{ consumed: number; distinct_ids: number; total: number }>(
-						`SELECT COUNT(*) AS total, COUNT(DISTINCT id) AS distinct_ids,
+			const operation = await runInDurableObject(
+				env.PUBLISHER_DO.getByName(PUBLISHER_DID),
+				(_instance, state) =>
+					state.storage.sql
+						.exec<{ generation: number; outcome: string; status: string }>(
+							"SELECT generation, outcome, status FROM publication_operations WHERE intent_id = ?",
+							INTENT_ID,
+						)
+						.one(),
+			);
+			expect(operation).toEqual({ generation: 3, outcome: "ambiguous", status: "completed" });
+			const permits = await runInDurableObject(
+				env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME),
+				(_instance, state) =>
+					state.storage.sql
+						.exec<{ consumed: number; distinct_ids: number; total: number }>(
+							`SELECT COUNT(*) AS total, COUNT(DISTINCT id) AS distinct_ids,
 						        SUM(CASE WHEN consumed_at IS NOT NULL THEN 1 ELSE 0 END) AS consumed
 						 FROM publication_permits`,
-					)
-					.one(),
-		);
-		expect(permits).toEqual({ total: 3, distinct_ids: 3, consumed: 3 });
-	});
+						)
+						.one(),
+			);
+			expect(permits).toEqual({ total: 3, distinct_ids: 3, consumed: 3 });
+		},
+	);
 
 	it("rechecks the attested workload against the active policy before create", async () => {
 		let policyChanged = false;
@@ -1440,6 +1484,7 @@ describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 		});
 		await introspector.waitForStatus("complete");
 		await expect(introspector.getOutput()).resolves.toMatchObject({ state: "ready" });
+		expect((await env.PUBLICATION_STAGING.list()).objects.length).toBeGreaterThan(0);
 
 		await env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME).setServiceMode({
 			actor: CONTROL_ACTOR,
@@ -1463,6 +1508,7 @@ describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 			state: "published",
 			reasonCode: null,
 		});
+		expect((await env.PUBLICATION_STAGING.list()).objects).toHaveLength(0);
 		expect(createAttempts).toBe(1);
 	});
 

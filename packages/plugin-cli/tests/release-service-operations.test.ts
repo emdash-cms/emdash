@@ -416,6 +416,38 @@ describe("release submit command", () => {
 		await rm(dir, { recursive: true, force: true });
 	});
 
+	it("includes actionable service guidance when a delegated release fails", async () => {
+		const reasonMessage = "Your PDS rejected the release record. Start a fresh workflow dispatch.";
+		vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+			const request = new Request(input, init);
+			const url = new URL(request.url);
+			if (url.hostname === "token.actions.example")
+				return Response.json({ value: "header.payload.signature" });
+			if (url.pathname === "/v1/workflow-connections")
+				return success({ status: "connected", policy: policy() });
+			if (request.method === "POST")
+				return success({ intent: intent("received"), replayed: false }, 202);
+			return success({
+				intent: { ...intent("failed"), reasonCode: "PDS_RETRY_EXHAUSTED", reasonMessage },
+			});
+		});
+		const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+		await expect(
+			runCommand(releaseSubmitCommand, {
+				rawArgs: [
+					join(dir, "release.json"),
+					"--service-url",
+					SERVICE,
+					"--publisher-did",
+					PUBLISHER_DID,
+				],
+			}),
+		).rejects.toThrow(
+			`Release intent ${INTENT_ID} ended in failed (PDS_RETRY_EXHAUSTED): ${reasonMessage}`,
+		);
+		expect(log.mock.calls.flat().join("\n")).toContain(reasonMessage);
+	});
+
 	it.each([
 		{ command: "release submit", state: "published", statusReads: 1 },
 		{ command: "release submit --no-wait", state: "received", statusReads: 0 },
