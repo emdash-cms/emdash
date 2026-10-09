@@ -2603,7 +2603,7 @@ function FieldRenderer({
 					label={label}
 					labelClass={labelClass}
 					id={id}
-					value={typeof value === "string" ? value : ""}
+					value={value as string | null | undefined}
 					onChange={handleChange}
 					required={field.required}
 					placeholder="https://"
@@ -2977,7 +2977,7 @@ function UrlFieldEditor({
 	label: string;
 	labelClass?: string;
 	id: string;
-	value: string;
+	value: string | null | undefined;
 	onChange: (value: unknown) => void;
 	required?: boolean;
 	placeholder?: string;
@@ -2986,12 +2986,14 @@ function UrlFieldEditor({
 	const [error, setError] = React.useState<string | null>(null);
 
 	const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-		const val = e.target.value.trim();
-		if (val !== e.target.value) onChange(val);
+		const raw = e.target.value;
+		const val = raw.trim();
 		if (!val) {
 			setError(null);
+			if (value != null) onChange(null);
 			return;
 		}
+		if (val !== raw && val !== value) onChange(val);
 		if (!isValidUrl(val)) {
 			setError(t`Enter a valid URL (e.g. https://example.com)`);
 		} else {
@@ -3007,10 +3009,15 @@ function UrlFieldEditor({
 				type="text"
 				inputMode="url"
 				dir="ltr"
-				value={value}
+				value={value ?? ""}
 				onChange={(e) => {
 					if (error) setError(null);
-					onChange(e.target.value);
+					const next = e.target.value;
+					if (next === "") {
+						if (value != null) onChange(null);
+					} else if (next !== value) {
+						onChange(next);
+					}
 				}}
 				onBlur={handleBlur}
 				required={required}
