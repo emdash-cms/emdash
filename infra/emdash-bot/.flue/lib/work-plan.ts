@@ -88,7 +88,14 @@ export function renderWorkPlanComment(input: {
 		"",
 		escapeMarkdown(input.plan.summary),
 		"",
-		...input.plan.steps.map(renderStep),
+		...input.plan.steps.map((step) =>
+			// The agent can't mark its last step done after giving its final answer.
+			renderStep(
+				input.status === "succeeded" && step.status === "in_progress"
+					? { ...step, status: "completed" }
+					: step,
+			),
+		),
 	];
 	if (input.outcome) {
 		lines.push("", `**Outcome:** ${escapeMarkdown(input.outcome)}`);
@@ -171,7 +178,17 @@ function renderStep(step: WorkPlanStep): string {
 	}
 }
 
+const INLINE_CODE_SPAN = /(`[^`\n]+`)/;
+
+/** Escapes everything but inline code spans, which GitHub already renders inertly. */
 function escapeMarkdown(value: string): string {
+	return value
+		.split(INLINE_CODE_SPAN)
+		.map((part, index) => (index % 2 === 1 ? part : escapeMarkdownText(part)))
+		.join("");
+}
+
+function escapeMarkdownText(value: string): string {
 	return value
 		.replaceAll("&", "&amp;")
 		.replaceAll("<", "&lt;")

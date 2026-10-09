@@ -475,7 +475,12 @@ export type PreviewEvent =
 	| "preview.ready" // deploy succeeded; link ready to post
 	| "preview.failed"; // deploy errored; no link
 
-export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent;
+// Issue lifecycle events, emitted when the issue is closed on GitHub.
+export type IssueEvent =
+	| "issue.resolved" // closed as completed
+	| "issue.dismissed"; // closed as not planned or duplicate
+
+export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent | IssueEvent;
 
 export interface EventMeta {
 	description: string;
@@ -562,7 +567,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	// last run's mode when one is known; the table entries are the fallback.
 	retry: {
 		description: "Retry the last triage, investigation, work, or PR repair run.",
-		actors: ["maintainer"],
+		actors: ["maintainer", "system"],
 	},
 	resume: {
 		description: "Continue the saved conversation and workspace from a timed-out run.",
@@ -706,6 +711,14 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "The preview deploy failed to build.",
 		actors: ["system"],
 	},
+	"issue.resolved": {
+		description: "The issue was closed as completed.",
+		actors: ["system"],
+	},
+	"issue.dismissed": {
+		description: "The issue was closed as not planned or as a duplicate.",
+		actors: ["system"],
+	},
 };
 
 // ---------------------------------------------------------------------------
@@ -745,6 +758,26 @@ export interface Transition {
 	/** Human-readable note for the generated table. */
 	note?: string;
 }
+
+const ISSUE_CLOSE_SOURCES: readonly StateId[] = [
+	"triage",
+	"triaging",
+	"awaiting_approval",
+	"working",
+	"blocked",
+	"awaiting_feedback",
+	"in_review",
+	"failed",
+	"needs_attention",
+	"investigating",
+	"reproduced",
+	"diagnosed",
+	"not_reproduced",
+	"needs_info",
+	"fixing",
+	"preview_building",
+	"awaiting_reporter",
+];
 
 export const TRANSITIONS: Transition[] = [
 	// --- maintainer-facing lifecycle ---
@@ -1201,6 +1234,17 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "triaging", event: "reset", to: "triage" },
 	{ from: "awaiting_approval", event: "reset", to: "triage" },
 	{ from: "needs_attention", event: "reset", to: "triage" },
+
+	// --- issue closed on GitHub: every live state settles; a maintainer's item stays theirs ---
+	...ISSUE_CLOSE_SOURCES.flatMap((from): Transition[] => [
+		{ from, event: "issue.resolved", to: "done" },
+		{
+			from,
+			event: "issue.dismissed",
+			to: "declined",
+			...(from === "in_review" ? { action: "closePr" } : {}),
+		},
+	]),
 ];
 
 // ---------------------------------------------------------------------------

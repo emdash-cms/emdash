@@ -21,7 +21,6 @@ const { DB_CONFIG_MARKER, DB_DESCRIPTOR_MARKER, mockGetLastContentWriteAt } = vi
 
 const {
 	MOCK_RUNTIME,
-	PUBLIC_PLUGIN_RESULT,
 	mockGetPluginRouteMeta,
 	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
@@ -36,11 +35,15 @@ const {
 	const getPublicUrl = vi.fn((key: string) => `https://media.example.com/${key}`);
 	const getPluginRouteMeta = vi.fn((pluginId: string, path: string) => {
 		if (pluginId !== "emdash-forms") return null;
-		if (path === "/definition") return { public: true };
+		if (path === "/definition") return { public: true, methods: ["POST"] as const };
+		if (path === "/catalog") return { public: true, methods: ["GET"] as const };
 		if (path === "/private") return { public: false };
 		return null;
 	});
-	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
+	const handlePluginApiRoute = vi.fn(async (_pluginId: string, method: string, _path: string) => {
+		if (method === "GET") return { success: true, data: { catalog: ["public"] } };
+		return publicPluginResult;
+	});
 	const handleMediaUpload = vi.fn(ok);
 	const runPluginInstallLifecycle = vi.fn(async () => undefined);
 	const runPluginActivateLifecycle = vi.fn(async () => undefined);
@@ -108,7 +111,6 @@ const {
 			getRuntimePluginSettingsSchema,
 			setPluginStatus: async () => undefined,
 		},
-		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
 		mockHandleMediaUpload: handleMediaUpload,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
@@ -520,21 +522,26 @@ describe("astro middleware anonymous session reads", () => {
 		expect(mockGetPublicUrl).toHaveBeenCalledWith("01ABC.jpg");
 		expect("handlePluginApiRoute" in emdash).toBe(false);
 		expect("getPluginRouteMeta" in emdash).toBe(false);
+		expect(typeof emdash.getPublicPluginRouteMeta).toBe("function");
 		expect("handleContentList" in emdash).toBe(false);
 		expect("db" in emdash).toBe(false);
 		expect("config" in emdash).toBe(false);
 	});
 
-	it("dispatches public plugin API routes through the anonymous public-page helper", async () => {
+	it("exposes public metadata and dispatches an anonymous public GET", async () => {
 		const locals: Record<string, unknown> = {};
 		const { context } = createAnonymousPublicPageContext(locals);
 
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
 		const emdash = locals.emdash as Record<string, unknown>;
-		const request = new Request("https://example.com/_emdash/api/plugins/emdash-forms/definition", {
-			method: "POST",
-			body: "{}",
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toEqual({
+			public: true,
+			methods: ["GET"],
 		});
 
 		await expect(
@@ -545,25 +552,38 @@ describe("astro middleware anonymous session reads", () => {
 					path: string,
 					request: Request,
 				) => Promise<unknown>
-			)("emdash-forms", "POST", "/definition", request),
-		).resolves.toBe(PUBLIC_PLUGIN_RESULT);
+			)(
+				"emdash-forms",
+				"GET",
+				"/catalog",
+				new Request("https://example.com/_emdash/api/plugins/emdash-forms/catalog", {
+					method: "GET",
+				}),
+			),
+		).resolves.toEqual({ success: true, data: { catalog: ["public"] } });
 
-		expect(mockGetPluginRouteMeta).toHaveBeenCalledWith("emdash-forms", "/definition");
+		expect(mockGetPluginRouteMeta).toHaveBeenCalledWith("emdash-forms", "/catalog");
 		expect(mockHandlePluginApiRoute).toHaveBeenCalledWith(
 			"emdash-forms",
-			"POST",
-			"/definition",
-			request,
+			"GET",
+			"/catalog",
+			expect.any(Request),
 		);
 	});
 
-	it("does not dispatch private plugin API routes through the anonymous public-page helper", async () => {
+	it("hides private and unknown metadata and does not dispatch them anonymously", async () => {
 		const locals: Record<string, unknown> = {};
 		const { context } = createAnonymousPublicPageContext(locals);
 
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
 		const emdash = locals.emdash as Record<string, unknown>;
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPublicPluginRouteMeta("emdash-forms", "/private")).toBeNull();
+		expect(getPublicPluginRouteMeta("emdash-forms", "/missing")).toBeNull();
 
 		await expect(
 			(
@@ -586,6 +606,68 @@ describe("astro middleware anonymous session reads", () => {
 
 		expect(mockGetPluginRouteMeta).toHaveBeenCalledWith("emdash-forms", "/private");
 		expect(mockHandlePluginApiRoute).not.toHaveBeenCalled();
+	});
+
+	it("rechecks public access at dispatch after metadata was inspected", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createAnonymousPublicPageContext(locals);
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toMatchObject({ public: true });
+		mockGetPluginRouteMeta.mockReturnValueOnce({ public: false });
+		await expect(
+			(
+				emdash.handlePublicPluginApiRoute as (
+					pluginId: string,
+					method: string,
+					path: string,
+					request: Request,
+				) => Promise<unknown>
+			)(
+				"emdash-forms",
+				"GET",
+				"/catalog",
+				new Request("https://example.com/_emdash/api/plugins/emdash-forms/catalog", {
+					method: "GET",
+				}),
+			),
+		).resolves.toEqual({
+			success: false,
+			error: { code: "NOT_FOUND", message: "Plugin route not found" },
+		});
+		expect(mockHandlePluginApiRoute).not.toHaveBeenCalled();
+	});
+
+	it("keeps private route metadata available through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+		const emdash = locals.emdash as Record<string, unknown>;
+		const getPluginRouteMeta = emdash.getPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPluginRouteMeta("emdash-forms", "/private")).toEqual({ public: false });
+		expect(getPublicPluginRouteMeta("emdash-forms", "/private")).toBeNull();
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toEqual({
+			public: true,
+			methods: ["GET"],
+		});
 	});
 
 	it("reads the Astro session when an astro-session cookie is present", async () => {

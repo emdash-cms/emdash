@@ -26,7 +26,23 @@ interface TestEnv {
 
 const testEnv = env as unknown as TestEnv;
 
-afterEach(() => {
+// An admitted issue keeps retrying its GitHub updates from its alarm. Left
+// running, it fires during a later test and sends those updates through that
+// test's fetch stub.
+const issueNumbers: number[] = [];
+
+afterEach(async () => {
+	for (const issueNumber of issueNumbers.splice(0)) {
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		// Wipe the DO before waiting on its in-flight work, so the tick that
+		// queues behind that work finds nothing left to do.
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.deleteAlarm();
+			await state.storage.deleteAll();
+		});
+		await stub.tick();
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	}
 	testEnv.GITHUB_APP_PRIVATE_KEY = "";
 	vi.unstubAllGlobals();
 });
@@ -80,7 +96,9 @@ function uniqueIssueNumber(): number {
 	// Random number per test so each lands in a fresh DO instance and doesn't
 	// observe state leakage from a prior test in the same file. Using a
 	// 24-bit window keeps the numbers human-readable in logs.
-	return 1_000_000 + Math.floor(Math.random() * 0xff_ffff);
+	const issueNumber = 1_000_000 + Math.floor(Math.random() * 0xff_ffff);
+	issueNumbers.push(issueNumber);
+	return issueNumber;
 }
 
 async function postWebhook(opts: {
@@ -238,6 +256,44 @@ describe("POST /webhook/github (workers-pool)", () => {
 		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
 		await stub.tick();
 		expect(await stub.getPersistedState()).toMatchObject({ state: "triaging", kind: "task" });
+	});
+
+	test("an issue from a maintainer GitHub reports as a contributor waits for a command", async () => {
+		const issueNumber = uniqueIssueNumber();
+		await configureGitHubToken();
+		const requested: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			requested.push(url);
+			return Promise.resolve(
+				Response.json(
+					url.endsWith("/collaborators/private-maintainer/permission")
+						? { permission: "write" }
+						: {},
+				),
+			);
+		});
+
+		const res = await postWebhook({
+			eventType: "issues",
+			delivery: `opened-${issueNumber}`,
+			payload: {
+				action: "opened",
+				issue: {
+					number: issueNumber,
+					user: { login: "private-maintainer" },
+					labels: [],
+					author_association: "CONTRIBUTOR",
+				},
+				sender: { login: "private-maintainer" },
+			},
+		});
+
+		expect(res.status).toBe(202);
+		expect(await res.text()).toBe("skipped: issues.opened by a maintainer waits for a command");
+		expect(requested).toEqual([
+			`https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}/collaborators/private-maintainer/permission`,
+		]);
 	});
 
 	test("issue_comment.created with bare verb advances the DO state", async () => {

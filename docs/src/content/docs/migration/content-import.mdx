@@ -5,7 +5,7 @@ description: Understand the WordPress import sources, conversion behavior, API s
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash imports WordPress content through the **Import WordPress** page at `/_emdash/admin/import/wordpress`. The importer can analyze a WordPress eXtended RSS (WXR) file or connect to a site running the EmDash Exporter plugin.
+EmDash imports WordPress content through the **Import from WordPress** page at `/_emdash/admin/import/wordpress`. The importer can analyze a WordPress eXtended RSS (WXR) file or connect to a site running the EmDash Exporter plugin.
 
 ## Import sources
 
@@ -27,7 +27,7 @@ Use WXR when WordPress can export the content you need and the EmDash Exporter c
 
 1. In WordPress, open **Tools → Export**, select the required content, and download the XML file.
 
-2. In EmDash, open **Import WordPress** and upload the file.
+2. In EmDash, select **Import** in the admin sidebar and upload the file.
 
 3. Review the detected post types, fields, authors, taxonomies, reusable blocks, and attachment URLs before creating schema or content.
 

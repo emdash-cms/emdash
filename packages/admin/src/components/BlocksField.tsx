@@ -38,6 +38,8 @@ interface NestedFieldDescriptor {
 	required?: boolean;
 	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	validation?: Record<string, unknown>;
+	/** Set on `integer` fields, which share the `number` kind. */
+	integer?: boolean;
 }
 
 interface NestedFieldRenderInput {
@@ -95,6 +97,7 @@ function nestedDescriptor(
 		required: field.required,
 		validation: field.validation,
 		options,
+		...(field.type === "integer" ? { integer: true } : {}),
 	};
 }
 
@@ -159,7 +162,7 @@ export function BlocksField({
 	};
 
 	return (
-		<div id={id} className="grid gap-3">
+		<div id={id} className="grid grid-cols-[minmax(0,1fr)] gap-3">
 			<div className="flex items-center justify-between gap-3">
 				<Label>{label}</Label>
 				{!readOnly && (
@@ -354,13 +357,19 @@ function BlockCard({
 				</Button>
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
-						<span className="font-medium">{blockType?.label ?? block._type}</span>
+						<span className="min-w-0 wrap-break-word font-medium">
+							{blockType?.label ?? block._type}
+						</span>
 						<Badge variant="secondary">{t`Version ${block._version}`}</Badge>
 						{inactive && <Badge variant="secondary">{t`Inactive version`}</Badge>}
 						{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
 						{unsupported && <Badge variant="secondary">{t`Unsupported`}</Badge>}
 					</div>
-					{blockSummary && <p className="truncate text-xs text-kumo-subtle">{blockSummary}</p>}
+					{blockSummary && (
+						<p dir="auto" className="w-fit max-w-full truncate text-xs text-kumo-subtle">
+							{blockSummary}
+						</p>
+					)}
 				</div>
 				{!readOnly && (
 					<div className="flex items-center gap-1">

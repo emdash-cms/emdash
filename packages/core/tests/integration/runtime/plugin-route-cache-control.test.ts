@@ -15,6 +15,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
+import {
+	createPublicPluginApiRouteHandler,
+	getPublicPluginRouteMeta,
+} from "../../../src/astro/public-plugin-api-routes.js";
 import { GET, POST } from "../../../src/astro/routes/api/plugins/[pluginId]/[...path].js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
@@ -38,6 +42,11 @@ function createDeps(): RuntimeDependencies {
 					catalog: {
 						public: true,
 						cacheControl: CACHE_VALUE,
+						handler: async () => ({ items: [] }),
+					},
+					"get-only": {
+						public: true,
+						methods: ["GET"],
 						handler: async () => ({ items: [] }),
 					},
 					uncached: {
@@ -111,5 +120,64 @@ describe("plugin route cacheControl — runtime wiring", () => {
 		const res = await invokeCatchAll(runtime, "catalog", "POST");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+	});
+
+	it("dispatches only public metadata through the anonymous facade on SQLite", async () => {
+		const anonymousRuntime = {
+			getPublicPluginRouteMeta: (pluginId: string, path: string) =>
+				getPublicPluginRouteMeta(runtime, pluginId, path),
+			handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
+		};
+
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/catalog")).toEqual({
+			public: true,
+			cacheControl: CACHE_VALUE,
+		});
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/get-only")).toEqual({
+			public: true,
+			methods: ["GET"],
+		});
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/admin")).toBeNull();
+		expect(anonymousRuntime.getPublicPluginRouteMeta("cache-demo", "/missing")).toBeNull();
+
+		await expect(
+			anonymousRuntime.handlePublicPluginApiRoute(
+				"cache-demo",
+				"GET",
+				"/get-only",
+				new Request("http://test.local/_emdash/api/plugins/cache-demo/get-only", {
+					method: "GET",
+				}),
+			),
+		).resolves.toMatchObject({ success: true, data: { items: [] } });
+
+		await expect(
+			anonymousRuntime.handlePublicPluginApiRoute(
+				"cache-demo",
+				"POST",
+				"/get-only",
+				new Request("http://test.local/_emdash/api/plugins/cache-demo/get-only", {
+					method: "POST",
+				}),
+			),
+		).resolves.toMatchObject({
+			success: false,
+			status: 405,
+			error: { code: "METHOD_NOT_ALLOWED" },
+		});
+
+		await expect(
+			anonymousRuntime.handlePublicPluginApiRoute(
+				"cache-demo",
+				"GET",
+				"/admin",
+				new Request("http://test.local/_emdash/api/plugins/cache-demo/admin", {
+					method: "GET",
+				}),
+			),
+		).resolves.toMatchObject({
+			success: false,
+			error: { code: "NOT_FOUND" },
+		});
 	});
 });

@@ -4,6 +4,7 @@ import {
 	fillPullRequestTemplate,
 	renderAgentComment,
 	renderCommandFeedback,
+	renderCompetingWork,
 	renderPreviewReadyAsk,
 	renderPullRequestBody,
 	renderVerifiedThanks,
@@ -265,5 +266,17 @@ describe("renderCommandFeedback", () => {
 		const body = renderCommandFeedback("unmanaged", "investigate", "reporter");
 		expect(body).toContain("can only be used by a maintainer");
 		expect(body).not.toContain("Available now: `@emdashbot fix");
+	});
+});
+
+describe("renderCompetingWork", () => {
+	test("names every pull request and assignee without mentioning them", () => {
+		expect(renderCompetingWork({ pullRequests: [3010, 3012], assignees: ["alice", "bob"] })).toBe(
+			"I haven't started work because #3010, #3012 already reference this issue and it's assigned to alice, bob.",
+		);
+	});
+
+	test("says nothing when nobody is on the issue", () => {
+		expect(renderCompetingWork({ pullRequests: [], assignees: [] })).toBeNull();
 	});
 });

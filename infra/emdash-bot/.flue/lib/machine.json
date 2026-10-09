@@ -415,7 +415,8 @@
 		"retry": {
 			"description": "Retry the last triage, investigation, work, or PR repair run.",
 			"actors": [
-				"maintainer"
+				"maintainer",
+				"system"
 			]
 		},
 		"resume": {
@@ -619,6 +620,18 @@
 		},
 		"preview.failed": {
 			"description": "The preview deploy failed to build.",
+			"actors": [
+				"system"
+			]
+		},
+		"issue.resolved": {
+			"description": "The issue was closed as completed.",
+			"actors": [
+				"system"
+			]
+		},
+		"issue.dismissed": {
+			"description": "The issue was closed as not planned or as a duplicate.",
 			"actors": [
 				"system"
 			]
@@ -1633,6 +1646,177 @@
 			"from": "needs_attention",
 			"event": "reset",
 			"to": "triage"
+		},
+		{
+			"from": "triage",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "triage",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "triaging",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "triaging",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "awaiting_approval",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "awaiting_approval",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "working",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "working",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "blocked",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "blocked",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "in_review",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "in_review",
+			"event": "issue.dismissed",
+			"to": "declined",
+			"action": "closePr"
+		},
+		{
+			"from": "failed",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "failed",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "needs_attention",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "needs_attention",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "investigating",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "investigating",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "reproduced",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "reproduced",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "diagnosed",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "diagnosed",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "needs_info",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "needs_info",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "fixing",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "fixing",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "preview_building",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "preview_building",
+			"event": "issue.dismissed",
+			"to": "declined"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "issue.resolved",
+			"to": "done"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "issue.dismissed",
+			"to": "declined"
 		}
 	],
 	"run": {

@@ -39,7 +39,7 @@ The working candidate is the deliverable; the regression test is focused evidenc
 
 1. **Re-read diagnose's root cause and proposed fix.** That is your target and your spec. The change should land in the file and approximate line diagnose named. If your work drifts to a different file, stop -- diagnose may be wrong, in which case abandon, do not wander.
 2. **Use the prepared workspace.** The harness installs dependencies and builds the base workspace before this turn. Do not run `pnpm install`, the root `pnpm build`, or a pre-edit lint baseline.
-3. **Choose the final verification set.** Plan the focused repro test, affected package tests and typechecks, final lint, and a check-only formatter. Use the smallest checks that cover the behavior. Do not plan a monorepo-wide suite when focused or package-level checks are authoritative.
+3. **Choose the final verification set.** Plan the focused repro test, the checks under "Checks in this container", and a check-only formatter. Use the smallest checks that cover the behavior.
 4. **Establish one focused regression test where feasible.** Reproduce usually confirmed the bug without a test on disk. If the bug is unit- or integration-testable through existing infrastructure (a handler, a query, a pure function, an API route), write a `vitest` test that fails for the reported reason, and confirm it fails in the container (`pnpm --filter <package> test <path>`) _before_ you touch the fix. A testable bug with no regression test is not fixed. If the bug only manifests in the browser (admin interaction, rendered output), do not write a browser test -- you cannot run one reliably here; verify through `agent-browser` instead and describe that manual verification so the maintainer can add a durable test when landing.
 5. **Implement the proposed fix -- the smallest change that fully resolves the bug.** Follow EmDash conventions:
    - Internal imports end `.js`; type-only imports use `import type`.
@@ -57,6 +57,14 @@ The working candidate is the deliverable; the regression test is focused evidenc
 7. **Run one final verification pass with `exec`.** Run the focused repro test first, then the remaining planned checks. Run each check once on the final tree; do not repeat a passing check on an unchanged tree or hide a failure with a shell fallback.
 8. **Respond to relevant failures only.** Fix a regression in touched behavior or abandon the change. If you edit the candidate, rerun the planned set once on the new tree. Never edit unrelated files to make a broad lint, typecheck, or test command pass.
 9. **Publish with `publish_candidate` after the final checks, including when a check remains failing.** Do not reproduce its work with shell commands. Report `fixed: true` only after publication succeeds, and include every remaining verification failure in the summary.
+
+## Checks in this container
+
+The container has less memory and time than CI, and CI runs the full set on the PR. Use these instead of the root checks `AGENTS.md` lists:
+
+- Tests: the test files that cover the change (`pnpm --filter <package> test <path>`). Run a whole package's suite only for a small package; the `packages/core` and `packages/admin` suites take longer than a run allows.
+- Types: `pnpm --filter <package> typecheck` for each package you changed, not the root `pnpm typecheck`.
+- Lint: `pnpm exec oxlint <changed files>`. Type-aware lint (`pnpm lint:json`) runs out of memory here; leave it to CI.
 
 ## Efficient verification
 

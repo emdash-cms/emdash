@@ -15,6 +15,7 @@
 
 import type { NormalizedEvent } from "./orchestrator.js";
 import { parseCommand, parseMention } from "./router.js";
+import { hasMaintainerAssociation } from "./write-access.js";
 
 // ---------------- HMAC verification ----------------
 
@@ -59,16 +60,6 @@ function hexToBytes(hex: string): Uint8Array | null {
 
 // ---------------- Actor classification ----------------
 
-/**
- * Author associations GitHub assigns on comment/issue payloads. Treat
- * OWNER/MEMBER/COLLABORATOR as `maintainer` -- they have push access (in
- * practice; emdash is a single-org repo so OWNER + MEMBER is the maintainer
- * set, COLLABORATOR is added explicit access).
- *
- * CONTRIBUTOR / FIRST_TIMER / FIRST_TIME_CONTRIBUTOR / NONE / MANNEQUIN are
- * not maintainers. They may still be the reporter if they opened the issue.
- */
-const MAINTAINER_ASSOCIATIONS: ReadonlySet<string> = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 const EMDASHBOT_LOGIN = "emdashbot[bot]";
 
 export type Actor = "maintainer" | "reporter" | "system" | "other";
@@ -80,6 +71,11 @@ export interface ActorInput {
 	readonly authorAssociation?: string | null;
 	/** Login of the anchor issue's opener. */
 	readonly issueOpenerLogin?: string | null;
+	/**
+	 * Lowercased logins confirmed to have write access. A maintainer whose org
+	 * membership is private arrives as CONTRIBUTOR; see write-access.ts.
+	 */
+	readonly writers?: ReadonlySet<string>;
 }
 
 /**
@@ -95,13 +91,22 @@ export function classifyActor({
 	senderLogin,
 	authorAssociation,
 	issueOpenerLogin,
+	writers,
 }: ActorInput): Actor {
 	if (!senderLogin) return "other";
 	if (senderLogin.toLowerCase() === EMDASHBOT_LOGIN) return "system";
 	if (senderLogin.endsWith("[bot]")) return "other";
-	if (authorAssociation && MAINTAINER_ASSOCIATIONS.has(authorAssociation)) return "maintainer";
+	if (isMaintainer(senderLogin, authorAssociation, writers)) return "maintainer";
 	if (issueOpenerLogin && senderLogin === issueOpenerLogin) return "reporter";
 	return "other";
+}
+
+function isMaintainer(
+	login: string | undefined,
+	association: string | null | undefined,
+	writers: ReadonlySet<string> | undefined,
+): boolean {
+	return hasMaintainerAssociation(association) || (!!login && !!writers?.has(login.toLowerCase()));
 }
 
 // ---------------- Payload types ----------------
@@ -127,6 +132,8 @@ interface IssueLike {
 	/** Set on PR-as-issue payloads (issue_comment on a PR). */
 	pull_request?: unknown;
 	author_association?: string;
+	/** Set on closed issues: `completed`, `not_planned`, `duplicate`, or null. */
+	state_reason?: string | null;
 }
 
 interface CommentLike {
@@ -198,9 +205,18 @@ export type NormalizeResult =
 			pullRequestNumber: number;
 			event: Omit<NormalizedEvent, "anchorNumber">;
 	  }
-	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
+	| {
+			kind: "cleanup";
+			anchor: string;
+			anchorNumber: number;
+			closedAs: IssueClosedAs;
+			deliveryId?: string;
+	  }
 	| { kind: "skip"; reason: string }
 	| { kind: "pong" };
+
+/** A duplicate counts as not planned: the bot has nothing to ship for it. */
+export type IssueClosedAs = "completed" | "not_planned";
 
 export interface NormalizeContext {
 	/** GitHub delivery id for idempotency tracking. */
@@ -209,6 +225,8 @@ export interface NormalizeContext {
 	readonly eventType: string;
 	/** Parsed JSON payload. */
 	readonly payload: unknown;
+	/** Lowercased logins confirmed to have write access; see `writeAccessCandidate`. */
+	readonly writers?: ReadonlySet<string>;
 }
 
 /**
@@ -229,15 +247,15 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
 
 	switch (ctx.eventType) {
 		case "issues":
-			return normalizeIssues(asRecord(ctx.payload), ctx.deliveryId);
+			return normalizeIssues(asRecord(ctx.payload), ctx.writers, ctx.deliveryId);
 		case "issue_comment":
-			return normalizeIssueComment(asRecord(ctx.payload), ctx.deliveryId);
+			return normalizeIssueComment(asRecord(ctx.payload), ctx.writers, ctx.deliveryId);
 		case "pull_request":
 			return normalizePullRequest(asRecord(ctx.payload), ctx.deliveryId);
 		case "pull_request_review":
-			return normalizePullRequestReview(asRecord(ctx.payload), ctx.deliveryId);
+			return normalizePullRequestReview(asRecord(ctx.payload), ctx.writers, ctx.deliveryId);
 		case "pull_request_review_comment":
-			return normalizePullRequestReviewComment(asRecord(ctx.payload), ctx.deliveryId);
+			return normalizePullRequestReviewComment(asRecord(ctx.payload), ctx.writers, ctx.deliveryId);
 		case "check_run":
 		case "check_suite":
 		case "status":
@@ -245,6 +263,69 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
 		default:
 			return { kind: "skip", reason: `event "${ctx.eventType}" is not handled` };
 	}
+}
+
+/**
+ * The login whose write access decides how this delivery is handled, when
+ * its `author_association` doesn't already show a maintainer. Null when no
+ * answer could change the outcome, so most deliveries need no lookup.
+ */
+export function writeAccessCandidate(
+	ctx: Pick<NormalizeContext, "eventType" | "payload">,
+): string | null {
+	const event = asRecord(ctx.payload);
+	const action = readString(event?.action);
+	switch (ctx.eventType) {
+		case "issues": {
+			if (action !== "opened" && action !== "reopened") return null;
+			const issue = asRecord(event?.issue);
+			if (issue?.pull_request) return null;
+			return candidateLogin(asRecord(issue?.user), readString(issue?.author_association));
+		}
+		case "issue_comment": {
+			if (action !== "created") return null;
+			const issue = asRecord(event?.issue);
+			if (issue?.pull_request && readString(asRecord(issue.user)?.login) !== EMDASHBOT_LOGIN) {
+				return null;
+			}
+			const comment = asRecord(event?.comment);
+			const awaited = collectLabels(issue?.labels).includes("bot:awaiting-reporter");
+			if (parseMention(readString(comment?.body)) === null && !awaited) return null;
+			return candidateLogin(commentAuthor(event, comment), readString(comment?.author_association));
+		}
+		case "pull_request_review": {
+			if (action !== "submitted") return null;
+			if (botFixIssueNumber(asRecord(event?.pull_request)) === null) return null;
+			const review = asRecord(event?.review);
+			return candidateLogin(asRecord(review?.user), readString(review?.author_association));
+		}
+		case "pull_request_review_comment": {
+			if (action !== "created") return null;
+			if (botFixIssueNumber(asRecord(event?.pull_request)) === null) return null;
+			const comment = asRecord(event?.comment);
+			if (parseMention(readString(comment?.body)) === null) return null;
+			return candidateLogin(commentAuthor(event, comment), readString(comment?.author_association));
+		}
+		default:
+			return null;
+	}
+}
+
+function commentAuthor(
+	event: Record<string, unknown> | undefined,
+	comment: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+	const sender = asRecord(event?.sender);
+	return readString(sender?.login) ? sender : asRecord(comment?.user);
+}
+
+function candidateLogin(
+	user: Record<string, unknown> | undefined,
+	association: string | undefined,
+): string | null {
+	const login = readString(user?.login);
+	if (!login || readString(user?.type) === "Bot" || login.endsWith("[bot]")) return null;
+	return hasMaintainerAssociation(association) ? null : login;
 }
 
 /**
@@ -259,10 +340,11 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
  */
 function normalizeIssues(
 	event: Record<string, unknown> | undefined,
+	writers: ReadonlySet<string> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action) ?? "";
-	// A closed issue reaps its fix-loop branches.
+	// A closed issue settles its state and reaps its fix-loop branches.
 	// PR-as-issue closes arrive as pull_request events too; skip them here.
 	if (action === "closed") {
 		const issue = asRecord(event?.issue);
@@ -273,6 +355,10 @@ function normalizeIssues(
 			kind: "cleanup",
 			anchor: anchorForIssue(number),
 			anchorNumber: number,
+			closedAs:
+				issue?.state_reason === "not_planned" || issue?.state_reason === "duplicate"
+					? "not_planned"
+					: "completed",
 			...(deliveryId ? { deliveryId } : {}),
 		};
 	}
@@ -283,8 +369,8 @@ function normalizeIssues(
 	const number = readNumber(issue?.number);
 	if (!number) return { kind: "skip", reason: "issues event missing issue.number" };
 	if (issue?.pull_request) return { kind: "skip", reason: "issues event is for a pull request" };
-	const authorAssociation = readString(issue?.author_association);
-	if (authorAssociation && MAINTAINER_ASSOCIATIONS.has(authorAssociation)) {
+	const openerLogin = readString(asRecord(issue?.user)?.login);
+	if (isMaintainer(openerLogin, readString(issue?.author_association), writers)) {
 		return { kind: "skip", reason: `issues.${action} by a maintainer waits for a command` };
 	}
 	return dispatchFor(number, {
@@ -306,6 +392,7 @@ function normalizeIssues(
  */
 function normalizeIssueComment(
 	event: Record<string, unknown> | undefined,
+	writers: ReadonlySet<string> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action);
@@ -328,6 +415,7 @@ function normalizeIssueComment(
 		senderLogin,
 		authorAssociation,
 		issueOpenerLogin: readString(issueUser?.login),
+		writers,
 	});
 	const labels = collectLabels(issue?.labels);
 	const triggeringComment = {
@@ -477,6 +565,7 @@ function normalizePullRequest(
 
 function normalizePullRequestReview(
 	event: Record<string, unknown> | undefined,
+	writers: ReadonlySet<string> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action);
@@ -507,7 +596,7 @@ function normalizePullRequestReview(
 	const review = asRecord(event?.review);
 	const authorLogin = readString(asRecord(review?.user)?.login) ?? null;
 	const authorAssociation = readString(review?.author_association) ?? null;
-	const actor = classifyActor({ senderLogin: authorLogin, authorAssociation });
+	const actor = classifyActor({ senderLogin: authorLogin, authorAssociation, writers });
 	if (actor !== "maintainer") return { kind: "skip", reason: "review author is not a maintainer" };
 	const state = (readString(review?.state) ?? "").toLowerCase();
 	if (state === "approved") {
@@ -604,6 +693,7 @@ export function approvalRefreshTarget(eventType: string, payload: unknown): numb
  */
 function normalizePullRequestReviewComment(
 	event: Record<string, unknown> | undefined,
+	writers: ReadonlySet<string> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action);
@@ -628,6 +718,7 @@ function normalizePullRequestReviewComment(
 		senderLogin,
 		authorAssociation,
 		issueOpenerLogin: readString(asRecord(pr?.user)?.login),
+		writers,
 	});
 	const labels = collectLabels(pr?.labels);
 	const triggeringComment = {

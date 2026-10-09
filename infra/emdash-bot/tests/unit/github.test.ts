@@ -5,6 +5,9 @@ import {
 	confirmPullRequestMissing,
 	createIssueComment,
 	findIssueCommentByMarker,
+	getBranchCheckRun,
+	getCollaboratorPermission,
+	getCompetingWork,
 	getIssueComments,
 	getPullRequestReviewComments,
 	getPullRequestStatus,
@@ -299,6 +302,71 @@ describe("GitHub pull request lookup", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
+	test("reads change requests, the bot's latest review, and failures on the base branch", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				jsonResponse({
+					data: {
+						repository: {
+							pullRequest: {
+								number: 99,
+								state: "OPEN",
+								merged: false,
+								mergeable: "MERGEABLE",
+								headRefOid: "abc123",
+								reviewDecision: "CHANGES_REQUESTED",
+								latestOpinionatedReviews: {
+									nodes: [
+										{ databaseId: 12, state: "CHANGES_REQUESTED" },
+										{ databaseId: 9, state: "APPROVED" },
+										{ databaseId: 11, state: "CHANGES_REQUESTED" },
+									],
+								},
+								reviews: {
+									nodes: [
+										{
+											author: { login: "emdashbot" },
+											body: "Older finding",
+											commit: { oid: "old000" },
+										},
+										{ author: { login: "alice" }, body: "Looks fine", commit: { oid: "abc123" } },
+										{
+											author: { login: "emdashbot" },
+											body: "Blocking: the cursor overflows",
+											commit: { oid: "abc123" },
+										},
+									],
+								},
+								baseRef: {
+									target: {
+										statusCheckRollup: {
+											contexts: {
+												nodes: [
+													{ name: "Tests", status: "COMPLETED", conclusion: "FAILURE" },
+													{ name: "Typecheck", status: "COMPLETED", conclusion: "SUCCESS" },
+													{ context: "Preview", state: "ERROR" },
+												],
+											},
+										},
+									},
+								},
+								commits: { nodes: [] },
+							},
+						},
+					},
+				}),
+			),
+		);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			review: "changes-requested",
+			changesRequestedReviewIds: [11, 12],
+			latestBotReview: { body: "Blocking: the cursor overflows", commitSha: "abc123" },
+			baseFailingChecks: ["Preview", "Tests"],
+		});
+	});
+
 	test("keeps PR monitoring pending when the status rollup is incomplete", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -429,5 +497,194 @@ describe("GitHub submitted review comments", () => {
 	test("fails rather than omitting unavailable review comments", async () => {
 		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 403)));
 		await expect(getPullRequestReviewComments("token", repo, 99, 77)).rejects.toThrow("403");
+	});
+});
+
+describe("GitHub collaborator permission", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("reads the user's permission on the repository", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValue(jsonResponse({ permission: "write", role_name: "maintain" }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getCollaboratorPermission("token", repo, "danielmlr")).resolves.toBe("write");
+		expect(fetchMock).toHaveBeenCalledWith(
+			"https://api.github.com/repos/emdash-cms/emdash/collaborators/danielmlr/permission",
+			expect.objectContaining({
+				headers: expect.objectContaining({ authorization: "Bearer token" }),
+			}),
+		);
+	});
+
+	test("treats a user who isn't a collaborator as having no permission", async () => {
+		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 404)));
+		await expect(getCollaboratorPermission("token", repo, "drive-by")).resolves.toBe("none");
+	});
+
+	test("fails rather than guessing when the lookup errors", async () => {
+		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 502)));
+		await expect(getCollaboratorPermission("token", repo, "danielmlr")).rejects.toThrow("502");
+	});
+});
+
+describe("GitHub competing work", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("finds people assigned to the issue and their open pull requests that reference it", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) => {
+				const url = requestUrl(input);
+				if (url.endsWith("/issues/42")) {
+					return Promise.resolve(
+						jsonResponse({
+							assignees: [
+								{ login: "alice", type: "User" },
+								{ login: "helper[bot]", type: "Bot" },
+							],
+						}),
+					);
+				}
+				const pull = (
+					number: number,
+					login: string,
+					state = "open",
+					repository = "emdash-cms/emdash",
+				) => ({
+					event: "cross-referenced",
+					source: {
+						issue: {
+							number,
+							state,
+							pull_request: {},
+							user: { login },
+							repository_url: `https://api.github.com/repos/${repository}`,
+						},
+					},
+				});
+				return Promise.resolve(
+					jsonResponse([
+						pull(3010, "contributor"),
+						pull(3011, "contributor", "closed"),
+						pull(3012, "emdashbot[bot]"),
+						pull(3013, "contributor", "open", "someone/fork"),
+						{ event: "labeled" },
+						{
+							event: "cross-referenced",
+							source: {
+								issue: {
+									number: 3014,
+									state: "open",
+									user: { login: "contributor" },
+									repository_url: "https://api.github.com/repos/emdash-cms/emdash",
+								},
+							},
+						},
+					]),
+				);
+			}),
+		);
+
+		await expect(getCompetingWork("token", repo, 42)).resolves.toEqual({
+			pullRequests: [3010],
+			assignees: ["alice"],
+		});
+	});
+
+	test("reads past the first page of a long timeline", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) => {
+				const url = requestUrl(input);
+				if (url.endsWith("/issues/42")) return Promise.resolve(jsonResponse({ assignees: [] }));
+				if ((new URL(url).searchParams.get("page") ?? "1") === "1") {
+					return Promise.resolve(
+						jsonResponse(Array.from({ length: 100 }, () => ({ event: "labeled" }))),
+					);
+				}
+				return Promise.resolve(
+					jsonResponse([
+						{
+							event: "cross-referenced",
+							source: {
+								issue: {
+									number: 3010,
+									state: "open",
+									pull_request: {},
+									user: { login: "contributor" },
+									repository_url: "https://api.github.com/repos/emdash-cms/emdash",
+								},
+							},
+						},
+					]),
+				);
+			}),
+		);
+
+		await expect(getCompetingWork("token", repo, 42)).resolves.toEqual({
+			pullRequests: [3010],
+			assignees: [],
+		});
+	});
+
+	test("fails rather than guessing when the timeline can't be read", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) =>
+				Promise.resolve(
+					requestUrl(input).endsWith("/issues/42") ? jsonResponse({}) : jsonResponse({}, 502),
+				),
+			),
+		);
+		await expect(getCompetingWork("token", repo, 42)).rejects.toThrow("502");
+	});
+});
+
+describe("getBranchCheckRun", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	function stubCheckRuns(checkRuns: unknown[]): string[] {
+		const urls: string[] = [];
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>((input) => {
+				const url = requestUrl(input);
+				urls.push(url);
+				if (url.includes("/branches/"))
+					return Promise.resolve(jsonResponse({ commit: { sha: "abc123" } }));
+				return Promise.resolve(jsonResponse({ check_runs: checkRuns }));
+			}),
+		);
+		return urls;
+	}
+
+	test("looks up the named check run on the branch head", async () => {
+		const urls = stubCheckRuns([{ status: "in_progress", conclusion: null }]);
+		await expect(getBranchCheckRun("token", repo, "bot/fix-42", "Publish Preview")).resolves.toBe(
+			"pending",
+		);
+		expect(urls[0]).toContain("/branches/bot%2Ffix-42");
+		expect(urls[1]).toContain("/commits/abc123/check-runs?check_name=Publish%20Preview");
+	});
+
+	test.each([
+		["queued", null, "pending"],
+		["completed", "success", "succeeded"],
+		["completed", "failure", "failed"],
+		["completed", "cancelled", "failed"],
+	])("reads a %s run concluding %s as %s", async (status, conclusion, expected) => {
+		stubCheckRuns([{ status, conclusion }]);
+		await expect(getBranchCheckRun("token", repo, "bot/fix-42", "Publish Preview")).resolves.toBe(
+			expected,
+		);
+	});
+
+	test("is null when the run hasn't been created", async () => {
+		stubCheckRuns([]);
+		await expect(
+			getBranchCheckRun("token", repo, "bot/fix-42", "Publish Preview"),
+		).resolves.toBeNull();
 	});
 });

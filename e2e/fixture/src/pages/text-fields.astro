@@ -1,0 +1,18 @@
+---
+import { getEmDashEntry } from "emdash";
+
+const { entry: post } = await getEmDashEntry("posts", "post-with-image");
+if (!post) return new Response("Not found", { status: 404 });
+---
+
+<html>
+	<head>
+		<title>Text fields</title>
+	</head>
+	<body>
+		<a href={`/posts/${post.id}`}>
+			<h2 id="linked-title" {...post.edit.title}>{post.data.title}</h2>
+		</a>
+		<p id="excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
+	</body>
+</html>

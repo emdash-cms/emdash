@@ -84,6 +84,13 @@ export const LOCALES: LocaleDefinition[] = [
 		enabled: true,
 		dateLocale: () => import("react-day-picker/locale/zh-TW").then((m) => m.zhTW),
 	},
+	// Croatian
+	{
+		code: "hr",
+		label: "Hrvatski",
+		enabled: true,
+		dateLocale: () => import("react-day-picker/locale/hr").then((m) => m.hr),
+	},
 	// Czech
 	{
 		code: "cs",
@@ -169,6 +176,13 @@ export const LOCALES: LocaleDefinition[] = [
 		label: "Bahasa Indonesia",
 		enabled: true,
 		dateLocale: () => import("react-day-picker/locale/id").then((m) => m.id),
+	},
+	// Italian
+	{
+		code: "it",
+		label: "Italiano",
+		enabled: false,
+		dateLocale: () => import("react-day-picker/locale/it").then((m) => m.it),
 	},
 	// Japanese
 	{

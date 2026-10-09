@@ -108,12 +108,7 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 		if (typeof error.code === "string") code = error.code;
 		if (isRecord(error.details)) details = error.details;
 	}
-	throw new ApiResponseError(
-		res.status,
-		code,
-		message || `${fallback}: ${res.statusText}`,
-		details,
-	);
+	throw new ApiResponseError(res.status, code, message || fallback, details);
 }
 
 /**
@@ -179,6 +174,8 @@ export interface AdminManifest {
 					blockTypeFingerprint?: string;
 					/** Value a new entry starts with. */
 					defaultValue?: unknown;
+					/** Set on `integer` fields, which share the `number` kind. */
+					integer?: boolean;
 				}
 			>;
 		}

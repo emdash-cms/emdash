@@ -132,6 +132,32 @@ const termsResponse = JSON.stringify({
 	},
 });
 
+const termsWithDescriptionResponse = JSON.stringify({
+	data: {
+		terms: [
+			{
+				id: "1",
+				name: "tech",
+				slug: "tech",
+				label: "Technology",
+				parentId: null,
+				description: "Previously saved description",
+				children: [],
+				count: 5,
+			},
+			{
+				id: "2",
+				name: "science",
+				slug: "science",
+				label: "Science",
+				parentId: null,
+				children: [],
+				count: 3,
+			},
+		],
+	},
+});
+
 const hierarchicalTermsResponse = JSON.stringify({
 	data: {
 		terms: [
@@ -732,6 +758,29 @@ describe("TaxonomyManager", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: EDIT_CATEGORY_HEADING_REGEX }))
 			.toBeInTheDocument();
+	});
+
+	it('sends description: "" when the description field is cleared in the edit dialog', async () => {
+		mockApiFetch(termsWithDescriptionResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit Technology" }).click();
+
+		const descInput = screen.getByPlaceholder("Optional description");
+		await expect.element(descInput).toHaveValue("Previously saved description");
+		await descInput.fill("");
+
+		await screen.getByRole("button", { name: "Update" }).click();
+
+		await vi.waitFor(() => {
+			const call = vi.mocked(apiFetch).mock.calls.find(([, init]) => init?.method === "PUT");
+			expect(call).toBeDefined();
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ slug: "tech", label: "Technology", description: "" });
+		});
 	});
 
 	it("delete button opens confirm dialog", async () => {

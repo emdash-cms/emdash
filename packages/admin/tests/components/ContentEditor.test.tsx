@@ -713,6 +713,129 @@ describe("ContentEditor", () => {
 			},
 		);
 
+		it("saves a cleared number field as null", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Test", price: 5 } }),
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					price: { kind: "number", label: "Price" },
+				},
+			});
+
+			await screen.getByLabelText("Price", { exact: true }).clear();
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			await vi.waitFor(() =>
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ price: null }),
+					}),
+				),
+			);
+		});
+
+		it("accepts and saves a decimal in a number field", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Test" } }),
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					price: { kind: "number", label: "Price" },
+				},
+			});
+
+			const input = screen.getByLabelText("Price", { exact: true });
+			await input.fill("4.50");
+			await expect.element(input).toBeValid();
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			await vi.waitFor(() =>
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ price: 4.5 }),
+					}),
+				),
+			);
+		});
+
+		it("rejects a decimal in an integer field", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Test" } }),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					seats: { kind: "number", label: "Seats", integer: true },
+				},
+			});
+
+			const input = screen.getByLabelText("Seats", { exact: true });
+			await input.fill("44.5");
+			await expect.element(input).not.toBeValid();
+			await input.fill("44");
+			await expect.element(input).toBeValid();
+		});
+
+		it("rejects a decimal in an integer field inside a block", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					data: {
+						title: "Test",
+						layout: [{ _type: "event", _version: 1, _key: "first", seats: 40, price: 4 }],
+					},
+				}),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					layout: {
+						kind: "blocks",
+						label: "Layout",
+						validation: { allowedTypes: ["event"], retiredTypes: [] },
+						blockTypes: [
+							{
+								id: "event-type",
+								slug: "event",
+								label: "Event",
+								currentVersion: 1,
+								source: "user",
+								createdAt: "2026-01-01T00:00:00.000Z",
+								updatedAt: "2026-01-01T00:00:00.000Z",
+								versions: [
+									{
+										id: "event-v1",
+										blockTypeId: "event-type",
+										version: 1,
+										fields: [
+											{ slug: "seats", label: "Seats", type: "integer" },
+											{ slug: "price", label: "Price", type: "number" },
+										],
+										fingerprint: "one",
+										active: true,
+										createdAt: "2026-01-01T00:00:00.000Z",
+										updatedAt: "2026-01-01T00:00:00.000Z",
+									},
+								],
+							},
+						],
+					},
+				},
+			});
+
+			const seats = screen.getByLabelText("Seats", { exact: true });
+			await seats.fill("44.5");
+			await expect.element(seats).not.toBeValid();
+			await seats.fill("44");
+			await expect.element(seats).toBeValid();
+
+			const price = screen.getByLabelText("Price", { exact: true });
+			await price.fill("4.50");
+			await expect.element(price).toBeValid();
+		});
+
 		it("keeps URL values left-to-right inside an RTL editor", async () => {
 			document.documentElement.dir = "rtl";
 			try {

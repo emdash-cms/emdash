@@ -280,7 +280,7 @@ Set `CF_ACCESS_AUDIENCE` with `pnpm wrangler secret put CF_ACCESS_AUDIENCE`. The
 
 ## Email
 
-Production Workers have no default email delivery service. Magic-link sign-in, team invitations, and comment notifications return **Email is not configured** until an email plugin is active.
+Production Workers have no default email delivery service. Magic-link sign-in returns **Email is not configured** until an email plugin is active.
 
 The Cloudflare email plugin uses a `send_email` binding. First [onboard and verify the sender domain](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/) with Cloudflare Email Sending. Cloudflare rejects messages whose From address is not an accepted sender.
 
@@ -305,7 +305,7 @@ emdash({
 }),
 ```
 
-After deployment, activate the plugin under **Extensions** and select it under **Settings → Email**. Sending fails until the sender is accepted and the binding exists.
+The plugin is active from its first deployment. **Settings → Email** shows the selected provider and can send a test email. Sending fails until the sender is accepted and the binding exists.
 
 The plugin uses the binding named `EMAIL` unless its `binding` option names another one. If it is the only active email provider, EmDash selects it automatically. If more than one provider is active, choose the Cloudflare provider under **Settings → Email**. The optional `replyTo` address receives replies without changing the accepted From address. A plugin can set `replyTo` on an individual message, which overrides this option for that message.
 
