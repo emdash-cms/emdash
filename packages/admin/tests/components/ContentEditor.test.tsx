@@ -737,6 +737,30 @@ describe("ContentEditor", () => {
 			);
 		});
 
+		it("saves a cleared URL field as null", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Test", website: "https://example.com" } }),
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					website: { kind: "url", label: "Website" },
+				},
+			});
+
+			await screen.getByLabelText("Website", { exact: true }).clear();
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			await vi.waitFor(() =>
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ website: null }),
+					}),
+				),
+			);
+		});
+
 		it("accepts and saves a decimal in a number field", async () => {
 			const onSave = vi.fn();
 			const screen = await renderEditor({
