@@ -2,16 +2,15 @@
  * Self-contained inline Portable Text editor for visual editing.
  *
  * Uses TipTap directly with content extensions — no admin UI deps.
- * Includes BubbleMenu for inline formatting (bold, italic, etc.)
- * but no toolbar, no media picker, no section picker.
+ * Includes the admin editor's selection toolbar and slash menu, but no
+ * fixed toolbar, sidebar, or section picker.
  *
  * Converts between Portable Text and ProseMirror on mount/save.
  * Auto-saves on blur, dispatches custom events for toolbar integration.
  */
 
 import { htmlBlockFields } from "@emdash-cms/admin/html-block";
-import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react";
-import { Extension, Node, mergeAttributes, type JSONContent, type Range } from "@tiptap/core";
+import { Node, mergeAttributes, type JSONContent } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -23,9 +22,8 @@ import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
 import { Plugin } from "@tiptap/pm/state";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
-import Suggestion from "@tiptap/suggestion";
+import { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
@@ -46,7 +44,16 @@ import {
 import type { ProseMirrorDocument } from "../content/converters/types.js";
 import { computeThumbnailSize } from "../media/thumbnail.js";
 import { CodeMarkExtension } from "./code-mark.js";
+import { InlineBubbleMenu } from "./inline-bubble-menu.js";
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
+import { INLINE_EDITOR_UI_STYLES, useInlineUiRoot } from "./inline-editor-ui.js";
+import {
+	InlineSlashMenu,
+	createSlashCommandsExtension,
+	initialSlashMenuState,
+	type SlashCommandItem,
+	type SlashMenuState,
+} from "./inline-slash-menu.js";
 import { EmDashOrderedList } from "./ordered-list.js";
 
 // ── Portable Text types ────────────────────────────────────────────
@@ -866,295 +873,6 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PTMarkDef>): Mark
 	return pm;
 }
 
-// ── Inline BubbleMenu ──────────────────────────────────────────────
-
-function InlineBubbleMenu({ editor }: { editor: Editor }) {
-	const [showLinkInput, setShowLinkInput] = React.useState(false);
-	const [linkUrl, setLinkUrl] = React.useState("");
-	const inputRef = React.useRef<HTMLInputElement>(null);
-
-	React.useEffect(() => {
-		if (showLinkInput) {
-			const existingUrl = editor.getAttributes("link").href || "";
-			setLinkUrl(existingUrl);
-			setTimeout(() => inputRef.current?.focus(), 0);
-		}
-	}, [showLinkInput, editor]);
-
-	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
-			editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		} else {
-			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
-		}
-		setShowLinkInput(false);
-		setLinkUrl("");
-	};
-
-	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		setShowLinkInput(false);
-		setLinkUrl("");
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSetLink();
-		} else if (e.key === "Escape") {
-			setShowLinkInput(false);
-			setLinkUrl("");
-			editor.commands.focus();
-		}
-	};
-
-	return (
-		<BubbleMenu
-			editor={editor}
-			options={{ placement: "top", offset: 8, flip: true, shift: true }}
-			className="emdash-bubble-menu"
-		>
-			{showLinkInput ? (
-				<div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-					<input
-						ref={inputRef}
-						type="url"
-						placeholder="https://..."
-						value={linkUrl}
-						onChange={(e) => setLinkUrl(e.target.value)}
-						onKeyDown={handleKeyDown}
-						className="emdash-bubble-link-input"
-					/>
-					<button
-						type="button"
-						className="emdash-bubble-btn"
-						onClick={handleSetLink}
-						title="Apply link"
-					>
-						↗
-					</button>
-					{editor.isActive("link") && (
-						<button
-							type="button"
-							className="emdash-bubble-btn emdash-bubble-btn--danger"
-							onClick={handleRemoveLink}
-							title="Remove link"
-						>
-							✕
-						</button>
-					)}
-				</div>
-			) : (
-				<>
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("bold") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => editor.chain().focus().toggleBold().run()}
-						title="Bold"
-					>
-						<strong>B</strong>
-					</button>
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("italic") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => editor.chain().focus().toggleItalic().run()}
-						title="Italic"
-					>
-						<em>I</em>
-					</button>
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("underline") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => editor.chain().focus().toggleUnderline().run()}
-						title="Underline"
-					>
-						<span style={{ textDecoration: "underline" }}>U</span>
-					</button>
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("strike") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => editor.chain().focus().toggleStrike().run()}
-						title="Strikethrough"
-					>
-						<span style={{ textDecoration: "line-through" }}>S</span>
-					</button>
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("code") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => editor.chain().focus().toggleCode().run()}
-						title="Code"
-					>
-						<span style={{ fontFamily: "monospace", fontSize: "13px" }}>&lt;/&gt;</span>
-					</button>
-					<span className="emdash-bubble-divider" />
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("superscript") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => editor.chain().focus().toggleSuperscript().run()}
-						title="Superscript"
-					>
-						<span style={{ fontSize: "13px" }}>x²</span>
-					</button>
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("subscript") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => editor.chain().focus().toggleSubscript().run()}
-						title="Subscript"
-					>
-						<span style={{ fontSize: "13px" }}>x₂</span>
-					</button>
-					<span className="emdash-bubble-divider" />
-					<button
-						type="button"
-						className={`emdash-bubble-btn ${editor.isActive("link") ? "emdash-bubble-btn--active" : ""}`}
-						onClick={() => setShowLinkInput(true)}
-						title={editor.isActive("link") ? "Edit link" : "Add link"}
-					>
-						🔗
-					</button>
-				</>
-			)}
-		</BubbleMenu>
-	);
-}
-
-// ── Slash Menu ──────────────────────────────────────────────────────
-
-interface SlashCommandItem {
-	id: string;
-	title: string;
-	description: string;
-	icon: string;
-	command: (props: { editor: Editor; range: Range }) => void;
-	aliases?: string[];
-}
-
-const slashCommands: SlashCommandItem[] = [
-	{
-		id: "heading1",
-		title: "Heading 1",
-		description: "Large section heading",
-		icon: "H1",
-		aliases: ["h1", "title"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
-		},
-	},
-	{
-		id: "heading2",
-		title: "Heading 2",
-		description: "Medium section heading",
-		icon: "H2",
-		aliases: ["h2", "subtitle"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
-		},
-	},
-	{
-		id: "heading3",
-		title: "Heading 3",
-		description: "Small section heading",
-		icon: "H3",
-		aliases: ["h3"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
-		},
-	},
-	{
-		id: "bulletList",
-		title: "Bullet List",
-		description: "Create a bullet list",
-		icon: "•",
-		aliases: ["ul", "unordered"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleBulletList().run();
-		},
-	},
-	{
-		id: "numberedList",
-		title: "Numbered List",
-		description: "Create a numbered list",
-		icon: "1.",
-		aliases: ["ol", "ordered"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleOrderedList().run();
-		},
-	},
-	{
-		id: "quote",
-		title: "Quote",
-		description: "Insert a blockquote",
-		icon: "\u201C",
-		aliases: ["blockquote", "cite"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleBlockquote().run();
-		},
-	},
-	{
-		id: "codeBlock",
-		title: "Code Block",
-		description: "Insert a code block",
-		icon: "</>",
-		aliases: ["code", "pre", "```"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
-		},
-	},
-	{
-		id: "htmlBlock",
-		title: "HTML",
-		description: "Insert raw HTML",
-		icon: "< >",
-		aliases: ["html", "raw", "markup"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "", isolated: true } })
-				.run();
-		},
-	},
-	{
-		id: "divider",
-		title: "Divider",
-		description: "Insert a horizontal rule",
-		icon: "—",
-		aliases: ["hr", "---", "separator"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).setHorizontalRule().run();
-		},
-	},
-	{
-		id: "image",
-		title: "Image",
-		description: "Insert an image",
-		icon: "🖼",
-		aliases: ["img", "photo", "picture"],
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).run();
-			// Signal the component to open the media picker
-			document.dispatchEvent(new CustomEvent("emdash:open-media-picker"));
-		},
-	},
-];
-
-interface SlashMenuState {
-	isOpen: boolean;
-	items: SlashCommandItem[];
-	selectedIndex: number;
-	clientRect: (() => DOMRect | null) | null;
-	range: Range | null;
-}
-
-const initialSlashMenuState: SlashMenuState = {
-	isOpen: false,
-	items: [],
-	selectedIndex: 0,
-	clientRect: null,
-	range: null,
-};
-
 /**
  * Minimal `htmlBlock` TipTap node for the inline (visual-editing) editor.
  *
@@ -1321,239 +1039,6 @@ const PluginBlockNode = Node.create({
 		];
 	},
 });
-
-function createSlashCommandsExtension(options: {
-	filterCommands: (query: string) => SlashCommandItem[];
-	onStateChange: React.Dispatch<React.SetStateAction<SlashMenuState>>;
-	getState: () => SlashMenuState;
-}) {
-	const { filterCommands, onStateChange, getState } = options;
-
-	return Extension.create({
-		name: "slashCommands",
-
-		addProseMirrorPlugins() {
-			return [
-				Suggestion({
-					editor: this.editor,
-					char: "/",
-					startOfLine: true,
-					command: ({ editor, range, props }) => {
-						const item: unknown = props;
-						if (
-							typeof item === "object" &&
-							item !== null &&
-							"command" in item &&
-							typeof item.command === "function"
-						) {
-							item.command({ editor, range });
-						}
-					},
-					items: ({ query }) => filterCommands(query),
-					render: () => {
-						return {
-							onStart: (props) => {
-								onStateChange({
-									isOpen: true,
-									items: props.items,
-									selectedIndex: 0,
-									clientRect: props.clientRect ?? null,
-									range: props.range,
-								});
-							},
-							onUpdate: (props) => {
-								onStateChange((prev) => ({
-									...prev,
-									items: props.items,
-									selectedIndex: 0,
-									clientRect: props.clientRect ?? null,
-									range: props.range,
-								}));
-							},
-							onKeyDown: (props) => {
-								if (props.event.key === "Escape") {
-									onStateChange((prev) => ({ ...prev, isOpen: false }));
-									return true;
-								}
-								if (props.event.key === "ArrowUp") {
-									onStateChange((prev) => ({
-										...prev,
-										selectedIndex: (prev.selectedIndex - 1 + prev.items.length) % prev.items.length,
-									}));
-									return true;
-								}
-								if (props.event.key === "ArrowDown") {
-									onStateChange((prev) => ({
-										...prev,
-										selectedIndex: (prev.selectedIndex + 1) % prev.items.length,
-									}));
-									return true;
-								}
-								if (props.event.key === "Enter") {
-									const state = getState();
-									if (state.items.length > 0 && state.range) {
-										const item = state.items[state.selectedIndex];
-										if (item) {
-											item.command({ editor: this.editor, range: state.range });
-											onStateChange((prev) => ({ ...prev, isOpen: false }));
-											return true;
-										}
-									}
-									return false;
-								}
-								return false;
-							},
-							onExit: () => {
-								onStateChange((prev) => ({ ...prev, isOpen: false }));
-							},
-						};
-					},
-				}),
-			];
-		},
-	});
-}
-
-function InlineSlashMenu({
-	state,
-	onCommand,
-	setSelectedIndex,
-}: {
-	state: SlashMenuState;
-	onCommand: (item: SlashCommandItem) => void;
-	setSelectedIndex: (index: number) => void;
-}) {
-	const containerRef = React.useRef<HTMLDivElement>(null);
-
-	// Track whether we have a positioned reference to avoid rendering at (0,0)
-	const [hasReference, setHasReference] = React.useState(false);
-
-	const { refs, floatingStyles } = useFloating({
-		open: state.isOpen && hasReference,
-		placement: "bottom-start",
-		middleware: [offset(8), flip(), shift({ padding: 8 })],
-		whileElementsMounted: autoUpdate,
-	});
-
-	React.useEffect(() => {
-		if (state.clientRect) {
-			const clientRectFn = state.clientRect;
-			refs.setReference({
-				getBoundingClientRect: () => clientRectFn() ?? new DOMRect(),
-			});
-			setHasReference(true);
-		} else {
-			setHasReference(false);
-		}
-	}, [state.clientRect, refs]);
-
-	// Reset reference tracking when menu closes
-	React.useEffect(() => {
-		if (!state.isOpen) setHasReference(false);
-	}, [state.isOpen]);
-
-	React.useEffect(() => {
-		if (!state.isOpen || !hasReference) return;
-		const container = containerRef.current;
-		if (!container) return;
-		const selected = container.querySelector(`[data-index="${state.selectedIndex}"]`);
-		if (selected instanceof HTMLElement) {
-			// Use scrollIntoView only within the menu container to avoid scrolling the page
-			const containerTop = container.scrollTop;
-			const containerBottom = containerTop + container.clientHeight;
-			const itemTop = selected.offsetTop;
-			const itemBottom = itemTop + selected.offsetHeight;
-			if (itemTop < containerTop) {
-				container.scrollTop = itemTop;
-			} else if (itemBottom > containerBottom) {
-				container.scrollTop = itemBottom - container.clientHeight;
-			}
-		}
-	}, [state.selectedIndex, state.isOpen, hasReference]);
-
-	if (!state.isOpen || !hasReference) return null;
-
-	return createPortal(
-		<div
-			ref={(node) => {
-				containerRef.current = node;
-				refs.setFloating(node);
-			}}
-			style={{
-				...floatingStyles,
-				zIndex: 100,
-				borderRadius: "8px",
-				border: "1px solid #d1d5db",
-				background: "white",
-				padding: "4px",
-				boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-				minWidth: "220px",
-				maxHeight: "300px",
-				overflowY: "auto",
-			}}
-			className="emdash-slash-menu"
-		>
-			{state.items.length === 0 ? (
-				<p
-					style={{
-						padding: "8px 12px",
-						fontSize: "13px",
-						color: "#9ca3af",
-						margin: 0,
-					}}
-				>
-					No results
-				</p>
-			) : (
-				state.items.map((item, index) => (
-					<button
-						key={item.id}
-						type="button"
-						data-index={index}
-						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: "12px",
-							width: "100%",
-							padding: "8px 12px",
-							fontSize: "13px",
-							borderRadius: "4px",
-							border: "none",
-							textAlign: "left",
-							cursor: "pointer",
-							background: index === state.selectedIndex ? "#f3f4f6" : "transparent",
-						}}
-						onClick={() => onCommand(item)}
-						onMouseEnter={() => setSelectedIndex(index)}
-					>
-						<span
-							style={{
-								width: "24px",
-								height: "24px",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								flexShrink: 0,
-								fontSize: "14px",
-								fontWeight: 600,
-								color: "#6b7280",
-								background: "#f3f4f6",
-								borderRadius: "4px",
-							}}
-						>
-							{item.icon}
-						</span>
-						<span style={{ display: "flex", flexDirection: "column" }}>
-							<span style={{ fontWeight: 500 }}>{item.title}</span>
-							<span style={{ fontSize: "12px", color: "#9ca3af" }}>{item.description}</span>
-						</span>
-					</button>
-				))
-			)}
-		</div>,
-		document.body,
-	);
-}
 
 // ── Media Picker ───────────────────────────────────────────────────
 
@@ -2210,19 +1695,25 @@ export function InlinePortableTextEditor({
 		return () => document.removeEventListener("emdash:open-media-picker", handler);
 	}, []);
 
-	// Slash menu state — use ref to avoid re-creating the extension on state change
-	const [slashMenuState, setSlashMenuState] = React.useState<SlashMenuState>(initialSlashMenuState);
-	const slashMenuStateRef = React.useRef(slashMenuState);
-	slashMenuStateRef.current = slashMenuState;
+	const uiRoot = useInlineUiRoot();
 
-	const filterCommandsRef = React.useRef((query: string): SlashCommandItem[] => {
-		const q = query.toLowerCase();
-		return slashCommands.filter(
-			(cmd) =>
-				cmd.title.toLowerCase().includes(q) ||
-				cmd.description.toLowerCase().includes(q) ||
-				cmd.aliases?.some((a) => a.toLowerCase().includes(q)),
-		);
+	// The Suggestion plugin's key handlers read the slash menu's state as soon
+	// as it changes, before React commits it, so the ref takes each change
+	// synchronously and the extension, created once, reads the ref.
+	const [slashMenuState, setSlashMenuStateRaw] =
+		React.useState<SlashMenuState>(initialSlashMenuState);
+	const slashMenuStateRef = React.useRef(slashMenuState);
+	const setSlashMenuState: React.Dispatch<React.SetStateAction<SlashMenuState>> = React.useCallback(
+		(action) => {
+			const next = typeof action === "function" ? action(slashMenuStateRef.current) : action;
+			slashMenuStateRef.current = next;
+			setSlashMenuStateRaw(next);
+		},
+		[],
+	);
+	const slashMenuActionsRef = React.useRef({
+		run: (_item: SlashCommandItem) => {},
+		dismiss: () => {},
 	});
 
 	const [loadState] = React.useState<{
@@ -2335,23 +1826,26 @@ export function InlinePortableTextEditor({
 	const slashCommandsExtension = React.useMemo(
 		() =>
 			createSlashCommandsExtension({
-				filterCommands: (query: string) => filterCommandsRef.current(query),
 				onStateChange: setSlashMenuState,
 				getState: () => slashMenuStateRef.current,
+				onCommand: (item) => slashMenuActionsRef.current.run(item),
+				onDismiss: () => slashMenuActionsRef.current.dismiss(),
 			}),
-		[],
+		[setSlashMenuState],
 	);
 
 	const editor = useEditor({
 		extensions: [
 			StarterKit.configure({
-				heading: { levels: [1, 2, 3] },
 				dropcursor: { color: "#3b82f6", width: 2 },
 				// Replaced with InlineCodeBlockExtension below (adds language picker).
 				codeBlock: false,
 				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
 				code: false,
 				orderedList: false,
+				// Registered on their own below, so links don't open when clicked.
+				link: false,
+				underline: false,
 			}),
 			EmDashOrderedList,
 			CodeMarkExtension,
@@ -2421,15 +1915,26 @@ export function InlinePortableTextEditor({
 		if (editor && !savedDocRef.current) savedDocRef.current = editor.state.doc;
 	}, [editor]);
 
-	// Slash menu command handler
-	const handleSlashCommand = React.useCallback(
+	const runSlashCommand = React.useCallback(
 		(item: SlashCommandItem) => {
-			if (!editor || !slashMenuStateRef.current.range) return;
-			item.command({ editor, range: slashMenuStateRef.current.range });
+			const { range } = slashMenuStateRef.current;
+			if (!editor || !range) return;
+			item.command({ editor, range });
 			setSlashMenuState((prev) => ({ ...prev, isOpen: false }));
 		},
-		[editor],
+		[editor, setSlashMenuState],
 	);
+	/** Closes the slash menu without a command, keeping what was typed. */
+	const closeSlashMenu = React.useCallback(() => {
+		const { range } = slashMenuStateRef.current;
+		setSlashMenuState((prev) => ({
+			...prev,
+			isOpen: false,
+			dismissedSlashFrom: range ? range.from : prev.dismissedSlashFrom,
+		}));
+		if (editor && range) exitSuggestion(editor.view);
+	}, [editor, setSlashMenuState]);
+	slashMenuActionsRef.current = { run: runSlashCommand, dismiss: closeSlashMenu };
 
 	// Handle media selection from the picker
 	const handleMediaSelect = React.useCallback(
@@ -2462,12 +1967,21 @@ export function InlinePortableTextEditor({
 			if (related && e.currentTarget.contains(related)) return;
 			// The copy fallback briefly moves focus to its textarea before restoring the editor.
 			if (related?.hasAttribute("data-emdash-clipboard-fallback")) return;
-			// Don't save if focus moved to the slash menu (portalled to body)
-			if (related?.closest(".emdash-slash-menu")) return;
+			// The toolbars and menus live in a root of their own at the end of the page.
+			if (related && uiRoot.contains(related)) return;
 			if (related?.closest(".emdash-media-picker")) return;
+			// A toolbar button keeps focus in the editor, so the toolbars skip
+			// the editor's next blur; telling them again lets them hide. It waits
+			// for this blur to finish, which may be a toolbar removing itself.
+			const event = e.nativeEvent;
+			queueMicrotask(() => {
+				if (!editor || editor.isDestroyed || editor.view.hasFocus()) return;
+				if (uiRoot.contains(document.activeElement)) return;
+				editor.view.dispatch(editor.state.tr.setMeta("blur", { event }));
+			});
 			void save();
 		},
-		[save, mediaPickerOpen],
+		[editor, save, mediaPickerOpen, uiRoot],
 	);
 
 	if (!editor) return null;
@@ -2481,7 +1995,7 @@ export function InlinePortableTextEditor({
 				</div>
 			) : (
 				<>
-					<InlineBubbleMenu editor={editor} />
+					<InlineBubbleMenu editor={editor} uiRoot={uiRoot} />
 					<EditorContent editor={editor} />
 				</>
 			)}
@@ -2502,8 +2016,11 @@ export function InlinePortableTextEditor({
 				</div>
 			) : null}
 			<InlineSlashMenu
+				editor={editor}
+				uiRoot={uiRoot}
 				state={slashMenuState}
-				onCommand={handleSlashCommand}
+				onCommand={runSlashCommand}
+				onClose={closeSlashMenu}
 				setSelectedIndex={(index) =>
 					setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
 				}
@@ -2643,104 +2160,7 @@ export function InlinePortableTextEditor({
 						--emdash-code-focus: var(--emdash-inline-code-focus, #a8d5ff);
 					}
 				}
-				.emdash-bubble-menu {
-					z-index: 100;
-					display: flex;
-					align-items: center;
-					gap: 2px;
-					padding: 4px;
-					border-radius: 8px;
-					border: 1px solid #d1d5db;
-					background: white;
-					box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-				}
-				.emdash-bubble-btn {
-					display: inline-flex;
-					align-items: center;
-					justify-content: center;
-					width: 32px;
-					height: 32px;
-					border-radius: 6px;
-					border: none;
-					background: transparent;
-					cursor: pointer;
-					color: inherit;
-					font-size: 14px;
-					line-height: 1;
-					padding: 0;
-				}
-				.emdash-bubble-btn:hover {
-					background: #f3f4f6;
-				}
-				.emdash-bubble-btn--active {
-					background: #dbeafe;
-					color: #1d4ed8;
-				}
-				.emdash-bubble-btn--active:hover {
-					background: #bfdbfe;
-				}
-				.emdash-bubble-btn--danger {
-					color: #dc2626;
-				}
-				.emdash-bubble-divider {
-					display: block;
-					width: 1px;
-					height: 20px;
-					background: #d1d5db;
-					margin: 0 4px;
-				}
-				.emdash-bubble-link-input {
-					height: 28px;
-					width: 200px;
-					font-size: 13px;
-					padding: 0 8px;
-					border: 1px solid #d1d5db;
-					border-radius: 4px;
-					outline: none;
-					background: white;
-					color: inherit;
-					font-family: inherit;
-				}
-				.emdash-bubble-link-input:focus {
-					border-color: #3b82f6;
-				}
 				@media (prefers-color-scheme: dark) {
-					.emdash-bubble-menu {
-						background: #1f2937;
-						border-color: #374151;
-						color: #e5e7eb;
-					}
-					.emdash-bubble-btn:hover {
-						background: #374151;
-					}
-					.emdash-bubble-btn--active {
-						background: #1e3a5f;
-						color: #93c5fd;
-					}
-					.emdash-bubble-btn--active:hover {
-						background: #1e40af;
-					}
-					.emdash-bubble-divider {
-						background: #4b5563;
-					}
-					.emdash-bubble-link-input {
-						background: #111827;
-						border-color: #4b5563;
-						color: #e5e7eb;
-					}
-					.emdash-bubble-link-input:focus {
-						border-color: #60a5fa;
-					}
-					.emdash-slash-menu {
-						background: #1f2937 !important;
-						border-color: #374151 !important;
-						color: #e5e7eb !important;
-					}
-					.emdash-slash-menu button:hover,
-					.emdash-slash-menu button[style*="background: rgb(243, 244, 246)"] {
-						background: #374151 !important;
-					}
 					.emdash-media-picker {
 						background: #1f2937 !important;
 						color: #e5e7eb !important;
@@ -2749,6 +2169,18 @@ export function InlinePortableTextEditor({
 						color: #e5e7eb !important;
 					}
 				}
+				.emdash-inline-editor .emdash-slash-query {
+					margin-inline: -0.25em;
+					padding: 0.125em 0.25em;
+					border-radius: 0.375rem;
+					background: color-mix(in srgb, currentColor 8%, transparent);
+				}
+				.emdash-inline-editor .emdash-slash-query.is-empty::after {
+					content: "Type to search";
+					color: color-mix(in srgb, currentColor 45%, transparent);
+					pointer-events: none;
+				}
+				${INLINE_EDITOR_UI_STYLES}
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
