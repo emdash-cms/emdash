@@ -315,7 +315,9 @@ After an approved call starts an operation, the same user and token can call `si
 
 ## Plugin tools
 
-An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` as `<pluginId>__<localName>` and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
+An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` with an MCP-safe plugin prefix followed by `__<localName>` (for example, `@acme/calendar` and `createEvent` become `acme__calendar__createEvent`) and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
+
+Scoped IDs with ambiguous separators include a short hash before the local tool name. Use `tools/list` to discover generated names. If two tools generate the same name, EmDash keeps the first and logs a warning for the skipped tool.
 
 Because plugin tools are installation-specific, they are not part of the static inventory above.
 
