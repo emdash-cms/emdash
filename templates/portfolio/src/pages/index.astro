@@ -10,7 +10,7 @@ import type { PageLayoutBlock } from "../../emdash-env";
 import Base from "../layouts/Base.astro";
 import EditorNote from "../components/EditorNote.astro";
 import PageBlocks from "../components/PageBlocks.astro";
-import { startsWithHeading } from "../utils/page";
+import { layoutDescription, startsWithHeading } from "../utils/page";
 import { getSelectedWork } from "../utils/selected-work";
 
 const [settings, homeResult, projectsResult] = await Promise.all([
@@ -38,7 +38,8 @@ const seo = home
 			siteUrl: Astro.url.origin,
 			path: "/",
 			defaultTitle: siteTitle,
-			defaultDescription: settings?.tagline,
+			defaultDescription:
+				layoutDescription(home.data.layout) ?? settings?.tagline,
 		})
 	: null;
 
