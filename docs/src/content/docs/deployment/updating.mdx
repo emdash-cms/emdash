@@ -89,7 +89,7 @@ Deploy the build the same way as any other change. The following command deploys
 pnpm wrangler deploy
 ```
 
-With the default runtime migration mode, `auto`, the deployed site applies pending core migrations on its first request. Do not deploy a build with pending migrations until the required recovery point exists. To apply migrations before the new code receives traffic, and to verify the deployed database afterwards, follow [Manage Core Database Migrations](/deployment/core-migrations/). Its `emdash migrate --check` command exits non-zero when the deployed database has pending or unknown migrations for the installed version.
+With the default runtime migration mode, `auto`, the deployed site applies pending core migrations on its first request. A Cloudflare Worker leaves [large content migrations](/deployment/core-migrations/#apply-large-content-migrations-from-the-cli) to `emdash migrate` and answers with 503 until they are applied. Do not deploy a build with pending migrations until the required recovery point exists. To apply migrations before the new code receives traffic, and to verify the deployed database afterwards, follow [Manage Core Database Migrations](/deployment/core-migrations/). Its `emdash migrate --check` command exits non-zero when the deployed database has pending or unknown migrations for the installed version.
 
 After the deploy, open the admin, load at least one public page, edit and publish a disposable entry, and upload and retrieve a disposable media file. If the site uses scheduled tasks or sandboxed plugins, verify those paths too.
 
