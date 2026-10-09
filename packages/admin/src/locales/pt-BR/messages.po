@@ -5240,7 +5240,7 @@ msgstr "Expiração"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:98
 msgid "Export"
-msgstr "Exportação"
+msgstr "Exportar"
 
 #: packages/admin/src/components/WordPressImport.tsx:1296
 msgid "Export from WordPress manually"
