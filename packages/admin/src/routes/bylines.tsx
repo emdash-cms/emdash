@@ -45,6 +45,7 @@ import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-
 import { fetchManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { isSafeUrl } from "../lib/url.js";
 
 interface BylineFormState {
 	slug: string;
@@ -71,7 +72,6 @@ interface BylineFormErrors {
 }
 
 const BYLINE_NAME_SEPARATOR = /\s+/;
-const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 const BYLINE_INITIAL_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 export interface LoadMoreSnapshot {
@@ -127,7 +127,7 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 }
 
 function isHttpUrl(value: string): boolean {
-	return HTTP_SCHEME_PATTERN.test(value) && URL.canParse(value);
+	return isSafeUrl(value) && URL.canParse(value);
 }
 
 function getUserLabel(user: UserListItem): string {
@@ -495,6 +495,7 @@ export function BylinesPage() {
 	const submitForm = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving || !formLoaded) return;
+		const formElement = event.currentTarget;
 		const errors = validateForm();
 		// Render the errors before focusing so the field is announced as invalid.
 		flushSync(() => setFormErrors(errors));
@@ -509,6 +510,8 @@ export function BylinesPage() {
 			firstInvalid.current?.focus();
 			return;
 		}
+		// The form is noValidate, so custom URL fields need the browser's check run here.
+		if (!formElement.reportValidity()) return;
 		if (selectedId) {
 			updateMutation.mutate();
 		} else {
