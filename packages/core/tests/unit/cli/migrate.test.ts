@@ -386,11 +386,62 @@ describe("runMigrateCommand", () => {
 		);
 	});
 
+	it("confirms a lock take-over and applies under the confirmed lock id", async () => {
+		const context = await fixture({
+			interactive: true,
+			pending: [],
+			executed: ["001_initial"],
+		});
+
+		const exitCode = await runMigrateCommand(
+			{ takeOverLock: "1788264000000" },
+			context.dependencies,
+		);
+
+		expect(exitCode).toBe(MIGRATE_EXIT_CODES.success);
+		expect(context.dependencies.confirm).toHaveBeenCalledWith(
+			expect.stringContaining(
+				`Take over migration lock 1788264000000 on ${context.target.label} and apply EmDash migrations?`,
+			),
+		);
+		expect(context.execute).toHaveBeenCalledWith(
+			expect.objectContaining({ action: "take-over-lock", lockId: "1788264000000" }),
+		);
+		expect(context.stdout).toEqual(
+			expect.arrayContaining(["Took over migration lock 1788264000000.", "Executed: 001_initial"]),
+		);
+	});
+
+	it("requires confirmation or the target fingerprint before taking over a lock", async () => {
+		const declined = await fixture({ interactive: true });
+		declined.dependencies.confirm = vi.fn(async () => false);
+		const noninteractive = await fixture();
+
+		await expect(
+			runMigrateCommand({ takeOverLock: "1788264000000" }, declined.dependencies),
+		).resolves.toBe(MIGRATE_EXIT_CODES.confirmation);
+		await expect(
+			runMigrateCommand({ takeOverLock: "1788264000000" }, noninteractive.dependencies),
+		).resolves.toBe(MIGRATE_EXIT_CODES.confirmation);
+
+		expect(declined.execute).not.toHaveBeenCalled();
+		expect(declined.stderr).toContain("Lock take-over cancelled.");
+		expect(noninteractive.execute).not.toHaveBeenCalled();
+		expect(noninteractive.stderr.join("\n")).toContain(
+			"Noninteractive lock take-over requires --expected-target-fingerprint",
+		);
+	});
+
 	it.each([
 		[{ releaseLock: "" }],
 		[{ releaseLock: "abc" }],
 		[{ releaseLock: "1788264000000", status: true }],
 		[{ releaseLock: "1788264000000", check: true }],
+		[{ takeOverLock: "" }],
+		[{ takeOverLock: "abc" }],
+		[{ takeOverLock: "1788264000000", status: true }],
+		[{ takeOverLock: "1788264000000", check: true }],
+		[{ takeOverLock: "1788264000000", releaseLock: "1788264000000" }],
 	])("rejects %o before reading a manifest", async (options) => {
 		const context = await fixture();
 
