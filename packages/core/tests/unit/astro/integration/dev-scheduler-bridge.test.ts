@@ -4,13 +4,13 @@ import { createServer as createHttpsServer } from "node:https";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { startCloudflareDevScheduler } from "../../../../src/astro/integration/cloudflare-dev-scheduler.js";
+import { startDevSchedulerBridge } from "../../../../src/astro/integration/dev-scheduler-bridge.js";
 
 afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe("Cloudflare dev scheduler", () => {
+describe("Dev scheduler bridge", () => {
 	// CN=localhost only. The request uses 127.0.0.1, so the name does not match.
 	const DEV_TLS_CERT = `-----BEGIN CERTIFICATE-----
 MIIBfjCCASWgAwIBAgIUEQ/KLE4q64vdG9cJ07GeXUUMbHswCgYIKoZIzj0EAwIw
@@ -45,7 +45,7 @@ JB7o3B1548OcJwsHsVGy9gs2gFFkIJMLbojfprRHdUwjq5oO5Y6Akid+
 			resolvedUrls: { local: [] as string[], network: [] },
 		};
 		const warn = vi.fn();
-		startCloudflareDevScheduler(server, { warn }, { intervalMs: 25 });
+		startDevSchedulerBridge(server, { warn }, { intervalMs: 25 });
 		try {
 			await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
 			const address = httpServer.address();
@@ -72,7 +72,7 @@ JB7o3B1548OcJwsHsVGy9gs2gFFkIJMLbojfprRHdUwjq5oO5Y6Akid+
 		});
 		const server = { httpServer, resolvedUrls: { local: [] as string[], network: [] } };
 		const warn = vi.fn();
-		startCloudflareDevScheduler(server, { warn }, { intervalMs: 25 });
+		startDevSchedulerBridge(server, { warn }, { intervalMs: 25 });
 
 		try {
 			await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
@@ -115,7 +115,7 @@ JB7o3B1548OcJwsHsVGy9gs2gFFkIJMLbojfprRHdUwjq5oO5Y6Akid+
 		const fetchScheduled = vi.fn(async () => new Response(null, { status: 200 }));
 		const warn = vi.fn();
 
-		startCloudflareDevScheduler(
+		startDevSchedulerBridge(
 			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
 			{ warn },
 			{ intervalMs: 1_000, fetch: fetchScheduled },
@@ -144,7 +144,7 @@ JB7o3B1548OcJwsHsVGy9gs2gFFkIJMLbojfprRHdUwjq5oO5Y6Akid+
 		const httpServer = createServer("https://dev.example.test:7443/");
 		const fetchScheduled = vi.fn(async () => new Response(null, { status: 204 }));
 
-		startCloudflareDevScheduler(
+		startDevSchedulerBridge(
 			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
 			{ warn: vi.fn() },
 			{ intervalMs: 1_000, fetch: fetchScheduled },
@@ -162,7 +162,7 @@ JB7o3B1548OcJwsHsVGy9gs2gFFkIJMLbojfprRHdUwjq5oO5Y6Akid+
 		vi.useFakeTimers();
 		const httpServer = createServer(`https://dev.example.test:7443${base}`);
 		const fetchScheduled = vi.fn(async () => new Response(null, { status: 204 }));
-		startCloudflareDevScheduler(
+		startDevSchedulerBridge(
 			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
 			{ warn: vi.fn() },
 			{ intervalMs: 1_000, fetch: fetchScheduled },
@@ -183,7 +183,7 @@ JB7o3B1548OcJwsHsVGy9gs2gFFkIJMLbojfprRHdUwjq5oO5Y6Akid+
 			.mockResolvedValue(new Response(null, { status: 200 }));
 		const warn = vi.fn();
 
-		startCloudflareDevScheduler(
+		startDevSchedulerBridge(
 			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
 			{ warn },
 			{ intervalMs: 1_000, fetch: fetchScheduled },

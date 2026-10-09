@@ -37,7 +37,7 @@ function postMaintenance(url: URL): Promise<{ ok: boolean; status: number }> {
 	});
 }
 
-export function startCloudflareDevScheduler(
+export function startDevSchedulerBridge(
 	server: DevServer,
 	logger: Pick<AstroIntegrationLogger, "warn">,
 	options: SchedulerOptions = {},
@@ -59,7 +59,7 @@ export function startCloudflareDevScheduler(
 		try {
 			const origin = server.resolvedUrls?.local[0] ?? server.resolvedUrls?.network[0];
 			if (!origin) {
-				logger.warn("Cloudflare dev scheduler could not resolve the dev server origin.");
+				logger.warn("Dev scheduler bridge could not resolve the dev server origin.");
 				return;
 			}
 
@@ -70,13 +70,13 @@ export function startCloudflareDevScheduler(
 				: await postMaintenance(url);
 			if (!response.ok) {
 				logger.warn(
-					`Cloudflare dev scheduler request failed with status ${response.status}. ` +
+					`Dev scheduler bridge request failed with status ${response.status}. ` +
 						"Verify that EmDash's dev maintenance route is available.",
 				);
 			}
 		} catch (error) {
 			logger.warn(
-				`Cloudflare dev scheduler request failed: ${error instanceof Error ? error.message : String(error)}`,
+				`Dev scheduler bridge request failed: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		} finally {
 			schedule();

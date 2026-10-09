@@ -36,7 +36,7 @@ import {
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
-import { startCloudflareDevScheduler } from "./cloudflare-dev-scheduler.js";
+import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { loadDevEnv } from "./dev-env.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
@@ -791,7 +791,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			},
 			"astro:server:setup": ({ server, logger }) => {
 				if (astroCommand === "dev" && usesCloudflareAdapter) {
-					startCloudflareDevScheduler(server, logger);
+					startDevSchedulerBridge(server, logger);
 				}
 
 				// Print route info with absolute, clickable URLs once the server
