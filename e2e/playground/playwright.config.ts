@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
 	testDir: ".",
-	testMatch: "media-ready.spec.ts",
+	testMatch: "*.spec.ts",
 	outputDir: fileURLToPath(new URL("../../test-results", import.meta.url)),
 	fullyParallel: false,
 	workers: 1,
