@@ -34,6 +34,12 @@ export function LoginButton() {
 }
 
 // ============================================================================
+// LoginHelp — shown beneath the provider's LoginForm on the login page
+// ============================================================================
+
+export const loginHelp = "Enter your handle to sign in.";
+
+// ============================================================================
 // LoginForm — expanded form shown when LoginButton is clicked
 // ============================================================================
 

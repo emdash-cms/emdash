@@ -170,6 +170,7 @@ declare module "virtual:emdash/auth-providers" {
 		label: string;
 		LoginButton?: ComponentType;
 		LoginForm?: ComponentType;
+		loginHelp?: string | ComponentType;
 		SetupStep?: ComponentType<{ onComplete: () => void }>;
 	}
 
