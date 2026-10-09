@@ -84,7 +84,7 @@
 	border-color: var(--color-kumo-line);
 }
 
-body {
+body:has(> #admin-root) {
 	background-color: var(--color-kumo-elevated);
 	color: var(--text-color-kumo-default);
 	-webkit-font-smoothing: antialiased;
@@ -1244,7 +1244,7 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
  * which overrides max-width in CSS. We need to cap min-width too.
  */
 @media (max-width: 639px) {
-	[role="dialog"] {
+	body:has(> #admin-root) [role="dialog"] {
 		min-width: 0 !important;
 		max-width: calc(100vw - 2rem);
 	}
