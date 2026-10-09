@@ -687,6 +687,7 @@ export async function scanDatetimeStorage(db: Kysely<Database>): Promise<Datetim
 	return scan(db, await loadScanContext(db), false);
 }
 
+/** Migration 079 runs this, so a change here must not alter the data it writes. */
 export async function normalizeDatetimeStorage(
 	db: Kysely<Database>,
 ): Promise<DatetimeStorageReport> {
