@@ -14,6 +14,15 @@ const CollapsibleContext = React.createContext<{
 	onOpenChange?: (next: boolean) => void;
 }>({});
 
+// Shared between the Dialog mocks so Dialog.Title / Dialog.Description can
+// label and describe the dialog, as the real components do.
+const DialogContext = React.createContext<{
+	titleId?: string;
+	descriptionId?: string;
+	setHasTitle: (present: boolean) => void;
+	setHasDescription: (present: boolean) => void;
+}>({ setHasTitle: () => {}, setHasDescription: () => {} });
+
 vi.mock("@cloudflare/kumo", () => ({
 	Button: ({ children, onClick, variant, type }: any) => (
 		<button onClick={onClick} data-variant={variant} type={type || "button"}>
@@ -107,15 +116,44 @@ vi.mock("@cloudflare/kumo", () => ({
 			/>
 		</div>
 	),
+	// Mirrors how Kumo's Dialog (Base UI) names itself: the popup is labelled by
+	// Dialog.Title and described by Dialog.Description, and by nothing else.
 	Dialog: Object.assign(
-		({ children, className, size }: any) => (
-			<div data-testid="dialog" className={className} data-size={size}>
-				{children}
-			</div>
-		),
+		({ children }: any) => {
+			const titleId = React.useId();
+			const descriptionId = React.useId();
+			const [hasTitle, setHasTitle] = React.useState(false);
+			const [hasDescription, setHasDescription] = React.useState(false);
+			return (
+				<DialogContext.Provider value={{ titleId, descriptionId, setHasTitle, setHasDescription }}>
+					<div
+						role="dialog"
+						data-testid="dialog"
+						aria-labelledby={hasTitle ? titleId : undefined}
+						aria-describedby={hasDescription ? descriptionId : undefined}
+					>
+						{children}
+					</div>
+				</DialogContext.Provider>
+			);
+		},
 		{
-			Title: ({ children }: any) => <h2 data-testid="dialog-title">{children}</h2>,
-			Description: ({ children }: any) => <p data-testid="dialog-description">{children}</p>,
+			Title: ({ children }: any) => {
+				const { titleId, setHasTitle } = React.useContext(DialogContext);
+				React.useLayoutEffect(() => {
+					setHasTitle(true);
+					return () => setHasTitle(false);
+				}, [setHasTitle]);
+				return <h2 id={titleId}>{children}</h2>;
+			},
+			Description: ({ children }: any) => {
+				const { descriptionId, setHasDescription } = React.useContext(DialogContext);
+				React.useLayoutEffect(() => {
+					setHasDescription(true);
+					return () => setHasDescription(false);
+				}, [setHasDescription]);
+				return <p id={descriptionId}>{children}</p>;
+			},
 		},
 	),
 	DialogRoot: ({ children, open }: any) =>
@@ -862,7 +900,7 @@ describe("BlockRenderer", () => {
 		});
 	});
 
-	it("button confirm dialog is padded and names itself with its title and text", () => {
+	it("button confirm dialog is named by its title and described by its text", () => {
 		renderBlocks([
 			{
 				type: "actions",
@@ -884,15 +922,10 @@ describe("BlockRenderer", () => {
 
 		fireEvent.click(screen.getByText("Delete"));
 
-		// Kumo's Dialog has no padding of its own; without it the content sits
-		// flush against the dialog's edges.
-		const dialog = screen.getByTestId("dialog");
-		expect(dialog.className).toContain("p-6");
-		expect(dialog.getAttribute("data-size")).toBe("sm");
-
-		// Dialog.Title and Dialog.Description give the dialog its accessible
-		// name and description.
-		expect(screen.getByTestId("dialog-title").textContent).toBe("Delete item?");
-		expect(screen.getByTestId("dialog-description").textContent).toBe("This cannot be undone.");
+		// A screen reader announces the dialog by its title, then reads its text.
+		const dialog = screen.getByRole("dialog", { name: "Delete item?" });
+		const describedBy = dialog.getAttribute("aria-describedby");
+		expect(describedBy).toBeTruthy();
+		expect(document.getElementById(describedBy!)?.textContent).toBe("This cannot be undone.");
 	});
 });
