@@ -524,6 +524,29 @@ async function loadTerm(
 }
 
 /**
+ * Serve one taxonomy's terms for an entry from its primed wildcard key.
+ *
+ * `terms:C:E:*:L` is only ever set from an entry's complete term list (the
+ * folded content query, `getAllTermsForEntries`, or a wildcard
+ * `getEntryTerms` query), so a taxonomy absent from it has no terms on the
+ * entry. The fold primes per-taxonomy keys only for taxonomies present on the
+ * entry; without this, a post with no tags re-queries for its tags.
+ *
+ * Returns `undefined` when the wildcard key isn't primed. A rejected wildcard
+ * promise rejects here too; callers treat that as a cache miss.
+ */
+function peekTermsFromWildcard(
+	collection: string,
+	entryId: string,
+	taxonomyName: string,
+	localeKey: string,
+): Promise<TaxonomyTerm[]> | undefined {
+	return peekRequestCache<TaxonomyTerm[]>(`terms:${collection}:${entryId}:*:${localeKey}`)?.then(
+		(terms) => terms.filter((t) => t.name === taxonomyName),
+	);
+}
+
+/**
  * Terms assigned to a content entry, resolved into the active locale and then
  * the configured default locale.
  */
@@ -534,31 +557,36 @@ export function getEntryTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
+	const query = () =>
+		cachedQuery({
+			namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
+			key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
+			load: async () => {
+				const db = await getDb();
+				const rows = await selectEntryTermRows(db, collection, [entryId], taxonomyName, locale);
+				return rows.map<TaxonomyTerm>((row) => ({
+					id: row.id,
+					name: row.name,
+					slug: row.slug,
+					label: row.label,
+					parentId: row.parent_id ?? undefined,
+					children: [],
+					locale: row.locale,
+					translationGroup: row.translation_group,
+				}));
+			},
+		});
 	// requestCached short-circuits to values primed by getAllTermsForEntries
 	// during entry hydration (same key shape). On a warm content-cache hit
 	// hydration doesn't run, so the inner cachedQuery serves this from KV
 	// instead of falling through to D1 on every request.
 	return requestCached(
 		`terms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
-		() =>
-			cachedQuery({
-				namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
-				key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
-				load: async () => {
-					const db = await getDb();
-					const rows = await selectEntryTermRows(db, collection, [entryId], taxonomyName, locale);
-					return rows.map<TaxonomyTerm>((row) => ({
-						id: row.id,
-						name: row.name,
-						slug: row.slug,
-						label: row.label,
-						parentId: row.parent_id ?? undefined,
-						children: [],
-						locale: row.locale,
-						translationGroup: row.translation_group,
-					}));
-				},
-			}),
+		() => {
+			const fromWildcard =
+				taxonomyName && peekTermsFromWildcard(collection, entryId, taxonomyName, locale ?? "*");
+			return fromWildcard ? fromWildcard.catch(query) : query();
+		},
 	);
 }
 
@@ -586,14 +614,16 @@ export async function getTermsForEntries(
 		// seeds the per-entry cache under the same key getEntryTerms uses:
 		// `terms:${collection}:${entryId}:${taxonomyName}:${localeKey}`, storing a
 		// TaxonomyTerm[] (including `[]` for entries with no terms). Satisfy those
-		// from cache and run the batched query only for the ids that missed.
+		// from cache, falling back to the entry's primed wildcard key, and run the
+		// batched query only for the ids that missed both.
 		const missedIds: string[] = [];
 		type CacheRead = { id: string; terms: TaxonomyTerm[] } | { id: string; miss: true };
 		const cacheReads: Array<Promise<CacheRead>> = [];
 		for (const id of uniqueIds) {
-			const cached = peekRequestCache<TaxonomyTerm[]>(
-				`terms:${collection}:${id}:${taxonomyName}:${localeKey}`,
-			);
+			const cached =
+				peekRequestCache<TaxonomyTerm[]>(
+					`terms:${collection}:${id}:${taxonomyName}:${localeKey}`,
+				) ?? peekTermsFromWildcard(collection, id, taxonomyName, localeKey);
 			if (cached) {
 				// A peeked promise can reject (e.g. a sibling getEntryTerms hit a
 				// missing table). Treat a rejection as a cache miss so the batched
@@ -792,8 +822,8 @@ function primeEntryTermsCache(
  * Unlike `getAllTermsForEntries`, this deliberately does NOT seed `[]` for
  * taxonomies that apply to the collection but have no rows on the entry: doing
  * so would require a `getTaxonomyDefs` query, adding a round trip to every fold
- * render to serve the rarer `getEntryTerms(id, absentTaxonomy)` case from cache.
- * That call simply falls through to its own cached query. Keeping the key shape
+ * render. `getEntryTerms` and `getTermsForEntries` answer an absent taxonomy
+ * from the wildcard key instead (`peekTermsFromWildcard`). Keeping the key shape
  * here (rather than in query.ts) prevents the two from drifting.
  */
 export function primeFoldedEntryTerms(
