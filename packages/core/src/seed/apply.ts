@@ -40,7 +40,11 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
+import {
+	coalesceObjectCacheWrites,
+	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
+} from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "../schema/registry.js";
@@ -1193,41 +1197,45 @@ async function applySeedWrites(
 
 	// 10. Widget Areas and Widgets
 	if (seed.widgetAreas) {
-		for (const area of seed.widgetAreas) {
-			// Check if area exists
-			const existingArea = await db
-				.selectFrom("_emdash_widget_areas")
-				.selectAll()
-				.where("name", "=", area.name)
-				.executeTakeFirst();
+		try {
+			for (const area of seed.widgetAreas) {
+				// Check if area exists
+				const existingArea = await db
+					.selectFrom("_emdash_widget_areas")
+					.selectAll()
+					.where("name", "=", area.name)
+					.executeTakeFirst();
 
-			let areaId: string;
+				let areaId: string;
 
-			if (existingArea) {
-				areaId = existingArea.id;
-				// Clear existing widgets (areas are recreated)
-				await db.deleteFrom("_emdash_widgets").where("area_id", "=", areaId).execute();
-			} else {
-				// Create area
-				areaId = ulid();
-				await db
-					.insertInto("_emdash_widget_areas")
-					.values({
-						id: areaId,
-						name: area.name,
-						label: area.label,
-						description: area.description ?? null,
-					})
-					.execute();
-				result.widgetAreas.created++;
+				if (existingArea) {
+					areaId = existingArea.id;
+					// Clear existing widgets (areas are recreated)
+					await db.deleteFrom("_emdash_widgets").where("area_id", "=", areaId).execute();
+				} else {
+					// Create area
+					areaId = ulid();
+					await db
+						.insertInto("_emdash_widget_areas")
+						.values({
+							id: areaId,
+							name: area.name,
+							label: area.label,
+							description: area.description ?? null,
+						})
+						.execute();
+					result.widgetAreas.created++;
+				}
+
+				// Create widgets
+				for (let i = 0; i < area.widgets.length; i++) {
+					const widget = area.widgets[i];
+					await applyWidget(db, areaId, widget, i);
+					result.widgetAreas.widgets++;
+				}
 			}
-
-			// Create widgets
-			for (let i = 0; i < area.widgets.length; i++) {
-				const widget = area.widgets[i];
-				await applyWidget(db, areaId, widget, i);
-				result.widgetAreas.widgets++;
-			}
+		} finally {
+			invalidateWidgetObjectCache();
 		}
 	}
 

@@ -111,7 +111,7 @@ export default defineConfig({
 The object cache covers the reads that run on a typical page render:
 
 - Content queries: `getEmDashCollection`, `getEmDashEntry`, and `resolveEmDashPath`.
-- Site settings, navigation menus, and taxonomy terms.
+- Site settings, navigation menus, widget areas, and taxonomy terms.
 
 Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
 
@@ -120,6 +120,8 @@ The object cache and an HTML edge cache solve different problems. A hit in the H
 ## Freshness
 
 Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection; changing a byline or taxonomy term clears the entries that display it.
+
+Widget changes made in the admin, by seeding, or by a site transfer clear the cached widget areas. Code that writes the widget tables directly must call `invalidateWidgetObjectCache()` from `emdash` afterwards.
 
 <Aside type="note">
 Preview links and visual editing bypass the object cache, so editors previewing see the current content immediately. Other requests — including authenticated browsing outside edit mode — are served from the cache, which only ever stores published content.
