@@ -83,7 +83,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     <span class="emdash-tb-save-status" id="emdash-tb-save-status"></span>
 
-    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" target="emdash-admin" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
+    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </a>
 
@@ -775,6 +775,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       var adminLink = document.getElementById("emdash-tb-admin");
       if (adminLink) {
         adminLink.href = "/_emdash/admin/content/" + encodeURIComponent(ref.collection) + "/" + encodeURIComponent(ref.id);
+        adminLink.target = adminWindowName(ref.collection, ref.id);
         adminLink.style.display = "";
       }
 
@@ -1076,13 +1077,18 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
   }
 
+  // A window name may not contain whitespace, and ids are not constrained to a safe alphabet.
+  function adminWindowName(collection, id) {
+    return "emdash-admin-" + (collection + "-" + id).replace(/[^A-Za-z0-9_-]/g, "_");
+  }
+
   // Fallback: open admin
   function openAdmin(annotation) {
     var url = "/_emdash/admin/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id);
     if (annotation.field) {
       url += "?field=" + encodeURIComponent(annotation.field);
     }
-    window.open(url, "emdash-admin");
+    window.open(url, adminWindowName(annotation.collection, annotation.id));
   }
 
   // --- Inline image editing ---
