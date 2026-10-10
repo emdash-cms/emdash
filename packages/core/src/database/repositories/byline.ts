@@ -1317,6 +1317,58 @@ export class BylineRepository {
 	}
 
 	/**
+	 * The credits `setContentBylines` would store for `inputBylines`, read
+	 * without writing them and hydrated at `locale` the way stored credits are,
+	 * with the primary byline group it would store. An id that does not exist is
+	 * left out.
+	 */
+	async previewContentBylines(
+		inputBylines: ContentBylineInput[],
+		options?: { locale?: string },
+	): Promise<{ credits: ContentBylineCredit[]; primaryBylineId: string | null }> {
+		if (inputBylines.length === 0) return { credits: [], primaryBylineId: null };
+		const wireIds = [...new Set(inputBylines.map((item) => item.bylineId))];
+		const idRows = await this.db
+			.selectFrom("_emdash_bylines")
+			.select(["id", "translation_group"])
+			.where("id", "in", wireIds)
+			.execute();
+		const idToGroup = new Map(idRows.map((row) => [row.id, row.translation_group ?? row.id]));
+
+		const credits: Array<{ group: string; roleLabel: string | null; sortOrder: number }> = [];
+		const seenGroups = new Set<string>();
+		for (const item of inputBylines) {
+			const group = idToGroup.get(item.bylineId);
+			if (!group || seenGroups.has(group)) continue;
+			seenGroups.add(group);
+			credits.push({ group, roleLabel: item.roleLabel ?? null, sortOrder: credits.length });
+		}
+		const primaryBylineId = credits[0]?.group ?? null;
+		if (credits.length === 0) return { credits: [], primaryBylineId };
+
+		let query = this.selectBylineWithAvatar().where(
+			"b.translation_group",
+			"in",
+			credits.map((credit) => credit.group),
+		);
+		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+		const summaries = await this.withCustomFields(await query.orderBy("b.locale", "asc").execute());
+		const byGroup = new Map<string, BylineSummary>();
+		for (const summary of summaries) {
+			const group = summary.translationGroup ?? summary.id;
+			if (!byGroup.has(group)) byGroup.set(group, summary);
+		}
+
+		return {
+			credits: credits.flatMap((credit) => {
+				const byline = byGroup.get(credit.group);
+				return byline ? [{ byline, sortOrder: credit.sortOrder, roleLabel: credit.roleLabel }] : [];
+			}),
+			primaryBylineId,
+		};
+	}
+
+	/**
 	 * Replace the set of byline credits on a content entry. Accepts row ids
 	 * at the wire (consistent with how the admin sends them), translates
 	 * each to its `translation_group` on write, and stores the group in

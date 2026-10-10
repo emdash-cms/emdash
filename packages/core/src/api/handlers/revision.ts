@@ -7,10 +7,19 @@ import type { Kysely } from "kysely";
 import { after } from "../../after.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
-import { ContentMutationConflictError } from "../../database/repositories/types.js";
+import {
+	ContentMutationConflictError,
+	EmDashValidationError,
+} from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { encodeRev } from "../rev.js";
 import type { ApiResult, ContentResponse } from "../types.js";
+import {
+	applyStagedMetadata,
+	hasStagedMetadata,
+	readStagedMetadata,
+	validateStagedMetadata,
+} from "./staged-metadata.js";
 import {
 	applyStagedReferences,
 	readStagedReferences,
@@ -124,6 +133,9 @@ export async function handleRevisionRestore(
 		// live, so it answers to the relation's current limits exactly as a publish
 		// does — checked before the restore, which on D1 cannot be undone.
 		const stagedReferences = readStagedReferences(revision.data);
+		const stagedMetadata = readStagedMetadata(revision.data);
+		const restoresMetadata = hasStagedMetadata(stagedMetadata);
+		if (restoresMetadata) await validateStagedMetadata(db, stagedMetadata);
 		if (stagedReferences) {
 			const entry = await new ContentRepository(db).findById(revision.collection, revision.entryId);
 			if (entry?.translationGroup) {
@@ -155,6 +167,16 @@ export async function handleRevisionRestore(
 			// also omits the old draft baseline so publishing it keeps this behavior.
 			await applyStagedReferences(db, revision.collection, item.translationGroup, stagedReferences);
 		}
+		if (restoresMetadata) {
+			const hasSeo = await db
+				.selectFrom("_emdash_collections")
+				.select("has_seo")
+				.where("slug", "=", revision.collection)
+				.executeTakeFirst();
+			await applyStagedMetadata(db, revision.collection, item.id, stagedMetadata, {
+				hasSeo: hasSeo?.has_seo === 1,
+			});
+		}
 
 		const pruneRepo = new RevisionRepository(db);
 		after(async () => {
@@ -182,6 +204,12 @@ export async function handleRevisionRestore(
 			return {
 				success: false,
 				error: { code: "CONFLICT", message: error.message },
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
 			};
 		}
 		return {

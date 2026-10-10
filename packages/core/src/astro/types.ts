@@ -322,6 +322,7 @@ export interface EmDashHandlers {
 		id: string,
 		locale?: string,
 		referenceOptions?: { includeDrafts: boolean },
+		draftOptions?: { includeStagedMetadata?: boolean },
 	) => Promise<
 		HandlerResponse<{
 			item: {
@@ -377,6 +378,8 @@ export interface EmDashHandlers {
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
+			/** Term translation groups, by taxonomy, to stage in the entry's draft. */
+			stagedTerms?: Record<string, string[]>;
 		},
 	) => Promise<HandlerResponse>;
 

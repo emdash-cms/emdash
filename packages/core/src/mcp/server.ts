@@ -1103,7 +1103,9 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
-			const result = await ec.handleContentGet(args.collection, args.id, args.locale);
+			const result = await ec.handleContentGet(args.collection, args.id, args.locale, undefined, {
+				includeStagedMetadata: canReadDrafts(extra),
+			});
 			// Hide non-published items from users without draft access. Return a
 			// not-found error so subscribers can't enumerate draft IDs by status.
 			if (result.success && !canReadDrafts(extra)) {
@@ -1278,9 +1280,9 @@ export function createMcpServer(
 				"update fails if the item changed since that read. When status is not " +
 				"set, a change to a published item is staged as a draft, so the " +
 				"response shows the new values while the live version keeps the old " +
-				"ones until content_publish. " +
-				"`seo` and `bylines` are persisted alongside the field updates in a " +
-				"single transaction. `publishedAt` requires the content:publish_any " +
+				"ones until content_publish. `seo`, `bylines` and `taxonomies` on a " +
+				"published item are staged the same way and go live when it is " +
+				"published. `publishedAt` requires the content:publish_any " +
 				"permission and is useful for migrations or correcting historical dates.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),

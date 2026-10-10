@@ -439,6 +439,8 @@ export interface ContentEditorProps {
 	hasSeo?: boolean;
 	/** Callback when SEO fields change */
 	onSeoChange?: (seo: ContentSeoInput) => void;
+	/** Called with the entry's new revision token after taxonomy terms are staged in its draft */
+	onTermsStaged?: (revision: string) => void;
 	/** Admin manifest for resolving plugin field widgets */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 	/** Re-fetch host state after a plugin action requests an entry refresh. */
@@ -502,6 +504,7 @@ export function ContentEditor({
 	pluginBlocks,
 	hasSeo = false,
 	onSeoChange,
+	onTermsStaged,
 	manifest,
 	onEntryRefresh,
 	readOnly: readOnlyProp = false,
@@ -1782,6 +1785,7 @@ export function ContentEditor({
 									onTranslate={onTranslate}
 									hasSeo={hasSeo}
 									onSeoChange={onSeoChange ? handleSeoChange : undefined}
+									onTermsStaged={onTermsStaged}
 									portableTextEditor={portableTextEditor}
 									blockSidebarPanel={blockSidebarPanel}
 									onBlockSidebarClose={handleBlockSidebarClose}

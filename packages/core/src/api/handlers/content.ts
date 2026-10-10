@@ -52,7 +52,6 @@ import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { requestCached } from "../../request-cache.js";
 import { isStoragelessFieldRow } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
-import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
 import { decodeRev, encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
@@ -66,6 +65,13 @@ import {
 	type ResolvedReferenceTargets,
 	writeReferenceSelection,
 } from "./relations.js";
+import {
+	applyStagedMetadata,
+	assignTaxonomies,
+	hasStagedMetadata,
+	readStagedMetadata,
+	validateStagedMetadata,
+} from "./staged-metadata.js";
 import {
 	applyStagedReferences,
 	liveReferenceSelection,
@@ -2365,10 +2371,11 @@ export async function handleContentPublish(
 			// are normally created.
 			const existing = await repo.findById(collection, resolvedId);
 
-			// A selection staged in the draft becomes the live one here. Validate
-			// before the publishing statement rather than after: `withTransaction`
-			// degrades to sequential statements on D1, so a selection rejected
-			// afterwards would leave the entry published with the old links.
+			// A selection, SEO, credits and terms staged in the draft become live
+			// here. Validate before the publishing statement rather than after:
+			// `withTransaction` degrades to sequential statements on D1, so a staged
+			// value rejected afterwards would leave the entry published with the old
+			// ones.
 			const draftRevision =
 				publishConfig.supportsRevisions && existing?.draftRevisionId
 					? await new RevisionRepository(trx).findById(existing.draftRevisionId)
@@ -2377,6 +2384,9 @@ export async function handleContentPublish(
 			const stagedReferenceBaselines = draftRevision
 				? readStagedReferenceBaselines(draftRevision.data)
 				: undefined;
+			const stagedMetadata = readStagedMetadata(draftRevision?.data);
+			const promotesReferences = Boolean(stagedReferences && existing?.translationGroup);
+			const promotesMetadata = Boolean(existing && hasStagedMetadata(stagedMetadata));
 			if (existing?.translationGroup) {
 				const valid = await validateStagedReferences(
 					trx,
@@ -2390,37 +2400,48 @@ export async function handleContentPublish(
 						apiError: { code: valid.error.code },
 					});
 				}
+			}
+			if (existing && promotesMetadata) {
+				await validateStagedMetadata(trx, stagedMetadata);
+			}
 
-				// Promote before the publishing statement, which is also what clears
-				// the draft pointer. On D1 that statement cannot be taken back, and
-				// the draft is the only place the staged selection can be read from
-				// again — a promotion that failed after it would have nothing left to
-				// retry. Replacing a selection is idempotent, so a retry that reaches
-				// here twice writes the same links.
-				//
-				// That ordering only holds if the publish is going to happen, so every
-				// refusal `repo.publish()` decides before it writes is decided here
-				// first. It repeats them all and stays authoritative; running them
-				// early keeps a refusal from landing after a promotion nothing undoes,
-				// which would show readers a selection that was never published. Its
-				// last check is the optimistic fence, which cannot move ahead of the
-				// write it guards.
-				if (stagedReferences) {
-					await assertPublishWillNotBeRefused(trx, collection, resolvedId, existing, {
-						stagedSlug: readStagedSlug(draftRevision?.data),
-						requireSlug: publishConfig.routable,
-						requireDue: options.requireScheduledDue,
-						expectedScheduledAt: options.expectedScheduledAt,
-						expectedRevision,
-					});
-					await applyStagedReferences(
-						trx,
-						collection,
-						existing.translationGroup,
-						stagedReferences,
-						stagedReferenceBaselines,
-					);
-				}
+			// Promote before the publishing statement, which is also what clears
+			// the draft pointer. On D1 that statement cannot be taken back, and
+			// the draft is the only place the staged values can be read from
+			// again — a promotion that failed after it would have nothing left to
+			// retry. Replacing a selection, the credits or a taxonomy's terms, and
+			// merging SEO, are idempotent, so a retry that reaches here twice
+			// writes the same rows.
+			//
+			// That ordering only holds if the publish is going to happen, so every
+			// refusal `repo.publish()` decides before it writes is decided here
+			// first. It repeats them all and stays authoritative; running them
+			// early keeps a refusal from landing after a promotion nothing undoes,
+			// which would show readers values that were never published. Its
+			// last check is the optimistic fence, which cannot move ahead of the
+			// write it guards.
+			if (existing && (promotesReferences || promotesMetadata)) {
+				await assertPublishWillNotBeRefused(trx, collection, resolvedId, existing, {
+					stagedSlug: readStagedSlug(draftRevision?.data),
+					requireSlug: publishConfig.routable,
+					requireDue: options.requireScheduledDue,
+					expectedScheduledAt: options.expectedScheduledAt,
+					expectedRevision,
+				});
+			}
+			if (existing?.translationGroup && stagedReferences) {
+				await applyStagedReferences(
+					trx,
+					collection,
+					existing.translationGroup,
+					stagedReferences,
+					stagedReferenceBaselines,
+				);
+			}
+			if (existing && promotesMetadata) {
+				await applyStagedMetadata(trx, collection, resolvedId, stagedMetadata, {
+					hasSeo: await collectionHasSeo(trx, collection),
+				});
 			}
 
 			const published = await repo.publish(
@@ -2849,58 +2870,4 @@ export async function handleContentTranslations(
 			},
 		};
 	}
-}
-
-/**
- * Resolve a `{ taxonomyName: [slug, ...] }` map to term IDs and replace the
- * entry's assignments for each named taxonomy.
- *
- * Shared by handleContentCreate and handleContentUpdate so both MCP entry
- * points behave identically. Slug resolution is scoped to `locale`; passing
- * `undefined` lets `findBySlug` fall back to its default (lowest locale code)
- * so callers on single-locale sites don't need to know the site's default.
- *
- * Throws EmDashValidationError on unknown slug or wrong shape; the calling
- * handler translates that into a VALIDATION_ERROR response.
- */
-async function assignTaxonomies(
-	trx: Kysely<Database>,
-	collection: string,
-	entryId: string,
-	locale: string | undefined,
-	taxonomies: Record<string, string[]>,
-): Promise<void> {
-	const taxRepo = new TaxonomyRepository(trx);
-	let anyChange = false;
-
-	for (const [taxonomyName, slugs] of Object.entries(taxonomies)) {
-		if (!Array.isArray(slugs)) {
-			throw new EmDashValidationError(`taxonomies.${taxonomyName} must be an array of term slugs`);
-		}
-
-		const termIds: string[] = [];
-		for (const slug of slugs) {
-			if (typeof slug !== "string" || slug.length === 0) {
-				throw new EmDashValidationError(
-					`taxonomies.${taxonomyName} contains a non-string or empty slug`,
-				);
-			}
-			const term = await taxRepo.findBySlug(taxonomyName, slug, locale);
-			if (!term) {
-				throw new EmDashValidationError(
-					`Unknown taxonomy term: ${taxonomyName}='${slug}'${
-						locale ? ` (locale '${locale}')` : ""
-					}`,
-				);
-			}
-			termIds.push(term.id);
-		}
-
-		await taxRepo.setTermsForEntry(collection, entryId, taxonomyName, termIds);
-		anyChange = true;
-	}
-
-	// Match the REST route's behaviour: taxonomy term assignments changed,
-	// so invalidate the taxonomy object cache used during hydration.
-	if (anyChange) invalidateTermCache();
 }
