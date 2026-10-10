@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -89,16 +89,24 @@ describe("emdash login and logout", () => {
 		});
 	}
 
-	it.each([
-		["login", "/_emdash/.well-known/auth"],
-		["logout", "/_emdash/api/oauth/token/revoke"],
-	])("%s uses EMDASH_URL when --url is not given", async (command, requestPath) => {
+	it("login uses EMDASH_URL when --url is not given", async () => {
+		const { server, seen } = (stub = await startStub());
+
+		const result = await runCli(["login"], { EMDASH_URL: urlOf(server) });
+
+		expect(seen).toContain("/_emdash/.well-known/auth");
+		expect(result.code).toBe(0);
+	});
+
+	it("logout uses EMDASH_URL when --url is not given", async () => {
 		const { server, seen } = (stub = await startStub());
 		saveCredential(urlOf(server));
 
-		const result = await runCli([command], { EMDASH_URL: urlOf(server) });
+		const result = await runCli(["logout"], { EMDASH_URL: urlOf(server) });
 
-		expect(seen).toContain(requestPath);
+		expect(seen).toContain("/_emdash/api/oauth/token/revoke");
 		expect(result.code).toBe(0);
+		const stored = JSON.parse(readFileSync(join(workDir, "config", "emdash", "auth.json"), "utf8"));
+		expect(stored[urlOf(server)]).toBeUndefined();
 	});
 });
