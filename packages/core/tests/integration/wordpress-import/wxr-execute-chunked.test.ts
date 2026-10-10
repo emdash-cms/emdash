@@ -233,6 +233,51 @@ describe("WXR execute chunked import", () => {
 		]);
 	});
 
+	it("makes links to the source site relative", async () => {
+		const wxr = makeWxr(1).replace(
+			"<p>Content 1</p>",
+			'<p><a href="https://example.com/2008/09/01/sample-page/">Sample</a> and <a href="https://other.example/">other</a></p>',
+		);
+
+		for (const phase of [undefined, "content"]) {
+			// oxlint-disable-next-line no-await-in-loop -- each phase imports into a fresh table
+			await harness.db.deleteFrom("ec_post").execute();
+			// oxlint-disable-next-line no-await-in-loop -- sequential import phases
+			const prepared = phase ? await prepareChunkedImport(wxr, harness.emdash) : undefined;
+			// oxlint-disable-next-line no-await-in-loop -- sequential import phases
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(
+					buildFormData(
+						wxr,
+						prepared
+							? {
+									phase,
+									cursor: JSON.stringify(prepared.data.cursor),
+									chunk: JSON.stringify(prepared.data.chunk),
+								}
+							: {},
+					),
+					harness.emdash,
+				) as any,
+			);
+			expect(response.status).toBe(200);
+
+			// oxlint-disable-next-line no-await-in-loop -- sequential import phases
+			const row = await harness.db
+				.selectFrom("ec_post")
+				.select("content")
+				.executeTakeFirstOrThrow();
+			const hrefs = JSON.parse(String(row.content))
+				.flatMap((block: { markDefs?: { href?: string }[] }) => block.markDefs ?? [])
+				.map((def: { href?: string }) => def.href);
+			expect(hrefs, phase ?? "single request").toEqual([
+				"/2008/09/01/sample-page/",
+				"https://other.example/",
+			]);
+		}
+	});
+
 	it("rejects a cursor when the WXR file changes", async () => {
 		const wxr = makeWxr(35);
 		const prepared = await prepareChunkedImport(wxr, harness.emdash);

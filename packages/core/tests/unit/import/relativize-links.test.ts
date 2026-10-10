@@ -100,6 +100,15 @@ describe("relativizeContentLinks", () => {
 		});
 	});
 
+	it("keeps uploaded file links in raw html absolute", () => {
+		const html = `<a href="${SITE}/wp-content/uploads/report.pdf">pdf</a>`;
+		const blocks: PortableTextBlock[] = [{ _type: "htmlBlock", _key: "h1", html }];
+
+		relativizeContentLinks(blocks, SITE);
+
+		expect(blocks[0]).toMatchObject({ html });
+	});
+
 	it("recurses into columns and rewrites table cell links", () => {
 		const blocks: PortableTextBlock[] = [
 			{
