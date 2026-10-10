@@ -77,6 +77,9 @@ vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
 			<button
 				type="button"
 				data-block-insert
+				// Like the real insert button, a click keeps focus in the editor. Refocusing it makes
+				// ProseMirror put the caret back 20ms later, undoing an arrow key pressed before then.
+				onMouseDown={(event) => event.preventDefault()}
 				onClick={() => onInsertBlock?.(editor.state.doc.child(0).nodeSize)}
 			>
 				Test insert after first block
