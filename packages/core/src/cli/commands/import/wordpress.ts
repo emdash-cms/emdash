@@ -16,7 +16,7 @@ import pc from "picocolors";
 import { slugify } from "#utils/slugify.js";
 
 import { validateExternalUrl, ssrfSafeFetch } from "../../../import/ssrf.js";
-import { isInternalPostType } from "../../../import/utils.js";
+import { INTERNAL_POST_TYPES, isInternalPostType } from "../../../import/utils.js";
 import { parseWxr, type WxrData, type WxrPost, type WxrAttachment } from "../../wxr/parser.js";
 
 // Regex patterns for WordPress import
@@ -413,19 +413,7 @@ function generateMigrationConfig(wxr: WxrData, analysis: ContentAnalysis): Migra
 		},
 		collections,
 		fields,
-		skipPostTypes: [
-			"revision",
-			"nav_menu_item",
-			"custom_css",
-			"customize_changeset",
-			"oembed_cache",
-			"wp_global_styles",
-			"wp_navigation",
-			"wp_template",
-			"wp_template_part",
-			"attachment",
-			"wp_block",
-		],
+		skipPostTypes: [...INTERNAL_POST_TYPES],
 		skipMetaKeys: ["_edit_last", "_edit_lock", "_pingme", "_encloseme"],
 	};
 }
