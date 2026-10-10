@@ -423,7 +423,7 @@ export function FieldEditor({
 		},
 		{
 			type: "select",
-			label: t`Select`,
+			label: t({ message: "Select", context: "field type" }),
 			description: t`Single choice from options`,
 			icon: List,
 		},
@@ -1292,7 +1292,7 @@ export function FieldEditor({
 															integer: t`Integer`,
 															boolean: t`Boolean`,
 															datetime: t`Date & Time`,
-															select: t`Select`,
+															select: t({ message: "Select", context: "field type" }),
 															url: t`URL`,
 															image: t`Image`,
 														}}

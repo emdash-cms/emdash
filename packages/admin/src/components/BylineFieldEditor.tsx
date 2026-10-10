@@ -48,7 +48,7 @@ const TYPE_OPTIONS: { value: BylineFieldType; label: MessageDescriptor }[] = [
 	{ value: "text", label: msg`Long text` },
 	{ value: "url", label: msg`URL` },
 	{ value: "boolean", label: msg`Boolean` },
-	{ value: "select", label: msg`Select` },
+	{ value: "select", label: msg({ message: "Select", context: "field type" }) },
 ];
 
 export interface BylineFieldEditorProps {
