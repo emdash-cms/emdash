@@ -309,7 +309,7 @@ export function MediaLibrary({
 	}, [activeProvider, providers, t]);
 	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
 	const canSearch = activeProviderInfo?.capabilities.search ?? false;
-	const canUploadHere = canUpload && (activeProvider !== "local" || !folderId);
+	const canUploadHere = canUpload;
 
 	const cancelPendingDetailOpen = React.useCallback(() => {
 		if (detailOpenFrameRef.current === null) return;
@@ -623,12 +623,12 @@ export function MediaLibrary({
 			if (!uploadTarget) throw new Error("Upload target unavailable");
 			if (uploadTarget.id === "local") {
 				if (!onUpload) throw new Error("Upload callback unavailable");
-				await onUpload(file, options);
+				await onUpload(file, { ...options, folderId: folderId ?? null });
 				return;
 			}
 			await uploadToProvider(uploadTarget.id, file, undefined, options);
 		},
-		[onUpload, uploadTarget],
+		[folderId, onUpload, uploadTarget],
 	);
 	const handleUploadDialogClosed = React.useCallback(() => {
 		setEnqueueRequest(null);
