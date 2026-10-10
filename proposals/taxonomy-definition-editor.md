@@ -40,7 +40,7 @@ Keep one Label field, matching creation, and preserve any stored `labelSingular`
 - Renaming the stable identifier, changing identifier validation or normalizing term slugs.
 - A separate Taxonomy Types listing or taxonomy-order feature.
 - Redesigning localization or exposing an additional singular-label field in this dialog.
-- Fixing Kumo's disabled-text token mismatch as part of the EmDash feature. That is a separate dependency report.
+- Fixing Kumo's disabled-text token mismatch as part of the EmDash feature. That is reported separately in [Kumo #866](https://github.com/cloudflare/kumo/issues/866).
 
 ## Interfaces and compatibility
 
