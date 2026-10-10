@@ -1,0 +1,62 @@
+---
+title: AI Search
+description: Add Cloudflare AI Search to an EmDash site with the first-party AI Search plugin.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+AI Search is a first-party native plugin that indexes published content into a [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/) instance and serves search results to the site. It keeps the index current as content changes.
+
+<Aside type="note">
+	The plugin runs only on Cloudflare Workers. It needs an `ai_search_namespaces` binding in
+	`wrangler.jsonc`.
+</Aside>
+
+## Installation
+
+Install the package from npm:
+
+```sh
+pnpm add @emdash-cms/plugin-ai-search
+```
+
+Add `aiSearch()` to `plugins` in `astro.config.mjs`:
+
+```js title="astro.config.mjs"
+import { aiSearch } from "@emdash-cms/plugin-ai-search";
+
+emdash({
+	plugins: [aiSearch()],
+}),
+```
+
+Add the AI Search namespace binding:
+
+```jsonc title="wrangler.jsonc"
+{
+	"ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "default" }],
+}
+```
+
+## Options
+
+| Option     | Default     | Description                                                           |
+| ---------- | ----------- | --------------------------------------------------------------------- |
+| `binding`  | `AI_SEARCH` | Name of the `ai_search_namespaces` binding in `wrangler.jsonc`.       |
+| `instance` | `emdash`    | AI Search instance the plugin creates and owns inside that namespace. |
+
+## Add search to the site
+
+Add the `AiSearch` component to a layout. It renders a search button and opens the search modal, also with <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd>, so render it once per page:
+
+```astro title="src/layouts/Base.astro"
+---
+import { AiSearch } from "@emdash-cms/plugin-ai-search/astro";
+---
+
+<AiSearch placeholder="Search content" />
+```
+
+## Build the index
+
+After deploying, open **AI Search** in the admin. The setup wizard chooses the content to index, shows an example result address for each source, and builds the index when you select **Build index**. Search is live once the build starts, with results appearing as documents are indexed. Later content changes update the index automatically.

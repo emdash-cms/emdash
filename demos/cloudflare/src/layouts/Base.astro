@@ -8,6 +8,7 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
+import { AiSearch } from "@emdash-cms/plugin-ai-search/astro";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import "../styles/theme.css";
 
@@ -99,24 +100,7 @@ const isLoggedIn = !!Astro.locals.user;
 					}
 				</a>
 				<div class="nav-right">
-					<button type="button" class="nav-search-btn" data-search-trigger aria-label="Search">
-						<svg class="nav-search-icon" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-							<path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/>
-						</svg>
-						<span>Search</span>
-						<kbd class="nav-search-kbd">⌘K</kbd>
-					</button>
-					<search-modal-snippet
-						id="site-search"
-						api-url="/api/ai-search"
-						placeholder="Search…"
-						theme="auto"
-						max-results="30"
-						max-render-results="10"
-						show-url="true"
-						show-date="true"
-						disable-analytics="true"
-					></search-modal-snippet>
+					<AiSearch class="nav-search" placeholder="Search…" maxResults={10} />
 					<div class="nav-links">
 						{
 							menu?.items.map((item) => (
@@ -618,40 +602,12 @@ const isLoggedIn = !!Astro.locals.user;
 				gap: var(--spacing-6);
 			}
 
-			.nav-search-btn {
-				display: inline-flex;
-				align-items: center;
-				gap: var(--spacing-2);
-				padding: var(--spacing-2) var(--spacing-3);
-				font-family: var(--font-sans);
-				font-size: var(--font-size-sm);
-				color: var(--color-text-secondary);
-				background: var(--color-bg);
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius);
-				cursor: pointer;
-				transition:
-					border-color var(--transition-fast),
-					color var(--transition-fast);
-			}
-
-			.nav-search-btn:hover {
-				color: var(--color-text);
-				border-color: var(--color-accent);
-			}
-
-			.nav-search-icon {
-				width: 16px;
-				height: 16px;
-			}
-
-			.nav-search-kbd {
-				font-family: var(--font-sans);
-				font-size: var(--font-size-xs);
-				color: var(--color-muted);
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius);
-				padding: 0 var(--spacing-1);
+			.nav-search {
+				--ai-search-trigger-background: var(--color-bg);
+				--ai-search-trigger-border: var(--color-border);
+				--ai-search-trigger-color: var(--color-text-secondary);
+				--ai-search-trigger-accent: var(--color-accent);
+				--ai-search-trigger-radius: var(--radius);
 			}
 
 			.nav-links {
@@ -913,18 +869,6 @@ const isLoggedIn = !!Astro.locals.user;
 			}
 		</style>
 
-		<script>
-			import * as aiSearchSnippet from "@cloudflare/ai-search-snippet";
-
-			void aiSearchSnippet;
-
-			const searchModal = document.getElementById("site-search") as HTMLElement & {
-				open?: () => void;
-			};
-			document
-				.querySelector("[data-search-trigger]")
-				?.addEventListener("click", () => searchModal?.open?.());
-		</script>
 		<EmDashBodyEnd page={pageCtx} />
 	</body>
 </html>

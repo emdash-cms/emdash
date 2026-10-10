@@ -1,0 +1,52 @@
+{
+	"name": "@emdash-cms/plugin-ai-search",
+	"version": "0.0.0",
+	"description": "Cloudflare AI Search for EmDash sites",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./admin": "./src/admin.tsx",
+		"./astro": "./src/astro/index.ts"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"search",
+		"cloudflare",
+		"ai-search"
+	],
+	"license": "MIT",
+	"peerDependencies": {
+		"@cloudflare/kumo": "catalog:",
+		"@phosphor-icons/react": "^2.1.10",
+		"astro": ">=6.0.0-beta.0",
+		"emdash": "workspace:>=1.0.0",
+		"react": "^18.0.0 || ^19.0.0"
+	},
+	"devDependencies": {
+		"@cloudflare/kumo": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"@phosphor-icons/react": "catalog:",
+		"@types/react": "catalog:",
+		"astro": "catalog:",
+		"react": "catalog:",
+		"vitest": "catalog:"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/ai-search"
+	},
+	"dependencies": {
+		"@cloudflare/ai-search-snippet": "0.0.43"
+	}
+}
