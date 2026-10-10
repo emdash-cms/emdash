@@ -569,10 +569,10 @@ export function coerceToFieldType(value: unknown, fieldType: string): unknown {
 }
 
 /**
- * ACF relationship, post object, user and taxonomy fields return WP_Post,
- * WP_User and WP_Term objects by default, and exporters that pass them
- * through send a related post's content and password or a user's password
- * hash. Keep only the IDs.
+ * ACF relationship, post object, user and taxonomy fields set to the object
+ * return format give WP_Post, WP_User and WP_Term objects, and exporters that
+ * pass them through send a related post's content and password or a user's
+ * password hash. Keep only the IDs.
  */
 export function reduceWordPressObjects(value: unknown): unknown {
 	if (Array.isArray(value)) return value.map(reduceWordPressObjects);
