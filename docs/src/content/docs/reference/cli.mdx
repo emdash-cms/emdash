@@ -652,6 +652,53 @@ The import commands exit with these codes:
 | `1` | An error, a declined prompt, an import that ended without a receipt, or a receipt whose digest does not match. For `status`, an import that failed, was cancelled or abandoned, or expired |
 | `2` | Analysis finished, but the plan has blockers |
 
+### `emdash import`
+
+Convert content exported from another CMS into files on disk.
+
+#### `import wordpress <file>`
+
+Convert a WordPress eXtended RSS (WXR) export into JSON files. The command works on local files only. It does not connect to an EmDash site or write to its database; use the admin importer described in [Migrate from WordPress](/migration/from-wordpress/) to import content into a site.
+
+The conversion runs in two steps. First analyze the export and write a migration config, then convert the content with that config:
+
+```bash
+npx emdash import wordpress export.xml
+npx emdash import wordpress export.xml --execute
+```
+
+| Option         | Alias | Description                                                                      | Default                                |
+| -------------- | ----- | -------------------------------------------------------------------------------- | -------------------------------------- |
+| `--prepare`    |       | Analyze the export and write the migration config. This is the default step      |                                        |
+| `--execute`    |       | Convert content using the migration config                                       |                                        |
+| `--resume`     |       | Run `--execute`, skipping entries and attachments that an earlier run converted  |                                        |
+| `--output-dir` | `-o`  | Directory for the migration config, converted files, and progress file          | `./wordpress-import`                   |
+| `--config`     |       | Migration config path                                                            | `<output-dir>/migration-config.json`   |
+| `--media-dir`  |       | Directory for downloaded attachments                                             | `<output-dir>/media`                   |
+| `--skip-media` |       | Do not download attachments                                                      | Attachments downloaded                 |
+| `--dry-run`    |       | Report the files the step would write without writing them                      |                                        |
+| `--verbose`    | `-v`  | Log each converted entry and attachment                                          |                                        |
+| `--json`       |       | Write the result to stdout as JSON instead of progress messages                  |                                        |
+
+`--prepare` cannot be combined with `--execute` or `--resume`. Pass the same `--output-dir` and `--config` values to every step.
+
+The prepare step writes these files to the output directory:
+
+- `migration-config.json` maps each WordPress post type to a collection and each post-meta key to a field. Set `enabled` to `false` to leave a post type or field out, or change `collection` or `field` to rename the target.
+- `suggested-live.config.ts` lists the collections and fields to create in the admin under **Content Types**.
+
+The execute step converts Gutenberg and Classic Editor markup to Portable Text and writes one file per entry to `<output-dir>/<collection>/<slug>.json`. Entries are named by slug, so two entries in the same collection with the same slug, such as translations, write the same file. The step also writes `_redirects.json`, which maps each WordPress URL to its converted path, and `.wp-migration-progress.json`.
+
+Unless you pass `--skip-media`, the execute step downloads every attachment URL into the media directory. The WordPress site must be reachable, and URLs that resolve to private network addresses are refused.
+
+The progress file records the WordPress IDs of converted entries and downloaded attachments. It is saved after every 50 converted entries and when the step finishes. After an interruption or failed items, run the step again with `--resume` to skip the IDs already recorded:
+
+```bash
+npx emdash import wordpress export.xml --resume
+```
+
+The command exits with code `1` when an entry or attachment fails, and lists the failures in the `errors` array of the progress file. With `--json`, the result contains `phase`, `dryRun`, `summary`, `files`, `errors`, and `nextSteps`.
+
 ### `emdash export-seed`
 
 Export database schema and content as a seed file. Works directly on a local SQLite file.

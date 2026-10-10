@@ -114,7 +114,7 @@ The admin import is designed to skip existing entries, but its matching boundary
 - Rerunning the media step reuses already stored byte-identical files by content hash.
 - The exporter flow sends bounded chunks. Restarting the browser flow reruns content pages and rebuilds relationship maps from skipped entries.
 
-The admin does not persist a WXR resume file. The `--resume` flag on `emdash import wordpress` belongs to a separate CLI workflow that writes converted JSON files to disk; it does not resume an admin database import.
+The admin does not persist a WXR resume file. The `--resume` flag on [`emdash import wordpress`](/reference/cli/#import-wordpress-file) belongs to a separate CLI workflow that writes converted JSON files to disk; it does not resume an admin database import.
 
 <Aside type="caution">
   Do not delete or redirect the WordPress origin after an interrupted import. First compare collection counts, inspect errors, finish media downloads, and verify rewritten links.
