@@ -36,6 +36,7 @@ import {
 import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
+import { getAuthTurnstileKeys } from "../../comments/turnstile.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
@@ -328,6 +329,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
 					),
+					getAuthTurnstileKeys() !== null,
 				),
 			);
 		}
@@ -346,6 +348,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					context.locals.emdash?.config.storage,
 					context.locals.emdash?.storage,
 				),
+				getAuthTurnstileKeys() !== null,
 			),
 		);
 	}
