@@ -2730,7 +2730,9 @@ const contentTypesListRoute = createRoute({
 });
 
 function ContentTypesListPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 
 	const {
 		data: collections,
@@ -2775,6 +2777,13 @@ function ContentTypesListPage() {
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["schema", "orphans"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+		onError: (error, slug) => {
+			toastManager.add({
+				title: t`Failed to register ${slug}`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+			});
 		},
 	});
 
