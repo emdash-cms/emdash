@@ -746,7 +746,7 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("Loading folders")).toBeInTheDocument();
 		});
 
-		it("shows Back and breadcrumbs inside a folder and hides local creation actions", async () => {
+		it("shows Back and breadcrumbs inside a folder, hides folder creation, and keeps upload available", async () => {
 			const onBackToMain = vi.fn();
 			const screen = await renderLibrary({
 				folderId: "folder-1",
@@ -775,7 +775,9 @@ describe("MediaLibrary", () => {
 				getComputedStyle(currentFolder.element()).fontSize,
 			);
 			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
-			expect(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }))
+				.toBeInTheDocument();
 		});
 
 		it("keeps browsing available without folder-management permission", async () => {
@@ -867,19 +869,28 @@ describe("MediaLibrary", () => {
 			expect(onOpenFolder).toHaveBeenCalledWith(expect.objectContaining({ id: "folder-result" }));
 		});
 
-		it("disables local page-drop upload while inside a folder", async () => {
-			const onUpload = vi.fn();
+		it("allows local page-drop upload while inside a folder and passes the folder id", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
 			const screen = await renderLibrary({
 				folderId: "folder-1",
 				currentFolder: makeFolder(),
 				onUpload,
 			});
 
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }))
+				.toBeInTheDocument();
+
 			dropFiles(window, [new File(["image"], "dropped.jpg", { type: "image/jpeg" })]);
 
-			await new Promise((resolve) => setTimeout(resolve, 50));
-			expect(onUpload).not.toHaveBeenCalled();
-			expect(screen.getByText("Drop files to upload").query()).toBeNull();
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+			expect(onUpload).toHaveBeenCalledWith(
+				expect.objectContaining({ name: "dropped.jpg" }),
+				expect.objectContaining({ folderId: "folder-1" }),
+			);
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
 		});
 
 		it("keeps media usable when folders fail and offers retry", async () => {
