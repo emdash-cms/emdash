@@ -620,6 +620,7 @@ export class EmDashClient {
 								options.onTokenRefresh!(accessToken, expiresIn);
 							}
 						: undefined,
+					fetch: createTransport({ interceptors: options.interceptors }).fetch,
 				}),
 			);
 		}
