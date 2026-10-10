@@ -186,12 +186,16 @@ describe("BylinesPage directory", () => {
 
 	it("keeps the create dialog and its actions within a narrow viewport", async () => {
 		await page.viewport(320, 640);
+		const container = document.createElement("div");
+		container.id = "admin-root";
+		document.body.append(container);
 		const screen = await render(
 			<QueryWrapper>
 				<Toast.Provider>
 					<BylinesPage />
 				</Toast.Provider>
 			</QueryWrapper>,
+			{ container },
 		);
 
 		await screen.getByRole("button", { name: "New byline" }).first().click();
