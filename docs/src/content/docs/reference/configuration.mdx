@@ -105,7 +105,11 @@ See [Storage Options](/deployment/storage/) for details.
 
 **Optional.** Controls whether EmDash integrates stored media with Astro's image optimization. The default is `true`.
 
-When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
+When enabled, EmDash wraps Astro's image endpoint to optimize stored media. Local image services and the Cloudflare Images binding read source bytes directly from storage, including behind Cloudflare Access. External Astro image services on Node receive the storage adapter's public URL, which must be accessible to the service. The configured image service determines which input formats it can transform, including HEIC.
+
+Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` to leave Astro's image endpoint untouched.
+
+The following configuration disables EmDash's image endpoint wrapper.
 
 ```js
 emdash({
