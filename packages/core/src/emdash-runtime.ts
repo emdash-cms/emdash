@@ -5998,6 +5998,8 @@ export class EmDashRuntime {
 						: await normalizeMediaValue(value, getProvider);
 				if (normalized) {
 					result[field.slug] = normalized;
+				} else if (isBlankString(value)) {
+					result[field.slug] = null;
 				}
 			} catch {
 				// Don't fail the save if normalization fails for a single field
@@ -6025,6 +6027,8 @@ export class EmDashRuntime {
 							const normalized = await normalizeImageValue(subValue, getProvider);
 							if (normalized) {
 								normalizedItem[slug] = normalized;
+							} else if (isBlankString(subValue)) {
+								normalizedItem[slug] = null;
 							}
 						} catch {
 							// Don't fail the save if normalization fails for a single sub-field
@@ -6053,12 +6057,16 @@ export class EmDashRuntime {
 							const nestedValue = normalizedBlock[nestedField.slug];
 							if (nestedValue == null) continue;
 							try {
-								if (nestedField.type === "image") {
-									const normalized = await normalizeImageValue(nestedValue, getProvider);
-									if (normalized) normalizedBlock[nestedField.slug] = normalized;
-								} else if (nestedField.type === "file") {
-									const normalized = await normalizeMediaValue(nestedValue, getProvider);
-									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								if (nestedField.type === "image" || nestedField.type === "file") {
+									const normalized =
+										nestedField.type === "image"
+											? await normalizeImageValue(nestedValue, getProvider)
+											: await normalizeMediaValue(nestedValue, getProvider);
+									if (normalized) {
+										normalizedBlock[nestedField.slug] = normalized;
+									} else if (isBlankString(nestedValue)) {
+										normalizedBlock[nestedField.slug] = null;
+									}
 								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
 									const imageSlugs = (nestedField.validation?.subFields ?? [])
 										.filter((subField) => subField.type === "image")
@@ -6073,7 +6081,11 @@ export class EmDashRuntime {
 														normalizedItem[slug],
 														getProvider,
 													);
-													if (normalized) normalizedItem[slug] = normalized;
+													if (normalized) {
+														normalizedItem[slug] = normalized;
+													} else if (isBlankString(normalizedItem[slug])) {
+														normalizedItem[slug] = null;
+													}
 												} catch {
 													continue;
 												}
@@ -6453,6 +6465,10 @@ export class EmDashRuntime {
 		const status = this.pluginStates.get(pluginId);
 		return status === undefined || status === "active";
 	}
+}
+
+function isBlankString(value: unknown): boolean {
+	return typeof value === "string" && value.trim() === "";
 }
 
 /**
