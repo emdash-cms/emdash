@@ -80,6 +80,10 @@ export interface StorageCollectionDeclaration {
 export interface PluginDescriptor<TOptions extends object = object> {
 	/** Unique plugin identifier */
 	id: string;
+	/** Human-readable plugin name */
+	displayName?: string;
+	/** Description shown in plugin management UI */
+	description?: string;
 	/** Plugin version (semver) */
 	version: string;
 	/** Module specifier to import (e.g., "@emdash-cms/plugin-api-test") */
