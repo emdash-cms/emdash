@@ -19,6 +19,7 @@ import {
 import type { EmDashHandlers, EmDashManifest } from "../../../src/astro/types.js";
 import type { Database } from "../../../src/database/types.js";
 import type { NormalizedItem } from "../../../src/import/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime, handlersFromRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -140,6 +141,68 @@ describe("WordPress plugin import — field auto-creation", () => {
 			.where("slug", "=", "seo_title")
 			.executeTakeFirst();
 		expect(field).toBeUndefined();
+	});
+
+	it("stores only the IDs of posts, users and terms in ACF values", async () => {
+		const registry = new SchemaRegistry(db);
+		for (const slug of ["related", "reviewer", "topics", "credits"]) {
+			await registry.createField("post", { slug, label: slug, type: "json" });
+		}
+		const config: WpPluginImportConfig = {
+			postTypeMappings: { post: { collection: "post", enabled: true } },
+			skipExisting: false,
+		};
+		const emdash = {
+			db,
+			handleContentCreate: (collection: string, body: { data: Record<string, unknown> }) =>
+				handleContentCreate(db, collection, body),
+		} as unknown as EmDashHandlers;
+		const manifest = { collections: { post: {} } } as unknown as EmDashManifest;
+		const wpPost = { ID: 14, post_type: "post", post_content: "Body", post_password: "secret" };
+		const wpUser = {
+			data: { ID: "1", user_login: "admin", user_pass: "$wp$2y$hash" },
+			ID: 1,
+			caps: { administrator: true },
+			cap_key: "wp_capabilities",
+		};
+		const wpTerm = { term_id: 3, name: "News", slug: "news", taxonomy: "category" };
+		const acfUserArray = { ID: 2, display_name: "Bob", user_email: "bob@example.com" };
+
+		const items = [
+			makeItem({
+				slug: "book",
+				meta: {
+					_acf: {
+						related: [wpPost],
+						reviewer: wpUser,
+						topics: [wpTerm],
+						credits: [{ name: "Ada", profile: wpPost, editor: acfUserArray }],
+					},
+				},
+			}),
+		];
+
+		const { result } = await importContent(generate(items), config, emdash, manifest, undefined);
+		expect(result.errors).toEqual([]);
+
+		const row = await db
+			// eslint-disable-next-line typescript/no-explicit-any -- dynamic ec_ table not in the static schema
+			.selectFrom("ec_post" as any)
+			.select(["related", "reviewer", "topics", "credits"])
+			.where("slug", "=", "book")
+			.executeTakeFirstOrThrow();
+		const values = Object.fromEntries(
+			Object.entries(row).map(([key, value]) => [
+				key,
+				typeof value === "string" ? JSON.parse(value) : value,
+			]),
+		);
+		expect(values).toEqual({
+			related: [14],
+			reviewer: 1,
+			topics: [3],
+			credits: [{ name: "Ada", profile: 14, editor: 2 }],
+		});
 	});
 });
 

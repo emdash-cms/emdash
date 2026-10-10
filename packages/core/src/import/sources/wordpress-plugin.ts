@@ -31,6 +31,7 @@ import {
 	normalizeUrl,
 	checkSchemaCompatibility,
 	isPluginBookkeepingMeta,
+	isTypeCompatible,
 	relativizeContentLinks,
 	sanitizeFieldSlug,
 } from "../utils.js";
@@ -128,6 +129,8 @@ interface PluginAnalyzeResponse {
 	acf?: Array<{
 		key: string;
 		title: string;
+		/** ACF location rules: OR-groups of AND-ed rules */
+		location?: Array<Array<{ param: string; operator: string; value: string }>>;
 		fields: Array<{
 			key: string;
 			name: string;
@@ -399,8 +402,33 @@ export const wordpressPluginSource: ImportSource = {
 				// the prepare step creates them — without this, execute() has no
 				// matching schema fields and silently drops the values.
 				const knownSlugs = new Set(requiredFields.map((f) => f.slug));
+				const metaTypes = new Map(
+					(pt.custom_fields ?? []).map((field) => [
+						sanitizeFieldSlug(field.key),
+						mapInferredFieldType(field.inferred_type),
+					]),
+				);
+				const jsonAcfFields: AcfFieldInfo[] = [];
+				for (const acfField of acfFieldsForPostType(data.acf, pt.name)) {
+					const slug = sanitizeFieldSlug(acfField.name);
+					if (knownSlugs.has(slug)) continue;
+					knownSlugs.add(slug);
+					const type = acfImportFieldType(
+						acfField,
+						existingCollection?.fields.get(slug)?.type,
+						metaTypes.get(slug),
+					);
+					if (type === "json") jsonAcfFields.push(acfField);
+					requiredFields.push({
+						slug,
+						label: acfField.label || fieldLabelFromKey(acfField.name),
+						type,
+						required: false,
+					});
+				}
 				for (const customField of pt.custom_fields ?? []) {
 					if (isPluginBookkeepingMeta(customField.key)) continue;
+					if (isAcfRowMeta(customField.key, jsonAcfFields)) continue;
 					const slug = sanitizeFieldSlug(customField.key);
 					if (knownSlugs.has(slug)) continue;
 					knownSlugs.add(slug);
@@ -605,6 +633,96 @@ const VALID_INFERRED_TYPES = new Set([
  */
 function mapInferredFieldType(inferredType: string): string {
 	return VALID_INFERRED_TYPES.has(inferredType) ? inferredType : "string";
+}
+
+/**
+ * EmDash field types for ACF field types that hold a single value and return
+ * a scalar by default. When a return format makes `get_fields()` give an
+ * array, the raw meta value fills the field instead. Every other ACF type
+ * (select, checkbox, relationship, repeater, gallery, ...) can return several
+ * values or an object and is stored as JSON.
+ */
+const ACF_FIELD_TYPES: Record<string, string> = {
+	text: "string",
+	email: "string",
+	url: "string",
+	password: "string",
+	radio: "string",
+	button_group: "string",
+	color_picker: "string",
+	oembed: "string",
+	date_picker: "string",
+	date_time_picker: "string",
+	time_picker: "string",
+	textarea: "text",
+	wysiwyg: "text",
+	number: "number",
+	range: "number",
+	true_false: "boolean",
+};
+
+type AcfFieldInfo = NonNullable<PluginAnalyzeResponse["acf"]>[number]["fields"][number];
+
+/**
+ * The field type for an ACF field. A collection created by an earlier
+ * import holds the type the raw meta suggested for that key; that type is
+ * kept so the collection still imports, and the field's flattened row
+ * keys then keep filling their own fields.
+ */
+function acfImportFieldType(
+	field: AcfFieldInfo,
+	existingType: string | undefined,
+	metaType: string | undefined,
+): string {
+	const acfType = ACF_FIELD_TYPES[field.type] ?? "json";
+	if (
+		existingType &&
+		metaType &&
+		!isTypeCompatible(acfType, existingType) &&
+		isTypeCompatible(metaType, existingType)
+	) {
+		return existingType;
+	}
+	return acfType;
+}
+
+/** ACF layout-only field types that hold no value */
+const ACF_LAYOUT_TYPES = new Set(["tab", "message", "accordion"]);
+
+/** Fields of the ACF field groups whose location rules include `post_type == <postType>` */
+function acfFieldsForPostType(
+	groups: PluginAnalyzeResponse["acf"],
+	postType: string,
+): AcfFieldInfo[] {
+	const fields: AcfFieldInfo[] = [];
+	for (const group of groups ?? []) {
+		const assigned = group.location?.some((rules) =>
+			rules.some(
+				(rule) => rule.param === "post_type" && rule.operator === "==" && rule.value === postType,
+			),
+		);
+		if (!assigned) continue;
+		for (const field of group.fields) {
+			if (field.name && !ACF_LAYOUT_TYPES.has(field.type)) fields.push(field);
+		}
+	}
+	return fields;
+}
+
+const ACF_ROW_SUFFIX = /^_\d+_/;
+
+/**
+ * ACF stores repeater and flexible content rows as `<name>_<row>_<sub>`
+ * meta keys. Their values already arrive whole under the parent field in
+ * `get_fields()`.
+ */
+function isAcfRowMeta(key: string, acfFields: AcfFieldInfo[]): boolean {
+	return acfFields.some(
+		(field) =>
+			(field.type === "repeater" || field.type === "flexible_content") &&
+			key.startsWith(field.name) &&
+			ACF_ROW_SUFFIX.test(key.slice(field.name.length)),
+	);
 }
 
 const FIELD_KEY_SEPARATORS = /[_-]+/;

@@ -569,6 +569,27 @@ export function coerceToFieldType(value: unknown, fieldType: string): unknown {
 }
 
 /**
+ * ACF relationship, post object, user and taxonomy fields set to the object
+ * return format give WP_Post, WP_User and WP_Term objects, and a user field's
+ * default array format gives the user's email and profile. Exporters that
+ * pass them through send a related post's content and password or a user's
+ * password hash. Keep only the IDs.
+ */
+function reduceWordPressObjects(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(reduceWordPressObjects);
+	if (typeof value !== "object" || value === null) return value;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to non-null object above
+	const record = value as Record<string, unknown>;
+	if ("ID" in record && ("post_type" in record || "cap_key" in record || "user_email" in record)) {
+		return record.ID;
+	}
+	if ("term_id" in record && "taxonomy" in record) return record.term_id;
+	return Object.fromEntries(
+		Object.entries(record).map(([key, entry]) => [key, reduceWordPressObjects(entry)]),
+	);
+}
+
+/**
  * Pull the per-post SEO title/description out of the Yoast / Rank Math
  * blobs the plugin source stashes in `item.meta`. Empty strings mean "not
  * overridden for this post" (the plugin exports the raw meta values) and
@@ -971,7 +992,7 @@ export async function importContent(
 			const acf = item.meta?._acf;
 			if (typeof acf === "object" && acf !== null) {
 				for (const [key, value] of Object.entries(acf)) {
-					assignMetaValue(key, value);
+					assignMetaValue(key, reduceWordPressObjects(value));
 				}
 			}
 			if (item.meta) {
