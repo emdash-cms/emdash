@@ -234,6 +234,7 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 						{ key: "credits_0_credit_role", count: 2, inferred_type: "string", sample: "Author" },
 						{ key: "credits_note", count: 2, inferred_type: "string", sample: "Reprint" },
 						{ key: "sections_0_heading", count: 2, inferred_type: "string", sample: "Intro" },
+						{ key: "authors_0_name", count: 2, inferred_type: "string", sample: "Ada" },
 						{ key: "publisher_name", count: 2, inferred_type: "string", sample: "Acme" },
 					],
 					hierarchical: false,
@@ -255,7 +256,7 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 						field("credits", "repeater"),
 						field("sections", "flexible_content"),
 						field("publisher", "group"),
-						field("", "tab"),
+						field("details", "tab"),
 					],
 				},
 				{
@@ -293,6 +294,7 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 			sections: "json",
 			publisher: "json",
 			credits_note: "string",
+			authors_0_name: "string",
 			publisher_name: "string",
 		});
 	});

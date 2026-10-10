@@ -636,10 +636,10 @@ function mapInferredFieldType(inferredType: string): string {
 }
 
 /**
- * EmDash field types for ACF field types with scalar values. Every other
- * ACF type (checkbox, relationship, repeater, gallery, ...) can return an
- * array or object from `get_fields()`, depending on its settings, and is
- * stored as JSON.
+ * EmDash field types for ACF field types that return a scalar by default.
+ * Every other ACF type (checkbox, relationship, repeater, gallery, ...) can
+ * return an array or object from `get_fields()`, depending on its settings,
+ * and is stored as JSON.
  */
 const ACF_FIELD_TYPES: Record<string, string> = {
 	text: "string",
