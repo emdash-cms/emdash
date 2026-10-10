@@ -125,6 +125,14 @@ describeEachDialect("transfer staging collection", (dialect) => {
 		expect(await collectedAt(pending.id)).not.toBeNull();
 	});
 
+	it("collects a cancelled export immediately", async () => {
+		const cancelled = await stagedOperation("export", "cancelled");
+		await collectTransferStaging(ctx.db, storage);
+		expect(objectsUnder(cancelled.prefix)).toEqual([]);
+		expect(await stagedRows(cancelled.id)).toBe(0);
+		expect(await collectedAt(cancelled.id)).not.toBeNull();
+	});
+
 	it("keeps a complete export until it expires, then collects it", async () => {
 		const exported = await stagedOperation("export", "complete");
 		await collectTransferStaging(ctx.db, storage);

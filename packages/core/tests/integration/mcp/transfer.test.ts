@@ -251,6 +251,16 @@ describeEachDialect("site transfer MCP tools", (dialect) => {
 				allowed: ["transfer:export"],
 			},
 			{
+				name: "site_export_cancel",
+				args: { operationId: exportId },
+				allowed: ["transfer:export"],
+			},
+			{
+				name: "site_export_abandon",
+				args: { operationId: exportId },
+				allowed: ["transfer:export"],
+			},
+			{
 				name: "site_import_analyze",
 				args: { operationId: importId },
 				allowed: ["transfer:analyze"],
@@ -390,6 +400,70 @@ describeEachDialect("site transfer MCP tools", (dialect) => {
 		expect(code(await call(tokenB, "site_export_start", { approvalId: deniedId }))).toBe(
 			"TRANSFER_APPROVAL_INVALID",
 		);
+	});
+
+	it("cancels a pending export through the scope or the approval grant that started it", async () => {
+		const exporter = await connect({ scopes: ["transfer:export"], tokenId: "tok-cancel" });
+		const started = data<{ operation: OperationSummary }>(
+			await call(exporter, "site_export_start", {}),
+		);
+		const cancelled = data<{ operation: OperationSummary }>(
+			await call(exporter, "site_export_cancel", { operationId: started.operation.id }),
+		);
+		expect(cancelled.operation).toMatchObject({
+			id: started.operation.id,
+			state: "cancelled",
+			error: { code: "TRANSFER_CANCELLED" },
+		});
+
+		const otherScope = await connect({ scopes: ["transfer:analyze"], tokenId: "tok-another" });
+		expect(
+			code(await call(otherScope, "site_export_cancel", { operationId: started.operation.id })),
+		).toBe("INSUFFICIENT_SCOPE");
+
+		const noScope = await connect({ tokenId: "tok-grantee" });
+		expect(code(await call(noScope, "site_export_start", {}))).toBe("TRANSFER_APPROVAL_REQUIRED");
+		const approvalId = String(
+			(await call(noScope, "site_export_start", {}))._meta?.details?.approvalId,
+		);
+		await approve(approvalId);
+		const granteeStarted = data<{ operation: OperationSummary }>(
+			await call(noScope, "site_export_start", { approvalId }),
+		);
+		const granteeCancelled = data<{ operation: OperationSummary }>(
+			await call(noScope, "site_export_cancel", { operationId: granteeStarted.operation.id }),
+		);
+		expect(granteeCancelled.operation.state).toBe("cancelled");
+	});
+
+	it("abandons a cancelled export through the scope or the approval grant that started it", async () => {
+		const exporter = await connect({ scopes: ["transfer:export"], tokenId: "tok-abandon" });
+		const started = data<{ operation: OperationSummary }>(
+			await call(exporter, "site_export_start", {}),
+		);
+		await call(exporter, "site_export_cancel", { operationId: started.operation.id });
+		const abandoned = data<{ operation: OperationSummary }>(
+			await call(exporter, "site_export_abandon", { operationId: started.operation.id }),
+		);
+		expect(abandoned.operation).toMatchObject({ id: started.operation.id, state: "abandoned" });
+		expect(
+			code(await call(exporter, "site_export_abandon", { operationId: started.operation.id })),
+		).toBe("TRANSFER_INVALID_STATE");
+
+		const noScope = await connect({ tokenId: "tok-grantee2" });
+		expect(code(await call(noScope, "site_export_start", {}))).toBe("TRANSFER_APPROVAL_REQUIRED");
+		const approvalId = String(
+			(await call(noScope, "site_export_start", {}))._meta?.details?.approvalId,
+		);
+		await approve(approvalId);
+		const granteeStarted = data<{ operation: OperationSummary }>(
+			await call(noScope, "site_export_start", { approvalId }),
+		);
+		await call(noScope, "site_export_cancel", { operationId: granteeStarted.operation.id });
+		const granteeAbandoned = data<{ operation: OperationSummary }>(
+			await call(noScope, "site_export_abandon", { operationId: granteeStarted.operation.id }),
+		);
+		expect(granteeAbandoned.operation.state).toBe("abandoned");
 	});
 
 	it("analyzes, starts through an approval, resumes, and returns the receipt without leaking package data", async () => {

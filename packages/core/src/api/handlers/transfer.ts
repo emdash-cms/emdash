@@ -717,6 +717,50 @@ export async function handleImportAbandon(
 	}
 }
 
+/** Abandon a failed or cancelled export so its staging can be collected. */
+export async function handleExportAbandon(
+	db: Kysely<Database>,
+	operationId: string,
+	userId: string,
+): Promise<ApiResult<{ operation: PublicTransferOperation }>> {
+	try {
+		const operations = new TransferOperationRepository(db);
+		await requireExport(operations, operationId);
+		const operation = await operations.requestExportAbandon(operationId);
+		await recordTransferAudit(db, {
+			actorId: userId,
+			action: "transfer_export_abandon",
+			resourceType: "transfer_operation",
+			resourceId: operationId,
+		});
+		return { success: true, data: { operation: toPublicOperation(operation) } };
+	} catch (error) {
+		return errorResult(error, "TRANSFER_EXPORT_ERROR", "Failed to abandon export");
+	}
+}
+
+/** Cancel a running or pending export. A step in flight stops after its current batch. */
+export async function handleExportCancel(
+	db: Kysely<Database>,
+	operationId: string,
+	userId: string,
+): Promise<ApiResult<{ operation: PublicTransferOperation }>> {
+	try {
+		const operations = new TransferOperationRepository(db);
+		await requireExport(operations, operationId);
+		const operation = await operations.requestExportCancel(operationId);
+		await recordTransferAudit(db, {
+			actorId: userId,
+			action: "transfer_export_cancel",
+			resourceType: "transfer_operation",
+			resourceId: operationId,
+		});
+		return { success: true, data: { operation: toPublicOperation(operation) } };
+	} catch (error) {
+		return errorResult(error, "TRANSFER_EXPORT_ERROR", "Failed to cancel export");
+	}
+}
+
 // ── Exports ─────────────────────────────────────────────────────
 
 async function requireExport(
@@ -870,7 +914,8 @@ export async function handleExportAdvance(
 			throw error;
 		}
 		const nextRequestInMs =
-			step.outcome === "advanced" ? 0 : step.outcome === "busy" ? LEASE_RETRY_MS : null;
+			step.nextRequestInMs ??
+			(step.outcome === "busy" ? LEASE_RETRY_MS : step.outcome === "advanced" ? 0 : null);
 		return {
 			success: true,
 			data: { operation: toPublicOperation(step.operation), nextRequestInMs },

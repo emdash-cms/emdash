@@ -60,7 +60,13 @@ import { TransferStepBudget } from "../ops/budget.js";
 import { TransferMediaBlobRepository } from "../ops/media-blobs.js";
 import { TransferOperationRepository, type TransferOperation } from "../ops/operations.js";
 import { TransferStagedFileRepository } from "../ops/staged-files.js";
-import type { ExportCursor, ExportFence, TransferCursor, TransferProgress } from "../ops/states.js";
+import {
+	isTerminalState,
+	type ExportCursor,
+	type ExportFence,
+	type TransferCursor,
+	type TransferProgress,
+} from "../ops/states.js";
 import { getOrCreateSiteId } from "../site-id.js";
 import { stagingPrefix } from "../staging/keys.js";
 import { StagedPackageReader, StagedPackageWriter } from "../staging/package.js";
@@ -242,16 +248,53 @@ export interface AdvanceExportInput {
 	validatePackage?: ExportPackageValidator;
 }
 
-export type AdvanceExportOutcome = "advanced" | "complete" | "failed" | "busy" | "finished";
+export type AdvanceExportOutcome =
+	| "advanced"
+	| "complete"
+	| "failed"
+	| "busy"
+	| "finished"
+	| "cancelled";
 
 export interface AdvanceExportResult {
 	operation: TransferOperation;
 	/**
-	 * `advanced`: more steps needed; `complete`/`failed`: this step finished
-	 * the export; `busy`: another caller holds the lease; `finished`: the
-	 * export was already terminal.
+	 * `advanced`: more steps needed; `complete`/`failed`/`cancelled`: this
+	 * step finished the export; `busy`: another caller holds the lease;
+	 * `finished`: the export was already terminal.
 	 */
 	outcome: AdvanceExportOutcome;
+	/** When the caller should advance again; null once the export is terminal. */
+	nextRequestInMs?: number | null;
+}
+
+/** Delay before the `attempts`th retry: doubling from one second. */
+const EXPORT_RETRY_MS = 1000;
+const MAX_EXPORT_RETRY_DELAY_MS = 60_000;
+
+export function exportRetryDelay(attempts: number): number {
+	return Math.min(EXPORT_RETRY_MS * 2 ** Math.max(0, attempts - 1), MAX_EXPORT_RETRY_DELAY_MS);
+}
+
+/**
+ * Failures a later step may not hit again, and how many consecutive steps
+ * may fail without progress before the export fails.
+ */
+const EXPORT_RETRY_LIMITS: Readonly<Partial<Record<TransferErrorCode, number>>> = {
+	TRANSFER_STORAGE_ERROR: 8,
+	TRANSFER_EXPORT_STALLED: 5,
+	TRANSFER_EXPORT_ERROR: 8,
+};
+
+/** Consecutive failed steps recorded since the export last made progress. */
+function exportRetryAttempts(operation: TransferOperation): number {
+	if (operation.errorCode === null || isTerminalState(operation.kind, operation.state)) return 0;
+	const attempts = operation.errorDetail?.attempts;
+	return typeof attempts === "number" ? attempts : 0;
+}
+
+function cursorKey(cursor: ExportCursor | null): string {
+	return JSON.stringify(cursor);
 }
 
 /** Codes a later step may not hit again. */
@@ -278,9 +321,11 @@ export async function advanceExport(input: AdvanceExportInput): Promise<AdvanceE
 	let leaseToken = input.leaseToken;
 	if (leaseToken === undefined) {
 		const claim = await operations.claim(input.operationId, ["pending", "running"]);
-		if (claim.outcome === "lease_active") return { operation: claim.operation, outcome: "busy" };
+		if (claim.outcome === "lease_active") {
+			return { operation: claim.operation, outcome: "busy", nextRequestInMs: 1000 };
+		}
 		if (claim.outcome === "invalid_state") {
-			return { operation: claim.operation, outcome: "finished" };
+			return { operation: claim.operation, outcome: "finished", nextRequestInMs: null };
 		}
 		operation = claim.operation;
 		leaseToken = claim.leaseToken;
@@ -295,22 +340,77 @@ export async function advanceExport(input: AdvanceExportInput): Promise<AdvanceE
 		throw new TransferError("TRANSFER_INVALID_STATE", "Operation is not an export");
 	}
 
+	const originalCursor = cursorKey(operation.cursor as ExportCursor | null);
 	const step = new ExportStep(input, operation, leaseToken);
 	try {
 		const result = await step.run();
-		return result;
-	} catch (error) {
-		if (isTransferError(error) && !TRANSIENT_CODES.has(error.code)) {
-			const failed = await operations.fail(operation.id, leaseToken, {
-				code: error.code,
-				detail: error.detail,
+		if (result.outcome === "cancelled") {
+			return { ...result, nextRequestInMs: null };
+		}
+		if (
+			result.outcome === "complete" ||
+			result.outcome === "failed" ||
+			result.outcome === "finished"
+		) {
+			return { ...result, nextRequestInMs: null };
+		}
+		if (result.outcome !== "advanced") return result;
+		if (cursorKey(result.operation.cursor as ExportCursor | null) !== originalCursor) {
+			return { ...result, nextRequestInMs: 0 };
+		}
+		// The step spent its budget without moving the cursor: treat it as a
+		// retryable stall so a stuck export fails instead of renewing the lease
+		// forever. The step has already released the lease, so re-claim before
+		// recording the retry or the failure.
+		const claim = await operations.claim(operation.id, ["pending", "running"]);
+		if (claim.outcome !== "claimed") {
+			return { operation: claim.operation, outcome: "busy", nextRequestInMs: 1000 };
+		}
+		const attempts = exportRetryAttempts(result.operation) + 1;
+		const limit = EXPORT_RETRY_LIMITS.TRANSFER_EXPORT_STALLED ?? 5;
+		if (attempts >= limit) {
+			const failed = await operations.fail(operation.id, claim.leaseToken, {
+				code: "TRANSFER_EXPORT_STALLED",
+				detail: { attempts },
 			});
-			return { operation: failed, outcome: "failed" };
+			return { operation: failed, outcome: "failed", nextRequestInMs: null };
 		}
-		if (!(isTransferError(error) && error.code === "TRANSFER_LEASE_LOST")) {
-			await operations.release(operation.id, leaseToken).catch(() => undefined);
+		const delay = exportRetryDelay(attempts);
+		const released = await operations.release(operation.id, claim.leaseToken, {
+			retryError: {
+				code: "TRANSFER_EXPORT_STALLED",
+				detail: { attempts, nextRequestInMs: delay },
+			},
+		});
+		return { operation: released, outcome: "advanced", nextRequestInMs: delay };
+	} catch (error) {
+		// A lost lease is reported to the caller so the route can return a
+		// retryable "busy" response.
+		if (isTransferError(error) && error.code === "TRANSFER_LEASE_LOST") throw error;
+		// Retry transient/unknown failures, but fail deterministic transfer errors
+		// immediately so the caller sees the real cause on the first call.
+		if (!isTransferError(error) || TRANSIENT_CODES.has(error.code)) {
+			const code: TransferErrorCode = isTransferError(error) ? error.code : "TRANSFER_EXPORT_ERROR";
+			const detail = isTransferError(error) ? error.detail : undefined;
+			const attempts = exportRetryAttempts(operation) + 1;
+			const limit = EXPORT_RETRY_LIMITS[code] ?? EXPORT_RETRY_LIMITS.TRANSFER_EXPORT_STALLED ?? 5;
+			if (attempts >= limit) {
+				const failed = await operations.fail(operation.id, leaseToken, { code, detail });
+				return { operation: failed, outcome: "failed", nextRequestInMs: null };
+			}
+			const delay = exportRetryDelay(attempts);
+			await operations
+				.release(operation.id, leaseToken, {
+					retryError: { code, detail: { ...detail, attempts, nextRequestInMs: delay } },
+				})
+				.catch(() => undefined);
+			throw error;
 		}
-		throw error;
+		const failed = await operations.fail(operation.id, leaseToken, {
+			code: error.code,
+			detail: error.detail,
+		});
+		return { operation: failed, outcome: "failed", nextRequestInMs: null };
 	}
 }
 
@@ -354,12 +454,17 @@ class ExportStep {
 	}
 
 	async run(): Promise<AdvanceExportResult> {
+		if (this.#operation.cancelRequestedAt !== null) {
+			return this.#finishCancel();
+		}
 		let cursor = this.currentCursor();
 		if (cursor === null) {
 			cursor = await this.start(1);
 			await this.persist(cursor, "running");
+			if (this.#operation.cancelRequestedAt !== null) return this.#finishCancel();
 		}
 		for (;;) {
+			if (this.#operation.cancelRequestedAt !== null) return this.#finishCancel();
 			const result = await this.unit(cursor);
 			switch (result.type) {
 				case "yield": {
@@ -403,6 +508,11 @@ class ExportStep {
 		}
 	}
 
+	async #finishCancel(): Promise<AdvanceExportResult> {
+		const cancelled = await this.#operations.finishCancelled(this.#operation.id, this.#leaseToken);
+		return { operation: cancelled, outcome: "cancelled" };
+	}
+
 	private currentCursor(): ExportCursor | null {
 		const cursor: TransferCursor | null = this.#operation.cursor;
 		if (cursor === null) return null;
@@ -423,6 +533,7 @@ class ExportStep {
 			stage: cursor.stage,
 			progress: this.progressFor(cursor),
 			...(state ? { state } : {}),
+			...(this.#operation.errorCode === null ? {} : { retryError: null }),
 		});
 	}
 

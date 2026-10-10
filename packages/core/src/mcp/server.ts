@@ -51,7 +51,9 @@ import { siteImportDecisionsInputSchema } from "../transfer/format/plan.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 import { pluginToolName } from "./plugin-tool-name.js";
 import {
+	abandonExport,
 	analyzeImport,
+	cancelExport,
 	exportStatus,
 	hasOperationGrant,
 	importReceipt,
@@ -117,6 +119,8 @@ const TRANSFER_TOOL_NAMES: ReadonlySet<string> = new Set([
 	"site_transfer_capabilities",
 	"site_export_start",
 	"site_export_status",
+	"site_export_cancel",
+	"site_export_abandon",
 	"site_import_analyze",
 	"site_import_start",
 	"site_import_status",
@@ -3833,6 +3837,48 @@ export function createMcpServer(
 					advance: args.advance ?? true,
 				}),
 			);
+		},
+	);
+
+	server.registerTool(
+		"site_export_cancel",
+		{
+			title: "Cancel Site Export",
+			description:
+				"Cancel a pending or running site export. If no step is in progress the export " +
+				"becomes cancelled immediately; otherwise the lease holder stops after its " +
+				"current batch and the export becomes cancelled in the next status call. " +
+				"Requires the transfer:export scope, or the approval that started this export.",
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:export", "export", args.operationId);
+			const { userId } = getExtra(extra);
+			return unwrap(await cancelExport(transferContext(extra), { userId }, args.operationId));
+		},
+	);
+
+	server.registerTool(
+		"site_export_abandon",
+		{
+			title: "Abandon Site Export",
+			description:
+				"Abandon a failed or cancelled export so its staging files can be collected. " +
+				"Requires the transfer:export scope, or the approval that started this export.",
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:export", "export", args.operationId);
+			const { userId } = getExtra(extra);
+			return unwrap(await abandonExport(transferContext(extra), { userId }, args.operationId));
 		},
 	);
 

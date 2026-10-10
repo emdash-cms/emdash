@@ -23,7 +23,15 @@ export const TRANSFER_RUNTIME_GENERATION = 1;
 export const TRANSFER_OPERATION_KINDS = ["export", "import"] as const;
 export type TransferOperationKind = (typeof TRANSFER_OPERATION_KINDS)[number];
 
-export const EXPORT_STATES = ["pending", "running", "complete", "failed", "expired"] as const;
+export const EXPORT_STATES = [
+	"pending",
+	"running",
+	"complete",
+	"failed",
+	"cancelled",
+	"abandoned",
+	"expired",
+] as const;
 export type ExportState = (typeof EXPORT_STATES)[number];
 
 export const IMPORT_STATES = [
@@ -59,7 +67,13 @@ export const PRE_EXECUTION_IMPORT_STATES = ["uploading", "analyzing", "planned"]
 /** Import states in which the importer is writing to the target. */
 export const EXECUTING_IMPORT_STATES = ["running", "verifying"] as const;
 
-export const TERMINAL_EXPORT_STATES: readonly ExportState[] = ["complete", "failed", "expired"];
+export const TERMINAL_EXPORT_STATES: readonly ExportState[] = [
+	"complete",
+	"failed",
+	"cancelled",
+	"abandoned",
+	"expired",
+];
 export const TERMINAL_IMPORT_STATES: readonly ImportState[] = [
 	"complete",
 	"failed",

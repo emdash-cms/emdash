@@ -453,17 +453,34 @@ export class TransferOperationRepository {
 	}
 
 	/**
-	 * Cancel an import. Without a live lease the operation becomes `cancelled`
+	 * Cancel an operation. Without a live lease the operation becomes `cancelled`
 	 * immediately; otherwise `cancel_requested_at` is set and the lease holder
 	 * stops after its current batch. Returns the updated operation.
 	 */
 	async requestCancel(id: string): Promise<TransferOperation> {
-		const cancellable = [...PRE_EXECUTION_IMPORT_STATES, ...EXECUTING_IMPORT_STATES];
+		return this.cancelOperation(id, "import", [
+			...PRE_EXECUTION_IMPORT_STATES,
+			...EXECUTING_IMPORT_STATES,
+		]);
+	}
+
+	/** Cancel a running or pending export. */
+	async requestExportCancel(id: string): Promise<TransferOperation> {
+		return this.cancelOperation(id, "export", ["pending", "running"]);
+	}
+
+	private async cancelOperation(
+		id: string,
+		kind: TransferOperationKind,
+		states: readonly TransferOperationState[],
+	): Promise<TransferOperation> {
 		const now = timestampNow(this.db);
 		const immediate = await this.db
 			.updateTable("_emdash_transfer_operations")
 			.set({
 				state: "cancelled",
+				error_code: "TRANSFER_CANCELLED",
+				error_detail: JSON.stringify({}),
 				cancel_requested_at: now,
 				completed_at: now,
 				updated_at: now,
@@ -471,8 +488,8 @@ export class TransferOperationRepository {
 				lease_expires_at: null,
 			})
 			.where("id", "=", id)
-			.where("kind", "=", "import")
-			.where("state", "in", cancellable)
+			.where("kind", "=", kind)
+			.where("state", "in", states)
 			.where((eb) =>
 				eb.or([
 					eb("lease_token", "is", null),
@@ -488,8 +505,8 @@ export class TransferOperationRepository {
 			.updateTable("_emdash_transfer_operations")
 			.set({ cancel_requested_at: now, updated_at: now })
 			.where("id", "=", id)
-			.where("kind", "=", "import")
-			.where("state", "in", cancellable)
+			.where("kind", "=", kind)
+			.where("state", "in", states)
 			.returningAll()
 			.executeTakeFirst();
 		if (flagged) return toOperation(flagged);
@@ -527,6 +544,32 @@ export class TransferOperationRepository {
 		);
 	}
 
+	/** Abandon a failed or cancelled export. Marks it `abandoned` and frees any lease. */
+	async requestExportAbandon(id: string): Promise<TransferOperation> {
+		const now = timestampNow(this.db);
+		const row = await this.db
+			.updateTable("_emdash_transfer_operations")
+			.set({ state: "abandoned", updated_at: now })
+			.where("id", "=", id)
+			.where("kind", "=", "export")
+			.where("state", "in", ["failed", "cancelled"])
+			.where((eb) =>
+				eb.or([
+					eb("lease_token", "is", null),
+					eb("lease_expires_at", "is", null),
+					timestampIsDue(this.db, "lease_expires_at"),
+				]),
+			)
+			.returningAll()
+			.executeTakeFirst();
+		if (row) return toOperation(row);
+		await this.require(id);
+		throw new TransferError(
+			"TRANSFER_INVALID_STATE",
+			"Only a failed or cancelled export can be abandoned",
+		);
+	}
+
 	/**
 	 * Move operations past their `expires_at` to `expired` (pre-execution
 	 * imports and every non-expired export) when no live lease holds them.
@@ -549,7 +592,14 @@ export class TransferOperationRepository {
 					]),
 					eb.and([
 						eb("kind", "=", "export"),
-						eb("state", "in", ["pending", "running", "complete", "failed"]),
+						eb("state", "in", [
+							"pending",
+							"running",
+							"complete",
+							"failed",
+							"cancelled",
+							"abandoned",
+						]),
 					]),
 				]),
 			)
@@ -583,7 +633,14 @@ export class TransferOperationRepository {
 					]),
 					eb.and([
 						eb("kind", "=", "export"),
-						eb("state", "in", ["pending", "running", "complete", "failed"]),
+						eb("state", "in", [
+							"pending",
+							"running",
+							"complete",
+							"failed",
+							"cancelled",
+							"abandoned",
+						]),
 					]),
 				]),
 			)
@@ -598,8 +655,9 @@ export class TransferOperationRepository {
 
 	/**
 	 * Operations whose staging area can be collected and has not been yet:
-	 * imports in a terminal state, and exports that failed or expired
-	 * (complete exports stay downloadable until they expire). Oldest first.
+	 * imports in a terminal state, and exports that failed, were cancelled,
+	 * or expired (complete exports stay downloadable until they expire).
+	 * Oldest first.
 	 * A collector deletes staged objects with `TransferStage.deleteSome` until
 	 * it returns 0, deletes child rows with {@link deleteChildRows} until it
 	 * returns 0, then calls {@link markCollected}; a crash anywhere in between
@@ -626,7 +684,10 @@ export class TransferOperationRepository {
 						eb("state", "in", retainedStates),
 						timestampIsOlderThan(this.db, "updated_at", retention),
 					]),
-					eb.and([eb("kind", "=", "export"), eb("state", "in", ["failed", "expired"])]),
+					eb.and([
+						eb("kind", "=", "export"),
+						eb("state", "in", ["failed", "cancelled", "abandoned", "expired"]),
+					]),
 				]),
 			)
 			.where((eb) =>

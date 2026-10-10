@@ -20,7 +20,9 @@ import type { Kysely } from "kysely";
 
 import {
 	exportParamsDigest,
+	handleExportAbandon,
 	handleExportAdvance,
+	handleExportCancel,
 	handleExportCreate,
 	handleExportGet,
 	handleImportAdvance,
@@ -410,6 +412,26 @@ export async function exportStatus(
 		}
 	}
 	return { success: true, data: status };
+}
+
+export async function cancelExport(
+	context: TransferContext,
+	caller: TransferCaller,
+	operationId: string,
+): Promise<Result<{ operation: OperationSummary }>> {
+	const result = await handleExportCancel(context.db, operationId, caller.userId);
+	if (!result.success) return result;
+	return { success: true, data: { operation: summarizeOperation(result.data.operation) } };
+}
+
+export async function abandonExport(
+	context: TransferContext,
+	caller: TransferCaller,
+	operationId: string,
+): Promise<Result<{ operation: OperationSummary }>> {
+	const result = await handleExportAbandon(context.db, operationId, caller.userId);
+	if (!result.success) return result;
+	return { success: true, data: { operation: summarizeOperation(result.data.operation) } };
 }
 
 // ── Import ──────────────────────────────────────────────────────
