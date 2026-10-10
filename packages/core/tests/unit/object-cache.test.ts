@@ -815,6 +815,40 @@ describe("change marker", () => {
 		expect(epochReads()).toContain("em:epoch:posts");
 	});
 
+	it("does not read the marker with revalidate: 0", async () => {
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		expect(epochReads()).not.toContain(MARKER);
+	});
+
+	it("does not rewrite the marker when the epoch write fails", async () => {
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:menus" ? Promise.reject(new Error("kv down")) : set(key, value),
+		);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		invalidateObjectCache("menus");
+		await flush();
+
+		expect(backend.store.has(MARKER)).toBe(false);
+	});
+
+	it("rewrites the marker when another epoch write in the batch landed", async () => {
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:menus" ? Promise.reject(new Error("kv down")) : set(key, value),
+		);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		invalidateObjectCache("bylines");
+		invalidateObjectCache("menus");
+		await flush();
+
+		expect(backend.store.has(MARKER)).toBe(true);
+	});
+
 	it("re-reads epochs when the marker read fails", async () => {
 		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
 		remoteWrite("posts");

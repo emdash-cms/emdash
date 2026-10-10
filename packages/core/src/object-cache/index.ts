@@ -289,13 +289,20 @@ interface MarkerWriteState {
 	busySince: number;
 	/** `Date.now()` when this isolate last started a marker write. */
 	lastWriteAt: number;
+	/** Whether an epoch write has landed that no marker write has covered yet. */
+	landedSinceMarker: boolean;
 }
 
 const markerWrite: MarkerWriteState =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
 	(g[MARKER_WRITE_KEY] as MarkerWriteState | undefined) ??
 	(() => {
-		const s: MarkerWriteState = { epochWritesInFlight: 0, busySince: 0, lastWriteAt: 0 };
+		const s: MarkerWriteState = {
+			epochWritesInFlight: 0,
+			busySince: 0,
+			lastWriteAt: 0,
+			landedSinceMarker: false,
+		};
 		g[MARKER_WRITE_KEY] = s;
 		return s;
 	})();
@@ -420,6 +427,7 @@ export function __setObjectCacheBackendForTests(
 	markerWrite.epochWritesInFlight = 0;
 	markerWrite.busySince = 0;
 	markerWrite.lastWriteAt = 0;
+	markerWrite.landedSinceMarker = false;
 }
 
 /** @internal */
@@ -552,8 +560,9 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 	// known marker is refreshed by the vouch path; an absent one is rechecked
 	// here only occasionally, so sites without a marker don't pay a read per render.
 	const markerUnknown =
-		changeMarker.at === 0 ||
-		(changeMarker.marker === null && now - changeMarker.at >= MARKER_MAX_TRUST_MS);
+		holder.config.revalidate > 0 &&
+		(changeMarker.at === 0 ||
+			(changeMarker.marker === null && now - changeMarker.at >= MARKER_MAX_TRUST_MS));
 	if (markerUnknown && !changeMarker.promise) {
 		void getChangeMarker(backend);
 	}
@@ -912,6 +921,7 @@ function persistEpoch(namespace: string, stamp: number): void {
 			// Epoch anchors are persistent (no TTL) — they must outlive the
 			// value keys they invalidate.
 			await backend.set(epochKey(namespace), String(latest));
+			markerWrite.landedSinceMarker = true;
 		} catch (error) {
 			console.error("[object-cache] epoch bump failed for", namespace, error);
 		} finally {
@@ -920,7 +930,11 @@ function persistEpoch(namespace: string, stamp: number): void {
 			// of overlapping writes that may never come, so a long busy period
 			// also rewrites it about once per KV write window.
 			const sinceMarker = Date.now() - Math.max(markerWrite.busySince, markerWrite.lastWriteAt);
-			if (backend && (markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)) {
+			if (
+				backend &&
+				markerWrite.landedSinceMarker &&
+				(markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)
+			) {
 				await writeChangeMarker(backend);
 			}
 		}
@@ -935,6 +949,7 @@ function persistEpoch(namespace: string, stamp: number): void {
  */
 async function writeChangeMarker(backend: ObjectCacheBackend): Promise<void> {
 	markerWrite.lastWriteAt = Date.now();
+	markerWrite.landedSinceMarker = false;
 	const write = () => backend.set(changeMarkerKey(), `${Date.now()}.${crypto.randomUUID()}`);
 	try {
 		await write();
@@ -943,6 +958,7 @@ async function writeChangeMarker(backend: ObjectCacheBackend): Promise<void> {
 			await new Promise((resolve) => setTimeout(resolve, MARKER_RETRY_MS));
 			await write();
 		} catch (error) {
+			markerWrite.landedSinceMarker = true;
 			console.error("[object-cache] change marker write failed:", error);
 		}
 	}
