@@ -6092,8 +6092,8 @@ function EditorToolbar({
 	React.useEffect(() => {
 		const sentinel = stuckSentinelRef.current;
 		if (!sentinel) return;
-		const observer = new IntersectionObserver(([entry]) =>
-			setStuck(entry?.isIntersecting === false),
+		const observer = new IntersectionObserver((entries) =>
+			setStuck(entries.at(-1)?.isIntersecting === false),
 		);
 		observer.observe(sentinel);
 		return () => observer.disconnect();
