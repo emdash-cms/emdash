@@ -13,6 +13,7 @@ import mime from "mime/lite";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { isInternalPostType } from "#import/utils.js";
 import { RESERVED_COLLECTION_SLUGS } from "#schema/types.js";
 import type { EmDashHandlers } from "#types";
 
@@ -421,22 +422,6 @@ function isTypeCompatible(requiredType: string, existingType: string): boolean {
 
 	const compatible = compatibleTypes[requiredType];
 	return compatible?.includes(existingType) ?? false;
-}
-
-function isInternalPostType(type: string): boolean {
-	return [
-		"revision",
-		"nav_menu_item",
-		"custom_css",
-		"customize_changeset",
-		"oembed_cache",
-		"wp_global_styles",
-		"wp_navigation",
-		"wp_template",
-		"wp_template_part",
-		"attachment", // Handled separately as media
-		"wp_block", // Handled separately as sections (reusable blocks)
-	].includes(type);
 }
 
 function isInternalMetaKey(key: string): boolean {

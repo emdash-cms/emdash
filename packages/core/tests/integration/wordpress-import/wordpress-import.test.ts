@@ -149,6 +149,46 @@ describe("WordPress Import Integration", () => {
 			expect(result.files.length).toBe(2);
 			expect(result.nextSteps.length).toBeGreaterThan(0);
 		});
+
+		it("disables ACF's internal post types", async () => {
+			const wxrPath = join(testDir, "acf-export.xml");
+			const configPath = join(testDir, ".wp-migration.json");
+			const items = ["post", "acf-field-group", "acf-field"]
+				.map(
+					(type, i) => `<item>
+					<title>Item ${i + 1}</title>
+					<wp:post_id>${i + 1}</wp:post_id>
+					<wp:post_type>${type}</wp:post_type>
+					<wp:status>publish</wp:status>
+					<wp:post_name>item-${i + 1}</wp:post_name>
+				</item>`,
+				)
+				.join("\n");
+			await writeFile(
+				wxrPath,
+				`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+	<channel>
+		<title>Test Site</title>
+		<link>https://example.com</link>
+		${items}
+	</channel>
+</rss>`,
+			);
+
+			await prepareWordPressImport(wxrPath, {
+				outputDir: testDir,
+				configPath,
+				verbose: false,
+				dryRun: false,
+				json: false,
+			});
+
+			const config: MigrationConfig = JSON.parse(await readFile(configPath, "utf-8"));
+			expect(config.collections.post?.enabled).toBe(true);
+			expect(config.collections["acf-field-group"]?.enabled).toBe(false);
+			expect(config.collections["acf-field"]?.enabled).toBe(false);
+		});
 	});
 
 	describe("Phase 2: Execute", () => {
