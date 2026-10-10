@@ -166,6 +166,7 @@ describe("WordPress plugin import — field auto-creation", () => {
 			cap_key: "wp_capabilities",
 		};
 		const wpTerm = { term_id: 3, name: "News", slug: "news", taxonomy: "category" };
+		const acfUserArray = { ID: 2, display_name: "Bob", user_email: "bob@example.com" };
 
 		const items = [
 			makeItem({
@@ -175,7 +176,7 @@ describe("WordPress plugin import — field auto-creation", () => {
 						related: [wpPost],
 						reviewer: wpUser,
 						topics: [wpTerm],
-						credits: [{ name: "Ada", profile: wpPost }],
+						credits: [{ name: "Ada", profile: wpPost, editor: acfUserArray }],
 					},
 				},
 			}),
@@ -200,7 +201,7 @@ describe("WordPress plugin import — field auto-creation", () => {
 			related: [14],
 			reviewer: 1,
 			topics: [3],
-			credits: [{ name: "Ada", profile: 14 }],
+			credits: [{ name: "Ada", profile: 14, editor: 2 }],
 		});
 	});
 });

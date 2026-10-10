@@ -570,7 +570,8 @@ export function coerceToFieldType(value: unknown, fieldType: string): unknown {
 
 /**
  * ACF relationship, post object, user and taxonomy fields set to the object
- * return format give WP_Post, WP_User and WP_Term objects, and exporters that
+ * return format give WP_Post, WP_User and WP_Term objects, and a user field's
+ * default array format gives the user's email and profile. Exporters that
  * pass them through send a related post's content and password or a user's
  * password hash. Keep only the IDs.
  */
@@ -579,7 +580,9 @@ export function reduceWordPressObjects(value: unknown): unknown {
 	if (typeof value !== "object" || value === null) return value;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to non-null object above
 	const record = value as Record<string, unknown>;
-	if ("ID" in record && ("post_type" in record || "cap_key" in record)) return record.ID;
+	if ("ID" in record && ("post_type" in record || "cap_key" in record || "user_email" in record)) {
+		return record.ID;
+	}
 	if ("term_id" in record && "taxonomy" in record) return record.term_id;
 	return Object.fromEntries(
 		Object.entries(record).map(([key, entry]) => [key, reduceWordPressObjects(entry)]),
