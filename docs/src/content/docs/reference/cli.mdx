@@ -198,7 +198,7 @@ npx emdash login [options]
 
 | Option     | Alias | Description                       | Default                    |
 | ---------- | ----- | --------------------------------- | -------------------------- |
-| `--url`    | `-u`  | EmDash instance URL               | `http://localhost:4321`     |
+| `--url`    | `-u`  | EmDash instance URL               | `EMDASH_URL` or `http://localhost:4321` |
 | `--header` | `-H`  | Custom request header; repeatable | From `EMDASH_HEADERS`       |
 
 #### Behavior
@@ -222,7 +222,7 @@ npx emdash logout [options]
 
 | Option  | Alias | Description           | Default                |
 | ------- | ----- | --------------------- | ---------------------- |
-| `--url` | `-u`  | EmDash instance URL | `http://localhost:4321` |
+| `--url` | `-u`  | EmDash instance URL | `EMDASH_URL` or `http://localhost:4321` |
 
 ### `emdash whoami`
 
