@@ -575,7 +575,7 @@ export function coerceToFieldType(value: unknown, fieldType: string): unknown {
  * pass them through send a related post's content and password or a user's
  * password hash. Keep only the IDs.
  */
-export function reduceWordPressObjects(value: unknown): unknown {
+function reduceWordPressObjects(value: unknown): unknown {
 	if (Array.isArray(value)) return value.map(reduceWordPressObjects);
 	if (typeof value !== "object" || value === null) return value;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to non-null object above
