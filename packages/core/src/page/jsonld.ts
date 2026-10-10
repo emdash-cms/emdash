@@ -27,6 +27,28 @@ export function cleanJsonLd(obj: Record<string, unknown>): Record<string, unknow
 }
 
 /**
+ * Site origin to use for JSON-LD node identifiers.
+ *
+ * `page.siteUrl` wins over `page.url` so IDs stay stable when a theme
+ * overrides the public origin. Falls back to the raw canonical or URL only
+ * when neither parses as a URL.
+ */
+function siteOrigin(page: PublicPageContext): string {
+	if (page.siteUrl) {
+		try {
+			return new URL(page.siteUrl).origin;
+		} catch {
+			return page.siteUrl;
+		}
+	}
+	try {
+		return new URL(page.url).origin;
+	} catch {
+		return page.canonical || page.url;
+	}
+}
+
+/**
  * Build a BlogPosting JSON-LD graph from page context.
  * Used for article-type content pages.
  *
@@ -52,6 +74,7 @@ export function buildBlogPostingJsonLd(
 	return cleanJsonLd({
 		"@context": "https://schema.org",
 		"@type": "BlogPosting",
+		"@id": `${page.canonical}#article`,
 		headline: ogTitle,
 		description,
 		image: ogImage || undefined,
@@ -67,6 +90,7 @@ export function buildBlogPostingJsonLd(
 		publisher: siteName
 			? {
 					"@type": "Organization",
+					"@id": `${siteOrigin(page)}/#organization`,
 					name: siteName,
 				}
 			: undefined,
@@ -85,21 +109,12 @@ export function buildWebSiteJsonLd(page: PublicPageContext): Record<string, unkn
 	const siteName = page.siteName;
 	if (!siteName) return null;
 
-	// Use configured public origin, falling back to page URL origin
-	let siteUrl: string;
-	if (page.siteUrl) {
-		siteUrl = page.siteUrl;
-	} else {
-		try {
-			siteUrl = new URL(page.url).origin;
-		} catch {
-			siteUrl = page.canonical || page.url;
-		}
-	}
+	const siteUrl = siteOrigin(page);
 
 	return cleanJsonLd({
 		"@context": "https://schema.org",
 		"@type": "WebSite",
+		"@id": `${siteUrl}/#website`,
 		name: siteName,
 		url: siteUrl,
 	});
