@@ -205,6 +205,152 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		expect(bySlug.has("ampforwp_amp_on_off")).toBe(false);
 	});
 
+	it("suggests every field of the ACF field groups assigned to a post type", async () => {
+		const field = (name: string, type: string) => ({
+			key: `field_${name}`,
+			name,
+			label: name,
+			type,
+			required: false,
+		});
+		const postTypeRule = (value: string) => [[{ param: "post_type", operator: "==", value }]];
+		const analyzeResponse = {
+			...makeAnalyzeResponse(0),
+			post_types: [
+				{
+					name: "post",
+					label: "Posts",
+					label_singular: "Post",
+					total: 2,
+					by_status: { publish: 2 },
+					supports: {},
+					taxonomies: [],
+					custom_fields: [
+						{ key: "subtitle", count: 2, inferred_type: "string", sample: "A subtitle" },
+						{ key: "credits", count: 2, inferred_type: "integer", sample: "2" },
+						{ key: "credits_0_credit_name", count: 2, inferred_type: "string", sample: "Ada" },
+						{ key: "credits_0_credit_role", count: 2, inferred_type: "string", sample: "Author" },
+						{ key: "publisher_name", count: 2, inferred_type: "string", sample: "Acme" },
+					],
+					hierarchical: false,
+					has_archive: false,
+				},
+			],
+			acf: [
+				{
+					key: "group_book",
+					title: "Book details",
+					location: postTypeRule("post"),
+					fields: [
+						field("subtitle", "text"),
+						field("blurb", "textarea"),
+						field("rating", "number"),
+						field("featured", "true_false"),
+						field("genres", "checkbox"),
+						field("related", "relationship"),
+						field("credits", "repeater"),
+						field("publisher", "group"),
+						field("", "tab"),
+					],
+				},
+				{
+					key: "group_page",
+					title: "Page details",
+					location: postTypeRule("page"),
+					fields: [field("hero_text", "text")],
+				},
+			],
+		};
+		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(analyzeResponse), { status: 200 }));
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+
+		const custom = analysis.postTypes[0]!.requiredFields.filter(
+			(f) => !["title", "content", "excerpt", "featured_image"].includes(f.slug),
+		);
+		expect(Object.fromEntries(custom.map((f) => [f.slug, f.type]))).toEqual({
+			subtitle: "string",
+			blurb: "text",
+			rating: "number",
+			featured: "boolean",
+			genres: "json",
+			related: "json",
+			credits: "json",
+			publisher: "json",
+		});
+	});
+
+	it("keeps the type of an ACF field that an earlier import already created", async () => {
+		const analyzeResponse = {
+			...makeAnalyzeResponse(0),
+			post_types: [
+				{
+					name: "post",
+					label: "Posts",
+					label_singular: "Post",
+					total: 1,
+					by_status: { publish: 1 },
+					supports: {},
+					taxonomies: [],
+					custom_fields: [],
+					hierarchical: false,
+					has_archive: false,
+				},
+			],
+			acf: [
+				{
+					key: "group_book",
+					title: "Book details",
+					location: [[{ param: "post_type", operator: "==", value: "post" }]],
+					fields: [
+						{
+							key: "field_featured",
+							name: "featured",
+							label: "Featured",
+							type: "true_false",
+							required: false,
+						},
+						{
+							key: "field_credits",
+							name: "credits",
+							label: "Credits",
+							type: "repeater",
+							required: false,
+						},
+					],
+				},
+			],
+		};
+		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(analyzeResponse), { status: 200 }));
+		const existing = new Map([
+			[
+				"posts",
+				{
+					slug: "posts",
+					fields: new Map([
+						["title", { type: "string" }],
+						["featured", { type: "integer" }],
+						["credits", { type: "integer" }],
+					]),
+				},
+			],
+		]);
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{ getExistingCollections: async () => existing },
+		);
+
+		const postType = analysis.postTypes[0]!;
+		expect(postType.schemaStatus.canImport).toBe(true);
+		const bySlug = new Map(postType.requiredFields.map((f) => [f.slug, f.type]));
+		expect(bySlug.get("featured")).toBe("integer");
+		expect(bySlug.get("credits")).toBe("integer");
+	});
+
 	it("fetches every media page during analyze, not just the first", async () => {
 		mockFetch.mockImplementation((input: RequestInfo | URL) => {
 			const url = toUrlString(input);
