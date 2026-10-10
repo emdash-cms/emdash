@@ -231,7 +231,6 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 						{ key: "credits_0_credit_name", count: 2, inferred_type: "string", sample: "Ada" },
 						{ key: "credits_0_credit_role", count: 2, inferred_type: "string", sample: "Author" },
 						{ key: "publisher_name", count: 2, inferred_type: "string", sample: "Acme" },
-						{ key: "publisher_city", count: 2, inferred_type: "string", sample: "Munich" },
 					],
 					hierarchical: false,
 					has_archive: false,
@@ -260,12 +259,6 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 					location: postTypeRule("page"),
 					fields: [field("hero_text", "text")],
 				},
-				{
-					key: "group_template",
-					title: "Template details",
-					location: [[{ param: "page_template", operator: "==", value: "book.php" }]],
-					fields: [field("publisher_city", "text")],
-				},
 			],
 		};
 		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(analyzeResponse), { status: 200 }));
@@ -287,7 +280,7 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 			related: "json",
 			credits: "json",
 			publisher: "json",
-			publisher_city: "string",
+			publisher_name: "string",
 		});
 	});
 

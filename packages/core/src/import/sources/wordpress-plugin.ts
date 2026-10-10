@@ -426,17 +426,9 @@ export const wordpressPluginSource: ImportSource = {
 						required: false,
 					});
 				}
-				const acfFieldNames = new Set(
-					(data.acf ?? []).flatMap((group) => group.fields.map((field) => field.name)),
-				);
 				for (const customField of pt.custom_fields ?? []) {
 					if (isPluginBookkeepingMeta(customField.key)) continue;
-					if (
-						!acfFieldNames.has(customField.key) &&
-						isAcfSubFieldMeta(customField.key, jsonAcfFields)
-					) {
-						continue;
-					}
+					if (isAcfRowMeta(customField.key, jsonAcfFields)) continue;
 					const slug = sanitizeFieldSlug(customField.key);
 					if (knownSlugs.has(slug)) continue;
 					knownSlugs.add(slug);
@@ -645,8 +637,9 @@ function mapInferredFieldType(inferredType: string): string {
 
 /**
  * EmDash field types for ACF field types with scalar values. Every other
- * ACF type (checkbox, relationship, repeater, gallery, ...) arrives from
- * `get_fields()` as an array or object and is stored as JSON.
+ * ACF type (checkbox, relationship, repeater, gallery, ...) can return an
+ * array or object from `get_fields()`, depending on its settings, and is
+ * stored as JSON.
  */
 const ACF_FIELD_TYPES: Record<string, string> = {
 	text: "string",
@@ -672,8 +665,8 @@ type AcfFieldInfo = NonNullable<PluginAnalyzeResponse["acf"]>[number]["fields"][
 /**
  * The field type for an ACF field. A collection created by an earlier
  * import holds the type the raw meta suggested for that key; that type is
- * kept so the collection still imports, and the field's flattened
- * sub-field keys then keep filling their own fields.
+ * kept so the collection still imports, and the field's flattened row
+ * keys then keep filling their own fields.
  */
 function acfImportFieldType(
 	field: AcfFieldInfo,
@@ -719,18 +712,16 @@ const ACF_ROW_SUFFIX = /^_\d+_/;
 
 /**
  * ACF stores repeater and flexible content rows as `<name>_<row>_<sub>`
- * meta keys and group sub-fields as `<name>_<sub>`. Their values already
- * arrive whole under the parent field in `get_fields()`.
+ * meta keys. Their values already arrive whole under the parent field in
+ * `get_fields()`.
  */
-function isAcfSubFieldMeta(key: string, acfFields: AcfFieldInfo[]): boolean {
-	return acfFields.some((field) => {
-		if (!key.startsWith(field.name)) return false;
-		const rest = key.slice(field.name.length);
-		if (field.type === "repeater" || field.type === "flexible_content") {
-			return ACF_ROW_SUFFIX.test(rest);
-		}
-		return field.type === "group" && rest.startsWith("_");
-	});
+function isAcfRowMeta(key: string, acfFields: AcfFieldInfo[]): boolean {
+	return acfFields.some(
+		(field) =>
+			(field.type === "repeater" || field.type === "flexible_content") &&
+			key.startsWith(field.name) &&
+			ACF_ROW_SUFFIX.test(key.slice(field.name.length)),
+	);
 }
 
 const FIELD_KEY_SEPARATORS = /[_-]+/;
