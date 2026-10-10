@@ -20,6 +20,29 @@ Open `https://<new domain>/_emdash/admin` in a browser. The EmDash sign-in page 
 
 If the site sets [`siteUrl`](/reference/configuration/#siteurl), `EMDASH_SITE_URL`, or `SITE_URL`, links in emails and plugins use that address instead of the **Site URL**, and **Settings > General** names it. Change the configuration and deploy again to move those links as well.
 
+### While the new domain still serves the old site
+
+When EmDash runs at a temporary address, such as `https://new.example.com`, while `https://example.com` still serves the site you are replacing, point [`siteUrl`](/reference/configuration/#siteurl) at the final domain and add the temporary address to [`allowedOrigins`](/reference/configuration/#allowedorigins).
+
+A configured `siteUrl` is the address passkeys belong to: it sets the relying party ID and the single browser origin that passkey verification accepts. Listing the temporary address keeps passkey sign-in working there, and since the relying party ID is the final domain from the start, those passkeys keep working after the move.
+
+Each entry must be the same hostname as `siteUrl` or a subdomain of it, so this works for a temporary subdomain of the final domain, not for an unrelated staging host:
+
+```js title="astro.config.mjs"
+emdash({
+	siteUrl: "https://example.com",
+	allowedOrigins: ["https://new.example.com"],
+});
+```
+
+<Aside type="caution">
+	Links in emails, including [magic
+	links](/guides/authentication/#log-in-with-a-magic-link), use the configured `siteUrl`. Until DNS
+	points the final domain at EmDash they lead to the old site and sign nobody in. Give every
+	administrator a passkey that works at the temporary address before the cutover, or keep one
+	administrator signed in who can send an invite.
+</Aside>
+
 ## Change the domain
 
 <Steps>
