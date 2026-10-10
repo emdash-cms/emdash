@@ -52,6 +52,7 @@ export const sectionSchema = z
 		keywords: z.array(z.string()).nullable(),
 		content: z.array(z.record(z.string(), z.unknown())),
 		previewMediaId: z.string().nullable(),
+		previewUrl: z.string().optional(),
 		source: z.string(),
 		themeId: z.string().nullable(),
 		createdAt: z.string(),

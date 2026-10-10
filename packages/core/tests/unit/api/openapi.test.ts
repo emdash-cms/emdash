@@ -310,6 +310,16 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/sections/{slug}");
 	});
 
+	it("documents previewUrl on the Section response schema", () => {
+		const doc = generateOpenApiDocument();
+		const section = doc.components?.schemas?.Section as
+			| { properties?: Record<string, unknown> }
+			| undefined;
+
+		expect(section?.properties).toHaveProperty("previewMediaId");
+		expect(section?.properties).toHaveProperty("previewUrl");
+	});
+
 	it("includes widget paths", () => {
 		const doc = generateOpenApiDocument();
 		const paths = Object.keys(doc.paths ?? {});
