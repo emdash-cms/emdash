@@ -1397,6 +1397,11 @@ export class SchemaRegistry {
 			return created;
 		} catch (error) {
 			if (schemaMutated) {
+				// On D1 withTransaction runs the callback without a real transaction,
+				// so a DDL failure after the _emdash_fields insert leaves an orphan
+				// row. Remove it so the caller can retry once room is available.
+				await this.db.deleteFrom("_emdash_fields").where("id", "=", id).execute();
+
 				if (activeCoverageInvalidated) {
 					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
 				} else {
