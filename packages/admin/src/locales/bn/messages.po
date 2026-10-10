@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr "অনুরোধ প্রত্যাখ্যান করতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "প্লাগইন বন্ধ করতে ব্যর্থ হয়েছে"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "প্লাগইন চালু করতে ব্যর্থ হয়েছে"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "প্লাগইন আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "প্লাগইন সেটিংস আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "প্লাগইনগুলো আনতে ব্যর্থ হয়েছে"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "প্লাগইন আপডেট করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "প্লাগইনের MCP অ্যাক্সেস আপডেট করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "প্লাগইন সেটিংস আপডেট করতে ব্যর্থ হয়েছে"
 
@@ -9947,7 +9947,7 @@ msgstr "অনুগ্রহ করে একটি সঠিক URL দিন"
 msgid "Plugin"
 msgstr "প্লাগইন"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "প্লাগইন \"{pluginId}\" পাওয়া যায়নি"
 

@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr "Verweigern der Anfrage fehlgeschlagen"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "Deaktivieren des Plugins fehlgeschlagen"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr "Benachrichtigen der Benutzer per E-Mail fehlgeschlagen"
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "Aktivieren des Plugins fehlgeschlagen"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "Abrufen des Plugins fehlgeschlagen"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "Abrufen der Plugin-Einstellungen fehlgeschlagen"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "Abrufen der Plugins fehlgeschlagen"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "Aktualisieren des Plugins fehlgeschlagen"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "Aktualisieren des MCP-Zugriffs für das Plugin fehlgeschlagen"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "Aktualisieren der Plugin-Einstellungen fehlgeschlagen"
 
@@ -9947,7 +9947,7 @@ msgstr "Bitte gib eine gültige URL an"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Plugin „{pluginId}“ nicht gefunden"
 

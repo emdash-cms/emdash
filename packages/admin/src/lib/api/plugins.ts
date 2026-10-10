@@ -39,6 +39,7 @@ export interface PluginInfo {
 	mcpToolsEnabled?: boolean;
 	mcpTools?: Array<{
 		name: string;
+		mcpName?: string;
 		description: string;
 		route: string;
 		permission: string;

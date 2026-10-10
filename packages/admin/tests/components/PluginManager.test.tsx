@@ -171,6 +171,38 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("v2.0.0")).toBeInTheDocument();
 	});
 
+	it("shows the server's MCP tool name before enabling a scoped plugin's tools", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "@acme/calendar",
+				name: "Calendar",
+				mcpToolsEnabled: false,
+				mcpTools: [
+					{
+						name: "createEvent",
+						mcpName: "acme__calendar__createEvent",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						destructive: false,
+					},
+				],
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await screen.getByRole("button", { name: "Expand details" }).click();
+		await expect
+			.element(screen.getByText("acme__calendar__createEvent", { exact: true }))
+			.toBeVisible();
+		await expect
+			.element(screen.getByRole("switch", { name: "Enable plugin MCP tools" }))
+			.not.toBeChecked();
+	});
+
 	it("shows the canonical public name for an installed registry plugin", async () => {
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({

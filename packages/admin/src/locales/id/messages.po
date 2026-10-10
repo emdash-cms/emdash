@@ -1083,7 +1083,7 @@ msgstr "Slug tidak dapat dihasilkan dari label ini. Ketik secara manual mengguna
 
 #: packages/admin/src/components/FieldEditor.tsx:1242
 msgid "A slug cannot be generated from this label. Type one manually."
-msgstr ""
+msgstr "Slug tidak dapat dihasilkan dari label ini. Ketik secara manual."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "A source and target locale are required"
@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr "Gagal menolak permintaan"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "Gagal menonaktifkan pengaya"
 
@@ -5599,7 +5599,7 @@ msgstr "Gagal membuang perubahan"
 
 #: packages/admin/src/lib/api/content.ts:573
 msgid "Failed to discard draft"
-msgstr ""
+msgstr "Gagal membuang draf"
 
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr "Gagal menyureli pengguna"
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "Gagal mengaktifkan pengaya"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr "Gagal mengambil kunci sandi"
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "Gagal mengambil pengaya"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "Gagal mengambil pengaturan pengaya"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "Gagal mengambil pengaya"
 
@@ -6094,7 +6094,7 @@ msgstr "Gagal memublikasikan"
 
 #: packages/admin/src/lib/api/content.ts:529
 msgid "Failed to publish content"
-msgstr ""
+msgstr "Gagal memublikasikan konten"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
@@ -6204,7 +6204,7 @@ msgstr "Gagal menjadwalkan"
 
 #: packages/admin/src/lib/api/content.ts:433
 msgid "Failed to schedule content"
-msgstr ""
+msgstr "Gagal menjadwalkan konten"
 
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
@@ -6248,7 +6248,7 @@ msgstr "Gagal membatalkan publikasi"
 
 #: packages/admin/src/lib/api/content.ts:552
 msgid "Failed to unpublish content"
-msgstr ""
+msgstr "Gagal membatalkan publikasi konten"
 
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
@@ -6256,7 +6256,7 @@ msgstr "Gagal membatalkan penjadwalan"
 
 #: packages/admin/src/lib/api/content.ts:454
 msgid "Failed to unschedule content"
-msgstr ""
+msgstr "Gagal membatalkan jadwal konten"
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -6325,11 +6325,11 @@ msgstr "Gagal memperbarui item menu"
 msgid "Failed to update plugin"
 msgstr "Gagal memperbarui pengaya"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "Gagal memperbarui akses MCP pengaya"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "Gagal memperbarui pengaturan pengaya"
 
@@ -9947,7 +9947,7 @@ msgstr "Silakan masukkan URL yang valid"
 msgid "Plugin"
 msgstr "Pengaya"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Pengaya \"{pluginId}\" tidak ditemukan"
 
