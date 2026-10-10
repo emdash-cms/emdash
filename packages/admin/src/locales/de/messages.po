@@ -255,7 +255,7 @@ msgstr "{0, plural, one {# Bild hinzufügen} other {# Bilder hinzufügen}}"
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:866
 msgid "{0, plural, one {Add # video} other {Add # videos}}"
-msgstr ""
+msgstr "{0, plural, one {# Video hinzufügen} other {# Videos hinzufügen}}"
 
 #. placeholder {0}: bounds.min
 #: packages/admin/src/components/ContentEditor.tsx:2931
@@ -553,7 +553,7 @@ msgstr "{hidden, plural, one {+# weiterer} other {+# weitere}}"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:38
 msgid "{host} does not resolve to a public address"
-msgstr ""
+msgstr "{host} wird nicht zu einer öffentlichen Adresse aufgelöst"
 
 #: packages/admin/src/components/MediaImportSummary.tsx:9
 msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
@@ -668,15 +668,15 @@ msgstr "{needsNewFields, plural, one {Felder werden zu # bestehender Sammlung hi
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:49
 msgid "{origin} does not serve this site yet"
-msgstr ""
+msgstr "{origin} liefert diese Website noch nicht aus"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:47
 msgid "{origin} redirects elsewhere"
-msgstr ""
+msgstr "{origin} leitet auf eine andere Adresse weiter"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:46
 msgid "{origin} redirects to {target}. Enter that address instead."
-msgstr ""
+msgstr "{origin} leitet auf {target} weiter. Gib stattdessen diese Adresse ein."
 
 #: packages/admin/src/components/Dashboard.tsx:151
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
@@ -875,19 +875,19 @@ msgstr "<0>{name}</0> hat diesen Eintrag jetzt in Bearbeitung, deshalb werden de
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:231
 msgid "<0>Alt-click</0> to add above"
-msgstr ""
+msgstr "<0>Alt-Klick</0> zum Einfügen darüber"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:227
 msgid "<0>Click</0> to add below"
-msgstr ""
+msgstr "<0>Klick</0> zum Einfügen darunter"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:273
 msgid "<0>Click</0> to open menu"
-msgstr ""
+msgstr "<0>Klicken</0> für das Menü"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:269
 msgid "<0>Drag</0> to move"
-msgstr ""
+msgstr "<0>Ziehen</0> zum Verschieben"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:426
 msgid "1 post updated"
@@ -1027,7 +1027,7 @@ msgstr "Ein Medienordner mit diesem Namen existiert bereits"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:962
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
-msgstr ""
+msgstr "Aus dieser Bezeichnung lässt sich kein Name erzeugen. Gib ihn selbst ein, nur mit Kleinbuchstaben, Ziffern und Unterstrichen."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "A number is too large for this site’s database"
@@ -1073,17 +1073,17 @@ msgstr "Eine kurze Beschreibung deiner Website"
 
 #: packages/admin/src/components/RelationForm.tsx:249
 msgid "A slug cannot be generated from these role names. Type one manually using lowercase letters, numbers, and underscores."
-msgstr ""
+msgstr "Aus den Namen der beiden Seiten lässt sich kein Slug erzeugen. Gib ihn selbst ein, nur mit Kleinbuchstaben, Ziffern und Unterstrichen."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:195
 #: packages/admin/src/components/ContentTypeEditor.tsx:235
 #: packages/admin/src/components/FieldEditor.tsx:657
 msgid "A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
-msgstr ""
+msgstr "Aus dieser Bezeichnung lässt sich kein Slug erzeugen. Gib ihn selbst ein, nur mit Kleinbuchstaben, Ziffern und Unterstrichen."
 
 #: packages/admin/src/components/FieldEditor.tsx:1242
 msgid "A slug cannot be generated from this label. Type one manually."
-msgstr ""
+msgstr "Aus dieser Bezeichnung lässt sich kein Slug erzeugen. Gib ihn selbst ein."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "A source and target locale are required"
@@ -1497,19 +1497,19 @@ msgstr "Von Agenten aufrufbare MCP-Tools"
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
 #: packages/admin/src/components/PortableTextEditor.tsx:5255
 msgid "Align"
-msgstr ""
+msgstr "Ausrichten"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6400
 msgid "Align center"
-msgstr ""
+msgstr "Zentriert"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6392
 msgid "Align left"
-msgstr ""
+msgstr "Linksbündig"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6408
 msgid "Align right"
-msgstr ""
+msgstr "Rechtsbündig"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:722
@@ -2152,7 +2152,7 @@ msgstr "Bash"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1983
 msgid "Basic blocks"
-msgstr ""
+msgstr "Basisblöcke"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:61
 msgid "Before"
@@ -2181,7 +2181,7 @@ msgstr "Kurzbiografie"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:92
 msgid "Block"
-msgstr ""
+msgstr "Block"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlocksField.tsx:415
@@ -2190,7 +2190,7 @@ msgstr "Block {0}"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:138
 msgid "Block actions"
-msgstr ""
+msgstr "Blockaktionen"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:291
 msgid "Block actions - drag to reorder, click for menu"
@@ -2598,7 +2598,7 @@ msgstr "Prüfen und wechseln"
 
 #: packages/admin/src/components/PluginManager.tsx:205
 msgid "Check for updates"
-msgstr "Nach Aktualisierungen suchen"
+msgstr "Nach Updates suchen"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:23
 msgid "Check registry in astro.config.mjs, then restart EmDash."
@@ -2721,7 +2721,7 @@ msgstr "Wähle einen Begriff und gib 1 bis 50 Beiträge an."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:236
 msgid "Choose a video from the library or upload a new one."
-msgstr ""
+msgstr "Wähle ein Video aus der Bibliothek oder lade ein neues hoch."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Choose an image from the library or upload a new one."
@@ -2803,7 +2803,7 @@ msgstr "Filter zurücksetzen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5269
 msgid "Clear formatting"
-msgstr ""
+msgstr "Formatierung entfernen"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1020
 #: packages/admin/src/components/MediaLibrary.tsx:1055
@@ -3400,7 +3400,7 @@ msgstr "Konnte nicht veröffentlicht werden"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:43
 msgid "Could not reach {origin}"
-msgstr ""
+msgstr "{origin} konnte nicht erreicht werden"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:198
 msgid "Could not remove the schedule"
@@ -4133,7 +4133,7 @@ msgstr "Taxonomie löschen"
 #: packages/admin/src/components/editor/VideoNode.tsx:379
 #: packages/admin/src/components/editor/VideoNode.tsx:380
 msgid "Delete video"
-msgstr ""
+msgstr "Video löschen"
 
 #: packages/admin/src/components/Widgets.tsx:717
 msgid "Delete Widget Area?"
@@ -4925,7 +4925,7 @@ msgstr "E-Mail-Adresse bestätigt!"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:49
 msgid "Embed"
-msgstr ""
+msgstr "Einbettung"
 
 #. placeholder {0}: block.label
 #: packages/admin/src/components/PortableTextEditor.tsx:3709
@@ -5041,7 +5041,7 @@ msgstr "Es wird Englisch verwendet, weil keine Inhaltssprache konfiguriert ist. 
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:89
 msgid "Enter a domain such as example.com, without a path or port"
-msgstr ""
+msgstr "Gib eine Domain ohne Pfad und Port ein, z. B. example.com"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:312
 msgid "Enter a name."
@@ -5156,7 +5156,7 @@ msgstr "Aktualisieren des Widgets fehlgeschlagen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2567
 msgid "esc"
-msgstr ""
+msgstr "esc"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:604
 msgid "Esc"
@@ -5306,7 +5306,7 @@ msgstr "Abbrechen des Imports fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:319
 msgid "Failed to activate block type version"
-msgstr ""
+msgstr "Aktivieren der Blocktyp-Version fehlgeschlagen"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:84
 msgid "Failed to add domain"
@@ -5318,11 +5318,11 @@ msgstr "Hinzufügen des Passkeys fehlgeschlagen"
 
 #: packages/admin/src/lib/api/taxonomies.ts:120
 msgid "Failed to add term to entries"
-msgstr ""
+msgstr "Hinzufügen des Begriffs zu den Einträgen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/import.ts:378
 msgid "Failed to analyze file"
-msgstr ""
+msgstr "Analysieren der Datei fehlgeschlagen"
 
 #: packages/admin/src/lib/api/transfer.ts:442
 msgid "Failed to analyze import"
@@ -5347,7 +5347,7 @@ msgstr "Ändern der Domain fehlgeschlagen"
 
 #: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Failed to check for updates"
-msgstr ""
+msgstr "Suche nach Updates fehlgeschlagen"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:78
 msgid "Failed to communicate with plugin"
@@ -5355,7 +5355,7 @@ msgstr "Kommunikation mit dem Plugin fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:594
 msgid "Failed to compare revisions"
-msgstr ""
+msgstr "Vergleichen der Revisionen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/media.ts:379
 msgid "Failed to confirm upload"
@@ -5385,11 +5385,11 @@ msgstr "Erstellen des Administrators fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:313
 msgid "Failed to create allowed domain"
-msgstr ""
+msgstr "Hinzufügen der erlaubten Domain fehlgeschlagen"
 
 #: packages/admin/src/lib/api/api-tokens.ts:91
 msgid "Failed to create API token"
-msgstr ""
+msgstr "Erstellen des API-Tokens fehlgeschlagen"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/lib/api/backups.ts:51
@@ -5398,11 +5398,11 @@ msgstr "Erstellen des Backups fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:283
 msgid "Failed to create block type"
-msgstr ""
+msgstr "Erstellen des Blocktyps fehlgeschlagen"
 
 #: packages/admin/src/lib/api/bylines.ts:127
 msgid "Failed to create byline"
-msgstr ""
+msgstr "Erstellen der Autorenangabe fehlgeschlagen"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
@@ -5410,15 +5410,15 @@ msgstr "Erstellen des Autorenangaben-Felds fehlgeschlagen"
 
 #: packages/admin/src/lib/api/bylines.ts:178
 msgid "Failed to create byline translation"
-msgstr ""
+msgstr "Erstellen der Übersetzung der Autorenangabe fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:371
 msgid "Failed to create collection"
-msgstr ""
+msgstr "Erstellen der Sammlung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:306
 msgid "Failed to create content"
-msgstr ""
+msgstr "Erstellen des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:432
 #: packages/admin/src/routes/byline-schema.tsx:102
@@ -5431,23 +5431,23 @@ msgstr "Erstellen des Medienordners fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:137
 msgid "Failed to create menu"
-msgstr ""
+msgstr "Erstellen des Menüs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:182
 msgid "Failed to create menu item"
-msgstr ""
+msgstr "Erstellen des Menüpunkts fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:270
 msgid "Failed to create menu translation"
-msgstr ""
+msgstr "Erstellen der Übersetzung des Menüs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/redirects.ts:89
 msgid "Failed to create redirect"
-msgstr ""
+msgstr "Erstellen der Weiterleitung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/relations.ts:119
 msgid "Failed to create relation"
-msgstr ""
+msgstr "Erstellen der Beziehung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/sections.ts:88
 msgid "Failed to create section"
@@ -5459,7 +5459,7 @@ msgstr "Erstellen einiger Sammlungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/taxonomies.ts:164
 msgid "Failed to create taxonomy"
-msgstr ""
+msgstr "Erstellen der Taxonomie fehlgeschlagen"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:732
 #: packages/admin/src/lib/api/taxonomies.ts:215
@@ -5468,7 +5468,7 @@ msgstr "Erstellen des Begriffs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/taxonomies.ts:314
 msgid "Failed to create term translation"
-msgstr ""
+msgstr "Erstellen der Übersetzung des Begriffs fehlgeschlagen"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
 #: packages/admin/src/router.tsx:1544
@@ -5477,11 +5477,11 @@ msgstr "Erstellen der Übersetzung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/widgets.ts:120
 msgid "Failed to create widget"
-msgstr ""
+msgstr "Erstellen des Widgets fehlgeschlagen"
 
 #: packages/admin/src/lib/api/widgets.ts:98
 msgid "Failed to create widget area"
-msgstr ""
+msgstr "Erstellen des Widget-Bereichs fehlgeschlagen"
 
 #: packages/admin/src/router.tsx:580
 #: packages/admin/src/router.tsx:609
@@ -5599,7 +5599,7 @@ msgstr "Verwerfen der Änderungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:573
 msgid "Failed to discard draft"
-msgstr ""
+msgstr "Verwerfen des Entwurfs fehlgeschlagen"
 
 #: packages/admin/src/components/Dashboard.tsx:220
 #: packages/admin/src/lib/api/dashboard.ts:71
@@ -5620,7 +5620,7 @@ msgstr "Duplizieren fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:409
 msgid "Failed to duplicate content"
-msgstr ""
+msgstr "Duplizieren des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/lib/api/settings.ts:105
 msgid "Failed to email users"
@@ -5645,15 +5645,15 @@ msgstr "Ausführen des Imports fehlgeschlagen"
 
 #: packages/admin/src/lib/api/redirects.ts:127
 msgid "Failed to fetch 404 summary"
-msgstr ""
+msgstr "Abrufen der 404-Fehler fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:297
 msgid "Failed to fetch allowed domains"
-msgstr ""
+msgstr "Abrufen der erlaubten Domains fehlgeschlagen"
 
 #: packages/admin/src/lib/api/api-tokens.ts:76
 msgid "Failed to fetch API tokens"
-msgstr ""
+msgstr "Abrufen der API-Tokens fehlgeschlagen"
 
 #: packages/admin/src/lib/api/client.ts:371
 msgid "Failed to fetch auth mode"
@@ -5665,23 +5665,23 @@ msgstr "Abrufen der Backup-Einstellungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:270
 msgid "Failed to fetch block type"
-msgstr ""
+msgstr "Abrufen des Blocktyps fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:261
 msgid "Failed to fetch block types"
-msgstr ""
+msgstr "Abrufen der Blocktypen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/bylines.ts:118
 msgid "Failed to fetch byline"
-msgstr ""
+msgstr "Abrufen der Autorenangabe fehlgeschlagen"
 
 #: packages/admin/src/lib/api/bylines.ts:157
 msgid "Failed to fetch byline translations"
-msgstr ""
+msgstr "Abrufen der Übersetzungen der Autorenangabe fehlgeschlagen"
 
 #: packages/admin/src/lib/api/bylines.ts:112
 msgid "Failed to fetch bylines"
-msgstr ""
+msgstr "Abrufen der Autorenangaben fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:351
 #: packages/admin/src/lib/api/schema.ts:355
@@ -5690,28 +5690,28 @@ msgstr "Abrufen der Sammlung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:331
 msgid "Failed to fetch collections"
-msgstr ""
+msgstr "Abrufen der Sammlungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/comments.ts:85
 msgid "Failed to fetch comment"
-msgstr ""
+msgstr "Abrufen des Kommentars fehlgeschlagen"
 
 #: packages/admin/src/lib/api/comments.ts:77
 msgid "Failed to fetch comment counts"
-msgstr ""
+msgstr "Abrufen der Kommentaranzahl fehlgeschlagen"
 
 #: packages/admin/src/lib/api/comments.ts:68
 msgid "Failed to fetch comments"
-msgstr ""
+msgstr "Abrufen der Kommentare fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:237
 #: packages/admin/src/lib/api/content.ts:277
 msgid "Failed to fetch content"
-msgstr ""
+msgstr "Abrufen des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:258
 msgid "Failed to fetch content authors"
-msgstr ""
+msgstr "Abrufen der Inhaltsautoren fehlgeschlagen"
 
 #: packages/admin/src/lib/api/dashboard.ts:56
 msgid "Failed to fetch dashboard stats"
@@ -5727,7 +5727,7 @@ msgstr "Abrufen der Begriffe des Eintrags fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:413
 msgid "Failed to fetch fields"
-msgstr ""
+msgstr "Abrufen der Felder fehlgeschlagen"
 
 #: packages/admin/src/lib/api/client.ts:354
 msgid "Failed to fetch manifest"
@@ -5759,23 +5759,23 @@ msgstr "Abrufen der Verwendungsdetails fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:125
 msgid "Failed to fetch menu"
-msgstr ""
+msgstr "Abrufen des Menüs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:249
 msgid "Failed to fetch menu translations"
-msgstr ""
+msgstr "Abrufen der Übersetzungen des Menüs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:117
 msgid "Failed to fetch menus"
-msgstr ""
+msgstr "Abrufen der Menüs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:525
 msgid "Failed to fetch orphaned tables"
-msgstr ""
+msgstr "Abrufen der unregistrierten Inhaltstabellen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:234
 msgid "Failed to fetch passkeys"
-msgstr ""
+msgstr "Abrufen der Passkeys fehlgeschlagen"
 
 #: packages/admin/src/lib/api/marketplace.ts:324
 #: packages/admin/src/lib/api/plugins.ts:71
@@ -5797,23 +5797,23 @@ msgstr "Abrufen der Medien vom Anbieter fehlgeschlagen"
 
 #: packages/admin/src/lib/api/redirects.ts:77
 msgid "Failed to fetch redirects"
-msgstr ""
+msgstr "Abrufen der Weiterleitungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/relations.ts:174
 msgid "Failed to fetch reference children"
-msgstr ""
+msgstr "Abrufen der referenzierten Einträge fehlgeschlagen"
 
 #: packages/admin/src/lib/api/relations.ts:193
 msgid "Failed to fetch reference parents"
-msgstr ""
+msgstr "Abrufen der verweisenden Einträge fehlgeschlagen"
 
 #: packages/admin/src/lib/api/relations.ts:106
 msgid "Failed to fetch relation"
-msgstr ""
+msgstr "Abrufen der Beziehung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/relations.ts:94
 msgid "Failed to fetch relations"
-msgstr ""
+msgstr "Abrufen der Beziehungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:641
 #: packages/admin/src/lib/api/content.ts:646
@@ -5822,7 +5822,7 @@ msgstr "Abrufen der Revision fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:628
 msgid "Failed to fetch revisions"
-msgstr ""
+msgstr "Abrufen der Revisionen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/sections.ts:76
 msgid "Failed to fetch section"
@@ -5842,11 +5842,11 @@ msgstr "Abrufen des Einrichtungs-Status fehlgeschlagen"
 
 #: packages/admin/src/lib/api/taxonomies.ts:137
 msgid "Failed to fetch taxonomies"
-msgstr ""
+msgstr "Abrufen der Taxonomien fehlgeschlagen"
 
 #: packages/admin/src/lib/api/taxonomies.ts:290
 msgid "Failed to fetch term translations"
-msgstr ""
+msgstr "Abrufen der Übersetzungen des Begriffs fehlgeschlagen"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:144
 #: packages/admin/src/lib/api/taxonomies.ts:196
@@ -5859,15 +5859,15 @@ msgstr "Abrufen der Website-Domain fehlgeschlagen"
 
 #: packages/admin/src/lib/api/theme-marketplace.ts:99
 msgid "Failed to fetch theme"
-msgstr ""
+msgstr "Abrufen des Designs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:113
 msgid "Failed to fetch translations"
-msgstr ""
+msgstr "Abrufen der Übersetzungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:375
 msgid "Failed to fetch trashed content"
-msgstr ""
+msgstr "Abrufen der Inhalte im Papierkorb fehlgeschlagen"
 
 #: packages/admin/src/lib/api/core-update.ts:29
 msgid "Failed to fetch update status"
@@ -5883,19 +5883,19 @@ msgstr "Abrufen des Benutzers fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:77
 msgid "Failed to fetch users"
-msgstr ""
+msgstr "Abrufen der Benutzer fehlgeschlagen"
 
 #: packages/admin/src/lib/api/widgets.ts:86
 msgid "Failed to fetch widget area"
-msgstr ""
+msgstr "Abrufen des Widget-Bereichs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/widgets.ts:76
 msgid "Failed to fetch widget areas"
-msgstr ""
+msgstr "Abrufen der Widget-Bereiche fehlgeschlagen"
 
 #: packages/admin/src/lib/api/widgets.ts:168
 msgid "Failed to fetch widget components"
-msgstr ""
+msgstr "Abrufen der Widget-Komponenten fehlgeschlagen"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:263
 msgid "Failed to generate preview"
@@ -5920,7 +5920,7 @@ msgstr "Abrufen der Upload-URL fehlgeschlagen"
 
 #: packages/admin/src/lib/api/import.ts:432
 msgid "Failed to import"
-msgstr ""
+msgstr "Importieren fehlgeschlagen"
 
 #: packages/admin/src/components/WordPressImport.tsx:456
 #: packages/admin/src/lib/api/import.ts:257
@@ -5940,7 +5940,7 @@ msgstr "Installieren des Plugins fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:168
 msgid "Failed to invite user"
-msgstr ""
+msgstr "Einladen des Benutzers fehlgeschlagen"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
@@ -6085,7 +6085,7 @@ msgstr "Vorbereiten des Imports fehlgeschlagen"
 
 #: packages/admin/src/lib/api/import.ts:710
 msgid "Failed to probe URL"
-msgstr ""
+msgstr "Prüfen der URL fehlgeschlagen"
 
 #: packages/admin/src/router.tsx:648
 #: packages/admin/src/router.tsx:1389
@@ -6094,7 +6094,7 @@ msgstr "Veröffentlichen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:529
 msgid "Failed to publish content"
-msgstr ""
+msgstr "Veröffentlichen des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
@@ -6102,7 +6102,7 @@ msgstr "Lesen der Nutzung des Autorenangaben-Felds fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:548
 msgid "Failed to register orphaned table"
-msgstr ""
+msgstr "Registrieren der Inhaltstabelle fehlgeschlagen"
 
 #: packages/admin/src/lib/api/entry-lock.ts:70
 msgid "Failed to release the entry lock"
@@ -6141,11 +6141,11 @@ msgstr "Neuanordnen der Felder fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:236
 msgid "Failed to reorder menu items"
-msgstr ""
+msgstr "Neuanordnen der Menüpunkte fehlgeschlagen"
 
 #: packages/admin/src/lib/api/taxonomies.ts:261
 msgid "Failed to reorder terms"
-msgstr ""
+msgstr "Neuanordnen der Begriffe fehlgeschlagen"
 
 #: packages/admin/src/lib/api/widgets.ts:158
 msgid "Failed to reorder widgets"
@@ -6204,7 +6204,7 @@ msgstr "Planen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:433
 msgid "Failed to schedule content"
-msgstr ""
+msgstr "Planen des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/components/LoginPage.tsx:71
 #: packages/admin/src/components/LoginPage.tsx:76
@@ -6248,7 +6248,7 @@ msgstr "Zurückziehen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:552
 msgid "Failed to unpublish content"
-msgstr ""
+msgstr "Zurückziehen des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/router.tsx:1513
 msgid "Failed to unschedule"
@@ -6256,7 +6256,7 @@ msgstr "Aufheben der Planung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:454
 msgid "Failed to unschedule content"
-msgstr ""
+msgstr "Aufheben der Planung des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/router.tsx:671
 msgid "Failed to update"
@@ -6269,7 +6269,7 @@ msgstr "Aktualisieren von {0} fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:335
 msgid "Failed to update allowed domain"
-msgstr ""
+msgstr "Aktualisieren der erlaubten Domain fehlgeschlagen"
 
 #: packages/admin/src/lib/api/backups.ts:46
 msgid "Failed to update backup settings"
@@ -6277,11 +6277,11 @@ msgstr "Aktualisieren der Backup-Einstellungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:299
 msgid "Failed to update block type"
-msgstr ""
+msgstr "Aktualisieren des Blocktyps fehlgeschlagen"
 
 #: packages/admin/src/lib/api/bylines.ts:139
 msgid "Failed to update byline"
-msgstr ""
+msgstr "Aktualisieren der Autorenangabe fehlgeschlagen"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
@@ -6289,15 +6289,15 @@ msgstr "Aktualisieren des Autorenangaben-Felds fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:390
 msgid "Failed to update collection"
-msgstr ""
+msgstr "Aktualisieren der Sammlung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/comments.ts:104
 msgid "Failed to update comment status"
-msgstr ""
+msgstr "Aktualisieren des Kommentarstatus fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:330
 msgid "Failed to update content"
-msgstr ""
+msgstr "Aktualisieren des Inhalts fehlgeschlagen"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:107
 msgid "Failed to update domain"
@@ -6305,7 +6305,7 @@ msgstr "Aktualisieren der Domain fehlgeschlagen"
 
 #: packages/admin/src/lib/api/schema.ts:455
 msgid "Failed to update field"
-msgstr ""
+msgstr "Aktualisieren des Felds fehlgeschlagen"
 
 #: packages/admin/src/lib/api/media.ts:647
 msgid "Failed to update media"
@@ -6313,11 +6313,11 @@ msgstr "Aktualisieren der Medien fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:153
 msgid "Failed to update menu"
-msgstr ""
+msgstr "Aktualisieren des Menüs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/menus.ts:202
 msgid "Failed to update menu item"
-msgstr ""
+msgstr "Aktualisieren des Menüpunkts fehlgeschlagen"
 
 #: packages/admin/src/components/PluginManager.tsx:326
 #: packages/admin/src/lib/api/marketplace.ts:373
@@ -6335,11 +6335,11 @@ msgstr "Aktualisieren der Plugin-Einstellungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/redirects.ts:101
 msgid "Failed to update redirect"
-msgstr ""
+msgstr "Aktualisieren der Weiterleitung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/relations.ts:132
 msgid "Failed to update relation"
-msgstr ""
+msgstr "Aktualisieren der Beziehung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
@@ -6355,15 +6355,15 @@ msgstr "Aktualisieren des Status fehlgeschlagen"
 
 #: packages/admin/src/lib/api/taxonomies.ts:239
 msgid "Failed to update term"
-msgstr ""
+msgstr "Aktualisieren des Begriffs fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:112
 msgid "Failed to update user"
-msgstr ""
+msgstr "Aktualisieren des Benutzers fehlgeschlagen"
 
 #: packages/admin/src/lib/api/widgets.ts:136
 msgid "Failed to update widget"
-msgstr ""
+msgstr "Aktualisieren des Widgets fehlgeschlagen"
 
 #: packages/admin/src/lib/api/transfer.ts:431
 msgid "Failed to upload a package file"
@@ -6450,7 +6450,7 @@ msgstr "Feld aktualisiert"
 
 #: packages/admin/src/components/FieldEditor.tsx:1277
 msgid "field_slug"
-msgstr ""
+msgstr "field_slug"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:752
 #: packages/admin/src/components/RelationList.tsx:96
@@ -6637,7 +6637,7 @@ msgstr "Für den besten Import installiere das Plugin <0>EmDash Exporter</0> auf
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4947
 msgid "Format selection"
-msgstr ""
+msgstr "Auswahl formatieren"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1348
 msgid "Format:"
@@ -7397,7 +7397,7 @@ msgstr "Tabelle einfügen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4673
 msgid "Insert video"
-msgstr ""
+msgstr "Video einfügen"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:163
 msgid "Instagram"
@@ -7488,7 +7488,7 @@ msgstr "Benutzer einladen"
 
 #: packages/admin/src/lib/api/users.ts:194
 msgid "Invite validation failed"
-msgstr ""
+msgstr "Verifizierung der Einladung fehlgeschlagen"
 
 #: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
@@ -7764,7 +7764,7 @@ msgstr "Link abgelaufen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5079
 msgid "Link options"
-msgstr ""
+msgstr "Link-Optionen"
 
 #: packages/admin/src/routes/bylines.tsx:752
 msgid "Link this byline to a user or mark it as a guest profile."
@@ -7847,7 +7847,7 @@ msgstr "Verweise auf: {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3464
 msgid "List"
-msgstr ""
+msgstr "Liste"
 
 #: packages/admin/src/components/MediaLibrary.tsx:890
 #: packages/admin/src/components/MediaPickerModal.tsx:1250
@@ -8201,7 +8201,7 @@ msgstr "Verwaltet von einem externen Medienanbieter"
 
 #: packages/admin/src/components/users/UserDetail.tsx:155
 msgid "Managed by your identity provider. Change the name there."
-msgstr ""
+msgstr "Wird von deinem Identitätsanbieter verwaltet. Ändere den Namen dort."
 
 #: packages/admin/src/components/Redirects.tsx:398
 msgid "Manual"
@@ -8252,7 +8252,7 @@ msgstr "Die Marktplatz-Konfiguration ist veraltet"
 
 #: packages/admin/src/lib/api/marketplace.ts:311
 msgid "Marketplace search failed"
-msgstr ""
+msgstr "Suche im Marktplatz fehlgeschlagen"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:339
 msgid "Matched by email"
@@ -8548,7 +8548,7 @@ msgstr "Weitere Aktionen für {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5225
 msgid "More formatting"
-msgstr ""
+msgstr "Weitere Formatierungen"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:511
 msgid "More information about {label}"
@@ -9478,7 +9478,7 @@ msgstr "Hier können nur Bilddateien hochgeladen werden."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:244
 msgid "Only images and videos can be uploaded here."
-msgstr ""
+msgstr "Hier können nur Bilder und Videos hochgeladen werden."
 
 #: packages/admin/src/components/MenuList.tsx:168
 msgid "Only lowercase letters, numbers, and hyphens"
@@ -10063,7 +10063,7 @@ msgstr "Plugin deinstalliert"
 #: packages/admin/src/lib/api/marketplace.ts:232
 #: packages/admin/src/lib/api/registry.ts:918
 msgid "Plugin update requires re-consent"
-msgstr "Die Aktualisierung des Plugins erfordert eine erneute Zustimmung"
+msgstr "Das Plugin-Update erfordert eine erneute Zustimmung"
 
 #: packages/admin/src/components/PluginManager.tsx:293
 msgid "Plugin updated"
@@ -10908,7 +10908,7 @@ msgstr "Ersetze die Inhalte dieser Website durch ein Paket, das aus einer andere
 #: packages/admin/src/components/editor/VideoNode.tsx:366
 #: packages/admin/src/components/editor/VideoNode.tsx:402
 msgid "Replace video"
-msgstr ""
+msgstr "Video ersetzen"
 
 #: packages/admin/src/components/NonListFieldValue.tsx:30
 msgid "Replace with empty list"
@@ -12003,7 +12003,7 @@ msgstr "Wähle bis zu 50 Beiträge auf einmal aus."
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 #: packages/admin/src/components/PortableTextEditor.tsx:4672
 msgid "Select video"
-msgstr ""
+msgstr "Video auswählen"
 
 #: packages/admin/src/components/WordPressImport.tsx:1755
 msgid "Select which content types to import."
@@ -12332,11 +12332,11 @@ msgstr "Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut."
 
 #: packages/admin/src/lib/api/users.ts:431
 msgid "Signup completion failed"
-msgstr ""
+msgstr "Abschließen der Registrierung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/users.ts:377
 msgid "Signup request failed"
-msgstr ""
+msgstr "Registrierungsanfrage fehlgeschlagen"
 
 #: packages/admin/src/components/FieldEditor.tsx:427
 msgid "Single choice from options"
@@ -12635,7 +12635,7 @@ msgstr "Starte mit den Beispielbeiträgen und -seiten der Vorlage. Empfohlen fü
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2015
 msgid "Start writing with plain text"
-msgstr ""
+msgstr "Mit einfachem Text beginnen"
 
 #: packages/admin/src/components/ContentEditor.tsx:2301
 #: packages/admin/src/components/PortableTextEditor.tsx:3451
@@ -12718,11 +12718,11 @@ msgstr "Strukturiert"
 
 #: packages/admin/src/components/FieldEditor.tsx:1303
 msgid "Sub-field slugs cannot be changed after creation."
-msgstr ""
+msgstr "Slugs untergeordneter Felder können nach dem Erstellen nicht mehr geändert werden."
 
 #: packages/admin/src/components/FieldEditor.tsx:1240
 msgid "Sub-field slugs must be unique."
-msgstr ""
+msgstr "Slugs untergeordneter Felder müssen eindeutig sein."
 
 #: packages/admin/src/components/FieldEditor.tsx:1206
 msgid "Sub-Fields"
@@ -13312,7 +13312,7 @@ msgstr "Das hochgeladene Paket wird verworfen. Auf dieser Website hat sich nicht
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:211
 msgid "The video is in the Media Library, but this entry is now read-only."
-msgstr ""
+msgstr "Das Video ist in der Medienbibliothek, aber dieser Eintrag ist jetzt schreibgeschützt."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:179
 msgid "the Windows passkey prompt"
@@ -13333,7 +13333,7 @@ msgstr "Design nicht gefunden"
 
 #: packages/admin/src/lib/api/theme-marketplace.ts:87
 msgid "Theme search failed"
-msgstr ""
+msgstr "Suche nach Designs fehlgeschlagen"
 
 #: packages/admin/src/components/SectionEditor.tsx:205
 msgid "Theme Section"
@@ -13425,11 +13425,11 @@ msgstr "Dieser Eintrag wurde an anderer Stelle geändert. Speichere trotzdem ode
 
 #: packages/admin/src/router.tsx:1869
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
-msgstr ""
+msgstr "Dieser Eintrag existiert nicht oder ist nicht veröffentlicht. Mit deiner Rolle kannst du nur veröffentlichte Inhalte sehen."
 
 #: packages/admin/src/router.tsx:1870
 msgid "This entry doesn't exist or was deleted."
-msgstr ""
+msgstr "Dieser Eintrag existiert nicht oder wurde gelöscht."
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
 msgid "This entry has no URL until it is published. Paste a URL instead."
@@ -13541,7 +13541,7 @@ msgstr "Das ist nicht das Paket, mit dem der Import gestartet wurde. Wähle dies
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:331
 msgid "This link can't be used. Enter a web address, such as https://example.com."
-msgstr ""
+msgstr "Dieser Link kann nicht verwendet werden. Gib eine Web-Adresse ein, z. B. https://beispiel.de."
 
 #: packages/admin/src/locales/emails.ts:66
 msgid "This link expires in 15 minutes."
@@ -13741,7 +13741,7 @@ msgstr "Diese Version ist auf der Website nicht sichtbar"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:315
 msgid "This video can't be played."
-msgstr ""
+msgstr "Dieses Video kann nicht abgespielt werden."
 
 #: packages/admin/src/components/Widgets.tsx:718
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
@@ -13856,7 +13856,7 @@ msgstr "Token-Name"
 
 #: packages/admin/src/lib/api/users.ts:393
 msgid "Token verification failed"
-msgstr ""
+msgstr "Verifizierung des Tokens fehlgeschlagen"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:55
 msgid "TOML"
@@ -14076,7 +14076,7 @@ msgstr "Bildunterschrift eingeben (optional)"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:326
 msgid "Type caption for video (optional)"
-msgstr ""
+msgstr "Bildunterschrift eingeben (optional)"
 
 #. placeholder {0}: status.existingType
 #: packages/admin/src/components/WordPressImport.tsx:2041
@@ -14085,11 +14085,11 @@ msgstr "Typkonflikt ({0})"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2564
 msgid "Type to filter"
-msgstr ""
+msgstr "Zum Filtern tippen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4619
 msgid "Type to search"
-msgstr ""
+msgstr "Zum Suchen tippen"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1447
 msgid "Type: Folder"
@@ -14334,7 +14334,7 @@ msgstr "Lade eine Datei hoch, um zu beginnen"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1423
 msgid "Upload a video to get started"
-msgstr ""
+msgstr "Lade ein Video hoch, um zu beginnen"
 
 #: packages/admin/src/components/WordPressImport.tsx:1414
 msgid "Upload an export file"
@@ -14391,7 +14391,7 @@ msgstr "Upload nicht abgeschlossen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3674
 msgid "Upload or choose a video"
-msgstr ""
+msgstr "Ein Video hochladen oder auswählen"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
 msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
@@ -14441,7 +14441,7 @@ msgstr "Paket wird hochgeladen"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:125
 msgid "Uploading video…"
-msgstr ""
+msgstr "Video wird hochgeladen…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
@@ -14466,7 +14466,7 @@ msgstr "URL-Slug"
 
 #: packages/admin/src/components/Widgets.tsx:132
 msgid "URL template (e.g. /blog/:slug)"
-msgstr ""
+msgstr "URL-Muster (z. B. /blog/:slug)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:133
 #: packages/admin/src/components/FieldEditor.tsx:469
@@ -14705,11 +14705,11 @@ msgstr "Video"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:349
 msgid "Video actions"
-msgstr ""
+msgstr "Videoaktionen"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
 msgid "Video upload failed. Try again."
-msgstr ""
+msgstr "Video-Upload fehlgeschlagen. Versuche es erneut."
 
 #: packages/admin/src/components/Settings.tsx:113
 #: packages/admin/src/components/settings/EmailSettings.tsx:59
