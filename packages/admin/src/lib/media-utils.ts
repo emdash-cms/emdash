@@ -107,6 +107,7 @@ const UPLOAD_PREVIEW_MIME_TYPES = new Set([
 	"image/gif",
 	"image/webp",
 	"image/avif",
+	"image/bmp",
 ]);
 
 /** A local preview URL for a file being uploaded, or undefined for large files and formats not previewed. */
