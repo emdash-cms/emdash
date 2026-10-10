@@ -42,6 +42,7 @@ import {
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
 import {
+	isMigrationRequiredError,
 	PendingMigrationsError,
 	resolveRuntimeMigrationMode,
 	type RuntimeMigrationMode,
@@ -484,6 +485,18 @@ function pendingMigrationsResponse(error: PendingMigrationsError): Response {
 	return migrationRequiredResponse();
 }
 
+function migrationRequiredErrorResponse(error: unknown): Response {
+	if (error instanceof PendingMigrationsError) return pendingMigrationsResponse(error);
+	if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+		lastRuntimeInitErrorLogAt = Date.now();
+		console.error(
+			"[emdash] database migrations are required:",
+			error instanceof Error ? error.message : error,
+		);
+	}
+	return migrationRequiredResponse();
+}
+
 function migrationRequiredResponse(): Response {
 	return new Response(
 		"Database migrations are required. Apply the deployment migration manifest and retry.",
@@ -906,8 +919,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
-						if (error instanceof PendingMigrationsError) {
-							return pendingMigrationsResponse(error);
+						if (isMigrationRequiredError(error)) {
+							return migrationRequiredErrorResponse(error);
 						}
 						if (migrationMode === "manual" && isMissingTableError(error)) {
 							console.error(
@@ -1168,8 +1181,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
 				};
 			} catch (error) {
-				if (error instanceof PendingMigrationsError) {
-					return pendingMigrationsResponse(error);
+				if (isMigrationRequiredError(error)) {
+					return migrationRequiredErrorResponse(error);
 				}
 				if (migrationMode === "manual" && isMissingTableError(error)) {
 					console.error("[emdash] database schema is unavailable in manual migration mode:", error);

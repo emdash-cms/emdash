@@ -160,9 +160,23 @@ jobs:
 
 Update `EMDASH_TARGET_FINGERPRINT` only after reviewing a changed target locally. The fingerprint contains no credential, but changing it without checking the account and database removes the guard against migrating the wrong database.
 
+## Apply large content migrations from the CLI
+
+Some core migrations process every content entry and revision, so their work grows with the size of the site. A deployed Cloudflare Worker stops a request when it reaches its subrequest or CPU limit, and on a large site such a migration reaches that limit before it finishes.
+
+In `auto` mode, a deployed Worker counts the rows first. When the pending migrations of this kind would process more than about 5,000 content entries and revisions, the Worker applies none of the pending migrations and answers requests with a 503 response. The Worker log shows the following error, which names the migration.
+
+```text
+Pending migration 079_datetime_normalization processes more than 5000 content rows, too many to apply while serving a request. Apply it with `emdash migrate`: https://docs.emdashcms.com/deployment/core-migrations/#apply-large-content-migrations-from-the-cli
+```
+
+Apply the pending migrations from the deployment machine with `emdash migrate`, as described in [Build, migrate, deploy, check](#build-migrate-deploy-check). A Worker instance checks again 30 seconds after its last check, so pages return within 30 seconds of the command finishing.
+
+Node deployments and the development server apply these migrations at startup regardless of size.
+
 ## Release a stuck migration lock
 
-A D1 migration run that stops before it releases the migration lock leaves the lock held. This happens when a CI job is cancelled during `emdash migrate`, when a Worker in `auto` mode stops during a runtime migration, or when a development server is stopped while it applies migrations. A run that fails with a migration error releases the lock. EmDash does not release a lock it does not hold, because the holder may still be applying migrations or may have stopped partway through one. Until the lock is released, the site cannot apply its pending migrations, and in `auto` mode EmDash fails to initialize.
+A D1 migration run that stops before it releases the migration lock leaves the lock held. This happens when a CI job is cancelled during `emdash migrate`, when a Worker in `auto` mode stops during a runtime migration, or when a development server is stopped while it applies migrations. A run that fails with a migration error releases the lock. EmDash does not release a lock it does not hold, because the holder may still be applying migrations or may have stopped partway through one. Until the lock is released, the site cannot apply its pending migrations. Once the lock has been held for more than a minute, a site in `auto` mode answers requests with a 503 response, as `check` mode does while migrations are pending.
 
 After the lock has been held for more than a minute, `emdash migrate` and runtime migrations stop waiting for it and report the following error:
 
@@ -232,7 +246,7 @@ emdash({
 });
 ```
 
-- `auto` is the backwards-compatible default. Runtime startup checks and applies pending migrations.
+- `auto` is the backwards-compatible default. Runtime startup checks and applies pending migrations. On a deployed Cloudflare Worker, it leaves [large content migrations](#apply-large-content-migrations-from-the-cli) to `emdash migrate`.
 - `check` performs one directional status query and returns 503 before serving a request when known migrations are pending. It tolerates records from a newer compatible build during a rolling deployment. Requests to the image endpoint EmDash installs are still served, because they skip the runtime startup that runs this check.
 - `manual` performs no runtime migration or status query. Use it only after the deployment pipeline applies and checks every build reliably.
 

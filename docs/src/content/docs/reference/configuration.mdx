@@ -66,7 +66,7 @@ migrations: {
 }
 ```
 
-`auto` checks and applies pending migrations, `check` returns 503 when migrations known to the running build are pending (except for requests to the image endpoint EmDash installs), and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
+`auto` checks and applies pending migrations (a deployed Cloudflare Worker leaves [large content migrations](/deployment/core-migrations/#apply-large-content-migrations-from-the-cli) to `emdash migrate`), `check` returns 503 when migrations known to the running build are pending (except for requests to the image endpoint EmDash installs), and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
 
 ### `storage`
 

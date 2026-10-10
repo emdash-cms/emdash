@@ -8,11 +8,13 @@ import {
 	ConcurrentMigrationTimeoutError,
 	MIGRATION_NAMES,
 	MigrationLockHeldError,
+	MigrationRowLimitError,
 	createMigrator,
 	getExactMigrationStatus,
 	runMigrations,
 } from "../../src/database/migrations/runner.js";
 import type { Database } from "../../src/database/types.js";
+import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetD1Schema } from "./d1-schema.js";
 
 declare module "cloudflare:test" {
@@ -121,6 +123,39 @@ describe("migration lock on D1", () => {
 		expect(await readMigrationLock(db)).toBe(heldSince);
 
 		await expect(clearMigrationLock(db, heldSince)).resolves.toBe(true);
+		expect(await readMigrationLock(db)).toBeNull();
+	});
+});
+
+describe("content row limit on D1", () => {
+	beforeEach(async () => {
+		await migrateThrough("078_menu_item_translation_groups");
+		await new SchemaRegistry(db).createCollection({ slug: "posts", label: "Posts" });
+		for (const id of ["post-1", "post-2", "post-3"]) {
+			await sql`
+				INSERT INTO ec_posts (id, slug, status, created_at, updated_at, version, locale, translation_group)
+				VALUES (${id}, ${id}, 'draft', '2012-09-12T18:00:00', '2012-09-12T18:00:00', 1, 'en', ${id})
+			`.execute(db);
+		}
+	});
+
+	it("refuses before it reaches the migration lock when the content exceeds the limit", async () => {
+		const heldSince = Date.now() - 10 * 60_000;
+		await holdLock(heldSince);
+
+		await expect(runMigrations(db, { contentRowLimit: 2 })).rejects.toBeInstanceOf(
+			MigrationRowLimitError,
+		);
+
+		expect(await readMigrationLock(db)).toBe(heldSince);
+		expect((await getExactMigrationStatus(db)).pending[0]).toBe("079_datetime_normalization");
+	});
+
+	it("applies and releases the lock when the content fits the limit", async () => {
+		const { applied } = await runMigrations(db, { contentRowLimit: 3 });
+
+		expect(applied[0]).toBe("079_datetime_normalization");
+		expect((await getExactMigrationStatus(db)).pending).toEqual([]);
 		expect(await readMigrationLock(db)).toBeNull();
 	});
 });

@@ -53,6 +53,10 @@ vi.mock("../../../src/loader.js", () => ({ getDb: mockGetDb }));
 
 import onRequest from "../../../src/astro/middleware.js";
 import { PendingMigrationsError } from "../../../src/database/migrations/policy.js";
+import {
+	MigrationLockHeldError,
+	MigrationRowLimitError,
+} from "../../../src/database/migrations/runner.js";
 
 const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
 const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
@@ -114,4 +118,81 @@ describe("middleware migration check failures", () => {
 			expect(mockGetDb).not.toHaveBeenCalled();
 		},
 	);
+
+	describe("in auto mode", () => {
+		const lockHeld = new MigrationLockHeldError(1788264000000);
+		const errors: Array<[string, Error]> = [
+			["a migration lock left behind", lockHeld],
+			[
+				"a backed-off migration lock",
+				new Error("Database initialization is backing off after a recent migration failure", {
+					cause: lockHeld,
+				}),
+			],
+			[
+				"content migrations over the row limit",
+				new MigrationRowLimitError(["079_datetime_normalization"], 5000),
+			],
+		];
+
+		beforeEach(() => {
+			VIRTUAL_CONFIG.migrations = { runtime: "auto", dev: "auto" };
+			mockGetDb.mockResolvedValue({
+				selectFrom: () => ({
+					selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
+				}),
+			});
+		});
+
+		describe.each(errors)("with %s", (_label, error) => {
+			it.each(["/", "/_emdash/api/content/posts"])(
+				"returns a retryable 503 for %s",
+				async (pathname) => {
+					mockRuntimeCreate.mockRejectedValue(error);
+					const next = vi.fn(async () => new Response("route response"));
+
+					const response = await onRequest(contextFor(pathname) as never, next);
+
+					expect(response.status).toBe(503);
+					expect(response.headers.get("Retry-After")).toBe("60");
+					expect(next).not.toHaveBeenCalled();
+				},
+			);
+		});
+
+		it("logs a migration it waits for at most once every 30 seconds", async () => {
+			mockRuntimeCreate.mockRejectedValue(lockHeld);
+			const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+			errorLog.mockClear();
+			const start = Date.now() + 60_000;
+			const now = vi.spyOn(Date, "now").mockReturnValue(start);
+			const requiredLogs = () =>
+				errorLog.mock.calls.filter(
+					([message]) => message === "[emdash] database migrations are required:",
+				).length;
+			const request = () => onRequest(contextFor("/") as never, vi.fn());
+
+			try {
+				await request();
+				await request();
+				expect(requiredLogs()).toBe(1);
+
+				now.mockReturnValue(start + 30_000);
+				await request();
+				expect(requiredLogs()).toBe(2);
+			} finally {
+				now.mockRestore();
+			}
+		});
+
+		it("still renders a public page when runtime init fails for another reason", async () => {
+			mockRuntimeCreate.mockRejectedValue(new Error("connection reset"));
+			const next = vi.fn(async () => new Response("route response"));
+
+			const response = await onRequest(contextFor("/") as never, next);
+
+			expect(response.status).toBe(200);
+			expect(next).toHaveBeenCalled();
+		});
+	});
 });
