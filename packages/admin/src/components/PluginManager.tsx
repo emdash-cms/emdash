@@ -287,7 +287,13 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 			setRegistryVerification(null);
 			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
-			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
+			// The update check query is disabled, and invalidation never refetches a disabled query.
+			// staleTime 0 overrides the client's one-minute default so the check runs again.
+			void queryClient.prefetchQuery({
+				queryKey: ["plugin-updates"],
+				queryFn: checkPluginUpdates,
+				staleTime: 0,
+			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Plugin updated`,
