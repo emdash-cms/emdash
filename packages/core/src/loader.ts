@@ -1852,8 +1852,21 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					// table `SELECT *`, so all field/status/locale/cursor/order
 					// conditions reference unprefixed columns as before.
 					const orderByClause = buildOrderByClause(orderBy);
-					const statusCondition = buildStatusCondition(db, status);
-					const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
+					// A caller naming its entries by id wants a primary-key seek,
+					// but SQLite's ANALYZE averages `deleted_at` over its distinct
+					// values. Every trashed row has its own timestamp, so the
+					// statistics put `deleted_at IS NULL` at a handful of rows and
+					// the planner walks a `deleted_at` index over the whole live
+					// table instead. A unary `+` keeps a column out of index
+					// selection without changing what it matches. SQLite only:
+					// Postgres has no unary `+` for text.
+					const idPinned =
+						!isPostgres(db) && Array.isArray(fieldFilters.id) && fieldFilters.id.length > 0;
+					const pin = idPinned ? sql`+` : sql``;
+					const statusCondition = idPinned
+						? sql`+${sql.ref("status")} = ${status}`
+						: buildStatusCondition(db, status);
+					const localeFilter = locale ? sql`AND ${pin}locale = ${locale}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
 					const fieldConds = buildFieldConditions(db, fieldFilters);
 					const fieldCondsSQL =
@@ -1916,7 +1929,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					}
 					result = await sql<Record<string, unknown>>`
 						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect} FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
+						WHERE ${pin}deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
 						${cursorCond}
