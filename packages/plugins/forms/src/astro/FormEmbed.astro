@@ -129,9 +129,7 @@ function fieldId(name: string): string {
 								required={field.required}
 								minlength={field.validation?.minLength}
 								maxlength={field.validation?.maxLength}
-							>
-								{field.defaultValue || ""}
-							</textarea>
+							>{field.defaultValue || ""}</textarea>
 						)}
 						{field.type === "select" && (
 							<select
