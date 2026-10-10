@@ -1,0 +1,117 @@
+---
+title: Edge Caching
+description: Cache rendered HTML in the Cloudflare Workers Cache and purge it by tag when content changes.
+---
+
+The [object cache](/deployment/object-cache/) stores query results, but every request still renders HTML inside the Worker. Edge caching stores the rendered HTML response itself in the [Cloudflare Workers Cache](https://developers.cloudflare.com/workers/cache/), so a cache hit is served at the edge and never invokes the Worker. Combined with cache tags and EmDash's built-in purging, pages stay cached for days while a publish usually becomes visible within seconds (see [Purge rate limits](#purge-rate-limits)).
+
+This guide uses [Astro's route caching](https://docs.astro.build/en/guides/caching/) with the Cloudflare cache provider, and applies to Cloudflare deployments only. With a cache provider configured, anonymous renders skip the object cache and read from the database, so an anonymous render that refills a purged page doesn't come from an older snapshot (see [What gets cached](/deployment/object-cache/#what-gets-cached)). The edge cache then serves anonymous visitors, and the object cache mainly speeds up renders for signed-in editors.
+
+## Configure route caching
+
+Register the Cloudflare cache provider and declare which routes may be cached, for how long, and under which tags:
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import cloudflare from "@astrojs/cloudflare";
+import { cacheCloudflare } from "@astrojs/cloudflare/cache";
+import emdash from "emdash/astro";
+import { d1, r2 } from "@emdash-cms/cloudflare";
+
+export default defineConfig({
+	output: "server",
+	adapter: cloudflare(),
+	cache: {
+		provider: cacheCloudflare(),
+	},
+	routeRules: {
+		"/": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages", "all"] },
+		"/blog": { maxAge: 86_400, swr: 604_800, tags: ["posts", "all"] },
+		"/blog/[slug]": { maxAge: 86_400, swr: 604_800, tags: ["posts", "all"] },
+		"/sitemap.xml": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages", "all"] },
+		"/sitemap-[collection].xml": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages", "all"] },
+	},
+	integrations: [
+		emdash({
+			database: d1({ binding: "DB" }),
+			storage: r2({ binding: "MEDIA" }),
+		}),
+	],
+});
+```
+
+- `maxAge` is how long the edge serves the entry without contacting the Worker. EmDash purges stale entries on publish (below), but a purge can be rate-limited, so `maxAge` also bounds how long a page can stay stale, plus one stale response while `swr` revalidates it. See [Purge rate limits](#purge-rate-limits) before choosing a long value.
+- `swr` lets the edge keep serving a stale entry while it revalidates in the background, so visitors rarely wait on a render once a page is cached.
+- `tags` name the entry for purging. Tag each route with the collections it renders, using the collection names: EmDash's built-in invalidation purges by collection name, so matching tags are purged automatically. A broad extra tag on every cached route (here `all`, which is not a collection name, so EmDash never purges it on its own) works as an emergency switch: purging it clears everything at once.
+
+The query helpers also return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry (`getEmDashEntry`), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`, `getTaxonomyTermsWithCacheHint`, `getWidgetAreaWithCacheHint`). These are the same tags EmDash purges on writes, so a page that passes its hints is purged when an entry or chrome resource it renders is written, including ones its route rule doesn't name:
+
+```astro title="src/pages/blog/[slug].astro"
+---
+import { getEmDashEntry } from "emdash";
+
+const { slug } = Astro.params;
+if (!slug) return Astro.rewrite("/404");
+
+const { entry, cacheHint } = await getEmDashEntry("posts", slug);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+```
+
+The provider turns these rules into `Cloudflare-CDN-Cache-Control` and `Cache-Tag` response headers. The edge consumes both; clients never see them, and any `Cache-Control` header your pages set for browsers is unaffected.
+
+### Routes without a rule
+
+A route without a matching rule is stamped `Cloudflare-CDN-Cache-Control: no-store`, but only if nothing calls `Astro.cache.set()` while it renders. Any hint makes the response cacheable. A hint with tags and no `maxAge`, like the ones from `getSiteSettingsWithCacheHint()` and `getMenuWithCacheHint()`, produces `Cloudflare-CDN-Cache-Control: public` without a lifetime, and the edge then caches the page under heuristic freshness. If your layout sets these hints, every page that uses the layout becomes cacheable, with or without a rule.
+
+Give every public route an explicit rule, and keep cache hints out of pages that must not be shared. Rules match the request path, so list your public routes individually: a rest parameter at the site root, such as `/[...slug]`, also matches the admin and API routes under `/_emdash/`.
+
+### Deploys and the edge cache
+
+When a cache provider is configured, the `@astrojs/cloudflare` adapter enables the Workers Cache automatically: the build writes `"cache": { "enabled": true }` into the generated Wrangler configuration that `wrangler deploy` picks up.
+
+By default the Worker version is part of the cache key, so every deploy starts with an empty edge cache and the first requests after it render in the Worker. To keep entries across deploys, set `"cache": { "enabled": true, "cross_version_cache": true }` in your Wrangler configuration (see [Cross-version caching](https://developers.cloudflare.com/workers/cache/configuration/#cross-version-caching)). Template changes then only show once the affected entries expire or are purged.
+
+## Purge on publish is built-in
+
+EmDash's content API routes invalidate the route cache whenever an entry changes: saving, publishing, unpublishing, deleting, or restoring an entry from the trash purges the tags `[collection, id]`, and scheduled publishing purges the same tags from the cron sweep. Creating or duplicating an entry purges the collection tag (the new entry has no cached pages yet). Any route rule tagged with the collection name (as above) is therefore usually refreshed within seconds of a publish, even with a long `maxAge`.
+
+Site chrome is covered too: saving site settings purges `emdash:settings`, menu edits purge `emdash:menu:{name}`, and taxonomy and widget-area writes purge their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()`, `getSiteSettingsWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, or `getWidgetAreaWithCacheHint()`.
+
+Restoring an older revision, and changes to bylines, the media library, comments, and redirects, purge nothing. Cached pages affected by them update once they expire or the entry that renders them is saved again.
+
+This is also why the tag convention matters: EmDash purges collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in purge will not match them and stale entries survive until `maxAge` expires.
+
+### Purge rate limits
+
+Workers Cache purges always use Cloudflare's [Free plan purge limits](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits), whatever plan your account is on: 5 requests per minute with a burst of 25, per account (see [Purge rate limits](https://developers.cloudflare.com/workers/cache/purge/#rate-limits)). Most content writes cost one purge request each: saves that change live content (including autosaves in collections that save directly to the live entry), creating, duplicating, scheduling, and assigning taxonomy terms to an entry, plus every settings, menu, taxonomy, or widget edit.
+
+A rate-limited purge fails without an error in the admin, and the affected pages keep their cached version until `maxAge` expires. During bulk edits, or with several editors working at once, choose a `maxAge` you can accept as the worst case for stale content.
+
+## Keep responses out of the cache
+
+Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash keeps responses rendered for a signed-in user, and responses sent with `Cache-Control: private` or `no-store`, out of the route cache automatically, and 404 responses too. Other error responses and your own middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
+
+`Astro.cache.set(false)` only holds until the next `Astro.cache.set()` call. A layout renders after the page frontmatter, so a layout that sets a cache hint turns caching back on for a page that opted out. Pass the opt-out to the layout (for example as a prop) and skip its `Astro.cache.set()` calls when it is set.
+
+### Preview and edit links are handled automatically
+
+EmDash's middleware opts these responses out of the route cache itself, so no template code is needed: requests carrying a `?_preview=` token (valid or not, because those URLs are per-token and a cached draft would otherwise stay reachable after the token expires), and responses with the editor toolbar injected. With [`toolbar: "client"`](/reference/configuration/#toolbar), the same applies to `?_edit` URLs. Valid preview responses and toolbar-injected responses are additionally marked `Cache-Control: private, no-store` for browsers and downstream CDNs.
+
+### Error responses
+
+EmDash keeps every 404 out of the route cache, so publishing a missing entry later shows it right away. Other error responses, such as a 500 rendered on a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`.
+
+### Redirects in middleware
+
+Middleware that short-circuits with a redirect (for example, host canonicalization) must opt out with `context.cache.set(false)`. When several hostnames route to the same Worker, a cached redirect can otherwise be served to requests for the canonical hostname as well, causing an instant redirect loop.
+
+## Editors and cached pages
+
+The edge cache stores one shared variant per URL and answers before the Worker runs, so it never sees an editor's session. With the default server-rendered toolbar, an editor browsing the public site is usually served the cached anonymous variant, without the toolbar, and the `emdash-edit-mode` cookie has no effect on a cached URL. A page rendered for a signed-in editor is never stored in the shared cache; the next anonymous visitor fills it.
+
+Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites behind the edge cache. A small script then shows the edit pill to signed-in editors on cached pages, and the edit view loads from an `?_edit` URL that is always rendered fresh. Preview links bypass the cache in either mode.
+
+## Browser caching is separate
+
+The edge cache can afford long TTLs because it is purgeable; browser caches are not. Keep the `Cache-Control` header your pages send to clients short (minutes, not days), so a publish also reaches returning visitors quickly. `stale-while-revalidate` in that header gives returning visitors instant loads while their browser revalidates in the background.
