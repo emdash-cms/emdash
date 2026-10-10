@@ -322,7 +322,8 @@ export interface EmDashConfig {
 	 *     audience: "abc123...",
 	 *     roleMapping: {
 	 *       "Admins": 50,
-	 *       "Editors": 30,
+	 *       "Editors": 40, // Editor
+	 *       "Authors": 30, // Author
 	 *     },
 	 *   }),
 	 * })

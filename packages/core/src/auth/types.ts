@@ -19,7 +19,7 @@ export interface AuthResult {
 	email: string;
 	/** User's display name */
 	name: string;
-	/** Resolved role level (e.g., 50 for Admin, 30 for Editor) */
+	/** Resolved role level (e.g., 50 for Admin, 40 for Editor, 30 for Author) */
 	role: number;
 	/** Provider-specific subject ID */
 	subject?: string;
@@ -186,7 +186,7 @@ export interface ExternalAuthConfig {
 
 	/**
 	 * Role level for users not matching any group in roleMapping
-	 * @default 30 (Editor)
+	 * @default 30 (Author, who can publish their own content)
 	 */
 	defaultRole?: number;
 
@@ -212,8 +212,8 @@ export interface ExternalAuthConfig {
 	 * ```ts
 	 * roleMapping: {
 	 *   "Admins": 50,        // Admin
-	 *   "Developers": 40,    // Developer
-	 *   "Content Team": 30,  // Editor
+	 *   "Editors": 40,       // Editor
+	 *   "Content Team": 30,  // Author
 	 * }
 	 * ```
 	 */
