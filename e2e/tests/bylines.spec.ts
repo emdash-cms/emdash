@@ -243,6 +243,108 @@ test.describe("Bylines", () => {
 		expect(afterEdit.avatarMediaId).toBe(avatarId);
 	});
 
+	test("creates a full byline from a post without marking it as a guest", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		const unique = Date.now();
+		const name = `Rebekah Writer ${unique}`;
+		const headers = apiHeaders(serverInfo.token, serverInfo.baseUrl);
+
+		const postResponse = await fetch(`${serverInfo.baseUrl}/_emdash/api/content/posts`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ data: { title: `Byline Profile Post ${unique}` } }),
+		});
+		expect(postResponse.ok).toBe(true);
+		const postBody: any = await postResponse.json();
+		const postId = postBody.data.item.id as string;
+
+		await admin.goToEditContent("posts", postId);
+		await admin.waitForLoading();
+
+		const bylinesSection = page
+			.getByRole("heading", { name: "Bylines" })
+			.locator("xpath=ancestor::section")
+			.first();
+		await bylinesSection.getByRole("button", { name: "Choose bylines" }).click();
+		await page.getByLabel("Search bylines").fill(name);
+		await page.getByRole("button", { name: `Create ${name}` }).click();
+
+		const dialog = page.getByRole("dialog", { name: "New byline" });
+		await expect(dialog.getByLabel("Display name")).toHaveValue(name);
+		await expect(dialog.getByRole("switch", { name: "Guest byline" })).not.toBeChecked();
+		await dialog.getByLabel("Website URL").fill("https://rebekah.example");
+		await dialog.getByLabel("Bio").fill("Covers the newsroom.");
+		await dialog.getByRole("button", { name: "Create and add" }).click();
+
+		await expect(
+			bylinesSection.getByRole("button", { name: `More actions for ${name}` }),
+		).toBeVisible();
+
+		const bylinesResponse = await fetch(
+			`${serverInfo.baseUrl}/_emdash/api/admin/bylines?search=${encodeURIComponent(name)}`,
+			{ headers },
+		);
+		expect(bylinesResponse.ok).toBe(true);
+		const bylinesBody: any = await bylinesResponse.json();
+		expect(bylinesBody.data.items).toEqual([
+			expect.objectContaining({
+				displayName: name,
+				websiteUrl: "https://rebekah.example",
+				bio: "Covers the newsroom.",
+				isGuest: false,
+			}),
+		]);
+	});
+
+	test("credits a byline on a new post before its first save", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		const unique = Date.now();
+		const name = `First Draft Writer ${unique}`;
+		const headers = apiHeaders(serverInfo.token, serverInfo.baseUrl);
+
+		const bylineResponse = await fetch(`${serverInfo.baseUrl}/_emdash/api/admin/bylines`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ displayName: name, slug: `first-draft-writer-${unique}` }),
+		});
+		expect(bylineResponse.ok).toBe(true);
+
+		await admin.goToNewContent("posts");
+		await admin.waitForLoading();
+		const bylinesSection = page
+			.getByRole("heading", { name: "Bylines" })
+			.locator("xpath=ancestor::section")
+			.first();
+		await bylinesSection.getByRole("button", { name: "Choose bylines" }).click();
+		await page.getByLabel("Search bylines").fill(name);
+		await page.getByRole("button", { name: `Add ${name}` }).click();
+		await expect(
+			bylinesSection.getByRole("button", { name: `More actions for ${name}` }),
+		).toBeVisible();
+
+		await admin.fillField("title", `New Post Byline ${unique}`);
+		await admin.clickSave();
+		await expect(page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
+
+		const contentId = new URL(page.url()).pathname.split("/").pop();
+		const contentResponse = await fetch(
+			`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,
+			{ headers },
+		);
+		expect(contentResponse.ok).toBe(true);
+		const contentBody: any = await contentResponse.json();
+		const names = (contentBody.data?.item?.bylines ?? []).map(
+			(credit: { byline?: { displayName?: string } }) => credit?.byline?.displayName,
+		);
+		expect(names).toEqual([name]);
+	});
+
 	test("assigns bylines and preserves them on ownership change", async ({
 		admin,
 		page,

@@ -29,6 +29,7 @@ import * as React from "react";
 
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
+import type { BylineFormValues } from "./components/BylineFormDialog.js";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
@@ -807,6 +808,7 @@ function ContentNewPage() {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
+	const { data: currentUser } = useCurrentUser();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -863,19 +865,15 @@ function ContentNewPage() {
 	});
 
 	const createBylineMutation = useMutation({
-		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true, locale: pickerLocale }),
+		mutationFn: (values: BylineFormValues) => createByline({ ...values, locale: pickerLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
 	});
 
 	const updateBylineMutation = useMutation({
-		mutationFn: (input: { id: string; slug: string; displayName: string }) =>
-			updateByline(input.id, {
-				slug: input.slug,
-				displayName: input.displayName,
-			}),
+		mutationFn: ({ bylineId, values }: { bylineId: string; values: BylineFormValues }) =>
+			updateByline(bylineId, values),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -897,13 +895,13 @@ function ContentNewPage() {
 	);
 
 	const handleQuickCreateByline = React.useCallback(
-		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		(values: BylineFormValues) => createBylineMutation.mutateAsync(values),
 		[createBylineMutation.mutateAsync],
 	);
 
 	const handleQuickEditByline = React.useCallback(
-		(bylineId: string, input: { slug: string; displayName: string }) =>
-			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		(bylineId: string, values: BylineFormValues) =>
+			updateBylineMutation.mutateAsync({ bylineId, values }),
 		[updateBylineMutation.mutateAsync],
 	);
 
@@ -934,6 +932,7 @@ function ContentNewPage() {
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
+			currentUser={currentUser}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>
@@ -1182,19 +1181,15 @@ function ContentEditPage() {
 	});
 
 	const createBylineMutation = useMutation({
-		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true, locale: itemLocale }),
+		mutationFn: (values: BylineFormValues) => createByline({ ...values, locale: itemLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
 	});
 
 	const updateBylineMutation = useMutation({
-		mutationFn: (input: { id: string; slug: string; displayName: string }) =>
-			updateByline(input.id, {
-				slug: input.slug,
-				displayName: input.displayName,
-			}),
+		mutationFn: ({ bylineId, values }: { bylineId: string; values: BylineFormValues }) =>
+			updateByline(bylineId, values),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -1823,12 +1818,12 @@ function ContentEditPage() {
 		[translateMutation.mutate],
 	);
 	const handleQuickCreateByline = React.useCallback(
-		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		(values: BylineFormValues) => createBylineMutation.mutateAsync(values),
 		[createBylineMutation.mutateAsync],
 	);
 	const handleQuickEditByline = React.useCallback(
-		(bylineId: string, input: { slug: string; displayName: string }) =>
-			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		(bylineId: string, values: BylineFormValues) =>
+			updateBylineMutation.mutateAsync({ bylineId, values }),
 		[updateBylineMutation.mutateAsync],
 	);
 	const handleRevisionRestored = React.useCallback(
