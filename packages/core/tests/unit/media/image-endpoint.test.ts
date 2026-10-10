@@ -119,6 +119,42 @@ describe("parseTransformParams", () => {
 		expect(parse("w=640&h=-1").ok).toBe(false);
 	});
 
+	it("parses fit and position from Astro's image service", () => {
+		const r = parse("w=32&h=32&f=webp&fit=cover&position=center");
+		expect(r.ok).toBe(true);
+		if (r.ok) {
+			expect(r.options.fit).toBe("cover");
+			expect(r.options.position).toBe("center");
+		}
+	});
+
+	it("drops an unrecognised fit instead of failing the request", () => {
+		// Astro's ImageFit is open-ended (`string & {}`), so an unknown value
+		// must not break a rendition -- the backend keeps its own default.
+		const r = parse("w=32&fit=lopsided");
+		expect(r.ok).toBe(true);
+		if (r.ok) expect(r.options.fit).toBeUndefined();
+	});
+
+	it("accepts the fits Astro's sharp service adds beyond ImageFit", () => {
+		// `inside`/`outside` are absent from Astro's ImageFit union but accepted
+		// by its sharp service, so a site can already be using them on Node.
+		for (const fit of ["inside", "outside"]) {
+			const r = parse(`w=32&fit=${fit}`);
+			expect(r.ok).toBe(true);
+			if (r.ok) expect(r.options.fit).toBe(fit);
+		}
+	});
+
+	it("leaves fit and position undefined when not requested", () => {
+		const r = parse("w=800");
+		expect(r.ok).toBe(true);
+		if (r.ok) {
+			expect(r.options.fit).toBeUndefined();
+			expect(r.options.position).toBeUndefined();
+		}
+	});
+
 	it("rejects unsupported format and bad quality", () => {
 		expect(parse("w=640&f=gif").ok).toBe(false);
 		expect(parse("w=640&q=0").ok).toBe(false);
@@ -207,6 +243,12 @@ describe("makeWeakEtag", () => {
 });
 
 describe("getTransformFingerprint", () => {
+	it("distinguishes crops with different positions", () => {
+		const top = new URLSearchParams("w=32&h=32&fit=cover&position=top");
+		const bottom = new URLSearchParams("w=32&h=32&fit=cover&position=bottom");
+		expect(getTransformFingerprint(top)).not.toBe(getTransformFingerprint(bottom));
+	});
+
 	it("serializes the relevant query params in a stable order", () => {
 		const params = new URLSearchParams("h=150&f=webp&q=85&w=100&fit=cover&extra=ignored");
 		expect(getTransformFingerprint(params)).toBe("w=100&h=150&f=webp&q=85&fit=cover");
