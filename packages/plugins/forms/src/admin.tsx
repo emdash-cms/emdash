@@ -24,6 +24,14 @@ import type { PluginAdminExports } from "emdash";
 import { apiFetch as baseFetch, getErrorMessage, parseApiResponse } from "emdash/plugin-utils";
 import * as React from "react";
 
+import {
+	FORMS_LOAD_FAILED,
+	SUBMISSIONS_LOAD_FAILED,
+	formsLoadError,
+	submissionsLoadError,
+	writeError,
+} from "./admin-errors.js";
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -46,6 +54,27 @@ function apiFetch(route: string, body?: unknown): Promise<Response> {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body ?? {}),
 	});
+}
+
+/**
+ * POST a write route. On a non-ok response or a thrown error, reports a message
+ * through `onError` (403 becomes a permission message) and returns null.
+ */
+async function apiWrite(
+	route: string,
+	body: unknown,
+	fallback: string,
+	onError: (message: string) => void,
+): Promise<Response | null> {
+	onError("");
+	try {
+		const res = await apiFetch(route, body);
+		if (res.ok) return res;
+		onError(writeError(res, fallback));
+	} catch {
+		onError(fallback);
+	}
+	return null;
 }
 
 // =============================================================================
@@ -180,6 +209,7 @@ function FormsListPage() {
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
+	const [actionError, setActionError] = React.useState<string | null>(null);
 	const [editingForm, setEditingForm] = React.useState<FormItem | null>(null);
 	const [creating, setCreating] = React.useState(false);
 
@@ -187,13 +217,13 @@ function FormsListPage() {
 		try {
 			const res = await apiFetch("forms/list");
 			if (!res.ok) {
-				setError("Failed to load forms");
+				setError(formsLoadError(res));
 				return;
 			}
 			const data = await parseApiResponse<{ items: FormItem[] }>(res);
 			setForms(data.items);
 		} catch {
-			setError("Failed to load forms");
+			setError(FORMS_LOAD_FAILED);
 		} finally {
 			setLoading(false);
 		}
@@ -205,25 +235,34 @@ function FormsListPage() {
 
 	const handleToggleStatus = async (form: FormItem) => {
 		const newStatus = form.status === "active" ? "paused" : "active";
-		const res = await apiFetch("forms/update", {
-			id: form.id,
-			status: newStatus,
-		});
-		if (res.ok) await loadForms();
+		const res = await apiWrite(
+			"forms/update",
+			{ id: form.id, status: newStatus },
+			"Failed to update form",
+			setActionError,
+		);
+		if (res) await loadForms();
 	};
 
 	const handleDuplicate = async (form: FormItem) => {
-		const res = await apiFetch("forms/duplicate", { id: form.id });
-		if (res.ok) await loadForms();
+		const res = await apiWrite(
+			"forms/duplicate",
+			{ id: form.id },
+			"Failed to duplicate form",
+			setActionError,
+		);
+		if (res) await loadForms();
 	};
 
 	const handleDelete = async (form: FormItem) => {
 		if (!confirm(`Delete "${form.name}" and all its submissions?`)) return;
-		const res = await apiFetch("forms/delete", {
-			id: form.id,
-			deleteSubmissions: true,
-		});
-		if (res.ok) await loadForms();
+		const res = await apiWrite(
+			"forms/delete",
+			{ id: form.id, deleteSubmissions: true },
+			"Failed to delete form",
+			setActionError,
+		);
+		if (res) await loadForms();
 	};
 
 	if (editingForm || creating) {
@@ -270,6 +309,15 @@ function FormsListPage() {
 					New Form
 				</Button>
 			</div>
+
+			{actionError && (
+				<div
+					role="alert"
+					className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive"
+				>
+					{actionError}
+				</div>
+			)}
 
 			{forms.length === 0 ? (
 				<EmptyState
@@ -856,18 +904,25 @@ function SubmissionsPage() {
 	const [loading, setLoading] = React.useState(true);
 	const [subsLoading, setSubsLoading] = React.useState(false);
 	const [selectedSub, setSelectedSub] = React.useState<SubmissionItem | null>(null);
+	const [error, setError] = React.useState<string | null>(null);
+	const [subsError, setSubsError] = React.useState<string | null>(null);
+	const [actionError, setActionError] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		void (async () => {
 			try {
 				const res = await apiFetch("forms/list");
-				if (res.ok) {
-					const data = await parseApiResponse<{ items: FormItem[] }>(res);
-					setForms(data.items);
-					if (data.items.length > 0 && data.items[0]) {
-						setSelectedFormId(data.items[0].id);
-					}
+				if (!res.ok) {
+					setError(formsLoadError(res));
+					return;
 				}
+				const data = await parseApiResponse<{ items: FormItem[] }>(res);
+				setForms(data.items);
+				if (data.items.length > 0 && data.items[0]) {
+					setSelectedFormId(data.items[0].id);
+				}
+			} catch {
+				setError(FORMS_LOAD_FAILED);
 			} finally {
 				setLoading(false);
 			}
@@ -877,6 +932,8 @@ function SubmissionsPage() {
 	React.useEffect(() => {
 		if (!selectedFormId) return;
 		setSubsLoading(true);
+		setSubsError(null);
+		setActionError(null);
 		setSelectedSub(null);
 		void (async () => {
 			try {
@@ -886,10 +943,16 @@ function SubmissionsPage() {
 				};
 				if (statusFilter) body.status = statusFilter;
 				const res = await apiFetch("submissions/list", body);
-				if (res.ok) {
-					const data = await parseApiResponse<{ items: SubmissionItem[] }>(res);
-					setSubmissions(data.items);
+				if (!res.ok) {
+					setSubmissions([]);
+					setSubsError(submissionsLoadError(res));
+					return;
 				}
+				const data = await parseApiResponse<{ items: SubmissionItem[] }>(res);
+				setSubmissions(data.items);
+			} catch {
+				setSubmissions([]);
+				setSubsError(SUBMISSIONS_LOAD_FAILED);
 			} finally {
 				setSubsLoading(false);
 			}
@@ -897,11 +960,13 @@ function SubmissionsPage() {
 	}, [selectedFormId, statusFilter]);
 
 	const handleToggleStar = async (sub: SubmissionItem) => {
-		const res = await apiFetch("submissions/update", {
-			id: sub.id,
-			starred: !sub.starred,
-		});
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/update",
+			{ id: sub.id, starred: !sub.starred },
+			"Failed to update submission",
+			setActionError,
+		);
+		if (res) {
 			setSubmissions((prev) =>
 				prev.map((s) => (s.id === sub.id ? { ...s, starred: !s.starred } : s)),
 			);
@@ -911,11 +976,13 @@ function SubmissionsPage() {
 
 	const handleMarkRead = async (sub: SubmissionItem) => {
 		const newStatus = sub.status === "new" ? "read" : sub.status === "read" ? "archived" : "new";
-		const res = await apiFetch("submissions/update", {
-			id: sub.id,
-			status: newStatus,
-		});
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/update",
+			{ id: sub.id, status: newStatus },
+			"Failed to update submission",
+			setActionError,
+		);
+		if (res) {
 			setSubmissions((prev) =>
 				prev.map((s) => (s.id === sub.id ? { ...s, status: newStatus } : s)),
 			);
@@ -925,8 +992,13 @@ function SubmissionsPage() {
 
 	const handleDelete = async (sub: SubmissionItem) => {
 		if (!confirm("Delete this submission?")) return;
-		const res = await apiFetch("submissions/delete", { id: sub.id });
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/delete",
+			{ id: sub.id },
+			"Failed to delete submission",
+			setActionError,
+		);
+		if (res) {
 			setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
 			if (selectedSub?.id === sub.id) setSelectedSub(null);
 		}
@@ -934,11 +1006,14 @@ function SubmissionsPage() {
 
 	const handleExport = async (format: "csv" | "json") => {
 		if (!selectedFormId) return;
-		const res = await apiFetch("submissions/export", {
-			formId: selectedFormId,
-			format,
-		});
-		if (res.ok) {
+		const res = await apiWrite(
+			"submissions/export",
+			{ formId: selectedFormId, format },
+			"Failed to export submissions",
+			setActionError,
+		);
+		if (!res) return;
+		try {
 			const data = await parseApiResponse<{ data: string; filename?: string }>(res);
 			const blob = new Blob([format === "csv" ? data.data : JSON.stringify(data.data, null, 2)], {
 				type: format === "csv" ? "text/csv" : "application/json",
@@ -949,6 +1024,8 @@ function SubmissionsPage() {
 			a.download = data.filename ?? `submissions.${format}`;
 			a.click();
 			URL.revokeObjectURL(url);
+		} catch {
+			setActionError("Failed to export submissions");
 		}
 	};
 
@@ -956,6 +1033,17 @@ function SubmissionsPage() {
 		return (
 			<div className="flex items-center justify-center py-16">
 				<Loader />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="space-y-6">
+				<h1 className="text-3xl font-bold">Submissions</h1>
+				<div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+					{error}
+				</div>
 			</div>
 		);
 	}
@@ -1006,6 +1094,15 @@ function SubmissionsPage() {
 				</div>
 			</div>
 
+			{actionError && (
+				<div
+					role="alert"
+					className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive"
+				>
+					{actionError}
+				</div>
+			)}
+
 			{/* Filters */}
 			<div className="flex items-center gap-3">
 				<div className="w-56">
@@ -1037,6 +1134,13 @@ function SubmissionsPage() {
 					{subsLoading ? (
 						<div className="flex items-center justify-center py-8">
 							<Loader />
+						</div>
+					) : subsError ? (
+						<div
+							role="alert"
+							className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive"
+						>
+							{subsError}
 						</div>
 					) : submissions.length === 0 ? (
 						<EmptyState
@@ -1202,12 +1306,16 @@ function RecentSubmissionsWidget() {
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [submissions, setSubmissions] = React.useState<SubmissionItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
+	const [error, setError] = React.useState<string | null>(null);
 
 	React.useEffect(() => {
 		void (async () => {
 			try {
 				const formsRes = await apiFetch("forms/list");
-				if (!formsRes.ok) return;
+				if (!formsRes.ok) {
+					setError(formsLoadError(formsRes));
+					return;
+				}
 				const formsData = await parseApiResponse<{ items: FormItem[] }>(formsRes);
 				setForms(formsData.items);
 
@@ -1216,13 +1324,17 @@ function RecentSubmissionsWidget() {
 						formId: formsData.items[0].id,
 						limit: 5,
 					});
-					if (subsRes.ok) {
-						const subsData = await parseApiResponse<{
-							items: SubmissionItem[];
-						}>(subsRes);
-						setSubmissions(subsData.items);
+					if (!subsRes.ok) {
+						setError(submissionsLoadError(subsRes));
+						return;
 					}
+					const subsData = await parseApiResponse<{
+						items: SubmissionItem[];
+					}>(subsRes);
+					setSubmissions(subsData.items);
 				}
+			} catch {
+				setError(FORMS_LOAD_FAILED);
 			} finally {
 				setLoading(false);
 			}
@@ -1235,6 +1347,10 @@ function RecentSubmissionsWidget() {
 				<Loader />
 			</div>
 		);
+	}
+
+	if (error) {
+		return <div className="text-center text-sm text-muted-foreground py-4">{error}</div>;
 	}
 
 	if (forms.length === 0) {

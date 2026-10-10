@@ -137,8 +137,11 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 
 			// --- Admin routes (require auth) ---
+			// Reads are open to editors (plugins:read). Routes without a
+			// `permission` fall back to plugins:manage, so writes stay admin-only.
 
 			"forms/list": {
+				permission: "plugins:read",
 				handler: formsListHandler,
 			},
 			"forms/create": {
@@ -159,10 +162,12 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 
 			"submissions/list": {
+				permission: "plugins:read",
 				input: submissionsListSchema,
 				handler: submissionsListHandler,
 			},
 			"submissions/get": {
+				permission: "plugins:read",
 				input: submissionGetSchema,
 				handler: submissionGetHandler,
 			},
@@ -180,6 +185,7 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 
 			"settings/turnstile-status": {
+				permission: "plugins:read",
 				handler: async (ctx) => {
 					const siteKey = await ctx.kv.get<string>("settings:turnstileSiteKey");
 					const secretKey = await ctx.kv.get<string>("settings:turnstileSecretKey");
