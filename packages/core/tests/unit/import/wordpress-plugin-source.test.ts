@@ -231,6 +231,7 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 						{ key: "credits_0_credit_name", count: 2, inferred_type: "string", sample: "Ada" },
 						{ key: "credits_0_credit_role", count: 2, inferred_type: "string", sample: "Author" },
 						{ key: "publisher_name", count: 2, inferred_type: "string", sample: "Acme" },
+						{ key: "publisher_city", count: 2, inferred_type: "string", sample: "Munich" },
 					],
 					hierarchical: false,
 					has_archive: false,
@@ -259,6 +260,12 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 					location: postTypeRule("page"),
 					fields: [field("hero_text", "text")],
 				},
+				{
+					key: "group_template",
+					title: "Template details",
+					location: [[{ param: "page_template", operator: "==", value: "book.php" }]],
+					fields: [field("publisher_city", "text")],
+				},
 			],
 		};
 		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(analyzeResponse), { status: 200 }));
@@ -280,75 +287,96 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 			related: "json",
 			credits: "json",
 			publisher: "json",
+			publisher_city: "string",
 		});
 	});
 
-	it("keeps the type of an ACF field that an earlier import already created", async () => {
-		const analyzeResponse = {
-			...makeAnalyzeResponse(0),
-			post_types: [
-				{
-					name: "post",
-					label: "Posts",
-					label_singular: "Post",
-					total: 1,
-					by_status: { publish: 1 },
-					supports: {},
-					taxonomies: [],
-					custom_fields: [],
-					hierarchical: false,
-					has_archive: false,
-				},
-			],
-			acf: [
-				{
-					key: "group_book",
-					title: "Book details",
-					location: [[{ param: "post_type", operator: "==", value: "post" }]],
-					fields: [
-						{
-							key: "field_featured",
-							name: "featured",
-							label: "Featured",
-							type: "true_false",
-							required: false,
-						},
-						{
-							key: "field_credits",
-							name: "credits",
-							label: "Credits",
-							type: "repeater",
-							required: false,
-						},
-					],
-				},
-			],
+	describe("ACF fields in a collection that already exists", () => {
+		const acfGroup = (fields: Array<{ name: string; type: string }>) => [
+			{
+				key: "group_book",
+				title: "Book details",
+				location: [[{ param: "post_type", operator: "==", value: "post" }]],
+				fields: fields.map((f) => ({
+					key: `field_${f.name}`,
+					label: f.name,
+					required: false,
+					...f,
+				})),
+			},
+		];
+		const analyzeWith = async (
+			acf: ReturnType<typeof acfGroup>,
+			customFields: Array<{ key: string; inferred_type: string }>,
+			existingFields: Record<string, string>,
+		) => {
+			const analyzeResponse = {
+				...makeAnalyzeResponse(0),
+				post_types: [
+					{
+						name: "post",
+						label: "Posts",
+						label_singular: "Post",
+						total: 2,
+						by_status: { publish: 2 },
+						supports: {},
+						taxonomies: [],
+						custom_fields: customFields.map((f) => ({ ...f, count: 2, sample: "x" })),
+						hierarchical: false,
+						has_archive: false,
+					},
+				],
+				acf,
+			};
+			mockFetch.mockResolvedValueOnce(
+				new Response(JSON.stringify(analyzeResponse), { status: 200 }),
+			);
+			const fields = new Map(
+				Object.entries(existingFields).map(([slug, type]) => [slug, { type }]),
+			);
+			const analysis = await wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{ getExistingCollections: async () => new Map([["posts", { slug: "posts", fields }]]) },
+			);
+			return analysis.postTypes[0]!;
 		};
-		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(analyzeResponse), { status: 200 }));
-		const existing = new Map([
-			[
-				"posts",
+
+		it("keeps the fields an earlier import created from the raw meta", async () => {
+			const postType = await analyzeWith(
+				acfGroup([
+					{ name: "featured", type: "true_false" },
+					{ name: "credits", type: "repeater" },
+				]),
+				[
+					{ key: "featured", inferred_type: "integer" },
+					{ key: "credits", inferred_type: "integer" },
+					{ key: "credits_0_credit_name", inferred_type: "string" },
+					{ key: "credits_1_credit_name", inferred_type: "string" },
+				],
 				{
-					slug: "posts",
-					fields: new Map([
-						["title", { type: "string" }],
-						["featured", { type: "integer" }],
-						["credits", { type: "integer" }],
-					]),
+					title: "string",
+					featured: "integer",
+					credits: "integer",
+					credits_0_credit_name: "string",
 				},
-			],
-		]);
+			);
 
-		const analysis = await wordpressPluginSource.analyze(
-			{ type: "url", url: "https://example.com", token: "test-token" },
-			{ getExistingCollections: async () => existing },
-		);
+			expect(postType.schemaStatus.canImport).toBe(true);
+			const types = new Map(postType.requiredFields.map((f) => [f.slug, f.type]));
+			expect(types.get("featured")).toBe("integer");
+			expect(types.get("credits")).toBe("integer");
+			expect(types.get("credits_1_credit_name")).toBe("string");
+		});
 
-		const postType = analysis.postTypes[0]!;
-		expect(postType.schemaStatus.canImport).toBe(true);
-		const bySlug = new Map(postType.requiredFields.map((f) => [f.slug, f.type]));
-		expect(bySlug.get("featured")).toBe("integer");
-		expect(bySlug.get("credits")).toBe("integer");
+		it("reports an ACF field whose type conflicts with a field the site defined", async () => {
+			const postType = await analyzeWith(acfGroup([{ name: "rating", type: "number" }]), [], {
+				title: "string",
+				rating: "boolean",
+			});
+
+			expect(postType.schemaStatus.canImport).toBe(false);
+			expect(postType.schemaStatus.fieldStatus.rating?.status).toBe("type_mismatch");
+		});
 	});
 
 	it("fetches every media page during analyze, not just the first", async () => {

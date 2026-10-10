@@ -31,6 +31,7 @@ import {
 	normalizeUrl,
 	checkSchemaCompatibility,
 	isPluginBookkeepingMeta,
+	isTypeCompatible,
 	relativizeContentLinks,
 	sanitizeFieldSlug,
 } from "../utils.js";
@@ -401,26 +402,41 @@ export const wordpressPluginSource: ImportSource = {
 				// the prepare step creates them — without this, execute() has no
 				// matching schema fields and silently drops the values.
 				const knownSlugs = new Set(requiredFields.map((f) => f.slug));
-				const acfFields = acfFieldsForPostType(data.acf, pt.name);
-				for (const acfField of acfFields) {
+				const metaTypes = new Map(
+					(pt.custom_fields ?? []).map((field) => [
+						sanitizeFieldSlug(field.key),
+						mapInferredFieldType(field.inferred_type),
+					]),
+				);
+				const jsonAcfFields: AcfFieldInfo[] = [];
+				for (const acfField of acfFieldsForPostType(data.acf, pt.name)) {
 					const slug = sanitizeFieldSlug(acfField.name);
 					if (knownSlugs.has(slug)) continue;
 					knownSlugs.add(slug);
+					const type = acfImportFieldType(
+						acfField,
+						existingCollection?.fields.get(slug)?.type,
+						metaTypes.get(slug),
+					);
+					if (type === "json") jsonAcfFields.push(acfField);
 					requiredFields.push({
 						slug,
 						label: acfField.label || fieldLabelFromKey(acfField.name),
-						// An earlier import may have created this field from the raw meta
-						// with another type; keeping it lets that collection import again.
-						type:
-							existingCollection?.fields.get(slug)?.type ??
-							ACF_FIELD_TYPES[acfField.type] ??
-							"json",
+						type,
 						required: false,
 					});
 				}
+				const acfFieldNames = new Set(
+					(data.acf ?? []).flatMap((group) => group.fields.map((field) => field.name)),
+				);
 				for (const customField of pt.custom_fields ?? []) {
 					if (isPluginBookkeepingMeta(customField.key)) continue;
-					if (isAcfSubFieldMeta(customField.key, acfFields)) continue;
+					if (
+						!acfFieldNames.has(customField.key) &&
+						isAcfSubFieldMeta(customField.key, jsonAcfFields)
+					) {
+						continue;
+					}
 					const slug = sanitizeFieldSlug(customField.key);
 					if (knownSlugs.has(slug)) continue;
 					knownSlugs.add(slug);
@@ -651,10 +667,33 @@ const ACF_FIELD_TYPES: Record<string, string> = {
 	true_false: "boolean",
 };
 
+type AcfFieldInfo = NonNullable<PluginAnalyzeResponse["acf"]>[number]["fields"][number];
+
+/**
+ * The field type for an ACF field. A collection created by an earlier
+ * import holds the type the raw meta suggested for that key; that type is
+ * kept so the collection still imports, and the field's flattened
+ * sub-field keys then keep filling their own fields.
+ */
+function acfImportFieldType(
+	field: AcfFieldInfo,
+	existingType: string | undefined,
+	metaType: string | undefined,
+): string {
+	const acfType = ACF_FIELD_TYPES[field.type] ?? "json";
+	if (
+		existingType &&
+		metaType &&
+		!isTypeCompatible(acfType, existingType) &&
+		isTypeCompatible(metaType, existingType)
+	) {
+		return existingType;
+	}
+	return acfType;
+}
+
 /** ACF layout-only field types that hold no value */
 const ACF_LAYOUT_TYPES = new Set(["tab", "message", "accordion"]);
-
-type AcfFieldInfo = NonNullable<PluginAnalyzeResponse["acf"]>[number]["fields"][number];
 
 /** Fields of the ACF field groups whose location rules include `post_type == <postType>` */
 function acfFieldsForPostType(
