@@ -77,7 +77,7 @@ function makeWxrWithReusableBlock(): string {
 
 function buildFormData(
 	wxrText: string,
-	extra: { phase?: string; cursor?: string; chunk?: string } = {},
+	extra: { phase?: string; cursor?: string; chunk?: string; skipExisting?: boolean } = {},
 ): FormData {
 	const formData = new FormData();
 	formData.append("file", new File([wxrText], "test.xml", { type: "text/xml" }));
@@ -85,7 +85,7 @@ function buildFormData(
 		"config",
 		JSON.stringify({
 			postTypeMappings: { post: { collection: "post", enabled: true } },
-			skipExisting: false,
+			skipExisting: extra.skipExisting ?? false,
 		}),
 	);
 	if (extra.phase) formData.append("phase", extra.phase);
@@ -202,6 +202,35 @@ describe("WXR execute chunked import", () => {
 
 		const sections = await harness.db.selectFrom("_emdash_sections").select("slug").execute();
 		expect(sections).toEqual([{ slug: "call-to-action" }]);
+	});
+
+	it("counts only existing content as skipped, not post types left out of the import", async () => {
+		const wxr = makeWxrWithReusableBlock().replace(
+			"</channel>",
+			`<item>
+			<title>Home</title>
+			<wp:post_id>200</wp:post_id>
+			<wp:post_type>nav_menu_item</wp:post_type>
+			<wp:status>publish</wp:status>
+			<wp:post_name>home</wp:post_name>
+		</item>
+		${makeWxr(1).match(/<item>[\s\S]*<\/item>/)?.[0]}
+	</channel>`,
+		);
+		const runImport = async () => {
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(buildFormData(wxr, { skipExisting: true }), harness.emdash) as any,
+			);
+			expect(response.status).toBe(200);
+			return (await response.json()).data;
+		};
+
+		const first = await runImport();
+		expect(first).toMatchObject({ imported: 1, skipped: 0 });
+
+		const second = await runImport();
+		expect(second).toMatchObject({ imported: 0, skipped: 1 });
 	});
 
 	it("schedules future posts and keeps missed schedules as drafts", async () => {

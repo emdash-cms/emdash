@@ -83,6 +83,7 @@ export interface ImportConfig {
 export interface ImportResult {
 	success: boolean;
 	imported: number;
+	/** Entries not imported because the slug already exists in the collection and locale. */
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
@@ -489,9 +490,8 @@ export async function importContent(
 		const postType = post.postType || "post";
 		const mapping = config.postTypeMappings[postType];
 
-		// Skip if not mapped or disabled
+		// Not part of the import: internal post types, or ones left disabled.
 		if (!mapping || !mapping.enabled) {
-			result.skipped++;
 			continue;
 		}
 

@@ -127,6 +127,20 @@ describe("chunked WP plugin import — cross-chunk state", () => {
 		expect(second.collectionByWpId.get(7)).toBe("post");
 	});
 
+	it("counts only existing content as skipped, not post types left out of the import", async () => {
+		const emdash = makeEmdash(db);
+		const items = [
+			makeItem({ sourceId: 1, slug: "kept" }),
+			makeItem({ sourceId: 2, slug: "about", postType: "page" }),
+		];
+
+		const first = await importContent(items, makeConfig(), emdash, manifest, undefined);
+		expect(first.result).toMatchObject({ imported: 1, skipped: 0 });
+
+		const second = await importContent(items, makeConfig(), emdash, manifest, undefined);
+		expect(second.result).toMatchObject({ imported: 0, skipped: 1 });
+	});
+
 	it("loadTaxonomyPlanFromDb rebuilds lookup maps without creating anything", async () => {
 		await handleTaxonomyCreate(db, {
 			name: "company",
