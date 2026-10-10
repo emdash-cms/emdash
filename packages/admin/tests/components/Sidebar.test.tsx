@@ -23,6 +23,7 @@
  * the contract, the filter pins the gate.
  */
 
+import { setupI18n } from "@lingui/core";
 import {
 	Plug,
 	Gear,
@@ -33,10 +34,11 @@ import {
 } from "@phosphor-icons/react";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import {
 	BYLINE_SCHEMA_NAV_ITEM,
+	declaredLabelTranslator,
 	filterNavItemsByRole,
 	getSidebarTaxonomies,
 	isItemActive,
@@ -236,6 +238,28 @@ describe("resolvePluginPageLabel", () => {
 	});
 });
 
+describe("declaredLabelTranslator", () => {
+	it("translates a label the active catalog has", () => {
+		const i18n = setupI18n({ locale: "de", messages: { de: { Orders: "Bestellungen" } } });
+		const translate = declaredLabelTranslator(i18n, (id) => i18n._(id));
+		expect(translate("Orders")).toBe("Bestellungen");
+	});
+
+	it("returns a label the catalog lacks as declared, without a missing-message warning", () => {
+		const i18n = setupI18n({ locale: "en", messages: { en: {} } });
+		// A production build has no message compiler; that is where Lingui warns.
+		i18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const translate = declaredLabelTranslator(i18n, (id) => i18n._(id));
+			expect(translate("Fuzzy Redirects")).toBe("Fuzzy Redirects");
+			expect(warn).not.toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+		}
+	});
+});
+
 describe("toPhosphorIconName", () => {
 	it("converts kebab/snake/space names to PascalCase (the lazy-path key)", () => {
 		// Any Phosphor icon is reachable by its own kebab name.
@@ -308,5 +332,18 @@ describe("resolvePluginWidgetTitle", () => {
 
 	it("falls back to the raw widget id when no title is declared", () => {
 		expect(resolvePluginWidgetTitle(undefined, "overview", translate)).toBe("overview");
+	});
+
+	it("returns an untranslated title as declared, without a missing-message warning, through the dashboard's translator", () => {
+		const i18n = setupI18n({ locale: "en", messages: { en: {} } });
+		i18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const dashboardTranslate = declaredLabelTranslator(i18n, (id) => i18n._(id));
+			expect(resolvePluginWidgetTitle("Orders", "overview", dashboardTranslate)).toBe("Orders");
+			expect(warn).not.toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
