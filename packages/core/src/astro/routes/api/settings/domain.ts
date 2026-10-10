@@ -19,6 +19,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { getConfiguredOrigin } from "#api/public-url.js";
 import { getChosenSiteOrigin } from "#api/site-url.js";
 import { siteSettingsTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -55,7 +56,7 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleSiteDomainChange(emdash.db, body.domain);
-		if (result.success && cache?.enabled) await cache.invalidate({ tags: [siteSettingsTag()] });
+		if (result.success) await invalidateRouteCache(cache, [siteSettingsTag()]);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to change the site domain", "SITE_DOMAIN_ERROR");

@@ -12,6 +12,7 @@ import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { parseBody, parseQuery, isParseError } from "#api/parse.js";
 import { contentListQuery, contentCreateBody } from "#api/schemas.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -92,7 +93,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled) await cache.invalidate({ tags: [collection] });
+	await invalidateRouteCache(cache, [collection]);
 
 	return unwrapResult(result, 201);
 };

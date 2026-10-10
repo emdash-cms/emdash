@@ -55,6 +55,7 @@ describe("MCP write tools invalidate the route cache", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await harness.cleanup();
 		await teardownTestDatabase(db);
 	});
@@ -145,6 +146,23 @@ describe("MCP write tools invalidate the route cache", () => {
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
 		expect(invalidatedTags(invalidate)).toEqual([["post", id]]);
+	});
+
+	it("a rejected purge does not fail a saved write", async () => {
+		invalidate.mockRejectedValue(new Error("purge rate limited"));
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const id = await createPost("Saved");
+
+		expect(invalidate).toHaveBeenCalledOnce();
+		expect(consoleError).toHaveBeenCalled();
+		const fetched = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id },
+		});
+		expect(extractJson<{ item: { data: { title: string } } }>(fetched).item.data.title).toBe(
+			"Saved",
+		);
 	});
 
 	it("a failed write does not invalidate", async () => {

@@ -12,6 +12,7 @@ import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 import { ContentRepository } from "#db/repositories/content.js";
 import {
 	TaxonomyRepository,
@@ -190,7 +191,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 					: [];
 			const tags = [collection, ...new Set([canonicalId, ...siblingIds]), taxonomyTag(taxonomy)];
 			for (const tagBatch of chunks(tags, MAX_CACHE_PURGE_TAGS)) {
-				await cache.invalidate({ tags: tagBatch });
+				await invalidateRouteCache(cache, tagBatch);
 			}
 		}
 
