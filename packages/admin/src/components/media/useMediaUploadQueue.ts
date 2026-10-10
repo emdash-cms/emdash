@@ -1,5 +1,7 @@
 import * as React from "react";
 
+import { getMutationError } from "../DialogError.js";
+
 const DEFAULT_CONCURRENCY = 3;
 const MAX_CONCURRENCY = 6;
 const MAX_VISIBLE_JOBS = 100;
@@ -13,6 +15,7 @@ export interface MediaUploadJob<TResult> {
 	attempt: number;
 	previewUrl?: string;
 	result?: TResult;
+	error?: string;
 }
 
 interface UseMediaUploadQueueOptions<TResult> {
@@ -124,15 +127,16 @@ export function useMediaUploadQueue<TResult>({
 						);
 						return undefined;
 					},
-					() => {
+					(cause: unknown) => {
 						const active = activeRef.current.get(job.id);
 						if (active?.attempt !== job.attempt) return undefined;
 						activeRef.current.delete(job.id);
 						if (controller.signal.aborted) return undefined;
+						const error = getMutationError(cause) ?? undefined;
 						updateJobs((current) =>
 							current.map((item) =>
 								item.id === job.id && item.attempt === job.attempt
-									? { ...item, status: "failed" }
+									? { ...item, status: "failed", error }
 									: item,
 							),
 						);
@@ -178,7 +182,13 @@ export function useMediaUploadQueue<TResult>({
 			updateJobs((current) =>
 				current.map((job) =>
 					job.id === id && job.status === "failed"
-						? { ...job, status: "queued", attempt: job.attempt + 1, result: undefined }
+						? {
+								...job,
+								status: "queued",
+								attempt: job.attempt + 1,
+								result: undefined,
+								error: undefined,
+							}
 						: job,
 				),
 			);
@@ -192,7 +202,13 @@ export function useMediaUploadQueue<TResult>({
 		updateJobs((current) =>
 			current.map((job) =>
 				job.status === "failed"
-					? { ...job, status: "queued", attempt: job.attempt + 1, result: undefined }
+					? {
+							...job,
+							status: "queued",
+							attempt: job.attempt + 1,
+							result: undefined,
+							error: undefined,
+						}
 					: job,
 			),
 		);
