@@ -157,7 +157,8 @@ function normalizeBlockArray(
 		validationError(path, `must contain at most ${maxItems} blocks`);
 	}
 
-	const allowed = new Set(field.validation?.allowedTypes ?? []);
+	const allowedTypes = field.validation?.allowedTypes ?? [];
+	const allowed = new Set(allowedTypes);
 	const retired = new Set(field.validation?.retiredTypes ?? []);
 	const existing = existingByKey(existingValue, path);
 	const incomingKeyCount = value.filter(
@@ -174,7 +175,15 @@ function normalizeBlockArray(
 	return value.map((rawBlock, index) => {
 		const blockPath = `${path}[${index}]`;
 		if (!isRecord(rawBlock)) validationError(blockPath, "must be an object");
-		if (typeof rawBlock._type !== "string" || rawBlock._type.length === 0) {
+		const previous = typeof rawBlock._key === "string" ? existing.get(rawBlock._key) : undefined;
+		const blockTypeSlug =
+			rawBlock._type === undefined &&
+			!options.restoreBlocks &&
+			allowedTypes.length === 1 &&
+			(!previous || previous._type === allowedTypes[0])
+				? allowedTypes[0]
+				: rawBlock._type;
+		if (typeof blockTypeSlug !== "string" || blockTypeSlug.length === 0) {
 			validationError(`${blockPath}._type`, "must be a block type slug");
 		}
 		if (
@@ -192,19 +201,18 @@ function normalizeBlockArray(
 			validationError(`${blockPath}._key`, "must be a non-empty string");
 		}
 
-		const previous = typeof rawBlock._key === "string" ? existing.get(rawBlock._key) : undefined;
-		const type = types.get(rawBlock._type);
-		if (!type) unsupported(`${blockPath}._type`, `block type "${rawBlock._type}" is unavailable`);
+		const type = types.get(blockTypeSlug);
+		if (!type) unsupported(`${blockPath}._type`, `block type "${blockTypeSlug}" is unavailable`);
 		if (previous) {
-			if (previous._type !== rawBlock._type) {
+			if (previous._type !== blockTypeSlug) {
 				validationError(`${blockPath}._type`, "cannot change an existing block's type");
 			}
 		} else if (
-			!allowed.has(rawBlock._type) &&
-			!(options.restoreBlocks && retired.has(rawBlock._type))
+			!allowed.has(blockTypeSlug) &&
+			!(options.restoreBlocks && retired.has(blockTypeSlug))
 		) {
-			const reason = retired.has(rawBlock._type) ? "is retired" : "is not allowed by this field";
-			validationError(`${blockPath}._type`, `block type "${rawBlock._type}" ${reason}`);
+			const reason = retired.has(blockTypeSlug) ? "is retired" : "is not allowed by this field";
+			validationError(`${blockPath}._type`, `block type "${blockTypeSlug}" ${reason}`);
 		}
 
 		let version: number;
@@ -234,7 +242,7 @@ function normalizeBlockArray(
 		const definition = versionFor(type, version, `${blockPath}._version`);
 		const normalized: Record<string, unknown> = {
 			...rawBlock,
-			_type: rawBlock._type,
+			_type: blockTypeSlug,
 			_version: version,
 			_key: key,
 		};
@@ -258,7 +266,7 @@ function normalizeBlockArray(
 		}
 		return {
 			...normalized,
-			_type: rawBlock._type,
+			_type: blockTypeSlug,
 			_version: version,
 			_key: key,
 		};

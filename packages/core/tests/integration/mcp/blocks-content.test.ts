@@ -116,4 +116,49 @@ describeEachDialect("MCP blocks content writes", (dialect) => {
 			expect(extractText(result)).toContain("[VALIDATION_ERROR] layout: must be an array");
 		},
 	);
+
+	it("infers a single block type and converts its nested Markdown on create and update", async () => {
+		const result = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "pages",
+				data: { layout: [{ heading: "Hello", body: "**Welcome**" }] },
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const created = extractJson<ContentEnvelope>(result);
+		const original = (created.item.data.layout as Array<Record<string, unknown>>)[0]!;
+		expect(original).toMatchObject({
+			_type: "hero",
+			_version: 1,
+			body: [{ _type: "block", children: [{ text: "Welcome", marks: ["strong"] }] }],
+		});
+		const edited: Record<string, unknown> = { ...original, body: "**Updated**" };
+		delete edited._type;
+		const updated = await harness.client.callTool({
+			name: "content_update",
+			arguments: {
+				collection: "pages",
+				id: created.item.id,
+				_rev: await currentRev(harness.client, "pages", created.item.id),
+				data: { layout: [edited] },
+			},
+		});
+		expect(updated.isError, extractText(updated)).toBeFalsy();
+		const read = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "pages", id: created.item.id, markdown: true },
+		});
+		expect(read.isError, extractText(read)).toBeFalsy();
+		const stored = (
+			extractJson<ContentEnvelope>(read).item.data.layout as Array<Record<string, unknown>>
+		)[0]!;
+		expect(stored).toMatchObject({
+			_type: "hero",
+			_version: original._version,
+			_key: original._key,
+			heading: "Hello",
+		});
+		expect(String(stored.body).trim()).toBe("**Updated**");
+	});
 });
