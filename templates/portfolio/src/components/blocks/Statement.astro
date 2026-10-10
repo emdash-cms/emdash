@@ -1,0 +1,59 @@
+---
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageLayoutBlock } from "../../../emdash-env";
+
+type StatementBlock = Extract<PageLayoutBlock, { _type: "portfolio_statement" }>;
+type Props = BlockComponentProps<StatementBlock>;
+
+const { value, index } = Astro.props;
+const label = value.label?.trim();
+const Heading = index === 0 ? "h1" : "h2";
+---
+
+<section class="intro frame">
+	{label && <p class="label intro__label">{label}</p>}
+	<Heading class="intro__statement">{value.text.trim()}</Heading>
+</section>
+
+<style>
+	.intro {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: var(--spacing-lg);
+	}
+
+	/* The h1 type settings, so an h2 statement looks the same */
+	.intro__statement {
+		max-width: 22ch;
+		font-size: var(--font-size-display);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-display);
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+	}
+
+	@media (min-width: 768px) {
+		.intro {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+			column-gap: var(--gutter);
+			align-items: baseline;
+		}
+
+		/*
+		 * The label shares the first baseline of the large text beside it;
+		 * lifting it by the difference in cap heights lines up their tops.
+		 */
+		.intro__label {
+			grid-column: 1 / span 3;
+			position: relative;
+			inset-block-start: calc(
+				(var(--font-size-label) - var(--font-size-display)) * 0.7
+			);
+		}
+
+		.intro__statement {
+			grid-column: 4 / -1;
+		}
+	}
+</style>

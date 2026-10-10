@@ -1,0 +1,245 @@
+---
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageLayoutBlock } from "../../../emdash-env";
+import ProjectCard from "../ProjectCard.astro";
+import { getSelectedWork } from "../../utils/selected-work";
+
+type SelectedWorkBlock = Extract<
+	PageLayoutBlock,
+	{ _type: "portfolio_selected_work" }
+>;
+type Props = BlockComponentProps<SelectedWorkBlock>;
+
+const { value, blockKey } = Astro.props;
+const { entries: projects } = await getSelectedWork();
+const isLoggedIn = Boolean(Astro.locals.user);
+const idPrefix = encodeURIComponent(blockKey);
+const headingId = `${idPrefix}-heading`;
+const emptyHeadingId = `${idPrefix}-empty-heading`;
+
+// Column widths by breakpoint, as [minimum viewport width, CSS length]
+type ColumnWidths = ReadonlyArray<readonly [string | null, string]>;
+const FULL: ColumnWidths = [
+	["1680px", "1600px"],
+	["768px", "100vw - 5rem"],
+	[null, "100vw - 2rem"],
+];
+const SEVEN_COLUMNS: ColumnWidths = [
+	["1680px", "924px"],
+	["1024px", "58vw - 3rem"],
+	["768px", "50vw - 2.5rem"],
+	[null, "100vw - 2rem"],
+];
+const FIVE_COLUMNS: ColumnWidths = [
+	["1680px", "653px"],
+	["1024px", "41vw - 2rem"],
+	["768px", "50vw - 2.5rem"],
+	[null, "100vw - 2rem"],
+];
+const FRAME_ASPECT = { wide: 21 / 9, landscape: 4 / 3, portrait: 4 / 5 };
+
+// The grid repeats every five cards: a wide card, then two pairs that
+// mirror each other.
+const pattern = [
+	{ layout: "wide", placement: "wide", widths: FULL },
+	{ layout: "landscape", placement: "start-7", widths: SEVEN_COLUMNS },
+	{ layout: "portrait", placement: "end-5", widths: FIVE_COLUMNS },
+	{ layout: "portrait", placement: "start-5", widths: FIVE_COLUMNS },
+	{ layout: "landscape", placement: "end-7", widths: SEVEN_COLUMNS },
+] as const;
+
+/**
+ * A frame narrower than its image crops the sides, so the image is drawn
+ * wider than its column; ask for a source that is sharp at that width.
+ */
+function sizesFor(
+	slot: (typeof pattern)[number],
+	image?: { width?: number; height?: number } | null,
+): string {
+	const imageAspect =
+		image?.width && image.height ? image.width / image.height : 3 / 2;
+	const scale = Math.max(1, imageAspect / FRAME_ASPECT[slot.layout]);
+	return slot.widths
+		.map(([minWidth, width]) => {
+			const size =
+				scale > 1 ? `calc((${width}) * ${scale.toFixed(2)})` : `calc(${width})`;
+			return minWidth ? `(min-width: ${minWidth}) ${size}` : size;
+		})
+		.join(", ");
+}
+
+// A last card that would open a pair has no partner, so it goes wide
+// instead of leaving half a row empty.
+const cards = projects.map((project, i) => {
+	const next = pattern[i % pattern.length] ?? pattern[0];
+	const isLonely =
+		i === projects.length - 1 && next.placement.startsWith("start");
+	const slot = isLonely ? pattern[0] : next;
+	return {
+		project,
+		layout: slot.layout,
+		placement: slot.placement,
+		sizes: sizesFor(slot, project.data.featured_image),
+	};
+});
+
+const count = String(projects.length).padStart(2, "0");
+---
+
+{
+	projects.length > 0 ? (
+		<section class="work frame" aria-labelledby={headingId}>
+			<div class="work__head">
+				<h2 class="label work__heading" id={headingId}>
+					{value.heading} ({count})
+				</h2>
+				<a href="/work" class="arrow-link work__index-link">
+					Full index
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M4 12h16M13 5l7 7-7 7" />
+					</svg>
+				</a>
+			</div>
+			<ol class="work__grid" role="list">
+				{cards.map(({ project, layout, placement, sizes }, i) => (
+					<li class:list={["work__item", `work__item--${placement}`]}>
+						<ProjectCard
+							title={project.data.title}
+							href={`/work/${project.id}`}
+							featuredImage={project.data.featured_image}
+							client={project.data.client}
+							year={project.data.year}
+							tags={project.data.terms?.tag?.map((term) => term.label)}
+							index={i + 1}
+							layout={layout}
+							sizes={sizes}
+							priority={i === 0}
+							idPrefix={`${idPrefix}-card`}
+							edit={project.edit}
+						/>
+					</li>
+				))}
+			</ol>
+		</section>
+	) : (
+		<section class="frame" aria-labelledby={emptyHeadingId}>
+			<div class="empty">
+				<div class="empty__body">
+					<h2 id={emptyHeadingId}>No projects yet</h2>
+					{isLoggedIn && (
+						<>
+							<p class="empty__text">
+								Add your first project in the admin. Published projects appear
+								here, newest first.
+							</p>
+							<a href="/_emdash/admin/content/projects/new" class="btn">
+								Add a project
+							</a>
+						</>
+					)}
+				</div>
+			</div>
+		</section>
+	)
+}
+
+<style>
+	.work__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--spacing-sm) var(--spacing-lg);
+		margin-block-end: var(--spacing-xl);
+		padding-block-start: var(--spacing-md);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.work__index-link {
+		padding-block: 0.25rem;
+		font-size: var(--font-size-sm);
+	}
+
+	.work__grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		align-items: start;
+		gap: clamp(var(--spacing-2xl), 1rem + 5vw, var(--spacing-5xl))
+			var(--gutter);
+		list-style: none;
+	}
+
+	.work__item {
+		min-width: 0;
+	}
+
+	.empty {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		padding-block-start: var(--spacing-md);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.empty__body {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--spacing-md);
+		max-width: 36rem;
+	}
+
+	.empty__text {
+		margin-block-end: var(--spacing-sm);
+		color: var(--color-text-secondary);
+	}
+
+	@media (min-width: 768px) {
+		.empty {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+			column-gap: var(--gutter);
+			align-items: baseline;
+		}
+
+		.empty__body {
+			grid-column: 4 / -1;
+		}
+
+		.work__grid {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+		}
+
+		.work__item {
+			grid-column: span 6;
+		}
+
+		.work__item--wide {
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.work__item--start-7 {
+			grid-column: 1 / span 7;
+		}
+
+		.work__item--end-5 {
+			grid-column: 8 / span 5;
+		}
+
+		.work__item--start-5 {
+			grid-column: 1 / span 5;
+		}
+
+		.work__item--end-7 {
+			grid-column: 6 / span 7;
+		}
+	}
+</style>

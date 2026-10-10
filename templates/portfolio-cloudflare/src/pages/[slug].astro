@@ -1,0 +1,93 @@
+---
+import { decodeSlug, getEmDashEntry, getMenu, getSeoMeta } from "emdash";
+import Base from "../layouts/Base.astro";
+import EditorNote from "../components/EditorNote.astro";
+import PageView from "../components/PageView.astro";
+import { layoutDescription } from "../utils/page";
+import { getSelectedWork } from "../utils/selected-work";
+
+// The seeded menu links to these pages. While the menu links to one that
+// doesn't exist, as on a site set up without sample content, the link shows a
+// placeholder instead of a 404.
+const PLACEHOLDER_TITLES = new Map([
+	["about", "About"],
+	["contact", "Contact"],
+]);
+const TRAILING_SLASHES = /\/+$/;
+
+const slug = decodeSlug(Astro.params.slug);
+// Page slugs never contain dots, so requests for files such as /favicon.ico
+// or /wp-login.php go to the 404 page without a database lookup.
+if (!slug || slug.includes(".")) return Astro.rewrite("/404");
+
+const { entry: page, error, cacheHint } = await getEmDashEntry("pages", slug);
+if (error) return new Response("Could not load the page", { status: 500 });
+
+async function menuLinksTo(path: string): Promise<boolean> {
+	const menu = await getMenu("primary");
+	return (menu?.items ?? []).some((item) => {
+		try {
+			return (
+				new URL(item.url, Astro.url).pathname.replace(TRAILING_SLASHES, "") === path
+			);
+		} catch {
+			return false;
+		}
+	});
+}
+
+const placeholderTitle = page ? undefined : PLACEHOLDER_TITLES.get(slug);
+if (!page && !(placeholderTitle && (await menuLinksTo(`/${slug}`)))) {
+	return Astro.rewrite("/404");
+}
+
+// Selected work shares this query with the page, whose cache entry must clear
+// when projects change.
+const projectsResult = page?.data.layout?.some(
+	(block) => block._type === "portfolio_selected_work",
+)
+	? await getSelectedWork()
+	: undefined;
+
+if (Astro.cache?.enabled) {
+	Astro.cache.set(cacheHint);
+	if (projectsResult?.cacheHint) Astro.cache.set(projectsResult.cacheHint);
+	// A missing entry carries no tags, so publishing the page later wouldn't
+	// clear the cached placeholder.
+	if (!page) Astro.cache.set({ tags: ["pages"] });
+}
+
+const placeholderNote =
+	slug === "contact"
+		? "Create or publish a page with the slug “contact” in Pages and add a Contact details block to its Layout to replace this placeholder."
+		: `Create or publish a page with the slug “${slug}” in Pages to replace this placeholder.`;
+
+const seo = page
+	? getSeoMeta(page, {
+			siteUrl: Astro.url.origin,
+			path: `/${page.id}`,
+			defaultDescription: layoutDescription(page.data.layout),
+		})
+	: null;
+---
+
+<Base
+	title={seo?.title ?? placeholderTitle}
+	pageTitle={seo?.ogTitle}
+	description={seo?.description}
+	image={seo?.ogImage}
+	canonical={seo?.canonical}
+	robots={page ? seo?.robots : "noindex"}
+	content={page
+		? { collection: "pages", id: page.data.id, slug: page.id }
+		: undefined}
+>
+	<PageView page={page} title={placeholderTitle} />
+	{
+		!page && (
+			<EditorNote href="/_emdash/admin/content/pages" action="Go to Pages">
+				{placeholderNote}
+			</EditorNote>
+		)
+	}
+</Base>
