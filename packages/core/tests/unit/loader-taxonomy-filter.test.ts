@@ -221,6 +221,28 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		expect(titles).toContain("Sports + Featured");
 	});
 
+	it("gives the same result whichever taxonomy is written first (#3259)", async () => {
+		const news = await term("category", "news");
+		const featured = await term("tag", "featured");
+
+		// Many posts carry the category and few carry the tag, so the two key orders
+		// drive the pivot from different sides; the answer must not depend on it.
+		const both = await createPost("News + Featured");
+		await tag(both.id, news);
+		await tag(both.id, featured);
+		for (let i = 0; i < 12; i++) {
+			const p = await createPost(`News ${i}`);
+			await tag(p.id, news);
+		}
+
+		const a = await load({ category: ["news"], tag: ["featured"] });
+		const b = await load({ tag: ["featured"], category: ["news"] });
+
+		expect(a.entries.map((e) => e.id)).toEqual(b.entries.map((e) => e.id));
+		expect(a.entries).toHaveLength(1);
+		expect(a.entries[0]!.data.title).toBe("News + Featured");
+	});
+
 	it("returns no entries when any one taxonomy filter is an empty array", async () => {
 		const news = await term("category", "news");
 		const post = await createPost("In News");
