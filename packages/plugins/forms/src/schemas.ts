@@ -129,6 +129,8 @@ const formSettingsUpdateSchema = z.object(formSettingsShape).partial();
 
 // ─── Form CRUD Schemas ──────────────────────────────────────────
 
+export const formsListSchema = z.object({});
+
 export const formCreateSchema = z.object({
 	name: z.string().min(1).max(200),
 	slug: z
