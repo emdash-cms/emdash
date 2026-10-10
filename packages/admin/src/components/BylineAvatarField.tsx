@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchMediaItem } from "../lib/api";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer";
+import { OptionalLabel } from "./OptionalLabel.js";
 
 export interface BylineAvatarFieldProps {
 	/** The byline's stored `avatarMediaId`, or null when unset. */
@@ -43,7 +44,9 @@ export function BylineAvatarField({ value, onChange }: BylineAvatarFieldProps) {
 	if (value && isLoading) {
 		return (
 			<div>
-				<Label>{t`Avatar`}</Label>
+				<Label>
+					<OptionalLabel>{t`Avatar`}</OptionalLabel>
+				</Label>
 				<div className="mt-2 flex h-32 items-center justify-center rounded-lg border">
 					<Loader />
 				</div>
@@ -69,6 +72,7 @@ export function BylineAvatarField({ value, onChange }: BylineAvatarFieldProps) {
 	return (
 		<ImageFieldRenderer
 			label={t`Avatar`}
+			showOptional
 			value={fieldValue}
 			onChange={(next) => onChange(next?.id ?? null)}
 		/>

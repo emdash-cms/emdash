@@ -47,7 +47,7 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
-const BYLINE_SLUG_PATTERN = /^[a-z][a-z0-9-]*$/;
+export const BYLINE_SLUG_PATTERN = /^[a-z][a-z0-9-]*$/;
 const BYLINE_SLUG_MAX_LENGTH = 80;
 const COMBINING_MARK_PATTERN = /[\u0300-\u036f]/g;
 const UNSAFE_SLUG_PATTERN = /[^a-z0-9]+/g;
