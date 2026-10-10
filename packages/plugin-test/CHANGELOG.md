@@ -1,5 +1,18 @@
 # @emdash-cms/plugin-test
 
+## 0.2.9
+
+### Patch Changes
+
+- [#3886](https://github.com/emdash-cms/emdash/pull/3886) [`f16f9f7`](https://github.com/emdash-cms/emdash/commit/f16f9f7f38a97ebdcc077e0f73cb0db1fb3227c8) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes sandboxed plugins' `ctx.media.readBytes()` calls failing with "Media storage is not configured" under concurrent requests on Cloudflare Workers with an R2 `MEDIA` binding. Sites without that binding continue to use the existing storage callback fallback.
+  
+  Updates `createPluginRuntimeTestHost()` to store media fixtures and uploads in its local R2 binding, so plugins can read their bytes through the production bridge.
+- Updated dependencies [[`291e0f8`](https://github.com/emdash-cms/emdash/commit/291e0f8b5fef4e8ab81635076572499b8a6d0f81), [`bf046ca`](https://github.com/emdash-cms/emdash/commit/bf046caf76e7bf324baa89c8689add44d5719967), [`20b7177`](https://github.com/emdash-cms/emdash/commit/20b717774e0c71878de6f586c12fc3f7da994adc), [`f16f9f7`](https://github.com/emdash-cms/emdash/commit/f16f9f7f38a97ebdcc077e0f73cb0db1fb3227c8), [`02d57de`](https://github.com/emdash-cms/emdash/commit/02d57de460dd5d6618af585b8d0db9857a330ce7), [`af92bf7`](https://github.com/emdash-cms/emdash/commit/af92bf731e33f7d2d1b81b3c75fdf840c99067c8), [`57e6507`](https://github.com/emdash-cms/emdash/commit/57e6507be57829af3eca45d095cf813b0e22eb11), [`8e1e849`](https://github.com/emdash-cms/emdash/commit/8e1e849159e53fbd962e3810555d8ab9f43f56ed), [`dd983cd`](https://github.com/emdash-cms/emdash/commit/dd983cdb26e91435be750226797cccc93c4b90e8), [`24d5ea4`](https://github.com/emdash-cms/emdash/commit/24d5ea4bda6d7f002de8ce8344e2c12aee0d49b5), [`9f7eb22`](https://github.com/emdash-cms/emdash/commit/9f7eb2288067d4f31f41a9f1f24514e9071930d5), [`0ce875f`](https://github.com/emdash-cms/emdash/commit/0ce875fcd956d31d0702be331d49f5eab6da4866), [`2652774`](https://github.com/emdash-cms/emdash/commit/2652774d50a341392f26d69ed020528b1d92d7e8), [`ecbd1ff`](https://github.com/emdash-cms/emdash/commit/ecbd1ffadc802b005e67febbac6b78c023c5985b), [`9daecce`](https://github.com/emdash-cms/emdash/commit/9daeccebcdf3eb1fc0b18610c8d1d6b137ca395d), [`2ccc645`](https://github.com/emdash-cms/emdash/commit/2ccc6451c68b9be97986cce73ced9e05db84bcbb), [`e0d395d`](https://github.com/emdash-cms/emdash/commit/e0d395dfa6211e1466a2d883475b2373860f0400), [`2b7ad41`](https://github.com/emdash-cms/emdash/commit/2b7ad4161d95aadba6ac83466d603a9a8050d9fb), [`b60ec26`](https://github.com/emdash-cms/emdash/commit/b60ec26841116b539bad3f73a4de024813cd3c33), [`57e6507`](https://github.com/emdash-cms/emdash/commit/57e6507be57829af3eca45d095cf813b0e22eb11), [`b358838`](https://github.com/emdash-cms/emdash/commit/b3588388aa496e4e76dd7c486fd5860171749050)]:
+  - emdash@1.2.1
+  - @emdash-cms/cloudflare@1.2.1
+  - @emdash-cms/plugin-cli@0.13.4
+  - @emdash-cms/blocks@1.2.1
+
 ## 0.2.8
 
 ### Patch Changes
