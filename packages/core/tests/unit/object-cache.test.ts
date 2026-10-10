@@ -6,8 +6,10 @@ import { decode, encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
 	__setObjectCacheBackendInitForTests,
+	CacheNamespace,
 	cachedQuery,
 	coalesceObjectCacheWrites,
+	contentNamespaces,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
 	invalidateObjectCache,
@@ -621,5 +623,247 @@ describe("last content write stamp", () => {
 		invalidateObjectCache("content:posts");
 		const local = await getLastContentWriteAt();
 		expect(local).toBeGreaterThan(100);
+	});
+});
+
+describe("change marker", () => {
+	const MARKER = "em:epochs-changed";
+	const SETTLE_MS = 120_000;
+	const MAX_TRUST_MS = 600_000;
+	let clock: number;
+	let backend: ReturnType<typeof spyBackend>;
+
+	beforeEach(() => {
+		clock = 1_800_000_000_000;
+		vi.spyOn(Date, "now").mockImplementation(() => clock);
+		backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	/** Another isolate's write: bump the epoch, then rewrite the marker. */
+	function remoteWrite(namespace: string, { marker = true, writerClock = clock } = {}): void {
+		backend.store.set(`em:epoch:${namespace}`, String(clock));
+		if (marker) backend.store.set(MARKER, `${writerClock}.remote-${clock}`);
+	}
+
+	function epochReads(): string[] {
+		return vi
+			.mocked(backend.get)
+			.mock.calls.map(([key]) => key)
+			.filter((key) => key.includes(":epoch:") || key === MARKER);
+	}
+
+	async function render(load: () => Promise<unknown>): Promise<void> {
+		await cachedQuery({
+			namespace: contentNamespaces("listings"),
+			key: "entry:listing-1",
+			load,
+		});
+		await Promise.all(
+			["main", "footer", "topbar"].map((menu) =>
+				cachedQuery({ namespace: CacheNamespace.MENUS, key: `menu:${menu}`, load }),
+			),
+		);
+		await cachedQuery({ namespace: contentNamespaces("events"), key: "list", load });
+		await cachedQuery({ namespace: contentNamespaces("banners"), key: "list", load });
+		await flush();
+	}
+
+	it("revalidates every cached epoch of a render with one read", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		invalidateObjectCache("settings");
+		await flush();
+
+		clock += SETTLE_MS;
+		await render(load);
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await render(load);
+
+		expect(epochReads()).toEqual([MARKER]);
+		expect(load).toHaveBeenCalledTimes(6);
+	});
+
+	it("writes the marker after the epoch writes it covers", async () => {
+		invalidateCollectionCache("posts");
+		invalidateObjectCache("bylines");
+		await flush();
+
+		const keys = vi.mocked(backend.set).mock.calls.map(([key]) => key);
+		const markerAt = keys.indexOf(MARKER);
+		expect(keys.filter((key) => key === MARKER)).toHaveLength(1);
+		for (const ns of ["content:v2:posts", "content:posts", "bylines"]) {
+			expect(keys.indexOf(`em:epoch:${ns}`)).toBeLessThan(markerAt);
+		}
+	});
+
+	it("rewrites the marker while an earlier epoch write is still in flight", async () => {
+		let release!: () => void;
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:menus"
+				? new Promise<void>((resolve) => {
+						release = () => resolve(set(key, value));
+					})
+				: set(key, value),
+		);
+		invalidateObjectCache("menus");
+		await flush();
+
+		clock += 2_000;
+		invalidateObjectCache("bylines");
+		await flush();
+		expect(backend.store.has(MARKER)).toBe(true);
+		release();
+		await flush();
+	});
+
+	it("reloads after another isolate publishes", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		const before = await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		expect(load).toHaveBeenCalledTimes(1);
+
+		remoteWrite("posts");
+		clock += 1_001;
+		const after = await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+		expect(after).not.toEqual(before);
+	});
+
+	it("reloads after a publish from an isolate whose clock runs behind", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		remoteWrite("posts", { writerClock: clock - 2 * SETTLE_MS });
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("re-reads an epoch that was read before the marker settled", async () => {
+		// The marker is new but this location's KV still serves the old epoch.
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		backend.store.set("em:epoch:posts", "1");
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		clock += 30_000;
+		backend.store.set("em:epoch:posts", String(clock));
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not trust epochs while no marker has been written", async () => {
+		// An isolate on an older release bumps epochs without writing a marker.
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		clock += SETTLE_MS;
+		remoteWrite("posts", { marker: false });
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("re-reads an epoch bumped without a marker change once the trust window ends", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		remoteWrite("posts", { marker: false });
+		clock += MAX_TRUST_MS - 1;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		expect(load).toHaveBeenCalledTimes(1);
+
+		clock += 1_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
+	it("reads every epoch on every query with revalidate: 0", async () => {
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		vi.mocked(backend.get).mockClear();
+
+		clock += 60_000;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(epochReads()).toContain("em:epoch:posts");
+	});
+
+	it("does not read the marker with revalidate: 0", async () => {
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		expect(epochReads()).not.toContain(MARKER);
+	});
+
+	it("does not rewrite the marker when the epoch write fails", async () => {
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:menus" ? Promise.reject(new Error("kv down")) : set(key, value),
+		);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		invalidateObjectCache("menus");
+		await flush();
+
+		expect(backend.store.has(MARKER)).toBe(false);
+	});
+
+	it("rewrites the marker when another epoch write in the batch landed", async () => {
+		const set = backend.set;
+		backend.set = vi.fn((key: string, value: string) =>
+			key === "em:epoch:menus" ? Promise.reject(new Error("kv down")) : set(key, value),
+		);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		invalidateObjectCache("bylines");
+		invalidateObjectCache("menus");
+		await flush();
+
+		expect(backend.store.has(MARKER)).toBe(true);
+	});
+
+	it("re-reads epochs when the marker read fails", async () => {
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+		remoteWrite("posts");
+		clock += SETTLE_MS;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		const get = backend.get;
+		backend.get = vi.fn((key: string) =>
+			key === MARKER ? Promise.reject(new Error("kv down")) : get(key),
+		);
+		remoteWrite("posts", { marker: false });
+		clock += 1_001;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+
+		expect(load).toHaveBeenCalledTimes(2);
 	});
 });
