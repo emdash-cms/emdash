@@ -38,7 +38,7 @@ Connection flags vary by command. The grouped commands below mean every subcomma
 | ------------------------- | ----- | ------------ | ----------------------- |
 | `--url`                   | `-u`  | `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Instance URL; defaults to `EMDASH_URL` or `http://localhost:4321` |
 | `--token`                 | `-t`  | `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Token from the flag, `EMDASH_TOKEN`, or stored credentials |
-| `--header "Name: Value"` | `-H`  | `types`, `login`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
+| `--header "Name: Value"` | `-H`  | `types`, `login`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
 | `--json`                  |       | `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Write raw JSON instead of terminal-formatted output |
 
 ## Output
@@ -234,13 +234,14 @@ npx emdash whoami [options]
 
 #### Options
 
-| Option    | Alias | Description           | Default                |
-| --------- | ----- | --------------------- | ---------------------- |
-| `--url`   | `-u`  | EmDash instance URL | `http://localhost:4321` |
-| `--token` | `-t`  | Auth token            | From env/stored creds  |
-| `--json`  |       | Output as JSON        |                        |
+| Option                   | Alias | Description           | Default                                  |
+| ------------------------ | ----- | --------------------- | ---------------------------------------- |
+| `--url`                  | `-u`  | EmDash instance URL   | `EMDASH_URL` or `http://localhost:4321` |
+| `--token`                | `-t`  | Auth token            | From env/stored creds                    |
+| `--header "Name: Value"` | `-H`  | Custom header, repeatable | Merged with `EMDASH_HEADERS`         |
+| `--json`                 |       | Output as JSON        |                                          |
 
-Displays email, name, role, auth method, and instance URL.
+Displays email, name, role, auth method, and instance URL. On localhost with no token or stored credentials, `whoami` signs in through the dev bypass, which creates the `dev@emdash.local` admin user if it doesn't exist, and reports that user. It exits with a non-zero status when the instance can't be reached or the dev bypass is unavailable, for example when the site isn't running under `astro dev`.
 
 ### `emdash content`
 
