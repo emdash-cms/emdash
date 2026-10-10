@@ -1051,6 +1051,34 @@ https://${domain}/123456
 				},
 			);
 		});
+
+		it("keeps a placeholder for a self-closing dynamic block", () => {
+			const content = `<!-- wp:paragraph --><p>Before</p><!-- /wp:paragraph -->
+<!-- wp:acme/testimonial {"author":"Kunde","note":"a--b <i> \\u0022q\\u0022"} /-->
+<!-- wp:paragraph --><p>After</p><!-- /wp:paragraph -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(3);
+			expect(result[1]).toMatchObject({
+				_type: "htmlBlock",
+				html: '<!-- wp:acme/testimonial {"author":"Kunde","note":"a\\u002d\\u002db \\u003ci\\u003e \\u0022q\\u0022"} /-->',
+				originalBlockName: "acme/testimonial",
+				originalAttrs: { author: "Kunde", note: 'a--b <i> "q"' },
+			});
+		});
+
+		it("names core blocks the way WordPress serializes them", () => {
+			const result = gutenbergToPortableText("<!-- wp:latest-posts /-->");
+
+			expect(result).toEqual([
+				expect.objectContaining({
+					_type: "htmlBlock",
+					html: "<!-- wp:latest-posts /-->",
+					originalBlockName: "core/latest-posts",
+				}),
+			]);
+		});
 	});
 
 	describe("custom transformers", () => {
