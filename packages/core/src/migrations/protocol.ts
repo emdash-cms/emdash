@@ -1,6 +1,6 @@
 import type { I18nConfig } from "../i18n/config.js";
 
-export type MigrationAction = "check" | "apply" | "release-lock";
+export type MigrationAction = "check" | "apply" | "release-lock" | "take-over-lock";
 
 export interface MigrationRequest {
 	action: MigrationAction;
@@ -9,7 +9,11 @@ export interface MigrationRequest {
 		emdashVersion: string;
 		migrationSetFingerprint: string;
 	};
-	/** For `release-lock`: the lock id a `check` reported. Another lock is left alone. */
+	/**
+	 * For `release-lock` and `take-over-lock`: the lock id a `check` reported.
+	 * Another lock is left alone. `take-over-lock` applies pending migrations
+	 * under that lock without freeing it first.
+	 */
 	lockId?: string;
 }
 
