@@ -14,7 +14,7 @@ Prepare the following items:
 - A backup of the WordPress database and `wp-content/uploads`.
 - An EmDash site with storage configured if you plan to copy media.
 - An EmDash administrator account. WordPress import requires the `import:execute` permission.
-- Either a complete WordPress eXtended RSS (WXR) export or the EmDash Exporter plugin installed on the WordPress site.
+- Either a complete WordPress eXtended RSS (WXR) export or the [EmDash Exporter](https://github.com/emdash-cms/wp-emdash) plugin installed on the WordPress site.
 
 Record the current permalink structure, canonical origin, redirects, menus, active post types, taxonomies, and any plugin-owned fields that the new site must preserve.
 
@@ -23,7 +23,7 @@ Record the current permalink structure, canonical origin, redirects, menus, acti
 | Method | Use it when | Included data |
 | --- | --- | --- |
 | WXR upload | You can export from **Tools → Export** | Data represented in the export, including posts, pages, custom post types, taxonomy terms, reusable blocks, authors, and attachment URLs |
-| EmDash Exporter | You control the WordPress site and can install the exporter | Authenticated content plus supported comments, menus, site settings, SEO fields, taxonomies, and media metadata |
+| EmDash Exporter | You control the WordPress site and can install the exporter | Authenticated content plus supported site settings, SEO fields, taxonomies, and media metadata; comments and menus with exporter 1.2.0 or later |
 
 Entering a site URL without the exporter only probes the public WordPress REST API. The probe can detect WordPress and count public posts, pages, and media, but it cannot perform a direct REST import.
 
@@ -33,9 +33,11 @@ In WordPress, open **Tools → Export**, select **All content**, and download th
 
 ### Connect the EmDash Exporter
 
-In WordPress, open **Tools → EmDash Migration** and generate a migration key. Paste the key into the EmDash import page.
+Check the exporter version on the WordPress **Plugins** screen. Comments, menus, the logo, and the favicon need exporter 1.2.0 or later. With an earlier version, the import completes without them and does not report them as missing.
 
-You can also enter the WordPress site URL. When the exporter is detected, authorize EmDash through the WordPress application-password screen. On local HTTP development sites, enter the WordPress username and application password manually because the authorization callback requires HTTPS.
+With exporter 1.2.0 or later, open **Tools → EmDash Migration** in WordPress and generate a migration key. Paste the key into the EmDash import page.
+
+With any exporter version, you can enter the WordPress site URL. When the exporter is detected, authorize EmDash through the WordPress application-password screen. On local HTTP development sites, enter the WordPress username and application password manually because the authorization callback requires HTTPS.
 
 ## Import through the admin
 
