@@ -5,7 +5,15 @@
  * (posts per page, date format, timezone).
  */
 
-import { Autocomplete, Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import {
+	Autocomplete,
+	Badge,
+	Banner,
+	Button,
+	Input,
+	Loader,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowSquareOut, WarningCircle, Upload, X } from "@phosphor-icons/react";
@@ -61,6 +69,67 @@ function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 		dateFormat: settings.dateFormat ?? "MMMM d, yyyy",
 		timezone: settings.timezone ?? "UTC",
 	});
+}
+
+function SiteStatusSection() {
+	const { t } = useLingui();
+	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
+	const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
+	const staging = manifest?.staging === true;
+
+	const stagingMutation = useMutation({
+		mutationFn: (next: boolean) => updateSettings({ staging: next }),
+		onSuccess: (_savedSettings, next) => {
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			toastManager.add({
+				title: next ? t`Site switched to staging` : t`Your site is live`,
+				variant: "success",
+				timeout: 3000,
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save settings`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
+			});
+		},
+	});
+
+	if (!manifest) return null;
+
+	return (
+		<SettingsSection title={t`Site Status`}>
+			<SettingRow>
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="grid gap-1">
+						<div className="flex items-center gap-2 text-base font-medium">
+							{staging ? t`Staging` : t`Live`}
+							<Badge variant={staging ? "warning" : "success"}>
+								{staging ? t`Hidden from search engines` : t`Visible to search engines`}
+							</Badge>
+						</div>
+						<p className="max-w-xl text-sm leading-5 text-pretty text-kumo-subtle">
+							{staging
+								? t`Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found.`
+								: t`Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch.`}
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant={staging ? "primary" : "outline"}
+						className="shrink-0"
+						loading={stagingMutation.isPending}
+						onClick={() => stagingMutation.mutate(!staging)}
+					>
+						{staging ? t`Go live` : t`Switch back to staging`}
+					</Button>
+				</div>
+			</SettingRow>
+		</SettingsSection>
+	);
 }
 
 export function GeneralSettings() {
@@ -272,6 +341,8 @@ export function GeneralSettings() {
 			}
 		>
 			<form id="general-settings-form" onSubmit={handleSubmit} className="grid gap-8">
+				<SiteStatusSection />
+
 				<SettingsSection title={t`Site Identity`}>
 					<SettingRow>
 						<Input

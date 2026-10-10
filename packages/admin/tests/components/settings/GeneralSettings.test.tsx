@@ -111,6 +111,14 @@ async function renderGeneralSettings() {
 	return render(<GeneralSettings />, { wrapper: Wrapper });
 }
 
+const manifest = {
+	version: "test",
+	hash: "test",
+	collections: {},
+	plugins: {},
+	authMode: "passkey",
+} as AdminManifest;
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockFetchSettings.mockResolvedValue(defaultSettings);
@@ -118,11 +126,14 @@ beforeEach(() => {
 		configuredUrl: null,
 		siteOrigin: window.location.origin,
 	});
-	mockFetchManifest.mockResolvedValue({ authMode: "passkey" });
+	mockFetchManifest.mockResolvedValue(manifest);
 	mockCreateSignInHandover.mockReturnValue(new Promise(() => undefined));
 	mockFetchEmailSettings.mockResolvedValue({ available: true });
 	mockUpdateSettings.mockImplementation(async (settings) => {
 		mockFetchSettings.mockResolvedValue(settings);
+		if (settings.staging !== undefined) {
+			mockFetchManifest.mockResolvedValue({ ...manifest, staging: settings.staging });
+		}
 		return settings;
 	});
 });
@@ -603,5 +614,28 @@ describe("GeneralSettings", () => {
 		await mockFetchManifest.mock.results[0]?.value;
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		expect(screen.getByRole("button", { name: "Email users" }).query()).toBeNull();
+	});
+
+	it("shows a site without the staging setting as live", async () => {
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("Visible to search engines")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Switch back to staging" }))
+			.toBeInTheDocument();
+	});
+
+	it("goes live without saving or discarding unsaved form edits", async () => {
+		mockFetchManifest.mockResolvedValue({ ...manifest, staging: true });
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText("Hidden from search engines")).toBeInTheDocument();
+		await screen.getByLabelText("Tagline").fill("Not saved yet");
+
+		await screen.getByRole("button", { name: "Go live" }).click();
+
+		await expect.element(screen.getByText("Your site is live")).toBeInTheDocument();
+		await expect.element(screen.getByText("Visible to search engines")).toBeInTheDocument();
+		expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ staging: false });
+		await expect.element(screen.getByLabelText("Tagline")).toHaveValue("Not saved yet");
 	});
 });
