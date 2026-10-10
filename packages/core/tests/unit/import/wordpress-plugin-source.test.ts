@@ -213,7 +213,9 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 			type,
 			required: false,
 		});
-		const postTypeRule = (value: string) => [[{ param: "post_type", operator: "==", value }]];
+		const postTypeRule = (value: string, operator = "==") => [
+			[{ param: "post_type", operator, value }],
+		];
 		const analyzeResponse = {
 			...makeAnalyzeResponse(0),
 			post_types: [
@@ -230,6 +232,8 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 						{ key: "credits", count: 2, inferred_type: "integer", sample: "2" },
 						{ key: "credits_0_credit_name", count: 2, inferred_type: "string", sample: "Ada" },
 						{ key: "credits_0_credit_role", count: 2, inferred_type: "string", sample: "Author" },
+						{ key: "credits_note", count: 2, inferred_type: "string", sample: "Reprint" },
+						{ key: "sections_0_heading", count: 2, inferred_type: "string", sample: "Intro" },
 						{ key: "publisher_name", count: 2, inferred_type: "string", sample: "Acme" },
 					],
 					hierarchical: false,
@@ -249,6 +253,7 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 						field("genres", "checkbox"),
 						field("related", "relationship"),
 						field("credits", "repeater"),
+						field("sections", "flexible_content"),
 						field("publisher", "group"),
 						field("", "tab"),
 					],
@@ -258,6 +263,12 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 					title: "Page details",
 					location: postTypeRule("page"),
 					fields: [field("hero_text", "text")],
+				},
+				{
+					key: "group_not_post",
+					title: "Everything but posts",
+					location: postTypeRule("post", "!="),
+					fields: [field("banner_text", "text")],
 				},
 			],
 		};
@@ -279,7 +290,9 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 			genres: "json",
 			related: "json",
 			credits: "json",
+			sections: "json",
 			publisher: "json",
+			credits_note: "string",
 			publisher_name: "string",
 		});
 	});
@@ -361,15 +374,23 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 			expect(types.get("credits_1_credit_name")).toBe("string");
 		});
 
-		it("reports an ACF field whose type conflicts with a field the site defined", async () => {
-			const postType = await analyzeWith(acfGroup([{ name: "rating", type: "number" }]), [], {
-				title: "string",
-				rating: "boolean",
-			});
+		const rawMeta: Array<[string, Array<{ key: string; inferred_type: string }>]> = [
+			["without", []],
+			["with", [{ key: "rating", inferred_type: "integer" }]],
+		];
+		it.each(rawMeta)(
+			"reports an ACF field whose type conflicts with a field the site defined, %s raw meta",
+			async (_label, customFields) => {
+				const postType = await analyzeWith(
+					acfGroup([{ name: "rating", type: "number" }]),
+					customFields,
+					{ title: "string", rating: "boolean" },
+				);
 
-			expect(postType.schemaStatus.canImport).toBe(false);
-			expect(postType.schemaStatus.fieldStatus.rating?.status).toBe("type_mismatch");
-		});
+				expect(postType.schemaStatus.canImport).toBe(false);
+				expect(postType.schemaStatus.fieldStatus.rating?.status).toBe("type_mismatch");
+			},
+		);
 	});
 
 	it("fetches every media page during analyze, not just the first", async () => {
