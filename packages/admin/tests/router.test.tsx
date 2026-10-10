@@ -2299,3 +2299,61 @@ describe("ContentEditPage – revision token synchronization", () => {
 		expect(putBodies[0]).toEqual({ seo: { title: "Search title" }, _rev: rev1 });
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Tests: ContentTypesListPage – registering an unregistered table
+// ---------------------------------------------------------------------------
+
+describe("ContentTypesListPage – register failure surfaces the server's error", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 50 },
+			})
+			.on("GET", "/_emdash/api/schema/collections", { data: { items: [] } })
+			.on("GET", "/_emdash/api/schema/block-types", { data: { items: [] } })
+			.on("GET", "/_emdash/api/schema/orphans", {
+				data: {
+					items: [{ slug: "ecommerce_orders", tableName: "ecommerce_orders", rowCount: 3 }],
+				},
+			})
+			.on(
+				"POST",
+				"/_emdash/api/schema/orphans/ecommerce_orders",
+				{
+					error: {
+						code: "TABLE_NOT_FOUND",
+						message: 'Table "ec_ecommerce_orders" does not exist',
+					},
+				},
+				404,
+			);
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("shows a toast with the server's message when the register request fails", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/content-types" });
+		const screen = await render(<TestApp />);
+
+		const register = screen.getByRole("button", { name: "Register" });
+		await expect.element(register).toBeInTheDocument();
+		await register.click();
+
+		await expect.element(screen.getByText("Failed to register ecommerce_orders")).toBeVisible();
+		await expect
+			.element(screen.getByText('Table "ec_ecommerce_orders" does not exist'))
+			.toBeVisible();
+		await expect
+			.poll(() => document.querySelectorAll("[data-toast-icon]").length)
+			.toBeGreaterThan(0);
+	});
+});
