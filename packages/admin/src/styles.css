@@ -80,8 +80,10 @@
 }
 
 /* Base styles */
-* {
-	border-color: var(--color-kumo-line);
+@layer base {
+	* {
+		border-color: var(--color-kumo-line);
+	}
 }
 
 body {
