@@ -616,7 +616,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 									{mcpTools.map((tool) => (
 										<li key={tool.name} className="rounded-md bg-kumo-tint p-2 text-xs">
 											<div className="flex flex-wrap items-center gap-2">
-												<code>{`${plugin.id}__${tool.name}`}</code>
+												<code>{tool.mcpName ?? `${plugin.id}__${tool.name}`}</code>
 												{tool.destructive && <Badge variant="destructive">{t`Destructive`}</Badge>}
 											</div>
 											<p className="mt-1 text-kumo-subtle">{tool.description}</p>

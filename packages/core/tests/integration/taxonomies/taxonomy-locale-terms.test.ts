@@ -389,6 +389,38 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		expect(frOnly[0]!.id).toBe(fx.frTagId);
 	});
 
+	it("updates description only when provided, and clears it on empty string", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en"] });
+		await unwrap(
+			handleTaxonomyCreate(ctx.db, {
+				name: "tags",
+				label: "Tags",
+				hierarchical: false,
+			}),
+		);
+		const created = await unwrap(
+			handleTermCreate(ctx.db, "tags", {
+				slug: "news",
+				label: "News",
+				description: "Original description",
+			}),
+		);
+		expect(created.description).toBe("Original description");
+
+		// Omitting description preserves the stored value.
+		const labelOnly = await unwrap(
+			handleTermUpdate(ctx.db, "tags", "news", { label: "Latest news" }),
+		);
+		expect(labelOnly.description).toBe("Original description");
+
+		// Empty string clears it.
+		const cleared = await unwrap(handleTermUpdate(ctx.db, "tags", "news", { description: "" }));
+		expect(cleared.description).toBe("");
+
+		const fetched = await unwrap(handleTermGet(ctx.db, "tags", "news"));
+		expect(fetched.description).toBe("");
+	});
+
 	it("GET returns only the FR variant for the FR entry", async () => {
 		const fx = await seedLocalizedTags(ctx.db);
 

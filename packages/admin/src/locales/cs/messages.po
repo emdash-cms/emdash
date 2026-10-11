@@ -61,12 +61,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# položka)} few {(# položky)} many {(# položky)} other {(# položek)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2918
+#: packages/admin/src/components/ContentEditor.tsx:2921
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr ""
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2923
+#: packages/admin/src/components/ContentEditor.tsx:2926
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr ""
 
@@ -208,7 +208,7 @@ msgstr ""
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5321
+#: packages/admin/src/components/PortableTextEditor.tsx:5352
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr ""
 
@@ -258,7 +258,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:2928
+#: packages/admin/src/components/ContentEditor.tsx:2931
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr ""
 
@@ -482,8 +482,8 @@ msgstr "{base} na adresy: {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# změna oproti další revizi} few {# změny oproti další revizi} many {# změny oproti další revizi} other {# změn oproti další revizi}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3284
-#: packages/admin/src/components/PortableTextEditor.tsx:3296
+#: packages/admin/src/components/PortableTextEditor.tsx:3301
+#: packages/admin/src/components/PortableTextEditor.tsx:3313
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
@@ -720,8 +720,8 @@ msgstr "{position} z {total}"
 msgid "{previewRows} × {previewColumns} table"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3286
-#: packages/admin/src/components/PortableTextEditor.tsx:3297
+#: packages/admin/src/components/PortableTextEditor.tsx:3303
+#: packages/admin/src/components/PortableTextEditor.tsx:3314
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
@@ -750,7 +750,7 @@ msgstr ""
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3524
+#: packages/admin/src/components/PortableTextEditor.tsx:3543
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
@@ -826,8 +826,8 @@ msgstr "{unchangedCount, plural, one {Zobrazit # nezměněné} few {Zobrazit # n
 msgid "{widgetType} in {areaName}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3282
-#: packages/admin/src/components/PortableTextEditor.tsx:3295
+#: packages/admin/src/components/PortableTextEditor.tsx:3299
+#: packages/admin/src/components/PortableTextEditor.tsx:3312
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
@@ -1047,7 +1047,7 @@ msgstr ""
 msgid "A publication time has not been selected"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1243
+#: packages/admin/src/components/ContentEditor.tsx:1245
 msgid "A publishing action is already in progress"
 msgstr ""
 
@@ -1206,7 +1206,7 @@ msgstr "Přidat"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/ContentList.tsx:622
-#: packages/admin/src/components/PortableTextEditor.tsx:2880
+#: packages/admin/src/components/PortableTextEditor.tsx:2897
 #: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Add {0}"
@@ -1241,7 +1241,7 @@ msgstr ""
 msgid "Add another byline"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:272
+#: packages/admin/src/components/BlocksField.tsx:275
 msgid "Add at least {minItems} blocks."
 msgstr ""
 
@@ -1249,7 +1249,7 @@ msgstr ""
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Přidejte alespoň jedno podpole pro definici struktury opakovače."
 
-#: packages/admin/src/components/BlocksField.tsx:173
+#: packages/admin/src/components/BlocksField.tsx:176
 msgid "Add block"
 msgstr ""
 
@@ -1258,7 +1258,7 @@ msgid "Add byline"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5334
+#: packages/admin/src/components/PortableTextEditor.tsx:5365
 msgid "Add column after"
 msgstr "Přidat sloupec za"
 
@@ -1320,7 +1320,7 @@ msgstr "Přidat obrázky"
 msgid "Add images to gallery"
 msgstr "Přidat obrázky do galerie"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2880
+#: packages/admin/src/components/PortableTextEditor.tsx:2897
 msgid "Add item"
 msgstr "Přidat položku"
 
@@ -1328,9 +1328,9 @@ msgstr "Přidat položku"
 msgid "Add Item"
 msgstr "Přidat položku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4964
-#: packages/admin/src/components/PortableTextEditor.tsx:5760
-#: packages/admin/src/components/PortableTextEditor.tsx:6195
+#: packages/admin/src/components/PortableTextEditor.tsx:4995
+#: packages/admin/src/components/PortableTextEditor.tsx:5791
+#: packages/admin/src/components/PortableTextEditor.tsx:6226
 msgid "Add link"
 msgstr "Přidat odkaz"
 
@@ -1360,8 +1360,8 @@ msgstr "Přidat metaznačku noindex"
 msgid "Add Passkey"
 msgstr "Přidat přístupový klíč"
 
-#: packages/admin/src/components/ContentEditor.tsx:2840
-#: packages/admin/src/components/ContentEditor.tsx:2840
+#: packages/admin/src/components/ContentEditor.tsx:2843
+#: packages/admin/src/components/ContentEditor.tsx:2843
 msgid "Add reference"
 msgstr ""
 
@@ -1374,7 +1374,7 @@ msgid "Add row above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5327
+#: packages/admin/src/components/PortableTextEditor.tsx:5358
 msgid "Add row below"
 msgstr ""
 
@@ -1456,7 +1456,7 @@ msgid "Administrator"
 msgstr "Administrátor"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:995
-#: packages/admin/src/components/PortableTextEditor.tsx:1968
+#: packages/admin/src/components/PortableTextEditor.tsx:1985
 msgid "Advanced"
 msgstr ""
 
@@ -1495,25 +1495,25 @@ msgid "Agent-callable MCP tools"
 msgstr "MCP nástroje volatelné agentem"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5224
+#: packages/admin/src/components/PortableTextEditor.tsx:5255
 msgid "Align"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6369
+#: packages/admin/src/components/PortableTextEditor.tsx:6400
 msgid "Align center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6361
+#: packages/admin/src/components/PortableTextEditor.tsx:6392
 msgid "Align left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6377
+#: packages/admin/src/components/PortableTextEditor.tsx:6408
 msgid "Align right"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:722
-#: packages/admin/src/components/PortableTextEditor.tsx:5741
+#: packages/admin/src/components/PortableTextEditor.tsx:5772
 msgid "Alignment"
 msgstr "Zarovnání"
 
@@ -1637,8 +1637,8 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:514
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:518
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5672
-#: packages/admin/src/components/PortableTextEditor.tsx:5738
+#: packages/admin/src/components/PortableTextEditor.tsx:5703
+#: packages/admin/src/components/PortableTextEditor.tsx:5769
 msgid "Alt text"
 msgstr "Alternativní text"
 
@@ -1788,7 +1788,7 @@ msgid "Application Password"
 msgstr "Heslo aplikace"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
-#: packages/admin/src/components/PortableTextEditor.tsx:6460
+#: packages/admin/src/components/PortableTextEditor.tsx:6491
 msgid "Apply"
 msgstr "Použít"
 
@@ -1796,8 +1796,8 @@ msgstr "Použít"
 msgid "Apply changes"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4938
-#: packages/admin/src/components/PortableTextEditor.tsx:5713
+#: packages/admin/src/components/PortableTextEditor.tsx:4969
+#: packages/admin/src/components/PortableTextEditor.tsx:5744
 msgid "Apply link"
 msgstr "Použít odkaz"
 
@@ -1898,11 +1898,11 @@ msgstr ""
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:2951
+#: packages/admin/src/components/ContentEditor.tsx:2954
 msgid "At least {min}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2948
+#: packages/admin/src/components/ContentEditor.tsx:2951
 msgid "At most {max}"
 msgstr ""
 
@@ -2070,7 +2070,7 @@ msgstr ""
 msgid "Back"
 msgstr "Zpět"
 
-#: packages/admin/src/components/ContentEditor.tsx:1470
+#: packages/admin/src/components/ContentEditor.tsx:1472
 msgid "Back to {collectionLabel} list"
 msgstr "Zpět na seznam: {collectionLabel}"
 
@@ -2150,7 +2150,7 @@ msgstr "Počet uchovaných záloh"
 msgid "Bash"
 msgstr "Bash"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1966
+#: packages/admin/src/components/PortableTextEditor.tsx:1983
 msgid "Basic blocks"
 msgstr ""
 
@@ -2166,7 +2166,7 @@ msgstr "Před odesláním:"
 msgid "Before you continue:"
 msgstr "Než budete pokračovat:"
 
-#: packages/admin/src/components/ContentEditor.tsx:2945
+#: packages/admin/src/components/ContentEditor.tsx:2948
 msgid "Between {min} and {max}"
 msgstr ""
 
@@ -2184,7 +2184,7 @@ msgid "Block"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/BlocksField.tsx:406
+#: packages/admin/src/components/BlocksField.tsx:415
 msgid "Block {0}"
 msgstr ""
 
@@ -2222,8 +2222,8 @@ msgstr ""
 msgid "Blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
-#: packages/admin/src/components/PortableTextEditor.tsx:6229
+#: packages/admin/src/components/PortableTextEditor.tsx:4749
+#: packages/admin/src/components/PortableTextEditor.tsx:6260
 msgid "Bold"
 msgstr "Tučné"
 
@@ -2279,8 +2279,8 @@ msgid "Build provenance verified"
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
-#: packages/admin/src/components/PortableTextEditor.tsx:2009
-#: packages/admin/src/components/PortableTextEditor.tsx:6286
+#: packages/admin/src/components/PortableTextEditor.tsx:2026
+#: packages/admin/src/components/PortableTextEditor.tsx:6317
 msgid "Bullet List"
 msgstr "Odrážkový seznam"
 
@@ -2405,9 +2405,9 @@ msgstr "Může zobrazit obsah"
 #: packages/admin/src/components/MenuEditor.tsx:629
 #: packages/admin/src/components/MenuList.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:802
-#: packages/admin/src/components/PortableTextEditor.tsx:5684
-#: packages/admin/src/components/PortableTextEditor.tsx:5710
-#: packages/admin/src/components/PortableTextEditor.tsx:6444
+#: packages/admin/src/components/PortableTextEditor.tsx:5715
+#: packages/admin/src/components/PortableTextEditor.tsx:5741
+#: packages/admin/src/components/PortableTextEditor.tsx:6475
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:368
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2519,8 +2519,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5228
-#: packages/admin/src/components/PortableTextEditor.tsx:5346
+#: packages/admin/src/components/PortableTextEditor.tsx:5259
+#: packages/admin/src/components/PortableTextEditor.tsx:5377
 msgid "Center"
 msgstr "Na střed"
 
@@ -2801,7 +2801,7 @@ msgstr "Vymazat dokončené"
 msgid "Clear filters"
 msgstr "Vymazat filtry"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5238
+#: packages/admin/src/components/PortableTextEditor.tsx:5269
 msgid "Clear formatting"
 msgstr ""
 
@@ -2871,9 +2871,9 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:588
 #: packages/admin/src/components/MenuEditor.tsx:592
 #: packages/admin/src/components/MenuList.tsx:145
-#: packages/admin/src/components/PortableTextEditor.tsx:2655
-#: packages/admin/src/components/PortableTextEditor.tsx:2661
-#: packages/admin/src/components/PortableTextEditor.tsx:2665
+#: packages/admin/src/components/PortableTextEditor.tsx:2672
+#: packages/admin/src/components/PortableTextEditor.tsx:2678
+#: packages/admin/src/components/PortableTextEditor.tsx:2682
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:348
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
@@ -2924,7 +2924,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "Zavřít panel"
 
-#: packages/admin/src/components/ContentEditor.tsx:2040
+#: packages/admin/src/components/ContentEditor.tsx:2042
 msgid "Close settings"
 msgstr "Zavřít nastavení"
 
@@ -2935,8 +2935,8 @@ msgid "Code"
 msgstr "Kód"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
-#: packages/admin/src/components/PortableTextEditor.tsx:2039
-#: packages/admin/src/components/PortableTextEditor.tsx:6328
+#: packages/admin/src/components/PortableTextEditor.tsx:2056
+#: packages/admin/src/components/PortableTextEditor.tsx:6359
 msgid "Code Block"
 msgstr "Blok kódu"
 
@@ -2944,7 +2944,7 @@ msgstr "Blok kódu"
 msgid "Code block actions"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:347
+#: packages/admin/src/components/BlocksField.tsx:350
 msgid "Collapse block"
 msgstr ""
 
@@ -2990,7 +2990,7 @@ msgid "Collections created:"
 msgstr "Vytvořené kolekce:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5332
+#: packages/admin/src/components/PortableTextEditor.tsx:5363
 msgid "Column added after"
 msgstr ""
 
@@ -3006,7 +3006,7 @@ msgstr ""
 msgid "Column width increased"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3524
+#: packages/admin/src/components/PortableTextEditor.tsx:3543
 msgid "Column width resized"
 msgstr ""
 
@@ -3257,7 +3257,7 @@ msgid "Continue Import"
 msgstr "Pokračovat v importu"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6303
+#: packages/admin/src/components/PortableTextEditor.tsx:6334
 msgid "Continue numbering"
 msgstr ""
 
@@ -3362,7 +3362,7 @@ msgstr "Automatické zkopírování se nezdařilo. Vyberte URL výše a zkopíru
 msgid "Could not create {singularLower}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4513
+#: packages/admin/src/components/PortableTextEditor.tsx:4544
 msgid "Could not insert section"
 msgstr ""
 
@@ -3418,7 +3418,7 @@ msgstr "Nelze ověřit, zda soubor nebo vybraná složka stále existuje. Zkuste
 msgid "Couldn't detect WordPress"
 msgstr "Nepodařilo se rozpoznat WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:2819
+#: packages/admin/src/components/ContentEditor.tsx:2822
 msgid "Couldn't load all references."
 msgstr ""
 
@@ -3537,7 +3537,7 @@ msgstr ""
 msgid "Create a block type before adding a blocks field."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2010
+#: packages/admin/src/components/PortableTextEditor.tsx:2027
 msgid "Create a bullet list"
 msgstr "Vytvořit odrážkový seznam"
 
@@ -3550,7 +3550,7 @@ msgstr "Vytvořit novou položku: {0}"
 msgid "Create a new {singularLabel}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2020
+#: packages/admin/src/components/PortableTextEditor.tsx:2037
 msgid "Create a numbered list"
 msgstr "Vytvořit číslovaný seznam"
 
@@ -4001,7 +4001,7 @@ msgstr "Smazat {0}?"
 msgid "Delete backup?"
 msgstr "Smazat zálohu?"
 
-#: packages/admin/src/components/BlocksField.tsx:382
+#: packages/admin/src/components/BlocksField.tsx:391
 #: packages/admin/src/components/editor/EmbedBlockShell.tsx:358
 msgid "Delete block"
 msgstr ""
@@ -4055,7 +4055,7 @@ msgstr "Smazat složku"
 msgid "Delete gallery"
 msgstr "Smazat galerii"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5772
+#: packages/admin/src/components/PortableTextEditor.tsx:5803
 msgid "Delete image"
 msgstr "Smazat obrázek"
 
@@ -4209,7 +4209,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:521
-#: packages/admin/src/components/PortableTextEditor.tsx:5673
+#: packages/admin/src/components/PortableTextEditor.tsx:5704
 msgid "Describe the image"
 msgstr ""
 
@@ -4373,11 +4373,11 @@ msgstr "Skrýt dokončené {0}"
 msgid "Dismiss import suggestion"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4534
+#: packages/admin/src/components/PortableTextEditor.tsx:4565
 msgid "Dismiss section error"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4501
+#: packages/admin/src/components/PortableTextEditor.tsx:4532
 msgid "Dismiss table paste error"
 msgstr ""
 
@@ -4414,7 +4414,7 @@ msgstr "Zobrazí mrak štítků"
 msgid "Displayed below the image as a visible caption."
 msgstr "Zobrazí se pod obrázkem jako viditelný popisek."
 
-#: packages/admin/src/components/ContentEditor.tsx:1586
+#: packages/admin/src/components/ContentEditor.tsx:1588
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Režim bez rušivých prvků (⌘⇧\\)"
 
@@ -4423,7 +4423,7 @@ msgid "Distribute columns evenly"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:46
-#: packages/admin/src/components/PortableTextEditor.tsx:2049
+#: packages/admin/src/components/PortableTextEditor.tsx:2066
 msgid "Divider"
 msgstr "Oddělovač"
 
@@ -4585,7 +4585,7 @@ msgstr "Přetáhněte sem soubor nebo klikněte pro výběr (.xml)"
 msgid "Drag here to add"
 msgstr "Přetažením sem přidáte"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3056
+#: packages/admin/src/components/PortableTextEditor.tsx:3073
 msgid "Drag to reorder"
 msgstr "Přetažením změníte pořadí"
 
@@ -4641,7 +4641,7 @@ msgstr "Duplikovat"
 msgid "Duplicate {title}"
 msgstr "Duplikovat {title}"
 
-#: packages/admin/src/components/BlocksField.tsx:373
+#: packages/admin/src/components/BlocksField.tsx:382
 msgid "Duplicate block"
 msgstr ""
 
@@ -4692,7 +4692,7 @@ msgstr "Upravit"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:364
-#: packages/admin/src/components/PortableTextEditor.tsx:2652
+#: packages/admin/src/components/PortableTextEditor.tsx:2669
 #: packages/admin/src/components/RelationFormPanel.tsx:83
 #: packages/admin/src/components/RelationList.tsx:221
 #: packages/admin/src/components/RelationsPanel.tsx:201
@@ -4711,7 +4711,7 @@ msgstr "Upravit {0}"
 msgid "Edit {0} field"
 msgstr "Upravit pole {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1325
 msgid "Edit {itemLabel}"
 msgstr "Upravit položku ({itemLabel})"
 
@@ -4773,10 +4773,10 @@ msgstr "Upravit obrázek"
 msgid "Edit image {0}"
 msgstr "Upravit obrázek {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4964
-#: packages/admin/src/components/PortableTextEditor.tsx:5070
-#: packages/admin/src/components/PortableTextEditor.tsx:5760
-#: packages/admin/src/components/PortableTextEditor.tsx:6194
+#: packages/admin/src/components/PortableTextEditor.tsx:4995
+#: packages/admin/src/components/PortableTextEditor.tsx:5101
+#: packages/admin/src/components/PortableTextEditor.tsx:5791
+#: packages/admin/src/components/PortableTextEditor.tsx:6225
 msgid "Edit link"
 msgstr "Upravit odkaz"
 
@@ -4928,11 +4928,11 @@ msgid "Embed"
 msgstr ""
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:3690
+#: packages/admin/src/components/PortableTextEditor.tsx:3709
 msgid "Embed a {0}"
 msgstr "Vložit {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2093
+#: packages/admin/src/components/PortableTextEditor.tsx:2110
 msgid "Embed a page from another site"
 msgstr ""
 
@@ -4944,7 +4944,7 @@ msgstr ""
 msgid "Embedded content"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1969
+#: packages/admin/src/components/PortableTextEditor.tsx:1986
 msgid "Embeds"
 msgstr "Vložený obsah"
 
@@ -5056,7 +5056,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Zadejte URL (https://…) nebo relativní cestu (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2993
+#: packages/admin/src/components/ContentEditor.tsx:2996
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Zadejte platnou URL (např. https://example.com)"
 
@@ -5064,7 +5064,7 @@ msgstr "Zadejte platnou URL (např. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Zadat přihlašovací údaje ručně"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1583
 msgid "Enter distraction-free mode"
 msgstr "Zapnout režim bez rušení"
 
@@ -5072,7 +5072,7 @@ msgstr "Zapnout režim bez rušení"
 msgid "Enter email"
 msgstr "Zadejte e-mail"
 
-#: packages/admin/src/components/ContentEditor.tsx:2337
+#: packages/admin/src/components/ContentEditor.tsx:2340
 msgid "Enter markdown content..."
 msgstr "Zadejte obsah v Markdownu..."
 
@@ -5154,7 +5154,7 @@ msgstr "Nepodařilo se uložit sekci"
 msgid "Error updating widget"
 msgstr "Nepodařilo se aktualizovat widget"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2550
+#: packages/admin/src/components/PortableTextEditor.tsx:2567
 msgid "esc"
 msgstr ""
 
@@ -5207,15 +5207,15 @@ msgstr "Stávající obsah je zaindexován. Nové změny se sledují automaticky
 msgid "Exists"
 msgstr "Existuje"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1583
 msgid "Exit distraction-free mode"
 msgstr "Vypnout režim bez rušení"
 
-#: packages/admin/src/components/ContentEditor.tsx:1585
+#: packages/admin/src/components/ContentEditor.tsx:1587
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:347
+#: packages/admin/src/components/BlocksField.tsx:350
 msgid "Expand block"
 msgstr ""
 
@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "Nepodařilo se zakázat plugin"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "Nepodařilo se povolit plugin"
 
@@ -5655,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:369
+#: packages/admin/src/lib/api/client.ts:371
 msgid "Failed to fetch auth mode"
 msgstr "Nepodařilo se načíst režim přihlášení"
 
@@ -5729,7 +5729,7 @@ msgstr "Nepodařilo se načíst položky taxonomie přiřazené k obsahu"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:352
+#: packages/admin/src/lib/api/client.ts:354
 msgid "Failed to fetch manifest"
 msgstr "Nepodařilo se načíst manifest"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "Nepodařilo se načíst plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "Nepodařilo se načíst nastavení pluginu"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "Nepodařilo se načíst pluginy"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "Nepodařilo se aktualizovat plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "Nepodařilo se aktualizovat přístup pluginu k MCP"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "Nepodařilo se aktualizovat nastavení pluginu"
 
@@ -6557,11 +6557,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Pouze komentáře od nových komentujících"
 
-#: packages/admin/src/components/ContentEditor.tsx:1303
+#: packages/admin/src/components/ContentEditor.tsx:1305
 msgid "Fix invalid fields before changing the publication date"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1247
+#: packages/admin/src/components/ContentEditor.tsx:1249
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
@@ -6635,7 +6635,7 @@ msgstr "Pro úplný import včetně konceptů a veškerého obsahu proveďte exp
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4916
+#: packages/admin/src/components/PortableTextEditor.tsx:4947
 msgid "Format selection"
 msgstr ""
 
@@ -6683,7 +6683,7 @@ msgstr "Plný přístup správce"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:44
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:3638
+#: packages/admin/src/components/PortableTextEditor.tsx:3657
 msgid "Gallery"
 msgstr "Galerie"
 
@@ -6817,37 +6817,37 @@ msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:85
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:2004
+#: packages/admin/src/components/PortableTextEditor.tsx:2021
 msgid "Heading 1"
 msgstr "Nadpis 1"
 
 #: packages/admin/src/components/editor/blockTypes.ts:86
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:2005
+#: packages/admin/src/components/PortableTextEditor.tsx:2022
 msgid "Heading 2"
 msgstr "Nadpis 2"
 
 #: packages/admin/src/components/editor/blockTypes.ts:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:2006
+#: packages/admin/src/components/PortableTextEditor.tsx:2023
 msgid "Heading 3"
 msgstr "Nadpis 3"
 
 #: packages/admin/src/components/editor/blockTypes.ts:88
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:2075
+#: packages/admin/src/components/PortableTextEditor.tsx:2092
 msgid "Heading 4"
 msgstr "Nadpis 4"
 
 #: packages/admin/src/components/editor/blockTypes.ts:89
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:2076
+#: packages/admin/src/components/PortableTextEditor.tsx:2093
 msgid "Heading 5"
 msgstr "Nadpis 5"
 
 #: packages/admin/src/components/editor/blockTypes.ts:90
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:2077
+#: packages/admin/src/components/PortableTextEditor.tsx:2094
 msgid "Heading 6"
 msgstr "Nadpis 6"
 
@@ -6909,7 +6909,7 @@ msgstr "Výskyty"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2510
+#: packages/admin/src/components/ContentEditor.tsx:2513
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
@@ -6954,7 +6954,7 @@ msgstr "Jak vytvořit heslo aplikace"
 #: packages/admin/src/components/editor/BlockMenu.tsx:47
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:51
-#: packages/admin/src/components/PortableTextEditor.tsx:2082
+#: packages/admin/src/components/PortableTextEditor.tsx:2099
 msgid "HTML"
 msgstr "HTML"
 
@@ -7029,7 +7029,7 @@ msgid "If you didn't request this, you can safely ignore this email."
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:48
-#: packages/admin/src/components/PortableTextEditor.tsx:2092
+#: packages/admin/src/components/PortableTextEditor.tsx:2109
 msgid "Iframe"
 msgstr ""
 
@@ -7045,7 +7045,7 @@ msgstr ""
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:444
 #: packages/admin/src/components/FieldEditor.tsx:1297
-#: packages/admin/src/components/PortableTextEditor.tsx:3625
+#: packages/admin/src/components/PortableTextEditor.tsx:3644
 msgid "Image"
 msgstr "Obrázek"
 
@@ -7064,7 +7064,7 @@ msgstr "Obrázek {0}"
 msgid "Image actions"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5638
+#: packages/admin/src/components/PortableTextEditor.tsx:5669
 msgid "Image controls"
 msgstr ""
 
@@ -7072,7 +7072,7 @@ msgstr ""
 msgid "Image from media library"
 msgstr "Obrázek z knihovny médií"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6192
+#: packages/admin/src/components/PortableTextEditor.tsx:6223
 msgid "Image link"
 msgstr ""
 
@@ -7087,7 +7087,7 @@ msgid "Image replaced."
 msgstr "Obrázek nahrazen."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5765
+#: packages/admin/src/components/PortableTextEditor.tsx:5796
 msgid "Image settings"
 msgstr "Nastavení obrázku"
 
@@ -7264,7 +7264,7 @@ msgstr "V koši"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:359
+#: packages/admin/src/components/BlocksField.tsx:364
 msgid "Inactive version"
 msgstr ""
 
@@ -7310,50 +7310,50 @@ msgstr ""
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4722
-#: packages/admin/src/components/PortableTextEditor.tsx:6261
+#: packages/admin/src/components/PortableTextEditor.tsx:4753
+#: packages/admin/src/components/PortableTextEditor.tsx:6292
 msgid "Inline Code"
 msgstr "Řádkový kód"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:2652
+#: packages/admin/src/components/PortableTextEditor.tsx:2669
 msgid "Insert {0}"
 msgstr "Vložit {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2030
+#: packages/admin/src/components/PortableTextEditor.tsx:2047
 msgid "Insert a blockquote"
 msgstr "Vložit citaci"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2040
+#: packages/admin/src/components/PortableTextEditor.tsx:2057
 msgid "Insert a code block"
 msgstr "Vložit blok kódu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2067
 msgid "Insert a horizontal rule"
 msgstr "Vložit vodorovnou čáru"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3669
+#: packages/admin/src/components/PortableTextEditor.tsx:3688
 msgid "Insert a reusable section"
 msgstr "Vložit opakovaně použitelnou sekci"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2068
+#: packages/admin/src/components/PortableTextEditor.tsx:2085
 msgid "Insert a table"
 msgstr "Vložit tabulku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3626
+#: packages/admin/src/components/PortableTextEditor.tsx:3645
 msgid "Insert an image"
 msgstr "Vložit obrázek"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3639
+#: packages/admin/src/components/PortableTextEditor.tsx:3658
 msgid "Insert an image gallery"
 msgstr "Vložit galerii obrázků"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2446
+#: packages/admin/src/components/PortableTextEditor.tsx:2463
 msgid "Insert block"
 msgstr "Vložit blok"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6208
-#: packages/admin/src/components/PortableTextEditor.tsx:6218
+#: packages/admin/src/components/PortableTextEditor.tsx:6239
+#: packages/admin/src/components/PortableTextEditor.tsx:6249
 msgid "Insert block after current block"
 msgstr "Vložit blok za aktuální blok"
 
@@ -7361,12 +7361,12 @@ msgstr "Vložit blok za aktuální blok"
 msgid "Insert block below"
 msgstr "Vložit blok níže"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6342
+#: packages/admin/src/components/PortableTextEditor.tsx:6373
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4628
-#: packages/admin/src/components/PortableTextEditor.tsx:6335
+#: packages/admin/src/components/PortableTextEditor.tsx:4659
+#: packages/admin/src/components/PortableTextEditor.tsx:6366
 msgid "Insert image"
 msgstr ""
 
@@ -7382,7 +7382,7 @@ msgstr ""
 msgid "Insert paragraph before"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2083
+#: packages/admin/src/components/PortableTextEditor.tsx:2100
 msgid "Insert raw HTML"
 msgstr "Vložit nezpracované HTML"
 
@@ -7395,7 +7395,7 @@ msgstr "Vložit sekci"
 msgid "Insert table"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4642
+#: packages/admin/src/components/PortableTextEditor.tsx:4673
 msgid "Insert video"
 msgstr ""
 
@@ -7461,7 +7461,7 @@ msgstr ""
 msgid "Invalid invite link"
 msgstr "Neplatný odkaz na pozvánku"
 
-#: packages/admin/src/components/ContentEditor.tsx:3064
+#: packages/admin/src/components/ContentEditor.tsx:3067
 msgid "Invalid JSON"
 msgstr "Neplatný JSON"
 
@@ -7518,13 +7518,13 @@ msgstr ""
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4719
-#: packages/admin/src/components/PortableTextEditor.tsx:6237
+#: packages/admin/src/components/PortableTextEditor.tsx:4750
+#: packages/admin/src/components/PortableTextEditor.tsx:6268
 msgid "Italic"
 msgstr "Kurzíva"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:3042
+#: packages/admin/src/components/PortableTextEditor.tsx:3059
 #: packages/admin/src/components/RepeaterField.tsx:247
 msgid "Item {0}"
 msgstr "Položka {0}"
@@ -7671,7 +7671,7 @@ msgstr "Na šířku"
 msgid "Language"
 msgstr "Jazyk"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2004
+#: packages/admin/src/components/PortableTextEditor.tsx:2021
 msgid "Large section heading"
 msgstr "Velký nadpis sekce"
 
@@ -7732,8 +7732,8 @@ msgstr "Ponechat nepřiřazené"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5227
-#: packages/admin/src/components/PortableTextEditor.tsx:5345
+#: packages/admin/src/components/PortableTextEditor.tsx:5258
+#: packages/admin/src/components/PortableTextEditor.tsx:5376
 msgid "Left"
 msgstr "Vlevo"
 
@@ -7754,7 +7754,7 @@ msgstr "Licence"
 msgid "Limit"
 msgstr "Limit"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6421
+#: packages/admin/src/components/PortableTextEditor.tsx:6452
 msgid "Link"
 msgstr ""
 
@@ -7762,7 +7762,7 @@ msgstr ""
 msgid "Link expired"
 msgstr "Odkaz vypršel"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5048
+#: packages/admin/src/components/PortableTextEditor.tsx:5079
 msgid "Link options"
 msgstr ""
 
@@ -7845,7 +7845,7 @@ msgstr ""
 msgid "Links to {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3447
+#: packages/admin/src/components/PortableTextEditor.tsx:3464
 msgid "List"
 msgstr ""
 
@@ -7934,7 +7934,7 @@ msgstr "Načítání konfigurace..."
 msgid "Loading content..."
 msgstr "Načítání obsahu..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4464
+#: packages/admin/src/components/PortableTextEditor.tsx:4495
 msgid "Loading editor..."
 msgstr "Načítání editoru..."
 
@@ -7984,7 +7984,7 @@ msgstr "Načítání pluginů..."
 msgid "Loading redirects..."
 msgstr "Načítání přesměrování..."
 
-#: packages/admin/src/components/ContentEditor.tsx:2827
+#: packages/admin/src/components/ContentEditor.tsx:2830
 msgid "Loading references..."
 msgstr ""
 
@@ -8038,7 +8038,7 @@ msgstr "Načítání widgetů..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1741
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/MediaUsedIn.tsx:245
-#: packages/admin/src/components/PortableTextEditor.tsx:3169
+#: packages/admin/src/components/PortableTextEditor.tsx:3186
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
@@ -8286,7 +8286,7 @@ msgstr "Maximální počet štítků"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1967
+#: packages/admin/src/components/PortableTextEditor.tsx:1984
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
@@ -8384,7 +8384,7 @@ msgstr "Sledování využití médií vyžaduje pozornost"
 msgid "Media Write"
 msgstr "Zápis médií"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2005
+#: packages/admin/src/components/PortableTextEditor.tsx:2022
 msgid "Medium section heading"
 msgstr "Střední nadpis sekce"
 
@@ -8499,7 +8499,7 @@ msgstr "Min. hodnota"
 msgid "Minimum blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2076
+#: packages/admin/src/components/PortableTextEditor.tsx:2093
 msgid "Minor section heading"
 msgstr "Menší nadpis sekce"
 
@@ -8546,7 +8546,7 @@ msgstr "Měsíční/roční archivy"
 msgid "More actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5194
+#: packages/admin/src/components/PortableTextEditor.tsx:5225
 msgid "More formatting"
 msgstr ""
 
@@ -8595,7 +8595,7 @@ msgstr "Přesunout „{title}“ do koše? Položku bude možné později obnovi
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2794
+#: packages/admin/src/components/ContentEditor.tsx:2797
 #: packages/admin/src/components/FieldEditor.tsx:1159
 #: packages/admin/src/components/TaxonomyManager.tsx:461
 msgid "Move {0} down"
@@ -8619,7 +8619,7 @@ msgstr "Posunout {0} níže"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2783
+#: packages/admin/src/components/ContentEditor.tsx:2786
 #: packages/admin/src/components/FieldEditor.tsx:1142
 #: packages/admin/src/components/TaxonomyManager.tsx:448
 msgid "Move {0} up"
@@ -8807,7 +8807,7 @@ msgstr "nový"
 msgid "NEW"
 msgstr "NOVÉ"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1325
 msgid "New {itemLabel}"
 msgstr "Nová položka: {itemLabel}"
 
@@ -8977,7 +8977,7 @@ msgstr "Zatím žádné schválené komentáře."
 msgid "No block types defined"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:226
+#: packages/admin/src/components/BlocksField.tsx:229
 msgid "No blocks yet"
 msgstr ""
 
@@ -9045,7 +9045,7 @@ msgstr "Zatím žádné typy obsahu."
 msgid "No custom fields yet"
 msgstr "Zatím žádná vlastní pole"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5734
+#: packages/admin/src/components/PortableTextEditor.tsx:5765
 msgid "No description yet"
 msgstr ""
 
@@ -9136,7 +9136,7 @@ msgstr "Žádná instalovatelná vydání"
 msgid "No invite token provided"
 msgstr "Nebyl zadán žádný token pozvánky"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2965
+#: packages/admin/src/components/PortableTextEditor.tsx:2982
 #: packages/admin/src/components/RepeaterField.tsx:167
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -9163,7 +9163,7 @@ msgstr "Žádné shody"
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:217
+#: packages/admin/src/components/BlocksField.tsx:220
 msgid "No matching block types"
 msgstr ""
 
@@ -9271,7 +9271,7 @@ msgstr "Žádná nedávná aktivita"
 msgid "No redirects yet"
 msgstr "Zatím žádná přesměrování"
 
-#: packages/admin/src/components/ContentEditor.tsx:2739
+#: packages/admin/src/components/ContentEditor.tsx:2742
 msgid "No references selected."
 msgstr ""
 
@@ -9283,7 +9283,7 @@ msgstr ""
 msgid "No relations yet."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2488
+#: packages/admin/src/components/PortableTextEditor.tsx:2505
 #: packages/admin/src/components/RepeaterField.tsx:398
 msgid "No results"
 msgstr "Žádné výsledky"
@@ -9357,7 +9357,7 @@ msgid "Non-guest"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
-#: packages/admin/src/components/PortableTextEditor.tsx:5344
+#: packages/admin/src/components/PortableTextEditor.tsx:5375
 msgid "None"
 msgstr "Žádný"
 
@@ -9424,8 +9424,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Počet příspěvků zobrazených na stránku v seznamech"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
-#: packages/admin/src/components/PortableTextEditor.tsx:2019
-#: packages/admin/src/components/PortableTextEditor.tsx:6294
+#: packages/admin/src/components/PortableTextEditor.tsx:2036
+#: packages/admin/src/components/PortableTextEditor.tsx:6325
 msgid "Numbered List"
 msgstr "Číslovaný seznam"
 
@@ -9497,7 +9497,7 @@ msgid "Open"
 msgstr "Otevřít"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:2772
+#: packages/admin/src/components/ContentEditor.tsx:2775
 msgid "Open {0} in a new tab"
 msgstr ""
 
@@ -9642,7 +9642,7 @@ msgstr "Původní obrázek byl oříznut."
 msgid "Original:"
 msgstr "Originál:"
 
-#: packages/admin/src/components/BlocksField.tsx:146
+#: packages/admin/src/components/BlocksField.tsx:149
 msgid "Other"
 msgstr ""
 
@@ -9706,7 +9706,7 @@ msgid "Pages"
 msgstr "Stránky"
 
 #: packages/admin/src/components/editor/blockTypes.ts:80
-#: packages/admin/src/components/PortableTextEditor.tsx:1997
+#: packages/admin/src/components/PortableTextEditor.tsx:2014
 msgid "Paragraph"
 msgstr "Odstavec"
 
@@ -9947,7 +9947,7 @@ msgstr "Zadejte platnou URL"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Plugin „{pluginId}“ nebyl nalezen"
 
@@ -9964,7 +9964,7 @@ msgstr ""
 msgid "Plugin actions"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1642
+#: packages/admin/src/components/ContentEditor.tsx:1644
 msgid "Plugin changes were not applied"
 msgstr ""
 
@@ -10388,9 +10388,9 @@ msgid "Quick create names the relationship after this field and this collection,
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
-#: packages/admin/src/components/PortableTextEditor.tsx:2029
-#: packages/admin/src/components/PortableTextEditor.tsx:3448
-#: packages/admin/src/components/PortableTextEditor.tsx:6320
+#: packages/admin/src/components/PortableTextEditor.tsx:2046
+#: packages/admin/src/components/PortableTextEditor.tsx:3465
+#: packages/admin/src/components/PortableTextEditor.tsx:6351
 msgid "Quote"
 msgstr "Citát"
 
@@ -10563,7 +10563,7 @@ msgstr "Přesměrování"
 msgid "Redirects that loop will be imported turned off"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6483
+#: packages/admin/src/components/PortableTextEditor.tsx:6514
 msgid "Redo"
 msgstr "Znovu"
 
@@ -10677,7 +10677,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:3225
+#: packages/admin/src/components/ContentEditor.tsx:3228
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:357
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:813
@@ -10685,7 +10685,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:368
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6456
+#: packages/admin/src/components/PortableTextEditor.tsx:6487
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -10697,7 +10697,7 @@ msgstr "Odebrat"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:2807
+#: packages/admin/src/components/ContentEditor.tsx:2810
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -10714,7 +10714,7 @@ msgstr "Odebrat {0} z výběru"
 msgid "Remove {entry}"
 msgstr "Odebrat {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3223
+#: packages/admin/src/components/ContentEditor.tsx:3226
 msgid "Remove {label}"
 msgstr "Odebrat {label}"
 
@@ -10754,14 +10754,14 @@ msgid "Remove image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:3081
+#: packages/admin/src/components/PortableTextEditor.tsx:3098
 #: packages/admin/src/components/RepeaterField.tsx:283
 msgid "Remove item {0}"
 msgstr "Odebrat položku {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4942
-#: packages/admin/src/components/PortableTextEditor.tsx:5082
-#: packages/admin/src/components/PortableTextEditor.tsx:5706
+#: packages/admin/src/components/PortableTextEditor.tsx:4973
+#: packages/admin/src/components/PortableTextEditor.tsx:5113
+#: packages/admin/src/components/PortableTextEditor.tsx:5737
 msgid "Remove link"
 msgstr "Odebrat odkaz"
 
@@ -10825,7 +10825,7 @@ msgstr ""
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:337
+#: packages/admin/src/components/BlocksField.tsx:340
 #: packages/admin/src/components/BylineCreditsEditor.tsx:836
 #: packages/admin/src/components/ContentTypeList.tsx:310
 msgid "Reorder {0}"
@@ -10844,8 +10844,8 @@ msgstr "Opakující se skupina polí"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3215
-#: packages/admin/src/components/ContentEditor.tsx:3252
+#: packages/admin/src/components/ContentEditor.tsx:3218
+#: packages/admin/src/components/ContentEditor.tsx:3255
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:298
@@ -10856,12 +10856,12 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:412
 #: packages/admin/src/components/ImageFieldRenderer.tsx:584
 #: packages/admin/src/components/ImageFieldRenderer.tsx:587
-#: packages/admin/src/components/PortableTextEditor.tsx:5728
-#: packages/admin/src/components/PortableTextEditor.tsx:5796
+#: packages/admin/src/components/PortableTextEditor.tsx:5759
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3251
+#: packages/admin/src/components/ContentEditor.tsx:3254
 #: packages/admin/src/components/ImageFieldRenderer.tsx:578
 msgid "Replace {label}"
 msgstr ""
@@ -10878,7 +10878,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/MediaDetailPanel.tsx:1827
 #: packages/admin/src/components/MediaDetailPanel.tsx:1955
-#: packages/admin/src/components/PortableTextEditor.tsx:5795
+#: packages/admin/src/components/PortableTextEditor.tsx:5826
 msgid "Replace image"
 msgstr "Nahradit obrázek"
 
@@ -10896,7 +10896,7 @@ msgstr "Nahradit původní obrázek?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Nahradit původní je k dispozici v původním poměru stran."
 
-#: packages/admin/src/components/ContentEditor.tsx:2840
+#: packages/admin/src/components/ContentEditor.tsx:2843
 msgid "Replace reference"
 msgstr ""
 
@@ -10937,7 +10937,7 @@ msgstr "Repozitář"
 msgid "Request a new link"
 msgstr "Požádat o nový odkaz"
 
-#: packages/admin/src/lib/api/client.ts:340
+#: packages/admin/src/lib/api/client.ts:342
 msgid "Request failed"
 msgstr "Požadavek selhal"
 
@@ -11032,7 +11032,7 @@ msgstr "Změňte velikost oříznutí od levého horního rohu. K změně veliko
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Změňte velikost oříznutí z pravého horního rohu. K změně velikosti použijte šipky."
 
-#: packages/admin/src/components/ContentEditor.tsx:1855
+#: packages/admin/src/components/ContentEditor.tsx:1857
 msgid "Resize settings panel"
 msgstr ""
 
@@ -11045,7 +11045,7 @@ msgid "Resolving publisher handle..."
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6310
+#: packages/admin/src/components/PortableTextEditor.tsx:6341
 msgid "Restart numbering"
 msgstr ""
 
@@ -11083,13 +11083,13 @@ msgstr "Obnovování..."
 msgid "Results"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:360
+#: packages/admin/src/components/BlocksField.tsx:365
 #: packages/admin/src/components/FieldEditor.tsx:1126
 msgid "Retired"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:475
-#: packages/admin/src/components/ContentEditor.tsx:2821
+#: packages/admin/src/components/ContentEditor.tsx:2824
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
@@ -11250,8 +11250,8 @@ msgstr "Editor formátovaného textu"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5229
-#: packages/admin/src/components/PortableTextEditor.tsx:5347
+#: packages/admin/src/components/PortableTextEditor.tsx:5260
+#: packages/admin/src/components/PortableTextEditor.tsx:5378
 msgid "Right"
 msgstr "Vpravo"
 
@@ -11305,7 +11305,7 @@ msgid "Row added above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5325
+#: packages/admin/src/components/PortableTextEditor.tsx:5356
 msgid "Row added below"
 msgstr ""
 
@@ -11358,11 +11358,11 @@ msgstr "Uložit"
 msgid "Save (Enter)"
 msgstr "Uložit (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5687
+#: packages/admin/src/components/PortableTextEditor.tsx:5718
 msgid "Save alt text"
 msgstr "Uložit alternativní text"
 
-#: packages/admin/src/components/ContentEditor.tsx:1668
+#: packages/admin/src/components/ContentEditor.tsx:1670
 msgid "Save anyway"
 msgstr ""
 
@@ -11608,11 +11608,11 @@ msgstr ""
 msgid "Search {label}…"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:181
+#: packages/admin/src/components/BlocksField.tsx:184
 msgid "Search block types"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:184
+#: packages/admin/src/components/BlocksField.tsx:187
 msgid "Search blocks"
 msgstr ""
 
@@ -11770,7 +11770,7 @@ msgstr "Prohledávatelné"
 msgid "Searching…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3668
+#: packages/admin/src/components/PortableTextEditor.tsx:3687
 msgid "Section"
 msgstr "Sekce"
 
@@ -11873,8 +11873,8 @@ msgid "Select"
 msgstr "Vybrat"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:3235
-#: packages/admin/src/components/ContentEditor.tsx:3251
+#: packages/admin/src/components/ContentEditor.tsx:3238
+#: packages/admin/src/components/ContentEditor.tsx:3254
 #: packages/admin/src/components/ImageFieldRenderer.tsx:579
 msgid "Select {label}"
 msgstr "Vybrat: {label}"
@@ -11920,7 +11920,7 @@ msgstr "Vybrat vše"
 msgid "Select all on this page"
 msgstr "Vybrat vše na této stránce"
 
-#: packages/admin/src/components/ContentEditor.tsx:2735
+#: packages/admin/src/components/ContentEditor.tsx:2738
 msgid "Select at least one entry."
 msgstr ""
 
@@ -11953,18 +11953,18 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Vybrat ikonu webu"
 
-#: packages/admin/src/components/ContentEditor.tsx:3239
+#: packages/admin/src/components/ContentEditor.tsx:3242
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 msgid "Select file"
 msgstr "Vybrat soubor"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4656
+#: packages/admin/src/components/PortableTextEditor.tsx:4687
 msgid "Select gallery images"
 msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:559
 #: packages/admin/src/components/MediaPickerModal.tsx:232
-#: packages/admin/src/components/PortableTextEditor.tsx:4627
+#: packages/admin/src/components/PortableTextEditor.tsx:4658
 msgid "Select image"
 msgstr "Vybrat obrázek"
 
@@ -12001,7 +12001,7 @@ msgid "Select up to 50 posts at a time."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:232
-#: packages/admin/src/components/PortableTextEditor.tsx:4641
+#: packages/admin/src/components/PortableTextEditor.tsx:4672
 msgid "Select video"
 msgstr ""
 
@@ -12010,7 +12010,7 @@ msgid "Select which content types to import."
 msgstr "Vyberte typy obsahu, které se mají importovat."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:3176
+#: packages/admin/src/components/PortableTextEditor.tsx:3193
 #: packages/admin/src/components/RepeaterField.tsx:396
 msgid "Select..."
 msgstr "Vybrat..."
@@ -12019,7 +12019,7 @@ msgstr "Vybrat..."
 msgid "Selected {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2479
+#: packages/admin/src/components/PortableTextEditor.tsx:2496
 msgid "Selected {selectedItemTitle}"
 msgstr "Vybrána položka {selectedItemTitle}"
 
@@ -12176,8 +12176,8 @@ msgid "Setting up..."
 msgstr "Nastavování..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:247
-#: packages/admin/src/components/ContentEditor.tsx:1729
-#: packages/admin/src/components/ContentEditor.tsx:2026
+#: packages/admin/src/components/ContentEditor.tsx:1731
+#: packages/admin/src/components/ContentEditor.tsx:2028
 #: packages/admin/src/components/ContentTypeEditor.tsx:465
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:530
@@ -12475,15 +12475,15 @@ msgstr "Slug zkopírován do schránky"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Slug nelze po vytvoření pole změnit."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2006
+#: packages/admin/src/components/PortableTextEditor.tsx:2023
 msgid "Small section heading"
 msgstr "Malý nadpis sekce"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2075
+#: packages/admin/src/components/PortableTextEditor.tsx:2092
 msgid "Smaller section heading"
 msgstr "Menší nadpis sekce"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2077
+#: packages/admin/src/components/PortableTextEditor.tsx:2094
 msgid "Smallest section heading"
 msgstr "Nejmenší nadpis sekce"
 
@@ -12633,12 +12633,12 @@ msgstr ""
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1998
+#: packages/admin/src/components/PortableTextEditor.tsx:2015
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2298
-#: packages/admin/src/components/PortableTextEditor.tsx:3434
+#: packages/admin/src/components/ContentEditor.tsx:2301
+#: packages/admin/src/components/PortableTextEditor.tsx:3451
 msgid "Start writing, or type '/' for commands"
 msgstr "Začněte psát, nebo napište „/“ pro příkazy"
 
@@ -12703,8 +12703,8 @@ msgstr "Uložené zálohy"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Ukládá se podle jazyka — každý překlad autorského podpisu má vlastní hodnotu."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4721
-#: packages/admin/src/components/PortableTextEditor.tsx:6253
+#: packages/admin/src/components/PortableTextEditor.tsx:4752
+#: packages/admin/src/components/PortableTextEditor.tsx:6284
 msgid "Strikethrough"
 msgstr "Přeškrtnutí"
 
@@ -12733,11 +12733,11 @@ msgstr "Podpole"
 msgid "Subscriber"
 msgstr "Odběratel"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5208
+#: packages/admin/src/components/PortableTextEditor.tsx:5239
 msgid "Subscript"
 msgstr "Dolní index"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5214
+#: packages/admin/src/components/PortableTextEditor.tsx:5245
 msgid "Superscript"
 msgstr "Horní index"
 
@@ -12776,15 +12776,15 @@ msgstr "Systémová pole"
 #: packages/admin/src/components/editor/BlockMenu.tsx:45
 #: packages/admin/src/components/editor/TableControls.tsx:31
 #: packages/admin/src/components/editor/TableControls.tsx:368
-#: packages/admin/src/components/PortableTextEditor.tsx:2067
+#: packages/admin/src/components/PortableTextEditor.tsx:2084
 msgid "Table"
 msgstr "Tabulka"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4478
+#: packages/admin/src/components/PortableTextEditor.tsx:4509
 msgid "Table cells accept text, links, and formatting only."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5315
+#: packages/admin/src/components/PortableTextEditor.tsx:5346
 msgid "Table controls"
 msgstr "Ovládání tabulky"
 
@@ -12793,7 +12793,7 @@ msgid "Table deleted"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:4368
+#: packages/admin/src/components/PortableTextEditor.tsx:4399
 msgid "Table inserted"
 msgstr ""
 
@@ -12801,7 +12801,7 @@ msgstr ""
 msgid "Table size"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4475
+#: packages/admin/src/components/PortableTextEditor.tsx:4506
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
@@ -12929,7 +12929,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6497
+#: packages/admin/src/components/PortableTextEditor.tsx:6528
 msgid "Text formatting"
 msgstr "Formátování textu"
 
@@ -13227,8 +13227,8 @@ msgstr "Widget pole pluginu se nepodařilo vykreslit."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:969
-#: packages/admin/src/components/ContentEditor.tsx:985
+#: packages/admin/src/components/ContentEditor.tsx:971
+#: packages/admin/src/components/ContentEditor.tsx:987
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr ""
 
@@ -13359,7 +13359,7 @@ msgstr "Tyto nástroje zůstanou po instalaci vypnuté, dokud výslovně nepovol
 msgid "This also removes:"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:394
+#: packages/admin/src/components/BlocksField.tsx:403
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr ""
 
@@ -13394,7 +13394,7 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Tato kolekce je definována v kódu. Některá nastavení zde nelze změnit. Schéma upravte v souboru live.config.ts."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4450
+#: packages/admin/src/components/PortableTextEditor.tsx:4481
 msgid "This content cannot be edited safely"
 msgstr ""
 
@@ -13414,11 +13414,11 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Toto nevypadá jako platný migrační klíč. Vygenerujte nový v pluginu a vložte celý řetězec začínající „em1.“."
 
-#: packages/admin/src/components/ContentEditor.tsx:1664
+#: packages/admin/src/components/ContentEditor.tsx:1666
 msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1253
+#: packages/admin/src/components/ContentEditor.tsx:1255
 #: packages/admin/src/router.tsx:1053
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
@@ -13439,7 +13439,7 @@ msgstr ""
 msgid "This entry is open somewhere else"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1651
+#: packages/admin/src/components/ContentEditor.tsx:1653
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr ""
 
@@ -13451,15 +13451,15 @@ msgstr ""
 msgid "This export is large"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2127
+#: packages/admin/src/components/ContentEditor.tsx:2129
 msgid "This field cannot be edited by this version of EmDash."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4433
+#: packages/admin/src/components/PortableTextEditor.tsx:4464
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4452
+#: packages/admin/src/components/PortableTextEditor.tsx:4483
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr ""
 
@@ -13476,7 +13476,7 @@ msgstr "Toto pole nepřijímá soubory typu {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3255
+#: packages/admin/src/components/ContentEditor.tsx:3258
 #: packages/admin/src/components/ImageFieldRenderer.tsx:598
 msgid "This field is required"
 msgstr "Toto pole je povinné"
@@ -13588,7 +13588,7 @@ msgstr ""
 msgid "This passkey is already registered on this device."
 msgstr "Tento přístupový klíč je již na tomto zařízení zaregistrován."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4471
+#: packages/admin/src/components/PortableTextEditor.tsx:4502
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr ""
 
@@ -13661,12 +13661,12 @@ msgstr ""
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4516
+#: packages/admin/src/components/PortableTextEditor.tsx:4547
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr ""
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:4518
+#: packages/admin/src/components/PortableTextEditor.tsx:4549
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -13719,15 +13719,15 @@ msgstr ""
 msgid "This site was set up with starter content. It has no entries of its own, and the import deletes it before adding the package’s content."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4473
+#: packages/admin/src/components/PortableTextEditor.tsx:4504
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4431
+#: packages/admin/src/components/PortableTextEditor.tsx:4462
 msgid "This table cannot be edited safely"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4477
+#: packages/admin/src/components/PortableTextEditor.tsx:4508
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
@@ -14032,9 +14032,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5131
-#: packages/admin/src/components/PortableTextEditor.tsx:5133
-#: packages/admin/src/components/PortableTextEditor.tsx:5150
+#: packages/admin/src/components/PortableTextEditor.tsx:5162
+#: packages/admin/src/components/PortableTextEditor.tsx:5164
+#: packages/admin/src/components/PortableTextEditor.tsx:5181
 msgid "Turn into"
 msgstr "Změnit na"
 
@@ -14083,11 +14083,11 @@ msgstr ""
 msgid "Type mismatch ({0})"
 msgstr "Neshoda typu ({0})"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2547
+#: packages/admin/src/components/PortableTextEditor.tsx:2564
 msgid "Type to filter"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4588
+#: packages/admin/src/components/PortableTextEditor.tsx:4619
 msgid "Type to search"
 msgstr ""
 
@@ -14109,12 +14109,12 @@ msgstr "Tržiště není dostupné"
 msgid "Unassigned"
 msgstr "Nepřiřazeno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4720
-#: packages/admin/src/components/PortableTextEditor.tsx:6245
+#: packages/admin/src/components/PortableTextEditor.tsx:4751
+#: packages/admin/src/components/PortableTextEditor.tsx:6276
 msgid "Underline"
 msgstr "Podtržení"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6476
+#: packages/admin/src/components/PortableTextEditor.tsx:6507
 msgid "Undo"
 msgstr "Zpět"
 
@@ -14206,7 +14206,7 @@ msgstr ""
 msgid "Unscheduled"
 msgstr "Nenaplánováno"
 
-#: packages/admin/src/components/BlocksField.tsx:361
+#: packages/admin/src/components/BlocksField.tsx:366
 #: packages/admin/src/components/ContentTypeEditor.tsx:948
 msgid "Unsupported"
 msgstr ""
@@ -14226,7 +14226,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "Bez názvu"
 
-#: packages/admin/src/components/ContentEditor.tsx:3157
+#: packages/admin/src/components/ContentEditor.tsx:3160
 msgid "Untitled file"
 msgstr "Soubor bez názvu"
 
@@ -14389,7 +14389,7 @@ msgstr "Nahrajte média a mějte znovupoužitelné soubory na jednom místě."
 msgid "Upload not finished"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3655
+#: packages/admin/src/components/PortableTextEditor.tsx:3674
 msgid "Upload or choose a video"
 msgstr ""
 
@@ -14557,7 +14557,7 @@ msgstr "Použije se jako záložní obrázek Open Graph, pokud stránka vlastní
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Použije se jako identifikátor. Pouze malá písmena, číslice a podtržítka."
 
-#: packages/admin/src/components/ContentEditor.tsx:2421
+#: packages/admin/src/components/ContentEditor.tsx:2424
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Použije se jako hlavní vizuál tohoto příspěvku ve výpisech a v jeho záhlaví"
 
@@ -14684,7 +14684,7 @@ msgstr "Verze"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:358
+#: packages/admin/src/components/BlocksField.tsx:363
 #: packages/admin/src/components/BlockTypeList.tsx:42
 #: packages/admin/src/components/RegistryPluginDetail.tsx:556
 msgid "Version {0}"
@@ -14699,7 +14699,7 @@ msgstr ""
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:922
 #: packages/admin/src/components/MediaPickerModal.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:3654
+#: packages/admin/src/components/PortableTextEditor.tsx:3673
 msgid "Video"
 msgstr "Video"
 
@@ -14876,7 +14876,7 @@ msgstr ""
 msgid "What will happen when you import"
 msgstr "Co se stane při importu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1665
+#: packages/admin/src/components/ContentEditor.tsx:1667
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr ""
 

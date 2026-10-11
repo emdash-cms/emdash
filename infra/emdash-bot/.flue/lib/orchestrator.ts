@@ -8,6 +8,11 @@ import { dispatch, init } from "@flue/runtime";
 import { DurableObject } from "cloudflare:workers";
 
 import { Investigate } from "../agents/investigate.js";
+import {
+	type AutomaticRecovery,
+	automaticRecoveryNote,
+	planAutomaticRecovery,
+} from "./automatic-recovery.js";
 import { classifyComment, type ClassifierInput, type ClassifyResult } from "./classifier-client.js";
 import {
 	type PullRequestCopy,
@@ -18,7 +23,9 @@ import {
 	renderPreviewReadyAsk,
 	renderPullRequestBody,
 	renderVerifiedThanks,
+	renderCompetingWork,
 	renderReadonlyReply,
+	renderRepairsExhausted,
 	shouldPostReadonlyReply,
 } from "./comments.js";
 import { githubRateLimitGate } from "./github-rate-limit-client.js";
@@ -31,8 +38,10 @@ import {
 	createPullRequest,
 	deleteBranch,
 	findIssueCommentByMarker,
+	getBranchCheckRun,
 	getBranchSha,
 	getIssue,
+	getCompetingWork,
 	getIssueComments,
 	getIssueLabels,
 	getOpenPullRequest,
@@ -46,6 +55,7 @@ import {
 	readRepoContext,
 	removeLabels,
 	updateIssueComment,
+	type CheckRunProgress,
 	type CoordinatedGitHubToken,
 	type GitHubAppCreds,
 	type GitHubToken,
@@ -59,9 +69,9 @@ import {
 	type StoredDiagnosis,
 	type TriggeringComment,
 } from "./issue-context.js";
-import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
-import { branchesToReap, previewUrl, probePreviewReady } from "./preview.js";
-import { assessPullRequest } from "./pull-request-monitor.js";
+import { findTransition, STATES, type EventId, type Kind, type StateId } from "./machine.js";
+import { branchesToReap, fixBranch, previewUrl, probePreviewReady } from "./preview.js";
+import { assessPullRequest, MAX_AUTOMATIC_REPAIRS } from "./pull-request-monitor.js";
 import {
 	currentState,
 	type Decision,
@@ -99,6 +109,7 @@ import {
 	TIMEOUT_SUMMARY_SIGNAL_TYPE,
 	TIMEOUT_SUMMARY_TIMEOUT_MS,
 } from "./timeout-recovery.js";
+import type { IssueClosedAs } from "./webhook.js";
 import {
 	renderPreparingWorkPlanComment,
 	renderWorkPlanComment,
@@ -107,6 +118,7 @@ import {
 	type WorkPlan,
 	type WorkPlanInput,
 } from "./work-plan.js";
+import { hasMaintainerAssociation, writeAccess } from "./write-access.js";
 
 /**
  * Inert states cannot be advanced by a late-arriving agent result. If a run
@@ -318,6 +330,9 @@ const STORAGE = {
 	prStatus: "o:prStatus",
 	prPollNextAt: "o:prPollNextAt",
 	prRepairFingerprint: "o:prRepairFingerprint",
+	prRepairCount: "o:prRepairCount",
+	automaticRecovery: "o:automaticRecovery",
+	automaticRecoveryCount: "o:automaticRecoveryCount",
 	prGreenHeadSha: "o:prGreenHeadSha",
 	eventLog: "o:eventLog",
 	seenDeliveries: "o:seenDeliveries",
@@ -350,9 +365,14 @@ const STORAGE = {
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
-/** Overall budget for a candidate preview to publish on pkg.pr.new before we
- * give up and fire `preview.failed`. Publishing normally lands within ~60s. */
+/** Budget for a candidate preview to publish on pkg.pr.new before we give up
+ * and fire `preview.failed`. Publishing normally lands in 3-7 minutes. */
 const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
+/** Extra time past the budget while the preview workflow is still queued or
+ * running, so a slow Actions queue doesn't cost the preview. */
+const PREVIEW_BUILD_RUNNING_GRACE_MS = 20 * 60 * 1000;
+/** The preview-releases.yml job whose check run tracks the preview build. */
+const PREVIEW_CHECK_NAME = "Publish Preview";
 /** First poll waits for the push→publish lag; later polls back off to this. */
 const PREVIEW_POLL_INITIAL_MS = 45 * 1000;
 const PREVIEW_POLL_INTERVAL_MS = 30 * 1000;
@@ -367,6 +387,15 @@ const INBOX_BATCH_LIMIT = 10;
 const INBOX_ENTRY_MAX_ATTEMPTS = 3;
 const SIDE_EFFECT_MAX_ATTEMPTS = 8;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
+/** Events that settle a running agent's run as cancelled. */
+const CANCELLING_EVENTS: ReadonlySet<EventId> = new Set<EventId>([
+	"reset",
+	"decline",
+	"take_over",
+	"issue.resolved",
+	"issue.dismissed",
+]);
+
 const PR_FEEDBACK_EVENTS: ReadonlySet<EventId | null> = new Set([
 	"revise",
 	"work",
@@ -661,10 +690,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			throw new Error(runError);
 		}
 
-		const cancellationRun =
-			decision.event === "reset" || decision.event === "decline" || decision.event === "take_over"
-				? await this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle)
-				: null;
+		const cancellationRun = CANCELLING_EVENTS.has(decision.event)
+			? await this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle)
+			: null;
 		const sideEffectId = await this.persistDecision(
 			decision,
 			input,
@@ -864,7 +892,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 		};
 	}
 
-	async prepareWorkPlanComment(input: { runId: string; summary: string }): Promise<boolean> {
+	prepareWorkPlanComment(input: { runId: string; summary: string }): Promise<boolean> {
+		return this.runExclusive(() => this.processWorkPlanPreparation(input));
+	}
+
+	private async processWorkPlanPreparation(input: {
+		runId: string;
+		summary: string;
+	}): Promise<boolean> {
 		const result = await this.ctx.storage.transaction(async (transaction) => {
 			const [currentRunId, run, storedPlan, comments, anchorNumber, dryRun] = await Promise.all([
 				transaction.get<string>(STORAGE.currentRunId),
@@ -1123,6 +1158,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		) {
 			event = "agent.revised";
 		}
+		const competingWork = event === "agent.auto_work" ? await this.competingWorkNote() : null;
+		if (competingWork) event = "agent.awaiting_approval";
 		const rateLimitResumeAt =
 			typeof input.result.failureRetryAt === "number" &&
 			Number.isFinite(input.result.failureRetryAt) &&
@@ -1149,6 +1186,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "rate-limit-paused", runId: input.runId, retryAt: rateLimitResumeAt };
 		}
 		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
+		const checkpointSaved = Boolean(
+			event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state,
+		);
 		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
 			await this.ctx.storage.put<ResumableRunCheckpoint>(STORAGE.resumableRun, {
 				runId: input.runId,
@@ -1164,8 +1204,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 
 		const labels = await this.projectLabels();
+		const failureStage =
+			typeof input.result.failureStage === "string" ? input.result.failureStage : null;
+		const recovery =
+			event === "agent.failed" ? await this.planRecovery(failureStage, checkpointSaved) : null;
+		const recoveryNote =
+			event === "agent.failed" ? `\n\n${automaticRecoveryNote(recovery, Date.now())}` : "";
 		const agentSummary =
-			typeof input.result?.summary === "string" ? input.result.summary : undefined;
+			typeof input.result?.summary === "string"
+				? `${input.result.summary}${competingWork ? `\n\n${competingWork}` : ""}${recoveryNote}`
+				: undefined;
 		const agentPullRequest = normalizePullRequestCopy(input.result.pullRequest);
 		const runStatus: Exclude<WorkCommentStatus, "running"> =
 			event === "agent.failed"
@@ -1177,12 +1225,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 					  (event === "agent.reproduced" && currentRunMode !== "diagnose")
 					? "needs_follow_up"
 					: "succeeded";
-		const failureStage =
-			typeof input.result.failureStage === "string" ? input.result.failureStage : null;
 		const finalizedWorkComment = await this.finalizeWorkPlanComment({
 			runId: input.runId,
 			status: runStatus,
-			outcome: `${agentSummary ?? "The run completed without a summary."}${failureStage ? `\n\nFailed stage: ${failureStage}` : ""}`,
+			outcome: `${agentSummary ?? `The run completed without a summary.${recoveryNote}`}${failureStage ? `\n\nFailed stage: ${failureStage}` : ""}`,
 		});
 		const agentScreenshots = Array.isArray(input.result?.screenshots)
 			? input.result.screenshots
@@ -1206,26 +1252,96 @@ export class OrchestratorDO extends DurableObject<Env> {
 			...(agentLabels.length > 0 ? { agentLabels } : {}),
 		});
 		await this.clearRun(input.runId);
+		if (event === "agent.failed") {
+			await this.scheduleRecovery(recovery);
+		} else {
+			await this.ctx.storage.delete([STORAGE.automaticRecovery, STORAGE.automaticRecoveryCount]);
+		}
 		return outcome;
 	}
 
+	/** Why automatic work shouldn't start, when someone is already on the issue. */
+	private async competingWorkNote(): Promise<string | null> {
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
+		if (!creds || !repo || anchorNumber === undefined) return null;
+		try {
+			const token = await this.getInstallationToken(creds);
+			return renderCompetingWork(await getCompetingWork(token, repo, anchorNumber));
+		} catch (error) {
+			console.warn("[orchestrator] competing work lookup failed", {
+				anchorNumber,
+				error: errorMessage(error),
+			});
+			return "I couldn't check whether someone is already working on this, so I haven't started.";
+		}
+	}
+
+	/** The automatic recovery a failed run gets, if any. Read before the run is cleared. */
+	private async planRecovery(
+		failureStage: string | null,
+		checkpoint: boolean,
+	): Promise<AutomaticRecovery | null> {
+		const [previousAttempts, dryRun] = await Promise.all([
+			this.ctx.storage.get<number>(STORAGE.automaticRecoveryCount),
+			this.ctx.storage.get<boolean>(STORAGE.currentRunDryRun),
+		]);
+		return planAutomaticRecovery({
+			failureStage,
+			checkpoint,
+			previousAttempts: previousAttempts ?? 0,
+			now: Date.now(),
+			dryRun: dryRun === true,
+		});
+	}
+
+	private async scheduleRecovery(recovery: AutomaticRecovery | null): Promise<void> {
+		if (!recovery) return;
+		await this.ctx.storage.put({
+			[STORAGE.automaticRecovery]: recovery,
+			[STORAGE.automaticRecoveryCount]: recovery.attempt,
+		});
+		await this.armAlarm();
+	}
+
 	/**
-	 * Reap the fix loop's branches when the anchoring issue closes: always
-	 * delete bot/artifacts-<n>, delete bot/fix-<n> only when no open PR
-	 * references it. Does not touch machine state -- a closed issue may
-	 * legitimately keep its in_review/PR state, and the branches are a
-	 * projection we clean up regardless.
+	 * Settle the item when the anchoring issue closes, then reap the fix loop's
+	 * branches: always delete bot/artifacts-<n>, delete bot/fix-<n> only when no
+	 * open PR references it. A completed close while the bot PR is still open
+	 * keeps its state until `pr.merged` settles it.
 	 */
-	cleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
-		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber));
+	cleanupOnClose(anchorNumber: number, closedAs: IssueClosedAs): Promise<CleanupOutcome> {
+		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber, closedAs));
 	}
 
 	getInstallationTokenForGitProxy(): Promise<string> {
 		return githubRateLimitGate(this.env).getInstallationToken();
 	}
 
-	private async processCleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
+	private async processCleanupOnClose(
+		anchorNumber: number,
+		closedAs: IssueClosedAs,
+	): Promise<CleanupOutcome> {
 		await this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber);
+		const [state, pullRequest] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<PullRequestStatus>(STORAGE.prStatus),
+		]);
+		const event = closedAs === "completed" ? "issue.resolved" : "issue.dismissed";
+		// A bot PR merging with "Fixes #n" closes the issue too; `pr.merged` settles that.
+		const awaitingMerge = event === "issue.resolved" && pullRequest?.state === "open";
+		if (state && !awaitingMerge && findTransition(state, event)) {
+			await this.processEvent({
+				event,
+				arg: null,
+				actor: "system",
+				labels: await this.projectLabels(),
+				needsClassify: false,
+				anchorNumber,
+				commentBodyOverride: "",
+			});
+		}
 		const creds = readAppCreds(this.env);
 		const repo = readRepoContext(this.env);
 		let outcome: CleanupOutcome;
@@ -1291,6 +1407,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				throw error;
 			}
 		}
+		await this.runDueRecovery(now);
 
 		let processedInboxItem = false;
 		let inboxError: string | null = null;
@@ -1455,14 +1572,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async pollPullRequest(now: number): Promise<PullRequestPollOutcome> {
-		const [state, prNumber, nextAt, lastRepairFingerprint, greenHeadSha, run] = await Promise.all([
-			this.ctx.storage.get<StateId>(STORAGE.state),
-			this.ctx.storage.get<number>(STORAGE.prNumber),
-			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
-			this.ctx.storage.get<string>(STORAGE.prRepairFingerprint),
-			this.ctx.storage.get<string>(STORAGE.prGreenHeadSha),
-			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
-		]);
+		const [state, prNumber, nextAt, lastRepairFingerprint, repairCount, greenHeadSha, run] =
+			await Promise.all([
+				this.ctx.storage.get<StateId>(STORAGE.state),
+				this.ctx.storage.get<number>(STORAGE.prNumber),
+				this.ctx.storage.get<number>(STORAGE.prPollNextAt),
+				this.ctx.storage.get<string>(STORAGE.prRepairFingerprint),
+				this.ctx.storage.get<number>(STORAGE.prRepairCount),
+				this.ctx.storage.get<string>(STORAGE.prGreenHeadSha),
+				this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+			]);
 		if (
 			prNumber === undefined ||
 			(state !== "in_review" && state !== "needs_attention") ||
@@ -1497,7 +1616,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			throw error;
 		}
 		await this.ctx.storage.put(STORAGE.prStatus, status);
-		const assessment = assessPullRequest(status, lastRepairFingerprint ?? null);
+		const assessment = assessPullRequest(status, lastRepairFingerprint ?? null, repairCount ?? 0);
 		if (assessment.kind === "merged" || assessment.kind === "closed") {
 			await this.ctx.storage.delete(STORAGE.prPollNextAt);
 			await this.processEvent({
@@ -1515,6 +1634,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await Promise.all([
 				this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS),
 				this.ctx.storage.delete(STORAGE.prRepairFingerprint),
+				this.ctx.storage.delete(STORAGE.prRepairCount),
 				this.ctx.storage.put(STORAGE.prGreenHeadSha, status.headSha),
 			]);
 			if (state === "in_review" && greenHeadSha !== status.headSha) {
@@ -1530,13 +1650,44 @@ export class OrchestratorDO extends DurableObject<Env> {
 			}
 			return "green";
 		}
-		if (assessment.kind === "repair") {
-			if (run?.status === "running") {
-				await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS);
-				return "waiting";
-			}
+		// The run in flight was started for what is visible now; recording it
+		// stops the same change request being repaired again once it pushes.
+		if (
+			(assessment.kind === "repair" || assessment.kind === "exhausted") &&
+			run?.status === "running"
+		) {
 			await Promise.all([
 				this.ctx.storage.put(STORAGE.prRepairFingerprint, assessment.fingerprint),
+				this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS),
+			]);
+			return "waiting";
+		}
+		if (assessment.kind === "exhausted") {
+			await Promise.all([
+				this.ctx.storage.put(STORAGE.prRepairFingerprint, assessment.fingerprint),
+				this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS),
+			]);
+			if (state === "in_review") {
+				await this.processEvent({
+					event: "agent.failed",
+					arg: null,
+					actor: "system",
+					labels: await this.projectLabels(),
+					needsClassify: false,
+					pullRequestNumber: prNumber,
+					commentBodyOverride: renderRepairsExhausted({
+						pullRequestNumber: prNumber,
+						repairs: MAX_AUTOMATIC_REPAIRS,
+						summary: assessment.summary,
+					}),
+				});
+			}
+			return "exhausted";
+		}
+		if (assessment.kind === "repair") {
+			await Promise.all([
+				this.ctx.storage.put(STORAGE.prRepairFingerprint, assessment.fingerprint),
+				this.ctx.storage.put(STORAGE.prRepairCount, (repairCount ?? 0) + 1),
 				this.ctx.storage.delete(STORAGE.prPollNextAt),
 				this.ctx.storage.delete(STORAGE.prGreenHeadSha),
 			]);
@@ -1580,9 +1731,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			console.error("[orchestrator] invalid preview configuration", {
 				error: errorMessage(error),
 			});
-			await this.firePreviewEvent(
+			await this.firePreviewFailed(
 				anchorNumber,
-				"preview.failed",
 				"The preview package configuration is invalid, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.",
 			);
 			return "failed";
@@ -1594,11 +1744,45 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return "ready";
 		}
 		if (now >= deadline) {
-			await this.firePreviewEvent(anchorNumber, "preview.failed");
-			return "failed";
+			const build = await this.previewBuildProgress(anchorNumber);
+			if (build === "failed") {
+				await this.firePreviewFailed(
+					anchorNumber,
+					"The preview build failed, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show what went wrong.",
+				);
+				return "failed";
+			}
+			if (build !== "pending" || now >= deadline + PREVIEW_BUILD_RUNNING_GRACE_MS) {
+				const waited =
+					build === "pending"
+						? PREVIEW_BUILD_TIMEOUT_MS + PREVIEW_BUILD_RUNNING_GRACE_MS
+						: PREVIEW_BUILD_TIMEOUT_MS;
+				await this.firePreviewFailed(
+					anchorNumber,
+					`The preview build for the candidate change didn't publish within ${Math.round(waited / 60_000)} minutes, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.`,
+				);
+				return "failed";
+			}
 		}
 		await this.ctx.storage.put(STORAGE.previewPollNextAt, now + PREVIEW_POLL_INTERVAL_MS);
 		return "polling";
+	}
+
+	/** The preview workflow's check run on the fix branch, or null when it can't be read. */
+	private async previewBuildProgress(anchorNumber: number): Promise<CheckRunProgress | null> {
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) return null;
+		try {
+			const token = await this.getInstallationToken(creds);
+			return await getBranchCheckRun(token, repo, fixBranch(anchorNumber), PREVIEW_CHECK_NAME);
+		} catch (error) {
+			console.warn("[orchestrator] preview check run lookup failed", {
+				anchorNumber,
+				error: errorMessage(error),
+			});
+			return null;
+		}
 	}
 
 	/**
@@ -1645,25 +1829,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
-	private async firePreviewEvent(
+	private async firePreviewFailed(
 		anchorNumber: number,
-		event: EventId,
-		failureComment?: string,
+		commentBodyOverride: string,
 	): Promise<void> {
 		const labels = await this.projectLabels();
-		const commentBodyOverride =
-			event === "preview.failed"
-				? (failureComment ??
-					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes, so there's no preview to try. I opened a pull request with the candidate change anyway; its checks will show whether it builds.`)
-				: undefined;
 		await this.processEvent({
-			event,
+			event: "preview.failed",
 			arg: null,
 			actor: "system",
 			labels,
 			needsClassify: false,
 			anchorNumber,
-			...(commentBodyOverride ? { commentBodyOverride } : {}),
+			commentBodyOverride,
 		});
 	}
 
@@ -1750,6 +1928,34 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 	}
 
+	private async runDueRecovery(now: number): Promise<void> {
+		const recovery = await this.ctx.storage.get<AutomaticRecovery>(STORAGE.automaticRecovery);
+		if (!recovery || recovery.at > now) return;
+		await this.ctx.storage.delete(STORAGE.automaticRecovery);
+		const state = await this.ctx.storage.get<StateId>(STORAGE.state);
+		if (state !== "needs_attention" && state !== "failed") return;
+		try {
+			await this.processEvent({
+				event: recovery.action,
+				arg: null,
+				actor: "system",
+				labels: await this.projectLabels(),
+				needsClassify: false,
+				...(recovery.dryRun ? { dryRun: true } : {}),
+			});
+		} catch (error) {
+			await this.ctx.storage.put(STORAGE.automaticRecovery, {
+				...recovery,
+				at: Date.now() + RECOVERY_RETRY_BASE_MS,
+			} satisfies AutomaticRecovery);
+			console.error("[orchestrator] automatic recovery failed", {
+				action: recovery.action,
+				attempt: recovery.attempt,
+				error: errorMessage(error),
+			});
+		}
+	}
+
 	private async cleanupSchedulingState(reason: string): Promise<void> {
 		const [anchorNumber, state, prNumber, alarmAt] = await Promise.all([
 			this.ctx.storage.get<number>(STORAGE.anchorNumber),
@@ -1765,6 +1971,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				transaction.delete(STORAGE.prPollNextAt),
 				transaction.delete(STORAGE.githubRetryAt),
 				transaction.delete(STORAGE.rateLimitResumeAt),
+				transaction.delete(STORAGE.automaticRecovery),
 				transaction.delete(STORAGE.recoveryRetry),
 				transaction.delete(STORAGE.labelReconcileNextAt),
 				transaction.deleteAlarm(),
@@ -1803,6 +2010,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			prPollNextAt,
 			githubRetryAt,
 			rateLimitResumeAt,
+			automaticRecovery,
 			recoveryRetry,
 			recoveryTerminal,
 			labelReconcileNextAt,
@@ -1827,6 +2035,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
 			this.ctx.storage.get<number>(STORAGE.rateLimitResumeAt),
+			this.ctx.storage.get<AutomaticRecovery>(STORAGE.automaticRecovery),
 			this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry),
 			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
 			this.ctx.storage.get<number>(STORAGE.labelReconcileNextAt),
@@ -1865,7 +2074,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			runAlarmAt !== null ||
 			hasPreviewWork ||
 			hasPullRequestWork ||
-			rateLimitResumeAt !== undefined;
+			rateLimitResumeAt !== undefined ||
+			automaticRecovery !== undefined;
 		const hasRecoveryWork = recoveryRetry !== undefined && recoveryRetry.path !== "labels";
 		const terminalAtRest =
 			state !== undefined && STATES[state].terminal && !hasImmediateWork && runAlarmAt === null;
@@ -1897,6 +2107,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		if (rateLimitResumeAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, rateLimitResumeAt));
+		}
+		if (automaticRecovery !== undefined) {
+			desired = Math.min(desired, Math.max(now + 1_000, automaticRecovery.at));
 		}
 		const retryAt = Math.max(githubRetryAt ?? 0, recoveryRetry?.nextAt ?? 0);
 		if (retryAt > now) desired = Math.max(desired, retryAt);
@@ -2121,7 +2334,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// Commit the failed transition before deleting retry evidence. If this
 		// throws, the run markers remain and the next alarm retries recovery.
 		const labels = await this.projectLabels();
-		const timeoutSummary = `${checkpoint.summary}\n\nThe conversation and workspace are saved. A maintainer can continue with \`@emdashbot retry\`.`;
+		const recovery = await this.planRecovery("timeout", true);
+		const timeoutSummary = `${checkpoint.summary}\n\nThe conversation and workspace are saved. ${automaticRecoveryNote(recovery, now)}`;
 		const finalizedWorkComment = await this.finalizeWorkPlanComment({
 			runId,
 			status: "timed_out",
@@ -2141,6 +2355,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			...(deliveryId ? { settlesDeliveryId: deliveryId } : {}),
 		});
 		await this.clearRun(runId);
+		await this.scheduleRecovery(recovery);
 		return true;
 	}
 
@@ -2155,6 +2370,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		await this.discardLaunchSideEffects(runId);
 		const labels = await this.projectLabels();
+		const recovery = await this.planRecovery(null, Boolean(pendingResume));
 		await this.processEvent(
 			{
 				event: "agent.failed",
@@ -2162,14 +2378,17 @@ export class OrchestratorDO extends DurableObject<Env> {
 				actor: "system",
 				labels,
 				needsClassify: false,
-				agentSummary: pendingResume
-					? `I couldn't resume the saved run: ${dispatchError}`
-					: `I couldn't start this run: ${dispatchError}`,
+				agentSummary: `${
+					pendingResume
+						? `I couldn't resume the saved run: ${dispatchError}`
+						: `I couldn't start this run: ${dispatchError}`
+				}\n\n${automaticRecoveryNote(recovery, Date.now())}`,
 				settlesRunId: runId,
 			},
 			false,
 		);
 		await this.clearRun(runId);
+		await this.scheduleRecovery(recovery);
 		const deliveryId = pending?.deliveryId ?? pendingResume?.deliveryId;
 		if (deliveryId) await this.recordDelivery(deliveryId);
 		return deliveryId ?? null;
@@ -2411,6 +2630,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const comments = await getIssueComments(token, repo, anchorNumber, {
 				commentCount: issue.commentCount,
 			});
+			const writers = await writeAccess.writers(
+				token,
+				repo,
+				comments.flatMap((comment) =>
+					comment.authorLogin && !hasMaintainerAssociation(comment.authorAssociation)
+						? [comment.authorLogin]
+						: [],
+				),
+			);
 			const trigger = input.triggeringComment ?? {
 				id: null,
 				body: arg ? `@emdashbot ${decision.event} ${arg}` : `@emdashbot ${decision.event}`,
@@ -2422,6 +2650,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				diagnosis: lastDiagnosis ?? null,
 				trigger,
 				comments,
+				writers,
 			}).text;
 			const baseRef = investigationBaseRef(mode, mainBranchSha, previousBranchSha);
 			const runId = crypto.randomUUID();
@@ -3178,16 +3407,20 @@ export class OrchestratorDO extends DurableObject<Env> {
 				);
 			}
 			if (decision.event === "pr.updated" || decision.event === "agent.revised") {
+				puts.push(transaction.delete(STORAGE.prStatus), transaction.delete(STORAGE.prGreenHeadSha));
+			}
+			if (input.actor !== "system") {
 				puts.push(
-					transaction.delete(STORAGE.prRepairFingerprint),
-					transaction.delete(STORAGE.prStatus),
-					transaction.delete(STORAGE.prGreenHeadSha),
+					transaction.delete(STORAGE.prRepairCount),
+					transaction.delete(STORAGE.automaticRecovery),
+					transaction.delete(STORAGE.automaticRecoveryCount),
 				);
 			}
 			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
 				const pullRequest = await transaction.get<PullRequestStatus>(STORAGE.prStatus);
 				puts.push(transaction.delete(STORAGE.prPollNextAt));
 				puts.push(transaction.delete(STORAGE.prGreenHeadSha));
+				puts.push(transaction.delete(STORAGE.prRepairCount));
 				if (pullRequest) {
 					puts.push(
 						transaction.put(STORAGE.prStatus, {
@@ -3249,12 +3482,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.rateLimitResumeAt),
 				);
 			}
-			if (
-				!preparedResume &&
-				(decision.event === "reset" ||
-					decision.event === "decline" ||
-					decision.event === "take_over")
-			) {
+			if (!preparedResume && CANCELLING_EVENTS.has(decision.event)) {
 				const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
 				puts.push(
 					transaction.delete(STORAGE.resumableRun),
@@ -4206,6 +4434,7 @@ export type PullRequestPollOutcome =
 	| "idle"
 	| "waiting"
 	| "repairing"
+	| "exhausted"
 	| "green"
 	| "merged"
 	| "closed";

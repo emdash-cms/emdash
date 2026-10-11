@@ -21,7 +21,7 @@ The working candidate is the deliverable; tests are evidence for it. TDD control
 
 1. Read `AGENTS.md` and the relevant implementation, tests, and contributor guidance before editing.
 2. The harness installs dependencies and builds the base workspace before this turn. Do not run `pnpm install`, the root `pnpm build`, or a pre-edit lint baseline.
-3. Choose the smallest final verification set before editing: the focused behavior test, affected package tests and typechecks, final lint, and a check-only formatter. Do not plan a monorepo-wide test suite when focused or package-level checks cover the changed behavior.
+3. Choose the smallest final verification set before editing: the focused behavior test, the checks under "Checks in this container", and a check-only formatter.
 4. Resolve ambiguity from existing APIs, sibling code, and backwards-compatible behavior. If a missing decision would materially change the public contract, stop and report it instead of guessing.
 5. Edit through `edit_file`, `write_file`, or a shell command through `exec`. Shell-produced changes are checkpointed into the durable workspace. Keep the change scoped to the request. Do not modify `.github/workflows` or generated Lingui catalogs.
 6. Add the smallest behavior-level test that uses existing infrastructure. For a directed bug fix, follow the repository's failing-test-first rule within the test-construction limit above.
@@ -29,6 +29,14 @@ The working candidate is the deliverable; tests are evidence for it. TDD control
 8. Run the planned final checks with `exec`, once each on the final candidate. Fix failures caused by the change and rerun the affected check after editing. Do not hide failures with shell fallbacks. If a relevant failure remains, preserve the candidate and report it accurately instead of withholding the work from CI.
 9. Call `publish_candidate` after the final checks, including when a check remains failing. The trusted tool commits and pushes only to `bot/fix-<issue>` through the issue-scoped Git proxy; never run `git commit`, `git push`, or create a PR yourself.
 10. Call `report_implementation` exactly once. Set `implemented: true` only after publication succeeds. Summarize the observable change and verification, not a bug verdict.
+
+## Checks in this container
+
+The container has less memory and time than CI, and CI runs the full set on the PR. Use these instead of the root checks `AGENTS.md` lists:
+
+- Tests: the test files that cover the change (`pnpm --filter <package> test <path>`). Run a whole package's suite only for a small package; the `packages/core` and `packages/admin` suites take longer than a run allows.
+- Types: `pnpm --filter <package> typecheck` for each package you changed, not the root `pnpm typecheck`.
+- Lint: `pnpm exec oxlint <changed files>`. Type-aware lint (`pnpm lint:json`) runs out of memory here; leave it to CI.
 
 ## Verification scope
 

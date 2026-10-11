@@ -2,6 +2,7 @@
 
 const encoder = new TextEncoder();
 const NON_HEX = /[^0-9a-fA-F]/;
+const DESIGN_PR_TITLE = /^design:/i;
 
 export function getWebhookDeliveryId(header: string | undefined | null): string | null {
 	return header?.trim() || null;
@@ -54,6 +55,10 @@ export interface GatedPr {
 
 export type GateDecision = { review: true; pr: GatedPr } | { review: false; reason: string };
 
+function isDesignPullRequest(title: string | undefined, body: string | null | undefined): boolean {
+	return DESIGN_PR_TITLE.test(title ?? "") || (body ?? "").includes("<!-- design-pr -->");
+}
+
 // Actions that warrant an auto-review. Deliberately NOT `synchronize`: we don't
 // re-review on every pushed commit (noisy and costly). Re-review after changes
 // is an explicit action via the bot:review label below.
@@ -84,6 +89,9 @@ interface PullRequestEvent {
 export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 	const pr = event.pull_request;
 	if (!pr) return { review: false, reason: "no pull_request in payload" };
+	if (isDesignPullRequest(pr.title, pr.body)) {
+		return { review: false, reason: "design PRs require human discussion" };
+	}
 
 	const action = event.action ?? "";
 	const isManual = action === "labeled" && event.label?.name === MANUAL_LABEL;

@@ -35,12 +35,14 @@ import {
 	fetchUnifiedDiff,
 	fetchPullRequestRevision,
 	classifyPullRequestHeadMove,
+	fetchAcceptedDesign,
 	fetchPriorReview,
 	postReview,
 	addEyesReaction,
 	removeReaction,
 	updateReviewCheck,
 	POST_MODEL_PERMIT_WAIT_MS,
+	type AcceptedDesign,
 	type GitHubToken,
 } from "../lib/github.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
@@ -158,7 +160,11 @@ const reviewAgent = defineAgent<Env>(({ env }) => {
 	};
 });
 
-function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
+function buildPrContext(
+	payload: ReviewPayload,
+	priorReview?: string,
+	acceptedDesign?: AcceptedDesign,
+): string {
 	const lines = [
 		`PR #${payload.prNumber} in ${payload.owner}/${payload.repo}.`,
 		`Head ref: ${payload.headRef}. Base branch: ${payload.baseRef}.`,
@@ -169,6 +175,16 @@ function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 		"",
 		payload.prBody || "(no description provided)",
 	];
+	if (acceptedDesign) {
+		lines.push(
+			"",
+			"## Accepted design",
+			"",
+			`This PR links merged design PR #${acceptedDesign.prNumber}, which accepted:`,
+			"",
+			...acceptedDesign.proposals.map((path) => `- ${REPO_DIR}/${path}`),
+		);
+	}
 	if (priorReview) {
 		lines.push("", "## Prior review context (this is a re-review)", "", priorReview);
 	}
@@ -318,6 +334,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 	const creds = readAppCreds(env);
 	let token: GitHubToken | undefined;
 	let priorReview: string | undefined;
+	let acceptedDesign: AcceptedDesign | undefined;
 	let reactionId: number | undefined;
 	let stage: ReviewStage = "admitted";
 	try {
@@ -341,6 +358,12 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			token = await coordinatedToken(env, `review-workflow:${payload.attemptId ?? runId}`);
 			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
 			priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
+			acceptedDesign = await fetchAcceptedDesign(
+				token,
+				payload.owner,
+				payload.repo,
+				payload.prBody,
+			);
 		}
 
 		const initialRevision = { headSha: payload.headSha, baseSha: payload.baseSha };
@@ -404,7 +427,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 				(signal) =>
 					session.skill("review", {
 						args: {
-							prContext: buildPrContext(activePayload, priorReview),
+							prContext: buildPrContext(activePayload, priorReview, acceptedDesign),
 							owner: activePayload.owner,
 							repo: activePayload.repo,
 							prNumber: activePayload.prNumber,

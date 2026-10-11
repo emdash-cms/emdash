@@ -52,7 +52,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `accept` | command | reporter, maintainer | — | Confirm the candidate change works. |
 | `needs_changes` | command | reporter, maintainer | `feedback` | Explain what is still wrong so the bot can revise the candidate. |
 | `investigate` | command | maintainer | `directive` | Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix. |
-| `retry` | command | maintainer | — | Retry the last triage, investigation, work, or PR repair run. |
+| `retry` | command | maintainer, system | — | Retry the last triage, investigation, work, or PR repair run. |
 | `decline` | command | maintainer | — | Won't be actioned; move to declined. |
 | `reopen` | command | maintainer | — | Bring a terminal item back into triage. |
 | `take_over` | command | maintainer | — | A maintainer takes the item; the bot disengages but stays on the board. |
@@ -80,6 +80,8 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `pr.approved` | pr lifecycle | system | — | A reviewer approved the PR (review sub-state). |
 | `preview.ready` | preview | system | — | The preview deploy for the candidate change is live; link ready to post. |
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
+| `issue.resolved` | issue lifecycle | system | — | The issue was closed as completed. |
+| `issue.dismissed` | issue lifecycle | system | — | The issue was closed as not planned or as a duplicate. |
 
 ### Transitions
 
@@ -207,6 +209,32 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `triaging` | `reset` | `triage` | — |
 | `awaiting_approval` | `reset` | `triage` | — |
 | `needs_attention` | `reset` | `triage` | — |
+| `triage` | `issue.resolved` | `done` | — |
+| `triage` | `issue.dismissed` | `declined` | — |
+| `triaging` | `issue.resolved` | `done` | — |
+| `triaging` | `issue.dismissed` | `declined` | — |
+| `awaiting_approval` | `issue.resolved` | `done` | — |
+| `awaiting_approval` | `issue.dismissed` | `declined` | — |
+| `working` | `issue.resolved` | `done` | — |
+| `working` | `issue.dismissed` | `declined` | — |
+| `blocked` | `issue.resolved` | `done` | — |
+| `blocked` | `issue.dismissed` | `declined` | — |
+| `in_review` | `issue.resolved` | `done` | — |
+| `in_review` | `issue.dismissed` | `declined` | `closePr` |
+| `needs_attention` | `issue.resolved` | `done` | — |
+| `needs_attention` | `issue.dismissed` | `declined` | — |
+| `investigating` | `issue.resolved` | `done` | — |
+| `investigating` | `issue.dismissed` | `declined` | — |
+| `reproduced` | `issue.resolved` | `done` | — |
+| `reproduced` | `issue.dismissed` | `declined` | — |
+| `diagnosed` | `issue.resolved` | `done` | — |
+| `diagnosed` | `issue.dismissed` | `declined` | — |
+| `not_reproduced` | `issue.resolved` | `done` | — |
+| `not_reproduced` | `issue.dismissed` | `declined` | — |
+| `needs_info` | `issue.resolved` | `done` | — |
+| `needs_info` | `issue.dismissed` | `declined` | — |
+| `preview_building` | `issue.resolved` | `done` | — |
+| `preview_building` | `issue.dismissed` | `declined` | — |
 
 ### Diagram
 
@@ -335,6 +363,32 @@ stateDiagram-v2
     triaging --> triage: reset
     awaiting_approval --> triage: reset
     needs_attention --> triage: reset
+    triage --> done: issue.resolved
+    triage --> declined: issue.dismissed
+    triaging --> done: issue.resolved
+    triaging --> declined: issue.dismissed
+    awaiting_approval --> done: issue.resolved
+    awaiting_approval --> declined: issue.dismissed
+    working --> done: issue.resolved
+    working --> declined: issue.dismissed
+    blocked --> done: issue.resolved
+    blocked --> declined: issue.dismissed
+    in_review --> done: issue.resolved
+    in_review --> declined: issue.dismissed / closePr
+    needs_attention --> done: issue.resolved
+    needs_attention --> declined: issue.dismissed
+    investigating --> done: issue.resolved
+    investigating --> declined: issue.dismissed
+    reproduced --> done: issue.resolved
+    reproduced --> declined: issue.dismissed
+    diagnosed --> done: issue.resolved
+    diagnosed --> declined: issue.dismissed
+    not_reproduced --> done: issue.resolved
+    not_reproduced --> declined: issue.dismissed
+    needs_info --> done: issue.resolved
+    needs_info --> declined: issue.dismissed
+    preview_building --> done: issue.resolved
+    preview_building --> declined: issue.dismissed
 ```
 
 ## Agent run lifecycle

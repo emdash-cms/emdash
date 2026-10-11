@@ -563,7 +563,14 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
-	// Plugin route metadata (for auth/caching decisions before dispatch)
+	// Public-only plugin route metadata for SSR page components.
+	// Public routes return their meta. Private and unknown routes return null.
+	// Present on both anonymous and signed-in locals so the result does not
+	// change when a visitor logs in.
+	getPublicPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
+
+	// Plugin route metadata (for auth/caching decisions before dispatch).
+	// Signed-in locals only. Private routes return `{ public: false }`.
 	getPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
 	getEnabledPluginMcpTools: () => Promise<
 		Array<{

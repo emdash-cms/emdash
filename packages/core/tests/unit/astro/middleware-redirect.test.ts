@@ -32,9 +32,10 @@ type MiddlewareContext = Parameters<typeof onRequest>[0];
 interface BuildContextOpts {
 	pathname: string;
 	emdashDb?: unknown;
+	cache?: { set: ReturnType<typeof vi.fn> };
 }
 
-function buildContext({ pathname, emdashDb }: BuildContextOpts): {
+function buildContext({ pathname, emdashDb, cache = { set: vi.fn() } }: BuildContextOpts): {
 	context: MiddlewareContext;
 	redirect: ReturnType<typeof vi.fn>;
 	cache: { set: ReturnType<typeof vi.fn> };
@@ -45,7 +46,6 @@ function buildContext({ pathname, emdashDb }: BuildContextOpts): {
 	);
 	const url = new URL(`https://example.com${pathname}`);
 	const locals = emdashDb !== undefined ? { emdash: { db: emdashDb } } : {};
-	const cache = { set: vi.fn() };
 	const ctx = {
 		url,
 		request: new Request(url.toString()),
@@ -518,5 +518,178 @@ describe("redirect middleware — only redirects to site-relative paths", () => 
 
 		expect(redirect).not.toHaveBeenCalled();
 		expect(response.status).toBe(200);
+	});
+});
+
+/**
+ * Astro's per-request route cache: a response is stored when a max age or a
+ * tag is set by the time the middleware chain returns it.
+ */
+function storingRouteCache(initial: { maxAge?: number } = {}) {
+	let options: { maxAge?: number; tags: string[] } = { ...initial, tags: [] };
+	return {
+		enabled: true,
+		get options() {
+			return options;
+		},
+		set: vi.fn((input: false | { maxAge?: number; tags?: string[] }) => {
+			options =
+				input === false
+					? { tags: [] }
+					: { ...options, ...input, tags: [...options.tags, ...(input.tags ?? [])] };
+		}),
+	};
+}
+
+describe("redirect middleware — responses the route cache stores", () => {
+	let db: Kysely<Database>;
+	let repo: RedirectRepository;
+	let selects: number;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		repo = new RedirectRepository(db);
+		await publishRedirectArtifacts(db);
+		selects = 0;
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(
+			db.withPlugin({
+				transformQuery(args) {
+					if (args.node.kind === "SelectQueryNode") selects++;
+					return args.node;
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			}),
+		);
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	/** Loads the published rules into this isolate's cache. */
+	async function warm(): Promise<void> {
+		const { context } = buildContext({ pathname: "/warm" });
+		await runMiddleware(context, async () => new Response("warm"));
+		await waitForDeferredTasks();
+		selects = 0;
+	}
+
+	/** A page render that asks the route cache to store it, as `Astro.cache.set(cacheHint)` does. */
+	function storedPage(cache: ReturnType<typeof storingRouteCache>) {
+		return async () => {
+			cache.set({ tags: ["posts", "post-1"] });
+			return new Response("page");
+		};
+	}
+
+	it("redirects a stored render when another isolate has added a redirect for its path", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/moved");
+	});
+
+	it("lets a render it replaces with a redirect run to completion", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		let rendered = false;
+		let cancelled = false;
+		const body = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				controller.enqueue(new TextEncoder().encode("page"));
+				rendered = true;
+				controller.close();
+			},
+			cancel() {
+				cancelled = true;
+			},
+		});
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, async () => {
+			cache.set({ tags: ["posts"] });
+			return new Response(body);
+		});
+		await waitForDeferredTasks();
+
+		expect(response.status).toBe(301);
+		expect(cancelled).toBe(false);
+		expect(rendered).toBe(true);
+	});
+
+	it("redirects a stored render for a redirect written before its rules were published", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/moved");
+	});
+
+	it("renders the page rather than store a redirect another isolate has deleted", async () => {
+		const rule = await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+		await warm();
+		await repo.delete(rule.id);
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache({ maxAge: 300 });
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("page");
+	});
+
+	it("checks current rules with one read before a render is stored", async () => {
+		await warm();
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("page");
+		expect(selects).toBe(1);
+	});
+
+	it("does not read the database for a render the route cache will not store", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, async () => new Response("page"));
+
+		expect(response.status).toBe(200);
+		expect(selects).toBe(0);
 	});
 });
