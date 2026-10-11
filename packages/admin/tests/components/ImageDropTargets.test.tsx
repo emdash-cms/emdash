@@ -178,7 +178,8 @@ describe("Editor image drop targets", () => {
 			});
 			if (kind === "featured")
 				await expect.element(screen.getByText("upload.png", { exact: true })).toBeVisible();
-			else await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
+			else
+				await expect.element(screen.getByRole("button", { name: "Remove OG Image" })).toBeVisible();
 		},
 	);
 
