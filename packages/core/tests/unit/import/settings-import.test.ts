@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { importSiteSettings, parseSiteSettingsFromPlugin } from "../../../src/import/settings.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { getSiteSettingsWithDb } from "../../../src/settings/index.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -23,7 +24,10 @@ afterEach(async () => {
 });
 
 describe("importSiteSettings", () => {
-	it("writes settings that getSiteSettings() actually reads", async () => {
+	const siteIt = (name: string, fn: () => Promise<void>) =>
+		it(name, () => runWithContext({ editMode: false, siteId: "site-default" }, fn));
+
+	siteIt("writes settings that getSiteSettings() actually reads", async () => {
 		const result = await importSiteSettings({ title: "WP Blog", tagline: "From WP" }, db, true);
 
 		expect(result.applied).toEqual(["title", "tagline"]);
@@ -32,7 +36,7 @@ describe("importSiteSettings", () => {
 		expect(settings.tagline).toBe("From WP");
 	});
 
-	it("overwrites seed placeholders when overwrite=true, skips when false", async () => {
+	siteIt("overwrites seed placeholders when overwrite=true, skips when false", async () => {
 		await importSiteSettings({ title: "My Blog" }, db, true);
 
 		const skipped = await importSiteSettings({ title: "Real Title" }, db, false);
@@ -44,7 +48,7 @@ describe("importSiteSettings", () => {
 		expect((await getSiteSettingsWithDb(db)).title).toBe("Real Title");
 	});
 
-	it("applies logo/favicon only via resolved media IDs", async () => {
+	siteIt("applies logo/favicon only via resolved media IDs", async () => {
 		const withoutMedia = await importSiteSettings(
 			{ logo: { url: "https://wp.example/logo.png", id: 5 } },
 			db,

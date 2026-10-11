@@ -2,13 +2,14 @@ import type { CompiledQuery, Kysely, KyselyPlugin } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
-import { OptionsRepository } from "../../../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
+import { SiteSettingsRepository } from "../../../../src/database/repositories/site-settings.js";
 import {
 	ContentMutationConflictError,
 	EmDashValidationError,
 } from "../../../../src/database/repositories/types.js";
 import type { Database } from "../../../../src/database/types.js";
+import { runWithContext } from "../../../../src/request-context.js";
 import { SchemaRegistry } from "../../../../src/schema/registry.js";
 import { createPostFixture, createPageFixture } from "../../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../../utils/test-db.js";
@@ -531,22 +532,30 @@ describe("ContentRepository", () => {
 
 		it("resolves direct site-local schedules with the configured timezone", async () => {
 			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
-			await new OptionsRepository(db).set("site:timezone", "America/New_York");
+			await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+				new SiteSettingsRepository(db).set("timezone", "America/New_York"),
+			);
 			const post = await repo.create(createPostFixture());
 
-			const updated = await repo.schedule("post", post.id, "2030-01-01T08:00");
+			const updated = await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+				repo.schedule("post", post.id, "2030-01-01T08:00"),
+			);
 
 			expect(updated.scheduledAt).toBe("2030-01-01T13:00:00.000Z");
 		});
 
 		it("rejects ambiguous direct site-local schedules", async () => {
 			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
-			await new OptionsRepository(db).set("site:timezone", "America/New_York");
+			await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+				new SiteSettingsRepository(db).set("timezone", "America/New_York"),
+			);
 			const post = await repo.create(createPostFixture());
 
-			await expect(repo.schedule("post", post.id, "2030-11-03T01:30")).rejects.toThrow(
-				EmDashValidationError,
-			);
+			await expect(
+				runWithContext({ editMode: false, siteId: "site-default" }, () =>
+					repo.schedule("post", post.id, "2030-11-03T01:30"),
+				),
+			).rejects.toThrow(EmDashValidationError);
 		});
 	});
 
@@ -790,9 +799,12 @@ describe("ContentRepository", () => {
 					return args.result;
 				},
 			};
-			await run(new ContentRepository(db.withPlugin(recorder), new Map()));
+			await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+				run(new ContentRepository(db.withPlugin(recorder), new Map())),
+			);
 			return {
-				timezone: queries.filter((query) => query.parameters.includes("site:timezone")).length,
+				timezone: queries.filter((query) => query.parameters.includes("site:site-default:timezone"))
+					.length,
 				fields: queries.filter((query) => query.sql.includes('from "_emdash_fields"')).length,
 			};
 		}

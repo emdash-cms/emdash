@@ -12,6 +12,18 @@ import type {
 } from "../../plugins/types.js";
 import type { Database, OptionTable } from "../types.js";
 
+function sharedName(name: string): string {
+	if (name.startsWith("site:")) throw new Error("Site settings require a server-selected site");
+	return name;
+}
+
+function sharedPrefix(prefix: string): string {
+	if (prefix.startsWith("site:") || "site:".startsWith(prefix)) {
+		throw new Error("Site settings require a server-selected site");
+	}
+	return prefix;
+}
+
 function escapeLike(value: string): string {
 	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
 }
@@ -29,6 +41,7 @@ export class OptionsRepository {
 	 * Get an option value
 	 */
 	async get<T = unknown>(name: string): Promise<T | null> {
+		sharedName(name);
 		const row = await this.db
 			.selectFrom("options")
 			.select("value")
@@ -56,6 +69,7 @@ export class OptionsRepository {
 	}
 
 	async setVersioned<T = unknown>(name: string, value: T): Promise<string> {
+		sharedName(name);
 		const revision = crypto.randomUUID();
 		const row: Insertable<OptionTable> = {
 			name,
@@ -83,6 +97,7 @@ export class OptionsRepository {
 	 * existed (regardless of its value — even an empty string or null).
 	 */
 	async setIfAbsent<T = unknown>(name: string, value: T): Promise<boolean> {
+		sharedName(name);
 		const row: Insertable<OptionTable> = {
 			name,
 			value: JSON.stringify(value),
@@ -101,7 +116,7 @@ export class OptionsRepository {
 	}
 
 	async getVersioned<T = unknown>(name: string): Promise<VersionedValue<T> | null> {
-		assertStorageKey(name, 2048);
+		assertStorageKey(sharedName(name), 2048);
 		const row = await this.db
 			.selectFrom("options")
 			.select(["value", "revision"])
@@ -116,7 +131,7 @@ export class OptionsRepository {
 		expectedRevision: string | null,
 		value: unknown,
 	): Promise<ConditionalWriteResult> {
-		assertStorageKey(name, 2048);
+		assertStorageKey(sharedName(name), 2048);
 		if (expectedRevision !== null) assertStorageRevision(expectedRevision);
 		const serialized = serializeConditionalValue(value);
 		const revision = crypto.randomUUID();
@@ -139,7 +154,7 @@ export class OptionsRepository {
 	}
 
 	async compareAndDelete(name: string, expectedRevision: string): Promise<ConditionalDeleteResult> {
-		assertStorageKey(name, 2048);
+		assertStorageKey(sharedName(name), 2048);
 		assertStorageRevision(expectedRevision);
 		const row = await this.db
 			.deleteFrom("options")
@@ -154,6 +169,7 @@ export class OptionsRepository {
 	 * Delete an option
 	 */
 	async delete(name: string): Promise<boolean> {
+		sharedName(name);
 		const result = await this.db.deleteFrom("options").where("name", "=", name).executeTakeFirst();
 
 		return (result.numDeletedRows ?? 0) > 0;
@@ -164,6 +180,7 @@ export class OptionsRepository {
 	 */
 	async deleteMany(names: string[]): Promise<number> {
 		if (names.length === 0) return 0;
+		names.forEach(sharedName);
 		const result = await this.db
 			.deleteFrom("options")
 			.where("name", "in", names)
@@ -175,6 +192,7 @@ export class OptionsRepository {
 	 * Check if an option exists
 	 */
 	async exists(name: string): Promise<boolean> {
+		sharedName(name);
 		const row = await this.db
 			.selectFrom("options")
 			.select("name")
@@ -189,6 +207,7 @@ export class OptionsRepository {
 	 */
 	async getMany<T = unknown>(names: string[]): Promise<Map<string, T>> {
 		if (names.length === 0) return new Map();
+		names.forEach(sharedName);
 
 		const rows = await this.db
 			.selectFrom("options")
@@ -220,7 +239,11 @@ export class OptionsRepository {
 	 * Get all options (use sparingly)
 	 */
 	async getAll(): Promise<Map<string, unknown>> {
-		const rows = await this.db.selectFrom("options").select(["name", "value"]).execute();
+		const rows = await this.db
+			.selectFrom("options")
+			.select(["name", "value"])
+			.where(sql<SqlBool>`name NOT LIKE 'site:%'`)
+			.execute();
 
 		const result = new Map<string, unknown>();
 		for (const row of rows) {
@@ -236,7 +259,7 @@ export class OptionsRepository {
 		prefix: string,
 		options: { limit?: number } = {},
 	): Promise<Map<string, T>> {
-		const pattern = `${escapeLike(prefix)}%`;
+		const pattern = `${escapeLike(sharedPrefix(prefix))}%`;
 		let query = this.db
 			.selectFrom("options")
 			.select(["name", "value"])
@@ -257,7 +280,7 @@ export class OptionsRepository {
 		prefix: string,
 		options: { limit?: number } = {},
 	): Promise<Map<string, VersionedValue<T>>> {
-		const pattern = `${escapeLike(prefix)}%`;
+		const pattern = `${escapeLike(sharedPrefix(prefix))}%`;
 		let query = this.db
 			.selectFrom("options")
 			.select(["name", "value", "revision"])
@@ -275,7 +298,7 @@ export class OptionsRepository {
 	}
 
 	async countByPrefix(prefix: string): Promise<number> {
-		const pattern = `${escapeLike(prefix)}%`;
+		const pattern = `${escapeLike(sharedPrefix(prefix))}%`;
 		const row = await this.db
 			.selectFrom("options")
 			.select((eb) => eb.fn.countAll<number>().as("count"))
@@ -288,7 +311,7 @@ export class OptionsRepository {
 	 * Delete all options matching a prefix
 	 */
 	async deleteByPrefix(prefix: string): Promise<number> {
-		const pattern = `${escapeLike(prefix)}%`;
+		const pattern = `${escapeLike(sharedPrefix(prefix))}%`;
 		const result = await this.db
 			.deleteFrom("options")
 			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)

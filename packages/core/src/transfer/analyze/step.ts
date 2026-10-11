@@ -13,8 +13,9 @@ import type { Kysely } from "kysely";
 import { z } from "zod";
 
 import { detectDialect } from "../../database/dialect-helpers.js";
-import { OptionsRepository } from "../../database/repositories/options.js";
+import { SiteSettingsRepository } from "../../database/repositories/site-settings.js";
 import type { Database } from "../../database/types.js";
+import { runWithContext } from "../../request-context.js";
 import type { Storage } from "../../storage/types.js";
 import { isTransferError, TransferError } from "../errors.js";
 import { canonicalJson, parseCanonicalJson } from "../format/canonical.js";
@@ -229,9 +230,9 @@ async function looseManifestIdentity(stage: TransferStage): Promise<{
 async function readTargetSettings(
 	db: Kysely<Database>,
 ): Promise<{ title?: string; tagline?: string }> {
-	const options = new OptionsRepository(db);
-	const title = await options.get("site:title");
-	const tagline = await options.get("site:tagline");
+	const options = new SiteSettingsRepository(db);
+	const title = await options.get("title");
+	const tagline = await options.get("tagline");
 	return {
 		...(typeof title === "string" ? { title } : {}),
 		...(typeof tagline === "string" ? { tagline } : {}),
@@ -319,7 +320,9 @@ async function buildAnalysisPlan(
 			redirectLoops,
 			localeRecasing: localeRecasing(manifest, targetContext),
 			suggestions: await suggestPrincipalUsers(db, summary.principals),
-			targetSettings: await readTargetSettings(db),
+			targetSettings: await runWithContext({ editMode: false, siteId: target.siteId }, () =>
+				readTargetSettings(db),
+			),
 		},
 		principalBylinesFrom(context),
 	);

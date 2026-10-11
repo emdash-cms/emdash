@@ -11,7 +11,8 @@ import type { APIRoute } from "astro";
 
 import { apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
-import { OptionsRepository } from "#db/repositories/options.js";
+import { SiteSettingsRepository } from "#db/repositories/site-settings.js";
+import { DEFAULT_SITE_TIMEZONE } from "#settings/timezone.js";
 
 import { COMMIT, VERSION } from "../../../version.js";
 import type { EmDashManifest } from "../../types.js";
@@ -49,7 +50,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		// null and the React SPA never received custom logo/siteName/favicon.
 		// See issue #835.
 		let adminBranding = emdash?.config?.admin;
-		let siteTimezone = "UTC";
+		let siteTimezone = DEFAULT_SITE_TIMEZONE;
 
 		// Read the site timezone alongside the title fallback so datetime controls
 		// and branding share one options query. When no build-time `admin.siteName`
@@ -60,14 +61,9 @@ export const GET: APIRoute = async ({ locals }) => {
 		// captured by the setup wizard → the bundled "EmDash" default in the SPA.
 		if (emdash?.db) {
 			try {
-				const options = new OptionsRepository(emdash.db);
-				const titles = await options.getMany<string>([
-					"site:title",
-					"emdash:site_title",
-					"site:timezone",
-				]);
-				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
-				siteTimezone = titles.get("site:timezone") || "UTC";
+				const siteSettings = new SiteSettingsRepository(emdash.db);
+				const siteTitle = await siteSettings.get<string>("title");
+				siteTimezone = (await siteSettings.get<string>("timezone")) || DEFAULT_SITE_TIMEZONE;
 				if (!adminBranding?.siteName && siteTitle) {
 					adminBranding = { ...adminBranding, siteName: siteTitle };
 				}

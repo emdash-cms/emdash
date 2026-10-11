@@ -16,7 +16,7 @@ import { getExactMigrationStatus } from "../../database/migrations/runner.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { MediaRepository } from "../../database/repositories/media.js";
-import { OptionsRepository } from "../../database/repositories/options.js";
+import { SiteSettingsRepository } from "../../database/repositories/site-settings.js";
 import {
 	parseTaxonomyCollections,
 	selectTaxonomyDefs,
@@ -26,6 +26,7 @@ import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
+import { runWithContext } from "../../request-context.js";
 import { BlockTypeRegistry } from "../../schema/block-type-registry.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { FieldType } from "../../schema/types.js";
@@ -61,6 +62,11 @@ export const exportSeedCommand = defineCommand({
 		description: "Export database schema and content as a seed file",
 	},
 	args: {
+		"site-id": {
+			type: "string",
+			description: "Site ID to export",
+			required: true,
+		},
 		database: {
 			type: "string",
 			alias: "d",
@@ -119,10 +125,12 @@ export const exportSeedCommand = defineCommand({
 		}
 
 		try {
-			const seed = await exportSeed(db, args["with-content"], {
-				mediaBaseUrl: args["media-base-url"],
-				warn: (message) => process.stderr.write(`Warning: ${message}\n`),
-			});
+			const seed = await runWithContext({ editMode: false, siteId: args["site-id"] }, () =>
+				exportSeed(db, args["with-content"], {
+					mediaBaseUrl: args["media-base-url"],
+					warn: (message) => process.stderr.write(`Warning: ${message}\n`),
+				}),
+			);
 
 			// Output to stdout
 			const output = args.pretty ? JSON.stringify(seed, null, "\t") : JSON.stringify(seed);
@@ -387,14 +395,13 @@ async function detectLocaleInfo(
  * Export site settings
  */
 async function exportSettings(db: Kysely<Database>): Promise<SeedFile["settings"]> {
-	const options = new OptionsRepository(db);
-	const allOptions = await options.getByPrefix(SETTINGS_PREFIX);
+	const options = new SiteSettingsRepository(db);
+	const allOptions = await options.getAll();
 
 	const settings: Record<string, unknown> = {};
 	for (const [key, value] of allOptions) {
-		if (classifySetting(key) === "targetLocal") continue;
-		const settingKey = key.replace(SETTINGS_PREFIX, "");
-		settings[settingKey] = value;
+		if (classifySetting(`${SETTINGS_PREFIX}${key}`) === "targetLocal") continue;
+		settings[key] = value;
 	}
 
 	return Object.keys(settings).length > 0 ? settings : undefined;

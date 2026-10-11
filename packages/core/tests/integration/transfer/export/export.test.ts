@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { runWithContext } from "../../../../src/request-context.js";
+import { createReader } from "../../../../src/transfer/export/readers.js";
 import { sha256Hex } from "../../../../src/transfer/format/digest.js";
 import { KIND_REFERENCES, type SitePackageRecord } from "../../../../src/transfer/format/kinds.js";
 import { MANIFEST_PATH } from "../../../../src/transfer/format/paths.js";
@@ -53,6 +55,41 @@ describeEachDialect("site export", (dialect) => {
 			expect(text, forbidden).not.toContain(forbidden);
 		}
 		expect(result.operation.packageDigest).toBe(await reader.digest());
+	});
+
+	it("exports only the selected site's portable settings with their portable names", async () => {
+		await ctx.db.insertInto("_emdash_sites").values({ id: "site-bar", slug: "bar" }).execute();
+		await ctx.db
+			.insertInto("options")
+			.values({
+				name: "site:site-bar:title",
+				site_id: "site-bar",
+				value: JSON.stringify("Bar Site"),
+				revision: crypto.randomUUID(),
+			})
+			.execute();
+
+		const options = { mediaBlobs: async () => new Map<string, string>() };
+		const bar = runWithContext({ editMode: false, siteId: "site-bar" }, () =>
+			createReader(ctx.db, "setting", options),
+		);
+		const page = await bar.page(null, 50);
+		expect(page.rows.map((row) => row.record)).toEqual([
+			{ kind: "setting", id: "emdash:site_title", value: "Origin Site" },
+			{ kind: "setting", id: "site:title", value: "Bar Site" },
+		]);
+		expect(await bar.countRows()).toBe(2);
+		expect(await bar.byIds(["site:title", "site:logo"])).toEqual(
+			new Map([["site:title", { kind: "setting", id: "site:title", value: "Bar Site" }]]),
+		);
+
+		const { reader } = await runExport(ctx.db, storage);
+		const settings = byId((await packageRecords(reader)).get("setting"));
+		expect(settings.get("site:title")).toMatchObject({ value: "Origin Site" });
+		expect(
+			Array.from(settings.values(), (record) => JSON.stringify(record)).join("\n"),
+		).not.toContain("Bar Site");
+		expect(() => createReader(ctx.db, "setting", options)).toThrow(/server-selected site/);
 	});
 
 	it("exports every kind with principals, drops, and declared transformations", async () => {

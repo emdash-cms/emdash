@@ -411,7 +411,7 @@ export interface DeviceCodeTable {
 }
 
 export interface OptionTable {
-	site_id: Generated<string>;
+	site_id: Generated<string | null>;
 	name: string;
 	value: string; // JSON
 	revision: Generated<string>;

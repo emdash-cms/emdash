@@ -7,7 +7,9 @@ import {
 	type DatetimeFieldDescriptor,
 } from "../datetime-normalization.js";
 import { requestCached } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
 import { isStoragelessFieldRow, type FieldType, type RepeaterSubField } from "../schema/types.js";
+import { DEFAULT_SITE_TIMEZONE } from "../settings/timezone.js";
 import { isSafeUrlFieldWriteValue } from "../utils/url.js";
 import { EmDashValidationError } from "./repositories/types.js";
 import type { Database } from "./types.js";
@@ -74,10 +76,14 @@ export class ContentDatetimeNormalizer {
 		// Fall back to the per-request cache so repeated writes in the same
 		// invocation (e.g. bulk imports) do not re-query field/timezone metadata
 		// for every item.
-		return requestCached(`datetimeContext:${collection}`, () => this.loadContext(collection));
+		return requestCached(
+			`datetimeContext:${getRequestContext()?.siteId ?? "unselected"}:${collection}`,
+			() => this.loadContext(collection),
+		);
 	}
 
 	private async loadContext(collection: string): Promise<DatetimeContext> {
+		const siteId = getRequestContext()?.siteId;
 		const [rows, timezoneRow] = await Promise.all([
 			this.db
 				.selectFrom("_emdash_fields as field")
@@ -85,13 +91,15 @@ export class ContentDatetimeNormalizer {
 				.select(["field.slug", "field.type", "field.validation"])
 				.where("collection.slug", "=", collection)
 				.execute(),
-			this.db
-				.selectFrom("options")
-				.select("value")
-				.where("name", "=", "site:timezone")
-				.executeTakeFirst(),
+			siteId
+				? this.db
+						.selectFrom("options")
+						.select("value")
+						.where("name", "=", `site:${siteId}:timezone`)
+						.executeTakeFirst()
+				: Promise.resolve(undefined),
 		]);
-		let timezone = "UTC";
+		let timezone = DEFAULT_SITE_TIMEZONE;
 		if (timezoneRow) {
 			try {
 				const configured: unknown = JSON.parse(timezoneRow.value);

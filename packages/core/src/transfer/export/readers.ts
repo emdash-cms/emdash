@@ -19,6 +19,7 @@
 import { sql, type Kysely, type RawBuilder } from "kysely";
 
 import { isPostgres, listTableColumns } from "../../database/dialect-helpers.js";
+import { selectedSiteId } from "../../database/repositories/site-settings.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
@@ -328,6 +329,10 @@ interface TableReaderConfig {
 	parentColumn?: string;
 	/** Tree kinds: rows kept when paging; a row below a dropped row is dropped too. */
 	treeValid?: (context: FilterContext) => RawBuilder<boolean>;
+	/** Substitute portable values for columns whose stored identity is target-local. */
+	select?: (db: Db) => RawBuilder<unknown>;
+	/** Translate portable ids to stored keys for by-id lookup. */
+	storedKey?: (id: string) => string;
 	/** Adds properties that do not come from columns, before validation. */
 	prepare?: (raws: Row[], options: ReaderOptions) => Promise<void>;
 	/** Post-processing of decoded records (may drop rows or change properties). */
@@ -365,7 +370,9 @@ class TableReader implements KindReader<RecordKind> {
 	}
 
 	private selectList(): RawBuilder<unknown> {
-		return sql.join(selectExportedColumns(this.#db, this.#columns));
+		return (
+			this.#config.select?.(this.#db) ?? sql.join(selectExportedColumns(this.#db, this.#columns))
+		);
 	}
 
 	private decodeRaw(row: Row): Row {
@@ -467,10 +474,16 @@ class TableReader implements KindReader<RecordKind> {
 		const db = this.#db;
 		const result = new Map<string, SitePackageRecord>();
 		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+			const stored = batch.map((id) => this.#config.storedKey?.(id) ?? id);
+			const filter = this.#config.storedKey
+				? this.#config.filter?.({ db, options: this.#options, slugs: this.#slugs })
+				: null;
+			const key = this.#config.storedKey ? sql.ref("options.name") : this.keyExpr();
 			const rows = await sql<Row>`
 				SELECT ${this.selectList()}
 				FROM ${sql.ref(this.#config.table)}
-				WHERE ${this.keyExpr()} IN (${sql.join(batch)})
+				WHERE ${key} IN (${sql.join(stored)})
+				${filter ? sql`AND ${filter}` : sql``}
 			`.execute(db);
 			const records = await this.decode(rows.rows);
 			const transformed = await this.finish(records, false);
@@ -616,8 +629,14 @@ async function attachBlobs(raws: Row[], options: ReaderOptions): Promise<void> {
 
 // ── Reader table ────────────────────────────────────────────────
 
-const PORTABLE_SETTINGS_FILTER = (): RawBuilder<boolean> =>
-	sql<boolean>`${sql.ref("options.name")} IN (${sql.join(PORTABLE_SETTING_NAMES.map((name) => sql.lit(name)))})`;
+function portableSettingsFilter(siteId: string): RawBuilder<boolean> {
+	const siteNames = PORTABLE_SETTING_NAMES.filter((name) => name.startsWith("site:"));
+	const sharedNames = PORTABLE_SETTING_NAMES.filter((name) => !name.startsWith("site:"));
+	return sql<boolean>`(
+		(options.site_id = ${siteId} AND options.name IN (${sql.join(siteNames.map((name) => `site:${siteId}:${name.slice(5)}`))}))
+		OR (options.site_id IS NULL AND options.name IN (${sql.join(sharedNames)}))
+	)`;
+}
 
 const REDIRECT_FILTER = (): RawBuilder<boolean> => sql<boolean>`(
 	_emdash_redirects.source_guard = 1
@@ -795,13 +814,20 @@ function configFor(kind: RecordKind): TableReaderConfig {
 			};
 		case "redirect":
 			return { ...tableConfig(kind), filter: REDIRECT_FILTER };
-		case "setting":
+		case "setting": {
+			const siteId = selectedSiteId();
+			const prefix = `site:${siteId}:`;
+			const portableName = sql<string>`CASE WHEN options.site_id = ${siteId}
+				THEN 'site:' || substr(options.name, ${prefix.length + 1}) ELSE options.name END`;
 			return {
 				...tableConfig(kind),
-				key: () => sql`${sql.ref("options.name")}`,
-				filter: PORTABLE_SETTINGS_FILTER,
-				countFilter: PORTABLE_SETTINGS_FILTER,
+				key: () => portableName,
+				select: () => sql`${portableName} AS name, options.value AS value`,
+				storedKey: (id) => (id.startsWith("site:") ? `${prefix}${id.slice(5)}` : id),
+				filter: () => portableSettingsFilter(siteId),
+				countFilter: () => portableSettingsFilter(siteId),
 			};
+		}
 		default:
 			return tableConfig(kind);
 	}

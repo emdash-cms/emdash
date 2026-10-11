@@ -25,9 +25,9 @@ import type { DatetimeContextCache } from "../database/content-datetime.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
-import { OptionsRepository } from "../database/repositories/options.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
+import { SiteSettingsRepository } from "../database/repositories/site-settings.js";
 import {
 	findTaxonomyStructure,
 	saveTaxonomyStructure,
@@ -82,15 +82,15 @@ async function applySiteSettings(
 		return;
 	}
 
-	const options = new OptionsRepository(db);
+	const options = new SiteSettingsRepository(db);
 	let applied = 0;
 	try {
 		for (const [key, value] of entries) {
-			const write = await options.compareAndSet(`site:${key}`, null, value);
-			if (!write.applied && onConflict === "error") {
+			const inserted = await options.setIfAbsent(key, value);
+			if (!inserted && onConflict === "error") {
 				throw new Error(`Conflict: site setting "site:${key}" already exists`);
 			}
-			if (write.applied) applied++;
+			if (inserted) applied++;
 		}
 	} finally {
 		if (applied > 0) {

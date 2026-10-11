@@ -9,6 +9,7 @@ import type { Kysely } from "kysely";
 import { expect } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import { defaultSeed } from "../../../src/seed/default.js";
 import type { SeedFile } from "../../../src/seed/types.js";
@@ -94,15 +95,17 @@ export async function exportOrigin(
 ): Promise<ExportPackageReader> {
 	const { operation } = await createExport({ db: source.db, createdBy: "origin-admin" });
 	for (;;) {
-		const result = await advanceExport({
-			db: source.db,
-			storage,
-			operationId: operation.id,
-			defaultLocale: "en",
-			emdashVersion: "0.0.0-origin",
-			budget: source.budget(),
-			validatePackage: validateStagedPackageStep,
-		});
+		const result = await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+			advanceExport({
+				db: source.db,
+				storage,
+				operationId: operation.id,
+				defaultLocale: "en",
+				emdashVersion: "0.0.0-origin",
+				budget: source.budget(),
+				validatePackage: validateStagedPackageStep,
+			}),
+		);
 		source.steps++;
 		if (result.outcome === "advanced") {
 			if (source.steps > MAX_STEPS)

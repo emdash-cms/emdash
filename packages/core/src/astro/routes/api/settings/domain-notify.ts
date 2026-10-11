@@ -14,6 +14,7 @@ import { requirePerm } from "#api/authorize.js";
 import { resolveEmailLocale } from "#api/email-locale.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleDomainMoveNotice } from "#api/handlers/domain-move-notice.js";
+import { getSiteDisplayName } from "#api/site-display-name.js";
 import { getChosenSiteOrigin } from "#api/site-url.js";
 import { getAuthMode } from "#auth/mode.js";
 import { checkRateLimit } from "#auth/rate-limit.js";
@@ -57,8 +58,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 
 		const options = new OptionsRepository(emdash.db);
-		const siteOptions = await options.getMany<string>(["emdash:site_title", "emdash:locale"]);
-		const siteName = siteOptions.get("emdash:site_title") || "EmDash";
+		const siteOptions = await options.getMany<string>(["emdash:locale"]);
+		const siteName = await getSiteDisplayName(emdash.db);
 		const locale = resolveEmailLocale(siteOptions.get("emdash:locale"), request);
 		const email = emdash.email;
 

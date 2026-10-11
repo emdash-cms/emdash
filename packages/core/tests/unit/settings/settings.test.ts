@@ -1,14 +1,15 @@
 import { Kysely, SqliteDialect, sql } from "kysely";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it as test, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/secrets.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { SiteSettingsRepository } from "../../../src/database/repositories/site-settings.js";
 import type { Database } from "../../../src/database/types.js";
 import { encryptPluginSetting } from "../../../src/plugins/settings.js";
-import { runWithContext } from "../../../src/request-context.js";
+import { runWithContext as withRequestContext } from "../../../src/request-context.js";
 import {
 	getPluginSettingWithDb,
 	getPluginSettingsWithDb,
@@ -21,6 +22,12 @@ import {
 } from "../../../src/settings/index.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, setupTestDatabaseWithCollections } from "../../utils/test-db.js";
+
+const runWithContext = <T>(context: { editMode: boolean; db?: Kysely<Database> }, fn: () => T): T =>
+	withRequestContext({ siteId: "site-default", ...context }, fn);
+
+const it = (name: string, fn: () => void | Promise<void>) =>
+	test(name, () => runWithContext({ editMode: false }, fn));
 
 describe("Site Settings", () => {
 	let db: Kysely<Database>;
@@ -39,7 +46,7 @@ describe("Site Settings", () => {
 
 			const row = await db
 				.selectFrom("options")
-				.where("name", "=", "site:title")
+				.where("name", "=", "site:site-default:title")
 				.select("value")
 				.executeTakeFirst();
 
@@ -81,7 +88,7 @@ describe("Site Settings", () => {
 
 			const row = await db
 				.selectFrom("options")
-				.where("name", "=", "site:logo")
+				.where("name", "=", "site:site-default:logo")
 				.select("value")
 				.executeTakeFirst();
 
@@ -113,9 +120,9 @@ describe("Site Settings", () => {
 				titleSeparator: " — ",
 				googleVerification: "google-code",
 			});
-			expect(await new OptionsRepository(db).exists("site:logo")).toBe(false);
-			expect(await new OptionsRepository(db).exists("site:favicon")).toBe(false);
-			const storedSeo = await new OptionsRepository(db).get<Record<string, unknown>>("site:seo");
+			expect(await new SiteSettingsRepository(db).get("logo")).toBeUndefined();
+			expect(await new SiteSettingsRepository(db).get("favicon")).toBeUndefined();
+			const storedSeo = await new SiteSettingsRepository(db).get<Record<string, unknown>>("seo");
 			expect(storedSeo).not.toHaveProperty("defaultOgImage");
 		});
 
@@ -126,7 +133,7 @@ describe("Site Settings", () => {
 
 			const settings = await getSiteSettingsWithDb(db);
 			expect(settings.seo).toBeUndefined();
-			expect(await new OptionsRepository(db).exists("site:seo")).toBe(false);
+			expect(await new SiteSettingsRepository(db).get("seo")).toBeUndefined();
 		});
 
 		it("keeps the other SEO fields when updating one of them", async () => {
@@ -165,7 +172,7 @@ describe("Site Settings", () => {
 			await sql`
 				CREATE TRIGGER block_site_logo_delete
 				BEFORE DELETE ON options
-				WHEN OLD.name = 'site:logo'
+				WHEN OLD.name = 'site:site-default:logo'
 				BEGIN
 					SELECT RAISE(ABORT, 'blocked delete');
 				END
@@ -517,6 +524,24 @@ describe("Site Settings caching", () => {
 		invalidateSiteSettingsCache();
 	});
 
+	it("keeps warmed settings separate across two sites", async () => {
+		const { db } = await setupCountingDb();
+		await withRequestContext({ editMode: false, db, siteId: "foo" }, () =>
+			setSiteSettings({ title: "Foo" }, db),
+		);
+		await withRequestContext({ editMode: false, db, siteId: "bar" }, () =>
+			setSiteSettings({ title: "Bar" }, db),
+		);
+		for (let i = 0; i < 2; i++) {
+			expect(
+				(await withRequestContext({ editMode: false, db, siteId: "foo" }, getSiteSettings)).title,
+			).toBe("Foo");
+			expect(
+				(await withRequestContext({ editMode: false, db, siteId: "bar" }, getSiteSettings)).title,
+			).toBe("Bar");
+		}
+	});
+
 	it("getSiteSetting() does not hit the DB after getSiteSettings() in the same request", async () => {
 		const { db, queries, reset } = await setupCountingDb();
 		await setSiteSettings({ title: "Site", seo: { titleSeparator: " — " } }, db);
@@ -573,7 +598,9 @@ describe("Site Settings caching", () => {
 			expect(after.title).toBe("Updated");
 		});
 
-		const prefixScans = queries.filter((q) => q.includes("LIKE") && q.includes("options"));
+		const prefixScans = queries.filter(
+			(q) => q.toLowerCase().includes("like") && q.includes("options"),
+		);
 		expect(prefixScans.length).toBe(1);
 	});
 
@@ -585,8 +612,8 @@ describe("Site Settings caching", () => {
 			await getSiteSettings();
 		});
 
-		const original = OptionsRepository.prototype.setMany;
-		OptionsRepository.prototype.setMany = async () => {
+		const original = SiteSettingsRepository.prototype.set;
+		SiteSettingsRepository.prototype.set = async () => {
 			throw new Error("simulated partial-write failure");
 		};
 
@@ -595,7 +622,7 @@ describe("Site Settings caching", () => {
 				"simulated partial-write failure",
 			);
 		} finally {
-			OptionsRepository.prototype.setMany = original;
+			SiteSettingsRepository.prototype.set = original;
 		}
 
 		reset();
@@ -604,7 +631,9 @@ describe("Site Settings caching", () => {
 			await getSiteSettings();
 		});
 
-		const prefixScans = queries.filter((q) => q.includes("LIKE") && q.includes("options"));
+		const prefixScans = queries.filter(
+			(q) => q.toLowerCase().includes("like") && q.includes("options"),
+		);
 		expect(prefixScans.length).toBe(1);
 	});
 
@@ -619,7 +648,7 @@ describe("Site Settings caching", () => {
 		await db
 			.updateTable("options")
 			.set({ value: JSON.stringify("Second") })
-			.where("name", "=", "site:title")
+			.where("name", "=", "site:site-default:title")
 			.execute();
 
 		reset();
@@ -630,7 +659,9 @@ describe("Site Settings caching", () => {
 			expect(after.title).toBe("Second");
 		});
 
-		const prefixScans = queries.filter((q) => q.includes("LIKE") && q.includes("options"));
+		const prefixScans = queries.filter(
+			(q) => q.toLowerCase().includes("like") && q.includes("options"),
+		);
 		expect(prefixScans.length).toBe(1);
 	});
 });

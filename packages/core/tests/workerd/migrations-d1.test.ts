@@ -14,8 +14,9 @@ import {
 	getExactMigrationStatus,
 	runMigrations,
 } from "../../src/database/migrations/runner.js";
-import { OptionsRepository } from "../../src/database/repositories/options.js";
+import { SiteSettingsRepository } from "../../src/database/repositories/site-settings.js";
 import type { Database } from "../../src/database/types.js";
+import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { seedPreI18nSchema } from "../utils/pre-i18n-schema.js";
 import {
@@ -81,7 +82,9 @@ describe("core migrations on D1", () => {
 			label: "Starts at",
 			type: "datetime",
 		});
-		await new OptionsRepository(db).set("site:timezone", "Asia/Tokyo");
+		await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+			new SiteSettingsRepository(db).set("timezone", "Asia/Tokyo"),
+		);
 		await sql`
 			INSERT INTO ec_events (
 				id, slug, status, created_at, updated_at, version, locale, translation_group, starts_at
@@ -102,7 +105,9 @@ describe("core migrations on D1", () => {
 			})
 			.execute();
 
-		await normalizeDatetimeStorage(db);
+		await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+			normalizeDatetimeStorage(db),
+		);
 
 		const content = await sql<{ starts_at: string }>`
 			SELECT starts_at FROM ec_events WHERE id = 'event-1'
@@ -247,7 +252,7 @@ describe("040 byline rebuild on D1", () => {
 		// two auto-committed statements. When only the drop lands, a rerun
 		// finds no FKs to strip and skips the rebuild, leaving the credits in
 		// `_emdash_content_bylines_new`; 071 repairs that state.
-		await runMigrations(db);
+		await migrateThrough("096_editorial_site_ownership");
 		await sql`
 			INSERT INTO _emdash_content_bylines (collection_slug, content_id, byline_id, sort_order)
 			VALUES ('posts', 'p1', 'b1', 0)
@@ -267,6 +272,7 @@ describe("040 byline rebuild on D1", () => {
 		expect(await listIndexes(db, "_emdash_content_bylines")).toEqual([
 			"idx_content_bylines_byline",
 			"idx_content_bylines_content",
+			"idx_emdash_content_bylines_site_id",
 		]);
 		const credits = await sql<{ content_id: string }>`
 			SELECT content_id FROM _emdash_content_bylines

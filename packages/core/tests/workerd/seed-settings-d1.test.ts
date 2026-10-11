@@ -1,10 +1,11 @@
 import { env } from "cloudflare:test";
 import { Kysely } from "kysely";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it as test } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
-import { OptionsRepository } from "../../src/database/repositories/options.js";
+import { SiteSettingsRepository } from "../../src/database/repositories/site-settings.js";
 import type { Database } from "../../src/database/types.js";
+import { runWithContext } from "../../src/request-context.js";
 import { applySeed } from "../../src/seed/apply.js";
 import type { SeedFile } from "../../src/seed/types.js";
 import { resetD1Schema } from "./d1-schema.js";
@@ -26,6 +27,7 @@ beforeEach(async () => {
 	await db.schema
 		.createTable("options")
 		.addColumn("name", "text", (col) => col.primaryKey())
+		.addColumn("site_id", "text")
 		.addColumn("value", "text", (col) => col.notNull())
 		.addColumn("revision", "text")
 		.execute();
@@ -35,119 +37,75 @@ afterAll(async () => {
 	await db.destroy();
 });
 
+const it = (name: string, fn: () => Promise<void>) =>
+	test(name, () => runWithContext({ editMode: false, siteId: "site-default" }, fn));
+
+const seed = (settings: NonNullable<SeedFile["settings"]>): SeedFile => ({
+	version: "1",
+	settings,
+});
+
 describe("applySeed site settings on D1", () => {
 	it("skip mode creates missing settings and preserves existing ones", async () => {
-		const options = new OptionsRepository(db);
-		await options.set("site:title", "Admin Title");
-
-		const seed: SeedFile = {
-			version: "1",
-			settings: {
-				title: "Seed Title",
-				tagline: "A seeded tagline",
-			},
-		};
-
-		const result = await applySeed(db, seed);
-
+		const options = new SiteSettingsRepository(db);
+		await options.set("title", "Admin Title");
+		const result = await applySeed(db, seed({ title: "Seed Title", tagline: "A seeded tagline" }));
 		expect(result.settings.applied).toBe(1);
-		expect(await options.get("site:title")).toBe("Admin Title");
-		expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		expect(await options.get("title")).toBe("Admin Title");
+		expect(await options.get("tagline")).toBe("A seeded tagline");
 	});
 
 	it("keeps an inserted setting when a later key conflicts in skip mode", async () => {
-		const options = new OptionsRepository(db);
-		await options.set("site:title", "Admin Title");
-
-		const seed: SeedFile = {
-			version: "1",
-			settings: {
-				tagline: "A seeded tagline",
-				title: "Seed Title",
-			},
-		};
-
-		const result = await applySeed(db, seed);
-
+		const options = new SiteSettingsRepository(db);
+		await options.set("title", "Admin Title");
+		const result = await applySeed(db, seed({ tagline: "A seeded tagline", title: "Seed Title" }));
 		expect(result.settings.applied).toBe(1);
-		expect(await options.get("site:title")).toBe("Admin Title");
-		expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		expect(await options.get("title")).toBe("Admin Title");
+		expect(await options.get("tagline")).toBe("A seeded tagline");
 	});
 
-	it("preserves a concurrent admin write to site:title", async () => {
-		const options = new OptionsRepository(db);
-
-		const seed: SeedFile = {
-			version: "1",
-			settings: {
-				title: "Seed Title",
-				tagline: "A seeded tagline",
-			},
-		};
-
+	it("preserves a concurrent admin write to the same site's title", async () => {
+		const options = new SiteSettingsRepository(db);
 		const [, result] = await Promise.all([
-			options.set("site:title", "Admin Title"),
-			applySeed(db, seed),
+			options.set("title", "Admin Title"),
+			applySeed(db, seed({ title: "Seed Title", tagline: "A seeded tagline" })),
 		]);
-
 		expect(result.settings.applied).toBe(1);
-		expect(await options.get("site:title")).toBe("Admin Title");
-		expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		expect(await options.get("title")).toBe("Admin Title");
+		expect(await options.get("tagline")).toBe("A seeded tagline");
 	});
 
 	it("overwrites settings in update mode", async () => {
-		const options = new OptionsRepository(db);
-		await options.set("site:title", "Admin Title");
-
-		const seed: SeedFile = {
-			version: "1",
-			settings: {
-				title: "Seed Title",
-				tagline: "A seeded tagline",
-			},
-		};
-
-		const result = await applySeed(db, seed, { onConflict: "update" });
-
+		const options = new SiteSettingsRepository(db);
+		await options.set("title", "Admin Title");
+		const result = await applySeed(db, seed({ title: "Seed Title", tagline: "A seeded tagline" }), {
+			onConflict: "update",
+		});
 		expect(result.settings.applied).toBe(2);
-		expect(await options.get("site:title")).toBe("Seed Title");
-		expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		expect(await options.get("title")).toBe("Seed Title");
+		expect(await options.get("tagline")).toBe("A seeded tagline");
 	});
 
 	it("throws in error mode when a seeded setting already exists", async () => {
-		const options = new OptionsRepository(db);
-		await options.set("site:title", "Admin Title");
-
-		const seed: SeedFile = {
-			version: "1",
-			settings: {
-				title: "Seed Title",
-				tagline: "A seeded tagline",
-			},
-		};
-
-		await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
-			'Conflict: site setting "site:title" already exists',
-		);
-		expect(await options.get("site:tagline")).toBeNull();
+		const options = new SiteSettingsRepository(db);
+		await options.set("title", "Admin Title");
+		await expect(
+			applySeed(db, seed({ title: "Seed Title", tagline: "A seeded tagline" }), {
+				onConflict: "error",
+			}),
+		).rejects.toThrow('Conflict: site setting "site:title" already exists');
+		expect(await options.get("tagline")).toBeUndefined();
 	});
 
 	it("does not roll back earlier settings when error mode finds a later conflict", async () => {
-		const options = new OptionsRepository(db);
-		await options.set("site:title", "Admin Title");
-
-		const seed: SeedFile = {
-			version: "1",
-			settings: {
-				tagline: "A seeded tagline",
-				title: "Seed Title",
-			},
-		};
-
-		await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
-			'Conflict: site setting "site:title" already exists',
-		);
-		expect(await options.get("site:title")).toBe("Admin Title");
-		expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		const options = new SiteSettingsRepository(db);
+		await options.set("title", "Admin Title");
+		await expect(
+			applySeed(db, seed({ tagline: "A seeded tagline", title: "Seed Title" }), {
+				onConflict: "error",
+			}),
+		).rejects.toThrow('Conflict: site setting "site:title" already exists');
+		expect(await options.get("title")).toBe("Admin Title");
+		expect(await options.get("tagline")).toBe("A seeded tagline");
 	});
 });

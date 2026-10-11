@@ -7,7 +7,7 @@ import {
 	beforeEach,
 	describe,
 	expect,
-	it,
+	it as test,
 	onTestFinished,
 	vi,
 } from "vitest";
@@ -18,6 +18,7 @@ import { getSiteBaseUrl } from "../../../src/api/site-url.js";
 import { POST as postDomainProof } from "../../../src/astro/routes/api/site/domain-proof.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { setDefaultDnsResolver } from "../../../src/security/ssrf.js";
 import { getSiteSettingsWithDb, setSiteSettings } from "../../../src/settings/index.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -41,6 +42,9 @@ function serveSite(host: string, siteDb: Kysely<Database>) {
 		return postDomainProof({ locals: { emdash: { db: siteDb } } } as unknown as APIContext);
 	});
 }
+
+const it = (name: string, fn: () => Promise<void>) =>
+	test(name, () => runWithContext({ editMode: false, siteId: "site-default" }, fn));
 
 describe("changing the site domain", () => {
 	let db: Kysely<Database>;
@@ -102,7 +106,7 @@ describe("changing the site domain", () => {
 		expect((await getSiteSettingsWithDb(db)).url).toBeUndefined();
 	});
 
-	it.each([
+	test.each([
 		{
 			case: "a host without a public address",
 			arrange: () => {
@@ -195,7 +199,7 @@ describe("changing the site domain", () => {
 });
 
 describe("parseSiteDomain", () => {
-	it.each([
+	test.each([
 		["example.com", "https://example.com"],
 		["  Blog.Example.com ", "https://blog.example.com"],
 		["https://example.com/", "https://example.com"],
@@ -203,7 +207,7 @@ describe("parseSiteDomain", () => {
 		expect(parseSiteDomain(input)).toBe(origin);
 	});
 
-	it.each([
+	test.each([
 		"http://example.com",
 		"https://example.com/blog",
 		"example.com:8443",

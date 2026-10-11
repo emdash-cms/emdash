@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../../../src/database/types.js";
+import { runWithContext } from "../../../../src/request-context.js";
 import type { Storage } from "../../../../src/storage/types.js";
 import {
 	validateStagedPackageStep,
@@ -63,19 +64,21 @@ export async function driveExport(
 	let validation: ValidationStepResult | null = null;
 	do {
 		await options.beforeStep?.(steps);
-		result = await advanceExport({
-			db,
-			storage,
-			operationId,
-			defaultLocale: "en",
-			emdashVersion: "0.0.0-test",
-			budget: options.budget?.(),
-			validatePackage: async (input) => {
-				validation = await validateStagedPackageStep(input);
-				return validation;
-			},
-			...options.extra,
-		});
+		result = await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+			advanceExport({
+				db,
+				storage,
+				operationId,
+				defaultLocale: "en",
+				emdashVersion: "0.0.0-test",
+				budget: options.budget?.(),
+				validatePackage: async (input) => {
+					validation = await validateStagedPackageStep(input);
+					return validation;
+				},
+				...options.extra,
+			}),
+		);
 		steps++;
 		if (steps > (options.maxSteps ?? 10_000)) throw new Error("export did not finish");
 	} while (result.outcome === "advanced");

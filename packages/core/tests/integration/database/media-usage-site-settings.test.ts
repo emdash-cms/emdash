@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it as test } from "vitest";
 
 import {
 	handleMediaUsageDetails,
@@ -6,13 +6,14 @@ import {
 } from "../../../src/api/handlers/media-usage.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
-import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { SiteSettingsRepository } from "../../../src/database/repositories/site-settings.js";
 import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../../src/media/usage/content-refresh.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { CONTENT_SOURCE_SCHEMA_VERSION } from "../../../src/media/usage/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { setSiteSettings } from "../../../src/settings/index.js";
 import { SETTING_MEDIA_REFERENCE_PATHS } from "../../../src/transfer/format/settings.js";
 import {
@@ -21,6 +22,9 @@ import {
 	teardownForDialect,
 	type DialectTestContext,
 } from "../../utils/test-db.js";
+
+const it = (name: string, fn: () => Promise<void>) =>
+	test(name, () => runWithContext({ editMode: false, siteId: "site-default" }, fn));
 
 describeEachDialect("media usage from site settings", (dialect) => {
 	let ctx: DialectTestContext;
@@ -89,23 +93,23 @@ describeEachDialect("media usage from site settings", (dialect) => {
 	});
 
 	it("reads settings written directly to the options table", async () => {
-		await new OptionsRepository(ctx.db).set("site:favicon", { mediaId: favicon });
+		await new SiteSettingsRepository(ctx.db).set("favicon", { mediaId: favicon });
 
 		expect(await siteSettingsUsing(favicon)).toEqual([{ setting: "favicon" }]);
 	});
 
 	it("ignores settings values that do not hold a media reference", async () => {
-		const options = new OptionsRepository(ctx.db);
-		await options.set("site:logo", favicon);
-		await options.set("site:favicon", { mediaId: 42 });
-		await options.set("site:seo", { defaultOgImage: favicon });
+		const options = new SiteSettingsRepository(ctx.db);
+		await options.set("logo", favicon);
+		await options.set("favicon", { mediaId: 42 });
+		await options.set("seo", { defaultOgImage: favicon });
 
 		expect(await siteSettingsUsing(favicon)).toEqual([]);
 	});
 
 	it("reports every media reference the site transfer format declares", async () => {
 		const media = new MediaRepository(ctx.db);
-		const options = new OptionsRepository(ctx.db);
+		const options = new SiteSettingsRepository(ctx.db);
 		const referencedIds: string[] = [];
 		for (const [name, paths = []] of Object.entries(SETTING_MEDIA_REFERENCE_PATHS)) {
 			const value = {};
@@ -121,7 +125,7 @@ describeEachDialect("media usage from site settings", (dialect) => {
 					path.reduceRight<unknown>((inner, segment) => ({ [segment]: inner }), id),
 				);
 			}
-			await options.set(name, value);
+			await options.set(name.slice("site:".length), value);
 		}
 
 		const reported: string[] = [];

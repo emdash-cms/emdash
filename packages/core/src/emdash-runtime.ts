@@ -1701,20 +1701,28 @@ export class EmDashRuntime {
 		};
 
 		const readSiteInfo = async () => {
-			const siteOpts = await optionsRepo.getMany([
-				"emdash:site_title",
-				"site:url",
-				"emdash:site_url",
+			const siteId = getRequestContext()?.siteId;
+			const siteTitleKey = siteId ? `site:${siteId}:title` : undefined;
+			const siteUrlKey = siteId ? `site:${siteId}:url` : undefined;
+			const keys = [
 				"emdash:locale",
 				LOCALE_CASING_REPAIR_OPTION,
 				AUTO_SEED_COMPLETE_OPTION,
 				SETUP_COMPLETE_OPTION,
-			]);
-			const siteTitle = siteOpts.get("emdash:site_title");
+				...(siteTitleKey ? [siteTitleKey] : []),
+				...(siteUrlKey ? [siteUrlKey] : []),
+			];
+			const rows = await readDb
+				.selectFrom("options")
+				.select(["name", "value"])
+				.where("name", "in", keys)
+				.execute();
+			const siteOpts = new Map(rows.map((row) => [row.name, JSON.parse(row.value)]));
+			const siteTitle = siteTitleKey ? siteOpts.get(siteTitleKey) : undefined;
 			const siteUrl = resolveSiteOrigin(
 				deps.config,
-				siteOpts.get("site:url"),
-				siteOpts.get("emdash:site_url"),
+				siteUrlKey ? siteOpts.get(siteUrlKey) : undefined,
+				undefined,
 			);
 			const locale = siteOpts.get("emdash:locale");
 			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);

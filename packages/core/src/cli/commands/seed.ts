@@ -12,6 +12,7 @@ import consola from "consola";
 
 import { createDatabase } from "../../database/connection.js";
 import { runMigrations } from "../../database/migrations/runner.js";
+import { runWithContext } from "../../request-context.js";
 import { applySeed } from "../../seed/apply.js";
 import { claimExplicitSeedOwnership } from "../../seed/ownership.js";
 import type { SeedFile, SeedApplyOptions } from "../../seed/types.js";
@@ -87,6 +88,11 @@ export const seedCommand = defineCommand({
 		description: "Apply a seed file to the database",
 	},
 	args: {
+		"site-id": {
+			type: "string",
+			description: "Site ID to receive site-owned seed data",
+			required: true,
+		},
 		path: {
 			type: "positional",
 			description: "Path to seed file (default: .emdash/seed.json)",
@@ -238,7 +244,9 @@ export const seedCommand = defineCommand({
 		consola.start("Applying seed...");
 		try {
 			await claimExplicitSeedOwnership(db, seed);
-			const result = await applySeed(db, seed, options);
+			const result = await runWithContext({ editMode: false, siteId: args["site-id"] }, () =>
+				applySeed(db, seed, options),
+			);
 
 			consola.success("Seed applied successfully!");
 			consola.log("");

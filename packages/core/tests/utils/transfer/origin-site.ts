@@ -955,7 +955,11 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 		})
 		.execute();
 
-	const option = (name: string, value: unknown) => ({ name, value: JSON.stringify(value) });
+	const option = (name: string, value: unknown) => ({
+		name: name.startsWith("site:") ? `site:site-default:${name.slice(5)}` : name,
+		site_id: name.startsWith("site:") ? "site-default" : null,
+		value: JSON.stringify(value),
+	});
 	await raw
 		.insertInto("options")
 		.values(

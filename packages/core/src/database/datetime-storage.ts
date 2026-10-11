@@ -6,6 +6,7 @@ import {
 	normalizeDatetime,
 	type DatetimeFieldDescriptor,
 } from "../datetime-normalization.js";
+import { getRequestContext } from "../request-context.js";
 import type { Database } from "./types.js";
 import { validateIdentifier } from "./validate.js";
 
@@ -98,10 +99,11 @@ function parseRepeaterDatetimeFields(validation: string | null): string[] {
 }
 
 async function loadSiteTimezone(db: Kysely<Database>): Promise<string> {
+	const siteId = getRequestContext()?.siteId;
 	const row = await db
 		.selectFrom("options")
 		.select("value")
-		.where("name", "=", "site:timezone")
+		.where("name", "=", siteId ? `site:${siteId}:timezone` : "site:timezone")
 		.executeTakeFirst();
 	if (!row) return "UTC";
 	try {

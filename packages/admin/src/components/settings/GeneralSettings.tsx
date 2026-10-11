@@ -59,7 +59,7 @@ function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 		favicon: settings.favicon ?? null,
 		postsPerPage: settings.postsPerPage ?? 10,
 		dateFormat: settings.dateFormat ?? "MMMM d, yyyy",
-		timezone: settings.timezone ?? "UTC",
+		timezone: settings.timezone ?? "Europe/Athens",
 	});
 }
 
@@ -172,7 +172,7 @@ export function GeneralSettings() {
 
 	const pattern = formData.dateFormat ?? "MMMM d, yyyy";
 	const preview = datePreview(pattern, dateLocale);
-	const timezone = formData.timezone ?? "UTC";
+	const timezone = formData.timezone ?? "Europe/Athens";
 	const recognizedTimezone = isValidTimezone(timezone);
 	const savedTimezoneUnchanged = timezone === savedFormData.timezone;
 	const canSaveTimezone = recognizedTimezone || savedTimezoneUnchanged;

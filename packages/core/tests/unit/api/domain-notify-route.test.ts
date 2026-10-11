@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { POST } from "../../../src/astro/routes/api/settings/domain-notify.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { SiteSettingsRepository } from "../../../src/database/repositories/site-settings.js";
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("domain move notice route", () => {
@@ -35,9 +37,11 @@ describe("domain move notice route", () => {
 		});
 		await db.updateTable("users").set({ disabled: 1 }).where("id", "=", disabled.id).execute();
 
-		const options = new OptionsRepository(db);
-		await options.set("site:url", "https://new.example");
-		await options.set("emdash:site_title", "Field Notes");
+		await runWithContext({ editMode: false, siteId: "site-default" }, async () => {
+			const settings = new SiteSettingsRepository(db);
+			await settings.set("url", "https://new.example");
+			await settings.set("title", "Field Notes");
+		});
 		sent = [];
 	});
 
@@ -52,6 +56,7 @@ describe("domain move notice route", () => {
 			failFor?: string;
 			config?: Record<string, unknown>;
 			tokenScopes?: string[];
+			siteId?: string;
 		} = {},
 	) {
 		const email = {
@@ -61,16 +66,18 @@ describe("domain move notice route", () => {
 				sent.push(message);
 			},
 		};
-		return POST({
-			request: new Request("https://old.workers.dev/_emdash/api/settings/domain/notify", {
-				method: "POST",
-			}),
-			locals: {
-				emdash: { db, config: overrides.config ?? {}, email },
-				user: "user" in overrides ? overrides.user : admin,
-				tokenScopes: overrides.tokenScopes,
-			},
-		} as unknown as Parameters<typeof POST>[0]);
+		return runWithContext({ editMode: false, siteId: overrides.siteId ?? "site-default" }, () =>
+			POST({
+				request: new Request("https://old.workers.dev/_emdash/api/settings/domain/notify", {
+					method: "POST",
+				}),
+				locals: {
+					emdash: { db, config: overrides.config ?? {}, email },
+					user: "user" in overrides ? overrides.user : admin,
+					tokenScopes: overrides.tokenScopes,
+				},
+			} as unknown as Parameters<typeof POST>[0]),
+		);
 	}
 
 	it("emails every other active user a link to sign in at the new address", async () => {
@@ -85,10 +92,24 @@ describe("domain move notice route", () => {
 	});
 
 	it("escapes the site title in the email", async () => {
-		await new OptionsRepository(db).set("emdash:site_title", "<b>Notes</b>");
+		await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+			new SiteSettingsRepository(db).set("title", "<b>Notes</b>"),
+		);
 		await notify();
 		expect(sent[0]!.html).toContain("&lt;b&gt;Notes&lt;/b&gt;");
 		expect(sent[0]!.html).not.toContain("<b>Notes</b>");
+	});
+
+	it("uses the selected site's title, not the installation-wide legacy title", async () => {
+		await new OptionsRepository(db).set("emdash:site_title", "Legacy title");
+		await runWithContext({ editMode: false, siteId: "bar" }, async () => {
+			const settings = new SiteSettingsRepository(db);
+			await settings.set("url", "https://bar.example");
+			await settings.set("title", "Bar title");
+		});
+		const response = await notify({ siteId: "bar" });
+		expect(response.status).toBe(200);
+		expect(sent[0]?.subject).toBe("Bar title has moved to bar.example");
 	});
 
 	it("counts emails the provider rejects and keeps sending", async () => {
@@ -111,7 +132,9 @@ describe("domain move notice route", () => {
 	});
 
 	it("needs a Site URL", async () => {
-		await new OptionsRepository(db).delete("site:url");
+		await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+			new SiteSettingsRepository(db).delete("url"),
+		);
 		const response = await notify();
 		expect(response.status).toBe(409);
 		await expect(response.json()).resolves.toMatchObject({ error: { code: "NO_SITE_URL" } });

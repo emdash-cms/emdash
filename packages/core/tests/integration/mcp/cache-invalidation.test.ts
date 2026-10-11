@@ -10,10 +10,11 @@
 import { Role } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it as test, vi } from "vitest";
 
 import { menuTag, siteSettingsTag, taxonomyTag } from "../../../src/cache/chrome-tags.js";
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	connectMcpHarness,
@@ -36,6 +37,9 @@ function createCache(enabled = true) {
 function invalidatedTags(invalidate: ReturnType<typeof vi.fn>): string[][] {
 	return invalidate.mock.calls.map(([options]) => (options as { tags: string[] }).tags);
 }
+
+const it = (name: string, fn: () => Promise<void>) =>
+	test(name, () => runWithContext({ editMode: false, siteId: "site-default" }, fn));
 
 describe("MCP write tools invalidate the route cache", () => {
 	let db: Kysely<Database>;

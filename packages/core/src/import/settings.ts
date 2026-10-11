@@ -8,13 +8,12 @@
 
 import type { Kysely } from "kysely";
 
-import { OptionsRepository } from "../database/repositories/options.js";
+import { SiteSettingsRepository } from "../database/repositories/site-settings.js";
 import type { Database } from "../database/types.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { SiteSettings } from "../settings/types.js";
 
 /** Options key prefix used by the site settings module (`settings/index.ts`). */
-const SETTINGS_PREFIX = "site:";
 
 /**
  * Site settings analysis from import source
@@ -95,14 +94,14 @@ export async function importSiteSettings(
 		return result;
 	}
 
-	const options = new OptionsRepository(db);
+	const options = new SiteSettingsRepository(db);
 	try {
 		for (const { setting, value } of updates) {
 			try {
-				const key = `${SETTINGS_PREFIX}${setting}`;
+				const key = setting;
 				if (!overwrite) {
 					const existing = await options.get(key);
-					if (existing !== null) {
+					if (existing !== undefined) {
 						result.skipped.push(setting);
 						continue;
 					}

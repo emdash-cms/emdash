@@ -9,16 +9,17 @@ import type {
 	UnknownRow,
 } from "kysely";
 import { SqliteQueryCompiler, sql } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it as test, expect, beforeEach, afterEach } from "vitest";
 
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
-import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { RelationRepository } from "../../../src/database/repositories/relation.js";
+import { SiteSettingsRepository } from "../../../src/database/repositories/site-settings.js";
 import { selectTaxonomyDefs } from "../../../src/database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
@@ -50,6 +51,9 @@ class SqlRecordingPlugin implements KyselyPlugin {
 		return Promise.resolve(args.result);
 	}
 }
+
+const it = (name: string, fn: () => void | Promise<void>) =>
+	test(name, () => runWithContext({ editMode: false, siteId: "site-default" }, fn));
 
 describe("applySeed", () => {
 	let db: Kysely<Database>;
@@ -97,15 +101,15 @@ describe("applySeed", () => {
 			const row = await db
 				.selectFrom("options")
 				.selectAll()
-				.where("name", "=", "site:title")
+				.where("name", "=", "site:site-default:title")
 				.executeTakeFirst();
 
 			expect(row?.value).toBe('"Test Site"');
 		});
 
 		it("should skip existing settings and create missing ones in skip mode", async () => {
-			const options = new OptionsRepository(db);
-			await options.set("site:title", "Admin Title");
+			const options = new SiteSettingsRepository(db);
+			await options.set("title", "Admin Title");
 
 			const seed: SeedFile = {
 				version: "1",
@@ -118,13 +122,13 @@ describe("applySeed", () => {
 			const result = await applySeed(db, seed);
 
 			expect(result.settings.applied).toBe(1);
-			expect(await options.get("site:title")).toBe("Admin Title");
-			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+			expect(await options.get("title")).toBe("Admin Title");
+			expect(await options.get("tagline")).toBe("A seeded tagline");
 		});
 
 		it("should apply each setting independently when a later key conflicts", async () => {
-			const options = new OptionsRepository(db);
-			await options.set("site:title", "Admin Title");
+			const options = new SiteSettingsRepository(db);
+			await options.set("title", "Admin Title");
 
 			const seed: SeedFile = {
 				version: "1",
@@ -137,13 +141,13 @@ describe("applySeed", () => {
 			const result = await applySeed(db, seed);
 
 			expect(result.settings.applied).toBe(1);
-			expect(await options.get("site:title")).toBe("Admin Title");
-			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+			expect(await options.get("title")).toBe("Admin Title");
+			expect(await options.get("tagline")).toBe("A seeded tagline");
 		});
 
 		it("should overwrite settings in update mode", async () => {
-			const options = new OptionsRepository(db);
-			await options.set("site:title", "Admin Title");
+			const options = new SiteSettingsRepository(db);
+			await options.set("title", "Admin Title");
 
 			const seed: SeedFile = {
 				version: "1",
@@ -156,13 +160,13 @@ describe("applySeed", () => {
 			const result = await applySeed(db, seed, { onConflict: "update" });
 
 			expect(result.settings.applied).toBe(2);
-			expect(await options.get("site:title")).toBe("Seed Title");
-			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+			expect(await options.get("title")).toBe("Seed Title");
+			expect(await options.get("tagline")).toBe("A seeded tagline");
 		});
 
 		it("should throw in error mode when a seeded setting already exists", async () => {
-			const options = new OptionsRepository(db);
-			await options.set("site:title", "Admin Title");
+			const options = new SiteSettingsRepository(db);
+			await options.set("title", "Admin Title");
 
 			const seed: SeedFile = {
 				version: "1",
@@ -1772,8 +1776,9 @@ describe("applySeed", () => {
 					await teardownTestDatabase(target);
 				}
 				return {
-					timezone: recorder.queries.filter((query) => query.parameters.includes("site:timezone"))
-						.length,
+					timezone: recorder.queries.filter((query) =>
+						query.parameters.includes("site:site-default:timezone"),
+					).length,
 					fields: recorder.queries.filter((query) => query.sql.includes('from "_emdash_fields"'))
 						.length,
 				};
@@ -2421,30 +2426,33 @@ describe("applySeed", () => {
 		});
 	});
 
-	it.each(["skip", "update"] as const)(
+	test.each(["skip", "update"] as const)(
 		"honors %s for trashed slugless seed IDs",
-		async (onConflict) => {
-			const seed: SeedFile = {
-				version: "1",
-				collections: [
-					{
-						slug: "blocks",
-						label: "Blocks",
-						routable: false,
-						fields: [{ slug: "title", type: "string", label: "Title" }],
-					},
-				],
-				content: { blocks: [{ id: "hero", data: { title: "Original" } }] },
-			};
-			await applySeed(db, seed, { includeContent: true });
-			const repo = new ContentRepository(db);
-			await repo.delete("blocks", "hero");
-			seed.content!.blocks![0]!.data.title = "Replacement";
-			const apply = applySeed(db, seed, { includeContent: true, onConflict });
-			expect((await apply).content).toEqual({ created: 0, skipped: 1, updated: 0 });
-			expect(await repo.findById("blocks", "hero")).toBeNull();
-			expect((await repo.findByIdIncludingTrashed("blocks", "hero"))?.data.title).toBe("Original");
-		},
+		async (onConflict) =>
+			runWithContext({ editMode: false, siteId: "site-default" }, async () => {
+				const seed: SeedFile = {
+					version: "1",
+					collections: [
+						{
+							slug: "blocks",
+							label: "Blocks",
+							routable: false,
+							fields: [{ slug: "title", type: "string", label: "Title" }],
+						},
+					],
+					content: { blocks: [{ id: "hero", data: { title: "Original" } }] },
+				};
+				await applySeed(db, seed, { includeContent: true });
+				const repo = new ContentRepository(db);
+				await repo.delete("blocks", "hero");
+				seed.content!.blocks![0]!.data.title = "Replacement";
+				const apply = applySeed(db, seed, { includeContent: true, onConflict });
+				expect((await apply).content).toEqual({ created: 0, skipped: 1, updated: 0 });
+				expect(await repo.findById("blocks", "hero")).toBeNull();
+				expect((await repo.findByIdIncludingTrashed("blocks", "hero"))?.data.title).toBe(
+					"Original",
+				);
+			}),
 	);
 
 	describe("content conflicts with trashed entries", () => {

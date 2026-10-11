@@ -21,6 +21,7 @@ import { resolveEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { inviteCreateBody } from "#api/schemas.js";
+import { getSiteDisplayName } from "#api/site-display-name.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -46,8 +47,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Get site config for invite email
 		const options = new OptionsRepository(emdash.db);
-		const siteOptions = await options.getMany<string>(["emdash:site_title", "emdash:locale"]);
-		const siteName = siteOptions.get("emdash:site_title") || "EmDash";
+		const siteOptions = await options.getMany<string>(["emdash:locale"]);
+		const siteName = await getSiteDisplayName(emdash.db);
 
 		// Use the configured site URL (stored option as fallback) to prevent Host header spoofing in invite emails
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);

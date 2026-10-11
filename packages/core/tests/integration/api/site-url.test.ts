@@ -1,24 +1,17 @@
-/**
- * getSiteBaseUrl precedence: configured origin → Site URL setting → stored
- * setup origin → request URL. The configured origin is what `siteUrl` in the
- * integration options resolves to; the Site URL setting (`site:url`) is set
- * by an admin; the stored `emdash:site_url` option is written once during
- * setup; the request URL only fills in before setup completes and must never
- * override any of the others (Host-spoofing lock).
- */
-
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { getPublicOrigin } from "../../../src/api/public-url.js";
 import { getSiteBaseUrl } from "../../../src/api/site-url.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { SiteSettingsRepository } from "../../../src/database/repositories/site-settings.js";
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-const SETUP_ORIGIN = "https://my-site.workers.dev";
-const REAL_ORIGIN = "https://real.example";
-const REQUEST_URL = `${REAL_ORIGIN}/_emdash/api/auth/magic-link/send`;
+const REQUEST_URL = "https://real.example/_emdash/api/auth/magic-link/send";
+const asSite = <T>(siteId: string, fn: () => T): T =>
+	runWithContext({ editMode: false, siteId }, fn);
 
 describe("getSiteBaseUrl", () => {
 	let db: Kysely<Database>;
@@ -31,93 +24,51 @@ describe("getSiteBaseUrl", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("configured siteUrl beats the stored setup origin", async () => {
-		// Setup ran on a throwaway origin; the operator has since configured
-		// the real one. Email links must follow the config, like every other
-		// origin-dependent feature does via getPublicOrigin.
-		await new OptionsRepository(db).set("emdash:site_url", SETUP_ORIGIN);
-		const config = { siteUrl: REAL_ORIGIN };
+	it("uses each site's stored URL even when the request host names another site", async () => {
+		await asSite("foo", () => new SiteSettingsRepository(db).set("url", "https://foo.example"));
+		await asSite("bar", () => new SiteSettingsRepository(db).set("url", "https://bar.example"));
 		const request = new Request(REQUEST_URL, { method: "POST" });
-
-		expect(getPublicOrigin(new URL(request.url), config)).toBe(REAL_ORIGIN);
-		expect(await getSiteBaseUrl(db, request, config)).toBe(`${REAL_ORIGIN}/_emdash`);
-	});
-
-	it("falls back to the stored setup origin when nothing is configured", async () => {
-		await new OptionsRepository(db).set("emdash:site_url", SETUP_ORIGIN);
-		const request = new Request(REQUEST_URL, { method: "POST" });
-
-		expect(await getSiteBaseUrl(db, request)).toBe(`${SETUP_ORIGIN}/_emdash`);
-	});
-
-	it("stored origin is not overridden by the request host", async () => {
-		// The Host-spoofing lock: a stored value always beats the request.
-		await new OptionsRepository(db).set("emdash:site_url", SETUP_ORIGIN);
-		const spoofed = new Request("https://attacker.example/_emdash/api/auth/magic-link/send", {
-			method: "POST",
-		});
-
-		expect(await getSiteBaseUrl(db, spoofed)).toBe(`${SETUP_ORIGIN}/_emdash`);
-	});
-
-	it("uses the Site URL setting after the site moved off its setup origin", async () => {
-		const options = new OptionsRepository(db);
-		await options.set("emdash:site_url", SETUP_ORIGIN);
-		await options.set("site:url", `${REAL_ORIGIN}/`);
-		const request = new Request(`${SETUP_ORIGIN}/_emdash/api/auth/magic-link/send`, {
-			method: "POST",
-		});
-
-		expect(await getSiteBaseUrl(db, request)).toBe(`${REAL_ORIGIN}/_emdash`);
-	});
-
-	it("configured siteUrl beats the Site URL setting", async () => {
-		await new OptionsRepository(db).set("site:url", "https://setting.example");
-		const request = new Request(REQUEST_URL, { method: "POST" });
-
-		expect(await getSiteBaseUrl(db, request, { siteUrl: REAL_ORIGIN })).toBe(
-			`${REAL_ORIGIN}/_emdash`,
+		expect(await asSite("foo", () => getSiteBaseUrl(db, request))).toBe(
+			"https://foo.example/_emdash",
+		);
+		expect(await asSite("bar", () => getSiteBaseUrl(db, request))).toBe(
+			"https://bar.example/_emdash",
 		);
 	});
 
-	it("ignores an empty Site URL setting", async () => {
-		const options = new OptionsRepository(db);
-		await options.set("emdash:site_url", SETUP_ORIGIN);
-		await options.set("site:url", "");
+	it("uses the configured origin ahead of the site's stored URL", async () => {
+		await asSite("foo", () => new SiteSettingsRepository(db).set("url", "https://foo.example"));
 		const request = new Request(REQUEST_URL, { method: "POST" });
-
-		expect(await getSiteBaseUrl(db, request)).toBe(`${SETUP_ORIGIN}/_emdash`);
+		const config = { siteUrl: "https://configured.example" };
+		expect(getPublicOrigin(new URL(request.url), config)).toBe("https://configured.example");
+		expect(await asSite("foo", () => getSiteBaseUrl(db, request, config))).toBe(
+			"https://configured.example/_emdash",
+		);
 	});
 
-	it("drops a path from the Site URL setting", async () => {
-		await new OptionsRepository(db).set("site:url", `${REAL_ORIGIN}/blog/`);
+	it("does not use the legacy setup URL as public identity", async () => {
+		await new OptionsRepository(db).set("emdash:site_url", "https://old.example");
 		const request = new Request(REQUEST_URL, { method: "POST" });
-
-		expect(await getSiteBaseUrl(db, request)).toBe(`${REAL_ORIGIN}/_emdash`);
+		expect(await asSite("foo", () => getSiteBaseUrl(db, request))).toBe(
+			"https://real.example/_emdash",
+		);
 	});
 
-	it.each(["ftp://real.example", "http://real.example"])(
-		"falls back to the setup origin for a Site URL of %s",
-		async (siteUrl) => {
-			const options = new OptionsRepository(db);
-			await options.set("emdash:site_url", SETUP_ORIGIN);
-			await options.set("site:url", siteUrl);
-			const request = new Request(REQUEST_URL, { method: "POST" });
-
-			expect(await getSiteBaseUrl(db, request)).toBe(`${SETUP_ORIGIN}/_emdash`);
-		},
-	);
-
-	it("accepts a plain HTTP Site URL on a loopback host", async () => {
-		await new OptionsRepository(db).set("site:url", "http://localhost:4321");
-		const request = new Request(REQUEST_URL, { method: "POST" });
-
-		expect(await getSiteBaseUrl(db, request)).toBe("http://localhost:4321/_emdash");
+	it("rejects an unselected site even when a configured origin is available", async () => {
+		await expect(
+			getSiteBaseUrl(db, new Request(REQUEST_URL), { siteUrl: "https://foo.example" }),
+		).rejects.toThrow("server-selected site");
 	});
 
-	it("derives from the request only before setup has stored an origin", async () => {
-		const request = new Request(REQUEST_URL, { method: "POST" });
-
-		expect(await getSiteBaseUrl(db, request)).toBe(`${REAL_ORIGIN}/_emdash`);
+	it("rejects invalid stored origins and accepts HTTP only for loopback", async () => {
+		const request = new Request(REQUEST_URL);
+		await asSite("foo", () => new SiteSettingsRepository(db).set("url", "ftp://foo.example"));
+		expect(await asSite("foo", () => getSiteBaseUrl(db, request))).toBe(
+			"https://real.example/_emdash",
+		);
+		await asSite("foo", () => new SiteSettingsRepository(db).set("url", "http://localhost:4321"));
+		expect(await asSite("foo", () => getSiteBaseUrl(db, request))).toBe(
+			"http://localhost:4321/_emdash",
+		);
 	});
 });

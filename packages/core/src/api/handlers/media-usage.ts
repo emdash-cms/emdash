@@ -6,6 +6,7 @@ import {
 	type MediaUsageEntryGroup,
 } from "../../database/repositories/media-usage.js";
 import { MediaRepository } from "../../database/repositories/media.js";
+import { selectedSiteId } from "../../database/repositories/site-settings.js";
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import {
@@ -352,19 +353,29 @@ async function loadMediaUsageCoverage(repository: MediaUsageRepository): Promise
 	coverage: MediaUsageCoverage;
 	siteSettings: Map<string, MediaUsageSiteSetting[]>;
 }> {
+	const siteId = selectedSiteId();
+	const siteOptionNames = MEDIA_USAGE_SITE_SETTING_OPTIONS.map(
+		(name) => `site:${siteId}:${name.slice("site:".length)}`,
+	);
 	const { scopes, options } = await repository.findCoverageWithOptions(
 		{
 			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
 			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 		},
-		MEDIA_USAGE_SITE_SETTING_OPTIONS,
+		siteOptionNames,
+	);
+	const siteOptions = new Map(
+		MEDIA_USAGE_SITE_SETTING_OPTIONS.map((name, index) => [
+			name,
+			options.get(siteOptionNames[index]) ?? null,
+		]),
 	);
 	return {
 		coverage: {
 			scope: "all_content_collections",
 			status: aggregateMediaUsageCoverageStatus(scopes),
 		},
-		siteSettings: groupSiteSettingMediaUsage(options),
+		siteSettings: groupSiteSettingMediaUsage(siteOptions),
 	};
 }
 

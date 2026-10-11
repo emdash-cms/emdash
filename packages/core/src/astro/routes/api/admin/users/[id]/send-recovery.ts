@@ -13,6 +13,7 @@ import type { APIRoute } from "astro";
 
 import { resolveEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { getSiteDisplayName } from "#api/site-display-name.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -56,8 +57,8 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 		// Build config using the configured site URL, stored option as fallback (not request Host header)
 		const options = new OptionsRepository(emdash.db);
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
-		const siteOptions = await options.getMany<string>(["emdash:site_title", "emdash:locale"]);
-		const siteName = siteOptions.get("emdash:site_title") ?? "EmDash";
+		const siteOptions = await options.getMany<string>(["emdash:locale"]);
+		const siteName = await getSiteDisplayName(emdash.db);
 
 		// Localized copy following the site locale; the locale also
 		// drives lang/dir on the email HTML so RTL copy renders correctly.

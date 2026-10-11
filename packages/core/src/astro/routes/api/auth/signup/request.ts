@@ -17,10 +17,10 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { signupRequestBody } from "#api/schemas.js";
+import { getSiteDisplayName } from "#api/site-display-name.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
-import { OptionsRepository } from "#db/repositories/options.js";
 
 // Generic response body used for both the real success path and the
 // rate-limited / domain-disallowed paths. Keeping them identical prevents
@@ -65,8 +65,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const adapter = createKyselyAdapter(emdash.db);
 
 		// Get site config for signup email
-		const options = new OptionsRepository(emdash.db);
-		const siteName = (await options.get<string>("emdash:site_title")) || "EmDash";
+		const siteName = await getSiteDisplayName(emdash.db);
 
 		// Use the configured site URL (stored option as fallback) to prevent Host header spoofing in signup emails
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);

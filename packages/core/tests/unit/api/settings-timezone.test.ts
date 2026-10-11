@@ -1,10 +1,14 @@
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it as test } from "vitest";
 
 import { handleSettingsUpdate } from "../../../src/api/handlers/settings.js";
 import type { Database } from "../../../src/database/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { getSiteSettingsWithDb, setSiteSettings } from "../../../src/settings/index.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+const it = (name: string, fn: () => Promise<void>) =>
+	test(name, () => runWithContext({ editMode: false, siteId: "site-default" }, fn));
 
 describe("handleSettingsUpdate timezone", () => {
 	let db: Kysely<Database>;

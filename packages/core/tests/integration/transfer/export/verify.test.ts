@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { runWithContext } from "../../../../src/request-context.js";
 import type { ExportPackageReader } from "../../../../src/transfer/export/exporter.js";
 import {
 	verifyImportStep,
@@ -85,15 +86,17 @@ describeEachDialect("import verification against the origin", (dialect) => {
 		let cursor: unknown = null;
 		let steps = 0;
 		for (;;) {
-			const result = await verifyImportStep({
-				db: ctx.db,
-				storage,
-				operationId,
-				reader,
-				plan,
-				cursor,
-				budget: budget(),
-			});
+			const result = await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+				verifyImportStep({
+					db: ctx.db,
+					storage,
+					operationId,
+					reader,
+					plan,
+					cursor,
+					budget: budget(),
+				}),
+			);
 			steps++;
 			if (result.done) return { result: result as Done, steps };
 			cursor = JSON.parse(JSON.stringify(result.cursor));
@@ -261,15 +264,17 @@ describeEachDialect("import verification against the origin", (dialect) => {
 		};
 		let cursor: unknown = null;
 		for (;;) {
-			const result = await verifyImportStep({
-				db: ctx.db,
-				storage,
-				operationId,
-				reader,
-				plan,
-				cursor,
-				budget: new TransferStepBudget({ bytes: 12 }),
-			});
+			const result = await runWithContext({ editMode: false, siteId: "site-default" }, () =>
+				verifyImportStep({
+					db: ctx.db,
+					storage,
+					operationId,
+					reader,
+					plan,
+					cursor,
+					budget: new TransferStepBudget({ bytes: 12 }),
+				}),
+			);
 			perStep.push(current);
 			current = [];
 			if (result.done) {

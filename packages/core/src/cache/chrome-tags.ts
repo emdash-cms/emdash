@@ -5,10 +5,14 @@
  * admin write routes (cache.invalidate), closing the Workers edge cache loop.
  */
 
+import { getRequestContext } from "../request-context.js";
+
 const PREFIX = "emdash";
 
 export function siteSettingsTag(): string {
-	return `${PREFIX}:settings`;
+	const siteId = getRequestContext()?.siteId;
+	if (!siteId) throw new Error("A server-selected site is required for site settings");
+	return `${PREFIX}:settings:${siteId}`;
 }
 
 export function menuTag(name: string): string {

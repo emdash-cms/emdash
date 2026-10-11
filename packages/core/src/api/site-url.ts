@@ -2,16 +2,14 @@
  * Resolve the canonical site base URL for use in outbound links (emails, etc.).
  *
  * Precedence: the operator-configured origin (`config.siteUrl`, then the
- * `EMDASH_SITE_URL`/`SITE_URL` env vars), then the **Site URL** an admin set
- * in Settings > General (`site:url`, origin only), then the `emdash:site_url` option
- * written once during setup, and only before setup completes the request URL.
- * A configured or stored value always beats the request, so Host header
- * spoofing cannot redirect users to attacker-controlled domains.
+ * `EMDASH_SITE_URL`/`SITE_URL` env vars), then the selected site's **Site URL**
+ * setting, then the request URL. A configured or stored value beats the
+ * request, so Host header spoofing cannot override it.
  */
 
 import type { Kysely } from "kysely";
 
-import { OptionsRepository } from "../database/repositories/options.js";
+import { SiteSettingsRepository, selectedSiteId } from "../database/repositories/site-settings.js";
 import type { Database } from "../database/types.js";
 import { getConfiguredOrigin, type SiteUrlConfig } from "./public-url.js";
 
@@ -27,9 +25,8 @@ function siteUrlSettingOrigin(value: unknown): string | undefined {
 }
 
 /**
- * The site's public origin for outbound links, in the precedence order
- * described above. `siteUrlSetting` and `setupUrl` are the stored
- * `site:url` and `emdash:site_url` option values.
+ * Resolve an origin from explicit configuration and stored values.
+ * `setupUrl` is retained for callers that resolve legacy setup data.
  */
 export function resolveSiteOrigin(
 	config: SiteUrlConfig | undefined,
@@ -44,17 +41,16 @@ export function resolveSiteOrigin(
 }
 
 /**
- * The origin chosen for the site: the configured origin, then the **Site URL**.
- * Unlike `getSiteBaseUrl`, it never falls back to the origin recorded during
- * setup, which may be an address the site has since moved away from.
+ * The origin chosen for the selected site: the configured origin, then its **Site URL**.
  */
 export async function getChosenSiteOrigin(
 	db: Kysely<Database>,
 	config?: SiteUrlConfig,
 ): Promise<string | undefined> {
+	selectedSiteId();
 	return (
 		getConfiguredOrigin(config) ??
-		siteUrlSettingOrigin(await new OptionsRepository(db).get("site:url"))
+		siteUrlSettingOrigin(await new SiteSettingsRepository(db).get("url"))
 	);
 }
 
@@ -63,21 +59,20 @@ export async function getSiteBaseUrl(
 	request: Request,
 	config?: SiteUrlConfig,
 ): Promise<string> {
+	selectedSiteId();
 	const configured = getConfiguredOrigin(config);
 	if (configured) {
 		return `${configured}/_emdash`;
 	}
-	const options = new OptionsRepository(db);
-	const stored = await options.getMany(["site:url", "emdash:site_url"]);
 	const storedUrl = resolveSiteOrigin(
 		config,
-		stored.get("site:url"),
-		stored.get("emdash:site_url"),
+		await new SiteSettingsRepository(db).get("url"),
+		undefined,
 	);
 	if (storedUrl) {
 		return `${storedUrl}/_emdash`;
 	}
-	// Fallback: derive from request (only reached before setup completes)
+	// The host must resolve this request before the URL can be used.
 	const url = new URL(request.url);
 	return `${url.protocol}//${url.host}/_emdash`;
 }
