@@ -34,13 +34,13 @@ The listing use case was also raised in Discussion #410. This RFC addresses it t
 
 ```ts
 const { entries } = await getEmDashCollection("routes", {
-  limit: 24,
-  references: { region: true, related_runs: { limit: 3 } },
+	limit: 24,
+	references: { region: true, related_runs: { limit: 3 } },
 });
 
 for (const route of entries) {
-  const region = route.references?.region?.entries[0];
-  const runs = route.references?.related_runs?.entries; // at most 3 per route, in the editor's order
+	const region = route.references?.region?.entries[0];
+	const runs = route.references?.related_runs?.entries; // at most 3 per route, in the editor's order
 }
 ```
 
@@ -64,6 +64,7 @@ for (const route of entries) {
 **Selection.** The rules are exactly those of the single-entry resolver (`references/resolve.ts`). A selected field that is unknown, not relation-bound, or mapped to `undefined` is omitted from the result. A valid selected field with no links gets an empty page. An entry without a translation group has no `references` property.
 
 **Both relation directions.** The existing resolver supports parent-side and child-side fields:
+
 - For parent-side fields, links are partitioned by `parent_group` and ordered by `(sort_order, id)`.
 - For child-side fields, links are partitioned by `child_group` and ordered by `id` (reverse order is not editor-defined).
 
@@ -72,6 +73,7 @@ Both are always scoped to the field's bound relation.
 **Batched link pages.** For each selected field, link pages for every entry on the page are read with `ROW_NUMBER() OVER (PARTITION BY <side> ORDER BY …)`. Each entry gets up to `limit + 1` rows, so `nextCursor` is computed exactly as today. The public target loader already uses this window form on every supported database (`loader.ts`). Parent groups are batched with the existing `chunks(…, SQL_BATCH_SIZE)` helper, which is 50 per batch. That leaves parameter room for the relation, cursor, locale and limit predicates under D1's 100-parameter limit.
 
 **Cursors.** The existing formats are preserved:
+
 - forward `(String(sortOrder), edgeId)`;
 - reverse `(edgeId, edgeId)`;
 - staged `("staged", targetGroup)`.
@@ -79,6 +81,7 @@ Both are always scoped to the field's bound relation.
 A cursor from a listing therefore continues correctly in `getEmDashReferences`, including the transition between a staged and a published selection. As today, pagination is computed before invisible targets are dropped, so a short or empty page can still carry `nextCursor`.
 
 **Targets.** Target groups are de-duplicated across all selected fields and entries, then loaded through `loadEntriesByGroups`, once per target collection and locale/visibility context. This is the loader `getEmDashEntry`'s references use. It applies the existing behaviour:
+
 - locale fallback: the parent's fallback chain, then the lowest available locale;
 - row normalization;
 - deleted rows excluded, and published-only targets on public reads;
@@ -87,12 +90,14 @@ A cursor from a listing therefore continues correctly in `getEmDashReferences`, 
 Targets stay unhydrated for bylines and taxonomy terms, as they are today.
 
 **Drafts and preview.** Since 1.2 (#3802), a collection read in edit mode shows every entry's draft revision, and a preview token shows only the previewed entry's. Reference reads follow the same per-entry rule:
+
 - For entries with draft access, the batched revision snapshots the loader already reads supply the staged `_references`. A staged empty selection is preserved, and a field with no staged selection falls back to live links.
 - Every other entry reads live links.
 
 A preview token must never grant draft-reference access to unrelated entries in the list. Targets are loaded from content rows, not overlaid with their own drafts, which is the single-entry behaviour.
 
 **Caching.**
+
 - The reference selection becomes part of the collection query's request-cache and object-cache keys.
 - The selected target collections' object-cache namespaces join the query's dependency set, so editing a target invalidates the listing's snapshot.
 - Resolved target row tags and modification times merge into the returned route cache hint. As with `getEmDashEntry`, a route has to apply that hint for its page cache to follow target edits.
