@@ -5582,7 +5582,7 @@ msgid "Failed to deny request"
 msgstr "דחיית הבקשה נכשלה"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "השבתת תוסף נכשלה"
 
@@ -5628,7 +5628,7 @@ msgid "Failed to email users"
 msgstr "שליחת האימייל למשתמשים נכשלה"
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "הפעלת תוסף נכשלה"
 
@@ -5779,16 +5779,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "אחזור תוסף נכשל"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "אחזור הגדרות תוסף נכשל"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "אחזור תוספים נכשל"
 
@@ -6326,11 +6326,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "עדכון תוסף נכשל"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "עדכון גישת MCP של תוסף נכשל"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "עדכון הגדרות תוסף נכשל"
 
@@ -9948,7 +9948,7 @@ msgstr "הזינו URL תקין"
 msgid "Plugin"
 msgstr "תוסף"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "התוסף \"{pluginId}\" לא נמצא"
 

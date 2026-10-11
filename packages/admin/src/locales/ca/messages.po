@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr "No s'ha pogut denegar la sol·licitud"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "No s'ha pogut desactivar el connector"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr "No s'ha pogut enviar el correu als usuaris"
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "No s'ha pogut activar el connector"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "No s'ha pogut obtenir el connector"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "No s'ha pogut obtenir la configuració del connector"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "No s'han pogut obtenir els connectors"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "No s'ha pogut actualitzar el connector"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "No s'ha pogut actualitzar l'accés MCP del connector"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "No s'ha pogut actualitzar la configuració del connector"
 
@@ -9947,7 +9947,7 @@ msgstr "Introdueix un URL vàlid"
 msgid "Plugin"
 msgstr "Connector"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "No s'ha trobat el connector \"{pluginId}\""
 
