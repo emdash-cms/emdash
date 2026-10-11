@@ -154,7 +154,9 @@ function useStateNote(item: CalendarItem, display: CalendarDisplay, now: number)
 		const lateness = formatTimeAgo(now - item.time, display.locale);
 		return t`Overdue · ${lateness}`;
 	}
-	if (item.state === "update") return t`Update`;
+	if (item.state === "update") {
+		return t({ message: "Update", context: "A published entry's scheduled changes" });
+	}
 	return null;
 }
 

@@ -1,3 +1,5 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import type * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -256,5 +258,32 @@ describe("CalendarAgenda", () => {
 		await expect
 			.element(screen.getByRole("button", { name: "Hide earlier entries" }))
 			.toBeVisible();
+	});
+
+	it("tags a scheduled update with the state wording, not the Update button's", async () => {
+		const previousLocale = i18n.locale;
+		i18n.load("de", {
+			[msg`Update`.id!]: "Aktualisieren",
+			[msg({ message: "Update", context: "A published entry's scheduled changes" }).id!]:
+				"Aktualisierung",
+		});
+		i18n.activate("de");
+
+		try {
+			const screen = await render(
+				<CalendarAgenda
+					month="2026-10"
+					days={days}
+					today="2026-10-15"
+					now={now}
+					display={display}
+				/>,
+			);
+
+			await expect.element(screen.getByText("Aktualisierung", { exact: true })).toBeVisible();
+			await expect.element(screen.getByText("Aktualisieren")).not.toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
 	});
 });
