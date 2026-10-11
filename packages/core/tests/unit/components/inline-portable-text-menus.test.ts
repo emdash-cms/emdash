@@ -269,7 +269,8 @@ describe("inline Portable Text editor toolbars and slash menu", () => {
 			editor.commands.insertContent("Details");
 		});
 
-		expect(document.querySelector(".emdash-slash-menu")).toBeNull();
+		// The menu fades out before it leaves the page.
+		await vi.waitFor(() => expect(document.querySelector(".emdash-slash-menu")).toBeNull());
 		const blocks = await saved(editable);
 		expect(blocks[1]).toMatchObject({ style: "h4", children: [{ text: "Details" }] });
 	});

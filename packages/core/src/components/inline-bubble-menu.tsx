@@ -24,6 +24,7 @@ import {
 	TextSuperscript,
 	TextUnderline,
 } from "@phosphor-icons/react";
+import { getMarkRange } from "@tiptap/core";
 import type { Mark } from "@tiptap/pm/model";
 import { AllSelection, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { useEditorState, type Editor } from "@tiptap/react";
@@ -44,6 +45,7 @@ import {
 	ToolbarMenu,
 	ToolbarSeparator,
 	ToolbarShownContext,
+	ToolbarTooltipGroup,
 	handleToolbarKeyDown,
 	playToolbarEntrance,
 	useTabIntoToolbar,
@@ -180,6 +182,35 @@ function removeLinkAtCaret(editor: Editor) {
 }
 
 /**
+ * The part of the link at the caret that's on the caret's line. The link
+ * bar sits under it, so the bar stays put while the caret moves along the link.
+ */
+function linkLineRect(editor: Editor): DOMRect | null {
+	// TipTap's scroll and resize updates can still run just after the editor is destroyed.
+	if (editor.isDestroyed || !editor.view.dom.isConnected) return null;
+	const { state, view } = editor;
+	const link = linkAtCaret(state);
+	const range = link && getMarkRange(state.selection.$from, link.type, link.attrs);
+	if (!range) return null;
+	const start = view.domAtPos(range.from);
+	const end = view.domAtPos(range.to);
+	const domRange = document.createRange();
+	domRange.setStart(start.node, start.offset);
+	domRange.setEnd(end.node, end.offset);
+	const caret = view.coordsAtPos(state.selection.from);
+	const middle = (caret.top + caret.bottom) / 2;
+	const line = [...domRange.getClientRects()].filter(
+		(rect) => rect.width > 0 && rect.top <= middle && rect.bottom >= middle,
+	);
+	if (line.length === 0) return null;
+	const left = Math.min(...line.map((rect) => rect.left));
+	const top = Math.min(...line.map((rect) => rect.top));
+	const right = Math.max(...line.map((rect) => rect.right));
+	const bottom = Math.max(...line.map((rect) => rect.bottom));
+	return new DOMRect(left, top, right - left, bottom - top);
+}
+
+/**
  * The selection's alignment when it has exactly one. Only top-level
  * paragraphs and headings keep an alignment, so anything in a quote or list
  * can't be aligned.
@@ -207,6 +238,22 @@ function selectionAlignment(editor: Editor): { value?: string; unavailable: bool
 	};
 }
 
+/**
+ * TipTap positions a hidden toolbar before it puts the toolbar on the page,
+ * where floating-ui can't tell that the page reads right to left. A toolbar
+ * about to show waits on the page, still hidden, so it lines up with the
+ * selection on the side the page reads from.
+ */
+function attachBeforePositioning(toolbar: HTMLElement, root: HTMLElement) {
+	if (toolbar.isConnected) return;
+	root.append(toolbar);
+	// TipTap shows it straight away. A toolbar left hidden on the page could
+	// be shown again by TipTap's scroll handling, so if that didn't happen it goes.
+	queueMicrotask(() => {
+		if (toolbar.style.visibility === "hidden") toolbar.remove();
+	});
+}
+
 /** Shows where a link goes, with edit and remove, whenever the caret sits in it. */
 function LinkToolbar({
 	editor,
@@ -227,6 +274,18 @@ function LinkToolbar({
 		},
 	});
 	const [shown, setShown] = React.useState(false);
+	const menuRef = React.useRef<HTMLDivElement>(null);
+	const getReferencedVirtualElement = React.useCallback(() => {
+		const rect = linkLineRect(editor);
+		return rect && { getBoundingClientRect: () => rect, getClientRects: () => [rect] };
+	}, [editor]);
+	// TipTap places the bar before its new address renders. Right to left, the
+	// bar lines up by its far edge, so it's placed again at its rendered width.
+	React.useLayoutEffect(() => {
+		if (shown && !editor.isDestroyed) {
+			editor.view.dispatch(editor.state.tr.setMeta(LINK_TOOLBAR_KEY, "updatePosition"));
+		}
+	}, [editor, href, shown]);
 	const options = React.useMemo(
 		() => ({
 			strategy: "absolute" as const,
@@ -235,27 +294,36 @@ function LinkToolbar({
 			flip: { padding: 8 },
 			shift: { padding: 8 },
 			scrollTarget,
-			onShow: () => setShown(true),
+			onShow: () => {
+				setShown(true);
+				playToolbarEntrance(menuRef.current?.firstElementChild);
+			},
 			onHide: () => setShown(false),
 		}),
 		[scrollTarget],
 	);
 	const shouldShow = React.useCallback<ShouldShow>(
-		({ editor: activeEditor, element, state, oldState, view }) =>
-			activeEditor.isEditable &&
-			state.selection instanceof TextSelection &&
-			state.selection.empty &&
-			linkAtCaret(state) !== undefined &&
-			// At a link's edge, typing goes beside the link, so the bar gets out of the way.
-			(activeEditor.isActive("link") || !oldState || oldState.doc.eq(state.doc)) &&
-			(view.hasFocus() || element.contains(document.activeElement)),
-		[],
+		({ editor: activeEditor, element, state, oldState, view }) => {
+			const show =
+				activeEditor.isEditable &&
+				state.selection instanceof TextSelection &&
+				state.selection.empty &&
+				linkAtCaret(state) !== undefined &&
+				// At a link's edge, typing goes beside the link, so the bar gets out of the way.
+				(activeEditor.isActive("link") || !oldState || oldState.doc.eq(state.doc)) &&
+				(view.hasFocus() || element.contains(document.activeElement));
+			if (show) attachBeforePositioning(element, appendTo());
+			return show;
+		},
+		[appendTo],
 	);
 	return (
 		<BubbleMenu
+			ref={menuRef}
 			editor={editor}
 			pluginKey={LINK_TOOLBAR_KEY}
 			appendTo={appendTo}
+			getReferencedVirtualElement={getReferencedVirtualElement}
 			updateDelay={0}
 			options={options}
 			shouldShow={shouldShow}
@@ -265,29 +333,31 @@ function LinkToolbar({
 			onKeyDown={(event) => handleToolbarKeyDown(event, editor)}
 		>
 			<ToolbarShownContext.Provider value={shown}>
-				<Globe className="emdash-inline-ui-link-globe" aria-hidden="true" />
-				{SAFE_LINK_HREF_REGEX.test(href) ? (
-					<a
-						href={href}
-						target="_blank"
-						rel="noopener noreferrer"
-						dir="auto"
-						className="emdash-inline-ui-link-url"
-					>
-						{href.replace(LINK_DISPLAY_PREFIX_REGEX, "")}
-					</a>
-				) : (
-					<span dir="auto" className="emdash-inline-ui-link-url">
-						{href}
-					</span>
-				)}
-				<ToolbarSeparator />
-				<ToolbarButton label="Edit link" onClick={onEdit}>
-					<PencilSimple />
-				</ToolbarButton>
-				<ToolbarButton label="Remove link" onClick={() => removeLinkAtCaret(editor)}>
-					<LinkBreak />
-				</ToolbarButton>
+				<ToolbarTooltipGroup>
+					<Globe className="emdash-inline-ui-link-globe" aria-hidden="true" />
+					{SAFE_LINK_HREF_REGEX.test(href) ? (
+						<a
+							href={href}
+							target="_blank"
+							rel="noopener noreferrer"
+							dir="auto"
+							className="emdash-inline-ui-link-url"
+						>
+							{href.replace(LINK_DISPLAY_PREFIX_REGEX, "")}
+						</a>
+					) : (
+						<span dir="auto" className="emdash-inline-ui-link-url">
+							{href}
+						</span>
+					)}
+					<ToolbarSeparator />
+					<ToolbarButton label="Edit link" onClick={onEdit}>
+						<PencilSimple />
+					</ToolbarButton>
+					<ToolbarButton label="Remove link" onClick={() => removeLinkAtCaret(editor)}>
+						<LinkBreak />
+					</ToolbarButton>
+				</ToolbarTooltipGroup>
 			</ToolbarShownContext.Provider>
 		</BubbleMenu>
 	);
@@ -458,16 +528,17 @@ export function InlineBubbleMenu({ editor, uiRoot }: { editor: Editor; uiRoot: H
 			const hasMenuFocus =
 				element.contains(activeElement) ||
 				Boolean(activeElement?.closest(`[${TOOLBAR_POPUP_ATTR}]`));
-			return (
+			const show =
 				activeEditor.isEditable &&
 				(selection instanceof TextSelection || selection instanceof AllSelection) &&
 				// A selection of only line breaks or spaces has nothing to format.
 				NON_WHITESPACE_REGEX.test(editorState.doc.textBetween(selection.from, selection.to, " ")) &&
 				!activeEditor.isActive("codeBlock") &&
-				(view.hasFocus() || hasMenuFocus)
-			);
+				(view.hasFocus() || hasMenuFocus);
+			if (show) attachBeforePositioning(element, uiRoot);
+			return show;
 		},
-		[],
+		[uiRoot],
 	);
 
 	const activeType = blockTypes.find((type) => type.id === state.blockType);
@@ -557,63 +628,65 @@ export function InlineBubbleMenu({ editor, uiRoot }: { editor: Editor; uiRoot: H
 				onKeyDown={(event) => handleToolbarKeyDown(event, editor)}
 			>
 				<ToolbarShownContext.Provider value={shown}>
-					{editingLink ? (
-						<LinkField editor={editor} linked={state.link} onDone={() => setEditingLink(false)} />
-					) : (
-						// Scrolls sideways, fading at the cut-off edge, when a narrow screen can't fit it.
-						<div className="emdash-inline-ui-toolbar">
-							{state.canTurnInto && (
-								<>
-									<ToolbarMenu
-										editor={editor}
-										label="Turn into"
-										placement="bottom-start"
-										open={openMenu === "turnInto"}
-										onOpenChange={(open) => toggleMenu("turnInto", open)}
-										trigger={
-											<>
-												<span className="emdash-inline-ui-trigger-label">
-													{activeType?.label ?? "Turn into"}
-												</span>
-												<CaretDown className="emdash-inline-ui-caret" aria-hidden="true" />
-											</>
-										}
-										groups={turnIntoGroups}
-									/>
-									<ToolbarSeparator />
-								</>
-							)}
-							<ToolbarButton
-								label={state.link ? "Edit link" : "Add link"}
-								active={state.link}
-								onClick={() => setEditingLink(true)}
-							>
-								<LinkIcon />
-							</ToolbarButton>
-							<ToolbarSeparator />
-							{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
+					<ToolbarTooltipGroup>
+						{editingLink ? (
+							<LinkField editor={editor} linked={state.link} onDone={() => setEditingLink(false)} />
+						) : (
+							// Scrolls sideways, fading at the cut-off edge, when a narrow screen can't fit it.
+							<div className="emdash-inline-ui-toolbar">
+								{state.canTurnInto && (
+									<>
+										<ToolbarMenu
+											editor={editor}
+											label="Turn into"
+											placement="bottom-start"
+											open={openMenu === "turnInto"}
+											onOpenChange={(open) => toggleMenu("turnInto", open)}
+											trigger={
+												<>
+													<span className="emdash-inline-ui-trigger-label">
+														{activeType?.label ?? "Turn into"}
+													</span>
+													<CaretDown className="emdash-inline-ui-caret" aria-hidden="true" />
+												</>
+											}
+											groups={turnIntoGroups}
+										/>
+										<ToolbarSeparator />
+									</>
+								)}
 								<ToolbarButton
-									key={mark}
-									label={label}
-									active={state[mark]}
-									onClick={() => editor.chain().focus().toggleMark(mark).run()}
+									label={state.link ? "Edit link" : "Add link"}
+									active={state.link}
+									onClick={() => setEditingLink(true)}
 								>
-									<MarkIcon />
+									<LinkIcon />
 								</ToolbarButton>
-							))}
-							<ToolbarSeparator />
-							<ToolbarMenu
-								editor={editor}
-								label="More formatting"
-								placement="bottom-end"
-								iconOnly
-								open={openMenu === "more"}
-								onOpenChange={(open) => toggleMenu("more", open)}
-								trigger={<DotsThree weight="bold" aria-hidden="true" />}
-								groups={moreGroups}
-							/>
-						</div>
-					)}
+								<ToolbarSeparator />
+								{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
+									<ToolbarButton
+										key={mark}
+										label={label}
+										active={state[mark]}
+										onClick={() => editor.chain().focus().toggleMark(mark).run()}
+									>
+										<MarkIcon />
+									</ToolbarButton>
+								))}
+								<ToolbarSeparator />
+								<ToolbarMenu
+									editor={editor}
+									label="More formatting"
+									placement="bottom-end"
+									iconOnly
+									open={openMenu === "more"}
+									onOpenChange={(open) => toggleMenu("more", open)}
+									trigger={<DotsThree weight="bold" aria-hidden="true" />}
+									groups={moreGroups}
+								/>
+							</div>
+						)}
+					</ToolbarTooltipGroup>
 				</ToolbarShownContext.Provider>
 			</BubbleMenu>
 		</InlineUiRootContext.Provider>

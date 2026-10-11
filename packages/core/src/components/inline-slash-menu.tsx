@@ -5,7 +5,16 @@
  * is typed.
  */
 
-import { autoUpdate, flip, hide, offset, shift, size, useFloating } from "@floating-ui/react";
+import {
+	autoUpdate,
+	flip,
+	hide,
+	offset,
+	shift,
+	size,
+	useFloating,
+	useTransitionStatus,
+} from "@floating-ui/react";
 import { BracketsAngle, Image as ImageIcon, Minus, type Icon } from "@phosphor-icons/react";
 import { Extension, type Editor, type Range } from "@tiptap/core";
 import Suggestion from "@tiptap/suggestion";
@@ -13,6 +22,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { blockTypes, turnInto, type BlockTypeId } from "./inline-block-types.js";
+import { originStyle, transformOrigin } from "./inline-editor-ui.js";
 
 export interface SlashCommandItem {
 	id: string;
@@ -352,10 +362,11 @@ export function InlineSlashMenu({
 }) {
 	const viewportRef = React.useRef<HTMLDivElement>(null);
 	const popupRef = React.useRef<HTMLDivElement | null>(null);
-	const { refs, floatingStyles, isPositioned, middlewareData } = useFloating({
+	const { refs, floatingStyles, context, isPositioned, middlewareData } = useFloating({
 		open: state.isOpen,
 		placement: "bottom-start",
 		strategy: "fixed",
+		transform: false,
 		middleware: [
 			offset(6),
 			flip({ padding: 8, fallbackAxisSideDirection: "none" }),
@@ -367,37 +378,59 @@ export function InlineSlashMenu({
 				},
 			}),
 			hide(),
+			transformOrigin(),
 		],
 		whileElementsMounted: autoUpdate,
 	});
+	const { isMounted, status } = useTransitionStatus(context, {
+		duration: { open: 100, close: 75 },
+	});
 
 	const { clientRect } = state;
+	const lastRectRef = React.useRef<DOMRect | null>(null);
 	React.useLayoutEffect(() => {
 		refs.setPositionReference(
 			clientRect
 				? {
-						getBoundingClientRect: () => clientRect() ?? new DOMRect(),
+						getBoundingClientRect: () => {
+							// Once the menu closes its slash may be gone, so it fades out where it was.
+							lastRectRef.current = clientRect() ?? lastRectRef.current;
+							return lastRectRef.current ?? new DOMRect();
+						},
 						contextElement: editor.view.dom,
 					}
 				: null,
 		);
 	}, [clientRect, editor, refs]);
 
-	// Scroll the selected item into view within the menu only, never the page.
+	// The item the pointer last highlighted, which is already where the pointer is.
+	const pointerIndexRef = React.useRef<number | null>(null);
+
+	// Scroll the selected item, and the label above the first of a group,
+	// into view within the menu only, never the page.
 	React.useEffect(() => {
 		if (!state.isOpen) return;
+		const highlightedByPointer = pointerIndexRef.current === state.selectedIndex;
+		pointerIndexRef.current = null;
+		if (highlightedByPointer) return;
 		const viewport = viewportRef.current;
 		const selected = viewport?.querySelector<HTMLElement>(`[data-index="${state.selectedIndex}"]`);
 		if (!viewport || !selected) return;
 		if (state.selectedIndex === 0) {
 			viewport.scrollTop = 0;
-		} else if (selected.offsetTop < viewport.scrollTop) {
-			viewport.scrollTop = selected.offsetTop;
-		} else if (
-			selected.offsetTop + selected.offsetHeight >
-			viewport.scrollTop + viewport.clientHeight
-		) {
-			viewport.scrollTop = selected.offsetTop + selected.offsetHeight - viewport.clientHeight;
+			return;
+		}
+		const label = selected.previousElementSibling;
+		const top = (
+			label?.classList.contains("emdash-slash-menu-group-label") ? label : selected
+		).getBoundingClientRect().top;
+		const { bottom } = selected.getBoundingClientRect();
+		const view = viewport.getBoundingClientRect();
+		const padding = Number.parseFloat(getComputedStyle(viewport).scrollPaddingTop) || 0;
+		if (top < view.top + padding) {
+			viewport.scrollTop -= view.top + padding - top;
+		} else if (bottom > view.bottom - padding) {
+			viewport.scrollTop += bottom - (view.bottom - padding);
 		}
 	}, [state.selectedIndex, state.isOpen]);
 
@@ -419,7 +452,7 @@ export function InlineSlashMenu({
 		return () => document.removeEventListener("pointerdown", handlePointerDown, true);
 	}, [onClose, state.isOpen]);
 
-	if (!state.isOpen || !clientRect) return null;
+	if (!isMounted || !clientRect) return null;
 
 	const selectedItem = state.items[state.selectedIndex];
 	const groups: {
@@ -442,10 +475,15 @@ export function InlineSlashMenu({
 			}}
 			style={{
 				...floatingStyles,
-				visibility: isPositioned && !middlewareData.hide?.referenceHidden ? "visible" : "hidden",
+				...originStyle(middlewareData.transformOrigin),
+				visibility:
+					(isPositioned || status === "close") && !middlewareData.hide?.referenceHidden
+						? "visible"
+						: "hidden",
 			}}
 			role="dialog"
 			className="emdash-slash-menu"
+			data-status={status}
 			aria-label="Insert block"
 			onPointerMove={() => {
 				hasMouseMovedRef.current = true;
@@ -478,7 +516,9 @@ export function InlineSlashMenu({
 									onPointerDown={(event) => event.preventDefault()}
 									onClick={() => onCommand(item)}
 									onMouseEnter={() => {
-										if (hasMouseMovedRef.current) setSelectedIndex(index);
+										if (!hasMouseMovedRef.current || index === state.selectedIndex) return;
+										pointerIndexRef.current = index;
+										setSelectedIndex(index);
 									}}
 								>
 									<item.icon className="emdash-slash-menu-icon" aria-hidden="true" />

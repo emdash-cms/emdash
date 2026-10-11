@@ -8,9 +8,9 @@
  */
 
 import {
-	FloatingArrow,
 	FloatingFocusManager,
 	FloatingPortal,
+	NextFloatingDelayGroup,
 	arrow,
 	autoUpdate,
 	flip,
@@ -24,8 +24,12 @@ import {
 	useHover,
 	useInteractions,
 	useListNavigation,
+	useMergeRefs,
+	useNextDelayGroup,
 	useRole,
+	useTransitionStatus,
 	useTypeahead,
+	type Middleware,
 	type Placement,
 } from "@floating-ui/react";
 import { Check, type Icon } from "@phosphor-icons/react";
@@ -57,6 +61,65 @@ export function useInlineUiRoot(): HTMLElement {
 	return root;
 }
 
+/**
+ * Puts a floating element's transform origin on the middle of the edge of
+ * its anchor that it opens from, so it grows out of the control that opened
+ * it. Must come last, once the position is final. The elements this is for
+ * open above or below their anchor and are positioned without a transform,
+ * which their scale would otherwise move too.
+ *
+ * `getAnchor` defaults to the positioning reference. floating-ui keeps the
+ * first copy of a middleware whose source is unchanged, so it must read refs
+ * rather than values from a render.
+ */
+export function transformOrigin(getAnchor?: () => DOMRect): Middleware {
+	return {
+		name: "transformOrigin",
+		fn: ({ x, y, placement, rects, elements }) => {
+			// Measured on screen, then placed from the reference, which floating-ui
+			// measures in the same coordinates as the floating element's position.
+			const reference = elements.reference.getBoundingClientRect();
+			const anchor = getAnchor?.() ?? reference;
+			const edge = placement.startsWith("top") ? anchor.top : anchor.bottom;
+			return {
+				data: {
+					x: rects.reference.x + anchor.left + anchor.width / 2 - reference.left - x,
+					y: rects.reference.y + edge - reference.top - y,
+				},
+			};
+		},
+	};
+}
+
+export function originStyle(origin: { x: number; y: number } | undefined): React.CSSProperties {
+	return origin ? { transformOrigin: `${origin.x}px ${origin.y}px` } : {};
+}
+
+/**
+ * floating-ui positions an element when it mounts or its anchor moves, and
+ * forgets it did once the element closes. One reopened while it fades out
+ * would stay hidden until something moved, so it's positioned again.
+ */
+function useRepositionOnOpen(open: boolean, update: () => void) {
+	React.useLayoutEffect(() => {
+		if (open) update();
+	}, [open, update]);
+}
+
+const TOOLTIP_DELAY = { open: 400, close: 0 };
+
+/**
+ * Once one tooltip in a toolbar shows, its neighbours' show at once while
+ * the pointer moves along the toolbar, as in the admin editor.
+ */
+export function ToolbarTooltipGroup({ children }: { children: React.ReactNode }) {
+	return (
+		<NextFloatingDelayGroup delay={TOOLTIP_DELAY} timeoutMs={400}>
+			{children}
+		</NextFloatingDelayGroup>
+	);
+}
+
 function useTooltip(label: string) {
 	const root = React.useContext(InlineUiRootContext);
 	const shown = React.useContext(ToolbarShownContext);
@@ -66,42 +129,74 @@ function useTooltip(label: string) {
 		if (!shown) setOpen(false);
 	}, [shown]);
 	const arrowRef = React.useRef<SVGSVGElement>(null);
-	const { refs, floatingStyles, context } = useFloating({
-		open,
-		onOpenChange: setOpen,
-		placement: "top",
-		strategy: "fixed",
-		middleware: [
-			offset(8),
-			flip({ padding: 8 }),
-			shift({ padding: 8 }),
-			arrow({ element: arrowRef }),
-		],
-		whileElementsMounted: autoUpdate,
+	const { refs, floatingStyles, context, placement, middlewareData, isPositioned, update } =
+		useFloating({
+			open,
+			onOpenChange: setOpen,
+			placement: "top",
+			strategy: "fixed",
+			transform: false,
+			middleware: [
+				offset(10),
+				flip({ padding: 8 }),
+				shift({ padding: 8 }),
+				arrow({ element: arrowRef }),
+				transformOrigin(),
+			],
+			whileElementsMounted: autoUpdate,
+		});
+	useRepositionOnOpen(open, update);
+	const { delayRef, isInstantPhase, hasProvider } = useNextDelayGroup(context);
+	const hover = useHover(context, {
+		delay: () => (hasProvider ? delayRef.current : TOOLTIP_DELAY),
+		mouseOnly: true,
 	});
-	const hover = useHover(context, { delay: { open: 400 }, mouseOnly: true });
 	const focus = useFocus(context, { visibleOnly: true });
 	const dismiss = useDismiss(context, { referencePress: true });
 	const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus, dismiss]);
+	const { isMounted, status } = useTransitionStatus(context, {
+		// A hidden toolbar takes its buttons off the page, so their tooltips go with it.
+		duration: isInstantPhase || !shown ? 0 : 150,
+	});
 	// The button's label already names it, so the tooltip is for sight only.
-	const tooltip = open ? (
+	const tooltip = isMounted ? (
 		<FloatingPortal root={root}>
 			<div
 				ref={refs.setFloating}
-				style={floatingStyles}
+				style={{
+					...floatingStyles,
+					...originStyle(middlewareData.transformOrigin),
+					visibility: isPositioned || status === "close" ? undefined : "hidden",
+				}}
 				className="emdash-inline-ui-tooltip"
+				data-status={status}
+				data-instant={isInstantPhase ? "" : undefined}
 				aria-hidden="true"
 				{...getFloatingProps()}
 			>
 				{label}
-				<FloatingArrow
+				<svg
 					ref={arrowRef}
-					context={context}
-					width={12}
-					height={6}
-					strokeWidth={1}
+					width="20"
+					height="10"
+					viewBox="0 0 20 10"
 					className="emdash-inline-ui-tooltip-arrow"
-				/>
+					data-side={placement.startsWith("bottom") ? "bottom" : "top"}
+					style={{ left: middlewareData.arrow?.x }}
+				>
+					<path
+						className="emdash-inline-ui-tooltip-arrow-fill"
+						d="M9.66437 2.60207L4.80758 6.97318C4.07308 7.63423 3.11989 8 2.13172 8H0V10H20V8H18.5349C17.5468 8 16.5936 7.63423 15.8591 6.97318L11.0023 2.60207C10.622 2.2598 10.0447 2.25979 9.66437 2.60207Z"
+					/>
+					<path
+						className="emdash-inline-ui-tooltip-arrow-shadow"
+						d="M8.99542 1.85876C9.75604 1.17425 10.9106 1.17422 11.6713 1.85878L16.5281 6.22989C17.0789 6.72568 17.7938 7.00001 18.5349 7.00001L15.89 7L11.0023 2.60207C10.622 2.2598 10.0447 2.2598 9.66436 2.60207L4.77734 7L2.13171 7.00001C2.87284 7.00001 3.58774 6.72568 4.13861 6.22989L8.99542 1.85876Z"
+					/>
+					<path
+						className="emdash-inline-ui-tooltip-arrow-stroke"
+						d="M10.3333 3.34539L5.47654 7.71648C4.55842 8.54279 3.36693 9 2.13172 9H0V8H2.13172C3.11989 8 4.07308 7.63423 4.80758 6.97318L9.66437 2.60207C10.0447 2.25979 10.622 2.2598 11.0023 2.60207L15.8591 6.97318C16.5936 7.63423 17.5468 8 18.5349 8H20V9H18.5349C17.2998 9 16.1083 8.54278 15.1901 7.71648L10.3333 3.34539Z"
+					/>
+				</svg>
 			</div>
 		</FloatingPortal>
 	) : null;
@@ -163,8 +258,9 @@ export interface ToolbarMenuGroup {
 }
 
 /**
- * A toolbar button that opens a menu below it. Choosing an item or pressing
- * Escape or Tab returns to the editor, so typing carries on there.
+ * A toolbar button that opens a menu below the toolbar, lined up with the
+ * toolbar's start edge, or its end edge for `bottom-end`. Choosing an item
+ * or pressing Escape or Tab returns to the editor, so typing carries on there.
  */
 export function ToolbarMenu({
 	editor,
@@ -189,10 +285,11 @@ export function ToolbarMenu({
 	const listRef = React.useRef<Array<HTMLElement | null>>([]);
 	const labelsRef = React.useRef<Array<string | null>>([]);
 	const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
+	const triggerRef = React.useRef<HTMLButtonElement | null>(null);
 	const focusEditor = () => {
 		if (!editor.isDestroyed) editor.view.focus();
 	};
-	const { refs, floatingStyles, context } = useFloating({
+	const { refs, floatingStyles, context, middlewareData, isPositioned, update } = useFloating({
 		open,
 		onOpenChange: (next, _event, reason) => {
 			onOpenChange(next);
@@ -200,8 +297,9 @@ export function ToolbarMenu({
 		},
 		placement,
 		strategy: "fixed",
+		transform: false,
 		middleware: [
-			offset(8),
+			offset(4),
 			flip({ padding: 8 }),
 			shift({ padding: 8 }),
 			size({
@@ -210,8 +308,28 @@ export function ToolbarMenu({
 					elements.floating.style.maxHeight = `${Math.min(416, Math.max(0, availableHeight))}px`;
 				},
 			}),
+			transformOrigin(() => triggerRef.current?.getBoundingClientRect() ?? new DOMRect()),
 		],
 		whileElementsMounted: autoUpdate,
+	});
+	React.useLayoutEffect(() => {
+		// The element TipTap positions, around the toolbar, which plays its entrance as a transform.
+		const toolbar = triggerRef.current?.closest('[role="toolbar"]')?.parentElement;
+		if (!toolbar) return;
+		let rect = new DOMRect();
+		refs.setPositionReference({
+			contextElement: toolbar,
+			getBoundingClientRect: () => {
+				// A toolbar that hides as the menu closes leaves the page, so the menu fades out where it was.
+				if (toolbar.isConnected) rect = toolbar.getBoundingClientRect();
+				return rect;
+			},
+		});
+	}, [refs]);
+	useRepositionOnOpen(open, update);
+	const triggerRefs = useMergeRefs([refs.setReference, triggerRef]);
+	const { isMounted, status } = useTransitionStatus(context, {
+		duration: { open: 100, close: 75 },
 	});
 	const click = useClick(context);
 	const dismiss = useDismiss(context);
@@ -239,7 +357,7 @@ export function ToolbarMenu({
 	return (
 		<>
 			<button
-				ref={refs.setReference}
+				ref={triggerRefs}
 				type="button"
 				className="emdash-inline-ui-trigger"
 				aria-label={label}
@@ -251,13 +369,23 @@ export function ToolbarMenu({
 			>
 				{trigger}
 			</button>
-			{open && (
+			{isMounted && (
 				<FloatingPortal root={root}>
-					<FloatingFocusManager context={context} modal={false} returnFocus={false}>
+					<FloatingFocusManager
+						context={context}
+						modal={false}
+						returnFocus={false}
+						disabled={status === "close"}
+					>
 						<div
 							ref={refs.setFloating}
-							style={floatingStyles}
+							style={{
+								...floatingStyles,
+								...originStyle(middlewareData.transformOrigin),
+								visibility: isPositioned || status === "close" ? undefined : "hidden",
+							}}
 							className="emdash-inline-ui-menu"
+							data-status={status}
 							{...{ [TOOLBAR_POPUP_ATTR]: "" }}
 							{...getFloatingProps({
 								onKeyDown: (event: React.KeyboardEvent) => {
@@ -459,10 +587,10 @@ export const INLINE_EDITOR_UI_STYLES = `
 		0%, 90% { --emdash-inline-ui-fade-end: 24px; }
 		100% { --emdash-inline-ui-fade-end: 0px; }
 	}
-	@keyframes emdash-inline-ui-pop {
+	@keyframes emdash-inline-ui-menu-in {
 		from { opacity: 0; scale: 0.97; }
 	}
-	@keyframes emdash-inline-ui-tooltip-pop {
+	@keyframes emdash-inline-ui-tooltip-in {
 		from { opacity: 0; scale: 0.9; }
 	}
 	.emdash-inline-ui {
@@ -484,7 +612,9 @@ export const INLINE_EDITOR_UI_STYLES = `
 		--emdash-ui-danger: light-dark(oklch(50.5% 0.213 27.518), oklch(70.4% 0.191 22.216));
 		--emdash-ui-danger-ring: light-dark(oklch(63.7% 0.237 25.331), oklch(57.7% 0.245 27.325));
 		--emdash-ui-focus: light-dark(oklch(15% 0 0), oklch(93.5% 0 0));
+		--emdash-ui-brand: light-dark(oklch(57.72% 0.2324 260), oklch(51.948% 0.2324 260));
 		--emdash-ui-tip-shadow: light-dark(oklch(92.8% 0.006 264.531), transparent);
+		--emdash-ui-tip-stroke: light-dark(transparent, oklch(26.9% 0 0));
 		--emdash-ui-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 		color: var(--emdash-ui-text);
 		font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
@@ -583,6 +713,7 @@ export const INLINE_EDITOR_UI_STYLES = `
 	}
 	.emdash-inline-ui-trigger {
 		padding-inline: 8px;
+		cursor: default;
 	}
 	.emdash-inline-ui-trigger[data-icon-only] {
 		width: 32px;
@@ -597,7 +728,9 @@ export const INLINE_EDITOR_UI_STYLES = `
 		background: var(--emdash-ui-tint);
 		color: var(--emdash-ui-link);
 	}
-	.emdash-inline-ui-button:focus-visible,
+	.emdash-inline-ui-button:focus-visible {
+		box-shadow: 0 0 0 2px var(--emdash-ui-brand);
+	}
 	.emdash-inline-ui-trigger:focus-visible,
 	.emdash-inline-ui-link-url:focus-visible {
 		box-shadow: 0 0 0 2px color-mix(in oklch, var(--emdash-ui-focus) 50%, transparent);
@@ -706,11 +839,24 @@ export const INLINE_EDITOR_UI_STYLES = `
 		overscroll-behavior: contain;
 		padding: 4px;
 		outline: none;
-		transform-origin: top;
-		animation: emdash-inline-ui-pop 100ms ease-out;
+	}
+	/*
+	 * Entrances are animations: floating-ui leaves its opening status before
+	 * the first paint, so a transition from it would never run. Exits are
+	 * transitions, as the closing status keeps the element on the page.
+	 */
+	.emdash-inline-ui-menu,
+	.emdash-inline-ui .emdash-slash-menu {
+		animation: emdash-inline-ui-menu-in 100ms cubic-bezier(0, 0, 0.2, 1);
+		transition: opacity 75ms cubic-bezier(0, 0, 0.2, 1);
+	}
+	.emdash-inline-ui-menu[data-status="close"],
+	.emdash-inline-ui .emdash-slash-menu[data-status="close"] {
+		opacity: 0;
+		pointer-events: none;
 	}
 	.emdash-inline-ui-menu-label {
-		padding: 6px 8px 4px;
+		padding: 6px 8px 2px;
 		color: var(--emdash-ui-subtle);
 		font-size: 12px;
 		font-weight: 500;
@@ -768,20 +914,42 @@ export const INLINE_EDITOR_UI_STYLES = `
 		box-shadow: 0 10px 15px -3px var(--emdash-ui-tip-shadow), 0 4px 6px -4px var(--emdash-ui-tip-shadow);
 		color: var(--emdash-ui-text);
 		font-size: 13px;
-		line-height: 15px;
+		line-height: calc(1 / 0.85);
 		outline: 1px solid var(--emdash-ui-fill);
 		pointer-events: none;
 		white-space: nowrap;
-		animation: emdash-inline-ui-tooltip-pop 150ms ease-out;
+		animation: emdash-inline-ui-tooltip-in 150ms cubic-bezier(0.4, 0, 0.2, 1);
+		transition-property: scale, opacity;
+		transition-duration: 150ms;
+		transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+	}
+	.emdash-inline-ui-tooltip[data-status="close"] {
+		scale: 0.9;
+		opacity: 0;
+	}
+	.emdash-inline-ui-tooltip[data-instant] {
+		animation: none;
+		transition-duration: 0ms;
 	}
 	.emdash-inline-ui-tooltip-arrow {
+		position: absolute;
+		display: block;
+	}
+	.emdash-inline-ui-tooltip-arrow[data-side="top"] {
+		bottom: -8px;
+		rotate: 180deg;
+	}
+	.emdash-inline-ui-tooltip-arrow[data-side="bottom"] {
+		top: -8px;
+	}
+	.emdash-inline-ui-tooltip-arrow-fill {
 		fill: var(--emdash-ui-raised);
 	}
-	.emdash-inline-ui-tooltip-arrow path[clip-path] {
-		stroke: var(--emdash-ui-fill);
+	.emdash-inline-ui-tooltip-arrow-shadow {
+		fill: var(--emdash-ui-tip-shadow);
 	}
-	.emdash-inline-ui-tooltip-arrow path:not([clip-path]) {
-		stroke: var(--emdash-ui-raised);
+	.emdash-inline-ui-tooltip-arrow-stroke {
+		fill: var(--emdash-ui-tip-stroke);
 	}
 	.emdash-inline-ui .emdash-slash-menu {
 		display: flex;
@@ -789,8 +957,6 @@ export const INLINE_EDITOR_UI_STYLES = `
 		max-width: calc(100vw - 16px);
 		flex-direction: column;
 		overflow: hidden;
-		transform-origin: top;
-		animation: emdash-inline-ui-pop 100ms ease-out;
 	}
 	.emdash-slash-menu-viewport {
 		min-height: 0;
@@ -801,12 +967,15 @@ export const INLINE_EDITOR_UI_STYLES = `
 		scroll-padding-block: 4px;
 	}
 	.emdash-slash-menu-group-label {
-		padding: 8px 8px 4px;
+		padding: 6px 8px 2px;
 		color: var(--emdash-ui-subtle);
 		font-size: 12px;
 		font-weight: 500;
 		line-height: 16px;
 		user-select: none;
+	}
+	[role="group"] + [role="group"] > .emdash-slash-menu-group-label {
+		padding-block-start: 12px;
 	}
 	.emdash-slash-menu-item {
 		display: flex;
@@ -900,6 +1069,7 @@ export const INLINE_EDITOR_UI_STYLES = `
 		.emdash-inline-ui-tooltip,
 		.emdash-inline-ui .emdash-slash-menu {
 			animation: none;
+			transition: none;
 		}
 	}
 `;
