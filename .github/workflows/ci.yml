@@ -34,6 +34,7 @@ jobs:
       e2e_table: ${{ steps.plan.outputs.e2e_table }}
       e2e_playground: ${{ steps.plan.outputs.e2e_playground }}
       full: ${{ steps.plan.outputs.full }}
+      design_only: ${{ steps.plan.outputs.design_only }}
       plan: ${{ steps.plan.outputs.plan }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -55,6 +56,8 @@ jobs:
 
   typecheck:
     name: Typecheck
+    needs: change-plan
+    if: needs.change-plan.outputs.design_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

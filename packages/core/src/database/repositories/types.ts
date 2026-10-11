@@ -10,7 +10,7 @@ import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
  * REST schemas also clamp at 2048 — this 4096 cap is a defense-in-depth
  * floor inside the repository helpers.
  */
-const MAX_CURSOR_LENGTH = 4096;
+export const MAX_CURSOR_LENGTH = 4096;
 
 export interface CreateContentInput {
 	/** Explicit content ID for stable seed imports. Omit to generate a ULID. */
@@ -250,9 +250,33 @@ export interface FindManyResult<T> {
  */
 export const STAGED_CURSOR_MARKER = "staged";
 
-/** Encode a cursor from order value + id */
-export function encodeCursor(orderValue: string, id: string): string {
-	return encodeBase64(JSON.stringify({ orderValue, id }));
+/**
+ * Boundary for a single ordered field inside a cursor.
+ *
+ * `missing` distinguishes "the document has no value for this field" from
+ * "the document stores JSON `null`". SQLite can only tell these apart at the
+ * SQL layer, but PostgreSQL orders `data::jsonb->'field'` differently for the
+ * two cases, so the seek boundary must carry both possibilities.
+ */
+export interface SortFieldBoundary {
+	value?: unknown;
+	missing?: boolean;
+}
+
+/** Encode a cursor from order value + id, optionally carrying the ordered field values. */
+export function encodeCursor(
+	orderValue: string,
+	id: string,
+	sortValues?: SortFieldBoundary[],
+): string {
+	const payload: { orderValue: string; id: string; sortValues?: SortFieldBoundary[] } = {
+		orderValue,
+		id,
+	};
+	if (sortValues !== undefined && sortValues.length > 0) {
+		payload.sortValues = sortValues;
+	}
+	return encodeBase64(JSON.stringify(payload));
 }
 
 /**
@@ -271,13 +295,36 @@ export class InvalidCursorError extends Error {
 	}
 }
 
+function isSortFieldBoundary(item: unknown): item is SortFieldBoundary {
+	if (item === null || typeof item !== "object") {
+		return false;
+	}
+	const candidate = item as { value?: unknown; missing?: unknown };
+	if (candidate.missing !== undefined && typeof candidate.missing !== "boolean") {
+		return false;
+	}
+	return true;
+}
+
+function normalizeSortBoundary(item: unknown): SortFieldBoundary {
+	if (isSortFieldBoundary(item)) {
+		return { value: item.value, missing: item.missing };
+	}
+	// Fall back for plain values that predate the structured boundary format.
+	return { value: item, missing: false };
+}
+
 /**
  * Decode a cursor to order value + id.
  *
  * Throws `InvalidCursorError` if the cursor is empty, not valid base64,
  * not valid JSON, or doesn't contain string `orderValue` and `id` fields.
  */
-export function decodeCursor(cursor: string): { orderValue: string; id: string } {
+export function decodeCursor(cursor: string): {
+	orderValue: string;
+	id: string;
+	sortValues?: SortFieldBoundary[];
+} {
 	if (!cursor) throw new InvalidCursorError(cursor);
 	if (cursor.length > MAX_CURSOR_LENGTH) throw new InvalidCursorError(cursor);
 	let parsed: unknown;
@@ -289,11 +336,22 @@ export function decodeCursor(cursor: string): { orderValue: string; id: string }
 	if (parsed === null || typeof parsed !== "object") {
 		throw new InvalidCursorError(cursor);
 	}
-	const candidate = parsed as { orderValue?: unknown; id?: unknown };
+	const candidate = parsed as { orderValue?: unknown; id?: unknown; sortValues?: unknown };
 	if (typeof candidate.orderValue !== "string" || typeof candidate.id !== "string") {
 		throw new InvalidCursorError(cursor);
 	}
-	return { orderValue: candidate.orderValue, id: candidate.id };
+	let sortValues: SortFieldBoundary[] | undefined;
+	if (candidate.sortValues !== undefined) {
+		if (!Array.isArray(candidate.sortValues)) {
+			throw new InvalidCursorError(cursor);
+		}
+		sortValues = candidate.sortValues.map(normalizeSortBoundary);
+	}
+	return {
+		orderValue: candidate.orderValue,
+		id: candidate.id,
+		sortValues,
+	};
 }
 
 export interface ContentItem {

@@ -194,6 +194,23 @@ describe("release-service web surfaces", () => {
 							result: null,
 							approvalUrl: `${location.origin}/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`,
 						},
+						{
+							id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+							publisherDid: PUBLISHER_DID,
+							packageSlug: "linguadash",
+							version: "0.2.1",
+							state: "failed",
+							stateGeneration: 8,
+							reasonCode: "PDS_RETRY_EXHAUSTED",
+							reasonMessage:
+								"Your PDS rejected the release record. Start a fresh workflow dispatch.",
+							workflowId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+							expiresAt: 1_800_000_000_000,
+							createdAt: 1_799_999_000_000,
+							updatedAt: 1_799_999_500_000,
+							result: null,
+							approvalUrl: null,
+						},
 					],
 				});
 			}),
@@ -204,6 +221,9 @@ describe("release-service web surfaces", () => {
 		expect(screen.queryByText(PUBLISHER_DID)).toBeNull();
 		expect(screen.getAllByText("gallery").length).toBeGreaterThan(0);
 		expect(screen.getByText("Awaiting approval")).toBeTruthy();
+		expect(
+			screen.getByText("Your PDS rejected the release record. Start a fresh workflow dispatch."),
+		).toBeTruthy();
 		expect(screen.getByText("APPROVAL_REQUIRED")).toBeTruthy();
 		expect(screen.getByRole("link", { name: "Review release" })).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Account activity" })).toBeTruthy();

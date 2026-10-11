@@ -174,6 +174,8 @@ export interface AdminManifest {
 					blockTypeFingerprint?: string;
 					/** Value a new entry starts with. */
 					defaultValue?: unknown;
+					/** Set on `integer` fields, which share the `number` kind. */
+					integer?: boolean;
 				}
 			>;
 		}

@@ -116,6 +116,49 @@ describe("agent work plans", () => {
 		).toContain("### Needs follow-up");
 	});
 
+	test("keeps inline code readable while escaping everything around it", () => {
+		const plan = updateWorkPlan(
+			null,
+			{
+				summary: "Fix `validateTaskName` for [links](bad).",
+				steps: [{ id: "fix", title: "Change `digest:` to `digest_`", status: "completed" }],
+			},
+			1_000,
+		);
+		const body = renderWorkPlanComment({
+			plan,
+			mode: "fix",
+			status: "succeeded",
+			outcome: "`ctx.cron.schedule` throws for `<img src=x>` and @someone's [link](bad).",
+		});
+		expect(body).toContain("Fix `validateTaskName` for \\[links\\]\\(bad\\).");
+		expect(body).toContain("- [x] Change `digest:` to `digest_`");
+		expect(body).toContain(
+			"**Outcome:** `ctx.cron.schedule` throws for `<img src=x>` and @someone's \\[link\\]\\(bad\\).",
+		);
+	});
+
+	test("counts the step a successful run finished on as done", () => {
+		const plan = updateWorkPlan(
+			null,
+			{
+				summary: "Triage the report.",
+				steps: [
+					{ id: "read", title: "Read the code", status: "completed" },
+					{ id: "report", title: "Report triage disposition", status: "in_progress" },
+					{ id: "extra", title: "Check other callers", status: "pending" },
+				],
+			},
+			1_000,
+		);
+		const succeeded = renderWorkPlanComment({ plan, mode: "triage", status: "succeeded" });
+		expect(succeeded).toContain("- [x] Report triage disposition");
+		expect(succeeded).toContain("- [ ] Check other callers");
+
+		const failed = renderWorkPlanComment({ plan, mode: "triage", status: "failed" });
+		expect(failed).toContain("- [ ] **Report triage disposition**");
+	});
+
 	test("renders a safe deterministic workspace-preparation comment", () => {
 		const comment = renderPreparingWorkPlanComment({
 			mode: "implement",

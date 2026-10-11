@@ -61,12 +61,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# ელემენტი)} other {(# ელემენტი)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2918
+#: packages/admin/src/components/ContentEditor.tsx:2921
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} / # სიმბოლო, მინიმუმ {min}} other {{counted} / # სიმბოლო, მინიმუმ {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2923
+#: packages/admin/src/components/ContentEditor.tsx:2926
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} / # სიმბოლო} other {{counted} / # სიმბოლო}}"
 
@@ -208,7 +208,7 @@ msgstr ""
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5321
+#: packages/admin/src/components/PortableTextEditor.tsx:5352
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# მწკრივი} other {# მწკრივი}} × {1, plural, one {# სვეტი} other {# სვეტი}} არჩეულია"
 
@@ -258,7 +258,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:2928
+#: packages/admin/src/components/ContentEditor.tsx:2931
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {მინიმუმ # სიმბოლო} other {მინიმუმ # სიმბოლო}}"
 
@@ -482,8 +482,8 @@ msgstr "{base} → {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# ცვლილება შემდეგ რევიზიასთან} other {# ცვლილება შემდეგ რევიზიასთან}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3284
-#: packages/admin/src/components/PortableTextEditor.tsx:3296
+#: packages/admin/src/components/PortableTextEditor.tsx:3301
+#: packages/admin/src/components/PortableTextEditor.tsx:3313
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# სიმბოლო} other {# სიმბოლო}}"
 
@@ -720,8 +720,8 @@ msgstr "{position} / {total}"
 msgid "{previewRows} × {previewColumns} table"
 msgstr "{previewRows} × {previewColumns} ცხრილი"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3286
-#: packages/admin/src/components/PortableTextEditor.tsx:3297
+#: packages/admin/src/components/PortableTextEditor.tsx:3303
+#: packages/admin/src/components/PortableTextEditor.tsx:3314
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr "{readingTime, plural, one {# წთ კითხვა} other {# წთ კითხვა}}"
 
@@ -750,7 +750,7 @@ msgstr "{row} × {column} ცხრილი"
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr "{rows, plural, one {მწკრივი წაიშალა} other {# მწკრივი წაიშალა}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3524
+#: packages/admin/src/components/PortableTextEditor.tsx:3543
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} ცხრილი ჩაისვა"
 
@@ -826,8 +826,8 @@ msgstr "{unchangedCount, plural, one {# უცვლელის ჩვენე
 msgid "{widgetType} in {areaName}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3282
-#: packages/admin/src/components/PortableTextEditor.tsx:3295
+#: packages/admin/src/components/PortableTextEditor.tsx:3299
+#: packages/admin/src/components/PortableTextEditor.tsx:3312
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# სიტყვა} other {# სიტყვა}}"
 
@@ -1047,7 +1047,7 @@ msgstr ""
 msgid "A publication time has not been selected"
 msgstr "გამოქვეყნების დრო არ არის არჩეული"
 
-#: packages/admin/src/components/ContentEditor.tsx:1243
+#: packages/admin/src/components/ContentEditor.tsx:1245
 msgid "A publishing action is already in progress"
 msgstr "გამოქვეყნების ოპერაცია უკვე მიმდინარეობს"
 
@@ -1206,7 +1206,7 @@ msgstr "დამატება"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/ContentList.tsx:622
-#: packages/admin/src/components/PortableTextEditor.tsx:2880
+#: packages/admin/src/components/PortableTextEditor.tsx:2897
 #: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Add {0}"
@@ -1241,7 +1241,7 @@ msgstr ""
 msgid "Add another byline"
 msgstr "კიდევ ერთი ბაილაინის დამატება"
 
-#: packages/admin/src/components/BlocksField.tsx:272
+#: packages/admin/src/components/BlocksField.tsx:275
 msgid "Add at least {minItems} blocks."
 msgstr ""
 
@@ -1249,7 +1249,7 @@ msgstr ""
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "რეპიტერის სტრუქტურის განსასაზღვრად დაამატეთ მინიმუმ ერთი ქვეველი."
 
-#: packages/admin/src/components/BlocksField.tsx:173
+#: packages/admin/src/components/BlocksField.tsx:176
 msgid "Add block"
 msgstr ""
 
@@ -1258,7 +1258,7 @@ msgid "Add byline"
 msgstr "ბაილაინის დამატება"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5334
+#: packages/admin/src/components/PortableTextEditor.tsx:5365
 msgid "Add column after"
 msgstr "სვეტის დამატება მარჯვნივ"
 
@@ -1320,7 +1320,7 @@ msgstr "სურათების დამატება"
 msgid "Add images to gallery"
 msgstr "გალერეაში სურათების დამატება"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2880
+#: packages/admin/src/components/PortableTextEditor.tsx:2897
 msgid "Add item"
 msgstr "ელემენტის დამატება"
 
@@ -1328,9 +1328,9 @@ msgstr "ელემენტის დამატება"
 msgid "Add Item"
 msgstr "ელემენტის დამატება"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4964
-#: packages/admin/src/components/PortableTextEditor.tsx:5760
-#: packages/admin/src/components/PortableTextEditor.tsx:6195
+#: packages/admin/src/components/PortableTextEditor.tsx:4995
+#: packages/admin/src/components/PortableTextEditor.tsx:5791
+#: packages/admin/src/components/PortableTextEditor.tsx:6226
 msgid "Add link"
 msgstr "ბმულის დამატება"
 
@@ -1360,8 +1360,8 @@ msgstr "noindex მეტა თეგის დამატება"
 msgid "Add Passkey"
 msgstr "პასკის დამატება"
 
-#: packages/admin/src/components/ContentEditor.tsx:2840
-#: packages/admin/src/components/ContentEditor.tsx:2840
+#: packages/admin/src/components/ContentEditor.tsx:2843
+#: packages/admin/src/components/ContentEditor.tsx:2843
 msgid "Add reference"
 msgstr ""
 
@@ -1374,7 +1374,7 @@ msgid "Add row above"
 msgstr "მწკრივის დამატება ზემოთ"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5327
+#: packages/admin/src/components/PortableTextEditor.tsx:5358
 msgid "Add row below"
 msgstr "მწკრივის დამატება ქვემოთ"
 
@@ -1456,7 +1456,7 @@ msgid "Administrator"
 msgstr "ადმინისტრატორი"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:995
-#: packages/admin/src/components/PortableTextEditor.tsx:1968
+#: packages/admin/src/components/PortableTextEditor.tsx:1985
 msgid "Advanced"
 msgstr "დამატებითი"
 
@@ -1495,25 +1495,25 @@ msgid "Agent-callable MCP tools"
 msgstr "აგენტის მიერ გამოძახებადი MCP ინსტრუმენტები"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5224
+#: packages/admin/src/components/PortableTextEditor.tsx:5255
 msgid "Align"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6369
+#: packages/admin/src/components/PortableTextEditor.tsx:6400
 msgid "Align center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6361
+#: packages/admin/src/components/PortableTextEditor.tsx:6392
 msgid "Align left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6377
+#: packages/admin/src/components/PortableTextEditor.tsx:6408
 msgid "Align right"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:722
-#: packages/admin/src/components/PortableTextEditor.tsx:5741
+#: packages/admin/src/components/PortableTextEditor.tsx:5772
 msgid "Alignment"
 msgstr "გასწორება"
 
@@ -1637,8 +1637,8 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:514
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:518
 #: packages/admin/src/components/MediaLibrary.tsx:1144
-#: packages/admin/src/components/PortableTextEditor.tsx:5672
-#: packages/admin/src/components/PortableTextEditor.tsx:5738
+#: packages/admin/src/components/PortableTextEditor.tsx:5703
+#: packages/admin/src/components/PortableTextEditor.tsx:5769
 msgid "Alt text"
 msgstr "ალტ-ტექსტი"
 
@@ -1788,7 +1788,7 @@ msgid "Application Password"
 msgstr "აპლიკაციის პაროლი"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
-#: packages/admin/src/components/PortableTextEditor.tsx:6460
+#: packages/admin/src/components/PortableTextEditor.tsx:6491
 msgid "Apply"
 msgstr "გამოყენება"
 
@@ -1796,8 +1796,8 @@ msgstr "გამოყენება"
 msgid "Apply changes"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4938
-#: packages/admin/src/components/PortableTextEditor.tsx:5713
+#: packages/admin/src/components/PortableTextEditor.tsx:4969
+#: packages/admin/src/components/PortableTextEditor.tsx:5744
 msgid "Apply link"
 msgstr "ბმულის გამოყენება"
 
@@ -1898,11 +1898,11 @@ msgstr ""
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:2951
+#: packages/admin/src/components/ContentEditor.tsx:2954
 msgid "At least {min}"
 msgstr "მინიმუმ {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2948
+#: packages/admin/src/components/ContentEditor.tsx:2951
 msgid "At most {max}"
 msgstr "მაქსიმუმ {max}"
 
@@ -2070,7 +2070,7 @@ msgstr ""
 msgid "Back"
 msgstr "უკან"
 
-#: packages/admin/src/components/ContentEditor.tsx:1470
+#: packages/admin/src/components/ContentEditor.tsx:1472
 msgid "Back to {collectionLabel} list"
 msgstr "დაბრუნება {collectionLabel}-ის სიაში"
 
@@ -2150,7 +2150,7 @@ msgstr "შესანახი სარეზერვო ასლები"
 msgid "Bash"
 msgstr "Bash"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1966
+#: packages/admin/src/components/PortableTextEditor.tsx:1983
 msgid "Basic blocks"
 msgstr ""
 
@@ -2166,7 +2166,7 @@ msgstr "გაგზავნამდე:"
 msgid "Before you continue:"
 msgstr "სანამ გააგრძელებთ:"
 
-#: packages/admin/src/components/ContentEditor.tsx:2945
+#: packages/admin/src/components/ContentEditor.tsx:2948
 msgid "Between {min} and {max}"
 msgstr "{min}-სა და {max}-ს შორის"
 
@@ -2184,7 +2184,7 @@ msgid "Block"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/BlocksField.tsx:406
+#: packages/admin/src/components/BlocksField.tsx:415
 msgid "Block {0}"
 msgstr ""
 
@@ -2222,8 +2222,8 @@ msgstr ""
 msgid "Blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
-#: packages/admin/src/components/PortableTextEditor.tsx:6229
+#: packages/admin/src/components/PortableTextEditor.tsx:4749
+#: packages/admin/src/components/PortableTextEditor.tsx:6260
 msgid "Bold"
 msgstr "მუქი"
 
@@ -2279,8 +2279,8 @@ msgid "Build provenance verified"
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
-#: packages/admin/src/components/PortableTextEditor.tsx:2009
-#: packages/admin/src/components/PortableTextEditor.tsx:6286
+#: packages/admin/src/components/PortableTextEditor.tsx:2026
+#: packages/admin/src/components/PortableTextEditor.tsx:6317
 msgid "Bullet List"
 msgstr "მარკირებული სია"
 
@@ -2405,9 +2405,9 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/MenuEditor.tsx:629
 #: packages/admin/src/components/MenuList.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:802
-#: packages/admin/src/components/PortableTextEditor.tsx:5684
-#: packages/admin/src/components/PortableTextEditor.tsx:5710
-#: packages/admin/src/components/PortableTextEditor.tsx:6444
+#: packages/admin/src/components/PortableTextEditor.tsx:5715
+#: packages/admin/src/components/PortableTextEditor.tsx:5741
+#: packages/admin/src/components/PortableTextEditor.tsx:6475
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:368
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2519,8 +2519,8 @@ msgstr "უჯრები გაერთიანდა"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5228
-#: packages/admin/src/components/PortableTextEditor.tsx:5346
+#: packages/admin/src/components/PortableTextEditor.tsx:5259
+#: packages/admin/src/components/PortableTextEditor.tsx:5377
 msgid "Center"
 msgstr "ცენტრში"
 
@@ -2801,7 +2801,7 @@ msgstr "დასრულებულების გასუფთავე�
 msgid "Clear filters"
 msgstr "ფილტრების გასუფთავება"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5238
+#: packages/admin/src/components/PortableTextEditor.tsx:5269
 msgid "Clear formatting"
 msgstr ""
 
@@ -2871,9 +2871,9 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:588
 #: packages/admin/src/components/MenuEditor.tsx:592
 #: packages/admin/src/components/MenuList.tsx:145
-#: packages/admin/src/components/PortableTextEditor.tsx:2655
-#: packages/admin/src/components/PortableTextEditor.tsx:2661
-#: packages/admin/src/components/PortableTextEditor.tsx:2665
+#: packages/admin/src/components/PortableTextEditor.tsx:2672
+#: packages/admin/src/components/PortableTextEditor.tsx:2678
+#: packages/admin/src/components/PortableTextEditor.tsx:2682
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:348
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
@@ -2924,7 +2924,7 @@ msgstr "სურათის პარამეტრების დახუ�
 msgid "Close panel"
 msgstr "პანელის დახურვა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2040
+#: packages/admin/src/components/ContentEditor.tsx:2042
 msgid "Close settings"
 msgstr "პარამეტრების დახურვა"
 
@@ -2935,8 +2935,8 @@ msgid "Code"
 msgstr "კოდი"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
-#: packages/admin/src/components/PortableTextEditor.tsx:2039
-#: packages/admin/src/components/PortableTextEditor.tsx:6328
+#: packages/admin/src/components/PortableTextEditor.tsx:2056
+#: packages/admin/src/components/PortableTextEditor.tsx:6359
 msgid "Code Block"
 msgstr "კოდის ბლოკი"
 
@@ -2944,7 +2944,7 @@ msgstr "კოდის ბლოკი"
 msgid "Code block actions"
 msgstr "კოდის ბლოკის ქმედებები"
 
-#: packages/admin/src/components/BlocksField.tsx:347
+#: packages/admin/src/components/BlocksField.tsx:350
 msgid "Collapse block"
 msgstr ""
 
@@ -2990,7 +2990,7 @@ msgid "Collections created:"
 msgstr "შექმნილი კოლექციები:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5332
+#: packages/admin/src/components/PortableTextEditor.tsx:5363
 msgid "Column added after"
 msgstr "სვეტი დაემატა მარჯვნივ"
 
@@ -3006,7 +3006,7 @@ msgstr "სვეტის სიგანე შემცირდა"
 msgid "Column width increased"
 msgstr "სვეტის სიგანე გაიზარდა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3524
+#: packages/admin/src/components/PortableTextEditor.tsx:3543
 msgid "Column width resized"
 msgstr "სვეტის სიგანე შეიცვალა"
 
@@ -3257,7 +3257,7 @@ msgid "Continue Import"
 msgstr "იმპორტის გაგრძელება"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6303
+#: packages/admin/src/components/PortableTextEditor.tsx:6334
 msgid "Continue numbering"
 msgstr "ნუმერაციის გაგრძელება"
 
@@ -3362,7 +3362,7 @@ msgstr "ავტომატურად კოპირება ვერ მ
 msgid "Could not create {singularLower}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4513
+#: packages/admin/src/components/PortableTextEditor.tsx:4544
 msgid "Could not insert section"
 msgstr "სექციის ჩასმა ვერ მოხერხდა"
 
@@ -3418,7 +3418,7 @@ msgstr "ვერ დადასტურდა, არსებობს თ�
 msgid "Couldn't detect WordPress"
 msgstr "WordPress ვერ აღმოჩნდა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2819
+#: packages/admin/src/components/ContentEditor.tsx:2822
 msgid "Couldn't load all references."
 msgstr ""
 
@@ -3537,7 +3537,7 @@ msgstr ""
 msgid "Create a block type before adding a blocks field."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2010
+#: packages/admin/src/components/PortableTextEditor.tsx:2027
 msgid "Create a bullet list"
 msgstr "მარკირებული სიის შექმნა"
 
@@ -3550,7 +3550,7 @@ msgstr "ახალი {0}-ის შექმნა"
 msgid "Create a new {singularLabel}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2020
+#: packages/admin/src/components/PortableTextEditor.tsx:2037
 msgid "Create a numbered list"
 msgstr "დანომრილი სიის შექმნა"
 
@@ -4001,7 +4001,7 @@ msgstr "წავშალოთ {0}?"
 msgid "Delete backup?"
 msgstr "წავშალოთ სარეზერვო ასლი?"
 
-#: packages/admin/src/components/BlocksField.tsx:382
+#: packages/admin/src/components/BlocksField.tsx:391
 #: packages/admin/src/components/editor/EmbedBlockShell.tsx:358
 msgid "Delete block"
 msgstr ""
@@ -4055,7 +4055,7 @@ msgstr "საქაღალდის წაშლა"
 msgid "Delete gallery"
 msgstr "გალერეის წაშლა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5772
+#: packages/admin/src/components/PortableTextEditor.tsx:5803
 msgid "Delete image"
 msgstr "სურათის წაშლა"
 
@@ -4209,7 +4209,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:521
-#: packages/admin/src/components/PortableTextEditor.tsx:5673
+#: packages/admin/src/components/PortableTextEditor.tsx:5704
 msgid "Describe the image"
 msgstr "სურათის აღწერა"
 
@@ -4373,11 +4373,11 @@ msgstr "დასრულებული {0}-ის დახურვა"
 msgid "Dismiss import suggestion"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4534
+#: packages/admin/src/components/PortableTextEditor.tsx:4565
 msgid "Dismiss section error"
 msgstr "სექციის შეცდომის დახურვა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4501
+#: packages/admin/src/components/PortableTextEditor.tsx:4532
 msgid "Dismiss table paste error"
 msgstr "ცხრილის ჩასმის შეცდომის დახურვა"
 
@@ -4414,7 +4414,7 @@ msgstr "თეგების ღრუბლის ჩვენება"
 msgid "Displayed below the image as a visible caption."
 msgstr "ნაჩვენებია სურათის ქვემოთ, როგორც ხილული წარწერა."
 
-#: packages/admin/src/components/ContentEditor.tsx:1586
+#: packages/admin/src/components/ContentEditor.tsx:1588
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "ყურადღებისგან თავისუფალი რეჟიმი (⌘⇧\\)"
 
@@ -4423,7 +4423,7 @@ msgid "Distribute columns evenly"
 msgstr "სვეტების თანაბრად განაწილება"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:46
-#: packages/admin/src/components/PortableTextEditor.tsx:2049
+#: packages/admin/src/components/PortableTextEditor.tsx:2066
 msgid "Divider"
 msgstr "გამყოფი"
 
@@ -4585,7 +4585,7 @@ msgstr "გადმოიტანეთ და ჩააგდეთ ან �
 msgid "Drag here to add"
 msgstr "დასამატებლად გადმოიტანეთ აქ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3056
+#: packages/admin/src/components/PortableTextEditor.tsx:3073
 msgid "Drag to reorder"
 msgstr "გადმოიტანეთ გადასალაგებლად"
 
@@ -4641,7 +4641,7 @@ msgstr "დუბლირება"
 msgid "Duplicate {title}"
 msgstr "{title}-ის დუბლირება"
 
-#: packages/admin/src/components/BlocksField.tsx:373
+#: packages/admin/src/components/BlocksField.tsx:382
 msgid "Duplicate block"
 msgstr ""
 
@@ -4692,7 +4692,7 @@ msgstr "რედაქტირება"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:364
-#: packages/admin/src/components/PortableTextEditor.tsx:2652
+#: packages/admin/src/components/PortableTextEditor.tsx:2669
 #: packages/admin/src/components/RelationFormPanel.tsx:83
 #: packages/admin/src/components/RelationList.tsx:221
 #: packages/admin/src/components/RelationsPanel.tsx:201
@@ -4711,7 +4711,7 @@ msgstr "{0}-ის რედაქტირება"
 msgid "Edit {0} field"
 msgstr "{0} ველის რედაქტირება"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1325
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel}-ის რედაქტირება"
 
@@ -4773,10 +4773,10 @@ msgstr "სურათის რედაქტირება"
 msgid "Edit image {0}"
 msgstr "სურათის რედაქტირება ({0})"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4964
-#: packages/admin/src/components/PortableTextEditor.tsx:5070
-#: packages/admin/src/components/PortableTextEditor.tsx:5760
-#: packages/admin/src/components/PortableTextEditor.tsx:6194
+#: packages/admin/src/components/PortableTextEditor.tsx:4995
+#: packages/admin/src/components/PortableTextEditor.tsx:5101
+#: packages/admin/src/components/PortableTextEditor.tsx:5791
+#: packages/admin/src/components/PortableTextEditor.tsx:6225
 msgid "Edit link"
 msgstr "ბმულის რედაქტირება"
 
@@ -4928,11 +4928,11 @@ msgid "Embed"
 msgstr ""
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:3690
+#: packages/admin/src/components/PortableTextEditor.tsx:3709
 msgid "Embed a {0}"
 msgstr "{0}-ის ჩაშენება"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2093
+#: packages/admin/src/components/PortableTextEditor.tsx:2110
 msgid "Embed a page from another site"
 msgstr ""
 
@@ -4944,7 +4944,7 @@ msgstr ""
 msgid "Embedded content"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1969
+#: packages/admin/src/components/PortableTextEditor.tsx:1986
 msgid "Embeds"
 msgstr "ჩაშენებები"
 
@@ -5056,7 +5056,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "შეიყვანეთ URL (https://…) ან ფარდობითი ბილიკი (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2993
+#: packages/admin/src/components/ContentEditor.tsx:2996
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "შეიყვანეთ სწორი URL (მაგ. https://example.com)"
 
@@ -5064,7 +5064,7 @@ msgstr "შეიყვანეთ სწორი URL (მაგ. https://exam
 msgid "Enter credentials manually"
 msgstr "ავტორიზაციის მონაცემების ხელით შეყვანა"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1583
 msgid "Enter distraction-free mode"
 msgstr "ყურადღებისგან თავისუფალ რეჟიმში გადასვლა"
 
@@ -5072,7 +5072,7 @@ msgstr "ყურადღებისგან თავისუფალ რ�
 msgid "Enter email"
 msgstr "შეიყვანეთ ელფოსტა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2337
+#: packages/admin/src/components/ContentEditor.tsx:2340
 msgid "Enter markdown content..."
 msgstr "შეიყვანეთ Markdown შიგთავსი..."
 
@@ -5154,7 +5154,7 @@ msgstr "სექციის შენახვისას შეცდომ�
 msgid "Error updating widget"
 msgstr "ვიჯეტის განახლებისას შეცდომა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2550
+#: packages/admin/src/components/PortableTextEditor.tsx:2567
 msgid "esc"
 msgstr ""
 
@@ -5207,15 +5207,15 @@ msgstr "არსებული შიგთავსი ინდექსი�
 msgid "Exists"
 msgstr "არსებობს"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1583
 msgid "Exit distraction-free mode"
 msgstr "ყურადღებისგან თავისუფალი რეჟიმიდან გამოსვლა"
 
-#: packages/admin/src/components/ContentEditor.tsx:1585
+#: packages/admin/src/components/ContentEditor.tsx:1587
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "ყურადღებისგან თავისუფალი რეჟიმიდან გამოსვლა (⌘⇧\\)"
 
-#: packages/admin/src/components/BlocksField.tsx:347
+#: packages/admin/src/components/BlocksField.tsx:350
 msgid "Expand block"
 msgstr ""
 
@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "პლაგინის გამორთვა ვერ მოხერხდა"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "პლაგინის ჩართვა ვერ მოხერხდა"
 
@@ -5655,7 +5655,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:369
+#: packages/admin/src/lib/api/client.ts:371
 msgid "Failed to fetch auth mode"
 msgstr "ავტორიზაციის რეჟიმის ჩატვირთვა ვერ მოხერხდა"
 
@@ -5729,7 +5729,7 @@ msgstr "ჩანაწერის ტერმინების ჩატვ�
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:352
+#: packages/admin/src/lib/api/client.ts:354
 msgid "Failed to fetch manifest"
 msgstr "მანიფესტის ჩატვირთვა ვერ მოხერხდა"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "პლაგინის ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "პლაგინის პარამეტრების ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "პლაგინების ჩატვირთვა ვერ მოხერხდა"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "პლაგინის განახლება ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "პლაგინის MCP წვდომის განახლება ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "პლაგინის პარამეტრების განახლება ვერ მოხერხდა"
 
@@ -6557,11 +6557,11 @@ msgstr "პირველი გამოქვეყნება"
 msgid "First-time commenters only"
 msgstr "მხოლოდ პირველად კომენტატორებისთვის"
 
-#: packages/admin/src/components/ContentEditor.tsx:1303
+#: packages/admin/src/components/ContentEditor.tsx:1305
 msgid "Fix invalid fields before changing the publication date"
 msgstr "გამოქვეყნების თარიღის შეცვლამდე გაასწორეთ არასწორი ველები"
 
-#: packages/admin/src/components/ContentEditor.tsx:1247
+#: packages/admin/src/components/ContentEditor.tsx:1249
 msgid "Fix invalid fields before changing the schedule"
 msgstr "დაგეგმვის შეცვლამდე გაასწორეთ არასწორი ველები"
 
@@ -6635,7 +6635,7 @@ msgstr "სრული იმპორტისთვის, მონახა
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "საუკეთესო იმპორტისთვის დააყენეთ <0>EmDash Exporter</0> პლაგინი WordPress-ის საიტზე."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4916
+#: packages/admin/src/components/PortableTextEditor.tsx:4947
 msgid "Format selection"
 msgstr ""
 
@@ -6683,7 +6683,7 @@ msgstr "სრული ადმინისტრატორული წვ�
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:44
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:3638
+#: packages/admin/src/components/PortableTextEditor.tsx:3657
 msgid "Gallery"
 msgstr "გალერეა"
 
@@ -6817,37 +6817,37 @@ msgstr "სათაურები"
 
 #: packages/admin/src/components/editor/blockTypes.ts:85
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:2004
+#: packages/admin/src/components/PortableTextEditor.tsx:2021
 msgid "Heading 1"
 msgstr "სათაური 1"
 
 #: packages/admin/src/components/editor/blockTypes.ts:86
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:2005
+#: packages/admin/src/components/PortableTextEditor.tsx:2022
 msgid "Heading 2"
 msgstr "სათაური 2"
 
 #: packages/admin/src/components/editor/blockTypes.ts:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:2006
+#: packages/admin/src/components/PortableTextEditor.tsx:2023
 msgid "Heading 3"
 msgstr "სათაური 3"
 
 #: packages/admin/src/components/editor/blockTypes.ts:88
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:2075
+#: packages/admin/src/components/PortableTextEditor.tsx:2092
 msgid "Heading 4"
 msgstr "სათაური 4"
 
 #: packages/admin/src/components/editor/blockTypes.ts:89
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:2076
+#: packages/admin/src/components/PortableTextEditor.tsx:2093
 msgid "Heading 5"
 msgstr "სათაური 5"
 
 #: packages/admin/src/components/editor/blockTypes.ts:90
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:2077
+#: packages/admin/src/components/PortableTextEditor.tsx:2094
 msgid "Heading 6"
 msgstr "სათაური 6"
 
@@ -6909,7 +6909,7 @@ msgstr "მოხვედრები"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "ჩანაწერის ჩაკეტვა რედაქტირებისას და უარი სხვა ავტორებისთვის"
 
-#: packages/admin/src/components/ContentEditor.tsx:2510
+#: packages/admin/src/components/ContentEditor.tsx:2513
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
@@ -6954,7 +6954,7 @@ msgstr "როგორ შევქმნათ აპლიკაციის 
 #: packages/admin/src/components/editor/BlockMenu.tsx:47
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:51
-#: packages/admin/src/components/PortableTextEditor.tsx:2082
+#: packages/admin/src/components/PortableTextEditor.tsx:2099
 msgid "HTML"
 msgstr "HTML"
 
@@ -7029,7 +7029,7 @@ msgid "If you didn't request this, you can safely ignore this email."
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:48
-#: packages/admin/src/components/PortableTextEditor.tsx:2092
+#: packages/admin/src/components/PortableTextEditor.tsx:2109
 msgid "Iframe"
 msgstr ""
 
@@ -7045,7 +7045,7 @@ msgstr ""
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:444
 #: packages/admin/src/components/FieldEditor.tsx:1297
-#: packages/admin/src/components/PortableTextEditor.tsx:3625
+#: packages/admin/src/components/PortableTextEditor.tsx:3644
 msgid "Image"
 msgstr "სურათი"
 
@@ -7064,7 +7064,7 @@ msgstr "სურათი {0}"
 msgid "Image actions"
 msgstr "სურათის მოქმედებები"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5638
+#: packages/admin/src/components/PortableTextEditor.tsx:5669
 msgid "Image controls"
 msgstr ""
 
@@ -7072,7 +7072,7 @@ msgstr ""
 msgid "Image from media library"
 msgstr "სურათი მედია ბიბლიოთეკიდან"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6192
+#: packages/admin/src/components/PortableTextEditor.tsx:6223
 msgid "Image link"
 msgstr ""
 
@@ -7087,7 +7087,7 @@ msgid "Image replaced."
 msgstr "სურათი შეიცვალა."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5765
+#: packages/admin/src/components/PortableTextEditor.tsx:5796
 msgid "Image settings"
 msgstr "სურათის პარამეტრები"
 
@@ -7264,7 +7264,7 @@ msgstr "ნაგავში"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "Windows-ის პარამეტრებში გახსენით ანგარიშები, შემდეგ შესვლის პარამეტრები და დააყენეთ PIN. თითის ანაბეჭდი და სახის ამოცნობა არასავალდებულოა."
 
-#: packages/admin/src/components/BlocksField.tsx:359
+#: packages/admin/src/components/BlocksField.tsx:364
 msgid "Inactive version"
 msgstr ""
 
@@ -7310,50 +7310,50 @@ msgstr ""
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4722
-#: packages/admin/src/components/PortableTextEditor.tsx:6261
+#: packages/admin/src/components/PortableTextEditor.tsx:4753
+#: packages/admin/src/components/PortableTextEditor.tsx:6292
 msgid "Inline Code"
 msgstr "ინლაინ კოდი"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:2652
+#: packages/admin/src/components/PortableTextEditor.tsx:2669
 msgid "Insert {0}"
 msgstr "ჩასმა: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2030
+#: packages/admin/src/components/PortableTextEditor.tsx:2047
 msgid "Insert a blockquote"
 msgstr "ციტატის ბლოკის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2040
+#: packages/admin/src/components/PortableTextEditor.tsx:2057
 msgid "Insert a code block"
 msgstr "კოდის ბლოკის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2067
 msgid "Insert a horizontal rule"
 msgstr "ჰორიზონტალური ხაზის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3669
+#: packages/admin/src/components/PortableTextEditor.tsx:3688
 msgid "Insert a reusable section"
 msgstr "მრავალჯერადი სექციის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2068
+#: packages/admin/src/components/PortableTextEditor.tsx:2085
 msgid "Insert a table"
 msgstr "ცხრილის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3626
+#: packages/admin/src/components/PortableTextEditor.tsx:3645
 msgid "Insert an image"
 msgstr "სურათის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3639
+#: packages/admin/src/components/PortableTextEditor.tsx:3658
 msgid "Insert an image gallery"
 msgstr "სურათების გალერეის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2446
+#: packages/admin/src/components/PortableTextEditor.tsx:2463
 msgid "Insert block"
 msgstr "ბლოკის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6208
-#: packages/admin/src/components/PortableTextEditor.tsx:6218
+#: packages/admin/src/components/PortableTextEditor.tsx:6239
+#: packages/admin/src/components/PortableTextEditor.tsx:6249
 msgid "Insert block after current block"
 msgstr "ბლოკის ჩასმა მიმდინარე ბლოკის შემდეგ"
 
@@ -7361,12 +7361,12 @@ msgstr "ბლოკის ჩასმა მიმდინარე ბლო
 msgid "Insert block below"
 msgstr "ბლოკის ჩასმა ქვემოთ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6342
+#: packages/admin/src/components/PortableTextEditor.tsx:6373
 msgid "Insert HTML"
 msgstr "HTML-ის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4628
-#: packages/admin/src/components/PortableTextEditor.tsx:6335
+#: packages/admin/src/components/PortableTextEditor.tsx:4659
+#: packages/admin/src/components/PortableTextEditor.tsx:6366
 msgid "Insert image"
 msgstr "სურათის ჩასმა"
 
@@ -7382,7 +7382,7 @@ msgstr "აბზაცის ჩასმა შემდეგ"
 msgid "Insert paragraph before"
 msgstr "აბზაცის ჩასმა წინ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2083
+#: packages/admin/src/components/PortableTextEditor.tsx:2100
 msgid "Insert raw HTML"
 msgstr "დაუმუშავებელი HTML-ის ჩასმა"
 
@@ -7395,7 +7395,7 @@ msgstr "სექციის ჩასმა"
 msgid "Insert table"
 msgstr "ცხრილის ჩასმა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4642
+#: packages/admin/src/components/PortableTextEditor.tsx:4673
 msgid "Insert video"
 msgstr ""
 
@@ -7461,7 +7461,7 @@ msgstr "არასწორი HANDLE"
 msgid "Invalid invite link"
 msgstr "მოწვევის ბმული არასწორია"
 
-#: packages/admin/src/components/ContentEditor.tsx:3064
+#: packages/admin/src/components/ContentEditor.tsx:3067
 msgid "Invalid JSON"
 msgstr "არასწორი JSON"
 
@@ -7518,13 +7518,13 @@ msgstr "მას ინახავს ავთენტიფიკატო�
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4719
-#: packages/admin/src/components/PortableTextEditor.tsx:6237
+#: packages/admin/src/components/PortableTextEditor.tsx:4750
+#: packages/admin/src/components/PortableTextEditor.tsx:6268
 msgid "Italic"
 msgstr "დახრილი"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:3042
+#: packages/admin/src/components/PortableTextEditor.tsx:3059
 #: packages/admin/src/components/RepeaterField.tsx:247
 msgid "Item {0}"
 msgstr "ელემენტი {0}"
@@ -7671,7 +7671,7 @@ msgstr "ლანდშაფტური"
 msgid "Language"
 msgstr "ენა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2004
+#: packages/admin/src/components/PortableTextEditor.tsx:2021
 msgid "Large section heading"
 msgstr "დიდი სათაური"
 
@@ -7732,8 +7732,8 @@ msgstr "მიუნიჭებლად დატოვება"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5227
-#: packages/admin/src/components/PortableTextEditor.tsx:5345
+#: packages/admin/src/components/PortableTextEditor.tsx:5258
+#: packages/admin/src/components/PortableTextEditor.tsx:5376
 msgid "Left"
 msgstr "მარცხნივ"
 
@@ -7754,7 +7754,7 @@ msgstr "ლიცენზია"
 msgid "Limit"
 msgstr "ლიმიტი"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6421
+#: packages/admin/src/components/PortableTextEditor.tsx:6452
 msgid "Link"
 msgstr "ბმული"
 
@@ -7762,7 +7762,7 @@ msgstr "ბმული"
 msgid "Link expired"
 msgstr "ბმულის ვადა გავიდა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5048
+#: packages/admin/src/components/PortableTextEditor.tsx:5079
 msgid "Link options"
 msgstr ""
 
@@ -7845,7 +7845,7 @@ msgstr ""
 msgid "Links to {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3447
+#: packages/admin/src/components/PortableTextEditor.tsx:3464
 msgid "List"
 msgstr ""
 
@@ -7934,7 +7934,7 @@ msgstr "კონფიგურაცია იტვირთება..."
 msgid "Loading content..."
 msgstr "შიგთავსი იტვირთება..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4464
+#: packages/admin/src/components/PortableTextEditor.tsx:4495
 msgid "Loading editor..."
 msgstr "რედაქტორი იტვირთება..."
 
@@ -7984,7 +7984,7 @@ msgstr "პლაგინები იტვირთება..."
 msgid "Loading redirects..."
 msgstr "გადამისამართებები იტვირთება..."
 
-#: packages/admin/src/components/ContentEditor.tsx:2827
+#: packages/admin/src/components/ContentEditor.tsx:2830
 msgid "Loading references..."
 msgstr ""
 
@@ -8038,7 +8038,7 @@ msgstr "ვიჯეტები იტვირთება..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1741
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/MediaUsedIn.tsx:245
-#: packages/admin/src/components/PortableTextEditor.tsx:3169
+#: packages/admin/src/components/PortableTextEditor.tsx:3186
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
@@ -8286,7 +8286,7 @@ msgstr "თეგების მაქსიმუმი"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1967
+#: packages/admin/src/components/PortableTextEditor.tsx:1984
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
@@ -8384,7 +8384,7 @@ msgstr "მედიის გამოყენების თვალყუ�
 msgid "Media Write"
 msgstr "მედიის ჩაწერა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2005
+#: packages/admin/src/components/PortableTextEditor.tsx:2022
 msgid "Medium section heading"
 msgstr "საშუალო სათაური"
 
@@ -8499,7 +8499,7 @@ msgstr "მინიმალური მნიშვნელობა"
 msgid "Minimum blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2076
+#: packages/admin/src/components/PortableTextEditor.tsx:2093
 msgid "Minor section heading"
 msgstr "მცირე სათაური"
 
@@ -8546,7 +8546,7 @@ msgstr "ყოველთვიური/წლიური არქივე�
 msgid "More actions for {0}"
 msgstr "მეტი მოქმედება: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5194
+#: packages/admin/src/components/PortableTextEditor.tsx:5225
 msgid "More formatting"
 msgstr ""
 
@@ -8595,7 +8595,7 @@ msgstr "გადავიტანოთ „{title}“ ნაგავში? �
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2794
+#: packages/admin/src/components/ContentEditor.tsx:2797
 #: packages/admin/src/components/FieldEditor.tsx:1159
 #: packages/admin/src/components/TaxonomyManager.tsx:461
 msgid "Move {0} down"
@@ -8619,7 +8619,7 @@ msgstr "{0}-ის უკან გადატანა"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2783
+#: packages/admin/src/components/ContentEditor.tsx:2786
 #: packages/admin/src/components/FieldEditor.tsx:1142
 #: packages/admin/src/components/TaxonomyManager.tsx:448
 msgid "Move {0} up"
@@ -8807,7 +8807,7 @@ msgstr "ახალი"
 msgid "NEW"
 msgstr "ახალი"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1325
 msgid "New {itemLabel}"
 msgstr "ახალი {itemLabel}"
 
@@ -8977,7 +8977,7 @@ msgstr "დამტკიცებული კომენტარები �
 msgid "No block types defined"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:226
+#: packages/admin/src/components/BlocksField.tsx:229
 msgid "No blocks yet"
 msgstr ""
 
@@ -9045,7 +9045,7 @@ msgstr "შიგთავსის ტიპები ჯერ არ არ�
 msgid "No custom fields yet"
 msgstr "მორგებული ველები ჯერ არ არის"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5734
+#: packages/admin/src/components/PortableTextEditor.tsx:5765
 msgid "No description yet"
 msgstr ""
 
@@ -9136,7 +9136,7 @@ msgstr "დასაყენებელი გამოშვებები �
 msgid "No invite token provided"
 msgstr "მოწვევის ტოკენი მითითებული არ არის"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2965
+#: packages/admin/src/components/PortableTextEditor.tsx:2982
 #: packages/admin/src/components/RepeaterField.tsx:167
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -9163,7 +9163,7 @@ msgstr "დამთხვევები ვერ მოიძებნა"
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:217
+#: packages/admin/src/components/BlocksField.tsx:220
 msgid "No matching block types"
 msgstr ""
 
@@ -9271,7 +9271,7 @@ msgstr "ბოლო დროს აქტივობა არ ყოფი�
 msgid "No redirects yet"
 msgstr "გადამისამართებები ჯერ არ არის"
 
-#: packages/admin/src/components/ContentEditor.tsx:2739
+#: packages/admin/src/components/ContentEditor.tsx:2742
 msgid "No references selected."
 msgstr ""
 
@@ -9283,7 +9283,7 @@ msgstr ""
 msgid "No relations yet."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2488
+#: packages/admin/src/components/PortableTextEditor.tsx:2505
 #: packages/admin/src/components/RepeaterField.tsx:398
 msgid "No results"
 msgstr "შედეგები ვერ მოიძებნა"
@@ -9357,7 +9357,7 @@ msgid "Non-guest"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
-#: packages/admin/src/components/PortableTextEditor.tsx:5344
+#: packages/admin/src/components/PortableTextEditor.tsx:5375
 msgid "None"
 msgstr "არცერთი"
 
@@ -9424,8 +9424,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "სიის ხედებში გვერდზე გამოსაჩენი პოსტების რაოდენობა"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
-#: packages/admin/src/components/PortableTextEditor.tsx:2019
-#: packages/admin/src/components/PortableTextEditor.tsx:6294
+#: packages/admin/src/components/PortableTextEditor.tsx:2036
+#: packages/admin/src/components/PortableTextEditor.tsx:6325
 msgid "Numbered List"
 msgstr "დანომრილი სია"
 
@@ -9497,7 +9497,7 @@ msgid "Open"
 msgstr "გახსნა"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:2772
+#: packages/admin/src/components/ContentEditor.tsx:2775
 msgid "Open {0} in a new tab"
 msgstr ""
 
@@ -9642,7 +9642,7 @@ msgstr "ორიგინალი სურათი მოჭრილია.
 msgid "Original:"
 msgstr "ორიგინალი:"
 
-#: packages/admin/src/components/BlocksField.tsx:146
+#: packages/admin/src/components/BlocksField.tsx:149
 msgid "Other"
 msgstr ""
 
@@ -9706,7 +9706,7 @@ msgid "Pages"
 msgstr "გვერდები"
 
 #: packages/admin/src/components/editor/blockTypes.ts:80
-#: packages/admin/src/components/PortableTextEditor.tsx:1997
+#: packages/admin/src/components/PortableTextEditor.tsx:2014
 msgid "Paragraph"
 msgstr "აბზაცი"
 
@@ -9947,7 +9947,7 @@ msgstr "შეიყვანეთ სწორი URL"
 msgid "Plugin"
 msgstr "პლაგინი"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "პლაგინი „{pluginId}“ ვერ მოიძებნა"
 
@@ -9964,7 +9964,7 @@ msgstr "პლაგინის ქმედება ვერ შესრუ
 msgid "Plugin actions"
 msgstr "პლაგინის ქმედებები"
 
-#: packages/admin/src/components/ContentEditor.tsx:1642
+#: packages/admin/src/components/ContentEditor.tsx:1644
 msgid "Plugin changes were not applied"
 msgstr ""
 
@@ -10388,9 +10388,9 @@ msgid "Quick create names the relationship after this field and this collection,
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
-#: packages/admin/src/components/PortableTextEditor.tsx:2029
-#: packages/admin/src/components/PortableTextEditor.tsx:3448
-#: packages/admin/src/components/PortableTextEditor.tsx:6320
+#: packages/admin/src/components/PortableTextEditor.tsx:2046
+#: packages/admin/src/components/PortableTextEditor.tsx:3465
+#: packages/admin/src/components/PortableTextEditor.tsx:6351
 msgid "Quote"
 msgstr "ციტატა"
 
@@ -10563,7 +10563,7 @@ msgstr "გადამისამართებები"
 msgid "Redirects that loop will be imported turned off"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6483
+#: packages/admin/src/components/PortableTextEditor.tsx:6514
 msgid "Redo"
 msgstr "გამეორება"
 
@@ -10677,7 +10677,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:3225
+#: packages/admin/src/components/ContentEditor.tsx:3228
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:357
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:813
@@ -10685,7 +10685,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:368
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:6456
+#: packages/admin/src/components/PortableTextEditor.tsx:6487
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -10697,7 +10697,7 @@ msgstr "მოცილება"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:2807
+#: packages/admin/src/components/ContentEditor.tsx:2810
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -10714,7 +10714,7 @@ msgstr "{0}-ის მოცილება არჩეულებიდან
 msgid "Remove {entry}"
 msgstr "{entry}-ის მოცილება"
 
-#: packages/admin/src/components/ContentEditor.tsx:3223
+#: packages/admin/src/components/ContentEditor.tsx:3226
 msgid "Remove {label}"
 msgstr "{label}-ის მოცილება"
 
@@ -10754,14 +10754,14 @@ msgid "Remove image?"
 msgstr "მოვაცილოთ სურათი?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:3081
+#: packages/admin/src/components/PortableTextEditor.tsx:3098
 #: packages/admin/src/components/RepeaterField.tsx:283
 msgid "Remove item {0}"
 msgstr "ელემენტის მოცილება {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4942
-#: packages/admin/src/components/PortableTextEditor.tsx:5082
-#: packages/admin/src/components/PortableTextEditor.tsx:5706
+#: packages/admin/src/components/PortableTextEditor.tsx:4973
+#: packages/admin/src/components/PortableTextEditor.tsx:5113
+#: packages/admin/src/components/PortableTextEditor.tsx:5737
 msgid "Remove link"
 msgstr "ბმულის მოცილება"
 
@@ -10825,7 +10825,7 @@ msgstr "გადალაგება"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:337
+#: packages/admin/src/components/BlocksField.tsx:340
 #: packages/admin/src/components/BylineCreditsEditor.tsx:836
 #: packages/admin/src/components/ContentTypeList.tsx:310
 msgid "Reorder {0}"
@@ -10844,8 +10844,8 @@ msgstr "ველების გამეორებადი ჯგუფი"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3215
-#: packages/admin/src/components/ContentEditor.tsx:3252
+#: packages/admin/src/components/ContentEditor.tsx:3218
+#: packages/admin/src/components/ContentEditor.tsx:3255
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:298
@@ -10856,12 +10856,12 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:412
 #: packages/admin/src/components/ImageFieldRenderer.tsx:584
 #: packages/admin/src/components/ImageFieldRenderer.tsx:587
-#: packages/admin/src/components/PortableTextEditor.tsx:5728
-#: packages/admin/src/components/PortableTextEditor.tsx:5796
+#: packages/admin/src/components/PortableTextEditor.tsx:5759
+#: packages/admin/src/components/PortableTextEditor.tsx:5827
 msgid "Replace"
 msgstr "შეცვლა"
 
-#: packages/admin/src/components/ContentEditor.tsx:3251
+#: packages/admin/src/components/ContentEditor.tsx:3254
 #: packages/admin/src/components/ImageFieldRenderer.tsx:578
 msgid "Replace {label}"
 msgstr "{label}-ის შეცვლა"
@@ -10878,7 +10878,7 @@ msgstr "{label}-ის მუქი რეჟიმის ვარიანტ�
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/MediaDetailPanel.tsx:1827
 #: packages/admin/src/components/MediaDetailPanel.tsx:1955
-#: packages/admin/src/components/PortableTextEditor.tsx:5795
+#: packages/admin/src/components/PortableTextEditor.tsx:5826
 msgid "Replace image"
 msgstr "სურათის შეცვლა"
 
@@ -10896,7 +10896,7 @@ msgstr "შევცვალოთ ორიგინალი სურათ�
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "ორიგინალის შეცვლა ხელმისაწვდომია „ორიგინალი“ ასპექტის თანაფარდობით."
 
-#: packages/admin/src/components/ContentEditor.tsx:2840
+#: packages/admin/src/components/ContentEditor.tsx:2843
 msgid "Replace reference"
 msgstr ""
 
@@ -10937,7 +10937,7 @@ msgstr "რეპოზიტორია"
 msgid "Request a new link"
 msgstr "ახალი ბმულის მოთხოვნა"
 
-#: packages/admin/src/lib/api/client.ts:340
+#: packages/admin/src/lib/api/client.ts:342
 msgid "Request failed"
 msgstr "მოთხოვნა ვერ მოხერხდა"
 
@@ -11032,7 +11032,7 @@ msgstr "მოჭრის ზომის შეცვლა ზედა მ�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "მოჭრის ზომის შეცვლა ზედა მარჯვენა კუთხიდან. ზომის შესაცვლელად გამოიყენეთ ისრის ღილაკები."
 
-#: packages/admin/src/components/ContentEditor.tsx:1855
+#: packages/admin/src/components/ContentEditor.tsx:1857
 msgid "Resize settings panel"
 msgstr "პარამეტრების პანელის ზომის შეცვლა"
 
@@ -11045,7 +11045,7 @@ msgid "Resolving publisher handle..."
 msgstr "გამომცემლის სახელის დადგენა..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6310
+#: packages/admin/src/components/PortableTextEditor.tsx:6341
 msgid "Restart numbering"
 msgstr "ნუმერაციის თავიდან დაწყება"
 
@@ -11083,13 +11083,13 @@ msgstr "აღდგენა..."
 msgid "Results"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:360
+#: packages/admin/src/components/BlocksField.tsx:365
 #: packages/admin/src/components/FieldEditor.tsx:1126
 msgid "Retired"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:475
-#: packages/admin/src/components/ContentEditor.tsx:2821
+#: packages/admin/src/components/ContentEditor.tsx:2824
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
@@ -11250,8 +11250,8 @@ msgstr "მდიდარი ტექსტის რედაქტორი"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5229
-#: packages/admin/src/components/PortableTextEditor.tsx:5347
+#: packages/admin/src/components/PortableTextEditor.tsx:5260
+#: packages/admin/src/components/PortableTextEditor.tsx:5378
 msgid "Right"
 msgstr "მარჯვნივ"
 
@@ -11305,7 +11305,7 @@ msgid "Row added above"
 msgstr "მწკრივი დაემატა ზემოთ"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5325
+#: packages/admin/src/components/PortableTextEditor.tsx:5356
 msgid "Row added below"
 msgstr "მწკრივი დაემატა ქვემოთ"
 
@@ -11358,11 +11358,11 @@ msgstr "შენახვა"
 msgid "Save (Enter)"
 msgstr "შენახვა (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5687
+#: packages/admin/src/components/PortableTextEditor.tsx:5718
 msgid "Save alt text"
 msgstr "ალტ-ტექსტის შენახვა"
 
-#: packages/admin/src/components/ContentEditor.tsx:1668
+#: packages/admin/src/components/ContentEditor.tsx:1670
 msgid "Save anyway"
 msgstr "მაინც შენახვა"
 
@@ -11608,11 +11608,11 @@ msgstr ""
 msgid "Search {label}…"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:181
+#: packages/admin/src/components/BlocksField.tsx:184
 msgid "Search block types"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:184
+#: packages/admin/src/components/BlocksField.tsx:187
 msgid "Search blocks"
 msgstr ""
 
@@ -11770,7 +11770,7 @@ msgstr "ძებნადი"
 msgid "Searching…"
 msgstr "იძებნება…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3668
+#: packages/admin/src/components/PortableTextEditor.tsx:3687
 msgid "Section"
 msgstr "სექცია"
 
@@ -11873,8 +11873,8 @@ msgid "Select"
 msgstr "არჩევა"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:3235
-#: packages/admin/src/components/ContentEditor.tsx:3251
+#: packages/admin/src/components/ContentEditor.tsx:3238
+#: packages/admin/src/components/ContentEditor.tsx:3254
 #: packages/admin/src/components/ImageFieldRenderer.tsx:579
 msgid "Select {label}"
 msgstr "{label}-ის არჩევა"
@@ -11920,7 +11920,7 @@ msgstr "ყველას არჩევა"
 msgid "Select all on this page"
 msgstr "ამ გვერდზე ყველას არჩევა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2735
+#: packages/admin/src/components/ContentEditor.tsx:2738
 msgid "Select at least one entry."
 msgstr ""
 
@@ -11953,18 +11953,18 @@ msgstr "ფავიკონის არჩევა"
 msgid "Select Favicon"
 msgstr "ფავიკონის არჩევა"
 
-#: packages/admin/src/components/ContentEditor.tsx:3239
+#: packages/admin/src/components/ContentEditor.tsx:3242
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 msgid "Select file"
 msgstr "ფაილის არჩევა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4656
+#: packages/admin/src/components/PortableTextEditor.tsx:4687
 msgid "Select gallery images"
 msgstr "გალერეის სურათების არჩევა"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:559
 #: packages/admin/src/components/MediaPickerModal.tsx:232
-#: packages/admin/src/components/PortableTextEditor.tsx:4627
+#: packages/admin/src/components/PortableTextEditor.tsx:4658
 msgid "Select image"
 msgstr "სურათის არჩევა"
 
@@ -12001,7 +12001,7 @@ msgid "Select up to 50 posts at a time."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:232
-#: packages/admin/src/components/PortableTextEditor.tsx:4641
+#: packages/admin/src/components/PortableTextEditor.tsx:4672
 msgid "Select video"
 msgstr ""
 
@@ -12010,7 +12010,7 @@ msgid "Select which content types to import."
 msgstr "აირჩიეთ, რომელი ტიპის შიგთავსი უნდა იმპორტირდეს."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:3176
+#: packages/admin/src/components/PortableTextEditor.tsx:3193
 #: packages/admin/src/components/RepeaterField.tsx:396
 msgid "Select..."
 msgstr "აირჩიეთ..."
@@ -12019,7 +12019,7 @@ msgstr "აირჩიეთ..."
 msgid "Selected {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2479
+#: packages/admin/src/components/PortableTextEditor.tsx:2496
 msgid "Selected {selectedItemTitle}"
 msgstr "არჩეული: {selectedItemTitle}"
 
@@ -12176,8 +12176,8 @@ msgid "Setting up..."
 msgstr "მიმდინარეობს გამართვა..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:247
-#: packages/admin/src/components/ContentEditor.tsx:1729
-#: packages/admin/src/components/ContentEditor.tsx:2026
+#: packages/admin/src/components/ContentEditor.tsx:1731
+#: packages/admin/src/components/ContentEditor.tsx:2028
 #: packages/admin/src/components/ContentTypeEditor.tsx:465
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:530
@@ -12475,15 +12475,15 @@ msgstr "სლაგი დაკოპირდა ბუფერში"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "სლაგები ველის შექმნის შემდეგ ვერ შეიცვლება."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2006
+#: packages/admin/src/components/PortableTextEditor.tsx:2023
 msgid "Small section heading"
 msgstr "მცირე სექციის სათაური"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2075
+#: packages/admin/src/components/PortableTextEditor.tsx:2092
 msgid "Smaller section heading"
 msgstr "უფრო მცირე სექციის სათაური"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2077
+#: packages/admin/src/components/PortableTextEditor.tsx:2094
 msgid "Smallest section heading"
 msgstr "ყველაზე მცირე სექციის სათაური"
 
@@ -12633,12 +12633,12 @@ msgstr ""
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1998
+#: packages/admin/src/components/PortableTextEditor.tsx:2015
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2298
-#: packages/admin/src/components/PortableTextEditor.tsx:3434
+#: packages/admin/src/components/ContentEditor.tsx:2301
+#: packages/admin/src/components/PortableTextEditor.tsx:3451
 msgid "Start writing, or type '/' for commands"
 msgstr "დაიწყეთ წერა ან აკრიფეთ '/' ბრძანებებისთვის"
 
@@ -12703,8 +12703,8 @@ msgstr "შენახული სარეზერვო ასლები"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "ინახება ლოკალის მიხედვით — ბაილაინის თითოეულ თარგმანს საკუთარი მნიშვნელობა აქვს."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4721
-#: packages/admin/src/components/PortableTextEditor.tsx:6253
+#: packages/admin/src/components/PortableTextEditor.tsx:4752
+#: packages/admin/src/components/PortableTextEditor.tsx:6284
 msgid "Strikethrough"
 msgstr "გადახაზული"
 
@@ -12733,11 +12733,11 @@ msgstr "ქვეველები"
 msgid "Subscriber"
 msgstr "გამომწერი"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5208
+#: packages/admin/src/components/PortableTextEditor.tsx:5239
 msgid "Subscript"
 msgstr "ქვედა ინდექსი"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5214
+#: packages/admin/src/components/PortableTextEditor.tsx:5245
 msgid "Superscript"
 msgstr "ზედა ინდექსი"
 
@@ -12776,15 +12776,15 @@ msgstr "სისტემური ველები"
 #: packages/admin/src/components/editor/BlockMenu.tsx:45
 #: packages/admin/src/components/editor/TableControls.tsx:31
 #: packages/admin/src/components/editor/TableControls.tsx:368
-#: packages/admin/src/components/PortableTextEditor.tsx:2067
+#: packages/admin/src/components/PortableTextEditor.tsx:2084
 msgid "Table"
 msgstr "ცხრილი"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4478
+#: packages/admin/src/components/PortableTextEditor.tsx:4509
 msgid "Table cells accept text, links, and formatting only."
 msgstr "ცხრილის უჯრები იღებს მხოლოდ ტექსტს, ბმულებსა და ფორმატირებას."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5315
+#: packages/admin/src/components/PortableTextEditor.tsx:5346
 msgid "Table controls"
 msgstr "ცხრილის მართვა"
 
@@ -12793,7 +12793,7 @@ msgid "Table deleted"
 msgstr "ცხრილი წაიშალა"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:4368
+#: packages/admin/src/components/PortableTextEditor.tsx:4399
 msgid "Table inserted"
 msgstr "ცხრილი დაემატა"
 
@@ -12801,7 +12801,7 @@ msgstr "ცხრილი დაემატა"
 msgid "Table size"
 msgstr "ცხრილის ზომა"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4475
+#: packages/admin/src/components/PortableTextEditor.tsx:4506
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "ცხრილების ჩასმა სიებში ან ციტატებში შეუძლებელია. ჩასვით ცხრილი ცალკე აბზაცში და სცადეთ ხელახლა."
 
@@ -12929,7 +12929,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6497
+#: packages/admin/src/components/PortableTextEditor.tsx:6528
 msgid "Text formatting"
 msgstr "ტექსტის ფორმატირება"
 
@@ -13227,8 +13227,8 @@ msgstr "პლაგინის ველის ვიჯეტი ვერ �
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:969
-#: packages/admin/src/components/ContentEditor.tsx:985
+#: packages/admin/src/components/ContentEditor.tsx:971
+#: packages/admin/src/components/ContentEditor.tsx:987
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr ""
 
@@ -13359,7 +13359,7 @@ msgstr "ეს ხელსაწყოები დაყენების შ
 msgid "This also removes:"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:394
+#: packages/admin/src/components/BlocksField.tsx:403
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr ""
 
@@ -13394,7 +13394,7 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "ეს კოლექცია კოდშია განსაზღვრული. ზოგიერთი პარამეტრის შეცვლა აქ შეუძლებელია. სქემის შესაცვლელად დაარედაქტირეთ live.config.ts ფაილი."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4450
+#: packages/admin/src/components/PortableTextEditor.tsx:4481
 msgid "This content cannot be edited safely"
 msgstr "ამ შიგთავსის უსაფრთხოდ რედაქტირება შეუძლებელია"
 
@@ -13414,11 +13414,11 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "ეს არ ჰგავს სწორ მიგრაციის გასაღებს. შექმენით ახალი პლაგინში და ჩასვით სრული სტრიქონი, რომელიც იწყება „em1.“-ით."
 
-#: packages/admin/src/components/ContentEditor.tsx:1664
+#: packages/admin/src/components/ContentEditor.tsx:1666
 msgid "This entry changed somewhere else after you opened it."
 msgstr "ეს ჩანაწერი გახსნის შემდეგ სხვაგან შეიცვალა."
 
-#: packages/admin/src/components/ContentEditor.tsx:1253
+#: packages/admin/src/components/ContentEditor.tsx:1255
 #: packages/admin/src/router.tsx:1053
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "ეს ჩანაწერი სხვაგან შეიცვალა. მაინც შეინახეთ ან ხელახლა ჩატვირთეთ უახლესი ვერსიის მისაღებად."
@@ -13439,7 +13439,7 @@ msgstr "ამ ჩანაწერს გამოქვეყნებამ�
 msgid "This entry is open somewhere else"
 msgstr "ეს ჩანაწერი სხვაგან არის გახსნილი"
 
-#: packages/admin/src/components/ContentEditor.tsx:1651
+#: packages/admin/src/components/ContentEditor.tsx:1653
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "ეს ჩანაწერი მხოლოდ კითხვის რეჟიმშია, რადგან მისი სქემა იყენებს ველის ტიპებს, რომლებსაც EmDash-ის ეს ვერსია არ უჭერს მხარს."
 
@@ -13451,15 +13451,15 @@ msgstr ""
 msgid "This export is large"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2127
+#: packages/admin/src/components/ContentEditor.tsx:2129
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "ამ ველის რედაქტირება EmDash-ის ამ ვერსიას არ შეუძლია."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4433
+#: packages/admin/src/components/PortableTextEditor.tsx:4464
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "ეს ველი შეიცავს ცხრილის შიგთავსს, რომლის შენარჩუნებაც რედაქტორს არ შეუძლია. განაახლეთ ის API-ის მეშვეობით, სანამ ამ შიგთავსს დაარედაქტირებთ ან შეინახავთ."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4452
+#: packages/admin/src/components/PortableTextEditor.tsx:4483
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "ეს ველი შეიცავს Portable Text-ის მხარდაუჭერელ ნიშნებს: <0>{markList}</0>. მოაცილეთ ისინი API-ის მეშვეობით, სანამ ამ შიგთავსს დაარედაქტირებთ ან შეინახავთ."
 
@@ -13476,7 +13476,7 @@ msgstr "ეს ველი არ იღებს {mimeType} ფაილებ
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3255
+#: packages/admin/src/components/ContentEditor.tsx:3258
 #: packages/admin/src/components/ImageFieldRenderer.tsx:598
 msgid "This field is required"
 msgstr "ეს ველი სავალდებულოა"
@@ -13588,7 +13588,7 @@ msgstr ""
 msgid "This passkey is already registered on this device."
 msgstr "ეს პასკი ამ მოწყობილობაზე უკვე რეგისტრირებულია."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4471
+#: packages/admin/src/components/PortableTextEditor.tsx:4502
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "ეს ჩასმა ძალიან დიდია. ერთდროულად ჩასვით ნაკლები უჯრა ან ნაკლები ტექსტი."
 
@@ -13661,12 +13661,12 @@ msgstr "ეს გააუქმებს დაგეგმვას და �
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4516
+#: packages/admin/src/components/PortableTextEditor.tsx:4547
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "ეს სექცია შეიცავს ცხრილის შიგთავსს, რომლის შენარჩუნებაც რედაქტორს არ შეუძლია. განაახლეთ სექცია ჩასმამდე."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:4518
+#: packages/admin/src/components/PortableTextEditor.tsx:4549
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "ეს სექცია შეიცავს Portable Text-ის მხარდაუჭერელ ნიშნებს: <0>{0}</0>. განაახლეთ სექცია ჩასმამდე."
 
@@ -13719,15 +13719,15 @@ msgstr ""
 msgid "This site was set up with starter content. It has no entries of its own, and the import deletes it before adding the package’s content."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4473
+#: packages/admin/src/components/PortableTextEditor.tsx:4504
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "ცხრილის ამ მონაცემებში არასწორი ბრჭყალებით შემოსაზღვრული უჯრებია. გაასწორეთ ბრჭყალები ან მოხსენით ტაბულაციის გამყოფები და სცადეთ ხელახლა."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4431
+#: packages/admin/src/components/PortableTextEditor.tsx:4462
 msgid "This table cannot be edited safely"
 msgstr "ამ ცხრილის უსაფრთხოდ რედაქტირება შეუძლებელია"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4477
+#: packages/admin/src/components/PortableTextEditor.tsx:4508
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "ამ ცხრილს აქვს მხარდაუჭერელი უჯრების ფორმატირება, გაერთიანებული უჯრები ან სვეტების სიგანეები. ჩასვით როგორც ჩვეულებრივი ტექსტი ან გაამარტივეთ ცხრილი და სცადეთ ხელახლა."
 
@@ -14032,9 +14032,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5131
-#: packages/admin/src/components/PortableTextEditor.tsx:5133
-#: packages/admin/src/components/PortableTextEditor.tsx:5150
+#: packages/admin/src/components/PortableTextEditor.tsx:5162
+#: packages/admin/src/components/PortableTextEditor.tsx:5164
+#: packages/admin/src/components/PortableTextEditor.tsx:5181
 msgid "Turn into"
 msgstr "გადაქცევა"
 
@@ -14083,11 +14083,11 @@ msgstr ""
 msgid "Type mismatch ({0})"
 msgstr "ტიპის შეუსაბამობა ({0})"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2547
+#: packages/admin/src/components/PortableTextEditor.tsx:2564
 msgid "Type to filter"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4588
+#: packages/admin/src/components/PortableTextEditor.tsx:4619
 msgid "Type to search"
 msgstr ""
 
@@ -14109,12 +14109,12 @@ msgstr "მარკეტპლეისთან დაკავშირე�
 msgid "Unassigned"
 msgstr "მიუკუთვნებელი"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4720
-#: packages/admin/src/components/PortableTextEditor.tsx:6245
+#: packages/admin/src/components/PortableTextEditor.tsx:4751
+#: packages/admin/src/components/PortableTextEditor.tsx:6276
 msgid "Underline"
 msgstr "ხაზგასმული"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6476
+#: packages/admin/src/components/PortableTextEditor.tsx:6507
 msgid "Undo"
 msgstr "დაბრუნება"
 
@@ -14206,7 +14206,7 @@ msgstr ""
 msgid "Unscheduled"
 msgstr "დაუგეგმავი"
 
-#: packages/admin/src/components/BlocksField.tsx:361
+#: packages/admin/src/components/BlocksField.tsx:366
 #: packages/admin/src/components/ContentTypeEditor.tsx:948
 msgid "Unsupported"
 msgstr "მხარდაუჭერელი"
@@ -14226,7 +14226,7 @@ msgstr "{0}-მდე"
 msgid "Untitled"
 msgstr "უსათაურო"
 
-#: packages/admin/src/components/ContentEditor.tsx:3157
+#: packages/admin/src/components/ContentEditor.tsx:3160
 msgid "Untitled file"
 msgstr "უსათაურო ფაილი"
 
@@ -14389,7 +14389,7 @@ msgstr "ატვირთეთ მედია, რომ მრავალ�
 msgid "Upload not finished"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3655
+#: packages/admin/src/components/PortableTextEditor.tsx:3674
 msgid "Upload or choose a video"
 msgstr ""
 
@@ -14557,7 +14557,7 @@ msgstr "გამოიყენება Open Graph-ის სარეზე�
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "გამოიყენება იდენტიფიკატორად. მხოლოდ პატარა ასოები, ციფრები და ქვედა ტირეები."
 
-#: packages/admin/src/components/ContentEditor.tsx:2421
+#: packages/admin/src/components/ContentEditor.tsx:2424
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "გამოიყენება ამ ჩანაწერის მთავარ ვიზუალად სიის გვერდებზე და ჩანაწერის დასაწყისში"
 
@@ -14684,7 +14684,7 @@ msgstr "ვერსია"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:358
+#: packages/admin/src/components/BlocksField.tsx:363
 #: packages/admin/src/components/BlockTypeList.tsx:42
 #: packages/admin/src/components/RegistryPluginDetail.tsx:556
 msgid "Version {0}"
@@ -14699,7 +14699,7 @@ msgstr ""
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:922
 #: packages/admin/src/components/MediaPickerModal.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:3654
+#: packages/admin/src/components/PortableTextEditor.tsx:3673
 msgid "Video"
 msgstr "ვიდეო"
 
@@ -14876,7 +14876,7 @@ msgstr ""
 msgid "What will happen when you import"
 msgstr "რა მოხდება იმპორტის დროს"
 
-#: packages/admin/src/components/ContentEditor.tsx:1665
+#: packages/admin/src/components/ContentEditor.tsx:1667
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "აკრეფილი ტექსტი ჯერ კიდევ აქ არის. შენახვა ახალ ვერსიას ჩაანაცვლებს."
 

@@ -96,6 +96,7 @@ npx emdash seed [path] [options]
 | `--on-conflict`    |       | Handle existing records with `skip`, `update`, or `error` | `skip`                         |
 | `--uploads-dir`    |       | Local directory used for seed media                    | `./uploads`                      |
 | `--media-base-url` |       | Base URL stored for local seed media                   | `/_emdash/api/media/file`        |
+| `--skip-media`     |       | Resolve `$media` references to external URLs instead of downloading and storing them | `false` |
 
 Applying a seed runs core migrations first. Use `--validate` in continuous integration when you need to check the file without opening or creating the database.
 

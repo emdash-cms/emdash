@@ -1,4 +1,5 @@
 import pullRequestTemplate from "../../../../.github/PULL_REQUEST_TEMPLATE.md?raw";
+import type { CompetingWork } from "./github.js";
 import {
 	EVENTS,
 	STATES,
@@ -301,7 +302,7 @@ export function fillPullRequestTemplate(template: string, kind: Kind): string {
 		.replace(typeCheckbox, `- [x] ${typeLabel}$1`)
 		.replace(
 			AI_DISCLOSURE_CHECKBOX_RE,
-			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+			"- [x] This PR includes AI-generated code or text — model/tool: emdashbot + Kimi K2.7 Code",
 		)
 		.trim();
 }
@@ -346,6 +347,36 @@ export function renderVerifiedThanks(input: {
 		? pullRequestLink(input.owner, input.repo, input.pullRequestNumber)
 		: "the pull request";
 	return `Thanks for confirming the change works! I've marked the issue as verified, and a maintainer will review ${target}.`;
+}
+
+/**
+ * Why triage didn't start work it judged safe: someone is already on it.
+ * Logins are written without `@` so the people named aren't notified.
+ */
+export function renderCompetingWork(work: CompetingWork): string | null {
+	const reasons: string[] = [];
+	if (work.pullRequests.length > 0) {
+		const verb = work.pullRequests.length === 1 ? "references" : "reference";
+		const numbers = work.pullRequests.map((number) => `#${number}`).join(", ");
+		reasons.push(`${numbers} already ${verb} this issue`);
+	}
+	if (work.assignees.length > 0) reasons.push(`it's assigned to ${work.assignees.join(", ")}`);
+	return reasons.length > 0 ? `I haven't started work because ${reasons.join(" and ")}.` : null;
+}
+
+/** Why the bot stopped repairing its own PR. */
+export function renderRepairsExhausted(input: {
+	pullRequestNumber: number;
+	repairs: number;
+	summary: string;
+}): string {
+	return [
+		`I've stopped after ${input.repairs} automatic repairs of #${input.pullRequestNumber} without getting it green. What still needs attention:`,
+		"",
+		input.summary,
+		"",
+		`A maintainer can comment on #${input.pullRequestNumber} with \`@emdashbot\` and what to change, or take it over.`,
+	].join("\n");
 }
 
 function pullRequestLink(owner: string, repo: string, pullRequestNumber: number): string {

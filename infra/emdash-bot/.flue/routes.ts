@@ -11,15 +11,19 @@ import { githubRateLimitGate } from "./lib/github-rate-limit-client.js";
 import {
 	getPullRequestHeadBranch,
 	getPullRequestReviewComments,
+	readAppCreds,
 	readRepoContext,
 	type GitHubToken,
 } from "./lib/github.js";
-import { syncReviewStateLabel } from "./lib/review-state.js";
+import { refreshApprovalState } from "./lib/review-state.js";
 import {
+	approvalRefreshTarget,
 	normalizeWebhook,
 	resolvePullRequestWebhook,
 	verifyWebhookSignature,
+	writeAccessCandidate,
 } from "./lib/webhook.js";
+import { writeAccess } from "./lib/write-access.js";
 
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
 const OPERATOR_IDEMPOTENCY_KEY = /^[a-zA-Z0-9._-]+$/;
@@ -212,7 +216,33 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			}
 		}
 
-		let result = normalizeWebhook({ eventType, deliveryId, payload });
+		const approvalRefresh = approvalRefreshTarget(eventType, payload);
+		if (approvalRefresh !== null) {
+			const repo = readRepoContext(c.env);
+			if (!repo) return c.text("GitHub integration not configured", 503);
+			try {
+				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+				const token = await coordinatedInstallationToken(
+					c.env,
+					`webhook-review-state:${deliveryId ?? approvalRefresh}`,
+				);
+				const reviewState = await refreshApprovalState(token, repo, approvalRefresh, signal);
+				console.log("[webhook] review state", {
+					delivery: deliveryId,
+					pullRequest: approvalRefresh,
+					reviewState,
+				});
+			} catch (error) {
+				console.error("[webhook] review state update failed", {
+					delivery: deliveryId,
+					pullRequest: approvalRefresh,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+
+		const writers = await lookUpWriters(c.env, eventType, payload, deliveryId);
+		let result = normalizeWebhook({ eventType, deliveryId, payload, writers });
 		if (result.kind === "pong") {
 			console.log("[webhook] ping", { delivery: deliveryId });
 			return c.text("pong", 200);
@@ -294,12 +324,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.text(`skipped: ${result.reason}`, 202);
 		}
 
-		// Issue-close cleanup reaps the fix-loop branches directly (a few fast
-		// GitHub calls, well within the ack budget); it is not a machine event,
-		// so it bypasses the DO inbox and runs synchronously.
+		// Issue-close cleanup settles the item's state and reaps the fix-loop
+		// branches synchronously (a few fast GitHub calls, well within the ack
+		// budget), outside the DO inbox.
 		if (result.kind === "cleanup") {
 			const stub = c.env.Orchestrator.getByName(result.anchor);
-			const cleanup = await stub.cleanupOnClose(result.anchorNumber);
+			const cleanup = await stub.cleanupOnClose(result.anchorNumber, result.closedAs);
 			console.log("[webhook] cleanup", {
 				event: eventType,
 				delivery: deliveryId,
@@ -307,31 +337,6 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 				cleanup: cleanup.kind,
 			});
 			return c.json({ anchor: result.anchor, cleanup }, 202);
-		}
-		if (result.kind === "review_state") {
-			const repo = readRepoContext(c.env);
-			if (!repo) return c.text("GitHub integration not configured", 503);
-			try {
-				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
-				const token = await coordinatedInstallationToken(
-					c.env,
-					`webhook-review-state:${deliveryId ?? result.pullRequestNumber}`,
-				);
-				const reviewState = await syncReviewStateLabel(token, repo, result, signal);
-				console.log("[webhook] review state", {
-					delivery: deliveryId,
-					pullRequest: result.pullRequestNumber,
-					reviewState,
-				});
-				return c.json({ pullRequest: result.pullRequestNumber, reviewState }, 202);
-			} catch (error) {
-				console.error("[webhook] review state update failed", {
-					delivery: deliveryId,
-					pullRequest: result.pullRequestNumber,
-					error: error instanceof Error ? error.message : String(error),
-				});
-				return c.text("review state update failed", 503);
-			}
 		}
 		if (result.kind !== "dispatch") return c.text("unsupported webhook result", 500);
 
@@ -354,6 +359,37 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 	});
 
 	return app;
+}
+
+/**
+ * Write access for the one account whose authority decides this delivery. A
+ * failed lookup leaves the decision to `author_association`.
+ */
+async function lookUpWriters(
+	env: Env,
+	eventType: string,
+	payload: unknown,
+	deliveryId: string | undefined,
+): Promise<ReadonlySet<string> | undefined> {
+	const login = writeAccessCandidate({ eventType, payload });
+	const repo = readRepoContext(env);
+	if (!login || !repo || !readAppCreds(env)) return undefined;
+	try {
+		const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+		const token = await coordinatedInstallationToken(
+			env,
+			`webhook-write-access:${deliveryId ?? login}`,
+		);
+		return await writeAccess.writers(token, repo, [login], signal);
+	} catch (error) {
+		console.error("[webhook] write access lookup failed", {
+			event: eventType,
+			delivery: deliveryId,
+			login,
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return undefined;
+	}
 }
 
 async function operatorAuthorized(header: string | undefined, secret: string): Promise<boolean> {

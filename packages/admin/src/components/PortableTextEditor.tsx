@@ -620,6 +620,23 @@ function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | unde
 	return undefined;
 }
 
+/**
+ * TrailingNode adds an empty paragraph after a final block on the first
+ * transaction. It isn't content: `prosemirrorToPortableText` drops it too.
+ */
+function withoutTrailingEmptyParagraph(doc: ProseMirrorNode): ProseMirrorNode {
+	const last = doc.lastChild;
+	if (
+		doc.childCount > 1 &&
+		last?.type.name === "paragraph" &&
+		last.childCount === 0 &&
+		portableTextKeyFromAttrs(last.attrs) === undefined
+	) {
+		return doc.copy(doc.content.cut(0, doc.content.size - last.nodeSize));
+	}
+	return doc;
+}
+
 function equalJsonValues(left: unknown, right: unknown): boolean {
 	if (Object.is(left, right)) return true;
 	if (Array.isArray(left) || Array.isArray(right)) {
@@ -3482,6 +3499,8 @@ export function PortableTextEditor({
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
 	const lastPortableTextValueRef = React.useRef(value || []);
+	// The document last handed to onChange, starting from the loaded one.
+	const lastReportedDocRef = React.useRef<ProseMirrorNode | null>(null);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
@@ -3766,12 +3785,24 @@ export function PortableTextEditor({
 	 * Hands the document to `onChange` as Portable Text. While the slash line
 	 * the block insert button typed is open, changes wait until its menu
 	 * closes, so the line alone isn't an edit for autosave to save.
+	 *
+	 * Documents are compared rather than their Portable Text: stored content
+	 * the converter would write in a different shape (empty `markDefs`, a
+	 * missing `style`, fields it doesn't map) is unchanged until the document is.
 	 */
 	const reportChange = React.useCallback((changedEditor: Editor) => {
 		const cb = onChangeRef.current;
 		if (!cb) return;
 		if (insertedLineRef.current && SuggestionPluginKey.getState(changedEditor.state)?.active)
 			return;
+		lastReportedDocRef.current ??= changedEditor.schema.nodeFromJSON(initialContent);
+		if (
+			withoutTrailingEmptyParagraph(changedEditor.state.doc).eq(
+				withoutTrailingEmptyParagraph(lastReportedDocRef.current),
+			)
+		)
+			return;
+		lastReportedDocRef.current = changedEditor.state.doc;
 		const doc = changedEditor.getJSON();
 		// TipTap's getJSON() returns JSONContent which is structurally compatible
 		const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];

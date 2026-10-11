@@ -21,6 +21,7 @@ import { after } from "../../after.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { getDb } from "../../loader.js";
 import { createRedirectSource } from "../../redirects/artifacts.js";
+import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import { isTerminalStatus } from "../../redirects/status.js";
@@ -53,6 +54,50 @@ function recordHitInBackground(repo: RedirectRepository, id: string): void {
 	});
 }
 
+interface RedirectMatch {
+	redirect: RedirectRule;
+	destination: string;
+}
+
+/** Exact rules first, with or without a trailing slash, then patterns in precedence order. */
+function matchRedirect(cached: CachedRedirects, pathname: string): RedirectMatch | null {
+	let exact = cached.exact.get(pathname);
+	if (!exact && pathname.length > 1) {
+		const alt = pathname.endsWith("/") ? pathname.slice(0, -1) : `${pathname}/`;
+		exact = cached.exact.get(alt);
+	}
+	if (exact) return { redirect: exact, destination: exact.destination };
+	return matchCachedPatterns(cached.patterns, pathname);
+}
+
+/** The response for a matched rule, or null when its destination is not safe to send. */
+function redirectResponse(
+	context: APIContext,
+	repo: RedirectRepository,
+	{ redirect, destination }: RedirectMatch,
+): Response | null {
+	// Terminal statuses (410 Gone / 451): serve the status directly,
+	// with no Location header.
+	if (isTerminalStatus(redirect.type)) {
+		recordHitInBackground(repo, redirect.id);
+		return new Response(null, { status: redirect.type });
+	}
+	if (!isSiteRelativeDestination(destination)) {
+		warnUnsafeDestination(redirect.id);
+		return null;
+	}
+	recordHitInBackground(repo, redirect.id);
+	const code = isRedirectCode(redirect.type) ? redirect.type : 301;
+	return context.redirect(destination, code);
+}
+
+/** Whether Astro's route cache will store the response: it does once a max age or a tag is set. */
+function routeCacheStores(cache: APIContext["cache"] | undefined): boolean {
+	if (!cache?.enabled) return false;
+	const { maxAge, tags } = cache.options;
+	return maxAge !== undefined || (tags?.length ?? 0) > 0;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { pathname } = context.url;
 
@@ -80,52 +125,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	try {
 		const repo = new RedirectRepository(db);
+		const source = createRedirectSource(db);
+		const routeCache: APIContext["cache"] | undefined = context.cache;
 
 		// One query loads the published rules into the cache; warm requests
 		// issue zero queries, and an expired cache checks the published version
 		// in the background. Empty-redirect sites cache an empty Map + array.
-		const cached = await loadCachedRedirects(createRedirectSource(db));
-
-		// 1. Exact match (O(1) Map lookup)
-		let exact = cached.exact.get(pathname);
-		if (!exact && pathname.length > 1) {
-			const alt = pathname.endsWith("/") ? pathname.slice(0, -1) : `${pathname}/`;
-			exact = cached.exact.get(alt);
+		// A response the route cache stores is served to every visitor until it
+		// is purged, so before one is returned the rules are verified current.
+		let cached = await loadCachedRedirects(source);
+		let match = matchRedirect(cached, pathname);
+		let verified = false;
+		if (match && routeCacheStores(routeCache)) {
+			cached = await loadCachedRedirects(source, { verify: true });
+			verified = true;
+			match = matchRedirect(cached, pathname);
 		}
-		if (exact) {
-			// Terminal statuses (410 Gone / 451): serve the status directly,
-			// with no Location header.
-			if (isTerminalStatus(exact.type)) {
-				recordHitInBackground(repo, exact.id);
-				return new Response(null, { status: exact.type });
-			}
-			const dest = exact.destination;
-			if (!isSiteRelativeDestination(dest)) {
-				warnUnsafeDestination(exact.id);
-				return next();
-			}
-			recordHitInBackground(repo, exact.id);
-			const code = isRedirectCode(exact.type) ? exact.type : 301;
-			return context.redirect(dest, code);
-		}
-
-		// 2. Pattern match (compile once, match every request)
-		const patternMatch = matchCachedPatterns(cached.patterns, pathname);
-		if (patternMatch) {
-			const { redirect, destination } = patternMatch;
-			// Terminal statuses (410 Gone / 451): serve the status directly.
-			if (isTerminalStatus(redirect.type)) {
-				recordHitInBackground(repo, redirect.id);
-				return new Response(null, { status: redirect.type });
-			}
-			if (!isSiteRelativeDestination(destination)) {
-				warnUnsafeDestination(redirect.id);
-				return next();
-			}
-			recordHitInBackground(repo, redirect.id);
-			const code = isRedirectCode(redirect.type) ? redirect.type : 301;
-			return context.redirect(destination, code);
-		}
+		if (match) return redirectResponse(context, repo, match) ?? next();
 
 		// No redirect matched -- proceed and check for 404
 		const response = await next();
@@ -135,8 +151,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// the fix. Astro has no cache handle for URLs that match no route, but a
 		// page answering a content miss with Astro.rewrite("/404") has one.
 		if (response.status === 404) {
-			const routeCache: APIContext["cache"] | undefined = context.cache;
 			routeCache?.set(false);
+		}
+
+		if (!verified && routeCacheStores(routeCache)) {
+			const current = await loadCachedRedirects(source, { verify: true }).catch(() => cached);
+			const late = current === cached ? null : matchRedirect(current, pathname);
+			const redirected = late && redirectResponse(context, repo, late);
+			if (redirected) {
+				routeCache?.set(false);
+				// Finish the discarded render instead of cancelling it: a render cut off
+				// with its request never settles an isolate-wide fetch it started, and
+				// every later render awaiting that fetch hangs.
+				after(() => response.body?.pipeTo(new WritableStream()));
+				return redirected;
+			}
 		}
 
 		// Log misses under the path the visitor requested.

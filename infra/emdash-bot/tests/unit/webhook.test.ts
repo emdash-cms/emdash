@@ -10,6 +10,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	approvalRefreshTarget,
 	classifyActor,
 	normalizeWebhook,
 	resolvePullRequestWebhook,
@@ -18,6 +19,7 @@ import {
 	type PullRequestEvent,
 	type PullRequestReviewCommentEvent,
 	type PullRequestReviewEvent,
+	writeAccessCandidate,
 } from "../../.flue/lib/webhook.js";
 
 describe("classifyActor", () => {
@@ -406,6 +408,23 @@ describe("normalizeWebhook", () => {
 			}
 		});
 
+		test.each([
+			["completed", "completed"],
+			[null, "completed"],
+			["not_planned", "not_planned"],
+			["duplicate", "not_planned"],
+		])("closed with state_reason %s is treated as %s", (stateReason, closedAs) => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" }, state_reason: stateReason },
+				sender: { login: "alice" },
+			};
+			expect(normalizeWebhook({ eventType: "issues", payload })).toMatchObject({
+				kind: "cleanup",
+				closedAs,
+			});
+		});
+
 		test("closed on a PR-as-issue is skipped (handled by pull_request)", () => {
 			const payload: IssuesEvent = {
 				action: "closed",
@@ -575,41 +594,49 @@ describe("normalizeWebhook", () => {
 			base: { repo: { full_name: "emdash-cms/emdash" } },
 		};
 
+		const review = { state: "approved", author_association: "MEMBER", user: { login: "alice" } };
+
 		test.each(["submitted", "dismissed"])(
-			"%s on a fork PR the bot did not open refreshes its review label",
+			"%s on an open PR refreshes its approval state, whoever opened it",
 			(action) => {
-				const payload: PullRequestReviewEvent = {
-					action,
-					review: { state: "approved", author_association: "MEMBER", user: { login: "alice" } },
-					pull_request: forkPullRequest,
-					sender: { login: "alice" },
-				};
-				expect(normalizeWebhook({ eventType: "pull_request_review", payload })).toEqual({
-					kind: "review_state",
-					pullRequestNumber: 120,
-					authorLogin: "contributor",
-					draft: false,
-				});
+				for (const pullRequest of [
+					forkPullRequest,
+					{
+						...forkPullRequest,
+						head: { ref: "fix/in-repo", repo: { full_name: "emdash-cms/emdash" } },
+					},
+					{
+						...forkPullRequest,
+						user: { login: "emdashbot[bot]", type: "Bot" },
+						head: { ref: "bot/fix-42", repo: { full_name: "emdash-cms/emdash" } },
+					},
+					{ ...forkPullRequest, user: { login: "dependabot[bot]", type: "Bot" } },
+				]) {
+					const payload: PullRequestReviewEvent = { action, review, pull_request: pullRequest };
+					expect(approvalRefreshTarget("pull_request_review", payload)).toBe(120);
+				}
 			},
 		);
 
-		test("a review on a bot-authored, closed or same-repo PR changes no review label", () => {
-			const review = { state: "approved", author_association: "MEMBER", user: { login: "alice" } };
-			for (const pullRequest of [
-				{ ...forkPullRequest, user: { login: "dependabot[bot]", type: "Bot" } },
-				{ ...forkPullRequest, state: "closed" },
-				{
-					...forkPullRequest,
-					head: { ref: "fix/in-repo", repo: { full_name: "emdash-cms/emdash" } },
-				},
-			]) {
-				const payload: PullRequestReviewEvent = {
-					action: "submitted",
-					review,
-					pull_request: pullRequest,
-				};
-				expect(normalizeWebhook({ eventType: "pull_request_review", payload }).kind).toBe("skip");
+		test("a review on a closed or draft PR, or another review action, refreshes nothing", () => {
+			for (const [action, pullRequest] of [
+				["submitted", { ...forkPullRequest, state: "closed" }],
+				["submitted", { ...forkPullRequest, draft: true }],
+				["edited", forkPullRequest],
+			] as const) {
+				const payload: PullRequestReviewEvent = { action, review, pull_request: pullRequest };
+				expect(approvalRefreshTarget("pull_request_review", payload)).toBeNull();
 			}
+			expect(approvalRefreshTarget("pull_request", { action: "labeled" })).toBeNull();
+		});
+
+		test("a review on a PR the bot did not open dispatches nothing", () => {
+			const payload: PullRequestReviewEvent = {
+				action: "submitted",
+				review,
+				pull_request: forkPullRequest,
+			};
+			expect(normalizeWebhook({ eventType: "pull_request_review", payload }).kind).toBe("skip");
 		});
 	});
 
@@ -897,3 +924,238 @@ describe("maintainer review revisions", () => {
 		).toBe("skip");
 	});
 });
+
+// GitHub reports org members whose membership is private as CONTRIBUTOR to
+// apps, so write access is looked up separately and passed in as `writers`.
+describe("maintainers GitHub reports as contributors", () => {
+	const writers: ReadonlySet<string> = new Set(["danielmlr"]);
+	const botPullRequest = {
+		number: 99,
+		state: "open",
+		user: { login: "emdashbot[bot]" },
+		head: { ref: "bot/fix-7" },
+		labels: [],
+	};
+
+	test("classifyActor treats a verified writer as a maintainer", () => {
+		expect(
+			classifyActor({
+				senderLogin: "DanielMLR",
+				authorAssociation: "CONTRIBUTOR",
+				issueOpenerLogin: "DanielMLR",
+				writers,
+			}),
+		).toBe("maintainer");
+	});
+
+	test("an issue opened by a verified writer waits for a command", () => {
+		const payload: IssuesEvent = {
+			action: "opened",
+			issue: {
+				number: 7,
+				user: { login: "danielmlr" },
+				labels: [],
+				author_association: "CONTRIBUTOR",
+			},
+			sender: { login: "danielmlr" },
+		};
+		expect(normalizeWebhook({ eventType: "issues", payload, writers }).kind).toBe("skip");
+	});
+
+	test("a verified writer's command runs with maintainer authority", () => {
+		const payload: IssueCommentEvent = {
+			action: "created",
+			issue: { number: 7, user: { login: "danielmlr" }, labels: ["bot:working"].map(toLabel) },
+			comment: {
+				body: "@emdashbot take over",
+				author_association: "CONTRIBUTOR",
+				user: { login: "danielmlr" },
+			},
+			sender: { login: "danielmlr" },
+		};
+		expect(normalizeWebhook({ eventType: "issue_comment", payload, writers })).toMatchObject({
+			kind: "dispatch",
+			event: {
+				event: "take_over",
+				actor: "maintainer",
+				triggeringComment: { actor: "maintainer" },
+			},
+		});
+	});
+
+	test("a verified writer's review on a bot PR requests a revision", () => {
+		const payload: PullRequestReviewEvent = {
+			action: "submitted",
+			pull_request: botPullRequest,
+			review: {
+				id: 5,
+				state: "changes_requested",
+				body: "Rename the helper",
+				author_association: "CONTRIBUTOR",
+				user: { login: "danielmlr" },
+			},
+		};
+		expect(normalizeWebhook({ eventType: "pull_request_review", payload, writers })).toMatchObject({
+			kind: "dispatch",
+			anchor: "issue-7",
+			event: { event: "revise", actor: "maintainer", reviewId: 5 },
+		});
+	});
+
+	test("without a verified writer the same review is ignored", () => {
+		const payload: PullRequestReviewEvent = {
+			action: "submitted",
+			pull_request: botPullRequest,
+			review: {
+				id: 5,
+				state: "changes_requested",
+				body: "Rename the helper",
+				author_association: "CONTRIBUTOR",
+				user: { login: "danielmlr" },
+			},
+		};
+		expect(normalizeWebhook({ eventType: "pull_request_review", payload }).kind).toBe("skip");
+	});
+});
+
+describe("writeAccessCandidate", () => {
+	test("names the opener of a new issue that GitHub doesn't report as a maintainer", () => {
+		const payload: IssuesEvent = {
+			action: "opened",
+			issue: { number: 7, user: { login: "danielmlr" }, author_association: "CONTRIBUTOR" },
+		};
+		expect(writeAccessCandidate({ eventType: "issues", payload })).toBe("danielmlr");
+	});
+
+	test("is null when GitHub already reports the opener as a maintainer", () => {
+		const payload: IssuesEvent = {
+			action: "opened",
+			issue: { number: 7, user: { login: "alice" }, author_association: "MEMBER" },
+		};
+		expect(writeAccessCandidate({ eventType: "issues", payload })).toBeNull();
+	});
+
+	test("is null for issue actions the bot ignores and for bot openers", () => {
+		expect(
+			writeAccessCandidate({
+				eventType: "issues",
+				payload: {
+					action: "labeled",
+					issue: { number: 7, user: { login: "danielmlr" }, author_association: "CONTRIBUTOR" },
+				},
+			}),
+		).toBeNull();
+		expect(
+			writeAccessCandidate({
+				eventType: "issues",
+				payload: {
+					action: "opened",
+					issue: {
+						number: 7,
+						user: { login: "renovate[bot]", type: "Bot" },
+						author_association: "NONE",
+					},
+				},
+			}),
+		).toBeNull();
+	});
+
+	test("names the author of a comment that mentions the bot", () => {
+		const payload: IssueCommentEvent = {
+			action: "created",
+			issue: { number: 7, user: { login: "reporter" } },
+			comment: {
+				body: "@emdashbot retry",
+				author_association: "CONTRIBUTOR",
+				user: { login: "danielmlr" },
+			},
+			sender: { login: "danielmlr" },
+		};
+		expect(writeAccessCandidate({ eventType: "issue_comment", payload })).toBe("danielmlr");
+	});
+
+	test("names the author of an unmentioned reply the bot is waiting on", () => {
+		const payload: IssueCommentEvent = {
+			action: "created",
+			issue: {
+				number: 7,
+				user: { login: "reporter" },
+				labels: ["bot:awaiting-reporter"].map(toLabel),
+			},
+			comment: {
+				body: "Looks good to me",
+				author_association: "CONTRIBUTOR",
+				user: { login: "danielmlr" },
+			},
+			sender: { login: "danielmlr" },
+		};
+		expect(writeAccessCandidate({ eventType: "issue_comment", payload })).toBe("danielmlr");
+	});
+
+	test("is null for an unmentioned comment the bot ignores", () => {
+		const payload: IssueCommentEvent = {
+			action: "created",
+			issue: { number: 7, user: { login: "reporter" }, labels: [] },
+			comment: {
+				body: "Same here",
+				author_association: "CONTRIBUTOR",
+				user: { login: "danielmlr" },
+			},
+			sender: { login: "danielmlr" },
+		};
+		expect(writeAccessCandidate({ eventType: "issue_comment", payload })).toBeNull();
+	});
+
+	test("names a reviewer on a bot fix PR and nobody on other PRs", () => {
+		const review = {
+			id: 5,
+			state: "changes_requested",
+			author_association: "CONTRIBUTOR",
+			user: { login: "danielmlr" },
+		};
+		expect(
+			writeAccessCandidate({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					review,
+					pull_request: {
+						number: 99,
+						user: { login: "emdashbot[bot]" },
+						head: { ref: "bot/fix-7" },
+					},
+				},
+			}),
+		).toBe("danielmlr");
+		expect(
+			writeAccessCandidate({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					review,
+					pull_request: { number: 99, user: { login: "someone" }, head: { ref: "fix-thing" } },
+				},
+			}),
+		).toBeNull();
+	});
+
+	test("names the author of a mentioned inline comment on a bot fix PR", () => {
+		const payload: PullRequestReviewCommentEvent = {
+			action: "created",
+			comment: {
+				body: "@emdashbot rename this",
+				author_association: "CONTRIBUTOR",
+				user: { login: "danielmlr" },
+			},
+			pull_request: { number: 99, user: { login: "emdashbot[bot]" }, head: { ref: "bot/fix-7" } },
+			sender: { login: "danielmlr" },
+		};
+		expect(writeAccessCandidate({ eventType: "pull_request_review_comment", payload })).toBe(
+			"danielmlr",
+		);
+	});
+});
+
+function toLabel(name: string): { name: string } {
+	return { name };
+}
