@@ -47,10 +47,10 @@ Main is kept green. Do not run checks before editing merely to establish a basel
 - Run `pnpm format`.
 - Run `pnpm build` from the repository root. Package-scoped builds are not sufficient because validation resolves declaration output from other workspace packages.
 - Run `pnpm lint:quick` and confirm `pnpm --silent lint:json | jq '.diagnostics | length'` returns zero.
-- Run the tests relevant to the changed behavior.
+- Run only the test files relevant to the changed code and behavior. Never run the full test suite (`pnpm test`), even if a skill asks for it; it is too slow and can hang. Report that full-suite tests were not run.
 - Run `pnpm typecheck` (packages) or `pnpm typecheck:demos` (Astro demos).
 
-If a check fails, make sure the root build is current and rerun it. Treat any remaining failure as introduced by the current work and fix it before committing.
+If a check fails, refresh the root build and rerun it. Fix build, lint, and typecheck failures before committing. Fix relevant test failures unless a human explicitly approves deferring a specific failure to a GitHub issue. For an approved deferral, mark only the affected test with Vitest it.skip or describe.skip, keep other relevant tests running, and record the issue number and skipped tests in the commit message and final report. The follow-up issue must restore and run the tests. Never report skipped tests as passing.
 
 Before opening a PR: tests pass, lint clean, formatted, changeset added if a published package changed. See [.changeset/README.md](.changeset/README.md).
 

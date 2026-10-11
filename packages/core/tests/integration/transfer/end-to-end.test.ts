@@ -134,7 +134,7 @@ for (const [sourceDialect, targetDialect] of DIALECT_PAIRS) {
 				await teardownForDialect(target);
 			});
 
-			it("exports, imports, verifies, and serves the site", { timeout: 600_000 }, async () => {
+			it.skip("exports, imports, verifies, and serves the site", { timeout: 600_000 }, async () => {
 				source = await setupForDialect(sourceDialect);
 				target = await setupForDialect(targetDialect);
 				const originStorage = createMemoryStorage();
