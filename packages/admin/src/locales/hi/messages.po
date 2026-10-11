@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "प्लगइन अक्षम करने में विफल"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "प्लगइन सक्षम करने में विफल"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "प्लगइन लाने में विफल"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "प्लगइन सेटिंग लाने में विफल"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "प्लगइन्स लाने में विफल"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "प्लगइन अद्यतन करने में विफल"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "प्लगइन एमसीपी एक्सेस को अपडेट करने में विफल"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "प्लगइन सेटिंग्स अपडेट करने में विफल"
 
@@ -9947,7 +9947,7 @@ msgstr "क्रुपया मान्य URL दर्ज करें"
 msgid "Plugin"
 msgstr "लगाना"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "प्लगइन \"{pluginId}\" नहीं मिला"
 

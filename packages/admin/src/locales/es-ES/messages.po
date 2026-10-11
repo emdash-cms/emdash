@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr "No se pudo denegar la solicitud"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "No se pudo deshabilitar el plugin"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "No se pudo habilitar el plugin"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "Error al obtener el plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "No se pudo obtener la configuración del plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "No se pudieron obtener los plugins"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "Error al actualizar el plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "No se pudo actualizar el acceso MCP del plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "No se pudo actualizar la configuración del plugin"
 
@@ -9947,7 +9947,7 @@ msgstr "Por favor ingresa una URL válida"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "No se ha encontrado el plugin \"{pluginId}\""
 

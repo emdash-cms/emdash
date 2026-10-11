@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr "Nie udało się odrzucić prośby"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "Nie udało się wyłączyć wtyczki"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr "Nie udało się wysłać e-maili do użytkowników"
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "Nie udało się włączyć wtyczki"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr "Nie udało się pobrać kluczy dostępu"
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "Nie udało się pobrać wtyczki"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "Nie udało się pobrać ustawień wtyczki"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "Nie udało się pobrać wtyczek"
 
@@ -6325,11 +6325,11 @@ msgstr "Nie udało się zaktualizować elementu menu"
 msgid "Failed to update plugin"
 msgstr "Nie udało się zaktualizować wtyczki"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "Nie udało się zaktualizować dostępu MCP wtyczki"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "Nie udało się zaktualizować ustawień wtyczki"
 
@@ -9947,7 +9947,7 @@ msgstr "Wprowadź prawidłowy URL"
 msgid "Plugin"
 msgstr "Wtyczka"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Nie znaleziono wtyczki „{pluginId}”"
 

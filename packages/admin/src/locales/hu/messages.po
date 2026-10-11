@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "Nem sikerült plugint letiltani"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "Nem sikerült plugint engedélyezni"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "Nem sikerült plugint lekérni"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "Nem sikerült plugineket lekérni"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "Nem sikerült a plugin frissítése"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr ""
 
@@ -9947,7 +9947,7 @@ msgstr "Adj meg érvényes URL-t"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "A plugin nem található: \"{pluginId}\""
 

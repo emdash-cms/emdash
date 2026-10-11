@@ -5581,7 +5581,7 @@ msgid "Failed to deny request"
 msgstr "فشل رفض الطلب"
 
 #: packages/admin/src/components/PluginManager.tsx:154
-#: packages/admin/src/lib/api/plugins.ts:160
+#: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "فشل في تعطيل الإضافة"
 
@@ -5627,7 +5627,7 @@ msgid "Failed to email users"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/lib/api/plugins.ts:146
+#: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "فشل في تفعيل الإضافة"
 
@@ -5778,16 +5778,16 @@ msgid "Failed to fetch passkeys"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:324
-#: packages/admin/src/lib/api/plugins.ts:70
-#: packages/admin/src/lib/api/plugins.ts:74
+#: packages/admin/src/lib/api/plugins.ts:71
+#: packages/admin/src/lib/api/plugins.ts:75
 msgid "Failed to fetch plugin"
 msgstr "فشل جلب الإضافة"
 
-#: packages/admin/src/lib/api/plugins.ts:114
+#: packages/admin/src/lib/api/plugins.ts:115
 msgid "Failed to fetch plugin settings"
 msgstr "فشل جلب إعدادات الإضافة"
 
-#: packages/admin/src/lib/api/plugins.ts:56
+#: packages/admin/src/lib/api/plugins.ts:57
 msgid "Failed to fetch plugins"
 msgstr "فشل جلب الإضافات"
 
@@ -6325,11 +6325,11 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr "فشل تحديث الإضافة"
 
-#: packages/admin/src/lib/api/plugins.ts:172
+#: packages/admin/src/lib/api/plugins.ts:173
 msgid "Failed to update plugin MCP access"
 msgstr "فشل تحديث وصول MCP للإضافة"
 
-#: packages/admin/src/lib/api/plugins.ts:133
+#: packages/admin/src/lib/api/plugins.ts:134
 msgid "Failed to update plugin settings"
 msgstr "فشل تحديث إعدادات الإضافة"
 
@@ -9947,7 +9947,7 @@ msgstr "يرجى إدخال رابط صحيح"
 msgid "Plugin"
 msgstr "إضافة"
 
-#: packages/admin/src/lib/api/plugins.ts:68
+#: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "لم يُعثر على الإضافة \"{pluginId}\""
 
