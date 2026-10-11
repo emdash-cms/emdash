@@ -245,23 +245,11 @@ export function WordPressImport() {
 
 					// Check timestamp (5 minute expiry)
 					if (Date.now() - authData.timestamp < 5 * 60 * 1000) {
-						// Set up import source and start analyzing
-						setImportSource({
-							type: "wordpress-plugin",
-							url: authData.siteUrl,
-							token: authData.token,
-						});
-						setUrlInput(authData.siteUrl);
-
-						// Clear the cookie
+						// Clear the cookie before starting analysis
 						document.cookie = "emdash_wp_auth=; path=/_emdash/; max-age=0";
 
-						// Start analyzing
-						setStep("analyzing-plugin");
-						wpPluginAnalyzeMutation.mutate({
-							url: authData.siteUrl,
-							token: authData.token,
-						});
+						// Set up import source and start analyzing
+						startPluginAnalysis(authData.siteUrl, authData.token);
 					}
 				} catch (e) {
 					console.error("Failed to parse auth cookie:", e);
@@ -458,6 +446,28 @@ export function WordPressImport() {
 		},
 	});
 
+	// Start plugin-driven analysis. Ensures probeResult is set so the
+	// plugin-auth step can render if the analyze request fails.
+	const startPluginAnalysis = React.useCallback(
+		(url: string, token: string) => {
+			setImportSource({ type: "wordpress-plugin", url, token });
+			setUrlInput(url);
+			setProbeResult(
+				(prev) =>
+					prev ?? {
+						url,
+						isWordPress: true,
+						bestMatch: null,
+						allMatches: [],
+					},
+			);
+			setImportError(null);
+			setStep("analyzing-plugin");
+			wpPluginAnalyzeMutation.mutate({ url, token });
+		},
+		[wpPluginAnalyzeMutation],
+	);
+
 	const handleProbeUrl = (e: React.FormEvent) => {
 		e.preventDefault();
 		const input = urlInput.trim();
@@ -477,11 +487,9 @@ export function WordPressImport() {
 		const decoded = decodeMigrationKey(key.trim());
 		if (!decoded) return false;
 		const token = btoa(`${decoded.user}:${decoded.pass.replace(WHITESPACE_REGEX, "")}`);
-		setImportSource({ type: "wordpress-plugin", url: decoded.url, token });
-		setUrlInput(decoded.url);
-		setImportError(null);
-		setStep("analyzing-plugin");
-		wpPluginAnalyzeMutation.mutate({ url: decoded.url, token });
+		setPluginUsername(decoded.user);
+		setPluginPassword(decoded.pass);
+		startPluginAnalysis(decoded.url, token);
 		return true;
 	};
 
@@ -547,9 +555,7 @@ export function WordPressImport() {
 
 		const probeUrl = probeResult?.url;
 		if (!probeUrl) return;
-		setImportSource({ type: "wordpress-plugin", url: probeUrl, token });
-		setStep("analyzing-plugin");
-		wpPluginAnalyzeMutation.mutate({ url: probeUrl, token });
+		startPluginAnalysis(probeUrl, token);
 	};
 
 	const executeImport = () => {
