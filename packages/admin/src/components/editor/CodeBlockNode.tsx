@@ -41,10 +41,8 @@ import {
 } from "./codeBlockLanguages";
 import { useAttachedKey } from "./useAttachedKey.js";
 
-// Kumo's Toolbar.Button uses physical classes for its outer corners and divider
-// (`first:rounded-l-lg`, `last:rounded-r-lg`, `not-first:border-l`), which land on
-// the wrong sides in RTL. Each `rounded-none`/`border-0` makes tailwind-merge drop
-// Kumo's class and must stay before the logical class that replaces it.
+// Each `rounded-none`/`border-0` makes tailwind-merge drop Kumo's physical class. Keep it
+// before its logical replacement, or tailwind-merge drops the replacement too.
 const TOOLBAR_BUTTON_LOGICAL_EDGES =
 	"first:rounded-none first:rounded-s-lg last:rounded-none last:rounded-e-lg not-first:border-0 not-first:border-s";
 
