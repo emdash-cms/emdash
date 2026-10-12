@@ -40,6 +40,7 @@ Open reports follow from that split:
 
 - [#1132](https://github.com/emdash-cms/emdash/discussions/1132): a Subscriber sees the collections, plugin pages, settings pages and delete buttons, and the API then rejects the actions.
 - [#3034](https://github.com/emdash-cms/emdash/discussions/3034) and [#3033](https://github.com/emdash-cms/emdash/issues/3033): plugin pages are listed for every role, while a plugin route without a `permission` requires `plugins:manage`.
+- The entry editor loads the users list for the author picker when the role is Editor or higher, and `GET /_emdash/api/admin/users` refuses everyone below Admin.
 
 The Contributor role shows the same split. A Contributor creates an entry (201) and is refused on the next save (403), while the editor offers Save, Publish now and Schedule. The map grants `content:create` from Contributor and `content:edit_own` from Author. [#4133](https://github.com/emdash-cms/emdash/pull/4133) addresses this with a new `content:edit_own_drafts` permission; the admin still learns about it only through the role number.
 
@@ -350,6 +351,18 @@ The role editor, the role picker and every new error message in the admin go thr
 - **Authenticated requests.** The user lookup gains a join on a primary key, in the same query. No request issues an additional round trip, for built-in or custom roles.
 - **Checks.** A check is an in-memory lookup. The grant sets are built once per request from the joined row.
 - **`/auth/me`.** The response grows by about 50 short strings for an Admin.
+
+A prototype measured database queries per request on a Node.js and SQLite demo site with `EMDASH_QUERY_LOG=1`, after one warm-up request per route. `jobs-editor` is the role from the example; `site-editor` is a custom role without collection scope.
+
+| Request                         | Anonymous | Admin | Editor | Contributor | `jobs-editor` | `site-editor` |
+| ------------------------------- | --------- | ----- | ------ | ----------- | ------------- | ------------- |
+| `GET /`                         | 6         | 7     | 7      | 7           | 7             | 7             |
+| `GET /jobs`                     | 8         | 9     | 9      | 9           | 9             | 9             |
+| `GET /_emdash/api/auth/me`      | 401       | 1     | 1      | 1           | 1             | 1             |
+| `GET /_emdash/api/content/jobs` | 401       | 6     | 6      | 6           | 6             | 6             |
+| `GET /_emdash/api/dashboard`    | 401       | 14    | 14     | 14          | 10            | 14            |
+
+The extra query on authenticated pages is the existing user lookup, which carries the role through the join. `jobs-editor` reads one collection on the dashboard, so it runs fewer queries. `pnpm query-counts` for SQLite matches the committed logged-out snapshot in count and query text. The D1 target has not been measured yet.
 
 ## Failure handling
 
