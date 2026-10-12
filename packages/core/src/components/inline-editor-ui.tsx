@@ -179,7 +179,7 @@ function useTooltip(label: string) {
 		// A hidden toolbar takes its buttons off the page, so their tooltips go with it.
 		duration: isInstantPhase || !shown ? 0 : 150,
 	});
-	// The button's label already names it, so the tooltip is for sight only.
+	// The button names or describes itself already, so the tooltip is for sight only.
 	const tooltip = isMounted ? (
 		<FloatingPortal root={root}>
 			<div
@@ -192,6 +192,7 @@ function useTooltip(label: string) {
 				className="emdash-inline-ui-tooltip"
 				data-status={status}
 				data-instant={isInstantPhase ? "" : undefined}
+				dir="auto"
 				aria-hidden="true"
 				{...getFloatingProps()}
 			>
@@ -283,6 +284,7 @@ export function ToolbarTextButton({
 }) {
 	const { setReference, getReferenceProps, tooltip: tooltipElement } = useTooltip(tooltip ?? label);
 	const ref = useMergeRefs([setReference, buttonRef]);
+	const descriptionId = React.useId();
 	return (
 		<>
 			<button
@@ -292,6 +294,7 @@ export function ToolbarTextButton({
 				aria-pressed={pressed}
 				aria-haspopup={expanded === undefined ? undefined : "dialog"}
 				aria-expanded={expanded}
+				aria-describedby={tooltip === undefined ? undefined : descriptionId}
 				data-open={expanded ? "" : undefined}
 				{...getReferenceProps({
 					onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
@@ -300,6 +303,11 @@ export function ToolbarTextButton({
 			>
 				{icon}
 				<span className="emdash-inline-ui-text-button-label">{label}</span>
+				{tooltip !== undefined && (
+					<span id={descriptionId} hidden>
+						{tooltip}
+					</span>
+				)}
 			</button>
 			{tooltip === undefined ? null : tooltipElement}
 		</>
@@ -1150,6 +1158,10 @@ export const INLINE_EDITOR_UI_STYLES = `
 		.emdash-inline-ui-trigger,
 		.emdash-inline-ui-input {
 			height: 44px;
+		}
+		/* iOS zooms the page into a field with smaller text. */
+		.emdash-inline-ui-input {
+			font-size: 16px;
 		}
 		.emdash-inline-ui-button,
 		.emdash-inline-ui-trigger[data-icon-only] {

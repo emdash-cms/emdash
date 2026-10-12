@@ -35,9 +35,9 @@ import { InlineMediaPicker, type ChosenImage } from "./inline-media-picker.js";
 type ShouldShow = NonNullable<BubbleMenuProps["shouldShow"]>;
 
 const IMAGE_TOOLBAR_KEY = "emdashInlineImageToolbar";
-/** Marks the image toolbar, so a caption can hand focus on to it. */
-const IMAGE_TOOLBAR_ATTR = "data-emdash-image-toolbar";
 const TOOLBAR_CONTROL_SELECTOR = "button:not([disabled]), a[href], input";
+/** A toolbar shown again within this long of hiding, as when its caption takes focus, doesn't rise in again. */
+const RESHOW_WITHOUT_ENTRANCE_MS = 100;
 const CAPTION_PLACEHOLDER = "Add a caption";
 
 type ImageAlignment = "left" | "center" | "right" | "wide" | "full";
@@ -101,7 +101,8 @@ function showToolbarsAgain(editor: Editor) {
  * the document: in place of an empty line, or before or after the block the
  * caret is in. Lists and quotes keep only their text when saved, so an image
  * never goes inside one; an empty line there goes, and the image follows
- * the list or quote. The new image ends up selected.
+ * the list or quote, or takes its place when that line was all it held. The
+ * new image ends up selected.
  */
 export function insertImage(editor: Editor, position: number, image: ChosenImage) {
 	editor.commands.command(({ tr, state }) => {
@@ -110,11 +111,14 @@ export function insertImage(editor: Editor, position: number, image: ChosenImage
 		const $pos = tr.doc.resolve(Math.min(position, tr.doc.content.size));
 		const node = type.create(image);
 		const emptyLine = $pos.parent.isTextblock && $pos.parent.childCount === 0;
+		// The outermost block that holds nothing but the caret's line.
+		let depth = $pos.depth;
+		while (depth > 1 && $pos.node(depth - 1).childCount === 1) depth--;
 		let at: number;
 		if ($pos.depth === 0) {
 			at = $pos.pos;
 			tr.insert(at, node);
-		} else if ($pos.depth === 1 && emptyLine) {
+		} else if (emptyLine && depth === 1) {
 			at = $pos.before(1);
 			tr.replaceWith(at, $pos.after(1), node);
 		} else if ($pos.depth === 1 && $pos.parentOffset === 0) {
@@ -122,7 +126,7 @@ export function insertImage(editor: Editor, position: number, image: ChosenImage
 			tr.insert(at, node);
 		} else {
 			const after = $pos.after(1);
-			// Deleting a list or quote's only line deletes the list or quote too.
+			// An empty line takes its list item with it when it was the item's only line.
 			if (emptyLine) tr.deleteRange($pos.before(), $pos.after());
 			at = tr.mapping.map(after);
 			tr.insert(at, node);
@@ -202,15 +206,8 @@ function InlineImageView({ node, editor, getPos, updateAttributes }: NodeViewPro
 			event.preventDefault();
 			editor.commands.setNodeSelection(position);
 			editor.view.focus();
-		} else if (event.key === "Tab") {
-			// A hidden toolbar isn't on the page, so this finds only the one showing.
-			const control = event.currentTarget.ownerDocument
-				.querySelector(`[${IMAGE_TOOLBAR_ATTR}]`)
-				?.querySelector<HTMLElement>(TOOLBAR_CONTROL_SELECTOR);
-			if (!control) return;
-			event.preventDefault();
-			control.focus();
 		}
+		// Tab goes on to the image's toolbar, as from any selection in the editor.
 	};
 
 	return (
@@ -359,6 +356,7 @@ export function InlineImageToolbar({
 	const [draft, setDraft] = React.useState("");
 	const menuRef = React.useRef<HTMLDivElement>(null);
 	const replaceRef = React.useRef<HTMLButtonElement>(null);
+	const hiddenAtRef = React.useRef(Number.NEGATIVE_INFINITY);
 	const image = useEditorState({
 		editor,
 		selector: ({ editor: activeEditor }) => {
@@ -410,9 +408,12 @@ export function InlineImageToolbar({
 			scrollTarget,
 			onShow: () => {
 				setShown(true);
-				playToolbarEntrance(menuRef.current?.firstElementChild);
+				if (performance.now() - hiddenAtRef.current > RESHOW_WITHOUT_ENTRANCE_MS) {
+					playToolbarEntrance(menuRef.current?.firstElementChild);
+				}
 			},
 			onHide: () => {
+				hiddenAtRef.current = performance.now();
 				setShown(false);
 				setMode("controls");
 				setReplacing(false);
@@ -438,10 +439,14 @@ export function InlineImageToolbar({
 		[uiRoot],
 	);
 
-	// The picker opens below the toolbar, growing from the Replace button.
+	// The picker opens below the toolbar, growing from the Replace button, and
+	// follows the toolbar when TipTap moves it.
 	const pickerReference = React.useMemo<VirtualElement>(
 		() => ({
 			getBoundingClientRect: () => menuRef.current?.getBoundingClientRect() ?? new DOMRect(),
+			get contextElement() {
+				return menuRef.current ?? undefined;
+			},
 		}),
 		[],
 	);
@@ -515,7 +520,16 @@ export function InlineImageToolbar({
 				role="toolbar"
 				aria-label="Image controls"
 				className="emdash-inline-ui-bar emdash-image-bubble-menu"
-				{...{ [IMAGE_TOOLBAR_ATTR]: "" }}
+				onMouseDown={() => {
+					// TipTap skips the editor's next blur after a press on its toolbar. With
+					// focus in the caption or the toolbar, no such blur comes to use that up,
+					// and the one that hides the toolbar later would be skipped instead.
+					if (!editor.view.hasFocus()) {
+						editor.view.dispatch(
+							editor.state.tr.setMeta("blur", { event: { relatedTarget: menuRef.current } }),
+						);
+					}
+				}}
 				onKeyDown={onKeyDown}
 			>
 				<ToolbarShownContext.Provider value={shown}>

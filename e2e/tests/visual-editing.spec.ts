@@ -842,9 +842,11 @@ test.describe("Inline Editor", () => {
 		await page.route(
 			(url) => url.pathname === "/_emdash/api/media",
 			async (route) => {
-				const response = await route.fetch();
+				const url = new URL(route.request().url());
+				const pageNumber = Number(url.searchParams.get("page"));
+				url.searchParams.set("page", "1");
+				const response = await route.fetch({ url: url.href });
 				const json = (await response.json()) as MediaList;
-				const pageNumber = Number(new URL(route.request().url()).searchParams.get("page"));
 				const images = Array.from({ length: 15 }, (_, index) => ({
 					...json.data.items[0],
 					id: `e2e-${index}`,

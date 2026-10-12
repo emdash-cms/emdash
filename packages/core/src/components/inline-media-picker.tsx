@@ -323,6 +323,8 @@ export function InlineMediaPicker({
 	const searchRef = React.useRef<HTMLInputElement>(null);
 	const pageInputRef = React.useRef<HTMLInputElement>(null);
 	const pointerOutsideRef = React.useRef(false);
+	// The image a pointer pressed, as tiles keep their element when their image changes.
+	const pressedRef = React.useRef<string | null>(null);
 	const onCloseRef = React.useRef(onClose);
 	onCloseRef.current = onClose;
 	const gridId = React.useId();
@@ -342,6 +344,16 @@ export function InlineMediaPicker({
 	const [paging, setPaging] = React.useState({ view, page: 1 });
 	const requestedPage = paging.view === view ? paging.page : 1;
 	const { listing, loading, failed, retry } = useListing(source, query, requestedPage);
+	// Images uploaded in the admin's media library, opened in another tab, show up on coming back.
+	const retryRef = React.useRef(retry);
+	retryRef.current = retry;
+	React.useEffect(() => {
+		const refresh = () => {
+			if (document.visibilityState === "visible") retryRef.current();
+		};
+		document.addEventListener("visibilitychange", refresh);
+		return () => document.removeEventListener("visibilitychange", refresh);
+	}, []);
 	const total = listing?.total ?? 0;
 	const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const page = Math.min(requestedPage, pages);
@@ -407,8 +419,24 @@ export function InlineMediaPicker({
 			// With focus in the picker, the blur that follows closes it, once the toolbars have seen focus go.
 			if (outside && !picker?.contains(document.activeElement)) onCloseRef.current("blur");
 		};
+		// iOS keeps focus in a field when a tap lands where nothing takes focus, so
+		// the tap's end lets it go, which closes the picker as a blur would.
+		const onPointerUp = () => {
+			const activeElement = document.activeElement;
+			if (
+				pointerOutsideRef.current &&
+				activeElement instanceof HTMLElement &&
+				pickerRef.current?.contains(activeElement)
+			) {
+				activeElement.blur();
+			}
+		};
 		document.addEventListener("pointerdown", onPointerDown, true);
-		return () => document.removeEventListener("pointerdown", onPointerDown, true);
+		document.addEventListener("pointerup", onPointerUp, true);
+		return () => {
+			document.removeEventListener("pointerdown", onPointerDown, true);
+			document.removeEventListener("pointerup", onPointerUp, true);
+		};
 	}, []);
 
 	const onBlur = (event: React.FocusEvent<HTMLDivElement>) => {
@@ -419,13 +447,14 @@ export function InlineMediaPicker({
 			return;
 		}
 		// Focus that went nowhere left for another window, which gives it back,
-		// or went with a control that left the page.
+		// went into a frame on the page, or went with a control that left the page.
 		if (!document.hasFocus()) return;
 		queueMicrotask(() => {
 			const picker = pickerRef.current;
-			if (picker?.isConnected && !picker.contains(document.activeElement)) {
-				(searchRef.current ?? picker).focus({ preventScroll: true });
-			}
+			const activeElement = document.activeElement;
+			if (!picker?.isConnected || picker.contains(activeElement)) return;
+			if (activeElement && activeElement !== document.body) onCloseRef.current("blur");
+			else (searchRef.current ?? picker).focus({ preventScroll: true });
 		});
 	};
 
@@ -648,7 +677,19 @@ export function InlineMediaPicker({
 							onPointerMove={() => {
 								if (index !== highlight) setHighlight(index);
 							}}
-							onClick={() => onChoose(image.chosen)}
+							onFocus={() => {
+								if (index !== highlight) setHighlight(index);
+							}}
+							onPointerDown={() => {
+								pressedRef.current = image.id;
+							}}
+							onClick={(event) => {
+								const pressed = pressedRef.current;
+								pressedRef.current = null;
+								// A pointer chooses the image it pressed, though new results may have replaced it since.
+								if (event.detail > 0 && pressed !== null && pressed !== image.id) return;
+								onChoose(image.chosen);
+							}}
 						>
 							{image.thumbnail && (
 								<img
@@ -854,6 +895,7 @@ export const INLINE_MEDIA_PICKER_STYLES = `
 		padding-inline-start: 34px;
 		background: transparent;
 		box-shadow: none;
+		appearance: none;
 	}
 	.emdash-inline-ui-picker-tabs {
 		gap: 2px;
@@ -1065,6 +1107,11 @@ export const INLINE_MEDIA_PICKER_STYLES = `
 			width: 40px;
 			height: 40px;
 		}
+		/* iOS zooms the page into a field with smaller text. */
+		.emdash-inline-ui-pagination > input {
+			font-size: 16px;
+		}
+		.emdash-inline-ui-picker-tab,
 		.emdash-inline-ui-picker-action {
 			height: 44px;
 		}

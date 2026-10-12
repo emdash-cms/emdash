@@ -20,7 +20,7 @@ import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
-import { Plugin } from "@tiptap/pm/state";
+import { Plugin, type Transaction } from "@tiptap/pm/state";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { exitSuggestion } from "@tiptap/suggestion";
@@ -1310,6 +1310,20 @@ export function InlinePortableTextEditor({
 		if (editor && range) exitSuggestion(editor.view);
 	}, [editor, setSlashMenuState]);
 	slashMenuActionsRef.current = { run: runSlashCommand, dismiss: closeSlashMenu };
+
+	// Edits made while the picker is open, as when focus stays in the editor, move the spot it inserts at.
+	const pickerOpen = imagePickerAt !== null;
+	React.useEffect(() => {
+		if (!editor || !pickerOpen) return;
+		const onTransaction = ({ transaction }: { transaction: Transaction }) => {
+			if (!transaction.docChanged) return;
+			setImagePickerAt((at) => (at === null ? at : transaction.mapping.map(at)));
+		};
+		editor.on("transaction", onTransaction);
+		return () => {
+			editor.off("transaction", onTransaction);
+		};
+	}, [editor, pickerOpen]);
 
 	// The image picker opens at the caret the `/image` command left.
 	const caretReference = React.useMemo(

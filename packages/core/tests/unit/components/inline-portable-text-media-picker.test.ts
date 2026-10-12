@@ -278,10 +278,26 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 	function toolbarButton(toolbar: HTMLElement, name: string) {
 		const match = [...toolbar.querySelectorAll<HTMLElement>("button")].find(
-			(candidate) => (candidate.getAttribute("aria-label") ?? candidate.textContent) === name,
+			(candidate) =>
+				(candidate.getAttribute("aria-label") ??
+					candidate.querySelector(".emdash-inline-ui-text-button-label")?.textContent) === name,
 		);
 		expect(match).toBeDefined();
 		return match!;
+	}
+
+	/** The query of the picker's latest request for library images. */
+	function lastLibraryQuery() {
+		const url = requests.findLast((request) => request.startsWith("/_emdash/api/media?"));
+		expect(url).toBeDefined();
+		return Object.fromEntries(new URL(url!, "http://localhost").searchParams);
+	}
+
+	/** A control elsewhere on the page, for focus to move to. */
+	function elsewhere() {
+		const outside = document.createElement("button");
+		document.body.append(outside);
+		return outside;
 	}
 
 	function savedBlocks() {
@@ -392,13 +408,13 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		const dialog = await typeImageCommand(editable);
 		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 1–9 of 15"));
 		expect(dialog.querySelectorAll('[role="option"]')).toHaveLength(9);
-		expect(requests.at(-1)).toContain("page=1&limit=9");
+		expect(lastLibraryQuery()).toMatchObject({ page: "1", limit: "9" });
 
 		await click(dialog.querySelector('[aria-label="Next page"]')!);
 
 		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 10–15 of 15"));
 		expect(dialog.querySelectorAll('[role="option"]')).toHaveLength(6);
-		expect(requests.at(-1)).toContain("page=2&limit=9");
+		expect(lastLibraryQuery()).toMatchObject({ page: "2", limit: "9" });
 		expect(dialog.querySelector<HTMLButtonElement>('[aria-label="Next page"]')!.disabled).toBe(
 			true,
 		);
@@ -417,7 +433,7 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		});
 
 		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 1–1 of 1"));
-		expect(requests.at(-1)).toContain("page=1&limit=9&q=IMG");
+		expect(lastLibraryQuery()).toMatchObject({ page: "1", limit: "9", q: "IMG" });
 	});
 
 	it("points an empty library to the admin's media library", async () => {
@@ -449,6 +465,37 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 		expect(dialog.isConnected).toBe(false);
 		expect(document.activeElement).toBe(editable);
+	});
+
+	it("closes the picker when focus moves elsewhere on the page", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro.")]);
+		const dialog = await typeImageCommand(editable);
+		await vi.waitFor(() =>
+			expect(document.activeElement?.getAttribute("aria-label")).toBe("Search images"),
+		);
+		const outside = elsewhere();
+
+		await act(async () => outside.focus());
+
+		expect(dialog.isConnected).toBe(false);
+		outside.remove();
+	});
+
+	it("highlights the image that Tab moves to", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro.")]);
+		const dialog = await typeImageCommand(editable);
+		const first = await option(dialog, "IMG_2034.jpg");
+		const search = await vi.waitFor(() => {
+			expect(document.activeElement?.getAttribute("aria-label")).toBe("Search images");
+			return document.activeElement!;
+		});
+
+		await act(async () => press(search, "Tab"));
+
+		expect(document.activeElement).toBe(first);
+		expect(first.getAttribute("aria-selected")).toBe("true");
 	});
 
 	async function expectSavedProvider(provider: string, storedProvider: string) {
@@ -523,6 +570,29 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		});
 		expect(blocks[1]).not.toHaveProperty("title");
 		expect(toolbar.isConnected).toBe(true);
+	});
+
+	it("hides the image's toolbar once focus leaves, after Replace was used from the caption", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro."), IMAGE_BLOCK]);
+		const toolbar = await selectImage(editable);
+		const caption = editable.querySelector<HTMLTextAreaElement>("figcaption textarea")!;
+		await act(async () => caption.focus());
+		await vi.waitFor(() => expect(toolbar.isConnected).toBe(true));
+		// A press on the toolbar keeps focus in the caption.
+		const replace = toolbarButton(toolbar, "Replace");
+		await act(async () => {
+			replace.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+			replace.click();
+		});
+		await click(await option(await picker("Replace image"), "photo-2.jpg"));
+		expect(document.activeElement).toBe(replace);
+		const outside = elsewhere();
+
+		await act(async () => outside.focus());
+
+		await vi.waitFor(() => expect(toolbar.isConnected).toBe(false));
+		outside.remove();
 	});
 
 	it("describes an image from its toolbar", async () => {
