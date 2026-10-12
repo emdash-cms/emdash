@@ -67,8 +67,12 @@ export async function queueRetries(ctx: RetryContext, failures: Failure[]): Prom
 		const overflow = Math.max(0, all.length - MAX_QUEUED);
 		return { items: all.slice(overflow), dropped: (queue?.dropped ?? 0) + overflow };
 	});
-	await ctx.cron?.schedule(RETRY, { schedule: "* * * * *" });
+	await scheduleRetries(ctx);
 }
+
+const scheduleRetries = (ctx: RetryContext) => ctx.cron?.schedule(RETRY, { schedule: "* * * * *" });
+
+const hasPending = (queue: RetryQueue) => queue.items.some((item) => item.nextAt !== null);
 
 export type RetryOutcome = "synced" | "failed" | "busy";
 
@@ -132,8 +136,10 @@ export async function runRetries(
 		// oxlint-disable-next-line no-await-in-loop -- one at a time, to stop at the first rate limit
 		if ((await retryRecord(ctx, indexer, item)) === "busy") break;
 	}
-	const remaining = await getRetryQueue(ctx);
-	if (!remaining.items.some((item) => item.nextAt !== null)) await ctx.cron?.cancel(RETRY);
+	if (hasPending(await getRetryQueue(ctx))) return;
+	await ctx.cron?.cancel(RETRY);
+	// A failure queued since the check scheduled the task this just cancelled.
+	if (hasPending(await getRetryQueue(ctx))) await scheduleRetries(ctx);
 }
 
 /** Forgets how many failures were dropped, once a rebuild will retry them. */

@@ -98,8 +98,10 @@ export async function startBuild(ctx: BuildContext, sources: string[]): Promise<
 					failed: 0,
 				},
 	);
-	await ctx.cron?.schedule(BUILD, { schedule: "* * * * *" });
+	await scheduleBuild(ctx);
 }
+
+const scheduleBuild = (ctx: BuildContext) => ctx.cron?.schedule(BUILD, { schedule: "* * * * *" });
 
 /**
  * Advances the build page by page until `budgetMs` has passed. Returns the
@@ -173,6 +175,8 @@ export async function runBuild(
 				finishedAt: Date.now(),
 			} satisfies LastBuild);
 			await ctx.cron?.cancel(BUILD);
+			// A build started since the release scheduled the task this just cancelled.
+			if (await getBuild(ctx)) await scheduleBuild(ctx);
 		}
 	}
 	return getBuild(ctx);

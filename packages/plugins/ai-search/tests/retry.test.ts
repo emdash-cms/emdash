@@ -70,6 +70,27 @@ describe("retries", () => {
 		expect((await getRetryQueue(ctx)).items).toMatchObject([{ id: post.id, attempts: 1 }]);
 	});
 
+	it("keeps the cron task when a failure is queued while the queue is emptying", async () => {
+		vi.useFakeTimers();
+		const { ctx, scheduled, indexer, post } = setup();
+		await queueRetries(ctx, [{ source: "posts", id: post.id, error: "internal_error" }]);
+		vi.advanceTimersByTime(MINUTE);
+		const cancel = ctx.cron.cancel;
+		let queueDuringCancel = true;
+		ctx.cron.cancel = async (name) => {
+			if (queueDuringCancel) {
+				queueDuringCancel = false;
+				await queueRetries(ctx, [{ source: "posts", id: "other", error: "internal_error" }]);
+			}
+			await cancel(name);
+		};
+
+		await runRetries(ctx, indexer, 10_000);
+
+		expect((await getRetryQueue(ctx)).items.map((item) => item.id)).toEqual(["other"]);
+		expect(scheduled.has("retry")).toBe(true);
+	});
+
 	it("retries on request, even after automatic attempts ran out", async () => {
 		const { ctx, indexer, post } = setup();
 		const failure = { source: "posts", id: post.id, error: "internal_error" };

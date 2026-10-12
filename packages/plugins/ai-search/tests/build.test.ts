@@ -1,3 +1,4 @@
+import type { PluginContext } from "emdash";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "../src/build.js";
@@ -345,6 +346,31 @@ describe("build", () => {
 			"pages:sync",
 			"pages:sweep",
 		]);
+	});
+
+	it("keeps the cron task of a build started while the previous one was finishing", async () => {
+		const scheduled = new Set<string>();
+		let startDuringCancel = true;
+		const ctx = {
+			...(await buildContext()),
+			cron: {
+				schedule: async (name: string) => void scheduled.add(name),
+				cancel: async (name: string) => {
+					if (startDuringCancel) {
+						startDuringCancel = false;
+						await startBuild(ctx, ["pages"]);
+					}
+					scheduled.delete(name);
+				},
+				list: async () => [],
+			} satisfies NonNullable<PluginContext["cron"]>,
+		};
+		await startBuild(ctx, ["posts"]);
+
+		await runBuild(ctx, pagedIndexer(), 10_000);
+
+		expect((await getBuild(ctx))?.sources).toEqual(["pages"]);
+		expect(scheduled.has("build")).toBe(true);
 	});
 
 	it("does not queue a source again when it has not started yet", async () => {
