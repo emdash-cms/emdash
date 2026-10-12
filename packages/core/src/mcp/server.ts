@@ -31,6 +31,7 @@ import {
 } from "#api/schemas.js";
 
 import { after } from "../after.js";
+import { entryEditAccess } from "../api/authorize.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
@@ -829,6 +830,15 @@ async function refuseLockedEntry(
 	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
 }
 
+/** Extract the status from a content handler response. */
+function extractContentStatus(data: unknown): unknown {
+	if (!data || typeof data !== "object") return undefined;
+	const obj = data as Record<string, unknown>;
+	const item =
+		obj.item && typeof obj.item === "object" ? (obj.item as Record<string, unknown>) : obj;
+	return item?.status;
+}
+
 /** Extract the `_rev` token from a content handler response. */
 function extractContentRev(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return undefined;
@@ -1372,7 +1382,7 @@ export function createMcpServer(
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
-			requireRole(extra, Role.AUTHOR);
+			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId, userRole } = getExtra(extra);
 			const actor = { id: userId, role: userRole };
 
@@ -1382,7 +1392,17 @@ export function createMcpServer(
 				return unwrap(existing);
 			}
 			const ownerId = extractContentAuthorId(existing.data);
-			requireOwnership(extra, ownerId, "content:edit_own", "content:edit_any");
+			if (
+				!entryEditAccess(
+					{ id: userId, role: userRole },
+					{ authorId: ownerId, status: extractContentStatus(existing.data) },
+				)
+			) {
+				throw new EmDashAuthError(
+					"Insufficient permissions for this operation",
+					"INSUFFICIENT_PERMISSIONS",
+				);
+			}
 
 			const data = args.data
 				? await convertWriteData(emdash, args.collection, args.data)
