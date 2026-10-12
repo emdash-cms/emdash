@@ -67,6 +67,22 @@ export function useInlineUiRoot(): HTMLElement | null {
 }
 
 /**
+ * TipTap positions a hidden toolbar before it puts the toolbar on the page,
+ * where floating-ui can't tell that the page reads right to left. A toolbar
+ * about to show waits on the page, still hidden, so it lines up with the
+ * selection on the side the page reads from.
+ */
+export function attachBeforePositioning(toolbar: HTMLElement, root: HTMLElement) {
+	if (toolbar.isConnected) return;
+	root.append(toolbar);
+	// TipTap shows it straight away. A toolbar left hidden on the page could
+	// be shown again by TipTap's scroll handling, so if that didn't happen it goes.
+	queueMicrotask(() => {
+		if (toolbar.style.visibility === "hidden") toolbar.remove();
+	});
+}
+
+/**
  * Puts a floating element's transform origin on the middle of the edge of
  * its anchor that it opens from, so it grows out of the control that opened
  * it. Must come last, once the position is final. The elements this is for
@@ -239,6 +255,53 @@ export function ToolbarButton({
 				{children}
 			</button>
 			{tooltip}
+		</>
+	);
+}
+
+/**
+ * A toolbar button named beside its icon, or by its icon alone on a narrow
+ * screen. A tooltip, when given, tells more than the name does.
+ */
+export function ToolbarTextButton({
+	label,
+	icon,
+	tooltip,
+	pressed,
+	expanded,
+	buttonRef,
+	onClick,
+}: {
+	label: string;
+	icon: React.ReactNode;
+	tooltip?: string;
+	pressed?: boolean;
+	/** Whether the popup it opens is open; unset for a button that opens none. */
+	expanded?: boolean;
+	buttonRef?: React.Ref<HTMLButtonElement>;
+	onClick: () => void;
+}) {
+	const { setReference, getReferenceProps, tooltip: tooltipElement } = useTooltip(tooltip ?? label);
+	const ref = useMergeRefs([setReference, buttonRef]);
+	return (
+		<>
+			<button
+				ref={ref}
+				type="button"
+				className="emdash-inline-ui-trigger emdash-inline-ui-text-button"
+				aria-pressed={pressed}
+				aria-haspopup={expanded === undefined ? undefined : "dialog"}
+				aria-expanded={expanded}
+				data-open={expanded ? "" : undefined}
+				{...getReferenceProps({
+					onMouseDown: (event: React.MouseEvent) => event.preventDefault(),
+					onClick,
+				})}
+			>
+				{icon}
+				<span className="emdash-inline-ui-text-button-label">{label}</span>
+			</button>
+			{tooltip === undefined ? null : tooltipElement}
 		</>
 	);
 }
@@ -729,9 +792,18 @@ export const INLINE_EDITOR_UI_STYLES = `
 	.emdash-inline-ui-trigger[data-open] {
 		background: var(--emdash-ui-tint);
 	}
-	.emdash-inline-ui-button[aria-pressed="true"] {
+	.emdash-inline-ui-button[aria-pressed="true"],
+	.emdash-inline-ui-trigger[aria-pressed="true"] {
 		background: var(--emdash-ui-tint);
 		color: var(--emdash-ui-link);
+	}
+	.emdash-inline-ui-text-button {
+		gap: 6px;
+		cursor: pointer;
+	}
+	.emdash-inline-ui-text-button > svg {
+		width: 16px;
+		height: 16px;
 	}
 	.emdash-inline-ui-button:focus-visible {
 		box-shadow: 0 0 0 2px var(--emdash-ui-brand);
@@ -773,6 +845,12 @@ export const INLINE_EDITOR_UI_STYLES = `
 		display: flex;
 		min-width: 0;
 		flex-direction: column;
+		gap: 4px;
+	}
+	.emdash-inline-ui-field-row {
+		display: flex;
+		min-width: 0;
+		align-items: center;
 		gap: 4px;
 	}
 	.emdash-inline-ui-input {
@@ -922,7 +1000,9 @@ export const INLINE_EDITOR_UI_STYLES = `
 		line-height: calc(1 / 0.85);
 		outline: 1px solid var(--emdash-ui-fill);
 		pointer-events: none;
-		white-space: nowrap;
+		width: max-content;
+		max-width: min(288px, calc(100vw - 16px));
+		overflow-wrap: break-word;
 		animation: emdash-inline-ui-tooltip-in 150ms cubic-bezier(0.4, 0, 0.2, 1);
 		transition-property: scale, opacity;
 		transition-duration: 150ms;
@@ -1051,6 +1131,20 @@ export const INLINE_EDITOR_UI_STYLES = `
 		clip-path: inset(50%);
 		white-space: nowrap;
 	}
+	@media (max-width: 639px) {
+		.emdash-inline-ui-text-button {
+			width: 32px;
+			padding-inline: 0;
+		}
+		.emdash-inline-ui-text-button-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+	}
 	@media (pointer: coarse) {
 		.emdash-inline-ui-button,
 		.emdash-inline-ui-trigger,
@@ -1067,6 +1161,11 @@ export const INLINE_EDITOR_UI_STYLES = `
 		}
 		.emdash-slash-menu-esc {
 			display: none;
+		}
+	}
+	@media (max-width: 639px) and (pointer: coarse) {
+		.emdash-inline-ui-text-button {
+			width: 44px;
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {

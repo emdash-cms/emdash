@@ -2,8 +2,9 @@
  * Self-contained inline Portable Text editor for visual editing.
  *
  * Uses TipTap directly with content extensions — no admin UI deps.
- * Includes the admin editor's selection toolbar and slash menu, but no
- * fixed toolbar, sidebar, or section picker.
+ * Includes the admin editor's selection toolbar and slash menu, and a
+ * toolbar and picker for images, but no fixed toolbar, sidebar, or section
+ * picker.
  *
  * Converts between Portable Text and ProseMirror on mount/save.
  * Auto-saves on blur, dispatches custom events for toolbar integration.
@@ -12,7 +13,6 @@
 import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import { Node, mergeAttributes, type JSONContent } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
-import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import Subscript from "@tiptap/extension-subscript";
@@ -25,7 +25,6 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
-import { createPortal } from "react-dom";
 
 import { resolveImageMedia } from "../content/converters/gallery.js";
 import { normalizeImageLink } from "../content/converters/image-link.js";
@@ -42,11 +41,12 @@ import {
 	readOrderedListMetadata,
 } from "../content/converters/numbered-list.js";
 import type { ProseMirrorDocument } from "../content/converters/types.js";
-import { computeThumbnailSize } from "../media/thumbnail.js";
 import { CodeMarkExtension } from "./code-mark.js";
 import { InlineBubbleMenu } from "./inline-bubble-menu.js";
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
 import { INLINE_EDITOR_UI_STYLES, useInlineUiRoot } from "./inline-editor-ui.js";
+import { INLINE_IMAGE_STYLES, InlineImageExtension, insertImage } from "./inline-image.js";
+import { INLINE_MEDIA_PICKER_STYLES, InlineMediaPicker } from "./inline-media-picker.js";
 import {
 	InlineSlashMenu,
 	createSlashCommandsExtension,
@@ -1040,611 +1040,6 @@ const PluginBlockNode = Node.create({
 	},
 });
 
-// ── Media Picker ───────────────────────────────────────────────────
-
-interface MediaItemData {
-	id: string;
-	filename: string;
-	mimeType: string;
-	url: string;
-	storageKey?: string;
-	width?: number;
-	height?: number;
-	blurhash?: string;
-	dominantColor?: string;
-	alt?: string;
-	provider?: string;
-	previewUrl?: string;
-	meta?: Record<string, unknown>;
-}
-
-interface ProviderInfo {
-	id: string;
-	name: string;
-	icon?: string;
-	capabilities: { browse: boolean; search: boolean; upload: boolean; delete: boolean };
-}
-
-const API_BASE = "/_emdash/api";
-
-async function ecFetch(url: string, init?: RequestInit): Promise<Response> {
-	const base = new Headers(init?.headers);
-	base.set("X-EmDash-Request", "1");
-	return fetch(url, {
-		credentials: "same-origin",
-		...init,
-		headers: base,
-	});
-}
-
-function InlineMediaPicker({
-	open,
-	onClose,
-	onSelect,
-}: {
-	open: boolean;
-	onClose: () => void;
-	onSelect: (item: MediaItemData) => void;
-}) {
-	const [providers, setProviders] = React.useState<ProviderInfo[]>([]);
-	const [activeProvider, setActiveProvider] = React.useState("local");
-	const [items, setItems] = React.useState<MediaItemData[]>([]);
-	const [loading, setLoading] = React.useState(false);
-	const [uploading, setUploading] = React.useState(false);
-	const [selectedId, setSelectedId] = React.useState<string | null>(null);
-	const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-	// Fetch providers on open
-	React.useEffect(() => {
-		if (!open) return;
-		setSelectedId(null);
-		setActiveProvider("local");
-		ecFetch(`${API_BASE}/media/providers`)
-			.then((r) => r.json())
-			.then((d) => setProviders(d.data.items ?? []))
-			.catch(() => setProviders([]));
-	}, [open]);
-
-	// Fetch items when provider changes
-	React.useEffect(() => {
-		if (!open) return;
-		setLoading(true);
-		setSelectedId(null);
-
-		const url =
-			activeProvider === "local"
-				? `${API_BASE}/media?mimeType=image/&limit=50`
-				: `${API_BASE}/media/providers/${activeProvider}?mimeType=image/&limit=50`;
-
-		void (async () => {
-			try {
-				const r = await ecFetch(url);
-				const d = await r.json();
-				const raw = d.data.items ?? [];
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- API response items mapped to MediaItem shape
-				const typedRaw = raw as Array<{
-					id: string;
-					filename?: string;
-					mimeType?: string;
-					url?: string;
-					previewUrl?: string;
-					storageKey?: string;
-					width?: number;
-					height?: number;
-					blurhash?: string;
-					dominantColor?: string;
-					alt?: string;
-					meta?: Record<string, unknown>;
-				}>;
-				setItems(
-					typedRaw.map((item) => ({
-						id: item.id,
-						filename: item.filename || "",
-						mimeType: item.mimeType || "image/unknown",
-						url:
-							item.url ||
-							item.previewUrl ||
-							(item.storageKey ? `${API_BASE}/media/file/${item.storageKey}` : ""),
-						storageKey: item.storageKey,
-						width: item.width,
-						height: item.height,
-						blurhash: item.blurhash,
-						dominantColor: item.dominantColor,
-						alt: item.alt,
-						provider: activeProvider === "local" ? undefined : activeProvider,
-						previewUrl: item.previewUrl,
-						meta: item.meta,
-					})),
-				);
-			} catch {
-				setItems([]);
-			} finally {
-				setLoading(false);
-			}
-		})();
-	}, [open, activeProvider]);
-
-	const handleUpload = async (file: File) => {
-		setUploading(true);
-		try {
-			// Detect dimensions and generate a thumbnail for large images to
-			// avoid OOM in server-side blurhash generation on Workers.
-			const dims = await new Promise<{
-				width?: number;
-				height?: number;
-				thumbnail?: Blob;
-			}>((resolve) => {
-				if (!file.type.startsWith("image/")) return resolve({});
-				const img = new window.Image();
-				img.onload = () => {
-					const w = img.naturalWidth;
-					const h = img.naturalHeight;
-					// 32 MB RGBA threshold — matches server MAX_DECODED_BYTES
-					if (w * h * 4 > 32 * 1024 * 1024) {
-						const { width: thumbW, height: thumbH } = computeThumbnailSize(w, h);
-						try {
-							const canvas = document.createElement("canvas");
-							canvas.width = thumbW;
-							canvas.height = thumbH;
-							const ctx = canvas.getContext("2d");
-							if (ctx) {
-								ctx.drawImage(img, 0, 0, thumbW, thumbH);
-								canvas.toBlob((blob) => {
-									URL.revokeObjectURL(img.src);
-									resolve({ width: w, height: h, thumbnail: blob ?? undefined });
-								}, "image/png");
-								return;
-							}
-						} catch {
-							// Canvas allocation or draw failed — fall through to no-thumbnail path
-						}
-					}
-					URL.revokeObjectURL(img.src);
-					resolve({ width: w, height: h });
-				};
-				img.onerror = () => {
-					resolve({});
-					URL.revokeObjectURL(img.src);
-				};
-				img.src = URL.createObjectURL(file);
-			});
-
-			let item: MediaItemData;
-
-			if (activeProvider === "local") {
-				const formData = new FormData();
-				formData.append("file", file);
-				if (dims.width) formData.append("width", String(dims.width));
-				if (dims.height) formData.append("height", String(dims.height));
-				if (dims.thumbnail) formData.append("thumbnail", dims.thumbnail, "thumb.png");
-				const res = await ecFetch(`${API_BASE}/media`, { method: "POST", body: formData });
-				const data = await res.json();
-				const unwrapped = data.data ?? data;
-				if (!unwrapped.item) throw new Error("Upload failed");
-				const raw = unwrapped.item;
-				item = {
-					id: raw.id,
-					filename: raw.filename || file.name,
-					mimeType: raw.mimeType || file.type,
-					url: raw.url || raw.previewUrl || `${API_BASE}/media/file/${raw.storageKey}`,
-					storageKey: raw.storageKey,
-					width: raw.width || dims.width,
-					height: raw.height || dims.height,
-					blurhash: raw.blurhash,
-					dominantColor: raw.dominantColor,
-					alt: raw.alt,
-				};
-			} else {
-				const formData = new FormData();
-				formData.append("file", file);
-				const res = await ecFetch(`${API_BASE}/media/providers/${activeProvider}`, {
-					method: "POST",
-					body: formData,
-				});
-				const data = await res.json();
-				const unwrapped = data.data ?? data;
-				if (!unwrapped.item) throw new Error("Upload failed");
-				const raw = unwrapped.item;
-				item = {
-					id: raw.id,
-					filename: raw.filename || file.name,
-					mimeType: raw.mimeType || file.type,
-					url: raw.previewUrl || "",
-					width: raw.width || dims.width,
-					height: raw.height || dims.height,
-					blurhash: raw.blurhash,
-					dominantColor: raw.dominantColor,
-					alt: raw.alt,
-					provider: activeProvider,
-					previewUrl: raw.previewUrl,
-					meta: raw.meta,
-				};
-			}
-
-			setItems((prev) => [item, ...prev]);
-			setSelectedId(item.id);
-		} catch (err) {
-			console.error("Upload failed:", err);
-		} finally {
-			setUploading(false);
-		}
-	};
-
-	const handleConfirm = () => {
-		const item = items.find((i) => i.id === selectedId);
-		if (item) onSelect(item);
-	};
-
-	const providerTabs = React.useMemo(() => {
-		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library" },
-		];
-		for (const p of providers) {
-			if (p.id !== "local") tabs.push({ id: p.id, name: p.name, icon: p.icon });
-		}
-		return tabs;
-	}, [providers]);
-
-	if (!open) return null;
-
-	return createPortal(
-		<div
-			style={{
-				position: "fixed",
-				inset: 0,
-				zIndex: 10000,
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				background: "rgba(0,0,0,0.5)",
-				fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-			}}
-			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose();
-			}}
-		>
-			<div
-				style={{
-					background: "white",
-					borderRadius: "12px",
-					width: "min(700px, 90vw)",
-					maxHeight: "80vh",
-					display: "flex",
-					flexDirection: "column",
-					overflow: "hidden",
-					boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-				}}
-				className="emdash-media-picker"
-			>
-				{/* Header */}
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						padding: "16px 20px",
-						borderBottom: "1px solid #e5e7eb",
-					}}
-				>
-					<span style={{ fontSize: "16px", fontWeight: 600 }}>Insert Image</span>
-					<button
-						type="button"
-						onClick={onClose}
-						style={{
-							background: "none",
-							border: "none",
-							cursor: "pointer",
-							fontSize: "18px",
-							padding: "4px 8px",
-							borderRadius: "4px",
-							color: "#6b7280",
-						}}
-						aria-label="Close"
-					>
-						✕
-					</button>
-				</div>
-
-				{/* Provider tabs */}
-				{providerTabs.length > 1 && (
-					<div
-						style={{
-							display: "flex",
-							gap: "6px",
-							padding: "12px 20px",
-							borderBottom: "1px solid #e5e7eb",
-							flexWrap: "wrap",
-						}}
-					>
-						{providerTabs.map((tab) => (
-							<button
-								key={tab.id}
-								type="button"
-								onClick={() => setActiveProvider(tab.id)}
-								style={{
-									padding: "6px 14px",
-									fontSize: "13px",
-									fontWeight: 500,
-									borderRadius: "6px",
-									border: "none",
-									cursor: "pointer",
-									background: activeProvider === tab.id ? "#3b82f6" : "#f3f4f6",
-									color: activeProvider === tab.id ? "white" : "#4b5563",
-								}}
-							>
-								{tab.icon && (
-									<span
-										style={{ marginRight: "6px", display: "inline-flex", alignItems: "center" }}
-									>
-										{tab.icon.startsWith("data:") || tab.icon.startsWith("http") ? (
-											<img src={tab.icon} alt="" style={{ width: "16px", height: "16px" }} />
-										) : (
-											tab.icon
-										)}
-									</span>
-								)}
-								{tab.name}
-							</button>
-						))}
-					</div>
-				)}
-
-				{/* Upload bar */}
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						padding: "12px 20px",
-						borderBottom: "1px solid #e5e7eb",
-					}}
-				>
-					<span style={{ fontSize: "13px", color: "#6b7280" }}>
-						{loading ? "Loading…" : `${items.length} image${items.length !== 1 ? "s" : ""}`}
-					</span>
-					<button
-						type="button"
-						onClick={() => fileInputRef.current?.click()}
-						disabled={uploading}
-						style={{
-							padding: "6px 14px",
-							fontSize: "13px",
-							fontWeight: 500,
-							borderRadius: "6px",
-							border: "1px solid #d1d5db",
-							cursor: uploading ? "not-allowed" : "pointer",
-							background: "white",
-							color: "#374151",
-							opacity: uploading ? 0.6 : 1,
-						}}
-					>
-						{uploading ? "Uploading…" : "Upload"}
-					</button>
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept="image/*"
-						style={{ display: "none" }}
-						onChange={(e) => {
-							const file = e.target.files?.[0];
-							if (file) void handleUpload(file);
-							if (fileInputRef.current) fileInputRef.current.value = "";
-						}}
-					/>
-				</div>
-
-				{/* Grid */}
-				<div
-					style={{
-						flex: 1,
-						overflowY: "auto",
-						padding: "16px 20px",
-						minHeight: "250px",
-					}}
-				>
-					{loading ? (
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "200px",
-								color: "#9ca3af",
-								fontSize: "14px",
-							}}
-						>
-							Loading…
-						</div>
-					) : items.length === 0 ? (
-						<div
-							style={{
-								display: "flex",
-								flexDirection: "column",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "200px",
-								color: "#9ca3af",
-								fontSize: "14px",
-								textAlign: "center",
-							}}
-						>
-							<div style={{ fontSize: "32px", marginBottom: "8px" }}>🖼</div>
-							No images found
-							<button
-								type="button"
-								onClick={() => fileInputRef.current?.click()}
-								style={{
-									marginTop: "12px",
-									padding: "8px 16px",
-									fontSize: "13px",
-									borderRadius: "6px",
-									border: "1px solid #d1d5db",
-									background: "white",
-									cursor: "pointer",
-									color: "#374151",
-								}}
-							>
-								Upload an image
-							</button>
-						</div>
-					) : (
-						<div
-							style={{
-								display: "grid",
-								gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
-								gap: "10px",
-							}}
-						>
-							{items.map((item) => {
-								const isSelected = selectedId === item.id;
-								const thumb = item.url || item.previewUrl || "";
-								return (
-									<button
-										key={item.id}
-										type="button"
-										onClick={() => setSelectedId(item.id)}
-										onDoubleClick={() => onSelect(item)}
-										style={{
-											position: "relative",
-											aspectRatio: "1",
-											borderRadius: "8px",
-											border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
-											overflow: "hidden",
-											cursor: "pointer",
-											padding: 0,
-											background: "#f3f4f6",
-											outline: isSelected ? "2px solid rgba(59,130,246,0.3)" : "none",
-											outlineOffset: "1px",
-										}}
-										aria-label={item.filename}
-									>
-										{thumb ? (
-											<img
-												src={thumb}
-												alt=""
-												style={{ width: "100%", height: "100%", objectFit: "cover" }}
-											/>
-										) : (
-											<div
-												style={{
-													width: "100%",
-													height: "100%",
-													display: "flex",
-													alignItems: "center",
-													justifyContent: "center",
-													fontSize: "24px",
-												}}
-											>
-												🖼
-											</div>
-										)}
-										{isSelected && (
-											<div
-												style={{
-													position: "absolute",
-													inset: 0,
-													background: "rgba(59,130,246,0.15)",
-													display: "flex",
-													alignItems: "center",
-													justifyContent: "center",
-												}}
-											>
-												<div
-													style={{
-														width: "24px",
-														height: "24px",
-														borderRadius: "50%",
-														background: "#3b82f6",
-														color: "white",
-														display: "flex",
-														alignItems: "center",
-														justifyContent: "center",
-														fontSize: "14px",
-													}}
-												>
-													✓
-												</div>
-											</div>
-										)}
-										<div
-											style={{
-												position: "absolute",
-												bottom: 0,
-												left: 0,
-												right: 0,
-												background: "linear-gradient(transparent, rgba(0,0,0,0.6))",
-												padding: "16px 6px 4px",
-											}}
-										>
-											<div
-												style={{
-													fontSize: "11px",
-													color: "white",
-													overflow: "hidden",
-													textOverflow: "ellipsis",
-													whiteSpace: "nowrap",
-												}}
-											>
-												{item.filename}
-											</div>
-										</div>
-									</button>
-								);
-							})}
-						</div>
-					)}
-				</div>
-
-				{/* Footer */}
-				<div
-					style={{
-						display: "flex",
-						justifyContent: "flex-end",
-						gap: "8px",
-						padding: "12px 20px",
-						borderTop: "1px solid #e5e7eb",
-					}}
-				>
-					<button
-						type="button"
-						onClick={onClose}
-						style={{
-							padding: "8px 16px",
-							fontSize: "13px",
-							fontWeight: 500,
-							borderRadius: "6px",
-							border: "1px solid #d1d5db",
-							background: "white",
-							cursor: "pointer",
-							color: "#374151",
-						}}
-					>
-						Cancel
-					</button>
-					<button
-						type="button"
-						onClick={handleConfirm}
-						disabled={!selectedId}
-						style={{
-							padding: "8px 16px",
-							fontSize: "13px",
-							fontWeight: 500,
-							borderRadius: "6px",
-							border: "none",
-							background: selectedId ? "#3b82f6" : "#93c5fd",
-							color: "white",
-							cursor: selectedId ? "pointer" : "not-allowed",
-						}}
-					>
-						Insert
-					</button>
-				</div>
-			</div>
-		</div>,
-		document.body,
-	);
-}
-
 // ── Component ──────────────────────────────────────────────────────
 
 export interface InlinePortableTextEditorProps {
@@ -1670,8 +1065,8 @@ export function InlinePortableTextEditor({
 	const savingRef = React.useRef(false);
 	const editorRef = React.useRef<ReturnType<typeof useEditor>>(null);
 
-	// Media picker state
-	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+	// Where the image picker that `/image` opened will put the image.
+	const [imagePickerAt, setImagePickerAt] = React.useState<number | null>(null);
 	const [unsupportedFileGuidance, setUnsupportedFileGuidance] = React.useState<{
 		message: string;
 		version: number;
@@ -1687,13 +1082,6 @@ export function InlinePortableTextEditor({
 		() => createUnsupportedFileHandlers(showUnsupportedFileGuidance),
 		[showUnsupportedFileGuidance],
 	);
-
-	// Listen for the slash command's media picker event
-	React.useEffect(() => {
-		const handler = () => setMediaPickerOpen(true);
-		document.addEventListener("emdash:open-media-picker", handler);
-		return () => document.removeEventListener("emdash:open-media-picker", handler);
-	}, []);
 
 	const uiRoot = useInlineUiRoot();
 
@@ -1850,24 +1238,7 @@ export function InlinePortableTextEditor({
 			EmDashOrderedList,
 			CodeMarkExtension,
 			InlineCodeBlockExtension,
-			Image.extend({
-				addAttributes() {
-					return {
-						...this.parent?.(),
-						mediaId: { default: null },
-						provider: { default: null },
-						width: { default: null },
-						height: { default: null },
-						displayWidth: { default: null },
-						displayHeight: { default: null },
-						caption: { default: null },
-						blurhash: { default: null },
-						dominantColor: { default: null },
-						alignment: { default: null, rendered: false },
-						link: { default: null, rendered: false },
-					};
-				},
-			}),
+			InlineImageExtension,
 			Underline,
 			Subscript,
 			Superscript,
@@ -1919,7 +1290,11 @@ export function InlinePortableTextEditor({
 		(item: SlashCommandItem) => {
 			const { range } = slashMenuStateRef.current;
 			if (!editor || !range) return;
-			item.command({ editor, range });
+			item.command({
+				editor,
+				range,
+				openImagePicker: () => setImagePickerAt(editor.state.selection.from),
+			});
 			setSlashMenuState((prev) => ({ ...prev, isOpen: false }));
 		},
 		[editor, setSlashMenuState],
@@ -1936,40 +1311,32 @@ export function InlinePortableTextEditor({
 	}, [editor, setSlashMenuState]);
 	slashMenuActionsRef.current = { run: runSlashCommand, dismiss: closeSlashMenu };
 
-	// Handle media selection from the picker
-	const handleMediaSelect = React.useCallback(
-		(item: MediaItemData) => {
-			if (!editor) return;
-			const src =
-				item.url || item.previewUrl || `/_emdash/api/media/file/${item.storageKey || item.id}`;
-			const attrs = {
-				src,
-				alt: item.alt || item.filename || "",
-				mediaId: item.id,
-				provider: canonicalMediaProviderId(item.provider) || "local",
-				width: item.width,
-				height: item.height,
-				blurhash: item.blurhash,
-				dominantColor: item.dominantColor,
-			};
-			editor.chain().focus().setImage(attrs).run();
-			setMediaPickerOpen(false);
-			void save();
-		},
-		[editor, save],
+	// The image picker opens at the caret the `/image` command left.
+	const caretReference = React.useMemo(
+		() =>
+			editor && imagePickerAt !== null
+				? {
+						getBoundingClientRect: () => {
+							if (editor.isDestroyed) return new DOMRect();
+							const { view } = editor;
+							const caret = view.coordsAtPos(Math.min(imagePickerAt, view.state.doc.content.size));
+							return new DOMRect(caret.left, caret.top, 0, caret.bottom - caret.top);
+						},
+						contextElement: editor.view.dom,
+					}
+				: null,
+		[editor, imagePickerAt],
 	);
 
-	// Save on blur — but not when interacting with slash menu or media picker
+	// Save on blur — but not when interacting with slash menu or image picker
 	const handleBlur = React.useCallback(
 		(e: React.FocusEvent<HTMLDivElement>) => {
-			if (mediaPickerOpen) return;
 			const related = e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
 			if (related && e.currentTarget.contains(related)) return;
 			// The copy fallback briefly moves focus to its textarea before restoring the editor.
 			if (related?.hasAttribute("data-emdash-clipboard-fallback")) return;
-			// The toolbars and menus live in a root of their own at the end of the page.
+			// The toolbars, menus, and image picker live in a root of their own at the end of the page.
 			if (related && uiRoot?.contains(related)) return;
-			if (related?.closest(".emdash-media-picker")) return;
 			// A toolbar button keeps focus in the editor, so the toolbars skip
 			// the editor's next blur; telling them again lets them hide. It waits
 			// for this blur to finish, which may be a toolbar removing itself.
@@ -1981,7 +1348,7 @@ export function InlinePortableTextEditor({
 			});
 			void save();
 		},
-		[editor, save, mediaPickerOpen, uiRoot],
+		[editor, save, uiRoot],
 	);
 
 	if (!editor || !uiRoot) return null;
@@ -1995,7 +1362,7 @@ export function InlinePortableTextEditor({
 				</div>
 			) : (
 				<>
-					<InlineBubbleMenu editor={editor} uiRoot={uiRoot} />
+					<InlineBubbleMenu editor={editor} uiRoot={uiRoot} onImageReplaced={() => void save()} />
 					<EditorContent editor={editor} />
 				</>
 			)}
@@ -2025,14 +1392,24 @@ export function InlinePortableTextEditor({
 					setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
 				}
 			/>
-			<InlineMediaPicker
-				open={mediaPickerOpen}
-				onClose={() => {
-					setMediaPickerOpen(false);
-					editor?.commands.focus();
-				}}
-				onSelect={handleMediaSelect}
-			/>
+			{imagePickerAt !== null && caretReference && (
+				<InlineMediaPicker
+					uiRoot={uiRoot}
+					reference={caretReference}
+					gap={6}
+					label="Insert image"
+					onChoose={(image) => {
+						insertImage(editor, imagePickerAt, image);
+						editor.view.focus();
+						setImagePickerAt(null);
+						void save();
+					}}
+					onClose={(reason) => {
+						if (reason === "escape") editor.view.focus();
+						setImagePickerAt(null);
+					}}
+				/>
+			)}
 			<style>{`
 				.emdash-inline-code-block {
 					position: relative;
@@ -2160,15 +1537,6 @@ export function InlinePortableTextEditor({
 						--emdash-code-focus: var(--emdash-inline-code-focus, #a8d5ff);
 					}
 				}
-				@media (prefers-color-scheme: dark) {
-					.emdash-media-picker {
-						background: #1f2937 !important;
-						color: #e5e7eb !important;
-					}
-					.emdash-media-picker button {
-						color: #e5e7eb !important;
-					}
-				}
 				.emdash-inline-editor .emdash-slash-query {
 					margin-inline: -0.25em;
 					padding: 0.125em 0.25em;
@@ -2181,6 +1549,8 @@ export function InlinePortableTextEditor({
 					pointer-events: none;
 				}
 				${INLINE_EDITOR_UI_STYLES}
+				${INLINE_MEDIA_PICKER_STYLES}
+				${INLINE_IMAGE_STYLES}
 				.emdash-inline-editor:focus {
 					outline: none;
 				}

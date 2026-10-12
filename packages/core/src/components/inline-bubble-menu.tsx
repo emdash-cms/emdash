@@ -1,7 +1,8 @@
 /**
  * The inline editor's selection toolbar, laid out like the admin editor's:
  * Turn into, link, the common marks, and a menu for less common formatting.
- * With the caret in a link, a bar shows where it goes instead.
+ * With the caret in a link, a bar shows where it goes instead, and a
+ * selected image gets a toolbar of its own.
  */
 
 import {
@@ -46,11 +47,13 @@ import {
 	ToolbarSeparator,
 	ToolbarShownContext,
 	ToolbarTooltipGroup,
+	attachBeforePositioning,
 	handleToolbarKeyDown,
 	playToolbarEntrance,
 	useTabIntoToolbar,
 	type ToolbarMenuGroup,
 } from "./inline-editor-ui.js";
+import { InlineImageToolbar } from "./inline-image.js";
 
 type ShouldShow = NonNullable<BubbleMenuProps["shouldShow"]>;
 
@@ -236,22 +239,6 @@ function selectionAlignment(editor: Editor): { value?: string; unavailable: bool
 		value: !unavailable && alignments.size === 1 ? [...alignments][0] : undefined,
 		unavailable,
 	};
-}
-
-/**
- * TipTap positions a hidden toolbar before it puts the toolbar on the page,
- * where floating-ui can't tell that the page reads right to left. A toolbar
- * about to show waits on the page, still hidden, so it lines up with the
- * selection on the side the page reads from.
- */
-function attachBeforePositioning(toolbar: HTMLElement, root: HTMLElement) {
-	if (toolbar.isConnected) return;
-	root.append(toolbar);
-	// TipTap shows it straight away. A toolbar left hidden on the page could
-	// be shown again by TipTap's scroll handling, so if that didn't happen it goes.
-	queueMicrotask(() => {
-		if (toolbar.style.visibility === "hidden") toolbar.remove();
-	});
 }
 
 /** Shows where a link goes, with edit and remove, whenever the caret sits in it. */
@@ -455,7 +442,15 @@ function LinkField({
 
 const NO_ALIGNMENT: ReturnType<typeof selectionAlignment> = { unavailable: true };
 
-export function InlineBubbleMenu({ editor, uiRoot }: { editor: Editor; uiRoot: HTMLElement }) {
+export function InlineBubbleMenu({
+	editor,
+	uiRoot,
+	onImageReplaced,
+}: {
+	editor: Editor;
+	uiRoot: HTMLElement;
+	onImageReplaced: () => void;
+}) {
 	const [editingLink, setEditingLink] = React.useState(false);
 	const [openMenu, setOpenMenu] = React.useState<"turnInto" | "more" | null>(null);
 	// Opening one menu closes the other, whose close then mustn't undo the open.
@@ -690,6 +685,12 @@ export function InlineBubbleMenu({ editor, uiRoot }: { editor: Editor; uiRoot: H
 					</ToolbarTooltipGroup>
 				</ToolbarShownContext.Provider>
 			</BubbleMenu>
+			<InlineImageToolbar
+				editor={editor}
+				uiRoot={uiRoot}
+				scrollTarget={scrollTarget}
+				onReplaced={onImageReplaced}
+			/>
 		</InlineUiRootContext.Provider>
 	);
 }

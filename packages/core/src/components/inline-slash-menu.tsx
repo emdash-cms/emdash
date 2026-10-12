@@ -24,6 +24,13 @@ import { createPortal } from "react-dom";
 import { blockTypes, turnInto, type BlockTypeId } from "./inline-block-types.js";
 import { originStyle, transformOrigin } from "./inline-editor-ui.js";
 
+export interface SlashCommandProps {
+	editor: Editor;
+	range: Range;
+	/** Opens this editor's image picker at the caret. */
+	openImagePicker: () => void;
+}
+
 export interface SlashCommandItem {
 	id: string;
 	title: string;
@@ -35,7 +42,7 @@ export interface SlashCommandItem {
 	/** Only listed when the query matches, to keep the unfiltered menu short. */
 	searchOnly?: boolean;
 	category: string;
-	command: (props: { editor: Editor; range: Range }) => void;
+	command: (props: SlashCommandProps) => void;
 }
 
 const BASIC_BLOCKS = "Basic blocks";
@@ -137,9 +144,10 @@ export const slashCommands: SlashCommandItem[] = [
 		icon: ImageIcon,
 		aliases: ["img", "photo", "picture"],
 		category: "Media",
-		command: ({ editor, range }) => {
-			editor.chain().focus().deleteRange(range).run();
-			document.dispatchEvent(new CustomEvent("emdash:open-media-picker"));
+		// Without focus(), which can focus the editor a frame later, once the picker has focus.
+		command: ({ editor, range, openImagePicker }) => {
+			editor.chain().deleteRange(range).run();
+			openImagePicker();
 		},
 	},
 	{
