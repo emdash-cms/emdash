@@ -23,11 +23,17 @@ pnpm add @emdash-cms/plugin-ai-search
 Add `aiSearch()` to `plugins` in `astro.config.mjs`:
 
 ```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
 import { aiSearch } from "@emdash-cms/plugin-ai-search";
 
-emdash({
-	plugins: [aiSearch()],
-}),
+export default defineConfig({
+	integrations: [
+		emdash({
+			plugins: [aiSearch()],
+		}),
+	],
+});
 ```
 
 Add the AI Search namespace binding:
