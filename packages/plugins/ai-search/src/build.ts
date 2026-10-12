@@ -135,6 +135,17 @@ export async function runBuild(
 			const pageStartedAt = Date.now();
 			const { page, next } = await advance(indexer, source, build.step);
 			// A rate-limited page is retried whole once the pause is over, so nothing from it is counted.
+			if (!page.backOff) {
+				await clearSynced(
+					ctx,
+					page.synced.map((record) => ({ source, id: record })),
+					pageStartedAt,
+				);
+				await queueRetries(
+					ctx,
+					page.failures.map((failure) => ({ source, ...failure })),
+				);
+			}
 			const advanced = await updateBuild(ctx, (current) => {
 				if (!holds(current)) return undefined;
 				if (page.backOff) return { ...current, pausedUntil: Date.now() + RATE_LIMIT_PAUSE_MS };
@@ -148,15 +159,6 @@ export async function runBuild(
 			});
 			if (!advanced || page.backOff) break;
 			build = advanced;
-			await clearSynced(
-				ctx,
-				page.synced.map((record) => ({ source, id: record })),
-				pageStartedAt,
-			);
-			await queueRetries(
-				ctx,
-				page.failures.map((failure) => ({ source, ...failure })),
-			);
 		}
 	} finally {
 		let finished: BuildState | undefined;

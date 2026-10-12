@@ -179,6 +179,30 @@ describe("build", () => {
 		]);
 	});
 
+	it("runs a page again when its failures could not be queued", async () => {
+		const ctx = await buildContext();
+		await startBuild(ctx, ["posts"]);
+		const compareAndSet = ctx.kv.compareAndSet;
+		let queueUnavailable = true;
+		ctx.kv.compareAndSet = async (key, expected, value) => {
+			if (key === "retry" && queueUnavailable) {
+				queueUnavailable = false;
+				throw new Error("kv unavailable");
+			}
+			return compareAndSet(key, expected, value);
+		};
+		const failures = [{ id: "c", error: "internal_error" }];
+
+		const failing = pagedIndexer({ failures });
+		await expect(runBuild(ctx, failing, 10_000)).rejects.toThrow("kv unavailable");
+		const resumed = pagedIndexer({ failures });
+		await runBuild(ctx, resumed, 10_000);
+
+		expect(failing.calls).toEqual(["posts:snapshot-1", "posts:start"]);
+		expect(resumed.calls).toEqual(["posts:start", "posts:page-2"]);
+		expect((await getRetryQueue(ctx)).items.map((item) => item.id)).toEqual(["c"]);
+	});
+
 	it("clears queued failures for the records it syncs, including those no longer retried", async () => {
 		vi.useFakeTimers({ toFake: ["Date"] });
 		const ctx = await buildContext();
