@@ -412,19 +412,24 @@ export function InlineMediaPicker({
 	}, [isPositioned]);
 
 	React.useEffect(() => {
+		// Whether the last press was a tap on the page, rather than on the editor's toolbars.
+		let tappedPage = false;
 		const onPointerDown = (event: PointerEvent) => {
 			const picker = pickerRef.current;
-			const outside = !(event.target instanceof Node && picker?.contains(event.target));
+			const target = event.target instanceof Node ? event.target : null;
+			const outside = !(target && picker?.contains(target));
 			pointerOutsideRef.current = outside;
+			tappedPage = event.pointerType !== "mouse" && !(target && uiRoot.contains(target));
 			// With focus in the picker, the blur that follows closes it, once the toolbars have seen focus go.
 			if (outside && !picker?.contains(document.activeElement)) onCloseRef.current("blur");
 		};
 		// iOS keeps focus in a field when a tap lands where nothing takes focus, so
-		// the tap's end lets it go, which closes the picker as a blur would.
+		// the tap's end lets it go, which closes the picker as a blur would. A
+		// toolbar's buttons keep focus where it is on purpose.
 		const onPointerUp = () => {
 			const activeElement = document.activeElement;
 			if (
-				pointerOutsideRef.current &&
+				tappedPage &&
 				activeElement instanceof HTMLElement &&
 				pickerRef.current?.contains(activeElement)
 			) {
@@ -437,7 +442,7 @@ export function InlineMediaPicker({
 			document.removeEventListener("pointerdown", onPointerDown, true);
 			document.removeEventListener("pointerup", onPointerUp, true);
 		};
-	}, []);
+	}, [uiRoot]);
 
 	const onBlur = (event: React.FocusEvent<HTMLDivElement>) => {
 		const next = event.relatedTarget;
@@ -686,7 +691,7 @@ export function InlineMediaPicker({
 							onClick={(event) => {
 								const pressed = pressedRef.current;
 								pressedRef.current = null;
-								// A pointer chooses the image it pressed, though new results may have replaced it since.
+								// A pointer chooses only the image it pressed: once new results replace it, the click chooses nothing.
 								if (event.detail > 0 && pressed !== null && pressed !== image.id) return;
 								onChoose(image.chosen);
 							}}

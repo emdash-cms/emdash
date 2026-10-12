@@ -572,6 +572,42 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		expect(toolbar.isConnected).toBe(true);
 	});
 
+	it("goes from the Replace picker to the alt text field, keeping the toolbar", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro."), IMAGE_BLOCK]);
+		const toolbar = await selectImage(editable);
+		await click(toolbarButton(toolbar, "Replace"));
+		const dialog = await picker("Replace image");
+		await vi.waitFor(() =>
+			expect(document.activeElement?.getAttribute("aria-label")).toBe("Search images"),
+		);
+
+		const altText = toolbarButton(toolbar, "Alt text");
+		// A tap on a touch screen, whose mouse events and click follow the pointer
+		// events once what those set off has run.
+		const tap = (type: string) => {
+			const event = new MouseEvent(type, { bubbles: true, cancelable: true });
+			if (type.startsWith("pointer"))
+				Object.defineProperty(event, "pointerType", { value: "touch" });
+			altText.dispatchEvent(event);
+		};
+		await act(async () => {
+			tap("pointerdown");
+			tap("pointerup");
+		});
+		await act(async () => {
+			tap("mousedown");
+			tap("mouseup");
+			altText.click();
+		});
+
+		expect(dialog.isConnected).toBe(false);
+		await vi.waitFor(() =>
+			expect(document.activeElement?.getAttribute("aria-label")).toBe("Alt text"),
+		);
+		expect(toolbar.isConnected).toBe(true);
+	});
+
 	it("hides the image's toolbar once focus leaves, after Replace was used from the caption", async () => {
 		stubMedia();
 		const editable = await mount([block("a", "Intro."), IMAGE_BLOCK]);

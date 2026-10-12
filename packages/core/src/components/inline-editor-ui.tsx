@@ -303,8 +303,9 @@ export function ToolbarTextButton({
 			>
 				{icon}
 				<span className="emdash-inline-ui-text-button-label">{label}</span>
+				{/* Out of the button's name, and out of sight whatever the page's styles. */}
 				{tooltip !== undefined && (
-					<span id={descriptionId} hidden>
+					<span id={descriptionId} aria-hidden="true" className="emdash-inline-ui-sr-only">
 						{tooltip}
 					</span>
 				)}

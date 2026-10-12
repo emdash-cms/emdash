@@ -836,6 +836,25 @@ test.describe("Inline Editor", () => {
 		});
 	});
 
+	test("goes from the Replace picker to the alt text field, keeping the image's toolbar", async ({
+		page,
+	}) => {
+		await stubSaves(page);
+		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
+		const editor = page.locator(".emdash-inline-editor");
+		await expect(editor).toBeVisible({ timeout: 15000 });
+		const toolbar = page.getByRole("toolbar", { name: "Image controls" });
+		await editor.locator("figure.emdash-image img").click();
+		await toolbar.getByRole("button", { name: "Replace" }).click();
+		const picker = page.getByRole("dialog", { name: "Replace image" });
+		await expect(picker.getByRole("searchbox", { name: "Search images" })).toBeFocused();
+
+		await toolbar.getByRole("button", { name: "Alt text" }).click();
+
+		await expect(picker).toBeHidden();
+		await expect(toolbar.getByRole("textbox", { name: "Alt text" })).toBeFocused();
+	});
+
 	test("keeps the page buttons in place on a short last page", async ({ page }) => {
 		await stubSaves(page);
 		// Fifteen copies of the library's first image: a page of nine and a page of six.
