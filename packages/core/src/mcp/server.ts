@@ -1242,11 +1242,10 @@ export function createMcpServer(
 						true,
 					);
 				}
-				return unwrapAndInvalidate(extra, result, [args.collection]);
+				return unwrap(result);
 			}
 
-			return unwrapAndInvalidate(
-				extra,
+			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
 					data,
 					slug: args.slug,
@@ -1259,7 +1258,6 @@ export function createMcpServer(
 					replaceBlocks: args.replaceBlocks,
 					actor,
 				}),
-				[args.collection],
 			);
 		},
 	);
@@ -1906,11 +1904,7 @@ export function createMcpServer(
 				"content:edit_any",
 			);
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrapAndInvalidate(
-				extra,
-				await emdash.handleContentDuplicate(args.collection, resolvedId, userId),
-				[args.collection],
-			);
+			return unwrap(await emdash.handleContentDuplicate(args.collection, resolvedId, userId));
 		},
 	);
 

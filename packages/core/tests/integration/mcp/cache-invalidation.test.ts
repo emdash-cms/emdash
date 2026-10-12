@@ -3,8 +3,8 @@
  *
  * The REST routes call `cache.invalidate()` after a successful write so a
  * cached page is replaced on the next request. The MCP route passes Astro's
- * `cache` to the tools, and each write tool invalidates the same tags as the
- * REST route for the same operation.
+ * `cache` to the tools, and each write tool that changes published content
+ * invalidates the same tags as the REST route for the same operation.
  */
 
 import { Role } from "@emdash-cms/auth";
@@ -77,14 +77,28 @@ describe("MCP write tools invalidate the route cache", () => {
 		expect(result.isError, extractText(result)).toBeFalsy();
 	}
 
-	it("content_create invalidates the collection", async () => {
-		await createPost();
-		expect(invalidatedTags(invalidate)).toEqual([["post"]]);
+	it("content_create and content_duplicate of a draft leave the cache alone", async () => {
+		const id = await createPost();
+		const duplicated = await harness.client.callTool({
+			name: "content_duplicate",
+			arguments: { collection: "post", id },
+		});
+		expect(duplicated.isError, extractText(duplicated)).toBeFalsy();
+		expect(invalidate).not.toHaveBeenCalled();
+	});
+
+	it("content_create with status published invalidates the collection and the entry", async () => {
+		const result = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Live" }, status: "published" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const id = extractJson<{ item: { id: string } }>(result).item.id;
+		expect(invalidatedTags(invalidate)).toEqual([["post", id]]);
 	});
 
 	it("content_publish invalidates the collection and the entry", async () => {
 		const id = await createPost();
-		invalidate.mockClear();
 		await publishPost(id);
 		expect(invalidatedTags(invalidate)).toEqual([["post", id]]);
 	});
@@ -149,10 +163,11 @@ describe("MCP write tools invalidate the route cache", () => {
 	});
 
 	it("a rejected purge does not fail a saved write", async () => {
+		const id = await createPost("Saved");
 		invalidate.mockRejectedValue(new Error("purge rate limited"));
 		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		const id = await createPost("Saved");
+		await publishPost(id);
 
 		expect(invalidate).toHaveBeenCalledOnce();
 		expect(consoleError).toHaveBeenCalled();
@@ -167,7 +182,6 @@ describe("MCP write tools invalidate the route cache", () => {
 
 	it("a failed write does not invalidate", async () => {
 		const id = await createPost();
-		invalidate.mockClear();
 
 		const result = await harness.client.callTool({
 			name: "content_publish",
@@ -188,7 +202,6 @@ describe("MCP write tools invalidate the route cache", () => {
 		});
 		expect(created.isError, extractText(created)).toBeFalsy();
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
-		invalidate.mockClear();
 
 		harness.handlers.handleContentPublish = async () => ({
 			success: false,
@@ -248,7 +261,7 @@ describe("MCP write tools with the route cache disabled", () => {
 		try {
 			const result = await harness.client.callTool({
 				name: "content_create",
-				arguments: { collection: "post", data: { title: "Hello" } },
+				arguments: { collection: "post", data: { title: "Hello" }, status: "published" },
 			});
 			expect(result.isError, extractText(result)).toBeFalsy();
 			expect(invalidate).not.toHaveBeenCalled();

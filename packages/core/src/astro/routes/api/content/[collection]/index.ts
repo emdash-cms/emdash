@@ -12,7 +12,6 @@ import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { parseBody, parseQuery, isParseError } from "#api/parse.js";
 import { contentListQuery, contentCreateBody } from "#api/schemas.js";
-import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -39,7 +38,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	return unwrapResult(result);
 };
 
-export const POST: APIRoute = async ({ params, request, locals, cache }) => {
+export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -90,10 +89,6 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		translationOf: body.translationOf,
 		actor,
 	});
-
-	if (!result.success) return unwrapResult(result);
-
-	await invalidateRouteCache(cache, [collection]);
 
 	return unwrapResult(result, 201);
 };
