@@ -53,7 +53,7 @@ import {
 	formatPublishingInstantWithZone,
 } from "../lib/publishing-datetime.js";
 import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
-import { cn } from "../lib/utils";
+import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
@@ -139,7 +139,7 @@ function PublishingVersionRelationship({
 		: null;
 	const scheduledSummary =
 		scheduledAt && formattedSchedule ? (
-			<time dateTime={scheduledAt}>{t`Scheduled for ${formattedSchedule}`}</time>
+			<time dateTime={scheduledAt}>{t`Scheduled for ${isolate(formattedSchedule)}`}</time>
 		) : null;
 
 	if (!supportsDrafts) {
@@ -260,7 +260,7 @@ function TimestampValue({
 	return (
 		<time dateTime={value}>
 			<Text as="span" size={size}>
-				{formatPublishingInstant(value, locale)}
+				<bdi>{formatPublishingInstant(value, locale)}</bdi>
 			</Text>
 		</time>
 	);
