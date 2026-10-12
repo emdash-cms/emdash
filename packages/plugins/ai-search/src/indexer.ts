@@ -223,10 +223,39 @@ export class Indexer {
 		plan: Plan,
 		snapshot?: Map<string, IndexedItem>,
 	): Promise<Outcome> {
-		if (typeof plan !== "string") return this.put(plan, snapshot);
-		if (plan === "no-url")
-			console.warn(`[ai-search] ${source}/${id} has no public URL; not indexed`);
-		return this.remove(documentKey(source, id), snapshot);
+		if (typeof plan === "string") {
+			if (plan === "no-url")
+				console.warn(`[ai-search] ${source}/${id} has no public URL; not indexed`);
+			return this.remove(documentKey(source, id), snapshot);
+		}
+		const existing = await this.existing(plan.key, snapshot);
+		if (existing && !existing.failed && existing.hash === plan.metadata.hash) {
+			return "unchanged";
+		}
+		const item = await this.upload(plan, existing);
+		await this.recheck(source, id, plan, item);
+		return "uploaded";
+	}
+
+	/**
+	 * Applies the record's current plan if it changed while `uploaded` was in
+	 * flight. A hook for the change may already have run and found nothing to
+	 * update, so otherwise the older version would stay in search.
+	 */
+	private async recheck(
+		source: string,
+		id: string,
+		uploaded: SearchDocument,
+		item: AiSearchItemInfo,
+	): Promise<void> {
+		const latest = await this.plan(source, id);
+		if (typeof latest !== "string" && latest.metadata.hash === uploaded.metadata.hash) return;
+		const current = toIndexedItem(item);
+		if (typeof latest === "string") {
+			await this.write(current, () => this.deps.items.delete(item.id));
+		} else {
+			await this.upload(latest, current);
+		}
 	}
 
 	private async remove(key: string, snapshot?: Map<string, IndexedItem>): Promise<Outcome> {
@@ -236,29 +265,23 @@ export class Indexer {
 		return "removed";
 	}
 
-	/** Uploads a record's document unless its item is current. */
-	private async put(
+	private async upload(
 		document: SearchDocument,
-		snapshot?: Map<string, IndexedItem>,
-	): Promise<Outcome> {
-		const existing = await this.existing(document.key, snapshot);
-		if (existing && !existing.failed && existing.hash === document.metadata.hash) {
-			return "unchanged";
-		}
+		existing: IndexedItem | null,
+	): Promise<AiSearchItemInfo> {
 		// AI Search rejects non-string values, even for fields declared as number or datetime.
 		const metadata = Object.fromEntries(
 			Object.entries(document.metadata).map(([name, value]) => [name, String(value)]),
 		);
-		await this.write(existing, () =>
+		return this.write(existing, () =>
 			this.deps.items.upload(document.key, document.body, { metadata }),
 		);
-		return "uploaded";
 	}
 
 	/** Runs an upload or removal, recording on failure what AI Search still holds for the record. */
-	private async write(existing: IndexedItem | null, call: () => Promise<unknown>): Promise<void> {
+	private async write<T>(existing: IndexedItem | null, call: () => Promise<T>): Promise<T> {
 		try {
-			await this.aiSearch(call);
+			return await this.aiSearch(call);
 		} catch (error) {
 			if (shouldBackOff(error)) throw error;
 			throw new WriteError(error, existing?.state);

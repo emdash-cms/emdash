@@ -54,6 +54,40 @@ describe("Indexer", () => {
 		expect(item?.body).toContain("Authors: Jane Doe");
 	});
 
+	it("removes an entry unpublished while its upload was in flight", async () => {
+		const post = entry();
+		const { items, indexer } = setup({ entries: [post] });
+		const upload = items.upload.bind(items);
+		items.upload = async (...args) => {
+			const item = await upload(...args);
+			post.status = "draft";
+			return item;
+		};
+
+		await indexer.syncRecord("posts", post.id);
+
+		expect(items.items.has("posts/entry-1.md")).toBe(false);
+	});
+
+	it("uploads the newer version of an entry edited while a build uploaded it", async () => {
+		const post = entry();
+		const { items, indexer } = setup({ entries: [post] });
+		const upload = items.upload.bind(items);
+		let edited = false;
+		items.upload = async (...args) => {
+			const item = await upload(...args);
+			if (!edited) {
+				edited = true;
+				post.data = { ...post.data, title: "Hello again" };
+			}
+			return item;
+		};
+
+		await buildSource(indexer, "posts");
+
+		expect(items.items.get("posts/entry-1.md")?.metadata).toMatchObject({ title: "Hello again" });
+	});
+
 	it("does not upload an entry again when its document is unchanged", async () => {
 		const post = entry();
 		const { items, indexer } = setup({ entries: [post] });
