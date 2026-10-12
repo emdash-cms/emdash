@@ -352,7 +352,7 @@ The role editor, the role picker and every new error message in the admin go thr
 - **Checks.** A check is an in-memory lookup. The grant sets are built once per request from the joined row.
 - **`/auth/me`.** The response grows by about 50 short strings for an Admin.
 
-A prototype measured database queries per request on a Node.js and SQLite demo site with `EMDASH_QUERY_LOG=1`, after one warm-up request per route. `jobs-editor` is the role from the example; `site-editor` is a custom role without collection scope.
+A [prototype](https://github.com/danielmlr/emdash/tree/poc/custom-roles) ([findings](https://github.com/danielmlr/emdash/blob/poc/custom-roles/demos/custom-roles/FINDINGS.md)) measured database queries per request on a Node.js and SQLite demo site with `EMDASH_QUERY_LOG=1`, after one warm-up request per route. `jobs-editor` is the role from the example; `site-editor` is a custom role without collection scope.
 
 | Request                         | Anonymous | Admin | Editor | Contributor | `jobs-editor` | `site-editor` |
 | ------------------------------- | --------- | ----- | ------ | ----------- | ------------- | ------------- |
