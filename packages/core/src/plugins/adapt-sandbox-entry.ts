@@ -13,6 +13,7 @@
 import { z } from "zod";
 
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
+import { safeJsonSchemaToZod } from "../mcp/json-schema.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
 import { sanitizeHeadersForSandbox } from "./request-meta.js";
@@ -355,7 +356,10 @@ export function adaptSandboxEntry(
 				// `emdash-plugin build` removes `mcp` from the runtime module and
 				// ships the tools in the descriptor instead.
 				...Object.fromEntries(
-					(descriptor.mcp?.tools ?? []).map((tool) => [tool.name, toolFromManifest(tool)]),
+					(descriptor.mcp?.tools ?? []).map((tool) => [
+						tool.name,
+						toolFromManifest(tool, pluginId),
+					]),
 				),
 				...Object.fromEntries(
 					Object.entries(definition.mcp?.tools ?? {}).map(([name, tool]) => [
@@ -380,21 +384,27 @@ export function adaptSandboxEntry(
  * on first use: turning JSON Schema back into Zod takes milliseconds per
  * tool, and this adapter runs on every cold start, public requests included.
  */
-function toolFromManifest(tool: ManifestMcpTool): PluginMcpToolDefinition {
+function toolFromManifest(tool: ManifestMcpTool, pluginId: string): PluginMcpToolDefinition {
 	let input: z.ZodType | undefined;
-	let output: z.ZodType | undefined;
+	let output: z.ZodType | null | undefined;
 	return {
 		description: tool.description,
 		route: tool.route,
 		destructive: tool.destructive,
 		get input() {
-			input ??= z.fromJSONSchema({ ...tool.inputSchema });
+			input ??=
+				safeJsonSchemaToZod({ ...tool.inputSchema }, `${pluginId}/${tool.name}`, "input") ??
+				z.record(z.string(), z.unknown());
 			return input;
 		},
 		get output() {
 			if (!tool.outputSchema) return undefined;
-			output ??= z.fromJSONSchema({ ...tool.outputSchema });
-			return output;
+			if (output === undefined) {
+				output =
+					safeJsonSchemaToZod({ ...tool.outputSchema }, `${pluginId}/${tool.name}`, "output") ??
+					null;
+			}
+			return output ?? undefined;
 		},
 	};
 }
