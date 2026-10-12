@@ -32,6 +32,26 @@ function toUrlString(input: RequestInfo | URL): string {
 	return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 }
 
+function getUserAgentFromCall(call: [RequestInfo | URL, RequestInit | undefined]): string | null {
+	const [, init] = call;
+	const headers = new Headers(init?.headers ?? {});
+	return headers.get("User-Agent");
+}
+
+function expectUserAgentOnCall(index: number) {
+	const call = mockFetch.mock.calls[index] as
+		| [RequestInfo | URL, RequestInit | undefined]
+		| undefined;
+	expect(call, `expected at least ${index + 1} fetch call(s)`).toBeDefined();
+	expect(getUserAgentFromCall(call!)).toBe("EmDash-Importer/1.0");
+}
+
+function expectUserAgentOnAllCalls() {
+	for (let i = 0; i < mockFetch.mock.calls.length; i++) {
+		expectUserAgentOnCall(i);
+	}
+}
+
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
 function makePost(overrides: Record<string, unknown> = {}) {
@@ -249,5 +269,140 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 
 		expect(items).toHaveLength(1);
 		expect(items[0]!.slug).toBe("hello");
+		expectUserAgentOnAllCalls();
+	});
+
+	it("sends an identifying User-Agent header during probe", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					emdash_exporter: "1.2.0",
+					wordpress_version: "6.5",
+					site: {
+						title: "Test",
+						description: "",
+						url: "https://example.com",
+						home: "https://example.com",
+						language: "en",
+						timezone: "UTC",
+					},
+					capabilities: {
+						application_passwords: true,
+						acf: false,
+						yoast: false,
+						rankmath: false,
+					},
+					post_types: [{ name: "post", label: "Posts", count: 1 }],
+					media_count: 0,
+					endpoints: {},
+					auth_instructions: { method: "basic", instructions: "" },
+				}),
+				{ status: 200 },
+			),
+		);
+
+		await wordpressPluginSource.probe("https://example.com");
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends an identifying User-Agent header during analyze", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+		);
+
+		await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends an identifying User-Agent header during fetchContent", async () => {
+		mockFetch.mockResolvedValueOnce(contentResponse([makePost()]));
+
+		for await (const _ of wordpressPluginSource.fetchContent(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{ postTypes: ["post"] },
+		)) {
+			// consume generator
+		}
+
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends an identifying User-Agent header during fetchMedia", async () => {
+		mockFetch.mockResolvedValueOnce(new Response(new Blob(["pixels"]), { status: 200 }));
+
+		await wordpressPluginSource.fetchMedia("https://example.com/image.jpg", {
+			type: "url",
+			url: "https://example.com",
+		});
+
+		expectUserAgentOnCall(0);
+	});
+
+	it("sends the User-Agent on the ?rest_route= fallback during probe", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/wp-json/")) {
+				return Promise.resolve(new Response("Not Found", { status: 404 }));
+			}
+			if (url.includes("rest_route=")) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({
+							emdash_exporter: "1.2.0",
+							wordpress_version: "6.5",
+							site: {
+								title: "Test",
+								description: "",
+								url: "https://example.com",
+								home: "https://example.com",
+								language: "en",
+								timezone: "UTC",
+							},
+							capabilities: {
+								application_passwords: true,
+								acf: false,
+								yoast: false,
+								rankmath: false,
+							},
+							post_types: [{ name: "post", label: "Posts", count: 1 }],
+							media_count: 0,
+							endpoints: {},
+							auth_instructions: { method: "basic", instructions: "" },
+						}),
+						{ status: 200 },
+					),
+				);
+			}
+			return Promise.resolve(new Response("Unexpected", { status: 500 }));
+		});
+
+		const result = await wordpressPluginSource.probe("https://example.com");
+		expect(result).not.toBeNull();
+		expect(result!.detected.siteTitle).toBe("Test");
+		expectUserAgentOnAllCalls();
+	});
+
+	it("sends the User-Agent on the ?rest_route= fallback during analyze", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/wp-json/")) {
+				return Promise.resolve(new Response("Not Found", { status: 404 }));
+			}
+			if (url.includes("rest_route=")) {
+				return Promise.resolve(
+					new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+				);
+			}
+			return Promise.resolve(new Response("Unexpected", { status: 500 }));
+		});
+
+		await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+		expectUserAgentOnAllCalls();
 	});
 });
