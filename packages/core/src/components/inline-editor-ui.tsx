@@ -47,14 +47,19 @@ export const InlineUiRootContext = React.createContext<HTMLElement | null>(null)
  */
 export const ToolbarShownContext = React.createContext(true);
 
-/** The editor's floating UI root, created once and attached to the page while the editor is. */
-export function useInlineUiRoot(): HTMLElement {
+/**
+ * The editor's floating UI root, created once and attached to the page while
+ * the editor is. A server render has no page, so it gets none.
+ */
+export function useInlineUiRoot(): HTMLElement | null {
 	const [root] = React.useState(() => {
+		if (typeof document === "undefined") return null;
 		const element = document.createElement("div");
 		element.className = "emdash-inline-ui";
 		return element;
 	});
 	React.useLayoutEffect(() => {
+		if (!root) return;
 		document.body.append(root);
 		return () => root.remove();
 	}, [root]);

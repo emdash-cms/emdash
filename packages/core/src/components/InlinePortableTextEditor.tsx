@@ -1968,7 +1968,7 @@ export function InlinePortableTextEditor({
 			// The copy fallback briefly moves focus to its textarea before restoring the editor.
 			if (related?.hasAttribute("data-emdash-clipboard-fallback")) return;
 			// The toolbars and menus live in a root of their own at the end of the page.
-			if (related && uiRoot.contains(related)) return;
+			if (related && uiRoot?.contains(related)) return;
 			if (related?.closest(".emdash-media-picker")) return;
 			// A toolbar button keeps focus in the editor, so the toolbars skip
 			// the editor's next blur; telling them again lets them hide. It waits
@@ -1976,7 +1976,7 @@ export function InlinePortableTextEditor({
 			const event = e.nativeEvent;
 			queueMicrotask(() => {
 				if (!editor || editor.isDestroyed || editor.view.hasFocus()) return;
-				if (uiRoot.contains(document.activeElement)) return;
+				if (uiRoot?.contains(document.activeElement)) return;
 				editor.view.dispatch(editor.state.tr.setMeta("blur", { event }));
 			});
 			void save();
@@ -1984,7 +1984,7 @@ export function InlinePortableTextEditor({
 		[editor, save, mediaPickerOpen, uiRoot],
 	);
 
-	if (!editor) return null;
+	if (!editor || !uiRoot) return null;
 
 	return (
 		<div onBlur={handleBlur}>
