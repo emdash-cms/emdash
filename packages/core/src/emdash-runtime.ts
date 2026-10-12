@@ -4826,9 +4826,7 @@ export class EmDashRuntime {
 				url: `/media/${item.id}/${item.filename}`,
 				createdAt: item.createdAt,
 			};
-			this.hooks
-				.runMediaAfterUpload(mediaItem)
-				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+			this.runMediaAfterUploadHook(mediaItem);
 		}
 
 		return result;
@@ -4868,7 +4866,6 @@ export class EmDashRuntime {
 		// Create the media record
 		const result = await handleMediaCreate(this.db, processedInput);
 
-		// Run afterUpload hooks (fire-and-forget)
 		if (result.success && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			const mediaItem: MediaItem = {
@@ -4879,9 +4876,7 @@ export class EmDashRuntime {
 				url: `/media/${item.id}/${item.filename}`,
 				createdAt: item.createdAt,
 			};
-			this.hooks
-				.runMediaAfterUpload(mediaItem)
-				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+			this.runMediaAfterUploadHook(mediaItem);
 		}
 
 		return result;
@@ -6131,6 +6126,16 @@ export class EmDashRuntime {
 				} catch (err) {
 					console.error("EmDash afterDelete hook error:", err);
 				}
+			}
+		});
+	}
+
+	private runMediaAfterUploadHook(mediaItem: MediaItem): void {
+		after(async () => {
+			try {
+				await this.hooks.runMediaAfterUpload(mediaItem);
+			} catch (err) {
+				console.error("EmDash afterUpload hook error:", err);
 			}
 		});
 	}
