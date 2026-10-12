@@ -3,7 +3,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "../src/build.js";
 import type { PageResult } from "../src/indexer.js";
 import { getRetryQueue, queueRetries } from "../src/retry.js";
-import { memoryKv } from "./fakes.js";
+import { config, memoryKv } from "./fakes.js";
+
+const CONFIG = config();
+
+/** A plugin context whose saved settings are `CONFIG`. */
+async function buildContext() {
+	const kv = memoryKv();
+	await kv.set("config", CONFIG);
+	return { kv };
+}
 
 /** A source with a single snapshot page and nothing to sweep. */
 const snapshotPage = async () => ({ backOff: false });
@@ -20,6 +29,7 @@ function pagedIndexer(pageResult: Partial<PageResult> = {}) {
 	const calls: string[] = [];
 	return {
 		calls,
+		config: CONFIG,
 		snapshotPage: async (source: string, page: number) => {
 			calls.push(`${source}:snapshot-${page}`);
 			return { backOff: false };
@@ -45,11 +55,12 @@ describe("build", () => {
 	});
 
 	it("stops at the budget and resumes where it left off", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 
 		const slow = pagedIndexer();
 		const slowPages = {
+			config: CONFIG,
 			snapshotPage,
 			sweepPage,
 			syncPage: async (source: string, cursor: string | undefined) => {
@@ -72,13 +83,36 @@ describe("build", () => {
 		expect(resumed.calls).toEqual(["posts:page-2"]);
 	});
 
+	it("stops when the settings change, so the next run builds with the new ones", async () => {
+		const ctx = await buildContext();
+		await startBuild(ctx, ["posts"]);
+		const changed = config({ labels: { posts: "Articles" } });
+		const stale = pagedIndexer();
+		const syncPage = stale.syncPage;
+		stale.syncPage = async (source, cursor) => {
+			await ctx.kv.set("config", changed);
+			return syncPage(source, cursor);
+		};
+
+		const paused = await runBuild(ctx, stale, 10_000);
+		const fresh = { ...pagedIndexer(), config: changed };
+		await runBuild(ctx, fresh, 10_000);
+
+		expect(stale.calls).toEqual(["posts:snapshot-1", "posts:start"]);
+		expect(paused).toMatchObject({ step: { phase: "sync", cursor: "page-2" } });
+		expect(paused?.lease).toBeUndefined();
+		expect(fresh.calls).toEqual(["posts:page-2"]);
+		expect(await getBuild(ctx)).toBeNull();
+	});
+
 	it("does not run while another runner holds the build", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 		const other = pagedIndexer();
 		let release = () => {};
 		const blocked = new Promise<void>((resolve) => (release = resolve));
 		const busy = {
+			config: CONFIG,
 			snapshotPage,
 			sweepPage,
 			syncPage: async (source: string, cursor: string | undefined) => {
@@ -99,7 +133,7 @@ describe("build", () => {
 	});
 
 	it("takes over a build whose runner stopped without releasing it", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 		const build = await getBuild(ctx);
 		await ctx.kv.set("build", { ...build, lease: { id: "gone", until: Date.now() - 1 } });
@@ -111,10 +145,11 @@ describe("build", () => {
 	});
 
 	it("counts failed records, queues them for retry, and finishes the build anyway", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 		const seen: Array<{ processed?: number; failed?: number }> = [];
 		const indexer = {
+			config: CONFIG,
 			snapshotPage,
 			sweepPage,
 			syncPage: async (_source: string, cursor: string | undefined): Promise<PageResult> => {
@@ -145,7 +180,7 @@ describe("build", () => {
 
 	it("clears queued failures for the records it syncs, including those no longer retried", async () => {
 		vi.useFakeTimers({ toFake: ["Date"] });
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		const failure = { source: "posts", error: "internal_error" };
 		for (let attempt = 0; attempt < 5; attempt++) {
 			await queueRetries(ctx, [{ ...failure, id: "a" }]);
@@ -166,9 +201,10 @@ describe("build", () => {
 	});
 
 	it("keeps a failure queued while the build was syncing the same record", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 		const indexer = {
+			config: CONFIG,
 			snapshotPage,
 			sweepPage,
 			syncPage: async (): Promise<PageResult> => {
@@ -184,7 +220,7 @@ describe("build", () => {
 
 	it("remembers how many records the finished build uploaded, for a while", async () => {
 		vi.useFakeTimers({ toFake: ["Date"] });
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts", "pages"]);
 
 		await runBuild(ctx, pagedIndexer({ uploaded: 1 }), 10_000);
@@ -197,9 +233,10 @@ describe("build", () => {
 	});
 
 	it("adds sources to a running build, queueing the one in progress again", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 		const indexer = {
+			config: CONFIG,
 			calls: 0,
 			snapshotPage,
 			sweepPage,
@@ -225,7 +262,7 @@ describe("build", () => {
 	});
 
 	it("pauses on a rate limit and retries the same page once the pause is over", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 
 		const paused = await runBuild(ctx, pagedIndexer({ backOff: true }), 10_000);
@@ -244,11 +281,12 @@ describe("build", () => {
 	});
 
 	it("reads every snapshot page before syncing, and pauses on a rate limit while reading", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 		const calls: string[] = [];
 		let limited = true;
 		const indexer = {
+			config: CONFIG,
 			snapshotPage: async (_source: string, page: number) => {
 				if (page === 2 && limited) {
 					limited = false;
@@ -275,11 +313,12 @@ describe("build", () => {
 	});
 
 	it("sweeps a source's unclaimed items before moving on", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts", "pages"]);
 		const calls: string[] = [];
 		let sweeps = 0;
 		const indexer = {
+			config: CONFIG,
 			snapshotPage,
 			syncPage: async (source: string): Promise<PageResult> => {
 				calls.push(`${source}:sync`);
@@ -309,7 +348,7 @@ describe("build", () => {
 	});
 
 	it("does not queue a source again when it has not started yet", async () => {
-		const ctx = { kv: memoryKv() };
+		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 		await startBuild(ctx, ["posts", "pages"]);
 

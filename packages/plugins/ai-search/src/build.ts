@@ -1,5 +1,6 @@
 import type { PluginContext } from "emdash";
 
+import { type Config, loadConfig } from "./config.js";
 import type { Indexer, SyncResult } from "./indexer.js";
 import { updateKv } from "./kv.js";
 import { clearSynced, queueRetries } from "./retry.js";
@@ -52,7 +53,7 @@ const FIRST_STEP: BuildStep = { phase: "snapshot", page: 1 };
 
 type BuildContext = Pick<PluginContext, "kv" | "cron">;
 
-type BuildIndexer = Pick<Indexer, "snapshotPage" | "syncPage" | "sweepPage">;
+type BuildIndexer = Pick<Indexer, "config" | "snapshotPage" | "syncPage" | "sweepPage">;
 
 const updateBuild = (
 	ctx: BuildContext,
@@ -103,7 +104,8 @@ export async function startBuild(ctx: BuildContext, sources: string[]): Promise<
 /**
  * Advances the build page by page until `budgetMs` has passed. Returns the
  * remaining build, or null once it has finished. Does nothing while another
- * runner holds the lease or the build is paused.
+ * runner holds the lease or the build is paused, and stops once the settings
+ * the indexer was made with are no longer the saved ones.
  */
 export async function runBuild(
 	ctx: BuildContext,
@@ -126,6 +128,7 @@ export async function runBuild(
 	let build = claimed;
 	try {
 		while (build.sources[0] && Date.now() < deadline) {
+			if (!(await isSaved(ctx, indexer.config))) break;
 			const source = build.sources[0];
 			const pageStartedAt = Date.now();
 			const { page, next } = await advance(indexer, source, build.step);
@@ -173,6 +176,10 @@ export async function runBuild(
 		}
 	}
 	return getBuild(ctx);
+}
+
+async function isSaved(ctx: BuildContext, config: Config): Promise<boolean> {
+	return JSON.stringify(await loadConfig(ctx)) === JSON.stringify(config);
 }
 
 const NOTHING_SYNCED: SyncResult = { synced: [], uploaded: 0, failures: [], backOff: false };

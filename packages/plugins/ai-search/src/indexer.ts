@@ -71,7 +71,7 @@ export class Indexer {
 
 	constructor(
 		private readonly deps: IndexerDeps,
-		private readonly config: Config,
+		readonly config: Config,
 	) {
 		this.cache = new SourceCache(deps);
 	}
