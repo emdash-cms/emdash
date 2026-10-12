@@ -43,7 +43,7 @@ msgstr "\"{0}\" akan dihapus secara permanen."
 
 #: packages/admin/src/components/OptionalLabel.tsx:13
 msgid "(optional)"
-msgstr ""
+msgstr "(opsional)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:613
 msgid "(pre-release)"
@@ -5044,7 +5044,7 @@ msgstr "Inggris digunakan karena tidak ada bahasa konten yang dikonfigurasikan. 
 
 #: packages/admin/src/components/BylineFormDialog.tsx:281
 msgid "Enter a display name."
-msgstr ""
+msgstr "Masukkan nama tampilan."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:89
 msgid "Enter a domain such as example.com, without a path or port"
@@ -5052,7 +5052,7 @@ msgstr "Masukkan domain seperti example.com, tanpa jalur atau port"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:288
 msgid "Enter a full URL that starts with https:// or http://."
-msgstr ""
+msgstr "Masukkan URL lengkap yang dimulai dengan https:// atau http://."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:520
 msgid "Enter a recognized timezone to save"
@@ -5060,7 +5060,7 @@ msgstr "Masukkan zona waktu yang dikenali untuk disimpan"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:283
 msgid "Enter a slug."
-msgstr ""
+msgstr "Masukkan slug."
 
 #: packages/admin/src/components/MenuEditor.tsx:527
 #: packages/admin/src/components/MenuEditor.tsx:724
@@ -6502,7 +6502,7 @@ msgstr "Berkas langsung diunggah setelah Anda menambahkannya."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:420
 msgid "Filled in from the display name. Use lowercase letters, numbers, and hyphens."
-msgstr ""
+msgstr "Diisi dari nama tampilan. Gunakan huruf kecil, angka, dan hubung."
 
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:131
 msgid "Filter"
@@ -6987,7 +6987,7 @@ msgstr "Hanya HTML, dibersihkan, menggunakan gaya situs Anda."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:432
 msgid "https://example.com"
-msgstr ""
+msgstr "https://example.com"
 
 #: packages/admin/src/components/MenuEditor.tsx:528
 msgid "https://example.com or /about"
@@ -14572,11 +14572,11 @@ msgstr "Gunakan sebagai tanggal akhir"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:285
 msgid "Use lowercase letters, numbers, and hyphens, starting with a letter."
-msgstr "Gunakan huruf kecil, angka, dan tanda hubung, diawali dengan huruf."
+msgstr "Gunakan huruf kecil, angka, dan hubung, diawali dengan huruf."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:421
 msgid "Use lowercase letters, numbers, and hyphens."
-msgstr ""
+msgstr "Gunakan huruf kecil, angka, dan hubung."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1149
 msgid "Use URL"
