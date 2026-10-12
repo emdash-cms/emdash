@@ -8,6 +8,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, unwrapResult } from "#api/error.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -26,7 +27,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled) await cache.invalidate({ tags: [collection, id] });
+	await invalidateRouteCache(cache, [collection, id]);
 
 	return unwrapResult(result);
 };

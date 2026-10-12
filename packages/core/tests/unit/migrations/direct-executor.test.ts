@@ -3,15 +3,18 @@ import type {
 	DatabaseConnection,
 	DatabaseIntrospector,
 	Dialect,
+	DialectAdapter,
 	Driver,
 	QueryResult,
 } from "kysely";
-import { SqliteAdapter, SqliteDialect, SqliteQueryCompiler } from "kysely";
+import { Kysely, SqliteAdapter, SqliteDialect, SqliteQueryCompiler } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
-import { MIGRATION_NAMES } from "../../../src/database/migrations/runner.js";
+import { LockingSqliteAdapter } from "../../../src/database/migration-lock.js";
+import { MIGRATION_NAMES, runMigrations } from "../../../src/database/migrations/runner.js";
+import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { getI18nConfig, setI18nConfig, type I18nConfig } from "../../../src/i18n/config.js";
 import { createDirectMigrationExecutor } from "../../../src/migrations/direct-executor.js";
 import { getCoreMigrationIdentity } from "../../../src/migrations/identity.js";
@@ -30,9 +33,17 @@ interface DialectTracker {
 }
 
 interface TrackedDialectOptions {
+	/** Take the migration lock in its table row, as D1 does. */
+	locking?: boolean;
 	setup?: (database: Database) => void;
 	beforeClose?: (database: Database) => void;
 	closeError?: Error;
+}
+
+class LockingSqliteDialect extends SqliteDialect {
+	override createAdapter(): DialectAdapter {
+		return new LockingSqliteAdapter();
+	}
 }
 
 function createTrackedDialectFactory(options: TrackedDialectOptions = {}): {
@@ -59,7 +70,8 @@ function createTrackedDialectFactory(options: TrackedDialectOptions = {}): {
 				if (options.closeError) throw options.closeError;
 			};
 
-			return new SqliteDialect({
+			const DialectClass = options.locking ? LockingSqliteDialect : SqliteDialect;
+			return new DialectClass({
 				database,
 				onCreateConnection() {
 					tracker.i18nAtConnection.push(getI18nConfig());
@@ -98,6 +110,31 @@ function lockValue(database: Database): number {
 		is_locked: number;
 	};
 	return row.is_locked;
+}
+
+/** An `auto`-mode Worker: takes a free lock before each statement while migrations are pending. */
+function competeForFreeLock(database: Database): { taken: number } {
+	const competitor = { taken: 0 };
+	const prepare = database.prepare.bind(database);
+	database.prepare = ((source: string) => {
+		let applied = 0;
+		try {
+			const row = prepare("SELECT COUNT(*) AS count FROM _emdash_migrations").get() as {
+				count: number;
+			};
+			applied = row.count;
+		} catch {
+			applied = 0;
+		}
+		if (applied < MIGRATION_NAMES.length) {
+			const { changes } = prepare(
+				"UPDATE _emdash_migrations_lock SET is_locked = ? WHERE id = 'migration_lock' AND is_locked = 0",
+			).run(Date.now());
+			if (Number(changes) > 0) competitor.taken += 1;
+		}
+		return prepare(source);
+	}) as typeof database.prepare;
+	return competitor;
 }
 
 afterEach(() => {
@@ -411,6 +448,131 @@ describe("createDirectMigrationExecutor", () => {
 		await expect(
 			executor.execute({ ...(await migrationRequest("release-lock")), lockId: "1789000000000" }),
 		).rejects.toThrow("not held");
+	});
+
+	it("takes over a stuck lock and applies without the lock ever being free", async () => {
+		let competitor = { taken: 0 };
+		let lockAtClose: number | undefined;
+		const { createDialect } = createTrackedDialectFactory({
+			locking: true,
+			setup(database) {
+				holdMigrationLock(database);
+				competitor = competeForFreeLock(database);
+			},
+			beforeClose(database) {
+				lockAtClose = lockValue(database);
+			},
+		});
+		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
+
+		const report = await executor.execute({
+			...(await migrationRequest("take-over-lock")),
+			lockId: String(LOCK_HELD_SINCE),
+		});
+
+		expect(report).toMatchObject({ pending: [], executed: MIGRATION_NAMES });
+		expect(competitor.taken).toBe(0);
+		expect(lockAtClose).toBe(0);
+	});
+
+	it("takes the lock when its holder releases it before the take-over claims it", async () => {
+		let lockAtClose: number | undefined;
+		const { createDialect } = createTrackedDialectFactory({
+			locking: true,
+			setup(database) {
+				holdMigrationLock(database);
+				const prepare = database.prepare.bind(database);
+				database.prepare = ((source: string) => {
+					if (/^update "_emdash_migrations_lock" set "is_locked" = \? .* in \(/i.test(source)) {
+						prepare("UPDATE _emdash_migrations_lock SET is_locked = 0").run();
+					}
+					return prepare(source);
+				}) as typeof database.prepare;
+			},
+			beforeClose(database) {
+				lockAtClose = lockValue(database);
+			},
+		});
+		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
+
+		const report = await executor.execute({
+			...(await migrationRequest("take-over-lock")),
+			lockId: String(LOCK_HELD_SINCE),
+		});
+
+		expect(report).toMatchObject({ pending: [], executed: MIGRATION_NAMES });
+		expect(lockAtClose).toBe(0);
+	});
+
+	it("refuses to take over a lock that has a different id and applies nothing", async () => {
+		let lockAtClose: number | undefined;
+		let appliedTables: unknown[] = [];
+		const { createDialect } = createTrackedDialectFactory({
+			locking: true,
+			setup: holdMigrationLock,
+			beforeClose(database) {
+				lockAtClose = lockValue(database);
+				appliedTables = database
+					.prepare("SELECT name FROM sqlite_master WHERE name = '_emdash_migrations'")
+					.all();
+			},
+		});
+		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
+
+		await expect(
+			executor.execute({
+				...(await migrationRequest("take-over-lock")),
+				lockId: String(LOCK_HELD_SINCE + 1),
+			}),
+		).rejects.toThrow("different id now");
+		expect(lockAtClose).toBe(LOCK_HELD_SINCE);
+		expect(appliedTables).toEqual([]);
+	});
+
+	it("releases the taken-over lock when nothing is pending", async () => {
+		const database = new Database(":memory:");
+		const migrated = new Kysely<EmDashDatabase>({ dialect: new SqliteDialect({ database }) });
+		await runMigrations(migrated);
+		database
+			.prepare("UPDATE _emdash_migrations_lock SET is_locked = ? WHERE id = 'migration_lock'")
+			.run(LOCK_HELD_SINCE);
+		let lockAtClose: number | undefined;
+		const close = database.close.bind(database);
+		database.close = () => {
+			lockAtClose = lockValue(database);
+			close();
+		};
+		const executor = createDirectMigrationExecutor({
+			target: TARGET,
+			createDialect: () => new LockingSqliteDialect({ database }),
+		});
+
+		const report = await executor.execute({
+			...(await migrationRequest("take-over-lock")),
+			lockId: String(LOCK_HELD_SINCE),
+		});
+
+		expect(report).toMatchObject({ pending: [], executed: [] });
+		expect(lockAtClose).toBe(0);
+	});
+
+	it("releases the lock before applying when the database takes no lock in its row", async () => {
+		let lockAtClose: number | undefined;
+		const { createDialect } = createTrackedDialectFactory({
+			setup: holdMigrationLock,
+			beforeClose(database) {
+				lockAtClose = lockValue(database);
+			},
+		});
+		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
+
+		const report = await executor.execute({
+			...(await migrationRequest("take-over-lock")),
+			lockId: String(LOCK_HELD_SINCE),
+		});
+
+		expect(report).toMatchObject({ pending: [], executed: MIGRATION_NAMES });
+		expect(lockAtClose).toBe(0);
 	});
 
 	it("snapshots its target before it can be confirmed or reported", async () => {

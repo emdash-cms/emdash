@@ -36,6 +36,7 @@ import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
+import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
@@ -49,6 +50,7 @@ import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
 import { toSha256Digest } from "../transfer/format/digest.js";
 import { siteImportDecisionsInputSchema } from "../transfer/format/plan.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
+import { pluginToolName } from "./plugin-tool-name.js";
 import {
 	analyzeImport,
 	exportStatus,
@@ -577,8 +579,7 @@ async function unwrapAndInvalidate(
 	changedEarlier = false,
 ): Promise<SuccessEnvelope | ErrorEnvelope> {
 	if (result.success || changedEarlier) {
-		const { cache } = getExtra(extra);
-		if (cache?.enabled) await cache.invalidate({ tags });
+		await invalidateRouteCache(getExtra(extra).cache, tags);
 	}
 	return unwrap(result);
 }
@@ -905,10 +906,19 @@ export function createMcpServer(
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
 
+	const registeredPluginNames = new Set<string>();
 	for (const tool of pluginTools) {
 		if (!Object.hasOwn(Permissions, tool.permission)) continue;
+		const name = pluginToolName(tool.pluginId, tool.name);
+		if (registeredPluginNames.has(name)) {
+			console.warn(
+				`[emdash] Skipping duplicate MCP tool name ${name} from ${tool.pluginId}/${tool.name}`,
+			);
+			continue;
+		}
+		registeredPluginNames.add(name);
 		server.registerTool(
-			`${tool.pluginId}__${tool.name}`,
+			name,
 			{
 				description: tool.description,
 				inputSchema: tool.inputSchema,
