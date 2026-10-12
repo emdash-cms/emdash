@@ -17,6 +17,8 @@ The author is the pull request's main author. A Maintainer who has made substant
 
 An approval applies to the reviewed revision. A later substantive commit requires another approval. A merge commit that only updates the branch from `main` does not invalidate an approval.
 
+The `review/*` labels and the informational `Human Maintainer approval` check report whether the approval requirement is met. The check finishes with a neutral result when review is outstanding and success when enough Maintainers have approved. Do not make it a required status check. The Maintainer merging the pull request is responsible for applying the merge requirements above.
+
 Project Team reviews, automated reviews, test results, and static analysis help the human reviewer. They do not replace Maintainer approval. A bot with repository permissions is still a bot, not a Maintainer.
 
 An approval means the approving Maintainer reviewed and verified the change themselves. An agent-written review, including one posted from the Maintainer's own account under the [AI usage policy](AI_POLICY.md#implementation-pull-request-comments-and-reviews), is evidence for that decision, not a substitute for it.
@@ -31,7 +33,7 @@ The following changes require approval from two human Maintainers other than the
 - settings or automation that control access to the repository, published packages, production systems, or credentials; and
 - another privileged supply-chain path where a compromise could approve, alter, or publish a release.
 
-The approval workflow (`.github/workflows/approval.yml`) lists the repository paths that enforce these controls. When a change affects the same privileged boundary through a new path, apply the two-approval rule even before the path list is updated.
+The approval workflow (`.github/workflows/approval.yml`) lists the repository paths that need two approvals in its review status calculation. When a change affects the same privileged boundary through a new path, apply the two-approval rule even before the path list is updated.
 
 ## Review responsibilities
 

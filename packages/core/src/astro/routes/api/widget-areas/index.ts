@@ -13,6 +13,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { createWidgetAreaBody } from "#api/schemas.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 import { rowToWidget } from "#widgets/index.js";
 import type { WidgetRow } from "#widgets/types.js";
 
@@ -96,7 +97,7 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 			.where("id", "=", id)
 			.executeTakeFirstOrThrow();
 
-		if (cache?.enabled) await cache.invalidate({ tags: [widgetAreaTag(area.name)] });
+		await invalidateRouteCache(cache, [widgetAreaTag(area.name)]);
 		return apiSuccess(area, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create widget area", "WIDGET_AREA_CREATE_ERROR");

@@ -1,6 +1,6 @@
 name: Approval
 
-# Maintains the `Human Maintainer approval` check and the four mutually
+# Maintains the informational `Human Maintainer approval` check and the four mutually
 # exclusive review/* labels from one calculation, so a label never disagrees
 # with the check. Pure actions/github-script: no checkout, no secrets, no agent.
 #
@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   approval:
-    name: Update human approval gate
+    name: Update human review status
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -96,8 +96,6 @@ jobs:
               }));
             } catch (error) {
               if (error.status !== 404) throw error;
-              // Without a Maintainers list on the default branch no check is created,
-              // so a required approval check stays missing and blocks merging.
               core.notice('GOVERNANCE.md is not on the default branch, so no approval can be evaluated.');
               return;
             }
@@ -143,58 +141,68 @@ jobs:
               }
             }
 
-            async function setApprovalGate(pr, waiting, title, summary) {
-              const { data } = await github.rest.checks.listForRef({
+            async function setApprovalStatus(pr, approved, title, summary) {
+              const runs = await github.paginate(github.rest.checks.listForRef, {
                 owner,
                 repo,
                 ref: pr.head.sha,
                 check_name: checkName,
-                filter: 'latest',
+                filter: 'all',
                 per_page: 100,
               });
-              const gate = data.check_runs.find(run => run.name === checkName);
+              const checks = runs.filter(run => run.name === checkName);
+              const check = checks[0];
               const output = { title, summary };
-              const outcome = waiting
-                ? { status: 'in_progress' }
-                : { status: 'completed', conclusion: 'success', completed_at: new Date().toISOString() };
+              const outcome = {
+                status: 'completed',
+                conclusion: approved ? 'success' : 'neutral',
+                completed_at: new Date().toISOString(),
+              };
 
-              if (gate && !(gate.status === 'completed' && waiting)) {
+              if (check) {
                 await github.rest.checks.update({
                   owner,
                   repo,
-                  check_run_id: gate.id,
+                  check_run_id: check.id,
                   ...outcome,
                   details_url: detailsUrl,
                   output,
                 });
-                return;
+              } else {
+                await github.rest.checks.create({
+                  owner,
+                  repo,
+                  name: checkName,
+                  head_sha: pr.head.sha,
+                  ...outcome,
+                  details_url: detailsUrl,
+                  output,
+                });
               }
-              await github.rest.checks.create({
-                owner,
-                repo,
-                name: checkName,
-                head_sha: pr.head.sha,
-                ...outcome,
-                ...(waiting ? { started_at: new Date().toISOString() } : {}),
-                details_url: detailsUrl,
-                output,
-              });
+              for (const older of checks.slice(1)) {
+                if (older.status === 'completed') continue;
+                await github.rest.checks.update({
+                  owner,
+                  repo,
+                  check_run_id: older.id,
+                  ...outcome,
+                  details_url: detailsUrl,
+                  output,
+                });
+              }
             }
 
-            async function evaluate(pr, { markPending }) {
+            async function evaluate(pr) {
               if (pr.draft) {
+                await setApprovalStatus(
+                  pr,
+                  false,
+                  'Draft pull request',
+                  'Maintainer review is not requested while this pull request is a draft.',
+                );
                 await setReviewLabel(pr, null);
                 core.info(`#${pr.number}: draft, no approval required yet`);
                 return;
-              }
-
-              if (markPending) {
-                await setApprovalGate(
-                  pr,
-                  true,
-                  'Evaluating human Maintainer approval',
-                  'Checking reviews on the current revision.',
-                );
               }
 
               const [reviews, commits, files] = await Promise.all([
@@ -278,38 +286,38 @@ jobs:
               }
 
               if (met) {
-                await setApprovalGate(
+                await setApprovalStatus(
                   pr,
-                  false,
+                  true,
                   'Human Maintainer approval requirement met',
                   `Current revision approved by ${approvers.join(', ')}.`,
                 );
               } else if (changeRequests.length > 0) {
                 const requesters = changeRequests.map(review => review.user.login);
-                await setApprovalGate(
+                await setApprovalStatus(
                   pr,
-                  true,
+                  false,
                   'Changes requested by a human Maintainer',
-                  `Changes are still requested by ${requesters.join(', ')}.`,
+                  `Current revision has ${approvers.length} of ${required} expected human Maintainer approvals. Changes are still requested by ${requesters.join(', ')}.`,
                 );
               } else {
                 const category = privileged ? 'governance or privileged supply-chain' : 'normal';
-                await setApprovalGate(
+                await setApprovalStatus(
                   pr,
-                  true,
+                  false,
                   'Awaiting human Maintainer approval',
                   `${category} changes require ${required} human Maintainer approval${required === 1 ? '' : 's'} on the current revision; found ${approvers.length}.`,
                 );
               }
 
-              // Bot-authored PRs need the approval check but carry no review label. This
+              // Bot-authored PRs have a review status check but carry no review label. This
               // also removes the label emdash-bot adds to re-run the workflow.
               await setReviewLabel(pr, pr.user.type === 'Bot' ? null : label);
               core.info(`#${pr.number}: ${label}${met ? '' : ', approval pending'}`);
             }
 
             if (context.payload.pull_request) {
-              await evaluate(context.payload.pull_request, { markPending: true });
+              await evaluate(context.payload.pull_request);
               return;
             }
 
@@ -323,7 +331,7 @@ jobs:
             let failures = 0;
             for (const pr of prs) {
               try {
-                await evaluate(pr, { markPending: false });
+                await evaluate(pr);
               } catch (error) {
                 failures += 1;
                 core.warning(`#${pr.number}: failed to update approval state: ${error.message}`);
