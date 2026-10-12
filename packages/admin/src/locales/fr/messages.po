@@ -67,12 +67,12 @@ msgstr "{0, plural, one {(# élément)} other {(# éléments)}}"
 #. placeholder {0}: bounds.max
 #: packages/admin/src/components/ContentEditor.tsx:2919
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
-msgstr "{0, plural, one {{counted} caractère sur #, au moins {min}} other {{counted} caractères sur #, au moins {min}}}"
+msgstr "{0, plural, one {{counted} sur # caractère, au moins {min}} other {{counted} sur # caractères, au moins {min}}}"
 
 #. placeholder {0}: bounds.max
 #: packages/admin/src/components/ContentEditor.tsx:2924
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
-msgstr "{0, plural, one {{counted} caractère sur #} other {{counted} caractères sur #}}"
+msgstr "{0, plural, one {{counted} sur # caractère} other {{counted} sur # caractères}}"
 
 #. placeholder {0}: 1
 #. placeholder {0}: value.bylineIds.length
