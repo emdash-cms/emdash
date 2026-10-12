@@ -1,0 +1,108 @@
+---
+import { Icon } from "astro-iconset/components";
+import { sanitizeHref } from "emdash";
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
+
+type ContactBlock = Extract<PageContentBlock, { _type: "marketing_contact" }>;
+type Props = BlockComponentProps<ContactBlock>;
+
+const { value } = Astro.props;
+const { anchor_id, eyebrow, headline, subheadline, options } = value;
+const OptionHeading = headline ? "h3" : "h2";
+
+const iconMap: Record<string, string> = {
+	email: "ph:envelope",
+	support: "ph:lifebuoy",
+	sales: "ph:currency-dollar",
+	phone: "ph:phone",
+	chat: "ph:chat-circle",
+	location: "ph:map-pin",
+};
+---
+
+<section id={anchor_id || undefined} class="container section">
+	{
+		(eyebrow || headline || subheadline) && (
+			<header class="section-header section-header--center">
+				{eyebrow && <p class="eyebrow">{eyebrow}</p>}
+				{headline && <h2 class="section-headline">{headline}</h2>}
+				{subheadline && <p class="section-subheadline">{subheadline}</p>}
+			</header>
+		)
+	}
+	<ul class:list={["contact", { "contact--single": options.length === 1 }]} role="list">
+		{
+			options.map((option) => (
+				<li class="card contact__card">
+					<span class="icon-tile" aria-hidden="true">
+						<Icon name={iconMap[option.icon] ?? "ph:envelope"} />
+					</span>
+					<OptionHeading class="contact__title">{option.title}</OptionHeading>
+					{toParagraphs(option.description).map((paragraph) => (
+						<p class="contact__description">{paragraph}</p>
+					))}
+					<div class="contact__action">
+						<a class="text-link contact__link" href={sanitizeHref(option.link_url)}>
+							{option.link_label}
+							<Icon name="ph:arrow-right" aria-hidden="true" class="arrow" />
+						</a>
+					</div>
+				</li>
+			))
+		}
+	</ul>
+</section>
+
+<style>
+	.contact {
+		--contact-gap: 16px;
+		display: grid;
+		grid-template-columns: repeat(
+			auto-fit,
+			minmax(min(100%, max(280px, (100% - 2 * var(--contact-gap)) / 3)), 1fr)
+		);
+		gap: var(--contact-gap);
+		list-style: none;
+	}
+
+	.contact--single {
+		grid-template-columns: minmax(0, 440px);
+		justify-content: center;
+	}
+
+	.contact__card {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		padding: 28px 28px 32px;
+	}
+
+	.contact__title {
+		margin-block-start: 28px;
+		font-size: 16px;
+		font-weight: 500;
+		line-height: 1.4;
+		letter-spacing: -0.005em;
+	}
+
+	.contact__description {
+		margin-block-start: 8px;
+		font-size: 15px;
+		line-height: 1.6;
+		color: var(--color-muted);
+		text-wrap: pretty;
+	}
+
+	.contact__action {
+		max-width: 100%;
+		margin-block-start: auto;
+		padding-block-start: 24px;
+	}
+
+	.contact__link {
+		max-width: 100%;
+		overflow-wrap: anywhere;
+	}
+</style>

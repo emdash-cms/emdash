@@ -56,6 +56,7 @@ import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions
 import { cn } from "../lib/utils";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
+import type { BylineFormValues } from "./BylineFormDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -754,11 +755,8 @@ export interface ContentSettingsPanelProps {
 	availableBylines?: BylineSummary[];
 	availableBylinesLoaded?: boolean;
 	onBylinesChange: (next: BylineCreditInput[]) => void;
-	onQuickCreateByline?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEditByline?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
+	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
+	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
 	i18n?: { defaultLocale: string; locales: string[] };
 	translations?: TranslationSummary[];
 	onTranslate?: (locale: string) => void;
@@ -933,7 +931,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
 			<SortableContentSettingsSections
 				collection={collection}
-				userId={currentUser?.id}
+				// A new entry shows fewer sections, and saving its order would drop the rest.
+				userId={isNew ? undefined : currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
