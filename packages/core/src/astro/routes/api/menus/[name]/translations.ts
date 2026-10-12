@@ -14,6 +14,7 @@ import { handleMenuCreate, handleMenuGet, handleMenuTranslations } from "#api/ha
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery } from "#api/schemas.js";
 import { menuTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -77,7 +78,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 			translationOf: source.data.id,
 		});
 		if (!result.success) return unwrapResult(result, 201);
-		if (cache?.enabled) await cache.invalidate({ tags: [menuTag(name)] });
+		await invalidateRouteCache(cache, [menuTag(name)]);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create menu translation", "MENU_TRANSLATION_CREATE_ERROR");

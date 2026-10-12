@@ -77,6 +77,8 @@ import type { ImageValue } from "./fields/types.js";
 import { getI18nConfig, resolveContentCreateLocale } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
+import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
+import { pluginToolName } from "./mcp/plugin-tool-name.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import { activateMediaUsageCapture } from "./media/usage/activation.js";
@@ -5707,6 +5709,7 @@ export class EmDashRuntime {
 		const tools: Array<{
 			pluginId: string;
 			name: string;
+			mcpName: string;
 			description: string;
 			route: string;
 			permission: string;
@@ -5735,6 +5738,7 @@ export class EmDashRuntime {
 				tools.push({
 					pluginId: plugin.id,
 					name,
+					mcpName: pluginToolName(plugin.id, name),
 					description: tool.description,
 					route: tool.route,
 					permission: route.permission,
@@ -5765,12 +5769,17 @@ export class EmDashRuntime {
 				tools.push({
 					pluginId: id,
 					name: tool.name,
+					mcpName: pluginToolName(id, tool.name),
 					description: tool.description,
 					route: tool.route,
 					permission: tool.permission,
 					destructive: tool.destructive,
-					inputSchema: z.fromJSONSchema({ ...tool.inputSchema }),
-					outputSchema: tool.outputSchema ? z.fromJSONSchema({ ...tool.outputSchema }) : undefined,
+					inputSchema:
+						safeJsonSchemaToZod({ ...tool.inputSchema }, `${id}/${tool.name}`, "input") ??
+						z.record(z.string(), z.unknown()),
+					outputSchema: tool.outputSchema
+						? safeJsonSchemaToZod({ ...tool.outputSchema }, `${id}/${tool.name}`, "output")
+						: undefined,
 				});
 			}
 		};

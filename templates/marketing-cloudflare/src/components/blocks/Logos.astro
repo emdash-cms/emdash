@@ -1,0 +1,222 @@
+---
+import { Icon } from "astro-iconset/components";
+import { Image, type BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
+
+type LogosBlock = Extract<PageContentBlock, { _type: "marketing_logos" }>;
+type Props = BlockComponentProps<LogosBlock>;
+
+const { value } = Astro.props;
+const { anchor_id, headline, logos } = value;
+---
+
+<section class="logos section" id={anchor_id || undefined}>
+	{headline && <h2 class="container logos__label">{headline}</h2>}
+	<div class="logos__track">
+		<div class="marquee" style={`--logo-count: ${Math.max(logos.length, 6)}`}>
+			{[false, true].map((duplicate) => (
+				<ul class="marquee__group" role="list" aria-hidden={duplicate ? "true" : undefined}>
+					{logos.map((logo) => (
+						<li>
+							{logo.logo ? <Image image={logo.logo} alt={logo.name} sizes="140px" /> : logo.name}
+						</li>
+					))}
+				</ul>
+			))}
+		</div>
+		<button type="button" class="logos__toggle" aria-pressed="false" aria-label="Pause the logo animation">
+			<Icon name="ph:pause" aria-hidden="true" class="logos__toggle-pause" />
+			<Icon name="ph:play" aria-hidden="true" class="logos__toggle-play" />
+		</button>
+	</div>
+</section>
+
+<script>
+	for (const toggle of document.querySelectorAll<HTMLButtonElement>(".logos__toggle")) {
+		const marquee = toggle.parentElement?.querySelector<HTMLElement>(".marquee");
+		if (!marquee) continue;
+		toggle.addEventListener("click", () => {
+			const paused = toggle.getAttribute("aria-pressed") !== "true";
+			toggle.setAttribute("aria-pressed", String(paused));
+			marquee.toggleAttribute("data-paused", paused);
+		});
+	}
+</script>
+
+<style>
+	.logos__label {
+		margin-block-end: 28px;
+		font-family: var(--font-body);
+		font-size: 14px;
+		font-weight: 400;
+		line-height: var(--leading-normal);
+		letter-spacing: normal;
+		text-align: center;
+		text-wrap: balance;
+		color: var(--color-muted);
+	}
+
+	.logos__track {
+		position: relative;
+	}
+
+	.marquee {
+		--marquee-gap: clamp(48px, 6vw, 96px);
+		display: flex;
+		gap: var(--marquee-gap);
+		width: min(100%, var(--sheet-max));
+		margin-inline: auto;
+		overflow: hidden;
+		mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 12%,
+			#000 calc(88% - var(--gutter) - 40px),
+			transparent calc(100% - var(--gutter) - 40px)
+		);
+	}
+
+	.marquee:dir(rtl) {
+		mask-image: linear-gradient(
+			to left,
+			transparent,
+			#000 12%,
+			#000 calc(88% - var(--gutter) - 40px),
+			transparent calc(100% - var(--gutter) - 40px)
+		);
+	}
+
+	.marquee__group {
+		flex: none;
+		display: flex;
+		align-items: center;
+		justify-content: space-around;
+		gap: var(--marquee-gap);
+		min-width: 100%;
+		height: 64px;
+		list-style: none;
+		color: var(--color-text-secondary);
+	}
+
+	.marquee__group li {
+		white-space: nowrap;
+	}
+
+	.marquee__group li:nth-child(6n + 1) {
+		font: 600 14px / 1 var(--font-body);
+		letter-spacing: 0.24em;
+		text-transform: uppercase;
+	}
+
+	.marquee__group li:nth-child(6n + 2) {
+		font: italic 400 28px / 1 var(--font-display);
+	}
+
+	.marquee__group li:nth-child(6n + 3) {
+		font: 700 22px / 1 var(--font-body);
+		letter-spacing: -0.045em;
+	}
+
+	.marquee__group li:nth-child(6n + 4) {
+		font: 400 27px / 1 var(--font-display);
+		letter-spacing: 0.02em;
+	}
+
+	.marquee__group li:nth-child(6n + 5) {
+		font: 500 22px / 1 var(--font-body);
+		letter-spacing: -0.03em;
+		text-transform: lowercase;
+	}
+
+	.marquee__group li:nth-child(6n + 6) {
+		font: 400 13px / 1 var(--font-body);
+		letter-spacing: 0.32em;
+		text-transform: uppercase;
+	}
+
+	.marquee__group :global(img) {
+		width: auto;
+		max-width: 140px;
+		height: 28px;
+		object-fit: contain;
+		filter: grayscale(1);
+		opacity: 0.72;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.marquee__group {
+			animation: logos-marquee calc(var(--logo-count, 6) * 8s) linear infinite;
+		}
+
+		.marquee__group:dir(rtl) {
+			animation-name: logos-marquee-rtl;
+		}
+
+		.marquee:is(:hover, [data-paused]) .marquee__group {
+			animation-play-state: paused;
+		}
+	}
+
+	.logos__toggle {
+		position: absolute;
+		inset-block-start: 50%;
+		inset-inline-end: max(var(--gutter), (100% - var(--sheet-max)) / 2 + var(--gutter));
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		translate: 0 -50%;
+		border: 0;
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
+		color: var(--color-muted);
+		font-size: 14px;
+		cursor: pointer;
+		transition:
+			color 160ms var(--ease-out),
+			box-shadow 160ms var(--ease-out);
+	}
+
+	.logos__toggle:hover {
+		color: var(--color-text);
+		box-shadow: var(--shadow-card-hover);
+	}
+
+	.logos__toggle[aria-pressed="true"] :global(.logos__toggle-pause),
+	.logos__toggle:not([aria-pressed="true"]) :global(.logos__toggle-play) {
+		display: none;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:is(.marquee, .marquee:dir(rtl)) {
+			display: block;
+			padding-inline: var(--gutter);
+			mask-image: none;
+		}
+
+		.marquee__group {
+			flex-wrap: wrap;
+			justify-content: center;
+			row-gap: 24px;
+			height: auto;
+		}
+
+		.marquee__group[aria-hidden="true"],
+		.logos__toggle {
+			display: none;
+		}
+	}
+
+	@keyframes logos-marquee {
+		to {
+			translate: calc(-100% - var(--marquee-gap)) 0;
+		}
+	}
+
+	@keyframes logos-marquee-rtl {
+		to {
+			translate: calc(100% + var(--marquee-gap)) 0;
+		}
+	}
+</style>
