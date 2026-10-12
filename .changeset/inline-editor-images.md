@@ -4,7 +4,7 @@
 
 Adds an image picker and an image toolbar to the visual-editing rich text editor.
 
-Typing `/image` now opens a picker below the line instead of a full-screen dialog. It searches the media library by file name, shows nine images a page, and has a tab for each media provider the site has set up. One click, or the arrow keys and Enter, inserts an image.
+Typing `/image` now opens a picker below the line instead of a full-screen dialog. It shows the media library nine images a page, newest first, with a tab for each media provider the site has set up. One click, or the arrow keys and Enter, inserts an image.
 
 The picker no longer uploads images. To use a new image, upload it to the media library in the admin first, then choose it with `/image`. When the library is empty, the picker links to the media library, which opens in a new tab.
 

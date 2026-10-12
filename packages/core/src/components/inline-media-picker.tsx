@@ -23,7 +23,6 @@ import {
 	CaretRight,
 	Check,
 	Images,
-	MagnifyingGlass,
 	WarningCircle,
 	type Icon,
 } from "@phosphor-icons/react";
@@ -41,11 +40,24 @@ const COLUMNS = 3;
  * load at once, as many as the admin's media dialog shows.
  */
 const PROVIDER_LIMIT = 50;
-const SEARCH_DELAY = 250;
-/** The longest search the media API accepts. */
-const MAX_SEARCH_LENGTH = 200;
 /** Twice a tile's width, so thumbnails stay sharp on high-density screens. */
 const THUMBNAIL_WIDTH = 240;
+/** How far the page can scroll under the picker before it closes, so a slight nudge doesn't. */
+const SCROLL_TOLERANCE = 8;
+/** How long a phone's keyboard can take to come or go, scrolling the page as it does. */
+const KEYBOARD_SETTLE_MS = 600;
+const SCROLLING_OVERFLOW = /auto|scroll|overlay/;
+const PAGE_SCROLL_KEYS = new Set([
+	"ArrowUp",
+	"ArrowDown",
+	"ArrowLeft",
+	"ArrowRight",
+	"PageUp",
+	"PageDown",
+	"Home",
+	"End",
+	" ",
+]);
 
 /** The image block attributes for a chosen image. */
 export interface ChosenImage {
@@ -62,7 +74,6 @@ export interface ChosenImage {
 interface Source {
 	id: string;
 	name: string;
-	canSearch: boolean;
 }
 
 interface PickerImage {
@@ -84,7 +95,7 @@ interface Listing {
 	more: boolean;
 }
 
-const LIBRARY: Source = { id: "local", name: "Library", canSearch: true };
+const LIBRARY: Source = { id: "local", name: "Library" };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
@@ -162,23 +173,16 @@ function toPickerImage(item: unknown, source: Source): PickerImage | null {
 	};
 }
 
-async function loadListing(
-	source: Source,
-	query: string,
-	page: number,
-	signal: AbortSignal,
-): Promise<Listing> {
+async function loadListing(source: Source, page: number, signal: AbortSignal): Promise<Listing> {
 	const fromLibrary = source.id === LIBRARY.id;
 	const params = new URLSearchParams({ mimeType: "image/" });
 	let url: string;
 	if (fromLibrary) {
 		params.set("page", String(page));
 		params.set("limit", String(PAGE_SIZE));
-		if (query) params.set("q", query);
 		url = `${API_BASE}/media?${params}`;
 	} else {
 		params.set("limit", String(PROVIDER_LIMIT));
-		if (query) params.set("query", query);
 		url = `${API_BASE}/media/providers/${encodeURIComponent(source.id)}?${params}`;
 	}
 	const data = await fetchData(url, signal);
@@ -208,7 +212,7 @@ function useSources(): Source[] {
 						const id = text(item.id);
 						const capabilities = isRecord(item.capabilities) ? item.capabilities : {};
 						if (!id || id === LIBRARY.id || capabilities.browse === false) return [];
-						return [{ id, name: text(item.name) ?? id, canSearch: capabilities.search === true }];
+						return [{ id, name: text(item.name) ?? id }];
 					},
 				);
 				if (!controller.signal.aborted && providers.length > 0) {
@@ -224,10 +228,10 @@ function useSources(): Source[] {
 }
 
 /**
- * The images for a source, search, and page. While the next ones load, the
- * last ones from the same source stay, so the grid doesn't flash empty.
+ * The images for a source and page. While the next ones load, the last ones
+ * from the same source stay, so the grid doesn't flash empty.
  */
-function useListing(source: Source, query: string, page: number) {
+function useListing(source: Source, page: number) {
 	const [attempt, setAttempt] = React.useState(0);
 	const [result, setResult] = React.useState<{
 		key: string;
@@ -236,12 +240,12 @@ function useListing(source: Source, query: string, page: number) {
 	} | null>(null);
 	const fromLibrary = source.id === LIBRARY.id;
 	// A provider's images come all at once, so its pages need no request of their own.
-	const key = [source.id, query, fromLibrary ? page : 1, attempt].join("\n");
+	const key = [source.id, fromLibrary ? page : 1, attempt].join("\n");
 	React.useEffect(() => {
 		const controller = new AbortController();
 		void (async () => {
 			try {
-				const listing = await loadListing(source, query, page, controller.signal);
+				const listing = await loadListing(source, page, controller.signal);
 				if (!controller.signal.aborted) setResult({ key, listing });
 			} catch {
 				if (controller.signal.aborted) return;
@@ -259,13 +263,32 @@ function useListing(source: Source, query: string, page: number) {
 	};
 }
 
-function useDebouncedValue<T>(value: T, delay: number): T {
-	const [debounced, setDebounced] = React.useState(value);
-	React.useEffect(() => {
-		const timer = setTimeout(setDebounced, delay, value);
-		return () => clearTimeout(timer);
-	}, [value, delay]);
-	return debounced;
+/**
+ * Whether a wheel or swipe over `target`, mostly along `dx` or `dy`, scrolls
+ * something inside `container` rather than the page.
+ */
+function scrollsInside(
+	target: EventTarget | null,
+	container: Element,
+	dx: number,
+	dy: number,
+): boolean {
+	const vertical = Math.abs(dy) >= Math.abs(dx);
+	for (
+		let element = target instanceof Element ? target : null;
+		element && element !== container;
+		element = element.parentElement
+	) {
+		const style = getComputedStyle(element);
+		if (
+			vertical
+				? SCROLLING_OVERFLOW.test(style.overflowY) && element.scrollHeight > element.clientHeight
+				: SCROLLING_OVERFLOW.test(style.overflowX) && element.scrollWidth > element.clientWidth
+		) {
+			return true;
+		}
+	}
+	return false;
 }
 
 function PickerMessage({
@@ -316,12 +339,13 @@ export function InlineMediaPicker({
 	/** Opened from a selection toolbar, which stays while the picker has focus. */
 	fromToolbar?: boolean;
 	onChoose: (image: ChosenImage) => void;
-	/** Escape closes the picker, and so does focus leaving it for the page. */
-	onClose: (reason: "escape" | "blur") => void;
+	/**
+	 * Escape closes the picker, as does scrolling the page under it. So does
+	 * focus leaving it for the page, which then has focus already.
+	 */
+	onClose: (reason: "escape" | "scroll" | "blur") => void;
 }) {
 	const pickerRef = React.useRef<HTMLDivElement | null>(null);
-	const searchRef = React.useRef<HTMLInputElement>(null);
-	const pageInputRef = React.useRef<HTMLInputElement>(null);
 	const pointerOutsideRef = React.useRef(false);
 	// The image a pointer pressed, as tiles keep their element when their image changes.
 	const pressedRef = React.useRef<string | null>(null);
@@ -334,16 +358,11 @@ export function InlineMediaPicker({
 	const source = sources.find((candidate) => candidate.id === sourceId) ?? LIBRARY;
 	const fromLibrary = source.id === LIBRARY.id;
 
-	const [search, setSearch] = React.useState("");
-	const typedSearch = search.trim().slice(0, MAX_SEARCH_LENGTH);
-	const settledSearch = useDebouncedValue(typedSearch, SEARCH_DELAY);
-	const query = source.canSearch ? settledSearch : "";
-
-	// Another source or search starts again from the first page.
-	const view = `${source.id}\n${query}`;
+	// Another source starts again from its first page.
+	const view = source.id;
 	const [paging, setPaging] = React.useState({ view, page: 1 });
 	const requestedPage = paging.view === view ? paging.page : 1;
-	const { listing, loading, failed, retry } = useListing(source, query, requestedPage);
+	const { listing, loading, failed, retry } = useListing(source, requestedPage);
 	// Images uploaded in the admin's media library, opened in another tab, show up on coming back.
 	const retryRef = React.useRef(retry);
 	retryRef.current = retry;
@@ -364,8 +383,8 @@ export function InlineMediaPicker({
 			? listing.images
 			: listing.images.slice((shownPage - 1) * PAGE_SIZE, shownPage * PAGE_SIZE);
 	const first = (shownPage - 1) * PAGE_SIZE;
-	// The images shown are about to change, so the grid can't be entered yet.
-	const updating = loading || (source.canSearch && typedSearch !== settledSearch);
+	const waiting = !listing || (images.length === 0 && total > 0);
+	const showsGrid = !failed && !waiting && total > 0;
 
 	// A page past the end, as when images have left the library, gives way to the last one.
 	React.useEffect(() => {
@@ -382,7 +401,7 @@ export function InlineMediaPicker({
 
 	const [pageDraft, setPageDraft] = React.useState<string | null>(null);
 
-	const { refs, floatingStyles, middlewareData, isPositioned } = useFloating({
+	const { refs, elements, floatingStyles, middlewareData, isPositioned } = useFloating({
 		open: true,
 		placement: "bottom-start",
 		strategy: "fixed",
@@ -393,8 +412,8 @@ export function InlineMediaPicker({
 			shift({ padding: 8 }),
 			size({
 				padding: 8,
-				apply: ({ availableHeight, elements }) => {
-					elements.floating.style.maxHeight = `${Math.max(0, availableHeight)}px`;
+				apply: ({ availableHeight, elements: { floating } }) => {
+					floating.style.maxHeight = `${Math.max(0, availableHeight)}px`;
 				},
 			}),
 			transformOrigin(origin),
@@ -403,13 +422,110 @@ export function InlineMediaPicker({
 	});
 	React.useLayoutEffect(() => refs.setPositionReference(reference), [reference, refs]);
 
-	// Focus moves in once the picker is in place, as a hidden field can't take it.
+	// Focus moves in once the picker is in place, as a hidden picker can't take
+	// it, and comes back after it went with a control that left the page. It
+	// moves on to the first image of each page shown while it waits on the picker.
 	const focusedRef = React.useRef(false);
 	React.useEffect(() => {
-		if (!isPositioned || focusedRef.current) return;
-		focusedRef.current = true;
-		(searchRef.current ?? pickerRef.current)?.focus({ preventScroll: true });
-	}, [isPositioned]);
+		const picker = pickerRef.current;
+		if (!isPositioned || !picker) return;
+		if (!focusedRef.current || document.activeElement === document.body) {
+			focusedRef.current = true;
+			picker.focus({ preventScroll: true });
+		}
+		if (showsGrid && !loading && document.activeElement === picker) {
+			picker.querySelector<HTMLElement>('[data-index="0"]')?.focus({ preventScroll: true });
+		}
+	}, [isPositioned, showsGrid, loading, gridView]);
+
+	// Scrolling the page closes the picker, rather than carrying it along with what it opened from.
+	React.useEffect(() => {
+		let start = reference.getBoundingClientRect();
+		let frame = 0;
+		// A phone's keyboard goes as the picker takes focus from the editor, and
+		// comes and goes as the page number takes and loses it. The page scrolls
+		// while the viewport resizes, which moves the picker but doesn't close it.
+		const touchScreen = window.matchMedia?.("(pointer: coarse)").matches === true;
+		let settleUntil = 0;
+		const settle = () => {
+			if (touchScreen) settleUntil = performance.now() + KEYBOARD_SETTLE_MS;
+		};
+		settle();
+		const check = () => {
+			frame = 0;
+			const now = reference.getBoundingClientRect();
+			if (performance.now() < settleUntil) {
+				start = now;
+			} else if (
+				Math.abs(now.top - start.top) > SCROLL_TOLERANCE ||
+				Math.abs(now.left - start.left) > SCROLL_TOLERANCE
+			) {
+				// Focus that left the picker, as for a frame on the page, stays where it went.
+				const activeElement = document.activeElement;
+				const hadFocus =
+					activeElement === document.body || pickerRef.current?.contains(activeElement);
+				onCloseRef.current(hadFocus ? "scroll" : "blur");
+			}
+		};
+		const onScroll = (event: Event) => {
+			if (event.target instanceof Node && pickerRef.current?.contains(event.target)) return;
+			frame ||= requestAnimationFrame(check);
+		};
+		// An address bar hiding as the page scrolls resizes the viewport too, so a resize only extends a wait.
+		const onResize = () => {
+			if (performance.now() < settleUntil) settle();
+		};
+		const onFocusChange = (event: FocusEvent) => {
+			if (event.target instanceof HTMLInputElement && pickerRef.current?.contains(event.target)) {
+				settle();
+			}
+		};
+		document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+		document.addEventListener("focusin", onFocusChange);
+		document.addEventListener("focusout", onFocusChange);
+		window.addEventListener("resize", onResize);
+		window.visualViewport?.addEventListener("resize", onResize);
+		return () => {
+			document.removeEventListener("scroll", onScroll, { capture: true });
+			document.removeEventListener("focusin", onFocusChange);
+			document.removeEventListener("focusout", onFocusChange);
+			window.removeEventListener("resize", onResize);
+			window.visualViewport?.removeEventListener("resize", onResize);
+			cancelAnimationFrame(frame);
+		};
+	}, [reference]);
+
+	// Scrolling over the picker never moves the page, which would close it, only what scrolls inside it.
+	React.useEffect(() => {
+		const picker = elements.floating;
+		if (!picker) return;
+		let touchStart: { x: number; y: number } | null = null;
+		const onWheel = (event: WheelEvent) => {
+			// A pinch on a trackpad zooms the page.
+			if (event.ctrlKey) return;
+			if (!scrollsInside(event.target, picker, event.deltaX, event.deltaY)) event.preventDefault();
+		};
+		const onTouchStart = (event: TouchEvent) => {
+			const touch = event.touches[0];
+			touchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+		};
+		const onTouchMove = (event: TouchEvent) => {
+			const touch = event.touches[0];
+			// Two fingers zoom the page.
+			if (!touch || !touchStart || event.touches.length > 1) return;
+			const dx = touch.clientX - touchStart.x;
+			const dy = touch.clientY - touchStart.y;
+			if (!scrollsInside(event.target, picker, dx, dy)) event.preventDefault();
+		};
+		picker.addEventListener("wheel", onWheel, { passive: false });
+		picker.addEventListener("touchstart", onTouchStart, { passive: true });
+		picker.addEventListener("touchmove", onTouchMove, { passive: false });
+		return () => {
+			picker.removeEventListener("wheel", onWheel);
+			picker.removeEventListener("touchstart", onTouchStart);
+			picker.removeEventListener("touchmove", onTouchMove);
+		};
+	}, [elements.floating]);
 
 	React.useEffect(() => {
 		// Whether the last press was a tap on the page, rather than on the editor's toolbars.
@@ -459,7 +575,7 @@ export function InlineMediaPicker({
 			const activeElement = document.activeElement;
 			if (!picker?.isConnected || picker.contains(activeElement)) return;
 			if (activeElement && activeElement !== document.body) onCloseRef.current("blur");
-			else (searchRef.current ?? picker).focus({ preventScroll: true });
+			else picker.focus({ preventScroll: true });
 		});
 	};
 
@@ -473,7 +589,7 @@ export function InlineMediaPicker({
 		const next = Math.min(Math.max(1, Math.round(target)), pages);
 		if (!Number.isFinite(next) || next === page) return;
 		// A tile may not be on the next page, and the buttons at an end turn
-		// off there, so focus on either moves to the page number.
+		// off there, so focus on either waits on the picker for the page's first image.
 		const active = document.activeElement;
 		if (
 			active instanceof HTMLElement &&
@@ -482,26 +598,36 @@ export function InlineMediaPicker({
 					active.closest(".emdash-inline-ui-pagination") &&
 					(next === 1 || next === pages)))
 		) {
-			pageInputRef.current?.focus();
+			pickerRef.current?.focus({ preventScroll: true });
 		}
 		setPaging({ view, page: next });
 	};
 
 	const selectSource = (next: Source, tab: HTMLElement) => {
 		if (next.id === source.id) return;
-		// The search field stays for a source that can search; otherwise focus goes with the tab.
-		if (!(next.canSearch && document.activeElement === searchRef.current)) tab.focus();
+		// Focus moves to the tab, since the image it may be on is about to go.
+		tab.focus();
 		setSourceId(next.id);
 	};
 
 	const tryAgain = () => {
 		// The button goes once the images load.
-		(searchRef.current ?? pickerRef.current)?.focus({ preventScroll: true });
+		pickerRef.current?.focus({ preventScroll: true });
 		retry();
 	};
 
 	const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
 		if (event.nativeEvent.isComposing) return;
+		// Enter held down on what opened the picker repeats onto its first image, which mustn't choose it.
+		if (
+			event.repeat &&
+			event.key === "Enter" &&
+			event.target instanceof HTMLElement &&
+			event.target.dataset.index !== undefined
+		) {
+			event.preventDefault();
+			return;
+		}
 		if (event.key === "Escape") {
 			event.preventDefault();
 			onClose("escape");
@@ -512,23 +638,33 @@ export function InlineMediaPicker({
 			const stops = [
 				...event.currentTarget.querySelectorAll<HTMLElement>("input, button, a[href]"),
 			].filter((element) => element.tabIndex >= 0 && !element.matches(":disabled"));
-			if (stops.length === 0) return;
+			event.preventDefault();
 			const index = stops.findIndex((element) => element === document.activeElement);
 			const next = event.shiftKey
 				? index <= 0
 					? stops.length - 1
 					: index - 1
 				: (index + 1) % stops.length;
-			event.preventDefault();
 			stops[next]?.focus();
 			return;
 		}
+		// The browser's shortcuts, like going back a page, stay the browser's.
+		if (event.altKey || event.ctrlKey || event.metaKey) return;
 		const target = event.target;
-		if (target === searchRef.current) {
-			if (event.key === "ArrowDown" && images.length > 0 && !updating) {
-				event.preventDefault();
-				focusTile(0);
-			}
+		// Keys that scroll the page don't from the picker, as that would close
+		// it. The page number keeps the ones that move its caret, and Space
+		// presses a button instead.
+		if (
+			target instanceof HTMLInputElement
+				? event.key === "PageUp" || event.key === "PageDown"
+				: PAGE_SCROLL_KEYS.has(event.key) &&
+					!(event.key === " " && target instanceof HTMLButtonElement)
+		) {
+			event.preventDefault();
+		}
+		// The arrow keys go into the images from the picker itself, which has focus while they load.
+		if (target === event.currentTarget) {
+			if (event.key.startsWith("Arrow") && showsGrid && !loading) focusTile(0);
 			return;
 		}
 		// The tabs and the page controls keep their own keys.
@@ -562,13 +698,7 @@ export function InlineMediaPicker({
 			default:
 				return;
 		}
-		event.preventDefault();
-		if (next >= 0) {
-			focusTile(next);
-		} else if (searchRef.current) {
-			setHighlight(-1);
-			searchRef.current.focus();
-		}
+		if (next >= 0) focusTile(next);
 	};
 
 	const onTabsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -602,8 +732,6 @@ export function InlineMediaPicker({
 	};
 
 	const showing = `Showing ${first + 1}–${first + images.length} of ${total}${listing?.more ? "+" : ""}`;
-	const waiting = !listing || (images.length === 0 && total > 0);
-	const showsGrid = !failed && !waiting && total > 0;
 	let announcement: string;
 	let body: React.ReactNode;
 	if (failed) {
@@ -624,9 +752,6 @@ export function InlineMediaPicker({
 				))}
 			</div>
 		);
-	} else if (total === 0 && query) {
-		announcement = `No images match “${query}”`;
-		body = <PickerMessage icon={MagnifyingGlass} title={announcement} detail="Try another name." />;
 	} else if (total === 0) {
 		announcement = "No images yet";
 		body = fromLibrary ? (
@@ -679,8 +804,15 @@ export function InlineMediaPicker({
 							data-index={index}
 							data-highlighted={index === highlight ? "" : undefined}
 							className="emdash-inline-ui-picker-tile"
-							onPointerMove={() => {
-								if (index !== highlight) setHighlight(index);
+							onPointerMove={(event) => {
+								if (index === highlight) return;
+								// Enter chooses the image with focus, so focus follows the pointer from image to image.
+								const active = document.activeElement;
+								if (active instanceof HTMLElement && active.dataset.index !== undefined) {
+									event.currentTarget.focus({ preventScroll: true });
+								} else {
+									setHighlight(index);
+								}
 							}}
 							onFocus={() => {
 								if (index !== highlight) setHighlight(index);
@@ -755,24 +887,6 @@ export function InlineMediaPicker({
 				<span className="emdash-inline-ui-sr-only" role="status">
 					{announcement}
 				</span>
-				{source.canSearch && (
-					<div className="emdash-inline-ui-picker-head">
-						<label className="emdash-inline-ui-picker-search">
-							<MagnifyingGlass aria-hidden="true" />
-							<input
-								ref={searchRef}
-								type="search"
-								className="emdash-inline-ui-input"
-								value={search}
-								placeholder="Search images"
-								aria-label="Search images"
-								autoComplete="off"
-								spellCheck={false}
-								onChange={(event) => setSearch(event.target.value)}
-							/>
-						</label>
-					</div>
-				)}
 				{sources.length > 1 && (
 					<div
 						role="tablist"
@@ -820,7 +934,6 @@ export function InlineMediaPicker({
 								<CaretLeft aria-hidden="true" />
 							</button>
 							<input
-								ref={pageInputRef}
 								aria-label="Page number"
 								inputMode="numeric"
 								autoComplete="off"
@@ -873,38 +986,14 @@ export const INLINE_MEDIA_PICKER_STYLES = `
 		outline: none;
 		animation: emdash-inline-ui-menu-in 100ms cubic-bezier(0, 0, 0.2, 1);
 	}
-	.emdash-inline-ui-picker-head,
 	.emdash-inline-ui-picker-tabs {
 		display: flex;
 		flex: none;
-		padding: 4px;
-		border-block-end: 1px solid var(--emdash-ui-hairline);
-	}
-	.emdash-inline-ui-picker-search {
-		position: relative;
-		min-width: 0;
-		flex: 1;
-	}
-	.emdash-inline-ui-picker-search > svg {
-		position: absolute;
-		inset-block-start: 50%;
-		inset-inline-start: 10px;
-		width: 16px;
-		height: 16px;
-		color: var(--emdash-ui-subtle);
-		pointer-events: none;
-		translate: 0 -50%;
-	}
-	.emdash-inline-ui-picker-search > .emdash-inline-ui-input {
-		width: 100%;
-		padding-inline-start: 34px;
-		background: transparent;
-		box-shadow: none;
-		appearance: none;
-	}
-	.emdash-inline-ui-picker-tabs {
 		gap: 2px;
+		padding: 4px;
 		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		border-block-end: 1px solid var(--emdash-ui-hairline);
 		scrollbar-width: none;
 	}
 	.emdash-inline-ui-picker-tab {

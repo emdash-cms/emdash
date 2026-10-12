@@ -168,14 +168,12 @@ describe("inline Portable Text image picker and image toolbar", () => {
 					return Response.json({ data: { items: providers } });
 				}
 				if (pathname === "/_emdash/api/media") {
-					const query = searchParams.get("q")?.toLowerCase() ?? "";
 					const page = Number(searchParams.get("page"));
 					const limit = Number(searchParams.get("limit"));
-					const matches = library.filter((item) => item.filename.toLowerCase().includes(query));
 					return Response.json({
 						data: {
-							items: matches.slice((page - 1) * limit, page * limit),
-							totalCount: matches.length,
+							items: library.slice((page - 1) * limit, page * limit),
+							totalCount: library.length,
 						},
 					});
 				}
@@ -253,6 +251,16 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 	function count(dialog: HTMLElement) {
 		return dialog.querySelector(".emdash-inline-ui-picker-count")?.textContent;
+	}
+
+	/** The picker's first image, once focus has moved to it. */
+	function firstImageFocused(dialog: HTMLElement) {
+		return vi.waitFor(() => {
+			const tile = dialog.querySelector<HTMLElement>('[role="option"][data-index="0"]');
+			expect(tile).not.toBeNull();
+			expect(document.activeElement).toBe(tile);
+			return tile!;
+		});
 	}
 
 	async function selectImage(editable: HTMLElement) {
@@ -409,6 +417,9 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 1–9 of 15"));
 		expect(dialog.querySelectorAll('[role="option"]')).toHaveLength(9);
 		expect(lastLibraryQuery()).toMatchObject({ page: "1", limit: "9" });
+		await firstImageFocused(dialog);
+		const fifth = await option(dialog, "photo-5.jpg");
+		await act(async () => fifth.focus());
 
 		await click(dialog.querySelector('[aria-label="Next page"]')!);
 
@@ -419,21 +430,10 @@ describe("inline Portable Text image picker and image toolbar", () => {
 			true,
 		);
 		expect(dialog.querySelector<HTMLInputElement>('[aria-label="Page number"]')!.value).toBe("2");
-	});
-
-	it("searches the library by name, from the first page", async () => {
-		stubMedia();
-		const editable = await mount([block("a", "Intro.")]);
-		const dialog = await typeImageCommand(editable);
-		await click(await vi.waitFor(() => dialog.querySelector('[aria-label="Last page"]')!));
-		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 10–15 of 15"));
-
-		await act(async () => {
-			setFieldValue(dialog.querySelector<HTMLInputElement>('[aria-label="Search images"]')!, "IMG");
-		});
-
-		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 1–1 of 1"));
-		expect(lastLibraryQuery()).toMatchObject({ page: "1", limit: "9", q: "IMG" });
+		// Focus on an image of the first page moves to the first image of the second.
+		const first = await firstImageFocused(dialog);
+		expect(first.getAttribute("aria-label")).toBe("photo-10.jpg");
+		expect(first.getAttribute("aria-selected")).toBe("true");
 	});
 
 	it("points an empty library to the admin's media library", async () => {
@@ -456,12 +456,9 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		stubMedia();
 		const editable = await mount([block("a", "Intro.")]);
 		const dialog = await typeImageCommand(editable);
-		const search = await vi.waitFor(() => {
-			expect(document.activeElement?.getAttribute("aria-label")).toBe("Search images");
-			return document.activeElement!;
-		});
+		const first = await firstImageFocused(dialog);
 
-		await act(async () => press(search, "Escape"));
+		await act(async () => press(first, "Escape"));
 
 		expect(dialog.isConnected).toBe(false);
 		expect(document.activeElement).toBe(editable);
@@ -471,9 +468,7 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		stubMedia();
 		const editable = await mount([block("a", "Intro.")]);
 		const dialog = await typeImageCommand(editable);
-		await vi.waitFor(() =>
-			expect(document.activeElement?.getAttribute("aria-label")).toBe("Search images"),
-		);
+		await firstImageFocused(dialog);
 		const outside = elsewhere();
 
 		await act(async () => outside.focus());
@@ -482,20 +477,57 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		outside.remove();
 	});
 
-	it("highlights the image that Tab moves to", async () => {
+	it("puts focus on the first image once the images load", async () => {
 		stubMedia();
 		const editable = await mount([block("a", "Intro.")]);
 		const dialog = await typeImageCommand(editable);
-		const first = await option(dialog, "IMG_2034.jpg");
-		const search = await vi.waitFor(() => {
-			expect(document.activeElement?.getAttribute("aria-label")).toBe("Search images");
-			return document.activeElement!;
-		});
 
-		await act(async () => press(search, "Tab"));
+		const first = await firstImageFocused(dialog);
+
+		expect(first.getAttribute("aria-label")).toBe("IMG_2034.jpg");
+		expect(first.getAttribute("aria-selected")).toBe("true");
+	});
+
+	it("highlights the image that Tab moves to", async () => {
+		// Four pages, so the second page keeps Next and Last on.
+		stubMedia({
+			library: Array.from({ length: 30 }, (_, index) => ({
+				...LIBRARY[index % LIBRARY.length]!,
+				id: `media-${index + 1}`,
+			})),
+		});
+		const editable = await mount([block("a", "Intro.")]);
+		const dialog = await typeImageCommand(editable);
+		const first = await firstImageFocused(dialog);
+		const next = dialog.querySelector<HTMLButtonElement>('[aria-label="Next page"]')!;
+		await act(async () => next.focus());
+		await click(next);
+		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 10–18 of 30"));
+		expect(document.activeElement).toBe(next);
+		expect(first.getAttribute("aria-selected")).toBe("false");
+		const last = dialog.querySelector<HTMLButtonElement>('[aria-label="Last page"]')!;
+		await act(async () => last.focus());
+
+		// Tab goes around from the last control to the images.
+		await act(async () => press(last, "Tab"));
 
 		expect(document.activeElement).toBe(first);
 		expect(first.getAttribute("aria-selected")).toBe("true");
+	});
+
+	it("moves focus with the pointer from image to image", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro.")]);
+		const dialog = await typeImageCommand(editable);
+		await firstImageFocused(dialog);
+		const hovered = await option(dialog, "photo-5.jpg");
+
+		await act(async () => {
+			hovered.dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
+		});
+
+		expect(document.activeElement).toBe(hovered);
+		expect(hovered.getAttribute("aria-selected")).toBe("true");
 	});
 
 	async function expectSavedProvider(provider: string, storedProvider: string) {
@@ -578,9 +610,7 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		const toolbar = await selectImage(editable);
 		await click(toolbarButton(toolbar, "Replace"));
 		const dialog = await picker("Replace image");
-		await vi.waitFor(() =>
-			expect(document.activeElement?.getAttribute("aria-label")).toBe("Search images"),
-		);
+		await firstImageFocused(dialog);
 
 		const altText = toolbarButton(toolbar, "Alt text");
 		// A tap on a touch screen, whose mouse events and click follow the pointer

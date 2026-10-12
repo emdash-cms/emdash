@@ -1419,7 +1419,7 @@ export function InlinePortableTextEditor({
 						void save();
 					}}
 					onClose={(reason) => {
-						if (reason === "escape") editor.view.focus();
+						if (reason !== "blur") editor.view.focus();
 						setImagePickerAt(null);
 					}}
 				/>

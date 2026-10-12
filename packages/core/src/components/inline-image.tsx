@@ -576,7 +576,7 @@ export function InlineImageToolbar({
 					current={{ provider: image.provider, mediaId: image.mediaId }}
 					fromToolbar
 					onChoose={replace}
-					onClose={(reason) => (reason === "escape" ? closeReplace() : setReplacing(false))}
+					onClose={(reason) => (reason === "blur" ? setReplacing(false) : closeReplace())}
 				/>
 			)}
 		</>
