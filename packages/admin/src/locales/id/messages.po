@@ -2564,7 +2564,7 @@ msgstr "Ubah tanggal publikasi"
 #. placeholder {0}: isolate(formattedValue)
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:604
 msgid "Change publication date: {0}"
-msgstr ""
+msgstr "Ubah tanggal publikasi" {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:607
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
@@ -3792,11 +3792,11 @@ msgstr "CSS"
 #: packages/admin/src/components/MenuEditor.tsx:540
 #: packages/admin/src/components/MenuEditor.tsx:738
 msgid "CSS classes"
-msgstr ""
+msgstr "Kelas CSS"
 
 #: packages/admin/src/components/MenuEditor.tsx:639
 msgid "CSS classes:"
-msgstr ""
+msgstr "Kelas CSS:"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:59
 msgid "CSS code"
@@ -8458,7 +8458,7 @@ msgstr "Urutan menu telah diperbarui."
 
 #: packages/admin/src/components/MenuEditor.tsx:174
 msgid "Menu renamed"
-msgstr ""
+msgstr "Menu diganti nama"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
@@ -10839,7 +10839,7 @@ msgstr "Ganti nama {0}"
 #: packages/admin/src/components/MenuEditor.tsx:423
 #: packages/admin/src/components/MenuEditor.tsx:430
 msgid "Rename menu"
-msgstr ""
+msgstr "Ganti nama menu"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:150
 msgid "Rename passkey"
@@ -11547,7 +11547,7 @@ msgstr "Entri terjadwal muncul di sini dengan waktu publikasinya."
 #. placeholder {0}: isolate(formattedSchedule)
 #: packages/admin/src/components/ContentSettingsPanel.tsx:142
 msgid "Scheduled for {0}"
-msgstr ""
+msgstr "Dijadwalkan untuk {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:150
 #: packages/admin/src/components/ContentSettingsPanel.tsx:241
@@ -12154,7 +12154,7 @@ msgstr "Judul SEO"
 #: packages/admin/src/components/MenuEditor.tsx:543
 #: packages/admin/src/components/MenuEditor.tsx:742
 msgid "Separate class names with spaces. Themes can use them to style the link."
-msgstr ""
+msgstr "Pisahkan nama kelas dengan spasi. Tema dapat menggunakannya untuk menata gaya tautan."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:714
 msgid "Set a custom display size for this image instance."
@@ -12296,7 +12296,7 @@ msgstr "Menampilkan {pageShowingRange} dari {0}"
 #: packages/admin/src/components/MenuEditor.tsx:455
 #: packages/admin/src/components/MenuList.tsx:159
 msgid "Shown in the admin. Some themes also show it on the site."
-msgstr ""
+msgstr "Ditampilkan di admin. Beberapa tema juga menampilkannya pada situs."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1135
 msgid "Shown to readers in this order."
@@ -13162,7 +13162,7 @@ msgstr "Menu telah dihapus."
 #. placeholder {0}: renamed.label
 #: packages/admin/src/components/MenuEditor.tsx:175
 msgid "The menu is now called \"{0}\"."
-msgstr ""
+msgstr "Menu sekarang dinamai \"{0}\"."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "The name of your site, used in the header and metadata"
