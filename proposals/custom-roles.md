@@ -228,7 +228,7 @@ A user has one role. Someone who needs what two roles grant gets a third role th
 
 The user lookups in the Kysely auth adapter (`getUserById`, which the auth middleware runs on every authenticated request, and `getUserByEmail`, `getUserWithDetails` and `getUsers`) gain a `LEFT JOIN _emdash_roles ON users.role_id = _emdash_roles.id`. The grants arrive with the user row in the same query. Anonymous requests run no user lookup and therefore load no role. For built-in roles the join finds no row and the check reads the map.
 
-On a database where the migration has not run, the adapter selects without the join, detected through `isMissingTableError`, so a deploy that precedes the migration keeps working.
+The join requires the migration. The runtime's `auto` mode applies it and `check` mode answers 503 before serving a request while it is pending; a `manual` deployment must apply it before the new build serves requests, as for every migration.
 
 An edited role applies on the user's next request, because the role row is read with the user row every time.
 
@@ -324,7 +324,7 @@ The role editor, the role picker and every new error message in the admin go thr
 
 - **Existing sites.** No step is required. Every user keeps a built-in role and `role_id` is `NULL`.
 - **Migration.** One migration creates `_emdash_roles` and adds the three nullable columns and their indexes, with `ifNotExists` guards so it can restart after any statement. `down` drops the columns and the table.
-- **Rolling deploy.** Code deployed before the migration ignores the new table and columns. Code deployed after it treats a `NULL` reference as a built-in role, and selects without the join while the table is missing.
+- **Rolling deploy.** Code deployed before the migration ignores the new table and columns. Code deployed after it treats a `NULL` reference as a built-in role. New code never serves requests against the unmigrated schema, as described under [Loading the role](#loading-the-role).
 - **Rollback.** An older version reads `users.role`, which holds the compatibility level, so a user with a custom role keeps at most the built-in role the custom role contains, or Subscriber.
 - **Site transfer.** `_emdash_roles` is not portable, like the other auth tables, so a transfer import brings no users and no roles.
 - **Public API.** `/auth/me` gains fields and changes none. The authorization helpers gain an optional argument. Identity-provider options accept a slug in addition to a number. No export is removed.
@@ -355,7 +355,7 @@ The role editor, the role picker and every new error message in the admin go thr
 
 - **Stored role with invalid JSON.** The role yields no grants, so every check for that user denies, and the error is logged with the `[auth]` prefix. An Admin repairs the role through the API or the editor.
 - **Role deleted while referenced.** The API refuses, and the foreign key refuses at the database. If a row disappears anyway, the user's reference yields no grants and every check denies until an Admin assigns a role.
-- **Migration interrupted.** Each statement is guarded and the migration restarts where it stopped. Until it completes, the join is skipped and every user acts with the built-in role in `users.role`.
+- **Migration interrupted.** Each statement is guarded and the migration restarts where it stopped. Until it completes, `auto` and `check` mode serve no request from the new build.
 - **Seed with an unknown permission.** Seed validation fails before anything is written, naming the role and the permission.
 
 ## Verification
