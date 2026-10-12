@@ -311,7 +311,7 @@ function LinkToolbar({
 				linkAtCaret(state) !== undefined &&
 				// At a link's edge, typing goes beside the link, so the bar gets out of the way.
 				(activeEditor.isActive("link") || !oldState || oldState.doc.eq(state.doc)) &&
-				(view.hasFocus() || element.contains(document.activeElement));
+				(view.hasFocus() || element.contains(element.ownerDocument.activeElement));
 			if (show) attachBeforePositioning(element, appendTo());
 			return show;
 		},
@@ -524,7 +524,8 @@ export function InlineBubbleMenu({ editor, uiRoot }: { editor: Editor; uiRoot: H
 	const shouldShow = React.useCallback<ShouldShow>(
 		({ editor: activeEditor, element, state: editorState, view }) => {
 			const { selection } = editorState;
-			const activeElement = document.activeElement;
+			// TipTap's timers can run this after the editor is gone, when the global document may be too.
+			const activeElement = element.ownerDocument.activeElement;
 			const hasMenuFocus =
 				element.contains(activeElement) ||
 				Boolean(activeElement?.closest(`[${TOOLBAR_POPUP_ATTR}]`));

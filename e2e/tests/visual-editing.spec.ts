@@ -120,6 +120,8 @@ async function placeSelection(
 			editor.commands.splitBlock();
 		}
 	}, mode);
+	// TipTap focuses the editor a frame later, and keys pressed before then go elsewhere.
+	await expect(page.locator(".emdash-inline-editor")).toBeFocused();
 }
 
 /** Waits for an element's own animations, such as its entrance, to finish. */
@@ -139,30 +141,44 @@ async function measureEntranceDrift(
 	selector: string,
 	appear: () => Promise<void>,
 ): Promise<number> {
+	type Sampling = { frames: Array<{ x: number; y: number }>; done: boolean };
 	await page.evaluate((target) => {
-		const frames: Array<{ x: number; y: number }> = [];
-		(window as unknown as { __entranceFrames: typeof frames }).__entranceFrames = frames;
-		const start = performance.now();
+		const sampling: Sampling = { frames: [], done: false };
+		(window as unknown as { __entrance: Sampling }).__entrance = sampling;
 		const sample = () => {
+			if (sampling.done) return;
 			const element = document.querySelector(target);
 			const style = element && getComputedStyle(element);
 			if (element && style?.visibility === "visible") {
+				// Starts the entrance over, so the first sample is its first frame however late this one is.
+				if (sampling.frames.length === 0) {
+					for (const animation of element.getAnimations()) animation.currentTime = 0;
+				}
 				const rect = element.getBoundingClientRect();
 				const scale = rect.width / Number.parseFloat(style.width);
 				const [originX = 0, originY = 0] = style.transformOrigin
 					.split(" ")
 					.map((value) => Number.parseFloat(value));
-				frames.push({ x: rect.left + scale * originX, y: rect.top + scale * originY });
+				sampling.frames.push({ x: rect.left + scale * originX, y: rect.top + scale * originY });
 			}
-			if (performance.now() - start < 1200) requestAnimationFrame(sample);
+			requestAnimationFrame(sample);
 		};
 		requestAnimationFrame(sample);
 	}, selector);
 	await appear();
-	await page.waitForTimeout(1300);
+	const element = page.locator(selector).first();
+	await expect(element).toBeVisible();
+	await animationsFinished(element);
+	// The sampler's next frame runs first, so the last sample is the settled element.
 	const frames = await page.evaluate(
 		() =>
-			(window as unknown as { __entranceFrames: Array<{ x: number; y: number }> }).__entranceFrames,
+			new Promise<Sampling["frames"]>((resolve) => {
+				requestAnimationFrame(() => {
+					const sampling = (window as unknown as { __entrance: Sampling }).__entrance;
+					sampling.done = true;
+					resolve(sampling.frames);
+				});
+			}),
 	);
 	expect(frames.length).toBeGreaterThan(0);
 	const last = frames.at(-1)!;
@@ -267,28 +283,26 @@ test.describe("Inline Editor", () => {
 		await expect(page.locator(".emdash-inline-editor")).toBeVisible({ timeout: 15000 });
 		// Holds the toolbar at the start of its entrance, so Turn into opens while it rises.
 		await page.evaluate(() => {
-			(window as unknown as { __toolbarHeld: Promise<void> }).__toolbarHeld = new Promise(
-				(resolve) => {
-					const hold = (): void => {
-						const toolbar = document.querySelector(
-							'[role="toolbar"][aria-label="Format selection"]',
-						);
-						const animations = toolbar?.isConnected ? toolbar.getAnimations() : [];
-						if (animations.length === 0) {
-							requestAnimationFrame(hold);
-							return;
-						}
-						for (const animation of animations) animation.pause();
-						resolve();
-					};
-					requestAnimationFrame(hold);
-				},
-			);
+			const animate = Element.prototype.animate;
+			Element.prototype.animate = function (
+				this: Element,
+				...args: Parameters<Element["animate"]>
+			) {
+				const animation = animate.apply(this, args);
+				if (this.matches('[role="toolbar"][aria-label="Format selection"]')) {
+					Element.prototype.animate = animate;
+					animation.pause();
+					(window as unknown as { __toolbarHeld: boolean }).__toolbarHeld = true;
+				}
+				return animation;
+			};
 		});
 		await placeSelection(page, "firstWord");
-		await page.evaluate(
-			() => (window as unknown as { __toolbarHeld: Promise<void> }).__toolbarHeld,
-		);
+		await expect
+			.poll(() =>
+				page.evaluate(() => (window as unknown as { __toolbarHeld?: boolean }).__toolbarHeld),
+			)
+			.toBe(true);
 		const toolbar = page.getByRole("toolbar", { name: "Format selection" });
 		const menu = page.getByRole("menu");
 
@@ -299,8 +313,6 @@ test.describe("Inline Editor", () => {
 		await toolbar.evaluate((element) => {
 			for (const animation of element.getAnimations()) animation.finish();
 		});
-		// Leaves floating-ui time to move the menu once the toolbar settles.
-		await page.waitForTimeout(200);
 		const bar = (await toolbar.boundingBox())!;
 		const turnInto = (await menu.boundingBox())!;
 		expect(Math.abs(turnInto.x - opened.x)).toBeLessThan(1);
@@ -361,10 +373,16 @@ test.describe("Inline Editor", () => {
 		await expect(linkBar).toBeVisible();
 		await animationsFinished(linkBar);
 		const link = page.locator('.emdash-inline-editor a[href="https://example.com/rtl"]');
-		const [linkBarBox, linkBox] = await Promise.all([linkBar.boundingBox(), link.boundingBox()]);
-		expect(
-			Math.abs(linkBarBox!.x + linkBarBox!.width - (linkBox!.x + linkBox!.width)),
-		).toBeLessThan(1);
+		// The bar is placed again at its rendered width in a later task.
+		await expect
+			.poll(async () => {
+				const [linkBarBox, linkBox] = await Promise.all([
+					linkBar.boundingBox(),
+					link.boundingBox(),
+				]);
+				return Math.abs(linkBarBox!.x + linkBarBox!.width - (linkBox!.x + linkBox!.width));
+			})
+			.toBeLessThan(1);
 	});
 
 	test("keeps the link bar under the start of its link", async ({ page }) => {
@@ -378,6 +396,7 @@ test.describe("Inline Editor", () => {
 		await page.keyboard.press("Enter");
 		const link = page.locator('.emdash-inline-editor a[href="https://example.com"]');
 		await expect(link).toBeVisible();
+		await expect(page.locator(".emdash-inline-editor")).toBeFocused();
 
 		const linkBar = page.getByRole("toolbar", { name: "Link options" });
 		const offsets: number[] = [];
@@ -406,14 +425,20 @@ test.describe("Inline Editor", () => {
 		await page.mouse.move(button.x + button.width / 2, button.y + button.height + 40);
 		await page.mouse.move(button.x + button.width / 2, button.y + button.height / 2);
 		await expect(tooltip).toBeVisible();
+		await expect(tooltip).toHaveAttribute("data-status", "open");
 
 		const turnInto = toolbar.getByRole("button", { name: "Turn into" });
 		const menu = page.getByRole("menu");
 		await turnInto.click();
 		await expect(menu).toBeVisible();
-		// The first click closes the menu and the second opens it again as it fades.
-		await turnInto.dblclick();
+		// Closes the menu, then opens it again a task later, while it fades out.
+		await turnInto.evaluate(async (trigger: HTMLElement) => {
+			trigger.click();
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			trigger.click();
+		});
 		await expect(menu).toBeVisible();
+		await expect(menu).toHaveAttribute("data-status", "open");
 	});
 
 	test("opens the slash menu, toolbar menus, and tooltips in place", async ({ page }) => {
