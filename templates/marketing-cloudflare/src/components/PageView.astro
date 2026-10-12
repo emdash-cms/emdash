@@ -1,0 +1,60 @@
+---
+import type { ContentEntry } from "emdash";
+import type { Page } from "../../emdash-env";
+import MarketingBlocks from "./MarketingBlocks.astro";
+
+interface Props {
+	page: ContentEntry<Page>;
+	/** The heading shown when the page has no hero. Defaults to the page title. */
+	heading?: string;
+}
+
+const { page, heading } = Astro.props;
+const title = heading ?? page.data.title;
+const titleEdit = heading === undefined ? page.edit.title : {};
+const blocks = page.data.content ?? [];
+const hasHero = blocks.some((block) => block._type === "marketing_hero");
+---
+
+{
+	blocks.length > 0 ? (
+		<>
+			{!hasHero && (
+				<header class="container page-header">
+					<h1 class="display page-header__title" {...titleEdit}>
+						{title}
+					</h1>
+				</header>
+			)}
+			<div class="page-blocks" {...page.edit.content}>
+				<MarketingBlocks value={blocks} />
+			</div>
+		</>
+	) : (
+		<section class="container empty-state">
+			<h1 class="display empty-state__title">{title}</h1>
+			{Astro.locals.user && (
+				<>
+					<p class="lead">This page has no blocks yet. Add some in the editor, then publish.</p>
+					<div class="actions">
+						<a href={`/_emdash/admin/content/pages/${page.data.id}`} class="btn btn-lg">
+							Edit page
+						</a>
+					</div>
+				</>
+			)}
+		</section>
+	)
+}
+
+<style>
+	.page-header {
+		padding-block-start: clamp(56px, 7vw, 104px);
+	}
+
+	.page-header__title {
+		max-width: 20ch;
+		font-size: var(--font-size-h2);
+		line-height: var(--leading-snug);
+	}
+</style>

@@ -1319,14 +1319,26 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(items.length).toBe(2);
 	});
 
-	it("renders a blockquote", async () => {
-		await render(
-			<PortableTextEditor value={[textBlock("A wise quote", { style: "blockquote" })]} />,
-		);
+	it.each(["A wise quote", '"A wise quote." — An author', '"اقتباس حكيم." — الكاتب'])(
+		"renders blockquote text without decorative quotation marks: %s",
+		async (text) => {
+			await render(<PortableTextEditor value={[textBlock(text, { style: "blockquote" })]} />);
+			const pm = await waitForEditor();
+			const bq = pm.querySelector("blockquote");
+			expect(bq).toBeTruthy();
+			expect(bq!.textContent).toBe(text);
+			const paragraph = bq!.querySelector("p")!;
+			for (const pseudo of ["::before", "::after"]) {
+				expect(["none", "normal"]).toContain(getComputedStyle(paragraph, pseudo).content);
+			}
+		},
+	);
+
+	it("keeps the quote placeholder visible in an empty blockquote", async () => {
+		await render(<PortableTextEditor value={[textBlock("", { style: "blockquote" })]} />);
 		const pm = await waitForEditor();
-		const bq = pm.querySelector("blockquote");
-		expect(bq).toBeTruthy();
-		expect(bq!.textContent).toBe("A wise quote");
+		const paragraph = pm.querySelector("blockquote p")!;
+		expect(getComputedStyle(paragraph, "::before").content).toContain("Quote");
 	});
 
 	it("renders a code block", async () => {
@@ -1592,6 +1604,54 @@ describe("Editor component behaviour", () => {
 		const heading = pm.querySelector("h2")!;
 		await vi.waitFor(() => expect(heading.getAttribute("data-placeholder")).toBe("Heading 2"));
 		expect(getComputedStyle(heading, "::before").content).toBe('"Heading 2"');
+	});
+
+	it("updates the document toolbar fade to the latest batched intersection", async () => {
+		const pending: IntersectionObserverEntry[] = [];
+		let deliver = () => {};
+		const NativeIntersectionObserver = window.IntersectionObserver;
+		window.IntersectionObserver = class extends NativeIntersectionObserver {
+			constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+				super((entries, observer) => {
+					pending.push(...entries);
+					deliver = () => callback(pending.splice(0), observer);
+				}, options);
+			}
+		};
+
+		try {
+			await render(
+				<div style={{ height: 300, overflowY: "auto" }} data-testid="scroller">
+					<PortableTextEditor
+						variant="document"
+						value={Array.from({ length: 30 }, (_, index) => textBlock(`Line ${index}`))}
+					/>
+				</div>,
+			);
+			await waitForEditor();
+			const scroller = document.querySelector<HTMLElement>('[data-testid="scroller"]')!;
+			const toolbar = document.querySelector<HTMLElement>(
+				'[data-emdash-editor-toolbar="document"]',
+			)!;
+			const fade = () => getComputedStyle(toolbar, "::after").opacity;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(true));
+
+			scroller.scrollTop = 200;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(false));
+			deliver();
+			await vi.waitFor(() => expect(fade()).toBe("1"));
+
+			scroller.scrollTop = 0;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(true));
+			scroller.scrollTop = 200;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(false));
+			scroller.scrollTop = 0;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(true));
+			deliver();
+			await vi.waitFor(() => expect(fade()).toBe("0"));
+		} finally {
+			window.IntersectionObserver = NativeIntersectionObserver;
+		}
 	});
 
 	it("fades text under the document toolbar only while it's stuck", async () => {
