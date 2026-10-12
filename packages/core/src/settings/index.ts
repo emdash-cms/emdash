@@ -24,6 +24,8 @@ import {
 } from "../plugins/settings.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
+import { bumpRunningExportWriteEpochs } from "../transfer/fence.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 
 /** Object-cache namespace for site settings. */
 const SETTINGS_CACHE_NAMESPACE = "settings";
@@ -375,6 +377,10 @@ export async function setSiteSettings(
 		else updates[`${SETTINGS_PREFIX}${key}`] = value;
 	}
 
+	if (Object.keys(updates).length === 0 && deletions.length === 0 && nestedPatches.length === 0) {
+		return;
+	}
+
 	try {
 		await withTransaction(db, async (trx) => {
 			const transactionOptions = new OptionsRepository(trx);
@@ -390,6 +396,20 @@ export async function setSiteSettings(
 				}
 				if (Object.keys(next).length === 0) await transactionOptions.delete(optionName);
 				else await transactionOptions.set(optionName, next);
+			}
+
+			// A running export detects writes to tables without updated_at via
+			// the operation's write_epoch. Record that bump in the same
+			// transaction so the settings update is not accepted unless the
+			// export fence can see it. When the transfer system has not been
+			// installed yet (pre-migration, or a minimal seed fixture), there
+			// is no running export to notify, so the absence of its table is
+			// not a reason to reject the settings update.
+			try {
+				await bumpRunningExportWriteEpochs(trx);
+			} catch (error) {
+				if (isMissingTableError(error)) return;
+				throw error;
 			}
 		});
 	} finally {

@@ -8,7 +8,7 @@ import { Pencil, Trash, Check, X, DeviceMobile, Cloud } from "@phosphor-icons/re
 import * as React from "react";
 
 import type { PasskeyInfo } from "../../lib/api";
-import { formatRelativeTime } from "../../lib/utils";
+import { formatRelativeTime } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 
 export interface PasskeyItemProps {
@@ -131,7 +131,7 @@ export function PasskeyItem({
 						{passkey.backedUp && <span className="text-kumo-success"> {t`(synced)`}</span>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-1">
-						{t`Last used`} {formatRelativeTime(passkey.lastUsedAt, i18n.locale)}
+						{t`Last used`} <bdi>{formatRelativeTime(passkey.lastUsedAt, i18n.locale)}</bdi>
 					</div>
 				</div>
 			</div>

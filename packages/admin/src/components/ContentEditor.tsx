@@ -64,6 +64,7 @@ import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { BlocksField } from "./BlocksField.js";
+import type { BylineFormValues } from "./BylineFormDialog.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
 	ContentSettingsPanel,
@@ -417,12 +418,9 @@ export interface ContentEditorProps {
 	/** Callback when byline credits are changed */
 	onBylinesChange?: (bylines: BylineCreditInput[]) => void;
 	/** Callback for creating a byline inline from the editor */
-	onQuickCreateByline?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
+	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
 	/** Callback for updating a byline inline from the editor */
-	onQuickEditByline?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
+	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
 	/** Callback when item is deleted (moved to trash) */
 	onDelete?: () => void;
 	/** Whether delete is in progress */
@@ -2603,7 +2601,7 @@ function FieldRenderer({
 					label={label}
 					labelClass={labelClass}
 					id={id}
-					value={typeof value === "string" ? value : ""}
+					value={value as string | null | undefined}
 					onChange={handleChange}
 					required={field.required}
 					placeholder="https://"
@@ -2977,7 +2975,7 @@ function UrlFieldEditor({
 	label: string;
 	labelClass?: string;
 	id: string;
-	value: string;
+	value: string | null | undefined;
 	onChange: (value: unknown) => void;
 	required?: boolean;
 	placeholder?: string;
@@ -2986,12 +2984,14 @@ function UrlFieldEditor({
 	const [error, setError] = React.useState<string | null>(null);
 
 	const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-		const val = e.target.value.trim();
-		if (val !== e.target.value) onChange(val);
+		const raw = e.target.value;
+		const val = raw.trim();
 		if (!val) {
 			setError(null);
+			if (value != null) onChange(null);
 			return;
 		}
+		if (val !== raw && val !== value) onChange(val);
 		if (!isValidUrl(val)) {
 			setError(t`Enter a valid URL (e.g. https://example.com)`);
 		} else {
@@ -3007,10 +3007,15 @@ function UrlFieldEditor({
 				type="text"
 				inputMode="url"
 				dir="ltr"
-				value={value}
+				value={value ?? ""}
 				onChange={(e) => {
 					if (error) setError(null);
-					onChange(e.target.value);
+					const next = e.target.value;
+					if (next === "") {
+						if (value != null) onChange(null);
+					} else if (next !== value) {
+						onChange(next);
+					}
 				}}
 				onBlur={handleBlur}
 				required={required}
