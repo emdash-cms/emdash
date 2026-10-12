@@ -2564,7 +2564,7 @@ msgstr "Ubah tanggal publikasi"
 #. placeholder {0}: isolate(formattedValue)
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:604
 msgid "Change publication date: {0}"
-msgstr "Ubah tanggal publikasi" {0}"
+msgstr "Ubah tanggal publikasi: {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:607
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
