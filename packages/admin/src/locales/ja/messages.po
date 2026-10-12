@@ -18,7 +18,7 @@ msgstr ""
 msgid " (default)"
 msgstr "（デフォルト）"
 
-#: packages/admin/src/components/MenuEditor.tsx:527
+#: packages/admin/src/components/MenuEditor.tsx:635
 msgid " (opens in new window)"
 msgstr "（新しいウィンドウで開く）"
 
@@ -1201,7 +1201,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:174
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
-#: packages/admin/src/components/MenuEditor.tsx:443
+#: packages/admin/src/components/MenuEditor.tsx:551
 msgid "Add"
 msgstr "追加"
 
@@ -1270,14 +1270,14 @@ msgstr "後に列を追加"
 msgid "Add column before"
 msgstr "前に列を追加"
 
-#: packages/admin/src/components/MenuEditor.tsx:380
-#: packages/admin/src/components/MenuEditor.tsx:499
+#: packages/admin/src/components/MenuEditor.tsx:482
+#: packages/admin/src/components/MenuEditor.tsx:607
 msgid "Add Content"
 msgstr "コンテンツを選択"
 
-#: packages/admin/src/components/MenuEditor.tsx:392
-#: packages/admin/src/components/MenuEditor.tsx:399
-#: packages/admin/src/components/MenuEditor.tsx:502
+#: packages/admin/src/components/MenuEditor.tsx:494
+#: packages/admin/src/components/MenuEditor.tsx:501
+#: packages/admin/src/components/MenuEditor.tsx:610
 msgid "Add Custom Link"
 msgstr "カスタムリンクを追加"
 
@@ -1338,7 +1338,7 @@ msgstr "項目を追加"
 msgid "Add link"
 msgstr "リンクを追加"
 
-#: packages/admin/src/components/MenuEditor.tsx:492
+#: packages/admin/src/components/MenuEditor.tsx:600
 msgid "Add links to build your navigation menu"
 msgstr "リンクを追加してナビゲーションメニューを作成します"
 
@@ -1424,7 +1424,7 @@ msgstr "SNSアカウントを設定します。設定したアカウントへの
 msgid "Added"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:443
+#: packages/admin/src/components/MenuEditor.tsx:551
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
 msgstr "追加中…"
@@ -1873,7 +1873,7 @@ msgstr "「{0}」を削除しますか？このコンテンツタイプに含ま
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "「{0}」フィールドを削除しますか？"
 
-#: packages/admin/src/components/MenuList.tsx:232
+#: packages/admin/src/components/MenuList.tsx:234
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "このメニューを削除しますか？すべてのメニュー項目も削除されます。この操作は取り消せません。"
 
@@ -2067,7 +2067,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:673
 #: packages/admin/src/components/MediaDetailPanel.tsx:1805
 #: packages/admin/src/components/MediaLibrary.tsx:747
-#: packages/admin/src/components/MenuEditor.tsx:367
+#: packages/admin/src/components/MenuEditor.tsx:405
 #: packages/admin/src/components/WordPressImport.tsx:1533
 #: packages/admin/src/components/WordPressImport.tsx:2550
 msgid "Back"
@@ -2100,7 +2100,7 @@ msgstr "メインライブラリに戻る"
 msgid "Back to marketplace"
 msgstr "マーケットプレイスに戻る"
 
-#: packages/admin/src/components/MenuEditor.tsx:365
+#: packages/admin/src/components/MenuEditor.tsx:403
 msgid "Back to menus"
 msgstr ""
 
@@ -2404,9 +2404,10 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1847
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1598
-#: packages/admin/src/components/MenuEditor.tsx:440
-#: packages/admin/src/components/MenuEditor.tsx:629
-#: packages/admin/src/components/MenuList.tsx:182
+#: packages/admin/src/components/MenuEditor.tsx:464
+#: packages/admin/src/components/MenuEditor.tsx:548
+#: packages/admin/src/components/MenuEditor.tsx:753
+#: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:802
 #: packages/admin/src/components/PortableTextEditor.tsx:5715
 #: packages/admin/src/components/PortableTextEditor.tsx:5741
@@ -2868,12 +2869,15 @@ msgstr ""
 #: packages/admin/src/components/MediaPickerModal.tsx:1009
 #: packages/admin/src/components/MediaPickerModal.tsx:1016
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
-#: packages/admin/src/components/MenuEditor.tsx:402
-#: packages/admin/src/components/MenuEditor.tsx:408
-#: packages/admin/src/components/MenuEditor.tsx:412
-#: packages/admin/src/components/MenuEditor.tsx:582
-#: packages/admin/src/components/MenuEditor.tsx:588
-#: packages/admin/src/components/MenuEditor.tsx:592
+#: packages/admin/src/components/MenuEditor.tsx:433
+#: packages/admin/src/components/MenuEditor.tsx:439
+#: packages/admin/src/components/MenuEditor.tsx:443
+#: packages/admin/src/components/MenuEditor.tsx:504
+#: packages/admin/src/components/MenuEditor.tsx:510
+#: packages/admin/src/components/MenuEditor.tsx:514
+#: packages/admin/src/components/MenuEditor.tsx:699
+#: packages/admin/src/components/MenuEditor.tsx:705
+#: packages/admin/src/components/MenuEditor.tsx:709
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/PortableTextEditor.tsx:2672
 #: packages/admin/src/components/PortableTextEditor.tsx:2678
@@ -3505,7 +3509,7 @@ msgstr "件数"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:426
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuList.tsx:185
+#: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/Widgets.tsx:455
@@ -3585,7 +3589,7 @@ msgid "Create menu"
 msgstr ""
 
 #: packages/admin/src/components/MenuList.tsx:119
-#: packages/admin/src/components/MenuList.tsx:208
+#: packages/admin/src/components/MenuList.tsx:210
 msgid "Create Menu"
 msgstr "メニューを作成"
 
@@ -3677,7 +3681,7 @@ msgstr "アカウントを作成"
 msgid "Create your first content type"
 msgstr "最初のコンテンツタイプを作成"
 
-#: packages/admin/src/components/MenuList.tsx:201
+#: packages/admin/src/components/MenuList.tsx:203
 msgid "Create your first navigation menu to get started"
 msgstr "最初のナビゲーションメニューを作成しましょう"
 
@@ -3748,7 +3752,7 @@ msgstr "コンテンツタイプとフィールドを作成中…"
 msgid "Creating cropped copy..."
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:185
+#: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/RelationFormPanel.tsx:109
 #: packages/admin/src/components/Sections.tsx:234
@@ -3784,6 +3788,15 @@ msgstr ""
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:58
 msgid "CSS"
 msgstr "CSS"
+
+#: packages/admin/src/components/MenuEditor.tsx:540
+#: packages/admin/src/components/MenuEditor.tsx:738
+msgid "CSS classes"
+msgstr ""
+
+#: packages/admin/src/components/MenuEditor.tsx:639
+msgid "CSS classes:"
+msgstr ""
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:59
 msgid "CSS code"
@@ -3931,8 +3944,8 @@ msgstr "コードで定義"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:363
 #: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaDetailPanel.tsx:1920
-#: packages/admin/src/components/MenuEditor.tsx:555
-#: packages/admin/src/components/MenuList.tsx:233
+#: packages/admin/src/components/MenuEditor.tsx:672
+#: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:612
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/Sections.tsx:349
@@ -4057,7 +4070,7 @@ msgstr "画像を削除"
 msgid "Delete media?"
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:231
+#: packages/admin/src/components/MenuList.tsx:233
 msgid "Delete menu"
 msgstr ""
 
@@ -4154,7 +4167,7 @@ msgstr "「{0}」を削除すると、すべての執筆者から{1, plural, one
 #: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaDetailPanel.tsx:1921
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
-#: packages/admin/src/components/MenuList.tsx:234
+#: packages/admin/src/components/MenuList.tsx:236
 #: packages/admin/src/components/Redirects.tsx:613
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:350
@@ -4675,7 +4688,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:352
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:353
 #: packages/admin/src/components/MenuCard.tsx:59
-#: packages/admin/src/components/MenuEditor.tsx:550
+#: packages/admin/src/components/MenuEditor.tsx:667
 #: packages/admin/src/components/Sections.tsx:439
 #: packages/admin/src/components/Shell.tsx:86
 #: packages/admin/src/components/TranslationsPanel.tsx:95
@@ -4783,11 +4796,11 @@ msgstr ""
 msgid "Edit media alt text, captions, and focal points"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:579
+#: packages/admin/src/components/MenuEditor.tsx:696
 msgid "Edit Menu Item"
 msgstr "メニュー項目を編集"
 
-#: packages/admin/src/components/MenuEditor.tsx:372
+#: packages/admin/src/components/MenuEditor.tsx:474
 msgid "Edit menu items"
 msgstr "メニュー項目を編集"
 
@@ -5049,8 +5062,8 @@ msgstr ""
 msgid "Enter a slug."
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:425
-#: packages/admin/src/components/MenuEditor.tsx:607
+#: packages/admin/src/components/MenuEditor.tsx:527
+#: packages/admin/src/components/MenuEditor.tsx:724
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "URL（https://…）または相対パス（/…）を入力"
 
@@ -5126,9 +5139,9 @@ msgstr ""
 msgid "entry on the linking side"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:156
-#: packages/admin/src/components/MenuEditor.tsx:194
-#: packages/admin/src/components/MenuEditor.tsx:234
+#: packages/admin/src/components/MenuEditor.tsx:159
+#: packages/admin/src/components/MenuEditor.tsx:227
+#: packages/admin/src/components/MenuEditor.tsx:267
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
@@ -6911,7 +6924,7 @@ msgstr ""
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:418
+#: packages/admin/src/components/MenuEditor.tsx:520
 msgid "Home"
 msgstr "ホーム"
 
@@ -6976,7 +6989,7 @@ msgstr ""
 msgid "https://example.com"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:426
+#: packages/admin/src/components/MenuEditor.tsx:528
 msgid "https://example.com or /about"
 msgstr "https://example.com または /about"
 
@@ -7531,15 +7544,15 @@ msgstr "斜体"
 msgid "Item {0}"
 msgstr "項目{0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:176
+#: packages/admin/src/components/MenuEditor.tsx:209
 msgid "Item added"
 msgstr "メニュー項目を追加しました"
 
-#: packages/admin/src/components/MenuEditor.tsx:188
+#: packages/admin/src/components/MenuEditor.tsx:221
 msgid "Item deleted"
 msgstr "メニュー項目を削除しました"
 
-#: packages/admin/src/components/MenuEditor.tsx:213
+#: packages/admin/src/components/MenuEditor.tsx:246
 msgid "Item updated"
 msgstr "メニュー項目を更新しました"
 
@@ -7644,8 +7657,9 @@ msgstr "Kotlin"
 #: packages/admin/src/components/BylineFieldEditor.tsx:226
 #: packages/admin/src/components/FieldEditor.tsx:837
 #: packages/admin/src/components/FieldEditor.tsx:1249
-#: packages/admin/src/components/MenuEditor.tsx:418
-#: packages/admin/src/components/MenuEditor.tsx:599
+#: packages/admin/src/components/MenuEditor.tsx:450
+#: packages/admin/src/components/MenuEditor.tsx:520
+#: packages/admin/src/components/MenuEditor.tsx:716
 #: packages/admin/src/components/MenuList.tsx:153
 #: packages/admin/src/components/TaxonomyManager.tsx:1034
 #: packages/admin/src/components/Widgets.tsx:437
@@ -7967,7 +7981,7 @@ msgstr ""
 msgid "Loading media usage tracking settings…"
 msgstr "メディア使用状況の設定を読み込み中…"
 
-#: packages/admin/src/components/MenuEditor.tsx:343
+#: packages/admin/src/components/MenuEditor.tsx:381
 msgid "Loading menu..."
 msgstr "メニューを読み込み中…"
 
@@ -8398,7 +8412,7 @@ msgstr "メニュー"
 
 #. placeholder {0}: translated.label
 #. placeholder {1}: translated.locale.toUpperCase()
-#: packages/admin/src/components/MenuEditor.tsx:145
+#: packages/admin/src/components/MenuEditor.tsx:148
 msgid "Menu \"{0}\" ({1}) created."
 msgstr "メニュー「{0}」（{1}）を作成しました。"
 
@@ -8415,15 +8429,15 @@ msgstr "メニューを作成しました"
 msgid "Menu deleted"
 msgstr "メニューを削除しました"
 
-#: packages/admin/src/components/MenuEditor.tsx:176
+#: packages/admin/src/components/MenuEditor.tsx:209
 msgid "Menu item has been added."
 msgstr "メニュー項目を追加しました。"
 
-#: packages/admin/src/components/MenuEditor.tsx:189
+#: packages/admin/src/components/MenuEditor.tsx:222
 msgid "Menu item has been deleted."
 msgstr "メニュー項目を削除しました。"
 
-#: packages/admin/src/components/MenuEditor.tsx:214
+#: packages/admin/src/components/MenuEditor.tsx:247
 msgid "Menu item has been updated."
 msgstr "メニュー項目を更新しました。"
 
@@ -8432,13 +8446,17 @@ msgstr "メニュー項目を更新しました。"
 msgid "Menu items"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:351
+#: packages/admin/src/components/MenuEditor.tsx:389
 msgid "Menu not found"
 msgstr "メニューが見つかりません"
 
-#: packages/admin/src/components/MenuEditor.tsx:229
+#: packages/admin/src/components/MenuEditor.tsx:262
 msgid "Menu order has been updated."
 msgstr "メニューの順序を更新しました。"
+
+#: packages/admin/src/components/MenuEditor.tsx:174
+msgid "Menu renamed"
+msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
@@ -8638,7 +8656,7 @@ msgid "Move {title} to trash"
 msgstr "{title}をゴミ箱に移動"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
-#: packages/admin/src/components/MenuEditor.tsx:543
+#: packages/admin/src/components/MenuEditor.tsx:660
 #: packages/admin/src/components/TaxonomyManager.tsx:345
 msgid "Move down"
 msgstr "下に移動"
@@ -8682,7 +8700,7 @@ msgid "Move to Trash?"
 msgstr "ゴミ箱に移動しますか？"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
-#: packages/admin/src/components/MenuEditor.tsx:534
+#: packages/admin/src/components/MenuEditor.tsx:651
 #: packages/admin/src/components/TaxonomyManager.tsx:337
 msgid "Move up"
 msgstr "上に移動"
@@ -8752,7 +8770,7 @@ msgstr "マイブログ"
 #: packages/admin/src/components/ContentTypeList.tsx:198
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
-#: packages/admin/src/components/MenuList.tsx:162
+#: packages/admin/src/components/MenuList.tsx:164
 #: packages/admin/src/components/TaxonomyManager.tsx:779
 #: packages/admin/src/components/TaxonomyManager.tsx:1043
 #: packages/admin/src/components/TaxonomyManager.tsx:1406
@@ -8887,10 +8905,10 @@ msgstr ""
 msgid "New Taxonomy"
 msgstr "分類グループを追加"
 
-#: packages/admin/src/components/MenuEditor.tsx:432
-#: packages/admin/src/components/MenuEditor.tsx:435
-#: packages/admin/src/components/MenuEditor.tsx:615
-#: packages/admin/src/components/MenuEditor.tsx:618
+#: packages/admin/src/components/MenuEditor.tsx:534
+#: packages/admin/src/components/MenuEditor.tsx:537
+#: packages/admin/src/components/MenuEditor.tsx:732
+#: packages/admin/src/components/MenuEditor.tsx:735
 msgid "New window"
 msgstr "新しいウィンドウ"
 
@@ -9212,11 +9230,11 @@ msgstr "この連携先で利用できるメディアがありません。"
 msgid "No media found"
 msgstr "メディアが見つかりません"
 
-#: packages/admin/src/components/MenuEditor.tsx:491
+#: packages/admin/src/components/MenuEditor.tsx:599
 msgid "No menu items yet"
 msgstr "メニュー項目はまだありません"
 
-#: packages/admin/src/components/MenuList.tsx:199
+#: packages/admin/src/components/MenuList.tsx:201
 msgid "No menus yet"
 msgstr "メニューはまだありません"
 
@@ -9229,7 +9247,7 @@ msgstr "下限なし"
 msgid "No moderation (auto-approve all)"
 msgstr "承認不要（すべて自動承認）"
 
-#: packages/admin/src/components/MenuEditor.tsx:330
+#: packages/admin/src/components/MenuEditor.tsx:368
 msgid "No parent (top level)"
 msgstr "親なし（最上位）"
 
@@ -9482,7 +9500,7 @@ msgstr ""
 msgid "Only images and videos can be uploaded here."
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:168
+#: packages/admin/src/components/MenuList.tsx:170
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "半角英小文字、数字、ハイフンのみ使用できます"
 
@@ -9622,7 +9640,7 @@ msgstr "またはエクスポートファイルをアップロード"
 msgid "or upload directly"
 msgstr "または直接アップロード"
 
-#: packages/admin/src/components/MenuEditor.tsx:228
+#: packages/admin/src/components/MenuEditor.tsx:261
 msgid "Order saved"
 msgstr "順序を保存しました"
 
@@ -9720,7 +9738,7 @@ msgstr ""
 msgid "Paragraph inserted before table"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:621
+#: packages/admin/src/components/MenuEditor.tsx:745
 #: packages/admin/src/components/TaxonomyManager.tsx:815
 msgid "Parent"
 msgstr "親"
@@ -10206,7 +10224,7 @@ msgstr "前のページ"
 msgid "Previous screenshot"
 msgstr "前のスクリーンショット"
 
-#: packages/admin/src/components/MenuList.tsx:166
+#: packages/admin/src/components/MenuList.tsx:168
 msgid "primary"
 msgstr ""
 
@@ -10816,6 +10834,11 @@ msgstr "名前を変更"
 msgid "Rename {0}"
 msgstr "{0}の名前を変更"
 
+#: packages/admin/src/components/MenuEditor.tsx:423
+#: packages/admin/src/components/MenuEditor.tsx:430
+msgid "Rename menu"
+msgstr ""
+
 #: packages/admin/src/components/settings/PasskeyItem.tsx:150
 msgid "Rename passkey"
 msgstr "パスキーの名前を変更"
@@ -11332,10 +11355,10 @@ msgstr ""
 msgid "Rust"
 msgstr "Rust"
 
-#: packages/admin/src/components/MenuEditor.tsx:432
-#: packages/admin/src/components/MenuEditor.tsx:434
-#: packages/admin/src/components/MenuEditor.tsx:615
-#: packages/admin/src/components/MenuEditor.tsx:617
+#: packages/admin/src/components/MenuEditor.tsx:534
+#: packages/admin/src/components/MenuEditor.tsx:536
+#: packages/admin/src/components/MenuEditor.tsx:732
+#: packages/admin/src/components/MenuEditor.tsx:734
 msgid "Same window"
 msgstr "同じウィンドウ"
 
@@ -11349,7 +11372,8 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:402
 #: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:632
+#: packages/admin/src/components/MenuEditor.tsx:467
+#: packages/admin/src/components/MenuEditor.tsx:756
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
@@ -11441,7 +11465,8 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:1394
 #: packages/admin/src/components/MediaDetailPanel.tsx:1878
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:632
+#: packages/admin/src/components/MenuEditor.tsx:467
+#: packages/admin/src/components/MenuEditor.tsx:756
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:190
@@ -12122,6 +12147,11 @@ msgstr "SEO設定を保存しました"
 msgid "SEO Title"
 msgstr "SEOタイトル"
 
+#: packages/admin/src/components/MenuEditor.tsx:543
+#: packages/admin/src/components/MenuEditor.tsx:742
+msgid "Separate class names with spaces. Themes can use them to style the link."
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:714
 msgid "Set a custom display size for this image instance."
 msgstr "この画像インスタンスのカスタム表示サイズを設定します。"
@@ -12259,8 +12289,9 @@ msgstr "トークンを表示"
 msgid "Showing {pageShowingRange} of {0}"
 msgstr "全{0}件中{pageShowingRange}件を表示"
 
-#: packages/admin/src/components/MenuList.tsx:158
-msgid "Shown in the admin menu list."
+#: packages/admin/src/components/MenuEditor.tsx:455
+#: packages/admin/src/components/MenuList.tsx:159
+msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1135
@@ -12609,7 +12640,7 @@ msgstr "正方形"
 msgid "Square (1:1)"
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:171
+#: packages/admin/src/components/MenuList.tsx:173
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr ""
 
@@ -12832,8 +12863,8 @@ msgstr ""
 msgid "Taking over..."
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:429
-#: packages/admin/src/components/MenuEditor.tsx:612
+#: packages/admin/src/components/MenuEditor.tsx:531
+#: packages/admin/src/components/MenuEditor.tsx:729
 msgid "Target"
 msgstr "リンクの開き方"
 
@@ -13123,6 +13154,11 @@ msgstr "マーケットプレイスは空です。新しいプラグインが追
 #: packages/admin/src/components/MenuList.tsx:69
 msgid "The menu has been deleted."
 msgstr "メニューを削除しました。"
+
+#. placeholder {0}: renamed.label
+#: packages/admin/src/components/MenuEditor.tsx:175
+msgid "The menu is now called \"{0}\"."
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "The name of your site, used in the header and metadata"
@@ -13916,7 +13952,7 @@ msgstr "{0}を翻訳"
 msgid "Translating..."
 msgstr "翻訳中…"
 
-#: packages/admin/src/components/MenuEditor.tsx:144
+#: packages/admin/src/components/MenuEditor.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:1252
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1533
@@ -14447,8 +14483,8 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
 #: packages/admin/src/components/FieldEditor.tsx:1296
-#: packages/admin/src/components/MenuEditor.tsx:420
-#: packages/admin/src/components/MenuEditor.tsx:602
+#: packages/admin/src/components/MenuEditor.tsx:522
+#: packages/admin/src/components/MenuEditor.tsx:719
 msgid "URL"
 msgstr "URL"
 

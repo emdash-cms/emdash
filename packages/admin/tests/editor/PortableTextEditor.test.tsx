@@ -1334,16 +1334,11 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		},
 	);
 
-	it("keeps the writing placeholder visible in an empty blockquote", async () => {
-		await render(
-			<PortableTextEditor
-				value={[textBlock("", { style: "blockquote" })]}
-				placeholder="Write something..."
-			/>,
-		);
+	it("keeps the quote placeholder visible in an empty blockquote", async () => {
+		await render(<PortableTextEditor value={[textBlock("", { style: "blockquote" })]} />);
 		const pm = await waitForEditor();
 		const paragraph = pm.querySelector("blockquote p")!;
-		expect(getComputedStyle(paragraph, "::before").content).toContain("Write something...");
+		expect(getComputedStyle(paragraph, "::before").content).toContain("Quote");
 	});
 
 	it("renders a code block", async () => {

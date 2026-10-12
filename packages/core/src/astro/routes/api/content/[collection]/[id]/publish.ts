@@ -18,6 +18,7 @@ import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { contentPublishBody } from "#api/schemas.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -98,7 +99,7 @@ export async function publishContent(
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
+	await invalidateRouteCache(cache, [collection, resolvedId]);
 
 	return unwrapResult(result);
 }
