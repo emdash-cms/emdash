@@ -703,6 +703,24 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		expect(blocks[1]).not.toHaveProperty("displayHeight");
 	});
 
+	it.each([
+		{ size: "a display height alone", display: { displayHeight: 400 } },
+		{
+			size: "a display size that crops the image on purpose",
+			display: { displayWidth: 300, displayHeight: 300 },
+		},
+	])("keeps $size when replacing an image", async ({ display }) => {
+		stubMedia({ library: [{ ...LIBRARY[1]!, width: 800, height: 1200 }] });
+		const editable = await mount([block("a", "Intro."), { ...IMAGE_BLOCK, ...display }]);
+		const toolbar = await selectImage(editable);
+		await click(toolbarButton(toolbar, "Replace"));
+
+		await click(await option(await picker("Replace image"), "photo-2.jpg"));
+
+		const blocks = await savedBlocks();
+		expect(blocks[1]).toMatchObject({ asset: { _ref: "media-2" }, ...display });
+	});
+
 	it("goes from the Replace picker to the alt text field, keeping the toolbar", async () => {
 		stubMedia();
 		const editable = await mount([block("a", "Intro."), IMAGE_BLOCK]);

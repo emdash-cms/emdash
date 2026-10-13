@@ -136,22 +136,41 @@ export function insertImage(editor: Editor, position: number, image: ChosenImage
 	});
 }
 
+/** Whether `size` has `picture`'s shape, within a pixel of rounding either way. */
+function hasShape(
+	size: { width?: unknown; height?: unknown },
+	picture: { width?: unknown; height?: unknown },
+): boolean {
+	const width = dimension(size.width);
+	const height = dimension(size.height);
+	const pictureWidth = dimension(picture.width);
+	const pictureHeight = dimension(picture.height);
+	if (!width || !height || !pictureWidth || !pictureHeight) return false;
+	return (
+		Math.abs(width * pictureHeight - height * pictureWidth) <= Math.max(pictureWidth, pictureHeight)
+	);
+}
+
 /**
  * Shows another image in the image at `position`. The caption belongs to its
  * place in the post, so it stays; the alt text and title described the old
- * picture, so they come from the new one. A display width and height
- * together have the old picture's shape, so only the width stays.
+ * picture, so they come from the new one. A display size in the old
+ * picture's shape would crop a new picture of another shape, so only its
+ * width stays. A display size in another shape crops on purpose, as an
+ * imported WordPress thumbnail does, and stays whole.
  */
 export function replaceImage(editor: Editor, position: number, image: ChosenImage) {
 	editor.commands.command(({ tr }) => {
 		const node = tr.doc.nodeAt(position);
 		if (node?.type.name !== "image") return false;
-		const displayHeight = node.attrs.displayWidth ? null : node.attrs.displayHeight;
+		const attrs: Record<string, unknown> = node.attrs;
+		const display = { width: attrs.displayWidth, height: attrs.displayHeight };
+		const dropsHeight = hasShape(display, attrs) && !hasShape(display, image);
 		tr.setNodeMarkup(position, undefined, {
-			...node.attrs,
+			...attrs,
 			...image,
 			title: null,
-			displayHeight,
+			...(dropsHeight ? { displayHeight: null } : {}),
 		});
 		tr.setSelection(NodeSelection.create(tr.doc, position));
 		return true;
