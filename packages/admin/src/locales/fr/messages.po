@@ -94,7 +94,7 @@ msgstr "{0, plural, one {# commentaire importé} other {# commentaires importés
 #. placeholder {0}: result.affected
 #: packages/admin/src/router.tsx:2347
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
-msgstr "{0, plural, one {# commentaire mis a jour} other {# commentaires mis a jour}}"
+msgstr "{0, plural, one {# commentaire mis à jour} other {# commentaires mis à jour}}"
 
 #. placeholder {0}: comments.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:369
@@ -1931,7 +1931,7 @@ msgstr "Erreur d'authentification : {0}"
 
 #: packages/admin/src/components/LoginPage.tsx:197
 msgid "Authentication error: {error}"
-msgstr "Erreur d'authentification : {error}"
+msgstr "Erreur d'authentification : {error}"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:251
 msgid "Authentication failed"
@@ -4470,7 +4470,7 @@ msgstr "Domaine mis à jour"
 
 #: packages/admin/src/components/LoginPage.tsx:334
 msgid "Don't have an account? <0>Sign up</0>"
-msgstr "Pas encore de compte ? <0>S'inscrire</0>"
+msgstr "Pas encore de compte ? <0>S'inscrire</0>"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:229
 msgid "Don’t map"
@@ -11261,7 +11261,7 @@ msgstr "Révoquer le jeton {0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
-msgstr "Révoquer ?"
+msgstr "Révoquer ?"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:432
 msgid "Revoking..."
@@ -12170,7 +12170,7 @@ msgstr "Définir la langue"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
-msgstr "Définir la langue (actuelle : {label})"
+msgstr "Définir la langue (actuelle : {label})"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:727
 msgid "Set role"
@@ -12676,7 +12676,7 @@ msgstr "Commencer à écrire en texte brut"
 #: packages/admin/src/components/ContentEditor.tsx:2299
 #: packages/admin/src/components/PortableTextEditor.tsx:3451
 msgid "Start writing, or type '/' for commands"
-msgstr "Commencez à écrire, ou saisissez « / » pour les commandes"
+msgstr "Commencez à écrire, ou saisissez « / » pour les commandes"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:386
 msgid "Starter content that will be removed"
@@ -13889,7 +13889,7 @@ msgstr "Jeton {0} · expire {expires}"
 #. placeholder {0}: newToken.info.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
 msgid "Token created: {0}"
-msgstr "Jeton créé : {0}"
+msgstr "Jeton créé : {0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:496
 msgid "Token Name"
@@ -14875,7 +14875,7 @@ msgstr "URL du site web"
 
 #: packages/admin/src/components/WelcomeModal.tsx:102
 msgid "Welcome to EmDash, {firstName}!"
-msgstr "Bienvenue sur EmDash, {firstName} !"
+msgstr "Bienvenue sur EmDash, {firstName} !"
 
 #: packages/admin/src/components/WelcomeModal.tsx:102
 msgid "Welcome to EmDash!"
