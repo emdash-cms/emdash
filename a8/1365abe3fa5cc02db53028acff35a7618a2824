@@ -1,0 +1,27 @@
+.changeset/calendar-drag-reschedule.md
+  s_5531044b240ab8::t_803bb439147a74 12
+packages/admin/src/components/calendar/CalendarMonth.tsx
+  s_5531044b240ab8::t_bffa7ee616a9e5 252,258
+packages/admin/src/routes/calendar.tsx
+  s_5531044b240ab8::t_6f9ef94578658c 108,111,266,269
+packages/admin/tests/routes/calendar.test.tsx
+  s_5531044b240ab8::t_93909e7d188004 33,35-38,40,397,401-406,422,424
+packages/admin/src/components/calendar/CalendarToolbar.tsx
+  s_5531044b240ab8::t_8cd2cd90208f86 23,38-41,69-70,109-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a81365abe3fa5cc02db53028acff35a7618a2824",
+  "prompts": {},
+  "sessions": {
+    "s_5531044b240ab8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b02a171-9277-4036-b4b4-a26ab647f3a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
