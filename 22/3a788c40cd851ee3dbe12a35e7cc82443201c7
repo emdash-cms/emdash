@@ -1,0 +1,29 @@
+packages/admin/src/components/calendar/CalendarEntryPanel.tsx
+  s_5531044b240ab8::t_05c88e593e6ef2 65-73,95-96,108-121
+packages/admin/tests/routes/calendar.test.tsx
+  s_e4264549a50017::t_e3fc92361b3730 187-216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "223a788c40cd851ee3dbe12a35e7cc82443201c7",
+  "prompts": {},
+  "sessions": {
+    "s_5531044b240ab8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b02a171-9277-4036-b4b4-a26ab647f3a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e4264549a50017": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e22da422-8bbf-48ad-bf69-a59e9196c77c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
