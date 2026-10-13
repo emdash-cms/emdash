@@ -24,7 +24,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { importCommentsFromPlugin } from "#import/comments.js";
-import { getSource } from "#import/index.js";
+import { getSource, SiteChallengeError } from "#import/index.js";
 import { importMenusFromPlugin } from "#import/menus.js";
 import { importSiteSettings, parseSiteSettingsFromPlugin } from "#import/settings.js";
 import {
@@ -263,6 +263,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			result,
 		});
 	} catch (error) {
+		if (error instanceof SiteChallengeError) {
+			return apiError("WP_SITE_CHALLENGE", error.message, 502);
+		}
 		return handleError(error, "Failed to import from WordPress", "WP_PLUGIN_IMPORT_ERROR");
 	}
 };

@@ -694,6 +694,8 @@ export interface ProbeResult {
 	isWordPress: boolean;
 	bestMatch: SourceProbeResult | null;
 	allMatches: SourceProbeResult[];
+	/** No source matched because a bot-protection challenge blocked the probe */
+	challenged?: boolean;
 }
 
 /**

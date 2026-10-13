@@ -55,4 +55,33 @@ describe("WordPressImport migration key flow", () => {
 		await expect.element(screen.getByRole("button", { name: "Connect & Analyze" })).toBeVisible();
 		await expect.element(screen.getByLabelText("WordPress Username")).toHaveValue("admin");
 	});
+
+	it("explains how to let EmDash through when bot protection challenges the analyze request", async () => {
+		mockFetch.on(
+			"POST",
+			ANALYZE_URL,
+			{ error: { code: "WP_SITE_CHALLENGE", message: "challenge" } },
+			502,
+		);
+
+		const key = makeMigrationKey({
+			url: "https://wp.example.com",
+			user: "admin",
+			pass: "app password",
+		});
+
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<WordPressImport />
+			</I18nProvider>,
+			{ wrapper: TestWrapper },
+		);
+
+		await screen.getByLabelText("Migration key").fill(key);
+		await screen.getByRole("button", { name: "Connect" }).click();
+
+		await expect
+			.element(screen.getByText(/Allow requests to \/wp-json\/emdash\/v1\//))
+			.toBeVisible();
+	});
 });

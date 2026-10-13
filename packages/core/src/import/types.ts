@@ -139,6 +139,8 @@ export interface ProbeResult {
 	bestMatch: SourceProbeResult | null;
 	/** All matching sources */
 	allMatches: SourceProbeResult[];
+	/** No source matched because a bot-protection challenge blocked the probe */
+	challenged?: boolean;
 }
 
 // =============================================================================
