@@ -249,6 +249,16 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		});
 	}
 
+	function sourceTab(dialog: HTMLElement, name: string) {
+		return vi.waitFor(() => {
+			const tab = [...dialog.querySelectorAll<HTMLElement>('[role="tab"]')].find(
+				(candidate) => candidate.textContent === name,
+			);
+			expect(tab).toBeDefined();
+			return tab!;
+		});
+	}
+
 	function count(dialog: HTMLElement) {
 		return dialog.querySelector(".emdash-inline-ui-picker-count")?.textContent;
 	}
@@ -436,6 +446,39 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		expect(first.getAttribute("aria-selected")).toBe("true");
 	});
 
+	it("offers to try again when a page of images can't load", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro.")]);
+		const dialog = await typeImageCommand(editable);
+		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 1–9 of 15"));
+		vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+		await click(dialog.querySelector('[aria-label="Next page"]')!);
+
+		await vi.waitFor(() => expect(dialog.textContent).toContain("Images couldn't load"));
+		await click(
+			[...dialog.querySelectorAll("button")].find((button) => button.textContent === "Try again")!,
+		);
+		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 10–15 of 15"));
+	});
+
+	it("keeps the images on show when refreshing them on coming back to the tab fails", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro.")]);
+		const dialog = await typeImageCommand(editable);
+		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 1–9 of 15"));
+		const calls = vi.mocked(fetch).mock.calls.length;
+		vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+		await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+		await vi.waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBe(calls + 1));
+		// Lets the failed refresh land.
+		await act(async () => {});
+
+		expect(dialog.textContent).not.toContain("Images couldn't load");
+		expect(count(dialog)).toBe("Showing 1–9 of 15");
+	});
+
 	it("points an empty library to the admin's media library", async () => {
 		stubMedia({ library: [] });
 		const editable = await mount([block("a", "Intro.")]);
@@ -554,14 +597,7 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		});
 		const editable = await mount([block("a", "Intro.")]);
 		const dialog = await typeImageCommand(editable);
-		const tab = await vi.waitFor(() => {
-			const match = [...dialog.querySelectorAll('[role="tab"]')].find(
-				(candidate) => candidate.textContent === "Test Provider",
-			);
-			expect(match).toBeDefined();
-			return match!;
-		});
-		await click(tab);
+		await click(await sourceTab(dialog, "Test Provider"));
 
 		await click(await option(dialog, "provider.jpg"));
 
@@ -581,6 +617,38 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 	it("canonicalizes the legacy direct URL provider for an inserted image", () =>
 		expectSavedProvider("external-url", "external"));
+
+	it("pages through a provider's images from the one request", async () => {
+		stubMedia({
+			providers: [
+				{ id: "cloudflare-images", name: "Cloudflare Images", capabilities: { browse: true } },
+			],
+			providerItems: {
+				"cloudflare-images": Array.from({ length: 12 }, (_, index) => ({
+					id: `provider-${index + 1}`,
+					filename: `provider-${index + 1}.jpg`,
+					mimeType: "image/jpeg",
+					previewUrl: `https://media.example/provider-${index + 1}.jpg`,
+				})),
+			},
+		});
+		const editable = await mount([block("a", "Intro.")]);
+		const dialog = await typeImageCommand(editable);
+		await click(await sourceTab(dialog, "Cloudflare Images"));
+		await vi.waitFor(() => expect(count(dialog)).toBe("Showing 1–9 of 12"));
+
+		await click(dialog.querySelector('[aria-label="Next page"]')!);
+
+		expect(count(dialog)).toBe("Showing 10–12 of 12");
+		expect(
+			Array.from(dialog.querySelectorAll('[role="option"]'), (tile) =>
+				tile.getAttribute("aria-label"),
+			),
+		).toEqual(["provider-10.jpg", "provider-11.jpg", "provider-12.jpg"]);
+		expect(requests.filter((url) => url.startsWith("/_emdash/api/media/providers/"))).toHaveLength(
+			1,
+		);
+	});
 
 	it("replaces an image, keeping its caption and taking the new image's alt text", async () => {
 		stubMedia();
@@ -602,6 +670,37 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		});
 		expect(blocks[1]).not.toHaveProperty("title");
 		expect(toolbar.isConnected).toBe(true);
+	});
+
+	it("leaves an image as it was when Replace chooses the image it shows", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro."), IMAGE_BLOCK]);
+		const toolbar = await selectImage(editable);
+		await click(toolbarButton(toolbar, "Replace"));
+		const dialog = await picker("Replace image");
+
+		await click(await option(dialog, "IMG_2034.jpg (current image)"));
+
+		expect(dialog.isConnected).toBe(false);
+		const image = editable.querySelector("figure.emdash-image img")!;
+		expect(image.getAttribute("alt")).toBe("The old picture");
+		expect(image.getAttribute("title")).toBe("Old title");
+	});
+
+	it("keeps a replaced image's display width, in the new image's shape", async () => {
+		stubMedia({ library: [{ ...LIBRARY[1]!, width: 800, height: 1200 }] });
+		const editable = await mount([
+			block("a", "Intro."),
+			{ ...IMAGE_BLOCK, displayWidth: 600, displayHeight: 400 },
+		]);
+		const toolbar = await selectImage(editable);
+		await click(toolbarButton(toolbar, "Replace"));
+
+		await click(await option(await picker("Replace image"), "photo-2.jpg"));
+
+		const blocks = await savedBlocks();
+		expect(blocks[1]).toMatchObject({ width: 800, height: 1200, displayWidth: 600 });
+		expect(blocks[1]).not.toHaveProperty("displayHeight");
 	});
 
 	it("goes from the Replace picker to the alt text field, keeping the toolbar", async () => {
@@ -700,5 +799,38 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 		const blocks = await saved(editable);
 		expect(blocks[0]).toMatchObject({ _type: "image", caption: "Morning light" });
+	});
+
+	it("selects an image a finger taps, but not one it scrolls the page from", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro."), IMAGE_BLOCK]);
+		const editor = editorOf(editable);
+		await act(async () => {
+			editor.commands.setTextSelection(endOf(editor, "Intro."));
+			editor.view.focus();
+		});
+		const image = editable.querySelector<HTMLElement>("figure.emdash-image img")!;
+		const touch = (type: string) => {
+			const event = new MouseEvent(type, { bubbles: true, cancelable: true });
+			Object.defineProperties(event, {
+				pointerType: { value: "touch" },
+				isPrimary: { value: true },
+			});
+			image.dispatchEvent(event);
+		};
+
+		// The browser takes over a finger that moves, to scroll the page.
+		await act(async () => {
+			touch("pointerdown");
+			touch("pointercancel");
+		});
+		expect(editable.querySelector(".ProseMirror-selectednode")).toBeNull();
+
+		await act(async () => {
+			touch("pointerdown");
+			touch("pointerup");
+			image.click();
+		});
+		expect(editable.querySelector(".ProseMirror-selectednode")).not.toBeNull();
 	});
 });

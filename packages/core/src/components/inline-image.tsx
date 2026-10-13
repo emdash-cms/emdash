@@ -139,13 +139,20 @@ export function insertImage(editor: Editor, position: number, image: ChosenImage
 /**
  * Shows another image in the image at `position`. The caption belongs to its
  * place in the post, so it stays; the alt text and title described the old
- * picture, so they come from the new one.
+ * picture, so they come from the new one. A display width and height
+ * together have the old picture's shape, so only the width stays.
  */
 export function replaceImage(editor: Editor, position: number, image: ChosenImage) {
 	editor.commands.command(({ tr }) => {
 		const node = tr.doc.nodeAt(position);
 		if (node?.type.name !== "image") return false;
-		tr.setNodeMarkup(position, undefined, { ...node.attrs, ...image, title: null });
+		const displayHeight = node.attrs.displayWidth ? null : node.attrs.displayHeight;
+		tr.setNodeMarkup(position, undefined, {
+			...node.attrs,
+			...image,
+			title: null,
+			displayHeight,
+		});
 		tr.setSelection(NodeSelection.create(tr.doc, position));
 		return true;
 	});
@@ -156,6 +163,12 @@ function setNodeViewDraggable(event: React.PointerEvent<HTMLTextAreaElement>, dr
 	if (event.pointerType !== "mouse") return;
 	const nodeView = event.currentTarget.closest<HTMLElement>("[draggable]");
 	if (nodeView) nodeView.draggable = draggable;
+}
+
+// TipTap keeps drags over the image from the editor, which accepts a dragged file
+// only to refuse it on drop. A file dropped where nothing accepted it opens in the tab.
+function keepFileDragInEditor(event: React.DragEvent) {
+	if (event.dataTransfer.types.includes("Files")) event.preventDefault();
 }
 
 /** The image as Image.astro publishes it, with its caption as a field. */
@@ -188,6 +201,11 @@ function InlineImageView({ node, editor, getPos, updateAttributes }: NodeViewPro
 		const position = getPos();
 		if (typeof position === "number") editor.commands.setNodeSelection(position);
 	};
+	const selectFromPointer = (event: React.MouseEvent) => {
+		// The caption selects the image once it has focus, so the toolbar sees that focus.
+		if (event.target instanceof Element && event.target.closest("figcaption")) return;
+		select();
+	};
 
 	const onCaptionKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -215,11 +233,14 @@ function InlineImageView({ node, editor, getPos, updateAttributes }: NodeViewPro
 			as="figure"
 			className={alignment ? `emdash-image emdash-image--align-${alignment}` : "emdash-image"}
 			onPointerDown={(event: React.PointerEvent) => {
-				if (!event.isPrimary || event.button !== 0) return;
-				// The caption selects the image once it has focus, so the toolbar sees that focus.
-				if (event.target instanceof Element && event.target.closest("figcaption")) return;
-				select();
+				// A finger pressing on the image may be scrolling the page, so a tap selects it on click.
+				if (event.pointerType === "mouse" && event.isPrimary && event.button === 0) {
+					selectFromPointer(event);
+				}
 			}}
+			onClick={selectFromPointer}
+			onDragEnter={keepFileDragInEditor}
+			onDragOver={keepFileDragInEditor}
 		>
 			<img
 				src={src}
@@ -461,6 +482,11 @@ export function InlineImageToolbar({
 		setReplacing(false);
 	};
 	const replace = (chosen: ChosenImage) => {
+		// The image it already shows keeps the alt text and title written for it.
+		if (chosen.mediaId === image.mediaId && chosen.provider === image.provider) {
+			closeReplace();
+			return;
+		}
 		if (image.position !== null) replaceImage(editor, image.position, chosen);
 		closeReplace();
 		onReplaced();

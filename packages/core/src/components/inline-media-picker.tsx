@@ -255,10 +255,13 @@ function useListing(source: Source, page: number) {
 		return () => controller.abort();
 		// `key` stands for everything the request depends on.
 	}, [key]);
+	const listing = result?.listing?.sourceId === source.id ? result.listing : undefined;
+	// A failed refresh of the images on show, as on coming back to the tab, leaves them there.
+	const showsPage = listing !== undefined && (!fromLibrary || listing.page === page);
 	return {
-		listing: result?.listing?.sourceId === source.id ? result.listing : undefined,
+		listing,
 		loading: result?.key !== key,
-		failed: result?.key === key && result.failed === true,
+		failed: result?.key === key && result.failed === true && !showsPage,
 		retry: () => setAttempt((count) => count + 1),
 	};
 }

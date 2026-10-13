@@ -764,6 +764,32 @@ test.describe("Inline Editor", () => {
 		});
 	});
 
+	test("refuses a file dropped on an image or its caption", async ({ page }) => {
+		await stubSaves(page);
+		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
+		const image = page.locator(".emdash-inline-editor figure.emdash-image");
+		await expect(image).toBeVisible({ timeout: 15000 });
+
+		for (const target of [image.locator("img"), image.locator("textarea")]) {
+			const prevented = await target.evaluate((element) => {
+				const transfer = new DataTransfer();
+				transfer.items.add(new File(["image"], "drop.png", { type: "image/png" }));
+				return ["dragenter", "dragover", "drop"].map((type) => {
+					const event = new DragEvent(type, {
+						bubbles: true,
+						cancelable: true,
+						dataTransfer: transfer,
+					});
+					element.dispatchEvent(event);
+					return event.defaultPrevented;
+				});
+			});
+			// The browser opens a file dropped where the page didn't take the drag.
+			expect(prevented).toEqual([true, true, true]);
+		}
+		await expect(page.getByRole("status")).toContainText("Type /image");
+	});
+
 	test("shows file-transfer guidance in Arabic with RTL direction", async ({ page }) => {
 		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
 
