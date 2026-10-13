@@ -368,7 +368,7 @@ The magic-link and self-signup forms send email to any address typed into them. 
 
 </Steps>
 
-The check applies only when both keys are set. The secret key alone enables Turnstile for [comments](/reference/configuration/#environment-variables) but not for sign-in. The admin's Content Security Policy allows `https://challenges.cloudflare.com` only while the check is enabled. Scripts and other clients that call these endpoints directly must send a `turnstileToken` in the request body.
+The check applies only when both keys are set. The secret key alone enables Turnstile for [comments](/reference/configuration/#environment-variables) but not for sign-in. While the check is enabled, the admin's Content Security Policy adds `https://challenges.cloudflare.com` to `script-src`. Its iframe is already allowed, because `frame-src` accepts any HTTPS origin. Scripts and other clients that call these endpoints directly must send a `turnstileToken` in the request body.
 
 <Aside type="caution">
 	If the two keys belong to different widgets, the admin hostname is missing from the widget, or Turnstile can't be reached, every email sign-in and signup fails. Passkey sign-in keeps working. To restore email sign-in, remove `EMDASH_TURNSTILE_SITE_KEY` and redeploy.
