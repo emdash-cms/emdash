@@ -1,5 +1,6 @@
 import type { PluginContext } from "emdash";
 
+import { isSavedConfig } from "./config.js";
 import { failureOf, type Indexer, shouldBackOff } from "./indexer.js";
 import type { ItemState } from "./ingestion.js";
 import { updateKv } from "./kv.js";
@@ -63,11 +64,15 @@ export async function queueRetries(ctx: RetryContext, failures: Failure[]): Prom
 				nextAt: attempts < MAX_ATTEMPTS ? now + FIRST_DELAY_MS * 2 ** (attempts - 1) : null,
 			});
 		}
-		const all = [...items.values()];
-		const overflow = Math.max(0, all.length - MAX_QUEUED);
-		return { items: all.slice(overflow), dropped: (queue?.dropped ?? 0) + overflow };
+		return capped(queue, [...items.values()]);
 	});
 	await scheduleRetries(ctx);
+}
+
+/** The queue holding `items`, dropping the oldest beyond `MAX_QUEUED`. */
+function capped(queue: RetryQueue | null, items: RetryItem[]): RetryQueue {
+	const overflow = Math.max(0, items.length - MAX_QUEUED);
+	return { items: items.slice(overflow), dropped: (queue?.dropped ?? 0) + overflow };
 }
 
 const scheduleRetries = (ctx: RetryContext) => ctx.cron?.schedule(RETRY, { schedule: "* * * * *" });
@@ -76,10 +81,16 @@ const hasPending = (queue: RetryQueue) => queue.items.some((item) => item.nextAt
 
 export type RetryOutcome = "synced" | "failed" | "busy";
 
-/** Syncs a record again, removing it from the queue on success. */
+type RetryIndexer = Pick<Indexer, "config" | "syncRecord">;
+
+/**
+ * Syncs a record again, removing it from the queue on success. When the
+ * settings changed while it synced, leaves it queued for a run that loads the
+ * new ones and reports AI Search as busy.
+ */
 export async function retryRecord(
 	ctx: RetryContext,
-	indexer: Pick<Indexer, "syncRecord">,
+	indexer: RetryIndexer,
 	record: RecordRef,
 ): Promise<RetryOutcome> {
 	try {
@@ -89,8 +100,36 @@ export async function retryRecord(
 		await queueRetries(ctx, [{ source: record.source, id: record.id, ...failureOf(error) }]);
 		return "failed";
 	}
+	if (!(await isSavedConfig(ctx, indexer.config))) {
+		await retryNow(ctx, record);
+		return "busy";
+	}
 	await clearRetry(ctx, record);
 	return "synced";
+}
+
+/**
+ * Queues a record to be retried as soon as possible, without counting an
+ * attempt. Marks it failed now, so a build that synced it earlier does not
+ * clear it.
+ */
+async function retryNow(ctx: RetryContext, record: RecordRef): Promise<void> {
+	await updateKv<RetryQueue>(ctx, RETRY, (queue) => {
+		const now = Date.now();
+		const items = queue?.items ?? [];
+		const queued = items.find((item) => refKey(item) === refKey(record));
+		const item: RetryItem = {
+			error: "The settings changed while it was synced",
+			attempts: 0,
+			...queued,
+			source: record.source,
+			id: record.id,
+			failedAt: now,
+			nextAt: now,
+		};
+		return capped(queue, [...items.filter((other) => other !== queued), item]);
+	});
+	await scheduleRetries(ctx);
 }
 
 /** Removes a record from the queue once it has been synced. */
@@ -125,7 +164,7 @@ export async function clearSynced(
 /** Retries every record that is due, until `budgetMs` has passed or AI Search rate-limits. */
 export async function runRetries(
 	ctx: RetryContext,
-	indexer: Pick<Indexer, "syncRecord">,
+	indexer: RetryIndexer,
 	budgetMs: number,
 ): Promise<void> {
 	const deadline = Date.now() + budgetMs;

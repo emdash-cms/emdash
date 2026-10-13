@@ -19,12 +19,15 @@ function fakeCron() {
 	return { cron, scheduled };
 }
 
-function setup() {
+/** A post whose failures can be queued, with the indexer's settings saved. */
+async function setup() {
 	const post = entry();
 	const items = new FakeItems();
 	const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, config());
 	const { cron, scheduled } = fakeCron();
-	return { ctx: { kv: memoryKv(), cron }, scheduled, items, indexer, post };
+	const kv = memoryKv();
+	await kv.set("config", indexer.config);
+	return { ctx: { kv, cron }, scheduled, items, indexer, post };
 }
 
 describe("retries", () => {
@@ -34,7 +37,7 @@ describe("retries", () => {
 
 	it("waits longer after each failure and stops retrying automatically after five", async () => {
 		vi.useFakeTimers();
-		const { ctx, scheduled, items, indexer, post } = setup();
+		const { ctx, scheduled, items, indexer, post } = await setup();
 		items.failKeys.add("posts/entry-1.md");
 		await queueRetries(ctx, [{ source: "posts", id: post.id, error: "internal_error" }]);
 
@@ -60,7 +63,7 @@ describe("retries", () => {
 
 	it("leaves a rate-limited record queued without counting the attempt", async () => {
 		vi.useFakeTimers();
-		const { ctx, items, indexer, post } = setup();
+		const { ctx, items, indexer, post } = await setup();
 		await queueRetries(ctx, [{ source: "posts", id: post.id, error: "internal_error" }]);
 		items.rateLimitAfter = 0;
 		vi.advanceTimersByTime(MINUTE);
@@ -72,7 +75,7 @@ describe("retries", () => {
 
 	it("keeps the cron task when a failure is queued while the queue is emptying", async () => {
 		vi.useFakeTimers();
-		const { ctx, scheduled, indexer, post } = setup();
+		const { ctx, scheduled, indexer, post } = await setup();
 		await queueRetries(ctx, [{ source: "posts", id: post.id, error: "internal_error" }]);
 		vi.advanceTimersByTime(MINUTE);
 		const cancel = ctx.cron.cancel;
@@ -92,7 +95,7 @@ describe("retries", () => {
 	});
 
 	it("retries on request, even after automatic attempts ran out", async () => {
-		const { ctx, indexer, post } = setup();
+		const { ctx, indexer, post } = await setup();
 		const failure = { source: "posts", id: post.id, error: "internal_error" };
 		for (let attempt = 0; attempt < 5; attempt++) {
 			// oxlint-disable-next-line no-await-in-loop -- attempts must be counted in order
@@ -105,8 +108,33 @@ describe("retries", () => {
 		expect((await getRetryQueue(ctx)).items).toEqual([]);
 	});
 
+	it("keeps a record queued when the settings change while it is retried, and syncs it with the new ones", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		const { ctx, items, indexer, post } = await setup();
+		const failure = { source: "posts", id: post.id, error: "internal_error" };
+		for (let attempt = 0; attempt < 5; attempt++) {
+			// oxlint-disable-next-line no-await-in-loop -- attempts must be counted in order
+			await queueRetries(ctx, [failure]);
+		}
+		const changed = config({ sources: { posts: { ...config().sources.posts!, weight: 5 } } });
+		const upload = items.upload.bind(items);
+		items.upload = async (...args) => {
+			await ctx.kv.set("config", changed);
+			return upload(...args);
+		};
+
+		const outcome = await retryRecord(ctx, indexer, failure);
+		items.upload = upload;
+		const fresh = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, changed);
+		await runRetries(ctx, fresh, 10_000);
+
+		expect(outcome).toBe("busy");
+		expect(items.items.get("posts/entry-1.md")?.metadata).toMatchObject({ priority: "5" });
+		expect((await getRetryQueue(ctx)).items).toEqual([]);
+	});
+
 	it("keeps the newest failures and counts the ones it drops", async () => {
-		const { ctx } = setup();
+		const { ctx } = await setup();
 		const failures = Array.from({ length: 502 }, (_, i) => ({
 			source: "posts",
 			id: `entry-${i}`,

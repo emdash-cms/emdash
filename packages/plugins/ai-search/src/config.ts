@@ -43,6 +43,14 @@ export async function loadConfig(ctx: Pick<PluginContext, "kv">): Promise<Config
 	return ctx.kv.get<Config>("config");
 }
 
+/** Whether `config` is still the saved configuration. */
+export async function isSavedConfig(
+	ctx: Pick<PluginContext, "kv">,
+	config: Config,
+): Promise<boolean> {
+	return JSON.stringify(await loadConfig(ctx)) === JSON.stringify(config);
+}
+
 /** Applies `change` to the saved configuration without overwriting a concurrent save. */
 export function updateConfig(
 	ctx: Pick<PluginContext, "kv">,

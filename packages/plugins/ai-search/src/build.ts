@@ -1,6 +1,6 @@
 import type { PluginContext } from "emdash";
 
-import { type Config, loadConfig } from "./config.js";
+import { isSavedConfig } from "./config.js";
 import type { Indexer, SyncResult } from "./indexer.js";
 import { updateKv } from "./kv.js";
 import { clearSynced, queueRetries } from "./retry.js";
@@ -53,7 +53,7 @@ const FIRST_STEP: BuildStep = { phase: "snapshot", page: 1 };
 
 type BuildContext = Pick<PluginContext, "kv" | "cron">;
 
-type BuildIndexer = Pick<Indexer, "config" | "snapshotPage" | "syncPage" | "sweepPage">;
+type BuildIndexer = Pick<Indexer, "config" | "snapshotPage" | "syncPage" | "sweepPage" | "forget">;
 
 const updateBuild = (
 	ctx: BuildContext,
@@ -130,7 +130,7 @@ export async function runBuild(
 	let build = claimed;
 	try {
 		while (build.sources[0] && Date.now() < deadline) {
-			if (!(await isSaved(ctx, indexer.config))) break;
+			if (!(await isSavedConfig(ctx, indexer.config))) break;
 			const source = build.sources[0];
 			const pageStartedAt = Date.now();
 			const { page, next } = await advance(indexer, source, build.step);
@@ -144,6 +144,10 @@ export async function runBuild(
 				await queueRetries(
 					ctx,
 					page.failures.map((failure) => ({ source, ...failure })),
+				);
+				await indexer.forget(
+					source,
+					page.failures.map((failure) => failure.id),
 				);
 			}
 			const advanced = await updateBuild(ctx, (current) => {
@@ -182,10 +186,6 @@ export async function runBuild(
 		}
 	}
 	return getBuild(ctx);
-}
-
-async function isSaved(ctx: BuildContext, config: Config): Promise<boolean> {
-	return JSON.stringify(await loadConfig(ctx)) === JSON.stringify(config);
 }
 
 const NOTHING_SYNCED: SyncResult = { synced: [], uploaded: 0, failures: [], backOff: false };

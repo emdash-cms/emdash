@@ -14,7 +14,7 @@ function setup(records: Parameters<typeof fakeEmDash>[0], overrides = {}, warmin
 	return { items, indexer };
 }
 
-/** Snapshots a source's items, syncs its records, and sweeps the rest, as a build does. */
+/** Snapshots a source's items, syncs its records, and sweeps the rest, as a build does, forgetting failures as it queues them. */
 async function buildSource(indexer: Indexer, source: string) {
 	let page: number | undefined = 1;
 	while (page) ({ next: page } = await indexer.snapshotPage(source, page));
@@ -23,12 +23,20 @@ async function buildSource(indexer: Indexer, source: string) {
 	let cursor: string | undefined;
 	do {
 		const result = await indexer.syncPage(source, cursor);
+		await indexer.forget(
+			source,
+			result.failures.map((failure) => failure.id),
+		);
 		synced += result.synced.length;
 		uploaded += result.uploaded;
 		cursor = result.cursor;
 	} while (cursor);
 	for (;;) {
 		const sweep = await indexer.sweepPage(source);
+		await indexer.forget(
+			source,
+			sweep.failures.map((failure) => failure.id),
+		);
 		synced += sweep.synced.length;
 		uploaded += sweep.uploaded;
 		if (sweep.done) return { synced, uploaded };
@@ -67,6 +75,41 @@ describe("Indexer", () => {
 		await indexer.syncRecord("posts", post.id);
 
 		expect(items.items.has("posts/entry-1.md")).toBe(false);
+	});
+
+	it("removes an entry unpublished while its newer version was uploaded", async () => {
+		const post = entry();
+		const { items, indexer } = setup({ entries: [post] });
+		const upload = items.upload.bind(items);
+		let uploads = 0;
+		items.upload = async (...args) => {
+			const item = await upload(...args);
+			if (++uploads === 1) post.data = { ...post.data, title: "Hello again" };
+			else post.status = "draft";
+			return item;
+		};
+
+		await indexer.syncRecord("posts", post.id);
+
+		expect(uploads).toBe(2);
+		expect(items.items.has("posts/entry-1.md")).toBe(false);
+	});
+
+	it("leaves an entry that keeps changing while it syncs to a retry", async () => {
+		const post = entry();
+		const { items, indexer } = setup({ entries: [post] });
+		const upload = items.upload.bind(items);
+		let uploads = 0;
+		items.upload = async (...args) => {
+			const item = await upload(...args);
+			post.data = { ...post.data, title: `Edit ${++uploads}` };
+			return item;
+		};
+
+		const error = await indexer.syncRecord("posts", post.id).catch((caught: unknown) => caught);
+
+		expect(error).toBeInstanceOf(Error);
+		expect(failureOf(error)).toMatchObject({ leftover: "indexed" });
 	});
 
 	it("uploads the newer version of an entry edited while a build uploaded it", async () => {
@@ -324,6 +367,28 @@ describe("Indexer", () => {
 
 		expect(items.uploads).toBe(2);
 		expect(items.items.has("posts/entry-1.md")).toBe(true);
+	});
+
+	it("finds a record whose removal failed again when the sweep resumes", async () => {
+		const post = entry();
+		const { items, indexer } = setup({ entries: [post] });
+		await buildSource(indexer, "posts");
+		post.status = "draft";
+		const remove = items.delete.bind(items);
+		items.delete = async () => {
+			throw new Error("AiSearchError: internal_error");
+		};
+		await indexer.snapshotPage("posts", 1);
+		await indexer.syncPage("posts", undefined);
+
+		const failed = await indexer.sweepPage("posts");
+		items.delete = remove;
+		const resumed = await indexer.sweepPage("posts");
+
+		expect(failed.failures).toMatchObject([{ id: post.id }]);
+		expect(resumed).toMatchObject({ synced: [post.id], done: false });
+		expect(items.items.size).toBe(0);
+		expect((await indexer.sweepPage("posts")).done).toBe(true);
 	});
 
 	it("keeps syncing the rest of a page when one record fails", async () => {

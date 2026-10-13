@@ -2,9 +2,10 @@ import type { PluginContext } from "emdash";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "../src/build.js";
-import type { PageResult } from "../src/indexer.js";
+import { Indexer, type PageResult } from "../src/indexer.js";
 import { getRetryQueue, queueRetries } from "../src/retry.js";
-import { config, memoryKv } from "./fakes.js";
+import { FakeItems } from "./fake-ai-search.js";
+import { config, entry, fakeEmDash, memoryKv } from "./fakes.js";
 
 const CONFIG = config();
 
@@ -24,6 +25,7 @@ const sweepPage = async () => ({
 	backOff: false,
 	done: true,
 });
+const forget = async () => {};
 
 /** Serves one snapshot page and two pages of two records per source, recording the calls it receives. */
 function pagedIndexer(pageResult: Partial<PageResult> = {}) {
@@ -36,6 +38,7 @@ function pagedIndexer(pageResult: Partial<PageResult> = {}) {
 			return { backOff: false };
 		},
 		sweepPage,
+		forget,
 		syncPage: async (source: string, cursor: string | undefined): Promise<PageResult> => {
 			calls.push(`${source}:${cursor ?? "start"}`);
 			return {
@@ -64,6 +67,7 @@ describe("build", () => {
 			config: CONFIG,
 			snapshotPage,
 			sweepPage,
+			forget,
 			syncPage: async (source: string, cursor: string | undefined) => {
 				await new Promise((resolve) => setTimeout(resolve, 20));
 				return slow.syncPage(source, cursor);
@@ -116,6 +120,7 @@ describe("build", () => {
 			config: CONFIG,
 			snapshotPage,
 			sweepPage,
+			forget,
 			syncPage: async (source: string, cursor: string | undefined) => {
 				await blocked;
 				return other.syncPage(source, cursor);
@@ -153,6 +158,7 @@ describe("build", () => {
 			config: CONFIG,
 			snapshotPage,
 			sweepPage,
+			forget,
 			syncPage: async (_source: string, cursor: string | undefined): Promise<PageResult> => {
 				const build = await getBuild(ctx);
 				seen.push({ processed: build?.processed, failed: build?.failed });
@@ -203,6 +209,34 @@ describe("build", () => {
 		expect((await getRetryQueue(ctx)).items.map((item) => item.id)).toEqual(["c"]);
 	});
 
+	it("removes an unpublished entry when the sweep resumes after its failure could not be queued", async () => {
+		const ctx = await buildContext();
+		const post = entry();
+		const items = new FakeItems();
+		const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, CONFIG);
+		await startBuild(ctx, ["posts"]);
+		await runBuild(ctx, indexer, 10_000);
+		post.status = "draft";
+		const remove = items.delete.bind(items);
+		items.delete = async () => {
+			throw new Error("AiSearchError: internal_error");
+		};
+		const compareAndSet = ctx.kv.compareAndSet;
+		ctx.kv.compareAndSet = async (key, expected, value) => {
+			if (key === "retry") throw new Error("kv unavailable");
+			return compareAndSet(key, expected, value);
+		};
+
+		await startBuild(ctx, ["posts"]);
+		await expect(runBuild(ctx, indexer, 10_000)).rejects.toThrow("kv unavailable");
+		items.delete = remove;
+		ctx.kv.compareAndSet = compareAndSet;
+		await runBuild(ctx, indexer, 10_000);
+
+		expect(await getBuild(ctx)).toBeNull();
+		expect(items.items.size).toBe(0);
+	});
+
 	it("clears queued failures for the records it syncs, including those no longer retried", async () => {
 		vi.useFakeTimers({ toFake: ["Date"] });
 		const ctx = await buildContext();
@@ -232,6 +266,7 @@ describe("build", () => {
 			config: CONFIG,
 			snapshotPage,
 			sweepPage,
+			forget,
 			syncPage: async (): Promise<PageResult> => {
 				await queueRetries(ctx, [{ source: "posts", id: "a", error: "internal_error" }]);
 				return { synced: ["a"], uploaded: 1, failures: [], backOff: false };
@@ -265,6 +300,7 @@ describe("build", () => {
 			calls: 0,
 			snapshotPage,
 			sweepPage,
+			forget,
 			syncPage: async (): Promise<PageResult> => {
 				if (indexer.calls++ === 0) {
 					await startBuild(ctx, ["posts", "pages"]);
@@ -321,6 +357,7 @@ describe("build", () => {
 				return { next: page < 3 ? page + 1 : undefined, backOff: false };
 			},
 			sweepPage,
+			forget,
 			syncPage: async (): Promise<PageResult> => {
 				calls.push("sync");
 				return { synced: ["a"], uploaded: 1, failures: [], backOff: false };
@@ -345,6 +382,7 @@ describe("build", () => {
 		const indexer = {
 			config: CONFIG,
 			snapshotPage,
+			forget,
 			syncPage: async (source: string): Promise<PageResult> => {
 				calls.push(`${source}:sync`);
 				return { synced: ["a"], uploaded: 1, failures: [], backOff: false };

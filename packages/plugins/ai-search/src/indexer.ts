@@ -28,6 +28,9 @@ const PAGE_SIZE = 50;
 /** Records synced at once. Each one waits on several AI Search and database calls. */
 const CONCURRENCY = 10;
 
+/** Writes a sync makes after its first to follow a record that keeps changing. */
+const MAX_RECHECKS = 3;
+
 export interface IndexerDeps extends SourceDeps {
 	items: Pick<AiSearchItems, "list" | "upload" | "delete">;
 	snapshot: SnapshotStore;
@@ -195,9 +198,20 @@ export class Indexer {
 	}
 
 	/**
+	 * Drops records' rows from the source's snapshot. A build calls this for a
+	 * page's failures once they are queued for retry, so a page whose failures
+	 * could not be queued finds them again when it runs again.
+	 */
+	async forget(source: string, ids: string[]): Promise<void> {
+		if (ids.length === 0) return;
+		await this.deps.snapshot.deleteMany(ids.map((id) => documentKey(source, id)));
+	}
+
+	/**
 	 * Applies each record's plan, then drops the snapshot rows of the records
-	 * attempted. After a rate limit the caller retries the same records, so only
+	 * synced. After a rate limit the caller retries the same records, so only
 	 * the rows of removed items go: the rest still describe what AI Search holds.
+	 * Rows of failed records stay until the caller `forget`s them.
 	 */
 	private async reconcile(
 		source: string,
@@ -209,10 +223,7 @@ export class Indexer {
 			(record) => record.id,
 			async (record) => this.apply(source, record.id, await record.plan(), snapshot),
 		);
-		const done = result.backOff
-			? removed
-			: [...result.synced, ...result.failures.map((failure) => failure.id)];
-		await this.deps.snapshot.deleteMany(done.map((id) => documentKey(source, id)));
+		await this.forget(source, result.backOff ? removed : result.synced);
 		return result;
 	}
 
@@ -226,43 +237,58 @@ export class Indexer {
 		if (typeof plan === "string") {
 			if (plan === "no-url")
 				console.warn(`[ai-search] ${source}/${id} has no public URL; not indexed`);
-			return this.remove(documentKey(source, id), snapshot);
+			const item = await this.existing(documentKey(source, id), snapshot);
+			if (!item) return "unchanged";
+			await this.write(item, () => this.deps.items.delete(item.itemId));
+			await this.recheck(source, id, null);
+			return "removed";
 		}
 		const existing = await this.existing(plan.key, snapshot);
 		if (existing && !existing.failed && existing.hash === plan.metadata.hash) {
 			return "unchanged";
 		}
 		const item = await this.upload(plan, existing);
-		await this.recheck(source, id, plan, item);
+		await this.recheck(source, id, { document: plan, item });
 		return "uploaded";
 	}
 
 	/**
-	 * Applies the record's current plan if it changed while `uploaded` was in
-	 * flight. A hook for the change may already have run and found nothing to
-	 * update, so otherwise the older version would stay in search.
+	 * Applies the record's current plan for as long as it keeps changing while
+	 * the previous write was in flight. A hook for the change may already have
+	 * run and found nothing to update, so otherwise the older state would stay
+	 * in search. Throws once the record has changed `MAX_RECHECKS` times, so the
+	 * caller queues it for retry.
 	 */
 	private async recheck(
 		source: string,
 		id: string,
-		uploaded: SearchDocument,
-		item: AiSearchItemInfo,
+		written: { document: SearchDocument; item: AiSearchItemInfo } | null,
 	): Promise<void> {
-		const latest = await this.plan(source, id);
-		if (typeof latest !== "string" && latest.metadata.hash === uploaded.metadata.hash) return;
-		const current = toIndexedItem(item);
-		if (typeof latest === "string") {
-			await this.write(current, () => this.deps.items.delete(item.id));
-		} else {
-			await this.upload(latest, current);
+		for (let rewrites = 0; ; rewrites++) {
+			// oxlint-disable-next-line no-await-in-loop -- each check follows the previous write
+			const latest = await this.plan(source, id);
+			const settled =
+				typeof latest === "string"
+					? !written
+					: latest.metadata.hash === written?.document.metadata.hash;
+			if (settled) return;
+			const current = written ? toIndexedItem(written.item) : null;
+			if (rewrites === MAX_RECHECKS) {
+				throw new WriteError(
+					new Error("The record kept changing while it was synced"),
+					current?.state,
+				);
+			}
+			if (typeof latest !== "string") {
+				// oxlint-disable-next-line no-await-in-loop -- each write follows the previous check
+				written = { document: latest, item: await this.upload(latest, current) };
+			} else if (written) {
+				const { item } = written;
+				// oxlint-disable-next-line no-await-in-loop -- each write follows the previous check
+				await this.write(current, () => this.deps.items.delete(item.id));
+				written = null;
+			}
 		}
-	}
-
-	private async remove(key: string, snapshot?: Map<string, IndexedItem>): Promise<Outcome> {
-		const item = await this.existing(key, snapshot);
-		if (!item) return "unchanged";
-		await this.write(item, () => this.deps.items.delete(item.itemId));
-		return "removed";
 	}
 
 	private async upload(
