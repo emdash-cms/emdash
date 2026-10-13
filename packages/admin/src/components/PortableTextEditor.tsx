@@ -132,7 +132,11 @@ import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
-import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
+import {
+	canonicalMediaProviderId,
+	dropsDisplayHeight,
+	localMediaFileUrl,
+} from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -5815,11 +5819,17 @@ function ImageBubbleMenu({
 					setPickerOpen(open);
 				}}
 				onSelect={(item) => {
-					if (!getSelectedImage(editor.state)) return;
+					const selected = getSelectedImage(editor.state);
+					if (!selected) return;
 					if (canonicalMediaProviderId(item.provider) === "local") {
 						queryClient.setQueryData(["media", item.id], item);
 					}
-					const attrs = { ...mediaItemToImageAttrs(item), caption: undefined, title: undefined };
+					const attrs = {
+						...mediaItemToImageAttrs(item),
+						caption: undefined,
+						title: undefined,
+						...(dropsDisplayHeight(selected.node.attrs, item) ? { displayHeight: undefined } : {}),
+					};
 					editor.chain().updateAttributes("image", attrs).run();
 				}}
 				mimeTypeFilter="image/"
