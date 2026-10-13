@@ -141,6 +141,21 @@ function existingByKey(value: unknown, path: string): Map<string, Record<string,
 	return result;
 }
 
+function inferredBlockType(
+	field: Field,
+	block: Record<string, unknown>,
+	previous: Record<string, unknown> | undefined,
+	options: BlockWriteOptions,
+): unknown {
+	const allowedTypes = field.validation?.allowedTypes ?? [];
+	return block._type === undefined &&
+		!options.restoreBlocks &&
+		allowedTypes.length === 1 &&
+		(!previous || previous._type === allowedTypes[0])
+		? allowedTypes[0]
+		: block._type;
+}
+
 function normalizeBlockArray(
 	field: Field,
 	value: unknown,
@@ -157,8 +172,7 @@ function normalizeBlockArray(
 		validationError(path, `must contain at most ${maxItems} blocks`);
 	}
 
-	const allowedTypes = field.validation?.allowedTypes ?? [];
-	const allowed = new Set(allowedTypes);
+	const allowed = new Set(field.validation?.allowedTypes ?? []);
 	const retired = new Set(field.validation?.retiredTypes ?? []);
 	const existing = existingByKey(existingValue, path);
 	const incomingKeyCount = value.filter(
@@ -176,13 +190,7 @@ function normalizeBlockArray(
 		const blockPath = `${path}[${index}]`;
 		if (!isRecord(rawBlock)) validationError(blockPath, "must be an object");
 		const previous = typeof rawBlock._key === "string" ? existing.get(rawBlock._key) : undefined;
-		const blockTypeSlug =
-			rawBlock._type === undefined &&
-			!options.restoreBlocks &&
-			allowedTypes.length === 1 &&
-			(!previous || previous._type === allowedTypes[0])
-				? allowedTypes[0]
-				: rawBlock._type;
+		const blockTypeSlug = inferredBlockType(field, rawBlock, previous, options);
 		if (typeof blockTypeSlug !== "string" || blockTypeSlug.length === 0) {
 			validationError(`${blockPath}._type`, "must be a block type slug");
 		}
@@ -306,4 +314,43 @@ export async function normalizeBlocksData(
 		);
 	}
 	return normalized;
+}
+
+/**
+ * Fill in the `_type` an ordinary write infers for blocks that omit it, so
+ * `content:beforeSave` hooks see the type the block will be stored with.
+ * `loadExistingData` is only called when some block omits `_type`.
+ */
+export async function inferBlockTypes(
+	collection: CollectionWithFields,
+	data: Record<string, unknown>,
+	loadExistingData: () => Promise<Record<string, unknown> | undefined>,
+): Promise<Record<string, unknown>> {
+	const untyped = collection.fields.flatMap((field) => {
+		const value = data[field.slug];
+		return field.type === "blocks" &&
+			Array.isArray(value) &&
+			value.some((block) => isRecord(block) && block._type === undefined)
+			? [{ field, value }]
+			: [];
+	});
+	if (untyped.length === 0) return data;
+	const existingData = (await loadExistingData()) ?? {};
+	const inferred = { ...data };
+	for (const { field, value } of untyped) {
+		const stored = existingData[field.slug];
+		inferred[field.slug] = value.map((block: unknown) => {
+			if (!isRecord(block)) return block;
+			const previous =
+				Array.isArray(stored) && typeof block._key === "string"
+					? stored.find(
+							(candidate: unknown): candidate is Record<string, unknown> =>
+								isRecord(candidate) && candidate._key === block._key,
+						)
+					: undefined;
+			const type = inferredBlockType(field, block, previous, {});
+			return type === block._type ? block : { ...block, _type: type };
+		});
+	}
+	return inferred;
 }

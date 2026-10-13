@@ -138,6 +138,7 @@ import type {
 } from "./plugins/types.js";
 import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
+import { inferBlockTypes } from "./schema/block-values.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
 import { isStoragelessField, isStoragelessFieldRow } from "./schema/types.js";
 import type { CollectionWithFields } from "./schema/types.js";
@@ -3517,12 +3518,21 @@ export class EmDashRuntime {
 			...(body.translationOf ? { translationOf: body.translationOf } : {}),
 		};
 
+		const collectionInfo = await this.schemaRegistry
+			.getCollectionWithFields(collection)
+			.catch(() => null);
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
+			const hookData = collectionInfo
+				? await inferBlockTypes(collectionInfo, body.data, () =>
+						Promise.resolve(translationSource?.data),
+					)
+				: body.data;
 			try {
 				const hookResult = await this.hooks.runContentBeforeSave(
-					body.data,
+					hookData,
 					collection,
 					true,
 					undefined,
@@ -3545,9 +3555,6 @@ export class EmDashRuntime {
 				}
 			}
 		}
-		const collectionInfo = await this.schemaRegistry
-			.getCollectionWithFields(collection)
-			.catch(() => null);
 		const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
 			? await resolveBlockTypes(this.db)
 			: undefined;
@@ -3728,9 +3735,20 @@ export class EmDashRuntime {
 		let resolvedBlockTypes: Awaited<ReturnType<typeof resolveBlockTypes>> | undefined;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
+				const hookData = collectionInfo
+					? await inferBlockTypes(collectionInfo, bodyWithoutRev.data, async () => {
+							if (resolvedItem?.draftRevisionId && collectionInfo.supports?.includes("revisions")) {
+								const draft = await new RevisionRepository(this.db).findById(
+									resolvedItem.draftRevisionId,
+								);
+								return draft?.data ?? resolvedItem.data;
+							}
+							return resolvedItem?.data;
+						})
+					: bodyWithoutRev.data;
 				try {
 					const hookResult = await this.hooks.runContentBeforeSave(
-						bodyWithoutRev.data,
+						hookData,
 						collection,
 						false,
 						resolvedItem?.id,

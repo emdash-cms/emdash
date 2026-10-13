@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { normalizeBlocksData } from "../../../src/schema/block-values.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -111,6 +112,55 @@ describeEachDialect("blocks content semantics", (dialect) => {
 		if (updated.success) {
 			expect(updated.data.item.data.layout).toEqual([{ ...original, heading: "After" }]);
 		}
+	});
+
+	it("shows beforeSave hooks the type a write infers", async () => {
+		const seen: unknown[] = [];
+		const hooked = createTestRuntime(ctx.db, {
+			plugins: [
+				definePlugin({
+					id: "block-audit",
+					version: "1.0.0",
+					capabilities: ["content:write"],
+					hooks: {
+						"content:beforeSave": {
+							handler: async (event) => {
+								seen.push(event.content.layout);
+							},
+						},
+					},
+				}),
+			],
+		});
+		const created = await hooked.handleContentCreate("pages", {
+			slug: "home",
+			data: { layout: [{ heading: "Before" }] },
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+		const original = (created.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+		const edited: Record<string, unknown> = { ...original, heading: "After" };
+		delete edited._type;
+		const updated = await hooked.handleContentUpdate("pages", created.data.item.id, {
+			data: { layout: [edited, { heading: "Added" }] },
+		});
+		expect(updated.success).toBe(true);
+		if (!updated.success) return;
+		const added = (updated.data.item.data.layout as Array<Record<string, unknown>>)[1]!;
+		await schema.updateField("pages", "layout", { validation: { allowedTypes: ["banner"] } });
+		const retyped = await hooked.handleContentUpdate("pages", created.data.item.id, {
+			data: { layout: [{ _key: added._key, text: "Different type" }] },
+		});
+		expect(retyped).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+
+		expect(seen).toEqual([
+			[{ _type: "hero", heading: "Before" }],
+			[
+				{ ...original, heading: "After" },
+				{ _type: "hero", heading: "Added" },
+			],
+			[{ _key: added._key, text: "Different type" }],
+		]);
 	});
 
 	it.each([null, ""])("rejects an explicitly invalid block type: %j", async (blockType) => {
