@@ -223,6 +223,16 @@ interface PluginMediaItem {
 const SPACE_PATTERN = /\s/g;
 
 /**
+ * Identifying User-Agent for outbound WordPress plugin importer requests.
+ *
+ * The importer sends this on both plugin API calls and direct media downloads.
+ * Cloudflare Workers' fetch() has no default User-Agent, and some hosts reject
+ * requests without one (returning 403). Using the same value everywhere keeps
+ * behavior predictable when the importer is retried against a bot-filtered host.
+ */
+const IMPORTER_USER_AGENT = "EmDash-Importer/1.0";
+
+/**
  * Build the REST API URL for a plugin endpoint.
  *
  * `restRoute: false` uses the pretty form (`/wp-json/emdash/v1/...`),
@@ -260,9 +270,12 @@ async function fetchPluginApi(
 	siteUrl: string,
 	path: string,
 	params: Record<string, string>,
-	headers: HeadersInit,
+	headersInit: HeadersInit,
 	timeoutMs: number,
 ): Promise<Response> {
+	const headers = new Headers(headersInit);
+	headers.set("User-Agent", IMPORTER_USER_AGENT);
+
 	let pretty: Response | null = null;
 	try {
 		pretty = await ssrfSafeFetch(pluginApiUrl(siteUrl, path, params), {
@@ -531,7 +544,11 @@ export const wordpressPluginSource: ImportSource = {
 		validateExternalUrl(url);
 
 		// Media URLs are publicly accessible on WP (ssrfSafeFetch validates redirects)
-		const response = await ssrfSafeFetch(url);
+		const response = await ssrfSafeFetch(url, {
+			headers: {
+				"User-Agent": IMPORTER_USER_AGENT,
+			},
+		});
 		if (!response.ok) {
 			throw new Error(`Failed to fetch media: ${response.statusText}`);
 		}

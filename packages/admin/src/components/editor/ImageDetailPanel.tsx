@@ -30,7 +30,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
-import { canonicalMediaProviderId, metaString } from "../../lib/media-utils.js";
+import { canonicalMediaProviderId, dropsDisplayHeight, metaString } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { FieldHelpLabel } from "../FieldHelpLabel.js";
@@ -219,6 +219,7 @@ export function ImageDetailPanel({
 			// Clear caption/title since it's a new image
 			caption: undefined,
 			title: undefined,
+			...(dropsDisplayHeight(asset, item) ? { displayHeight: undefined } : {}),
 		});
 		setShowMediaPicker(false);
 		onClose();

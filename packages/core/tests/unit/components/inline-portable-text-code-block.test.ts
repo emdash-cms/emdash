@@ -45,9 +45,11 @@ describe("inline Portable Text code blocks", () => {
 				field: "body",
 			}),
 		);
-		await vi.waitFor(() => expect(element.querySelector(".emdash-inline-editor")).not.toBeNull(), {
-			timeout: 3000,
-		});
+		// The code block's controls render after the editor, through TipTap's node view portal.
+		await vi.waitFor(
+			() => expect(element.querySelector(".emdash-inline-code-block-controls-wrap")).not.toBeNull(),
+			{ timeout: 3000 },
+		);
 	}
 
 	it("renders syntax tokens for a supported language", async () => {
