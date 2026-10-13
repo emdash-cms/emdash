@@ -1,0 +1,37 @@
+.changeset/calendar-drag-week-view.md
+  s_5531044b240ab8::t_c18a8e6356759d 10,16-18
+docs/src/content/docs/guides/working-with-content.mdx
+  s_5531044b240ab8::t_6818f4c89fae11 241-242
+packages/admin/src/components/calendar/CalendarDrafts.tsx
+  s_5531044b240ab8::t_13aec2341d46b6 10-15,45-46,49,53
+packages/admin/src/components/calendar/CalendarDrag.tsx
+  s_5531044b240ab8::t_9fcd9f78bf04a0 4-5,11,14,16,42-48,63-67,72-75,116-121,125-126,128-129,132-141,143-178,194,196,203
+packages/admin/src/components/calendar/CalendarEntry.tsx
+  s_5531044b240ab8::t_9dcdc0f284cda9 350-351,389
+packages/admin/src/components/calendar/CalendarQuickCreate.tsx
+  s_5531044b240ab8::t_e7d8f21e9b770d 7-12,136-137,139,162,164-171,174,189,199
+packages/admin/src/components/calendar/CalendarWeek.tsx
+  s_5531044b240ab8::t_a2a3fb7e7fd1c9 245
+packages/admin/src/lib/calendar.ts
+  s_5531044b240ab8::t_48d93619f708ba 54-58,65
+packages/admin/src/routes/calendar.tsx
+  s_5531044b240ab8::t_66724a2cc0f974 110-113,115-118,121-122,124-129,140-141,312,314,422,432-435,478,484-485,494-495,529-534
+packages/admin/tests/routes/calendar.test.tsx
+  s_5531044b240ab8::t_3de6a8ba45e2ac 182,187,194-199,221-262,333-382,408,413,431-432,441-457,469-473
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1b258d004bf8d39c1dc8d8ec9bf85d237b5f3015",
+  "prompts": {},
+  "sessions": {
+    "s_5531044b240ab8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b02a171-9277-4036-b4b4-a26ab647f3a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
