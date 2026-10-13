@@ -365,12 +365,16 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 	it("inserts the chosen image and saves it, without the file name as its alt text", async () => {
 		stubMedia();
-		const editable = await mount([block("a", "Intro.")]);
-		const dialog = await typeImageCommand(editable);
+		const editable = await mount([block("a", "Intro."), block("b", "After.")]);
+		const dialog = await typeImageCommand(editable, (editor) => {
+			editor.commands.setTextSelection(endOf(editor, "Intro."));
+			editor.commands.splitBlock();
+		});
 
 		await click(await option(dialog, "IMG_2034.jpg"));
 
 		const blocks = await savedBlocks();
+		expect(blocks).toHaveLength(3);
 		expect(blocks[0]).toMatchObject({ _type: "block", children: [{ text: "Intro." }] });
 		expect(blocks[1]).toMatchObject({
 			_type: "image",
@@ -379,6 +383,7 @@ describe("inline Portable Text image picker and image toolbar", () => {
 			height: 800,
 		});
 		expect(blocks[1]).not.toHaveProperty("alt");
+		expect(blocks[2]).toMatchObject({ _type: "block", children: [{ text: "After." }] });
 		expect(dialog.isConnected).toBe(false);
 	});
 
@@ -507,16 +512,22 @@ describe("inline Portable Text image picker and image toolbar", () => {
 		expect(document.activeElement).toBe(editable);
 	});
 
-	it("closes the picker when focus moves elsewhere on the page", async () => {
+	it("closes the picker when focus moves elsewhere on the page, saving the editor", async () => {
 		stubMedia();
 		const editable = await mount([block("a", "Intro.")]);
-		const dialog = await typeImageCommand(editable);
+		const dialog = await typeImageCommand(editable, (editor) => {
+			editor.commands.setTextSelection(endOf(editor, "Intro."));
+			editor.commands.insertContent(" More.");
+			editor.commands.splitBlock();
+		});
 		await firstImageFocused(dialog);
 		const outside = elsewhere();
 
 		await act(async () => outside.focus());
 
 		expect(dialog.isConnected).toBe(false);
+		const blocks = await savedBlocks();
+		expect(blocks[0]).toMatchObject({ children: [{ text: "Intro. More." }] });
 		outside.remove();
 	});
 
@@ -817,6 +828,51 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 		const blocks = await saved(editable);
 		expect(blocks[0]).toMatchObject({ _type: "image", caption: "Morning light" });
+	});
+
+	it("starts a paragraph after the image on Enter in its caption", async () => {
+		stubMedia();
+		const editable = await mount([IMAGE_BLOCK, block("a", "After.")]);
+		const caption = editable.querySelector<HTMLTextAreaElement>("figcaption textarea")!;
+		await act(async () => caption.focus());
+
+		await act(async () => press(caption, "Enter"));
+		await act(async () => editorOf(editable).commands.insertContent("New line."));
+
+		const blocks = await saved(editable);
+		expect(blocks).toMatchObject([
+			{ _type: "image", caption: "Morning light" },
+			{ _type: "block", children: [{ text: "New line." }] },
+			{ _type: "block", children: [{ text: "After." }] },
+		]);
+	});
+
+	it("goes from a selected image to its caption with Tab, and back with Escape", async () => {
+		stubMedia();
+		const editable = await mount([block("a", "Intro."), IMAGE_BLOCK]);
+		await selectImage(editable);
+		const caption = editable.querySelector<HTMLTextAreaElement>("figcaption textarea")!;
+
+		await act(async () => press(editable, "Tab"));
+		expect(document.activeElement).toBe(caption);
+
+		await act(async () => press(caption, "Escape"));
+		expect(document.activeElement).toBe(editable);
+	});
+
+	it("deletes an image from its toolbar", async () => {
+		stubMedia();
+		const editable = await mount([IMAGE_BLOCK, block("a", "After.")]);
+		const toolbar = await selectImage(editable);
+		const deleteButton = toolbarButton(toolbar, "Delete image");
+		await act(async () => deleteButton.focus());
+
+		await click(deleteButton);
+
+		expect(document.activeElement).toBe(editable);
+		const blocks = await saved(editable);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0]).toMatchObject({ _type: "block", children: [{ text: "After." }] });
 	});
 
 	it("selects an image a finger taps, but not one it scrolls the page from", async () => {
