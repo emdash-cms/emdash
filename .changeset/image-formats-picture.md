@@ -2,4 +2,12 @@
 "emdash": minor
 ---
 
-The `Image` component from `emdash/ui` accepts a `formats` prop to serve multiple output formats. With more than one format (for example `formats={["avif", "webp"]}`), the component renders a `<picture>` element: the last entry becomes the fallback `<img>` and the earlier entries become `<source>` elements in order. A single-entry `formats` renders one `<img>` in that format. An optional `fallbackFormat` prop overrides the format used for the `<img>`, keeping every `formats` entry as a `<source>`. Without `formats`, the component renders a single `<img>` in the image service's default format, as before.
+Adds a `formats` prop to the `Image` component from `emdash/ui`, so sites can serve modern image formats with a fallback.
+
+List the formats in order of preference. With more than one entry, the component renders a `<picture>` element: the earlier entries become `<source>` elements and the last entry becomes the fallback `<img>`. A single entry renders one `<img>` in that format.
+
+```astro
+<Image image={post.data.featured_image} width={1200} height={675} formats={["avif", "webp"]} />
+```
+
+The optional `fallbackFormat` prop sets the format of the `<img>` and keeps every `formats` entry as a `<source>`. Images from external media providers keep the provider's own URLs. Without `formats`, the output is unchanged.
