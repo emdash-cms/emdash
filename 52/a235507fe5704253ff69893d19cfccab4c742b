@@ -1,0 +1,29 @@
+packages/admin/src/components/calendar/CalendarDrafts.tsx
+  s_5531044b240ab8::t_c62a3647283d3c 1-157
+packages/admin/src/components/calendar/CalendarEntry.tsx
+  s_5531044b240ab8::t_f22837625da35e 312-313,361-365,377-389,395,462
+packages/admin/src/components/calendar/CalendarEntryPanel.tsx
+  s_5531044b240ab8::t_9d32fb09f96862 148-151
+packages/admin/src/routes/calendar.tsx
+  s_5531044b240ab8::t_39e9176c8bdb4b 10,16-17,32,339-343,395,420-461,484-527,531-555,608,610-629,643-648
+packages/admin/tests/routes/calendar.test.tsx
+  s_5531044b240ab8::t_4e998657cbc96d 74,80-82,293-337
+packages/admin/src/components/calendar/CalendarDrag.tsx
+  s_5531044b240ab8::t_7cc950276af060 6,28-39,43-44,48-50,54-74,82-84,89-92,97,105,107-117,127-131,139-140,146,149-150,155-157,164,177-178,184-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "52a235507fe5704253ff69893d19cfccab4c742b",
+  "prompts": {},
+  "sessions": {
+    "s_5531044b240ab8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b02a171-9277-4036-b4b4-a26ab647f3a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
