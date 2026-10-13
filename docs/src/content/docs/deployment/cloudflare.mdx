@@ -137,7 +137,7 @@ After deployment, the admin dashboard shows **Scheduled publishing needs attenti
 
 Cloudflare runs a Worker near the visitor by default. EmDash server-rendered requests make several D1 round trips, so use [Targeted Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/) to run the Worker near the D1 primary and make those requests faster.
 
-Wrangler accepts `placement.mode: "targeted"` with exactly one selector: `region`, `host`, or `hostname`. Select the value that targets the D1 primary location, and add the resulting `placement` object to `wrangler.jsonc`. Do not enable D1 read replicas with Targeted Placement. Keep EmDash's `session` setting at its default, `"disabled"`, so reads and writes use the nearby primary.
+Wrangler accepts `placement.mode: "targeted"` with exactly one selector: `region`, `host`, or `hostname`. Select the value that targets the D1 primary location, and add the resulting `placement` object to `wrangler.jsonc`. Do not enable D1 read replicas with Targeted Placement. Without replicas, every query uses the nearby primary, including with `session: "auto"` and `coalesce: true`.
 
 ## Object cache
 

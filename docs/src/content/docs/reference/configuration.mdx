@@ -760,17 +760,17 @@ Cloudflare D1 database. Import from `@emdash-cms/cloudflare`.
 | Option           | Type     | Default              | Description                                         |
 | ---------------- | -------- | -------------------- | --------------------------------------------------- |
 | `binding`        | `string` | —                    | D1 binding name from `wrangler.jsonc`               |
-| `session`        | `string` | `"disabled"`         | Read replication mode: `"disabled"`, `"auto"`, or `"primary-first"` |
+| `session`        | `string` | `"disabled"`         | D1 Sessions API mode: `"disabled"`, `"auto"`, or `"primary-first"` |
 | `bookmarkCookie` | `string` | `"__em_d1_bookmark"` | Cookie name for session bookmarks                   |
 | `coalesce`       | `boolean` | `false`               | Batch concurrent reads in the same event-loop turn; requires a session mode other than `"disabled"` |
 
-The following example shows a basic binding and one with read replicas enabled:
+The following example shows a basic binding and the sessions-with-coalescing setup the Cloudflare templates use:
 
 ```js
 // Basic
 d1({ binding: "DB" });
 
-// With read replicas
+// With sessions and query coalescing
 d1({ binding: "DB", session: "auto", coalesce: true });
 ```
 
