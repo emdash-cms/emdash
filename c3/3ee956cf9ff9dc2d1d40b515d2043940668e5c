@@ -1,0 +1,19 @@
+.changeset/editor-outline-navigation.md
+  s_c516a3c76cc534::t_d8222bda2979ee 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c33ee956cf9ff9dc2d1d40b515d2043940668e5c",
+  "prompts": {},
+  "sessions": {
+    "s_c516a3c76cc534": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9dfad11-e5ae-4b64-bdac-97971b597b5f",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
