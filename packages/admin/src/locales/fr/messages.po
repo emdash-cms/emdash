@@ -214,7 +214,7 @@ msgstr "{0, plural, one {# relation impliquant ce type de contenu} other {# rela
 #: packages/admin/src/components/editor/TableControls.tsx:223
 #: packages/admin/src/components/PortableTextEditor.tsx:5352
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
-msgstr "{0, plural, one {# ligne} other {# lignes}} × {1, plural, one {# colonne sélectionnée} other {# colonnes sélectionnées}}"
+msgstr "Sélection : {0, plural, one {# ligne} other {# lignes}} × {1, plural, one {# colonne} other {# colonnes}}"
 
 #. placeholder {0}: selected.size
 #: packages/admin/src/components/comments/CommentInbox.tsx:261
@@ -244,7 +244,7 @@ msgstr "{0, plural, one {# téléversement a échoué} other {# téléversements
 #. placeholder {0}: section.keywords.length - 3
 #: packages/admin/src/components/Sections.tsx:424
 msgid "{0, plural, one {+# more} other {+# more}}"
-msgstr "{0, plural, one {+# de plus} other {+# de plus}}"
+msgstr "{0, plural, one {+# autre} other {+# autres}}"
 
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:866
@@ -331,7 +331,7 @@ msgstr "{0} détecté"
 #. placeholder {0}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:620
 msgid "{0} fallback"
-msgstr "Valeur de repli pour {0}"
+msgstr "{0} (repli)"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:149
@@ -553,7 +553,7 @@ msgstr "{hidden, plural, one {# autre entrée le {date}} other {# autres entrée
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:394
 msgid "{hidden, plural, one {+# more} other {+# more}}"
-msgstr "{hidden, plural, one {+# de plus} other {+# de plus}}"
+msgstr "{hidden, plural, one {+# autre} other {+# autres}}"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:38
 msgid "{host} does not resolve to a public address"
@@ -710,7 +710,7 @@ msgstr "Paramètres de {pluginName}"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:488
 msgid "{plural} go live now; draft edits stay unpublished."
-msgstr "Les {plural} sont publiés maintenant ; les modifications des brouillons restent non publiées."
+msgstr "{plural} : publication immédiate ; les modifications des brouillons restent non publiées."
 
 #: packages/admin/src/components/Dashboard.tsx:165
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
@@ -804,7 +804,7 @@ msgstr "{title} est maintenant en ligne."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
 msgid "{title} now goes live {when}."
-msgstr "{title} sera désormais publié {when}."
+msgstr "La publication de {title} est désormais prévue le {when}."
 
 #: packages/admin/src/components/ContentList.tsx:1365
 msgid "{total, plural, one {# item} other {# items}}"
@@ -1760,7 +1760,7 @@ msgstr "Les fichiers WebP animés deviennent des images fixes après recadrage."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:27
 msgid "Another editor"
-msgstr "Autre éditeur"
+msgstr "Un autre utilisateur"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "Another import is already using this package."
@@ -2589,7 +2589,7 @@ msgstr "Modifications rejetées"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:478
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
-msgstr "Les modifications ont été enregistrées, mais les pages en cache peuvent encore afficher d’anciens {pluralLower}. Réessayez l’actualisation du cache."
+msgstr "Les modifications ont été enregistrées, mais les pages en cache peuvent encore afficher une version obsolète des {pluralLower}. Réessayez l’actualisation du cache."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:172
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
@@ -3131,7 +3131,7 @@ msgstr "Connecté {0}"
 
 #: packages/admin/src/components/RelationList.tsx:93
 msgid "Connects"
-msgstr "Connexions"
+msgstr "Collections reliées"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:465
 msgid "content"
@@ -3554,7 +3554,7 @@ msgstr "Créer un nouveau {0}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:584
 msgid "Create a new {singularLabel}"
-msgstr "Créer un nouveau {singularLabel}"
+msgstr "Créer un terme ({singularLabel})"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2037
 msgid "Create a numbered list"
@@ -3595,7 +3595,7 @@ msgstr "Créer un menu"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:355
 msgid "Create new {singularLower}"
-msgstr "Créer un nouveau {singularLower}"
+msgstr "Créer un terme ({singularLower})"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:244
 msgid "Create New Token"
@@ -4674,7 +4674,7 @@ msgstr "p. ex. : MacBook Pro, iPhone"
 
 #: packages/admin/src/components/RelationForm.tsx:358
 msgid "Each {linkedSideName} is linked from"
-msgstr "Chaque {linkedSideName} est référencé par"
+msgstr "Références reçues par chaque {linkedSideName}"
 
 #: packages/admin/src/components/RelationForm.tsx:349
 msgid "Each {linkingSideName} links to"
@@ -5208,7 +5208,7 @@ msgstr "example.com"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:266
 msgid "Existing {pluralLower} stay in place."
-msgstr "Les {pluralLower} existants sont conservés."
+msgstr "Cette action conserve les {pluralLower} déjà en place."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:478
 msgid "Existing content is indexed. New changes are tracked automatically."
@@ -5242,7 +5242,7 @@ msgstr "Expiré"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:91
 msgid "Expires {expires}"
-msgstr "Expire {expires}"
+msgstr "Expire à {expires}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:380
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:541
@@ -6677,7 +6677,7 @@ msgstr "Depuis le paquet : « {packageValue} »"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:553
 msgid "From the post owner"
-msgstr "Depuis le propriétaire de l’article"
+msgstr "D’après le propriétaire de l’article"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:371
 msgid "From URL"
@@ -6741,7 +6741,7 @@ msgstr "Go"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
 msgid "Go live {countdown}"
-msgstr "Publier {countdown}"
+msgstr "Publication {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2447
 #: packages/admin/src/router.tsx:3250
@@ -8835,7 +8835,7 @@ msgstr "Nouveau {itemLabel}"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:309
 msgid "New {singularLower} name"
-msgstr "Nouveau nom de {singularLower}"
+msgstr "Nom du nouveau terme ({singularLower})"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:360
 #: packages/admin/src/routes/bylines.tsx:309
@@ -8976,7 +8976,7 @@ msgstr "Pas encore de {0}. Créez-en un pour commencer."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:568
 msgid "No {label} found."
-msgstr "Aucun {label} trouvé."
+msgstr "Aucun résultat dans {label}."
 
 #: packages/admin/src/components/Redirects.tsx:220
 msgid "No 404 errors recorded yet."
@@ -10227,7 +10227,7 @@ msgstr "Capture d'écran précédente"
 
 #: packages/admin/src/components/MenuList.tsx:168
 msgid "primary"
-msgstr "principal"
+msgstr "primary"
 
 #: packages/admin/src/components/MenuList.tsx:156
 msgid "Primary navigation"
@@ -10341,7 +10341,7 @@ msgstr "Publié {0}"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
 msgid "Published {liveSince}"
-msgstr "Publié {liveSince}"
+msgstr "Publié le {liveSince}"
 
 #: packages/admin/src/router.tsx:646
 msgid "Published {total} items"
@@ -10582,7 +10582,7 @@ msgstr "Redirections"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:166
 msgid "Redirects that loop will be imported turned off"
-msgstr "Les redirections en boucle seront importées désactivées"
+msgstr "Les redirections en boucle seront importées mais désactivées"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6514
 msgid "Redo"
@@ -12047,7 +12047,7 @@ msgstr "Sélectionner..."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:429
 msgid "Selected {label}"
-msgstr "{label} sélectionné"
+msgstr "Sélection : {label}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2496
 msgid "Selected {selectedItemTitle}"
@@ -12973,13 +12973,13 @@ msgstr "Formatage du texte"
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:59
 msgid "the {0} field on {1}, which lists entries that link to it"
-msgstr "le champ {0} sur {1}, qui liste les entrées le référençant"
+msgstr "le champ {0} de {1}, qui liste les entrées le référençant"
 
 #. placeholder {0}: bound.fieldSlug
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:58
 msgid "the {0} field on {1}, which picks entries it links to"
-msgstr "le champ {0} sur {1}, qui sélectionne les entrées qu’il référence"
+msgstr "le champ {0} de {1}, qui sélectionne les entrées qu’il référence"
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
@@ -13486,7 +13486,7 @@ msgstr "Cette entrée est en lecture seule car son schéma utilise des types de 
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
-msgstr "Cette entrée devait être publiée il y a {lateness}, mais ne l’est pas. La publication programmée est peut-être inactive."
+msgstr "Cette entrée devait être publiée {lateness}, mais ne l’est pas. La publication programmée est peut-être inactive."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:224
 msgid "This export is large"
@@ -13538,11 +13538,11 @@ msgstr "Ce champ sélectionne les entrées référencées par celle-ci."
 #. placeholder {0}: relation.childLabel
 #: packages/admin/src/components/FieldEditor.tsx:1429
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
-msgstr "Ce champ affichera les <0>{0}</0> référencés par ce {linkingSide}"
+msgstr "Ce champ affichera les <0>{0}</0> que cette entrée ({linkingSide}) référence"
 
 #: packages/admin/src/components/FieldEditor.tsx:1434
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
-msgstr "Ce champ affichera les <0>{linkingSide}</0> référençant ce {linkedSide}"
+msgstr "Ce champ affichera les entrées <0>{linkingSide}</0> qui référencent cette entrée ({linkedSide})"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:206
 msgid "This file is not a readable EmDash site package."
@@ -13884,7 +13884,7 @@ msgstr "Basculer la ligne d'en-tête"
 #. placeholder {0}: approval.requestedByTokenId.slice(0, 8)
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:90
 msgid "Token {0} · expires {expires}"
-msgstr "Jeton {0} · expire {expires}"
+msgstr "Jeton {0} · expire à {expires}"
 
 #. placeholder {0}: newToken.info.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
@@ -14318,7 +14318,7 @@ msgstr "Mettez à jour le paquet emdash de votre projet et redéployez pour obte
 #. placeholder {0}: source.displayName
 #: packages/admin/src/components/BylineFormDialog.tsx:337
 msgid "Update the profile for {0}."
-msgstr "Mettre à jour le profil de {0}."
+msgstr "Mettez à jour le profil de {0}."
 
 #: packages/admin/src/components/Redirects.tsx:112
 msgid "Update this redirect rule."
@@ -15180,7 +15180,7 @@ msgstr "Vous n’avez pas l’autorisation de déplacer ce fichier."
 
 #: packages/admin/src/routes/calendar.tsx:267
 msgid "You don't have permission to view the calendar."
-msgstr "Vous n’avez pas la permission de consulter le calendrier."
+msgstr "Vous n’avez pas l’autorisation de consulter le calendrier."
 
 #: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "You have full access to manage this site, including users, settings, and all content."
