@@ -195,6 +195,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			taxonomyPlan = built.plan;
 			taxonomyDefsCreated = built.defsCreated;
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
 		}
 
@@ -240,15 +241,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				}
 			}
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Comment import failed:", e);
 		}
 
 		// Apply site identity (title, tagline, logo, favicon) from the source
 		// site's options, replacing the starter template's seed placeholders.
-		// Non-fatal: content is already imported at this point.
+		// Non-fatal unless bot protection challenges the request.
 		try {
 			result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Site settings import failed:", e);
 		}
 
@@ -295,6 +298,7 @@ async function importMenusInto(
 			}
 		}
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Menu import failed:", e);
 	}
 }
@@ -354,6 +358,7 @@ async function runContentChunk(
 			taxonomyPlan = await loadTaxonomyPlanFromDb(emdash.db);
 		}
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
 	}
 
@@ -470,6 +475,7 @@ async function runFinalizePhase(
 	try {
 		result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Site settings import failed:", e);
 	}
 

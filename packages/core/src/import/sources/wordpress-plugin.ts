@@ -474,6 +474,7 @@ export const wordpressPluginSource: ImportSource = {
 					page++;
 				}
 			} catch (e) {
+				if (e instanceof SiteChallengeError) throw e;
 				console.warn("Failed to fetch media list:", e);
 			}
 		}

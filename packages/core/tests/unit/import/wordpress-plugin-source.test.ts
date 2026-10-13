@@ -508,4 +508,63 @@ describe("WordPress Plugin Source: bot-protection challenges", () => {
 			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
 		},
 	);
+
+	function challengeOnly(endpoint: string) {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes(`/emdash/v1/${endpoint}`)) return Promise.resolve(challengeResponse());
+			if (url.includes("/emdash/v1/analyze")) {
+				return Promise.resolve(new Response(JSON.stringify(makeAnalyzeResponse(1))));
+			}
+			if (url.includes("/emdash/v1/content")) return Promise.resolve(contentResponse([]));
+			return Promise.resolve(new Response("[]"));
+		});
+	}
+
+	it("rejects analyze when only the media list answers with a challenge", async () => {
+		challengeOnly("media");
+
+		await expect(
+			wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{},
+			),
+		).rejects.toBeInstanceOf(SiteChallengeError);
+	});
+
+	it.each([
+		["taxonomies", "content", {}],
+		["menus", "finalize", {}],
+		["options", "finalize", { importMenus: false }],
+		["taxonomies", "unchunked", {}],
+		["menus", "unchunked", {}],
+		["comments", "unchunked", { importMenus: false }],
+		["options", "unchunked", { importMenus: false }],
+	])(
+		"a challenged %s request in the %s import answers with WP_SITE_CHALLENGE",
+		async (endpoint, phase, extraConfig) => {
+			challengeOnly(endpoint);
+			const body = {
+				url: "https://example.com",
+				token: "test-token",
+				config: {
+					postTypeMappings: { post: { collection: "posts", enabled: true } },
+					...extraConfig,
+				},
+				...(phase === "unchunked" ? {} : { phase }),
+			};
+			const emdash = {
+				db: await setupTestDatabase(),
+				handleContentCreate: vi.fn(),
+				getManifest: async () => ({ collections: {} }),
+			};
+
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro context
+			const response = await executeRoute(routeContext("execute", body, emdash) as any);
+
+			expect(response.status).toBe(502);
+			const json = (await response.json()) as { error: { code: string } };
+			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
+		},
+	);
 });
