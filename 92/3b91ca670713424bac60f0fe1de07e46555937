@@ -1,0 +1,21 @@
+docs/src/content/docs/guides/working-with-content.mdx
+  s_5531044b240ab8::t_fcf660ec6cabf4 213,215-219,224-225,232-234,236-260,263-264,276-277
+.changeset/calendar-drag-week-view.md
+  s_5531044b240ab8::t_194f672f281347 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "923b91ca670713424bac60f0fe1de07e46555937",
+  "prompts": {},
+  "sessions": {
+    "s_5531044b240ab8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b02a171-9277-4036-b4b4-a26ab647f3a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
