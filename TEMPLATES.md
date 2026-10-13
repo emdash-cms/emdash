@@ -128,7 +128,7 @@ This script does two kinds of sync:
   - `templates/blog` -> `demos/playground`, which keeps its own seed with bundled media
   - `templates/blog` -> `demos/postgres`
 
-No demo receives the template's `astro.config.mjs`, so port template config changes, such as font or image settings, to the demos by hand. `demos/cloudflare` also keeps its own `src/layouts/Base.astro` and `src/pages/404.astro`, whose search controls open the AI Search modal because the demo has no `/search` page. Port template changes to those files by hand.
+No demo receives the template's `astro.config.mjs`, so port template config changes, such as font settings, to the demos by hand. Changes to the template seed, such as collection `supports` or `urlPattern`, reach `demos/playground` only if you copy them into its seed by hand. `demos/cloudflare` also keeps its own `src/layouts/Base.astro` and `src/pages/404.astro`, whose search controls open the AI Search modal because the demo has no `/search` page. Port template changes to those files by hand.
 
 ### Taking Screenshots
 
