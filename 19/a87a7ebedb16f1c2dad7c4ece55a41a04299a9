@@ -1,0 +1,19 @@
+packages/core/tests/unit/components/inline-portable-text-media-picker.test.ts
+  s_42b6b7380ac124::t_70000300af62e6 368-372,377,386,515,518-522,529-530,833-877
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "19a87a7ebedb16f1c2dad7c4ece55a41a04299a9",
+  "prompts": {},
+  "sessions": {
+    "s_42b6b7380ac124": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f3d0c91-fa2c-402d-883a-81c2e58e3fac",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
