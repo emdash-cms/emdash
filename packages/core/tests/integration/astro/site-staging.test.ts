@@ -83,7 +83,7 @@ describe("site staging", () => {
 
 		const res = await getRobots(buildContext(db, new Request("https://site.example/robots.txt")));
 		expect(await res.text()).toBe("User-agent: *\nDisallow: /\n");
-		expect(res.headers.get("cache-control")).toBeNull();
+		expect(res.headers.get("cache-control")).toBe("no-store");
 	});
 
 	it("serves the regular robots.txt after going live", async () => {

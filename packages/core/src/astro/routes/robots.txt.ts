@@ -40,7 +40,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 		if (settings.staging) {
 			return new Response("User-agent: *\nDisallow: /\n", {
 				status: 200,
-				headers: { "Content-Type": "text/plain; charset=utf-8" },
+				headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
 			});
 		}
 
