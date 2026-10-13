@@ -300,6 +300,37 @@ describe("TaxonomySidebar", () => {
 			.toBeInTheDocument();
 	});
 
+	it("reports terms staged in a published entry's draft", async () => {
+		const onTermsStaged = vi.fn();
+		mockApiFetch({
+			saveEntryTerms: () =>
+				dataResponse({
+					terms: [alphaTerm],
+					unresolved: [],
+					entryLocale: "fr",
+					defaultLocale: "en",
+					implicitDefaultLocale: false,
+					staged: true,
+					_rev: "rev-after-staging",
+				}),
+		});
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				canManageTaxonomies
+				onTermsStaged={onTermsStaged}
+			/>,
+			{ wrapper: Wrapper },
+		);
+		await (await openPicker(screen, "Tags")).fill("Alpha");
+		await userEvent.keyboard("{Enter}");
+		await expect
+			.element(screen.getByText("Saved to the draft; the change goes live when you publish."))
+			.toBeInTheDocument();
+		expect(onTermsStaged).toHaveBeenCalledWith("rev-after-staging");
+	});
+
 	it("assigns comma-separated existing terms together", async () => {
 		const onChange = vi.fn();
 		const screen = await render(

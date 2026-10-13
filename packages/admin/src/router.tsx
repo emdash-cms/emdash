@@ -1657,6 +1657,14 @@ function ContentEditPage() {
 		],
 	);
 
+	const handleTermsStaged = React.useCallback(
+		(revision: string) => {
+			recordWriteRevision(id, { _rev: revision });
+			void handleContentUpdateSuccess(id);
+		},
+		[handleContentUpdateSuccess, id, recordWriteRevision],
+	);
+
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
 			updateMutation.mutate({
@@ -1914,6 +1922,7 @@ function ContentEditPage() {
 			pluginBlocks={pluginBlocks}
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
+			onTermsStaged={handleTermsStaged}
 			availableBylines={bylinesData?.items}
 			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={handleQuickCreateByline}

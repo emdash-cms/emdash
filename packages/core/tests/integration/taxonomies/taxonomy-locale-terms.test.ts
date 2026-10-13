@@ -478,8 +478,9 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 	it("POST refreshes published translations and taxonomy facets", async () => {
 		const fx = await seedLocalizedTags(ctx.db);
 		const content = new ContentRepository(ctx.db);
+		// The FR entry has never been published, so its terms are written
+		// directly, and the published EN translation shares them.
 		await content.publish("post", fx.enContentId);
-		await content.publish("post", fx.frContentId);
 		const invalidate = vi.fn().mockResolvedValue(undefined);
 		const context = buildPostContext(
 			ctx.db,

@@ -20,7 +20,7 @@ import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
+import { apiFetch, parseApiResponse } from "../lib/api/client.js";
 import { createTerm, createTermTranslation, withLocale } from "../lib/api/taxonomies.js";
 import { inlineLabel } from "../lib/inline-label.js";
 import { resolveTaxonomyDefinitions } from "../lib/taxonomy-definitions.js";
@@ -52,6 +52,13 @@ interface EntryTermsResponse {
 	implicitDefaultLocale: boolean;
 }
 
+interface SetEntryTermsResponse extends EntryTermsResponse {
+	/** True when the terms wait in the entry's draft until it is published. */
+	staged?: boolean;
+	/** The entry's revision token after staging. */
+	_rev?: string;
+}
+
 interface TaxonomyDef {
 	id: string;
 	name: string;
@@ -73,6 +80,8 @@ interface TaxonomySidebarProps {
 	/** Site default used when this logical taxonomy has no entry-locale definition. */
 	defaultLocale?: string;
 	onChange?: (taxonomyName: string, termIds: string[]) => void;
+	/** Called with the entry's new revision token after terms are staged in its draft. */
+	onTermsStaged?: (revision: string) => void;
 	/** Applied to the root when the section renders. Omitted when the section
 	 * is empty so the caller doesn't need to guess whether to draw chrome. */
 	className?: string;
@@ -170,13 +179,13 @@ async function setEntryTerms(
 	entryId: string,
 	taxonomy: string,
 	termIds: string[],
-): Promise<void> {
+): Promise<SetEntryTermsResponse> {
 	const res = await apiFetch(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ termIds }),
 	});
-	if (!res.ok) await throwResponseError(res, i18n._(msg`Failed to set entry terms`));
+	return parseApiResponse<SetEntryTermsResponse>(res, i18n._(msg`Failed to set entry terms`));
 }
 
 function TaxonomyTermPicker({
@@ -630,6 +639,7 @@ function TaxonomySection({
 	entryLocale,
 	canManageTaxonomies,
 	onChange,
+	onTermsStaged,
 }: {
 	taxonomy: TaxonomyDef;
 	collection: string;
@@ -637,6 +647,7 @@ function TaxonomySection({
 	entryLocale?: string;
 	canManageTaxonomies: boolean;
 	onChange?: (termIds: string[]) => void;
+	onTermsStaged?: (revision: string) => void;
 }) {
 	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
@@ -672,13 +683,16 @@ function TaxonomySection({
 			if (!entryId) throw new Error("No entry ID");
 			return setEntryTerms(collection, entryId, taxonomy.name, termIds);
 		},
-		onSuccess: () => {
+		onSuccess: (result) => {
 			void queryClient.invalidateQueries({
 				queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
 			});
+			if (result.staged && result._rev) onTermsStaged?.(result._rev);
 			toastManager.add({
 				title: t`${taxonomy.label} updated`,
-				description: t`Saved immediately; term changes do not wait for Publish changes.`,
+				description: result.staged
+					? t`Saved to the draft; the change goes live when you publish.`
+					: t`Saved immediately; term changes do not wait for Publish changes.`,
 			});
 		},
 		onError: (error) => {
@@ -883,6 +897,7 @@ export function TaxonomySidebar({
 	defaultLocale,
 	canManageTaxonomies,
 	onChange,
+	onTermsStaged,
 	className,
 }: TaxonomySidebarProps) {
 	const { t } = useLingui();
@@ -907,6 +922,7 @@ export function TaxonomySidebar({
 						entryLocale={entryLocale}
 						canManageTaxonomies={canManageTaxonomies}
 						onChange={(termIds) => onChange?.(taxonomy.name, termIds)}
+						onTermsStaged={onTermsStaged}
 					/>
 				))}
 			</div>
