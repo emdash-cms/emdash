@@ -180,16 +180,16 @@ export default defineConfig({
 
 The `@astrojs/cloudflare` adapter detects `cacheCloudflare()` and enables Workers Cache in the generated deployment configuration.
 
-EmDash invalidates cached entries automatically when content changes (see [Edge Caching](/deployment/edge-cache/) for the tag convention). You only need to purge yourself for custom tags, for example a manual "clear everything" switch, using the platform's [purge API](https://developers.cloudflare.com/workers/cache/purge/) from your Worker. It needs no Cloudflare REST credentials.
+EmDash invalidates cached entries automatically when content changes (see [Route Caching](/deployment/route-caching/) for the tag convention). You only need to purge yourself for custom tags, for example a manual "clear everything" switch, using the platform's [purge API](https://developers.cloudflare.com/workers/cache/purge/) from your Worker. It needs no Cloudflare REST credentials.
 
 Public pages control their own caching through `routeRules` and `Astro.cache`. Keep route rules to your public routes: a rest parameter at the site root, such as `/[...slug]`, also matches the admin and API routes under `/_emdash/`.
 
 Two things to know before enabling it:
 
-1. **A response with any cache hint is cacheable, even without a route rule.** The adapter marks responses that no route rule or `Astro.cache.set()` call made cacheable as `no-store`. A hint with tags but no `maxAge`, such as the site settings and menu hints a layout sets on every page, produces `Cloudflare-CDN-Cache-Control: public` without a lifetime, and Workers Cache then applies RFC 9111 heuristic freshness. Give every public route a rule, and keep session-dependent routes free of cache hints.
+1. **A response with any cache hint is cacheable, even without a route rule.** The adapter marks responses that no route rule or `Astro.cache.set()` call made cacheable as `no-store`. A hint with tags but no `maxAge`, such as the site settings and menu hints a layout sets on every page, produces `Cloudflare-CDN-Cache-Control: public` without a lifetime, so Workers Cache falls back to its [default cache lifetimes](https://developers.cloudflare.com/workers/cache/configuration/#cache-control-semantics) (2 hours for a `200` response). Give every public route a rule, and keep session-dependent routes free of cache hints.
 2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. With the default server-rendered toolbar, a logged-in editor may receive the cached anonymous variant of a public page, without the visual editing toolbar, until the entry expires. Set [`toolbar: "client"`](/reference/configuration/#toolbar) to keep the toolbar reliable on cached pages. Pages rendered for a signed-in user are never stored in the route cache.
 
-For a deeper guide covering route rules, cache tags, EmDash's built-in purge on publish, and the responses that must stay out of the cache, see [Edge Caching](/deployment/edge-cache/).
+For a deeper guide covering route rules, cache tags, EmDash's built-in invalidation on publish, and the responses that must stay out of the cache, see [Route Caching](/deployment/route-caching/).
 
 Workers Caching is separate from the **object cache** (`objectCache: kvCache({ binding: "CACHE" })`), which caches database query results in KV under the Worker.
 
