@@ -141,6 +141,48 @@ describeEachDialect("blocks content semantics", (dialect) => {
 		expect(replacement).toMatchObject({ _type: "hero", _version: 1, heading: "After" });
 	});
 
+	it("keeps stored blocks for an undefined value but rejects null", async () => {
+		await schema.createCollection({ slug: "plain_pages", label: "Plain pages", supports: [] });
+		await schema.createField("plain_pages", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["hero"] },
+		});
+
+		for (const collection of ["pages", "plain_pages"]) {
+			const created = await runtime.handleContentCreate(collection, {
+				slug: "home",
+				data: { layout: [{ _type: "hero", heading: "Before" }] },
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+			const id = created.data.item.id;
+			const block = (created.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+			const edited = await runtime.handleContentUpdate(collection, id, {
+				data: { layout: [{ ...block, heading: "Edited" }] },
+			});
+			expect(edited.success).toBe(true);
+
+			const omitted = await runtime.handleContentUpdate(collection, id, {
+				data: { layout: undefined },
+			});
+			expect(omitted.success).toBe(true);
+			const read = await runtime.handleContentGet(collection, id);
+			expect(read.success).toBe(true);
+			if (read.success) {
+				expect(read.data.item.data.layout).toEqual([
+					expect.objectContaining({ _key: block._key, heading: "Edited" }),
+				]);
+			}
+
+			const cleared = await runtime.handleContentUpdate(collection, id, {
+				data: { layout: null },
+			});
+			expect(cleared).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+		}
+	});
+
 	it("normalizes blocks for collections without draft revisions", async () => {
 		await schema.createCollection({ slug: "plain_pages", label: "Plain pages", supports: [] });
 		await schema.createField("plain_pages", {

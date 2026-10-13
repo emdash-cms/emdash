@@ -274,16 +274,24 @@ export async function normalizeBlocksData(
 	partial = true,
 	resolvedTypes?: ResolvedBlockTypes,
 ): Promise<Record<string, unknown>> {
-	const blockFields = collection.fields.filter(
-		(field) => field.type === "blocks" && (!partial || Object.hasOwn(data, field.slug)),
-	);
-	if (blockFields.length === 0) return data;
-	const types = resolvedTypes ?? (await resolveBlockTypes(db));
 	const normalized = { ...data };
+	const blockFields: Field[] = [];
+	for (const field of collection.fields) {
+		if (field.type !== "blocks") continue;
+		// Left in place, an undefined value would replace the stored blocks in the
+		// draft merge and reach the column write as NULL.
+		if (partial && data[field.slug] === undefined) {
+			delete normalized[field.slug];
+		} else {
+			blockFields.push(field);
+		}
+	}
+	if (blockFields.length === 0) return normalized;
+	const types = resolvedTypes ?? (await resolveBlockTypes(db));
 	for (const field of blockFields) {
 		normalized[field.slug] = normalizeBlockArray(
 			field,
-			Object.hasOwn(data, field.slug) ? data[field.slug] : [],
+			data[field.slug] === undefined ? [] : data[field.slug],
 			existingData[field.slug],
 			types,
 			options,
