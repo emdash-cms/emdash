@@ -2946,7 +2946,7 @@ msgstr "代碼"
 msgid "Code Block"
 msgstr "程式碼區塊"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr "程式碼區塊操作"
 
@@ -3292,8 +3292,8 @@ msgstr "使用安全金鑰繼續"
 msgid "Contributor"
 msgstr "投稿者"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3308,12 +3308,12 @@ msgstr "已複製到剪貼簿"
 msgid "Copy {label}"
 msgstr "複製 {label}"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr "複製程式碼"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr "複製失敗"
 
@@ -7681,7 +7681,7 @@ msgstr "標籤 (單數)"
 msgid "Landscape"
 msgstr "橫向"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9177,11 +9177,11 @@ msgstr "沒有連結的使用者"
 msgid "No loaded entries match these filters"
 msgstr "已載入的內容項目中，沒有符合這些篩選條件的項目"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "沒有符合項目"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "沒有符合的項目。按 Enter 使用「{freeFormLanguage}」。"
 
@@ -11153,8 +11153,8 @@ msgstr "重試 {0}"
 msgid "Retry cache refresh"
 msgstr "重試重新整理快取"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr "重試複製"
 
@@ -11707,7 +11707,7 @@ msgstr "搜尋失敗。請檢查連線後再試一次。"
 msgid "Search folders"
 msgstr "搜尋資料夾"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr "搜尋程式語言…"
 
@@ -12164,11 +12164,11 @@ msgstr "為這張圖片設定自訂顯示大小。"
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr "為文件中的這張圖片設定自訂寬度與高度。重設會套用原始媒體的尺寸。原始媒體檔案不會變更。"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "設定語言"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "設定語言 (目前: {label})"
 

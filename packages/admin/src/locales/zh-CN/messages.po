@@ -2946,7 +2946,7 @@ msgstr "代码"
 msgid "Code Block"
 msgstr "代码块"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr ""
 
@@ -3292,8 +3292,8 @@ msgstr ""
 msgid "Contributor"
 msgstr "贡献者"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3308,12 +3308,12 @@ msgstr "已复制到剪贴板"
 msgid "Copy {label}"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr ""
 
@@ -7681,7 +7681,7 @@ msgstr "标签（单数）"
 msgid "Landscape"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9177,11 +9177,11 @@ msgstr "无关联用户"
 msgid "No loaded entries match these filters"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "无匹配项"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr ""
 
@@ -11153,8 +11153,8 @@ msgstr ""
 msgid "Retry cache refresh"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr ""
 
@@ -11707,7 +11707,7 @@ msgstr ""
 msgid "Search folders"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr ""
 
@@ -12164,11 +12164,11 @@ msgstr "为此图片实例设置自定义显示尺寸。"
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "设置语言"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "设置语言（当前：{label}）"
 

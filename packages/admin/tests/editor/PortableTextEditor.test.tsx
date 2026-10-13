@@ -2162,6 +2162,34 @@ describe("Code block toolbar", () => {
 		await userEvent.keyboard("{ArrowRight}");
 		await expect.element(screen.getByRole("button", { name: "Copy code" })).toHaveFocus();
 	});
+
+	it.each([
+		["ltr", "Hello"],
+		["rtl", "مرحبا"],
+	] as const)(
+		"rounds the outer corners and divides the buttons in %s content",
+		async (dir, text) => {
+			const { screen } = await renderAndGetEditor({
+				value: [textBlock(text), { _type: "code", _key: "code", code: "const a = 1;" }],
+			});
+			const languageButton = screen.getByRole("button", {
+				name: "Set language (current: Plain text)",
+			});
+			await expect.element(languageButton).toBeInTheDocument();
+			const language = getComputedStyle(languageButton.element());
+			const copy = getComputedStyle(screen.getByRole("button", { name: "Copy code" }).element());
+			const [start, end] = dir === "rtl" ? ["right", "left"] : ["left", "right"];
+
+			expect(copy.direction).toBe(dir);
+			expect(language.getPropertyValue(`border-${start}-width`)).toBe("0px");
+			expect(copy.getPropertyValue(`border-${start}-width`)).toBe("1px");
+			expect(copy.getPropertyValue(`border-${end}-width`)).toBe("0px");
+			expect(language.getPropertyValue(`border-top-${start}-radius`)).not.toBe("0px");
+			expect(language.getPropertyValue(`border-top-${end}-radius`)).toBe("0px");
+			expect(copy.getPropertyValue(`border-top-${start}-radius`)).toBe("0px");
+			expect(copy.getPropertyValue(`border-top-${end}-radius`)).not.toBe("0px");
+		},
+	);
 });
 
 describe("Code block copy action", () => {

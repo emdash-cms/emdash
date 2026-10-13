@@ -2947,7 +2947,7 @@ msgstr "קוד"
 msgid "Code Block"
 msgstr "בלוק קוד"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr "פעולות בלוק קוד"
 
@@ -3293,8 +3293,8 @@ msgstr "המשך עם מפתח אבטחה"
 msgid "Contributor"
 msgstr "תורם/ת"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3309,12 +3309,12 @@ msgstr "הועתק ללוח"
 msgid "Copy {label}"
 msgstr "העתקת {label}"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr "העתקת קוד"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr "ההעתקה נכשלה"
 
@@ -7682,7 +7682,7 @@ msgstr "תווית (יחיד)"
 msgid "Landscape"
 msgstr "לרוחב"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9178,11 +9178,11 @@ msgstr "אין משתמש מקושר"
 msgid "No loaded entries match these filters"
 msgstr "אין פריטים טעונים שתואמים את הסינון"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "אין התאמות"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "אין התאמות. לחצו Enter כדי להשתמש ב-„{freeFormLanguage}“."
 
@@ -11154,8 +11154,8 @@ msgstr "ניסיון חוזר עבור {0}"
 msgid "Retry cache refresh"
 msgstr "ניסיון חוזר לרענון המטמון"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr "ניסיון חוזר להעתקה"
 
@@ -11708,7 +11708,7 @@ msgstr "החיפוש נכשל. בדקו את החיבור שלכם ונסו שו
 msgid "Search folders"
 msgstr "חיפוש תיקיות"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr "חיפוש שפה…"
 
@@ -12165,11 +12165,11 @@ msgstr "הגדירו גודל תצוגה מותאם אישית למופע תמו
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr "הגדירו רוחב וגובה מותאמים אישית לתמונה זו במסמך. איפוס משתמש בממדי המדיה המקוריים. קובץ המדיה המקורי אינו משתנה."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "הגדרת שפה"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "הגדרת שפה (נוכחית: {label})"
 

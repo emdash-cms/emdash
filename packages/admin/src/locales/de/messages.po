@@ -2946,7 +2946,7 @@ msgstr "Code"
 msgid "Code Block"
 msgstr "Code-Block"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr "Aktionen für Code-Block"
 
@@ -3292,8 +3292,8 @@ msgstr "Mit Sicherheitsschlüssel fortfahren"
 msgid "Contributor"
 msgstr "Mitwirkender"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3308,12 +3308,12 @@ msgstr "In die Zwischenablage kopiert"
 msgid "Copy {label}"
 msgstr "{label} kopieren"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr "Code kopieren"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr "Kopieren fehlgeschlagen"
 
@@ -7681,7 +7681,7 @@ msgstr "Bezeichnung (Singular)"
 msgid "Landscape"
 msgstr "Querformat"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9177,11 +9177,11 @@ msgstr "Kein zugeordneter Benutzer"
 msgid "No loaded entries match these filters"
 msgstr "Keine geladenen Einträge entsprechen diesen Filtern"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "Keine Treffer"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "Keine Treffer. Drücke Enter, um „{freeFormLanguage}“ zu verwenden."
 
@@ -11153,8 +11153,8 @@ msgstr "{0} erneut hochladen"
 msgid "Retry cache refresh"
 msgstr "Cache-Aktualisierung erneut versuchen"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr "Kopieren erneut versuchen"
 
@@ -11707,7 +11707,7 @@ msgstr "Suche fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut."
 msgid "Search folders"
 msgstr "Ordner durchsuchen"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr "Sprache suchen…"
 
@@ -12164,11 +12164,11 @@ msgstr "Lege eine benutzerdefinierte Anzeigegröße für dieses Bild fest."
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr "Lege eine benutzerdefinierte Breite und Höhe für dieses Bild im Dokument fest. „Zurücksetzen“ stellt die ursprünglichen Abmessungen der Mediendatei wieder her. Die Original-Mediendatei bleibt unverändert."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "Sprache festlegen"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "Sprache festlegen (aktuell: {label})"
 

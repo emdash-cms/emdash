@@ -2946,7 +2946,7 @@ msgstr "Kode"
 msgid "Code Block"
 msgstr "Blok Kode"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr "Tindakan blok kode"
 
@@ -3292,8 +3292,8 @@ msgstr "Lanjutkan dengan kunci keamanan"
 msgid "Contributor"
 msgstr "Kontributor"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3308,12 +3308,12 @@ msgstr "Disalin ke papan klip"
 msgid "Copy {label}"
 msgstr "Salin {label}"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr "Salin kode"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr "Salin gagal"
 
@@ -7681,7 +7681,7 @@ msgstr "Label (Tunggal)"
 msgid "Landscape"
 msgstr "Lanskap"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9177,11 +9177,11 @@ msgstr "Tidak ada pengguna tertaut"
 msgid "No loaded entries match these filters"
 msgstr "Tidak ada entri yang dimuat cocok filter ini"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "Tidak ada yang cocok"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "Tidak ada yang cocok. Tekan Enter untuk menggunakan “{freeFormLanguage}”."
 
@@ -11153,8 +11153,8 @@ msgstr "Ulangi {0}"
 msgid "Retry cache refresh"
 msgstr "Ulangi pemuatan ulang simpanan"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr "Ulangi salin"
 
@@ -11707,7 +11707,7 @@ msgstr "Pencarian gagal. Periksa sambungan Anda dan coba lagi."
 msgid "Search folders"
 msgstr "Cari map"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr "Cari bahasa…"
 
@@ -12164,11 +12164,11 @@ msgstr "Atur ukuran tampilan kustom untuk instansi gambar ini."
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr "Atur lebar dan tinggi kustom untuk gambar ini di dokumen. Atur ulang menggunakan dimensi media asli. Berkas media asli tidak berubah."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "Atur bahasa"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "Atur bahasa (saat ini: {label})"
 

@@ -2946,7 +2946,7 @@ msgstr "코드"
 msgid "Code Block"
 msgstr "코드 블록"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr "코드 블록 작업"
 
@@ -3292,8 +3292,8 @@ msgstr "보안 키로 계속"
 msgid "Contributor"
 msgstr "기여자"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3308,12 +3308,12 @@ msgstr "클립보드에 복사됨"
 msgid "Copy {label}"
 msgstr "{label} 복사"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr "코드 복사"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr "복사 실패"
 
@@ -7681,7 +7681,7 @@ msgstr "라벨(단수형)"
 msgid "Landscape"
 msgstr "가로형"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9177,11 +9177,11 @@ msgstr "연결된 사용자 없음"
 msgid "No loaded entries match these filters"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "일치하는 항목 없음"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "일치하는 항목이 없습니다. Enter 키를 누르면 “{freeFormLanguage}”를 사용합니다."
 
@@ -11153,8 +11153,8 @@ msgstr "{0} 재시도"
 msgid "Retry cache refresh"
 msgstr "캐시 새로고침 다시 시도"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr "복사 재시도"
 
@@ -11707,7 +11707,7 @@ msgstr "검색에 실패했습니다. 연결 상태를 확인하고 다시 시�
 msgid "Search folders"
 msgstr "폴더 검색"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr "언어 검색…"
 
@@ -12164,11 +12164,11 @@ msgstr "이 이미지의 표시 크기를 직접 지정합니다."
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr "문서에 있는 이 이미지의 너비와 높이를 직접 지정합니다. 초기화하면 원본 미디어의 크기가 적용됩니다. 원본 미디어 파일은 변경되지 않습니다."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "언어 설정"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "언어 설정(현재: {label})"
 

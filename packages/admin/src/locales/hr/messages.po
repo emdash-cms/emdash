@@ -2946,7 +2946,7 @@ msgstr "Kod"
 msgid "Code Block"
 msgstr "Blok koda"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr "Radnje bloka koda"
 
@@ -3292,8 +3292,8 @@ msgstr "Nastavi sa sigurnosnim ključem"
 msgid "Contributor"
 msgstr "Suradnik"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3308,12 +3308,12 @@ msgstr "Kopirano u međuspremnik"
 msgid "Copy {label}"
 msgstr "Kopiraj {label}"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr "Kopiraj kod"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr "Kopiranje nije uspjelo"
 
@@ -7681,7 +7681,7 @@ msgstr "Natpis (jednina)"
 msgid "Landscape"
 msgstr "Vodoravno"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9177,11 +9177,11 @@ msgstr "Nema povezanog korisnika"
 msgid "No loaded entries match these filters"
 msgstr "Nijedan učitani unos ne odgovara ovim filtrima"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "Nema podudaranja"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "Nema podudaranja. Pritisnite Enter za korištenje „{freeFormLanguage}“."
 
@@ -11153,8 +11153,8 @@ msgstr "Pokušaj ponovno: {0}"
 msgid "Retry cache refresh"
 msgstr "Ponovno pokušaj osvježiti predmemoriju"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr "Ponovno pokušaj kopirati"
 
@@ -11707,7 +11707,7 @@ msgstr "Pretraživanje nije uspjelo. Provjerite vezu i pokušajte ponovno."
 msgid "Search folders"
 msgstr "Pretraži mape"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr "Potražite jezik…"
 
@@ -12164,11 +12164,11 @@ msgstr "Postavite prilagođenu veličinu prikaza za ovu instancu slike."
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr "Postavite prilagođenu širinu i visinu ove slike u dokumentu. Vraćanje na zadano vraća izvorne dimenzije medija. Izvorna medijska datoteka ostaje nepromijenjena."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "Postavi jezik"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "Postavi jezik (trenutačno: {label})"
 

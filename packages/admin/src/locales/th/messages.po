@@ -2946,7 +2946,7 @@ msgstr "โค้ด"
 msgid "Code Block"
 msgstr "บล็อกโค้ด"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:232
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:237
 msgid "Code block actions"
 msgstr "การดำเนินการกับบล็อกโค้ด"
 
@@ -3292,8 +3292,8 @@ msgstr "ดำเนินการต่อด้วยคีย์ความ
 msgid "Contributor"
 msgstr "ผู้ร่วมเขียน"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copied"
@@ -3308,12 +3308,12 @@ msgstr "คัดลอกไปยังคลิปบอร์ดแล้ว
 msgid "Copy {label}"
 msgstr "คัดลอก {label}"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Copy code"
 msgstr "คัดลอกโค้ด"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:273
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:278
 msgid "Copy failed"
 msgstr "คัดลอกไม่สำเร็จ"
 
@@ -7681,7 +7681,7 @@ msgstr "ป้ายกำกับ (เอกพจน์)"
 msgid "Landscape"
 msgstr "แนวนอน"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:281
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
@@ -9177,11 +9177,11 @@ msgstr "ไม่มีผู้ใช้ที่เชื่อมโยง"
 msgid "No loaded entries match these filters"
 msgstr "ไม่มีรายการที่โหลดแล้วที่ตรงกับตัวกรองเหล่านี้"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:319
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
 msgstr "ไม่พบรายการที่ตรงกัน"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:318
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:323
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "ไม่พบรายการที่ตรงกัน กด Enter เพื่อใช้ “{freeFormLanguage}”"
 
@@ -11153,8 +11153,8 @@ msgstr "ลองใหม่ {0}"
 msgid "Retry cache refresh"
 msgstr "ลองรีเฟรชแคชใหม่"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:249
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:256
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:254
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:261
 msgid "Retry copy"
 msgstr "ลองคัดลอกใหม่"
 
@@ -11707,7 +11707,7 @@ msgstr "ค้นหาไม่สำเร็จ ตรวจสอบกา�
 msgid "Search folders"
 msgstr "ค้นหาโฟลเดอร์"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:295
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Search for a language…"
 msgstr "ค้นหาภาษา…"
 
@@ -12164,11 +12164,11 @@ msgstr "กำหนดขนาดการแสดงผลที่กำห
 msgid "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged."
 msgstr "กำหนดความกว้างและความสูงของรูปภาพนี้ในเอกสาร การรีเซ็ตจะใช้ขนาดของสื่อต้นฉบับ ไฟล์สื่อต้นฉบับไม่เปลี่ยนแปลง"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:242
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:247
 msgid "Set language"
 msgstr "ตั้งค่าภาษา"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 msgid "Set language (current: {label})"
 msgstr "ตั้งค่าภาษา (ปัจจุบัน: {label})"
 
