@@ -17,7 +17,7 @@ test.describe("Editor image panel", () => {
 		await admin.goToNewContent("posts");
 		await admin.waitForLoading();
 
-		await page.getByRole("button", { name: "Insert Image" }).click();
+		await page.getByRole("button", { name: "Insert image" }).click();
 		const picker = page.getByRole("dialog", { name: "Select image" });
 		await picker.getByRole("tab", { name: "From URL" }).click();
 		await picker.getByLabel("Image URL").fill(EXTERNAL_IMAGE_URL);

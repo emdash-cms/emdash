@@ -210,4 +210,17 @@ describe("Widgets", () => {
 		await expect.element(screen.getByText("Display a navigation menu")).toBeInTheDocument();
 		await expect.element(screen.getByText("Shows recent posts")).toBeInTheDocument();
 	});
+
+	it("wraps the widget workspace in a horizontally scrollable container", async () => {
+		const screen = await render(<Widgets />, { wrapper: Wrapper });
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Available Widgets" }))
+			.toBeInTheDocument();
+
+		const grid = document.querySelector(".grid.grid-cols-12");
+		expect(grid).not.toBeNull();
+		expect(grid!.parentElement).toHaveClass("overflow-x-auto");
+		expect(grid).toHaveClass("min-w-[768px]");
+	});
 });

@@ -13,21 +13,19 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { HtmlBlockExtension } from "../../src/components/editor/HtmlBlockNode";
+import { HtmlBlockExtension, TopBlockDocument } from "../../src/components/editor/HtmlBlockNode";
+
+const extensions = [
+	StarterKit.configure({ document: false }),
+	TopBlockDocument,
+	HtmlBlockExtension,
+];
 
 describe("HtmlBlockExtension", () => {
 	let editor: Editor;
 
 	beforeEach(() => {
-		editor = new Editor({
-			extensions: [
-				StarterKit.configure({
-					heading: { levels: [1, 2, 3] },
-				}),
-				HtmlBlockExtension,
-			],
-			content: "",
-		});
+		editor = new Editor({ extensions, content: "" });
 	});
 
 	afterEach(() => {
@@ -67,5 +65,32 @@ describe("HtmlBlockExtension", () => {
 		const node = editor.getJSON().content?.find((n) => n.type === "htmlBlock");
 		expect(node).toBeDefined();
 		expect((node as { attrs?: { html?: string } }).attrs?.html).toBe("<p>Round trip</p>");
+	});
+
+	it("carries css, js and isolated through clipboard HTML", () => {
+		const attrs = {
+			html: '<button id="go">Go</button>',
+			css: "button { color: red; }",
+			js: "document.getElementById('go').addEventListener('click', () => {});",
+			isolated: true,
+		};
+		editor.commands.insertContent({ type: "htmlBlock", attrs });
+
+		const target = new Editor({ extensions, content: editor.getHTML() });
+
+		try {
+			const node = target.getJSON().content?.find((n) => n.type === "htmlBlock");
+			expect(node?.attrs).toMatchObject(attrs);
+		} finally {
+			target.destroy();
+		}
+	});
+
+	it("renders HTML blocks pasted from other pages inline", () => {
+		editor.commands.setContent(
+			'<div data-html-block data-html-content="&lt;p&gt;Hi&lt;/p&gt;" data-html-js="alert(1)" data-html-isolated="true"></div>',
+		);
+		const node = editor.getJSON().content?.find((n) => n.type === "htmlBlock");
+		expect(node?.attrs).toMatchObject({ html: "<p>Hi</p>", js: "alert(1)", isolated: false });
 	});
 });

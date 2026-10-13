@@ -440,7 +440,7 @@ Every usage result includes a coverage status:
 | `stale` | The index is older than the content it describes. |
 | `unknown` | The stored state is not recognized by this EmDash version. |
 
-Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image and gallery blocks, and media declared by retained block versions in EmDash collections. The site logo, favicon, and default social image settings are also reported. Usage does not include custom Portable Text blocks, application code, rendered HTML, other settings, menus, widgets, plugin data, external sites, or provider-only assets.
+Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image, gallery, and video blocks, and media declared by retained block versions in EmDash collections. The site logo, favicon, and default social image settings are also reported. Usage does not include custom Portable Text blocks, application code, rendered HTML, other settings, menus, widgets, plugin data, external sites, or provider-only assets.
 
 ### Direct multipart upload
 
@@ -455,7 +455,7 @@ curl --request POST \
 
 `curl` adds the multipart boundary. Do not set the `Content-Type` header manually. The OpenAPI `MediaDirectUploadBody` schema lists the optional metadata fields and the response schemas distinguish a new upload from a deduplicated existing item.
 
-The multipart body can also include image `width`, `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality placeholder. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`.
+The multipart body can also include `alt` text and a `caption` for the new media item, image `width` and `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality placeholder. An omitted or empty `alt` or `caption` field is stored as `null`. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`; the `alt` and `caption` sent with the upload are not applied to it.
 
 ### Upload target flow
 
@@ -559,7 +559,9 @@ While an import is executing, and after it fails or is cancelled until it is aba
 
 ## Pagination
 
-List operations describe their pagination parameters in OpenAPI. Most cursor-paginated operations accept an opaque `cursor` and a `limit` from 1 to 100, defaulting to 50. Return the previous response's `nextCursor` unchanged; do not inspect or construct it. Some media operations also support numbered pages, and some specialized lists use different limits, so generated clients should follow each operation's schema.
+List operations describe their pagination parameters in OpenAPI. Most cursor-paginated operations accept an opaque `cursor` and a `limit` from 1 to 100, defaulting to 50. Return the previous response's `nextCursor` unchanged; do not inspect or construct it. Some specialized lists use different limits, so generated clients should follow each operation's schema.
+
+`GET /media`, `GET /content/{collection}`, and `GET /content/{collection}/trash` also accept a 1-based `page` instead of `cursor`. A numbered page has no `nextCursor` and reports how many items match: `totalCount` for media, `total` for content. Sending both `page` and `cursor` returns a `400` validation error.
 
 ## Search tokenizers
 

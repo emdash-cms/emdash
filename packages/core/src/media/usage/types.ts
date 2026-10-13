@@ -13,7 +13,11 @@ export type MediaKind =
 	| "text"
 	| "other";
 
-export type MediaUsageReferenceType = "image_field" | "file_field" | "portable_text_image";
+export type MediaUsageReferenceType =
+	| "image_field"
+	| "file_field"
+	| "portable_text_image"
+	| "portable_text_video";
 
 export interface MediaUsageExtractionSubField {
 	slug: string;

@@ -12,6 +12,7 @@ import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
+import { setSiteSettings } from "../../../src/settings/index.js";
 import type { Storage, UploadOptions } from "../../../src/storage/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -609,5 +610,13 @@ describe("exportSeed → applySeed round trip", () => {
 				venue_code: false,
 			});
 		});
+	});
+
+	it("keeps the Site URL out of exported seeds", async () => {
+		await setSiteSettings({ title: "Demo", url: "https://demo.example" }, db);
+
+		const seed = await exportSeed(db);
+
+		expect(seed.settings).toEqual({ title: "Demo" });
 	});
 });

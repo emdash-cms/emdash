@@ -15,7 +15,7 @@ import {
 	toAbsoluteMediaUrl,
 	gallerySizes,
 	GALLERY_DEFAULT_COLUMNS,
-	RESPONSIVE_BREAKPOINTS,
+	responsiveWidths,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
@@ -64,8 +64,9 @@ function generateSrcset(
 	getSrc: NonNullable<ImageEmbed["getSrc"]>,
 	maxWidth: number,
 	aspectRatio?: number,
+	originalWidth?: number,
 ): string {
-	return RESPONSIVE_BREAKPOINTS.filter((w) => w <= maxWidth * 2)
+	return responsiveWidths(maxWidth, originalWidth)
 		.map((w) => {
 			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
 			return `${getSrc({ width: w, height: h })} ${w}w`;
@@ -115,7 +116,7 @@ const resolvedImages = await Promise.all(
 
 						if (embed.getSrc) {
 							const maxWidth = width || 1200;
-							srcset = generateSrcset(embed.getSrc, maxWidth, aspectRatio);
+							srcset = generateSrcset(embed.getSrc, maxWidth, aspectRatio, width);
 							sizes = cellSizes;
 						}
 					}

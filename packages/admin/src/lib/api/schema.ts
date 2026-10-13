@@ -258,14 +258,17 @@ export async function fetchBlockTypes(): Promise<BlockType[]> {
 	const response = await apiFetch(`${API_BASE}/schema/block-types`);
 	const data = await parseApiResponse<{ items: BlockType[] }>(
 		response,
-		"Failed to fetch block types",
+		i18n._(msg`Failed to fetch block types`),
 	);
 	return data.items;
 }
 
 export async function fetchBlockType(slug: string): Promise<BlockType> {
 	const response = await apiFetch(`${API_BASE}/schema/block-types/${slug}`);
-	const data = await parseApiResponse<{ item: BlockType }>(response, "Failed to fetch block type");
+	const data = await parseApiResponse<{ item: BlockType }>(
+		response,
+		i18n._(msg`Failed to fetch block type`),
+	);
 	return data.item;
 }
 
@@ -275,7 +278,10 @@ export async function createBlockType(input: CreateBlockTypeInput): Promise<Bloc
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: BlockType }>(response, "Failed to create block type");
+	const data = await parseApiResponse<{ item: BlockType }>(
+		response,
+		i18n._(msg`Failed to create block type`),
+	);
 	return data.item;
 }
 
@@ -288,7 +294,10 @@ export async function updateBlockType(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: BlockType }>(response, "Failed to update block type");
+	const data = await parseApiResponse<{ item: BlockType }>(
+		response,
+		i18n._(msg`Failed to update block type`),
+	);
 	return data.item;
 }
 
@@ -307,7 +316,7 @@ export async function activateBlockTypeVersion(
 	);
 	const data = await parseApiResponse<{ item: BlockType }>(
 		response,
-		"Failed to activate block type version",
+		i18n._(msg`Failed to activate block type version`),
 	);
 	return data.item;
 }
@@ -319,7 +328,7 @@ export async function fetchCollections(): Promise<SchemaCollection[]> {
 	const response = await apiFetch(`${API_BASE}/schema/collections`);
 	const data = await parseApiResponse<{ items: SchemaCollection[] }>(
 		response,
-		"Failed to fetch collections",
+		i18n._(msg`Failed to fetch collections`),
 	);
 	return data.items;
 }
@@ -359,7 +368,7 @@ export async function createCollection(input: CreateCollectionInput): Promise<Sc
 	});
 	const data = await parseApiResponse<{ item: SchemaCollection }>(
 		response,
-		"Failed to create collection",
+		i18n._(msg`Failed to create collection`),
 	);
 	return data.item;
 }
@@ -378,7 +387,7 @@ export async function updateCollection(
 	});
 	const data = await parseApiResponse<{ item: SchemaCollection }>(
 		response,
-		"Failed to update collection",
+		i18n._(msg`Failed to update collection`),
 	);
 	return data.item;
 }
@@ -399,7 +408,10 @@ export async function deleteCollection(slug: string, force = false): Promise<voi
  */
 export async function fetchFields(collectionSlug: string): Promise<SchemaField[]> {
 	const response = await apiFetch(`${API_BASE}/schema/collections/${collectionSlug}/fields`);
-	const data = await parseApiResponse<{ items: SchemaField[] }>(response, "Failed to fetch fields");
+	const data = await parseApiResponse<{ items: SchemaField[] }>(
+		response,
+		i18n._(msg`Failed to fetch fields`),
+	);
 	return data.items;
 }
 
@@ -415,7 +427,10 @@ export async function createField(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: SchemaField }>(response, "Failed to create field");
+	const data = await parseApiResponse<{ item: SchemaField }>(
+		response,
+		i18n._(msg`Failed to create field`),
+	);
 	return data.item;
 }
 
@@ -435,7 +450,10 @@ export async function updateField(
 			body: JSON.stringify(input),
 		},
 	);
-	const data = await parseApiResponse<{ item: SchemaField }>(response, "Failed to update field");
+	const data = await parseApiResponse<{ item: SchemaField }>(
+		response,
+		i18n._(msg`Failed to update field`),
+	);
 	return data.item;
 }
 
@@ -504,7 +522,7 @@ export async function fetchOrphanedTables(): Promise<OrphanedTable[]> {
 	const response = await apiFetch(`${API_BASE}/schema/orphans`);
 	const data = await parseApiResponse<{ items: OrphanedTable[] }>(
 		response,
-		"Failed to fetch orphaned tables",
+		i18n._(msg`Failed to fetch orphaned tables`),
 	);
 	return data.items;
 }
@@ -527,7 +545,7 @@ export async function registerOrphanedTable(
 	});
 	const data = await parseApiResponse<{ item: SchemaCollection }>(
 		response,
-		"Failed to register orphaned table",
+		i18n._(msg`Failed to register orphaned table`),
 	);
 	return data.item;
 }

@@ -120,6 +120,6 @@ pnpm evals:implementation
 
 The test sends signed webhook commands through the real orchestrator and
 requires all of these outcomes: candidate branch creation, a changed remote
-SHA, preview readiness (`bot:awaiting-reporter`), reporter confirmation, and a
-draft PR. It deliberately leaves the draft PR and branch for inspection. It
+SHA, a ready-for-review PR (`bot:in-review`), and reporter confirmation
+(`triage/verified`). It deliberately leaves the PR and branch for inspection. It
 refuses `emdash-cms/emdash` unless `ALLOW_PRODUCTION_REPO=1` is also set.

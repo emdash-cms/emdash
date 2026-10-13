@@ -464,6 +464,108 @@ export async function getIssueLabels(
 	return out;
 }
 
+/**
+ * The account's permission on the repository: `admin`, `write`, `read`, or
+ * `none`. GitHub answers 404 for an account that isn't a collaborator.
+ */
+export async function getCollaboratorPermission(
+	token: GitHubToken,
+	ctx: RepoContext,
+	login: string,
+	signal?: AbortSignal,
+): Promise<string> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/collaborators/${encodeURIComponent(login)}/permission`,
+		{ headers: authHeaders(token), signal },
+	);
+	if (res.status === 404) return "none";
+	if (!res.ok) throw new Error(`getCollaboratorPermission failed: ${res.status}`);
+	const json = await res.json<{ permission?: unknown }>();
+	return typeof json.permission === "string" ? json.permission : "none";
+}
+
+export interface CompetingWork {
+	/** Open pull requests in this repository, from people, that reference the issue. */
+	readonly pullRequests: readonly number[];
+	/** People assigned to the issue. */
+	readonly assignees: readonly string[];
+}
+
+/** Signs that someone is already working on an issue. */
+export async function getCompetingWork(
+	token: GitHubToken,
+	ctx: RepoContext,
+	issueNumber: number,
+	signal?: AbortSignal,
+): Promise<CompetingWork> {
+	const issueUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}`;
+	const [issueResponse, timeline] = await Promise.all([
+		coordinatedFetch(token, issueUrl, { headers: authHeaders(token), signal }),
+		listIssueTimeline(token, issueUrl, signal),
+	]);
+	if (!issueResponse.ok) throw new Error(`getCompetingWork issue failed: ${issueResponse.status}`);
+	const issue = await issueResponse.json<{
+		assignees?: Array<{ login?: string; type?: string } | null>;
+	}>();
+	const repositoryUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}`.toLowerCase();
+	const pullRequests = new Set<number>();
+	for (const entry of timeline) {
+		const source = entry.source?.issue;
+		if (
+			entry.event === "cross-referenced" &&
+			source?.pull_request &&
+			source.state === "open" &&
+			typeof source.number === "number" &&
+			source.repository_url?.toLowerCase() === repositoryUrl &&
+			isPerson(source.user)
+		) {
+			pullRequests.add(source.number);
+		}
+	}
+	return {
+		pullRequests: [...pullRequests].toSorted((left, right) => left - right),
+		assignees: (issue.assignees ?? []).flatMap((assignee) =>
+			assignee?.login && isPerson(assignee) ? [assignee.login] : [],
+		),
+	};
+}
+
+interface TimelineEntry {
+	event?: string;
+	source?: {
+		issue?: {
+			number?: number;
+			state?: string;
+			pull_request?: unknown;
+			user?: { login?: string; type?: string } | null;
+			repository_url?: string;
+		};
+	};
+}
+
+async function listIssueTimeline(
+	token: GitHubToken,
+	issueUrl: string,
+	signal?: AbortSignal,
+): Promise<TimelineEntry[]> {
+	const entries: TimelineEntry[] = [];
+	for (let page = 1; ; page += 1) {
+		const res = await coordinatedFetch(token, `${issueUrl}/timeline?per_page=100&page=${page}`, {
+			headers: authHeaders(token),
+			signal,
+		});
+		if (!res.ok) throw new Error(`getCompetingWork timeline failed: ${res.status}`);
+		const items = await res.json<TimelineEntry[]>();
+		entries.push(...items);
+		if (items.length < 100) return entries;
+	}
+}
+
+function isPerson(user: { login?: string; type?: string } | null | undefined): boolean {
+	return !!user?.login && user.type !== "Bot" && !user.login.endsWith("[bot]");
+}
+
 export async function confirmAnchorMissing(
 	token: GitHubToken,
 	ctx: RepoContext,
@@ -515,6 +617,39 @@ export async function getBranchSha(
 	if (!res.ok) throw new Error(`getBranchSha failed: ${res.status}`);
 	const json = await res.json<{ commit?: { sha?: string } }>();
 	return json.commit?.sha ?? null;
+}
+
+export type CheckRunProgress = "pending" | "succeeded" | "failed";
+
+/**
+ * The latest run of the named check on a branch's head commit, or null when
+ * the branch is gone or the run hasn't been created yet.
+ */
+export async function getBranchCheckRun(
+	token: GitHubToken,
+	ctx: RepoContext,
+	branch: string,
+	checkName: string,
+): Promise<CheckRunProgress | null> {
+	const sha = await getBranchSha(token, ctx, branch);
+	if (!sha) return null;
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/commits/${sha}/check-runs?check_name=${encodeURIComponent(checkName)}&filter=latest`,
+		{ headers: authHeaders(token) },
+	);
+	if (!res.ok) throw new Error(`getBranchCheckRun failed: ${res.status}`);
+	const json = await res.json<{
+		check_runs?: Array<{ status?: string; conclusion?: string | null }>;
+	}>();
+	const run = json.check_runs?.[0];
+	if (!run) return null;
+	if (run.status !== "completed") return "pending";
+	return run.conclusion === "success" ||
+		run.conclusion === "neutral" ||
+		run.conclusion === "skipped"
+		? "succeeded"
+		: "failed";
 }
 
 /** Deletes a branch ref. A 404/422 means it is already gone, which is fine. */
@@ -599,9 +734,17 @@ export interface PullRequestStatus {
 	readonly failingChecks: ReadonlyArray<{ name: string; url: string | null }>;
 	readonly pendingChecks: string[];
 	readonly updatedAt: string;
+	/** Ids of the reviews currently requesting changes, ascending. */
+	readonly changesRequestedReviewIds?: readonly number[];
+	/** Checks failing on the base branch's head, so not caused by this PR. */
+	readonly baseFailingChecks?: readonly string[];
+	/** The bot's own most recent review, and the commit it reviewed. */
+	readonly latestBotReview?: { readonly body: string; readonly commitSha: string | null } | null;
 }
 
 const PASSING_CHECK_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
+// GraphQL reports an app's login without the `[bot]` suffix that REST uses.
+const BOT_REVIEW_LOGINS: ReadonlySet<string> = new Set(["emdashbot", "emdashbot[bot]"]);
 const FAILING_CHECK_CONCLUSIONS = new Set([
 	"action_required",
 	"cancelled",
@@ -624,6 +767,22 @@ export async function getPullRequestStatus(
 				repository(owner: $owner, name: $repo) {
 					pullRequest(number: $number) {
 						number url state isDraft merged mergeable headRefOid reviewDecision updatedAt
+						latestOpinionatedReviews(first: 50) { nodes { databaseId state } }
+						reviews(last: 20) { nodes { author { login } body commit { oid } } }
+						baseRef {
+							target {
+								... on Commit {
+									statusCheckRollup {
+										contexts(first: 100) {
+											nodes {
+												... on CheckRun { name status conclusion }
+												... on StatusContext { context state }
+											}
+										}
+									}
+								}
+							}
+						}
 						commits(last: 1) {
 							nodes {
 								commit {
@@ -659,6 +818,23 @@ export async function getPullRequestStatus(
 					headRefOid?: string;
 					reviewDecision?: string | null;
 					updatedAt?: string;
+					latestOpinionatedReviews?: {
+						nodes?: Array<{ databaseId?: number | null; state?: string } | null>;
+					};
+					reviews?: {
+						nodes?: Array<{
+							author?: { login?: string } | null;
+							body?: string;
+							commit?: { oid?: string } | null;
+						} | null>;
+					};
+					baseRef?: {
+						target?: {
+							statusCheckRollup?: {
+								contexts?: { nodes?: Array<Record<string, unknown>> };
+							} | null;
+						} | null;
+					} | null;
 					commits?: {
 						nodes?: Array<{
 							commit?: {
@@ -679,34 +855,24 @@ export async function getPullRequestStatus(
 	if (!pull) throw new GitHubPullRequestNotFoundError(prNumber);
 	if (!pull.headRefOid) throw new Error("getPullRequestStatus response had no head SHA");
 	const rollup = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup;
-	const contexts = rollup?.contexts?.nodes ?? [];
-
-	const failingChecks: Array<{ name: string; url: string | null }> = [];
-	const pendingChecks: string[] = [];
-	let passingCount = 0;
-	for (const context of contexts) {
-		if (typeof context.name === "string") {
-			const status = typeof context.status === "string" ? context.status.toLowerCase() : "";
-			const conclusion =
-				typeof context.conclusion === "string" ? context.conclusion.toLowerCase() : null;
-			if (status !== "completed" || conclusion === null) pendingChecks.push(context.name);
-			else if (FAILING_CHECK_CONCLUSIONS.has(conclusion)) {
-				failingChecks.push({
-					name: context.name,
-					url: typeof context.detailsUrl === "string" ? context.detailsUrl : null,
-				});
-			} else if (PASSING_CHECK_CONCLUSIONS.has(conclusion)) passingCount += 1;
-		} else if (typeof context.context === "string") {
-			const state = typeof context.state === "string" ? context.state.toLowerCase() : "";
-			if (state === "pending" || state === "expected") pendingChecks.push(context.context);
-			else if (state === "failure" || state === "error") {
-				failingChecks.push({
-					name: context.context,
-					url: typeof context.targetUrl === "string" ? context.targetUrl : null,
-				});
-			} else if (state === "success") passingCount += 1;
-		}
-	}
+	const { failingChecks, pendingChecks, passingCount } = classifyCheckContexts(
+		rollup?.contexts?.nodes ?? [],
+	);
+	const baseFailingChecks = classifyCheckContexts(
+		pull.baseRef?.target?.statusCheckRollup?.contexts?.nodes ?? [],
+	)
+		.failingChecks.map(({ name }) => name)
+		.toSorted();
+	const changesRequestedReviewIds = (pull.latestOpinionatedReviews?.nodes ?? [])
+		.flatMap((node) =>
+			node?.state === "CHANGES_REQUESTED" && typeof node.databaseId === "number"
+				? [node.databaseId]
+				: [],
+		)
+		.toSorted((left, right) => left - right);
+	const botReview = (pull.reviews?.nodes ?? []).findLast((node) =>
+		BOT_REVIEW_LOGINS.has(node?.author?.login ?? ""),
+	);
 	const rollupState = rollup?.state?.toLowerCase();
 	const checks =
 		failingChecks.length > 0
@@ -740,7 +906,46 @@ export async function getPullRequestStatus(
 		failingChecks,
 		pendingChecks,
 		updatedAt: pull.updatedAt ?? new Date().toISOString(),
+		changesRequestedReviewIds,
+		baseFailingChecks,
+		latestBotReview: botReview
+			? { body: botReview.body ?? "", commitSha: botReview.commit?.oid ?? null }
+			: null,
 	};
+}
+
+function classifyCheckContexts(contexts: ReadonlyArray<Record<string, unknown>>): {
+	failingChecks: Array<{ name: string; url: string | null }>;
+	pendingChecks: string[];
+	passingCount: number;
+} {
+	const failingChecks: Array<{ name: string; url: string | null }> = [];
+	const pendingChecks: string[] = [];
+	let passingCount = 0;
+	for (const context of contexts) {
+		if (typeof context.name === "string") {
+			const status = typeof context.status === "string" ? context.status.toLowerCase() : "";
+			const conclusion =
+				typeof context.conclusion === "string" ? context.conclusion.toLowerCase() : null;
+			if (status !== "completed" || conclusion === null) pendingChecks.push(context.name);
+			else if (FAILING_CHECK_CONCLUSIONS.has(conclusion)) {
+				failingChecks.push({
+					name: context.name,
+					url: typeof context.detailsUrl === "string" ? context.detailsUrl : null,
+				});
+			} else if (PASSING_CHECK_CONCLUSIONS.has(conclusion)) passingCount += 1;
+		} else if (typeof context.context === "string") {
+			const state = typeof context.state === "string" ? context.state.toLowerCase() : "";
+			if (state === "pending" || state === "expected") pendingChecks.push(context.context);
+			else if (state === "failure" || state === "error") {
+				failingChecks.push({
+					name: context.context,
+					url: typeof context.targetUrl === "string" ? context.targetUrl : null,
+				});
+			} else if (state === "success") passingCount += 1;
+		}
+	}
+	return { failingChecks, pendingChecks, passingCount };
 }
 
 export async function getPullRequestHeadBranch(
@@ -982,77 +1187,4 @@ export async function getPullRequestReviewComments(
 		}
 		if (comments.length < 100) return result;
 	}
-}
-
-async function listPullRequestPages<T>(
-	token: GitHubToken,
-	ctx: RepoContext,
-	prNumber: number,
-	resource: "reviews" | "commits",
-	signal?: AbortSignal,
-): Promise<T[]> {
-	const result: T[] = [];
-	for (let page = 1; ; page += 1) {
-		const res = await coordinatedFetch(
-			token,
-			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}/${resource}?per_page=100&page=${page}`,
-			{ headers: authHeaders(token), signal },
-		);
-		if (!res.ok) {
-			throw new Error(`listing PR ${resource} failed: ${res.status}`);
-		}
-		const items = await res.json<T[]>();
-		result.push(...items);
-		if (items.length < 100) return result;
-	}
-}
-
-export interface PullRequestReview {
-	readonly state: string;
-	readonly submittedAt: string | null;
-	readonly authorLogin: string | null;
-	readonly authorType: string | null;
-	readonly authorAssociation: string | null;
-}
-
-export async function listPullRequestReviews(
-	token: GitHubToken,
-	ctx: RepoContext,
-	prNumber: number,
-	signal?: AbortSignal,
-): Promise<PullRequestReview[]> {
-	const reviews = await listPullRequestPages<{
-		state?: string;
-		submitted_at?: string | null;
-		author_association?: string | null;
-		user?: { login?: string; type?: string } | null;
-	}>(token, ctx, prNumber, "reviews", signal);
-	return reviews.map((review) => ({
-		state: review.state ?? "",
-		submittedAt: review.submitted_at ?? null,
-		authorLogin: review.user?.login ?? null,
-		authorType: review.user?.type ?? null,
-		authorAssociation: review.author_association ?? null,
-	}));
-}
-
-export interface PullRequestCommit {
-	readonly committedAt: string | null;
-	readonly parentCount: number;
-}
-
-export async function listPullRequestCommits(
-	token: GitHubToken,
-	ctx: RepoContext,
-	prNumber: number,
-	signal?: AbortSignal,
-): Promise<PullRequestCommit[]> {
-	const commits = await listPullRequestPages<{
-		parents?: unknown[];
-		commit?: { committer?: { date?: string | null } | null };
-	}>(token, ctx, prNumber, "commits", signal);
-	return commits.map((commit) => ({
-		committedAt: commit.commit?.committer?.date ?? null,
-		parentCount: commit.parents?.length ?? 0,
-	}));
 }

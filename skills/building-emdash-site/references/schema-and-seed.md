@@ -1,6 +1,6 @@
 # Schema and Seed Files
 
-The seed file (`seed/seed.json`) defines the site's entire schema and optional demo content. It's inlined into the build and applied automatically on the first request when the database is empty and the setup wizard hasn't been completed.
+The seed file (`seed/seed.json`) defines the site's entire schema and optional demo content. It's inlined into the build; its schema is applied automatically and its demo content only on request (see [Applying Seeds](#applying-seeds)).
 
 ## Seed File Structure
 
@@ -67,13 +67,12 @@ Collections define content types. Each collection becomes a database table (`ec_
 | `number`       | REAL        | `number`                              | Floating point               |
 | `integer`      | INTEGER     | `number`                              | Whole numbers                |
 | `boolean`      | INTEGER     | `boolean`                             | Stored as 0/1                |
-| `datetime`     | TEXT        | `Date`                                | ISO 8601 string in DB        |
+| `datetime`     | TEXT        | `string` (ISO 8601)                   | Not converted to `Date`      |
 | `select`       | TEXT        | `string`                              | One configured option        |
 | `multiSelect`  | JSON        | `string[]`                            | Configured option list       |
 | `image`        | TEXT        | `{ id, src?, alt?, width?, height? }` | **Object, not a string**     |
 | `reference`    | none        | Links under `references`              | No column; see below         |
 | `file`         | TEXT        | `{ id, url?, filename?, ... }`        | File reference               |
-| `reference`    | TEXT        | `string` (ID)                         | Reference to another entry   |
 | `slug`         | TEXT        | `string`                              | Slug input                   |
 | `repeater`     | JSON        | `object[]`                            | Repeated structured rows     |
 | `portableText` | JSON        | `PortableTextBlock[]`                 | Rich text as structured JSON |
@@ -94,7 +93,7 @@ Collections define content types. Each collection becomes a database table (`ec_
 
 Fields can have:
 
-- `slug` (required) -- field identifier
+- `slug` (required) -- field identifier; cannot use a system field name such as `published_at`. See the [reserved field slugs](https://docs.emdashcms.com/reference/field-types/#reserved-field-slugs) for the full list.
 - `label` (required) -- display label in admin
 - `type` (required) -- one of the types above
 - `required` -- validation
@@ -215,7 +214,7 @@ Taxonomies are tag/category systems attached to collections.
 - `hierarchical: true` -- tree structure (like WordPress categories)
 - `hierarchical: false` -- flat list (like WordPress tags)
 - `collections` -- which collections this taxonomy applies to
-- `terms` -- pre-defined terms to create
+- `terms` -- sample terms, applied together with sample content
 
 ## Menus
 
@@ -267,13 +266,13 @@ Named regions where editors can add configurable widgets.
 			"type": "component",
 			"componentId": "core:recent-posts",
 			"title": "Recent Posts",
-			"settings": { "count": 5, "showDate": true }
+			"props": { "count": 5, "showDate": true }
 		},
 		{
 			"type": "component",
 			"componentId": "core:archives",
 			"title": "Archives",
-			"settings": { "type": "monthly", "limit": 6 }
+			"props": { "type": "monthly", "limit": 6 }
 		},
 		{
 			"type": "content",
@@ -292,11 +291,11 @@ Named regions where editors can add configurable widgets.
 
 ### Widget types
 
-| Type        | Description               | Key fields                |
-| ----------- | ------------------------- | ------------------------- |
-| `content`   | Rich text (Portable Text) | `content`                 |
-| `menu`      | Navigation menu           | `menuName`                |
-| `component` | Core or custom component  | `componentId`, `settings` |
+| Type        | Description               | Key fields             |
+| ----------- | ------------------------- | ---------------------- |
+| `content`   | Rich text (Portable Text) | `content`              |
+| `menu`      | Navigation menu           | `menuName`             |
+| `component` | Core or custom component  | `componentId`, `props` |
 
 ### Core widget components
 
@@ -366,7 +365,7 @@ Site-wide settings:
 }
 ```
 
-Available keys: `title`, `tagline`, `logo`, `favicon`, `social`, `timezone`, `dateFormat`.
+Available keys: `title`, `tagline`, `logo`, `favicon`, `url`, `postsPerPage`, `dateFormat`, `timezone`, `social`, `seo`.
 
 ## Content
 
@@ -440,12 +439,6 @@ Use `$media` for image fields -- EmDash downloads and stores the image:
 }
 ```
 
-For external images without downloading:
-
-```json
-"featured_image": "https://images.unsplash.com/photo-xxx?w=1200"
-```
-
 ### Reference fields in seed content
 
 Declare the field with the collection it links to:
@@ -462,10 +455,11 @@ Declare the field with the collection it links to:
 Such a field stores no column. Its links live in `_emdash_content_references`, keyed by each entry's
 translation group, and content reads return the linked entries under `references`.
 
-In content, use `$ref:id` to name another seeded entry:
+In content, use `$ref:id` with the `id` of an entry in the target collection (here an entry in
+`content.authors`). That collection's entries must come before this one in `content`:
 
 ```json
-"author": "$ref:byline-editorial"
+"author": "$ref:author-jane"
 ```
 
 A reference field declared without `targetCollection` keeps a TEXT column instead and holds the
@@ -528,21 +522,28 @@ Set `"status": "draft"` to create unpublished content:
 
 ## Applying Seeds
 
-The seed at `.emdash/seed.json`, `package.json#emdash.seed`, or `seed/seed.json` is inlined into the build and applied on the first request when the database is empty and the setup wizard hasn't been completed. Existing data is never overwritten.
+The seed at `.emdash/seed.json`, `package.json#emdash.seed`, or `seed/seed.json` is inlined into the build. On the first request before the setup wizard is completed, the runtime applies the seed's schema and structure once: collections, fields, taxonomy definitions, menus, redirects, widget areas, sections and settings. Later edits to the seed file are not re-applied to that database.
 
-Validation runs at apply time. Common errors caught:
+Sample content, bylines and taxonomy terms are applied only when you:
 
-- Image fields with raw URLs (should use `$media`)
-- Reference fields with raw IDs (should use `$ref:id`)
-- PortableText not an array or missing `_type`
-- Type mismatches (string vs number, etc.)
+- choose sample content in the setup wizard,
+- open `/_emdash/api/setup/dev-bypass` (add `?content=0` to skip content), or
+- run `npx emdash seed seed/seed.json` against a local SQLite database (`--database` defaults to `./data.db`).
 
-If the seed is invalid, the first request fails and the error is logged. Restart the dev server after fixing it.
+Existing data is never overwritten.
+
+Seed validation checks structure only: the version, required names and slugs, duplicates, taxonomy parents, and byline and menu references. It does not check field values, Portable Text, `$ref:` targets or `$media` URLs. An invalid seed is skipped on the first request without an error, so check it explicitly:
+
+```bash
+npx emdash seed seed/seed.json --validate
+```
 
 ## Exporting Seeds
 
+The command writes the seed to stdout:
+
 ```bash
-npx emdash export-seed                      # Schema only
-npx emdash export-seed --with-content       # Schema + all content
-npx emdash export-seed --with-content=posts,pages  # Specific collections
+npx emdash export-seed > seed/seed.json                            # Schema only
+npx emdash export-seed --with-content=all > seed/seed.json         # Schema + all content
+npx emdash export-seed --with-content=posts,pages > seed/seed.json # Specific collections
 ```

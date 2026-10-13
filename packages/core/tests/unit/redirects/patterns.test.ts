@@ -203,6 +203,25 @@ describe("redirect patterns", () => {
 			const compiled = compilePattern("/blog/[slug]");
 			expect(matchPattern(compiled, "/blog/my%20post")).toEqual({ slug: "my%20post" });
 		});
+
+		it("matches [param] patterns with a trailing slash", () => {
+			const compiled = compilePattern("/category/[slug]/feed");
+			expect(matchPattern(compiled, "/category/arts/feed")).toEqual({ slug: "arts" });
+			expect(matchPattern(compiled, "/category/arts/feed/")).toEqual({ slug: "arts" });
+		});
+
+		it("matches [...rest] patterns with a trailing slash", () => {
+			const compiled = compilePattern("/old/[...path]");
+			expect(matchPattern(compiled, "/old/2024/01/post/")).toEqual({
+				path: "2024/01/post/",
+			});
+		});
+
+		it("matches a pattern whose source ends with a trailing slash when the request omits it", () => {
+			const compiled = compilePattern("/category/[slug]/feed/");
+			expect(matchPattern(compiled, "/category/arts/feed")).toEqual({ slug: "arts" });
+			expect(matchPattern(compiled, "/category/arts/feed/")).toEqual({ slug: "arts" });
+		});
 	});
 
 	describe("interpolateDestination", () => {

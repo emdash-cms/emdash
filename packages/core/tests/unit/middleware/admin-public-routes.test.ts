@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("virtual:emdash/auth", () => ({ authenticate: vi.fn() }));
 vi.mock("virtual:emdash/config", () => ({ default: {} }));
@@ -33,6 +33,7 @@ beforeAll(async () => {
 /** An anonymous GET to an admin page. */
 async function visit(
 	pathname: string,
+	render: () => Response = () => new Response("ok"),
 ): Promise<{ response: Response; next: ReturnType<typeof vi.fn> }> {
 	const url = new URL(pathname, "https://site.example.com");
 	const session = {
@@ -40,7 +41,7 @@ async function visit(
 		set: vi.fn(),
 		destroy: vi.fn(),
 	};
-	const next = vi.fn(async () => new Response("ok"));
+	const next = vi.fn(async () => render());
 	const response = await onRequest(
 		{
 			url,
@@ -75,5 +76,29 @@ describe("Anonymous access to admin pages", () => {
 		expect(location.searchParams.get("redirect")).toBe(
 			"/_emdash/admin/content/posts?token=abc&x=1",
 		);
+	});
+});
+
+describe("Content-Security-Policy on anonymous admin pages", () => {
+	beforeEach(() => {
+		vi.stubEnv("DEV", false);
+	});
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	const withHostCsp = () =>
+		new Response("ok", {
+			headers: { "Content-Security-Policy": "script-src 'sha256-abc' 'strict-dynamic'" },
+		});
+
+	it("sends the setup page the admin policy instead of the host site's", async () => {
+		const { response: login } = await visit("/_emdash/admin/login", withHostCsp);
+		const { response: setup } = await visit("/_emdash/admin/setup", withHostCsp);
+
+		const adminCsp = login.headers.get("Content-Security-Policy");
+		expect(adminCsp).toContain("frame-ancestors 'none'");
+		expect(setup.headers.get("Content-Security-Policy")).toBe(adminCsp);
 	});
 });

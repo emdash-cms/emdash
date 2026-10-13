@@ -39,6 +39,7 @@ type CommandPaletteManifest = {
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
 
 // Regex for replacing route params like $collection with actual values
 const ROUTE_PARAM_REGEX = /\$(\w+)/g;
@@ -135,6 +136,14 @@ export function buildNavItems(
 			to: "/",
 			icon: ADMIN_NAV_ICONS.dashboard,
 			keywords: ["home", "overview"],
+		},
+		{
+			id: "calendar",
+			title: msg`Calendar`,
+			to: "/calendar",
+			icon: ADMIN_NAV_ICONS.calendar,
+			minRole: ROLE_CONTRIBUTOR,
+			keywords: ["schedule", "scheduled", "publishing", "agenda"],
 		},
 	];
 

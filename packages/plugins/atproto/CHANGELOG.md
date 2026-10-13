@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-atproto
 
+## 0.2.3
+
+### Patch Changes
+
+- [#3647](https://github.com/emdash-cms/emdash/pull/3647) [`998b983`](https://github.com/emdash-cms/emdash/commit/998b983b7093e2c5a1f806b09cd8a93bfc33eb0a) Thanks [@nozamdavid](https://github.com/nozamdavid)! - Fixes the AT Protocol settings page failing to load by adding the required `page_action_id` to the “Recent Syncs” table.
+
 ## 0.2.2
 
 No changes in this release.

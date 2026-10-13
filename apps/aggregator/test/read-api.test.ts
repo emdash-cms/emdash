@@ -568,6 +568,59 @@ describe("searchPackages", () => {
 		expect(body.packages).toMatchObject([{ did: DID_A, slug: "gallery" }]);
 	});
 
+	it("falls back to FTS when a handle-shaped query does not resolve to a publisher", async () => {
+		await seedPackage({ slug: "atproto", keywords: ["standard.site"] });
+		await seedPackage({ slug: "forms" });
+
+		const res = await searchPackages(
+			env,
+			{ q: "standard.site" },
+			{ resolvePublisher: () => Promise.reject(new Error("no such handle")) },
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((pkg) => pkg.slug)).toEqual(["atproto"]);
+	});
+
+	it("falls back to FTS when a resolved publisher has no matching packages", async () => {
+		await seedPackage({ slug: "atproto", keywords: ["standard.site"] });
+
+		const res = await searchPackages(
+			env,
+			{ q: "standard.site" },
+			{ resolvePublisher: async () => ({ did: DID_B, handle: "standard.site" }) },
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((pkg) => pkg.slug)).toEqual(["atproto"]);
+	});
+
+	it("does not fall back to FTS for an exact handle and slug with no match", async () => {
+		await seedPackage({ slug: "gallery", keywords: ["publisher.example/nonexistent"] });
+
+		const res = await searchPackages(
+			env,
+			{ q: "publisher.example/nonexistent" },
+			{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+		);
+
+		await expect(res.json()).resolves.toEqual({ packages: [] });
+	});
+
+	it("prefers publisher matches over FTS for a resolved handle", async () => {
+		await seedPackage({ slug: "gallery" });
+		await seedPackage({ did: DID_B, slug: "mentions", keywords: ["publisher.example"] });
+
+		const res = await searchPackages(
+			env,
+			{ q: "publisher.example" },
+			{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+		);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+		expect(body.packages.map((pkg) => pkg.slug)).toEqual(["gallery"]);
+	});
+
 	it("returns FTS-matched packages", async () => {
 		await seedPackage({ slug: "gallery", name: "Gallery Plugin", description: "image gallery" });
 		await seedPackage({ slug: "form", name: "Form Plugin", description: "form builder" });

@@ -130,8 +130,12 @@ describe("resolveLocale", () => {
 	});
 
 	// Accept-Language base language fallback
-	test("falls back to base language (pt-PT -> pt-BR)", () => {
-		expect(resolveLocale(makeRequest({ "accept-language": "pt-PT" }))).toBe("pt-BR");
+	test("matches accept-language with region (pt-PT)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "pt-PT" }))).toBe("pt-PT");
+	});
+
+	test("falls back to base language (de-AT -> de)", () => {
+		expect(resolveLocale(makeRequest({ "accept-language": "de-AT" }))).toBe("de");
 	});
 
 	test("matches exact accept-language tag with region (zh-TW)", () => {

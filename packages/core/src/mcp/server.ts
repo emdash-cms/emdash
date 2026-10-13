@@ -36,6 +36,7 @@ import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
+import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
@@ -49,6 +50,7 @@ import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
 import { toSha256Digest } from "../transfer/format/digest.js";
 import { siteImportDecisionsInputSchema } from "../transfer/format/plan.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
+import { pluginToolName } from "./plugin-tool-name.js";
 import {
 	analyzeImport,
 	exportStatus,
@@ -577,8 +579,7 @@ async function unwrapAndInvalidate(
 	changedEarlier = false,
 ): Promise<SuccessEnvelope | ErrorEnvelope> {
 	if (result.success || changedEarlier) {
-		const { cache } = getExtra(extra);
-		if (cache?.enabled) await cache.invalidate({ tags });
+		await invalidateRouteCache(getExtra(extra).cache, tags);
 	}
 	return unwrap(result);
 }
@@ -905,10 +906,19 @@ export function createMcpServer(
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
 
+	const registeredPluginNames = new Set<string>();
 	for (const tool of pluginTools) {
 		if (!Object.hasOwn(Permissions, tool.permission)) continue;
+		const name = pluginToolName(tool.pluginId, tool.name);
+		if (registeredPluginNames.has(name)) {
+			console.warn(
+				`[emdash] Skipping duplicate MCP tool name ${name} from ${tool.pluginId}/${tool.name}`,
+			);
+			continue;
+		}
+		registeredPluginNames.add(name);
 		server.registerTool(
-			`${tool.pluginId}__${tool.name}`,
+			name,
 			{
 				description: tool.description,
 				inputSchema: tool.inputSchema,
@@ -1015,7 +1025,11 @@ export function createMcpServer(
 				orderBy: z
 					.string()
 					.optional()
-					.describe("Field to sort by (e.g. 'created_at', 'updated_at')"),
+					.describe(
+						"Field to sort by: 'createdAt' (default), 'updatedAt', 'publishedAt', 'scheduledAt', " +
+							"'slug', 'status', 'locale', or a field slug that is indexed or set as the " +
+							"collection's titleField or dateField",
+					),
 				order: z.enum(["asc", "desc"]).optional().describe("Sort direction (default 'desc')"),
 				locale: z
 					.string()
@@ -1130,7 +1144,8 @@ export function createMcpServer(
 				"this. Pass a Portable Text JSON array only for complex content Markdown " +
 				"can't express (custom blocks, embeds). A slug is auto-generated if not " +
 				"provided. Items are created as 'draft' by default — use content_publish " +
-				"to make them live.",
+				"or pass status='published' to make them live. `seo` and `publishedAt` " +
+				"can be set in the same call; `publishedAt` requires content:publish_any.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				data: z
@@ -1171,6 +1186,18 @@ export function createMcpServer(
 					.describe(
 						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
 					),
+				// Reuse the REST schema so `canonical` is gated through `httpUrl`,
+				// rejecting javascript:/data: URIs that would become stored XSS.
+				seo: contentSeoInput
+					.optional()
+					.describe(
+						"Per-content SEO metadata. Only valid for collections with SEO enabled (see schema_get_collection.hasSeo).",
+					),
+				publishedAt: contentDateTimeInputSchema
+					.nullish()
+					.describe(
+						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Useful for content migrations.",
+					),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -1179,6 +1206,19 @@ export function createMcpServer(
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId, userRole } = getExtra(extra);
 			const actor = { id: userId, role: userRole };
+
+			// Writing publishedAt directly (including clearing to null) overwrites
+			// historical record — gate behind publish_any, mirroring the REST POST
+			// route and the MCP content_update tool.
+			if (args.publishedAt !== undefined) {
+				const user = { id: userId, role: userRole };
+				if (!hasPermission(user, "content:publish_any")) {
+					throw new EmDashAuthError(
+						"Setting publishedAt requires content:publish_any permission",
+						"INSUFFICIENT_PERMISSIONS",
+					);
+				}
+			}
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
@@ -1213,6 +1253,8 @@ export function createMcpServer(
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
 					replaceBlocks: args.replaceBlocks,
+					seo: args.seo,
+					publishedAt: args.publishedAt,
 					actor,
 				});
 				if (!result.success) return unwrap(result);
@@ -1221,6 +1263,7 @@ export function createMcpServer(
 					return unwrapAndInvalidate(
 						extra,
 						await emdash.handleContentPublish(args.collection, itemId, {
+							publishedAt: args.publishedAt ?? undefined,
 							actor: { ...actor, source: "mcp" },
 							origin: { source: "mcp" },
 						}),
@@ -1228,11 +1271,10 @@ export function createMcpServer(
 						true,
 					);
 				}
-				return unwrapAndInvalidate(extra, result, [args.collection]);
+				return unwrap(result);
 			}
 
-			return unwrapAndInvalidate(
-				extra,
+			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
 					data,
 					slug: args.slug,
@@ -1243,9 +1285,10 @@ export function createMcpServer(
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
 					replaceBlocks: args.replaceBlocks,
+					seo: args.seo,
+					publishedAt: args.publishedAt,
 					actor,
 				}),
-				[args.collection],
 			);
 		},
 	);
@@ -1892,11 +1935,7 @@ export function createMcpServer(
 				"content:edit_any",
 			);
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrapAndInvalidate(
-				extra,
-				await emdash.handleContentDuplicate(args.collection, resolvedId, userId),
-				[args.collection],
-			);
+			return unwrap(await emdash.handleContentDuplicate(args.collection, resolvedId, userId));
 		},
 	);
 
@@ -2015,8 +2054,10 @@ export function createMcpServer(
 			description:
 				"Create a new byline (author/contributor credit). The slug must be unique " +
 				"and contain only lowercase letters, digits, and hyphens. Link the byline " +
-				"to a CMS user via userId, or leave it as a standalone guest credit. The " +
-				"returned id can then be passed to content_create/content_update bylines.",
+				"to a CMS user via userId, or leave it as a standalone guest credit. A " +
+				"translation created with translationOf keeps the source's userId unless " +
+				"you pass one; pass null to leave it unlinked. The returned id can then be " +
+				"passed to content_create/content_update bylines.",
 			inputSchema: z.object({ ...bylineCreateBody.shape }),
 			annotations: { destructiveHint: false },
 		},
@@ -3690,7 +3731,9 @@ export function createMcpServer(
 			title: "Update Site Settings",
 			description:
 				"Update one or more site-wide settings. This is a partial update: only " +
-				"the fields provided are changed; omitted fields are left as-is. Returns " +
+				"the fields provided are changed; omitted fields are left as-is, including " +
+				"fields inside `seo` and `social`. Send an empty string to clear a text " +
+				"field. Returns " +
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +

@@ -77,11 +77,10 @@ test.describe("Autosave", () => {
 		admin,
 	}) => {
 		const contentUrl = `/_emdash/api/content/${collectionSlug}/${postId}`;
-		const isPut = (res: any) => res.url().includes(contentUrl) && res.request().method() === "PUT";
-		const isGet = (res: any) =>
+		const isPutOf = (title: string) => (res: any) =>
 			res.url().includes(contentUrl) &&
-			!res.url().includes("/revisions") &&
-			res.request().method() === "GET";
+			res.request().method() === "PUT" &&
+			(res.request().postData() ?? "").includes(title);
 
 		await admin.goToEditContent(collectionSlug, postId);
 		await admin.waitForLoading();
@@ -89,16 +88,10 @@ test.describe("Autosave", () => {
 		const titleInput = admin.page.locator("#field-title");
 		await expect(titleInput).toHaveValue("Original");
 
-		// First edit — listen for both the PUT and the subsequent cache re-fetch GET
-		const firstPut = admin.page.waitForResponse(isPut, { timeout: 10000 });
+		const firstPut = admin.page.waitForResponse(isPutOf("Edit One"), { timeout: 10000 });
 		await titleInput.fill("Edit One");
 		await firstPut;
-
-		// Wait for the cache invalidation GET to settle so form doesn't get overwritten
-		const refetchGet = admin.page.waitForResponse(isGet, { timeout: 5000 }).catch(() => {});
-		await refetchGet;
-		// Extra settle time for React state updates
-		await admin.page.waitForTimeout(500);
+		await expect(admin.page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible();
 
 		// Check revision count after first autosave
 		const res1 = await fetch(
@@ -109,7 +102,7 @@ test.describe("Autosave", () => {
 		const countAfterFirst = data1.data.total;
 
 		// Second edit — set up listener BEFORE typing
-		const secondPut = admin.page.waitForResponse(isPut, { timeout: 10000 });
+		const secondPut = admin.page.waitForResponse(isPutOf("Edit Two"), { timeout: 10000 });
 		await titleInput.fill("Edit Two");
 		await secondPut;
 

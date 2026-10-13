@@ -774,6 +774,15 @@ describe("runtime plugin test host", () => {
 			size: 4,
 			contentHash: "sha1:private-scan",
 		});
+		const { transport } = runtimeHost;
+		const concurrentReads = await Promise.all(
+			Array.from({ length: 24 }, () =>
+				transport.invokeRoute("media-read-bytes", { id: fixture.id }),
+			),
+		);
+		for (const result of concurrentReads) {
+			expect(result).toMatchObject({ bytes: [0, 255, 17, 42], size: 4 });
+		}
 		await expect(runtimeHost.inspect.mediaBytes(fixture.id)).resolves.toEqual(bytes);
 
 		const metadata = await runtimeHost.transport.invokeRoute("media-get", { id: fixture.id });

@@ -260,6 +260,25 @@ describe("media usage details handler and route", () => {
 		expect(serialized).not.toContain("count");
 	});
 
+	it("reports a video used in a Portable Text video block", async () => {
+		await new MediaUsageRepository(db).replaceSource(contentSource("entry-video", "columns"), [
+			occurrence("body", "body[0].asset._ref", "portable_text_video", unreferencedMedia.id),
+		]);
+
+		const result = await handleMediaUsageDetails(db, unreferencedMedia.id, { limit: 10 });
+
+		if (!result.success) throw new Error("Expected media usage details");
+		expect(result.data.items[0]?.sources[0]?.occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[0].asset._ref",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_video",
+			},
+		]);
+		expect(mediaUsageDetailsResponseSchema.parse(result.data)).toEqual(result.data);
+	});
+
 	it("returns empty details plus coverage for an existing unreferenced media item", async () => {
 		const result = await handleMediaUsageDetails(db, unreferencedMedia.id, {});
 
@@ -465,7 +484,7 @@ function contentSource(
 function occurrence(
 	fieldSlug: string,
 	fieldPath: string,
-	referenceType: "image_field" | "file_field" | "portable_text_image",
+	referenceType: "image_field" | "file_field" | "portable_text_image" | "portable_text_video",
 	mediaId: string,
 	occurrenceIndex = 0,
 ): Parameters<MediaUsageRepository["replaceSource"]>[1][number] {

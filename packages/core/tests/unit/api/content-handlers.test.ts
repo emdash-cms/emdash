@@ -906,6 +906,32 @@ describe("Content Handlers — list total", () => {
 		expect(result.data?.items).toHaveLength(2);
 		expect(result.data?.total).toBe(8);
 	});
+
+	it("serves numbered pages with the total and no cursor", async () => {
+		const pages = await Promise.all(
+			[1, 2, 3].map((page) => handleContentList(db, "post", { page, limit: 3 })),
+		);
+
+		const ids = pages.flatMap((result) => result.data?.items.map((item) => item.id) ?? []);
+		expect(pages.map((result) => result.data?.items.length)).toEqual([3, 3, 2]);
+		expect(new Set(ids).size).toBe(8);
+		expect(pages.map((result) => result.data?.total)).toEqual([8, 8, 8]);
+		expect(pages.map((result) => result.data?.nextCursor)).toEqual([
+			undefined,
+			undefined,
+			undefined,
+		]);
+	});
+
+	it.each([
+		["with a cursor", { page: 2, cursor: "cursor" }],
+		["past the safe-integer offset range", { page: Number.MAX_SAFE_INTEGER, limit: 100 }],
+	])("rejects a page %s", async (_case, params) => {
+		const result = await handleContentList(db, "post", params);
+
+		expect(result.success).toBe(false);
+		expect(result.error?.code).toBe("VALIDATION_ERROR");
+	});
 });
 
 describe("Content Handlers — slug-change auto-redirect on publish", () => {

@@ -18,12 +18,19 @@ const ABSOLUTE_HTTP_URL = /^https?:\/\//i;
 /**
  * Pick the srcset widths to generate for an image rendered at `maxWidth`.
  * Includes breakpoints up to 2x (retina) plus the rendered width itself, so the
- * browser always has an exact-fit candidate.
+ * browser always has an exact-fit candidate. A known `originalWidth` below 2x
+ * lowers that limit, so the source is never upscaled for a high-density
+ * candidate. The limit itself is a candidate up to the largest breakpoint, so
+ * images narrower than the first breakpoint still get one.
  */
-export function responsiveWidths(maxWidth: number): number[] {
-	const cap = maxWidth * 2;
+export function responsiveWidths(maxWidth: number, originalWidth?: number): number[] {
+	const width = Math.round(maxWidth);
+	if (!(width >= 1)) return [];
+	const original = Math.round(originalWidth ?? 0);
+	const cap = original >= 1 && original < width * 2 ? original : width * 2;
 	const widths = new Set(RESPONSIVE_BREAKPOINTS.filter((w) => w <= cap));
-	widths.add(maxWidth);
+	widths.add(width);
+	if (cap <= Math.max(...RESPONSIVE_BREAKPOINTS)) widths.add(cap);
 	return [...widths].toSorted((a, b) => a - b);
 }
 
@@ -120,9 +127,9 @@ export interface ResponsiveImage {
  */
 export async function buildResponsiveImage(
 	getImage: GetImage,
-	opts: { src: string; width?: number; height?: number },
+	opts: { src: string; width?: number; height?: number; originalWidth?: number },
 ): Promise<ResponsiveImage | null> {
-	const { src, width, height } = opts;
+	const { src, width, height, originalWidth } = opts;
 	if (!src || !width || !height) return null;
 	if (!ABSOLUTE_HTTP_URL.test(src)) return null;
 	try {
@@ -131,7 +138,7 @@ export async function buildResponsiveImage(
 			src,
 			width,
 			height,
-			widths: responsiveWidths(width),
+			widths: responsiveWidths(width, originalWidth),
 			sizes,
 		});
 		// Passthrough: the service returned the source unchanged (unauthorized

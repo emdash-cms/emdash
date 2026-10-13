@@ -119,7 +119,7 @@ async function waitFor<T>(
 
 async function main(): Promise<void> {
 	if (process.env.ALLOW_GITHUB_WRITES !== "1") {
-		fail("set ALLOW_GITHUB_WRITES=1; this test creates a branch, comments, labels, and a draft PR");
+		fail("set ALLOW_GITHUB_WRITES=1; this test creates a branch, comments, labels, and a PR");
 	}
 	const workerUrl = required("WORKER_URL");
 	const secret = required("ADMIN_TOKEN");
@@ -150,23 +150,25 @@ async function main(): Promise<void> {
 	});
 	console.log(`candidate published at ${published}`);
 
-	await waitFor("preview-ready state", timeoutMs, pollMs, async () => {
+	const hasLabel = async (name: string) => {
 		const current = await github<Issue>(
 			`/repos/${owner}/${repo}/issues/${issueNumber}`,
 			githubToken,
 		);
-		return current.labels?.some((label) => label.name === "bot:awaiting-reporter") ? true : null;
-	});
-	console.log("preview published and reporter confirmation requested");
-
-	await postCommand({ workerUrl, secret, issue, body: "@emdashbot confirm", actor });
-	const pull = await waitFor<PullRequest>("draft pull request", timeoutMs, pollMs, async () => {
+		return current.labels?.some((label) => label.name === name) ? true : null;
+	};
+	await waitFor("in-review state", timeoutMs, pollMs, () => hasLabel("bot:in-review"));
+	const pull = await waitFor<PullRequest>("pull request", timeoutMs, pollMs, async () => {
 		const pulls = await github<PullRequest[]>(
 			`/repos/${owner}/${repo}/pulls?state=open&head=${encodeURIComponent(`${owner}:bot/fix-${issueNumber}`)}`,
 			githubToken,
 		);
-		return pulls.find((candidate) => candidate.draft) ?? null;
+		return pulls.find((candidate) => !candidate.draft) ?? null;
 	});
+	console.log(`pull request opened and reporter confirmation requested: ${pull.html_url}`);
+
+	await postCommand({ workerUrl, secret, issue, body: "@emdashbot confirm", actor });
+	await waitFor("verified label", timeoutMs, pollMs, () => hasLabel("triage/verified"));
 	console.log(`implementation smoke passed: ${pull.html_url}`);
 }
 

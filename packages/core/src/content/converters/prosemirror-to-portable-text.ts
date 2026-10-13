@@ -4,6 +4,7 @@
  * Converts TipTap's ProseMirror JSON format to Portable Text for storage.
  */
 
+import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import {
 	UnsafePortableTextTableError,
 	proseMirrorTableToPortableText,
@@ -35,7 +36,10 @@ import type {
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
+	PortableTextIframeBlock,
+	PortableTextVideoBlock,
 } from "./types.js";
+import { videoBlockFields } from "./video.js";
 
 /**
  * Generate a unique key for Portable Text blocks
@@ -113,8 +117,14 @@ function convertNode(
 		case "htmlBlock":
 			return convertHtmlBlock(node);
 
+		case "iframeBlock":
+			return convertIframeBlock(node);
+
 		case "image":
 			return convertImage(node);
+
+		case "videoBlock":
+			return convertVideo(node);
 
 		case "gallery":
 			return convertGallery(node);
@@ -351,12 +361,44 @@ function convertCodeBlock(node: ProseMirrorNode): PortableTextCodeBlock {
  * Convert HTML block to Portable Text
  */
 function convertHtmlBlock(node: ProseMirrorNode): PortableTextHtmlBlock {
-	const rawHtml = node.attrs?.html;
 	return {
 		_type: "htmlBlock",
 		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-		html: typeof rawHtml === "string" ? rawHtml : "",
+		...htmlBlockFields(node.attrs ?? {}),
 	};
+}
+
+/**
+ * Convert iframe block to Portable Text, writing optional fields only when set
+ */
+function convertIframeBlock(node: ProseMirrorNode): PortableTextIframeBlock {
+	const { src, title, width, height, allow, allowFullscreen } = node.attrs ?? {};
+	const block: PortableTextIframeBlock = {
+		_type: "iframe",
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+		src: typeof src === "string" ? src : "",
+	};
+	if (typeof title === "string" && title) block.title = title;
+	if (isFrameDimension(width)) block.width = width;
+	if (isFrameDimension(height)) block.height = height;
+	if (typeof allow === "string" && allow) block.allow = allow;
+	if (allowFullscreen === true) block.allowFullscreen = true;
+	return block;
+}
+
+/**
+ * Convert video block to Portable Text
+ */
+function convertVideo(node: ProseMirrorNode): PortableTextVideoBlock {
+	return {
+		_type: "video",
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+		...videoBlockFields(node.attrs ?? {}),
+	};
+}
+
+function isFrameDimension(value: unknown): value is number {
+	return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10_000;
 }
 
 function imageDimension(value: unknown): number | undefined {

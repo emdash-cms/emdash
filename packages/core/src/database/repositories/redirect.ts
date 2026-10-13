@@ -428,13 +428,16 @@ export class RedirectRepository {
 
 	/**
 	 * Fetch all enabled redirects (for loop detection graph building).
-	 * Not paginated — returns the full set.
+	 * Not paginated — returns the full set. Ordered oldest first: the earliest
+	 * matching pattern rule wins, so this order is match precedence.
 	 */
 	async findAllEnabled(): Promise<Redirect[]> {
 		const rows = await this.db
 			.selectFrom("_emdash_redirects")
 			.selectAll()
 			.where("enabled", "=", 1)
+			.orderBy("created_at", (order) => order.asc().nullsFirst())
+			.orderBy("id", "asc")
 			.execute();
 		return rows.map(rowToRedirect);
 	}
@@ -458,6 +461,8 @@ export class RedirectRepository {
 			.selectAll()
 			.where("enabled", "=", 1)
 			.where("is_pattern", "=", 1)
+			.orderBy("created_at", (order) => order.asc().nullsFirst())
+			.orderBy("id", "asc")
 			.execute();
 		return rows.map(rowToRedirect);
 	}
@@ -469,7 +474,11 @@ export class RedirectRepository {
 	 */
 	async matchPath(path: string): Promise<RedirectMatch | null> {
 		// 1. Exact match (fast, indexed)
-		const exact = await this.findExactMatch(path);
+		let exact = await this.findExactMatch(path);
+		if (!exact && path.length > 1) {
+			const alt = path.endsWith("/") ? path.slice(0, -1) : `${path}/`;
+			exact = await this.findExactMatch(alt);
+		}
 		if (exact && isSiteRelativeDestination(exact.destination)) {
 			return { redirect: exact, resolvedDestination: exact.destination };
 		}
@@ -633,7 +642,7 @@ export class RedirectRepository {
 	 *
 	 * This is called from the public redirect middleware on every 404 and
 	 * must never throw for an unauthenticated caller — failures bubble up to
-	 * the middleware, which swallows them.
+	 * the middleware, which catches and logs them.
 	 */
 	async log404(entry: {
 		path: string;
@@ -683,6 +692,24 @@ export class RedirectRepository {
 	 * Called by scheduled system cleanup, never by the anonymous request path.
 	 */
 	async cleanup404Log(): Promise<number> {
+		// Cheap precheck: the expensive DELETE is only needed once the table
+		// has grown past MAX_404_LOG_ROWS. Counting a bounded sample avoids
+		// the full-table ORDER BY/NOT IN scan on the overwhelming majority
+		// of cron ticks when there is nothing to evict.
+		const probe = await this.db
+			.selectFrom(
+				this.db
+					.selectFrom("_emdash_404_log")
+					.select(sql`1`.as("one"))
+					.limit(MAX_404_LOG_ROWS + 1)
+					.as("sample"),
+			)
+			.select(({ fn }) => fn.countAll<number>().as("count"))
+			.executeTakeFirstOrThrow();
+		if (Number(probe.count) <= MAX_404_LOG_ROWS) {
+			return 0;
+		}
+
 		// Keep the newest rows in one statement. Deriving the victims inside the
 		// DELETE makes overlapping cleanup runs idempotent: each statement
 		// evaluates the current newest set instead of acting on a stale count.

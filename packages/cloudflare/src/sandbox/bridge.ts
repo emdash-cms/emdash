@@ -7,7 +7,7 @@
  *
  */
 
-import type { D1Database } from "@cloudflare/workers-types";
+import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type {
 	CommentCountOptions,
@@ -18,6 +18,7 @@ import type {
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
+	DownloadResult,
 	I18nConfig,
 	PluginComment,
 	PluginCommentStatus,
@@ -115,19 +116,11 @@ let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
 const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-callbacks");
-const MEDIA_STORAGE_CALLBACK_KEY = Symbol.for("emdash:sandbox-media-storage-callback");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
 const httpFetchCallbacks = new Map<string, typeof fetch>();
-
-function getMediaStorageCallback(): Pick<Storage, "download"> | null {
-	const store = globalThis as Record<symbol, unknown>;
-	const callback = store[MEDIA_STORAGE_CALLBACK_KEY];
-	if (callback === undefined || callback === null) return null;
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only the media storage callback set below
-	return callback as Pick<Storage, "download">;
-}
+const mediaStorageCallbacks = new Map<string, Pick<Storage, "download">>();
 
 function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	const store = globalThis as Record<symbol, unknown>;
@@ -222,9 +215,12 @@ export function setCommentModerateCallback(callback: SandboxCommentModerateCallb
 	commentModerateCallback = callback;
 }
 
-export function setMediaStorageCallback(storage: Pick<Storage, "download"> | null): void {
-	const store = globalThis as Record<symbol, unknown>;
-	store[MEDIA_STORAGE_CALLBACK_KEY] = storage;
+export function setMediaStorageCallback(
+	key: string,
+	storage: Pick<Storage, "download"> | null,
+): void {
+	if (storage) mediaStorageCallbacks.set(key, storage);
+	else mediaStorageCallbacks.delete(key);
 }
 
 export function setTaxonomyWriteCallback(
@@ -405,6 +401,7 @@ export interface PluginBridgeProps {
 		trailingSlash?: "always" | "never" | "ignore";
 	};
 	httpFetchKey?: string;
+	mediaStorageKey?: string;
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
@@ -442,6 +439,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+	}
+
+	private getMediaStorageCallback(): Pick<Storage, "download"> | null {
+		const key = this.ctx.props.mediaStorageKey;
+		if (!key) return null;
+		return mediaStorageCallbacks.get(key) ?? null;
 	}
 
 	private async contentAccess() {
@@ -887,24 +890,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	async storageGetMany(collection: string, ids: string[]): Promise<Map<string, unknown>> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		if (ids.length === 0) return new Map();
 
-		const placeholders = ids.map(() => "?").join(",");
-		const results = await this.env.DB.prepare(
-			`SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id IN (${placeholders})`,
-		)
-			.bind(pluginId, collection, ...ids)
-			.all<{ id: string; data: string }>();
-
-		const map = new Map<string, unknown>();
-		for (const row of results.results ?? []) {
-			map.set(row.id, JSON.parse(row.data));
-		}
-		return map;
+		return (await this.getStorageRepo(collection)).getMany(ids);
 	}
 
 	async storagePutMany(
@@ -927,22 +919,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	async storageDeleteMany(collection: string, ids: string[]): Promise<number> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		if (ids.length === 0) return 0;
 
-		let deleted = 0;
-		for (const id of ids) {
-			const result = await this.env.DB.prepare(
-				"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?",
-			)
-				.bind(pluginId, collection, id)
-				.run();
-			deleted += result.meta?.changes ?? 0;
-		}
-		return deleted;
+		return (await this.getStorageRepo(collection)).deleteMany(ids);
 	}
 
 	// =========================================================================
@@ -1656,9 +1639,31 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (maxBytes !== undefined && typeof maxBytes !== "number") {
 			throw new TypeError("media/readBytes: maxBytes must be a number");
 		}
+		// Worker Loader evaluates the bridge in a fresh isolate/context, so
+		// module-level callbacks registered by the runner are not always
+		// available. Read bytes directly from the R2 binding, matching
+		// mediaUpload and mediaDelete.
+		const bucket = this.env.MEDIA;
+		const storage: Pick<Storage, "download"> | undefined = bucket
+			? {
+					download: async (key: string): Promise<DownloadResult> => {
+						const object = await bucket.get(key);
+						if (!object || !object.body) {
+							throw new Error(`File not found: ${key}`);
+						}
+						return {
+							// @ts-expect-error -- R2Object.body is typed as ReadableStream<any> but the runtime value is ReadableStream<Uint8Array>
+							body: object.body,
+							contentType: object.httpMetadata?.contentType || "application/octet-stream",
+							size: object.size ?? 0,
+						};
+					},
+				}
+			: (this.getMediaStorageCallback() ?? undefined);
+		if (!storage) throw new Error("Media storage is not configured");
 		const { D1Dialect, Kysely, readPluginMediaBytes } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return readPluginMediaBytes(db, getMediaStorageCallback() ?? undefined, id, { maxBytes });
+		return readPluginMediaBytes(db, storage, id, { maxBytes });
 	}
 
 	async mediaUpdateMetadata(id: string, patch: unknown): Promise<PluginMediaItem> {

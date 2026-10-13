@@ -56,7 +56,6 @@ export interface ReconciliationScanOptions {
 	limit: number;
 	staleBefore: string;
 	expectedLabelSource: string;
-	versions: AssessmentVersionSet;
 }
 
 export interface LabelerReconciliationStore {
@@ -102,7 +101,6 @@ export async function reconcileLabeler(
 		limit: batchSize,
 		staleBefore,
 		expectedLabelSource: dependencies.expectedLabelSource,
-		versions: dependencies.versions,
 	});
 	assertBoundedScan(scan, batchSize);
 
@@ -113,12 +111,12 @@ export async function reconcileLabeler(
 			versions: dependencies.versions,
 			logicalTriggerId: await createReconciliationTriggerId(subject),
 		});
-		await dependencies.lifecycle.observeRun({
+		const run = await dependencies.lifecycle.observeRun({
 			params: workflowParams,
 			observedAt,
 			makeCurrent: false,
 		});
-		params.push(workflowParams);
+		if (run) params.push(workflowParams);
 	}
 
 	const ensured = await ensureAssessmentWorkflowRuns({
@@ -163,30 +161,27 @@ export function createD1LabelerReconciliationStore(db: D1Database): LabelerRecon
 						   AND (
 							 assessment.id IS NULL
 							 OR assessment.state IN ('cancelled', 'superseded')
-							 OR assessment.policy_version <> ?
-							 OR assessment.parser_version <> ?
-							 OR assessment.text_model_id <> ?
-							 OR assessment.text_prompt_hash <> ?
-							 OR assessment.image_model_id <> ?
-							 OR assessment.image_prompt_hash <> ?
 							 OR (
 								assessment.state IN ('pending', 'running')
 								AND assessment.logical_trigger_id LIKE ?
 							 )
 						   )
+						   AND NOT EXISTS (
+							 SELECT 1 FROM assessments decided
+							 WHERE decided.subject_uri = current.uri
+							   AND decided.subject_cid = current.cid
+							   AND decided.state IN ('passed', 'review', 'blocked')
+						   )
+						   AND NOT EXISTS (
+							 SELECT 1 FROM operator_actions decision
+							 WHERE decision.subject_uri = current.uri
+							   AND decision.subject_cid = current.cid
+							   AND decision.action IN ('approve', 'block')
+						   )
 						 ORDER BY current.updated_at, current.uri
 						 LIMIT ?`,
 					)
-					.bind(
-						options.versions.policyVersion,
-						options.versions.parserVersion,
-						options.versions.textModelId,
-						options.versions.textPromptHash,
-						options.versions.imageModelId,
-						options.versions.imagePromptHash,
-						`${RECONCILIATION_TRIGGER_PREFIX}%`,
-						limit,
-					)
+					.bind(`${RECONCILIATION_TRIGGER_PREFIX}%`, limit)
 					.all<SubjectRow>(),
 				db
 					.prepare(

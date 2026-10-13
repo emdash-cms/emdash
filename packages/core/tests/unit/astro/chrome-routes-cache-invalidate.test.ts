@@ -70,6 +70,7 @@ describe("Chrome write routes — edge cache invalidation", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -118,6 +119,24 @@ describe("Chrome write routes — edge cache invalidation", () => {
 
 			expect(response.status).toBe(201);
 			expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:menu:primary"] });
+		});
+
+		it("returns the created menu when the purge is rejected", async () => {
+			const invalidate = vi.fn().mockRejectedValue(new Error("purge rate limited"));
+			const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+			const request = await makeRequest("POST", { name: "primary", label: "Primary" });
+
+			const response = await postMenus({
+				request,
+				locals: { emdash: { db, storage: null }, user: admin },
+				cache: { enabled: true, invalidate },
+			} as Parameters<typeof postMenus>[0]);
+
+			expect(response.status).toBe(201);
+			expect(invalidate).toHaveBeenCalledOnce();
+			expect(consoleError).toHaveBeenCalled();
+			const menus = await db.selectFrom("_emdash_menus").select("name").execute();
+			expect(menus).toEqual([{ name: "primary" }]);
 		});
 
 		it("invalidates on update", async () => {

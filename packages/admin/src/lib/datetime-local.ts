@@ -12,8 +12,7 @@ const OFFSET_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 const DATETIME_LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
 function formatter(timezone: string): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat("en-US-u-ca-iso8601-nu-latn", {
-		timeZone: timezone,
+	const options: Intl.DateTimeFormatOptions = {
 		year: "numeric",
 		month: "2-digit",
 		day: "2-digit",
@@ -21,7 +20,16 @@ function formatter(timezone: string): Intl.DateTimeFormat {
 		minute: "2-digit",
 		second: "2-digit",
 		hourCycle: "h23",
-	});
+	};
+	try {
+		return new Intl.DateTimeFormat("en-US-u-ca-iso8601-nu-latn", {
+			...options,
+			timeZone: timezone,
+		});
+	} catch {
+		// An unrecognized site timezone would otherwise stop the editor from rendering.
+		return new Intl.DateTimeFormat("en-US-u-ca-iso8601-nu-latn", { ...options, timeZone: "UTC" });
+	}
 }
 
 function parts(format: Intl.DateTimeFormat, epochMs: number): Record<string, number> {

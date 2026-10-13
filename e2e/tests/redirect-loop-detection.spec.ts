@@ -226,12 +226,10 @@ test.describe("redirect loop detection", () => {
 		await createExpectSuccess(page, baseUrl, token, "/c", "/a");
 	});
 
-	test("re-enabling a disabled redirect that creates a loop is allowed", async ({
+	test("rejects re-enabling a disabled redirect that closes a loop", async ({
 		page,
 		serverInfo,
 	}) => {
-		// Users who had redirects before upgrade should be able to toggle
-		// them freely. The warning banner alerts them to the loop.
 		const { baseUrl, token } = serverInfo;
 		const headers = apiHeaders(token, baseUrl);
 		await createExpectSuccess(page, baseUrl, token, "/a", "/b");
@@ -242,7 +240,9 @@ test.describe("redirect loop detection", () => {
 			headers,
 			data: { enabled: true },
 		});
-		expect(res.ok()).toBe(true);
+		expect(res.ok()).toBe(false);
+		const body = await res.json();
+		expect(body.error?.message).toContain("loop");
 	});
 
 	// -----------------------------------------------------------------------

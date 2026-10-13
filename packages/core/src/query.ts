@@ -24,11 +24,12 @@
  * import resolves there at typecheck time without our help.
  */
 
-import { encodeCursor, type ContentSeo } from "./database/repositories/types.js";
+import type { ContentSeo } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import {
 	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
+	encodeSortCursor,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
 	FOLDED_TERMS,
@@ -425,19 +426,57 @@ export function getEditMeta(value: unknown): EditFieldMeta | undefined {
 	return undefined;
 }
 
+/** Slugs of a collection's Portable Text fields; empty when they can't be read. */
+function getPortableTextFieldSlugs(collection: string): Promise<ReadonlySet<string>> {
+	return requestCached(`portable-text-fields:${collection}`, async () => {
+		try {
+			const { getDb } = await import("./loader.js");
+			const db = await getDb();
+			const rows = await db
+				.selectFrom("_emdash_fields as f")
+				.innerJoin("_emdash_collections as c", "c.id", "f.collection_id")
+				.select("f.slug")
+				.where("c.slug", "=", collection)
+				.where("f.type", "=", "portableText")
+				.execute();
+			return new Set(rows.map((row) => row.slug));
+		} catch (error) {
+			if (!isMissingTableError(error)) {
+				const msg = error instanceof Error ? error.message : String(error);
+				console.warn("[emdash] Failed to load Portable Text fields:", msg);
+			}
+			return new Set<string>();
+		}
+	});
+}
+
 /**
  * Tag PT-like arrays in entry data with edit metadata (non-enumerable).
  * A PT array is identified by: is an array, first element has _type property.
+ * An empty one is identified by its field being in `portableTextFields`, and
+ * a missing or blank one becomes an empty array, so the page can still render
+ * an editor for it.
  */
-function tagEditableFields(data: Record<string, unknown>, collection: string, id: string): void {
+function tagEditableFields(
+	data: Record<string, unknown>,
+	collection: string,
+	id: string,
+	portableTextFields: ReadonlySet<string> = new Set(),
+): void {
+	for (const field of portableTextFields) {
+		const value = data[field];
+		if (value == null || (typeof value === "string" && !value.trim())) {
+			data[field] = [];
+		}
+	}
 	for (const [field, value] of Object.entries(data)) {
-		if (
-			Array.isArray(value) &&
-			value.length > 0 &&
-			value[0] &&
-			typeof value[0] === "object" &&
-			"_type" in value[0]
-		) {
+		if (!Array.isArray(value)) continue;
+		const first: unknown = value[0];
+		const isPortableText =
+			value.length === 0
+				? portableTextFields.has(field)
+				: typeof first === "object" && first !== null && "_type" in first;
+		if (isPortableText) {
 			Object.defineProperty(value, EMDASH_EDIT, {
 				value: { collection, id, field } satisfies EditFieldMeta,
 				enumerable: false,
@@ -692,12 +731,9 @@ const ENTRY_DATA_KEY_MAP: Record<string, string> = {
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * Encode a `nextCursor` from a content entry, mirroring the loader's
- * encoding scheme: `(orderValue, id)` where `orderValue` is the primary
- * sort field's stringified value. For date columns, reads the raw DB
- * string the loader stashed via CURSOR_RAW_VALUES — round-tripping the
- * parsed Date through `toISOString()` would lose precision for stored
- * values that aren't already ISO-with-milliseconds.
+ * Encode a `nextCursor` from a content entry, as the loader encodes one from
+ * the entry's row. Reads the sort column's raw DB value the loader stashed via
+ * CURSOR_RAW_VALUES, since `entry.data` can't reproduce it for every column.
  */
 function encodeEntryCursor<D>(
 	entry: ContentEntry<D>,
@@ -718,28 +754,13 @@ function encodeEntryCursor<D>(
 		}
 	}
 
-	// Date columns: prefer the raw stored string captured by the loader so
-	// the cursor matches what a direct loader fetch would emit, regardless
-	// of how the DB stored the timestamp.
-	const rawDateValuesRaw = Reflect.get(data, CURSOR_RAW_VALUES);
-	if (rawDateValuesRaw !== null && typeof rawDateValuesRaw === "object") {
-		const raw = Reflect.get(rawDateValuesRaw, dbField);
-		if (typeof raw === "string") return encodeCursor(raw, id);
+	const rawValues = Reflect.get(data, CURSOR_RAW_VALUES);
+	if (rawValues !== null && typeof rawValues === "object" && Object.hasOwn(rawValues, dbField)) {
+		return encodeSortCursor(dbField, Reflect.get(rawValues, dbField), id);
 	}
 
-	const dataKey = ENTRY_DATA_KEY_MAP[dbField] ?? dbField;
-	const value = data[dataKey];
-	let orderValue: string;
-	if (value instanceof Date) {
-		orderValue = value.toISOString();
-	} else if (typeof value === "string" || typeof value === "number") {
-		orderValue = String(value);
-	} else {
-		// Match the loader's empty-string fallback for null/undefined order
-		// values so cursor decoding stays valid even at the boundary.
-		orderValue = "";
-	}
-	return encodeCursor(orderValue, id);
+	// Entries from a cache snapshot written by an earlier version have no stashed sort value.
+	return encodeSortCursor(dbField, data[ENTRY_DATA_KEY_MAP[dbField] ?? dbField], id);
 }
 
 /**
@@ -813,7 +834,7 @@ function dataSnapshot(data: Record<string, unknown>): Record<string, unknown> {
 function reviveData(raw: Record<string, unknown>): Record<string, unknown> {
 	const data: Record<string, unknown> = { ...raw };
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- snapshot field written by dataSnapshot
-	const rawCursor = (data[CURSOR_RAW_FIELD] as Record<string, string> | undefined) ?? {};
+	const rawCursor = (data[CURSOR_RAW_FIELD] as Record<string, unknown> | undefined) ?? {};
 	delete data[CURSOR_RAW_FIELD];
 	Object.defineProperty(data, CURSOR_RAW_VALUES, {
 		value: rawCursor,
@@ -924,6 +945,13 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 			: filter?.offset !== undefined
 				? { offset: filter.offset }
 				: {};
+	// Same draft access as `getEmDashEntry`: editors see every entry's draft,
+	// a preview token only the draft of the entry it was issued for.
+	const draftRevisions = ctx?.editMode
+		? "all"
+		: ctx?.preview?.collection === type
+			? { id: ctx.preview.id }
+			: undefined;
 	const result = await getLiveCollection(COLLECTION_NAME, {
 		type,
 		status: filter?.status,
@@ -932,6 +960,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
+		draftRevisions,
 	});
 
 	const { entries, error, cacheHint } = result;
@@ -948,10 +977,12 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const hasMoreResult = requestedLimit != null && requestedLimit > 0 ? hasMore : undefined;
 
 	const isEditMode = ctx?.editMode ?? false;
+	const portableTextFields =
+		isEditMode && pageEntries.length > 0 ? await getPortableTextFieldSlugs(type) : undefined;
 	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
 		const dbId = entryDatabaseId(entry);
 		if (isEditMode) {
-			tagEditableFields(entryData(entry), type, dbId);
+			tagEditableFields(entryData(entry), type, dbId, portableTextFields);
 		}
 		if (!canExposeRevisionMetadata(entry, type)) {
 			stripRevisionMetadata(entry);
@@ -997,7 +1028,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
  *
  * // Simple usage — preview just works via middleware
  * const { entry: post, isPreview, error } = await getEmDashEntry("posts", "my-slug");
- * if (!post) return Astro.redirect("/404");
+ * if (!post) return Astro.rewrite("/404");
  * ```
  *
  * @example
@@ -1168,12 +1199,13 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	// Resolve locale: explicit option > ALS context > undefined (no filter)
 	const requestedLocale = options?.locale ?? ctx?.locale;
 	const references = options?.references;
+	const portableTextFields = isEditMode ? await getPortableTextFieldSlugs(type) : undefined;
 
 	/** Wrap a raw Astro entry with edit proxy, tagging editable fields if needed */
 	function wrapEntry(raw: ContentEntry<D>): ContentEntry<D> {
 		const dbId = entryDatabaseId(raw);
 		if (isEditMode) {
-			tagEditableFields(entryData(raw), type, dbId);
+			tagEditableFields(entryData(raw), type, dbId, portableTextFields);
 		}
 		return {
 			...raw,

@@ -12,6 +12,8 @@ import {
 	type GitHubRateLimitGate,
 } from "./github-rate-limit-client.js";
 
+const SANDBOX_PERMIT_WAIT_MS = 90_000;
+
 export interface GithubOutboundContext {
 	readonly owner: string;
 	readonly repo: string;
@@ -104,11 +106,14 @@ export async function forwardGithubRequest(
 	const authed = withGithubAuthorization(forwarded, url.host, token);
 	authed.headers.set("user-agent", "emdash-bot");
 	const category = url.host === "api.github.com" ? "sandbox-api" : "sandbox-git";
-	const installationAuthenticated = gate.authentication === "installation";
-	const permit = installationAuthenticated
-		? await (context.rateLimitGate
-				? acquireGitHubPermit(context.rateLimitGate, category, "sandbox-outbound")
-				: undefined)
+	// Git transport is not metered against the REST API budget, so only API
+	// calls take part in installation-wide rate limiting.
+	const rateLimited =
+		gate.authentication === "installation" && category === "sandbox-api"
+			? context.rateLimitGate
+			: undefined;
+	const permit = rateLimited
+		? await acquireGitHubPermit(rateLimited, category, "sandbox-outbound", SANDBOX_PERMIT_WAIT_MS)
 		: undefined;
 	if (permit && !permit.allowed) {
 		return new Response("GitHub request backed off", {
@@ -122,12 +127,8 @@ export async function forwardGithubRequest(
 		const response = await upstreamFetch(authed, {
 			signal: AbortSignal.timeout(2 * 60_000),
 		});
-		if (installationAuthenticated && context.rateLimitGate) {
-			await context.rateLimitGate.record(
-				category,
-				"sandbox-outbound",
-				parseGitHubResponseMetadata(response),
-			);
+		if (rateLimited) {
+			await rateLimited.record(category, "sandbox-outbound", parseGitHubResponseMetadata(response));
 		}
 		console.log(
 			JSON.stringify({

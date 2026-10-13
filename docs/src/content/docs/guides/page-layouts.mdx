@@ -106,13 +106,13 @@ import PageFullWidth from "../../layouts/PageFullWidth.astro";
 const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 
 const { entry: page } = await getEmDashEntry("pages", slug);
 
 if (!page) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 
 const layouts = new Map([

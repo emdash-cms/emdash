@@ -52,7 +52,7 @@ import {
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
 import { inlineLabel } from "../lib/inline-label.js";
-import { slugify } from "../lib/utils";
+import { slugify, slugifyIdentifier } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -74,8 +74,6 @@ interface TaxonomyManagerProps {
 }
 
 // Regex patterns for taxonomy name generation and validation (module-scoped per lint rules)
-const NON_ALPHANUMERIC_PATTERN = /[^a-z0-9]+/g;
-const LEADING_TRAILING_UNDERSCORE_PATTERN = /^_|_$/g;
 const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 /**
@@ -674,7 +672,7 @@ function TermFormDialog({
 					slug,
 					label,
 					parentId: parentId || undefined,
-					description: description || undefined,
+					description,
 				},
 				{ locale: term.locale ?? locale },
 			);
@@ -934,12 +932,7 @@ function CreateTaxonomyDialog({
 	// Auto-generate name from label
 	React.useEffect(() => {
 		if (autoName && label) {
-			setName(
-				label
-					.toLowerCase()
-					.replace(NON_ALPHANUMERIC_PATTERN, "_")
-					.replace(LEADING_TRAILING_UNDERSCORE_PATTERN, ""),
-			);
+			setName(slugifyIdentifier(label));
 		}
 	}, [label, autoName]);
 
@@ -963,6 +956,11 @@ function CreateTaxonomyDialog({
 		setError(null);
 		createMutation.reset();
 	};
+
+	const nameError =
+		autoName && label.trim().length > 0 && !name
+			? t`A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -1052,6 +1050,7 @@ function CreateTaxonomyDialog({
 								required
 								pattern="[a-z][a-z0-9_]*"
 								title={t`Lowercase letters, numbers, and underscores only, starting with a letter`}
+								error={nameError}
 							/>
 							<p className="text-xs text-kumo-subtle mt-1">
 								{t`Used as the identifier. Lowercase letters, numbers, and underscores only.`}
@@ -1456,32 +1455,34 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 					)}
 				</div>
 			) : (
-				<div className="border rounded-lg">
-					<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
-						<div className="flex-1">{t`Name`}</div>
-						<div className="w-16 text-center">{t`Count`}</div>
-						<div className="w-24 text-center">{t`Actions`}</div>
-					</div>
+				<div className="border rounded-lg overflow-x-auto">
+					<div className="min-w-[560px]">
+						<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 font-medium">
+							<div className="flex-1">{t`Name`}</div>
+							<div className="w-16 text-center">{t`Count`}</div>
+							<div className="w-24 text-center">{t`Actions`}</div>
+						</div>
 
-					{termsLoading ? (
-						<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
-					) : terms.length === 0 ? (
-						<div className="p-8 text-center text-kumo-subtle">
-							{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
-						</div>
-					) : (
-						<div className="divide-y divide-kumo-line">
-							<TermGroup
-								siblings={terms}
-								parentId={null}
-								onEdit={handleEdit}
-								onDelete={handleDelete}
-								onMove={handleMove}
-								onTranslate={setTranslateTarget}
-								canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
-							/>
-						</div>
-					)}
+						{termsLoading ? (
+							<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
+						) : terms.length === 0 ? (
+							<div className="p-8 text-center text-kumo-subtle">
+								{t`No ${inlineLabel(taxonomyDef.label, lingui.locale)} yet. Create one to get started.`}
+							</div>
+						) : (
+							<div className="divide-y divide-kumo-line">
+								<TermGroup
+									siblings={terms}
+									parentId={null}
+									onEdit={handleEdit}
+									onDelete={handleDelete}
+									onMove={handleMove}
+									onTranslate={setTranslateTarget}
+									canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
+								/>
+							</div>
+						)}
+					</div>
 				</div>
 			)}
 

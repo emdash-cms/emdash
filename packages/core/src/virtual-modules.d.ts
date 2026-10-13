@@ -29,6 +29,8 @@ declare module "virtual:emdash/config" {
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
 		trailingSlash?: "always" | "never" | "ignore";
+		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
+		imageEndpointRoute?: string;
 	}
 
 	const config: VirtualConfig;
@@ -81,6 +83,7 @@ declare module "virtual:emdash/dialect" {
 		lastContentWriteAt?: number;
 	}
 	export interface RequestScopedDb {
+		/** A per-request handle on the configured database, never a different one. */
 		db: Kysely<unknown>;
 		commit: () => void;
 		/**

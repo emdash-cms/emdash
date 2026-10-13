@@ -18,7 +18,7 @@ A site goes through four distinct workflows. Each one touches a different layer:
 | First-time bootstrap           | Everything, from empty             | Migrations + seed file + setup wizard, automatic on first boot         |
 | Schema evolution               | Collections, fields, taxonomies    | Admin panel or `emdash schema` against the live site (this page)       |
 
-The seed file only participates in the third row. It is applied once, when the database is empty and the setup wizard has not been completed. Deploying a changed seed file against an existing database does nothing — evolving a live site's schema always happens through the admin panel or the API.
+The seed file only participates in the third row. Its schema and structure are applied once, on the first request before the setup wizard has been completed. Deploying a changed seed file against an existing database does nothing — evolving a live site's schema always happens through the admin panel or the API.
 
 <Aside type="note">
 	Core migrations update EmDash's internal tables and the physical layout of collection tables. Runtime
@@ -75,11 +75,12 @@ The seed file embedded in your build determines what a **fresh** database initia
 
 The build embeds the first seed file found at `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json`. If none is present, a built-in default seed (the starter blog model) is embedded, and `astro dev` logs a warning.
 
-After evolving a deployed site's schema, export the live model back into your repository. `emdash export-seed` reads a local SQLite file, and `wrangler d1 export` produces one from the deployed D1 database:
+After evolving a deployed site's schema, export the live model back into your repository. `emdash export-seed` reads a local SQLite file. Create the SQL files as described in [Create an offsite D1 dump](/guides/backups/#create-an-offsite-d1-dump), load the tables and rows into a local database, and export the seed:
 
 ```bash
-npx wrangler d1 export emdash-db --remote --output=./prod.sql
-sqlite3 prod.db < prod.sql
+sqlite3 prod.db < backup-schema.sql
+sqlite3 prod.db < backup-folders.sql
+sqlite3 prod.db < backup-data.sql
 npx emdash export-seed --database prod.db > .emdash/seed.json
 ```
 
@@ -100,12 +101,16 @@ A destructive schema change (removing a field, restructuring a collection) is sa
 
    Confirm that `env.preview.d1_databases` contains the new database name and UUID. Bindings are not inherited from the top-level Wrangler configuration.
 
-2. Export production, then import the SQL through the preview environment's `DB` binding:
+2. Create the SQL files from production as described in [Create an offsite D1 dump](/guides/backups/#create-an-offsite-d1-dump), then import them in order through the preview environment's `DB` binding:
 
    ```bash
-   npx wrangler d1 export emdash-db --remote --output=./prod.sql
-   npx wrangler d1 execute DB --env preview --remote --file=./prod.sql
+   npx wrangler d1 execute DB --env preview --remote --file=./backup-schema.sql
+   npx wrangler d1 execute DB --env preview --remote --file=./backup-folders.sql
+   npx wrangler d1 execute DB --env preview --remote --file=./backup-data.sql
+   npx wrangler d1 execute DB --env preview --remote --file=./backup-indexes.sql
    ```
+
+   The preview site rebuilds its search index on the first call to the search API, as described in that section.
 
 3. Build the project, deploy it to the preview environment, then run the schema change against the preview URL:
 
@@ -121,6 +126,6 @@ A destructive schema change (removing a field, restructuring a collection) is sa
 
 ## Recover from a wrong turn
 
-- **A field was removed by mistake.** The column and its data are gone from the live database. Restore from a D1 [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) point-in-time backup, or re-add the field and restore its values from an earlier `wrangler d1 export`.
+- **A field was removed by mistake.** The column and its data are gone from the live database. Restore from a D1 [Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) point-in-time backup, or re-add the field and restore its values from an earlier [offsite D1 dump](/guides/backups/#create-an-offsite-d1-dump).
 - **A fresh environment bootstrapped with the wrong model.** The embedded seed was stale or missing. Update `.emdash/seed.json` (see [Keep the seed file in sync](#keep-the-seed-file-in-sync)), rebuild, and point the deploy at an empty database to bootstrap again.
 - **The schema and the templates disagree.** Deploys and schema changes are independent, so order them deliberately: additive schema changes (new collection, new optional field) go first, then the code that uses them. For removals, deploy the code that stops using the field first, then remove the field.

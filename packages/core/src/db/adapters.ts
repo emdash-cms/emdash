@@ -88,6 +88,8 @@ export interface DatabaseDescriptor {
 	 * runtime config (e.g. whether the user opted into D1 sessions) — whether
 	 * to return a per-request Kysely or null. Use this for features like D1
 	 * read-replica sessions, bookmark cookies, or any per-request DB handle.
+	 * The handle must address the configured database: core shares values it
+	 * caches from one handle, such as the preview secret, with later requests.
 	 *
 	 * When false or absent, the generator emits a stub that returns null and
 	 * the middleware takes its default (singleton) path.

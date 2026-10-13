@@ -22,9 +22,7 @@ import type {
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
 import { singularize } from "../lib/singularize.js";
-
-const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
-const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g;
+import { slugifyIdentifier } from "../lib/utils.js";
 
 /** How a limit is expressed in the form. `limit` reveals a number input. */
 type LimitMode = "one" | "many" | "limit";
@@ -55,13 +53,6 @@ function limitComplete(mode: LimitMode, custom: string): boolean {
 
 function customLimit(value: number | null | undefined): string {
 	return value && value !== 1 ? String(value) : "";
-}
-
-function slugify(value: string): string {
-	return value
-		.toLowerCase()
-		.replace(SLUG_INVALID_CHARS_PATTERN, "_")
-		.replace(SLUG_LEADING_TRAILING_PATTERN, "");
 }
 
 /** The plural and singular names a collection lends to the end it sits on. */
@@ -142,7 +133,7 @@ function initialState(options: UseRelationFormOptions): RelationFormState {
 /** A new relation is named after what its two sides are called. */
 function withDerivedSlug(state: RelationFormState, isNew?: boolean): RelationFormState {
 	if (!isNew || state.slugEdited || !state.parentLabel || !state.childLabel) return state;
-	return { ...state, slug: slugify(`${state.parentLabel}_${state.childLabel}`) };
+	return { ...state, slug: slugifyIdentifier(`${state.parentLabel}_${state.childLabel}`) };
 }
 
 export function useRelationForm(options: UseRelationFormOptions): RelationForm {
@@ -253,6 +244,11 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 
 	const collectionItems = collections.map((c) => ({ label: c.label, value: c.slug }));
 
+	const slugError =
+		isNew && !state.slug && (state.parentLabel || state.childLabel)
+			? t`A slug cannot be generated from these role names. Type one manually using lowercase letters, numbers, and underscores.`
+			: undefined;
+
 	// Named here rather than inside the label template: a `t` call nested in
 	// another `t` template is not something the macro can extract.
 	const linkingSideName = state.parentLabelSingular || t`entry on the linking side`;
@@ -331,6 +327,7 @@ export function RelationFormFields({ form, collections, isNew }: RelationFormFie
 					}}
 					placeholder="posts_authors"
 					disabled={!isNew}
+					error={slugError}
 				/>
 				<p className="text-xs text-kumo-subtle mt-2">
 					{isNew

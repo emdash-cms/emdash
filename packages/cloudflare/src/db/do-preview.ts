@@ -31,6 +31,7 @@ import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
 import { isBlockedInPreview } from "./do-preview-routes.js";
 import { verifyPreviewSignature } from "./do-preview-sign.js";
+import { insertBeforeBodyEnd } from "./insert-before-body-end.js";
 import { renderPreviewToolbar } from "./preview-toolbar.js";
 
 /** Configuration for the preview middleware */
@@ -257,10 +258,9 @@ async function injectPreviewToolbar(
 	if (!contentType?.includes("text/html")) return response;
 
 	const html = await response.text();
-	if (!html.includes("</body>")) return new Response(html, response);
+	const injected = insertBeforeBodyEnd(html, renderPreviewToolbar(config));
+	if (injected === undefined) return new Response(html, response);
 
-	const toolbarHtml = renderPreviewToolbar(config);
-	const injected = html.replace("</body>", `${toolbarHtml}</body>`);
 	return new Response(injected, {
 		status: response.status,
 		headers: response.headers,

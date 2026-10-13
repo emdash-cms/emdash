@@ -16,7 +16,6 @@ import { cn } from "../../lib/utils.js";
 import type { MediaUploadJob } from "./useMediaUploadQueue.js";
 
 export const MEDIA_BROWSER_PAGE_SIZES = [35, 70, 90];
-export const MAX_MEDIA_PAGE_DROPDOWN_ITEMS = 100;
 
 export function mimeForMediaTypeFilter(value: string): string | string[] | undefined {
 	switch (value) {

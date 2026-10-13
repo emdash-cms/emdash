@@ -1,16 +1,19 @@
 import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	clefImagePromptHash,
+	createClefImageAdapter,
+	isClefModelId,
+	type ClefAssessmentSettings,
+	type ClefCategoryProbability,
+	type ClefModelId,
+} from "../src/ai/clef.js";
+import {
 	createCloudflareImagesDerivativeTransformer,
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 	type ImageModerationDerivativeTransformer,
 } from "../src/ai/image-resize.js";
-import { IMAGE_PROMPT_HASH } from "../src/ai/prompts.js";
-import {
-	createWorkersAiImageAdapter,
-	workersAiBindingFromEnv,
-	WORKERS_AI_IMAGE_MODEL_CANDIDATE,
-	type WorkersAiBinding,
-} from "../src/ai/workers-ai.js";
+import { workersAiBindingFromEnv, type WorkersAiBinding } from "../src/ai/workers-ai.js";
 
 const IMAGE_DATA_URL_RE = /^data:image\/(?:gif|jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
 const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
@@ -100,8 +103,10 @@ export function parseManualImageRequest(value: unknown): {
 
 async function moderateManualImage(value: unknown, env: Env): Promise<Response> {
 	let input: ReturnType<typeof parseManualImageRequest>;
+	let options: ManualImageClefOptions;
 	try {
 		input = parseManualImageRequest(value);
+		options = parseManualImageClefOptions(value);
 	} catch (error) {
 		return Response.json(
 			{ error: error instanceof Error ? error.message : "manual image request is invalid" },
@@ -109,9 +114,14 @@ async function moderateManualImage(value: unknown, env: Env): Promise<Response> 
 		);
 	}
 	try {
-		const adapter = createManualImageModerationAdapter(
+		let probabilities: readonly ClefCategoryProbability[] = [];
+		const adapter = await createManualImageModerationAdapter(
 			workersAiBindingFromEnv(env.AI),
 			createCloudflareImagesDerivativeTransformer(env.IMAGES),
+			options,
+			(reported) => {
+				probabilities = reported;
+			},
 		);
 		const result = await adapter.moderate({
 			subject: {
@@ -127,6 +137,7 @@ async function moderateManualImage(value: unknown, env: Env): Promise<Response> 
 			fileName: input.fileName,
 			outcome: result.findings.length === 0 ? "pass" : "review",
 			findings: result.findings,
+			probabilities,
 			coveredEvidenceRefs: result.coveredEvidenceRefs,
 			identity: result.identity,
 			latencyMs: result.latencyMs,
@@ -140,19 +151,42 @@ async function moderateManualImage(value: unknown, env: Env): Promise<Response> 
 	}
 }
 
-export function createManualImageModerationAdapter(
+export interface ManualImageClefOptions extends ClefAssessmentSettings {
+	modelId: ClefModelId;
+}
+
+export function parseManualImageClefOptions(value: unknown): ManualImageClefOptions {
+	if (!isRecord(value)) throw new TypeError("manual image request must be an object");
+	const modelId = value["model"] ?? "@cf/cloudflare/clef";
+	if (typeof modelId !== "string" || !isClefModelId(modelId)) {
+		throw new TypeError("manual image model is unsupported");
+	}
+	const threshold = value["threshold"] ?? CLEF_IMAGE_ASSESSMENT_SETTINGS.threshold;
+	if (typeof threshold !== "number") {
+		throw new TypeError("manual image threshold must be a number");
+	}
+	const separateQuestions =
+		value["separateQuestions"] ?? CLEF_IMAGE_ASSESSMENT_SETTINGS.separateQuestions;
+	if (typeof separateQuestions !== "boolean") {
+		throw new TypeError("manual image separateQuestions must be a boolean");
+	}
+	return { modelId, threshold, separateQuestions };
+}
+
+export async function createManualImageModerationAdapter(
 	ai: WorkersAiBinding,
 	transformer: ImageModerationDerivativeTransformer,
+	options: ManualImageClefOptions,
+	onProbabilities?: (probabilities: readonly ClefCategoryProbability[]) => void,
 ) {
-	const baseAdapter = createWorkersAiImageAdapter(ai, {
-		modelId: WORKERS_AI_IMAGE_MODEL_CANDIDATE,
-		promptHash: IMAGE_PROMPT_HASH,
-		thinking: false,
-		timeoutMs: MANUAL_IMAGE_TIMEOUT_MS,
-	});
 	return createResizedImageModerationAdapter(
 		transformer,
-		baseAdapter,
+		createClefImageAdapter(ai, {
+			...options,
+			promptHash: await clefImagePromptHash(options),
+			timeoutMs: MANUAL_IMAGE_TIMEOUT_MS,
+			...(onProbabilities ? { onProbabilities } : {}),
+		}),
 		DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 	);
 }
@@ -181,6 +215,23 @@ async function resizeImageInput(
 		transformedInput = {
 			...input,
 			image: [...(await resizeImage(bytes, images, maxDimension))],
+		};
+	}
+	const clefImages = transformedInput["images"];
+	if (Array.isArray(clefImages)) {
+		transformedInput = {
+			...transformedInput,
+			images: await Promise.all(
+				clefImages.map(async (image) => {
+					const bytes =
+						typeof image === "string"
+							? parseDataUrl(image)
+							: isRecord(image) && typeof image["base64"] === "string"
+								? Uint8Array.from(atob(image["base64"]), (character) => character.charCodeAt(0))
+								: undefined;
+					return bytes ? dataUrl(await resizeImage(bytes, images, maxDimension)) : image;
+				}),
+			),
 		};
 	}
 	const messages = transformedInput["messages"];

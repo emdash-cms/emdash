@@ -15,7 +15,7 @@ vi.mock("virtual:emdash/object-cache", () => ({ createObjectCache: undefined }))
 import { prefetchLayoutData } from "../../../src/astro/prefetch.js";
 import { getDb } from "../../../src/loader.js";
 import { runWithContext } from "../../../src/request-context.js";
-import { getWidgetArea } from "../../../src/widgets/index.js";
+import { getWidgetArea, getWidgetAreas } from "../../../src/widgets/index.js";
 
 afterAll(destroySharedPool);
 
@@ -63,7 +63,7 @@ describeEachDialect("widget area request cache", (dialect) => {
 			transformQuery(args) {
 				const { sql } = ctx.db.getExecutor().compileQuery(args.node, args.queryId);
 				if (sql.includes("_emdash_widget")) queries.push(sql);
-				if (sql.includes('from "_emdash_widget_areas"') && !sql.includes(" join ")) {
+				if (sql.includes('from "_emdash_widget_areas"') && !sql.includes(" where ")) {
 					bulkReads.add(args.queryId);
 				}
 				return args.node;
@@ -99,15 +99,39 @@ describeEachDialect("widget area request cache", (dialect) => {
 			expect(actualSidebar).toEqual(sidebar);
 			expect(empty?.widgets).toEqual([]);
 			expect(missing).toBeNull();
-			expect(queries).toHaveLength(2);
+			expect(queries).toHaveLength(1);
 		});
 	});
 
 	it("shares the bulk load between repeated prefetch calls", async () => {
 		await runWithContext({ editMode: false }, async () => {
 			await Promise.all([prefetchLayoutData(), prefetchLayoutData()]);
-			expect(queries).toHaveLength(2);
+			expect(queries).toHaveLength(1);
 		});
+	});
+
+	it("loads every area in creation order with its ordered widgets in one query", async () => {
+		for (const [id, createdAt] of [
+			["sidebar", "2026-01-01 00:00:00"],
+			["footer", "2026-01-02 00:00:00"],
+			["empty", "2026-01-03 00:00:00"],
+		]) {
+			await ctx.db
+				.updateTable("_emdash_widget_areas")
+				.set({ created_at: createdAt })
+				.where("id", "=", id)
+				.execute();
+		}
+		queries = [];
+
+		const areas = await getWidgetAreas();
+		expect(queries).toHaveLength(1);
+		expect(areas.map((area) => [area.name, area.widgets.map((widget) => widget.id)])).toEqual([
+			["sidebar", ["about"]],
+			["footer", ["search", "links"]],
+			["empty", []],
+		]);
+		expect(areas.find((area) => area.name === "footer")).toEqual(await getWidgetArea("footer"));
 	});
 
 	it("serves completed prefetch results without further queries", async () => {

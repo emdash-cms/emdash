@@ -199,7 +199,7 @@ describe("orchestrator alarm recovery", () => {
 		expect(log).toHaveBeenCalledWith(expect.stringContaining('"anchorNumber":42'));
 	});
 
-	test("sleeps until reporter expiry without periodic label reconciliation", async () => {
+	test("a parked reporter wait has no timer and stops waking", async () => {
 		const stub = env.Orchestrator.getByName(`issue-reporter-${crypto.randomUUID()}`);
 		const now = Date.now();
 		await runInDurableObject(stub, async (_instance, state) => {
@@ -215,7 +215,7 @@ describe("orchestrator alarm recovery", () => {
 
 		expect(await runDurableObjectAlarm(stub)).toBe(true);
 		await runInDurableObject(stub, async (_instance, state) => {
-			expect(await state.storage.getAlarm()).toBeGreaterThan(now + 13 * 24 * 60 * 60_000);
+			expect(await state.storage.getAlarm()).toBeNull();
 			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
 		});
 	});
@@ -262,7 +262,7 @@ describe("orchestrator alarm recovery", () => {
 		expect(first.alarmAt).toBeGreaterThanOrEqual(first.retry?.nextAt ?? 0);
 	});
 
-	test("exhausts bounded stale recovery into an operator-visible terminal state", async () => {
+	test("keeps retrying stale recovery at a capped interval instead of giving up", async () => {
 		const stub = env.Orchestrator.getByName("issue-recovery-exhaustion");
 		await stub.debugSetStaleRun(
 			"stale-run",
@@ -273,23 +273,81 @@ describe("orchestrator alarm recovery", () => {
 		await runInDurableObject(stub, async (_instance, state) => {
 			await state.storage.setAlarm(Date.now() + 60_000);
 		});
-		for (let attempt = 0; attempt < 8; attempt += 1) {
+		for (let attempt = 0; attempt < 12; attempt += 1) {
 			expect(await runDurableObjectAlarm(stub)).toBe(true);
 		}
-		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({
-			terminal: { path: "stale-run", attempts: 8, errorKind: "recovery-error" },
-			alarmAt: null,
+		const recovery = await stub.inspectRecoveryState();
+		expect(recovery).toMatchObject({
+			terminal: null,
+			retry: { path: "stale-run", attempts: 12 },
 		});
+		expect(recovery.retry?.nextAt).toBeLessThanOrEqual(Date.now() + 60 * 60_000);
+		expect(recovery.alarmAt).toBeGreaterThanOrEqual(recovery.retry?.nextAt ?? 0);
 	});
 
-	test("counts alternating recovery paths toward the same bounded exhaustion", async () => {
+	test("keeps alternating recovery paths retrying", async () => {
 		const stub = env.Orchestrator.getByName("issue-alternating-recovery-exhaustion");
-		for (let attempt = 0; attempt < 8; attempt += 1) {
+		for (let attempt = 0; attempt < 12; attempt += 1) {
 			await stub.debugRecordRecoveryFailure(attempt % 2 === 0 ? "work-comment" : "labels");
 		}
 		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({
-			terminal: { path: "labels", attempts: 8, errorKind: "recovery-error" },
-			alarmAt: null,
+			terminal: null,
+			retry: { path: "labels", attempts: 12 },
 		});
+	});
+
+	test("revives an orchestrator that previously gave up on recovery", async () => {
+		const stub = env.Orchestrator.getByName(`issue-revived-${crypto.randomUUID()}`);
+		await stub.debugSetStaleRun(
+			"stale-run",
+			Date.now() - 24 * 60 * 60_000,
+			"abort-false-agent",
+			"implement",
+		);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put("o:recoveryTerminal", {
+				path: "stale-run",
+				attempts: 8,
+				terminalAt: Date.now() - 60_000,
+				errorKind: "recovery-error",
+			});
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+		const recovery = await stub.inspectRecoveryState();
+		expect(recovery.terminal).toBeNull();
+		expect(recovery.alarmAt).not.toBeNull();
+	});
+
+	test("new input restarts recovery from the shortest backoff", async () => {
+		const stub = env.Orchestrator.getByName(`issue-recovery-reset-${crypto.randomUUID()}`);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "needs_attention",
+				"o:kind": "bug",
+				"o:recoveryRetry": {
+					path: "work-comment",
+					attempts: 6,
+					nextAt: Date.now() + 60 * 60_000,
+				},
+			});
+		});
+
+		await stub.enqueue({
+			event: "confirm",
+			arg: null,
+			actor: "maintainer",
+			labels: [],
+			needsClassify: false,
+			dryRun: true,
+			anchorNumber: 42,
+			deliveryId: "retry-after-backoff",
+		});
+
+		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({ retry: null });
+		await stub.tick();
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
 	});
 });

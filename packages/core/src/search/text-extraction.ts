@@ -8,6 +8,7 @@
 import { toPlainText } from "@portabletext/toolkit";
 
 import type { PortableTextBlock } from "../content/converters/types.js";
+import { isPortableTextVideoBlock } from "../content/converters/video.js";
 
 /**
  * Validate that a value looks like a Portable Text block array.
@@ -44,6 +45,10 @@ function extractCustomBlockText(block: PortableTextBlock): string {
 		return parts.join(" ");
 	}
 
+	if (isPortableTextVideoBlock(block)) {
+		return block.caption ?? "";
+	}
+
 	return "";
 }
 
@@ -51,7 +56,7 @@ function extractCustomBlockText(block: PortableTextBlock): string {
  * Extract plain text from Portable Text blocks
  *
  * Uses @portabletext/toolkit's toPlainText for standard blocks,
- * plus extracts text from custom block types (code, images with alt/caption).
+ * plus extracts text from custom block types (code, images with alt/caption, video captions).
  *
  * @param blocks - Array of Portable Text blocks (or a JSON string)
  * @returns Plain text content

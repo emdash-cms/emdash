@@ -43,6 +43,16 @@ export default defineConfig({
 });
 ```
 
+## Reverse proxies and HTTPS
+
+When the Node process sits behind a reverse proxy that terminates TLS, internal requests arrive over HTTP while visitors reach the site over HTTPS. Set the public origin with `EMDASH_SITE_URL` or `SITE_URL` so EmDash builds correct absolute URLs:
+
+```bash
+export EMDASH_SITE_URL=https://example.com
+```
+
+Set the variable both where `npm run build` runs and where the server runs. The build uses it to enable image optimization for locally stored media. If it is missing at build time, images are served as unoptimized originals instead of through Astro's `/_image` endpoint. See [`siteUrl`](/reference/configuration/#siteurl) for how EmDash resolves the public origin.
+
 ## Build and run
 
 1. Build the project:
@@ -202,6 +212,7 @@ See [Secrets and key management](/deployment/secrets/) for the key format, every
 
 | Variable               | Description             | Example                    |
 | ---------------------- | ----------------------- | -------------------------- |
+| `EMDASH_SITE_URL`      | Public site origin      | `https://example.com`      |
 | `DATABASE_PATH`        | Path to SQLite database | `/data/emdash.db`        |
 | `HOST`                 | Server host             | `0.0.0.0`                  |
 | `PORT`                 | Server port             | `4321`                     |

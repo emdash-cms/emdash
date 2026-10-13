@@ -50,7 +50,7 @@ export function ImageDropTarget({
 		}
 		const file = files[0]!;
 		if (!matchesMimeAllowlist(file.type, ["image/"])) {
-			setError(t`Only image files can be dropped here.`);
+			setError(t`Only image files can be uploaded here.`);
 			return;
 		}
 		if (allowedMimeTypes?.length && !matchesMimeAllowlist(file.type, allowedMimeTypes)) {
@@ -123,7 +123,9 @@ export function ImageDropTarget({
 					}}
 				>
 					{uploading ? (
-						<Loader size="sm" aria-hidden="true" />
+						<span aria-hidden="true" className="flex shrink-0">
+							<Loader size="sm" />
+						</span>
 					) : (
 						<UploadSimple className="h-8 w-8 shrink-0" aria-hidden="true" />
 					)}

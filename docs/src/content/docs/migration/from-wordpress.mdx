@@ -41,7 +41,7 @@ You can also enter the WordPress site URL. When the exporter is detected, author
 
 <Steps>
 
-1. Open **Import WordPress** in the EmDash sidebar, or visit `/_emdash/admin/import/wordpress`.
+1. In the admin sidebar, select **Import** to open the **Import from WordPress** page, or visit `/_emdash/admin/import/wordpress`.
 
 2. Upload the WXR file, paste the exporter migration key, or enter the WordPress URL.
 
@@ -160,11 +160,11 @@ import { decodeSlug, getEmDashEntry } from "emdash";
 import { PortableText } from "emdash/ui";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error } = await getEmDashEntry("posts", slug);
 if (error) return new Response("Could not load the post", { status: 500 });
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 ---
 
 <article>

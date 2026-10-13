@@ -49,14 +49,30 @@ export function FormBlockComponent({
 		setValues((prev) => ({ ...prev, [actionId]: value }));
 	}, []);
 
-	function handleSubmit(e: React.FormEvent) {
-		e.preventDefault();
+	function submit() {
 		onAction({
 			type: "form_submit",
 			action_id: block.submit.action_id,
 			block_id: block.block_id,
 			values,
 		});
+	}
+
+	// Submit from the button's click so no native submit event is dispatched. Plugin editor
+	// panels render inside the content editor's form, and Chromium stops a nested form's
+	// `submit` from bubbling past the outer form, so React's onSubmit never runs and the
+	// browser reloads the editor. Pressing Enter in a single-line input clicks this button
+	// too. Preventing the click also skips the browser's validation, so run it here.
+	function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
+		e.preventDefault();
+		const form = e.currentTarget.form;
+		if (form && !form.reportValidity()) return;
+		submit();
+	}
+
+	function handleSubmit(e: React.FormEvent) {
+		e.preventDefault();
+		submit();
 	}
 
 	return (
@@ -68,7 +84,9 @@ export function FormBlockComponent({
 				return <div key={field.action_id}>{renderElement(field, onAction, handleChange)}</div>;
 			})}
 			<div>
-				<Button type="submit">{block.submit.label}</Button>
+				<Button type="submit" onClick={handleClick}>
+					{block.submit.label}
+				</Button>
 			</div>
 		</form>
 	);

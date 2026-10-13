@@ -78,4 +78,35 @@ describe("HTML block round-trip (inline editor seam)", () => {
 		expect(pt[1]!._type).toBe("htmlBlock");
 		expect((pt[1] as { html?: string }).html).toBe("<hr><p>Injected</p>");
 	});
+
+	it("preserves css, js and isolated through PT → PM → PT", () => {
+		const block = {
+			_type: "htmlBlock",
+			_key: "html004",
+			html: '<button id="go">Go</button>',
+			css: "button { color: red; }",
+			js: "document.getElementById('go').addEventListener('click', () => {});",
+			isolated: true,
+		};
+
+		const pt = pmToPortableText(portableTextToPM([block]));
+
+		expect(pt).toStrictEqual([{ ...block, _key: expect.any(String) }]);
+	});
+
+	it("round-trips a legacy block without adding fields", () => {
+		const pt = pmToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "htmlBlock",
+					attrs: { html: "<p>Legacy</p>", css: "", js: "", isolated: false },
+				},
+			],
+		});
+
+		expect(pt).toStrictEqual([
+			{ _type: "htmlBlock", _key: expect.any(String), html: "<p>Legacy</p>" },
+		]);
+	});
 });

@@ -151,6 +151,62 @@ describe("GitHub workflow connection requests", () => {
 		).resolves.toMatchObject({ ok: true, status: "connected" });
 	});
 
+	it.each(["current_ref", "version_tags"] as const)(
+		"connects workflows from package version tags with %s scope",
+		async (refScope) => {
+			await enablePublishing();
+			const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+			const ref = "refs/tags/gallery@1.2.3";
+			const claim = {
+				...CLAIM,
+				ref,
+				workflowRef: `${CLAIM.repository}/.github/workflows/release.yml@${ref}`,
+			};
+			await publisher.requestWorkflowConnection(requestInput({ claim }));
+			const confirmed = await publisher.confirmWorkflowConnection(
+				PUBLISHER_DID,
+				REQUEST_ID,
+				refScope,
+				NOW + 1,
+			);
+			expect(confirmed).toMatchObject({ ok: true, request: { state: "confirmed" } });
+			if (!confirmed.ok) throw new Error("Workflow connection was not confirmed");
+			const workload = identity(ref);
+			workload.workflow.ref = claim.workflowRef;
+			expect(evaluateWorkloadPolicy(workload, confirmed.policy)).toEqual({ ok: true });
+			await expect(
+				publisher.confirmWorkflowConnection(PUBLISHER_DID, REQUEST_ID, refScope, NOW + 2),
+			).resolves.toMatchObject({ ok: true, replayed: true });
+
+			const nextRef = "refs/tags/comments@2.0.0";
+			const nextClaim = {
+				...claim,
+				ref: nextRef,
+				workflowRef: `${CLAIM.repository}/.github/workflows/release.yml@${nextRef}`,
+			};
+			const nextWorkload = identity(nextRef);
+			nextWorkload.workflow.ref = nextClaim.workflowRef;
+			expect(evaluateWorkloadPolicy(nextWorkload, confirmed.policy)).toEqual(
+				refScope === "version_tags" ? { ok: true } : { ok: false, code: "WORKLOAD_REF_MISMATCH" },
+			);
+			if (refScope === "version_tags") {
+				await expect(
+					publisher.requestWorkflowConnection(
+						requestInput({
+							requestId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+							mutationKey: "workflow-connection-request-0002",
+							connectionKey: "L".repeat(43),
+							invitationTokenHash: null,
+							packageSlug: "comments",
+							claim: nextClaim,
+							now: NOW + 3,
+						}),
+					),
+				).resolves.toMatchObject({ ok: true, status: "connected" });
+			}
+		},
+	);
+
 	it("reuses an approved repository workflow for another package", async () => {
 		await enablePublishing();
 		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);

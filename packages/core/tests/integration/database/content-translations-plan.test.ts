@@ -186,7 +186,9 @@ async function seedMenuReference(referenceGroup: string): Promise<void> {
 }
 
 function translationQueries(): CapturedQuery[] {
-	return captured.filter((query) => query.sql.includes("translation_group"));
+	return captured.filter(
+		(query) => query.sql.includes("translation_group") && query.sql.includes('"ec_post"'),
+	);
 }
 
 function translationQuery(): CapturedQuery {

@@ -19,7 +19,8 @@ import {
 	invalidateSiteSettingsCache,
 	setSiteSettings,
 } from "../../../src/settings/index.js";
-import { setupTestDatabase } from "../../utils/test-db.js";
+import { createTestRuntime } from "../../utils/mcp-runtime.js";
+import { setupTestDatabase, setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("Site Settings", () => {
 	let db: Kysely<Database>;
@@ -126,6 +127,37 @@ describe("Site Settings", () => {
 			const settings = await getSiteSettingsWithDb(db);
 			expect(settings.seo).toBeUndefined();
 			expect(await new OptionsRepository(db).exists("site:seo")).toBe(false);
+		});
+
+		it("keeps the other SEO fields when updating one of them", async () => {
+			await setSiteSettings(
+				{
+					seo: {
+						titleSeparator: " | ",
+						robotsTxt: "User-agent: *\nDisallow: /private/",
+						googleVerification: "google-code",
+					},
+				},
+				db,
+			);
+
+			await setSiteSettings({ seo: { googleVerification: "new-code" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.seo).toEqual({
+				titleSeparator: " | ",
+				robotsTxt: "User-agent: *\nDisallow: /private/",
+				googleVerification: "new-code",
+			});
+		});
+
+		it("keeps the other social links when updating one of them", async () => {
+			await setSiteSettings({ social: { twitter: "@handle", github: "user" } }, db);
+
+			await setSiteSettings({ social: { github: "new-user" } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.social).toEqual({ twitter: "@handle", github: "new-user" });
 		});
 
 		it("rolls back updates when a media-setting deletion fails", async () => {
@@ -630,9 +662,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaDelete invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 
@@ -670,9 +699,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaUpdate invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 
@@ -709,9 +735,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaReplaceMetadata invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 		const mediaId = "med_invalidation_replace";

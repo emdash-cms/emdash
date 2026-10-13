@@ -42,7 +42,7 @@ import { getEmDashEntry } from "emdash";
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
 
 if (!post) {
-	return Astro.redirect("/404");
+	return Astro.rewrite("/404");
 }
 ```
 
@@ -50,7 +50,7 @@ if (!post) {
 
 ```typescript
 interface ContentEntry<T> {
-	id: string; // The slug (used in URLs)
+	id: string; // The slug (used in URLs); `locale/slug` for non-default locales
 	data: T; // All fields, including system fields
 	edit: EditProxy; // Visual editing attributes (spread onto elements)
 }
@@ -58,7 +58,7 @@ interface ContentEntry<T> {
 // data includes system fields plus your custom fields:
 interface PostData {
 	id: string; // Database ULID (use for taxonomy lookups, etc.)
-	slug: string;
+	slug: string | null;
 	status: string;
 	title: string;
 	featured_image?: {
@@ -79,7 +79,7 @@ interface PostData {
 }
 ```
 
-**Important:** `entry.id` is the slug (for URLs), `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
+**Important:** `entry.id` is the slug (for URLs), `entry.data.id` is the database ULID (for API calls like `getEntryTerms`). With several locales configured, entries in a non-default locale (or every locale, with `prefixDefaultLocale`) have `entry.id` = `locale/slug`; `entry.data.slug` is the bare slug (or `null`).
 
 ### Reference Fields
 
@@ -148,7 +148,7 @@ const customTypes = {
 <PortableText value={page.data.content} components={{ type: customTypes }} />
 ```
 
-Each custom component receives the block data as props.
+Each custom component receives the block as `Astro.props.node`.
 
 ## Rendering a blocks field
 
@@ -185,11 +185,6 @@ import { Image } from "emdash/ui";
 
 {/* Correct -- passes the image object */}
 <Image image={post.data.featured_image} />
-
-{/* Also works with explicit props */}
-{post.data.featured_image?.src && (
-	<img src={post.data.featured_image.src} alt={post.data.featured_image.alt || ""} />
-)}
 ```
 
 **Common mistake:**
@@ -197,6 +192,24 @@ import { Image } from "emdash/ui";
 ```astro
 {/* WRONG -- image is an object, not a string */}
 <img src={post.data.featured_image} />
+```
+
+## File fields
+
+File field values from the Media Library have no `src`. Resolve the URL from `meta.storageKey`. Files added by URL (stored with `provider: "external"`) keep it in `src`. For a registered media provider such as Cloudflare Stream, `src` is only a preview image, so this does not apply.
+
+```astro
+---
+const file = entry.data.video;
+const storageKey = typeof file?.meta?.storageKey === "string" ? file.meta.storageKey : undefined;
+const url = storageKey
+	? Astro.locals.emdash?.getPublicMediaUrl?.(storageKey)
+	: file?.provider === "external"
+		? file.src
+		: file?.url;
+---
+
+{url && <video src={url} controls preload="metadata" />}
 ```
 
 ## Visual Editing Attributes
@@ -249,10 +262,10 @@ import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 const { slug } = Astro.params;
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
@@ -264,7 +277,11 @@ const seo = getSeoMeta(post, {
 
 const tags = post.data.terms?.tag ?? [];
 ---
-<Base title={seo.title} description={seo.description}>
+<Base
+	title={seo.title}
+	description={seo.description}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
 	<article>
 		{post.data.featured_image && (
 			<div {...post.edit.featured_image}>
@@ -286,13 +303,16 @@ const tags = post.data.terms?.tag ?? [];
 
 ```astro
 ---
-import { getTaxonomyTermsWithCacheHint, getEmDashCollection } from "emdash";
+import { getTaxonomyTermsWithCacheHint, getEmDashCollection, type TaxonomyTerm } from "emdash";
 import Base from "../../layouts/Base.astro";
 
 const { slug } = Astro.params;
 const termsResult = await getTaxonomyTermsWithCacheHint("category", { includeCounts: false });
-const term = slug ? termsResult.data.find((item) => item.slug === slug) : null;
-if (!term) return Astro.redirect("/404");
+// Hierarchical taxonomies return a tree, so search child terms too.
+const findTerm = (terms: TaxonomyTerm[]): TaxonomyTerm | undefined =>
+	terms.find((item) => item.slug === slug) ?? terms.map((item) => findTerm(item.children)).find(Boolean);
+const term = slug ? findTerm(termsResult.data) : undefined;
+if (!term) return Astro.rewrite("/404");
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	where: { category: term.slug },
@@ -413,7 +433,7 @@ const { entries, nextCursor, cacheHint } = await getEmDashCollection("posts", {
 	cursor,
 	orderBy: { published_at: "desc" },
 });
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 {entries.map(post => (
 	<a href={`/posts/${post.id}`}>{post.data.title}</a>
@@ -425,7 +445,7 @@ Astro.cache.set(cacheHint);
 
 ## Date Formatting
 
-Dates come as `Date` objects. Use `toLocaleDateString` or `Intl.DateTimeFormat`:
+The system dates `createdAt`, `updatedAt` and `publishedAt` are `Date` objects. Custom `datetime` fields are ISO 8601 strings, so wrap them in `new Date(...)` first. Use `toLocaleDateString` or `Intl.DateTimeFormat`:
 
 ```typescript
 const formatted = post.data.publishedAt?.toLocaleDateString("en-US", {

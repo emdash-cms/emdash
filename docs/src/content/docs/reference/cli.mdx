@@ -17,7 +17,7 @@ npm install emdash
 
 Run commands with `npx emdash` or add scripts to `package.json`. The binary is also available as `em` for brevity.
 
-Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed.
+Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and, before setup is completed, applies the bundled seed's schema and structure once. Sample content from the seed is applied only when an administrator chooses it in the setup wizard.
 
 ## Authentication
 
@@ -96,6 +96,7 @@ npx emdash seed [path] [options]
 | `--on-conflict`    |       | Handle existing records with `skip`, `update`, or `error` | `skip`                         |
 | `--uploads-dir`    |       | Local directory used for seed media                    | `./uploads`                      |
 | `--media-base-url` |       | Base URL stored for local seed media                   | `/_emdash/api/media/file`        |
+| `--skip-media`     |       | Resolve `$media` references to external URLs instead of downloading and storing them | `false` |
 
 Applying a seed runs core migrations first. Use `--validate` in continuous integration when you need to check the file without opening or creating the database.
 
@@ -108,6 +109,7 @@ npx emdash migrate [options]
 npx emdash migrate --check [options]
 npx emdash migrate --status --json [options]
 npx emdash migrate --release-lock <id> [options]
+npx emdash migrate --take-over-lock <id> [options]
 ```
 
 By default the command discovers the project root and reads `.emdash/migrations.json`. It validates the manifest against the project's installed EmDash package, resolves the adapter's project-local executor, and prints the immutable target before any SQL.
@@ -122,8 +124,9 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--manifest <path>` | Read a non-standard manifest path |
 | `--from-config` | Explicitly evaluate trusted Astro configuration instead of a manifest |
 | `--config <path>` | Astro config path used with `--from-config` |
-| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply or lock release |
+| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply, lock release, or lock take-over |
 | `--release-lock <id>` | Release the D1 migration lock with the id that `--status` reports; cannot be combined with `--check` or `--status` |
+| `--take-over-lock <id>` | Apply pending migrations under the D1 migration lock with the id that `--status` reports, without freeing it in between; cannot be combined with `--check`, `--status`, or `--release-lock` |
 | `--database <path>` | Override a SQLite path |
 | `--database-url-env <name>` | Override a PostgreSQL connection-variable name |
 | `--d1 <uuid-or-name>` | Select a D1 database explicitly |
@@ -131,7 +134,7 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--wrangler-config <path>` | Read D1 binding metadata from an explicit Wrangler config |
 | `--wrangler-env <name>` | Select an environment; requires `--wrangler-config` |
 
-Interactive human-readable apply and lock release ask for confirmation. Non-interactive apply or lock release, and every apply or lock release using `--json`, require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
+Interactive human-readable apply, lock release, and lock take-over ask for confirmation. Non-interactive apply, lock release, or lock take-over, and every one of them using `--json`, require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
 
 #### Exit codes
 
@@ -172,7 +175,7 @@ npx emdash types [options]
 npx emdash types
 
 # Generate from remote instance
-npx emdash types --url https://my-site.pages.dev
+npx emdash types --url https://example.com
 
 # Custom output path
 npx emdash types --output src/types/emdash.ts

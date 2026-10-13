@@ -141,8 +141,13 @@ export {
 export {
 	type SiteSettings,
 	type SiteSettingsUpdate,
+	type SiteDomain,
 	fetchSettings,
 	updateSettings,
+	fetchSiteDomain,
+	changeSiteDomain,
+	createSignInHandover,
+	notifyUsersOfDomain,
 } from "./settings.js";
 
 // Users, passkeys, allowed domains

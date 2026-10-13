@@ -30,6 +30,7 @@ import pc from "picocolors";
 
 import { BundleError, bundlePlugin } from "../bundle/api.js";
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
+import { isFlagSet } from "../cli-args.js";
 import { redirectConsolaToStderr } from "../cli-output.js";
 import { probeEnvironment } from "../init/environment.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
@@ -118,12 +119,6 @@ export const publishCommand = defineCommand({
 		manifest: {
 			type: "string",
 			description: `Path to emdash-plugin.jsonc, or the directory containing it. Defaults to ./${MANIFEST_FILENAME}. Pass --no-manifest (or set to "false") to disable manifest loading and rely entirely on flags.`,
-		},
-		"no-manifest": {
-			type: "boolean",
-			description:
-				"Disable manifest loading and rely entirely on flags. Useful in CI where the manifest lives elsewhere or shouldn't be implicitly consumed.",
-			default: false,
 		},
 		"allow-overwrite": {
 			type: "boolean",
@@ -556,8 +551,10 @@ type PublishArgs = {
 	"author-email"?: string;
 	"security-email"?: string;
 	"security-url"?: string;
-	manifest?: string;
-	"no-manifest"?: boolean;
+	/** citty parses `--no-manifest` as `false`. */
+	manifest?: string | false;
+	/** Undocumented spelling of `--no-manifest`. */
+	noManifest?: unknown;
 	"allow-overwrite"?: boolean;
 	json?: boolean;
 };
@@ -595,9 +592,12 @@ async function loadManifestBootstrap(
 	args: PublishArgs,
 	log: { info(m: string): void; warn(m: string): void },
 ): Promise<ManifestLoadOutcome | null> {
-	const optedOut =
-		args["no-manifest"] === true || args.manifest === "false" || args.manifest === "";
-	if (optedOut) {
+	if (
+		args.manifest === false ||
+		args.manifest === "false" ||
+		args.manifest === "" ||
+		isFlagSet(args.noManifest)
+	) {
 		// `--no-manifest` is a power-user escape hatch (CI, debugging),
 		// but silently skipping a manifest at the default path defeats
 		// the publisher-pin safety story. If the file exists, warn that

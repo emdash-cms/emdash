@@ -680,6 +680,7 @@ async function buildStatusPage(ctx: PluginContext) {
 					{ type: "header", text: "Recent Syncs" },
 					{
 						type: "table",
+						page_action_id: "recent_syncs",
 						columns: [
 							{ key: "collection", label: "Collection", format: "text" },
 							{ key: "contentId", label: "Content", format: "code" },

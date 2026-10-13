@@ -1,3 +1,4 @@
+import { isPortableTextVideoBlock } from "../../content/converters/video.js";
 import { normalizeMime } from "../mime.js";
 import { INTERNAL_MEDIA_PREFIX } from "../normalize.js";
 import type {
@@ -141,6 +142,20 @@ function extractPortableTextOccurrences(
 				fieldSlug,
 				`${pathPrefix}[${blockIndex}]`,
 				block.asset,
+				"image",
+			);
+			continue;
+		}
+
+		// A plugin's own `video` block may hold a reference that isn't media.
+		if (isPortableTextVideoBlock(block)) {
+			addPortableTextAssetOccurrence(
+				occurrences,
+				seen,
+				fieldSlug,
+				`${pathPrefix}[${blockIndex}]`,
+				block.asset,
+				"video",
 			);
 			continue;
 		}
@@ -155,6 +170,7 @@ function extractPortableTextOccurrences(
 					fieldSlug,
 					`${pathPrefix}[${blockIndex}].images[${imageIndex}]`,
 					image.asset,
+					"image",
 				);
 			}
 		}
@@ -231,6 +247,7 @@ function addPortableTextAssetOccurrence(
 	fieldSlug: string,
 	pathPrefix: string,
 	asset: unknown,
+	kind: "image" | "video",
 ): void {
 	if (!isRecord(asset)) return;
 
@@ -241,12 +258,12 @@ function addPortableTextAssetOccurrence(
 	addRefOccurrence(occurrences, seen, {
 		fieldSlug,
 		fieldPath: `${pathPrefix}.asset.${ref.key}`,
-		referenceType: "portable_text_image",
+		referenceType: kind === "video" ? "portable_text_video" : "portable_text_image",
 		ref: buildMediaRef({
 			id: ref.id,
 			provider,
 			mimeType: normalizeMimeValue(asset.mimeType),
-			fallbackKind: "image",
+			fallbackKind: kind,
 		}),
 	});
 }

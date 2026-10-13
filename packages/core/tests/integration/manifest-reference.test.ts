@@ -146,4 +146,29 @@ describeEachDialect("manifest reference field validation", (dialect) => {
 			multiple: true,
 		});
 	});
+
+	it("leaves the default value off a field bound to a relation", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
+		await registry.createCollection({ slug: "authors", label: "Authors", labelSingular: "Author" });
+		await new RelationRepository(ctx.db).create({
+			slug: "post_author",
+			parentCollection: "posts",
+			childCollection: "authors",
+			parentLabel: "Author",
+			childLabel: "Posts",
+		});
+		await registry.createField("posts", {
+			slug: "author",
+			label: "Author",
+			type: "reference",
+			validation: { relation: "post_author", relationSide: "parent", targetCollection: "authors" },
+			defaultValue: "author-1",
+		});
+
+		const manifest = await buildRuntime(ctx.db).getManifest();
+
+		expect(manifest.collections.posts?.fields.author?.kind).toBe("reference");
+		expect(manifest.collections.posts?.fields.author).not.toHaveProperty("defaultValue");
+	});
 });

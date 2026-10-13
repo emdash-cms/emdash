@@ -22,6 +22,8 @@ vi.mock("../../../src/loader.js", () => ({
 import { onRequest } from "../../../src/astro/middleware/redirect.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import { publishRedirectArtifacts } from "../../../src/redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../../src/redirects/cache.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -30,11 +32,13 @@ type MiddlewareContext = Parameters<typeof onRequest>[0];
 interface BuildContextOpts {
 	pathname: string;
 	emdashDb?: unknown;
+	cache?: { set: ReturnType<typeof vi.fn> };
 }
 
-function buildContext({ pathname, emdashDb }: BuildContextOpts): {
+function buildContext({ pathname, emdashDb, cache = { set: vi.fn() } }: BuildContextOpts): {
 	context: MiddlewareContext;
 	redirect: ReturnType<typeof vi.fn>;
+	cache: { set: ReturnType<typeof vi.fn> };
 } {
 	const redirect = vi.fn(
 		(location: string, status: number) =>
@@ -47,9 +51,10 @@ function buildContext({ pathname, emdashDb }: BuildContextOpts): {
 		request: new Request(url.toString()),
 		locals,
 		redirect,
+		cache,
 	};
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro-shaped object for the middleware under test
-	return { context: ctx as unknown as MiddlewareContext, redirect };
+	return { context: ctx as unknown as MiddlewareContext, redirect, cache };
 }
 
 describe("redirect middleware — issue #808", () => {
@@ -132,44 +137,57 @@ describe("redirect middleware — issue #808", () => {
 		expect(response.status).toBe(200);
 	});
 
-	it("warms the redirect cache from one query and reuses it across requests", async () => {
+	it("loads published redirects in one query and reuses them across requests", async () => {
+		await publishRedirectArtifacts(db);
 		const findAllEnabled = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
+		let selects = 0;
+		getDbMock.mockResolvedValue(
+			db.withPlugin({
+				transformQuery(args) {
+					if (args.node.kind === "SelectQueryNode") selects++;
+					return args.node;
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			}),
+		);
 
-		// First request: cache cold, should issue exactly one query.
-		const first = buildContext({ pathname: "/old" });
-		const next1 = vi.fn(async () => new Response("not found", { status: 404 }));
-		const r1 = await runMiddleware(first.context, next1);
-		expect(r1.status).toBe(301);
-		expect(findAllEnabled).toHaveBeenCalledTimes(1);
+		try {
+			const first = buildContext({ pathname: "/old" });
+			const r1 = await runMiddleware(
+				first.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+			expect(r1.status).toBe(301);
+			expect(selects).toBe(1);
 
-		// Second request (exact match): cache warm, no further queries.
-		const second = buildContext({ pathname: "/old" });
-		const next2 = vi.fn(async () => new Response("not found", { status: 404 }));
-		const r2 = await runMiddleware(second.context, next2);
-		expect(r2.status).toBe(301);
-		expect(findAllEnabled).toHaveBeenCalledTimes(1);
+			const second = buildContext({ pathname: "/legacy/hello" });
+			const r2 = await runMiddleware(
+				second.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+			expect(r2.status).toBe(301);
+			expect(second.redirect).toHaveBeenCalledWith("/posts/hello", 301);
 
-		// Third request (pattern match): still warm, no further queries.
-		const third = buildContext({ pathname: "/legacy/hello" });
-		const next3 = vi.fn(async () => new Response("not found", { status: 404 }));
-		const r3 = await runMiddleware(third.context, next3);
-		expect(r3.status).toBe(301);
-		expect(third.redirect).toHaveBeenCalledWith("/posts/hello", 301);
-		expect(findAllEnabled).toHaveBeenCalledTimes(1);
+			const third = buildContext({ pathname: "/nope" });
+			await runMiddleware(
+				third.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
 
-		// Fourth request (no match): still warm, but next() runs and a 404 is logged.
-		const fourth = buildContext({ pathname: "/nope" });
-		const next4 = vi.fn(async () => new Response("not found", { status: 404 }));
-		await runMiddleware(fourth.context, next4);
-		expect(findAllEnabled).toHaveBeenCalledTimes(1);
-
-		findAllEnabled.mockRestore();
+			await waitForDeferredTasks();
+			expect(selects).toBe(1);
+			expect(findAllEnabled).not.toHaveBeenCalled();
+		} finally {
+			findAllEnabled.mockRestore();
+		}
 	});
 
-	it("refreshes redirect rules after another Worker isolate changes them", async () => {
-		vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00Z") });
-		const findAllEnabled = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
+	it("picks up redirects another Worker isolate published once the cache expires", async () => {
+		vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00Z"), toFake: ["Date"] });
 		try {
+			await publishRedirectArtifacts(db);
 			const repo = new RedirectRepository(db);
 
 			const first = buildContext({ pathname: "/old" });
@@ -182,153 +200,33 @@ describe("redirect middleware — issue #808", () => {
 			const existing = await repo.findBySource("/old");
 			expect(existing).not.toBeNull();
 			await repo.update(existing!.id, { destination: "/newer" });
+			await publishRedirectArtifacts(db);
 
 			vi.advanceTimersByTime(29_999);
-
 			const stillCached = buildContext({ pathname: "/old" });
 			await runMiddleware(
 				stillCached.context,
 				vi.fn(async () => new Response("not found", { status: 404 })),
 			);
 			expect(stillCached.redirect).toHaveBeenCalledWith("/new", 301);
-			expect(findAllEnabled).toHaveBeenCalledTimes(1);
 
 			vi.advanceTimersByTime(1);
+			const expired = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				expired.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+			expect(expired.redirect).toHaveBeenCalledWith("/new", 301);
+			await waitForDeferredTasks();
 
 			const refreshed = buildContext({ pathname: "/old" });
 			await runMiddleware(
 				refreshed.context,
 				vi.fn(async () => new Response("not found", { status: 404 })),
 			);
-
 			expect(refreshed.redirect).toHaveBeenCalledWith("/newer", 301);
-			expect(findAllEnabled).toHaveBeenCalledTimes(2);
 		} finally {
-			findAllEnabled.mockRestore();
 			vi.useRealTimers();
-		}
-	});
-
-	it("coalesces concurrent cache refreshes into one database query", async () => {
-		const originalFindAllEnabled = RedirectRepository.prototype.findAllEnabled;
-		let releaseRefresh!: () => void;
-		const refreshGate = new Promise<void>((resolve) => {
-			releaseRefresh = resolve;
-		});
-		let markRefreshStarted!: () => void;
-		const refreshStarted = new Promise<void>((resolve) => {
-			markRefreshStarted = resolve;
-		});
-		const findAllEnabled = vi
-			.spyOn(RedirectRepository.prototype, "findAllEnabled")
-			.mockImplementation(async function () {
-				markRefreshStarted();
-				await refreshGate;
-				return originalFindAllEnabled.call(this);
-			});
-
-		try {
-			const first = buildContext({ pathname: "/old" });
-			const firstResponse = runMiddleware(
-				first.context,
-				vi.fn(async () => new Response("not found", { status: 404 })),
-			);
-			await refreshStarted;
-
-			const second = buildContext({ pathname: "/old" });
-			const secondResponse = runMiddleware(
-				second.context,
-				vi.fn(async () => new Response("not found", { status: 404 })),
-			);
-
-			releaseRefresh();
-			await Promise.all([firstResponse, secondResponse]);
-
-			expect(findAllEnabled).toHaveBeenCalledTimes(1);
-			expect(first.redirect).toHaveBeenCalledWith("/new", 301);
-			expect(second.redirect).toHaveBeenCalledWith("/new", 301);
-		} finally {
-			findAllEnabled.mockRestore();
-		}
-	});
-
-	it("does not restore stale rules when a write invalidates an in-flight refresh", async () => {
-		const originalFindAllEnabled = RedirectRepository.prototype.findAllEnabled;
-		let releaseRefresh!: () => void;
-		const refreshGate = new Promise<void>((resolve) => {
-			releaseRefresh = resolve;
-		});
-		let markSnapshotLoaded!: () => void;
-		const snapshotLoaded = new Promise<void>((resolve) => {
-			markSnapshotLoaded = resolve;
-		});
-		const findAllEnabled = vi
-			.spyOn(RedirectRepository.prototype, "findAllEnabled")
-			.mockImplementation(async function () {
-				const rows = await originalFindAllEnabled.call(this);
-				markSnapshotLoaded();
-				await refreshGate;
-				return rows;
-			});
-
-		try {
-			const request = buildContext({ pathname: "/old" });
-			const response = runMiddleware(
-				request.context,
-				vi.fn(async () => new Response("not found", { status: 404 })),
-			);
-			await snapshotLoaded;
-
-			const repo = new RedirectRepository(db);
-			const existing = await repo.findBySource("/old");
-			expect(existing).not.toBeNull();
-			await repo.update(existing!.id, { destination: "/newer" });
-			invalidateRedirectCache();
-			releaseRefresh();
-
-			await response;
-
-			expect(request.redirect).toHaveBeenCalledWith("/newer", 301);
-			expect(findAllEnabled).toHaveBeenCalledTimes(2);
-		} finally {
-			findAllEnabled.mockRestore();
-		}
-	});
-
-	it("bounds refresh retries when writes keep invalidating the cache", async () => {
-		const originalFindAllEnabled = RedirectRepository.prototype.findAllEnabled;
-		let invalidationsRemaining = 3;
-		const findAllEnabled = vi
-			.spyOn(RedirectRepository.prototype, "findAllEnabled")
-			.mockImplementation(async function () {
-				const rows = await originalFindAllEnabled.call(this);
-				if (invalidationsRemaining > 0) {
-					invalidationsRemaining--;
-					invalidateRedirectCache();
-				}
-				return rows;
-			});
-
-		try {
-			const first = buildContext({ pathname: "/old" });
-			await runMiddleware(
-				first.context,
-				vi.fn(async () => new Response("not found", { status: 404 })),
-			);
-
-			expect(first.redirect).toHaveBeenCalledWith("/new", 301);
-			expect(findAllEnabled).toHaveBeenCalledTimes(3);
-
-			const second = buildContext({ pathname: "/old" });
-			await runMiddleware(
-				second.context,
-				vi.fn(async () => new Response("not found", { status: 404 })),
-			);
-
-			expect(second.redirect).toHaveBeenCalledWith("/new", 301);
-			expect(findAllEnabled).toHaveBeenCalledTimes(4);
-		} finally {
-			findAllEnabled.mockRestore();
 		}
 	});
 
@@ -366,7 +264,7 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 
 		expect(log404).toHaveBeenCalledTimes(1);
 		expect(log404).toHaveBeenCalledWith(expect.objectContaining({ path: "/no-such-page" }));
-		// Await the fire-and-forget write before reading the table.
+		// Await the deferred write before reading the table.
 		await log404.mock.results[0]!.value;
 		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
 		expect(rows.map((r) => r.path)).toEqual(["/no-such-page"]);
@@ -374,9 +272,8 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 	});
 
 	it("logs a content miss under its real path across the redirect-to-/404 flow", async () => {
-		// The documented template pattern answers a content miss with
-		// Astro.redirect("/404"): the first request is a 302, the browser then
-		// requests /404, which renders with status 404.
+		// A site that answers a content miss with Astro.redirect("/404") sends a
+		// 302 first; the browser then requests /404, which renders with status 404.
 		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
 
 		const miss = buildContext({ pathname: "/posts/deleted-post" });
@@ -395,6 +292,16 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
 		expect(rows.map((r) => r.path)).toEqual(["/posts/deleted-post"]);
 		log404.mockRestore();
+	});
+
+	it("keeps 404 responses out of the route cache", async () => {
+		const miss = buildContext({ pathname: "/posts/deleted-post" });
+		await onRequest(miss.context, async () => new Response("not found", { status: 404 }));
+		expect(miss.cache.set).toHaveBeenCalledWith(false);
+
+		const hit = buildContext({ pathname: "/posts/live-post" });
+		await onRequest(hit.context, async () => new Response("ok", { status: 200 }));
+		expect(hit.cache.set).not.toHaveBeenCalled();
 	});
 
 	it("does not log ordinary redirects", async () => {
@@ -611,5 +518,178 @@ describe("redirect middleware — only redirects to site-relative paths", () => 
 
 		expect(redirect).not.toHaveBeenCalled();
 		expect(response.status).toBe(200);
+	});
+});
+
+/**
+ * Astro's per-request route cache: a response is stored when a max age or a
+ * tag is set by the time the middleware chain returns it.
+ */
+function storingRouteCache(initial: { maxAge?: number } = {}) {
+	let options: { maxAge?: number; tags: string[] } = { ...initial, tags: [] };
+	return {
+		enabled: true,
+		get options() {
+			return options;
+		},
+		set: vi.fn((input: false | { maxAge?: number; tags?: string[] }) => {
+			options =
+				input === false
+					? { tags: [] }
+					: { ...options, ...input, tags: [...options.tags, ...(input.tags ?? [])] };
+		}),
+	};
+}
+
+describe("redirect middleware — responses the route cache stores", () => {
+	let db: Kysely<Database>;
+	let repo: RedirectRepository;
+	let selects: number;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		repo = new RedirectRepository(db);
+		await publishRedirectArtifacts(db);
+		selects = 0;
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(
+			db.withPlugin({
+				transformQuery(args) {
+					if (args.node.kind === "SelectQueryNode") selects++;
+					return args.node;
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			}),
+		);
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	/** Loads the published rules into this isolate's cache. */
+	async function warm(): Promise<void> {
+		const { context } = buildContext({ pathname: "/warm" });
+		await runMiddleware(context, async () => new Response("warm"));
+		await waitForDeferredTasks();
+		selects = 0;
+	}
+
+	/** A page render that asks the route cache to store it, as `Astro.cache.set(cacheHint)` does. */
+	function storedPage(cache: ReturnType<typeof storingRouteCache>) {
+		return async () => {
+			cache.set({ tags: ["posts", "post-1"] });
+			return new Response("page");
+		};
+	}
+
+	it("redirects a stored render when another isolate has added a redirect for its path", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/moved");
+	});
+
+	it("lets a render it replaces with a redirect run to completion", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		let rendered = false;
+		let cancelled = false;
+		const body = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				controller.enqueue(new TextEncoder().encode("page"));
+				rendered = true;
+				controller.close();
+			},
+			cancel() {
+				cancelled = true;
+			},
+		});
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, async () => {
+			cache.set({ tags: ["posts"] });
+			return new Response(body);
+		});
+		await waitForDeferredTasks();
+
+		expect(response.status).toBe(301);
+		expect(cancelled).toBe(false);
+		expect(rendered).toBe(true);
+	});
+
+	it("redirects a stored render for a redirect written before its rules were published", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/moved");
+	});
+
+	it("renders the page rather than store a redirect another isolate has deleted", async () => {
+		const rule = await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+		await warm();
+		await repo.delete(rule.id);
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache({ maxAge: 300 });
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("page");
+	});
+
+	it("checks current rules with one read before a render is stored", async () => {
+		await warm();
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("page");
+		expect(selects).toBe(1);
+	});
+
+	it("does not read the database for a render the route cache will not store", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, async () => new Response("page"));
+
+		expect(response.status).toBe(200);
+		expect(selects).toBe(0);
 	});
 });

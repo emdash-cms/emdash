@@ -198,6 +198,13 @@ export interface ExternalAuthConfig {
 	syncRoles?: boolean;
 
 	/**
+	 * Update user's name from the IdP on every authenticated request
+	 * When false, name is only set on first provisioning, so names edited in the admin are kept
+	 * @default true
+	 */
+	syncName?: boolean;
+
+	/**
 	 * Map IdP group names to EmDash role levels
 	 * First match wins if user is in multiple groups
 	 *

@@ -319,6 +319,31 @@ describe("CommentRepository", () => {
 	});
 
 	// -------------------------------------------------------------------------
+	// Page size
+	// -------------------------------------------------------------------------
+
+	describe("Page size", () => {
+		beforeEach(async () => {
+			for (let i = 0; i < 5; i++) {
+				await repo.create(makeInput({ status: "approved", body: `Comment ${i}` }));
+			}
+		});
+
+		it("rounds a fractional limit down instead of failing the query", async () => {
+			const byContent = await repo.findByContent("post", "content-1", { limit: 2.5 });
+			expect(byContent.items).toHaveLength(2);
+
+			const forPlugin = await repo.findForPlugin({ limit: 2.5 });
+			expect(forPlugin.items).toHaveLength(2);
+		});
+
+		it("falls back to the default page size for a non-numeric limit", async () => {
+			const result = await repo.findForPlugin({ limit: Number.NaN });
+			expect(result.items).toHaveLength(5);
+		});
+	});
+
+	// -------------------------------------------------------------------------
 	// Threading
 	// -------------------------------------------------------------------------
 

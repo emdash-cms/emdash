@@ -75,31 +75,50 @@ export async function sendMagicLink(
 		return;
 	}
 
-	// Generate token
-	const { token, hash } = generateTokenWithHash();
-
-	// Store token hash
-	await adapter.createToken({
-		hash,
-		userId: user.id,
-		email: user.email,
-		type,
-		expiresAt: new Date(Date.now() + TOKEN_EXPIRY_MS),
-	});
-
-	// Build magic link URL
-	const url = new URL("/_emdash/api/auth/magic-link/verify", config.baseUrl);
-	url.searchParams.set("token", token);
+	const url = await createMagicLinkUrl(adapter, user, config.baseUrl, { type });
 
 	// Send email
 	const message = buildMagicLinkEmail(
-		url.toString(),
+		url,
 		user.email,
 		config.siteName,
 		config.emailStrings,
 		config.emailLocale,
 	);
 	await config.email(message);
+}
+
+export interface MagicLinkUrlOptions {
+	type?: "magic_link" | "recovery";
+	/** Defaults to 15 minutes. */
+	expiresInMs?: number;
+	/** Admin path to open after sign-in. */
+	redirect?: string;
+}
+
+/**
+ * Create a single-use sign-in link for `user` on `baseUrl`. The link opens
+ * the same confirmation page as an emailed sign-in link.
+ */
+export async function createMagicLinkUrl(
+	adapter: AuthAdapter,
+	user: Pick<User, "id" | "email">,
+	baseUrl: string,
+	options: MagicLinkUrlOptions = {},
+): Promise<string> {
+	const { token, hash } = generateTokenWithHash();
+	await adapter.createToken({
+		hash,
+		userId: user.id,
+		email: user.email,
+		type: options.type ?? "magic_link",
+		expiresAt: new Date(Date.now() + (options.expiresInMs ?? TOKEN_EXPIRY_MS)),
+	});
+
+	const url = new URL("/_emdash/api/auth/magic-link/verify", baseUrl);
+	url.searchParams.set("token", token);
+	if (options.redirect) url.searchParams.set("redirect", options.redirect);
+	return url.toString();
 }
 
 /** English fallback copy for the sign-in email. */

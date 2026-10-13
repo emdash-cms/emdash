@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentPublish } from "../../src/api/handlers/content.js";
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
+import { runSystemCleanup } from "../../src/cleanup.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
@@ -22,7 +23,15 @@ import { SCHEDULER_HEARTBEAT_OPTION } from "../../src/scheduler-health.js";
 import { createPostFixture, createPageFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
-function buildRuntime(db: Kysely<Database>): EmDashRuntime {
+vi.mock("../../src/cleanup.js", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../../src/cleanup.js")>();
+	return {
+		...actual,
+		runSystemCleanup: vi.fn().mockResolvedValue(undefined),
+	};
+});
+
+function buildRuntime(db: Kysely<Database>, now?: () => Date): EmDashRuntime {
 	const config: EmDashConfig = {};
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline([], pipelineFactoryOptions);
@@ -37,6 +46,7 @@ function buildRuntime(db: Kysely<Database>): EmDashRuntime {
 		sandboxEnabled: false,
 		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
+		now,
 	};
 
 	return new EmDashRuntime({
@@ -381,6 +391,38 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		} finally {
 			consoleError.mockRestore();
 		}
+	});
+
+	it("runs system cleanup only at the top of the hour", async () => {
+		const mockCleanup = vi.mocked(runSystemCleanup);
+		mockCleanup.mockClear();
+
+		const runtime = buildRuntime(db, () => new Date("2026-10-04T12:00:00.000Z"));
+		await runtime.runScheduledTasks();
+		expect(mockCleanup).toHaveBeenCalledTimes(1);
+
+		await buildRuntime(db, () => new Date("2026-10-04T12:15:00.000Z")).runScheduledTasks();
+		expect(mockCleanup).toHaveBeenCalledTimes(1);
+
+		await buildRuntime(db, () => new Date("2026-10-04T13:00:00.000Z")).runScheduledTasks();
+		expect(mockCleanup).toHaveBeenCalledTimes(2);
+	});
+
+	it("records a heartbeat on non-hour ticks without running system cleanup", async () => {
+		const mockCleanup = vi.mocked(runSystemCleanup);
+		mockCleanup.mockClear();
+
+		const options = new OptionsRepository(db);
+		const currentTime = new Date("2026-10-04T12:05:00.000Z");
+		const runtime = buildRuntime(db, () => currentTime);
+
+		const { published } = await runtime.runScheduledTasks();
+		expect(published).toEqual([]);
+		expect(mockCleanup).not.toHaveBeenCalled();
+
+		const heartbeat = await options.get<string>(SCHEDULER_HEARTBEAT_OPTION);
+		expect(heartbeat).not.toBeNull();
+		expect(Date.parse(heartbeat!)).toBe(currentTime.getTime());
 	});
 });
 

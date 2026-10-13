@@ -97,6 +97,8 @@ import * as m086 from "./086_relations_structural.js";
 import * as m087 from "./087_reference_field_relations.js";
 import * as m088 from "./088_cron_oneshot_utc.js";
 import * as m089 from "./089_auto_seed_completion.js";
+import * as m090 from "./090_redirect_enable_loop_guard.js";
+import * as m091 from "./091_redirect_artifacts.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -187,6 +189,8 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"087_reference_field_relations": m087,
 	"088_cron_oneshot_utc": m088,
 	"089_auto_seed_completion": m089,
+	"090_redirect_enable_loop_guard": m090,
+	"091_redirect_artifacts": m091,
 });
 
 /** Ordered names from the statically registered migration set. */
@@ -246,6 +250,18 @@ export class MigrationLockHeldError extends Error {
 		super(migrationLockHeldMessage(heldSince));
 		this.name = "MigrationLockHeldError";
 		this.heldSince = heldSince;
+	}
+}
+
+/**
+ * Thrown when the migrator reports an error while applying pending migrations.
+ * Callers with failure backoff apply it. Errors from the applied-migration
+ * count check before the migrator runs are not wrapped and stay retryable.
+ */
+export class MigrationFailedError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MigrationFailedError";
 	}
 }
 
@@ -547,7 +563,7 @@ export async function runMigrations(
 		}
 
 		const failedSuffix = failedMigration ? ` (migration: ${failedMigration.migrationName})` : "";
-		throw new Error(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
+		throw new MigrationFailedError(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
 	}
 
 	return { applied };

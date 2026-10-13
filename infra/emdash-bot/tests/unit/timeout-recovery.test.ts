@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
 	buildTimeoutSummaryPrompt,
 	isTimeoutSummaryDelivery,
+	normalizeTimeoutSummary,
 	resumeStateForMode,
 } from "../../.flue/lib/timeout-recovery.js";
 
@@ -33,6 +34,20 @@ describe("timeout recovery", () => {
 		expect(prompt).toContain("No tools are available");
 		expect(prompt).toContain("verification that passed or failed");
 		expect(prompt).toContain("test failed with exit 1");
+	});
+
+	test("unwraps a summary the model put inside answer tags", () => {
+		expect(
+			normalizeTimeoutSummary(
+				"<human_readable>Timeout checkpoint</human_readable>\n<final_answer>\n\nThe core fix is in place.\n\n</final_answer>",
+			),
+		).toBe("The core fix is in place.");
+	});
+
+	test("leaves a plain summary as written", () => {
+		expect(normalizeTimeoutSummary("  The core fix is in place.  ")).toBe(
+			"The core fix is in place.",
+		);
 	});
 
 	test("resume returns to the state owned by the saved run mode", () => {

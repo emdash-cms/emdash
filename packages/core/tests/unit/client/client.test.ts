@@ -564,6 +564,33 @@ describe("EmDashClient", () => {
 			}
 		});
 
+		it("schema TypeScript export imports every type emitted by the interfaces", async () => {
+			const db = await setupTestDatabaseWithCollections();
+
+			try {
+				const response = await schemaGET({
+					request: new Request("http://localhost:4321/_emdash/api/schema?format=typescript"),
+					locals: {
+						emdash: { db },
+						user: { id: "user_1", role: Role.EDITOR },
+					},
+				} as never);
+
+				expect(response.status).toBe(200);
+				expect(response.headers.get("Content-Type")).toBe("text/typescript");
+
+				const body = await response.text();
+				expect(body).toContain(
+					'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";',
+				);
+				expect(body).toContain("byline?: BylineSummary | null;");
+				expect(body).toContain("bylines?: ContentBylineCredit[];");
+				expect(body).toContain("terms?: Record<string, TaxonomyTerm[]>;");
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		});
+
 		it("collections() returns list", async () => {
 			const backend = createMockBackend([
 				{

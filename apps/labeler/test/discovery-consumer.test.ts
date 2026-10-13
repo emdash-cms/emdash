@@ -36,6 +36,9 @@ function createLifecycle(log: string[]): AssessmentLifecycleStore {
 		async getRun() {
 			return null;
 		},
+		async supersedeAbandonedRun() {
+			return false;
+		},
 		async startRun() {
 			throw new Error("not used");
 		},
@@ -97,6 +100,51 @@ describe("record discovery dispatch", () => {
 		const duplicate = await consumeDiscoveryItems([{ cursor: "100", event }], dependencies);
 		expect(duplicate.dispatchedRunKeys).toEqual([]);
 		expect(batches).toHaveLength(1);
+	});
+
+	it("advances past an event for a listing version that already has a decision without dispatching", async () => {
+		const log: string[] = [];
+		const batches: unknown[] = [];
+		const lifecycle = createLifecycle(log);
+		const result = await consumeDiscoveryItems(
+			[
+				{
+					cursor: "150",
+					event: {
+						did: PUBLISHER_DID,
+						kind: "commit",
+						commit: {
+							operation: "update",
+							collection: "com.emdashcms.experimental.package.profile",
+							rkey: "gallery",
+							cid: PROFILE_CID,
+						},
+					},
+				},
+			],
+			{
+				workflow: {
+					async createBatch(batch: unknown[]) {
+						batches.push(batch);
+						return [];
+					},
+				},
+				cursor: createCursorStore(log),
+				lifecycle: {
+					...lifecycle,
+					async observeRun(options) {
+						await lifecycle.observeRun(options);
+						return null;
+					},
+				},
+				quarantine: createQuarantine(log),
+				versions: ASSESSMENT_VERSIONS,
+			},
+		);
+
+		expect(result.dispatchedRunKeys).toEqual([]);
+		expect(batches).toEqual([]);
+		expect(log).toEqual([`observe:${PROFILE_CID}`, "cursor:150"]);
 	});
 
 	it("quarantines delete hints for authoritative reconciliation before advancing", async () => {

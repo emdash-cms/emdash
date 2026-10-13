@@ -27,6 +27,12 @@ describe("toDatetimeLocalInputValue", () => {
 	it("preserves a value already in datetime-local shape", () => {
 		expect(toDatetimeLocalInputValue("2026-02-26T09:30")).toBe("2026-02-26T09:30");
 	});
+
+	it("falls back to UTC when the site timezone is not a valid IANA zone", () => {
+		expect(toDatetimeLocalInputValue("2026-02-26T09:30:00.000Z", "Lisboa")).toBe(
+			"2026-02-26T09:30",
+		);
+	});
 });
 
 describe("fromDatetimeLocalInputValue", () => {
@@ -37,6 +43,12 @@ describe("fromDatetimeLocalInputValue", () => {
 	it("converts site-local input to a canonical UTC instant", () => {
 		expect(fromDatetimeLocalInputValue("2026-02-26T09:30", "Asia/Tokyo")).toBe(
 			"2026-02-26T00:30:00.000Z",
+		);
+	});
+
+	it("falls back to UTC when the site timezone is not a valid IANA zone", () => {
+		expect(fromDatetimeLocalInputValue("2026-02-26T09:30", "Lisboa")).toBe(
+			"2026-02-26T09:30:00.000Z",
 		);
 	});
 

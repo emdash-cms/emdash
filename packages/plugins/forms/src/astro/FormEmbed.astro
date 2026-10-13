@@ -34,9 +34,14 @@ const hasFiles = form.pages.some((p: FormPage) =>
 	p.fields.some((f: FormField) => f.type === "file")
 );
 
-/** Generate an element ID for a field */
+/** Suffix that distinguishes this rendering from any other on the same page. The same form is often embedded more
+ * than once - a sidebar, a footer and a pop-up - and without it every copy repeats the same element ids, so a
+ * label, an aria-describedby or a password manager resolves to the first copy rather than the one being used. */
+const instance = Math.random().toString(36).slice(2, 8);
+
+/** Generate an element ID for a field, unique to this rendering of the form */
 function fieldId(name: string): string {
-	return `${formId}-${name}`;
+	return `${formId}-${name}-${instance}`;
 }
 ---
 
@@ -205,10 +210,10 @@ function fieldId(name: string): string {
 				style="position:absolute;left:-9999px;"
 				aria-hidden="true"
 			>
-				<label for={`${formId}-_hp`}>Leave blank</label>
+				<label for={fieldId("_hp")}>Leave blank</label>
 				<input
 					type="text"
-					id={`${formId}-_hp`}
+					id={fieldId("_hp")}
 					name="_hp"
 					tabindex="-1"
 					autocomplete="off"

@@ -18,7 +18,7 @@ import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/me
 import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
-import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
+import { matchesMimeAllowlist, normalizeMime, resolveUploadMimeType } from "#media/mime.js";
 
 export const prerender = false;
 
@@ -73,9 +73,37 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				500,
 			);
 		}
-		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
+		const uploadSchema = mediaUploadUrlBody(maxSize);
+		const body = await parseBody(request, uploadSchema);
 		if (isParseError(body)) return body;
-		const normalizedContentType = normalizeMime(body.contentType);
+
+		let beforeUploadFile = {
+			name: body.filename,
+			type: body.contentType,
+			size: body.size,
+		};
+		if (emdash.hooks?.hasHooks("media:beforeUpload")) {
+			const hookResult = await emdash.hooks.runMediaBeforeUpload(beforeUploadFile);
+			const metadata = uploadSchema.safeParse({
+				filename: hookResult.file?.name,
+				contentType: hookResult.file?.type,
+				size: body.size,
+			});
+			if (!metadata.success) {
+				return apiError("VALIDATION_ERROR", "Invalid media:beforeUpload result", 400);
+			}
+			// Hooks change metadata, but the client still uploads the original bytes.
+			beforeUploadFile = {
+				name: metadata.data.filename,
+				type: metadata.data.contentType,
+				size: body.size,
+			};
+		}
+
+		// Clients that don't recognise an extension may send an empty or generic
+		// content type; fall back to the filename extension before allowlisting.
+		const mimeType = resolveUploadMimeType(beforeUploadFile.name, beforeUploadFile.type);
+		const normalizedContentType = normalizeMime(mimeType);
 
 		// Validate content type (field-aware widening)
 		const fieldAllowlist = body.fieldId
@@ -83,7 +111,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			: null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
-		if (!matchesMimeAllowlist(body.contentType, allowlist)) {
+		if (!matchesMimeAllowlist(mimeType, allowlist)) {
 			return apiError("INVALID_TYPE", "File type not allowed", 400);
 		}
 
@@ -103,8 +131,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			}
 		}
 		const filename = body.ensureUniqueFilename
-			? await repo.findAvailableFilename(body.filename)
-			: body.filename;
+			? await repo.findAvailableFilename(beforeUploadFile.name)
+			: beforeUploadFile.name;
 
 		// Generate unique storage key
 		const id = ulid();
@@ -115,7 +143,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		try {
 			signedUrl = await emdash.storage.getSignedUploadUrl({
 				key: storageKey,
-				contentType: body.contentType,
+				contentType: mimeType,
 				size: body.size,
 				expiresIn: 3600,
 			});

@@ -16,8 +16,9 @@ import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
+import { jsonTextValues } from "./database/json-recordset.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
-import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
+import { decodeCursor, encodeCursor, InvalidCursorError } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
@@ -447,10 +448,12 @@ const INCLUDE_IN_DATA: Record<string, string> = {
 const DATE_COLUMNS = new Set(["created_at", "updated_at", "published_at", "scheduled_at"]);
 
 /**
- * Hidden, symbol-keyed property on each mapped data record carrying the raw
- * DB string for every date column. Lets cursor encoders downstream reproduce
- * the loader's exact `nextCursor` format without round-tripping through
- * `new Date()`, which loses precision for stored values that aren't already
+ * Hidden, symbol-keyed property on each mapped data record carrying raw DB
+ * values: the string of every date column and, in a collection load, the
+ * primary sort column's value. Lets cursor encoders downstream reproduce the
+ * loader's exact `nextCursor` from an entry, whose `data` leaves some columns
+ * out, parses text that looks like JSON, and holds dates as `Date` objects,
+ * which lose precision for stored values that aren't already
  * ISO-with-milliseconds (e.g. `2026-01-01T00:00:00Z` becomes
  * `2026-01-01T00:00:00.000Z`).
  */
@@ -517,9 +520,10 @@ function normalizeLocalMediaValue(value: unknown): unknown {
 function mapRowToData(
 	row: Record<string, unknown>,
 	booleanFields: ReadonlySet<string>,
+	sortColumn?: string,
 ): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
-	const rawDateValues: Record<string, string> = {};
+	const rawValues: Record<string, SortCursorValue> = {};
 
 	for (const [key, value] of Object.entries(row)) {
 		// Include certain system columns (mapped to camelCase where needed)
@@ -527,7 +531,7 @@ function mapRowToData(
 			// Convert date columns from ISO strings to Date objects
 			if (DATE_COLUMNS.has(key)) {
 				if (typeof value === "string") {
-					rawDateValues[key] = value;
+					rawValues[key] = value;
 					data[INCLUDE_IN_DATA[key]] = new Date(value);
 				} else {
 					data[INCLUDE_IN_DATA[key]] = null;
@@ -562,14 +566,116 @@ function mapRowToData(
 		}
 	}
 
+	stashSortValue(data, row, sortColumn, rawValues);
+
+	return data;
+}
+
+/**
+ * Keep the row's raw sort value on `data` (non-enumerable) so the next-page
+ * cursor is encoded from the same value the keyset query compares against.
+ */
+function stashSortValue(
+	data: Record<string, unknown>,
+	row: Record<string, unknown>,
+	sortColumn: string | undefined,
+	rawValues: Record<string, SortCursorValue> = {},
+): void {
+	if (sortColumn !== undefined && sortColumn in row) {
+		rawValues[sortColumn] = sortCursorValue(row[sortColumn]);
+	}
 	Object.defineProperty(data, CURSOR_RAW_VALUES, {
-		value: rawDateValues,
+		value: rawValues,
 		enumerable: false,
 		configurable: false,
 		writable: false,
 	});
+}
 
-	return data;
+/**
+ * Fetch the draft revision snapshots for the rows a collection read should
+ * serve as drafts, keyed by content row ID. One query per `SQL_BATCH_SIZE`
+ * revisions; nothing runs unless `scope` is set.
+ */
+async function loadDraftRevisions(
+	db: Kysely<Database>,
+	rows: Record<string, unknown>[],
+	scope: DraftRevisionScope | undefined,
+): Promise<Map<string, Record<string, unknown>>> {
+	const drafts = new Map<string, Record<string, unknown>>();
+	if (!scope) return drafts;
+	const wanted = new Map<string, string>();
+	for (const row of rows) {
+		const draftId = rowStr(row, "draft_revision_id");
+		if (!draftId) continue;
+		if (
+			scope !== "all" &&
+			scope.id !== rowStr(row, "id") &&
+			scope.id !== rowStr(row, "slug") &&
+			scope.id !== entryIdForRow(row)
+		) {
+			continue;
+		}
+		wanted.set(draftId, rowStr(row, "id"));
+	}
+	for (const ids of chunks([...wanted.keys()], SQL_BATCH_SIZE)) {
+		const result = await sql<{ id: string; data: string }>`
+			SELECT id, data FROM revisions WHERE id IN (${sql.join(ids)})
+		`.execute(db);
+		for (const revision of result.rows) {
+			const rowId = wanted.get(revision.id);
+			if (rowId) drafts.set(rowId, JSON.parse(revision.data));
+		}
+	}
+	return drafts;
+}
+
+/**
+ * Build an entry whose content fields come from a revision snapshot, keeping
+ * the system metadata of the content table row.
+ */
+function revisionEntry(
+	row: Record<string, unknown>,
+	parsed: Record<string, unknown>,
+	booleanFields: ReturnType<typeof parseFoldedBooleanFields>,
+	sortColumn?: string,
+) {
+	const systemData: Record<string, unknown> = {};
+	for (const [key, mappedKey] of Object.entries(INCLUDE_IN_DATA)) {
+		if (key in row) {
+			if (DATE_COLUMNS.has(key)) {
+				systemData[mappedKey] = typeof row[key] === "string" ? new Date(row[key]) : null;
+			} else {
+				systemData[mappedKey] = row[key];
+			}
+		}
+	}
+	// Use slug from revision metadata if present, else from content table
+	const slug = typeof parsed._slug === "string" ? parsed._slug : rowStr(row, "slug");
+	const revSlug = slug || rowStr(row, "id");
+	const i18nConfig = virtualConfig?.i18n;
+	const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
+	const revLocale = rowStr(row, "locale");
+	const shouldPrefixRev =
+		i18nEnabled &&
+		revLocale !== "" &&
+		(revLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
+	const data: Record<string, unknown> = {
+		...systemData,
+		slug,
+		...mapRevisionData(parsed, booleanFields),
+	};
+	stashSortValue(data, row, sortColumn);
+	return {
+		id: shouldPrefixRev ? `${revLocale}/${revSlug}` : revSlug,
+		slug,
+		status: rowStr(row, "status", "draft"),
+		data,
+		cacheHint: {
+			tags: [rowStr(row, "id")],
+			lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
+		},
+	};
 }
 
 /**
@@ -717,13 +823,17 @@ let virtualConfig:
 	| undefined;
 let virtualCreateDialect: ((config: unknown) => Dialect) | undefined;
 
-async function loadVirtualModules() {
+async function loadVirtualConfig() {
 	if (virtualConfig === undefined) {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore - virtual module
 		const configModule = await import("virtual:emdash/config");
 		virtualConfig = configModule.default;
 	}
+}
+
+async function loadVirtualModules() {
+	await loadVirtualConfig();
 	if (virtualCreateDialect === undefined) {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore - virtual module
@@ -819,26 +929,119 @@ function buildOrderByClause(
 }
 
 /**
- * Build a cursor WHERE condition for keyset pagination.
- * Uses the primary sort field + id as tiebreaker for stable ordering.
+ * Sort columns every row has a value for. Their cursors keep the plain
+ * `{ orderValue, id }` shape; any other sort column can hold NULL.
+ */
+const NON_NULL_SORT_COLUMNS = new Set(["id", "created_at", "updated_at", "status", "locale"]);
+
+type SortCursorValue = string | number | null;
+
+interface SortCursorPayload {
+	version: 1;
+	field: string;
+	value: SortCursorValue;
+}
+
+function sortCursorValue(value: unknown): SortCursorValue {
+	if (typeof value === "string" || typeof value === "number") return value;
+	if (typeof value === "boolean") return value ? 1 : 0;
+	if (value instanceof Date) return value.toISOString();
+	return null;
+}
+
+/**
+ * Encode the cursor for the page after the row whose primary sort column
+ * `field` holds `value`.
+ *
+ * @internal shared with query.ts, which re-encodes cursors from entries.
+ */
+export function encodeSortCursor(field: string, value: unknown, id: string): string {
+	const cursorValue = sortCursorValue(value);
+	if (NON_NULL_SORT_COLUMNS.has(field)) {
+		return encodeCursor(cursorValue === null ? "" : String(cursorValue), id);
+	}
+	const payload: SortCursorPayload = { version: 1, field, value: cursorValue };
+	return encodeCursor(JSON.stringify(payload), id);
+}
+
+function decodeSortCursor(cursor: string, field: string): { value: SortCursorValue; id: string } {
+	const { orderValue, id } = decodeCursor(cursor);
+	if (NON_NULL_SORT_COLUMNS.has(field)) return { value: orderValue, id };
+
+	let payload: unknown;
+	try {
+		payload = JSON.parse(orderValue);
+	} catch {
+		payload = undefined;
+	}
+	// A plain `{ orderValue, id }` cursor, which nullable columns were paged
+	// with before and which wrote a NULL as "".
+	if (payload === null || typeof payload !== "object") {
+		return { value: orderValue === "" ? null : orderValue, id };
+	}
+	const candidate = payload as Partial<SortCursorPayload>;
+	const { value } = candidate;
+	if (
+		candidate.version !== 1 ||
+		candidate.field !== field ||
+		(value !== null && typeof value !== "string" && typeof value !== "number")
+	) {
+		throw new InvalidCursorError(cursor);
+	}
+	return { value, id };
+}
+
+/**
+ * Keyset condition for the rows after `cursor`, ordered by `sort` then `id`
+ * in `direction`. The ORDER BY keeps each dialect's own NULL position, lowest
+ * on SQLite and highest on Postgres, so the condition follows it.
  *
  * Throws `InvalidCursorError` if the cursor is malformed; callers should
  * let this propagate so users see a real error rather than silently
  * falling back to the first page.
  */
+function sortCursorCondition(
+	db: Kysely<Database>,
+	cursor: string,
+	column: string,
+	direction: SortDirection,
+	sort: RawBuilder<unknown>,
+	id: RawBuilder<unknown>,
+): ReturnType<typeof sql> {
+	const { value, id: cursorId } = decodeSortCursor(cursor, column);
+	const cmp = direction === "asc" ? sql.raw(">") : sql.raw("<");
+	const nullsFirst = (direction === "asc") !== isPostgres(db);
+	if (value === null) {
+		return nullsFirst
+			? sql`(${sort} IS NOT NULL OR ${id} ${cmp} ${cursorId})`
+			: sql`(${sort} IS NULL AND ${id} ${cmp} ${cursorId})`;
+	}
+	const past = sql`${sort} ${cmp} ${value} OR (${sort} = ${value} AND ${id} ${cmp} ${cursorId})`;
+	return nullsFirst || NON_NULL_SORT_COLUMNS.has(column)
+		? sql`(${past})`
+		: sql`(${past} OR ${sort} IS NULL)`;
+}
+
+/**
+ * Build a cursor WHERE condition for keyset pagination.
+ * Uses the primary sort field + id as tiebreaker for stable ordering.
+ */
 function buildCursorCondition(
+	db: Kysely<Database>,
 	cursor: string,
 	orderBy: OrderBySpec | undefined,
 	tablePrefix?: string,
 ): ReturnType<typeof sql> {
-	const { orderValue, id: cursorId } = decodeCursor(cursor);
-	const primary = getPrimarySort(orderBy, tablePrefix);
-	const idField = tablePrefix ? `${tablePrefix}.id` : "id";
-
-	if (primary.direction === "desc") {
-		return sql`(${sql.ref(primary.field)} < ${orderValue} OR (${sql.ref(primary.field)} = ${orderValue} AND ${sql.ref(idField)} < ${cursorId}))`;
-	}
-	return sql`(${sql.ref(primary.field)} > ${orderValue} OR (${sql.ref(primary.field)} = ${orderValue} AND ${sql.ref(idField)} > ${cursorId}))`;
+	const primary = getPrimarySort(orderBy);
+	const ref = (column: string) => sql.ref(tablePrefix ? `${tablePrefix}.${column}` : column);
+	return sortCursorCondition(
+		db,
+		cursor,
+		primary.field,
+		primary.direction,
+		ref(primary.field),
+		ref("id"),
+	);
 }
 
 /** Type guard: is the where value a range object (not a string or array)? */
@@ -892,12 +1095,33 @@ function bindableFilterValue(value: unknown): unknown {
  * Build AND conditions for non-taxonomy field filters.
  * Returns an array of sql fragments; empty if no field filters apply.
  * Field names are validated against FIELD_NAME_PATTERN to prevent injection.
+ *
+ * D1 allows 100 bound parameters per statement, and an array filter binds one
+ * per value. So when the arrays in `fields` hold more than `SQL_BATCH_SIZE`
+ * values between them, the longest arrays are bound as a single JSON parameter
+ * each (`IN (SELECT value FROM json_each(?))`, or `jsonb_array_elements_text`
+ * on PostgreSQL) until the rest fit. The statement stays one query, so
+ * ordering, cursors, limit and offset stay in the database. Values bound that
+ * way compare as text.
  */
 function buildFieldConditions(
+	db: Kysely<Database>,
 	fields: Record<string, WhereValue>,
 	tablePrefix?: string,
 ): ReturnType<typeof sql>[] {
 	const conditions: ReturnType<typeof sql>[] = [];
+
+	const arrayLengths = Object.entries(fields)
+		.filter((entry): entry is [string, string[]] => Array.isArray(entry[1]))
+		.map(([key, value]) => [key, value.length] as const)
+		.toSorted((a, b) => b[1] - a[1]);
+	let inlineValues = arrayLengths.reduce((sum, [, length]) => sum + length, 0);
+	const asJson = new Set<string>();
+	for (const [key, length] of arrayLengths) {
+		if (inlineValues <= SQL_BATCH_SIZE) break;
+		asJson.add(key);
+		inlineValues -= length;
+	}
 
 	for (const [key, value] of Object.entries(fields)) {
 		if (!FIELD_NAME_PATTERN.test(key)) {
@@ -909,12 +1133,24 @@ function buildFieldConditions(
 
 		if (isWhereRange(value)) {
 			const { gt, gte, lt, lte } = value;
+			if (gt === undefined && gte === undefined && lt === undefined && lte === undefined) {
+				// An object with no bound (for example `{ in: [...] }`) would add no
+				// condition, and the query would return unfiltered rows.
+				console.warn(
+					`[emdash] where filter: "${key}" is an object with none of gt/gte/lt/lte and was ignored (use an array for IN)`,
+				);
+				continue;
+			}
 			if (gt !== undefined) conditions.push(sql`${ref} > ${bindableFilterValue(gt)}`);
 			if (gte !== undefined) conditions.push(sql`${ref} >= ${bindableFilterValue(gte)}`);
 			if (lt !== undefined) conditions.push(sql`${ref} < ${bindableFilterValue(lt)}`);
 			if (lte !== undefined) conditions.push(sql`${ref} <= ${bindableFilterValue(lte)}`);
 		} else if (Array.isArray(value)) {
-			if (value.length > 0) {
+			if (value.length === 0) continue;
+			if (asJson.has(key)) {
+				const values = value.map((v) => String(bindableFilterValue(v)));
+				conditions.push(sql`${ref} IN (${jsonTextValues(db, values)})`);
+			} else {
 				conditions.push(
 					sql`${ref} IN (${sql.join(value.map((v) => sql`${bindableFilterValue(v)}`))})`,
 				);
@@ -928,6 +1164,31 @@ function buildFieldConditions(
 }
 
 /**
+ * Pivot rows from which a term counts as large. Seeking the pivot reads every
+ * assignment of the term; walking `ec_*` in sort order reads about
+ * `collection size / term size` rows per match. The walk wins only for large
+ * terms, and the size probe reads at most this many pivot index entries.
+ *
+ * The walk estimate assumes the term's entries are spread over the sort order
+ * and the requested locale. A term clustered in time, a deep page or a narrow
+ * byline filter makes the walk read up to the whole collection; the seek would
+ * still read every assignment of the term.
+ */
+export const LARGE_TERM_ASSIGNMENTS = 200;
+
+/** A single `published_at`/`created_at` sort, which an `ec_*` index serves in order. */
+function isIndexedPivotSort(orderBy: OrderBySpec | undefined): boolean {
+	const validSortKeys = orderBy
+		? Object.keys(orderBy).filter((k) => FIELD_NAME_PATTERN.test(k))
+		: [];
+	const primary = getPrimarySort(orderBy);
+	return (
+		validSortKeys.length <= 1 &&
+		(primary.field === "published_at" || primary.field === "created_at")
+	);
+}
+
+/**
  * Resolve a taxonomy filter (`name` + one or more `slug`s, optionally scoped to
  * `locale`) to the set of `translation_group`s the pivot stores in
  * `content_taxonomies.taxonomy_id`. Exact terms only — no subtree expansion.
@@ -937,26 +1198,46 @@ function buildFieldConditions(
  * name/slug in the active locale. Resolving to explicit values (rather than an
  * `IN (subquery)`) keeps the single-term case a plain equality on the pivot
  * index, which is what gives the clean early-`LIMIT` seek.
+ *
+ * With `probeCollection`, `large` reports whether a resolved term has at least
+ * {@link LARGE_TERM_ASSIGNMENTS} pivot rows in that collection. The capped
+ * probe rides in this query; a query of its own would add a round trip to
+ * every listing.
  */
 async function resolveTermGroups(
 	db: Kysely<Database>,
 	name: string,
 	slugs: string[],
 	locale: string | undefined,
-): Promise<string[]> {
+	probeCollection?: string,
+): Promise<{ groups: string[]; large: boolean }> {
 	let query = db
 		.selectFrom("taxonomies")
 		.select("translation_group")
 		.distinct()
 		.where("name", "=", name)
-		.where("slug", "in", slugs);
+		.where("slug", "in", slugs)
+		.$if(probeCollection !== undefined, (qb) =>
+			qb.select((eb) =>
+				eb
+					.selectFrom("content_taxonomies")
+					.select(sql<number>`1`.as("hit"))
+					.where("content_taxonomies.collection", "=", probeCollection!)
+					.whereRef("content_taxonomies.taxonomy_id", "=", "taxonomies.translation_group")
+					.limit(1)
+					.offset(LARGE_TERM_ASSIGNMENTS - 1)
+					.as("large"),
+			),
+		);
 	if (locale) query = query.where("locale", "=", locale);
 	const rows = await query.execute();
 	const groups = new Set<string>();
+	let large = false;
 	for (const row of rows) {
 		if (row.translation_group) groups.add(row.translation_group);
+		if (row.large != null) large = true;
 	}
-	return [...groups];
+	return { groups: [...groups], large };
 }
 
 /** Equality (single) or `IN` (multiple) condition on a pivot group column. */
@@ -1018,18 +1299,27 @@ export interface TaxonomyPivotQueryOptions {
 	bylineGroups: string[] | null;
 	fetchLimit: number | undefined;
 	offset: number | undefined;
+	/**
+	 * SQLite only: walk `ec_*` in sort order and probe the pivot per row until
+	 * `LIMIT` rows match, instead of seeking the term and sorting its candidates.
+	 * Set it only for a single large term (see {@link LARGE_TERM_ASSIGNMENTS})
+	 * under an indexed sort with a `LIMIT`; any other shape makes the walk read
+	 * most of the collection.
+	 */
+	driveFromContent?: boolean;
 }
 
 /**
  * Build the pivot-driven taxonomy listing query (#1834).
  *
- * Drives from the term pivot and joins content translations through their
- * shared translation_group. Content columns remain authoritative for locale,
+ * Joins the term pivot to content translations through their shared
+ * translation_group. Content columns remain authoritative for locale,
  * visibility, sorting, and cursor predicates.
  *
  * Two shapes:
  * - **Indexed sort** (`published_at`/`created_at`, single sort field): the
- *   `LIMIT` lives in `picked`.
+ *   `LIMIT` lives in `picked`, which either sorts the term's candidates or,
+ *   with `driveFromContent`, walks the `ec_*` sort index and stops at `LIMIT`.
  * - **Temp-sort** (`updated_at` or any other field, or multi-field sort): no
  *   pivot sort index applies, so `picked` collects the tagged candidate set and
  *   the outer query sorts the joined rows. Bounded to tagged rows — no
@@ -1051,17 +1341,12 @@ export function buildTaxonomyPivotQuery(
 		bylineGroups,
 		fetchLimit,
 		offset,
+		driveFromContent = false,
 	} = opts;
 
 	const primary = getPrimarySort(orderBy);
-	const validSortKeys = orderBy
-		? Object.keys(orderBy).filter((k) => FIELD_NAME_PATTERN.test(k))
-		: [];
-	const singleSort = validSortKeys.length <= 1;
-	const isIndexedSort =
-		singleSort && (primary.field === "published_at" || primary.field === "created_at");
+	const isIndexedSort = isIndexedPivotSort(orderBy);
 	const dir = primary.direction === "asc" ? sql`ASC` : sql`DESC`;
-	const cmp = primary.direction === "asc" ? sql.raw(">") : sql.raw("<");
 
 	const firstGroups = groupSets[0] ?? [];
 	const restGroups = groupSets.slice(1);
@@ -1094,12 +1379,11 @@ export function buildTaxonomyPivotQuery(
 		: sql``;
 
 	const firstGroupCond = pivotGroupCondition("ct.taxonomy_id", firstGroups);
-	// A plain JOIN lets SQLite reorder the `picked` CTE. For indexed sorts
-	// (`published_at`/`created_at`) the planner can then drive from the
-	// `(deleted_at, <sort> DESC, id DESC)` index on `ec_*`, probe the pivot
-	// by primary key, and short-circuit at `LIMIT`. A `CROSS JOIN` pin would
-	// force `content_taxonomies` as the outer table and require a temp sort,
-	// producing a full nested loop over the collection on D1.
+	// `CROSS JOIN` keeps the pivot as the outer table. A plain `JOIN` lets the
+	// planner walk the `(deleted_at, <sort> DESC, id DESC)` index on `ec_*`
+	// whatever the term's size, which reads most of the collection for a
+	// small term. Postgres rejects `CROSS JOIN … ON`, so it always gets the
+	// plain `JOIN`.
 	//
 	// The temp-sort branch keeps the pin. Its `picked` collects every tagged
 	// entry with no `LIMIT`, so starting from `ec_*` can never stop early, and
@@ -1107,7 +1391,7 @@ export function buildTaxonomyPivotQuery(
 	// `deleted_at IS NULL` (a trash with many distinct deletion times): it
 	// walks the collection's `(deleted_at, status)` index and probes the pivot
 	// once per published row.
-	const pivotContentJoin = isPostgres(db) || isIndexedSort ? sql`JOIN` : sql`CROSS JOIN`;
+	const pivotContentJoin = isPostgres(db) || driveFromContent ? sql`JOIN` : sql`CROSS JOIN`;
 	const {
 		terms: termsSelect,
 		bylines: bylinesSelect,
@@ -1128,8 +1412,14 @@ export function buildTaxonomyPivotQuery(
 		let cursorClause = sql``;
 		let havingClause = sql``;
 		if (cursor) {
-			const { orderValue, id } = decodeCursor(cursor);
-			const cond = sql`(${sortval} ${cmp} ${orderValue} OR (${sortval} = ${orderValue} AND r.id ${cmp} ${id}))`;
+			const cond = sortCursorCondition(
+				db,
+				cursor,
+				primary.field,
+				primary.direction,
+				sortval,
+				sql.ref("r.id"),
+			);
 			// A GROUP BY makes `sortval` an aggregate → cursor goes in HAVING.
 			if (multiGroup) havingClause = sql`HAVING ${cond}`;
 			else cursorClause = sql`AND ${cond}`;
@@ -1164,7 +1454,7 @@ export function buildTaxonomyPivotQuery(
 
 	// Temp-sort path: seek the term via the pivot, sort the joined candidate set.
 	const orderByClause = buildOrderByClause(orderBy, "r");
-	const cursorCond = cursor ? sql`AND ${buildCursorCondition(cursor, orderBy, "r")}` : sql``;
+	const cursorCond = cursor ? sql`AND ${buildCursorCondition(db, cursor, orderBy, "r")}` : sql``;
 	const limitClause = buildPivotLimitOffset(db, fetchLimit, offset);
 	return sql<Record<string, unknown>>`
 		WITH picked AS (
@@ -1277,6 +1567,16 @@ export interface OffsetCollectionFilter extends CollectionFilterBase {
 export type CollectionFilter = CursorCollectionFilter | OffsetCollectionFilter;
 
 /**
+ * Which entries a collection read serves from their draft revision: `"all"`
+ * (edit mode) or one entry's ID or slug (a preview token, scoped to that
+ * entry). Set by `getEmDashCollection` from the request context; not part of
+ * the public filter.
+ */
+type DraftRevisionScope = "all" | { id: string };
+
+type LoaderCollectionFilter = CollectionFilter & { draftRevisions?: DraftRevisionScope };
+
+/**
  * Filter for loadEntry - type and id are required
  */
 export interface EntryFilter {
@@ -1308,6 +1608,9 @@ let dbInstance: Kysely<Database> | null = null;
  * Initializes the default database on first call using config from virtual module.
  */
 export async function getDb(): Promise<Kysely<Database>> {
+	// Entry IDs depend on the i18n config, so it must be loaded on the
+	// request-scoped path too, not only when the default database is opened.
+	await loadVirtualConfig();
 	// Per-request DB override via ALS (normal mode)
 	const ctx = getRequestContext();
 	if (ctx?.db) {
@@ -1363,7 +1666,7 @@ export async function loadPublishedDates(type: string, locale?: string) {
  * };
  * ```
  */
-export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFilter> {
+export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollectionFilter> {
 	return {
 		name: "emdash",
 
@@ -1411,7 +1714,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						: undefined;
 
 				// Build cursor condition if cursor is provided
-				const cursorCondition = cursor ? buildCursorCondition(cursor, orderBy) : null;
+				const cursorCondition = cursor ? buildCursorCondition(db, cursor, orderBy) : null;
 
 				// Separate taxonomy / byline filters from field filters
 				let result: { rows: Record<string, unknown>[] };
@@ -1490,14 +1793,35 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					// below (field predicates live on `ec_*`, not the pivot). A byline
 					// filter rides along inside the pivot CTE (see the builder).
 					const groupSets: string[][] = [];
+
+					// Walking `ec_*` fills a page quickly only for one large term group
+					// under an indexed sort with a `LIMIT`. With a second taxonomy or
+					// several groups it reads far more rows than the pivot seek, so
+					// only a single slug of a single taxonomy pays for the size probe.
+					const probeCollection =
+						!isPostgres(db) &&
+						taxonomyFilters.length === 1 &&
+						taxonomyFilters[0]?.slugs.length === 1 &&
+						fetchLimit != null &&
+						isIndexedPivotSort(orderBy)
+							? type
+							: undefined;
+					let driveFromContent = false;
 					for (const taxFilter of taxonomyFilters) {
-						const groups = await resolveTermGroups(db, taxFilter.name, taxFilter.slugs, locale);
+						const { groups, large } = await resolveTermGroups(
+							db,
+							taxFilter.name,
+							taxFilter.slugs,
+							locale,
+							probeCollection,
+						);
 						// A slug that resolves to no term matches nothing; since taxonomy
 						// filters AND together, one empty set empties the whole result.
 						if (groups.length === 0) {
 							return { entries: [], cacheHint: { tags: [type] } };
 						}
 						groupSets.push(groups);
+						driveFromContent = large && groups.length === 1;
 					}
 
 					result = await buildTaxonomyPivotQuery({
@@ -1514,6 +1838,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						bylineGroups: bylineFilter ? bylineFilter.groups : null,
 						fetchLimit,
 						offset,
+						driveFromContent,
 					}).execute(db);
 				} else {
 					// Taxonomy and byline filters are applied as correlated
@@ -1530,7 +1855,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					const statusCondition = buildStatusCondition(db, status);
 					const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
-					const fieldConds = buildFieldConditions(fieldFilters);
+					const fieldConds = buildFieldConditions(db, fieldFilters);
 					const fieldCondsSQL =
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
@@ -1607,11 +1932,24 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const hasMore = limit ? result.rows.length > limit : false;
 				const rows = hasMore ? result.rows.slice(0, limit) : result.rows;
 
+				const primary = getPrimarySort(orderBy);
+				// Strip table prefix from field name for row lookup
+				const sortColumn = primary.field.includes(".")
+					? primary.field.split(".").pop()!
+					: primary.field;
+
 				// Map rows to entries
 				const booleanFields = parseFoldedBooleanFields(rows[0]);
+				const drafts = await loadDraftRevisions(db, rows, filter?.draftRevisions);
 				const entries = rows.map((row) => {
+					const draft = drafts.get(rowStr(row, "id"));
+					if (draft) {
+						const revEntry = revisionEntry(row, draft, booleanFields, sortColumn);
+						stashFolded(revEntry.data, row);
+						return revEntry;
+					}
 					const id = entryIdForRow(row);
-					const data = mapRowToData(row, booleanFields);
+					const data = mapRowToData(row, booleanFields, sortColumn);
 					stashFolded(data, row);
 					return {
 						id,
@@ -1629,17 +1967,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				let nextCursor: string | undefined;
 				if (hasMore && rows.length > 0) {
 					const lastRow = rows.at(-1)!;
-					const primary = getPrimarySort(orderBy);
-					// Strip table prefix from field name for row lookup
-					const fieldName = primary.field.includes(".")
-						? primary.field.split(".").pop()!
-						: primary.field;
-					const lastOrderValue = lastRow[fieldName];
-					const orderStr =
-						typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
-							? String(lastOrderValue)
-							: "";
-					nextCursor = encodeCursor(orderStr, String(lastRow.id));
+					nextCursor = encodeSortCursor(sortColumn, lastRow[sortColumn], String(lastRow.id));
 				}
 
 				// Collection-level cache hint uses the most recent updated_at
@@ -1770,8 +2098,6 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// no-op: extractSeo() returns null when the aliases are absent.
 				expandFoldedSeo(row);
 
-				const i18nConfig = virtualConfig?.i18n;
-				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
 				const entryId = entryIdForRow(row);
 
 				// Preview mode: override content fields with revision data,
@@ -1786,52 +2112,22 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 					const revData = revRow.rows[0];
 					if (revData) {
-						const parsed: Record<string, unknown> = JSON.parse(revData.data);
-						// System metadata from content table + content fields from revision
-						const systemData: Record<string, unknown> = {};
-						for (const [key, mappedKey] of Object.entries(INCLUDE_IN_DATA)) {
-							if (key in row) {
-								if (DATE_COLUMNS.has(key)) {
-									systemData[mappedKey] = typeof row[key] === "string" ? new Date(row[key]) : null;
-								} else {
-									systemData[mappedKey] = row[key];
-								}
-							}
-						}
-						// Use slug from revision metadata if present, else from content table
-						const slug = typeof parsed._slug === "string" ? parsed._slug : rowStr(row, "slug");
-						const revSlug = slug || rowStr(row, "id");
-						const revLocale = rowStr(row, "locale");
-						const shouldPrefixRev =
-							i18nEnabled &&
-							revLocale !== "" &&
-							(revLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
-						const revId = shouldPrefixRev ? `${revLocale}/${revSlug}` : revSlug;
+						const revEntry = revisionEntry(
+							row,
+							JSON.parse(revData.data),
+							parseFoldedBooleanFields(row),
+						);
 						// SEO is not revisioned — it comes from the content row's
 						// joined _emdash_seo columns, not the revision snapshot.
-						const revEntryData: Record<string, unknown> = {
-							...systemData,
-							slug,
-							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
-						};
 						const revSeo = extractSeo(row);
 						if (revSeo) {
-							revEntryData.seo = revSeo;
+							revEntry.data.seo = revSeo;
 							// SEO comes from the content row, so the panel data is
 							// valid for the entry regardless of the revision shown.
 							primeSeoPanel(type, rowStr(row, "id"), revSeo);
 						}
-						stashFolded(revEntryData, row);
-						return {
-							id: revId,
-							slug,
-							status: rowStr(row, "status", "draft"),
-							data: revEntryData,
-							cacheHint: {
-								tags: [rowStr(row, "id")],
-								lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
-							},
-						};
+						stashFolded(revEntry.data, row);
+						return revEntry;
 					}
 				}
 

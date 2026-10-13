@@ -1,11 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../src/lib/api/client.js", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("../../src/lib/api/client.js")>();
-	return { ...actual, apiFetch: vi.fn() };
-});
-
-import { apiFetch } from "../../src/lib/api/client.js";
 import { executeWxrImport, type ImportResult } from "../../src/lib/api/import.js";
 
 function result(overrides: Partial<ImportResult> = {}): ImportResult {
@@ -24,8 +18,8 @@ function response(data: unknown): Response {
 }
 
 describe("executeWxrImport", () => {
-	beforeEach(() => {
-		vi.mocked(apiFetch).mockReset();
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	it("drives every phase and aggregates content, taxonomy, and section results", async () => {
@@ -34,7 +28,8 @@ describe("executeWxrImport", () => {
 			source: "a".repeat(64),
 			taxonomiesReady: true as const,
 		};
-		vi.mocked(apiFetch)
+		const fetch = vi
+			.spyOn(globalThis, "fetch")
 			.mockResolvedValueOnce(
 				response({
 					success: true,
@@ -107,8 +102,8 @@ describe("executeWxrImport", () => {
 			},
 		});
 		expect(phases).toEqual(["taxonomy", "content", "content", "sections"]);
-		expect(vi.mocked(apiFetch)).toHaveBeenCalledTimes(4);
-		const requestPhases = vi.mocked(apiFetch).mock.calls.map(([, init]) => {
+		expect(fetch).toHaveBeenCalledTimes(4);
+		const requestPhases = fetch.mock.calls.map(([, init]) => {
 			const body = init?.body;
 			expect(body).toBeInstanceOf(FormData);
 			return (body as FormData).get("phase");

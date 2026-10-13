@@ -45,6 +45,7 @@ import {
 	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
+	resolvePluginWidgetTitle,
 	toPhosphorIconName,
 	visibleCollectionEntries,
 } from "../../src/components/Sidebar";
@@ -289,5 +290,23 @@ describe("resolveNavIcon", () => {
 		const resolved = screen.getByTestId("resolved");
 		await expect.element(resolved).toBeInTheDocument();
 		expect(resolved.element().innerHTML).toBe(screen.getByTestId("expected").element().innerHTML);
+	});
+});
+
+describe("resolvePluginWidgetTitle", () => {
+	// Mirrors the page-label test: plugins load catalogs into the shared i18n
+	// instance and dashboard widget titles must resolve the same way.
+	const translate = (id: string) => (id === "Forms" ? "Formularze" : id);
+
+	it("translates a declared title through the shared i18n instance", () => {
+		expect(resolvePluginWidgetTitle("Forms", "overview", translate)).toBe("Formularze");
+	});
+
+	it("falls back to the literal title when no catalog entry exists", () => {
+		expect(resolvePluginWidgetTitle("Orders", "overview", translate)).toBe("Orders");
+	});
+
+	it("falls back to the raw widget id when no title is declared", () => {
+		expect(resolvePluginWidgetTitle(undefined, "overview", translate)).toBe("overview");
 	});
 });

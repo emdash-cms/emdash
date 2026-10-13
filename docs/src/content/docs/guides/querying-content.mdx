@@ -183,7 +183,7 @@ import { getEmDashCollection } from "emdash";
 
 const parsedPage = Number(Astro.params.page ?? "1");
 if (!Number.isInteger(parsedPage) || parsedPage < 1) {
-  return Astro.redirect("/404");
+  return Astro.rewrite("/404");
 }
 
 const perPage = 10;
@@ -221,7 +221,7 @@ import { decodeSlug, getEmDashEntry } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, isPreview, cacheHint } = await getEmDashEntry("posts", slug);
 
@@ -230,7 +230,7 @@ if (error) {
   return new Response("Unable to load post", { status: 500 });
 }
 
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
@@ -243,10 +243,30 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 </article>
 ```
 
-`PortableText` supplies renderers for EmDash's standard blocks, including images, galleries, code,
-tables, and sanitized HTML blocks. Pass custom components when a site adds its own Portable Text
-blocks. If you replace the `htmlBlock` renderer, sanitize the HTML and allow only the iframe hosts
-the site intends to trust.
+`PortableText` supplies renderers for EmDash's standard blocks, including images, videos,
+galleries, code, tables, HTML blocks and iframe blocks. Pass custom components when a site adds its
+own Portable Text blocks.
+
+An HTML block with `isolated: true` renders its `html`, `css` and `js` in a sandboxed iframe that
+sizes itself to its content. Other HTML blocks render their `html` in the page, sanitized. If you
+replace the `htmlBlock` renderer, pass isolated blocks to `HtmlBlock` from `emdash/ui` or render
+them in an iframe whose `sandbox` omits `allow-same-origin`. Sanitize inline HTML yourself and
+allow only the iframe hosts the site intends to trust.
+
+An iframe block renders through `Iframe` from `emdash/ui` as a responsive, lazy-loading iframe with a
+`sandbox` and a `strict-origin-when-cross-origin` referrer policy. Pages on your site's own host
+lose same-origin access, and only https sources render.
+
+A video block renders through `Video` from `emdash/ui`. A Media Library video plays in the browser's
+own player, with controls and its caption, from your storage's public URL when one is configured.
+Without a public URL, videos are served through `/_emdash/api/media/file/`. A video from a media
+provider renders through that provider. An empty video block, which has no `asset`, renders nothing.
+
+With [Astro's content security policy](https://docs.astro.build/en/reference/configuration-reference/#securitycsp)
+turned on, the browser blocks the styles and scripts inside isolated HTML blocks, so they render
+without their CSS, JavaScript or automatic height. Iframe blocks also lose their custom size, and
+the policy's `frame-src` must allow the hosts they embed. Video blocks whose media is on another
+host, such as a storage public URL or a media provider, need that host in `media-src`.
 
 `PortableText` shows tables as read-only placeholders in edit mode. To localize their initial label, pass `tablePlaceholder={translatedLabel}`. It defaults to `"Table (edit in admin)"` and does not affect published table content.
 
@@ -262,7 +282,7 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug, {
   references: { author: true, related_posts: { limit: 6 } },
 });
 
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 
 const author = post.references?.author.entries[0];
 ---

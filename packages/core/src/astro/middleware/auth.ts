@@ -114,6 +114,7 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
 	"/_emdash/api/health",
+	"/_emdash/api/site/domain-proof",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 	"/_emdash/api/visual-editing/toolbar-labels",
@@ -124,6 +125,8 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/search",
 	"/_emdash/api/search/suggest",
 ]);
+
+const DEV_PUBLIC_API_EXACT = new Set(["/_emdash/api/typegen", "/_emdash/api/dev/scheduled-tasks"]);
 
 // Build merged public routes at module load from auth provider descriptors.
 // Routes ending with "/" are treated as prefixes; all others are exact matches.
@@ -170,7 +173,7 @@ function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
 	if (_providerExactRoutes.has(pathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
 	return false;
 }
 
@@ -239,7 +242,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				return apiError("CSRF_REJECTED", "Missing required header", 403);
 			}
 		}
-		return next();
+		const response = await next();
+		if (!import.meta.env.DEV) {
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(
+					getRegistryConfigInput(context.locals.emdash?.config.registry),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
+				),
+			);
+		}
+		return response;
 	}
 
 	// For public routes: soft auth check (set locals.user if session exists, but never block)
@@ -569,8 +585,7 @@ async function handleExternalAuth(
 			let newName: string | undefined;
 			let newRole: RoleLevel | undefined;
 
-			// Sync name from provider if provider provides one and local differs
-			if (authResult.name && user.name !== authResult.name) {
+			if (externalConfig.syncName !== false && authResult.name && user.name !== authResult.name) {
 				newName = authResult.name;
 				updates.name = newName;
 			}

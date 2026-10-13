@@ -1,3 +1,6 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, it, expect } from "vitest";
 
 import type { SeedFile } from "../../../src/seed/types.js";
@@ -120,6 +123,15 @@ describe("validateSeed", () => {
 			});
 			expect(result.valid).toBe(false);
 			expect(result.errors).toContain('collections[1].slug: duplicate collection slug "posts"');
+		});
+
+		it("should reject a reserved collection slug", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [{ slug: "content", label: "Content", fields: [] }],
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain('collections[0].slug: collection slug "content" is reserved');
 		});
 
 		it("should reject a non-boolean routable value", () => {
@@ -316,6 +328,23 @@ describe("validateSeed", () => {
 			expect(result.errors[0]).toContain('duplicate field slug "title"');
 		});
 
+		it("should reject a reserved field slug", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "plugins",
+						label: "Plugins",
+						fields: [{ slug: "version", label: "Version", type: "string" }],
+					},
+				],
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				'collections[0].fields[0].slug: field slug "version" is reserved',
+			);
+		});
+
 		it("should accept valid collection with fields", () => {
 			const result = validateSeed({
 				version: "1",
@@ -398,6 +427,76 @@ describe("validateSeed", () => {
 
 			expect(result.valid).toBe(false);
 			expect(result.errors).toContain("collections[0].admin.quickCreate: must be a boolean");
+		});
+
+		function seedWithRepeater(repeater: Record<string, unknown>) {
+			return validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "home",
+						label: "Home",
+						fields: [{ slug: "services", label: "Services", type: "repeater", ...repeater }],
+					},
+				],
+			});
+		}
+
+		it("warns about repeater sub-fields declared as fields instead of validation.subFields", () => {
+			const result = seedWithRepeater({
+				fields: [
+					{ slug: "title", type: "string", required: true },
+					{ slug: "description", type: "text" },
+				],
+			});
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toEqual([
+				"collections[0].fields[0].fields: repeater sub-fields must be defined in validation.subFields; these fields are ignored",
+			]);
+		});
+
+		it("warns about a repeater without a non-empty sub-field array", () => {
+			for (const repeater of [
+				{},
+				{ validation: { subFields: [] } },
+				{ validation: { subFields: "title" } },
+			]) {
+				expect(seedWithRepeater(repeater)).toEqual({
+					valid: true,
+					errors: [],
+					warnings: [
+						"collections[0].fields[0].validation.subFields: repeater needs a non-empty array of sub-fields, so its rows have nothing to edit",
+					],
+				});
+			}
+		});
+
+		it("accepts a repeater with validation.subFields", () => {
+			const result = seedWithRepeater({
+				validation: { subFields: [{ slug: "title", label: "Title", type: "string" }] },
+			});
+
+			expect(result.valid).toBe(true);
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([]);
+		});
+
+		it("finds no repeater sub-field warnings in the repository's seeds", () => {
+			const root = resolve(import.meta.dirname, "../../../../..");
+			const seeds = ["templates", "demos", "infra", "fixtures"].flatMap((dir) =>
+				readdirSync(resolve(root, dir))
+					.map((name) => resolve(root, dir, name, "seed/seed.json"))
+					.filter((path) => existsSync(path)),
+			);
+			expect(seeds.length).toBeGreaterThan(0);
+			for (const path of seeds) {
+				const { warnings } = validateSeed(JSON.parse(readFileSync(path, "utf8")));
+				expect(
+					warnings.filter((warning) => /\.(?:fields|validation\.subFields): /.test(warning)),
+					path,
+				).toEqual([]);
+			}
 		});
 	});
 
@@ -956,6 +1055,40 @@ describe("validateSeed", () => {
 			});
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]).toContain('must be "content", "menu", or "component"');
+		});
+
+		it("warns that widget settings are not applied", () => {
+			const result = validateSeed({
+				version: "1",
+				widgetAreas: [
+					{
+						name: "sidebar",
+						label: "Sidebar",
+						widgets: [{ type: "component", componentId: "core:archives", settings: { limit: 6 } }],
+					},
+				],
+			});
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toContain(
+				'widgetAreas[0].widgets[0].settings: not applied; widget options belong in "props"',
+			);
+		});
+
+		it("finds no widget settings in the repository's seeds", () => {
+			const root = resolve(import.meta.dirname, "../../../../..");
+			const seeds = ["templates", "demos", "infra", "fixtures"].flatMap((dir) =>
+				readdirSync(resolve(root, dir))
+					.map((name) => resolve(root, dir, name, "seed/seed.json"))
+					.filter((path) => existsSync(path)),
+			);
+			expect(seeds.length).toBeGreaterThan(0);
+			for (const path of seeds) {
+				const { warnings } = validateSeed(JSON.parse(readFileSync(path, "utf8")));
+				expect(
+					warnings.filter((warning) => /\.widgets\[\d+\]\.settings:/.test(warning)),
+					path,
+				).toEqual([]);
+			}
 		});
 
 		it("should require menuName for menu widgets", () => {

@@ -5,15 +5,24 @@ import PluginCard from "../components/PluginCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
 
-const result = await getLiveCollection("plugins", { limit: 100 });
+const result = await getLiveCollection("plugins", {
+	limit: 100,
+	includeLatestRelease: true,
+});
 const entries = result.entries ?? [];
 const hasError =
 	Boolean(result.error) ||
 	Astro.url.searchParams.get("registry") === "unavailable";
 if (!hasError) Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
+const websiteJsonLd = {
+	"@context": "https://schema.org",
+	"@type": "WebSite",
+	name: "EmDash Plugins",
+	url: new URL("/", Astro.site ?? Astro.url.origin).href,
+};
 ---
 
-<BaseLayout>
+<BaseLayout jsonLd={websiteJsonLd}>
 	<section class="hero shell">
 		<div class="hero-copy">
 			<p class="eyebrow">The EmDash plugin registry</p>

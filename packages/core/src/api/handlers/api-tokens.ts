@@ -9,6 +9,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { after } from "../../after.js";
 import { hashApiToken, generatePrefixedToken } from "../../auth/api-tokens.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
@@ -227,12 +228,17 @@ export async function resolveApiToken(
 		return null;
 	}
 
-	// Update last_used_at (fire-and-forget, don't block the request)
-	db.updateTable("_emdash_api_tokens")
-		.set({ last_used_at: new Date().toISOString() })
-		.where("id", "=", row.id)
-		.execute()
-		.catch(() => {}); // Non-critical, swallow errors
+	after(async () => {
+		try {
+			await db
+				.updateTable("_emdash_api_tokens")
+				.set({ last_used_at: new Date().toISOString() })
+				.where("id", "=", row.id)
+				.execute();
+		} catch (error) {
+			console.error("[api-tokens] failed to record token use:", error);
+		}
+	});
 
 	return {
 		userId: row.user_id,

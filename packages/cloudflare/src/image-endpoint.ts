@@ -16,11 +16,14 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
+	getTransformFingerprint,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
 	parseTransformParams,
 	resolveTransformQuality,
+	validatorHeaders,
+	isNotModified,
 	type ImageTransformFormat,
 } from "emdash/media/image-endpoint";
 
@@ -43,8 +46,33 @@ function resolveImagesBinding(): ImagesBinding | undefined {
 	return (env as Record<string, unknown>)[name] as ImagesBinding | undefined;
 }
 
-function streamOriginal(body: ReadableStream<Uint8Array>, contentType: string): Response {
-	return new Response(body, { status: 200, headers: originalMediaHeaders(contentType) });
+function streamOriginal(
+	body: ReadableStream<Uint8Array>,
+	contentType: string,
+	size: number,
+	lastModified?: Date,
+): Response {
+	return new Response(body, {
+		status: 200,
+		headers: originalMediaHeaders(contentType, size, lastModified),
+	});
+}
+
+function notModifiedResponse(
+	contentType: string,
+	size: number,
+	lastModified?: Date,
+	suffix?: string,
+): Response {
+	return new Response(null, {
+		status: 304,
+		headers: {
+			"Content-Type": contentType,
+			"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
+			"X-Content-Type-Options": "nosniff",
+			...validatorHeaders(size, lastModified, suffix),
+		},
+	});
 }
 
 function isNotFound(error: unknown): boolean {
@@ -71,7 +99,10 @@ export const GET: APIRoute = async (ctx) => {
 
 		// Only raster images are transformable; serve anything else unchanged.
 		if (!source.contentType.startsWith("image/")) {
-			return streamOriginal(source.body, source.contentType);
+			if (isNotModified(ctx.request, source.size, source.lastModified)) {
+				return notModifiedResponse(source.contentType, source.size, source.lastModified);
+			}
+			return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
 		}
 
 		const images = resolveImagesBinding();
@@ -79,7 +110,15 @@ export const GET: APIRoute = async (ctx) => {
 
 		// No binding or unparseable params: serve the original so the URL resolves.
 		if (!images || !parsed.ok) {
-			return streamOriginal(source.body, source.contentType);
+			if (isNotModified(ctx.request, source.size, source.lastModified)) {
+				return notModifiedResponse(source.contentType, source.size, source.lastModified);
+			}
+			return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
+		}
+
+		const fingerprint = getTransformFingerprint(url.searchParams);
+		if (isNotModified(ctx.request, source.size, source.lastModified, fingerprint)) {
+			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
 		}
 
 		const { width, height, format, quality } = parsed.options;
@@ -91,7 +130,7 @@ export const GET: APIRoute = async (ctx) => {
 		// default of its own and encodes near-losslessly without one, producing
 		// renditions several times the size of the original. PNG is exempt —
 		// an explicit PNG quality switches the binding to lossy PNG8, which is
-		// not a safe default for a lossless format. An explicit `?q=` always wins.
+		// not a safe default for a lossless format. An explicit `q=` always wins.
 		const output: ImageOutputOptions = { format: outputMime };
 		const effectiveQuality = resolveTransformQuality(format, quality);
 		if (effectiveQuality !== undefined) output.quality = effectiveQuality;
@@ -106,6 +145,7 @@ export const GET: APIRoute = async (ctx) => {
 				"Content-Type": response.headers.get("Content-Type") ?? outputMime,
 				"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 				"X-Content-Type-Options": "nosniff",
+				...validatorHeaders(source.size, source.lastModified, fingerprint),
 			},
 		});
 	} catch (error) {

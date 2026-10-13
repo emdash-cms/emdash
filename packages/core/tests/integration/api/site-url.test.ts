@@ -1,9 +1,10 @@
 /**
- * getSiteBaseUrl precedence: configured origin → stored setup origin →
- * request URL. The configured origin is what `siteUrl` in the integration
- * options resolves to; the stored `emdash:site_url` option is written once
- * during setup; the request URL only fills in before setup completes and
- * must never override either of the other two (Host-spoofing lock).
+ * getSiteBaseUrl precedence: configured origin → Site URL setting → stored
+ * setup origin → request URL. The configured origin is what `siteUrl` in the
+ * integration options resolves to; the Site URL setting (`site:url`) is set
+ * by an admin; the stored `emdash:site_url` option is written once during
+ * setup; the request URL only fills in before setup completes and must never
+ * override any of the others (Host-spoofing lock).
  */
 
 import type { Kysely } from "kysely";
@@ -57,6 +58,61 @@ describe("getSiteBaseUrl", () => {
 		});
 
 		expect(await getSiteBaseUrl(db, spoofed)).toBe(`${SETUP_ORIGIN}/_emdash`);
+	});
+
+	it("uses the Site URL setting after the site moved off its setup origin", async () => {
+		const options = new OptionsRepository(db);
+		await options.set("emdash:site_url", SETUP_ORIGIN);
+		await options.set("site:url", `${REAL_ORIGIN}/`);
+		const request = new Request(`${SETUP_ORIGIN}/_emdash/api/auth/magic-link/send`, {
+			method: "POST",
+		});
+
+		expect(await getSiteBaseUrl(db, request)).toBe(`${REAL_ORIGIN}/_emdash`);
+	});
+
+	it("configured siteUrl beats the Site URL setting", async () => {
+		await new OptionsRepository(db).set("site:url", "https://setting.example");
+		const request = new Request(REQUEST_URL, { method: "POST" });
+
+		expect(await getSiteBaseUrl(db, request, { siteUrl: REAL_ORIGIN })).toBe(
+			`${REAL_ORIGIN}/_emdash`,
+		);
+	});
+
+	it("ignores an empty Site URL setting", async () => {
+		const options = new OptionsRepository(db);
+		await options.set("emdash:site_url", SETUP_ORIGIN);
+		await options.set("site:url", "");
+		const request = new Request(REQUEST_URL, { method: "POST" });
+
+		expect(await getSiteBaseUrl(db, request)).toBe(`${SETUP_ORIGIN}/_emdash`);
+	});
+
+	it("drops a path from the Site URL setting", async () => {
+		await new OptionsRepository(db).set("site:url", `${REAL_ORIGIN}/blog/`);
+		const request = new Request(REQUEST_URL, { method: "POST" });
+
+		expect(await getSiteBaseUrl(db, request)).toBe(`${REAL_ORIGIN}/_emdash`);
+	});
+
+	it.each(["ftp://real.example", "http://real.example"])(
+		"falls back to the setup origin for a Site URL of %s",
+		async (siteUrl) => {
+			const options = new OptionsRepository(db);
+			await options.set("emdash:site_url", SETUP_ORIGIN);
+			await options.set("site:url", siteUrl);
+			const request = new Request(REQUEST_URL, { method: "POST" });
+
+			expect(await getSiteBaseUrl(db, request)).toBe(`${SETUP_ORIGIN}/_emdash`);
+		},
+	);
+
+	it("accepts a plain HTTP Site URL on a loopback host", async () => {
+		await new OptionsRepository(db).set("site:url", "http://localhost:4321");
+		const request = new Request(REQUEST_URL, { method: "POST" });
+
+		expect(await getSiteBaseUrl(db, request)).toBe("http://localhost:4321/_emdash");
 	});
 
 	it("derives from the request only before setup has stored an origin", async () => {

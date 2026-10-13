@@ -81,38 +81,42 @@ export async function getMenuWithDb(
 ): Promise<Menu | null> {
 	const chain = resolveLocaleChain(options.locale);
 
-	const selectMenu = () => db.selectFrom("_emdash_menus").selectAll().where("name", "=", name);
+	let query = db
+		.selectFrom("_emdash_menus as m")
+		.leftJoin("_emdash_menu_items as i", "i.menu_id", "m.id")
+		.selectAll("i")
+		.select([
+			"m.id as m_id",
+			"m.name as m_name",
+			"m.label as m_label",
+			"m.locale as m_locale",
+			"m.translation_group as m_translation_group",
+		])
+		.where("m.name", "=", name)
+		.orderBy("i.sort_order", "asc");
+	if (chain.length > 0) query = query.where("m.locale", "in", chain);
+	const rows = await query.execute();
 
-	let menuRow: Awaited<ReturnType<ReturnType<typeof selectMenu>["executeTakeFirst"]>>;
-	if (chain.length === 0) {
-		menuRow = await selectMenu().orderBy("locale", "asc").executeTakeFirst();
-	} else {
-		menuRow = undefined;
-		for (const locale of chain) {
-			menuRow = await selectMenu().where("locale", "=", locale).executeTakeFirst();
-			if (menuRow) break;
-		}
-	}
-
+	const locales = new Set(rows.map((row) => row.m_locale));
+	const locale =
+		chain.length === 0 ? [...locales].toSorted()[0] : chain.find((l) => locales.has(l));
+	const menuRow = rows.find((row) => row.m_locale === locale);
 	if (!menuRow) return null;
 
-	const itemRows = await db
-		.selectFrom("_emdash_menu_items")
-		.selectAll()
-		.$castTo<MenuItemRow>()
-		.where("menu_id", "=", menuRow.id)
-		.orderBy("sort_order", "asc")
-		.execute();
+	const menuId = menuRow.m_id;
+	const itemRows = rows.filter(
+		(row): row is typeof row & MenuItemRow => row.m_id === menuId && row.id !== null,
+	);
 
-	const items = await buildMenuTree(itemRows, db, menuRow.locale, options.trailingSlash);
+	const items = await buildMenuTree(itemRows, db, menuRow.m_locale, options.trailingSlash);
 
 	return {
-		id: menuRow.id,
-		name: menuRow.name,
-		label: menuRow.label,
+		id: menuRow.m_id,
+		name: menuRow.m_name,
+		label: menuRow.m_label,
 		items,
-		locale: menuRow.locale,
-		translationGroup: menuRow.translation_group,
+		locale: menuRow.m_locale,
+		translationGroup: menuRow.m_translation_group,
 	};
 }
 

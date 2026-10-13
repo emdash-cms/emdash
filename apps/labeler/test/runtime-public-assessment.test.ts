@@ -13,7 +13,7 @@ import {
 import { parseSignedListingLabel, verifyListingLabel } from "@emdash-cms/registry-moderation";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
+import { CLEF_IMAGE_PROMPT_HASH, CLEF_TEXT_PROMPT_HASH } from "../src/ai/clef.js";
 import { handlePublicAssessmentXrpc } from "../src/public-assessment.js";
 
 class NodeD1Database {
@@ -82,9 +82,8 @@ const env = {
 	LABEL_SIGNING_PUBLIC_KEY: PUBLIC_MULTIKEY,
 	LABELER_POLICY_VERSION: "listing-metadata-v2",
 	LABELER_PARSER_VERSION: "canonical-listing-input-v1",
-	LABELER_TEXT_MODEL_ID: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-	LABELER_TEXT_VERIFIER_MODEL_ID: "@cf/zai-org/glm-5.3-flash",
-	LABELER_IMAGE_MODEL_ID: "@cf/zai-org/glm-5.3-flash",
+	LABELER_TEXT_MODEL_ID: "@cf/cloudflare/clef",
+	LABELER_IMAGE_MODEL_ID: "@cf/cloudflare/clef",
 } satisfies Parameters<typeof handlePublicAssessmentXrpc>[1];
 
 beforeAll(() => {
@@ -445,9 +444,16 @@ describe("public assessment XRPC", () => {
 				getPolicyNsid: NSID.labelerGetPolicy,
 			},
 			models: [
-				expect.objectContaining({ modelVersion: "provider-catalog-id" }),
-				expect.objectContaining({ modelVersion: "provider-catalog-id" }),
-				expect.objectContaining({ modelVersion: "provider-catalog-id" }),
+				expect.objectContaining({
+					purpose: "text",
+					modelId: env.LABELER_TEXT_MODEL_ID,
+					modelVersion: "provider-catalog-id",
+				}),
+				expect.objectContaining({
+					purpose: "image",
+					modelId: env.LABELER_IMAGE_MODEL_ID,
+					modelVersion: "provider-catalog-id",
+				}),
 			],
 		});
 		expect(JSON.stringify(body)).not.toMatch(/package bytes|source code|manifest|sbom/iu);
@@ -578,9 +584,9 @@ async function seedAssessment(
 			env.LABELER_POLICY_VERSION,
 			env.LABELER_PARSER_VERSION,
 			env.LABELER_TEXT_MODEL_ID,
-			TEXT_PROMPT_HASH,
+			CLEF_TEXT_PROMPT_HASH,
 			env.LABELER_IMAGE_MODEL_ID,
-			IMAGE_PROMPT_HASH,
+			CLEF_IMAGE_PROMPT_HASH,
 			`trigger-${suffix}`,
 			options.state,
 			options.coverage === undefined ? null : JSON.stringify(options.coverage),

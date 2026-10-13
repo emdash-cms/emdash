@@ -202,3 +202,16 @@ jobs:
     secrets:
       APP_ID: ${{ secrets.APP_ID }}
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+
+  sync-skills:
+    name: Sync Skills
+    needs: publish
+    if: >-
+      needs.publish.outputs.published == 'true' ||
+      inputs.publish-only
+    permissions:
+      contents: read
+    uses: ./.github/workflows/sync-skills.yml
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

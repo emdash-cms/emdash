@@ -2,6 +2,7 @@
 import { Font } from "astro:assets";
 
 import Logo from "../components/Logo.astro";
+import { serializeJsonLd } from "../lib/seo.js";
 import "../styles/global.css";
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
 	description?: string;
 	canonical?: string;
 	image?: string;
+	noindex?: boolean;
+	jsonLd?: unknown;
 }
 
 const {
@@ -16,10 +19,13 @@ const {
 	description = "Discover plugins for EmDash, the Astro-native content management system.",
 	canonical = Astro.url.pathname,
 	image,
+	noindex = false,
+	jsonLd,
 } = Astro.props;
 const pageTitle =
 	title === "EmDash Plugins" ? title : `${title} · EmDash Plugins`;
 const canonicalUrl = new URL(canonical, Astro.site ?? Astro.url.origin);
+const ogImage = image ?? new URL("/og.jpg", canonicalUrl).href;
 ---
 
 <!doctype html>
@@ -28,6 +34,7 @@ const canonicalUrl = new URL(canonical, Astro.site ?? Astro.url.origin);
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="description" content={description} />
+		{noindex && <meta name="robots" content="noindex, follow" />}
 		<meta name="theme-color" content="#f9f9f9" />
 		<link rel="canonical" href={canonicalUrl} />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -36,11 +43,17 @@ const canonicalUrl = new URL(canonical, Astro.site ?? Astro.url.origin);
 		<meta property="og:title" content={pageTitle} />
 		<meta property="og:description" content={description} />
 		<meta property="og:url" content={canonicalUrl} />
-		{image && <meta property="og:image" content={image} />}
-		<meta
-			name="twitter:card"
-			content={image ? "summary_large_image" : "summary"}
-		/>
+		<meta property="og:image" content={ogImage} />
+		<meta name="twitter:card" content="summary_large_image" />
+		{
+			jsonLd !== undefined && (
+				<script
+					is:inline
+					type="application/ld+json"
+					set:html={serializeJsonLd(jsonLd)}
+				/>
+			)
+		}
 		<title>{pageTitle}</title>
 		{import.meta.env.PROD && <Font cssVariable="--font-sans" preload />}
 		<script is:inline>

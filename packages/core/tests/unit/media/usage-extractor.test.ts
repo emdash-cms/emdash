@@ -375,6 +375,48 @@ describe("extractMediaUsageOccurrences", () => {
 		]);
 	});
 
+	it("extracts Portable Text video block asset refs", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{
+						_type: "video",
+						_key: "vid1",
+						asset: { _ref: "local-video", url: "/_emdash/api/media/file/local-video.mp4" },
+					},
+					{ _type: "video", _key: "vid2", asset: { _ref: "uid42", provider: "cloudflare-stream" } },
+					{ _type: "video", _key: "vid3", asset: { _ref: "dQw4w9WgXcQ" }, source: "youtube" },
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[0].asset._ref",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_video",
+				mediaId: "local-video",
+				provider: "local",
+				providerAssetId: "local-video",
+				mediaKind: "video",
+				mimeType: null,
+			},
+			{
+				fieldSlug: "body",
+				fieldPath: "body[1].asset._ref",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_video",
+				mediaId: null,
+				provider: "cloudflare-stream",
+				providerAssetId: "uid42",
+				mediaKind: "video",
+				mimeType: null,
+			},
+		]);
+	});
+
 	it("extracts the images inside a Portable Text gallery block (#2872)", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [field("body", "portableText")],

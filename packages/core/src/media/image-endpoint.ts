@@ -34,6 +34,17 @@ export const DEFAULT_TRANSFORM_QUALITY = 85;
 /** Upper bound for a requested dimension; caps the work a single request asks for. */
 export const MAX_TRANSFORM_DIMENSION = 4000;
 
+/** Weak prefix on an ETag, stripped for weak comparison per RFC 7232. */
+const WEAK_ETAG_PREFIX = /^W\//;
+
+/**
+ * Strip surrounding whitespace and the weak prefix from an ETag value for
+ * weak comparison. Defined at module scope so it is not recreated per request.
+ */
+function stripWeakEtagPrefix(value: string): string {
+	return value.trim().replace(WEAK_ETAG_PREFIX, "");
+}
+
 /** A format string accepted by {@link ImageTransformOptions.format}. */
 export type ImageTransformFormat = (typeof ALLOWED_TRANSFORM_FORMATS)[number];
 
@@ -57,6 +68,90 @@ export const IMMUTABLE_IMAGE_CACHE = "public, max-age=31536000, immutable";
 export const MUTABLE_MEDIA_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 
 /**
+ * Format a Date as an HTTP-date (RFC 7231).
+ */
+export function formatHttpDate(date: Date): string {
+	return date.toUTCString();
+}
+
+/**
+ * Build a weak validator from representation metadata. Weak because it is based
+ * on size and modification time rather than a content hash. Keeps the same
+ * shape for stored files and derived transforms so replacements change the tag.
+ */
+export function makeWeakEtag(size: number, lastModified?: Date, suffix?: string): string {
+	let value = String(size);
+	if (lastModified) value += `-${lastModified.getTime()}`;
+	if (suffix) value += `-${suffix}`;
+	return `W/"${value}"`;
+}
+
+/**
+ * Build a canonical fingerprint of the transform query params that affect the
+ * derived /_image bytes. Used as the suffix of a transform's weak ETag.
+ */
+export function getTransformFingerprint(params: URLSearchParams): string {
+	const parts: string[] = [];
+	const append = (name: string) => {
+		const value = params.get(name);
+		if (value !== null) parts.push(`${name}=${value}`);
+	};
+	append("w");
+	append("h");
+	append("f");
+	append("q");
+	append("fit");
+	return parts.join("&");
+}
+
+/**
+ * Check whether a request's preconditions are satisfied for the given
+ * representation. Returns true when the client already has the current version.
+ */
+export function isNotModified(
+	request: Request,
+	size: number,
+	lastModified?: Date,
+	suffix?: string,
+): boolean {
+	const etag = makeWeakEtag(size, lastModified, suffix);
+	const ifNoneMatch = request.headers.get("If-None-Match");
+	if (ifNoneMatch !== null) {
+		if (ifNoneMatch.trim() === "*") return true;
+		// If-None-Match uses weak comparison: "W/" prefixes are ignored.
+		const requestedTags = ifNoneMatch.split(",").map(stripWeakEtagPrefix);
+		return requestedTags.includes(stripWeakEtagPrefix(etag));
+	}
+	const ifModifiedSince = request.headers.get("If-Modified-Since");
+	if (ifModifiedSince !== null && lastModified) {
+		const since = Date.parse(ifModifiedSince);
+		if (!Number.isNaN(since)) {
+			// HTTP-date has one-second precision; round the stored time down so
+			// a Last-Modified header replayed as If-Modified-Since always matches.
+			return Math.floor(lastModified.getTime() / 1000) * 1000 <= since;
+		}
+	}
+	return false;
+}
+
+/**
+ * Headers that make a mutable representation conditionally cacheable.
+ */
+export function validatorHeaders(
+	size: number,
+	lastModified?: Date,
+	suffix?: string,
+): Record<string, string> {
+	const headers: Record<string, string> = {
+		ETag: makeWeakEtag(size, lastModified, suffix),
+	};
+	if (lastModified) {
+		headers["Last-Modified"] = formatHttpDate(lastModified);
+	}
+	return headers;
+}
+
+/**
  * Raster types safe to render inline. Anything else (SVG, PDF, ...) is served
  * as an attachment so it can't execute as an active document. Mirrors the
  * `/_emdash/api/media/file/{key}` route's allowlist.
@@ -77,7 +172,11 @@ const SAFE_INLINE_IMAGE_TYPES = new Set([
  * inline raster allowlist (so a stored SVG can't run scripts in the site
  * origin). Transformed output is always generated raster and doesn't need this.
  */
-export function originalMediaHeaders(contentType: string): Record<string, string> {
+export function originalMediaHeaders(
+	contentType: string,
+	size?: number,
+	lastModified?: Date,
+): Record<string, string> {
 	return {
 		"Content-Type": contentType,
 		"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
@@ -85,6 +184,7 @@ export function originalMediaHeaders(contentType: string): Record<string, string
 		"Content-Security-Policy":
 			"sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
 		"Content-Disposition": SAFE_INLINE_IMAGE_TYPES.has(contentType) ? "inline" : "attachment",
+		...(size !== undefined ? validatorHeaders(size, lastModified) : {}),
 	};
 }
 

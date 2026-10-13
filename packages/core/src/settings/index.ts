@@ -16,6 +16,7 @@ import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
+import { isRecord } from "../plugin-utils.js";
 import {
 	PluginSettingEncryptionError,
 	decryptPluginSetting,
@@ -23,6 +24,8 @@ import {
 } from "../plugins/settings.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
+import { bumpRunningExportWriteEpochs } from "../transfer/fence.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 
 /** Object-cache namespace for site settings. */
 const SETTINGS_CACHE_NAMESPACE = "settings";
@@ -43,6 +46,9 @@ import type {
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
+
+/** Settings stored as one object whose fields are updated individually. */
+const NESTED_SETTING_KEYS = new Set(["seo", "social"]);
 
 function isPluginSettingEnvelopeRecord(value: unknown): value is Record<string, unknown> {
 	return (
@@ -336,7 +342,8 @@ export async function getSiteSettingsWithDb(
 /**
  * Set site settings (internal function used by admin API)
  *
- * Merges provided settings with existing ones. Only provided fields are updated.
+ * Merges provided settings with existing ones. Only provided fields are updated,
+ * including fields inside `seo` and `social`; `seo.defaultOgImage: null` removes the default image.
  * Media references should include just the mediaId; URLs are resolved on read.
  *
  * @param settings - Partial settings object with values to update
@@ -361,12 +368,17 @@ export async function setSiteSettings(
 ): Promise<void> {
 	const updates: Record<string, unknown> = {};
 	const deletions: string[] = [];
-	const seo = settings.seo;
+	const nestedPatches: [key: string, patch: Record<string, unknown>][] = [];
 
 	for (const [key, value] of Object.entries(settings)) {
-		if (value === undefined || (key === "seo" && seo?.defaultOgImage === null)) continue;
+		if (value === undefined) continue;
 		if (value === null) deletions.push(`${SETTINGS_PREFIX}${key}`);
+		else if (NESTED_SETTING_KEYS.has(key) && isRecord(value)) nestedPatches.push([key, value]);
 		else updates[`${SETTINGS_PREFIX}${key}`] = value;
+	}
+
+	if (Object.keys(updates).length === 0 && deletions.length === 0 && nestedPatches.length === 0) {
+		return;
 	}
 
 	try {
@@ -375,16 +387,29 @@ export async function setSiteSettings(
 			await transactionOptions.setMany(updates);
 			await transactionOptions.deleteMany(deletions);
 
-			if (seo?.defaultOgImage === null) {
-				const existingSeo =
-					(await transactionOptions.get<SeoSettings>(`${SETTINGS_PREFIX}seo`)) ?? {};
-				const nextSeo = { ...existingSeo, ...seo };
-				delete nextSeo.defaultOgImage;
-				if (Object.keys(nextSeo).length === 0) {
-					await transactionOptions.delete(`${SETTINGS_PREFIX}seo`);
-				} else {
-					await transactionOptions.set(`${SETTINGS_PREFIX}seo`, nextSeo);
+			for (const [key, patch] of nestedPatches) {
+				const optionName = `${SETTINGS_PREFIX}${key}`;
+				const next = { ...(await transactionOptions.get<Record<string, unknown>>(optionName)) };
+				for (const [field, fieldValue] of Object.entries(patch)) {
+					if (fieldValue === null) delete next[field];
+					else if (fieldValue !== undefined) next[field] = fieldValue;
 				}
+				if (Object.keys(next).length === 0) await transactionOptions.delete(optionName);
+				else await transactionOptions.set(optionName, next);
+			}
+
+			// A running export detects writes to tables without updated_at via
+			// the operation's write_epoch. Record that bump in the same
+			// transaction so the settings update is not accepted unless the
+			// export fence can see it. When the transfer system has not been
+			// installed yet (pre-migration, or a minimal seed fixture), there
+			// is no running export to notify, so the absence of its table is
+			// not a reason to reject the settings update.
+			try {
+				await bumpRunningExportWriteEpochs(trx);
+			} catch (error) {
+				if (isMissingTableError(error)) return;
+				throw error;
 			}
 		});
 	} finally {

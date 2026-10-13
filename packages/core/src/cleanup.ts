@@ -42,6 +42,32 @@ export interface CleanupResult {
 const REVISION_KEEP_COUNT = 50;
 const REVISION_PRUNE_BATCH_SIZE = 10;
 
+/** Target cadence for full system cleanup. */
+export const SYSTEM_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * Tolerance when comparing the last cleanup time to the interval. Allows
+ * a tick that fires slightly before the exact hour to still be treated as
+ * the hourly cleanup when the previous one ran at the start of the hour.
+ */
+const SYSTEM_CLEANUP_INTERVAL_TOLERANCE_MS = 5 * 60 * 1000;
+
+/**
+ * Decide whether the full system cleanup should run for this tick.
+ *
+ * Bookkeeping cleanup is expensive on serverless free tiers with tight CPU
+ * budgets, so it runs once per hour on the top of the hour. The per-minute
+ * path keeps only scheduled publishing, cron tasks, and the heartbeat.
+ */
+export function shouldRunSystemCleanup(currentTime: Date, lastRunAt?: Date | null): boolean {
+	if (currentTime.getUTCMinutes() !== 0) return false;
+	if (!lastRunAt) return true;
+	return (
+		currentTime.getTime() - lastRunAt.getTime() >=
+		SYSTEM_CLEANUP_INTERVAL_MS - SYSTEM_CLEANUP_INTERVAL_TOLERANCE_MS
+	);
+}
+
 /**
  * Run all system cleanup tasks.
  *

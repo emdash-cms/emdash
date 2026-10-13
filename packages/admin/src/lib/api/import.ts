@@ -252,7 +252,10 @@ async function executeWpPluginImportChunk(
 			commentRoots: state.commentRoots,
 		}),
 	});
-	return parseApiResponse<WpImportChunkResponse>(response, "Failed to import from WordPress");
+	return parseApiResponse<WpImportChunkResponse>(
+		response,
+		i18n._(msg`Failed to import from WordPress`),
+	);
 }
 
 /** Merge a chunk's partial result into the running aggregate. */
@@ -372,7 +375,7 @@ export async function analyzeWxr(file: File): Promise<WxrAnalysis> {
 		method: "POST",
 		body: formData,
 	});
-	return parseApiResponse<WxrAnalysis>(response, "Failed to analyze file");
+	return parseApiResponse<WxrAnalysis>(response, i18n._(msg`Failed to analyze file`));
 }
 
 /**
@@ -384,7 +387,7 @@ export async function prepareWxrImport(request: PrepareRequest): Promise<Prepare
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(request),
 	});
-	return parseApiResponse<PrepareResult>(response, "Failed to prepare import");
+	return parseApiResponse<PrepareResult>(response, i18n._(msg`Failed to prepare import`));
 }
 
 /**
@@ -426,7 +429,7 @@ async function executeWxrImportChunk(
 		method: "POST",
 		body: formData,
 	});
-	return parseApiResponse<WxrImportChunkResponse>(response, "Failed to import");
+	return parseApiResponse<WxrImportChunkResponse>(response, i18n._(msg`Failed to import`));
 }
 
 export async function executeWxrImport(
@@ -533,7 +536,7 @@ export async function importWxrMedia(
 	// If no progress callback, just parse as JSON (non-streaming mode)
 	// Note: streaming NDJSON responses are excluded from the { success, data } envelope
 	if (!onProgress) {
-		return parseApiResponse<MediaImportResult>(response, "Failed to import media");
+		return parseApiResponse<MediaImportResult>(response, i18n._(msg`Failed to import media`));
 	}
 
 	// Streaming mode: read NDJSON line by line
@@ -597,8 +600,13 @@ export async function importWxrMedia(
 	return result;
 }
 
-/** Attachments per media request. Bounds each Worker invocation (issue #475). */
-const MEDIA_BATCH_SIZE = 25;
+/**
+ * Attachments per media request. The server decodes new JPEG and PNG files in
+ * pure JS for their placeholders, which can take about 2 s of CPU per photo on
+ * Workers. One request gets 30 s of CPU by default on Workers Paid, and a
+ * request that exceeds it is stopped mid-stream.
+ */
+const MEDIA_BATCH_SIZE = 5;
 
 /**
  * Import media in bounded batches instead of one giant request, so each
@@ -697,7 +705,10 @@ export async function probeImportUrl(url: string): Promise<ProbeResult> {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ url }),
 	});
-	const data = await parseApiResponse<{ result: ProbeResult }>(response, "Failed to probe URL");
+	const data = await parseApiResponse<{ result: ProbeResult }>(
+		response,
+		i18n._(msg`Failed to probe URL`),
+	);
 	return data.result;
 }
 
@@ -713,7 +724,7 @@ export async function rewriteContentUrls(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ urlMap, collections }),
 	});
-	return parseApiResponse<RewriteUrlsResult>(response, "Failed to rewrite URLs");
+	return parseApiResponse<RewriteUrlsResult>(response, i18n._(msg`Failed to rewrite URLs`));
 }
 
 // =============================================================================
@@ -752,7 +763,7 @@ export async function analyzeWpPluginSite(url: string, token: string): Promise<W
 	});
 	const data = await parseApiResponse<{ analysis: WpPluginAnalysis }>(
 		response,
-		"Failed to analyze WordPress site",
+		i18n._(msg`Failed to analyze WordPress site`),
 	);
 	return data.analysis;
 }

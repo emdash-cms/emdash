@@ -40,7 +40,7 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { coalesceObjectCacheWrites } from "../object-cache/index.js";
+import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "../schema/registry.js";
@@ -50,6 +50,7 @@ import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { computeContentHash } from "../utils/hash.js";
 import type {
 	SeedFile,
 	SeedField,
@@ -206,8 +207,9 @@ export interface SeedApplyProgress {
  * the platform's. A call that stops returns `complete: false`; applying the
  * same seed again continues with the first item not yet created. A call
  * creates at least one item before it stops, so repeated calls finish. A
- * `$media` URL used by entries in different calls is downloaded and stored
- * again, as a new media row, in each of those calls. Requires
+ * `$media` URL used by entries in different calls is still downloaded each time
+ * so its content hash can be computed, but the resulting media row is reused
+ * when an existing ready row has the same hash. Requires
  * `onConflict: "skip"`.
  */
 export async function applySeedWithinBudget(
@@ -1086,64 +1088,68 @@ async function applySeedWrites(
 		// Shared across menus: translated items reference anchor items in sibling menus.
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 
-		for (const menu of seed.menus) {
-			const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
-			let lookup = db
-				.selectFrom("_emdash_menus")
-				.selectAll()
-				.where("name", "=", menu.name)
-				.where("locale", "=", locale);
-			const existingMenu = await lookup.executeTakeFirst();
+		try {
+			for (const menu of seed.menus) {
+				const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
+				let lookup = db
+					.selectFrom("_emdash_menus")
+					.selectAll()
+					.where("name", "=", menu.name)
+					.where("locale", "=", locale);
+				const existingMenu = await lookup.executeTakeFirst();
 
-			let menuId: string;
-			let translationGroup: string;
+				let menuId: string;
+				let translationGroup: string;
 
-			if (existingMenu) {
-				menuId = existingMenu.id;
-				translationGroup = existingMenu.translation_group ?? existingMenu.id;
-				// Clear existing items (menus are recreated)
-				await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
-			} else {
-				menuId = ulid();
-				// Resolve translationOf to the source menu's translation_group.
-				translationGroup = menuId;
-				if (menu.translationOf) {
-					const source = menuSeedIdMap.get(menu.translationOf);
-					if (source) translationGroup = source.translationGroup;
-					else
-						console.warn(
-							`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
-						);
+				if (existingMenu) {
+					menuId = existingMenu.id;
+					translationGroup = existingMenu.translation_group ?? existingMenu.id;
+					// Clear existing items (menus are recreated)
+					await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
+				} else {
+					menuId = ulid();
+					// Resolve translationOf to the source menu's translation_group.
+					translationGroup = menuId;
+					if (menu.translationOf) {
+						const source = menuSeedIdMap.get(menu.translationOf);
+						if (source) translationGroup = source.translationGroup;
+						else
+							console.warn(
+								`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
+							);
+					}
+					await db
+						.insertInto("_emdash_menus")
+						.values({
+							id: menuId,
+							name: menu.name,
+							label: menu.label,
+							created_at: new Date().toISOString(),
+							updated_at: new Date().toISOString(),
+							locale,
+							translation_group: translationGroup,
+						})
+						.execute();
+					result.menus.created++;
 				}
-				await db
-					.insertInto("_emdash_menus")
-					.values({
-						id: menuId,
-						name: menu.name,
-						label: menu.label,
-						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString(),
-						locale,
-						translation_group: translationGroup,
-					})
-					.execute();
-				result.menus.created++;
+
+				if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
+
+				// Create menu items
+				const itemCount = await applyMenuItems(
+					db,
+					menuId,
+					locale,
+					menu.items,
+					null, // parent_id
+					0, // sort_order
+					seedIdMap,
+					itemSeedIdMap,
+				);
+				result.menus.items += itemCount;
 			}
-
-			if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
-
-			// Create menu items
-			const itemCount = await applyMenuItems(
-				db,
-				menuId,
-				locale,
-				menu.items,
-				null, // parent_id
-				0, // sort_order
-				seedIdMap,
-				itemSeedIdMap,
-			);
-			result.menus.items += itemCount;
+		} finally {
+			invalidateMenuObjectCache();
 		}
 	}
 
@@ -1306,6 +1312,10 @@ async function applySeedWrites(
 		}
 	}
 
+	if (result.redirects.created + result.redirects.updated > 0) {
+		const { publishRedirectChanges } = await import("../redirects/artifacts.js");
+		await publishRedirectChanges(db);
+	}
 	await invalidateSeedCaches();
 
 	return { result, complete, progress };
@@ -2316,7 +2326,7 @@ async function resolveMedia(
 			filename: filename ?? undefined,
 		};
 		ctx.mediaCache.set(url, mediaValue);
-		result.media.created++;
+		result.media.skipped++;
 		return mediaValue;
 	}
 
@@ -2351,14 +2361,36 @@ async function resolveMedia(
 		const contentType = response.headers.get("content-type") || "application/octet-stream";
 		const ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(url) || ".bin";
 
+		// Get the body as buffer
+		const arrayBuffer = await response.arrayBuffer();
+		const body = new Uint8Array(arrayBuffer);
+
+		// Deduplicate by content hash so re-running a seed does not mint a
+		// fresh media row for a file that already exists in the library.
+		const contentHash = await computeContentHash(body);
+		const mediaRepo = new MediaRepository(ctx.db);
+		const existing = await mediaRepo.findByContentHash(contentHash);
+		if (existing) {
+			const mediaValue: MediaValue = {
+				provider: "local",
+				id: existing.id,
+				alt: alt ?? existing.alt ?? undefined,
+				width: existing.width ?? undefined,
+				height: existing.height ?? undefined,
+				mimeType: existing.mimeType,
+				filename: existing.filename,
+				meta: { storageKey: existing.storageKey },
+			};
+			ctx.mediaCache.set(url, mediaValue);
+			result.media.skipped++;
+			console.log(`  ✅ Reused: ${existing.filename}`);
+			return mediaValue;
+		}
+
 		// Generate filename and storage key
 		const storageId = ulid();
 		const finalFilename = filename || generateFilename(url, ext);
 		const storageKey = `${storageId}${ext}`;
-
-		// Get the body as buffer
-		const arrayBuffer = await response.arrayBuffer();
-		const body = new Uint8Array(arrayBuffer);
 
 		// Get image dimensions if it's an image
 		let width: number | undefined;
@@ -2377,7 +2409,6 @@ async function resolveMedia(
 		});
 
 		// Create media record
-		const mediaRepo = new MediaRepository(ctx.db);
 		const media = await mediaRepo.create({
 			filename: finalFilename,
 			mimeType: contentType,
@@ -2387,6 +2418,7 @@ async function resolveMedia(
 			alt,
 			caption,
 			storageKey,
+			contentHash,
 			status: "ready",
 		});
 
