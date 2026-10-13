@@ -1,0 +1,39 @@
+packages/admin/src/components/calendar/CalendarEntry.tsx
+  s_5531044b240ab8::t_ec4c90421b07c6 2,288-301,316-317,323,337-426,439-465
+packages/admin/src/components/calendar/CalendarEntryPanel.tsx
+  s_5531044b240ab8::t_6fe9fb6191e5b0 36,198
+packages/admin/src/components/calendar/CalendarMonth.tsx
+  s_5531044b240ab8::t_c99c3efb7bd1b3 25,60-61,137,189,225,239,242,249,254,288
+packages/admin/src/components/calendar/CalendarWeek.tsx
+  s_5531044b240ab8::t_b62021b766091f 12,34-35,51,135,141,175,182,191,197,200,204-211,232
+packages/admin/src/lib/api/calendar.ts
+  s_5531044b240ab8::t_03d1c921d8bd54 21-22
+packages/admin/src/lib/calendar.ts
+  s_5531044b240ab8::t_d9f3296e92e59b 50-62
+packages/admin/src/routes/calendar.tsx
+  s_5531044b240ab8::t_cf9b6848582eac 8,11,16,22,24-28,30,33,331-400,467-489,491,493,499,502-504,506-523
+packages/admin/tests/routes/calendar.test.tsx
+  s_5531044b240ab8::t_6a3083397238b9 5,43-45,47,87,171-225
+packages/core/src/api/handlers/calendar.ts
+  s_5531044b240ab8::t_9c1b8feb2d228a 29-30,69,181,232
+packages/core/tests/unit/api/calendar-handlers.test.ts
+  s_5531044b240ab8::t_b8df231eefcb0a 30,37,57,88,90
+packages/admin/src/components/calendar/CalendarDrag.tsx
+  s_5531044b240ab8::t_89279e3eac1dd0 1-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9da75a1b75f80e5418dcd3409f272e5ea10c10b4",
+  "prompts": {},
+  "sessions": {
+    "s_5531044b240ab8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b02a171-9277-4036-b4b4-a26ab647f3a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
