@@ -12,8 +12,9 @@ import { UserCircleIcon, X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
+import { useAdminBranding } from "../lib/admin-branding-context";
 import { apiFetch, throwResponseError } from "../lib/api/client";
-import { LogoIcon } from "./Logo.js";
+import { BrandIcon } from "./Logo.js";
 
 interface WelcomeModalProps {
 	open: boolean;
@@ -70,6 +71,7 @@ async function dismissWelcome(fallbackMessage: string): Promise<void> {
 
 export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModalProps) {
 	const { t } = useLingui();
+	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
 	const queryClient = useQueryClient();
 
 	const dismissMutation = useMutation({
@@ -105,7 +107,7 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 		<Dialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}>
 			<Dialog className="p-6 sm:max-w-md">
 				<div className="mb-5 flex items-center justify-between gap-4">
-					<LogoIcon className="h-8 w-8" />
+					<BrandIcon logoUrl={brandLogo} siteName={brandSiteName} className="h-8 w-8" />
 					<Dialog.Close
 						render={(props) => (
 							<Button
