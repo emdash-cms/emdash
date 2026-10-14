@@ -42,7 +42,7 @@ Open reports follow from that split:
 - [#3034](https://github.com/emdash-cms/emdash/discussions/3034) and [#3033](https://github.com/emdash-cms/emdash/issues/3033): plugin pages are listed for every role, while a plugin route without a `permission` requires `plugins:manage`.
 - The entry editor loads the users list for the author picker when the role is Editor or higher, and `GET /_emdash/api/admin/users` refuses everyone below Admin.
 
-The Contributor role shows the same split. A Contributor creates an entry (201) and is refused on the next save (403), while the editor offers Save, Publish now and Schedule. The map grants `content:create` from Contributor and `content:edit_own` from Author. [#4133](https://github.com/emdash-cms/emdash/pull/4133) addresses this with a new `content:edit_own_drafts` permission; the admin still learns about it only through the role number.
+The Contributor role showed the same split: a Contributor could create an entry (201) and was refused on the next save (403), because the map grants `content:create` from Contributor and `content:edit_own` from Author. [#4133](https://github.com/emdash-cms/emdash/pull/4133) closed that gap with a new `content:edit_own_drafts` permission at Contributor; the admin still learns about it only through the role number.
 
 ### Five levels cannot express the requests
 
@@ -418,7 +418,7 @@ Each phase is a separate set of pull requests and ships without a feature flag, 
 
 [Editorial comments](https://github.com/emdash-cms/emdash/pull/4126) adds `editorial:comment` and `editorial:manage` and names this RFC. Both permissions are scopable, because every editorial route has the collection in its path. Its mentionable-users endpoint, which it places per entry for a future collection-scoped model, lists users who hold `editorial:comment` for the entry's collection. If both are accepted, the second to land carries this.
 
-[#4133](https://github.com/emdash-cms/emdash/pull/4133) adds `content:edit_own_drafts` at Contributor. If it merges, that permission is scopable, and a grant of `content:edit_own` includes it in the same scope, so a custom role with `content:edit_own` keeps the draft edits the built-in ladder gives an Author.
+[#4133](https://github.com/emdash-cms/emdash/pull/4133) added `content:edit_own_drafts` at Contributor. That permission is scopable, and a grant of `content:edit_own` includes it in the same scope, so a custom role with `content:edit_own` keeps the draft edits the built-in ladder gives an Author.
 
 ## Alternatives
 
