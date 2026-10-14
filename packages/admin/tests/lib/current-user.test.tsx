@@ -1,6 +1,6 @@
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import * as React from "react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import { apiFetch } from "../../src/lib/api/client";
@@ -37,6 +37,7 @@ describe("current user role after a role change on the server", () => {
 	afterEach(() => {
 		stopRefetching();
 		queryClient.clear();
+		vi.restoreAllMocks();
 		mockFetch.restore();
 	});
 
@@ -64,6 +65,20 @@ describe("current user role after a role change on the server", () => {
 		expect(response.status).toBe(403);
 
 		await expect.element(screen.getByTestId("users-nav")).toHaveTextContent("hidden");
+	});
+
+	it("does not refetch the current user when a request succeeds", async () => {
+		await renderUsersNavItem();
+		const fetchSpy = vi.spyOn(globalThis, "fetch");
+		mockFetch.on("GET", "/_emdash/api/content/posts", { data: { items: [] } });
+
+		const response = await apiFetch("/_emdash/api/content/posts");
+		expect(response.ok).toBe(true);
+
+		const currentUserRequests = fetchSpy.mock.calls.filter(
+			([input]) => input === "/_emdash/api/auth/me",
+		);
+		expect(currentUserRequests).toHaveLength(0);
 	});
 
 	it("picks up the new role when the user returns to the tab", async () => {
