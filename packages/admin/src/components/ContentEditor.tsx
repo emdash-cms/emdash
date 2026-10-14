@@ -1822,6 +1822,7 @@ export function ContentEditor({
 											showChanges={revisionView.showChanges}
 											authorColor={revisionView.authorColor}
 											label={revisionView.label}
+											timezone={timezone}
 										/>
 									) : revisionView.diffFailed ? (
 										<RevisionViewError />

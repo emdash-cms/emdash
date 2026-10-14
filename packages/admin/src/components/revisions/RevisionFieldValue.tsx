@@ -3,6 +3,7 @@ import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
+import { toDatetimeLocalInputValue } from "../../lib/datetime-local.js";
 import { formatFileSize, getFileIcon, getMediaObjectPosition } from "../../lib/media-utils.js";
 import { isRecord } from "../../lib/revision-diff/normalize.js";
 import type { ChangeStatus, FieldDiff } from "../../lib/revision-diff/types.js";
@@ -124,26 +125,23 @@ function selectOptions(descriptor: FieldDescriptor | undefined) {
 const NAIVE_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
 const OFFSET_PATTERN = /(?:[zZ]|[+-]\d\d:?\d\d)$/;
 
-/** Dates without an offset are wall-clock times, so they're shown as written. */
-function formatDateTimeValue(value: string, locale: string): string {
-	if (!OFFSET_PATTERN.test(value)) {
-		const naive = NAIVE_DATETIME_PATTERN.exec(value);
-		if (!naive) return value;
-		const [, year, month, day, hour, minute] = naive;
-		if (hour === undefined) {
-			return formatDate(new Date(Number(year), Number(month) - 1, Number(day)), locale, {
-				dateStyle: "medium",
-			});
-		}
-		return formatDate(
-			new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute)),
-			locale,
-			{ dateStyle: "medium", timeStyle: "short" },
-		);
-	}
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return value;
-	return formatDate(date, locale, { dateStyle: "medium", timeStyle: "short" });
+/** Shows what the editor's control shows: stored instants in the site's time zone, other dates as written. */
+function formatDateTimeValue(value: string, locale: string, timezone: string): string {
+	const wallClock = OFFSET_PATTERN.test(value) ? toDatetimeLocalInputValue(value, timezone) : value;
+	const naive = NAIVE_DATETIME_PATTERN.exec(wallClock);
+	if (!naive) return value;
+	const [, year, month, day, hour, minute] = naive;
+	// Formatted in UTC, so the browser's own time zone can't move the wall-clock time.
+	const date = new Date(
+		Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour ?? 0), Number(minute ?? 0)),
+	);
+	return formatDate(
+		date,
+		locale,
+		hour === undefined
+			? { dateStyle: "medium", timeZone: "UTC" }
+			: { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" },
+	);
 }
 
 function formatScalar(
@@ -151,13 +149,14 @@ function formatScalar(
 	kind: string,
 	descriptor: FieldDescriptor | undefined,
 	locale: string,
+	timezone: string,
 ): string | null {
 	if (isEmptyValue(value)) return null;
 	if (typeof value === "string") {
 		if (kind === "select") {
 			return selectOptions(descriptor).find((option) => option.value === value)?.label ?? value;
 		}
-		if (kind === "datetime") return formatDateTimeValue(value, locale);
+		if (kind === "datetime") return formatDateTimeValue(value, locale, timezone);
 		return value;
 	}
 	if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -206,14 +205,16 @@ function ScalarFieldValue({
 	field,
 	descriptor,
 	marked,
+	timezone,
 }: {
 	field: ValueFieldDiff;
 	descriptor: FieldDescriptor | undefined;
 	marked: boolean;
+	timezone: string;
 }) {
 	const { i18n } = useLingui();
-	const before = formatScalar(field.before, field.kind, descriptor, i18n.locale);
-	const after = formatScalar(field.after, field.kind, descriptor, i18n.locale);
+	const before = formatScalar(field.before, field.kind, descriptor, i18n.locale, timezone);
+	const after = formatScalar(field.after, field.kind, descriptor, i18n.locale, timezone);
 	return (
 		<ValueBox>
 			<ValueSwap before={before} after={after} status={field.status} marked={marked} />
@@ -462,10 +463,13 @@ export function ValueFieldValue({
 	field,
 	descriptor,
 	marked,
+	timezone,
 }: {
 	field: ValueFieldDiff;
 	descriptor: FieldDescriptor | undefined;
 	marked: boolean;
+	/** The site's time zone, which the editor shows stored times in. */
+	timezone: string;
 }) {
 	const { t } = useLingui();
 	if (field.kind === "unsupported") {
@@ -497,12 +501,26 @@ export function ValueFieldValue({
 				);
 			}
 			if (!Array.isArray(field.after) && !Array.isArray(field.before)) {
-				return <ScalarFieldValue field={field} descriptor={descriptor} marked={marked} />;
+				return (
+					<ScalarFieldValue
+						field={field}
+						descriptor={descriptor}
+						marked={marked}
+						timezone={timezone}
+					/>
+				);
 			}
 			return <SummaryFieldValue field={field} marked={marked} />;
 		default:
 			if (SCALAR_KINDS.has(field.kind)) {
-				return <ScalarFieldValue field={field} descriptor={descriptor} marked={marked} />;
+				return (
+					<ScalarFieldValue
+						field={field}
+						descriptor={descriptor}
+						marked={marked}
+						timezone={timezone}
+					/>
+				);
 			}
 			return <SummaryFieldValue field={field} marked={marked} />;
 	}

@@ -17,6 +17,8 @@ export interface RevisionViewCanvasProps {
 	authorColor: AuthorColor;
 	/** Accessible name, such as "Version from Today, 9:12 AM". */
 	label: string;
+	/** The site's time zone, which the editor shows stored times in. */
+	timezone: string;
 }
 
 /** Kinds whose editor control shows Kumo's "(optional)" marker when the field isn't required. */
@@ -45,11 +47,13 @@ function FieldValue({
 	descriptor,
 	isTitle,
 	marked,
+	timezone,
 }: {
 	field: Exclude<FieldDiff, { type: "boolean" }>;
 	descriptor: FieldDescriptor | undefined;
 	isTitle: boolean;
 	marked: boolean;
+	timezone: string;
 }) {
 	switch (field.type) {
 		case "portableText":
@@ -75,7 +79,14 @@ function FieldValue({
 				/>
 			);
 		case "value":
-			return <ValueFieldValue field={field} descriptor={descriptor} marked={marked} />;
+			return (
+				<ValueFieldValue
+					field={field}
+					descriptor={descriptor}
+					marked={marked}
+					timezone={timezone}
+				/>
+			);
 	}
 }
 
@@ -84,11 +95,13 @@ const RevisionField = React.memo(function RevisionField({
 	descriptor,
 	isTitle,
 	marked,
+	timezone,
 }: {
 	field: FieldDiff;
 	descriptor: FieldDescriptor | undefined;
 	isTitle: boolean;
 	marked: boolean;
+	timezone: string;
 }) {
 	const labelId = React.useId();
 	const label = getFieldLabel(field.slug, descriptor ?? { label: field.label });
@@ -111,7 +124,13 @@ const RevisionField = React.memo(function RevisionField({
 			>
 				{label}
 			</FieldLabel>
-			<FieldValue field={field} descriptor={descriptor} isTitle={isTitle} marked={marked} />
+			<FieldValue
+				field={field}
+				descriptor={descriptor}
+				isTitle={isTitle}
+				marked={marked}
+				timezone={timezone}
+			/>
 		</div>
 	);
 });
@@ -128,6 +147,7 @@ export function RevisionViewCanvas({
 	showChanges,
 	authorColor,
 	label,
+	timezone,
 }: RevisionViewCanvasProps) {
 	const marked = showChanges && diff.hasPrevious;
 	return (
@@ -144,6 +164,7 @@ export function RevisionViewCanvas({
 					descriptor={fields[field.slug]}
 					isTitle={field.slug === titleField}
 					marked={field.status === "unchanged" ? false : marked}
+					timezone={timezone}
 				/>
 			))}
 		</article>

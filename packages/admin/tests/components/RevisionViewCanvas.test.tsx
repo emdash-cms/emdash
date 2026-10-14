@@ -139,6 +139,7 @@ function renderCanvas(diff: RevisionDiff, showChanges = true) {
 			showChanges={showChanges}
 			authorColor="teal"
 			label="Version from Today, 9:12 AM"
+			timezone="UTC"
 		/>,
 	);
 }
@@ -428,6 +429,18 @@ describe("RevisionViewCanvas", () => {
 		await expect.element(featured).toBeDisabled();
 	});
 
+	it("shows stored times in the site's time zone, not the browser's", async () => {
+		const screen = await renderCanvas(
+			revisionDiff([
+				valueField("publishOn", "datetime", "2026-03-08T02:30:00.000Z", "2026-10-01T14:00:00.000Z"),
+			]),
+		);
+
+		const publishOn = screen.container.querySelector("#revision-f-publishOn")!;
+		expect(publishOn.querySelector("del")?.textContent).toMatch(/^Removed: Mar 8, 2026, 2:30\sAM$/);
+		expect(publishOn.querySelector("ins")?.textContent).toMatch(/^Added: Oct 1, 2026, 2:00\sPM$/);
+	});
+
 	it("gives each field the footprint of the editor's control", async () => {
 		const screen = await render(
 			<div className="flex gap-6">
@@ -484,6 +497,7 @@ describe("RevisionViewCanvas", () => {
 						showChanges
 						authorColor="blue"
 						label="Version from Today, 9:12 AM"
+						timezone="UTC"
 					/>
 				</div>
 			</div>,
@@ -591,6 +605,7 @@ describe("RevisionViewCanvas", () => {
 						showChanges
 						authorColor="blue"
 						label="Version from Today, 9:12 AM"
+						timezone="UTC"
 					/>
 				</div>
 			</div>,
