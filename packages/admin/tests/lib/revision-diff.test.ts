@@ -798,6 +798,13 @@ describe("revision diff: fields", () => {
 		expect(kinds(diffRevisions({}, { featured: false }, fields))).toEqual(["noChanges"]);
 	});
 
+	it("names a field without a label the way the editor does", () => {
+		expect(
+			diffRevisions({ subtitle: "Old" }, { subtitle: "New" }, { subtitle: { kind: "string" } })
+				.changes,
+		).toMatchObject([{ kind: "text", field: { label: "Subtitle" } }]);
+	});
+
 	it("lists changes in field order with the slug last", () => {
 		const key = freshKey();
 		const diff = diffRevisions(

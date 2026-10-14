@@ -1,3 +1,4 @@
+import { getFieldLabel } from "../field-label.js";
 import { diffBlocks } from "./blocks.js";
 import type { DiffContext } from "./context.js";
 import {
@@ -126,7 +127,7 @@ function diffField(
 	const after = current[slug];
 	const base = {
 		slug,
-		label: descriptor.label || slug,
+		label: getFieldLabel(slug, descriptor),
 		kind: descriptor.kind,
 		targetId: `f-${slug}`,
 	};

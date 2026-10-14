@@ -146,7 +146,7 @@ export type BlockRow =
 
 interface FieldDiffBase {
 	slug: string;
-	/** The field's label, or its slug when it has none. */
+	/** The field's label as the editor shows it, which is the capitalized slug when it has none. */
 	label: string;
 	kind: string;
 	status: ChangeStatus;
