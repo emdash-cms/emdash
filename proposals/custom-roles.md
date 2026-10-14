@@ -200,7 +200,7 @@ canActOnOwn(actor: Actor | null, ownerId: string, own: Permission, any: Permissi
 
 - The permission a route checks must govern everything its response contains and everything its write touches. Several routes today check one name and return data that another name governs, relying on the built-in ladder to hold both. A custom role breaks every such assumption, so phase 2 audits each route against this rule.
 
-`requirePerm`, `requireOwnerPerm` and `requireAnyPerm` in core gain the same optional resource. Helpers for navigation and cross-collection reads answer "in which collections does the actor hold this permission", with `null` meaning all. The MCP server's internal `requireRole` helper is removed.
+`requirePerm`, `requireOwnerPerm`, `requireAnyPerm`, `entryEditAccess` and `requireEntryEditPerm` in core gain the same optional resource. Helpers for navigation and cross-collection reads answer "in which collections does the actor hold this permission", with `null` meaning all. The MCP server's internal `requireRole` helper is removed.
 
 ### Data model
 
@@ -273,7 +273,7 @@ Reads that cross collections apply the scope per collection:
 - Reference fields that point into another collection resolve on the entry read with the actor's `content:read` and `content:read_drafts` in the target collection, and resolve to an empty list when the actor cannot read it. A write that selects or keeps a reference is refused unless the actor holds `content:read` in the target collection, before any target id is looked up.
 - Revision routes answer 404, not 403, for a revision in a collection whose drafts the actor may not read. Bulk tagging checks each item's collection, and dismissing a scheduled-policy rejection checks the collection in its URL.
 
-Entries are scoped; collection schemas are not. The admin manifest and `GET /_emdash/api/schema/collections` show every collection's name, fields and taxonomies to every admin user, because the admin needs them to render. The sidebar and the command palette list only the collections the actor holds a content permission in.
+Entries are scoped; collection schemas are not. The admin manifest shows every collection's name, fields and taxonomies to every admin user, because the admin needs them to render, and `GET /_emdash/api/schema/collections` shows them to every holder of `schema:read`. The sidebar and the command palette list only the collections the actor holds a content permission in.
 
 MCP tools call the same helpers with the same permission names as their REST counterparts and pass the tool's `collection` argument. Read tools that check no permission today get the Subscriber-level permission of their REST counterpart, which changes nothing for built-in roles. Where a tool's role level differs from the REST permission today, phase 1 settles each difference on its own, with the REST permission as the default. `media_create` is one: the tool asks for Author, and the REST route that confirms the same upload asks for `media:upload`, which a Contributor holds.
 
@@ -349,7 +349,7 @@ The role editor, the role picker and every new error message in the admin go thr
 - **Rollback.** An older version reads `users.role`, which holds the compatibility level, so a user with a custom role keeps at most the built-in role the custom role contains, or Subscriber.
 - **Site transfer.** `_emdash_roles` is not portable, like the other auth tables, so a transfer import brings no users and no roles.
 - **Public API.** `/auth/me` gains fields and changes none. The authorization helpers gain an optional argument. Identity-provider options accept a slug in addition to a number. No export is removed.
-- **Behavior change for built-in roles.** None by design. Phase 1 settles MCP tools whose level differs from the REST permission; each such change is listed in that phase's changeset.
+- **Behavior change for built-in roles.** Their permissions do not change. Phase 1 changes what the admin offers them, so it stops offering actions the server refuses, and settles MCP tools whose level differs from the REST permission; each such change is listed in that phase's changeset.
 - **Plugin authors.** Declare a `permission` on each route, as the plugin documentation already describes, and avoid comparing `ctx.user.role`.
 - **Documentation.** The role table in the authentication guide stays valid for built-in roles. A new page covers custom roles, the seed section and the compatibility level.
 
@@ -413,7 +413,7 @@ The extra query on authenticated pages is the existing user lookup, which carrie
 | 2     | `_emdash_roles` and the references. Collection scope in content routes, cross-collection reads and MCP tools. The roles API, the seed section and the CLI. Role slugs in identity-provider mappings. Token scopes derived from grants. Custom roles in the user role picker.                                                                                          | Additive      |
 | 3     | The role editor: a permission matrix that starts from a built-in role as a template. Documentation.                                                                                                                                                                                                                                                                   | None          |
 
-Each phase is a separate set of pull requests and ships without a feature flag, because no behavior changes until a site creates a custom role. Phase 1 can be accepted on its own. I will implement phases 1 and 2.
+Each phase is a separate set of pull requests and ships without a feature flag. Phase 1 changes only what the admin offers and the MCP differences its changeset lists, and phases 2 and 3 change no permission check until a site creates a custom role. Phase 1 can be accepted on its own. I will implement phases 1 and 2.
 
 ### Reconciliation with pending work
 
