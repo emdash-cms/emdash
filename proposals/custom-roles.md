@@ -415,7 +415,7 @@ The extra query on authenticated pages is the existing user lookup, which carrie
 
 Each phase is a separate set of pull requests and ships without a feature flag. Phase 1 changes only what the admin offers and the MCP differences its changeset lists, and phases 2 and 3 change no permission check until a site creates a custom role. Phase 1 can be accepted on its own. I will implement phases 1 and 2.
 
-### Reconciliation with pending work
+### Reconciliation with related work
 
 [Editorial comments](https://github.com/emdash-cms/emdash/pull/4126) adds `editorial:comment` and `editorial:manage` and names this RFC. Both permissions are scopable, because every editorial route has the collection in its path. Its mentionable-users endpoint, which it places per entry for a future collection-scoped model, lists users who hold `editorial:comment` for the entry's collection. If both are accepted, the second to land carries this.
 
