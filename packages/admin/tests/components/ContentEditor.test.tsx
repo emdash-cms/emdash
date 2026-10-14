@@ -74,7 +74,7 @@ vi.mock("../../src/components/PortableTextEditor", () => ({
 		React.useEffect(() => {
 			if (onEditorReady) {
 				const id = mountIdRef.current || portableTextMountCount + 1;
-				const stubEditor = { __mockId: id } as unknown;
+				const stubEditor = { __mockId: id, commands: { focus: () => true } } as unknown;
 				onEditorReadyCalls.push({ mockId: id });
 				onEditorReady(stubEditor);
 				return () => {
