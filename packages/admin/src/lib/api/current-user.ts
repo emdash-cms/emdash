@@ -4,9 +4,9 @@
 
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 
-import { apiFetch, parseApiResponse } from "./client.js";
+import { apiFetch, onForbiddenResponse, parseApiResponse } from "./client.js";
 
 export interface CurrentUser {
 	id: string;
@@ -27,6 +27,21 @@ export function useCurrentUser() {
 		queryKey: ["currentUser"],
 		queryFn: fetchCurrentUser,
 		staleTime: 5 * 60 * 1000,
+		refetchOnWindowFocus: "always",
 		retry: false,
+	});
+}
+
+/**
+ * Refetches the current user whenever the server refuses a request. The
+ * server checks the user's role on every request, so a 403 usually means
+ * the cached role is out of date. Returns a function that stops listening.
+ */
+export function refetchCurrentUserOnForbidden(queryClient: QueryClient): () => void {
+	return onForbiddenResponse(() => {
+		void queryClient.invalidateQueries(
+			{ queryKey: ["currentUser"], exact: true },
+			{ cancelRefetch: false },
+		);
 	});
 }
