@@ -206,6 +206,7 @@ export function RevisionViewBar({
 									aria-label={t`Back to editing`}
 									aria-keyshortcuts="Escape"
 									icon={<X aria-hidden="true" />}
+									disabled={restorePending}
 									onClick={onExit}
 								/>
 							}

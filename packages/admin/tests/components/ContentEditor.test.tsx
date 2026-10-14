@@ -3980,6 +3980,50 @@ describe("ContentEditor revision view", () => {
 		expect(onRevisionRestored).toHaveBeenCalledWith(restored);
 	});
 
+	it("goes back to the restored body, not the replaced one, when Esc is pressed while it loads", async () => {
+		const restored = makeRevisionItem({
+			draftRevisionId: "rev-restored",
+			data: { title: "Old title", content: textBlocks("Old body") },
+		});
+		let stored = makeRevisionItem();
+		let loadRestored = () => {};
+		const restoredLoaded = new Promise<void>((resolve) => {
+			loadRestored = resolve;
+		});
+		vi.mocked(restoreRevision).mockImplementation(async () => {
+			stored = restored;
+			return restored;
+		});
+		function Host() {
+			const { data } = useQuery({
+				queryKey: ["content", "posts", stored.id],
+				queryFn: async () => {
+					const item = stored;
+					if (item === restored) await restoredLoaded;
+					return item;
+				},
+			});
+			if (!data) return null;
+			return <ContentEditor {...revisionEditorProps()} item={data} onRevisionRestored={vi.fn()} />;
+		}
+		const screen = await render(<Host />, { wrapper: Toasty });
+		await screen.getByRole("button", { name: "View rev-old" }).click();
+		await screen.getByRole("button", { name: "Restore", exact: true }).click();
+		const dialog = screen.getByRole("dialog", { name: "Restore this version?" });
+		dialog.getByRole("button", { name: "Restore", exact: true }).element().click();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await userEvent.keyboard("{Escape}");
+		loadRestored();
+
+		await expect
+			.element(screen.getByRole("button", { name: "Back to editing" }))
+			.not.toBeInTheDocument();
+		await expect
+			.element(screen.getByTestId("portable-text-editor"))
+			.toHaveAttribute("data-content", "Old body");
+	});
+
 	it("lets the writer carry on when the restored entry can't be loaded", async () => {
 		vi.mocked(restoreRevision).mockResolvedValue(
 			makeRevisionItem({ draftRevisionId: "rev-restored" }),

@@ -376,9 +376,8 @@ export function useRevisionView({
 
 	const leave = React.useCallback(
 		(message: string) => {
-			if (viewingIdRef.current === null) return;
-			restoreRef.current = null;
-			setRestorePending(false);
+			// Until the restored draft arrives, the field editors still hold the draft it replaces.
+			if (viewingIdRef.current === null || restoreRef.current) return;
 			setViewingId(null);
 			pendingStepRef.current = false;
 			pendingChangeRef.current = null;
