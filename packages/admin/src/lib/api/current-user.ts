@@ -34,8 +34,8 @@ export function useCurrentUser() {
 
 /**
  * Refetches the current user whenever the server refuses a request. The
- * server checks the user's role on every request, so a 403 usually means
- * the cached role is out of date. Returns a function that stops listening.
+ * server checks the user's role on every request, so a 403 can mean the
+ * cached role is out of date. Returns a function that stops listening.
  */
 export function refetchCurrentUserOnForbidden(queryClient: QueryClient): () => void {
 	return onForbiddenResponse(() => {
