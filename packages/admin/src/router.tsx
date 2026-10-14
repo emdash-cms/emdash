@@ -4,7 +4,7 @@
  * Defines all admin routes and their components.
  */
 
-import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
+import { Banner, Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -153,6 +153,7 @@ import {
 } from "./lib/api/comments";
 import { runBulkAction } from "./lib/bulk";
 import { parseCalendarSearch } from "./lib/calendar";
+import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/content-permissions";
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
@@ -757,6 +758,7 @@ function ContentListPage() {
 			onRestore={(id) => restoreMutation.mutate(id)}
 			onPermanentDelete={(id) => permanentDeleteMutation.mutate(id)}
 			onDuplicate={(id) => duplicateMutation.mutate(id)}
+			canDuplicate={(item) => !currentUser || canDuplicateEntry(currentUser, item)}
 			i18n={i18n}
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
@@ -1003,11 +1005,17 @@ function ContentEditPage() {
 		retry: (failureCount, queryError) =>
 			!(queryError instanceof ApiResponseError && queryError.status === 404) && failureCount < 1,
 	});
+	const { data: currentUser } = useCurrentUser();
+
+	// Nothing is withheld until the current user has loaded; the server still
+	// refuses what the role can't do.
+	const editAccess = rawItem && currentUser ? entryEditAccess(currentUser, rawItem) : "full";
+	const canPublish = !rawItem || !currentUser || canPublishEntry(currentUser, rawItem);
 	const entryLock = useEntryLock({
 		collection,
 		entryId: id,
 		locale: activeLocale,
-		ready: Boolean(rawItem),
+		ready: Boolean(rawItem) && editAccess !== null,
 	});
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const revisionVersionsRef = React.useRef(new Map<string, number>());
@@ -1117,16 +1125,6 @@ function ContentEditPage() {
 			data: { ...rawItem.data, ...draftData },
 		};
 	}, [rawItem, draftRevision]);
-
-	// Fetch current user for permission checks
-	const { data: currentUser } = useQuery({
-		queryKey: ["currentUser"],
-		queryFn: async (): Promise<{ id: string; role: number }> => {
-			const response = await apiFetch("/_emdash/api/auth/me");
-			return parseApiResponse<{ id: string; role: number }>(response, t`Failed to fetch user`);
-		},
-		staleTime: 5 * 60 * 1000,
-	});
 
 	// Fetch users list for author selector (only if user is editor+)
 	const { data: usersData } = useQuery({
@@ -1890,12 +1888,12 @@ function ContentEditPage() {
 			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
 			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
 			hasSaveConflict={conflictedEntryId === id}
-			onPublish={handlePublish}
-			onUnpublish={handleUnpublish}
+			onPublish={canPublish ? handlePublish : undefined}
+			onUnpublish={canPublish ? handleUnpublish : undefined}
 			onDiscardDraft={handleDiscardDraft}
 			onRevisionRestored={handleRevisionRestored}
-			onSchedule={handleSchedule}
-			onUnschedule={handleUnschedule}
+			onSchedule={canPublish ? handleSchedule : undefined}
+			onUnschedule={canPublish ? handleUnschedule : undefined}
 			isScheduling={scheduleMutation.isPending}
 			isUnscheduling={unscheduleMutation.isPending}
 			onPublishedAtChange={handlePublishedAtChange}
@@ -1920,14 +1918,27 @@ function ContentEditPage() {
 			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
 			onEntryRefresh={handlePluginEntryRefresh}
-			readOnly={entryLock.readOnly}
+			readOnly={entryLock.readOnly || editAccess === null}
 			notice={
-				<EntryLockNotice
-					state={entryLock.state}
-					onTakeOver={entryLock.takeOver}
-					onReadInstead={entryLock.readInstead}
-					isTakingOver={entryLock.isTakingOver}
-				/>
+				editAccess === null ? (
+					<Banner
+						title={t`Read-only`}
+						description={
+							rawItem &&
+							currentUser &&
+							entryEditAccess(currentUser, { ...rawItem, status: "draft" })
+								? t`Your role can edit your own entries only while they are drafts.`
+								: t`Your role can't edit this entry.`
+						}
+					/>
+				) : (
+					<EntryLockNotice
+						state={entryLock.state}
+						onTakeOver={entryLock.takeOver}
+						onReadInstead={entryLock.readInstead}
+						isTakingOver={entryLock.isTakingOver}
+					/>
+				)
 			}
 		/>
 	);
