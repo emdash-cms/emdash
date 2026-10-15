@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import type { SqliteDialectConfig } from "kysely";
-import { Kysely, SqliteAdapter, SqliteDialect } from "kysely";
+import {
+	DummyDriver,
+	Kysely,
+	SqliteAdapter,
+	SqliteDialect,
+	SqliteIntrospector,
+	SqliteQueryCompiler,
+} from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
@@ -68,6 +75,24 @@ export function createTestDatabase(): Kysely<DatabaseSchema> {
 		dialect: new SqliteDialect({
 			database: sqlite,
 		}),
+	});
+}
+
+class StalledDriver extends DummyDriver {
+	override acquireConnection(): Promise<never> {
+		return new Promise(() => {});
+	}
+}
+
+/** A database whose queries never settle, like a query whose request workerd cancelled. */
+export function createStalledDatabase(): Kysely<DatabaseSchema> {
+	return new Kysely<DatabaseSchema>({
+		dialect: {
+			createAdapter: () => new SqliteAdapter(),
+			createDriver: () => new StalledDriver(),
+			createIntrospector: (db) => new SqliteIntrospector(db),
+			createQueryCompiler: () => new SqliteQueryCompiler(),
+		},
 	});
 }
 
