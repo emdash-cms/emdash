@@ -2617,7 +2617,7 @@ importers:
         specifier: 0.0.43
         version: 0.0.43
       emdash:
-        specifier: workspace:>=1.0.0
+        specifier: workspace:>=1.0.1
         version: link:../../core
     devDependencies:
       '@cloudflare/kumo':
