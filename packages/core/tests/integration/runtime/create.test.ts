@@ -654,6 +654,154 @@ describe("EmDashRuntime.create — cold boot", () => {
 		}
 	});
 
+	// In auto mode the applied-migration count rides in the cold-start batch on
+	// the coalescing connection, so a migrated database pays no separate
+	// migration round trip on the singleton.
+	describe("migration check folded into the cold-start batch", () => {
+		const MIGRATION_COUNT_SQL = /from "_emdash_migrations"/i;
+
+		// One in-memory database behind both connections. create() destroys the
+		// coalescing connection, which would close it, so close is stubbed.
+		const sharedDatabase = () => {
+			const sqlite = new Database(":memory:");
+			vi.spyOn(sqlite, "close").mockImplementation(() => {});
+			return sqlite;
+		};
+
+		// Records the SQL each connection prepares. Kysely's SqliteDialect calls
+		// prepare() on the database it was given, so wrapping the handle per
+		// connection tells the two apart.
+		const recordingHandle = (sqlite: Database, log: string[]) =>
+			new Proxy(sqlite, {
+				get(target, prop, receiver) {
+					if (prop === "prepare") {
+						return (sqlText: string) => {
+							log.push(sqlText);
+							return target.prepare(sqlText);
+						};
+					}
+					const value: unknown = Reflect.get(target, prop, receiver);
+					return typeof value === "function" ? value.bind(target) : value;
+				},
+			});
+
+		it("skips the singleton's migration check on a migrated database", async () => {
+			const sqlite = sharedDatabase();
+			await runMigrations(
+				new Kysely<EmDashDatabase>({ dialect: new SqliteDialect({ database: sqlite }) }),
+			);
+			await new OptionsRepository(
+				new Kysely<EmDashDatabase>({ dialect: new SqliteDialect({ database: sqlite }) }),
+			).set("emdash:setup_complete", true);
+
+			const singletonSql: string[] = [];
+			const coalescingSql: string[] = [];
+			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const runtime = await EmDashRuntime.create(
+				{
+					...createDeps(),
+					createDialect: () =>
+						new SqliteDialect({ database: recordingHandle(sqlite, singletonSql) }),
+					createCoalescingDialect: () =>
+						new SqliteDialect({ database: recordingHandle(sqlite, coalescingSql) }),
+				},
+				timings,
+			);
+			try {
+				expect(coalescingSql.filter((s) => MIGRATION_COUNT_SQL.test(s))).toHaveLength(1);
+				expect(singletonSql.filter((s) => MIGRATION_COUNT_SQL.test(s))).toHaveLength(0);
+				// The cold-start reads ran once, in the batch with the count.
+				expect(timings.filter((t) => t.name === "rt.plugins")).toHaveLength(1);
+				expect(timings.filter((t) => t.name === "rt.seedcheck")).toHaveLength(1);
+			} finally {
+				await runtime.stopCron();
+			}
+		});
+
+		it("migrates a fresh database, then repeats the cold-start reads", async () => {
+			const sqlite = sharedDatabase();
+			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const runtime = await EmDashRuntime.create(
+				{
+					...createDeps(),
+					createDialect: () => new SqliteDialect({ database: sqlite }),
+					createCoalescingDialect: () => new SqliteDialect({ database: sqlite }),
+				},
+				timings,
+			);
+			try {
+				const applied = await sql<{ count: number }>`
+					SELECT COUNT(*) AS count FROM _emdash_migrations
+				`.execute(runtime.db);
+				expect(Number(applied.rows[0]?.count)).toBe(MIGRATION_NAMES.length);
+				// The first pass ran before the tables existed; the reads ran again
+				// once the policy had migrated.
+				expect(timings.filter((t) => t.name === "rt.plugins")).toHaveLength(2);
+				expect(timings.filter((t) => t.name === "rt.seedcheck")).toHaveLength(2);
+			} finally {
+				await runtime.stopCron();
+			}
+		});
+
+		it("falls back to the singleton's migration check when the count read fails", async () => {
+			const sqlite = sharedDatabase();
+			await runMigrations(
+				new Kysely<EmDashDatabase>({ dialect: new SqliteDialect({ database: sqlite }) }),
+			);
+			const singletonSql: string[] = [];
+			const failingCount = new Proxy(sqlite, {
+				get(target, prop, receiver) {
+					if (prop === "prepare") {
+						return (sqlText: string) => {
+							if (MIGRATION_COUNT_SQL.test(sqlText)) throw new Error("connection reset");
+							return target.prepare(sqlText);
+						};
+					}
+					const value: unknown = Reflect.get(target, prop, receiver);
+					return typeof value === "function" ? value.bind(target) : value;
+				},
+			});
+			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const runtime = await EmDashRuntime.create(
+				{
+					...createDeps(),
+					createDialect: () =>
+						new SqliteDialect({ database: recordingHandle(sqlite, singletonSql) }),
+					createCoalescingDialect: () => new SqliteDialect({ database: failingCount }),
+				},
+				timings,
+			);
+			try {
+				expect(singletonSql.filter((s) => MIGRATION_COUNT_SQL.test(s))).toHaveLength(1);
+				expect(timings.filter((t) => t.name === "rt.plugins")).toHaveLength(2);
+			} finally {
+				await runtime.stopCron();
+			}
+		});
+
+		it("leaves check mode's exact status check on the singleton", async () => {
+			const sqlite = sharedDatabase();
+			await runMigrations(
+				new Kysely<EmDashDatabase>({ dialect: new SqliteDialect({ database: sqlite }) }),
+			);
+			const singletonSql: string[] = [];
+			const coalescingSql: string[] = [];
+			const runtime = await EmDashRuntime.create({
+				...createDeps(),
+				migrationMode: "check",
+				createDialect: () => new SqliteDialect({ database: recordingHandle(sqlite, singletonSql) }),
+				createCoalescingDialect: () =>
+					new SqliteDialect({ database: recordingHandle(sqlite, coalescingSql) }),
+			});
+			try {
+				expect(singletonSql.some((s) => MIGRATION_COUNT_SQL.test(s))).toBe(true);
+				expect(coalescingSql.some((s) => MIGRATION_COUNT_SQL.test(s))).toBe(false);
+			} finally {
+				await runtime.stopCron();
+			}
+		});
+	});
+
 	// A failed migration must not be retried on every create() call: on
 	// Workers each request in a warm isolate re-enters create(), and without
 	// a backoff every request re-runs the failing migration against the

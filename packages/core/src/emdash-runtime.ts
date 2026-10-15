@@ -58,6 +58,8 @@ import {
 	type RuntimeMigrationMode,
 } from "./database/migrations/policy.js";
 import {
+	getAppliedMigrationCount,
+	isMigrationCountCurrent,
 	MIGRATION_RACE_WAIT_MS,
 	MigrationFailedError,
 	MigrationLockHeldError,
@@ -1604,10 +1606,218 @@ export class EmDashRuntime {
 			}
 		};
 
+		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
+		// surfaces in startup logs. Plugin secret-setting operations re-read
+		// the key and fail closed at their own boundary, so validation here
+		// does not block unrelated request paths.
+		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
+
+		// FTS verify/repair is deferred off the cold-start hot path.
+		// See EmDashRuntime.ensureSearchHealthy().
+
+		// Initialize storage (sync)
+		const storage = EmDashRuntime.getStorage(deps);
+
+		const configuredLocales: string[] =
+			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
+
+		// Seeding must only touch the configured singleton, never a borrowed
+		// per-request db (playground / DO preview) or the loader-fallback db.
+		const reqCtx = getRequestContext();
+		const ownsConfiguredDb = !!deps.config.database && !(reqCtx?.dbIsIsolated && reqCtx.db);
+
+		// Run the init reads on a coalescing connection so the concurrent
+		// same-turn reads flush as one batch() round trip. The singleton can't:
+		// its plain SqliteAdapter reports supportsMultipleConnections=false, so
+		// Kysely's connection mutex serializes concurrent reads into N round
+		// trips. The connection is per-init and discarded — the long-lived
+		// singleton must never coalesce or one request's reads could land in
+		// another's batch. Backends without a coalescing dialect (Node/SQLite)
+		// fall back to the singleton, where serialization costs nothing.
+		let coalescingDb: Kysely<Database> | undefined;
+		let readDbDisposable: Kysely<Database> | undefined;
+		const disposeReadDb = async () => {
+			const disposable = readDbDisposable;
+			readDbDisposable = undefined;
+			if (!disposable) return;
+			try {
+				await disposable.destroy();
+			} catch {
+				// Non-fatal — the underlying binding is shared and needs no teardown.
+			}
+		};
+		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
+			try {
+				const dialect = deps.createCoalescingDialect(deps.config.database.config);
+				if (dialect) {
+					coalescingDb = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+					readDbDisposable = coalescingDb;
+				}
+			} catch {
+				// Fall back to the singleton below.
+			}
+		}
+		let missingManualSchemaError: unknown;
+		const captureMissingManualSchema = (error: unknown) => {
+			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
+				missingManualSchemaError ??= error;
+			}
+		};
+
+		const readSiteInfo = async (readDb: Kysely<Database>) => {
+			const siteOpts = await new OptionsRepository(readDb).getMany([
+				"emdash:site_title",
+				"site:url",
+				"emdash:site_url",
+				"emdash:locale",
+				LOCALE_CASING_REPAIR_OPTION,
+				AUTO_SEED_COMPLETE_OPTION,
+				SETUP_COMPLETE_OPTION,
+			]);
+			const siteTitle = siteOpts.get("emdash:site_title");
+			const siteUrl = resolveSiteOrigin(
+				deps.config,
+				siteOpts.get("site:url"),
+				siteOpts.get("emdash:site_url"),
+			);
+			const locale = siteOpts.get("emdash:locale");
+			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
+			return {
+				siteInfo: {
+					siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
+					siteUrl: deps.siteInfo?.url ?? siteUrl,
+					locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
+					// trailingSlash is a build-time Astro routing decision, not a
+					// user-editable setting, so it comes from the Astro config
+					// (virtual:emdash/config), not the options table.
+					trailingSlash: deps.siteInfo?.trailingSlash ?? virtualConfig?.trailingSlash,
+				},
+				storedLocaleCasingRepairVersion:
+					typeof repairVersion === "string" ? repairVersion : undefined,
+				seedComplete: siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true,
+				setupDone: siteOpts.get(SETUP_COMPLETE_OPTION) === true,
+			};
+		};
+
+		// Each pass returns its own results, so a pass that runs again after
+		// migrations replaces the first pass's results whole.
+		const runColdStartReads = async (readDb: Kysely<Database>) => {
+			const reads: {
+				pluginStates: Map<string, string>;
+				pluginStatesRead: boolean;
+				installedPluginStates: PluginState[];
+				exclusiveHookSelections?: Map<string, string | undefined>;
+				site?: Awaited<ReturnType<typeof readSiteInfo>>;
+				seedCollectionsReadable: boolean;
+			} = {
+				pluginStates: new Map(),
+				pluginStatesRead: false,
+				installedPluginStates: [],
+				seedCollectionsReadable: false,
+			};
+			const coldStartReads: Array<Promise<void>> = [
+				phase("rt.plugins", "Plugin states", async () => {
+					try {
+						const states = await readDb.selectFrom("_plugin_state").selectAll().execute();
+						reads.pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+						reads.pluginStatesRead = true;
+						reads.installedPluginStates = states
+							.filter((s) => s.source === "marketplace" || s.source === "registry")
+							.map(rowToPluginState);
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// _plugin_state may not exist yet on a pre-migration db.
+					}
+				}),
+				phase("rt.site", "Site info options", async () => {
+					try {
+						reads.site = await readSiteInfo(readDb);
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// options may not exist yet on a pre-migration db.
+					}
+				}),
+				phase("rt.hookselections", "Exclusive hook selections", async () => {
+					// Built-in and sandboxed providers register after these reads, so
+					// only configured plugins' hooks and the always-present
+					// comment:moderate are known here. Hook resolution reads the rest.
+					const keys = Array.from(
+						new Set([
+							"comment:moderate",
+							...deps.plugins.flatMap((plugin) =>
+								Object.entries(plugin.hooks)
+									.filter(([, hook]) => hook?.exclusive)
+									.map(([name]) => name),
+							),
+						]),
+						(name) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${name}`,
+					);
+					try {
+						const stored = await new OptionsRepository(readDb).getMany<string>(keys);
+						reads.exclusiveHookSelections = new Map(keys.map((key) => [key, stored.get(key)]));
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// Hook resolution reads the selections itself when this fails.
+					}
+				}),
+			];
+
+			if (ownsConfiguredDb) {
+				coldStartReads.push(
+					phase("rt.seedcheck", "Auto-seed gate", async () => {
+						try {
+							// Selecting the slugs instead of COUNT(*) costs the same
+							// round trip and primes the registered-collections cache,
+							// so the first render on this isolate skips its own lookup.
+							const collectionRows = await readDb
+								.selectFrom("_emdash_collections")
+								.select("slug")
+								.execute();
+							primeRegisteredCollections(collectionRows.map((row) => row.slug));
+							reads.seedCollectionsReadable = true;
+						} catch (error) {
+							captureMissingManualSchema(error);
+							// Leave collections unreadable so a read failure never triggers
+							// a seed onto a half-built db.
+						}
+					}),
+				);
+			}
+
+			await Promise.all(coldStartReads);
+			return reads;
+		};
+
+		// The applied-migration count rides in the cold-start batch on the
+		// coalescing connection instead of costing its own round trip first. In
+		// auto mode the policy uses it for its fast path. Reads in a batch whose
+		// count was current saw a fully migrated schema; otherwise they run again
+		// once the policy has finished.
+		let migrationsCurrent = false;
+		let foldedColdStartReads: ReturnType<typeof runColdStartReads> | undefined;
+		let appliedMigrationCount: Promise<number | null | undefined> | undefined;
+		if (coalescingDb && (deps.migrationMode ?? "auto") === "auto") {
+			// A read error leaves the policy to read the count itself.
+			appliedMigrationCount = getAppliedMigrationCount(coalescingDb).catch(() => undefined);
+			foldedColdStartReads = runColdStartReads(coalescingDb);
+		}
+
 		// Initialize the database and enforce its configured migration policy.
-		const db = await phase("rt.db", "DB init + migration policy", () =>
-			EmDashRuntime.getDatabase(deps),
-		);
+		let db: Kysely<Database>;
+		try {
+			db = await phase("rt.db", "DB init + migration policy", async () => {
+				const count = await appliedMigrationCount;
+				migrationsCurrent = isMigrationCountCurrent(count);
+				return EmDashRuntime.getDatabase(deps, { appliedMigrationCount: count });
+			});
+		} catch (error) {
+			// Drain the folded reads without letting a secondary read failure
+			// replace the migration/init error we want to report.
+			await foldedColdStartReads?.catch(() => undefined);
+			await disposeReadDb();
+			throw error;
+		}
 
 		// Resolver for the live connection, mirroring the `get db()` getter
 		// below (which can't be used here — the runtime instance doesn't exist
@@ -1625,187 +1835,22 @@ export class EmDashRuntime {
 			return (ctx?.db as Kysely<Database> | undefined) ?? db;
 		};
 
-		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
-		// surfaces in startup logs. Plugin secret-setting operations re-read
-		// the key and fail closed at their own boundary, so validation here
-		// does not block unrelated request paths.
-		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
-
-		// FTS verify/repair is deferred off the cold-start hot path.
-		// See EmDashRuntime.ensureSearchHealthy().
-
-		// Initialize storage (sync)
-		const storage = EmDashRuntime.getStorage(deps);
-
-		let pluginStates: Map<string, string> = new Map();
-		let pluginStatesRead = false;
-		let installedPluginStates: PluginState[] = [];
-		let exclusiveHookSelections: Map<string, string | undefined> | undefined;
-		const configuredLocales: string[] =
-			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
-		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
-		let storedLocaleCasingRepairVersion: string | undefined;
-		let siteInfo:
-			| {
-					siteName?: string;
-					siteUrl?: string;
-					locale?: string;
-					trailingSlash?: "always" | "never" | "ignore";
-			  }
-			| undefined;
+		const readDb = coalescingDb ?? db;
+		const foldedReads = await foldedColdStartReads;
+		const reads = foldedReads && migrationsCurrent ? foldedReads : await runColdStartReads(readDb);
+		const {
+			pluginStates,
+			pluginStatesRead,
+			installedPluginStates,
+			exclusiveHookSelections,
+			seedCollectionsReadable,
+		} = reads;
+		let siteInfo = reads.site?.siteInfo;
+		const storedLocaleCasingRepairVersion = reads.site?.storedLocaleCasingRepairVersion;
 		// "Already complete" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
-		let seedComplete = true;
-		let setupDone = true;
-		let seedCollectionsReadable = false;
-
-		// Seeding must only touch the configured singleton, never a borrowed
-		// per-request db (playground / DO preview) or the loader-fallback db.
-		const reqCtx = getRequestContext();
-		const ownsConfiguredDb = !!deps.config.database && !(reqCtx?.dbIsIsolated && reqCtx.db);
-
-		// Run the init reads on a coalescing connection so the concurrent
-		// same-turn reads flush as one batch() round trip. The singleton can't:
-		// its plain SqliteAdapter reports supportsMultipleConnections=false, so
-		// Kysely's connection mutex serializes concurrent reads into N round
-		// trips. The connection is per-init and discarded — the long-lived
-		// singleton must never coalesce or one request's reads could land in
-		// another's batch. Backends without a coalescing dialect (Node/SQLite)
-		// fall back to the singleton, where serialization costs nothing.
-		let readDb = db;
-		let readDbDisposable: Kysely<Database> | undefined;
-		const disposeReadDb = async () => {
-			const disposable = readDbDisposable;
-			readDbDisposable = undefined;
-			if (!disposable) return;
-			try {
-				await disposable.destroy();
-			} catch {
-				// Non-fatal — the underlying binding is shared and needs no teardown.
-			}
-		};
-		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
-			try {
-				const dialect = deps.createCoalescingDialect(deps.config.database.config);
-				if (dialect) {
-					readDb = new Kysely<Database>({ dialect, log: kyselyLogOption() });
-					readDbDisposable = readDb;
-				}
-			} catch {
-				readDb = db;
-			}
-		}
-		const optionsRepo = new OptionsRepository(readDb);
-		let missingManualSchemaError: unknown;
-		const captureMissingManualSchema = (error: unknown) => {
-			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
-				missingManualSchemaError ??= error;
-			}
-		};
-
-		const readSiteInfo = async () => {
-			const siteOpts = await optionsRepo.getMany([
-				"emdash:site_title",
-				"site:url",
-				"emdash:site_url",
-				"emdash:locale",
-				LOCALE_CASING_REPAIR_OPTION,
-				AUTO_SEED_COMPLETE_OPTION,
-				SETUP_COMPLETE_OPTION,
-			]);
-			const siteTitle = siteOpts.get("emdash:site_title");
-			const siteUrl = resolveSiteOrigin(
-				deps.config,
-				siteOpts.get("site:url"),
-				siteOpts.get("emdash:site_url"),
-			);
-			const locale = siteOpts.get("emdash:locale");
-			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
-			storedLocaleCasingRepairVersion =
-				typeof repairVersion === "string" ? repairVersion : undefined;
-			seedComplete = siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true;
-			setupDone = siteOpts.get(SETUP_COMPLETE_OPTION) === true;
-			return {
-				siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
-				siteUrl: deps.siteInfo?.url ?? siteUrl,
-				locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
-				// trailingSlash is a build-time Astro routing decision, not a
-				// user-editable setting, so it comes from the Astro config
-				// (virtual:emdash/config), not the options table.
-				trailingSlash: deps.siteInfo?.trailingSlash ?? virtualConfig?.trailingSlash,
-			};
-		};
-
-		const coldStartReads: Array<Promise<void>> = [
-			phase("rt.plugins", "Plugin states", async () => {
-				try {
-					const states = await readDb.selectFrom("_plugin_state").selectAll().execute();
-					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-					pluginStatesRead = true;
-					installedPluginStates = states
-						.filter((s) => s.source === "marketplace" || s.source === "registry")
-						.map(rowToPluginState);
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// _plugin_state may not exist yet on a pre-migration db.
-				}
-			}),
-			phase("rt.site", "Site info options", async () => {
-				try {
-					siteInfo = await readSiteInfo();
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// options may not exist yet on a pre-migration db.
-				}
-			}),
-			phase("rt.hookselections", "Exclusive hook selections", async () => {
-				// Built-in and sandboxed providers register after these reads, so
-				// only configured plugins' hooks and the always-present
-				// comment:moderate are known here. Hook resolution reads the rest.
-				const keys = Array.from(
-					new Set([
-						"comment:moderate",
-						...deps.plugins.flatMap((plugin) =>
-							Object.entries(plugin.hooks)
-								.filter(([, hook]) => hook?.exclusive)
-								.map(([name]) => name),
-						),
-					]),
-					(name) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${name}`,
-				);
-				try {
-					const stored = await optionsRepo.getMany<string>(keys);
-					exclusiveHookSelections = new Map(keys.map((key) => [key, stored.get(key)]));
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// Hook resolution reads the selections itself when this fails.
-				}
-			}),
-		];
-
-		if (ownsConfiguredDb) {
-			coldStartReads.push(
-				phase("rt.seedcheck", "Auto-seed gate", async () => {
-					try {
-						// Selecting the slugs instead of COUNT(*) costs the same
-						// round trip and primes the registered-collections cache,
-						// so the first render on this isolate skips its own lookup.
-						const collectionRows = await readDb
-							.selectFrom("_emdash_collections")
-							.select("slug")
-							.execute();
-						primeRegisteredCollections(collectionRows.map((row) => row.slug));
-						seedCollectionsReadable = true;
-					} catch (error) {
-						captureMissingManualSchema(error);
-						// Leave collections unreadable so a read failure never triggers
-						// a seed onto a half-built db.
-					}
-				}),
-			);
-		}
-
-		await Promise.all(coldStartReads);
+		const seedComplete = reads.site?.seedComplete ?? true;
+		const setupDone = reads.site?.setupDone ?? true;
 		if (missingManualSchemaError) {
 			await disposeReadDb();
 			throw missingManualSchemaError;
@@ -1870,7 +1915,7 @@ export class EmDashRuntime {
 				// The site-info read ran before the seed wrote its defaults, so
 				// refresh the snapshot the plugin context sees.
 				try {
-					siteInfo = await readSiteInfo();
+					siteInfo = (await readSiteInfo(readDb)).siteInfo;
 				} catch {
 					// Non-fatal — plugin context falls back to undefined fields.
 				}
@@ -2377,8 +2422,14 @@ export class EmDashRuntime {
 
 	/**
 	 * Get or create database instance
+	 *
+	 * `appliedMigrationCount` is a count the caller already read from this
+	 * database; the migration policy uses it rather than reading its own.
 	 */
-	private static async getDatabase(deps: RuntimeDependencies): Promise<Kysely<Database>> {
+	private static async getDatabase(
+		deps: RuntimeDependencies,
+		options?: { appliedMigrationCount?: number | null },
+	): Promise<Kysely<Database>> {
 		// Only use the per-request `ctx.db` when it's an isolated instance
 		// (playground / DO preview). Plain D1 Sessions set `ctx.db` on every
 		// anonymous request — if we captured one of those session-bound
@@ -2442,7 +2493,9 @@ export class EmDashRuntime {
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
 				try {
-					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
+					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto", {
+						appliedCount: options?.appliedMigrationCount,
+					});
 				} catch (error) {
 					// Only a failed migration run, or a lock its holder left behind,
 					// backs off. Waiting behind a slow concurrent migrator, pending

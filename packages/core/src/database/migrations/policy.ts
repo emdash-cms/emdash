@@ -56,10 +56,11 @@ export class PendingMigrationsError extends Error {
 export async function enforceRuntimeMigrationPolicy(
 	db: Kysely<Database>,
 	mode: RuntimeMigrationMode,
+	options?: { appliedCount?: number | null },
 ): Promise<void> {
 	if (mode === "manual") return;
 	if (mode === "auto") {
-		await runMigrations(db);
+		await runMigrations(db, { appliedCount: options?.appliedCount });
 		return;
 	}
 

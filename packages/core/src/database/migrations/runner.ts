@@ -276,6 +276,12 @@ export interface MigrationOptions {
 	 * give-up path doesn't take 10 seconds per case.
 	 */
 	raceWaitMs?: number;
+	/**
+	 * An applied-migration count the caller already read from this database
+	 * (`getAppliedMigrationCount`). The fast path uses it instead of reading
+	 * its own. Leave it undefined to have runMigrations read the count.
+	 */
+	appliedCount?: number | null;
 }
 
 export function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
@@ -391,7 +397,7 @@ const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
  * permission errors, or other unexpected driver problems behind a 10s wait
  * and a bogus "we're done" verdict.
  */
-async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
+export async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
 	try {
 		const result = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
@@ -403,6 +409,17 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
 		}
 		throw error;
 	}
+}
+
+/**
+ * Whether an applied-migration count (from `getAppliedMigrationCount`) covers
+ * every migration this build knows about. `>=` rather than `===` so a
+ * database with extra rows from a newer build (e.g. mid-deploy old isolate,
+ * or downgrade) still counts as current, instead of falling through to the
+ * migrator's race-recovery path unnecessarily.
+ */
+export function isMigrationCountCurrent(count: number | null | undefined): boolean {
+	return count != null && count >= MIGRATION_COUNT;
 }
 
 /**
@@ -512,14 +529,14 @@ export async function runMigrations(
 	options?: MigrationOptions,
 ): Promise<{ applied: string[] }> {
 	// Fast path: check if all migrations are already applied.
-	// A single cheap query vs the Migrator's full schema introspection.
-	// We use `>=` rather than `===` so a database with extra rows from a
-	// newer build (e.g. mid-deploy old isolate, or downgrade) still skips
-	// the migrator instead of falling through to the race-recovery path
-	// unnecessarily.
+	// A single cheap query vs the Migrator's full schema introspection, or
+	// none when the caller already read the count.
 	if (!options?.migrationTableSchema) {
-		const initialCount = await getAppliedMigrationCount(db);
-		if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
+		const initialCount =
+			options?.appliedCount !== undefined
+				? options.appliedCount
+				: await getAppliedMigrationCount(db);
+		if (isMigrationCountCurrent(initialCount)) {
 			return { applied: [] };
 		}
 	}
