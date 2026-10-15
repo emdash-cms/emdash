@@ -1,4 +1,4 @@
-import { Button, LinkButton, Popover } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Popover } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -10,6 +10,8 @@ import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 
 export type { CurrentUser } from "../lib/api/current-user";
+
+const ROLE_ADMIN = 50;
 
 async function handleLogout() {
 	// Clear the public-site toolbar-bootstrap flag (see Shell.tsx).
@@ -34,7 +36,7 @@ async function handleLogout() {
  * Admin header with mobile menu toggle and user actions.
  * Uses useSidebar() hook from kumo Sidebar.Provider context.
  */
-export function Header() {
+export function Header({ staging = false }: { staging?: boolean }) {
 	const { t } = useLingui();
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
@@ -54,6 +56,17 @@ export function Header() {
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">
+				{staging &&
+					((user?.role ?? 0) >= ROLE_ADMIN ? (
+						<Link to="/settings/general" title={t`Hidden from search engines until you go live`}>
+							<Badge variant="warning">{t`Staging`}</Badge>
+						</Link>
+					) : (
+						<span title={t`Hidden from search engines until you go live`}>
+							<Badge variant="warning">{t`Staging`}</Badge>
+						</span>
+					))}
+
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
 					<ArrowSquareOut className="h-4 w-4 me-1" />
