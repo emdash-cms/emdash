@@ -7,8 +7,17 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { POST as analyzeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/analyze.js";
+import { POST as executeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
+import {
+	clearSources,
+	probeUrl,
+	registerSource,
+	SiteChallengeError,
+} from "../../../src/import/registry.js";
 import { wordpressPluginSource } from "../../../src/import/sources/wordpress-plugin.js";
 import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
+import { setupTestDatabase } from "../../utils/test-db.js";
 
 // ─── Mock fetch ──────────────────────────────────────────────────────────────
 
@@ -595,4 +604,157 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		);
 		expectUserAgentOnAllCalls();
 	});
+});
+
+describe("WordPress Plugin Source: bot-protection challenges", () => {
+	function challengeResponse() {
+		return new Response("<!DOCTYPE html><title>Just a moment...</title>", {
+			status: 403,
+			headers: { "cf-mitigated": "challenge", "content-type": "text/html" },
+		});
+	}
+
+	beforeEach(() => {
+		clearSources();
+		registerSource(wordpressPluginSource);
+	});
+
+	afterAll(() => {
+		clearSources();
+	});
+
+	it("rejects analyze with a SiteChallengeError when a challenge page answers", async () => {
+		mockFetch.mockImplementation(() => Promise.resolve(challengeResponse()));
+
+		await expect(
+			wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{},
+			),
+		).rejects.toBeInstanceOf(SiteChallengeError);
+	});
+
+	it("marks the probe result as challenged when a challenge page answers", async () => {
+		mockFetch.mockImplementation(() => Promise.resolve(challengeResponse()));
+
+		const result = await probeUrl("https://example.com");
+
+		expect(result.isWordPress).toBe(false);
+		expect(result.challenged).toBe(true);
+	});
+
+	it("does not mark a plain 403 as challenged", async () => {
+		mockFetch.mockImplementation(() => Promise.resolve(new Response("Forbidden", { status: 403 })));
+
+		const result = await probeUrl("https://example.com");
+
+		expect(result.isWordPress).toBe(false);
+		expect(result.challenged).toBeUndefined();
+	});
+
+	function routeContext(path: string, body: unknown, emdash: unknown) {
+		return {
+			request: new Request(`http://localhost/_emdash/api/import/wordpress-plugin/${path}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+				body: JSON.stringify(body),
+			}),
+			locals: { emdash, user: { id: "admin", role: 50 } },
+		};
+	}
+
+	it.each([
+		[
+			"analyze",
+			analyzeRoute,
+			{ url: "https://example.com", token: "test-token" },
+			async () => ({ db: await setupTestDatabase() }),
+		],
+		[
+			"execute",
+			executeRoute,
+			{
+				url: "https://example.com",
+				token: "test-token",
+				config: { postTypeMappings: { post: { collection: "posts", enabled: true } } },
+				phase: "content",
+			},
+			async () => ({
+				db: await setupTestDatabase(),
+				handleContentCreate: vi.fn(),
+				getManifest: async () => ({ collections: {} }),
+			}),
+		],
+	])(
+		"the %s route answers a challenge with WP_SITE_CHALLENGE",
+		async (path, route, body, makeEmdash) => {
+			mockFetch.mockImplementation(() => Promise.resolve(challengeResponse()));
+
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro context
+			const response = await route(routeContext(path, body, await makeEmdash()) as any);
+
+			expect(response.status).toBe(502);
+			const json = (await response.json()) as { error: { code: string } };
+			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
+		},
+	);
+
+	function challengeOnly(endpoint: string) {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes(`/emdash/v1/${endpoint}`)) return Promise.resolve(challengeResponse());
+			if (url.includes("/emdash/v1/analyze")) {
+				return Promise.resolve(new Response(JSON.stringify(makeAnalyzeResponse(1))));
+			}
+			if (url.includes("/emdash/v1/content")) return Promise.resolve(contentResponse([]));
+			return Promise.resolve(new Response("[]"));
+		});
+	}
+
+	it("rejects analyze when only the media list answers with a challenge", async () => {
+		challengeOnly("media");
+
+		await expect(
+			wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{},
+			),
+		).rejects.toBeInstanceOf(SiteChallengeError);
+	});
+
+	it.each([
+		["taxonomies", "content", {}],
+		["menus", "finalize", {}],
+		["options", "finalize", { importMenus: false }],
+		["taxonomies", "unchunked", {}],
+		["menus", "unchunked", {}],
+		["comments", "unchunked", { importMenus: false }],
+		["options", "unchunked", { importMenus: false }],
+	])(
+		"a challenged %s request in the %s import answers with WP_SITE_CHALLENGE",
+		async (endpoint, phase, extraConfig) => {
+			challengeOnly(endpoint);
+			const body = {
+				url: "https://example.com",
+				token: "test-token",
+				config: {
+					postTypeMappings: { post: { collection: "posts", enabled: true } },
+					...extraConfig,
+				},
+				...(phase === "unchunked" ? {} : { phase }),
+			};
+			const emdash = {
+				db: await setupTestDatabase(),
+				handleContentCreate: vi.fn(),
+				getManifest: async () => ({ collections: {} }),
+			};
+
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro context
+			const response = await executeRoute(routeContext("execute", body, emdash) as any);
+
+			expect(response.status).toBe(502);
+			const json = (await response.json()) as { error: { code: string } };
+			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
+		},
+	);
 });

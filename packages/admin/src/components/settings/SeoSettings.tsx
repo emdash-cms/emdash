@@ -1,7 +1,8 @@
 /**
  * SEO Settings sub-page
  *
- * Title separator, search engine verification codes, and robots.txt.
+ * Title separator, search engine verification codes, robots.txt, and the
+ * AI training opt-out.
  */
 
 import {
@@ -10,7 +11,9 @@ import {
 	Field,
 	Input,
 	InputArea,
+	Label,
 	Loader,
+	Switch,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
@@ -35,6 +38,7 @@ function seoSettingsSnapshot(settings: SiteSettingsUpdate) {
 		googleVerification: settings.seo?.googleVerification ?? "",
 		bingVerification: settings.seo?.bingVerification ?? "",
 		robotsTxt: settings.seo?.robotsTxt ?? "",
+		disallowAiTraining: settings.seo?.disallowAiTraining === true,
 	});
 }
 
@@ -265,6 +269,22 @@ export function SeoSettings() {
 							onChange={(e) => handleSeoChange("robotsTxt", e.target.value)}
 							rows={5}
 							description={t`Custom robots.txt content. Leave empty to use the default.`}
+						/>
+					</SettingRow>
+					<SettingRow className="flex items-start justify-between gap-6">
+						<div className="grid gap-1">
+							<Label htmlFor="seo-disallow-ai-training">{t`Disallow AI training`}</Label>
+							<p id="seo-disallow-ai-training-description" className="text-sm text-kumo-subtle">
+								{t`Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.`}
+							</p>
+						</div>
+						<Switch
+							id="seo-disallow-ai-training"
+							className="shrink-0"
+							checked={formData.seo?.disallowAiTraining === true}
+							onCheckedChange={(checked) => handleSeoChange("disallowAiTraining", checked)}
+							aria-label={t`Disallow AI training`}
+							aria-describedby="seo-disallow-ai-training-description"
 						/>
 					</SettingRow>
 				</SettingsSection>

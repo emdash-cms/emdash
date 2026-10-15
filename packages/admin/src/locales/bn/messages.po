@@ -26,6 +26,11 @@ msgstr " (নতুন উইন্ডোতে খোলে)"
 msgid "-- Select --"
 msgstr "-- নির্বাচন করুন --"
 
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:156
+msgctxt "Read aloud between a version's author and status"
+msgid ", "
+msgstr ""
+
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1924
 msgid "\"{0}\" will be deleted from {providerName}."
@@ -65,12 +70,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# আইটেম)} other {(# আইটেম)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2919
+#: packages/admin/src/components/ContentEditor.tsx:3093
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {# অক্ষরের মধ্যে {counted}, কমপক্ষে {min}} other {# অক্ষরের মধ্যে {counted}, কমপক্ষে {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2924
+#: packages/admin/src/components/ContentEditor.tsx:3098
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {# অক্ষরের মধ্যে {counted}} other {# অক্ষরের মধ্যে {counted}}}"
 
@@ -87,12 +92,12 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# কালেকশন} other {# কালেকশন}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2292
+#: packages/admin/src/components/WordPressImport.tsx:2317
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {#টি মন্তব্য ইমপোর্ট করা হয়েছে} other {#টি মন্তব্য ইমপোর্ট করা হয়েছে}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2347
+#: packages/admin/src/router.tsx:2433
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {#টি মন্তব্য আপডেট করা হয়েছে} other {#টি মন্তব্য আপডেট করা হয়েছে}}"
 
@@ -102,12 +107,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# মন্তব্য} other {# মন্তব্য}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2303
+#: packages/admin/src/components/WordPressImport.tsx:2328
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# কনটেন্ট ত্রুটি} other {# কনটেন্ট ত্রুটি}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2244
+#: packages/admin/src/components/WordPressImport.tsx:2269
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {#টি কনটেন্ট আইটেম ইমপোর্ট করা হয়েছে} other {#টি কনটেন্ট আইটেম ইমপোর্ট করা হয়েছে}}"
 
@@ -156,22 +161,22 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {#টি MCP টুল} other {#টি MCP টুল}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2308
+#: packages/admin/src/components/WordPressImport.tsx:2333
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# মিডিয়া ত্রুটি} other {# মিডিয়া ত্রুটি}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2260
+#: packages/admin/src/components/WordPressImport.tsx:2285
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {#টি মিডিয়া ফাইল ইমপোর্ট করা হয়েছে} other {#টি মিডিয়া ফাইল ইমপোর্ট করা হয়েছে}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2284
+#: packages/admin/src/components/WordPressImport.tsx:2309
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {#টি মেনু ইমপোর্ট করা হয়েছে} other {#টি মেনু ইমপোর্ট করা হয়েছে}}"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1932
+#: packages/admin/src/components/WordPressImport.tsx:1957
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {#টি মেনু ইমপোর্ট করা হবে} other {#টি মেনু ইমপোর্ট করা হবে}}"
 
@@ -187,7 +192,7 @@ msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {#টি অনুমতি} other {#টি অনুমতি}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2515
+#: packages/admin/src/components/WordPressImport.tsx:2540
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {#টি পোস্ট} other {#টি পোস্ট}}"
 
@@ -222,17 +227,17 @@ msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {#টি নির্বাচিত} other {#টি নির্বাচিত}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2252
+#: packages/admin/src/components/WordPressImport.tsx:2277
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {#টি বাদ দেওয়া হয়েছে (আগে থেকেই আছে)} other {#টি বাদ দেওয়া হয়েছে (আগে থেকেই আছে)}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2276
+#: packages/admin/src/components/WordPressImport.tsx:2301
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {#টি ট্যাক্সোনমি অ্যাসাইনমেন্ট} other {#টি ট্যাক্সোনমি অ্যাসাইনমেন্ট}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2268
+#: packages/admin/src/components/WordPressImport.tsx:2293
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {#টি ট্যাক্সোনমি তৈরি করা হয়েছে} other {#টি ট্যাক্সোনমি তৈরি করা হয়েছে}}"
 
@@ -262,7 +267,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:2929
+#: packages/admin/src/components/ContentEditor.tsx:3103
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {কমপক্ষে # অক্ষর} other {কমপক্ষে # অক্ষর}}"
 
@@ -324,7 +329,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "{0} এখানে সরানো যাবে না — এর প্যারেন্টের এই লোকেলে কোনো অনুবাদ নেই, তাই এই তালিকাটি সেই গ্রুপ নয় যার অংশ এটি।"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1332
+#: packages/admin/src/components/WordPressImport.tsx:1357
 msgid "{0} detected"
 msgstr "{0} শনাক্ত হয়েছে"
 
@@ -360,12 +365,12 @@ msgstr "{0} এখন সক্রিয়"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2002
+#: packages/admin/src/components/WordPressImport.tsx:2027
 msgid "{0} items → {1}"
 msgstr "{0}টি আইটেম → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1925
+#: packages/admin/src/components/WordPressImport.tsx:1950
 msgid "{0} items will be imported"
 msgstr "{0}টি আইটেম ইমপোর্ট করা হবে"
 
@@ -406,17 +411,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{1}টি ধাপের মধ্যে {0}টি · {3}-এর মধ্যে {2}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:694
+#: packages/admin/src/router.tsx:758
 msgid "{0} of {total} could not be deleted"
 msgstr "{total}টির মধ্যে {0}টি মুছে ফেলা যায়নি"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:650
+#: packages/admin/src/router.tsx:714
 msgid "{0} of {total} could not be published"
 msgstr "{total}টির মধ্যে {0}টি প্রকাশ করা যায়নি"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:673
+#: packages/admin/src/router.tsx:737
 msgid "{0} of {total} could not be updated"
 msgstr "{total}টির মধ্যে {0}টি আপডেট করা যায়নি"
 
@@ -482,10 +487,6 @@ msgstr ""
 msgid "{base} to: {0}"
 msgstr "{base} (গন্তব্য: {0})"
 
-#: packages/admin/src/components/RevisionHistory.tsx:361
-msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
-msgstr "{changedCount, plural, one {পরবর্তী রিভিশন থেকে #টি পরিবর্তন} other {পরবর্তী রিভিশন থেকে #টি পরিবর্তন}}"
-
 #: packages/admin/src/components/PortableTextEditor.tsx:3305
 #: packages/admin/src/components/PortableTextEditor.tsx:3317
 msgid "{characters, plural, one {# character} other {# characters}}"
@@ -509,20 +510,33 @@ msgstr "{0}টির মধ্যে {completedCount}টি সম্পন্�
 msgid "{completedCount} of {0} uploads complete"
 msgstr "{0}টির মধ্যে {completedCount}টি আপলোড সম্পন্ন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2101
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:419
+msgid "{count, plural, one {# block} other {# blocks}}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:420
+msgid "{count, plural, one {# entry} other {# entries}}"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# ফাইল} other {# ফাইল}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2380
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
+#: packages/admin/src/components/WordPressImport.tsx:2405
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# আইটেম} other {# আইটেম}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2172
+#: packages/admin/src/components/WordPressImport.tsx:2197
 msgid "{current} of {total}"
 msgstr "{total}-এর মধ্যে {current}"
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:468
 msgid "{dayLabel}, {entries}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/revision-format.ts:123
+msgid "{dayLabel}, {timeLabel}"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:120
@@ -553,6 +567,10 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:394
 msgid "{hidden, plural, one {+# more} other {+# more}}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:390
+msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:38
@@ -590,6 +608,10 @@ msgstr "{label} {0} নম্বর অবস্থানে সরানো হ
 msgid "{label} options"
 msgstr "{label} অপশন"
 
+#: packages/admin/src/components/revisions/RevisionList.tsx:246
+msgid "{label}, {restored}"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:366
 msgid "{lateness} late"
 msgstr ""
@@ -598,11 +620,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {\"{searchQuery}\"-এর সাথে মিলে যাওয়া #টি আইটেম} other {\"{searchQuery}\"-এর সাথে মিলে যাওয়া #টি আইটেম}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2502
+#: packages/admin/src/components/WordPressImport.tsx:2527
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{totalCount}টির মধ্যে {matchedCount}টি অ্যাসাইন করা হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2490
+#: packages/admin/src/components/WordPressImport.tsx:2515
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{totalCount} জন লেখকের মধ্যে {matchedCount} জন ইমেইলের মাধ্যমে মিলেছে"
 
@@ -662,11 +684,11 @@ msgstr "{name} সর্বোচ্চ {bound} হতে পারে।"
 msgid "{name}: this site already has some"
 msgstr "{name}: এই সাইটে ইতিমধ্যে কিছু আছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1908
+#: packages/admin/src/components/WordPressImport.tsx:1933
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {#টি নতুন কালেকশন তৈরি করা হবে} other {#টি নতুন কালেকশন তৈরি করা হবে}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1917
+#: packages/admin/src/components/WordPressImport.tsx:1942
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {বিদ্যমান #টি কালেকশনে ফিল্ড যোগ করা হবে} other {বিদ্যমান #টি কালেকশনে ফিল্ড যোগ করা হবে}}"
 
@@ -818,13 +840,21 @@ msgstr "{totalDrafts, plural, one {খসড়া} other {খসড়া}}"
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {নির্ধারিত} other {নির্ধারিত}}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:373
-msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
-msgstr "{unchangedCount, plural, one {# অপরিবর্তিত লুকান} other {# অপরিবর্তিত লুকান}}"
+#: packages/admin/src/components/revisions/RevisionList.tsx:239
+msgid "{when}, {author}"
+msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:374
-msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
-msgstr "{unchangedCount, plural, one {# অপরিবর্তিত দেখান} other {# অপরিবর্তিত দেখান}}"
+#: packages/admin/src/components/revisions/RevisionList.tsx:236
+msgid "{when}, Current version, {author}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:234
+msgid "{when}, Current version, Published, {author}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:238
+msgid "{when}, Published, {author}"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{widgetType} in {areaName}"
@@ -843,21 +873,21 @@ msgstr "/new-page বা /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page বা /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2122
+#: packages/admin/src/components/WordPressImport.tsx:2147
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• ফাইলগুলো আপনার WordPress সাইট থেকে ডাউনলোড করা হয়"
 
-#: packages/admin/src/components/WordPressImport.tsx:2123
+#: packages/admin/src/components/WordPressImport.tsx:2148
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• আপনার EmDash মিডিয়া স্টোরেজে আপলোড করা হয়"
 
-#: packages/admin/src/components/WordPressImport.tsx:2124
+#: packages/admin/src/components/WordPressImport.tsx:2149
 msgid "• URLs in your content are updated automatically"
 msgstr "• আপনার কনটেন্টের URL-গুলো স্বয়ংক্রিয়ভাবে আপডেট করা হয়"
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 #: packages/admin/src/components/SetupWizard.tsx:339
-#: packages/admin/src/components/WordPressImport.tsx:1630
+#: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "← Back"
 msgstr "← ফিরে যান"
 
@@ -901,11 +931,11 @@ msgstr ""
 msgid "1 year"
 msgstr "1 বছর"
 
-#: packages/admin/src/components/WordPressImport.tsx:1551
+#: packages/admin/src/components/WordPressImport.tsx:1576
 msgid "1. Log into your WordPress admin"
 msgstr "1. আপনার WordPress অ্যাডমিনে সাইন ইন করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1304
+#: packages/admin/src/components/WordPressImport.tsx:1329
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. আপনার WordPress অ্যাডমিন ড্যাশবোর্ডে সাইন ইন করুন"
 
@@ -913,11 +943,11 @@ msgstr "1. আপনার WordPress অ্যাডমিন ড্যাশব
 msgid "16:9"
 msgstr "16:9"
 
-#: packages/admin/src/components/WordPressImport.tsx:76
+#: packages/admin/src/components/WordPressImport.tsx:77
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. <0>Tools → Export</0>-এ যান"
 
-#: packages/admin/src/components/WordPressImport.tsx:1552
+#: packages/admin/src/components/WordPressImport.tsx:1577
 msgid "2. Go to Users → Profile"
 msgstr "2. Users → Profile-এ যান"
 
@@ -925,11 +955,11 @@ msgstr "2. Users → Profile-এ যান"
 msgid "3:2"
 msgstr "3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1553
+#: packages/admin/src/components/WordPressImport.tsx:1578
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. \"Application Passwords\" পর্যন্ত স্ক্রল করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1308
+#: packages/admin/src/components/WordPressImport.tsx:1333
 msgid "3. Select \"All content\""
 msgstr "3. \"All content\" নির্বাচন করুন"
 
@@ -957,11 +987,11 @@ msgstr "308 স্থায়ী (কঠোর)"
 msgid "4:3"
 msgstr "4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1309
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "4. Click \"Download Export File\""
 msgstr "4. \"Download Export File\"-এ ক্লিক করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1554
+#: packages/admin/src/components/WordPressImport.tsx:1579
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. \"EmDash\" লিখুন এবং \"Add New\"-এ ক্লিক করুন"
 
@@ -977,11 +1007,11 @@ msgstr "410 কনটেন্ট মুছে ফেলা হয়েছে (
 msgid "451 Unavailable for legal reasons"
 msgstr "451 আইনি কারণে অনুপলব্ধ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1555
+#: packages/admin/src/components/WordPressImport.tsx:1580
 msgid "5. Copy the generated password"
 msgstr "5. তৈরি হওয়া পাসওয়ার্ডটি কপি করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1310
+#: packages/admin/src/components/WordPressImport.tsx:1335
 msgid "5. Upload the file here"
 msgstr "5. ফাইলটি এখানে আপলোড করুন"
 
@@ -1045,13 +1075,13 @@ msgstr "একটি প্যাকেজ ফাইল ম্যানিফে
 msgid "A package file is missing"
 msgstr "একটি প্যাকেজ ফাইল অনুপস্থিত"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:173
-#: packages/admin/src/components/ContentSettingsPanel.tsx:220
-#: packages/admin/src/components/ContentSettingsPanel.tsx:242
+#: packages/admin/src/components/ContentSettingsPanel.tsx:177
+#: packages/admin/src/components/ContentSettingsPanel.tsx:228
+#: packages/admin/src/components/ContentSettingsPanel.tsx:254
 msgid "A publication time has not been selected"
 msgstr "প্রকাশের সময় নির্বাচন করা হয়নি"
 
-#: packages/admin/src/components/ContentEditor.tsx:1243
+#: packages/admin/src/components/ContentEditor.tsx:1320
 msgid "A publishing action is already in progress"
 msgstr "একটি প্রকাশনা কার্যক্রম ইতিমধ্যে চলছে"
 
@@ -1142,7 +1172,7 @@ msgstr "আমন্ত্রণ গ্রহণ করুন"
 msgid "Access denied"
 msgstr "অ্যাক্সেস অস্বীকৃত"
 
-#: packages/admin/src/router.tsx:2367
+#: packages/admin/src/router.tsx:2453
 msgid "Access Denied"
 msgstr "অ্যাক্সেস অস্বীকৃত"
 
@@ -1167,7 +1197,7 @@ msgstr "অ্যাকাউন্টটি ইতিমধ্যে আছে"
 msgid "Account Info"
 msgstr "অ্যাকাউন্টের তথ্য"
 
-#: packages/admin/src/components/WordPressImport.tsx:1189
+#: packages/admin/src/components/WordPressImport.tsx:1208
 msgid "ACF Fields"
 msgstr "ACF ফিল্ড"
 
@@ -1296,7 +1326,7 @@ msgstr "ডোমেইন যোগ করুন"
 msgid "Add Field"
 msgstr "ফিল্ড যোগ করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2013
+#: packages/admin/src/components/WordPressImport.tsx:2038
 msgid "Add fields"
 msgstr "ফিল্ড যোগ করুন"
 
@@ -1364,8 +1394,8 @@ msgstr "noindex মেটা ট্যাগ যোগ করুন"
 msgid "Add Passkey"
 msgstr "পাসকি যোগ করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2841
-#: packages/admin/src/components/ContentEditor.tsx:2841
+#: packages/admin/src/components/ContentEditor.tsx:3015
+#: packages/admin/src/components/ContentEditor.tsx:3015
 msgid "Add reference"
 msgstr ""
 
@@ -1424,6 +1454,72 @@ msgstr "আপনার সোশ্যাল মিডিয়া প্রো
 msgid "Added"
 msgstr "যোগ করা হয়েছে"
 
+#: packages/admin/src/components/revisions/change-labels.ts:133
+msgid "Added “{snippet}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:121
+msgid "Added {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:51
+msgid "Added a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:87
+msgid "Added a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:63
+msgid "Added a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:24
+msgid "Added a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:38
+msgid "Added a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:17
+msgid "Added a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:31
+msgid "Added a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:57
+msgid "Added a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:69
+msgid "Added a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:75
+msgid "Added an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:81
+msgid "Added an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:45
+#: packages/admin/src/components/revisions/change-labels.ts:95
+msgid "Added an image"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:108
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:230
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:55
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:190
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:270
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:139
+msgid "Added:"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:551
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
@@ -1433,7 +1529,7 @@ msgstr "যোগ করা হচ্ছে..."
 msgid "Adding…"
 msgstr "যোগ করা হচ্ছে…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1782
+#: packages/admin/src/components/WordPressImport.tsx:1807
 msgid "Additional data to import."
 msgstr "ইমপোর্ট করার জন্য অতিরিক্ত ডেটা।"
 
@@ -1441,7 +1537,11 @@ msgstr "ইমপোর্ট করার জন্য অতিরিক্ত
 msgid "Additional details"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1512
+#: packages/admin/src/components/settings/SeoSettings.tsx:278
+msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1537
 msgid "admin"
 msgstr "admin"
 
@@ -1546,7 +1646,7 @@ msgstr "সব কালেকশন"
 msgid "All comments require approval"
 msgstr "সব মন্তব্যের জন্য অনুমোদন প্রয়োজন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2547
+#: packages/admin/src/components/WordPressImport.tsx:2572
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "ইমপোর্ট করা সব কনটেন্ট কোনো লেখকের সাথে যুক্ত থাকবে না। পরে কনটেন্ট এডিটর থেকে লেখক পুনরায় নির্ধারণ করতে পারবেন।"
 
@@ -1660,7 +1760,7 @@ msgstr "ফোল্ডারের জন্য বিকল্প টেক্
 msgid "Alt text set"
 msgstr "বিকল্প টেক্সট সেট করা হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1424
+#: packages/admin/src/components/WordPressImport.tsx:1449
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "অথবা, আপনি WordPress থেকে এক্সপোর্ট (Tools → Export) করে ফাইলটি আপলোড করতে পারেন।"
 
@@ -1699,9 +1799,9 @@ msgstr "একটি এনক্রিপ্টেড ডিজিটাল ক
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
-#: packages/admin/src/components/settings/SeoSettings.tsx:82
-#: packages/admin/src/components/settings/SeoSettings.tsx:144
-#: packages/admin/src/components/settings/SeoSettings.tsx:145
+#: packages/admin/src/components/settings/SeoSettings.tsx:86
+#: packages/admin/src/components/settings/SeoSettings.tsx:148
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
@@ -1709,25 +1809,25 @@ msgstr "একটি এনক্রিপ্টেড ডিজিটাল ক
 #: packages/admin/src/components/TaxonomySidebar.tsx:687
 #: packages/admin/src/components/TaxonomySidebar.tsx:783
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:582
-#: packages/admin/src/router.tsx:597
-#: packages/admin/src/router.tsx:611
-#: packages/admin/src/router.tsx:625
-#: packages/admin/src/router.tsx:848
-#: packages/admin/src/router.tsx:1248
-#: packages/admin/src/router.tsx:1351
-#: packages/admin/src/router.tsx:1385
-#: packages/admin/src/router.tsx:1409
-#: packages/admin/src/router.tsx:1434
-#: packages/admin/src/router.tsx:1490
-#: packages/admin/src/router.tsx:1509
-#: packages/admin/src/router.tsx:1542
-#: packages/admin/src/router.tsx:1563
-#: packages/admin/src/router.tsx:2312
-#: packages/admin/src/router.tsx:2328
-#: packages/admin/src/router.tsx:2353
-#: packages/admin/src/router.tsx:2779
-#: packages/admin/src/router.tsx:2964
+#: packages/admin/src/router.tsx:646
+#: packages/admin/src/router.tsx:661
+#: packages/admin/src/router.tsx:675
+#: packages/admin/src/router.tsx:689
+#: packages/admin/src/router.tsx:912
+#: packages/admin/src/router.tsx:1317
+#: packages/admin/src/router.tsx:1436
+#: packages/admin/src/router.tsx:1470
+#: packages/admin/src/router.tsx:1494
+#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1575
+#: packages/admin/src/router.tsx:1594
+#: packages/admin/src/router.tsx:1627
+#: packages/admin/src/router.tsx:1648
+#: packages/admin/src/router.tsx:2398
+#: packages/admin/src/router.tsx:2414
+#: packages/admin/src/router.tsx:2439
+#: packages/admin/src/router.tsx:2865
+#: packages/admin/src/router.tsx:3050
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1747,11 +1847,11 @@ msgstr "একটি অপ্রত্যাশিত ত্রুটি ঘট
 msgid "An unknown error occurred"
 msgstr "একটি অজানা ত্রুটি ঘটেছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1604
+#: packages/admin/src/components/WordPressImport.tsx:1629
 msgid "Analyzing export file..."
 msgstr "এক্সপোর্ট ফাইল বিশ্লেষণ করা হচ্ছে..."
 
-#: packages/admin/src/components/WordPressImport.tsx:836
+#: packages/admin/src/components/WordPressImport.tsx:855
 msgid "Analyzing WordPress site..."
 msgstr "WordPress সাইট বিশ্লেষণ করা হচ্ছে..."
 
@@ -1787,7 +1887,7 @@ msgstr "API টোকেন"
 msgid "Appears on posts and pages"
 msgstr "পোস্ট এবং পেজে দেখা যায়"
 
-#: packages/admin/src/components/WordPressImport.tsx:1519
+#: packages/admin/src/components/WordPressImport.tsx:1544
 msgid "Application Password"
 msgstr "অ্যাপ্লিকেশন পাসওয়ার্ড"
 
@@ -1890,7 +1990,7 @@ msgstr "এই সেটআপ সম্পন্ন করতে একজন �
 msgid "Aspect ratio"
 msgstr "অ্যাসপেক্ট রেশিও"
 
-#: packages/admin/src/components/WordPressImport.tsx:2485
+#: packages/admin/src/components/WordPressImport.tsx:2510
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "WordPress লেখকদের EmDash ব্যবহারকারীদের সাথে যুক্ত করুন। পোস্টগুলো নির্বাচিত ব্যবহারকারীর নামে দেখানো হবে।"
 
@@ -1902,11 +2002,11 @@ msgstr "MCP-এর মাধ্যমে সংযুক্ত অ্যাস�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:2952
+#: packages/admin/src/components/ContentEditor.tsx:3126
 msgid "At least {min}"
 msgstr "কমপক্ষে {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2949
+#: packages/admin/src/components/ContentEditor.tsx:3123
 msgid "At most {max}"
 msgstr "সর্বোচ্চ {max}"
 
@@ -1949,14 +2049,14 @@ msgstr "প্রমাণীকরণ বাতিল হয়েছে বা
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
 #: packages/admin/src/components/comments/CommentInbox.tsx:325
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1417
 #: packages/admin/src/components/RelationForm.tsx:315
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
 msgstr "লেখক"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2525
 msgid "Author Mapping"
 msgstr "লেখক ম্যাপিং"
 
@@ -2029,7 +2129,7 @@ msgstr "স্বয়ংক্রিয় ব্যাকআপ"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "স্বয়ংক্রিয় ব্যাকআপের জন্য একটি স্টোরেজ ব্যাকএন্ড (R2, S3 বা লোকাল স্টোরেজ) প্রয়োজন। এগুলো চালু করতে আপনার EmDash কনফিগে স্টোরেজ কনফিগার করুন।"
 
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1433
 msgid "Autosave failed"
 msgstr "স্বয়ংক্রিয় সংরক্ষণ ব্যর্থ হয়েছে"
 
@@ -2069,12 +2169,12 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1815
 #: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1539
-#: packages/admin/src/components/WordPressImport.tsx:2556
+#: packages/admin/src/components/WordPressImport.tsx:1564
+#: packages/admin/src/components/WordPressImport.tsx:2581
 msgid "Back"
 msgstr "ফিরে যান"
 
-#: packages/admin/src/components/ContentEditor.tsx:1470
+#: packages/admin/src/components/ContentEditor.tsx:1546
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel} তালিকায় ফিরে যান"
 
@@ -2082,6 +2182,18 @@ msgstr "{collectionLabel} তালিকায় ফিরে যান"
 #: packages/admin/src/components/RelationList.tsx:62
 msgid "Back to Content Types"
 msgstr "কনটেন্ট টাইপে ফিরে যান"
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:206
+msgid "Back to editing"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:196
+msgid "Back to editing (Esc)"
+msgstr ""
+
+#: packages/admin/src/components/revisions/useRevisionView.ts:392
+msgid "Back to editing."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
@@ -2170,12 +2282,12 @@ msgstr "পাঠানোর আগে:"
 msgid "Before you continue:"
 msgstr "চালিয়ে যাওয়ার আগে:"
 
-#: packages/admin/src/components/ContentEditor.tsx:2946
+#: packages/admin/src/components/ContentEditor.tsx:3120
 msgid "Between {min} and {max}"
 msgstr "{min} থেকে {max}-এর মধ্যে"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:252
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:256
 msgid "Bing Verification"
 msgstr "Bing যাচাইকরণ"
 
@@ -2237,6 +2349,10 @@ msgstr "বোল্ড"
 msgid "Boolean"
 msgstr "বুলিয়ান"
 
+#: packages/admin/src/components/WordPressImport.tsx:1314
+msgid "Bot protection blocked the connection"
+msgstr ""
+
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
 msgstr ""
@@ -2261,8 +2377,8 @@ msgstr "আপনার সাইটের সক্ষমতা বাড়া
 msgid "Browse files"
 msgstr "ফাইল ব্রাউজ করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1155
-#: packages/admin/src/components/WordPressImport.tsx:1623
+#: packages/admin/src/components/WordPressImport.tsx:1174
+#: packages/admin/src/components/WordPressImport.tsx:1648
 msgid "Browse Files"
 msgstr "ফাইল ব্রাউজ করুন"
 
@@ -2340,8 +2456,8 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1126
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1130
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1147
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:454
@@ -2394,9 +2510,9 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/ContentList.tsx:1540
 #: packages/admin/src/components/ContentList.tsx:1724
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:342
-#: packages/admin/src/components/ContentSettingsPanel.tsx:533
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:549
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1379
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:605
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:818
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
@@ -2427,7 +2543,7 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/TaxonomyManager.tsx:1098
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
-#: packages/admin/src/components/WordPressImport.tsx:1946
+#: packages/admin/src/components/WordPressImport.tsx:1971
 msgid "Cancel"
 msgstr "বাতিল করুন"
 
@@ -2501,11 +2617,11 @@ msgid "Categories"
 msgstr "ক্যাটাগরি"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1814
+#: packages/admin/src/components/WordPressImport.tsx:1839
 msgid "Categories ({0})"
 msgstr "ক্যাটাগরি ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1177
+#: packages/admin/src/components/WordPressImport.tsx:1196
 msgid "Categories & Tags"
 msgstr "ক্যাটাগরি ও ট্যাগ"
 
@@ -2550,7 +2666,7 @@ msgstr ""
 msgid "Change Favicon"
 msgstr "ফেভিকন পরিবর্তন করুন"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:208
+#: packages/admin/src/components/settings/SeoSettings.tsx:212
 msgid "Change Image"
 msgstr "ছবি পরিবর্তন করুন"
 
@@ -2567,7 +2683,7 @@ msgstr "প্রকাশের তারিখ পরিবর্তন কর
 msgid "Change publication date: {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:607
+#: packages/admin/src/components/ContentSettingsPanel.tsx:623
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
 msgid "Change schedule"
 msgstr "সময়সূচি পরিবর্তন করুন"
@@ -2575,6 +2691,68 @@ msgstr "সময়সূচি পরিবর্তন করুন"
 #: packages/admin/src/lib/api/marketplace.ts:436
 msgid "Change where visitors are sent"
 msgstr "ভিজিটরদের কোথায় পাঠানো হবে তা পরিবর্তন করুন"
+
+#: packages/admin/src/components/revisions/change-labels.ts:110
+msgid "Changed {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:89
+msgid "Changed a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:65
+msgid "Changed a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:71
+msgid "Changed a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:77
+msgid "Changed an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:47
+#: packages/admin/src/components/revisions/change-labels.ts:100
+msgid "Changed an image"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:177
+msgid "Changed the slug to “{slug}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:139
+msgid "Changed the style of “{snippet}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:27
+msgid "Changed the style of a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:41
+msgid "Changed the style of a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:20
+msgid "Changed the style of a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:34
+msgid "Changed the style of a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:165
+msgid "Changed the title"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:126
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:254
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:333
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:524
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:59
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:110
+msgid "Changed:"
+msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:901
 msgid "Changelog"
@@ -2584,15 +2762,19 @@ msgstr "চেঞ্জলগ"
 msgid "Changes apply everywhere this byline appears."
 msgstr "এই বাইলাইন যেখানেই দেখা যায়, সব জায়গায় পরিবর্তন প্রযোজ্য হবে।"
 
-#: packages/admin/src/router.tsx:1426
+#: packages/admin/src/router.tsx:1511
 msgid "Changes discarded"
 msgstr "পরিবর্তনগুলো বাতিল করা হয়েছে"
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:347
+msgid "Changes in this version"
+msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:478
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:172
+#: packages/admin/src/components/settings/SeoSettings.tsx:176
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "পেজের শিরোনাম ও সাইটের নামের মাঝের অক্ষর (যেমন, \"My Post | My Site\")"
 
@@ -2620,7 +2802,7 @@ msgstr "astro.config.mjs-এ registry.policy.minimumReleaseAge পরীক্�
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "astro.config.mjs-এ registry.policy.minimumReleaseAgeExclude পরীক্ষা করুন, তারপর EmDash পুনরায় চালু করুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1126
+#: packages/admin/src/components/WordPressImport.tsx:1145
 msgid "Check Site"
 msgstr "সাইট পরীক্ষা করুন"
 
@@ -2638,7 +2820,7 @@ msgstr ""
 msgid "Check your email"
 msgstr "আপনার ইমেইল দেখুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:802
+#: packages/admin/src/components/WordPressImport.tsx:821
 msgid "Checking {urlInput}..."
 msgstr "{urlInput} পরীক্ষা করা হচ্ছে..."
 
@@ -2823,6 +3005,10 @@ msgstr "সংরক্ষিত মান মুছে ফেলুন"
 msgid "Clear stored value for {fieldKey}"
 msgstr "{fieldKey}-এর সংরক্ষিত মান মুছে ফেলুন"
 
+#: packages/admin/src/components/revisions/change-labels.ts:123
+msgid "Cleared {label}"
+msgstr ""
+
 #: packages/admin/src/locales/emails.ts:56
 msgid "Click the button below to create your account:"
 msgstr "আপনার অ্যাকাউন্ট তৈরি করতে নিচের বোতামে ক্লিক করুন:"
@@ -2931,9 +3117,13 @@ msgstr "ছবির সেটিংস বন্ধ করুন"
 msgid "Close panel"
 msgstr "প্যানেল বন্ধ করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2040
+#: packages/admin/src/components/ContentEditor.tsx:2214
 msgid "Close settings"
 msgstr "সেটিংস বন্ধ করুন"
+
+#: packages/admin/src/components/WordPressImport.tsx:93
+msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:388
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
@@ -2992,7 +3182,7 @@ msgstr "কালেকশন"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "কালেকশন ও ফিল্ড, খসড়া, রিভিশন, নির্ধারিত পোস্ট ও ট্র্যাশসহ সব কনটেন্ট, অনুবাদ, ট্যাক্সোনমি, বাইলাইন, মিডিয়া ফাইল, মেনু, উইজেট, সেকশন, রিডাইরেক্ট, SEO এবং সাইট সেটিংস।"
 
-#: packages/admin/src/components/WordPressImport.tsx:2356
+#: packages/admin/src/components/WordPressImport.tsx:2381
 msgid "Collections created:"
 msgstr "তৈরি হওয়া কালেকশন:"
 
@@ -3097,17 +3287,17 @@ msgstr "Face ID, Touch ID বা আপনার ডিভাইসের পা
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "আপনার আঙুলের ছাপ, মুখ বা PIN দিয়ে নিশ্চিত করুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:727
-#: packages/admin/src/components/WordPressImport.tsx:1083
+#: packages/admin/src/components/WordPressImport.tsx:746
+#: packages/admin/src/components/WordPressImport.tsx:1102
 msgid "Connect"
 msgstr "সংযুক্ত করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1536
+#: packages/admin/src/components/WordPressImport.tsx:1561
 msgid "Connect & Analyze"
 msgstr "সংযুক্ত করুন ও বিশ্লেষণ করুন"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1486
+#: packages/admin/src/components/WordPressImport.tsx:1511
 msgid "Connect to {0}"
 msgstr "{0}-এর সাথে সংযুক্ত করুন"
 
@@ -3121,7 +3311,7 @@ msgstr "যেকোনো নেটওয়ার্ক হোস্টে স
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "নেটওয়ার্ক হোস্টে সংযুক্ত হওয়া এবং বাহ্যিক প্লাগইন অ্যাডমিন ছবি লোড করা"
 
-#: packages/admin/src/components/WordPressImport.tsx:1402
+#: packages/admin/src/components/WordPressImport.tsx:1427
 msgid "Connect with WordPress"
 msgstr "WordPress দিয়ে সংযুক্ত করুন"
 
@@ -3134,7 +3324,7 @@ msgstr "সংযুক্ত হয়েছে {0}"
 msgid "Connects"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:465
+#: packages/admin/src/components/ContentSettingsPanel.tsx:481
 msgid "content"
 msgstr "কনটেন্ট"
 
@@ -3157,31 +3347,27 @@ msgid "Content digest"
 msgstr "কনটেন্ট ডাইজেস্ট"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2411
+#: packages/admin/src/components/WordPressImport.tsx:2436
 msgid "Content Errors ({0})"
 msgstr "কনটেন্ট ত্রুটি ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1346
+#: packages/admin/src/components/WordPressImport.tsx:1371
 msgid "Content found:"
 msgstr "পাওয়া কনটেন্ট:"
 
-#: packages/admin/src/router.tsx:1483
+#: packages/admin/src/router.tsx:1568
 msgid "Content has been scheduled for publishing"
 msgstr "কনটেন্ট প্রকাশের জন্য নির্ধারিত হয়েছে"
-
-#: packages/admin/src/components/RevisionHistory.tsx:130
-msgid "Content has been updated to the selected revision."
-msgstr "কনটেন্ট নির্বাচিত রিভিশনে আপডেট করা হয়েছে।"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:113
 msgid "Content ID:"
 msgstr "কনটেন্ট ID:"
 
-#: packages/admin/src/router.tsx:1379
+#: packages/admin/src/router.tsx:1464
 msgid "Content is now live"
 msgstr "কনটেন্ট এখন লাইভ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1076
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1093
 msgid "Content language"
 msgstr "কনটেন্টের ভাষা"
 
@@ -3202,11 +3388,11 @@ msgstr "কনটেন্ট অবৈধভাবে মিডিয়া র
 msgid "Content refers to media that is not in the package"
 msgstr "কনটেন্ট এমন মিডিয়া রেফারেন্স করে যা প্যাকেজে নেই"
 
-#: packages/admin/src/router.tsx:1403
+#: packages/admin/src/router.tsx:1488
 msgid "Content removed from public view"
 msgstr "কনটেন্ট সর্বজনীন দৃশ্য থেকে সরানো হয়েছে"
 
-#: packages/admin/src/router.tsx:1502
+#: packages/admin/src/router.tsx:1587
 msgid "Content reverted to draft"
 msgstr "কনটেন্ট খসড়ায় ফেরানো হয়েছে"
 
@@ -3214,11 +3400,7 @@ msgstr "কনটেন্ট খসড়ায় ফেরানো হয়
 msgid "Content search results"
 msgstr "কনটেন্ট অনুসন্ধানের ফলাফল"
 
-#: packages/admin/src/components/RevisionHistory.tsx:320
-msgid "Content snapshot:"
-msgstr "কনটেন্ট স্ন্যাপশট:"
-
-#: packages/admin/src/components/WordPressImport.tsx:1760
+#: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Content to Import"
 msgstr "ইমপোর্ট করার কনটেন্ট"
 
@@ -3240,7 +3422,7 @@ msgstr "একই গ্রুপের কনটেন্ট টাইপগু
 msgid "Content using this media item may show a broken reference."
 msgstr "এই মিডিয়া আইটেম ব্যবহারকারী কনটেন্টে ভাঙা রেফারেন্স দেখা যেতে পারে।"
 
-#: packages/admin/src/components/WordPressImport.tsx:2339
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Content was skipped because it already exists"
 msgstr "কনটেন্ট আগে থেকেই বিদ্যমান থাকায় বাদ দেওয়া হয়েছে"
 
@@ -3259,7 +3441,7 @@ msgstr "চালিয়ে যান"
 msgid "Continue →"
 msgstr "চালিয়ে যান →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2558
+#: packages/admin/src/components/WordPressImport.tsx:2583
 msgid "Continue Import"
 msgstr "ইমপোর্ট চালিয়ে যান"
 
@@ -3421,11 +3603,11 @@ msgstr "পোস্ট পর্যালোচনা করা যায়ন
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "মিডিয়া আইটেম বা নির্বাচিত ফোল্ডারটি এখনও আছে কি না নিশ্চিত করা যায়নি। আবার চেষ্টা করুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1293
+#: packages/admin/src/components/WordPressImport.tsx:1315
 msgid "Couldn't detect WordPress"
 msgstr "WordPress শনাক্ত করা যায়নি"
 
-#: packages/admin/src/components/ContentEditor.tsx:2820
+#: packages/admin/src/components/ContentEditor.tsx:2994
 msgid "Couldn't load all references."
 msgstr ""
 
@@ -3465,9 +3647,17 @@ msgstr "আরও ব্যবহার লোড করা যায়নি�
 msgid "Couldn’t load the import plan"
 msgstr "ইমপোর্ট পরিকল্পনা লোড করা যায়নি"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:564
+msgid "Couldn't load this version. Back to editing."
+msgstr ""
+
 #: packages/admin/src/components/MediaUsedIn.tsx:274
 msgid "Couldn’t load usage."
 msgstr "ব্যবহার লোড করা যায়নি।"
+
+#: packages/admin/src/components/RevisionHistory.tsx:91
+msgid "Couldn't load versions"
+msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -3602,7 +3792,7 @@ msgstr ""
 msgid "Create New Token"
 msgstr "নতুন টোকেন তৈরি করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1530
+#: packages/admin/src/components/WordPressImport.tsx:1555
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "WordPress-এ একটি তৈরি করুন: Users → Profile → Application Passwords"
 
@@ -3642,7 +3832,7 @@ msgstr ""
 msgid "Create Relation"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1950
+#: packages/admin/src/components/WordPressImport.tsx:1975
 msgid "Create Schema & Import"
 msgstr "স্কিমা তৈরি করুন ও ইমপোর্ট করুন"
 
@@ -3712,7 +3902,7 @@ msgid "Create, update, delete content"
 msgstr "কনটেন্ট তৈরি, আপডেট ও মুছে ফেলা"
 
 #: packages/admin/src/components/ContentList.tsx:1030
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1028
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1045
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:231
 msgid "Created"
@@ -3729,11 +3919,11 @@ msgid "Created {0}"
 msgstr "তৈরি হয়েছে {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1619
 msgid "Created {0} translation"
 msgstr "{0} অনুবাদ তৈরি করা হয়েছে"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1024
 msgid "Created and updated"
 msgstr "তৈরি ও আপডেট"
 
@@ -3745,7 +3935,7 @@ msgstr "তৈরির সময়"
 msgid "Creating collections and fields"
 msgstr "কালেকশন ও ফিল্ড তৈরি করা হচ্ছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:913
+#: packages/admin/src/components/WordPressImport.tsx:932
 msgid "Creating collections and fields..."
 msgstr "কালেকশন ও ফিল্ড তৈরি করা হচ্ছে..."
 
@@ -3807,13 +3997,14 @@ msgstr ""
 msgid "current"
 msgstr "বর্তমান"
 
-#: packages/admin/src/components/RevisionHistory.tsx:288
-msgid "Current"
-msgstr "বর্তমান"
-
 #: packages/admin/src/components/editor/TableControls.tsx:224
 msgid "Current cell"
 msgstr "বর্তমান সেল"
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
+msgid "Current version"
+msgstr ""
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
@@ -3827,7 +4018,7 @@ msgstr "কাস্টম"
 msgid "Custom Fields"
 msgstr "কাস্টম ফিল্ড"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:267
+#: packages/admin/src/components/settings/SeoSettings.tsx:271
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "কাস্টম robots.txt কনটেন্ট। ডিফল্ট ব্যবহার করতে খালি রাখুন।"
 
@@ -3835,7 +4026,7 @@ msgstr "কাস্টম robots.txt কনটেন্ট। ডিফল্�
 msgid "Custom Section"
 msgstr "কাস্টম সেকশন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1178
+#: packages/admin/src/components/WordPressImport.tsx:1197
 msgid "Custom Taxonomies"
 msgstr "কাস্টম ট্যাক্সোনমি"
 
@@ -3907,12 +4098,12 @@ msgstr "ডিফল্ট ভূমিকা"
 msgid "Default role:"
 msgstr "ডিফল্ট ভূমিকা:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:186
+#: packages/admin/src/components/settings/SeoSettings.tsx:190
 msgid "Default social image"
 msgstr "ডিফল্ট সোশ্যাল ছবি"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:46
-#: packages/admin/src/components/settings/SeoSettings.tsx:177
+#: packages/admin/src/components/settings/SeoSettings.tsx:181
 msgid "Default Social Image"
 msgstr "ডিফল্ট সোশ্যাল ছবি"
 
@@ -4344,12 +4535,17 @@ msgstr "<0>{0}</0>-কে নিষ্ক্রিয় করলে পুন�
 msgid "Disabling..."
 msgstr "নিষ্ক্রিয় করা হচ্ছে..."
 
+#: packages/admin/src/components/settings/SeoSettings.tsx:276
+#: packages/admin/src/components/settings/SeoSettings.tsx:286
+msgid "Disallow AI training"
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Discard"
 msgstr "বাতিল করুন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:328
-#: packages/admin/src/components/ContentSettingsPanel.tsx:349
+#: packages/admin/src/components/ContentSettingsPanel.tsx:344
+#: packages/admin/src/components/ContentSettingsPanel.tsx:365
 msgid "Discard changes"
 msgstr "পরিবর্তনগুলো বাতিল করুন"
 
@@ -4357,7 +4553,7 @@ msgstr "পরিবর্তনগুলো বাতিল করুন"
 msgid "Discard changes?"
 msgstr "পরিবর্তনগুলো বাতিল করবেন?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:334
+#: packages/admin/src/components/ContentSettingsPanel.tsx:350
 msgid "Discard draft changes?"
 msgstr "খসড়ার পরিবর্তনগুলো বাতিল করবেন?"
 
@@ -4422,7 +4618,7 @@ msgstr "ট্যাগ ক্লাউড দেখান"
 msgid "Displayed below the image as a visible caption."
 msgstr "ছবির নিচে দৃশ্যমান ক্যাপশন হিসেবে দেখানো হয়।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1586
+#: packages/admin/src/components/ContentEditor.tsx:1665
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "মনোযোগ-কেন্দ্রিক মোড (⌘⇧\\)"
 
@@ -4482,7 +4678,7 @@ msgstr "ম্যাপ করবেন না"
 #: packages/admin/src/components/ContentList.tsx:1229
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2182
 msgid "Done"
 msgstr "সম্পন্ন"
 
@@ -4540,7 +4736,7 @@ msgstr "এই সাইটটিকে একটি একক .emdash প্য
 msgid "Downloaded"
 msgstr "ডাউনলোড হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2155
+#: packages/admin/src/components/WordPressImport.tsx:2180
 msgid "Downloading"
 msgstr "ডাউনলোড হচ্ছে"
 
@@ -4559,12 +4755,12 @@ msgstr ""
 msgid "Draft"
 msgstr "খসড়া"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:197
-#: packages/admin/src/components/ContentSettingsPanel.tsx:219
+#: packages/admin/src/components/ContentSettingsPanel.tsx:201
+#: packages/admin/src/components/ContentSettingsPanel.tsx:227
 msgid "Draft changes"
 msgstr "খসড়ার পরিবর্তন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:163
+#: packages/admin/src/components/ContentSettingsPanel.tsx:167
 msgid "Draft version"
 msgstr "খসড়া সংস্করণ"
 
@@ -4577,7 +4773,7 @@ msgstr "খসড়া, প্রকাশিত বা আর্কাইভ �
 msgid "Drafts"
 msgstr "খসড়া"
 
-#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1216
 msgid "Drafts & Private"
 msgstr "খসড়া ও ব্যক্তিগত"
 
@@ -4585,7 +4781,7 @@ msgstr "খসড়া ও ব্যক্তিগত"
 msgid "Drag and drop files here"
 msgstr "ফাইল এখানে টেনে এনে ছাড়ুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1150
+#: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "টেনে এনে ছাড়ুন অথবা ব্রাউজ করতে ক্লিক করুন (.xml)"
 
@@ -4637,7 +4833,7 @@ msgstr "একবারে একটি ছবি ছাড়ুন।"
 msgid "Drop to add widget"
 msgstr "উইজেট যোগ করতে ছাড়ুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1617
+#: packages/admin/src/components/WordPressImport.tsx:1642
 msgid "Drop your WordPress export file here"
 msgstr "আপনার WordPress এক্সপোর্ট ফাইল এখানে ছাড়ুন"
 
@@ -4686,6 +4882,10 @@ msgstr ""
 msgid "Each path segment can contain at most one placeholder, e.g. {0}"
 msgstr ""
 
+#: packages/admin/src/components/revisions/change-labels.ts:155
+msgid "Earliest saved version"
+msgstr ""
+
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:352
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:353
 #: packages/admin/src/components/MenuCard.tsx:59
@@ -4719,7 +4919,7 @@ msgstr "{0} সম্পাদনা করুন"
 msgid "Edit {0} field"
 msgstr "{0} ফিল্ড সম্পাদনা করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1401
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel} সম্পাদনা করুন"
 
@@ -4832,6 +5032,50 @@ msgstr "ভূমিকা সম্পাদনা করুন"
 msgid "Edit URL"
 msgstr "URL সম্পাদনা করুন"
 
+#: packages/admin/src/components/revisions/change-labels.ts:137
+msgid "Edited “{snippet}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:125
+msgid "Edited {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:53
+msgid "Edited a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:26
+msgid "Edited a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:40
+msgid "Edited a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:19
+msgid "Edited a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:33
+msgid "Edited a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:59
+msgid "Edited a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:83
+msgid "Edited an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:98
+msgid "Edited an image caption"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:99
+msgid "Edited an image description"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
 msgstr "ইমপোর্ট শেষ না হওয়া পর্যন্ত সম্পাদনা স্থগিত থাকবে। এই পেজটি খোলা রাখুন; আপনি চলে গেলে ফিরে আসার পর ইমপোর্ট আবার চলবে।"
@@ -4868,7 +5112,7 @@ msgstr ""
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "এডিটররা একটি দ্বিতীয় ছবি বেছে নিতে পারবেন, যা সাইট ডার্ক মোডে দেখাবে।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1073
+#: packages/admin/src/components/WordPressImport.tsx:1092
 msgid "em1.…"
 msgstr "em1.…"
 
@@ -4928,6 +5172,7 @@ msgid "Email verified!"
 msgstr "ইমেইল যাচাই করা হয়েছে!"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:49
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:501
 msgid "Embed"
 msgstr ""
 
@@ -4970,7 +5215,7 @@ msgstr "EmDash আগের ছবিটি রাখে না।"
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash ক্রপ না করা ছবিটি রাখে না।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1336
+#: packages/admin/src/components/WordPressImport.tsx:1361
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "EmDash Exporter প্লাগইন পাওয়া গেছে! আপনি সরাসরি ইমপোর্ট করতে পারেন।"
 
@@ -4993,6 +5238,11 @@ msgstr "EmDash সেটআপ চালিয়ে যাবে এবং ব�
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:576
 msgid "EmDash will scan existing content to show where media is used."
 msgstr "মিডিয়া কোথায় ব্যবহৃত হয়েছে তা দেখাতে EmDash বিদ্যমান কনটেন্ট স্ক্যান করবে।"
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:442
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:21
+msgid "Empty"
+msgstr ""
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:191
 msgid "Empty gallery — open settings to add images"
@@ -5039,7 +5289,7 @@ msgstr "বিদ্যমান কনটেন্ট ইনডেক্স ক
 msgid "Enabled"
 msgstr "চালু"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1098
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "কোনো কনটেন্ট ভাষা কনফিগার করা না থাকায় ইংরেজি ব্যবহার করা হচ্ছে। কনটেন্টের ভাষা এন্ট্রির সাথে সংরক্ষিত হয় এবং এটি আপনার অ্যাডমিন ভাষা থেকে আলাদা।"
 
@@ -5068,15 +5318,15 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "একটি URL (https://…) বা একটি রিলেটিভ পাথ (/…) লিখুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2996
+#: packages/admin/src/components/ContentEditor.tsx:3170
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "একটি বৈধ URL লিখুন (যেমন https://example.com)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1409
+#: packages/admin/src/components/WordPressImport.tsx:1434
 msgid "Enter credentials manually"
 msgstr "ক্রেডেনশিয়াল নিজে লিখুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1660
 msgid "Enter distraction-free mode"
 msgstr "মনোযোগ-কেন্দ্রিক মোডে যান"
 
@@ -5084,7 +5334,7 @@ msgstr "মনোযোগ-কেন্দ্রিক মোডে যান"
 msgid "Enter email"
 msgstr "ইমেইল লিখুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2338
+#: packages/admin/src/components/ContentEditor.tsx:2512
 msgid "Enter markdown content..."
 msgstr "Markdown কনটেন্ট লিখুন..."
 
@@ -5109,12 +5359,12 @@ msgstr "URL লিখুন..."
 msgid "Enter your handle to sign in."
 msgstr "সাইন ইন করতে আপনার হ্যান্ডেল লিখুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1488
+#: packages/admin/src/components/WordPressImport.tsx:1513
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "সরাসরি কনটেন্ট ইমপোর্ট করতে আপনার WordPress ক্রেডেনশিয়াল লিখুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1111
-#: packages/admin/src/components/WordPressImport.tsx:1123
+#: packages/admin/src/components/WordPressImport.tsx:1130
+#: packages/admin/src/components/WordPressImport.tsx:1142
 msgid "Enter your WordPress site URL"
 msgstr "আপনার WordPress সাইটের URL লিখুন"
 
@@ -5146,7 +5396,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
-#: packages/admin/src/router.tsx:3239
+#: packages/admin/src/router.tsx:3325
 msgid "Error"
 msgstr "ত্রুটি"
 
@@ -5215,15 +5465,15 @@ msgstr ""
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "বিদ্যমান কনটেন্ট ইনডেক্স করা হয়েছে। নতুন পরিবর্তন স্বয়ংক্রিয়ভাবে ট্র্যাক করা হয়।"
 
-#: packages/admin/src/components/WordPressImport.tsx:2039
+#: packages/admin/src/components/WordPressImport.tsx:2064
 msgid "Exists"
 msgstr "বিদ্যমান"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1660
 msgid "Exit distraction-free mode"
 msgstr "মনোযোগ-কেন্দ্রিক মোড থেকে বেরিয়ে আসুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1585
+#: packages/admin/src/components/ContentEditor.tsx:1664
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "মনোযোগ-কেন্দ্রিক মোড থেকে বেরিয়ে আসুন (⌘⇧\\)"
 
@@ -5254,7 +5504,7 @@ msgstr "মেয়াদ"
 msgid "Export"
 msgstr "এক্সপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1302
+#: packages/admin/src/components/WordPressImport.tsx:1327
 msgid "Export from WordPress manually"
 msgstr "WordPress থেকে নিজে এক্সপোর্ট করুন"
 
@@ -5270,7 +5520,7 @@ msgstr "{requester} এক্সপোর্টের অনুরোধ কর�
 msgid "Export site"
 msgstr "সাইট এক্সপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1426
+#: packages/admin/src/components/WordPressImport.tsx:1451
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "খসড়াসহ সবকিছু ইমপোর্ট করতে WordPress থেকে আপনার কনটেন্ট এক্সপোর্ট করুন।"
 
@@ -5304,7 +5554,7 @@ msgstr "ব্যর্থ"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2159
+#: packages/admin/src/components/WordPressImport.tsx:2184
 msgid "Failed"
 msgstr "ব্যর্থ"
 
@@ -5340,8 +5590,8 @@ msgstr ""
 msgid "Failed to analyze import"
 msgstr "ইমপোর্ট বিশ্লেষণ করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:421
-#: packages/admin/src/lib/api/import.ts:766
+#: packages/admin/src/components/WordPressImport.tsx:433
+#: packages/admin/src/lib/api/import.ts:768
 msgid "Failed to analyze WordPress site"
 msgstr "WordPress সাইট বিশ্লেষণ করতে ব্যর্থ হয়েছে"
 
@@ -5353,7 +5603,7 @@ msgstr "অনুরোধ অনুমোদন করতে ব্যর্থ
 msgid "Failed to cancel import"
 msgstr "ইমপোর্ট বাতিল করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/settings.ts:118
+#: packages/admin/src/lib/api/settings.ts:119
 msgid "Failed to change the domain"
 msgstr ""
 
@@ -5387,7 +5637,7 @@ msgid "Failed to create {0}"
 msgstr "{0} তৈরি করতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:146
-#: packages/admin/src/lib/api/settings.ts:95
+#: packages/admin/src/lib/api/settings.ts:96
 msgid "Failed to create a sign-in link"
 msgstr ""
 
@@ -5465,7 +5715,7 @@ msgstr ""
 msgid "Failed to create section"
 msgstr "সেকশন তৈরি করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1743
+#: packages/admin/src/components/WordPressImport.tsx:1768
 msgid "Failed to create some collections"
 msgstr "কিছু কালেকশন তৈরি করতে ব্যর্থ হয়েছে"
 
@@ -5483,7 +5733,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1539
+#: packages/admin/src/router.tsx:1624
 msgid "Failed to create translation"
 msgstr "অনুবাদ তৈরি করতে ব্যর্থ হয়েছে"
 
@@ -5495,10 +5745,10 @@ msgstr ""
 msgid "Failed to create widget area"
 msgstr ""
 
-#: packages/admin/src/router.tsx:581
-#: packages/admin/src/router.tsx:610
-#: packages/admin/src/router.tsx:693
-#: packages/admin/src/router.tsx:1562
+#: packages/admin/src/router.tsx:645
+#: packages/admin/src/router.tsx:674
+#: packages/admin/src/router.tsx:757
+#: packages/admin/src/router.tsx:1647
 msgid "Failed to delete"
 msgstr "মুছতে ব্যর্থ হয়েছে"
 
@@ -5523,7 +5773,7 @@ msgid "Failed to delete collection"
 msgstr "কালেকশন মুছতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/lib/api/comments.ts:114
-#: packages/admin/src/router.tsx:2327
+#: packages/admin/src/router.tsx:2413
 msgid "Failed to delete comment"
 msgstr "মন্তব্য মুছতে ব্যর্থ হয়েছে"
 
@@ -5605,7 +5855,7 @@ msgstr "অনুসন্ধান বন্ধ করতে ব্যর্থ
 msgid "Failed to disable user"
 msgstr "ব্যবহারকারীকে নিষ্ক্রিয় করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:1433
+#: packages/admin/src/router.tsx:1518
 msgid "Failed to discard changes"
 msgstr "পরিবর্তনগুলো বাতিল করতে ব্যর্থ হয়েছে"
 
@@ -5626,7 +5876,7 @@ msgstr "স্বাগত বার্তা সরাতে ব্যর্থ
 msgid "Failed to download a package file"
 msgstr "একটি প্যাকেজ ফাইল ডাউনলোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:624
+#: packages/admin/src/router.tsx:688
 msgid "Failed to duplicate"
 msgstr "ডুপ্লিকেট করতে ব্যর্থ হয়েছে"
 
@@ -5634,7 +5884,7 @@ msgstr "ডুপ্লিকেট করতে ব্যর্থ হয়ে
 msgid "Failed to duplicate content"
 msgstr ""
 
-#: packages/admin/src/lib/api/settings.ts:105
+#: packages/admin/src/lib/api/settings.ts:106
 msgid "Failed to email users"
 msgstr ""
 
@@ -5651,7 +5901,7 @@ msgstr "অনুসন্ধান চালু করতে ব্যর্থ
 msgid "Failed to enable user"
 msgstr "ব্যবহারকারীকে সক্রিয় করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:348
+#: packages/admin/src/components/WordPressImport.tsx:355
 msgid "Failed to execute import"
 msgstr "ইমপোর্ট সম্পাদন করতে ব্যর্থ হয়েছে"
 
@@ -5827,12 +6077,12 @@ msgstr ""
 msgid "Failed to fetch relations"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:641
-#: packages/admin/src/lib/api/content.ts:646
+#: packages/admin/src/lib/api/content.ts:652
+#: packages/admin/src/lib/api/content.ts:657
 msgid "Failed to fetch revision"
 msgstr "রিভিশন আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/content.ts:628
+#: packages/admin/src/lib/api/content.ts:639
 msgid "Failed to fetch revisions"
 msgstr ""
 
@@ -5844,7 +6094,7 @@ msgstr "সেকশন আনতে ব্যর্থ হয়েছে"
 msgid "Failed to fetch sections"
 msgstr "সেকশনগুলো আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/settings.ts:60
+#: packages/admin/src/lib/api/settings.ts:61
 msgid "Failed to fetch settings"
 msgstr "সেটিংস আনতে ব্যর্থ হয়েছে"
 
@@ -5865,7 +6115,7 @@ msgstr ""
 msgid "Failed to fetch terms"
 msgstr "টার্মগুলো আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/settings.ts:87
+#: packages/admin/src/lib/api/settings.ts:88
 msgid "Failed to fetch the site domain"
 msgstr ""
 
@@ -5888,8 +6138,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:1126
-#: packages/admin/src/router.tsx:2258
+#: packages/admin/src/router.tsx:1195
+#: packages/admin/src/router.tsx:2344
 msgid "Failed to fetch user"
 msgstr "ব্যবহারকারী আনতে ব্যর্থ হয়েছে"
 
@@ -5934,12 +6184,12 @@ msgstr "আপলোড URL পেতে ব্যর্থ হয়েছে"
 msgid "Failed to import"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:444
+#: packages/admin/src/components/WordPressImport.tsx:462
 #: packages/admin/src/lib/api/import.ts:257
 msgid "Failed to import from WordPress"
 msgstr "WordPress থেকে ইমপোর্ট করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:373
+#: packages/admin/src/components/WordPressImport.tsx:380
 #: packages/admin/src/lib/api/import.ts:534
 #: packages/admin/src/lib/api/import.ts:539
 msgid "Failed to import media"
@@ -5962,7 +6212,7 @@ msgstr "বাইলাইন ফিল্ডের তালিকা আনত
 msgid "Failed to list files to upload"
 msgstr "আপলোডের জন্য ফাইলের তালিকা আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:412
+#: packages/admin/src/router.tsx:476
 msgid "Failed to load admin"
 msgstr "অ্যাডমিন লোড করতে ব্যর্থ হয়েছে"
 
@@ -6044,10 +6294,6 @@ msgstr "প্লাগইন লোড করতে ব্যর্থ হয�
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "প্লাগইন লোড করতে ব্যর্থ হয়েছে। রেজিস্ট্রি অ্যাগ্রিগেটরে হয়তো পৌঁছানো যাচ্ছে না।"
 
-#: packages/admin/src/components/RevisionHistory.tsx:200
-msgid "Failed to load revisions"
-msgstr "রিভিশন লোড করতে ব্যর্থ হয়েছে"
-
 #: packages/admin/src/components/SetupWizard.tsx:608
 msgid "Failed to load setup"
 msgstr "সেটআপ লোড করতে ব্যর্থ হয়েছে"
@@ -6082,7 +6328,7 @@ msgid "Failed to lock the entry"
 msgstr "এন্ট্রিটি লক করতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2352
+#: packages/admin/src/router.tsx:2438
 msgid "Failed to perform bulk action"
 msgstr "একসাথে একাধিক কাজ সম্পন্ন করতে ব্যর্থ হয়েছে"
 
@@ -6090,17 +6336,17 @@ msgstr "একসাথে একাধিক কাজ সম্পন্ন �
 msgid "Failed to permanently delete content"
 msgstr "কনটেন্ট স্থায়ীভাবে মুছতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:327
+#: packages/admin/src/components/WordPressImport.tsx:334
 #: packages/admin/src/lib/api/import.ts:390
 msgid "Failed to prepare import"
 msgstr "ইমপোর্ট প্রস্তুত করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/import.ts:710
+#: packages/admin/src/lib/api/import.ts:712
 msgid "Failed to probe URL"
 msgstr ""
 
-#: packages/admin/src/router.tsx:649
-#: packages/admin/src/router.tsx:1384
+#: packages/admin/src/router.tsx:713
+#: packages/admin/src/router.tsx:1469
 msgid "Failed to publish"
 msgstr "প্রকাশ করতে ব্যর্থ হয়েছে"
 
@@ -6112,7 +6358,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "বাইলাইন ফিল্ডের ব্যবহার পড়তে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:2778
+#: packages/admin/src/router.tsx:2864
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6171,7 +6417,7 @@ msgstr "উইজেটের ক্রম পরিবর্তন করতে
 msgid "Failed to replace media image"
 msgstr "মিডিয়া ছবি প্রতিস্থাপন করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:596
+#: packages/admin/src/router.tsx:660
 msgid "Failed to restore"
 msgstr "পুনরুদ্ধার করতে ব্যর্থ হয়েছে"
 
@@ -6179,8 +6425,8 @@ msgstr "পুনরুদ্ধার করতে ব্যর্থ হয়
 msgid "Failed to restore content"
 msgstr "কনটেন্ট পুনরুদ্ধার করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/content.ts:663
-#: packages/admin/src/lib/api/content.ts:668
+#: packages/admin/src/lib/api/content.ts:674
+#: packages/admin/src/lib/api/content.ts:679
 msgid "Failed to restore revision"
 msgstr "রিভিশন পুনরুদ্ধার করতে ব্যর্থ হয়েছে"
 
@@ -6188,14 +6434,14 @@ msgstr "রিভিশন পুনরুদ্ধার করতে ব্য
 msgid "Failed to revoke API token"
 msgstr "API টোকেন প্রত্যাহার করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:386
-#: packages/admin/src/lib/api/import.ts:727
+#: packages/admin/src/components/WordPressImport.tsx:393
+#: packages/admin/src/lib/api/import.ts:729
 msgid "Failed to rewrite URLs"
 msgstr "URL পুনর্লিখন করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:843
-#: packages/admin/src/router.tsx:1245
-#: packages/admin/src/router.tsx:2963
+#: packages/admin/src/router.tsx:907
+#: packages/admin/src/router.tsx:1314
+#: packages/admin/src/router.tsx:3049
 msgid "Failed to save"
 msgstr "সংরক্ষণ করতে ব্যর্থ হয়েছে"
 
@@ -6209,12 +6455,12 @@ msgstr "ফিল্ড সংরক্ষণ করতে ব্যর্থ �
 
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:133
-#: packages/admin/src/components/settings/SeoSettings.tsx:81
+#: packages/admin/src/components/settings/SeoSettings.tsx:85
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
 msgstr "সেটিংস সংরক্ষণ করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:1489
+#: packages/admin/src/router.tsx:1574
 msgid "Failed to schedule"
 msgstr "সময় নির্ধারণ করতে ব্যর্থ হয়েছে"
 
@@ -6258,7 +6504,7 @@ msgstr "ইমপোর্ট শুরু করতে ব্যর্থ হ�
 msgid "Failed to uninstall plugin"
 msgstr "প্লাগইন আনইনস্টল করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:1408
+#: packages/admin/src/router.tsx:1493
 msgid "Failed to unpublish"
 msgstr "অপ্রকাশিত করতে ব্যর্থ হয়েছে"
 
@@ -6266,7 +6512,7 @@ msgstr "অপ্রকাশিত করতে ব্যর্থ হয়ে
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1508
+#: packages/admin/src/router.tsx:1593
 msgid "Failed to unschedule"
 msgstr "নির্ধারিত সময় বাতিল করতে ব্যর্থ হয়েছে"
 
@@ -6274,7 +6520,7 @@ msgstr "নির্ধারিত সময় বাতিল করতে �
 msgid "Failed to unschedule content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:672
+#: packages/admin/src/router.tsx:736
 msgid "Failed to update"
 msgstr "আপডেট করতে ব্যর্থ হয়েছে"
 
@@ -6361,11 +6607,11 @@ msgstr ""
 msgid "Failed to update section"
 msgstr "সেকশন আপডেট করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/settings.ts:72
+#: packages/admin/src/lib/api/settings.ts:73
 msgid "Failed to update settings"
 msgstr "সেটিংস আপডেট করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:2311
+#: packages/admin/src/router.tsx:2397
 msgid "Failed to update status"
 msgstr "স্ট্যাটাস আপডেট করতে ব্যর্থ হয়েছে"
 
@@ -6419,11 +6665,11 @@ msgstr "সাধারণ জিজ্ঞাসা"
 msgid "Favicon"
 msgstr "ফেভিকন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1211
+#: packages/admin/src/components/WordPressImport.tsx:1230
 msgid "Feature"
 msgstr "বৈশিষ্ট্য"
 
-#: packages/admin/src/components/WordPressImport.tsx:1179
+#: packages/admin/src/components/WordPressImport.tsx:1198
 msgid "Featured Images"
 msgstr "ফিচারড ছবি"
 
@@ -6432,7 +6678,7 @@ msgstr "ফিচারড ছবি"
 msgid "Features"
 msgstr "বৈশিষ্ট্যসমূহ"
 
-#: packages/admin/src/components/WordPressImport.tsx:837
+#: packages/admin/src/components/WordPressImport.tsx:856
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "EmDash Exporter API থেকে কনটেন্ট আনা হচ্ছে।"
 
@@ -6474,7 +6720,7 @@ msgstr ""
 msgid "Fields"
 msgstr "ফিল্ড"
 
-#: packages/admin/src/components/WordPressImport.tsx:2362
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Fields created:"
 msgstr "তৈরি হওয়া ফিল্ড:"
 
@@ -6483,7 +6729,7 @@ msgid "File"
 msgstr "ফাইল"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2187
+#: packages/admin/src/components/WordPressImport.tsx:2212
 msgid "File {0}"
 msgstr "ফাইল {0}"
 
@@ -6569,19 +6815,23 @@ msgstr "চলমান সব সম্পাদনা শেষ করুন�
 msgid "First page"
 msgstr "প্রথম পেজ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:172
+#: packages/admin/src/components/ContentSettingsPanel.tsx:176
 msgid "First publication"
 msgstr "প্রথম প্রকাশ"
+
+#: packages/admin/src/components/revisions/change-labels.ts:153
+msgid "First version"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:84
 msgid "First-time commenters only"
 msgstr "শুধু প্রথমবার মন্তব্যকারীদের"
 
-#: packages/admin/src/components/ContentEditor.tsx:1303
+#: packages/admin/src/components/ContentEditor.tsx:1383
 msgid "Fix invalid fields before changing the publication date"
 msgstr "প্রকাশের তারিখ পরিবর্তনের আগে অবৈধ ফিল্ডগুলো ঠিক করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1247
+#: packages/admin/src/components/ContentEditor.tsx:1327
 msgid "Fix invalid fields before changing the schedule"
 msgstr "সময়সূচি পরিবর্তনের আগে অবৈধ ফিল্ডগুলো ঠিক করুন"
 
@@ -6607,7 +6857,7 @@ msgstr "ফোল্ডার মুছে ফেলা হয়েছে"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "ফোল্ডারের নাম 1 থেকে 200 অক্ষরের মধ্যে হতে হবে"
 
-#: packages/admin/src/router.tsx:1981
+#: packages/admin/src/router.tsx:2067
 msgid "Folder no longer exists"
 msgstr "ফোল্ডারটি আর নেই"
 
@@ -6647,11 +6897,11 @@ msgstr "ফোল্ডার নেভিগেশন"
 msgid "Fonts"
 msgstr "ফন্ট"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1452
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "খসড়াসহ সম্পূর্ণ কনটেন্ট ইমপোর্ট করতে WordPress থেকে এক্সপোর্ট করুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:67
+#: packages/admin/src/components/WordPressImport.tsx:68
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "সেরা ইমপোর্ট অভিজ্ঞতার জন্য আপনার WordPress সাইটে <0>EmDash Exporter</0> প্লাগইনটি ইনস্টল করুন।"
 
@@ -6689,7 +6939,7 @@ msgid "From URL"
 msgstr "URL থেকে"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1186
+#: packages/admin/src/components/WordPressImport.tsx:1205
 msgid "Full"
 msgstr "পূর্ণ"
 
@@ -6704,6 +6954,7 @@ msgstr "সম্পূর্ণ অ্যাডমিন অ্যাক্স�
 #: packages/admin/src/components/editor/BlockMenu.tsx:44
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
 #: packages/admin/src/components/PortableTextEditor.tsx:3661
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:442
 msgid "Gallery"
 msgstr "গ্যালারি"
 
@@ -6744,12 +6995,16 @@ msgstr "পরে সহজে চেনার জন্য এই পাসক�
 msgid "Go"
 msgstr "Go"
 
+#: packages/admin/src/components/ContentEditor.tsx:1323
+msgid "Go back to editing first."
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
 msgid "Go live {countdown}"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2447
-#: packages/admin/src/router.tsx:3259
+#: packages/admin/src/components/WordPressImport.tsx:2472
+#: packages/admin/src/router.tsx:3345
 msgid "Go to Dashboard"
 msgstr "ড্যাশবোর্ডে যান"
 
@@ -6765,8 +7020,8 @@ msgstr ""
 msgid "Goes live {countdown}"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:244
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:248
 msgid "Google Verification"
 msgstr "Google যাচাইকরণ"
 
@@ -6925,7 +7180,7 @@ msgstr "হিট"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "কেউ সম্পাদনা করার সময় এন্ট্রিটি ধরে রাখুন এবং অন্য লেখকদের পরিবর্তন প্রত্যাখ্যান করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2511
+#: packages/admin/src/components/ContentEditor.tsx:2685
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
@@ -6963,7 +7218,7 @@ msgstr "স্লাগ কীভাবে তৈরি হয়?"
 msgid "How many"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1549
+#: packages/admin/src/components/WordPressImport.tsx:1574
 msgid "How to create an Application Password"
 msgstr "কীভাবে একটি Application Password তৈরি করবেন"
 
@@ -6971,6 +7226,7 @@ msgstr "কীভাবে একটি Application Password তৈরি কর
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:51
 #: packages/admin/src/components/PortableTextEditor.tsx:2103
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:507
 msgid "HTML"
 msgstr "HTML"
 
@@ -7011,7 +7267,7 @@ msgstr "https://example.com/blog/my-post"
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1138
 msgid "https://yoursite.com"
 msgstr "https://yoursite.com"
 
@@ -7066,6 +7322,8 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:444
 #: packages/admin/src/components/FieldEditor.tsx:1299
 #: packages/admin/src/components/PortableTextEditor.tsx:3648
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:302
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:463
 msgid "Image"
 msgstr "ছবি"
 
@@ -7104,6 +7362,10 @@ msgstr "ছবির লিঙ্ক"
 msgid "Image not found"
 msgstr "ছবি পাওয়া যায়নি"
 
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:254
+msgid "Image replaced:"
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:717
 msgid "Image replaced."
 msgstr "ছবি প্রতিস্থাপন করা হয়েছে।"
@@ -7141,12 +7403,12 @@ msgstr "ছবি"
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:506
-#: packages/admin/src/components/WordPressImport.tsx:764
+#: packages/admin/src/components/WordPressImport.tsx:783
 msgid "Import"
 msgstr "ইমপোর্ট"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:1987
+#: packages/admin/src/components/WordPressImport.tsx:2012
 msgid "Import {0}"
 msgstr "{0} ইমপোর্ট করুন"
 
@@ -7158,7 +7420,7 @@ msgstr "একটি সাইট প্যাকেজ ইমপোর্ট �
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "সাইটটি খালি থাকা অবস্থায় এতে একটি সাইট প্যাকেজ ইমপোর্ট করুন, যা এর প্রাথমিক সেটআপ প্রতিস্থাপন করবে। Admin-এ এটি অন্তর্ভুক্ত আছে; কোনো এজেন্টকে সীমিত অ্যাক্সেস দিতে Admin-এর বদলে এটি বেছে নিন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1395
+#: packages/admin/src/components/WordPressImport.tsx:1420
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "খসড়া, কাস্টম পোস্ট টাইপ, ACF ফিল্ড এবং SEO ডেটাসহ সব কনটেন্ট সরাসরি ইমপোর্ট করুন। কোনো ফাইল ডাউনলোডের প্রয়োজন নেই।"
 
@@ -7166,11 +7428,11 @@ msgstr "খসড়া, কাস্টম পোস্ট টাইপ, ACF �
 msgid "Import an existing EmDash site"
 msgstr "একটি বিদ্যমান EmDash সাইট ইমপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2445
+#: packages/admin/src/components/WordPressImport.tsx:2470
 msgid "Import Another File"
 msgstr "আরেকটি ফাইল ইমপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1224
 msgid "Import Capabilities"
 msgstr "ইমপোর্ট সক্ষমতা"
 
@@ -7179,31 +7441,31 @@ msgstr "ইমপোর্ট সক্ষমতা"
 msgid "Import complete"
 msgstr "ইমপোর্ট সম্পন্ন হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2333
+#: packages/admin/src/components/WordPressImport.tsx:2358
 msgid "Import Complete"
 msgstr "ইমপোর্ট সম্পন্ন হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2334
+#: packages/admin/src/components/WordPressImport.tsx:2359
 msgid "Import Completed with Errors"
 msgstr "ত্রুটিসহ ইমপোর্ট সম্পন্ন হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Import failed"
 msgstr "ইমপোর্ট ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:717
+#: packages/admin/src/components/WordPressImport.tsx:736
 msgid "Import from WordPress"
 msgstr "WordPress থেকে ইমপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2136
+#: packages/admin/src/components/WordPressImport.tsx:2161
 msgid "Import Media"
 msgstr "মিডিয়া ইমপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2089
+#: packages/admin/src/components/WordPressImport.tsx:2114
 msgid "Import Media Files"
 msgstr "মিডিয়া ফাইল ইমপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:719
+#: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "WordPress থেকে পোস্ট, পেজ এবং কাস্টম পোস্ট টাইপ ইমপোর্ট করুন।"
 
@@ -7211,7 +7473,7 @@ msgstr "WordPress থেকে পোস্ট, পেজ এবং কাস্
 msgid "Import requested by {requester}"
 msgstr "{requester} ইমপোর্টের অনুরোধ করেছেন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1843
+#: packages/admin/src/components/WordPressImport.tsx:1868
 msgid "Import site configuration from WordPress."
 msgstr "WordPress থেকে সাইটের কনফিগারেশন ইমপোর্ট করুন।"
 
@@ -7219,7 +7481,7 @@ msgstr "WordPress থেকে সাইটের কনফিগারেশন
 msgid "Import this package?"
 msgstr "এই প্যাকেজটি ইমপোর্ট করবেন?"
 
-#: packages/admin/src/components/WordPressImport.tsx:1393
+#: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Import via EmDash Exporter"
 msgstr "EmDash Exporter-এর মাধ্যমে ইমপোর্ট করুন"
 
@@ -7227,7 +7489,7 @@ msgstr "EmDash Exporter-এর মাধ্যমে ইমপোর্ট ক�
 msgid "Imported"
 msgstr "ইমপোর্ট করা"
 
-#: packages/admin/src/components/WordPressImport.tsx:2373
+#: packages/admin/src/components/WordPressImport.tsx:2398
 msgid "Imported by Collection"
 msgstr "কালেকশন অনুযায়ী ইমপোর্ট করা হয়েছে"
 
@@ -7236,7 +7498,7 @@ msgid "Importing"
 msgstr "ইমপোর্ট হচ্ছে"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:930
+#: packages/admin/src/components/WordPressImport.tsx:949
 msgid "Importing comments... {0}"
 msgstr "মন্তব্য ইমপোর্ট করা হচ্ছে... {0}"
 
@@ -7244,25 +7506,25 @@ msgstr "মন্তব্য ইমপোর্ট করা হচ্ছে...
 msgid "Importing content"
 msgstr "কনটেন্ট ইমপোর্ট করা হচ্ছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:948
+#: packages/admin/src/components/WordPressImport.tsx:967
 msgid "Importing content..."
 msgstr "কনটেন্ট ইমপোর্ট করা হচ্ছে..."
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:928
+#: packages/admin/src/components/WordPressImport.tsx:947
 msgid "Importing content... {0}"
 msgstr "কনটেন্ট ইমপোর্ট করা হচ্ছে... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:927
+#: packages/admin/src/components/WordPressImport.tsx:946
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "কনটেন্ট ইমপোর্ট করা হচ্ছে... {totalSelectedPosts}-এর মধ্যে {0}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2168
+#: packages/admin/src/components/WordPressImport.tsx:2193
 msgid "Importing Media"
 msgstr "মিডিয়া ইমপোর্ট করা হচ্ছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:931
+#: packages/admin/src/components/WordPressImport.tsx:950
 msgid "Importing menus and site settings..."
 msgstr "মেনু এবং সাইট সেটিংস ইমপোর্ট করা হচ্ছে..."
 
@@ -7270,7 +7532,7 @@ msgstr "মেনু এবং সাইট সেটিংস ইমপোর�
 msgid "Importing menus, widgets, and settings"
 msgstr "মেনু, উইজেট এবং সেটিংস ইমপোর্ট করা হচ্ছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:932
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Importing reusable blocks..."
 msgstr ""
 
@@ -7299,7 +7561,7 @@ msgstr "মন্তব্য অন্তর্ভুক্ত করুন"
 msgid "Include inferred bylines"
 msgstr "অনুমানকৃত বাইলাইন অন্তর্ভুক্ত করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2009
+#: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Incompatible"
 msgstr "অসামঞ্জস্যপূর্ণ"
 
@@ -7438,7 +7700,7 @@ msgstr "আমন্ত্রণ, ম্যাজিক লিঙ্ক এব�
 msgid "Install blocked"
 msgstr "ইনস্টল অবরুদ্ধ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1067
+#: packages/admin/src/components/WordPressImport.tsx:1086
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "আপনার WordPress সাইটে EmDash Exporter প্লাগইনটি ইনস্টল করুন এবং Tools → EmDash Migration থেকে একটি কী তৈরি করুন।"
 
@@ -7483,7 +7745,7 @@ msgstr "অবৈধ হ্যান্ডেল"
 msgid "Invalid invite link"
 msgstr "অবৈধ আমন্ত্রণ লিঙ্ক"
 
-#: packages/admin/src/components/ContentEditor.tsx:3072
+#: packages/admin/src/components/ContentEditor.tsx:3246
 msgid "Invalid JSON"
 msgstr "অবৈধ JSON"
 
@@ -7643,7 +7905,7 @@ msgstr "এই সাইটেরটি রাখুন (খালি)"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "এই সাইটেরটি রাখুন: “{targetValue}”"
 
-#: packages/admin/src/components/WordPressImport.tsx:944
+#: packages/admin/src/components/WordPressImport.tsx:963
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "এই ট্যাবটি খোলা রাখুন। ইমপোর্ট ছোট ছোট ধাপে চলে এবং বাধাগ্রস্ত হলে নিরাপদে আবার চালানো যায়।"
 
@@ -7749,7 +8011,7 @@ msgstr ""
 msgid "Learn more"
 msgstr "আরও জানুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2526
+#: packages/admin/src/components/WordPressImport.tsx:2551
 msgid "Leave unassigned"
 msgstr "অনির্ধারিত রাখুন"
 
@@ -7879,14 +8141,14 @@ msgid "List view"
 msgstr "তালিকা ভিউ"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:181
-#: packages/admin/src/components/ContentSettingsPanel.tsx:191
-#: packages/admin/src/components/ContentSettingsPanel.tsx:213
-#: packages/admin/src/components/ContentSettingsPanel.tsx:235
+#: packages/admin/src/components/ContentSettingsPanel.tsx:185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:221
+#: packages/admin/src/components/ContentSettingsPanel.tsx:247
 msgid "Live version"
 msgstr "লাইভ সংস্করণ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:689
+#: packages/admin/src/components/ContentSettingsPanel.tsx:705
 msgid "Live View"
 msgstr "লাইভ ভিউ"
 
@@ -7920,7 +8182,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3214
+#: packages/admin/src/router.tsx:3300
 msgid "Loading"
 msgstr "লোড হচ্ছে"
 
@@ -7949,8 +8211,8 @@ msgstr "কালেকশন লোড হচ্ছে..."
 msgid "Loading comments..."
 msgstr "মন্তব্য লোড হচ্ছে..."
 
-#: packages/admin/src/router.tsx:3216
-#: packages/admin/src/router.tsx:3228
+#: packages/admin/src/router.tsx:3302
+#: packages/admin/src/router.tsx:3314
 msgid "Loading configuration..."
 msgstr "কনফিগারেশন লোড হচ্ছে..."
 
@@ -8008,7 +8270,7 @@ msgstr "প্লাগইন লোড হচ্ছে..."
 msgid "Loading redirects..."
 msgstr "রিডাইরেক্ট লোড হচ্ছে..."
 
-#: packages/admin/src/components/ContentEditor.tsx:2828
+#: packages/admin/src/components/ContentEditor.tsx:3002
 msgid "Loading references..."
 msgstr ""
 
@@ -8024,7 +8286,7 @@ msgstr "সেকশন লোড হচ্ছে..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:133
+#: packages/admin/src/components/settings/SeoSettings.tsx:137
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
 msgstr "সেটিংস লোড হচ্ছে..."
@@ -8138,7 +8400,7 @@ msgstr "লগ আউট করুন"
 msgid "Logo"
 msgstr "লোগো"
 
-#: packages/admin/src/components/WordPressImport.tsx:1861
+#: packages/admin/src/components/WordPressImport.tsx:1886
 msgid "Logo & favicon"
 msgstr "লোগো ও ফেভিকন"
 
@@ -8231,12 +8493,12 @@ msgstr ""
 msgid "Manual"
 msgstr "ম্যানুয়াল"
 
-#: packages/admin/src/components/WordPressImport.tsx:2483
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Map Authors"
 msgstr "লেখক ম্যাপ করুন"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2531
+#: packages/admin/src/components/WordPressImport.tsx:2556
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress ব্যবহারকারী {0}-কে EmDash ব্যবহারকারীর সাথে ম্যাপ করুন"
 
@@ -8262,11 +8524,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "মার্কেটপ্লেস"
 
-#: packages/admin/src/router.tsx:2615
+#: packages/admin/src/router.tsx:2701
 msgid "Marketplace browsing is no longer available."
 msgstr "মার্কেটপ্লেস ব্রাউজ করার সুবিধা আর উপলব্ধ নেই।"
 
-#: packages/admin/src/router.tsx:2590
+#: packages/admin/src/router.tsx:2676
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "মার্কেটপ্লেস ব্রাউজ করার সুবিধা আর উপলব্ধ নেই। প্লাগইন পেজ থেকে ইনস্টল করা প্লাগইন পরিচালনা করুন।"
 
@@ -8315,9 +8577,9 @@ msgstr "MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:428
-#: packages/admin/src/components/WordPressImport.tsx:778
-#: packages/admin/src/components/WordPressImport.tsx:1176
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:797
+#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1388
 msgid "Media"
 msgstr "মিডিয়া"
 
@@ -8326,7 +8588,7 @@ msgid "Media details"
 msgstr "মিডিয়ার বিস্তারিত"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2429
+#: packages/admin/src/components/WordPressImport.tsx:2454
 msgid "Media Errors ({0})"
 msgstr "মিডিয়া ত্রুটি ({0})"
 
@@ -8335,15 +8597,15 @@ msgstr "মিডিয়া ত্রুটি ({0})"
 msgid "Media folders"
 msgstr "মিডিয়া ফোল্ডার"
 
-#: packages/admin/src/components/WordPressImport.tsx:2391
+#: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "Media Import"
 msgstr "মিডিয়া ইমপোর্ট"
 
-#: packages/admin/src/components/WordPressImport.tsx:2332
+#: packages/admin/src/components/WordPressImport.tsx:2357
 msgid "Media Import Complete"
 msgstr "মিডিয়া ইমপোর্ট সম্পন্ন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2343
+#: packages/admin/src/components/WordPressImport.tsx:2368
 msgid "Media import was skipped"
 msgstr "মিডিয়া ইমপোর্ট এড়িয়ে যাওয়া হয়েছে"
 
@@ -8469,12 +8731,12 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:445
-#: packages/admin/src/components/WordPressImport.tsx:1180
+#: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Menus"
 msgstr "মেনু"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1796
+#: packages/admin/src/components/WordPressImport.tsx:1821
 msgid "Menus ({0})"
 msgstr "মেনু ({0})"
 
@@ -8491,15 +8753,15 @@ msgstr "নির্বাচিত সেলগুলো একত্র কর
 msgid "Meta Description"
 msgstr "মেটা বিবরণ"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:255
+#: packages/admin/src/components/settings/SeoSettings.tsx:259
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Bing Webmaster Tools যাচাইয়ের জন্য মেটা ট্যাগের কনটেন্ট"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:247
+#: packages/admin/src/components/settings/SeoSettings.tsx:251
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Google Search Console যাচাইয়ের জন্য মেটা ট্যাগের কনটেন্ট"
 
-#: packages/admin/src/components/WordPressImport.tsx:1874
+#: packages/admin/src/components/WordPressImport.tsx:1899
 msgid "Meta titles, descriptions, and social images"
 msgstr "মেটা শিরোনাম, বিবরণ এবং সোশ্যাল ছবি"
 
@@ -8507,7 +8769,7 @@ msgstr "মেটা শিরোনাম, বিবরণ এবং সোশ�
 msgid "Migration guide"
 msgstr "মাইগ্রেশন গাইড"
 
-#: packages/admin/src/components/WordPressImport.tsx:1080
+#: packages/admin/src/components/WordPressImport.tsx:1099
 msgid "Migration key"
 msgstr "মাইগ্রেশন কী"
 
@@ -8623,7 +8885,7 @@ msgstr "\"{title}\" ট্র্যাশে সরাবেন? আপনি �
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2795
+#: packages/admin/src/components/ContentEditor.tsx:2969
 #: packages/admin/src/components/FieldEditor.tsx:1159
 #: packages/admin/src/components/TaxonomyManager.tsx:461
 msgid "Move {0} down"
@@ -8647,7 +8909,7 @@ msgstr "{0} পরে সরান"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2784
+#: packages/admin/src/components/ContentEditor.tsx:2958
 #: packages/admin/src/components/FieldEditor.tsx:1142
 #: packages/admin/src/components/TaxonomyManager.tsx:448
 msgid "Move {0} up"
@@ -8695,14 +8957,14 @@ msgstr "ট্র্যাশে সরান"
 
 #: packages/admin/src/components/ContentList.tsx:669
 #: packages/admin/src/components/ContentList.tsx:1547
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1366
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1386
 msgid "Move to Trash"
 msgstr "ট্র্যাশে সরান"
 
 #: packages/admin/src/components/ContentList.tsx:647
 #: packages/admin/src/components/ContentList.tsx:1532
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1343
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1371
 msgid "Move to Trash?"
 msgstr "ট্র্যাশে সরাবেন?"
 
@@ -8717,18 +8979,70 @@ msgstr "উপরে সরান"
 msgid "Move up {0}"
 msgstr "{0} উপরে সরান"
 
+#: packages/admin/src/components/revisions/change-labels.ts:141
+msgid "Moved “{snippet}”"
+msgstr ""
+
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:701
 msgid "Moved {filename} to position {0}."
 msgstr "{filename} অবস্থান {0}-এ সরানো হয়েছে।"
 
-#: packages/admin/src/router.tsx:669
+#: packages/admin/src/router.tsx:733
 msgid "Moved {total} items to draft"
 msgstr "{total}টি আইটেম খসড়ায় সরানো হয়েছে"
 
-#: packages/admin/src/router.tsx:690
+#: packages/admin/src/router.tsx:754
 msgid "Moved {total} items to trash"
 msgstr "{total}টি আইটেম ট্র্যাশে সরানো হয়েছে"
+
+#: packages/admin/src/components/revisions/change-labels.ts:54
+msgid "Moved a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:90
+msgid "Moved a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:66
+msgid "Moved a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:28
+msgid "Moved a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:42
+msgid "Moved a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:21
+msgid "Moved a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:35
+msgid "Moved a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:60
+msgid "Moved a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:72
+msgid "Moved a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:78
+msgid "Moved an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:84
+msgid "Moved an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:48
+msgid "Moved an image"
+msgstr ""
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:568
@@ -8826,7 +9140,7 @@ msgstr "মনোযোগ প্রয়োজন"
 msgid "Never"
 msgstr "কখনও না"
 
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1619
 msgid "new"
 msgstr "নতুন"
 
@@ -8834,7 +9148,7 @@ msgstr "নতুন"
 msgid "NEW"
 msgstr "নতুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1401
 msgid "New {itemLabel}"
 msgstr "নতুন {itemLabel}"
 
@@ -8852,7 +9166,7 @@ msgstr ""
 msgid "New byline field"
 msgstr "নতুন বাইলাইন ফিল্ড"
 
-#: packages/admin/src/components/WordPressImport.tsx:2011
+#: packages/admin/src/components/WordPressImport.tsx:2036
 msgid "New collection"
 msgstr "নতুন কালেকশন"
 
@@ -8918,6 +9232,10 @@ msgstr "নতুন ট্যাক্সোনমি"
 #: packages/admin/src/components/MenuEditor.tsx:735
 msgid "New window"
 msgstr "নতুন উইন্ডো"
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:188
+msgid "Newer version"
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:36
@@ -9040,6 +9358,10 @@ msgstr "কোনো বাইলাইন পাওয়া যায়নি
 msgid "No bylines yet"
 msgstr ""
 
+#: packages/admin/src/components/revisions/change-labels.ts:163
+msgid "No changes"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:485
 msgid "No collections configured"
 msgstr "কোনো কালেকশন কনফিগার করা হয়নি"
@@ -9096,7 +9418,7 @@ msgstr "কোনো ইমেইল প্রোভাইডার কনফি
 msgid "No email provider configured. Share this link manually."
 msgstr "কোনো ইমেইল প্রোভাইডার কনফিগার করা হয়নি। এই লিঙ্কটি নিজে শেয়ার করুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:2545
+#: packages/admin/src/components/WordPressImport.tsx:2570
 msgid "No EmDash users found"
 msgstr "কোনো EmDash ব্যবহারকারী পাওয়া যায়নি"
 
@@ -9120,10 +9442,6 @@ msgstr ""
 #: packages/admin/src/components/RelationList.tsx:196
 msgid "No fields"
 msgstr ""
-
-#: packages/admin/src/components/RevisionHistory.tsx:351
-msgid "No fields to compare"
-msgstr "তুলনা করার মতো কোনো ফিল্ড নেই"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:311
 msgid "No files added"
@@ -9298,7 +9616,7 @@ msgstr "সাম্প্রতিক কোনো কার্যকলাপ 
 msgid "No redirects yet"
 msgstr "এখনও কোনো রিডাইরেক্ট নেই"
 
-#: packages/admin/src/components/ContentEditor.tsx:2740
+#: packages/admin/src/components/ContentEditor.tsx:2914
 msgid "No references selected."
 msgstr ""
 
@@ -9329,10 +9647,6 @@ msgstr "\"{debouncedQuery}\"-এর জন্য কোনো ফলাফল �
 #: packages/admin/src/components/Settings.tsx:166
 msgid "No results found"
 msgstr "কোনো ফলাফল পাওয়া যায়নি"
-
-#: packages/admin/src/components/RevisionHistory.tsx:204
-msgid "No revisions yet"
-msgstr "এখনও কোনো রিভিশন নেই"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:108
 msgid "No sections available"
@@ -9371,6 +9685,10 @@ msgstr "আপনার ফিল্টারের সাথে মেলে �
 msgid "No users yet."
 msgstr "এখনও কোনো ব্যবহারকারী নেই।"
 
+#: packages/admin/src/components/RevisionHistory.tsx:84
+msgid "No versions yet"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:506
 msgid "No widget areas yet. Create one to get started."
 msgstr "এখনও কোনো উইজেট এলাকা নেই। শুরু করতে একটি তৈরি করুন।"
@@ -9404,6 +9722,10 @@ msgstr ""
 #: packages/admin/src/components/BulkTagDialog.tsx:71
 msgid "Not matched"
 msgstr "মেলেনি"
+
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:499
+msgid "Not recorded in this version"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
@@ -9456,10 +9778,11 @@ msgstr "তালিকা ভিউতে প্রতি পেজে কত�
 msgid "Numbered List"
 msgstr "সংখ্যাযুক্ত তালিকা"
 
-#: packages/admin/src/components/WordPressImport.tsx:522
+#: packages/admin/src/components/WordPressImport.tsx:541
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "OAuth অনুমোদনের জন্য HTTPS প্রয়োজন। অনুগ্রহ করে ম্যানুয়াল ক্রেডেনশিয়াল ব্যবহার করুন।"
 
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:455
 msgid "Off"
 msgstr "বন্ধ"
@@ -9467,6 +9790,14 @@ msgstr "বন্ধ"
 #: packages/admin/src/components/SeoImageField.tsx:49
 msgid "OG Image"
 msgstr "OG ছবি"
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:178
+msgid "Older version"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
+msgid "On"
+msgstr ""
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
@@ -9523,7 +9854,7 @@ msgid "Open"
 msgstr "খুলুন"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:2773
+#: packages/admin/src/components/ContentEditor.tsx:2947
 msgid "Open {0} in a new tab"
 msgstr ""
 
@@ -9576,7 +9907,7 @@ msgstr ""
 msgid "Open Windows settings"
 msgstr "Windows সেটিংস খুলুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1563
+#: packages/admin/src/components/WordPressImport.tsx:1588
 msgid "Open WordPress Profile"
 msgstr "WordPress প্রোফাইল খুলুন"
 
@@ -9624,11 +9955,11 @@ msgstr "বিকল্পসমূহ (প্রতি লাইনে এক�
 msgid "Or browse files from your computer"
 msgstr "অথবা আপনার কম্পিউটার থেকে ফাইল ব্রাউজ করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1619
+#: packages/admin/src/components/WordPressImport.tsx:1644
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "অথবা ব্রাউজ করতে ক্লিক করুন। WordPress থেকে এক্সপোর্ট করা .xml ফাইল গ্রহণ করা হয়।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1100
+#: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "or connect by URL"
 msgstr "অথবা URL দিয়ে সংযুক্ত করুন"
 
@@ -9638,11 +9969,11 @@ msgstr "অথবা URL দিয়ে সংযুক্ত করুন"
 msgid "Or continue with"
 msgstr "অথবা এগুলো দিয়ে চালিয়ে যান"
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Or upload an export file"
 msgstr "অথবা একটি এক্সপোর্ট ফাইল আপলোড করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1138
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "or upload directly"
 msgstr "অথবা সরাসরি আপলোড করুন"
 
@@ -9672,7 +10003,7 @@ msgstr "মূল:"
 msgid "Other"
 msgstr "অন্যান্য"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1297
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1314
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "রূপরেখা"
@@ -9693,8 +10024,8 @@ msgstr ""
 msgid "Overrides the page title in search engine results"
 msgstr "সার্চ ইঞ্জিনের ফলাফলে পেজের শিরোনামের পরিবর্তে এটি দেখানো হয়"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1114
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1131
 msgid "Ownership"
 msgstr "মালিকানা"
 
@@ -9712,7 +10043,7 @@ msgstr "প্যাকেজ ডাইজেস্ট"
 msgid "Package downloaded"
 msgstr "প্যাকেজ ডাউনলোড হয়েছে"
 
-#: packages/admin/src/router.tsx:3254
+#: packages/admin/src/router.tsx:3340
 msgid "Page Not Found"
 msgstr "পেজ পাওয়া যায়নি"
 
@@ -9727,7 +10058,7 @@ msgid "Page size"
 msgstr "পেজের আকার"
 
 #: packages/admin/src/components/PluginManager.tsx:478
-#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "পেজ"
 
@@ -9754,7 +10085,7 @@ msgstr "প্যারেন্ট"
 msgid "Part of a redirect loop"
 msgstr "একটি রিডাইরেক্ট লুপের অংশ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1184
+#: packages/admin/src/components/WordPressImport.tsx:1203
 msgid "Partial"
 msgstr "আংশিক"
 
@@ -9842,7 +10173,7 @@ msgstr "পাসকির জন্য HTTPS অথবা http://localhost (আ
 msgid "Paste an embed code or an https link…"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1065
+#: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "Paste your migration key"
 msgstr "আপনার মাইগ্রেশন কী পেস্ট করুন"
 
@@ -9969,7 +10300,7 @@ msgstr "অনুগ্রহ করে একটি সঠিক ইমেই�
 msgid "Please enter a valid URL"
 msgstr "অনুগ্রহ করে একটি সঠিক URL দিন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1213
+#: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "Plugin"
 msgstr "প্লাগইন"
 
@@ -9990,7 +10321,7 @@ msgstr "প্লাগইন অ্যাকশন ব্যর্থ হয়
 msgid "Plugin actions"
 msgstr "প্লাগইন অ্যাকশন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1642
+#: packages/admin/src/components/ContentEditor.tsx:1734
 msgid "Plugin changes were not applied"
 msgstr "প্লাগইনের পরিবর্তনগুলো প্রয়োগ করা হয়নি"
 
@@ -10066,8 +10397,8 @@ msgstr "প্লাগইন রেজিস্ট্রি"
 msgid "Plugin registry configuration error"
 msgstr "প্লাগইন রেজিস্ট্রি কনফিগারেশন ত্রুটি"
 
-#: packages/admin/src/router.tsx:2550
-#: packages/admin/src/router.tsx:2581
+#: packages/admin/src/router.tsx:2636
+#: packages/admin/src/router.tsx:2667
 msgid "Plugin registry is not configured."
 msgstr "প্লাগইন রেজিস্ট্রি কনফিগার করা হয়নি।"
 
@@ -10135,11 +10466,11 @@ msgstr "পোস্টের URL (প্রতি লাইনে একটি)
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:479
 #: packages/admin/src/components/RelationForm.tsx:297
-#: packages/admin/src/components/WordPressImport.tsx:1351
+#: packages/admin/src/components/WordPressImport.tsx:1376
 msgid "Posts"
 msgstr "পোস্ট"
 
-#: packages/admin/src/components/WordPressImport.tsx:1175
+#: packages/admin/src/components/WordPressImport.tsx:1194
 msgid "Posts & Pages"
 msgstr "পোস্ট ও পেজ"
 
@@ -10151,7 +10482,7 @@ msgstr "প্রতি পেজে পোস্ট"
 msgid "Pre-release"
 msgstr "প্রি-রিলিজ"
 
-#: packages/admin/src/components/WordPressImport.tsx:924
+#: packages/admin/src/components/WordPressImport.tsx:943
 msgid "Preparing categories and tags..."
 msgstr ""
 
@@ -10163,7 +10494,7 @@ msgstr "নিবন্ধনের প্রস্তুতি চলছে..."
 msgid "Preparing this site"
 msgstr "এই সাইটটি প্রস্তুত করা হচ্ছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2208
+#: packages/admin/src/components/WordPressImport.tsx:2233
 msgid "Preparing to download files from WordPress..."
 msgstr "WordPress থেকে ফাইল ডাউনলোডের প্রস্তুতি চলছে..."
 
@@ -10181,7 +10512,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "ছবি তুলে নিতে Space চাপুন। সরাতে অ্যারো কী ব্যবহার করুন, তারপর রাখতে আবার Space চাপুন।"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:430
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -10198,7 +10529,7 @@ msgstr ""
 msgid "Preview content before publishing"
 msgstr "প্রকাশের আগে কনটেন্ট প্রিভিউ করুন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:430
 msgid "Preview draft"
 msgstr "খসড়া প্রিভিউ করুন"
 
@@ -10275,9 +10606,9 @@ msgstr "প্রোভাইডার:"
 msgid "Public routes"
 msgstr "পাবলিক রুট"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:970
-#: packages/admin/src/components/ContentSettingsPanel.tsx:975
-#: packages/admin/src/components/ContentSettingsPanel.tsx:986
+#: packages/admin/src/components/ContentSettingsPanel.tsx:987
+#: packages/admin/src/components/ContentSettingsPanel.tsx:992
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
 msgid "Publication date"
 msgstr "প্রকাশের তারিখ"
@@ -10292,17 +10623,17 @@ msgid "visualEditing.publish"
 msgstr "প্রকাশ করুন"
 
 #: packages/admin/src/components/ContentList.tsx:584
-#: packages/admin/src/components/ContentSettingsPanel.tsx:520
-#: packages/admin/src/components/ContentSettingsPanel.tsx:938
-#: packages/admin/src/components/ContentSettingsPanel.tsx:941
+#: packages/admin/src/components/ContentSettingsPanel.tsx:536
+#: packages/admin/src/components/ContentSettingsPanel.tsx:954
+#: packages/admin/src/components/ContentSettingsPanel.tsx:957
 msgid "Publish"
 msgstr "প্রকাশ করুন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Publish changes"
 msgstr "পরিবর্তন প্রকাশ করুন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Publish changes?"
 msgstr "পরিবর্তন প্রকাশ করবেন?"
 
@@ -10312,11 +10643,11 @@ msgid "visualEditing.publishFailed"
 msgstr "প্রকাশ করতে ব্যর্থ হয়েছে। আপনার অনুমতি পরীক্ষা করে আবার চেষ্টা করুন।"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Publish now"
 msgstr "এখনই প্রকাশ করুন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Publish now?"
 msgstr "এখনই প্রকাশ করবেন?"
 
@@ -10330,7 +10661,9 @@ msgstr "কনটেন্ট প্রকাশ, অপ্রকাশিত, �
 #: packages/admin/src/components/ContentList.tsx:1032
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:507
-#: packages/admin/src/router.tsx:1379
+#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
+#: packages/admin/src/router.tsx:1464
 msgid "Published"
 msgstr "প্রকাশিত"
 
@@ -10348,7 +10681,7 @@ msgstr "প্রকাশিত {0}"
 msgid "Published {liveSince}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:646
+#: packages/admin/src/router.tsx:710
 msgid "Published {total} items"
 msgstr "{total}টি আইটেম প্রকাশিত হয়েছে"
 
@@ -10384,7 +10717,7 @@ msgstr "প্রকাশকের রিলিজ নীতি"
 msgid "Publishing"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:945
+#: packages/admin/src/components/ContentSettingsPanel.tsx:961
 msgid "Publishing summary"
 msgstr "প্রকাশনার সারসংক্ষেপ"
 
@@ -10420,7 +10753,7 @@ msgstr ""
 msgid "Quote"
 msgstr "উদ্ধৃতি"
 
-#: packages/admin/src/components/WordPressImport.tsx:1193
+#: packages/admin/src/components/WordPressImport.tsx:1212
 msgid "Raw meta"
 msgstr "কাঁচা মেটা"
 
@@ -10511,11 +10844,11 @@ msgstr "প্যাকেজ পড়া হচ্ছে"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2015
+#: packages/admin/src/components/WordPressImport.tsx:2040
 msgid "Ready"
 msgstr "প্রস্তুত"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:202
 msgid "Ready to publish now or schedule for later"
 msgstr "এখনই প্রকাশ বা পরে প্রকাশের সময় নির্ধারণের জন্য প্রস্তুত"
 
@@ -10703,7 +11036,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:3233
+#: packages/admin/src/components/ContentEditor.tsx:3407
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:814
@@ -10716,14 +11049,14 @@ msgstr ""
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
-#: packages/admin/src/components/settings/SeoSettings.tsx:217
+#: packages/admin/src/components/settings/SeoSettings.tsx:221
 msgid "Remove"
 msgstr "সরান"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:2808
+#: packages/admin/src/components/ContentEditor.tsx:2982
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -10740,7 +11073,7 @@ msgstr "নির্বাচন থেকে {0} সরান"
 msgid "Remove {entry}"
 msgstr "{entry} সরান"
 
-#: packages/admin/src/components/ContentEditor.tsx:3231
+#: packages/admin/src/components/ContentEditor.tsx:3405
 #: packages/admin/src/components/SeoImageField.tsx:163
 #: packages/admin/src/components/SeoImageField.tsx:164
 msgid "Remove {label}"
@@ -10801,7 +11134,7 @@ msgid "Remove passkey?"
 msgstr "পাসকি সরাবেন?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
-#: packages/admin/src/components/ContentSettingsPanel.tsx:627
+#: packages/admin/src/components/ContentSettingsPanel.tsx:643
 msgid "Remove schedule"
 msgstr "নির্ধারিত সময় সরান"
 
@@ -10813,10 +11146,76 @@ msgstr "সাব-ফিল্ড সরান"
 msgid "Remove this image from the document?"
 msgstr "ডকুমেন্ট থেকে এই ছবিটি সরাবেন?"
 
+#: packages/admin/src/components/revisions/change-labels.ts:135
+msgid "Removed “{snippet}”"
+msgstr ""
+
 #. placeholder {0}: selected.item.filename
 #: packages/admin/src/components/MediaPickerModal.tsx:706
 msgid "Removed {0} from selection."
 msgstr "নির্বাচন থেকে {0} সরানো হয়েছে।"
+
+#: packages/admin/src/components/revisions/change-labels.ts:52
+msgid "Removed a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:88
+msgid "Removed a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:64
+msgid "Removed a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:25
+msgid "Removed a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:39
+msgid "Removed a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:18
+msgid "Removed a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:32
+msgid "Removed a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:58
+msgid "Removed a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:70
+msgid "Removed a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:76
+msgid "Removed an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:82
+msgid "Removed an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:46
+#: packages/admin/src/components/revisions/change-labels.ts:96
+msgid "Removed an image"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:175
+msgid "Removed the slug"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:117
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:232
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:57
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:184
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:265
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:140
+msgid "Removed:"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:590
 msgid "Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins"
@@ -10876,8 +11275,8 @@ msgstr "পুনরাবৃত্ত ফিল্ডের গ্রুপ"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3223
-#: packages/admin/src/components/ContentEditor.tsx:3260
+#: packages/admin/src/components/ContentEditor.tsx:3397
+#: packages/admin/src/components/ContentEditor.tsx:3434
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -10895,7 +11294,7 @@ msgstr ""
 msgid "Replace"
 msgstr "প্রতিস্থাপন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3259
+#: packages/admin/src/components/ContentEditor.tsx:3433
 #: packages/admin/src/components/ImageFieldRenderer.tsx:583
 #: packages/admin/src/components/SeoImageField.tsx:148
 #: packages/admin/src/components/SeoImageField.tsx:183
@@ -10932,7 +11331,7 @@ msgstr "মূল ছবি প্রতিস্থাপন করবেন?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "মূল ছবি প্রতিস্থাপন শুধুমাত্র Original অনুপাতে উপলব্ধ।"
 
-#: packages/admin/src/components/ContentEditor.tsx:2841
+#: packages/admin/src/components/ContentEditor.tsx:3015
 msgid "Replace reference"
 msgstr ""
 
@@ -10949,6 +11348,10 @@ msgstr ""
 #: packages/admin/src/components/NonListFieldValue.tsx:30
 msgid "Replace with empty list"
 msgstr "খালি তালিকা দিয়ে প্রতিস্থাপন করুন"
+
+#: packages/admin/src/components/revisions/change-labels.ts:97
+msgid "Replaced an image"
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:942
 #: packages/admin/src/components/MediaDetailPanel.tsx:1966
@@ -10989,7 +11392,7 @@ msgstr "কনটেন্ট প্রকাশের আগে স্লাগ
 msgid "Required"
 msgstr "আবশ্যক"
 
-#: packages/admin/src/components/WordPressImport.tsx:2028
+#: packages/admin/src/components/WordPressImport.tsx:2053
 msgid "Required fields:"
 msgstr "আবশ্যক ফিল্ড:"
 
@@ -11068,7 +11471,7 @@ msgstr "উপরের-বাম কোণ থেকে ক্রপের আ�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "উপরের-ডান কোণ থেকে ক্রপের আকার পরিবর্তন করুন। আকার পরিবর্তনে অ্যারো কী ব্যবহার করুন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1855
+#: packages/admin/src/components/ContentEditor.tsx:2009
 msgid "Resize settings panel"
 msgstr "সেটিংস প্যানেলের আকার পরিবর্তন করুন"
 
@@ -11085,7 +11488,8 @@ msgstr "প্রকাশকের হ্যান্ডেল খোঁজা 
 msgid "Restart numbering"
 msgstr "নম্বর আবার শুরু করুন"
 
-#: packages/admin/src/components/RevisionHistory.tsx:242
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
 msgstr "পুনরুদ্ধার করুন"
 
@@ -11093,27 +11497,29 @@ msgstr "পুনরুদ্ধার করুন"
 msgid "Restore {title}"
 msgstr "{title} পুনরুদ্ধার করুন"
 
-#: packages/admin/src/components/RevisionHistory.tsx:135
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:91
 msgid "Restore failed"
 msgstr "পুনরুদ্ধার ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/RevisionHistory.tsx:236
-msgid "Restore Revision?"
-msgstr "রিভিশন পুনরুদ্ধার করবেন?"
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:109
+msgid "Restore this version?"
+msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:305
-#: packages/admin/src/components/RevisionHistory.tsx:306
-msgid "Restore this version"
-msgstr "এই সংস্করণটি পুনরুদ্ধার করুন"
+#: packages/admin/src/components/revisions/change-labels.ts:158
+msgid "Restored an earlier version"
+msgstr ""
 
-#. placeholder {0}: isolate(formatFullDate(restoreTarget.createdAt, i18n.locale))
-#: packages/admin/src/components/RevisionHistory.tsx:239
-msgid "Restore this version from {0}? This will update the current content to this revision's data."
-msgstr "{0} তারিখের এই সংস্করণটি পুনরুদ্ধার করবেন? এতে বর্তমান কনটেন্ট এই রিভিশনের ডেটা অনুযায়ী আপডেট হবে।"
+#: packages/admin/src/components/revisions/RevisionList.tsx:242
+msgid "Restored from {restoredDate}"
+msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:243
-msgid "Restoring..."
-msgstr "পুনরুদ্ধার করা হচ্ছে..."
+#: packages/admin/src/components/revisions/change-labels.ts:160
+msgid "Restored the version from {date}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:130
+msgid "Restoring…"
+msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:444
 msgid "Results"
@@ -11125,7 +11531,7 @@ msgid "Retired"
 msgstr "অবসরপ্রাপ্ত"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:2822
+#: packages/admin/src/components/ContentEditor.tsx:2996
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
@@ -11141,7 +11547,7 @@ msgstr "অবসরপ্রাপ্ত"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3242
+#: packages/admin/src/router.tsx:3328
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
@@ -11192,11 +11598,11 @@ msgstr "আবার চেষ্টা করা হচ্ছে…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "পুনর্ব্যবহারযোগ্য কনটেন্ট ব্লক, যা আপনি যেকোনো কনটেন্টে যোগ করতে পারেন"
 
-#: packages/admin/src/router.tsx:1427
+#: packages/admin/src/router.tsx:1512
 msgid "Reverted to published version"
 msgstr "প্রকাশিত সংস্করণে ফিরিয়ে নেওয়া হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:750
+#: packages/admin/src/components/WordPressImport.tsx:769
 msgid "Review"
 msgstr "পর্যালোচনা"
 
@@ -11241,13 +11647,9 @@ msgstr "যাচাইকৃত আপডেট পর্যালোচনা 
 msgid "Reviewing…"
 msgstr "পর্যালোচনা করা হচ্ছে…"
 
-#: packages/admin/src/components/RevisionHistory.tsx:129
-msgid "Revision restored"
-msgstr "রিভিশন পুনরুদ্ধার করা হয়েছে"
-
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1305
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
 #: packages/admin/src/components/ContentTypeEditor.tsx:96
-#: packages/admin/src/components/RevisionHistory.tsx:168
+#: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
 #: packages/admin/src/components/settings/transfer/labels.ts:86
 msgid "Revisions"
@@ -11296,8 +11698,8 @@ msgstr "ডান"
 msgid "Risk score: {0}/100"
 msgstr "ঝুঁকি স্কোর: {0}/100"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:260
-#: packages/admin/src/components/settings/SeoSettings.tsx:263
+#: packages/admin/src/components/settings/SeoSettings.tsx:264
+#: packages/admin/src/components/settings/SeoSettings.tsx:267
 msgid "robots.txt"
 msgstr "robots.txt"
 
@@ -11366,6 +11768,10 @@ msgstr ""
 msgid "Rust"
 msgstr "Rust"
 
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:86
+msgid "Same as current version"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:534
 #: packages/admin/src/components/MenuEditor.tsx:536
 #: packages/admin/src/components/MenuEditor.tsx:732
@@ -11399,7 +11805,7 @@ msgstr "সংরক্ষণ করুন (Enter)"
 msgid "Save alt text"
 msgstr "বিকল্প টেক্সট সংরক্ষণ করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1668
+#: packages/admin/src/components/ContentEditor.tsx:1762
 msgid "Save anyway"
 msgstr "তবুও সংরক্ষণ করুন"
 
@@ -11511,7 +11917,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "কাছের কোনো ফোন বা ট্যাবলেট দিয়ে এটি স্ক্যান করুন।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:607
+#: packages/admin/src/components/ContentSettingsPanel.tsx:623
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
 msgid "Schedule"
 msgstr "সময় নির্ধারণ করুন"
@@ -11537,7 +11943,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 #: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1482
+#: packages/admin/src/router.tsx:1567
 msgid "Scheduled"
 msgstr "নির্ধারিত"
 
@@ -11550,12 +11956,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr ""
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:142
+#: packages/admin/src/components/ContentSettingsPanel.tsx:146
 msgid "Scheduled for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:150
-#: packages/admin/src/components/ContentSettingsPanel.tsx:241
+#: packages/admin/src/components/ContentSettingsPanel.tsx:154
+#: packages/admin/src/components/ContentSettingsPanel.tsx:253
 msgid "Scheduled publication"
 msgstr "নির্ধারিত প্রকাশনা"
 
@@ -11563,11 +11969,11 @@ msgstr "নির্ধারিত প্রকাশনা"
 msgid "Scheduled publishing needs attention"
 msgstr "নির্ধারিত প্রকাশনায় মনোযোগ প্রয়োজন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2351
+#: packages/admin/src/components/WordPressImport.tsx:2376
 msgid "Schema Changes"
 msgstr "স্কিমা পরিবর্তন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Schema preparation failed"
 msgstr "স্কিমা প্রস্তুত করতে ব্যর্থ হয়েছে"
 
@@ -11690,12 +12096,12 @@ msgstr "মন্তব্য অনুসন্ধান করুন..."
 msgid "Search content..."
 msgstr "কনটেন্ট অনুসন্ধান করুন..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:166
+#: packages/admin/src/components/settings/SeoSettings.tsx:170
 msgid "Search Engine Optimization"
 msgstr "সার্চ ইঞ্জিন অপটিমাইজেশন"
 
 #: packages/admin/src/components/Settings.tsx:67
-#: packages/admin/src/components/settings/SeoSettings.tsx:123
+#: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "সার্চ ইঞ্জিন অপটিমাইজেশন ও যাচাইকরণ"
 
@@ -11911,8 +12317,8 @@ msgid "Select"
 msgstr "নির্বাচন করুন"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:3243
-#: packages/admin/src/components/ContentEditor.tsx:3259
+#: packages/admin/src/components/ContentEditor.tsx:3417
+#: packages/admin/src/components/ContentEditor.tsx:3433
 #: packages/admin/src/components/ImageFieldRenderer.tsx:584
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Select {label}"
@@ -11959,7 +12365,7 @@ msgstr "সব নির্বাচন করুন"
 msgid "Select all on this page"
 msgstr "এই পেজের সব নির্বাচন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2736
+#: packages/admin/src/components/ContentEditor.tsx:2910
 msgid "Select at least one entry."
 msgstr ""
 
@@ -11980,7 +12386,7 @@ msgstr ""
 msgid "Select dark mode variant for {label}"
 msgstr "{label}-এর জন্য ডার্ক মোড ভ্যারিয়েন্ট নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:289
+#: packages/admin/src/components/settings/SeoSettings.tsx:309
 msgid "Select default social image"
 msgstr "ডিফল্ট সোশ্যাল ছবি নির্বাচন করুন"
 
@@ -11992,7 +12398,7 @@ msgstr "ফেভিকন নির্বাচন করুন"
 msgid "Select Favicon"
 msgstr "ফেভিকন নির্বাচন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3247
+#: packages/admin/src/components/ContentEditor.tsx:3421
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 msgid "Select file"
 msgstr "ফাইল নির্বাচন করুন"
@@ -12007,7 +12413,7 @@ msgstr "গ্যালারির ছবি নির্বাচন করু
 msgid "Select image"
 msgstr "ছবি নির্বাচন করুন"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:228
+#: packages/admin/src/components/settings/SeoSettings.tsx:232
 msgid "Select Image"
 msgstr "ছবি নির্বাচন করুন"
 
@@ -12040,7 +12446,7 @@ msgstr ""
 msgid "Select video"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1761
+#: packages/admin/src/components/WordPressImport.tsx:1786
 msgid "Select which content types to import."
 msgstr "কোন কনটেন্ট টাইপগুলো ইমপোর্ট করবেন তা নির্বাচন করুন।"
 
@@ -12060,6 +12466,7 @@ msgstr "নির্বাচিত {selectedItemTitle}"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:253
 #: packages/admin/src/components/ImageFieldRenderer.tsx:268
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr "নির্বাচিত ছবি"
 
@@ -12127,8 +12534,8 @@ msgstr "পরীক্ষামূলক ইমেইল পাঠান"
 msgid "Sending..."
 msgstr "পাঠানো হচ্ছে..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1210
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1227
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1230
 #: packages/admin/src/components/ContentTypeEditor.tsx:643
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -12139,15 +12546,15 @@ msgstr "SEO"
 msgid "SEO settings"
 msgstr "SEO সেটিংস"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:122
+#: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "SEO সেটিংস"
 
-#: packages/admin/src/components/WordPressImport.tsx:1872
+#: packages/admin/src/components/WordPressImport.tsx:1897
 msgid "SEO settings (Yoast)"
 msgstr "SEO সেটিংস (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
 msgstr "SEO সেটিংস সংরক্ষিত হয়েছে"
 
@@ -12216,14 +12623,14 @@ msgid "Setting up..."
 msgstr "সেট আপ করা হচ্ছে..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:247
-#: packages/admin/src/components/ContentEditor.tsx:1729
-#: packages/admin/src/components/ContentEditor.tsx:2026
+#: packages/admin/src/components/ContentEditor.tsx:1877
+#: packages/admin/src/components/ContentEditor.tsx:2200
 #: packages/admin/src/components/ContentTypeEditor.tsx:465
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:536
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:510
-#: packages/admin/src/components/WordPressImport.tsx:1840
+#: packages/admin/src/components/WordPressImport.tsx:1865
 msgid "Settings"
 msgstr "সেটিংস"
 
@@ -12266,6 +12673,10 @@ msgstr "ছোট টেক্সট"
 msgid "Short Text"
 msgstr "ছোট টেক্সট"
 
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
+msgid "Show changes"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:147
 msgid "Show count"
 msgstr "সংখ্যা দেখান"
@@ -12277,6 +12688,10 @@ msgstr "তারিখ দেখান"
 #: packages/admin/src/components/Widgets.tsx:140
 msgid "Show hierarchy"
 msgstr "স্তরবিন্যাস দেখান"
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:192
+msgid "Show older versions"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:139
 msgid "Show post count"
@@ -12303,7 +12718,7 @@ msgstr "{0}-এর মধ্যে {pageShowingRange} দেখানো হচ�
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1135
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1152
 msgid "Shown to readers in this order."
 msgstr "পাঠকদের এই ক্রমে দেখানো হয়।"
 
@@ -12404,7 +12819,7 @@ msgstr "সাইটের পরিচিতি"
 msgid "Site Identity"
 msgstr "সাইটের পরিচিতি"
 
-#: packages/admin/src/components/WordPressImport.tsx:2299
+#: packages/admin/src/components/WordPressImport.tsx:2324
 msgid "site identity applied (title, tagline, logo)"
 msgstr "সাইটের পরিচিতি প্রয়োগ করা হয়েছে (শিরোনাম, ট্যাগলাইন, লোগো)"
 
@@ -12427,7 +12842,7 @@ msgstr "সাইট সেটিংস"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1182
+#: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "সাইট সেটিংস"
 
@@ -12440,7 +12855,7 @@ msgstr "সাইটের শিরোনাম"
 msgid "Site Title"
 msgstr "সাইটের শিরোনাম"
 
-#: packages/admin/src/components/WordPressImport.tsx:1852
+#: packages/admin/src/components/WordPressImport.tsx:1877
 msgid "Site title & tagline"
 msgstr "সাইটের শিরোনাম ও ট্যাগলাইন"
 
@@ -12481,17 +12896,17 @@ msgstr "ফোল্ডারের ক্ষেত্রে আকার প্
 msgid "Size:"
 msgstr "আকার:"
 
-#: packages/admin/src/components/WordPressImport.tsx:2133
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "Skip Media Import"
 msgstr "মিডিয়া ইমপোর্ট এড়িয়ে যান"
 
-#: packages/admin/src/components/WordPressImport.tsx:2158
+#: packages/admin/src/components/WordPressImport.tsx:2183
 msgid "Skipped"
 msgstr "এড়িয়ে যাওয়া হয়েছে"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:233
 #: packages/admin/src/components/BylineFormDialog.tsx:409
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1068
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1085
 #: packages/admin/src/components/ContentTypeEditor.tsx:131
 #: packages/admin/src/components/ContentTypeEditor.tsx:486
 #: packages/admin/src/components/ContentTypeList.tsx:201
@@ -12559,7 +12974,7 @@ msgstr "কিছু কনটেন্ট এমন মিডিয়া ফ�
 msgid "Some content may not appear here yet."
 msgstr "কিছু কনটেন্ট হয়তো এখনও এখানে দেখা যাচ্ছে না।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1889
+#: packages/admin/src/components/WordPressImport.tsx:1914
 msgid "Some content types cannot be imported"
 msgstr "কিছু কনটেন্ট টাইপ ইমপোর্ট করা যাবে না"
 
@@ -12662,7 +13077,7 @@ msgstr "নতুন ইমপোর্ট শুরু করুন"
 msgid "Start import"
 msgstr "ইমপোর্ট শুরু করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1951
+#: packages/admin/src/components/WordPressImport.tsx:1976
 msgid "Start Import"
 msgstr "ইমপোর্ট শুরু করুন"
 
@@ -12678,7 +13093,7 @@ msgstr "টেমপ্লেটের উদাহরণ পোস্ট ও �
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2299
+#: packages/admin/src/components/ContentEditor.tsx:2473
 #: packages/admin/src/components/PortableTextEditor.tsx:3455
 msgid "Start writing, or type '/' for commands"
 msgstr "লেখা শুরু করুন, অথবা কমান্ডের জন্য '/' টাইপ করুন"
@@ -12749,13 +13164,18 @@ msgstr "প্রতিটি লোকেলের জন্য আলাদা
 msgid "Strikethrough"
 msgstr "স্ট্রাইকথ্রু"
 
-#: packages/admin/src/components/WordPressImport.tsx:1781
+#: packages/admin/src/components/WordPressImport.tsx:1806
 msgid "Structure"
 msgstr "কাঠামো"
 
-#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1214
 msgid "Structured"
 msgstr "কাঠামোবদ্ধ"
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:135
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:163
+msgid "Style changed:"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:1305
 msgid "Sub-field slugs cannot be changed after creation."
@@ -12818,6 +13238,7 @@ msgstr "সিস্টেম ফিল্ড"
 #: packages/admin/src/components/editor/TableControls.tsx:31
 #: packages/admin/src/components/editor/TableControls.tsx:368
 #: packages/admin/src/components/PortableTextEditor.tsx:2088
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:510
 msgid "Table"
 msgstr "টেবিল"
 
@@ -12858,7 +13279,7 @@ msgid "Tags"
 msgstr "ট্যাগ"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1826
+#: packages/admin/src/components/WordPressImport.tsx:1851
 msgid "Tags ({0})"
 msgstr "ট্যাগ ({0})"
 
@@ -12881,7 +13302,7 @@ msgstr "টার্গেট"
 msgid "Target locale"
 msgstr "লক্ষ্য লোকেল"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1197
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1214
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:898
 msgid "Taxonomies"
@@ -12974,6 +13395,10 @@ msgstr "test@example.com"
 msgid "Text formatting"
 msgstr "টেক্সট ফরম্যাটিং"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:546
+msgid "That version is no longer available. Back to editing."
+msgstr ""
+
 #. placeholder {0}: bound.fieldSlug
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:59
@@ -13050,7 +13475,7 @@ msgstr "ডিভাইসটিকে অ্যাক্সেস দেওয�
 msgid "The download stopped"
 msgstr "ডাউনলোড থেমে গেছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1891
+#: packages/admin/src/components/WordPressImport.tsx:1916
 msgid "The existing collection has fields with incompatible types."
 msgstr "বিদ্যমান কালেকশনে অসামঞ্জস্যপূর্ণ টাইপের ফিল্ড আছে।"
 
@@ -13253,7 +13678,7 @@ msgstr "প্যাকেজের কনটেন্ট এই সাইটে
 msgid "The package’s file index is not valid."
 msgstr "প্যাকেজের ফাইল ইনডেক্স বৈধ নয়।"
 
-#: packages/admin/src/router.tsx:3256
+#: packages/admin/src/router.tsx:3342
 msgid "The page you're looking for doesn't exist."
 msgstr "আপনি যে পেজটি খুঁজছেন তা নেই।"
 
@@ -13273,8 +13698,8 @@ msgstr "প্লাগইনের ফিল্ড উইজেট রেন্
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "প্লাগইন এই পরিবর্তনগুলো সংরক্ষণ করেনি। এডিটর আপডেট করার আগে এগুলো পর্যালোচনা করুন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:969
-#: packages/admin/src/components/ContentEditor.tsx:985
+#: packages/admin/src/components/ContentEditor.tsx:1035
+#: packages/admin/src/components/ContentEditor.tsx:1051
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "প্লাগইনের ফলাফল পুরোনো হয়ে গেছে, কারণ এটি কাজ করার সময় এডিটরে পরিবর্তন হয়েছে।"
 
@@ -13291,7 +13716,7 @@ msgstr "প্রকাশকের পরিচয় যাচাই করা
 msgid "The range has more entries than the calendar can show."
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:197
+#: packages/admin/src/components/settings/SeoSettings.tsx:201
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "রেফারেন্স করা ছবিটি আর পাওয়া যাচ্ছে না। নতুন একটি বেছে নিন অথবা রেফারেন্সটি সরান।"
 
@@ -13355,6 +13780,22 @@ msgstr "থিম মার্কেটপ্লেস খালি। পরে
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:353
 msgid "The uploaded package is discarded. Nothing on this site has changed."
 msgstr "আপলোড করা প্যাকেজটি বাতিল করা হয়েছে। এই সাইটে কিছুই পরিবর্তিত হয়নি।"
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:117
+msgid "The version from {when} becomes your draft and goes live at the scheduled time."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:118
+msgid "The version from {when} becomes your draft. The live site won't change until you publish."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:82
+msgid "The version from {when} is now your draft. It goes live at the scheduled time."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:83
+msgid "The version from {when} is now your draft. Publish when you're ready."
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:211
 msgid "The video is in the Media Library, but this entry is now read-only."
@@ -13444,7 +13885,7 @@ msgstr "এই কালেকশনটি কোডে সংজ্ঞায়
 msgid "This content cannot be edited safely"
 msgstr "এই কনটেন্ট নিরাপদে সম্পাদনা করা যাবে না"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:515
 msgid "This content will be visible on the site immediately."
 msgstr "এই কনটেন্ট সঙ্গে সঙ্গে সাইটে দেখা যাবে।"
 
@@ -13456,24 +13897,24 @@ msgstr ""
 msgid "This device is requesting permission to use:"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1088
+#: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "এটি একটি বৈধ মাইগ্রেশন কী বলে মনে হচ্ছে না। প্লাগইনে নতুন একটি তৈরি করুন এবং \"em1.\" দিয়ে শুরু হওয়া পুরো স্ট্রিংটি পেস্ট করুন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1664
+#: packages/admin/src/components/ContentEditor.tsx:1758
 msgid "This entry changed somewhere else after you opened it."
 msgstr "আপনি খোলার পর এই এন্ট্রিটি অন্য কোথাও পরিবর্তন করা হয়েছে।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1253
-#: packages/admin/src/router.tsx:1052
+#: packages/admin/src/components/ContentEditor.tsx:1333
+#: packages/admin/src/router.tsx:1121
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "এই এন্ট্রিটি অন্য কোথাও পরিবর্তন করা হয়েছে। তবুও সংরক্ষণ করুন, অথবা নতুন সংস্করণ পেতে রিলোড করুন।"
 
-#: packages/admin/src/router.tsx:1864
+#: packages/admin/src/router.tsx:1950
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1865
+#: packages/admin/src/router.tsx:1951
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -13485,7 +13926,7 @@ msgstr "প্রকাশিত না হওয়া পর্যন্ত �
 msgid "This entry is open somewhere else"
 msgstr "এই এন্ট্রিটি অন্য কোথাও খোলা আছে"
 
-#: packages/admin/src/components/ContentEditor.tsx:1651
+#: packages/admin/src/components/ContentEditor.tsx:1745
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "এই এন্ট্রিটি শুধু-পঠনযোগ্য, কারণ এর স্কিমা এমন ফিল্ড টাইপ ব্যবহার করে যা EmDash-এর এই সংস্করণ সমর্থন করে না।"
 
@@ -13497,7 +13938,8 @@ msgstr ""
 msgid "This export is large"
 msgstr "এই এক্সপোর্টটি বড়"
 
-#: packages/admin/src/components/ContentEditor.tsx:2127
+#: packages/admin/src/components/ContentEditor.tsx:2301
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "EmDash-এর এই সংস্করণ দিয়ে এই ফিল্ডটি সম্পাদনা করা যাবে না।"
 
@@ -13522,7 +13964,7 @@ msgstr "এই ফিল্ড {mimeType} ফাইল গ্রহণ করে
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "এই ফিল্ডে একটি তালিকা প্রত্যাশিত। আপনি এটিকে একটি খালি তালিকা দিয়ে প্রতিস্থাপন না করা পর্যন্ত সংরক্ষিত মান অপরিবর্তিত থাকবে, আর প্রতিস্থাপন করলে এটি মুছে যাবে। প্রয়োজনীয় কিছু থাকলে আগে কপি করে নিন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:3263
+#: packages/admin/src/components/ContentEditor.tsx:3437
 #: packages/admin/src/components/ImageFieldRenderer.tsx:603
 msgid "This field is required"
 msgstr "এই ফিল্ডটি আবশ্যক"
@@ -13577,7 +14019,7 @@ msgstr "এই ইমপোর্ট ইতিমধ্যে শুরু হ�
 msgid "This is a custom section."
 msgstr "এটি একটি কাস্টম সেকশন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1337
+#: packages/admin/src/components/WordPressImport.tsx:1362
 msgid "This is a WordPress site."
 msgstr "এটি একটি WordPress সাইট।"
 
@@ -13601,7 +14043,7 @@ msgstr "এই লিঙ্কের মেয়াদ 7 দিনে শেষ
 msgid "This link expires in 7 days."
 msgstr "এই লিঙ্কের মেয়াদ 7 দিনে শেষ হবে।"
 
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:968
 msgid "This may take a while for large exports."
 msgstr "বড় এক্সপোর্টের ক্ষেত্রে এতে কিছুটা সময় লাগতে পারে।"
 
@@ -13699,7 +14141,7 @@ msgstr "এটি বাইলাইন প্রোফাইলটি সরি
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:512
 msgid "This removes the schedule and publishes immediately."
 msgstr "এটি নির্ধারিত সময়সূচি সরিয়ে দিয়ে এখনই প্রকাশ করবে।"
 
@@ -13781,7 +14223,11 @@ msgstr "এই টেবিলে অসমর্থিত সেল ফরম�
 msgid "This update exposes the following routes without authentication:"
 msgstr "এই আপডেটটি প্রমাণীকরণ ছাড়াই নিচের রুটগুলো উন্মুক্ত করে:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:164
+#: packages/admin/src/components/revisions/RevisionViewErrorBoundary.tsx:7
+msgid "This version can't be shown."
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:168
 msgid "This version is not visible on the site"
 msgstr "এই সংস্করণটি সাইটে দৃশ্যমান নয়"
 
@@ -13793,7 +14239,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "এটি উইজেট এরিয়া এবং এর সব উইজেট মুছে ফেলবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1345
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1373
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "এটি আইটেমটিকে ট্র্যাশে সরিয়ে দেবে। পরে আপনি ট্র্যাশ থেকে এটি পুনরুদ্ধার করতে পারবেন।"
 
@@ -13815,7 +14261,7 @@ msgstr "এটি এই মন্তব্যটি স্থায়ীভা
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "এটি আপনার সাইট থেকে প্লাগইন এবং এর বান্ডেল সরিয়ে দেবে।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:336
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "এটি প্রকাশিত সংস্করণে ফিরিয়ে নেবে। আপনার খসড়ার পরিবর্তনগুলো হারিয়ে যাবে।"
 
@@ -13852,7 +14298,7 @@ msgstr "শিরোনাম"
 msgid "Title (Tooltip)"
 msgstr "শিরোনাম (টুলটিপ)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:169
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Title Separator"
 msgstr "শিরোনাম বিভাজক"
 
@@ -13871,6 +14317,7 @@ msgstr "নির্বাচন করতে"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:570
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
+#: packages/admin/src/components/revisions/revision-format.ts:107
 msgid "Today"
 msgstr ""
 
@@ -13964,11 +14411,11 @@ msgstr "অনুবাদ করা হচ্ছে..."
 #: packages/admin/src/components/MenuEditor.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:1252
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1533
+#: packages/admin/src/router.tsx:1618
 msgid "Translation created"
 msgstr "অনুবাদ তৈরি হয়েছে"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1175
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1192
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "অনুবাদ"
@@ -14028,6 +14475,7 @@ msgstr "আপনার অনুসন্ধান বা ফিল্টার
 
 #: packages/admin/src/components/MediaUsedIn.tsx:247
 #: packages/admin/src/components/MediaUsedIn.tsx:277
+#: packages/admin/src/components/RevisionHistory.tsx:93
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:352
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:386
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:397
@@ -14038,7 +14486,7 @@ msgstr "আপনার অনুসন্ধান বা ফিল্টার
 msgid "Try again"
 msgstr "আবার চেষ্টা করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1611
+#: packages/admin/src/components/WordPressImport.tsx:1636
 msgid "Try Again"
 msgstr "আবার চেষ্টা করুন"
 
@@ -14063,8 +14511,8 @@ msgstr "অন্য কোনো ফাইলের নাম চেষ্ট�
 msgid "Try another filename, or clear your search and filters."
 msgstr "অন্য কোনো ফাইলের নাম চেষ্টা করুন, অথবা আপনার অনুসন্ধান ও ফিল্টারগুলো মুছে দিন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
-#: packages/admin/src/components/WordPressImport.tsx:1437
+#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:1462
 msgid "Try Another URL"
 msgstr "অন্য একটি URL চেষ্টা করুন"
 
@@ -14091,6 +14539,14 @@ msgstr "চালু করুন"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:572
 msgid "Turn on media usage tracking?"
 msgstr "মিডিয়া ব্যবহার ট্র্যাকিং চালু করবেন?"
+
+#: packages/admin/src/components/revisions/change-labels.ts:170
+msgid "Turned off {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:170
+msgid "Turned on {label}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Turning on…"
@@ -14125,7 +14581,7 @@ msgid "Type caption for video (optional)"
 msgstr ""
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2047
+#: packages/admin/src/components/WordPressImport.tsx:2072
 msgid "Type mismatch ({0})"
 msgstr "টাইপ মেলেনি ({0})"
 
@@ -14150,8 +14606,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "মার্কেটপ্লেসে সংযোগ করা যাচ্ছে না"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1381
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1398
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1409
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1426
 msgid "Unassigned"
 msgstr "নির্ধারিত নয়"
 
@@ -14200,6 +14656,10 @@ msgstr "অনন্য শনাক্তকারী (ULID)"
 msgid "Unknown"
 msgstr "অজানা"
 
+#: packages/admin/src/components/revisions/revision-format.ts:129
+msgid "Unknown author"
+msgstr ""
+
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
 msgstr "অজানা ভূমিকা"
@@ -14218,11 +14678,15 @@ msgstr "অ্যাসপেক্ট রেশিও আনলক করুন
 msgid "Unnamed passkey"
 msgstr "নামহীন পাসকি"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:485
+#: packages/admin/src/components/revisions/revision-format.ts:129
+msgid "Unnamed user"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "Unpublish {itemLabel}"
 msgstr "{itemLabel} অপ্রকাশিত করুন"
 
-#: packages/admin/src/router.tsx:1403
+#: packages/admin/src/router.tsx:1488
 msgid "Unpublished"
 msgstr "অপ্রকাশিত"
 
@@ -14248,7 +14712,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "অসংরক্ষিত কনটেন্ট আপনার সাইটের বাইরে যেতে পারে"
 
-#: packages/admin/src/router.tsx:1501
+#: packages/admin/src/router.tsx:1586
 msgid "Unscheduled"
 msgstr "সময় নির্ধারিত নয়"
 
@@ -14272,7 +14736,8 @@ msgstr "{0} পর্যন্ত"
 msgid "Untitled"
 msgstr "শিরোনামহীন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3165
+#: packages/admin/src/components/ContentEditor.tsx:3339
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "শিরোনামহীন ফাইল"
 
@@ -14339,7 +14804,7 @@ msgid "Update to v{0}"
 msgstr "v{0}-এ আপডেট করুন"
 
 #: packages/admin/src/components/ContentList.tsx:1031
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1035
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "আপডেট করা হয়েছে"
@@ -14348,7 +14813,7 @@ msgstr "আপডেট করা হয়েছে"
 msgid "Updated At"
 msgstr "আপডেটের সময়"
 
-#: packages/admin/src/components/WordPressImport.tsx:974
+#: packages/admin/src/components/WordPressImport.tsx:993
 msgid "Updating content URLs..."
 msgstr "কনটেন্টের URL আপডেট করা হচ্ছে..."
 
@@ -14386,7 +14851,7 @@ msgstr "শুরু করতে একটি ফাইল আপলোড ক�
 msgid "Upload a video to get started"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Upload an export file"
 msgstr "একটি এক্সপোর্ট ফাইল আপলোড করুন"
 
@@ -14403,8 +14868,8 @@ msgstr "মিডিয়া আপলোড করা ও মোছা"
 msgid "Upload and manage media"
 msgstr "মিডিয়া আপলোড ও পরিচালনা করা"
 
-#: packages/admin/src/components/WordPressImport.tsx:1313
-#: packages/admin/src/components/WordPressImport.tsx:1434
+#: packages/admin/src/components/WordPressImport.tsx:1338
+#: packages/admin/src/components/WordPressImport.tsx:1459
 msgid "Upload Export File"
 msgstr "এক্সপোর্ট ফাইল আপলোড করুন"
 
@@ -14456,7 +14921,7 @@ msgstr "{0}-এ আপলোড করুন"
 msgid "Upload to {providerName}"
 msgstr "{providerName}-এ আপলোড করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:1149
+#: packages/admin/src/components/WordPressImport.tsx:1168
 msgid "Upload WordPress export file"
 msgstr "WordPress এক্সপোর্ট ফাইল আপলোড করুন"
 
@@ -14470,7 +14935,7 @@ msgstr "আপলোড করা হয়েছে:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2156
+#: packages/admin/src/components/WordPressImport.tsx:2181
 msgid "Uploading"
 msgstr "আপলোড হচ্ছে"
 
@@ -14501,8 +14966,8 @@ msgstr ""
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1061
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1064
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
 msgid "URL & language"
 msgstr "URL ও ভাষা"
 
@@ -14599,7 +15064,7 @@ msgstr "সাইন ইন করতে আপনার ডিভাইসে�
 msgid "Use your registered passkey to sign in securely."
 msgstr "নিরাপদে সাইন ইন করতে আপনার নিবন্ধিত পাসকি ব্যবহার করুন।"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:178
+#: packages/admin/src/components/settings/SeoSettings.tsx:182
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "কোনো পেজে ছবি না থাকলে এটি ফলব্যাক Open Graph ছবি হিসেবে ব্যবহৃত হয়। প্রস্তাবিত আকার: 1200×630।"
 
@@ -14607,7 +15072,7 @@ msgstr "কোনো পেজে ছবি না থাকলে এটি ফ
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "শনাক্তকারী হিসেবে ব্যবহৃত হয়। শুধু ছোট হাতের অক্ষর, সংখ্যা এবং আন্ডারস্কোর।"
 
-#: packages/admin/src/components/ContentEditor.tsx:2422
+#: packages/admin/src/components/ContentEditor.tsx:2596
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "তালিকা পেজে এবং পোস্টের শীর্ষে এই পোস্টের প্রধান ভিজ্যুয়াল হিসেবে ব্যবহৃত হয়"
 
@@ -14745,11 +15210,20 @@ msgstr "সংস্করণ {0}"
 msgid "Version {0} (active)"
 msgstr "সংস্করণ {0} (সক্রিয়)"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:652
+msgid "Version from {when}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:80
+msgid "Version restored"
+msgstr ""
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:922
 #: packages/admin/src/components/MediaPickerModal.tsx:392
 #: packages/admin/src/components/PortableTextEditor.tsx:3677
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:490
 msgid "Video"
 msgstr "ভিডিও"
 
@@ -14795,24 +15269,28 @@ msgstr "সোর্স দেখুন"
 msgid "View the {license} license on spdx.org"
 msgstr "spdx.org-এ {license} লাইসেন্স দেখুন"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:517
+msgid "Viewing the version from {when} by {name}."
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:469
 msgid "Visitors hitting these paths will see an error."
 msgstr "এই পাথগুলোতে আসা ভিজিটররা একটি ত্রুটি দেখবেন।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:214
+#: packages/admin/src/components/ContentSettingsPanel.tsx:222
 msgid "Visitors see the published version until the scheduled update"
 msgstr "নির্ধারিত আপডেট না হওয়া পর্যন্ত ভিজিটররা প্রকাশিত সংস্করণ দেখবেন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:182
-#: packages/admin/src/components/ContentSettingsPanel.tsx:236
+#: packages/admin/src/components/ContentSettingsPanel.tsx:186
+#: packages/admin/src/components/ContentSettingsPanel.tsx:248
 msgid "Visitors see this published version"
 msgstr "ভিজিটররা এই প্রকাশিত সংস্করণ দেখছেন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:192
+#: packages/admin/src/components/ContentSettingsPanel.tsx:196
 msgid "Visitors still see the published version"
 msgstr "ভিজিটররা এখনো প্রকাশিত সংস্করণ দেখছেন"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:498
+#: packages/admin/src/components/ContentSettingsPanel.tsx:514
 msgid "Visitors will see these changes immediately."
 msgstr "ভিজিটররা এই পরিবর্তনগুলো সঙ্গে সঙ্গে দেখতে পাবেন।"
 
@@ -14847,11 +15325,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "আমরা ব্রাউজারের পাসকি প্রম্পট খোলার আগেই যাচাই করেছি, যাতে এরপর কী হবে তা আপনি বেছে নিতে পারেন।"
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1295
+#: packages/admin/src/components/WordPressImport.tsx:1320
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "{0}-এ কোনো WordPress সাইটের সাথে সংযোগ করা যায়নি। এর অর্থ হতে পারে সাইটটি WordPress নয়, REST API বন্ধ আছে, অথবা সাইটটি অ্যাক্সেসযোগ্য নয়।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1113
+#: packages/admin/src/components/WordPressImport.tsx:1132
 msgid "We'll check what import options are available for your site."
 msgstr "আপনার সাইটের জন্য কোন কোন ইমপোর্ট অপশন উপলব্ধ তা আমরা যাচাই করব।"
 
@@ -14898,7 +15376,7 @@ msgstr ""
 msgid "What happens next?"
 msgstr "এরপর কী হবে?"
 
-#: packages/admin/src/components/WordPressImport.tsx:2120
+#: packages/admin/src/components/WordPressImport.tsx:2145
 msgid "What happens when you import:"
 msgstr "ইমপোর্ট করলে যা ঘটবে:"
 
@@ -14922,11 +15400,11 @@ msgstr "প্যাকেজে যা অন্তর্ভুক্ত"
 msgid "What will be imported"
 msgstr "যা ইমপোর্ট করা হবে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1903
+#: packages/admin/src/components/WordPressImport.tsx:1928
 msgid "What will happen when you import"
 msgstr "ইমপোর্ট করলে যা ঘটবে"
 
-#: packages/admin/src/components/ContentEditor.tsx:1665
+#: packages/admin/src/components/ContentEditor.tsx:1759
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "আপনি যা লিখেছেন তা এখনো এখানে আছে। সংরক্ষণ করলে নতুন সংস্করণটি প্রতিস্থাপিত হবে।"
 
@@ -14963,7 +15441,7 @@ msgstr "কোন কনটেন্ট টাইপ এই ট্যাক্�
 msgid "Whole number"
 msgstr "পূর্ণসংখ্যা"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1148
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 msgid "Why are bylines shown in this order?"
 msgstr "বাইলাইনগুলো এই ক্রমে দেখানো হচ্ছে কেন?"
 
@@ -14971,7 +15449,7 @@ msgstr "বাইলাইনগুলো এই ক্রমে দেখান
 msgid "Why can't this be changed?"
 msgstr "এটি পরিবর্তন করা যাচ্ছে না কেন?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 msgid "Why English is used"
 msgstr "ইংরেজি কেন ব্যবহার করা হচ্ছে"
 
@@ -15042,7 +15520,7 @@ msgstr "উইজেট আপডেট করা হয়েছে"
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/components/WordPressImport.tsx:1188
+#: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
 msgstr "উইজেট"
 
@@ -15059,7 +15537,7 @@ msgstr "প্রস্থ"
 msgid "Will be cleared on save"
 msgstr "সংরক্ষণ করলে মুছে যাবে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2043
+#: packages/admin/src/components/WordPressImport.tsx:2068
 msgid "Will create"
 msgstr "তৈরি করা হবে"
 
@@ -15079,11 +15557,11 @@ msgstr "পাসকি থাকলে আপনাকে জটিল পা�
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "ইমেইল প্রোভাইডার ছাড়া আমন্ত্রণ লিঙ্কগুলো ম্যানুয়ালি শেয়ার করতে হবে।"
 
-#: packages/admin/src/components/WordPressImport.tsx:228
+#: packages/admin/src/components/WordPressImport.tsx:235
 msgid "WordPress authorization was rejected"
 msgstr "WordPress অনুমোদন প্রত্যাখ্যান করা হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1505
+#: packages/admin/src/components/WordPressImport.tsx:1530
 msgid "WordPress Username"
 msgstr "WordPress ইউজারনেম"
 
@@ -15119,7 +15597,7 @@ msgstr "উইজেটের কনটেন্ট লিখুন..."
 msgid "Writing the file index"
 msgstr "ফাইল ইনডেক্স লেখা হচ্ছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "WXR File"
 msgstr "WXR ফাইল"
 
@@ -15127,7 +15605,7 @@ msgstr "WXR ফাইল"
 msgid "XML"
 msgstr "XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1526
+#: packages/admin/src/components/WordPressImport.tsx:1551
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -15146,7 +15624,11 @@ msgstr "বার্ষিক"
 msgid "Yes"
 msgstr "হ্যাঁ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1191
+#: packages/admin/src/components/revisions/revision-format.ts:109
+msgid "Yesterday"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
@@ -15207,7 +15689,7 @@ msgstr "মিডিয়া ব্যবহার ট্র্যাকিং 
 msgid "You need Admin permissions to transfer this site."
 msgstr "এই সাইট ট্রান্সফার করতে আপনার অ্যাডমিন অনুমতি প্রয়োজন।"
 
-#: packages/admin/src/router.tsx:2368
+#: packages/admin/src/router.tsx:2454
 msgid "You need Editor permissions to moderate comments."
 msgstr "মন্তব্য মডারেট করতে আপনার এডিটর অনুমতি প্রয়োজন।"
 
@@ -15233,7 +15715,7 @@ msgstr "আপনি <0>{0}</0> হিসেবে যোগ দিচ্ছে�
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "আপনাকে আপনার ডিভাইসের বায়োমেট্রিক প্রমাণীকরণ, সিকিউরিটি কী বা PIN ব্যবহার করতে বলা হবে।"
 
-#: packages/admin/src/components/WordPressImport.tsx:1398
+#: packages/admin/src/components/WordPressImport.tsx:1423
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "সংযোগটি অনুমোদন করতে আপনাকে WordPress-এ রিডাইরেক্ট করা হবে।"
 
@@ -15302,6 +15784,14 @@ msgstr "আপনার ডিভাইসের ক্রেডেনশিয�
 msgid "your device's passkey prompt"
 msgstr "আপনার ডিভাইসের পাসকি প্রম্পট"
 
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:115
+msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the live site won't change until you publish."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:114
+msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
 msgstr "আপনার ইমেইল"
@@ -15362,12 +15852,16 @@ msgstr ""
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "আপনার Twitter/X হ্যান্ডেল (যেমন, @username)"
 
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:123
+msgid "Your unsaved changes will be lost."
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "Your unsaved media changes will be lost."
 msgstr "আপনার অসংরক্ষিত মিডিয়া পরিবর্তনগুলো হারিয়ে যাবে।"
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2091
+#: packages/admin/src/components/WordPressImport.tsx:2116
 msgid "Your WordPress export contains {0} media files."
 msgstr "আপনার WordPress এক্সপোর্টে {0}টি মিডিয়া ফাইল আছে।"
 

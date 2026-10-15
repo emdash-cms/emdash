@@ -81,6 +81,14 @@ import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
+import { RevisionViewProvider } from "./revisions/revision-view-context.js";
+import { RevisionViewBar } from "./revisions/RevisionViewBar.js";
+import { RevisionViewCanvas } from "./revisions/RevisionViewCanvas.js";
+import {
+	RevisionViewError,
+	RevisionViewErrorBoundary,
+} from "./revisions/RevisionViewErrorBoundary.js";
+import { useRevisionView, type RevisionViewSheet } from "./revisions/useRevisionView.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SandboxedContentEditorActions } from "./SandboxedContentEditorActions.js";
 import type {
@@ -363,8 +371,11 @@ export interface ContentEditorProps {
 	}) => void | Promise<void>;
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
-	/** Callback when a revision is restored from the sidebar. */
-	onRevisionRestored?: (item: ContentItem) => void;
+	/**
+	 * Callback when a revision is restored. A returned promise keeps the restore pending until it
+	 * settles; the editor then loads the restored draft once `item` carries it.
+	 */
+	onRevisionRestored?: (item: ContentItem) => void | Promise<void>;
 	/** Callback to schedule for future publishing */
 	onSchedule?: (
 		scheduledAt: string,
@@ -524,6 +535,8 @@ export function ContentEditor({
 		mq.addEventListener("change", onChange);
 		return () => mq.removeEventListener("change", onChange);
 	}, []);
+	// Distraction-free mode state
+	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(
 		() => item?.data ?? (isNew ? defaultFieldValues(fields) : {}),
 	);
@@ -591,6 +604,52 @@ export function ContentEditor({
 			return null;
 		});
 	}, []);
+
+	// Autosave with debounce
+	// Track pending autosave to cancel on manual save
+	const autosaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+	/** Sends the scheduled autosave; set while one is pending. */
+	const runAutosaveRef = React.useRef<(() => void) | null>(null);
+	const flushPendingAutosave = React.useCallback(() => {
+		const runAutosave = runAutosaveRef.current;
+		if (!autosaveTimeoutRef.current || !runAutosave) return;
+		clearTimeout(autosaveTimeoutRef.current);
+		runAutosave();
+	}, []);
+
+	const titleField = manifest?.collections[collection]?.titleField;
+	const documentTitleField = titleField ?? (fields.title?.kind === "string" ? "title" : undefined);
+	const canvasRef = React.useRef<HTMLDivElement>(null);
+	const settingsButtonRef = React.useRef<HTMLButtonElement>(null);
+	const listVisible = !isBelowLg && !isDistractionFree;
+	const focusAfterRevisionView = React.useCallback(() => {
+		// Focusing a text field on a phone would open the keyboard. The Settings button may have
+		// scrolled away with the editor bar, and the page stays where the writer left it.
+		if (isBelowLg) settingsButtonRef.current?.focus({ preventScroll: true });
+		else portableTextEditor?.commands.focus(null, { scrollIntoView: false });
+	}, [isBelowLg, portableTextEditor]);
+	const revisionView = useRevisionView({
+		collection,
+		entryId: item?.id,
+		locale: item?.locale,
+		enabled: supportsRevisions && !isNew && Boolean(item),
+		draftRevisionId: item?.draftRevisionId,
+		liveRevisionId: item?.liveRevisionId,
+		fields,
+		titleField: documentTitleField,
+		listVisible,
+		canvasRef,
+		onEnter: () => {
+			flushPendingAutosave();
+			handleBlockSidebarClose();
+		},
+		onFocusFallback: focusAfterRevisionView,
+	});
+	const isViewing = revisionView.viewingId !== null;
+	const isViewingRef = React.useRef(isViewing);
+	isViewingRef.current = isViewing;
+	/** Advanced to remount the field editors after a restore, since the rich text editor reads its value once. */
+	const [fieldsGeneration, setFieldsGeneration] = React.useState(0);
 
 	const handleBlockSidebarDelete = React.useCallback(() => {
 		blockSidebarPanel?.onDelete();
@@ -675,9 +734,11 @@ export function ContentEditor({
 			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
 			const itemReset = itemResetToken > 0 && itemResetToken !== itemResetTokenRef.current;
 			itemResetTokenRef.current = itemResetToken;
+			// A restore replaces the form whatever it holds, once the item carries the restored draft.
+			const restored = revisionView.isRestoreArrival(item.draftRevisionId, itemReset);
 			setStatus(item.status);
 			// Background reads cannot replace the copy the writer has edited or its baseline.
-			if (isDirtyRef.current && !itemReset && !autosaveJustCompleted) return;
+			if (isDirtyRef.current && !itemReset && !autosaveJustCompleted && !restored) return;
 			editorGenerationRef.current++;
 			setHasAppliedEditorDraftPatch(false);
 
@@ -688,7 +749,10 @@ export function ContentEditor({
 			// While the notice is up the writer still has to choose between their copy
 			// and the newer version, so a refetch must not put the newer one into the
 			// form under them.
-			if (!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current) {
+			if (
+				restored ||
+				(!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current)
+			) {
 				setFormData(item.data);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
@@ -702,7 +766,7 @@ export function ContentEditor({
 					bylines: nextBylines,
 				}),
 			);
-			if (!autosaveJustCompleted) {
+			if (!autosaveJustCompleted || restored) {
 				pendingAutosaveStateRef.current = null;
 				pendingAutosaveKeyRef.current = null;
 				setRejectedAutosaveState(null);
@@ -711,9 +775,13 @@ export function ContentEditor({
 			// is waiting on a refetch, and an autosave's item holds the selection as it
 			// was sent, so re-seeding from either would drop what the editor holds. The
 			// autosave baseline reset instead runs off `autosaveCompletionToken` below.
-			if (item.references && !autosaveJustCompleted) {
+			if (item.references && (!autosaveJustCompleted || restored)) {
 				setReferenceState(seedReferenceState(item));
 				pendingAutosaveReferencesRef.current = null;
+			}
+			if (restored) {
+				setFieldsGeneration((generation) => generation + 1);
+				revisionView.completeRestore();
 			}
 		}
 	}, [
@@ -723,6 +791,7 @@ export function ContentEditor({
 		item?.slug,
 		item?.status,
 		item?.references,
+		item?.draftRevisionId,
 		autosaveCompletionToken,
 		itemResetToken,
 		editorIdentity,
@@ -802,7 +871,7 @@ export function ContentEditor({
 	hasSaveConflictRef.current = Boolean(hasSaveConflict);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked =
-		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly;
+		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly || isViewing;
 
 	// Replace a reference field's staged current selection (add/remove/reorder).
 	// Upserts the field so one with no hydrated rows can take its first pick.
@@ -896,9 +965,6 @@ export function ContentEditor({
 		});
 	}, []);
 
-	// Autosave with debounce
-	// Track pending autosave to cancel on manual save
-	const autosaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const formDataRef = React.useRef(formData);
 	formDataRef.current = formData;
 	const slugRef = React.useRef(slug);
@@ -1079,6 +1145,7 @@ export function ContentEditor({
 			clearTimeout(autosaveTimeoutRef.current);
 			autosaveTimeoutRef.current = null;
 		}
+		runAutosaveRef.current = null;
 	}, []);
 
 	React.useEffect(() => {
@@ -1089,7 +1156,8 @@ export function ContentEditor({
 			!item?.id ||
 			hasUnsupportedPortableTextMarks ||
 			isPublishing ||
-			readOnly
+			readOnly ||
+			isViewing
 		) {
 			return;
 		}
@@ -1117,8 +1185,9 @@ export function ContentEditor({
 			clearTimeout(autosaveTimeoutRef.current);
 		}
 
-		// Schedule autosave
-		autosaveTimeoutRef.current = setTimeout(() => {
+		const runAutosave = () => {
+			autosaveTimeoutRef.current = null;
+			runAutosaveRef.current = null;
 			if (hasInvalidUrls(formDataRef.current)) return;
 			const payload = createSavePayload();
 			let referenceRows: Record<string, ReferenceEntryRow[]> | undefined;
@@ -1140,12 +1209,18 @@ export function ContentEditor({
 				payload.references,
 			);
 			onAutosave(referenceRows ? { ...payload, referenceRows } : payload);
-		}, AUTOSAVE_DELAY);
+		};
+
+		// Schedule autosave
+		runAutosaveRef.current = runAutosave;
+		autosaveTimeoutRef.current = setTimeout(runAutosave, AUTOSAVE_DELAY);
 
 		return () => {
 			if (autosaveTimeoutRef.current) {
 				clearTimeout(autosaveTimeoutRef.current);
+				autosaveTimeoutRef.current = null;
 			}
+			runAutosaveRef.current = null;
 		};
 	}, [
 		currentData,
@@ -1163,6 +1238,7 @@ export function ContentEditor({
 		hasUnsupportedPortableTextMarks,
 		isPublishing,
 		readOnly,
+		isViewing,
 		rejectedAutosaveState,
 		hasSaveConflict,
 	]);
@@ -1186,6 +1262,7 @@ export function ContentEditor({
 	const handlePublish = React.useCallback(() => {
 		if (
 			isPublishingRef.current ||
+			isViewingRef.current ||
 			!onPublish ||
 			hasInvalidUrls(formDataRef.current) ||
 			hasUnsupportedPortableTextMarks ||
@@ -1241,6 +1318,9 @@ export function ContentEditor({
 		) => {
 			if (isPublishingRef.current) {
 				return Promise.reject(new Error(t`A publishing action is already in progress`));
+			}
+			if (isViewingRef.current) {
+				return Promise.reject(new Error(t`Go back to editing first.`));
 			}
 			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
 				return Promise.reject(
@@ -1315,9 +1395,7 @@ export function ContentEditor({
 	// When the collection configures a titleField, the editor header
 	// shows the entry's title for existing entries; otherwise it keeps the
 	// generic "Edit <label>".
-	const titleField = manifest?.collections[collection]?.titleField;
 	const entryTitle = item && titleField ? getEntryTitle(item, titleField) : "";
-	const documentTitleField = titleField ?? (fields.title?.kind === "string" ? "title" : undefined);
 	const liveTitleValue = documentTitleField ? formData[documentTitleField] : undefined;
 	const liveTitle = typeof liveTitleValue === "string" ? liveTitleValue.trim() : "";
 	const barTitle = liveTitle || entryTitle || (isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`);
@@ -1429,8 +1507,6 @@ export function ContentEditor({
 		setScheduleDialogOpen(false);
 	}, [item?.id, item?.locale, item?.scheduledAt]);
 
-	// Distraction-free mode state
-	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
 	const sandboxedEditorActions = React.useMemo(
 		() => (!isNew && item ? resolveSandboxedEditorActions(manifest?.plugins, collection) : []),
 		[collection, isNew, item, manifest?.plugins],
@@ -1454,7 +1530,7 @@ export function ContentEditor({
 	// One bar for where you are and what you can do with the entry. Pinned
 	// above the scrolling page on wide screens and in distraction-free mode;
 	// on small screens it scrolls away with the page to leave room to write.
-	const pinEditorBar = !isBelowLg || isDistractionFree;
+	const pinEditorBar = !isBelowLg || isDistractionFree || isViewing;
 	const editorBar = (
 		<div
 			data-emdash-editor-bar=""
@@ -1517,7 +1593,7 @@ export function ContentEditor({
 							entryId={item.id}
 							locale={item.locale ?? entryLocale}
 							isMobile={isBelowLg}
-							disabled={Boolean(isSaving || isAutosaving)}
+							disabled={Boolean(isSaving || isAutosaving) || isViewing}
 							hasUnsavedChanges={isDirty}
 							onEntryRefresh={onEntryRefresh}
 							captureDraft={captureEditorDraft}
@@ -1535,7 +1611,7 @@ export function ContentEditor({
 						hasPendingChanges={hasPendingChanges}
 						publishingState={publishingState}
 						publishingPending={publishingPending}
-						publishDisabled={hasSaveConflict}
+						publishDisabled={hasSaveConflict || isViewing}
 						liveViewUrl={liveViewUrl}
 						supportsPreview={supportsPreview}
 						isLoadingPreview={isLoadingPreview}
@@ -1553,6 +1629,7 @@ export function ContentEditor({
 											triggerVariant="outline"
 											triggerSize="sm"
 											compact
+											disabled={isViewing}
 										/>
 									)}
 									<ScheduleActions
@@ -1560,7 +1637,7 @@ export function ContentEditor({
 										canSchedule={canSchedule}
 										isScheduling={isScheduling}
 										isUnscheduling={isUnscheduling}
-										disabled={publishingPending || hasSaveConflict}
+										disabled={publishingPending || hasSaveConflict || isViewing}
 										onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
 										onUnschedule={onUnschedule ? handleUnschedule : undefined}
 										inline
@@ -1569,7 +1646,9 @@ export function ContentEditor({
 							) : null
 						}
 					/>
-					{!isDistractionFree && isBelowLg && <MobileSettingsButton />}
+					{!isDistractionFree && isBelowLg && (
+						<MobileSettingsButton buttonRef={settingsButtonRef} />
+					)}
 				</fieldset>
 				<Button
 					variant="ghost"
@@ -1629,13 +1708,26 @@ export function ContentEditor({
 				{pinEditorBar && editorBar}
 				<div className="flex min-h-0 flex-1">
 					<div
+						ref={canvasRef}
 						data-emdash-editor-canvas=""
-						className="min-w-0 flex-1 overflow-y-auto [--emdash-editor-sticky-top:0px]"
+						className={cn(
+							"min-w-0 flex-1 overflow-y-auto [--emdash-editor-sticky-top:0px]",
+							// Keeps the page from sliding sideways when a shorter version takes the
+							// scrollbar away.
+							isViewing && "[scrollbar-gutter:stable]",
+						)}
 					>
 						{!pinEditorBar && editorBar}
-						<div className="emdash-editor-page mx-auto max-w-[52rem] space-y-6 pt-8 pb-16 sm:pt-12">
+						<div
+							className={cn(
+								"emdash-editor-page mx-auto max-w-[52rem] space-y-6 pt-8 sm:pt-12",
+								// The revision bar settles under the last block, and stays at the bottom of
+								// the canvas when the version is too short to fill it.
+								isViewing ? "flex min-h-full flex-col pb-0" : "pb-16",
+							)}
+						>
 							{notice}
-							{editorDraftError ? (
+							{editorDraftError && !isViewing ? (
 								<Banner
 									variant="error"
 									role="alert"
@@ -1643,7 +1735,9 @@ export function ContentEditor({
 									description={editorDraftError}
 								/>
 							) : null}
-							<fieldset disabled={readOnly} className="contents">
+							{/* Hidden, not unmounted, while a version is shown, so unsaved edits,
+							    undo history and the outline survive. */}
+							<fieldset disabled={readOnly} hidden={isViewing} className="contents">
 								{unsupportedFields.length > 0 && (
 									<Banner
 										variant="error"
@@ -1678,7 +1772,7 @@ export function ContentEditor({
 										// mount; without this key, navigating between translations leaves
 										// the previous locale's body in the editor and silently overwrites
 										// the new translation on the next edit.
-										const fieldKey = `${name}:${item?.id ?? "new"}`;
+										const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}`;
 										const isDocumentBody = field.kind === "portableText" && name === "content";
 										const fieldEl = (
 											<FieldRenderer
@@ -1718,6 +1812,60 @@ export function ContentEditor({
 									})}
 								</div>
 							</fieldset>
+							{isViewing ? (
+								<RevisionViewErrorBoundary resetKey={revisionView.viewingId}>
+									{revisionView.diff ? (
+										<RevisionViewCanvas
+											diff={revisionView.diff}
+											fields={fields}
+											titleField={documentTitleField}
+											showChanges={revisionView.showChanges}
+											authorColor={revisionView.authorColor}
+											label={revisionView.label}
+											timezone={timezone}
+										/>
+									) : revisionView.diffFailed ? (
+										<RevisionViewError />
+									) : (
+										<div className="flex justify-center py-16">
+											<Loader />
+										</div>
+									)}
+								</RevisionViewErrorBoundary>
+							) : null}
+							{item && revisionView.revision ? (
+								<RevisionViewBar
+									collection={collection}
+									entryId={item.id}
+									revision={revisionView.revision}
+									authorColor={revisionView.authorColor}
+									isCurrent={revisionView.isCurrent}
+									isPublished={revisionView.isPublished}
+									sameAsCurrent={revisionView.sameAsCurrent}
+									hasDraft={
+										Boolean(item.draftRevisionId) && item.draftRevisionId !== item.liveRevisionId
+									}
+									scheduled={hasSchedule}
+									canShowChanges={revisionView.diff?.hasPrevious ?? false}
+									showChanges={revisionView.showChanges}
+									onShowChangesChange={revisionView.setShowChanges}
+									onExit={revisionView.exit}
+									showStepper={!listVisible}
+									hasOlder={revisionView.hasOlder}
+									hasNewer={revisionView.hasNewer}
+									onStep={revisionView.step}
+									readOnly={readOnly}
+									saveBusy={Boolean(isSaving || isAutosaving)}
+									isDirty={isDirty}
+									restorePending={revisionView.restorePending}
+									onRestoreStart={revisionView.beginRestore}
+									onRestoreFailed={revisionView.cancelRestore}
+									onRestoreSettled={revisionView.completeRestore}
+									onRevisionRestored={onRevisionRestored}
+									titleRef={revisionView.barTitleRef}
+									dockRef={revisionView.dockRef}
+								/>
+							) : null}
 						</div>
 					</div>
 
@@ -1739,55 +1887,56 @@ export function ContentEditor({
 										<MobileSettingsCloseButton />
 									</div>
 								)}
-								<ContentSettingsPanel
-									collection={collection}
-									item={item}
-									isNew={isNew}
-									manifest={manifest}
-									entryLocale={entryLocale}
-									slug={slug}
-									onSlugChange={handleSlugChange}
-									status={status}
-									supportsDrafts={supportsDrafts}
-									isLive={isLive}
-									hasPendingChanges={hasPendingChanges}
-									publishingState={publishingState}
-									publishingDisabled={publishingPending || hasSaveConflict}
-									canSchedule={canSchedule}
-									isScheduling={isScheduling}
-									isUnscheduling={isUnscheduling}
-									onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-									onUnschedule={onUnschedule ? handleUnschedule : undefined}
-									supportsRevisions={supportsRevisions}
-									onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
-									isUpdatingPublishedAt={isUpdatingPublishedAt}
-									onDiscardDraft={onDiscardDraft}
-									onRevisionRestored={onRevisionRestored}
-									onDelete={onDelete}
-									isDeleting={isDeleting}
-									currentUser={currentUser}
-									users={users}
-									onAuthorChange={onAuthorChange}
-									activeBylines={activeBylines}
-									inferredByline={resolvedItemBylines.inferredByline}
-									availableBylines={availableBylines}
-									availableBylinesLoaded={availableBylinesLoaded}
-									onBylinesChange={handleBylinesChange}
-									onQuickCreateByline={onQuickCreateByline}
-									onQuickEditByline={onQuickEditByline}
-									i18n={i18n}
-									translations={translations}
-									onTranslate={onTranslate}
-									hasSeo={hasSeo}
-									onSeoChange={onSeoChange ? handleSeoChange : undefined}
-									portableTextEditor={portableTextEditor}
-									blockSidebarPanel={blockSidebarPanel}
-									onBlockSidebarClose={handleBlockSidebarClose}
-									onBlockSidebarDelete={handleBlockSidebarDelete}
-									captureEditorDraft={captureEditorDraft}
-									onEditorDraftResponse={handleEditorDraftResponse}
-									onEntryRefresh={onEntryRefresh}
-								/>
+								<RevisionViewProvider value={supportsRevisions ? revisionView.context : null}>
+									<ContentSettingsPanel
+										collection={collection}
+										item={item}
+										isNew={isNew}
+										manifest={manifest}
+										entryLocale={entryLocale}
+										slug={slug}
+										onSlugChange={handleSlugChange}
+										status={status}
+										supportsDrafts={supportsDrafts}
+										isLive={isLive}
+										hasPendingChanges={hasPendingChanges}
+										publishingState={publishingState}
+										publishingDisabled={publishingPending || hasSaveConflict || isViewing}
+										canSchedule={canSchedule}
+										isScheduling={isScheduling}
+										isUnscheduling={isUnscheduling}
+										onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+										onUnschedule={onUnschedule ? handleUnschedule : undefined}
+										supportsRevisions={supportsRevisions}
+										onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
+										isUpdatingPublishedAt={isUpdatingPublishedAt}
+										onDiscardDraft={onDiscardDraft}
+										onDelete={onDelete}
+										isDeleting={isDeleting}
+										currentUser={currentUser}
+										users={users}
+										onAuthorChange={onAuthorChange}
+										activeBylines={activeBylines}
+										inferredByline={resolvedItemBylines.inferredByline}
+										availableBylines={availableBylines}
+										availableBylinesLoaded={availableBylinesLoaded}
+										onBylinesChange={handleBylinesChange}
+										onQuickCreateByline={onQuickCreateByline}
+										onQuickEditByline={onQuickEditByline}
+										i18n={i18n}
+										translations={translations}
+										onTranslate={onTranslate}
+										hasSeo={hasSeo}
+										onSeoChange={onSeoChange ? handleSeoChange : undefined}
+										portableTextEditor={portableTextEditor}
+										blockSidebarPanel={blockSidebarPanel}
+										onBlockSidebarClose={handleBlockSidebarClose}
+										onBlockSidebarDelete={handleBlockSidebarDelete}
+										captureEditorDraft={captureEditorDraft}
+										onEditorDraftResponse={handleEditorDraftResponse}
+										onEntryRefresh={onEntryRefresh}
+									/>
+								</RevisionViewProvider>
 							</div>
 						</fieldset>
 						{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
@@ -1799,7 +1948,12 @@ export function ContentEditor({
 				    Kumo's separate backdrop would still scrim the whole screen. */}
 				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
 				<MobileSidebarPortalGuard />
+				<RevisionViewSheetSync sheetRef={revisionView.sheetRef} />
 			</Sidebar.Provider>
+			{/* Outside the sidebar, which is inert while the phone sheet is closed. */}
+			<p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+				{revisionView.announcement}
+			</p>
 			<PublishingScheduleDialog
 				open={scheduleDialogOpen}
 				entryKey={scheduleEntryKey}
@@ -2007,15 +2161,35 @@ function MobileSidebarPortalGuard() {
 	return null;
 }
 
+/** Tells the revision view whether the phone settings sheet is open, and lets it close the sheet. */
+function RevisionViewSheetSync({
+	sheetRef,
+}: {
+	sheetRef: React.MutableRefObject<RevisionViewSheet | null>;
+}) {
+	const { isMobile, openMobile, setOpenMobile } = useSidebar();
+	React.useLayoutEffect(() => {
+		sheetRef.current = { isOpen: isMobile && openMobile, close: () => setOpenMobile(false) };
+	}, [sheetRef, isMobile, openMobile, setOpenMobile]);
+	React.useLayoutEffect(
+		() => () => {
+			sheetRef.current = null;
+		},
+		[sheetRef],
+	);
+	return null;
+}
+
 /**
  * "Settings" trigger for the mobile sheet. Lives in the editor strip,
  * which sits inside the Sidebar.Provider, so it can reach the context.
  */
-function MobileSettingsButton() {
+function MobileSettingsButton({ buttonRef }: { buttonRef?: React.Ref<HTMLButtonElement> }) {
 	const { t } = useLingui();
 	const { toggleSidebar } = useSidebar();
 	return (
 		<Button
+			ref={buttonRef}
 			type="button"
 			variant="ghost"
 			size="sm"

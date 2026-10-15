@@ -26,6 +26,11 @@ msgstr " (otvara se u novom prozoru)"
 msgid "-- Select --"
 msgstr "-- Izaberi --"
 
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:156
+msgctxt "Read aloud between a version's author and status"
+msgid ", "
+msgstr ""
+
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1924
 msgid "\"{0}\" will be deleted from {providerName}."
@@ -65,12 +70,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# stavka)} few {(# stavke)} other {(# stavki)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2919
+#: packages/admin/src/components/ContentEditor.tsx:3093
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} od # znaka, najmanje {min}} few {{counted} od # znaka, najmanje {min}} other {{counted} od # znakova, najmanje {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2924
+#: packages/admin/src/components/ContentEditor.tsx:3098
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} od # znaka} few {{counted} od # znaka} other {{counted} od # znakova}}"
 
@@ -87,12 +92,12 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# kolekcija} few {# kolekcije} other {# kolekcija}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2292
+#: packages/admin/src/components/WordPressImport.tsx:2317
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# komentar uvezen} few {# komentara uvezeno} other {# komentara uvezeno}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2347
+#: packages/admin/src/router.tsx:2433
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# komentar ažuriran} few {# komentara ažurirano} other {# komentara ažurirano}}"
 
@@ -102,12 +107,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# komentar} few {# komentara} other {# komentara}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2303
+#: packages/admin/src/components/WordPressImport.tsx:2328
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# greška sadržaja} few {# greške sadržaja} other {# grešaka sadržaja}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2244
+#: packages/admin/src/components/WordPressImport.tsx:2269
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {# stavka sadržaja uvezena} few {# stavke sadržaja uvezene} other {# stavki sadržaja uvezeno}}"
 
@@ -156,22 +161,22 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP alat} few {# MCP alata} other {# MCP alata}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2308
+#: packages/admin/src/components/WordPressImport.tsx:2333
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# greška medija} few {# greške medija} other {# grešaka medija}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2260
+#: packages/admin/src/components/WordPressImport.tsx:2285
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# medijski fajl uvezen} few {# medijska fajla uvezena} other {# medijskih fajlova uvezeno}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2284
+#: packages/admin/src/components/WordPressImport.tsx:2309
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# meni uvezen} few {# menija uvezena} other {# menija uvezeno}}"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1932
+#: packages/admin/src/components/WordPressImport.tsx:1957
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {# meni će se uvesti} few {# menija će se uvesti} other {# menija će se uvesti}}"
 
@@ -187,7 +192,7 @@ msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# dozvola} few {# dozvole} other {# dozvola}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2515
+#: packages/admin/src/components/WordPressImport.tsx:2540
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# objava} few {# objave} other {# objava}}"
 
@@ -222,17 +227,17 @@ msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {# izabrano} few {# izabrana} other {# izabrano}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2252
+#: packages/admin/src/components/WordPressImport.tsx:2277
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {# preskočeno (već postoji)} few {# preskočena (već postoje)} other {# preskočeno (već postoji)}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2276
+#: packages/admin/src/components/WordPressImport.tsx:2301
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {# dodela taksonomije} few {# dodele taksonomije} other {# dodela taksonomije}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2268
+#: packages/admin/src/components/WordPressImport.tsx:2293
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {# taksonomija kreirana} few {# taksonomije kreirane} other {# taksonomija kreirano}}"
 
@@ -262,7 +267,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:2929
+#: packages/admin/src/components/ContentEditor.tsx:3103
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Najmanje # znak} few {Najmanje # znaka} other {Najmanje # znakova}}"
 
@@ -324,7 +329,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "{0} ne može da se premesti ovde — njegov nadređeni nema prevod na ovom jeziku, pa ova lista nije grupa kojoj pripada."
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1332
+#: packages/admin/src/components/WordPressImport.tsx:1357
 msgid "{0} detected"
 msgstr "{0} detektovano"
 
@@ -360,12 +365,12 @@ msgstr "{0} je sada aktivan"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2002
+#: packages/admin/src/components/WordPressImport.tsx:2027
 msgid "{0} items → {1}"
 msgstr "{0} stavki → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1925
+#: packages/admin/src/components/WordPressImport.tsx:1950
 msgid "{0} items will be imported"
 msgstr "Uvešće se {0} stavki"
 
@@ -406,17 +411,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0} od {1} koraka · {2} od {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:694
+#: packages/admin/src/router.tsx:758
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} od {total} nije obrisano"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:650
+#: packages/admin/src/router.tsx:714
 msgid "{0} of {total} could not be published"
 msgstr "{0} od {total} nije objavljeno"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:673
+#: packages/admin/src/router.tsx:737
 msgid "{0} of {total} could not be updated"
 msgstr "{0} od {total} nije ažurirano"
 
@@ -482,10 +487,6 @@ msgstr "{added} ažurirano · {0} nije uspelo"
 msgid "{base} to: {0}"
 msgstr "{base} na: {0}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:361
-msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
-msgstr "{changedCount, plural, one {# promena iz sledeće revizije} few {# promene iz sledeće revizije} other {# promena iz sledeće revizije}}"
-
 #: packages/admin/src/components/PortableTextEditor.tsx:3305
 #: packages/admin/src/components/PortableTextEditor.tsx:3317
 msgid "{characters, plural, one {# character} other {# characters}}"
@@ -509,21 +510,34 @@ msgstr "{completedCount} od {0} završeno"
 msgid "{completedCount} of {0} uploads complete"
 msgstr "{completedCount} od {0} otpremanja završeno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2101
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:419
+msgid "{count, plural, one {# block} other {# blocks}}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:420
+msgid "{count, plural, one {# entry} other {# entries}}"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# fajl} few {# fajla} other {# fajlova}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2380
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
+#: packages/admin/src/components/WordPressImport.tsx:2405
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# stavka} few {# stavke} other {# stavki}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2172
+#: packages/admin/src/components/WordPressImport.tsx:2197
 msgid "{current} of {total}"
 msgstr "{current} od {total}"
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:468
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
+
+#: packages/admin/src/components/revisions/revision-format.ts:123
+msgid "{dayLabel}, {timeLabel}"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:120
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
@@ -554,6 +568,10 @@ msgstr "{hidden, plural, one {još # unos na {date}} few {još # unosa na {date}
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:394
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# više} few {+# više} other {+# više}}"
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:390
+msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
+msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:38
 msgid "{host} does not resolve to a public address"
@@ -590,6 +608,10 @@ msgstr "{label} je premešten na poziciju {0}."
 msgid "{label} options"
 msgstr "{label} opcije"
 
+#: packages/admin/src/components/revisions/RevisionList.tsx:246
+msgid "{label}, {restored}"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:366
 msgid "{lateness} late"
 msgstr "{lateness} zakašnjenja"
@@ -598,11 +620,11 @@ msgstr "{lateness} zakašnjenja"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# stavka odgovara \"{searchQuery}\"} few {# stavke odgovaraju \"{searchQuery}\"} other {# stavki odgovara \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2502
+#: packages/admin/src/components/WordPressImport.tsx:2527
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{matchedCount} od {totalCount} dodeljeno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2490
+#: packages/admin/src/components/WordPressImport.tsx:2515
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} od {totalCount} autora upareno po e-pošti"
 
@@ -662,11 +684,11 @@ msgstr "{name} mora biti najviše {bound}."
 msgid "{name}: this site already has some"
 msgstr "{name}: ovo sajt već ima nešto"
 
-#: packages/admin/src/components/WordPressImport.tsx:1908
+#: packages/admin/src/components/WordPressImport.tsx:1933
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {# nova kolekcija će se kreirati} few {# nove kolekcije će se kreirati} other {# novih kolekcija će se kreirati}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1917
+#: packages/admin/src/components/WordPressImport.tsx:1942
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Polja će se dodati u # postojeću kolekciju} few {Polja će se dodati u # postojeće kolekcije} other {Polja će se dodati u # postojećih kolekcija}}"
 
@@ -818,13 +840,21 @@ msgstr "{totalDrafts, plural, one {Nacrt} few {Nacrta} other {Nacrta}}"
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {Zakazano} few {Zakazana} other {Zakazano}}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:373
-msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
-msgstr "{unchangedCount, plural, one {Sakrij # nepromenjeno} few {Sakrij # nepromenjena} other {Sakrij # nepromenjenih}}"
+#: packages/admin/src/components/revisions/RevisionList.tsx:239
+msgid "{when}, {author}"
+msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:374
-msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
-msgstr "{unchangedCount, plural, one {Prikaži # nepromenjeno} few {Prikaži # nepromenjena} other {Prikaži # nepromenjenih}}"
+#: packages/admin/src/components/revisions/RevisionList.tsx:236
+msgid "{when}, Current version, {author}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:234
+msgid "{when}, Current version, Published, {author}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:238
+msgid "{when}, Published, {author}"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{widgetType} in {areaName}"
@@ -843,21 +873,21 @@ msgstr "/new-page or /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page or /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2122
+#: packages/admin/src/components/WordPressImport.tsx:2147
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• Fajlovi se preuzimaju sa WordPress sajta"
 
-#: packages/admin/src/components/WordPressImport.tsx:2123
+#: packages/admin/src/components/WordPressImport.tsx:2148
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• Otpremljeni u EmDash skladište medija"
 
-#: packages/admin/src/components/WordPressImport.tsx:2124
+#: packages/admin/src/components/WordPressImport.tsx:2149
 msgid "• URLs in your content are updated automatically"
 msgstr "• URL-ovi u sadržaju se automatski ažuriraju"
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 #: packages/admin/src/components/SetupWizard.tsx:339
-#: packages/admin/src/components/WordPressImport.tsx:1630
+#: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "← Back"
 msgstr "← Nazad"
 
@@ -901,11 +931,11 @@ msgstr "1 objava ažurirana"
 msgid "1 year"
 msgstr "1 godina"
 
-#: packages/admin/src/components/WordPressImport.tsx:1551
+#: packages/admin/src/components/WordPressImport.tsx:1576
 msgid "1. Log into your WordPress admin"
 msgstr "1. Prijavi se u WordPress admin"
 
-#: packages/admin/src/components/WordPressImport.tsx:1304
+#: packages/admin/src/components/WordPressImport.tsx:1329
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. Prijavi se na WordPress kontrolnu tablu"
 
@@ -913,11 +943,11 @@ msgstr "1. Prijavi se na WordPress kontrolnu tablu"
 msgid "16:9"
 msgstr "16:9"
 
-#: packages/admin/src/components/WordPressImport.tsx:76
+#: packages/admin/src/components/WordPressImport.tsx:77
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. Idi na <0>Alati → Izvoz</0>"
 
-#: packages/admin/src/components/WordPressImport.tsx:1552
+#: packages/admin/src/components/WordPressImport.tsx:1577
 msgid "2. Go to Users → Profile"
 msgstr "2. Idi na Korisnici → Profil"
 
@@ -925,11 +955,11 @@ msgstr "2. Idi na Korisnici → Profil"
 msgid "3:2"
 msgstr "3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1553
+#: packages/admin/src/components/WordPressImport.tsx:1578
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. Skroluj do \"Lozinki za aplikacije\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1308
+#: packages/admin/src/components/WordPressImport.tsx:1333
 msgid "3. Select \"All content\""
 msgstr "3. Izaberi \"Sav sadržaj\""
 
@@ -957,11 +987,11 @@ msgstr "308 Trajno (strogo)"
 msgid "4:3"
 msgstr "4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1309
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "4. Click \"Download Export File\""
 msgstr "4. Klikni \"Preuzmi izvozni fajl\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1554
+#: packages/admin/src/components/WordPressImport.tsx:1579
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Unesi \"EmDash\" i klikni \"Dodaj novo\""
 
@@ -977,11 +1007,11 @@ msgstr "410 Sadržaj obrisan (uklonjen)"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 Nedostupno iz pravnih razloga"
 
-#: packages/admin/src/components/WordPressImport.tsx:1555
+#: packages/admin/src/components/WordPressImport.tsx:1580
 msgid "5. Copy the generated password"
 msgstr "5. Kopiraj generisanu lozinku"
 
-#: packages/admin/src/components/WordPressImport.tsx:1310
+#: packages/admin/src/components/WordPressImport.tsx:1335
 msgid "5. Upload the file here"
 msgstr "5. Otpremi fajl ovde"
 
@@ -1045,13 +1075,13 @@ msgstr "Fajl paketa se ne poklapa sa manifestom"
 msgid "A package file is missing"
 msgstr "Fajl paketa nedostaje"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:173
-#: packages/admin/src/components/ContentSettingsPanel.tsx:220
-#: packages/admin/src/components/ContentSettingsPanel.tsx:242
+#: packages/admin/src/components/ContentSettingsPanel.tsx:177
+#: packages/admin/src/components/ContentSettingsPanel.tsx:228
+#: packages/admin/src/components/ContentSettingsPanel.tsx:254
 msgid "A publication time has not been selected"
 msgstr "Vreme objavljivanja nije izabrano"
 
-#: packages/admin/src/components/ContentEditor.tsx:1243
+#: packages/admin/src/components/ContentEditor.tsx:1320
 msgid "A publishing action is already in progress"
 msgstr "Radnja objavljivanja je već u toku"
 
@@ -1142,7 +1172,7 @@ msgstr "Prihvati pozivnicu"
 msgid "Access denied"
 msgstr "Pristup odbijen"
 
-#: packages/admin/src/router.tsx:2367
+#: packages/admin/src/router.tsx:2453
 msgid "Access Denied"
 msgstr "Pristup odbijen"
 
@@ -1167,7 +1197,7 @@ msgstr "Nalog postoji"
 msgid "Account Info"
 msgstr "Informacije o nalogu"
 
-#: packages/admin/src/components/WordPressImport.tsx:1189
+#: packages/admin/src/components/WordPressImport.tsx:1208
 msgid "ACF Fields"
 msgstr "ACF polja"
 
@@ -1296,7 +1326,7 @@ msgstr "Dodaj domen"
 msgid "Add Field"
 msgstr "Dodaj polje"
 
-#: packages/admin/src/components/WordPressImport.tsx:2013
+#: packages/admin/src/components/WordPressImport.tsx:2038
 msgid "Add fields"
 msgstr "Dodaj polja"
 
@@ -1364,8 +1394,8 @@ msgstr "Dodaj noindex meta tag"
 msgid "Add Passkey"
 msgstr "Dodaj pristupni ključ (passkey)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2841
-#: packages/admin/src/components/ContentEditor.tsx:2841
+#: packages/admin/src/components/ContentEditor.tsx:3015
+#: packages/admin/src/components/ContentEditor.tsx:3015
 msgid "Add reference"
 msgstr "Dodaj referencu"
 
@@ -1424,6 +1454,72 @@ msgstr "Dodaj profile na društvenim mrežama. Dostupni su temi sajta i mogu se 
 msgid "Added"
 msgstr "Dodato"
 
+#: packages/admin/src/components/revisions/change-labels.ts:133
+msgid "Added “{snippet}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:121
+msgid "Added {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:51
+msgid "Added a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:87
+msgid "Added a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:63
+msgid "Added a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:24
+msgid "Added a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:38
+msgid "Added a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:17
+msgid "Added a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:31
+msgid "Added a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:57
+msgid "Added a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:69
+msgid "Added a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:75
+msgid "Added an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:81
+msgid "Added an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:45
+#: packages/admin/src/components/revisions/change-labels.ts:95
+msgid "Added an image"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:108
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:230
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:55
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:190
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:270
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:139
+msgid "Added:"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:551
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
@@ -1433,7 +1529,7 @@ msgstr "Dodavanje..."
 msgid "Adding…"
 msgstr "Dodavanje…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1782
+#: packages/admin/src/components/WordPressImport.tsx:1807
 msgid "Additional data to import."
 msgstr "Dodatni podaci za uvoz."
 
@@ -1441,7 +1537,11 @@ msgstr "Dodatni podaci za uvoz."
 msgid "Additional details"
 msgstr "Dodatni detalji"
 
-#: packages/admin/src/components/WordPressImport.tsx:1512
+#: packages/admin/src/components/settings/SeoSettings.tsx:278
+msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1537
 msgid "admin"
 msgstr "admin"
 
@@ -1546,7 +1646,7 @@ msgstr "Sve kolekcije"
 msgid "All comments require approval"
 msgstr "Svi komentari zahtevaju odobrenje"
 
-#: packages/admin/src/components/WordPressImport.tsx:2547
+#: packages/admin/src/components/WordPressImport.tsx:2572
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Sav uvezeni sadržaj ostaće nedodeljen. Autore možeš ponovo dodeliti kasnije iz editora sadržaja."
 
@@ -1660,7 +1760,7 @@ msgstr "Alternativni tekst se ne primenjuje na fascikle"
 msgid "Alt text set"
 msgstr "Alt tekst postavljen"
 
-#: packages/admin/src/components/WordPressImport.tsx:1424
+#: packages/admin/src/components/WordPressImport.tsx:1449
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Alternativno, možeš izvesti iz WordPress-a (Alati → Izvoz) i otpremiti fajl."
 
@@ -1699,9 +1799,9 @@ msgstr "Šifrovani digitalni ključ koji otključavaš pomoću otiska prsta, lic
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
-#: packages/admin/src/components/settings/SeoSettings.tsx:82
-#: packages/admin/src/components/settings/SeoSettings.tsx:144
-#: packages/admin/src/components/settings/SeoSettings.tsx:145
+#: packages/admin/src/components/settings/SeoSettings.tsx:86
+#: packages/admin/src/components/settings/SeoSettings.tsx:148
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
@@ -1709,25 +1809,25 @@ msgstr "Šifrovani digitalni ključ koji otključavaš pomoću otiska prsta, lic
 #: packages/admin/src/components/TaxonomySidebar.tsx:687
 #: packages/admin/src/components/TaxonomySidebar.tsx:783
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:582
-#: packages/admin/src/router.tsx:597
-#: packages/admin/src/router.tsx:611
-#: packages/admin/src/router.tsx:625
-#: packages/admin/src/router.tsx:848
-#: packages/admin/src/router.tsx:1248
-#: packages/admin/src/router.tsx:1351
-#: packages/admin/src/router.tsx:1385
-#: packages/admin/src/router.tsx:1409
-#: packages/admin/src/router.tsx:1434
-#: packages/admin/src/router.tsx:1490
-#: packages/admin/src/router.tsx:1509
-#: packages/admin/src/router.tsx:1542
-#: packages/admin/src/router.tsx:1563
-#: packages/admin/src/router.tsx:2312
-#: packages/admin/src/router.tsx:2328
-#: packages/admin/src/router.tsx:2353
-#: packages/admin/src/router.tsx:2779
-#: packages/admin/src/router.tsx:2964
+#: packages/admin/src/router.tsx:646
+#: packages/admin/src/router.tsx:661
+#: packages/admin/src/router.tsx:675
+#: packages/admin/src/router.tsx:689
+#: packages/admin/src/router.tsx:912
+#: packages/admin/src/router.tsx:1317
+#: packages/admin/src/router.tsx:1436
+#: packages/admin/src/router.tsx:1470
+#: packages/admin/src/router.tsx:1494
+#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1575
+#: packages/admin/src/router.tsx:1594
+#: packages/admin/src/router.tsx:1627
+#: packages/admin/src/router.tsx:1648
+#: packages/admin/src/router.tsx:2398
+#: packages/admin/src/router.tsx:2414
+#: packages/admin/src/router.tsx:2439
+#: packages/admin/src/router.tsx:2865
+#: packages/admin/src/router.tsx:3050
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1747,11 +1847,11 @@ msgstr "Došlo je do neočekivane greške."
 msgid "An unknown error occurred"
 msgstr "Došlo je do nepoznate greške"
 
-#: packages/admin/src/components/WordPressImport.tsx:1604
+#: packages/admin/src/components/WordPressImport.tsx:1629
 msgid "Analyzing export file..."
 msgstr "Analiziranje izvoznog fajla..."
 
-#: packages/admin/src/components/WordPressImport.tsx:836
+#: packages/admin/src/components/WordPressImport.tsx:855
 msgid "Analyzing WordPress site..."
 msgstr "Analiziranje WordPress sajta..."
 
@@ -1787,7 +1887,7 @@ msgstr "API tokeni"
 msgid "Appears on posts and pages"
 msgstr "Pojavljuje se na objavama i stranicama"
 
-#: packages/admin/src/components/WordPressImport.tsx:1519
+#: packages/admin/src/components/WordPressImport.tsx:1544
 msgid "Application Password"
 msgstr "Lozinka za aplikaciju"
 
@@ -1890,7 +1990,7 @@ msgstr "Zamoli administratora da dovrši ovo podešavanje."
 msgid "Aspect ratio"
 msgstr "Odnos stranica"
 
-#: packages/admin/src/components/WordPressImport.tsx:2485
+#: packages/admin/src/components/WordPressImport.tsx:2510
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Dodeli WordPress autore EmDash korisnicima. Objave će se pripisati izabranom korisniku."
 
@@ -1902,11 +2002,11 @@ msgstr "Pomoćnici povezani preko MCP-a zahtevaju odobrenje administratora da po
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:2952
+#: packages/admin/src/components/ContentEditor.tsx:3126
 msgid "At least {min}"
 msgstr "Najmanje {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2949
+#: packages/admin/src/components/ContentEditor.tsx:3123
 msgid "At most {max}"
 msgstr "Najviše {max}"
 
@@ -1949,14 +2049,14 @@ msgstr "Autentifikacija je otkazana ili je isteklo vreme. Pokušaj ponovo."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
 #: packages/admin/src/components/comments/CommentInbox.tsx:325
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1417
 #: packages/admin/src/components/RelationForm.tsx:315
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
 msgstr "Autor"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2525
 msgid "Author Mapping"
 msgstr "Mapiranje autora"
 
@@ -2029,7 +2129,7 @@ msgstr "Automatske rezervne kopije"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Automatske rezervne kopije zahtevaju skladišni backend (R2, S3 ili lokalno skladište). Konfiguriši skladište u EmDash konfiguraciji da ih omogućiš."
 
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1433
 msgid "Autosave failed"
 msgstr "Automatsko čuvanje nije uspelo"
 
@@ -2069,12 +2169,12 @@ msgstr "visualEditing.back"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1815
 #: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1539
-#: packages/admin/src/components/WordPressImport.tsx:2556
+#: packages/admin/src/components/WordPressImport.tsx:1564
+#: packages/admin/src/components/WordPressImport.tsx:2581
 msgid "Back"
 msgstr "Nazad"
 
-#: packages/admin/src/components/ContentEditor.tsx:1470
+#: packages/admin/src/components/ContentEditor.tsx:1546
 msgid "Back to {collectionLabel} list"
 msgstr "Nazad na listu {collectionLabel}"
 
@@ -2082,6 +2182,18 @@ msgstr "Nazad na listu {collectionLabel}"
 #: packages/admin/src/components/RelationList.tsx:62
 msgid "Back to Content Types"
 msgstr "Nazad na tipove sadržaja"
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:206
+msgid "Back to editing"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:196
+msgid "Back to editing (Esc)"
+msgstr ""
+
+#: packages/admin/src/components/revisions/useRevisionView.ts:392
+msgid "Back to editing."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
@@ -2170,12 +2282,12 @@ msgstr "Pre slanja:"
 msgid "Before you continue:"
 msgstr "Pre nego što nastaviš:"
 
-#: packages/admin/src/components/ContentEditor.tsx:2946
+#: packages/admin/src/components/ContentEditor.tsx:3120
 msgid "Between {min} and {max}"
 msgstr "Između {min} i {max}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:252
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:256
 msgid "Bing Verification"
 msgstr "Bing verifikacija"
 
@@ -2237,6 +2349,10 @@ msgstr "Podebljano"
 msgid "Boolean"
 msgstr "Boolean"
 
+#: packages/admin/src/components/WordPressImport.tsx:1314
+msgid "Bot protection blocked the connection"
+msgstr ""
+
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
 msgstr "Oba referentna polja povezana sa ovom relacijom dele ova ograničenja, tako da dve strane ne mogu da se razlikuju u pogledu istih veza."
@@ -2261,8 +2377,8 @@ msgstr "Pregledaj i instaliraj dodatke da proširiš sajt."
 msgid "Browse files"
 msgstr "Pregledaj fajlove"
 
-#: packages/admin/src/components/WordPressImport.tsx:1155
-#: packages/admin/src/components/WordPressImport.tsx:1623
+#: packages/admin/src/components/WordPressImport.tsx:1174
+#: packages/admin/src/components/WordPressImport.tsx:1648
 msgid "Browse Files"
 msgstr "Pregledaj fajlove"
 
@@ -2340,8 +2456,8 @@ msgstr "Ažuriran je potpis"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1126
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1130
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1147
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:454
@@ -2394,9 +2510,9 @@ msgstr "Može pregledati sadržaj"
 #: packages/admin/src/components/ContentList.tsx:1540
 #: packages/admin/src/components/ContentList.tsx:1724
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:342
-#: packages/admin/src/components/ContentSettingsPanel.tsx:533
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:549
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1379
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:605
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:818
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
@@ -2427,7 +2543,7 @@ msgstr "Može pregledati sadržaj"
 #: packages/admin/src/components/TaxonomyManager.tsx:1098
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
-#: packages/admin/src/components/WordPressImport.tsx:1946
+#: packages/admin/src/components/WordPressImport.tsx:1971
 msgid "Cancel"
 msgstr "Otkaži"
 
@@ -2501,11 +2617,11 @@ msgid "Categories"
 msgstr "Kategorije"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1814
+#: packages/admin/src/components/WordPressImport.tsx:1839
 msgid "Categories ({0})"
 msgstr "Kategorije ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1177
+#: packages/admin/src/components/WordPressImport.tsx:1196
 msgid "Categories & Tags"
 msgstr "Kategorije i oznake"
 
@@ -2550,7 +2666,7 @@ msgstr "Promeni domen"
 msgid "Change Favicon"
 msgstr "Promeni favicon"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:208
+#: packages/admin/src/components/settings/SeoSettings.tsx:212
 msgid "Change Image"
 msgstr "Promeni sliku"
 
@@ -2567,7 +2683,7 @@ msgstr "Promeni datum objavljivanja"
 msgid "Change publication date: {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:607
+#: packages/admin/src/components/ContentSettingsPanel.tsx:623
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
 msgid "Change schedule"
 msgstr "Promeni raspored"
@@ -2575,6 +2691,68 @@ msgstr "Promeni raspored"
 #: packages/admin/src/lib/api/marketplace.ts:436
 msgid "Change where visitors are sent"
 msgstr "Promeni gde se posetioci upućuju"
+
+#: packages/admin/src/components/revisions/change-labels.ts:110
+msgid "Changed {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:89
+msgid "Changed a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:65
+msgid "Changed a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:71
+msgid "Changed a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:77
+msgid "Changed an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:47
+#: packages/admin/src/components/revisions/change-labels.ts:100
+msgid "Changed an image"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:177
+msgid "Changed the slug to “{slug}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:139
+msgid "Changed the style of “{snippet}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:27
+msgid "Changed the style of a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:41
+msgid "Changed the style of a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:20
+msgid "Changed the style of a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:34
+msgid "Changed the style of a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:165
+msgid "Changed the title"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:126
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:254
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:333
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:524
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:59
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:110
+msgid "Changed:"
+msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:901
 msgid "Changelog"
@@ -2584,15 +2762,19 @@ msgstr "Dnevnik promena"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Promene se primenjuju svuda gde se pojavljuje ovaj potpis."
 
-#: packages/admin/src/router.tsx:1426
+#: packages/admin/src/router.tsx:1511
 msgid "Changes discarded"
 msgstr "Promene odbačene"
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:347
+msgid "Changes in this version"
+msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:478
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
 msgstr "Promene su sačuvane, ali keširane stranice mogu da prikazuju stare {pluralLower}. Pokušaj ponovo osvežavanje keša."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:172
+#: packages/admin/src/components/settings/SeoSettings.tsx:176
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Karakter između naslova stranice i imena sajta (npr. \"Moja objava | Moj sajt\")"
 
@@ -2620,7 +2802,7 @@ msgstr "Proveri registry.policy.minimumReleaseAge u astro.config.mjs, pa ponovo 
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "Proveri registry.policy.minimumReleaseAgeExclude u astro.config.mjs, pa ponovo pokreni EmDash."
 
-#: packages/admin/src/components/WordPressImport.tsx:1126
+#: packages/admin/src/components/WordPressImport.tsx:1145
 msgid "Check Site"
 msgstr "Proveri sajt"
 
@@ -2638,7 +2820,7 @@ msgstr "Proveri vezu i pokušaj ponovo."
 msgid "Check your email"
 msgstr "Proveri e-poštu"
 
-#: packages/admin/src/components/WordPressImport.tsx:802
+#: packages/admin/src/components/WordPressImport.tsx:821
 msgid "Checking {urlInput}..."
 msgstr "Provera {urlInput}..."
 
@@ -2823,6 +3005,10 @@ msgstr "Očisti sačuvanu vrednost"
 msgid "Clear stored value for {fieldKey}"
 msgstr "Očisti sačuvanu vrednost za {fieldKey}"
 
+#: packages/admin/src/components/revisions/change-labels.ts:123
+msgid "Cleared {label}"
+msgstr ""
+
 #: packages/admin/src/locales/emails.ts:56
 msgid "Click the button below to create your account:"
 msgstr "Klikni na dugme ispod da napraviš nalog:"
@@ -2931,9 +3117,13 @@ msgstr "Zatvori podešavanja slike"
 msgid "Close panel"
 msgstr "Zatvori panel"
 
-#: packages/admin/src/components/ContentEditor.tsx:2040
+#: packages/admin/src/components/ContentEditor.tsx:2214
 msgid "Close settings"
 msgstr "Zatvori podešavanja"
+
+#: packages/admin/src/components/WordPressImport.tsx:93
+msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:388
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
@@ -2992,7 +3182,7 @@ msgstr "Kolekcije"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Kolekcije i polja, sav sadržaj sa nacrtima, revizijama, zakazanim objavama i korpom, prevodi, taksonomije, potpisi, medijski fajlovi, meniji, vidžeti, sekcije, preusmerenja, SEO i podešavanja sajta."
 
-#: packages/admin/src/components/WordPressImport.tsx:2356
+#: packages/admin/src/components/WordPressImport.tsx:2381
 msgid "Collections created:"
 msgstr "Kreirane kolekcije:"
 
@@ -3097,17 +3287,17 @@ msgstr "Potvrdi Face ID-om, Touch ID-om ili šifrom uređaja."
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "Potvrdi otiskom prsta, licem ili PIN-om."
 
-#: packages/admin/src/components/WordPressImport.tsx:727
-#: packages/admin/src/components/WordPressImport.tsx:1083
+#: packages/admin/src/components/WordPressImport.tsx:746
+#: packages/admin/src/components/WordPressImport.tsx:1102
 msgid "Connect"
 msgstr "Poveži"
 
-#: packages/admin/src/components/WordPressImport.tsx:1536
+#: packages/admin/src/components/WordPressImport.tsx:1561
 msgid "Connect & Analyze"
 msgstr "Poveži i analiziraj"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1486
+#: packages/admin/src/components/WordPressImport.tsx:1511
 msgid "Connect to {0}"
 msgstr "Poveži se sa {0}"
 
@@ -3121,7 +3311,7 @@ msgstr "Poveži se sa bilo kojim mrežnim hostom i učitaj eksterne slike admini
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "Poveži se sa mrežnim hostovima i učitaj eksterne slike administracije dodatka"
 
-#: packages/admin/src/components/WordPressImport.tsx:1402
+#: packages/admin/src/components/WordPressImport.tsx:1427
 msgid "Connect with WordPress"
 msgstr "Poveži se sa WordPress-om"
 
@@ -3134,7 +3324,7 @@ msgstr "Povezano {0}"
 msgid "Connects"
 msgstr "Povezuje se"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:465
+#: packages/admin/src/components/ContentSettingsPanel.tsx:481
 msgid "content"
 msgstr "sadržaj"
 
@@ -3157,31 +3347,27 @@ msgid "Content digest"
 msgstr "Sažetak sadržaja"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2411
+#: packages/admin/src/components/WordPressImport.tsx:2436
 msgid "Content Errors ({0})"
 msgstr "Greške sadržaja ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1346
+#: packages/admin/src/components/WordPressImport.tsx:1371
 msgid "Content found:"
 msgstr "Pronađen sadržaj:"
 
-#: packages/admin/src/router.tsx:1483
+#: packages/admin/src/router.tsx:1568
 msgid "Content has been scheduled for publishing"
 msgstr "Sadržaj je zakazan za objavljivanje"
-
-#: packages/admin/src/components/RevisionHistory.tsx:130
-msgid "Content has been updated to the selected revision."
-msgstr "Sadržaj je ažuriran na izabranu reviziju."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:113
 msgid "Content ID:"
 msgstr "ID sadržaja:"
 
-#: packages/admin/src/router.tsx:1379
+#: packages/admin/src/router.tsx:1464
 msgid "Content is now live"
 msgstr "Sadržaj je sada objavljen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1076
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1093
 msgid "Content language"
 msgstr "Jezik sadržaja"
 
@@ -3202,11 +3388,11 @@ msgstr "Sadržaj upućuje na medije na nevažeći način"
 msgid "Content refers to media that is not in the package"
 msgstr "Sadržaj upućuje na medije koji nisu u paketu"
 
-#: packages/admin/src/router.tsx:1403
+#: packages/admin/src/router.tsx:1488
 msgid "Content removed from public view"
 msgstr "Sadržaj uklonjen iz javnog prikaza"
 
-#: packages/admin/src/router.tsx:1502
+#: packages/admin/src/router.tsx:1587
 msgid "Content reverted to draft"
 msgstr "Sadržaj vraćen u nacrt"
 
@@ -3214,11 +3400,7 @@ msgstr "Sadržaj vraćen u nacrt"
 msgid "Content search results"
 msgstr "Rezultati pretrage sadržaja"
 
-#: packages/admin/src/components/RevisionHistory.tsx:320
-msgid "Content snapshot:"
-msgstr "Snimak sadržaja:"
-
-#: packages/admin/src/components/WordPressImport.tsx:1760
+#: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Content to Import"
 msgstr "Sadržaj za uvoz"
 
@@ -3240,7 +3422,7 @@ msgstr "Tipovi sadržaja sa istom grupom dele fasciklu koja može da se skupi u 
 msgid "Content using this media item may show a broken reference."
 msgstr "Sadržaj koji koristi ovaj medij može da prikaže pokvarenu referencu."
 
-#: packages/admin/src/components/WordPressImport.tsx:2339
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Content was skipped because it already exists"
 msgstr "Sadržaj je preskočen jer već postoji"
 
@@ -3259,7 +3441,7 @@ msgstr "Nastavi"
 msgid "Continue →"
 msgstr "Nastavi →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2558
+#: packages/admin/src/components/WordPressImport.tsx:2583
 msgid "Continue Import"
 msgstr "Nastavi uvoz"
 
@@ -3421,11 +3603,11 @@ msgstr "Nije moguće pregledati objave"
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "Nije moguće potvrditi da li medij ili izabrana fascikla još postoje. Pokušaj ponovo."
 
-#: packages/admin/src/components/WordPressImport.tsx:1293
+#: packages/admin/src/components/WordPressImport.tsx:1315
 msgid "Couldn't detect WordPress"
 msgstr "Nije moguće detektovati WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:2820
+#: packages/admin/src/components/ContentEditor.tsx:2994
 msgid "Couldn't load all references."
 msgstr "Nije moguće učitati sve reference."
 
@@ -3465,9 +3647,17 @@ msgstr "Nije moguće učitati još korišćenja."
 msgid "Couldn’t load the import plan"
 msgstr "Nije moguće učitati plan uvoza"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:564
+msgid "Couldn't load this version. Back to editing."
+msgstr ""
+
 #: packages/admin/src/components/MediaUsedIn.tsx:274
 msgid "Couldn’t load usage."
 msgstr "Nije moguće učitati korišćenje."
+
+#: packages/admin/src/components/RevisionHistory.tsx:91
+msgid "Couldn't load versions"
+msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -3602,7 +3792,7 @@ msgstr "Napravi novi {singularLower}"
 msgid "Create New Token"
 msgstr "Kreiraj novi token"
 
-#: packages/admin/src/components/WordPressImport.tsx:1530
+#: packages/admin/src/components/WordPressImport.tsx:1555
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Kreiraj jednu u WordPress-u: Korisnici → Profil → Lozinke za aplikacije"
 
@@ -3642,7 +3832,7 @@ msgstr "Napravi relaciju"
 msgid "Create Relation"
 msgstr "Napravi relaciju"
 
-#: packages/admin/src/components/WordPressImport.tsx:1950
+#: packages/admin/src/components/WordPressImport.tsx:1975
 msgid "Create Schema & Import"
 msgstr "Kreiraj šemu i uvezi"
 
@@ -3712,7 +3902,7 @@ msgid "Create, update, delete content"
 msgstr "Kreiraj, ažuriraj, briši sadržaj"
 
 #: packages/admin/src/components/ContentList.tsx:1030
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1028
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1045
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:231
 msgid "Created"
@@ -3729,11 +3919,11 @@ msgid "Created {0}"
 msgstr "Kreirano {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1619
 msgid "Created {0} translation"
 msgstr "Kreiran prevod {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1024
 msgid "Created and updated"
 msgstr "Napravljeno i ažurirano"
 
@@ -3745,7 +3935,7 @@ msgstr "Datum kreiranja"
 msgid "Creating collections and fields"
 msgstr "Pravljenje kolekcija i polja"
 
-#: packages/admin/src/components/WordPressImport.tsx:913
+#: packages/admin/src/components/WordPressImport.tsx:932
 msgid "Creating collections and fields..."
 msgstr "Kreiranje kolekcija i polja..."
 
@@ -3807,13 +3997,14 @@ msgstr "CSS kod"
 msgid "current"
 msgstr "trenutno"
 
-#: packages/admin/src/components/RevisionHistory.tsx:288
-msgid "Current"
-msgstr "Trenutno"
-
 #: packages/admin/src/components/editor/TableControls.tsx:224
 msgid "Current cell"
 msgstr "Trenutna ćelija"
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
+msgid "Current version"
+msgstr ""
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
@@ -3827,7 +4018,7 @@ msgstr "Prilagođeno"
 msgid "Custom Fields"
 msgstr "Prilagođena polja"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:267
+#: packages/admin/src/components/settings/SeoSettings.tsx:271
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Prilagođeni robots.txt sadržaj. Ostavi prazno za podrazumevano."
 
@@ -3835,7 +4026,7 @@ msgstr "Prilagođeni robots.txt sadržaj. Ostavi prazno za podrazumevano."
 msgid "Custom Section"
 msgstr "Prilagođena sekcija"
 
-#: packages/admin/src/components/WordPressImport.tsx:1178
+#: packages/admin/src/components/WordPressImport.tsx:1197
 msgid "Custom Taxonomies"
 msgstr "Prilagođene taksonomije"
 
@@ -3907,12 +4098,12 @@ msgstr "Podrazumevana uloga"
 msgid "Default role:"
 msgstr "Podrazumevana uloga:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:186
+#: packages/admin/src/components/settings/SeoSettings.tsx:190
 msgid "Default social image"
 msgstr "Podrazumevana slika za društvene mreže"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:46
-#: packages/admin/src/components/settings/SeoSettings.tsx:177
+#: packages/admin/src/components/settings/SeoSettings.tsx:181
 msgid "Default Social Image"
 msgstr "Podrazumevana slika za društvene mreže"
 
@@ -4344,12 +4535,17 @@ msgstr "Onemogućavanje <0>{0}</0> sprečiće ih da se prijave dok se ponovo ne 
 msgid "Disabling..."
 msgstr "Onemogućavanje..."
 
+#: packages/admin/src/components/settings/SeoSettings.tsx:276
+#: packages/admin/src/components/settings/SeoSettings.tsx:286
+msgid "Disallow AI training"
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Discard"
 msgstr "Odbaci"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:328
-#: packages/admin/src/components/ContentSettingsPanel.tsx:349
+#: packages/admin/src/components/ContentSettingsPanel.tsx:344
+#: packages/admin/src/components/ContentSettingsPanel.tsx:365
 msgid "Discard changes"
 msgstr "Odbaci izmene"
 
@@ -4357,7 +4553,7 @@ msgstr "Odbaci izmene"
 msgid "Discard changes?"
 msgstr "Odbaciti izmene?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:334
+#: packages/admin/src/components/ContentSettingsPanel.tsx:350
 msgid "Discard draft changes?"
 msgstr "Odbaciti izmene nacrta?"
 
@@ -4422,7 +4618,7 @@ msgstr "Prikaži oblak tagova"
 msgid "Displayed below the image as a visible caption."
 msgstr "Prikazano ispod slike kao vidljiv opis."
 
-#: packages/admin/src/components/ContentEditor.tsx:1586
+#: packages/admin/src/components/ContentEditor.tsx:1665
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Režim bez ometanja (⌘⇧\\)"
 
@@ -4482,7 +4678,7 @@ msgstr "Ne mapiraj"
 #: packages/admin/src/components/ContentList.tsx:1229
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2182
 msgid "Done"
 msgstr "Gotovo"
 
@@ -4540,7 +4736,7 @@ msgstr "Preuzmi ovaj sajt kao jedan .emdash fajl paketa koji drugi EmDash sajt m
 msgid "Downloaded"
 msgstr "Preuzeto"
 
-#: packages/admin/src/components/WordPressImport.tsx:2155
+#: packages/admin/src/components/WordPressImport.tsx:2180
 msgid "Downloading"
 msgstr "Preuzimanje"
 
@@ -4559,12 +4755,12 @@ msgstr "visualEditing.draft"
 msgid "Draft"
 msgstr "Nacrt"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:197
-#: packages/admin/src/components/ContentSettingsPanel.tsx:219
+#: packages/admin/src/components/ContentSettingsPanel.tsx:201
+#: packages/admin/src/components/ContentSettingsPanel.tsx:227
 msgid "Draft changes"
 msgstr "Promene u nacrtu"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:163
+#: packages/admin/src/components/ContentSettingsPanel.tsx:167
 msgid "Draft version"
 msgstr "Verzija nacrta"
 
@@ -4577,7 +4773,7 @@ msgstr "nacrt, objavljeno ili arhivirano"
 msgid "Drafts"
 msgstr "Nacrti"
 
-#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1216
 msgid "Drafts & Private"
 msgstr "Nacrti i privatno"
 
@@ -4585,7 +4781,7 @@ msgstr "Nacrti i privatno"
 msgid "Drag and drop files here"
 msgstr "Prevuci fajlove ovde"
 
-#: packages/admin/src/components/WordPressImport.tsx:1150
+#: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Prevuci i otpusti ili klikni za pregled (.xml)"
 
@@ -4637,7 +4833,7 @@ msgstr "Prevuci jednu sliku odjednom."
 msgid "Drop to add widget"
 msgstr "Otpusti da dodaš vidžet"
 
-#: packages/admin/src/components/WordPressImport.tsx:1617
+#: packages/admin/src/components/WordPressImport.tsx:1642
 msgid "Drop your WordPress export file here"
 msgstr "Otpusti WordPress izvozni fajl ovde"
 
@@ -4686,6 +4882,10 @@ msgstr "Svaki {linkingSideName} se povezuje sa"
 msgid "Each path segment can contain at most one placeholder, e.g. {0}"
 msgstr "Svaki segment putanje može da sadrži najviše jedan placeholder, npr. {0}"
 
+#: packages/admin/src/components/revisions/change-labels.ts:155
+msgid "Earliest saved version"
+msgstr ""
+
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:352
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:353
 #: packages/admin/src/components/MenuCard.tsx:59
@@ -4719,7 +4919,7 @@ msgstr "Uredi {0}"
 msgid "Edit {0} field"
 msgstr "Uredi polje {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1401
 msgid "Edit {itemLabel}"
 msgstr "Uredi {itemLabel}"
 
@@ -4832,6 +5032,50 @@ msgstr "Uredi ulogu"
 msgid "Edit URL"
 msgstr "Uredi URL"
 
+#: packages/admin/src/components/revisions/change-labels.ts:137
+msgid "Edited “{snippet}”"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:125
+msgid "Edited {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:53
+msgid "Edited a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:26
+msgid "Edited a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:40
+msgid "Edited a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:19
+msgid "Edited a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:33
+msgid "Edited a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:59
+msgid "Edited a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:83
+msgid "Edited an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:98
+msgid "Edited an image caption"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:99
+msgid "Edited an image description"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
 msgstr "Uređivanje je pauzirano dok se uvoz ne završi. Ostavi ovu stranicu otvorenu; ako je napustiš, uvoz se nastavlja kad se vratiš."
@@ -4868,7 +5112,7 @@ msgstr ""
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Urednici mogu da izaberu drugu sliku koju sajt prikazuje u tamnom režimu."
 
-#: packages/admin/src/components/WordPressImport.tsx:1073
+#: packages/admin/src/components/WordPressImport.tsx:1092
 msgid "em1.…"
 msgstr "em1.…"
 
@@ -4928,6 +5172,7 @@ msgid "Email verified!"
 msgstr "E-pošta verifikovana!"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:49
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:501
 msgid "Embed"
 msgstr ""
 
@@ -4970,7 +5215,7 @@ msgstr "EmDash ne čuva prethodnu sliku."
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash ne čuva neisečenu sliku."
 
-#: packages/admin/src/components/WordPressImport.tsx:1336
+#: packages/admin/src/components/WordPressImport.tsx:1361
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "EmDash Exporter dodatak detektovan! Možeš direktno uvesti."
 
@@ -4993,6 +5238,11 @@ msgstr "EmDash će nastaviti podešavanje i skeniranje postojećeg sadržaja."
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:576
 msgid "EmDash will scan existing content to show where media is used."
 msgstr "EmDash će skenirati postojeći sadržaj da prikaže gde se mediji koriste."
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:442
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:21
+msgid "Empty"
+msgstr ""
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:191
 msgid "Empty gallery — open settings to add images"
@@ -5039,7 +5289,7 @@ msgstr "Omogući praćenje da indeksiraš postojeći sadržaj i održavaš refer
 msgid "Enabled"
 msgstr "Omogućeno"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1098
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "Engleski se koristi jer nije podešen jezik sadržaja. Jezik sadržaja se čuva uz unos i odvojen je od jezika administracije."
 
@@ -5068,15 +5318,15 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Unesi URL (https://…) ili relativnu putanju (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2996
+#: packages/admin/src/components/ContentEditor.tsx:3170
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Unesi važeći URL (npr. https://example.com)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1409
+#: packages/admin/src/components/WordPressImport.tsx:1434
 msgid "Enter credentials manually"
 msgstr "Unesi akreditive ručno"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1660
 msgid "Enter distraction-free mode"
 msgstr "Uđi u režim bez ometanja"
 
@@ -5084,7 +5334,7 @@ msgstr "Uđi u režim bez ometanja"
 msgid "Enter email"
 msgstr "Unesi e-poštu"
 
-#: packages/admin/src/components/ContentEditor.tsx:2338
+#: packages/admin/src/components/ContentEditor.tsx:2512
 msgid "Enter markdown content..."
 msgstr "Unesi markdown sadržaj..."
 
@@ -5109,12 +5359,12 @@ msgstr "Unesi URL..."
 msgid "Enter your handle to sign in."
 msgstr "Unesi korisničko ime za prijavu."
 
-#: packages/admin/src/components/WordPressImport.tsx:1488
+#: packages/admin/src/components/WordPressImport.tsx:1513
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "Unesi WordPress akreditive za direktan uvoz sadržaja."
 
-#: packages/admin/src/components/WordPressImport.tsx:1111
-#: packages/admin/src/components/WordPressImport.tsx:1123
+#: packages/admin/src/components/WordPressImport.tsx:1130
+#: packages/admin/src/components/WordPressImport.tsx:1142
 msgid "Enter your WordPress site URL"
 msgstr "Unesi URL WordPress sajta"
 
@@ -5146,7 +5396,7 @@ msgstr "unos na strani koja povezuje"
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
-#: packages/admin/src/router.tsx:3239
+#: packages/admin/src/router.tsx:3325
 msgid "Error"
 msgstr "Greška"
 
@@ -5215,15 +5465,15 @@ msgstr "Postojeći {pluralLower} ostaju na mestu."
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "Postojeći sadržaj se indeksira. Nove promene se prate automatski."
 
-#: packages/admin/src/components/WordPressImport.tsx:2039
+#: packages/admin/src/components/WordPressImport.tsx:2064
 msgid "Exists"
 msgstr "Postoji"
 
-#: packages/admin/src/components/ContentEditor.tsx:1581
+#: packages/admin/src/components/ContentEditor.tsx:1660
 msgid "Exit distraction-free mode"
 msgstr "Izađi iz režima bez ometanja"
 
-#: packages/admin/src/components/ContentEditor.tsx:1585
+#: packages/admin/src/components/ContentEditor.tsx:1664
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "Izađi iz režima bez ometanja (⌘⇧\\)"
 
@@ -5254,7 +5504,7 @@ msgstr "Isticanje"
 msgid "Export"
 msgstr "Izvezi"
 
-#: packages/admin/src/components/WordPressImport.tsx:1302
+#: packages/admin/src/components/WordPressImport.tsx:1327
 msgid "Export from WordPress manually"
 msgstr "Izvezi iz WordPress-a ručno"
 
@@ -5270,7 +5520,7 @@ msgstr "Izvoz je zatražio {requester}"
 msgid "Export site"
 msgstr "Izvezi sajt"
 
-#: packages/admin/src/components/WordPressImport.tsx:1426
+#: packages/admin/src/components/WordPressImport.tsx:1451
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Izvezi sadržaj iz WordPress-a da uvezeš sve, uključujući nacrte."
 
@@ -5304,7 +5554,7 @@ msgstr "Neuspeh"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2159
+#: packages/admin/src/components/WordPressImport.tsx:2184
 msgid "Failed"
 msgstr "Neuspešno"
 
@@ -5340,8 +5590,8 @@ msgstr ""
 msgid "Failed to analyze import"
 msgstr "Analiza uvoza nije uspela"
 
-#: packages/admin/src/components/WordPressImport.tsx:421
-#: packages/admin/src/lib/api/import.ts:766
+#: packages/admin/src/components/WordPressImport.tsx:433
+#: packages/admin/src/lib/api/import.ts:768
 msgid "Failed to analyze WordPress site"
 msgstr "Analiza WordPress sajta nije uspela"
 
@@ -5353,7 +5603,7 @@ msgstr "Odobravanje zahteva nije uspelo"
 msgid "Failed to cancel import"
 msgstr "Otkazivanje uvoza nije uspelo"
 
-#: packages/admin/src/lib/api/settings.ts:118
+#: packages/admin/src/lib/api/settings.ts:119
 msgid "Failed to change the domain"
 msgstr "Promena domena nije uspela"
 
@@ -5387,7 +5637,7 @@ msgid "Failed to create {0}"
 msgstr "Pravljenje nije uspelo: {0}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:146
-#: packages/admin/src/lib/api/settings.ts:95
+#: packages/admin/src/lib/api/settings.ts:96
 msgid "Failed to create a sign-in link"
 msgstr "Pravljenje linka za prijavu nije uspelo"
 
@@ -5465,7 +5715,7 @@ msgstr ""
 msgid "Failed to create section"
 msgstr "Kreiranje sekcije nije uspelo"
 
-#: packages/admin/src/components/WordPressImport.tsx:1743
+#: packages/admin/src/components/WordPressImport.tsx:1768
 msgid "Failed to create some collections"
 msgstr "Kreiranje nekih kolekcija nije uspelo"
 
@@ -5483,7 +5733,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1539
+#: packages/admin/src/router.tsx:1624
 msgid "Failed to create translation"
 msgstr "Kreiranje prevoda nije uspelo"
 
@@ -5495,10 +5745,10 @@ msgstr ""
 msgid "Failed to create widget area"
 msgstr ""
 
-#: packages/admin/src/router.tsx:581
-#: packages/admin/src/router.tsx:610
-#: packages/admin/src/router.tsx:693
-#: packages/admin/src/router.tsx:1562
+#: packages/admin/src/router.tsx:645
+#: packages/admin/src/router.tsx:674
+#: packages/admin/src/router.tsx:757
+#: packages/admin/src/router.tsx:1647
 msgid "Failed to delete"
 msgstr "Brisanje nije uspelo"
 
@@ -5523,7 +5773,7 @@ msgid "Failed to delete collection"
 msgstr "Brisanje kolekcije nije uspelo"
 
 #: packages/admin/src/lib/api/comments.ts:114
-#: packages/admin/src/router.tsx:2327
+#: packages/admin/src/router.tsx:2413
 msgid "Failed to delete comment"
 msgstr "Brisanje komentara nije uspelo"
 
@@ -5605,7 +5855,7 @@ msgstr "Onemogućavanje pretrage nije uspelo"
 msgid "Failed to disable user"
 msgstr "Onemogućavanje korisnika nije uspelo"
 
-#: packages/admin/src/router.tsx:1433
+#: packages/admin/src/router.tsx:1518
 msgid "Failed to discard changes"
 msgstr "Odbacivanje izmena nije uspelo"
 
@@ -5626,7 +5876,7 @@ msgstr "Odbacivanje dobrodošlice nije uspelo"
 msgid "Failed to download a package file"
 msgstr "Preuzimanje fajla paketa nije uspelo"
 
-#: packages/admin/src/router.tsx:624
+#: packages/admin/src/router.tsx:688
 msgid "Failed to duplicate"
 msgstr "Dupliranje nije uspelo"
 
@@ -5634,7 +5884,7 @@ msgstr "Dupliranje nije uspelo"
 msgid "Failed to duplicate content"
 msgstr ""
 
-#: packages/admin/src/lib/api/settings.ts:105
+#: packages/admin/src/lib/api/settings.ts:106
 msgid "Failed to email users"
 msgstr "Slanje e-pošte korisnicima nije uspelo"
 
@@ -5651,7 +5901,7 @@ msgstr "Omogućavanje pretrage nije uspelo"
 msgid "Failed to enable user"
 msgstr "Omogućavanje korisnika nije uspelo"
 
-#: packages/admin/src/components/WordPressImport.tsx:348
+#: packages/admin/src/components/WordPressImport.tsx:355
 msgid "Failed to execute import"
 msgstr "Izvršavanje uvoza nije uspelo"
 
@@ -5827,12 +6077,12 @@ msgstr ""
 msgid "Failed to fetch relations"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:641
-#: packages/admin/src/lib/api/content.ts:646
+#: packages/admin/src/lib/api/content.ts:652
+#: packages/admin/src/lib/api/content.ts:657
 msgid "Failed to fetch revision"
 msgstr "Preuzimanje revizije nije uspelo"
 
-#: packages/admin/src/lib/api/content.ts:628
+#: packages/admin/src/lib/api/content.ts:639
 msgid "Failed to fetch revisions"
 msgstr ""
 
@@ -5844,7 +6094,7 @@ msgstr "Preuzimanje sekcije nije uspelo"
 msgid "Failed to fetch sections"
 msgstr "Preuzimanje sekcija nije uspelo"
 
-#: packages/admin/src/lib/api/settings.ts:60
+#: packages/admin/src/lib/api/settings.ts:61
 msgid "Failed to fetch settings"
 msgstr "Preuzimanje podešavanja nije uspelo"
 
@@ -5865,7 +6115,7 @@ msgstr ""
 msgid "Failed to fetch terms"
 msgstr "Preuzimanje termina nije uspelo"
 
-#: packages/admin/src/lib/api/settings.ts:87
+#: packages/admin/src/lib/api/settings.ts:88
 msgid "Failed to fetch the site domain"
 msgstr "Dohvatanje domena sajta nije uspelo"
 
@@ -5888,8 +6138,8 @@ msgstr "Dohvatanje statusa ažuriranja nije uspelo"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:1126
-#: packages/admin/src/router.tsx:2258
+#: packages/admin/src/router.tsx:1195
+#: packages/admin/src/router.tsx:2344
 msgid "Failed to fetch user"
 msgstr "Preuzimanje korisnika nije uspelo"
 
@@ -5934,12 +6184,12 @@ msgstr "Preuzimanje URL-a za otpremanje nije uspelo"
 msgid "Failed to import"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:444
+#: packages/admin/src/components/WordPressImport.tsx:462
 #: packages/admin/src/lib/api/import.ts:257
 msgid "Failed to import from WordPress"
 msgstr "Uvoz iz WordPress-a nije uspeo"
 
-#: packages/admin/src/components/WordPressImport.tsx:373
+#: packages/admin/src/components/WordPressImport.tsx:380
 #: packages/admin/src/lib/api/import.ts:534
 #: packages/admin/src/lib/api/import.ts:539
 msgid "Failed to import media"
@@ -5962,7 +6212,7 @@ msgstr "Listanje polja potpisa autora nije uspelo"
 msgid "Failed to list files to upload"
 msgstr "Prikazivanje fajlova za otpremanje nije uspelo"
 
-#: packages/admin/src/router.tsx:412
+#: packages/admin/src/router.tsx:476
 msgid "Failed to load admin"
 msgstr "Učitavanje admina nije uspelo"
 
@@ -6044,10 +6294,6 @@ msgstr "Učitavanje dodataka nije uspelo: {0}"
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "Učitavanje dodataka nije uspelo. Agregator registra možda nije dostupan."
 
-#: packages/admin/src/components/RevisionHistory.tsx:200
-msgid "Failed to load revisions"
-msgstr "Učitavanje revizija nije uspelo"
-
 #: packages/admin/src/components/SetupWizard.tsx:608
 msgid "Failed to load setup"
 msgstr "Učitavanje podešavanja nije uspelo"
@@ -6082,7 +6328,7 @@ msgid "Failed to lock the entry"
 msgstr "Zaključavanje unosa nije uspelo"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2352
+#: packages/admin/src/router.tsx:2438
 msgid "Failed to perform bulk action"
 msgstr "Izvršavanje grupne akcije nije uspelo"
 
@@ -6090,17 +6336,17 @@ msgstr "Izvršavanje grupne akcije nije uspelo"
 msgid "Failed to permanently delete content"
 msgstr "Trajno brisanje sadržaja nije uspelo"
 
-#: packages/admin/src/components/WordPressImport.tsx:327
+#: packages/admin/src/components/WordPressImport.tsx:334
 #: packages/admin/src/lib/api/import.ts:390
 msgid "Failed to prepare import"
 msgstr "Priprema uvoza nije uspela"
 
-#: packages/admin/src/lib/api/import.ts:710
+#: packages/admin/src/lib/api/import.ts:712
 msgid "Failed to probe URL"
 msgstr ""
 
-#: packages/admin/src/router.tsx:649
-#: packages/admin/src/router.tsx:1384
+#: packages/admin/src/router.tsx:713
+#: packages/admin/src/router.tsx:1469
 msgid "Failed to publish"
 msgstr "Objavljivanje nije uspelo"
 
@@ -6112,7 +6358,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "Čitanje upotrebe polja potpisa autora nije uspelo"
 
-#: packages/admin/src/router.tsx:2778
+#: packages/admin/src/router.tsx:2864
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6171,7 +6417,7 @@ msgstr "Promena redosleda vidžeta nije uspela"
 msgid "Failed to replace media image"
 msgstr "Zamena slike medija nije uspela"
 
-#: packages/admin/src/router.tsx:596
+#: packages/admin/src/router.tsx:660
 msgid "Failed to restore"
 msgstr "Vraćanje nije uspelo"
 
@@ -6179,8 +6425,8 @@ msgstr "Vraćanje nije uspelo"
 msgid "Failed to restore content"
 msgstr "Vraćanje sadržaja nije uspelo"
 
-#: packages/admin/src/lib/api/content.ts:663
-#: packages/admin/src/lib/api/content.ts:668
+#: packages/admin/src/lib/api/content.ts:674
+#: packages/admin/src/lib/api/content.ts:679
 msgid "Failed to restore revision"
 msgstr "Vraćanje revizije nije uspelo"
 
@@ -6188,14 +6434,14 @@ msgstr "Vraćanje revizije nije uspelo"
 msgid "Failed to revoke API token"
 msgstr "Opoziv API tokena nije uspeo"
 
-#: packages/admin/src/components/WordPressImport.tsx:386
-#: packages/admin/src/lib/api/import.ts:727
+#: packages/admin/src/components/WordPressImport.tsx:393
+#: packages/admin/src/lib/api/import.ts:729
 msgid "Failed to rewrite URLs"
 msgstr "Prepisivanje URL-ova nije uspelo"
 
-#: packages/admin/src/router.tsx:843
-#: packages/admin/src/router.tsx:1245
-#: packages/admin/src/router.tsx:2963
+#: packages/admin/src/router.tsx:907
+#: packages/admin/src/router.tsx:1314
+#: packages/admin/src/router.tsx:3049
 msgid "Failed to save"
 msgstr "Čuvanje nije uspelo"
 
@@ -6209,12 +6455,12 @@ msgstr "Čuvanje polja nije uspelo"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:133
-#: packages/admin/src/components/settings/SeoSettings.tsx:81
+#: packages/admin/src/components/settings/SeoSettings.tsx:85
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
 msgstr "Čuvanje podešavanja nije uspelo"
 
-#: packages/admin/src/router.tsx:1489
+#: packages/admin/src/router.tsx:1574
 msgid "Failed to schedule"
 msgstr "Zakazivanje nije uspelo"
 
@@ -6258,7 +6504,7 @@ msgstr "Pokretanje uvoza nije uspelo"
 msgid "Failed to uninstall plugin"
 msgstr "Deinstalacija dodatka nije uspela"
 
-#: packages/admin/src/router.tsx:1408
+#: packages/admin/src/router.tsx:1493
 msgid "Failed to unpublish"
 msgstr "Povlačenje objave nije uspelo"
 
@@ -6266,7 +6512,7 @@ msgstr "Povlačenje objave nije uspelo"
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1508
+#: packages/admin/src/router.tsx:1593
 msgid "Failed to unschedule"
 msgstr "Otkazivanje zakazivanja nije uspelo"
 
@@ -6274,7 +6520,7 @@ msgstr "Otkazivanje zakazivanja nije uspelo"
 msgid "Failed to unschedule content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:672
+#: packages/admin/src/router.tsx:736
 msgid "Failed to update"
 msgstr "Ažuriranje nije uspelo"
 
@@ -6361,11 +6607,11 @@ msgstr ""
 msgid "Failed to update section"
 msgstr "Ažuriranje sekcije nije uspelo"
 
-#: packages/admin/src/lib/api/settings.ts:72
+#: packages/admin/src/lib/api/settings.ts:73
 msgid "Failed to update settings"
 msgstr "Ažuriranje podešavanja nije uspelo"
 
-#: packages/admin/src/router.tsx:2311
+#: packages/admin/src/router.tsx:2397
 msgid "Failed to update status"
 msgstr "Ažuriranje statusa nije uspelo"
 
@@ -6419,11 +6665,11 @@ msgstr "FAQ"
 msgid "Favicon"
 msgstr "Favicon"
 
-#: packages/admin/src/components/WordPressImport.tsx:1211
+#: packages/admin/src/components/WordPressImport.tsx:1230
 msgid "Feature"
 msgstr "Funkcija"
 
-#: packages/admin/src/components/WordPressImport.tsx:1179
+#: packages/admin/src/components/WordPressImport.tsx:1198
 msgid "Featured Images"
 msgstr "Istaknute slike"
 
@@ -6432,7 +6678,7 @@ msgstr "Istaknute slike"
 msgid "Features"
 msgstr "Funkcije"
 
-#: packages/admin/src/components/WordPressImport.tsx:837
+#: packages/admin/src/components/WordPressImport.tsx:856
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "Preuzimanje sadržaja sa EmDash Exporter API-ja."
 
@@ -6474,7 +6720,7 @@ msgstr ""
 msgid "Fields"
 msgstr "Polja"
 
-#: packages/admin/src/components/WordPressImport.tsx:2362
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Fields created:"
 msgstr "Kreirana polja:"
 
@@ -6483,7 +6729,7 @@ msgid "File"
 msgstr "Fajl"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2187
+#: packages/admin/src/components/WordPressImport.tsx:2212
 msgid "File {0}"
 msgstr "Fajl {0}"
 
@@ -6569,19 +6815,23 @@ msgstr "Dovrši tekuće izmene."
 msgid "First page"
 msgstr "Prva stranica"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:172
+#: packages/admin/src/components/ContentSettingsPanel.tsx:176
 msgid "First publication"
 msgstr "Prvo objavljivanje"
+
+#: packages/admin/src/components/revisions/change-labels.ts:153
+msgid "First version"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:84
 msgid "First-time commenters only"
 msgstr "Samo prvi komentatori"
 
-#: packages/admin/src/components/ContentEditor.tsx:1303
+#: packages/admin/src/components/ContentEditor.tsx:1383
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Ispravi nevažeća polja pre promene datuma objavljivanja"
 
-#: packages/admin/src/components/ContentEditor.tsx:1247
+#: packages/admin/src/components/ContentEditor.tsx:1327
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Ispravi nevažeća polja pre promene rasporeda"
 
@@ -6607,7 +6857,7 @@ msgstr "Obrisana je fascikla"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "Naziv fascikle mora da ima između 1 i 200 znakova"
 
-#: packages/admin/src/router.tsx:1981
+#: packages/admin/src/router.tsx:2067
 msgid "Folder no longer exists"
 msgstr "Fascikla više ne postoji"
 
@@ -6647,11 +6897,11 @@ msgstr "Navigacija fascikli"
 msgid "Fonts"
 msgstr "Fontovi"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1452
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "Za kompletan uvoz uključujući nacrte i sav sadržaj, izvezi iz WordPress-a."
 
-#: packages/admin/src/components/WordPressImport.tsx:67
+#: packages/admin/src/components/WordPressImport.tsx:68
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "Za najbolji uvoz, instaliraj dodatak <0>EmDash Exporter</0> na WordPress sajt."
 
@@ -6689,7 +6939,7 @@ msgid "From URL"
 msgstr "Sa URL-a"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1186
+#: packages/admin/src/components/WordPressImport.tsx:1205
 msgid "Full"
 msgstr "Puno"
 
@@ -6704,6 +6954,7 @@ msgstr "Pun admin pristup"
 #: packages/admin/src/components/editor/BlockMenu.tsx:44
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
 #: packages/admin/src/components/PortableTextEditor.tsx:3661
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:442
 msgid "Gallery"
 msgstr "Galerija"
 
@@ -6744,12 +6995,16 @@ msgstr "Daj ovom pristupnom ključu (passkey) ime da ga kasnije lakše prepozna�
 msgid "Go"
 msgstr "Idi"
 
+#: packages/admin/src/components/ContentEditor.tsx:1323
+msgid "Go back to editing first."
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
 msgid "Go live {countdown}"
 msgstr "Objavljuje se {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2447
-#: packages/admin/src/router.tsx:3259
+#: packages/admin/src/components/WordPressImport.tsx:2472
+#: packages/admin/src/router.tsx:3345
 msgid "Go to Dashboard"
 msgstr "Idi na kontrolnu tablu"
 
@@ -6765,8 +7020,8 @@ msgstr "Objavljuje se"
 msgid "Goes live {countdown}"
 msgstr "Objavljuje se {countdown}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:244
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:248
 msgid "Google Verification"
 msgstr "Google verifikacija"
 
@@ -6925,7 +7180,7 @@ msgstr "Pogoci"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Zadrži unos dok ga neko uređuje i odbij druge autore"
 
-#: packages/admin/src/components/ContentEditor.tsx:2511
+#: packages/admin/src/components/ContentEditor.tsx:2685
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Čuva ID unosa. Podesi ciljnu kolekciju u okviru Tipova sadržaja da umesto toga biraš unose."
 
@@ -6963,7 +7218,7 @@ msgstr "Kako se generiše slug?"
 msgid "How many"
 msgstr "Koliko"
 
-#: packages/admin/src/components/WordPressImport.tsx:1549
+#: packages/admin/src/components/WordPressImport.tsx:1574
 msgid "How to create an Application Password"
 msgstr "Kako kreirati Application Password"
 
@@ -6971,6 +7226,7 @@ msgstr "Kako kreirati Application Password"
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:51
 #: packages/admin/src/components/PortableTextEditor.tsx:2103
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:507
 msgid "HTML"
 msgstr "HTML"
 
@@ -7011,7 +7267,7 @@ msgstr "https://example.com/blog/my-post"
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1138
 msgid "https://yoursite.com"
 msgstr "https://yoursite.com"
 
@@ -7066,6 +7322,8 @@ msgstr "visualEditing.image"
 #: packages/admin/src/components/FieldEditor.tsx:444
 #: packages/admin/src/components/FieldEditor.tsx:1299
 #: packages/admin/src/components/PortableTextEditor.tsx:3648
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:302
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:463
 msgid "Image"
 msgstr "Slika"
 
@@ -7104,6 +7362,10 @@ msgstr "Link slike"
 msgid "Image not found"
 msgstr "Slika nije pronađena"
 
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:254
+msgid "Image replaced:"
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:717
 msgid "Image replaced."
 msgstr "Zamenjena je slika."
@@ -7141,12 +7403,12 @@ msgstr "Slike"
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:506
-#: packages/admin/src/components/WordPressImport.tsx:764
+#: packages/admin/src/components/WordPressImport.tsx:783
 msgid "Import"
 msgstr "Uvezi"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:1987
+#: packages/admin/src/components/WordPressImport.tsx:2012
 msgid "Import {0}"
 msgstr "Uvezi {0}"
 
@@ -7158,7 +7420,7 @@ msgstr "Uvezi paket sajta"
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "Uvezi paket sajta u ovaj sajt dok je prazan, čime se prepisuje njegovo početno podešavanje. Ovo uključuje Admin; izaberi ovu opciju umesto Admin da bi agent dobio uža prava pristupa."
 
-#: packages/admin/src/components/WordPressImport.tsx:1395
+#: packages/admin/src/components/WordPressImport.tsx:1420
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "Uvezi sav sadržaj direktno uključujući nacrte, prilagođene tipove objava, ACF polja i SEO podatke. Preuzimanje fajla nije potrebno."
 
@@ -7166,11 +7428,11 @@ msgstr "Uvezi sav sadržaj direktno uključujući nacrte, prilagođene tipove ob
 msgid "Import an existing EmDash site"
 msgstr "Uvezi postojeći EmDash sajt"
 
-#: packages/admin/src/components/WordPressImport.tsx:2445
+#: packages/admin/src/components/WordPressImport.tsx:2470
 msgid "Import Another File"
 msgstr "Uvezi drugi fajl"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1224
 msgid "Import Capabilities"
 msgstr "Mogućnosti uvoza"
 
@@ -7179,31 +7441,31 @@ msgstr "Mogućnosti uvoza"
 msgid "Import complete"
 msgstr "Završen je uvoz"
 
-#: packages/admin/src/components/WordPressImport.tsx:2333
+#: packages/admin/src/components/WordPressImport.tsx:2358
 msgid "Import Complete"
 msgstr "Uvoz završen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2334
+#: packages/admin/src/components/WordPressImport.tsx:2359
 msgid "Import Completed with Errors"
 msgstr "Uvoz završen sa greškama"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Import failed"
 msgstr "Uvoz nije uspeo"
 
-#: packages/admin/src/components/WordPressImport.tsx:717
+#: packages/admin/src/components/WordPressImport.tsx:736
 msgid "Import from WordPress"
 msgstr "Uvezi iz WordPress-a"
 
-#: packages/admin/src/components/WordPressImport.tsx:2136
+#: packages/admin/src/components/WordPressImport.tsx:2161
 msgid "Import Media"
 msgstr "Uvezi medije"
 
-#: packages/admin/src/components/WordPressImport.tsx:2089
+#: packages/admin/src/components/WordPressImport.tsx:2114
 msgid "Import Media Files"
 msgstr "Uvezi medijske fajlove"
 
-#: packages/admin/src/components/WordPressImport.tsx:719
+#: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "Uvezi objave, stranice i prilagođene tipove objava iz WordPress-a."
 
@@ -7211,7 +7473,7 @@ msgstr "Uvezi objave, stranice i prilagođene tipove objava iz WordPress-a."
 msgid "Import requested by {requester}"
 msgstr "Uvoz je zatražio {requester}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1843
+#: packages/admin/src/components/WordPressImport.tsx:1868
 msgid "Import site configuration from WordPress."
 msgstr "Uvezi konfiguraciju sajta iz WordPress-a."
 
@@ -7219,7 +7481,7 @@ msgstr "Uvezi konfiguraciju sajta iz WordPress-a."
 msgid "Import this package?"
 msgstr "Uvesti ovaj paket?"
 
-#: packages/admin/src/components/WordPressImport.tsx:1393
+#: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Import via EmDash Exporter"
 msgstr "Uvezi preko EmDash Exporter-a"
 
@@ -7227,7 +7489,7 @@ msgstr "Uvezi preko EmDash Exporter-a"
 msgid "Imported"
 msgstr "Uvezeno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2373
+#: packages/admin/src/components/WordPressImport.tsx:2398
 msgid "Imported by Collection"
 msgstr "Uvezeno po kolekciji"
 
@@ -7236,7 +7498,7 @@ msgid "Importing"
 msgstr "Uvoz u toku"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:930
+#: packages/admin/src/components/WordPressImport.tsx:949
 msgid "Importing comments... {0}"
 msgstr "Uvoz komentara... {0}"
 
@@ -7244,25 +7506,25 @@ msgstr "Uvoz komentara... {0}"
 msgid "Importing content"
 msgstr "Uvoz sadržaja"
 
-#: packages/admin/src/components/WordPressImport.tsx:948
+#: packages/admin/src/components/WordPressImport.tsx:967
 msgid "Importing content..."
 msgstr "Uvoz sadržaja..."
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:928
+#: packages/admin/src/components/WordPressImport.tsx:947
 msgid "Importing content... {0}"
 msgstr "Uvoz sadržaja... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:927
+#: packages/admin/src/components/WordPressImport.tsx:946
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "Uvoz sadržaja... {0} od {totalSelectedPosts}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2168
+#: packages/admin/src/components/WordPressImport.tsx:2193
 msgid "Importing Media"
 msgstr "Uvoz medija"
 
-#: packages/admin/src/components/WordPressImport.tsx:931
+#: packages/admin/src/components/WordPressImport.tsx:950
 msgid "Importing menus and site settings..."
 msgstr "Uvoz menija i podešavanja sajta..."
 
@@ -7270,7 +7532,7 @@ msgstr "Uvoz menija i podešavanja sajta..."
 msgid "Importing menus, widgets, and settings"
 msgstr "Uvoz menija, vidžeta i podešavanja"
 
-#: packages/admin/src/components/WordPressImport.tsx:932
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Importing reusable blocks..."
 msgstr "Uvoz blokova za ponovnu upotrebu..."
 
@@ -7299,7 +7561,7 @@ msgstr "Uključi komentare"
 msgid "Include inferred bylines"
 msgstr "Uključi izvedene potpise"
 
-#: packages/admin/src/components/WordPressImport.tsx:2009
+#: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Incompatible"
 msgstr "Nekompatibilno"
 
@@ -7438,7 +7700,7 @@ msgstr "Instaliraj i aktiviraj dodatak provajdera e-pošte da omogućiš funkcij
 msgid "Install blocked"
 msgstr "Instalacija blokirana"
 
-#: packages/admin/src/components/WordPressImport.tsx:1067
+#: packages/admin/src/components/WordPressImport.tsx:1086
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "Instaliraj EmDash Exporter dodatak na WordPress sajtu i generiši ključ pod Alati → EmDash Migration."
 
@@ -7483,7 +7745,7 @@ msgstr "NEVAŽEĆI HANDLE"
 msgid "Invalid invite link"
 msgstr "Nevažeći link za pozivnicu"
 
-#: packages/admin/src/components/ContentEditor.tsx:3072
+#: packages/admin/src/components/ContentEditor.tsx:3246
 msgid "Invalid JSON"
 msgstr "Nevažeći JSON"
 
@@ -7643,7 +7905,7 @@ msgstr "Zadrži sa ovog sajta (prazno)"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "Zadrži sa ovog sajta: „{targetValue}“"
 
-#: packages/admin/src/components/WordPressImport.tsx:944
+#: packages/admin/src/components/WordPressImport.tsx:963
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "Drži ovu karticu otvorenu. Uvoz se izvršava u malim koracima i može se bezbedno ponovo pokrenuti ako se prekine."
 
@@ -7749,7 +8011,7 @@ msgstr "Saznaj kako da instaliraš dodatke u <0>dokumentaciji<1/></0>."
 msgid "Learn more"
 msgstr "Saznaj više"
 
-#: packages/admin/src/components/WordPressImport.tsx:2526
+#: packages/admin/src/components/WordPressImport.tsx:2551
 msgid "Leave unassigned"
 msgstr "Ostavi nedodeljeno"
 
@@ -7879,14 +8141,14 @@ msgid "List view"
 msgstr "Prikaz liste"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:181
-#: packages/admin/src/components/ContentSettingsPanel.tsx:191
-#: packages/admin/src/components/ContentSettingsPanel.tsx:213
-#: packages/admin/src/components/ContentSettingsPanel.tsx:235
+#: packages/admin/src/components/ContentSettingsPanel.tsx:185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:221
+#: packages/admin/src/components/ContentSettingsPanel.tsx:247
 msgid "Live version"
 msgstr "Objavljena verzija"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:689
+#: packages/admin/src/components/ContentSettingsPanel.tsx:705
 msgid "Live View"
 msgstr "Prikaz uživo"
 
@@ -7920,7 +8182,7 @@ msgid "Load preview"
 msgstr "Učitaj pregled"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3214
+#: packages/admin/src/router.tsx:3300
 msgid "Loading"
 msgstr "Učitavanje"
 
@@ -7949,8 +8211,8 @@ msgstr "Učitavanje kolekcija..."
 msgid "Loading comments..."
 msgstr "Učitavanje komentara..."
 
-#: packages/admin/src/router.tsx:3216
-#: packages/admin/src/router.tsx:3228
+#: packages/admin/src/router.tsx:3302
+#: packages/admin/src/router.tsx:3314
 msgid "Loading configuration..."
 msgstr "Učitavanje konfiguracije..."
 
@@ -8008,7 +8270,7 @@ msgstr "Učitavanje dodataka..."
 msgid "Loading redirects..."
 msgstr "Učitavanje preusmeravanja..."
 
-#: packages/admin/src/components/ContentEditor.tsx:2828
+#: packages/admin/src/components/ContentEditor.tsx:3002
 msgid "Loading references..."
 msgstr "Učitavanje referenci..."
 
@@ -8024,7 +8286,7 @@ msgstr "Učitavanje sekcija..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:133
+#: packages/admin/src/components/settings/SeoSettings.tsx:137
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
 msgstr "Učitavanje podešavanja..."
@@ -8138,7 +8400,7 @@ msgstr "Odjavi se"
 msgid "Logo"
 msgstr "Logo"
 
-#: packages/admin/src/components/WordPressImport.tsx:1861
+#: packages/admin/src/components/WordPressImport.tsx:1886
 msgid "Logo & favicon"
 msgstr "Logo i favicon"
 
@@ -8231,12 +8493,12 @@ msgstr ""
 msgid "Manual"
 msgstr "Ručno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2483
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Map Authors"
 msgstr "Mapiraj autore"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2531
+#: packages/admin/src/components/WordPressImport.tsx:2556
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "Mapiraj WordPress korisnika {0} na EmDash korisnika"
 
@@ -8262,11 +8524,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Prodavnica"
 
-#: packages/admin/src/router.tsx:2615
+#: packages/admin/src/router.tsx:2701
 msgid "Marketplace browsing is no longer available."
 msgstr "Pregledanje tržišta više nije dostupno."
 
-#: packages/admin/src/router.tsx:2590
+#: packages/admin/src/router.tsx:2676
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Pregledanje tržišta više nije dostupno. Instaliranim dodacima upravljaj iz odeljka Dodaci."
 
@@ -8315,9 +8577,9 @@ msgstr "MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:428
-#: packages/admin/src/components/WordPressImport.tsx:778
-#: packages/admin/src/components/WordPressImport.tsx:1176
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:797
+#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1388
 msgid "Media"
 msgstr "Mediji"
 
@@ -8326,7 +8588,7 @@ msgid "Media details"
 msgstr "Detalji medija"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2429
+#: packages/admin/src/components/WordPressImport.tsx:2454
 msgid "Media Errors ({0})"
 msgstr "Greške medija ({0})"
 
@@ -8335,15 +8597,15 @@ msgstr "Greške medija ({0})"
 msgid "Media folders"
 msgstr "Fascikle medija"
 
-#: packages/admin/src/components/WordPressImport.tsx:2391
+#: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "Media Import"
 msgstr "Uvoz medija"
 
-#: packages/admin/src/components/WordPressImport.tsx:2332
+#: packages/admin/src/components/WordPressImport.tsx:2357
 msgid "Media Import Complete"
 msgstr "Uvoz medija završen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2343
+#: packages/admin/src/components/WordPressImport.tsx:2368
 msgid "Media import was skipped"
 msgstr "Preskočen je uvoz medija"
 
@@ -8469,12 +8731,12 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:445
-#: packages/admin/src/components/WordPressImport.tsx:1180
+#: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Menus"
 msgstr "Meniji"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1796
+#: packages/admin/src/components/WordPressImport.tsx:1821
 msgid "Menus ({0})"
 msgstr "Meniji ({0})"
 
@@ -8491,15 +8753,15 @@ msgstr "Spoji izabrane ćelije"
 msgid "Meta Description"
 msgstr "Meta opis"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:255
+#: packages/admin/src/components/settings/SeoSettings.tsx:259
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Sadržaj meta oznake za verifikaciju Bing Webmaster Tools"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:247
+#: packages/admin/src/components/settings/SeoSettings.tsx:251
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Sadržaj meta oznake za verifikaciju Google Search Console"
 
-#: packages/admin/src/components/WordPressImport.tsx:1874
+#: packages/admin/src/components/WordPressImport.tsx:1899
 msgid "Meta titles, descriptions, and social images"
 msgstr "Meta naslovi, opisi i slike za društvene mreže"
 
@@ -8507,7 +8769,7 @@ msgstr "Meta naslovi, opisi i slike za društvene mreže"
 msgid "Migration guide"
 msgstr "Vodič za migraciju"
 
-#: packages/admin/src/components/WordPressImport.tsx:1080
+#: packages/admin/src/components/WordPressImport.tsx:1099
 msgid "Migration key"
 msgstr "Ključ za migraciju"
 
@@ -8623,7 +8885,7 @@ msgstr "Premestiti \"{title}\" u korpu? Možeš ga kasnije vratiti."
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2795
+#: packages/admin/src/components/ContentEditor.tsx:2969
 #: packages/admin/src/components/FieldEditor.tsx:1159
 #: packages/admin/src/components/TaxonomyManager.tsx:461
 msgid "Move {0} down"
@@ -8647,7 +8909,7 @@ msgstr "Pomeri {0} kasnije"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2784
+#: packages/admin/src/components/ContentEditor.tsx:2958
 #: packages/admin/src/components/FieldEditor.tsx:1142
 #: packages/admin/src/components/TaxonomyManager.tsx:448
 msgid "Move {0} up"
@@ -8695,14 +8957,14 @@ msgstr "Premesti u korpu"
 
 #: packages/admin/src/components/ContentList.tsx:669
 #: packages/admin/src/components/ContentList.tsx:1547
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1366
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1386
 msgid "Move to Trash"
 msgstr "Premesti u korpu"
 
 #: packages/admin/src/components/ContentList.tsx:647
 #: packages/admin/src/components/ContentList.tsx:1532
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1343
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1371
 msgid "Move to Trash?"
 msgstr "Premestiti u korpu?"
 
@@ -8717,18 +8979,70 @@ msgstr "Pomeri nagore"
 msgid "Move up {0}"
 msgstr "Pomeri nagore {0}"
 
+#: packages/admin/src/components/revisions/change-labels.ts:141
+msgid "Moved “{snippet}”"
+msgstr ""
+
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:701
 msgid "Moved {filename} to position {0}."
 msgstr "Premešten je {filename} na poziciju {0}."
 
-#: packages/admin/src/router.tsx:669
+#: packages/admin/src/router.tsx:733
 msgid "Moved {total} items to draft"
 msgstr "Premešteno {total} stavki u nacrt"
 
-#: packages/admin/src/router.tsx:690
+#: packages/admin/src/router.tsx:754
 msgid "Moved {total} items to trash"
 msgstr "Premešteno {total} stavki u korpu"
+
+#: packages/admin/src/components/revisions/change-labels.ts:54
+msgid "Moved a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:90
+msgid "Moved a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:66
+msgid "Moved a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:28
+msgid "Moved a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:42
+msgid "Moved a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:21
+msgid "Moved a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:35
+msgid "Moved a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:60
+msgid "Moved a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:72
+msgid "Moved a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:78
+msgid "Moved an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:84
+msgid "Moved an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:48
+msgid "Moved an image"
+msgstr ""
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:568
@@ -8826,7 +9140,7 @@ msgstr "Zahteva pažnju"
 msgid "Never"
 msgstr "Nikada"
 
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1619
 msgid "new"
 msgstr "novo"
 
@@ -8834,7 +9148,7 @@ msgstr "novo"
 msgid "NEW"
 msgstr "NOVO"
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1401
 msgid "New {itemLabel}"
 msgstr "Novi {itemLabel}"
 
@@ -8852,7 +9166,7 @@ msgstr "Novi potpis"
 msgid "New byline field"
 msgstr "Novo polje potpisa autora"
 
-#: packages/admin/src/components/WordPressImport.tsx:2011
+#: packages/admin/src/components/WordPressImport.tsx:2036
 msgid "New collection"
 msgstr "Nova kolekcija"
 
@@ -8918,6 +9232,10 @@ msgstr "Nova taksonomija"
 #: packages/admin/src/components/MenuEditor.tsx:735
 msgid "New window"
 msgstr "Novi prozor"
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:188
+msgid "Newer version"
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:36
@@ -9040,6 +9358,10 @@ msgstr "Nema pronađenih potpisa autora"
 msgid "No bylines yet"
 msgstr "Još nema potpisa"
 
+#: packages/admin/src/components/revisions/change-labels.ts:163
+msgid "No changes"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:485
 msgid "No collections configured"
 msgstr "Nema konfigurisanih kolekcija"
@@ -9096,7 +9418,7 @@ msgstr "Nije konfigurisan provajder e-pošte"
 msgid "No email provider configured. Share this link manually."
 msgstr "Nije konfigurisan provajder e-pošte. Podeli ovaj link ručno."
 
-#: packages/admin/src/components/WordPressImport.tsx:2545
+#: packages/admin/src/components/WordPressImport.tsx:2570
 msgid "No EmDash users found"
 msgstr "Nema pronađenih EmDash korisnika"
 
@@ -9120,10 +9442,6 @@ msgstr "Nijedno polje ovog tipa sadržaja ga još ne koristi"
 #: packages/admin/src/components/RelationList.tsx:196
 msgid "No fields"
 msgstr "Nema polja"
-
-#: packages/admin/src/components/RevisionHistory.tsx:351
-msgid "No fields to compare"
-msgstr "Nema polja za poređenje"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:311
 msgid "No files added"
@@ -9298,7 +9616,7 @@ msgstr "Nema nedavne aktivnosti"
 msgid "No redirects yet"
 msgstr "Još nema preusmeravanja"
 
-#: packages/admin/src/components/ContentEditor.tsx:2740
+#: packages/admin/src/components/ContentEditor.tsx:2914
 msgid "No references selected."
 msgstr "Nijedna referenca nije izabrana."
 
@@ -9329,10 +9647,6 @@ msgstr "Nema rezultata za \"{debouncedQuery}\". Pokušaj sa drugim pojmom za pre
 #: packages/admin/src/components/Settings.tsx:166
 msgid "No results found"
 msgstr "Nema pronađenih rezultata"
-
-#: packages/admin/src/components/RevisionHistory.tsx:204
-msgid "No revisions yet"
-msgstr "Još nema revizija"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:108
 msgid "No sections available"
@@ -9371,6 +9685,10 @@ msgstr "Nema korisnika koji odgovaraju filterima."
 msgid "No users yet."
 msgstr "Još nema korisnika."
 
+#: packages/admin/src/components/RevisionHistory.tsx:84
+msgid "No versions yet"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:506
 msgid "No widget areas yet. Create one to get started."
 msgstr "Još nema oblasti za vidžete. Kreiraj jednu da počneš."
@@ -9404,6 +9722,10 @@ msgstr "Nije učitano"
 #: packages/admin/src/components/BulkTagDialog.tsx:71
 msgid "Not matched"
 msgstr "Bez poklapanja"
+
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:499
+msgid "Not recorded in this version"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
@@ -9456,10 +9778,11 @@ msgstr "Broj objava po stranici u prikazima liste"
 msgid "Numbered List"
 msgstr "Numerisana lista"
 
-#: packages/admin/src/components/WordPressImport.tsx:522
+#: packages/admin/src/components/WordPressImport.tsx:541
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "OAuth autorizacija zahteva HTTPS. Koristi ručne akreditive."
 
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:455
 msgid "Off"
 msgstr "Isključeno"
@@ -9467,6 +9790,14 @@ msgstr "Isključeno"
 #: packages/admin/src/components/SeoImageField.tsx:49
 msgid "OG Image"
 msgstr "OG slika"
+
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:178
+msgid "Older version"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
+msgid "On"
+msgstr ""
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
@@ -9523,7 +9854,7 @@ msgid "Open"
 msgstr "Otvori"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:2773
+#: packages/admin/src/components/ContentEditor.tsx:2947
 msgid "Open {0} in a new tab"
 msgstr "Otvori {0} u novoj kartici"
 
@@ -9576,7 +9907,7 @@ msgstr "Otvori stranicu za prijavu na novoj adresi:"
 msgid "Open Windows settings"
 msgstr "Otvori Windows podešavanja"
 
-#: packages/admin/src/components/WordPressImport.tsx:1563
+#: packages/admin/src/components/WordPressImport.tsx:1588
 msgid "Open WordPress Profile"
 msgstr "Otvori WordPress profil"
 
@@ -9624,11 +9955,11 @@ msgstr "Opcije (jedna po liniji)"
 msgid "Or browse files from your computer"
 msgstr "Ili pregledaj fajlove sa računara"
 
-#: packages/admin/src/components/WordPressImport.tsx:1619
+#: packages/admin/src/components/WordPressImport.tsx:1644
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "Ili klikni za pregled. Prihvata .xml fajlove izvezene iz WordPress-a."
 
-#: packages/admin/src/components/WordPressImport.tsx:1100
+#: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "or connect by URL"
 msgstr "ili poveži putem URL-a"
 
@@ -9638,11 +9969,11 @@ msgstr "ili poveži putem URL-a"
 msgid "Or continue with"
 msgstr "Ili nastavi sa"
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Or upload an export file"
 msgstr "Ili otpremi izvozni fajl"
 
-#: packages/admin/src/components/WordPressImport.tsx:1138
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "or upload directly"
 msgstr "ili otpremi direktno"
 
@@ -9672,7 +10003,7 @@ msgstr "Original:"
 msgid "Other"
 msgstr "Ostalo"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1297
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1314
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "Kontura"
@@ -9693,8 +10024,8 @@ msgstr "Kasni · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "Zamenjuje naslov stranice u rezultatima pretraživača"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1114
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1131
 msgid "Ownership"
 msgstr "Vlasništvo"
 
@@ -9712,7 +10043,7 @@ msgstr "Sažetak paketa"
 msgid "Package downloaded"
 msgstr "Preuzet je paket"
 
-#: packages/admin/src/router.tsx:3254
+#: packages/admin/src/router.tsx:3340
 msgid "Page Not Found"
 msgstr "Stranica nije pronađena"
 
@@ -9727,7 +10058,7 @@ msgid "Page size"
 msgstr "Veličina stranice"
 
 #: packages/admin/src/components/PluginManager.tsx:478
-#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "Stranice"
 
@@ -9754,7 +10085,7 @@ msgstr "Roditelj"
 msgid "Part of a redirect loop"
 msgstr "Deo petlje preusmeravanja"
 
-#: packages/admin/src/components/WordPressImport.tsx:1184
+#: packages/admin/src/components/WordPressImport.tsx:1203
 msgid "Partial"
 msgstr "Delimično"
 
@@ -9842,7 +10173,7 @@ msgstr "Pristupni ključevi (passkeys) zahtevaju HTTPS ili http://localhost (sa 
 msgid "Paste an embed code or an https link…"
 msgstr "Nalepi kod za ugrađivanje ili https link…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1065
+#: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "Paste your migration key"
 msgstr "Nalepi ključ za migraciju"
 
@@ -9969,7 +10300,7 @@ msgstr "Unesi ispravnu e-adresu"
 msgid "Please enter a valid URL"
 msgstr "Unesi ispravan URL"
 
-#: packages/admin/src/components/WordPressImport.tsx:1213
+#: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "Plugin"
 msgstr "Dodatak"
 
@@ -9990,7 +10321,7 @@ msgstr "Radnja dodatka nije uspela"
 msgid "Plugin actions"
 msgstr "Radnje dodatka"
 
-#: packages/admin/src/components/ContentEditor.tsx:1642
+#: packages/admin/src/components/ContentEditor.tsx:1734
 msgid "Plugin changes were not applied"
 msgstr "Promene dodatka nisu primenjene"
 
@@ -10066,8 +10397,8 @@ msgstr "Registar dodataka"
 msgid "Plugin registry configuration error"
 msgstr "Greška u konfiguraciji registra dodataka"
 
-#: packages/admin/src/router.tsx:2550
-#: packages/admin/src/router.tsx:2581
+#: packages/admin/src/router.tsx:2636
+#: packages/admin/src/router.tsx:2667
 msgid "Plugin registry is not configured."
 msgstr "Registar dodataka nije konfigurisan."
 
@@ -10135,11 +10466,11 @@ msgstr "URL-ovi objava (jedan po redu)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:479
 #: packages/admin/src/components/RelationForm.tsx:297
-#: packages/admin/src/components/WordPressImport.tsx:1351
+#: packages/admin/src/components/WordPressImport.tsx:1376
 msgid "Posts"
 msgstr "Objave"
 
-#: packages/admin/src/components/WordPressImport.tsx:1175
+#: packages/admin/src/components/WordPressImport.tsx:1194
 msgid "Posts & Pages"
 msgstr "Objave i stranice"
 
@@ -10151,7 +10482,7 @@ msgstr "Objava po stranici"
 msgid "Pre-release"
 msgstr "Predizdanje"
 
-#: packages/admin/src/components/WordPressImport.tsx:924
+#: packages/admin/src/components/WordPressImport.tsx:943
 msgid "Preparing categories and tags..."
 msgstr "Priprema kategorija i oznaka..."
 
@@ -10163,7 +10494,7 @@ msgstr "Priprema registracije..."
 msgid "Preparing this site"
 msgstr "Priprema ovog sajta"
 
-#: packages/admin/src/components/WordPressImport.tsx:2208
+#: packages/admin/src/components/WordPressImport.tsx:2233
 msgid "Preparing to download files from WordPress..."
 msgstr "Priprema preuzimanja fajlova iz WordPress-a..."
 
@@ -10181,7 +10512,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "Pritisni Space da podigneš sliku. Pomeri je strelicama, pa pritisni Space da je spustiš."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:430
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -10198,7 +10529,7 @@ msgstr "Pregled promena"
 msgid "Preview content before publishing"
 msgstr "Pregledaj sadržaj pre objavljivanja"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:430
 msgid "Preview draft"
 msgstr "Pregled nacrta"
 
@@ -10275,9 +10606,9 @@ msgstr "Provajder:"
 msgid "Public routes"
 msgstr "Javne rute"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:970
-#: packages/admin/src/components/ContentSettingsPanel.tsx:975
-#: packages/admin/src/components/ContentSettingsPanel.tsx:986
+#: packages/admin/src/components/ContentSettingsPanel.tsx:987
+#: packages/admin/src/components/ContentSettingsPanel.tsx:992
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
 msgid "Publication date"
 msgstr "Datum objavljivanja"
@@ -10292,17 +10623,17 @@ msgid "visualEditing.publish"
 msgstr "visualEditing.publish"
 
 #: packages/admin/src/components/ContentList.tsx:584
-#: packages/admin/src/components/ContentSettingsPanel.tsx:520
-#: packages/admin/src/components/ContentSettingsPanel.tsx:938
-#: packages/admin/src/components/ContentSettingsPanel.tsx:941
+#: packages/admin/src/components/ContentSettingsPanel.tsx:536
+#: packages/admin/src/components/ContentSettingsPanel.tsx:954
+#: packages/admin/src/components/ContentSettingsPanel.tsx:957
 msgid "Publish"
 msgstr "Objavi"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Publish changes"
 msgstr "Objavi promene"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Publish changes?"
 msgstr "Objaviti promene?"
 
@@ -10312,11 +10643,11 @@ msgid "visualEditing.publishFailed"
 msgstr "visualEditing.publishFailed"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Publish now"
 msgstr "Objavi odmah"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Publish now?"
 msgstr "Objaviti odmah?"
 
@@ -10330,7 +10661,9 @@ msgstr "Objavljuj, poništavaj objavu, zakazuj i ukidaj zakazivanje sadržaja"
 #: packages/admin/src/components/ContentList.tsx:1032
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:507
-#: packages/admin/src/router.tsx:1379
+#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
+#: packages/admin/src/router.tsx:1464
 msgid "Published"
 msgstr "Objavljeno"
 
@@ -10348,7 +10681,7 @@ msgstr "Objavljeno {0}"
 msgid "Published {liveSince}"
 msgstr "Objavljeno {liveSince}"
 
-#: packages/admin/src/router.tsx:646
+#: packages/admin/src/router.tsx:710
 msgid "Published {total} items"
 msgstr "Objavljeno {total} stavki"
 
@@ -10384,7 +10717,7 @@ msgstr "Politika izdanja izdavača"
 msgid "Publishing"
 msgstr "Objavljivanje"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:945
+#: packages/admin/src/components/ContentSettingsPanel.tsx:961
 msgid "Publishing summary"
 msgstr "Sažetak objavljivanja"
 
@@ -10420,7 +10753,7 @@ msgstr "Brzo pravljenje imenuje relaciju po ovom polju i ovoj kolekciji, preuzim
 msgid "Quote"
 msgstr "Citat"
 
-#: packages/admin/src/components/WordPressImport.tsx:1193
+#: packages/admin/src/components/WordPressImport.tsx:1212
 msgid "Raw meta"
 msgstr "Sirovi metapodaci"
 
@@ -10511,11 +10844,11 @@ msgstr "Čitanje paketa"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2015
+#: packages/admin/src/components/WordPressImport.tsx:2040
 msgid "Ready"
 msgstr "Spremno"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:202
 msgid "Ready to publish now or schedule for later"
 msgstr "Spremno za objavljivanje odmah ili zakazivanje za kasnije"
 
@@ -10703,7 +11036,7 @@ msgstr "visualEditing.removeImage"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:3233
+#: packages/admin/src/components/ContentEditor.tsx:3407
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:814
@@ -10716,14 +11049,14 @@ msgstr "visualEditing.removeImage"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
-#: packages/admin/src/components/settings/SeoSettings.tsx:217
+#: packages/admin/src/components/settings/SeoSettings.tsx:221
 msgid "Remove"
 msgstr "Ukloni"
 
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:2808
+#: packages/admin/src/components/ContentEditor.tsx:2982
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -10740,7 +11073,7 @@ msgstr "Ukloni {0} iz izbora"
 msgid "Remove {entry}"
 msgstr "Ukloni {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3231
+#: packages/admin/src/components/ContentEditor.tsx:3405
 #: packages/admin/src/components/SeoImageField.tsx:163
 #: packages/admin/src/components/SeoImageField.tsx:164
 msgid "Remove {label}"
@@ -10801,7 +11134,7 @@ msgid "Remove passkey?"
 msgstr "Ukloniti pristupni ključ (passkey)?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
-#: packages/admin/src/components/ContentSettingsPanel.tsx:627
+#: packages/admin/src/components/ContentSettingsPanel.tsx:643
 msgid "Remove schedule"
 msgstr "Ukloni raspored"
 
@@ -10813,10 +11146,76 @@ msgstr "Ukloni podpolje"
 msgid "Remove this image from the document?"
 msgstr "Ukloniti ovu sliku iz dokumenta?"
 
+#: packages/admin/src/components/revisions/change-labels.ts:135
+msgid "Removed “{snippet}”"
+msgstr ""
+
 #. placeholder {0}: selected.item.filename
 #: packages/admin/src/components/MediaPickerModal.tsx:706
 msgid "Removed {0} from selection."
 msgstr "Uklonjeno je {0} iz izbora."
+
+#: packages/admin/src/components/revisions/change-labels.ts:52
+msgid "Removed a code block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:88
+msgid "Removed a divider"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:64
+msgid "Removed a gallery"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:25
+msgid "Removed a heading"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:39
+msgid "Removed a list item"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:18
+msgid "Removed a paragraph"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:32
+msgid "Removed a quote"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:58
+msgid "Removed a table"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:70
+msgid "Removed a video"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:76
+msgid "Removed an embed"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:82
+msgid "Removed an HTML block"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:46
+#: packages/admin/src/components/revisions/change-labels.ts:96
+msgid "Removed an image"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:175
+msgid "Removed the slug"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:117
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:232
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:57
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:184
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:265
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:140
+msgid "Removed:"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:590
 msgid "Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins"
@@ -10876,8 +11275,8 @@ msgstr "Grupa polja koja se ponavlja"
 msgid "visualEditing.replaceImage"
 msgstr "visualEditing.replaceImage"
 
-#: packages/admin/src/components/ContentEditor.tsx:3223
-#: packages/admin/src/components/ContentEditor.tsx:3260
+#: packages/admin/src/components/ContentEditor.tsx:3397
+#: packages/admin/src/components/ContentEditor.tsx:3434
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -10895,7 +11294,7 @@ msgstr "visualEditing.replaceImage"
 msgid "Replace"
 msgstr "Zameni"
 
-#: packages/admin/src/components/ContentEditor.tsx:3259
+#: packages/admin/src/components/ContentEditor.tsx:3433
 #: packages/admin/src/components/ImageFieldRenderer.tsx:583
 #: packages/admin/src/components/SeoImageField.tsx:148
 #: packages/admin/src/components/SeoImageField.tsx:183
@@ -10932,7 +11331,7 @@ msgstr "Zameniti originalnu sliku?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Zamena originala je dostupna uz originalni odnos stranica."
 
-#: packages/admin/src/components/ContentEditor.tsx:2841
+#: packages/admin/src/components/ContentEditor.tsx:3015
 msgid "Replace reference"
 msgstr "Zameni referencu"
 
@@ -10949,6 +11348,10 @@ msgstr ""
 #: packages/admin/src/components/NonListFieldValue.tsx:30
 msgid "Replace with empty list"
 msgstr "Zameni praznom listom"
+
+#: packages/admin/src/components/revisions/change-labels.ts:97
+msgid "Replaced an image"
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:942
 #: packages/admin/src/components/MediaDetailPanel.tsx:1966
@@ -10989,7 +11392,7 @@ msgstr "Zahtevaj slug pre nego što sadržaj može da se objavi"
 msgid "Required"
 msgstr "Obavezno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2028
+#: packages/admin/src/components/WordPressImport.tsx:2053
 msgid "Required fields:"
 msgstr "Obavezna polja:"
 
@@ -11068,7 +11471,7 @@ msgstr "Promeni veličinu isečka iz gornjeg levog ugla. Koristi strelice za pro
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Promeni veličinu isečka iz gornjeg desnog ugla. Koristi strelice za promenu veličine."
 
-#: packages/admin/src/components/ContentEditor.tsx:1855
+#: packages/admin/src/components/ContentEditor.tsx:2009
 msgid "Resize settings panel"
 msgstr "Promeni veličinu panela podešavanja"
 
@@ -11085,7 +11488,8 @@ msgstr "Razrešavanje handle-a izdavača..."
 msgid "Restart numbering"
 msgstr "Ponovo pokreni numeraciju"
 
-#: packages/admin/src/components/RevisionHistory.tsx:242
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
 msgstr "Vrati"
 
@@ -11093,27 +11497,29 @@ msgstr "Vrati"
 msgid "Restore {title}"
 msgstr "Vrati {title}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:135
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:91
 msgid "Restore failed"
 msgstr "Vraćanje nije uspelo"
 
-#: packages/admin/src/components/RevisionHistory.tsx:236
-msgid "Restore Revision?"
-msgstr "Vratiti reviziju?"
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:109
+msgid "Restore this version?"
+msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:305
-#: packages/admin/src/components/RevisionHistory.tsx:306
-msgid "Restore this version"
-msgstr "Vrati ovu verziju"
+#: packages/admin/src/components/revisions/change-labels.ts:158
+msgid "Restored an earlier version"
+msgstr ""
 
-#. placeholder {0}: isolate(formatFullDate(restoreTarget.createdAt, i18n.locale))
-#: packages/admin/src/components/RevisionHistory.tsx:239
-msgid "Restore this version from {0}? This will update the current content to this revision's data."
-msgstr "Vratiti ovu verziju od {0}? Ovo će ažurirati trenutni sadržaj podacima ove revizije."
+#: packages/admin/src/components/revisions/RevisionList.tsx:242
+msgid "Restored from {restoredDate}"
+msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:243
-msgid "Restoring..."
-msgstr "Vraćanje..."
+#: packages/admin/src/components/revisions/change-labels.ts:160
+msgid "Restored the version from {date}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:130
+msgid "Restoring…"
+msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:444
 msgid "Results"
@@ -11125,7 +11531,7 @@ msgid "Retired"
 msgstr "Povučeno"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:2822
+#: packages/admin/src/components/ContentEditor.tsx:2996
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
@@ -11141,7 +11547,7 @@ msgstr "Povučeno"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3242
+#: packages/admin/src/router.tsx:3328
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
@@ -11192,11 +11598,11 @@ msgstr "Ponovni pokušaj…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Ponovo upotrebljivi blokovi sadržaja koje možeš umetnuti u bilo koji sadržaj"
 
-#: packages/admin/src/router.tsx:1427
+#: packages/admin/src/router.tsx:1512
 msgid "Reverted to published version"
 msgstr "Vraćeno na objavljenu verziju"
 
-#: packages/admin/src/components/WordPressImport.tsx:750
+#: packages/admin/src/components/WordPressImport.tsx:769
 msgid "Review"
 msgstr "Pregled"
 
@@ -11241,13 +11647,9 @@ msgstr "Pregledaj verifikovano ažuriranje"
 msgid "Reviewing…"
 msgstr "Pregledanje…"
 
-#: packages/admin/src/components/RevisionHistory.tsx:129
-msgid "Revision restored"
-msgstr "Revizija vraćena"
-
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1305
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
 #: packages/admin/src/components/ContentTypeEditor.tsx:96
-#: packages/admin/src/components/RevisionHistory.tsx:168
+#: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
 #: packages/admin/src/components/settings/transfer/labels.ts:86
 msgid "Revisions"
@@ -11296,8 +11698,8 @@ msgstr "Desno"
 msgid "Risk score: {0}/100"
 msgstr "Ocena rizika: {0}/100"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:260
-#: packages/admin/src/components/settings/SeoSettings.tsx:263
+#: packages/admin/src/components/settings/SeoSettings.tsx:264
+#: packages/admin/src/components/settings/SeoSettings.tsx:267
 msgid "robots.txt"
 msgstr "robots.txt"
 
@@ -11366,6 +11768,10 @@ msgstr "Pokreće HTML, CSS i JavaScript u sandbox-u."
 msgid "Rust"
 msgstr "Rust"
 
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:86
+msgid "Same as current version"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:534
 #: packages/admin/src/components/MenuEditor.tsx:536
 #: packages/admin/src/components/MenuEditor.tsx:732
@@ -11399,7 +11805,7 @@ msgstr "Sačuvaj (Enter)"
 msgid "Save alt text"
 msgstr "Sačuvaj alt tekst"
 
-#: packages/admin/src/components/ContentEditor.tsx:1668
+#: packages/admin/src/components/ContentEditor.tsx:1762
 msgid "Save anyway"
 msgstr "Ipak sačuvaj"
 
@@ -11511,7 +11917,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "Skeniraj ga telefonom ili tabletom u blizini."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:607
+#: packages/admin/src/components/ContentSettingsPanel.tsx:623
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
 msgid "Schedule"
 msgstr "Zakazivanje"
@@ -11537,7 +11943,7 @@ msgstr "Uklonjen je raspored"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 #: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1482
+#: packages/admin/src/router.tsx:1567
 msgid "Scheduled"
 msgstr "Zakazano"
 
@@ -11550,12 +11956,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr "Zakazani unosi se pojavljuju ovde sa vremenom objavljivanja."
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:142
+#: packages/admin/src/components/ContentSettingsPanel.tsx:146
 msgid "Scheduled for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:150
-#: packages/admin/src/components/ContentSettingsPanel.tsx:241
+#: packages/admin/src/components/ContentSettingsPanel.tsx:154
+#: packages/admin/src/components/ContentSettingsPanel.tsx:253
 msgid "Scheduled publication"
 msgstr "Zakazano objavljivanje"
 
@@ -11563,11 +11969,11 @@ msgstr "Zakazano objavljivanje"
 msgid "Scheduled publishing needs attention"
 msgstr "Zakazano objavljivanje zahteva pažnju"
 
-#: packages/admin/src/components/WordPressImport.tsx:2351
+#: packages/admin/src/components/WordPressImport.tsx:2376
 msgid "Schema Changes"
 msgstr "Izmene šeme"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Schema preparation failed"
 msgstr "Priprema šeme nije uspela"
 
@@ -11690,12 +12096,12 @@ msgstr "Pretraži komentare..."
 msgid "Search content..."
 msgstr "Pretraži sadržaj..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:166
+#: packages/admin/src/components/settings/SeoSettings.tsx:170
 msgid "Search Engine Optimization"
 msgstr "Optimizacija za pretraživače"
 
 #: packages/admin/src/components/Settings.tsx:67
-#: packages/admin/src/components/settings/SeoSettings.tsx:123
+#: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "Optimizacija za pretraživače i verifikacija"
 
@@ -11911,8 +12317,8 @@ msgid "Select"
 msgstr "Izaberi"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:3243
-#: packages/admin/src/components/ContentEditor.tsx:3259
+#: packages/admin/src/components/ContentEditor.tsx:3417
+#: packages/admin/src/components/ContentEditor.tsx:3433
 #: packages/admin/src/components/ImageFieldRenderer.tsx:584
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Select {label}"
@@ -11959,7 +12365,7 @@ msgstr "Izaberi sve"
 msgid "Select all on this page"
 msgstr "Izaberi sve na ovoj stranici"
 
-#: packages/admin/src/components/ContentEditor.tsx:2736
+#: packages/admin/src/components/ContentEditor.tsx:2910
 msgid "Select at least one entry."
 msgstr "Izaberi najmanje jedan unos."
 
@@ -11980,7 +12386,7 @@ msgstr "Izaberi sadržaj"
 msgid "Select dark mode variant for {label}"
 msgstr "Izaberi varijantu za tamni režim za {label}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:289
+#: packages/admin/src/components/settings/SeoSettings.tsx:309
 msgid "Select default social image"
 msgstr "Izaberi podrazumevanu sliku za društvene mreže"
 
@@ -11992,7 +12398,7 @@ msgstr "Izaberi favikon"
 msgid "Select Favicon"
 msgstr "Izaberi favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:3247
+#: packages/admin/src/components/ContentEditor.tsx:3421
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 msgid "Select file"
 msgstr "Izaberi fajl"
@@ -12007,7 +12413,7 @@ msgstr "Izaberi slike galerije"
 msgid "Select image"
 msgstr "Izaberi sliku"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:228
+#: packages/admin/src/components/settings/SeoSettings.tsx:232
 msgid "Select Image"
 msgstr "Izaberi sliku"
 
@@ -12040,7 +12446,7 @@ msgstr "Izaberi najviše 50 objava odjednom."
 msgid "Select video"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1761
+#: packages/admin/src/components/WordPressImport.tsx:1786
 msgid "Select which content types to import."
 msgstr "Izaberi koje tipove sadržaja da uvezeš."
 
@@ -12060,6 +12466,7 @@ msgstr "Izabrano {selectedItemTitle}"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:253
 #: packages/admin/src/components/ImageFieldRenderer.tsx:268
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr "Izabrana slika"
 
@@ -12127,8 +12534,8 @@ msgstr "Pošalji test e-poštu"
 msgid "Sending..."
 msgstr "Šalje se..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1210
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1227
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1230
 #: packages/admin/src/components/ContentTypeEditor.tsx:643
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -12139,15 +12546,15 @@ msgstr "SEO"
 msgid "SEO settings"
 msgstr "SEO podešavanja"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:122
+#: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "SEO podešavanja"
 
-#: packages/admin/src/components/WordPressImport.tsx:1872
+#: packages/admin/src/components/WordPressImport.tsx:1897
 msgid "SEO settings (Yoast)"
 msgstr "SEO podešavanja (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
 msgstr "SEO podešavanja sačuvana"
 
@@ -12216,14 +12623,14 @@ msgid "Setting up..."
 msgstr "Podešava se..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:247
-#: packages/admin/src/components/ContentEditor.tsx:1729
-#: packages/admin/src/components/ContentEditor.tsx:2026
+#: packages/admin/src/components/ContentEditor.tsx:1877
+#: packages/admin/src/components/ContentEditor.tsx:2200
 #: packages/admin/src/components/ContentTypeEditor.tsx:465
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:536
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:510
-#: packages/admin/src/components/WordPressImport.tsx:1840
+#: packages/admin/src/components/WordPressImport.tsx:1865
 msgid "Settings"
 msgstr "Podešavanja"
 
@@ -12266,6 +12673,10 @@ msgstr "Kratak tekst"
 msgid "Short Text"
 msgstr "Kratak tekst"
 
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
+msgid "Show changes"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:147
 msgid "Show count"
 msgstr "Prikaži broj"
@@ -12277,6 +12688,10 @@ msgstr "Prikaži datum"
 #: packages/admin/src/components/Widgets.tsx:140
 msgid "Show hierarchy"
 msgstr "Prikaži hijerarhiju"
+
+#: packages/admin/src/components/revisions/RevisionList.tsx:192
+msgid "Show older versions"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:139
 msgid "Show post count"
@@ -12303,7 +12718,7 @@ msgstr "Prikazano {pageShowingRange} od {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1135
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1152
 msgid "Shown to readers in this order."
 msgstr "Čitaocima se prikazuje ovim redosledom."
 
@@ -12404,7 +12819,7 @@ msgstr "Identitet sajta"
 msgid "Site Identity"
 msgstr "Identitet sajta"
 
-#: packages/admin/src/components/WordPressImport.tsx:2299
+#: packages/admin/src/components/WordPressImport.tsx:2324
 msgid "site identity applied (title, tagline, logo)"
 msgstr "identitet sajta primenjen (naslov, slogan, logo)"
 
@@ -12427,7 +12842,7 @@ msgstr "Podešavanja sajta"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1182
+#: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "Podešavanja sajta"
 
@@ -12440,7 +12855,7 @@ msgstr "Naslov sajta"
 msgid "Site Title"
 msgstr "Naslov sajta"
 
-#: packages/admin/src/components/WordPressImport.tsx:1852
+#: packages/admin/src/components/WordPressImport.tsx:1877
 msgid "Site title & tagline"
 msgstr "Naslov sajta i slogan"
 
@@ -12481,17 +12896,17 @@ msgstr "Veličina se ne primenjuje na fascikle"
 msgid "Size:"
 msgstr "Veličina:"
 
-#: packages/admin/src/components/WordPressImport.tsx:2133
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "Skip Media Import"
 msgstr "Preskoči uvoz medija"
 
-#: packages/admin/src/components/WordPressImport.tsx:2158
+#: packages/admin/src/components/WordPressImport.tsx:2183
 msgid "Skipped"
 msgstr "Preskočeno"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:233
 #: packages/admin/src/components/BylineFormDialog.tsx:409
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1068
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1085
 #: packages/admin/src/components/ContentTypeEditor.tsx:131
 #: packages/admin/src/components/ContentTypeEditor.tsx:486
 #: packages/admin/src/components/ContentTypeList.tsx:201
@@ -12559,7 +12974,7 @@ msgstr "Neki sadržaj upućuje na medijske fajlove koje izvorni sajt nema; ti li
 msgid "Some content may not appear here yet."
 msgstr "Neki sadržaj možda još nije prikazan ovde."
 
-#: packages/admin/src/components/WordPressImport.tsx:1889
+#: packages/admin/src/components/WordPressImport.tsx:1914
 msgid "Some content types cannot be imported"
 msgstr "Neki tipovi sadržaja se ne mogu uvesti"
 
@@ -12662,7 +13077,7 @@ msgstr "Pokreni novi uvoz"
 msgid "Start import"
 msgstr "Pokreni uvoz"
 
-#: packages/admin/src/components/WordPressImport.tsx:1951
+#: packages/admin/src/components/WordPressImport.tsx:1976
 msgid "Start Import"
 msgstr "Započni uvoz"
 
@@ -12678,7 +13093,7 @@ msgstr "Počni sa primerima objava i stranica iz šablona. Preporučeno za nove 
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2299
+#: packages/admin/src/components/ContentEditor.tsx:2473
 #: packages/admin/src/components/PortableTextEditor.tsx:3455
 msgid "Start writing, or type '/' for commands"
 msgstr "Počni da pišeš ili ukucaj '/' za komande"
@@ -12749,13 +13164,18 @@ msgstr "Čuvano po lokalu — svaki prevod potpisa autora ima sopstvenu vrednost
 msgid "Strikethrough"
 msgstr "Precrtano"
 
-#: packages/admin/src/components/WordPressImport.tsx:1781
+#: packages/admin/src/components/WordPressImport.tsx:1806
 msgid "Structure"
 msgstr "Struktura"
 
-#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1214
 msgid "Structured"
 msgstr "Strukturirano"
+
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:135
+#: packages/admin/src/components/revisions/RevisionSegments.tsx:163
+msgid "Style changed:"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:1305
 msgid "Sub-field slugs cannot be changed after creation."
@@ -12818,6 +13238,7 @@ msgstr "Sistemska polja"
 #: packages/admin/src/components/editor/TableControls.tsx:31
 #: packages/admin/src/components/editor/TableControls.tsx:368
 #: packages/admin/src/components/PortableTextEditor.tsx:2088
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:510
 msgid "Table"
 msgstr "Tabela"
 
@@ -12858,7 +13279,7 @@ msgid "Tags"
 msgstr "Oznake"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1826
+#: packages/admin/src/components/WordPressImport.tsx:1851
 msgid "Tags ({0})"
 msgstr "Oznake ({0})"
 
@@ -12881,7 +13302,7 @@ msgstr "Odredište"
 msgid "Target locale"
 msgstr "Ciljni lokal"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1197
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1214
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:898
 msgid "Taxonomies"
@@ -12974,6 +13395,10 @@ msgstr "test@example.com"
 msgid "Text formatting"
 msgstr "Formatiranje teksta"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:546
+msgid "That version is no longer available. Back to editing."
+msgstr ""
+
 #. placeholder {0}: bound.fieldSlug
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:59
@@ -13050,7 +13475,7 @@ msgstr "Uređaj neće dobiti pristup."
 msgid "The download stopped"
 msgstr "Preuzimanje je zaustavljeno"
 
-#: packages/admin/src/components/WordPressImport.tsx:1891
+#: packages/admin/src/components/WordPressImport.tsx:1916
 msgid "The existing collection has fields with incompatible types."
 msgstr "Postojeća kolekcija ima polja sa nekompatibilnim tipovima."
 
@@ -13253,7 +13678,7 @@ msgstr "Sadržaj paketa se upisuje na ovaj sajt. Uvoz ne može da se poništi ka
 msgid "The package’s file index is not valid."
 msgstr "Indeks fajlova paketa nije važeći."
 
-#: packages/admin/src/router.tsx:3256
+#: packages/admin/src/router.tsx:3342
 msgid "The page you're looking for doesn't exist."
 msgstr "Stranica koju tražiš ne postoji."
 
@@ -13273,8 +13698,8 @@ msgstr "Vidžet polja dodatka nije uspeo da se prikaže."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Dodatak nije sačuvao ove promene. Pregledaj ih pre ažuriranja editora."
 
-#: packages/admin/src/components/ContentEditor.tsx:969
-#: packages/admin/src/components/ContentEditor.tsx:985
+#: packages/admin/src/components/ContentEditor.tsx:1035
+#: packages/admin/src/components/ContentEditor.tsx:1051
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Rezultat dodatka je zastareo jer se editor promenio dok je radio."
 
@@ -13291,7 +13716,7 @@ msgstr "Identitet izdavača ne može da se verifikuje."
 msgid "The range has more entries than the calendar can show."
 msgstr "Opseg ima više unosa nego što kalendar može da prikaže."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:197
+#: packages/admin/src/components/settings/SeoSettings.tsx:201
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Referencirana slika više nije dostupna. Izaberi novu ili ukloni referencu."
 
@@ -13355,6 +13780,22 @@ msgstr "Tržište tema je prazno. Proveri ponovo kasnije."
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:353
 msgid "The uploaded package is discarded. Nothing on this site has changed."
 msgstr "Otpremljeni paket se odbacuje. Na ovom sajtu ništa nije promenjeno."
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:117
+msgid "The version from {when} becomes your draft and goes live at the scheduled time."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:118
+msgid "The version from {when} becomes your draft. The live site won't change until you publish."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:82
+msgid "The version from {when} is now your draft. It goes live at the scheduled time."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:83
+msgid "The version from {when} is now your draft. Publish when you're ready."
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:211
 msgid "The video is in the Media Library, but this entry is now read-only."
@@ -13444,7 +13885,7 @@ msgstr "Ova kolekcija je definisana u kodu. Neka podešavanja se ovde ne mogu me
 msgid "This content cannot be edited safely"
 msgstr "Ovaj sadržaj ne može bezbedno da se uređuje"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:515
 msgid "This content will be visible on the site immediately."
 msgstr "Ovaj sadržaj će odmah biti vidljiv na sajtu."
 
@@ -13456,24 +13897,24 @@ msgstr "Ovaj dan nije učitan. Opseg ima više unosa nego što kalendar može da
 msgid "This device is requesting permission to use:"
 msgstr "Ovaj uređaj traži dozvolu da koristi:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1088
+#: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Ovo ne izgleda kao validan ključ migracije. Generiši novi u dodatku i nalepi ceo string koji počinje sa \"em1.\"."
 
-#: packages/admin/src/components/ContentEditor.tsx:1664
+#: packages/admin/src/components/ContentEditor.tsx:1758
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Ovaj unos je promenjen na drugom mestu nakon što je otvoren."
 
-#: packages/admin/src/components/ContentEditor.tsx:1253
-#: packages/admin/src/router.tsx:1052
+#: packages/admin/src/components/ContentEditor.tsx:1333
+#: packages/admin/src/router.tsx:1121
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Ovaj unos je promenjen na drugom mestu. Ipak sačuvaj ili ponovo učitaj da dobiješ noviju verziju."
 
-#: packages/admin/src/router.tsx:1864
+#: packages/admin/src/router.tsx:1950
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1865
+#: packages/admin/src/router.tsx:1951
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -13485,7 +13926,7 @@ msgstr "Ovaj unos nema URL dok se ne objavi. Nalepi URL umesto toga."
 msgid "This entry is open somewhere else"
 msgstr "Ovaj unos je otvoren na drugom mestu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1651
+#: packages/admin/src/components/ContentEditor.tsx:1745
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Ovaj unos je samo za čitanje jer njegova šema koristi tipove polja koje ova verzija EmDash-a ne podržava."
 
@@ -13497,7 +13938,8 @@ msgstr "Ovaj unos je trebalo da se objavi {lateness} ali nije. Zakazano objavlji
 msgid "This export is large"
 msgstr "Ovaj izvoz je velik"
 
-#: packages/admin/src/components/ContentEditor.tsx:2127
+#: packages/admin/src/components/ContentEditor.tsx:2301
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Ovo polje ne može da se uređuje u ovoj verziji EmDash-a."
 
@@ -13522,7 +13964,7 @@ msgstr "Ovo polje ne prihvata fajlove tipa {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Ovo polje očekuje listu. Sačuvana vrednost ostaje nepromenjena dok je ne zameniš praznom listom, čime se briše. Prvo kopiraj sve što ti treba iz nje."
 
-#: packages/admin/src/components/ContentEditor.tsx:3263
+#: packages/admin/src/components/ContentEditor.tsx:3437
 #: packages/admin/src/components/ImageFieldRenderer.tsx:603
 msgid "This field is required"
 msgstr "Ovo polje je obavezno"
@@ -13577,7 +14019,7 @@ msgstr "Ovaj uvoz je već počeo"
 msgid "This is a custom section."
 msgstr "Ovo je prilagođena sekcija."
 
-#: packages/admin/src/components/WordPressImport.tsx:1337
+#: packages/admin/src/components/WordPressImport.tsx:1362
 msgid "This is a WordPress site."
 msgstr "Ovo je WordPress sajt."
 
@@ -13601,7 +14043,7 @@ msgstr "Ovaj link ističe za 7 dana i može se koristiti samo jednom."
 msgid "This link expires in 7 days."
 msgstr "Ovaj link ističe za 7 dana."
 
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:968
 msgid "This may take a while for large exports."
 msgstr "Ovo može potrajati za velike izvozne fajlove."
 
@@ -13699,7 +14141,7 @@ msgstr "Ovo uklanja profil potpisa autora. Linkovi potpisa autora u sadržaju se
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "Ovim se uklanja relacija, svaka veza sačuvana pod njom i referentna polja koja je koriste:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:512
 msgid "This removes the schedule and publishes immediately."
 msgstr "Ovim se uklanja raspored i objavljuje odmah."
 
@@ -13781,7 +14223,11 @@ msgstr "Ova tabela ima nepodržano formatiranje ćelija, spojene ćelije ili ši
 msgid "This update exposes the following routes without authentication:"
 msgstr "Ovo ažuriranje izlaže sledeće rute bez autentifikacije:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:164
+#: packages/admin/src/components/revisions/RevisionViewErrorBoundary.tsx:7
+msgid "This version can't be shown."
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:168
 msgid "This version is not visible on the site"
 msgstr "Ova verzija nije vidljiva na sajtu"
 
@@ -13793,7 +14239,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Ovo će obrisati oblast vidžeta i sve njegove vidžete. Ova radnja se ne može poništiti."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1345
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1373
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Ovo će premestiti stavku u korpu. Možeš je kasnije vratiti iz korpe."
 
@@ -13815,7 +14261,7 @@ msgstr "Ovo će trajno obrisati ovaj komentar. Ova radnja se ne može poništiti
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Ovo će ukloniti dodatak i njegov paket sa tvog sajta."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:336
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Ovo će vratiti na objavljenu verziju. Izmene nacrta će se izgubiti."
 
@@ -13852,7 +14298,7 @@ msgstr "Naslov"
 msgid "Title (Tooltip)"
 msgstr "Naslov (objašnjenje)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:169
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Title Separator"
 msgstr "Separator naslova"
 
@@ -13871,6 +14317,7 @@ msgstr "za izbor"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:570
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
+#: packages/admin/src/components/revisions/revision-format.ts:107
 msgid "Today"
 msgstr "Danas"
 
@@ -13964,11 +14411,11 @@ msgstr "Prevodi se..."
 #: packages/admin/src/components/MenuEditor.tsx:147
 #: packages/admin/src/components/TaxonomyManager.tsx:1252
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1533
+#: packages/admin/src/router.tsx:1618
 msgid "Translation created"
 msgstr "Prevod kreiran"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1175
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1192
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Prevodi"
@@ -14028,6 +14475,7 @@ msgstr "Probaj prilagoditi pretragu ili filtere."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:247
 #: packages/admin/src/components/MediaUsedIn.tsx:277
+#: packages/admin/src/components/RevisionHistory.tsx:93
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:352
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:386
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:397
@@ -14038,7 +14486,7 @@ msgstr "Probaj prilagoditi pretragu ili filtere."
 msgid "Try again"
 msgstr "Pokušaj ponovo"
 
-#: packages/admin/src/components/WordPressImport.tsx:1611
+#: packages/admin/src/components/WordPressImport.tsx:1636
 msgid "Try Again"
 msgstr "Pokušaj ponovo"
 
@@ -14063,8 +14511,8 @@ msgstr "Probaj drugi naziv fajla ili obriši pretragu."
 msgid "Try another filename, or clear your search and filters."
 msgstr "Probaj drugi naziv fajla ili obriši pretragu i filtere."
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
-#: packages/admin/src/components/WordPressImport.tsx:1437
+#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:1462
 msgid "Try Another URL"
 msgstr "Probaj drugi URL"
 
@@ -14091,6 +14539,14 @@ msgstr "Uključi"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:572
 msgid "Turn on media usage tracking?"
 msgstr "Uključiti praćenje korišćenja medija?"
+
+#: packages/admin/src/components/revisions/change-labels.ts:170
+msgid "Turned off {label}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/change-labels.ts:170
+msgid "Turned on {label}"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Turning on…"
@@ -14125,7 +14581,7 @@ msgid "Type caption for video (optional)"
 msgstr ""
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2047
+#: packages/admin/src/components/WordPressImport.tsx:2072
 msgid "Type mismatch ({0})"
 msgstr "Neusklađenost tipa ({0})"
 
@@ -14150,8 +14606,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Nije moguće pristupiti tržištu"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1381
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1398
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1409
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1426
 msgid "Unassigned"
 msgstr "Nedodeljeno"
 
@@ -14200,6 +14656,10 @@ msgstr "Jedinstveni identifikator (ULID)"
 msgid "Unknown"
 msgstr "Nepoznato"
 
+#: packages/admin/src/components/revisions/revision-format.ts:129
+msgid "Unknown author"
+msgstr ""
+
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
 msgstr "Nepoznata uloga"
@@ -14218,11 +14678,15 @@ msgstr "Otključaj odnos stranica"
 msgid "Unnamed passkey"
 msgstr "Pristupni ključ (passkey) bez naziva"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:485
+#: packages/admin/src/components/revisions/revision-format.ts:129
+msgid "Unnamed user"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "Unpublish {itemLabel}"
 msgstr "Poništi objavu {itemLabel}"
 
-#: packages/admin/src/router.tsx:1403
+#: packages/admin/src/router.tsx:1488
 msgid "Unpublished"
 msgstr "Neobjavljeno"
 
@@ -14248,7 +14712,7 @@ msgstr "visualEditing.unsaved"
 msgid "Unsaved content may leave your site"
 msgstr "Nesačuvani sadržaj može da napusti sajt"
 
-#: packages/admin/src/router.tsx:1501
+#: packages/admin/src/router.tsx:1586
 msgid "Unscheduled"
 msgstr "Nezakazano"
 
@@ -14272,7 +14736,8 @@ msgstr "Do {0}"
 msgid "Untitled"
 msgstr "Bez naslova"
 
-#: packages/admin/src/components/ContentEditor.tsx:3165
+#: packages/admin/src/components/ContentEditor.tsx:3339
+#: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Fajl bez naslova"
 
@@ -14339,7 +14804,7 @@ msgid "Update to v{0}"
 msgstr "Ažuriraj na v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1031
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1035
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "Ažurirano"
@@ -14348,7 +14813,7 @@ msgstr "Ažurirano"
 msgid "Updated At"
 msgstr "Datum izmene"
 
-#: packages/admin/src/components/WordPressImport.tsx:974
+#: packages/admin/src/components/WordPressImport.tsx:993
 msgid "Updating content URLs..."
 msgstr "Ažuriranje URL-ova sadržaja..."
 
@@ -14386,7 +14851,7 @@ msgstr "Otpremi fajl da počneš"
 msgid "Upload a video to get started"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Upload an export file"
 msgstr "Otpremi izvozni fajl"
 
@@ -14403,8 +14868,8 @@ msgstr "Otpremi i obriši medije"
 msgid "Upload and manage media"
 msgstr "Otpremi i upravljaj medijima"
 
-#: packages/admin/src/components/WordPressImport.tsx:1313
-#: packages/admin/src/components/WordPressImport.tsx:1434
+#: packages/admin/src/components/WordPressImport.tsx:1338
+#: packages/admin/src/components/WordPressImport.tsx:1459
 msgid "Upload Export File"
 msgstr "Otpremi izvozni fajl"
 
@@ -14456,7 +14921,7 @@ msgstr "Otpremi na {0}"
 msgid "Upload to {providerName}"
 msgstr "Otpremi na {providerName}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1149
+#: packages/admin/src/components/WordPressImport.tsx:1168
 msgid "Upload WordPress export file"
 msgstr "Otpremi WordPress izvozni fajl"
 
@@ -14470,7 +14935,7 @@ msgstr "Otpremljeno:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2156
+#: packages/admin/src/components/WordPressImport.tsx:2181
 msgid "Uploading"
 msgstr "Otprema se"
 
@@ -14501,8 +14966,8 @@ msgstr ""
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1061
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1064
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1081
 msgid "URL & language"
 msgstr "URL i jezik"
 
@@ -14599,7 +15064,7 @@ msgstr "Koristi biometrijsku autentifikaciju uređaja, bezbednosni ključ ili PI
 msgid "Use your registered passkey to sign in securely."
 msgstr "Koristi registrovani pristupni ključ (passkey) za bezbednu prijavu."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:178
+#: packages/admin/src/components/settings/SeoSettings.tsx:182
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "Koristi se kao rezervna Open Graph slika kada stranica nema svoju. Preporučena veličina: 1200×630."
 
@@ -14607,7 +15072,7 @@ msgstr "Koristi se kao rezervna Open Graph slika kada stranica nema svoju. Prepo
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Koristi se kao identifikator. Samo mala slova, brojevi i donje crte."
 
-#: packages/admin/src/components/ContentEditor.tsx:2422
+#: packages/admin/src/components/ContentEditor.tsx:2596
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Koristi se kao glavna vizuelna slika za ovu objavu na stranicama sa listingom i na vrhu objave"
 
@@ -14745,11 +15210,20 @@ msgstr "Verzija {0}"
 msgid "Version {0} (active)"
 msgstr "Verzija {0} (aktivna)"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:652
+msgid "Version from {when}"
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:80
+msgid "Version restored"
+msgstr ""
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:922
 #: packages/admin/src/components/MediaPickerModal.tsx:392
 #: packages/admin/src/components/PortableTextEditor.tsx:3677
+#: packages/admin/src/components/revisions/RevisionDocument.tsx:490
 msgid "Video"
 msgstr "Video"
 
@@ -14795,24 +15269,28 @@ msgstr "Pogledaj izvor"
 msgid "View the {license} license on spdx.org"
 msgstr "Pogledaj {license} licencu na spdx.org"
 
+#: packages/admin/src/components/revisions/useRevisionView.ts:517
+msgid "Viewing the version from {when} by {name}."
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:469
 msgid "Visitors hitting these paths will see an error."
 msgstr "Posetioci koji pristupe ovim putanjama videće grešku."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:214
+#: packages/admin/src/components/ContentSettingsPanel.tsx:222
 msgid "Visitors see the published version until the scheduled update"
 msgstr "Posetioci vide objavljenu verziju do zakazanog ažuriranja"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:182
-#: packages/admin/src/components/ContentSettingsPanel.tsx:236
+#: packages/admin/src/components/ContentSettingsPanel.tsx:186
+#: packages/admin/src/components/ContentSettingsPanel.tsx:248
 msgid "Visitors see this published version"
 msgstr "Posetioci vide ovu objavljenu verziju"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:192
+#: packages/admin/src/components/ContentSettingsPanel.tsx:196
 msgid "Visitors still see the published version"
 msgstr "Posetioci i dalje vide objavljenu verziju"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:498
+#: packages/admin/src/components/ContentSettingsPanel.tsx:514
 msgid "Visitors will see these changes immediately."
 msgstr "Posetioci će odmah videti ove promene."
 
@@ -14847,11 +15325,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "Proverili smo pre otvaranja dijaloga za pristupni ključ (passkey) u pregledaču da možeš da izabereš šta se dalje dešava."
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1295
+#: packages/admin/src/components/WordPressImport.tsx:1320
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "Nismo mogli da se povežemo sa WordPress sajtom na {0}. To može značiti da sajt nije WordPress, REST API je onemogućen ili sajt nije dostupan."
 
-#: packages/admin/src/components/WordPressImport.tsx:1113
+#: packages/admin/src/components/WordPressImport.tsx:1132
 msgid "We'll check what import options are available for your site."
 msgstr "Proverićemo koje opcije uvoza su dostupne za sajt."
 
@@ -14898,7 +15376,7 @@ msgstr "Kako se zove svaka strana. Njima se imenuju polja povezana sa ovom relac
 msgid "What happens next?"
 msgstr "Šta sledi?"
 
-#: packages/admin/src/components/WordPressImport.tsx:2120
+#: packages/admin/src/components/WordPressImport.tsx:2145
 msgid "What happens when you import:"
 msgstr "Šta se dešava pri uvozu:"
 
@@ -14922,11 +15400,11 @@ msgstr "Šta paket sadrži"
 msgid "What will be imported"
 msgstr "Šta će se uvesti"
 
-#: packages/admin/src/components/WordPressImport.tsx:1903
+#: packages/admin/src/components/WordPressImport.tsx:1928
 msgid "What will happen when you import"
 msgstr "Šta će se desiti pri uvozu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1665
+#: packages/admin/src/components/ContentEditor.tsx:1759
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Uneti tekst je i dalje ovde. Čuvanjem se zamenjuje novija verzija."
 
@@ -14963,7 +15441,7 @@ msgstr "Koji tipovi sadržaja mogu koristiti ovu taksonomiju"
 msgid "Whole number"
 msgstr "Ceo broj"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1148
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 msgid "Why are bylines shown in this order?"
 msgstr "Zašto su potpisi prikazani ovim redosledom?"
 
@@ -14971,7 +15449,7 @@ msgstr "Zašto su potpisi prikazani ovim redosledom?"
 msgid "Why can't this be changed?"
 msgstr "Zašto se ovo ne može promeniti?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 msgid "Why English is used"
 msgstr "Zašto se koristi engleski"
 
@@ -15042,7 +15520,7 @@ msgstr "Vidžet ažuriran"
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/components/WordPressImport.tsx:1188
+#: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
 msgstr "Vidžeti"
 
@@ -15059,7 +15537,7 @@ msgstr "Širine"
 msgid "Will be cleared on save"
 msgstr "Obrisaće se pri čuvanju"
 
-#: packages/admin/src/components/WordPressImport.tsx:2043
+#: packages/admin/src/components/WordPressImport.tsx:2068
 msgid "Will create"
 msgstr "Kreiraće"
 
@@ -15079,11 +15557,11 @@ msgstr "Uz pristupni ključ (passkey) ne moraš da pamtiš složene lozinke"
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Bez provajdera e-pošte, linkovi za pozivnicu moraju se deliti ručno."
 
-#: packages/admin/src/components/WordPressImport.tsx:228
+#: packages/admin/src/components/WordPressImport.tsx:235
 msgid "WordPress authorization was rejected"
 msgstr "WordPress autorizacija je odbijena"
 
-#: packages/admin/src/components/WordPressImport.tsx:1505
+#: packages/admin/src/components/WordPressImport.tsx:1530
 msgid "WordPress Username"
 msgstr "WordPress korisničko ime"
 
@@ -15119,7 +15597,7 @@ msgstr "Napiši sadržaj vidžeta..."
 msgid "Writing the file index"
 msgstr "Upisivanje indeksa fajlova"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "WXR File"
 msgstr "WXR fajl"
 
@@ -15127,7 +15605,7 @@ msgstr "WXR fajl"
 msgid "XML"
 msgstr "XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1526
+#: packages/admin/src/components/WordPressImport.tsx:1551
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -15146,7 +15624,11 @@ msgstr "Godišnje"
 msgid "Yes"
 msgstr "Da"
 
-#: packages/admin/src/components/WordPressImport.tsx:1191
+#: packages/admin/src/components/revisions/revision-format.ts:109
+msgid "Yesterday"
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
@@ -15207,7 +15689,7 @@ msgstr "Potrebne su ti admin dozvole da upravljaš praćenjem korišćenja medij
 msgid "You need Admin permissions to transfer this site."
 msgstr "Potrebne su ti admin dozvole da prebaciš ovaj sajt."
 
-#: packages/admin/src/router.tsx:2368
+#: packages/admin/src/router.tsx:2454
 msgid "You need Editor permissions to moderate comments."
 msgstr "Potrebne su ti dozvole urednika za moderiranje komentara."
 
@@ -15233,7 +15715,7 @@ msgstr "Pridružićeš se kao <0>{0}</0>"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Bićeš upitan da koristiš biometrijsku autentifikaciju uređaja, bezbednosni ključ ili PIN."
 
-#: packages/admin/src/components/WordPressImport.tsx:1398
+#: packages/admin/src/components/WordPressImport.tsx:1423
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "Bićeš preusmeren na WordPress da autorizuješ vezu."
 
@@ -15302,6 +15784,14 @@ msgstr "Menadžer akreditiva na uređaju čuva ga i pokazaće gde pre nego što 
 msgid "your device's passkey prompt"
 msgstr "dijalog za pristupni ključ (passkey) na uređaju"
 
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:115
+msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the live site won't change until you publish."
+msgstr ""
+
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:114
+msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
 msgstr "E-pošta"
@@ -15362,12 +15852,16 @@ msgstr "Vreme: {viewerTime}"
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Twitter/X nalog (npr. @username)"
 
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:123
+msgid "Your unsaved changes will be lost."
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "Your unsaved media changes will be lost."
 msgstr "Nesačuvane izmene medija će se izgubiti."
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2091
+#: packages/admin/src/components/WordPressImport.tsx:2116
 msgid "Your WordPress export contains {0} media files."
 msgstr "WordPress izvoz sadrži {0} medijskih fajlova."
 

@@ -10,6 +10,7 @@ import { gutenbergToPortableText } from "@emdash-cms/gutenberg-to-portable-text"
 import { encodeBase64 } from "../../utils/base64.js";
 import type { PluginComment } from "../comments.js";
 import type { PluginMenu } from "../menus.js";
+import { SiteChallengeError } from "../registry.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../ssrf.js";
 import type {
 	ImportSource,
@@ -290,13 +291,17 @@ async function fetchPluginApi(
 	}
 	// Any response other than 404 (including 401/403/500) is authoritative:
 	// the route exists, so don't mask the real error with a fallback attempt.
-	if (pretty && pretty.status !== 404) {
-		return pretty;
+	const response =
+		pretty && pretty.status !== 404
+			? pretty
+			: await ssrfSafeFetch(pluginApiUrl(siteUrl, path, params, true), {
+					headers,
+					signal: AbortSignal.timeout(timeoutMs),
+				});
+	if (response.headers.get("cf-mitigated") === "challenge") {
+		throw new SiteChallengeError();
 	}
-	return ssrfSafeFetch(pluginApiUrl(siteUrl, path, params, true), {
-		headers,
-		signal: AbortSignal.timeout(timeoutMs),
-	});
+	return response;
 }
 
 // =============================================================================
@@ -369,7 +374,8 @@ export const wordpressPluginSource: ImportSource = {
 				},
 				i18n: pluginI18nToDetection(data.i18n),
 			};
-		} catch {
+		} catch (error) {
+			if (error instanceof SiteChallengeError) throw error;
 			return null;
 		}
 	},
@@ -496,6 +502,7 @@ export const wordpressPluginSource: ImportSource = {
 					page++;
 				}
 			} catch (e) {
+				if (e instanceof SiteChallengeError) throw e;
 				console.warn("Failed to fetch media list:", e);
 			}
 		}
