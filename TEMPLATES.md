@@ -26,9 +26,11 @@ A landing page template for products and services with modular content blocks.
 
 **Features:**
 
-- Hero, features, testimonials, pricing, and FAQ blocks
-- Contact form with validation
-- Portable Text content editing
+- Hero, logo wall, features, text and image, stats, testimonials, pricing, FAQ, call to action, contact options, and long-form text blocks
+- Add, reorder, and duplicate blocks in the admin's blocks editor
+- Pages created in the admin get their own URL, with no route file to add
+- Seeded demo photography from Unsplash
+- Contact page built from blocks, with direct email links
 - SEO metadata and JSON-LD
 - Dark/light mode
 
@@ -111,7 +113,7 @@ Everything else is synced from the base template using a script:
 
 **Run this after making changes** to `src/`, `seed/`, `tsconfig.json`, `emdash-env.d.ts`, or `.gitignore` in any base template. It copies those files to the corresponding cloudflare variant.
 
-The primary Node demo is also synced from the blog template:
+The blog demos are synced from the blog templates. After changing `templates/blog`, run the cloudflare sync above first, because two demos copy from `templates/blog-cloudflare`, then run:
 
 ```bash
 ./scripts/sync-blog-demos.sh
@@ -119,11 +121,14 @@ The primary Node demo is also synced from the blog template:
 
 This script does two kinds of sync:
 
-- full template sync for `templates/blog` -> `demos/simple`
+- template sync for `templates/blog` -> `demos/simple`, keeping the demo's `package.json` and its `astro.config.mjs`, which registers the plugins the smoke tests use
 - frontend-only sync (keeping runtime-specific files) for:
   - `templates/blog-cloudflare` -> `demos/cloudflare`
   - `templates/blog-cloudflare` -> `demos/preview`
+  - `templates/blog` -> `demos/playground`, which keeps its own seed with bundled media
   - `templates/blog` -> `demos/postgres`
+
+No demo receives the template's `astro.config.mjs`, so port template config changes, such as font settings, to the demos by hand. Changes to the template seed, such as collection `supports` or `urlPattern`, reach `demos/playground` only if you copy them into its seed by hand. `demos/cloudflare` also keeps its own `src/layouts/Base.astro` and `src/pages/404.astro`, whose search controls open the AI Search modal because the demo has no `/search` page. Port template changes to those files by hand.
 
 ### Taking Screenshots
 

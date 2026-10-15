@@ -9,20 +9,29 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import type { DialectAdapter } from "kysely";
 import { Kysely, sql, SqliteDialect } from "kysely";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
 import { LockingSqliteAdapter } from "../../../src/database/migration-lock.js";
-import { PendingMigrationsError } from "../../../src/database/migrations/policy.js";
 import {
+	isMigrationRequiredError,
+	PendingMigrationsError,
+} from "../../../src/database/migrations/policy.js";
+import {
+	createMigrator,
+	getExactMigrationStatus,
 	MIGRATION_NAMES,
 	MigrationLockHeldError,
+	MigrationRowLimitError,
 	runMigrations,
 } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -711,8 +720,83 @@ describe("EmDashRuntime.create — cold boot", () => {
 		};
 
 		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(MigrationLockHeldError);
-		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
+		const backedOff = EmDashRuntime.create(deps);
+		await expect(backedOff).rejects.toThrow(/backing off/i);
+		await expect(backedOff).rejects.toSatisfy(isMigrationRequiredError);
 		expect(dialectCalls).toBe(1);
+	});
+
+	describe("a datetime migration over the Worker row limit", () => {
+		const ROWS = 5_001;
+		let path = "";
+
+		beforeEach(async () => {
+			path = join(tmpdir(), `emdash-row-limit-${randomUUID()}.db`);
+			const sqlite = new Database(path);
+			const setupDb = new Kysely<EmDashDatabase>({
+				dialect: new SqliteDialect({ database: sqlite }),
+			});
+			const { error } = await createMigrator(setupDb).migrateTo("078_menu_item_translation_groups");
+			if (error) throw error;
+			await new SchemaRegistry(setupDb).createCollection({ slug: "posts", label: "Posts" });
+			await sql`
+				WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${ROWS})
+				INSERT INTO ec_posts (id, slug, status, created_at, updated_at, version, locale, translation_group)
+				SELECT 'post-' || i, 'post-' || i, 'draft', '2012-09-12T18:00:00', '2012-09-12T18:00:00', 1, 'en', 'post-' || i
+				FROM n
+			`.execute(setupDb);
+			await setupDb.destroy();
+		});
+
+		afterEach(async () => {
+			vi.unstubAllEnvs();
+			vi.unstubAllGlobals();
+			await rm(path, { force: true });
+		});
+
+		async function pendingMigrations(): Promise<string[]> {
+			const db = new Kysely<EmDashDatabase>({
+				dialect: new SqliteDialect({ database: new Database(path) }),
+			});
+			try {
+				return (await getExactMigrationStatus(db)).pending;
+			} finally {
+				await db.destroy();
+			}
+		}
+
+		it("is left pending on a deployed Worker and answered as waiting for migrations", async () => {
+			let dialectCalls = 0;
+			const deps: RuntimeDependencies = {
+				...createDeps(),
+				createDialect: () => {
+					dialectCalls += 1;
+					return new SqliteDialect({ database: new Database(path) });
+				},
+			};
+			vi.stubEnv("DEV", false);
+			vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+
+			await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(MigrationRowLimitError);
+			const backedOff: unknown = await EmDashRuntime.create(deps).catch((error: unknown) => error);
+
+			expect(isMigrationRequiredError(backedOff)).toBe(true);
+			expect(dialectCalls).toBe(1);
+			expect((await pendingMigrations())[0]).toBe("079_datetime_normalization");
+		});
+
+		it("is applied at startup outside a Worker", async () => {
+			const deps: RuntimeDependencies = {
+				...createDeps(),
+				createDialect: () => new SqliteDialect({ database: new Database(path) }),
+			};
+			vi.stubEnv("DEV", false);
+
+			const runtime = await EmDashRuntime.create(deps);
+			await runtime.stopCron();
+
+			expect(await pendingMigrations()).toEqual([]);
+		}, 60_000);
 	});
 
 	it("retries immediately after an error reading migration state", async () => {

@@ -273,7 +273,7 @@ Request a rewrite when technically accurate prose is still vague, implementation
 
 Almost every label you'll see on a PR is applied and removed automatically. You read them to scan the queue; you don't manage them:
 
-- `review/*` — four mutually exclusive review states, set by the same automation as the `Human Maintainer approval` check, so they always agree with it. Only reviews from Maintainers listed in [GOVERNANCE.md](GOVERNANCE.md#maintainers) count:
+- `review/*` — four mutually exclusive review states, set by the same automation as the informational `Human Maintainer approval` check. The check finishes neutrally while review is outstanding and succeeds when enough Maintainers have approved; it does not block merging. Only reviews from Maintainers listed in [GOVERNANCE.md](GOVERNANCE.md#maintainers) count:
   - `review/approved` — the approval requirement is met: enough Maintainer approvals on the current revision (two for governance and privileged paths) and no outstanding change requests.
   - `review/needs-rereview` — commits have landed since the last Maintainer review, or since a Maintainer requested changes. Merging `main` into the branch doesn't count; a rebase does.
   - `review/awaiting-author` — a Maintainer requested changes or commented on the current revision.

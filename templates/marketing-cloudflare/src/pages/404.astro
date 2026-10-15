@@ -3,67 +3,24 @@ import Base from "../layouts/Base.astro";
 ---
 
 <Base title="Page not found">
-	<div class="not-found">
-		<div class="not-found-code">404</div>
-		<h1>Page not found</h1>
-		<p>The page you're looking for doesn't exist or has been moved.</p>
-		<div class="not-found-actions">
-			<a href="/" class="btn btn-primary btn-lg">Go home</a>
-			<a href="/contact" class="btn btn-secondary btn-lg">Contact us</a>
+	<section class="container empty-state">
+		<p class="display not-found__code">404</p>
+		<h1 class="display empty-state__title">Page not found</h1>
+		<p class="lead">
+			This room is empty. The page you’re looking for doesn’t exist or has moved.
+		</p>
+		<div class="actions">
+			<a href="/" class="btn btn-lg">Go home</a>
+			<a href="/contact" class="btn btn-lg btn-secondary">Contact us</a>
 		</div>
-	</div>
+	</section>
 </Base>
 
 <style>
-	.not-found {
-		text-align: center;
-		padding: var(--spacing-5xl) var(--spacing-lg);
-		max-width: var(--max-width);
-		margin: 0 auto;
-	}
-
-	.not-found-code {
-		font-size: 10rem;
-		font-weight: var(--font-weight-display);
-		line-height: 1;
-		letter-spacing: -0.05em;
-		background: var(--gradient-brand);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-		opacity: 0.3;
-		margin-bottom: var(--spacing-lg);
-	}
-
-	.not-found h1 {
-		font-size: var(--font-size-3xl);
-		margin-bottom: var(--spacing-md);
-	}
-
-	.not-found p {
-		font-size: var(--font-size-lg);
+	.not-found__code {
+		font-size: clamp(120px, 22vw, 240px);
+		line-height: 0.85;
+		letter-spacing: var(--tracking-tight);
 		color: var(--color-muted);
-		margin-bottom: var(--spacing-2xl);
-	}
-
-	.not-found-actions {
-		display: flex;
-		gap: var(--spacing-md);
-		justify-content: center;
-		flex-wrap: wrap;
-	}
-
-	@media (max-width: 480px) {
-		.not-found-code {
-			font-size: 6rem;
-		}
-
-		.not-found-actions {
-			flex-direction: column;
-		}
-
-		.not-found-actions .btn {
-			width: 100%;
-		}
 	}
 </style>

@@ -31,11 +31,13 @@ import {
 } from "#api/schemas.js";
 
 import { after } from "../after.js";
+import { entryEditAccess } from "../api/authorize.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
+import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
@@ -178,6 +180,10 @@ const settingsSeoSchema = z.object({
 		.max(5000)
 		.optional()
 		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+	disallowAiTraining: z
+		.boolean()
+		.optional()
+		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -578,8 +584,7 @@ async function unwrapAndInvalidate(
 	changedEarlier = false,
 ): Promise<SuccessEnvelope | ErrorEnvelope> {
 	if (result.success || changedEarlier) {
-		const { cache } = getExtra(extra);
-		if (cache?.enabled) await cache.invalidate({ tags });
+		await invalidateRouteCache(getExtra(extra).cache, tags);
 	}
 	return unwrap(result);
 }
@@ -827,6 +832,15 @@ async function refuseLockedEntry(
 		override: overrideLock,
 	});
 	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
+}
+
+/** Extract the status from a content handler response. */
+function extractContentStatus(data: unknown): unknown {
+	if (!data || typeof data !== "object") return undefined;
+	const obj = data as Record<string, unknown>;
+	const item =
+		obj.item && typeof obj.item === "object" ? (obj.item as Record<string, unknown>) : obj;
+	return item?.status;
 }
 
 /** Extract the `_rev` token from a content handler response. */
@@ -1144,7 +1158,8 @@ export function createMcpServer(
 				"this. Pass a Portable Text JSON array only for complex content Markdown " +
 				"can't express (custom blocks, embeds). A slug is auto-generated if not " +
 				"provided. Items are created as 'draft' by default — use content_publish " +
-				"to make them live.",
+				"or pass status='published' to make them live. `seo` and `publishedAt` " +
+				"can be set in the same call; `publishedAt` requires content:publish_any.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				data: z
@@ -1185,6 +1200,18 @@ export function createMcpServer(
 					.describe(
 						"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Call taxonomy_list to see available taxonomies and taxonomy_list_terms to look up slugs. Missing keys leave that taxonomy unchanged.",
 					),
+				// Reuse the REST schema so `canonical` is gated through `httpUrl`,
+				// rejecting javascript:/data: URIs that would become stored XSS.
+				seo: contentSeoInput
+					.optional()
+					.describe(
+						"Per-content SEO metadata. Only valid for collections with SEO enabled (see schema_get_collection.hasSeo).",
+					),
+				publishedAt: contentDateTimeInputSchema
+					.nullish()
+					.describe(
+						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Useful for content migrations.",
+					),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -1193,6 +1220,19 @@ export function createMcpServer(
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId, userRole } = getExtra(extra);
 			const actor = { id: userId, role: userRole };
+
+			// Writing publishedAt directly (including clearing to null) overwrites
+			// historical record — gate behind publish_any, mirroring the REST POST
+			// route and the MCP content_update tool.
+			if (args.publishedAt !== undefined) {
+				const user = { id: userId, role: userRole };
+				if (!hasPermission(user, "content:publish_any")) {
+					throw new EmDashAuthError(
+						"Setting publishedAt requires content:publish_any permission",
+						"INSUFFICIENT_PERMISSIONS",
+					);
+				}
+			}
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
@@ -1227,6 +1267,8 @@ export function createMcpServer(
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
 					replaceBlocks: args.replaceBlocks,
+					seo: args.seo,
+					publishedAt: args.publishedAt,
 					actor,
 				});
 				if (!result.success) return unwrap(result);
@@ -1235,6 +1277,7 @@ export function createMcpServer(
 					return unwrapAndInvalidate(
 						extra,
 						await emdash.handleContentPublish(args.collection, itemId, {
+							publishedAt: args.publishedAt ?? undefined,
 							actor: { ...actor, source: "mcp" },
 							origin: { source: "mcp" },
 						}),
@@ -1242,11 +1285,10 @@ export function createMcpServer(
 						true,
 					);
 				}
-				return unwrapAndInvalidate(extra, result, [args.collection]);
+				return unwrap(result);
 			}
 
-			return unwrapAndInvalidate(
-				extra,
+			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
 					data,
 					slug: args.slug,
@@ -1257,9 +1299,10 @@ export function createMcpServer(
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
 					replaceBlocks: args.replaceBlocks,
+					seo: args.seo,
+					publishedAt: args.publishedAt,
 					actor,
 				}),
-				[args.collection],
 			);
 		},
 	);
@@ -1343,7 +1386,7 @@ export function createMcpServer(
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
-			requireRole(extra, Role.AUTHOR);
+			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId, userRole } = getExtra(extra);
 			const actor = { id: userId, role: userRole };
 
@@ -1353,7 +1396,17 @@ export function createMcpServer(
 				return unwrap(existing);
 			}
 			const ownerId = extractContentAuthorId(existing.data);
-			requireOwnership(extra, ownerId, "content:edit_own", "content:edit_any");
+			if (
+				!entryEditAccess(
+					{ id: userId, role: userRole },
+					{ authorId: ownerId, status: extractContentStatus(existing.data) },
+				)
+			) {
+				throw new EmDashAuthError(
+					"Insufficient permissions for this operation",
+					"INSUFFICIENT_PERMISSIONS",
+				);
+			}
 
 			const data = args.data
 				? await convertWriteData(emdash, args.collection, args.data)
@@ -1906,11 +1959,7 @@ export function createMcpServer(
 				"content:edit_any",
 			);
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrapAndInvalidate(
-				extra,
-				await emdash.handleContentDuplicate(args.collection, resolvedId, userId),
-				[args.collection],
-			);
+			return unwrap(await emdash.handleContentDuplicate(args.collection, resolvedId, userId));
 		},
 	);
 
