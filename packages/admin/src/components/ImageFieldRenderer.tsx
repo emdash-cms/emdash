@@ -68,7 +68,7 @@ export interface ImageFieldValue {
  * Admin preview URL for a stored value: `previewUrl` for external providers,
  * `src` for legacy data, otherwise the local media file route.
  */
-function mediaDisplayUrl(value: ImageFieldValue | string | undefined): string | undefined {
+export function mediaDisplayUrl(value: ImageFieldValue | string | undefined): string | undefined {
 	if (typeof value === "string") return value;
 	if (!value) return undefined;
 	if (value.previewUrl || value.src) return value.previewUrl || value.src;

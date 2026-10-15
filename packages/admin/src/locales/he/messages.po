@@ -88,7 +88,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {אוסף אחד} two {שני אוספים} other {# אוספים}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2292
+#: packages/admin/src/components/WordPressImport.tsx:2317
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {תגובה אחת יובאה} two {שתי תגובות יובאו} other {# תגובות יובאו}}"
 
@@ -103,12 +103,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {תגובה אחת} two {שתי תגובות} other {# תגובות}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2303
+#: packages/admin/src/components/WordPressImport.tsx:2328
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {שגיאת תוכן אחת} two {שתי שגיאות תוכן} other {# שגיאות תוכן}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2244
+#: packages/admin/src/components/WordPressImport.tsx:2269
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {פריט תוכן אחד יובא} two {שני פריטי תוכן יובאו} other {# פריטי תוכן יובאו}}"
 
@@ -152,27 +152,27 @@ msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {תגית תואמת אחת} two {שתי תגיות תואמות} other {# תגיות תואמות}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:490
+#: packages/admin/src/components/PluginManager.tsx:496
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {כלי MCP אחד} two {שני כלי MCP} other {# כלי MCP}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2308
+#: packages/admin/src/components/WordPressImport.tsx:2333
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {שגיאת מדיה אחת} two {שתי שגיאות מדיה} other {# שגיאות מדיה}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2260
+#: packages/admin/src/components/WordPressImport.tsx:2285
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {קובץ מדיה אחד יובא} two {שני קובצי מדיה יובאו} other {# קובצי מדיה יובאו}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2284
+#: packages/admin/src/components/WordPressImport.tsx:2309
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {תפריט אחד יובא} two {שני תפריטים יובאו} other {# תפריטים יובאו}}"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1932
+#: packages/admin/src/components/WordPressImport.tsx:1957
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {תפריט אחד ייובא} two {שני תפריטים ייובאו} other {# תפריטים ייובאו}}"
 
@@ -183,12 +183,12 @@ msgstr "{0, plural, one {הרשאה אחת מבוקשת} two {שתי הרשאו�
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:504
+#: packages/admin/src/components/PluginManager.tsx:510
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {הרשאה אחת} two {שתי הרשאות} other {# הרשאות}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2515
+#: packages/admin/src/components/WordPressImport.tsx:2540
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {פוסט אחד} two {שני פוסטים} other {# פוסטים}}"
 
@@ -223,17 +223,17 @@ msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {אחד נבחר} two {שניים נבחרו} other {# נבחרו}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2252
+#: packages/admin/src/components/WordPressImport.tsx:2277
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {פריט אחד דולג (כבר קיים)} two {שני פריטים דולגו (כבר קיימים)} other {# פריטים דולגו (כבר קיימים)}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2276
+#: packages/admin/src/components/WordPressImport.tsx:2301
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {הקצאת טקסונומיה אחת} two {שתי הקצאות טקסונומיה} other {# הקצאות טקסונומיה}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2268
+#: packages/admin/src/components/WordPressImport.tsx:2293
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {טקסונומיה אחת נוצרה} two {שתי טקסונומיות נוצרו} other {# טקסונומיות נוצרו}}"
 
@@ -325,7 +325,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "אי אפשר להעביר את {0} לכאן — לפריט האב שלו אין תרגום בשפה זו, לכן הרשימה הזו אינה הקבוצה שאליה הוא שייך."
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1332
+#: packages/admin/src/components/WordPressImport.tsx:1357
 msgid "{0} detected"
 msgstr "זוהו {0}"
 
@@ -340,7 +340,7 @@ msgid "{0} has been deactivated"
 msgstr "{0} הושבת"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:391
 msgid "{0} has been removed"
 msgstr "{0} הוסר"
 
@@ -361,12 +361,12 @@ msgstr "{0} פעיל כעת"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2002
+#: packages/admin/src/components/WordPressImport.tsx:2027
 msgid "{0} items → {1}"
 msgstr "{0} פריטים ← {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1925
+#: packages/admin/src/components/WordPressImport.tsx:1950
 msgid "{0} items will be imported"
 msgstr "{0} פריטים ייובאו"
 
@@ -460,7 +460,7 @@ msgid "{0} updated everywhere it appears."
 msgstr "{0} עודכן בכל מקום שבו הוא מופיע."
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:294
+#: packages/admin/src/components/PluginManager.tsx:300
 msgid "{0} updated to v{installedVersion}"
 msgstr "{0} עודכן לגרסה v{installedVersion}"
 
@@ -510,15 +510,15 @@ msgstr "הושלמו {completedCount} מתוך {0}"
 msgid "{completedCount} of {0} uploads complete"
 msgstr "הושלמו {completedCount} מתוך {0} העלאות"
 
-#: packages/admin/src/components/WordPressImport.tsx:2101
+#: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {קובץ אחד} two {שני קבצים} other {# קבצים}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2380
+#: packages/admin/src/components/WordPressImport.tsx:2405
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {פריט אחד} two {שני פריטים} other {# פריטים}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2172
+#: packages/admin/src/components/WordPressImport.tsx:2197
 msgid "{current} of {total}"
 msgstr "{current} מתוך {total}"
 
@@ -599,11 +599,11 @@ msgstr "באיחור של {lateness}"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {פריט אחד תואם ל-\"{searchQuery}\"} two {שני פריטים תואמים ל-\"{searchQuery}\"} other {# פריטים תואמים ל-\"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2502
+#: packages/admin/src/components/WordPressImport.tsx:2527
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "הוקצו {matchedCount} מתוך {totalCount}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2490
+#: packages/admin/src/components/WordPressImport.tsx:2515
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "נמצאה התאמה באימייל עבור {matchedCount} מתוך {totalCount} כותבים/ות"
 
@@ -663,11 +663,11 @@ msgstr "{name} חייב להיות לכל היותר {bound}."
 msgid "{name}: this site already has some"
 msgstr "{name}: כבר קיים באתר הזה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1908
+#: packages/admin/src/components/WordPressImport.tsx:1933
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {אוסף חדש אחד ייווצר} two {שני אוספים חדשים ייווצרו} other {# אוספים חדשים ייווצרו}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1917
+#: packages/admin/src/components/WordPressImport.tsx:1942
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {שדות יתווספו לאוסף קיים אחד} two {שדות יתווספו לשני אוספים קיימים} other {שדות יתווספו ל-# אוספים קיימים}}"
 
@@ -844,21 +844,21 @@ msgstr "/new-page או /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page או /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2122
+#: packages/admin/src/components/WordPressImport.tsx:2147
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• קבצים יורדו מאתר ה-WordPress שלכם"
 
-#: packages/admin/src/components/WordPressImport.tsx:2123
+#: packages/admin/src/components/WordPressImport.tsx:2148
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• יועלו לאחסון המדיה של EmDash"
 
-#: packages/admin/src/components/WordPressImport.tsx:2124
+#: packages/admin/src/components/WordPressImport.tsx:2149
 msgid "• URLs in your content are updated automatically"
 msgstr "• כתובות URL בתוכן שלכם מתעדכנות אוטומטית"
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 #: packages/admin/src/components/SetupWizard.tsx:339
-#: packages/admin/src/components/WordPressImport.tsx:1630
+#: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "← Back"
 msgstr "חזרה →"
 
@@ -902,11 +902,11 @@ msgstr "פוסט אחד עודכן"
 msgid "1 year"
 msgstr "שנה אחת"
 
-#: packages/admin/src/components/WordPressImport.tsx:1551
+#: packages/admin/src/components/WordPressImport.tsx:1576
 msgid "1. Log into your WordPress admin"
 msgstr "1. התחברו לניהול ה-WordPress שלכם"
 
-#: packages/admin/src/components/WordPressImport.tsx:1304
+#: packages/admin/src/components/WordPressImport.tsx:1329
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. התחברו ללוח הבקרה של ניהול ה-WordPress שלכם"
 
@@ -914,11 +914,11 @@ msgstr "1. התחברו ללוח הבקרה של ניהול ה-WordPress שלכ�
 msgid "16:9"
 msgstr "יחס 16:9"
 
-#: packages/admin/src/components/WordPressImport.tsx:76
+#: packages/admin/src/components/WordPressImport.tsx:77
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. עברו אל <0>כלים ← ייצוא</0>"
 
-#: packages/admin/src/components/WordPressImport.tsx:1552
+#: packages/admin/src/components/WordPressImport.tsx:1577
 msgid "2. Go to Users → Profile"
 msgstr "2. עברו אל משתמשים ← פרופיל"
 
@@ -926,11 +926,11 @@ msgstr "2. עברו אל משתמשים ← פרופיל"
 msgid "3:2"
 msgstr "יחס 3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1553
+#: packages/admin/src/components/WordPressImport.tsx:1578
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. גללו אל \"סיסמאות יישום\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1308
+#: packages/admin/src/components/WordPressImport.tsx:1333
 msgid "3. Select \"All content\""
 msgstr "3. בחרו \"כל התוכן\""
 
@@ -958,11 +958,11 @@ msgstr "308 קבועה (מחמירה)"
 msgid "4:3"
 msgstr "יחס 4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1309
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "4. Click \"Download Export File\""
 msgstr "4. לחצו על \"הורדת קובץ ייצוא\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1554
+#: packages/admin/src/components/WordPressImport.tsx:1579
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. הזינו \"EmDash\" ולחצו על \"הוספה חדשה\""
 
@@ -978,11 +978,11 @@ msgstr "410 תוכן נמחק (נעלם)"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 לא זמין מסיבות משפטיות"
 
-#: packages/admin/src/components/WordPressImport.tsx:1555
+#: packages/admin/src/components/WordPressImport.tsx:1580
 msgid "5. Copy the generated password"
 msgstr "5. העתיקו את הסיסמה שנוצרה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1310
+#: packages/admin/src/components/WordPressImport.tsx:1335
 msgid "5. Upload the file here"
 msgstr "5. העלו את הקובץ כאן"
 
@@ -1168,7 +1168,7 @@ msgstr "החשבון קיים"
 msgid "Account Info"
 msgstr "פרטי חשבון"
 
-#: packages/admin/src/components/WordPressImport.tsx:1189
+#: packages/admin/src/components/WordPressImport.tsx:1208
 msgid "ACF Fields"
 msgstr "שדות ACF"
 
@@ -1293,11 +1293,11 @@ msgstr "הוספת דומיין"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:762
 #: packages/admin/src/components/FieldEditor.tsx:701
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Add Field"
 msgstr "הוספת שדה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2013
+#: packages/admin/src/components/WordPressImport.tsx:2038
 msgid "Add fields"
 msgstr "הוספת שדות"
 
@@ -1434,7 +1434,7 @@ msgstr "בהוספה..."
 msgid "Adding…"
 msgstr "בהוספה…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1782
+#: packages/admin/src/components/WordPressImport.tsx:1807
 msgid "Additional data to import."
 msgstr "נתונים נוספים לייבוא."
 
@@ -1442,7 +1442,11 @@ msgstr "נתונים נוספים לייבוא."
 msgid "Additional details"
 msgstr "פרטים נוספים"
 
-#: packages/admin/src/components/WordPressImport.tsx:1512
+#: packages/admin/src/components/settings/SeoSettings.tsx:278
+msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1537
 msgid "admin"
 msgstr "ניהול"
 
@@ -1485,12 +1489,12 @@ msgstr "אחרי הפעלה מפורשת של התוסף, הוא יכול לשל
 msgid "Agenda"
 msgstr "סדר יום"
 
-#: packages/admin/src/components/PluginManager.tsx:599
+#: packages/admin/src/components/PluginManager.tsx:605
 msgid "Agent access"
 msgstr "גישת סוכן"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Agent access for {0} has been updated"
 msgstr "גישת הסוכן עבור {0} עודכנה"
 
@@ -1547,7 +1551,7 @@ msgstr "כל האוספים"
 msgid "All comments require approval"
 msgstr "כל התגובות דורשות אישור"
 
-#: packages/admin/src/components/WordPressImport.tsx:2547
+#: packages/admin/src/components/WordPressImport.tsx:2572
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "כל התוכן המיובא יהיה ללא שיוך. תוכלו לשייך כותבים/ות מאוחר יותר מעורך התוכן."
 
@@ -1579,7 +1583,7 @@ msgstr "כל הסוגים"
 msgid "All uploads finished"
 msgstr "כל ההעלאות הסתיימו"
 
-#: packages/admin/src/components/PluginManager.tsx:601
+#: packages/admin/src/components/PluginManager.tsx:607
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "אפשרו לאסימוני MCP בהיקף plugin-tool לקרוא לנתיבים אלה."
 
@@ -1616,7 +1620,7 @@ msgstr "כבר משויך או כפול"
 msgid "Already have an account?"
 msgstr "כבר יש לכם חשבון?"
 
-#: packages/admin/src/components/PluginManager.tsx:796
+#: packages/admin/src/components/PluginManager.tsx:802
 msgid "Also delete plugin storage data"
 msgstr "מחיקת נתוני אחסון התוסף גם כן"
 
@@ -1661,7 +1665,7 @@ msgstr "טקסט חלופי אינו רלוונטי לתיקיות"
 msgid "Alt text set"
 msgstr "הוגדר טקסט חלופי"
 
-#: packages/admin/src/components/WordPressImport.tsx:1424
+#: packages/admin/src/components/WordPressImport.tsx:1449
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "לחלופין, תוכלו לייצא מ-WordPress (כלים ← ייצוא) ולהעלות את הקובץ."
 
@@ -1681,7 +1685,7 @@ msgstr "מפתח דיגיטלי מוצפן שנפתח באמצעות טביעת 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:136
 #: packages/admin/src/components/PluginManager.tsx:155
-#: packages/admin/src/components/PluginManager.tsx:327
+#: packages/admin/src/components/PluginManager.tsx:333
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -1700,9 +1704,9 @@ msgstr "מפתח דיגיטלי מוצפן שנפתח באמצעות טביעת 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
-#: packages/admin/src/components/settings/SeoSettings.tsx:82
-#: packages/admin/src/components/settings/SeoSettings.tsx:144
-#: packages/admin/src/components/settings/SeoSettings.tsx:145
+#: packages/admin/src/components/settings/SeoSettings.tsx:86
+#: packages/admin/src/components/settings/SeoSettings.tsx:148
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
@@ -1727,7 +1731,8 @@ msgstr "מפתח דיגיטלי מוצפן שנפתח באמצעות טביעת 
 #: packages/admin/src/router.tsx:2312
 #: packages/admin/src/router.tsx:2328
 #: packages/admin/src/router.tsx:2353
-#: packages/admin/src/router.tsx:2955
+#: packages/admin/src/router.tsx:2779
+#: packages/admin/src/router.tsx:2964
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1747,11 +1752,11 @@ msgstr "אירעה שגיאה בלתי צפויה."
 msgid "An unknown error occurred"
 msgstr "אירעה שגיאה לא ידועה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1604
+#: packages/admin/src/components/WordPressImport.tsx:1629
 msgid "Analyzing export file..."
 msgstr "קובץ הייצוא מנותח..."
 
-#: packages/admin/src/components/WordPressImport.tsx:836
+#: packages/admin/src/components/WordPressImport.tsx:855
 msgid "Analyzing WordPress site..."
 msgstr "אתר ה-WordPress מנותח..."
 
@@ -1787,7 +1792,7 @@ msgstr "אסימוני API"
 msgid "Appears on posts and pages"
 msgstr "מופיע בפוסטים ובעמודים"
 
-#: packages/admin/src/components/WordPressImport.tsx:1519
+#: packages/admin/src/components/WordPressImport.tsx:1544
 msgid "Application Password"
 msgstr "סיסמת יישום"
 
@@ -1890,7 +1895,7 @@ msgstr "בקשו ממנהל/ת להשלים את ההגדרה הזו."
 msgid "Aspect ratio"
 msgstr "יחס ממדים"
 
-#: packages/admin/src/components/WordPressImport.tsx:2485
+#: packages/admin/src/components/WordPressImport.tsx:2510
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "שייכו כותבים/ות מ-WordPress למשתמשי EmDash. הפוסטים ישויכו למשתמש שנבחר."
 
@@ -1956,7 +1961,7 @@ msgstr "האימות בוטל או שתם זמנו. נסו שוב."
 msgid "Author"
 msgstr "כותב/ת"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2525
 msgid "Author Mapping"
 msgstr "מיפוי כותבים/ות"
 
@@ -2069,8 +2074,8 @@ msgstr "חזרה"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1815
 #: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1539
-#: packages/admin/src/components/WordPressImport.tsx:2556
+#: packages/admin/src/components/WordPressImport.tsx:1564
+#: packages/admin/src/components/WordPressImport.tsx:2581
 msgid "Back"
 msgstr "חזרה"
 
@@ -2174,8 +2179,8 @@ msgstr "לפני שתמשיכו:"
 msgid "Between {min} and {max}"
 msgstr "בין {min} ל-{max}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:252
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:256
 msgid "Bing Verification"
 msgstr "אימות Bing"
 
@@ -2233,9 +2238,13 @@ msgstr "מודגש"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:50
 #: packages/admin/src/components/FieldEditor.tsx:414
-#: packages/admin/src/components/FieldEditor.tsx:1293
+#: packages/admin/src/components/FieldEditor.tsx:1295
 msgid "Boolean"
 msgstr "בוליאני"
+
+#: packages/admin/src/components/WordPressImport.tsx:1314
+msgid "Bot protection blocked the connection"
+msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
@@ -2261,8 +2270,8 @@ msgstr "עיינו והתקינו תוספים להרחבת האתר שלכם."
 msgid "Browse files"
 msgstr "עיון בקבצים"
 
-#: packages/admin/src/components/WordPressImport.tsx:1155
-#: packages/admin/src/components/WordPressImport.tsx:1623
+#: packages/admin/src/components/WordPressImport.tsx:1174
+#: packages/admin/src/components/WordPressImport.tsx:1648
 msgid "Browse Files"
 msgstr "עיון בקבצים"
 
@@ -2401,7 +2410,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:818
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
-#: packages/admin/src/components/FieldEditor.tsx:1379
+#: packages/admin/src/components/FieldEditor.tsx:1381
 #: packages/admin/src/components/MediaDetailPanel.tsx:1857
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
@@ -2409,7 +2418,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/MenuEditor.tsx:548
 #: packages/admin/src/components/MenuEditor.tsx:753
 #: packages/admin/src/components/MenuList.tsx:184
-#: packages/admin/src/components/PluginManager.tsx:802
+#: packages/admin/src/components/PluginManager.tsx:808
 #: packages/admin/src/components/PortableTextEditor.tsx:5719
 #: packages/admin/src/components/PortableTextEditor.tsx:5745
 #: packages/admin/src/components/PortableTextEditor.tsx:6485
@@ -2427,7 +2436,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/TaxonomyManager.tsx:1098
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
-#: packages/admin/src/components/WordPressImport.tsx:1946
+#: packages/admin/src/components/WordPressImport.tsx:1971
 msgid "Cancel"
 msgstr "ביטול"
 
@@ -2470,7 +2479,7 @@ msgstr "לא ניתן למחוק מקטעי ערכת עיצוב"
 msgid "Canonical URL"
 msgstr "URL קנוני"
 
-#: packages/admin/src/components/PluginManager.tsx:575
+#: packages/admin/src/components/PluginManager.tsx:581
 msgid "Capabilities"
 msgstr "הרשאות"
 
@@ -2501,11 +2510,11 @@ msgid "Categories"
 msgstr "קטגוריות"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1814
+#: packages/admin/src/components/WordPressImport.tsx:1839
 msgid "Categories ({0})"
 msgstr "קטגוריות ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1177
+#: packages/admin/src/components/WordPressImport.tsx:1196
 msgid "Categories & Tags"
 msgstr "קטגוריות ותגיות"
 
@@ -2550,7 +2559,7 @@ msgstr "שינוי דומיין"
 msgid "Change Favicon"
 msgstr "שינוי favicon"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:208
+#: packages/admin/src/components/settings/SeoSettings.tsx:212
 msgid "Change Image"
 msgstr "שינוי תמונה"
 
@@ -2592,7 +2601,7 @@ msgstr "השינויים בוטלו"
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
 msgstr "השינויים נשמרו, אבל ייתכן שדפים שמורים במטמון עדיין מציגים {pluralLower} ישנים. נסו שוב לרענן את המטמון."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:172
+#: packages/admin/src/components/settings/SeoSettings.tsx:176
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "תו בין כותרת העמוד לשם האתר (למשל, \"הפוסט שלי | האתר שלי\")"
 
@@ -2620,7 +2629,7 @@ msgstr "בדקו את registry.policy.minimumReleaseAge ב-astro.config.mjs, ו�
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "בדקו את registry.policy.minimumReleaseAgeExclude ב-astro.config.mjs, ולאחר מכן הפעילו מחדש את EmDash."
 
-#: packages/admin/src/components/WordPressImport.tsx:1126
+#: packages/admin/src/components/WordPressImport.tsx:1145
 msgid "Check Site"
 msgstr "בדיקת אתר"
 
@@ -2638,7 +2647,7 @@ msgstr "בדקו את החיבור ונסו שוב."
 msgid "Check your email"
 msgstr "בדקו את האימייל שלכם"
 
-#: packages/admin/src/components/WordPressImport.tsx:802
+#: packages/admin/src/components/WordPressImport.tsx:821
 msgid "Checking {urlInput}..."
 msgstr "מתבצעת בדיקה של {urlInput}..."
 
@@ -2935,6 +2944,10 @@ msgstr "סגירת חלונית"
 msgid "Close settings"
 msgstr "סגירת הגדרות"
 
+#: packages/admin/src/components/WordPressImport.tsx:93
+msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeList.tsx:388
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
 #: packages/admin/src/components/Redirects.tsx:491
@@ -2955,8 +2968,8 @@ msgstr "פעולות בלוק קוד"
 msgid "Collapse block"
 msgstr "כיווץ הבלוק"
 
-#: packages/admin/src/components/PluginManager.tsx:558
-#: packages/admin/src/components/PluginManager.tsx:563
+#: packages/admin/src/components/PluginManager.tsx:564
+#: packages/admin/src/components/PluginManager.tsx:569
 msgid "Collapse details"
 msgstr "כיווץ פרטים"
 
@@ -2992,7 +3005,7 @@ msgstr "אוספים"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "אוספים ושדות, כל התוכן כולל טיוטות, גרסאות, פוסטים מתוזמנים ופח, תרגומים, טקסונומיות, קרדיטים, קובצי מדיה, תפריטים, וידג׳טים, מקטעים, הפניות, SEO והגדרות אתר."
 
-#: packages/admin/src/components/WordPressImport.tsx:2356
+#: packages/admin/src/components/WordPressImport.tsx:2381
 msgid "Collections created:"
 msgstr "אוספים שנוצרו:"
 
@@ -3097,17 +3110,17 @@ msgstr "אשרו באמצעות Face ID, Touch ID או קוד הגישה של ה
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "אשרו באמצעות טביעת האצבע, הפנים או ה-PIN שלכם."
 
-#: packages/admin/src/components/WordPressImport.tsx:727
-#: packages/admin/src/components/WordPressImport.tsx:1083
+#: packages/admin/src/components/WordPressImport.tsx:746
+#: packages/admin/src/components/WordPressImport.tsx:1102
 msgid "Connect"
 msgstr "חיבור"
 
-#: packages/admin/src/components/WordPressImport.tsx:1536
+#: packages/admin/src/components/WordPressImport.tsx:1561
 msgid "Connect & Analyze"
 msgstr "חיבור וניתוח"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1486
+#: packages/admin/src/components/WordPressImport.tsx:1511
 msgid "Connect to {0}"
 msgstr "חיבור אל {0}"
 
@@ -3121,7 +3134,7 @@ msgstr "חיבור לכל מארח רשת וטעינת תמונות ניהול �
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "חיבור למארחי רשת וטעינת תמונות ניהול חיצוניות של תוספים"
 
-#: packages/admin/src/components/WordPressImport.tsx:1402
+#: packages/admin/src/components/WordPressImport.tsx:1427
 msgid "Connect with WordPress"
 msgstr "חיבור עם WordPress"
 
@@ -3157,11 +3170,11 @@ msgid "Content digest"
 msgstr "תמצית התוכן"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2411
+#: packages/admin/src/components/WordPressImport.tsx:2436
 msgid "Content Errors ({0})"
 msgstr "שגיאות תוכן ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1346
+#: packages/admin/src/components/WordPressImport.tsx:1371
 msgid "Content found:"
 msgstr "תוכן שנמצא:"
 
@@ -3218,7 +3231,7 @@ msgstr "תוצאות חיפוש תוכן"
 msgid "Content snapshot:"
 msgstr "תמונת מצב של תוכן:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1760
+#: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Content to Import"
 msgstr "תוכן לייבוא"
 
@@ -3240,7 +3253,7 @@ msgstr "סוגי תוכן עם אותה קבוצה חולקים תיקייה ש�
 msgid "Content using this media item may show a broken reference."
 msgstr "תוכן המשתמש בפריט מדיה זה עשוי להציג קישור שבור."
 
-#: packages/admin/src/components/WordPressImport.tsx:2339
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Content was skipped because it already exists"
 msgstr "התוכן דולג כי הוא כבר קיים"
 
@@ -3259,7 +3272,7 @@ msgstr "המשך"
 msgid "Continue →"
 msgstr "המשך ←"
 
-#: packages/admin/src/components/WordPressImport.tsx:2558
+#: packages/admin/src/components/WordPressImport.tsx:2583
 msgid "Continue Import"
 msgstr "המשך ייבוא"
 
@@ -3421,7 +3434,7 @@ msgstr "לא ניתן לבדוק את הפוסטים"
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "לא ניתן לאשר אם פריט המדיה או התיקייה שנבחרה עדיין קיימים. נסו שוב."
 
-#: packages/admin/src/components/WordPressImport.tsx:1293
+#: packages/admin/src/components/WordPressImport.tsx:1315
 msgid "Couldn't detect WordPress"
 msgstr "לא ניתן לזהות WordPress"
 
@@ -3602,7 +3615,7 @@ msgstr "יצירת {singularLower} חדש/ה"
 msgid "Create New Token"
 msgstr "יצירת אסימון חדש"
 
-#: packages/admin/src/components/WordPressImport.tsx:1530
+#: packages/admin/src/components/WordPressImport.tsx:1555
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "צרו אחד ב-WordPress: משתמשים ← פרופיל ← סיסמאות יישום"
 
@@ -3642,7 +3655,7 @@ msgstr "הוספת קשר"
 msgid "Create Relation"
 msgstr "הוספת קשר"
 
-#: packages/admin/src/components/WordPressImport.tsx:1950
+#: packages/admin/src/components/WordPressImport.tsx:1975
 msgid "Create Schema & Import"
 msgstr "יצירת סכמה וייבוא"
 
@@ -3745,7 +3758,7 @@ msgstr "נוצר בתאריך"
 msgid "Creating collections and fields"
 msgstr "יצירת אוספים ושדות"
 
-#: packages/admin/src/components/WordPressImport.tsx:913
+#: packages/admin/src/components/WordPressImport.tsx:932
 msgid "Creating collections and fields..."
 msgstr "מתבצעת יצירת אוספים ושדות..."
 
@@ -3827,7 +3840,7 @@ msgstr "מותאם אישית"
 msgid "Custom Fields"
 msgstr "שדות מותאמים אישית"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:267
+#: packages/admin/src/components/settings/SeoSettings.tsx:271
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "תוכן robots.txt מותאם אישית. השאירו ריק כדי להשתמש בברירת המחדל."
 
@@ -3835,7 +3848,7 @@ msgstr "תוכן robots.txt מותאם אישית. השאירו ריק כדי ל
 msgid "Custom Section"
 msgstr "מקטע מותאם אישית"
 
-#: packages/admin/src/components/WordPressImport.tsx:1178
+#: packages/admin/src/components/WordPressImport.tsx:1197
 msgid "Custom Taxonomies"
 msgstr "טקסונומיות מותאמות אישית"
 
@@ -3843,7 +3856,7 @@ msgstr "טקסונומיות מותאמות אישית"
 msgid "Daily automatic backups"
 msgstr "גיבויים אוטומטיים יומיים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1364
+#: packages/admin/src/components/FieldEditor.tsx:1366
 #: packages/admin/src/components/ImageFieldRenderer.tsx:399
 msgid "Dark mode variant"
 msgstr "גרסה למצב כהה"
@@ -3866,7 +3879,7 @@ msgid "Date"
 msgstr "תאריך"
 
 #: packages/admin/src/components/FieldEditor.tsx:420
-#: packages/admin/src/components/FieldEditor.tsx:1294
+#: packages/admin/src/components/FieldEditor.tsx:1296
 msgid "Date & Time"
 msgstr "תאריך ושעה"
 
@@ -3907,12 +3920,12 @@ msgstr "תפקיד ברירת מחדל"
 msgid "Default role:"
 msgstr "תפקיד ברירת מחדל:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:186
+#: packages/admin/src/components/settings/SeoSettings.tsx:190
 msgid "Default social image"
 msgstr "תמונה חברתית כברירת מחדל"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:46
-#: packages/admin/src/components/settings/SeoSettings.tsx:177
+#: packages/admin/src/components/settings/SeoSettings.tsx:181
 msgid "Default Social Image"
 msgstr "תמונה חברתית כברירת מחדל"
 
@@ -4259,7 +4272,7 @@ msgid "Destination path"
 msgstr "נתיב יעד"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:309
-#: packages/admin/src/components/PluginManager.tsx:620
+#: packages/admin/src/components/PluginManager.tsx:626
 msgid "Destructive"
 msgstr "הרסנית"
 
@@ -4304,11 +4317,11 @@ msgstr "ממדים:"
 msgid "Disable"
 msgstr "השבתה"
 
-#: packages/admin/src/components/PluginManager.tsx:552
+#: packages/admin/src/components/PluginManager.tsx:558
 msgid "Disable plugin"
 msgstr "השבתת תוסף"
 
-#: packages/admin/src/components/PluginManager.tsx:610
+#: packages/admin/src/components/PluginManager.tsx:616
 msgid "Disable plugin MCP tools"
 msgstr "השבתת כלי MCP של תוסף"
 
@@ -4324,14 +4337,14 @@ msgstr "השבתת משתמש"
 msgid "Disable User?"
 msgstr "להשבית משתמש?"
 
-#: packages/admin/src/components/PluginManager.tsx:445
+#: packages/admin/src/components/PluginManager.tsx:451
 #: packages/admin/src/components/Redirects.tsx:395
 #: packages/admin/src/components/users/UserDetail.tsx:213
 #: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
 msgstr "מושבת"
 
-#: packages/admin/src/components/PluginManager.tsx:670
+#: packages/admin/src/components/PluginManager.tsx:676
 msgid "Disabled:"
 msgstr "מושבת:"
 
@@ -4343,6 +4356,11 @@ msgstr "השבתת <0>{0}</0> תמנע מהם להתחבר עד להפעלה מ�
 #: packages/admin/src/routes/users.tsx:284
 msgid "Disabling..."
 msgstr "בהשבתה..."
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:276
+#: packages/admin/src/components/settings/SeoSettings.tsx:286
+msgid "Disallow AI training"
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Discard"
@@ -4482,7 +4500,7 @@ msgstr "ללא מיפוי"
 #: packages/admin/src/components/ContentList.tsx:1229
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2182
 msgid "Done"
 msgstr "סיום"
 
@@ -4540,7 +4558,7 @@ msgstr "הורדת האתר הזה כקובץ חבילה יחיד מסוג .emda
 msgid "Downloaded"
 msgstr "ההורדה הושלמה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2155
+#: packages/admin/src/components/WordPressImport.tsx:2180
 msgid "Downloading"
 msgstr "בהורדה"
 
@@ -4577,7 +4595,7 @@ msgstr "טיוטה, פורסם או בארכיון"
 msgid "Drafts"
 msgstr "טיוטות"
 
-#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1216
 msgid "Drafts & Private"
 msgstr "טיוטות ופרטי"
 
@@ -4585,7 +4603,7 @@ msgstr "טיוטות ופרטי"
 msgid "Drag and drop files here"
 msgstr "גררו ושחררו קבצים כאן"
 
-#: packages/admin/src/components/WordPressImport.tsx:1150
+#: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "גררו ושחררו או לחצו לעיון (.xml)"
 
@@ -4637,7 +4655,7 @@ msgstr "שחררו תמונה אחת בכל פעם."
 msgid "Drop to add widget"
 msgstr "שחררו להוספת וידג׳ט"
 
-#: packages/admin/src/components/WordPressImport.tsx:1617
+#: packages/admin/src/components/WordPressImport.tsx:1642
 msgid "Drop your WordPress export file here"
 msgstr "שחררו כאן את קובץ הייצוא שלכם מ-WordPress"
 
@@ -4864,11 +4882,11 @@ msgstr ""
 "מדווח/ת\n"
 "צלם/ת"
 
-#: packages/admin/src/components/FieldEditor.tsx:1367
+#: packages/admin/src/components/FieldEditor.tsx:1369
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "עורכים/ות יכולים לבחור תמונה שנייה שהאתר יציג במצב כהה."
 
-#: packages/admin/src/components/WordPressImport.tsx:1073
+#: packages/admin/src/components/WordPressImport.tsx:1092
 msgid "em1.…"
 msgstr "מזהה em1.…"
 
@@ -4970,7 +4988,7 @@ msgstr "EmDash אינו שומר את התמונה הקודמת."
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash אינו שומר את התמונה שלא נחתכה."
 
-#: packages/admin/src/components/WordPressImport.tsx:1336
+#: packages/admin/src/components/WordPressImport.tsx:1361
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "זוהה תוסף EmDash Exporter! תוכלו לייבא ישירות."
 
@@ -5014,11 +5032,11 @@ msgstr "הפעלת תגובות"
 msgid "Enable full-text search on this collection"
 msgstr "הפעלת חיפוש טקסט מלא באוסף זה"
 
-#: packages/admin/src/components/PluginManager.tsx:552
+#: packages/admin/src/components/PluginManager.tsx:558
 msgid "Enable plugin"
 msgstr "הפעלת תוסף"
 
-#: packages/admin/src/components/PluginManager.tsx:611
+#: packages/admin/src/components/PluginManager.tsx:617
 msgid "Enable plugin MCP tools"
 msgstr "הפעלת כלי MCP של תוסף"
 
@@ -5072,7 +5090,7 @@ msgstr "הזינו URL ‏(https://…) או נתיב יחסי (/…)"
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "הזינו URL תקין (למשל, https://example.com)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1409
+#: packages/admin/src/components/WordPressImport.tsx:1434
 msgid "Enter credentials manually"
 msgstr "הזינו אישורים ידנית"
 
@@ -5109,12 +5127,12 @@ msgstr "הזינו URL..."
 msgid "Enter your handle to sign in."
 msgstr "הזינו את הכינוי שלכם כדי להתחבר."
 
-#: packages/admin/src/components/WordPressImport.tsx:1488
+#: packages/admin/src/components/WordPressImport.tsx:1513
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "הזינו את אישורי ה-WordPress שלכם כדי לייבא תוכן ישירות."
 
-#: packages/admin/src/components/WordPressImport.tsx:1111
-#: packages/admin/src/components/WordPressImport.tsx:1123
+#: packages/admin/src/components/WordPressImport.tsx:1130
+#: packages/admin/src/components/WordPressImport.tsx:1142
 msgid "Enter your WordPress site URL"
 msgstr "הזינו את ה-URL של אתר ה-WordPress שלכם"
 
@@ -5146,7 +5164,7 @@ msgstr "פריט בצד המקשר"
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
-#: packages/admin/src/router.tsx:3230
+#: packages/admin/src/router.tsx:3239
 msgid "Error"
 msgstr "שגיאה"
 
@@ -5215,7 +5233,7 @@ msgstr "{pluralLower} קיימים/ות יישארו במקומם."
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "תוכן קיים מאונדקס. שינויים חדשים נמצאים במעקב אוטומטי."
 
-#: packages/admin/src/components/WordPressImport.tsx:2039
+#: packages/admin/src/components/WordPressImport.tsx:2064
 msgid "Exists"
 msgstr "קיים"
 
@@ -5231,8 +5249,8 @@ msgstr "יציאה ממצב ללא הסחות דעת (⌘⇧\\)"
 msgid "Expand block"
 msgstr "הרחבת הבלוק"
 
-#: packages/admin/src/components/PluginManager.tsx:558
-#: packages/admin/src/components/PluginManager.tsx:563
+#: packages/admin/src/components/PluginManager.tsx:564
+#: packages/admin/src/components/PluginManager.tsx:569
 msgid "Expand details"
 msgstr "הרחבת פרטים"
 
@@ -5254,7 +5272,7 @@ msgstr "תפוגה"
 msgid "Export"
 msgstr "ייצוא"
 
-#: packages/admin/src/components/WordPressImport.tsx:1302
+#: packages/admin/src/components/WordPressImport.tsx:1327
 msgid "Export from WordPress manually"
 msgstr "ייצוא ידני מ-WordPress"
 
@@ -5270,7 +5288,7 @@ msgstr "ייצוא שהתבקש על ידי {requester}"
 msgid "Export site"
 msgstr "ייצוא האתר"
 
-#: packages/admin/src/components/WordPressImport.tsx:1426
+#: packages/admin/src/components/WordPressImport.tsx:1451
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "ייצאו את התוכן שלכם מ-WordPress כדי לייבא הכול, כולל טיוטות."
 
@@ -5304,7 +5322,7 @@ msgstr "כישלון"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2159
+#: packages/admin/src/components/WordPressImport.tsx:2184
 msgid "Failed"
 msgstr "נכשל"
 
@@ -5340,8 +5358,8 @@ msgstr ""
 msgid "Failed to analyze import"
 msgstr "ניתוח הייבוא נכשל"
 
-#: packages/admin/src/components/WordPressImport.tsx:421
-#: packages/admin/src/lib/api/import.ts:766
+#: packages/admin/src/components/WordPressImport.tsx:433
+#: packages/admin/src/lib/api/import.ts:768
 msgid "Failed to analyze WordPress site"
 msgstr "ניתוח אתר WordPress נכשל"
 
@@ -5353,7 +5371,7 @@ msgstr "אישור הבקשה נכשל"
 msgid "Failed to cancel import"
 msgstr "ביטול הייבוא נכשל"
 
-#: packages/admin/src/lib/api/settings.ts:118
+#: packages/admin/src/lib/api/settings.ts:119
 msgid "Failed to change the domain"
 msgstr "שינוי הדומיין נכשל"
 
@@ -5387,7 +5405,7 @@ msgid "Failed to create {0}"
 msgstr "יצירת {0} נכשלה"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:146
-#: packages/admin/src/lib/api/settings.ts:95
+#: packages/admin/src/lib/api/settings.ts:96
 msgid "Failed to create a sign-in link"
 msgstr "יצירת קישור התחברות נכשלה"
 
@@ -5465,7 +5483,7 @@ msgstr ""
 msgid "Failed to create section"
 msgstr "יצירת מקטע נכשלה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1743
+#: packages/admin/src/components/WordPressImport.tsx:1768
 msgid "Failed to create some collections"
 msgstr "יצירת חלק מהאוספים נכשלה"
 
@@ -5634,7 +5652,7 @@ msgstr "השכפול נכשל"
 msgid "Failed to duplicate content"
 msgstr ""
 
-#: packages/admin/src/lib/api/settings.ts:105
+#: packages/admin/src/lib/api/settings.ts:106
 msgid "Failed to email users"
 msgstr "שליחת האימייל למשתמשים נכשלה"
 
@@ -5651,7 +5669,7 @@ msgstr "הפעלת חיפוש נכשלה"
 msgid "Failed to enable user"
 msgstr "הפעלת משתמש נכשלה"
 
-#: packages/admin/src/components/WordPressImport.tsx:348
+#: packages/admin/src/components/WordPressImport.tsx:355
 msgid "Failed to execute import"
 msgstr "ביצוע הייבוא נכשל"
 
@@ -5844,7 +5862,7 @@ msgstr "אחזור מקטע נכשל"
 msgid "Failed to fetch sections"
 msgstr "אחזור מקטעים נכשל"
 
-#: packages/admin/src/lib/api/settings.ts:60
+#: packages/admin/src/lib/api/settings.ts:61
 msgid "Failed to fetch settings"
 msgstr "אחזור הגדרות נכשל"
 
@@ -5865,7 +5883,7 @@ msgstr ""
 msgid "Failed to fetch terms"
 msgstr "אחזור מונחים נכשל"
 
-#: packages/admin/src/lib/api/settings.ts:87
+#: packages/admin/src/lib/api/settings.ts:88
 msgid "Failed to fetch the site domain"
 msgstr "טעינת הדומיין של האתר נכשלה"
 
@@ -5934,12 +5952,12 @@ msgstr "קבלת URL להעלאה נכשלה"
 msgid "Failed to import"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:444
+#: packages/admin/src/components/WordPressImport.tsx:462
 #: packages/admin/src/lib/api/import.ts:257
 msgid "Failed to import from WordPress"
 msgstr "ייבוא מ-WordPress נכשל"
 
-#: packages/admin/src/components/WordPressImport.tsx:373
+#: packages/admin/src/components/WordPressImport.tsx:380
 #: packages/admin/src/lib/api/import.ts:534
 #: packages/admin/src/lib/api/import.ts:539
 msgid "Failed to import media"
@@ -6090,12 +6108,12 @@ msgstr "ביצוע פעולה בכמות גדולה נכשל"
 msgid "Failed to permanently delete content"
 msgstr "מחיקת תוכן לצמיתות נכשלה"
 
-#: packages/admin/src/components/WordPressImport.tsx:327
+#: packages/admin/src/components/WordPressImport.tsx:334
 #: packages/admin/src/lib/api/import.ts:390
 msgid "Failed to prepare import"
 msgstr "הכנת הייבוא נכשלה"
 
-#: packages/admin/src/lib/api/import.ts:710
+#: packages/admin/src/lib/api/import.ts:712
 msgid "Failed to probe URL"
 msgstr ""
 
@@ -6111,6 +6129,10 @@ msgstr ""
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "קריאת השימוש בשדה קרדיט נכשלה"
+
+#: packages/admin/src/router.tsx:2778
+msgid "Failed to register {slug}"
+msgstr ""
 
 #: packages/admin/src/lib/api/schema.ts:548
 msgid "Failed to register orphaned table"
@@ -6184,14 +6206,14 @@ msgstr "שחזור גרסה נכשל"
 msgid "Failed to revoke API token"
 msgstr "ביטול אסימון API נכשל"
 
-#: packages/admin/src/components/WordPressImport.tsx:386
-#: packages/admin/src/lib/api/import.ts:727
+#: packages/admin/src/components/WordPressImport.tsx:393
+#: packages/admin/src/lib/api/import.ts:729
 msgid "Failed to rewrite URLs"
 msgstr "כתיבה מחדש של כתובות URL נכשלה"
 
 #: packages/admin/src/router.tsx:843
 #: packages/admin/src/router.tsx:1245
-#: packages/admin/src/router.tsx:2954
+#: packages/admin/src/router.tsx:2963
 msgid "Failed to save"
 msgstr "השמירה נכשלה"
 
@@ -6205,7 +6227,7 @@ msgstr "שמירת שדה נכשלה"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:133
-#: packages/admin/src/components/settings/SeoSettings.tsx:81
+#: packages/admin/src/components/settings/SeoSettings.tsx:85
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
 msgstr "שמירת הגדרות נכשלה"
@@ -6331,7 +6353,7 @@ msgstr ""
 msgid "Failed to update menu item"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:326
+#: packages/admin/src/components/PluginManager.tsx:332
 #: packages/admin/src/lib/api/marketplace.ts:373
 #: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
@@ -6357,7 +6379,7 @@ msgstr ""
 msgid "Failed to update section"
 msgstr "עדכון מקטע נכשל"
 
-#: packages/admin/src/lib/api/settings.ts:72
+#: packages/admin/src/lib/api/settings.ts:73
 msgid "Failed to update settings"
 msgstr "עדכון הגדרות נכשל"
 
@@ -6415,11 +6437,11 @@ msgstr "שאלות נפוצות"
 msgid "Favicon"
 msgstr "סמל אתר"
 
-#: packages/admin/src/components/WordPressImport.tsx:1211
+#: packages/admin/src/components/WordPressImport.tsx:1230
 msgid "Feature"
 msgstr "תכונה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1179
+#: packages/admin/src/components/WordPressImport.tsx:1198
 msgid "Featured Images"
 msgstr "תמונות ראשיות"
 
@@ -6428,7 +6450,7 @@ msgstr "תמונות ראשיות"
 msgid "Features"
 msgstr "תכונות"
 
-#: packages/admin/src/components/WordPressImport.tsx:837
+#: packages/admin/src/components/WordPressImport.tsx:856
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "מתבצע אחזור תוכן מ-API של EmDash Exporter."
 
@@ -6440,7 +6462,7 @@ msgstr "השדה נוצר"
 msgid "Field deleted"
 msgstr "השדה נמחק"
 
-#: packages/admin/src/components/FieldEditor.tsx:1262
+#: packages/admin/src/components/FieldEditor.tsx:1263
 msgid "Field label"
 msgstr "תווית שדה"
 
@@ -6460,7 +6482,7 @@ msgstr "לא ניתן לשנות סוג שדה לאחר היצירה."
 msgid "Field updated"
 msgstr "השדה עודכן"
 
-#: packages/admin/src/components/FieldEditor.tsx:1277
+#: packages/admin/src/components/FieldEditor.tsx:1279
 msgid "field_slug"
 msgstr ""
 
@@ -6470,7 +6492,7 @@ msgstr ""
 msgid "Fields"
 msgstr "שדות"
 
-#: packages/admin/src/components/WordPressImport.tsx:2362
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Fields created:"
 msgstr "שדות שנוצרו:"
 
@@ -6479,7 +6501,7 @@ msgid "File"
 msgstr "קובץ"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2187
+#: packages/admin/src/components/WordPressImport.tsx:2212
 msgid "File {0}"
 msgstr "קובץ {0}"
 
@@ -6643,11 +6665,11 @@ msgstr "ניווט תיקיות"
 msgid "Fonts"
 msgstr "גופנים"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1452
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "לייבוא מלא הכולל טיוטות וכל התוכן, ייצאו מ-WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:67
+#: packages/admin/src/components/WordPressImport.tsx:68
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "לחוויית הייבוא הטובה ביותר, התקינו את תוסף <0>EmDash Exporter</0> באתר ה-WordPress שלכם."
 
@@ -6685,7 +6707,7 @@ msgid "From URL"
 msgstr "מ-URL"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1186
+#: packages/admin/src/components/WordPressImport.tsx:1205
 msgid "Full"
 msgstr "מלא"
 
@@ -6744,8 +6766,8 @@ msgstr "מעבר"
 msgid "Go live {countdown}"
 msgstr "יתפרסמו {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2447
-#: packages/admin/src/router.tsx:3250
+#: packages/admin/src/components/WordPressImport.tsx:2472
+#: packages/admin/src/router.tsx:3259
 msgid "Go to Dashboard"
 msgstr "מעבר ללוח הבקרה"
 
@@ -6761,8 +6783,8 @@ msgstr "יתפרסם"
 msgid "Goes live {countdown}"
 msgstr "יתפרסם {countdown}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:244
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:248
 msgid "Google Verification"
 msgstr "אימות Google"
 
@@ -6933,7 +6955,7 @@ msgstr "בית"
 msgid "Homepage"
 msgstr "דף הבית"
 
-#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/PluginManager.tsx:490
 msgid "Hooks"
 msgstr "Hooks של תוסף"
 
@@ -6959,7 +6981,7 @@ msgstr "איך נוצר ה-slug?"
 msgid "How many"
 msgstr "כמה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1549
+#: packages/admin/src/components/WordPressImport.tsx:1574
 msgid "How to create an Application Password"
 msgstr "כיצד ליצור סיסמת יישום"
 
@@ -7007,7 +7029,7 @@ msgstr "https://example.com/blog/my-post"
 msgid "https://example.com/image.jpg"
 msgstr "דוגמה: https://example.com/image.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1138
 msgid "https://yoursite.com"
 msgstr "האתר שלכם: https://yoursite.com"
 
@@ -7060,7 +7082,7 @@ msgstr "תמונה"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:444
-#: packages/admin/src/components/FieldEditor.tsx:1297
+#: packages/admin/src/components/FieldEditor.tsx:1299
 #: packages/admin/src/components/PortableTextEditor.tsx:3648
 msgid "Image"
 msgstr "תמונה"
@@ -7137,12 +7159,12 @@ msgstr "תמונות"
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:506
-#: packages/admin/src/components/WordPressImport.tsx:764
+#: packages/admin/src/components/WordPressImport.tsx:783
 msgid "Import"
 msgstr "ייבוא"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:1987
+#: packages/admin/src/components/WordPressImport.tsx:2012
 msgid "Import {0}"
 msgstr "ייבוא {0}"
 
@@ -7154,7 +7176,7 @@ msgstr "ייבוא חבילת אתר"
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "ייבוא חבילת אתר לאתר הזה כל עוד הוא ריק, תוך דריסת ההגדרה הראשונית שלו. ההרשאה מנהל/ת כוללת זאת; בחרו בה במקום מנהל/ת כדי לתת לסוכן גישה מצומצמת יותר."
 
-#: packages/admin/src/components/WordPressImport.tsx:1395
+#: packages/admin/src/components/WordPressImport.tsx:1420
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "ייבאו ישירות את כל התוכן, כולל טיוטות, סוגי פוסטים מותאמים אישית, שדות ACF ונתוני SEO. אין צורך בהורדת קובץ."
 
@@ -7162,11 +7184,11 @@ msgstr "ייבאו ישירות את כל התוכן, כולל טיוטות, ס�
 msgid "Import an existing EmDash site"
 msgstr "ייבוא אתר EmDash קיים"
 
-#: packages/admin/src/components/WordPressImport.tsx:2445
+#: packages/admin/src/components/WordPressImport.tsx:2470
 msgid "Import Another File"
 msgstr "ייבוא קובץ נוסף"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1224
 msgid "Import Capabilities"
 msgstr "ייבוא הרשאות"
 
@@ -7175,31 +7197,31 @@ msgstr "ייבוא הרשאות"
 msgid "Import complete"
 msgstr "הייבוא הושלם"
 
-#: packages/admin/src/components/WordPressImport.tsx:2333
+#: packages/admin/src/components/WordPressImport.tsx:2358
 msgid "Import Complete"
 msgstr "הייבוא הושלם"
 
-#: packages/admin/src/components/WordPressImport.tsx:2334
+#: packages/admin/src/components/WordPressImport.tsx:2359
 msgid "Import Completed with Errors"
 msgstr "הייבוא הושלם עם שגיאות"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Import failed"
 msgstr "הייבוא נכשל"
 
-#: packages/admin/src/components/WordPressImport.tsx:717
+#: packages/admin/src/components/WordPressImport.tsx:736
 msgid "Import from WordPress"
 msgstr "ייבוא מ-WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:2136
+#: packages/admin/src/components/WordPressImport.tsx:2161
 msgid "Import Media"
 msgstr "ייבוא מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2089
+#: packages/admin/src/components/WordPressImport.tsx:2114
 msgid "Import Media Files"
 msgstr "ייבוא קובצי מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:719
+#: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "ייבאו פוסטים, עמודים וסוגי פוסטים מותאמים אישית מ-WordPress."
 
@@ -7207,7 +7229,7 @@ msgstr "ייבאו פוסטים, עמודים וסוגי פוסטים מותאמ
 msgid "Import requested by {requester}"
 msgstr "ייבוא שהתבקש על ידי {requester}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1843
+#: packages/admin/src/components/WordPressImport.tsx:1868
 msgid "Import site configuration from WordPress."
 msgstr "ייבאו תצורת אתר מ-WordPress."
 
@@ -7215,7 +7237,7 @@ msgstr "ייבאו תצורת אתר מ-WordPress."
 msgid "Import this package?"
 msgstr "לייבא את החבילה הזו?"
 
-#: packages/admin/src/components/WordPressImport.tsx:1393
+#: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Import via EmDash Exporter"
 msgstr "ייבוא באמצעות EmDash Exporter"
 
@@ -7223,7 +7245,7 @@ msgstr "ייבוא באמצעות EmDash Exporter"
 msgid "Imported"
 msgstr "יובא"
 
-#: packages/admin/src/components/WordPressImport.tsx:2373
+#: packages/admin/src/components/WordPressImport.tsx:2398
 msgid "Imported by Collection"
 msgstr "יובא לפי אוסף"
 
@@ -7232,7 +7254,7 @@ msgid "Importing"
 msgstr "בייבוא"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:930
+#: packages/admin/src/components/WordPressImport.tsx:949
 msgid "Importing comments... {0}"
 msgstr "מתבצע ייבוא תגובות... {0}"
 
@@ -7240,25 +7262,25 @@ msgstr "מתבצע ייבוא תגובות... {0}"
 msgid "Importing content"
 msgstr "ייבוא תוכן"
 
-#: packages/admin/src/components/WordPressImport.tsx:948
+#: packages/admin/src/components/WordPressImport.tsx:967
 msgid "Importing content..."
 msgstr "מתבצע ייבוא תוכן..."
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:928
+#: packages/admin/src/components/WordPressImport.tsx:947
 msgid "Importing content... {0}"
 msgstr "מתבצע ייבוא תוכן... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:927
+#: packages/admin/src/components/WordPressImport.tsx:946
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "מתבצע ייבוא תוכן... {0} מתוך {totalSelectedPosts}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2168
+#: packages/admin/src/components/WordPressImport.tsx:2193
 msgid "Importing Media"
 msgstr "מתבצע ייבוא מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:931
+#: packages/admin/src/components/WordPressImport.tsx:950
 msgid "Importing menus and site settings..."
 msgstr "מתבצע ייבוא תפריטים והגדרות אתר..."
 
@@ -7266,7 +7288,7 @@ msgstr "מתבצע ייבוא תפריטים והגדרות אתר..."
 msgid "Importing menus, widgets, and settings"
 msgstr "ייבוא תפריטים, וידג׳טים והגדרות"
 
-#: packages/admin/src/components/WordPressImport.tsx:932
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Importing reusable blocks..."
 msgstr "מתבצע ייבוא בלוקים לשימוש חוזר..."
 
@@ -7295,7 +7317,7 @@ msgstr "הכללת תגובות"
 msgid "Include inferred bylines"
 msgstr "הכללת קרדיטים שהוסקו"
 
-#: packages/admin/src/components/WordPressImport.tsx:2009
+#: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Incompatible"
 msgstr "לא תואם"
 
@@ -7434,7 +7456,7 @@ msgstr "התקינו והפעילו תוסף ספק אימייל כדי לאפש
 msgid "Install blocked"
 msgstr "ההתקנה נחסמה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1067
+#: packages/admin/src/components/WordPressImport.tsx:1086
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "התקינו את תוסף EmDash Exporter באתר ה-WordPress שלכם וצרו מפתח תחת כלים ← EmDash Migration."
 
@@ -7454,11 +7476,11 @@ msgid "Installed"
 msgstr "מותקן"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/PluginManager.tsx:645
 msgid "Installed from marketplace (v{0})"
 msgstr "הותקן מחנות התוספים (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:658
+#: packages/admin/src/components/PluginManager.tsx:664
 msgid "Installed:"
 msgstr "מותקן:"
 
@@ -7467,7 +7489,7 @@ msgid "Installing..."
 msgstr "בהתקנה..."
 
 #: packages/admin/src/components/FieldEditor.tsx:408
-#: packages/admin/src/components/FieldEditor.tsx:1292
+#: packages/admin/src/components/FieldEditor.tsx:1294
 msgid "Integer"
 msgstr "מספר שלם"
 
@@ -7639,7 +7661,7 @@ msgstr "שמירת הערך של האתר הזה (ריק)"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "שמירת הערך של האתר הזה: “{targetValue}”"
 
-#: packages/admin/src/components/WordPressImport.tsx:944
+#: packages/admin/src/components/WordPressImport.tsx:963
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "השאירו לשונית זו פתוחה. הייבוא מתבצע בצעדים קטנים וניתן להריצו שוב בבטחה אם הופסק."
 
@@ -7698,7 +7720,7 @@ msgstr "כותרת מקטע גדולה"
 msgid "Last edited"
 msgstr "נערך לאחרונה"
 
-#: packages/admin/src/components/PluginManager.tsx:664
+#: packages/admin/src/components/PluginManager.tsx:670
 msgid "Last enabled:"
 msgstr "הופעל לאחרונה:"
 
@@ -7745,7 +7767,7 @@ msgstr "למדו איך להתקין תוספים ב<0>תיעוד<1/></0>."
 msgid "Learn more"
 msgstr "מידע נוסף"
 
-#: packages/admin/src/components/WordPressImport.tsx:2526
+#: packages/admin/src/components/WordPressImport.tsx:2551
 msgid "Leave unassigned"
 msgstr "השארה ללא שיוך"
 
@@ -7916,7 +7938,7 @@ msgid "Load preview"
 msgstr "טעינת תצוגה מקדימה"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3205
+#: packages/admin/src/router.tsx:3214
 msgid "Loading"
 msgstr "בטעינה"
 
@@ -7945,8 +7967,8 @@ msgstr "מתבצעת טעינת אוספים..."
 msgid "Loading comments..."
 msgstr "מתבצעת טעינת תגובות..."
 
-#: packages/admin/src/router.tsx:3207
-#: packages/admin/src/router.tsx:3219
+#: packages/admin/src/router.tsx:3216
+#: packages/admin/src/router.tsx:3228
 msgid "Loading configuration..."
 msgstr "מתבצעת טעינת תצורה..."
 
@@ -8020,7 +8042,7 @@ msgstr "מתבצעת טעינת מקטעים..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:133
+#: packages/admin/src/components/settings/SeoSettings.tsx:137
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
 msgstr "מתבצעת טעינת הגדרות..."
@@ -8134,7 +8156,7 @@ msgstr "התנתקות"
 msgid "Logo"
 msgstr "לוגו"
 
-#: packages/admin/src/components/WordPressImport.tsx:1861
+#: packages/admin/src/components/WordPressImport.tsx:1886
 msgid "Logo & favicon"
 msgstr "לוגו וסמל אתר"
 
@@ -8143,7 +8165,7 @@ msgid "Long text"
 msgstr "טקסט ארוך"
 
 #: packages/admin/src/components/FieldEditor.tsx:396
-#: packages/admin/src/components/FieldEditor.tsx:1290
+#: packages/admin/src/components/FieldEditor.tsx:1292
 msgid "Long Text"
 msgstr "טקסט ארוך"
 
@@ -8227,12 +8249,12 @@ msgstr ""
 msgid "Manual"
 msgstr "ידני"
 
-#: packages/admin/src/components/WordPressImport.tsx:2483
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Map Authors"
 msgstr "מיפוי כותבים/ות"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2531
+#: packages/admin/src/components/WordPressImport.tsx:2556
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "מיפוי משתמש WordPress {0} למשתמש EmDash"
 
@@ -8254,7 +8276,7 @@ msgid "Markdown"
 msgstr "תחביר Markdown"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:446
+#: packages/admin/src/components/PluginManager.tsx:452
 msgid "Marketplace"
 msgstr "חנות התוספים"
 
@@ -8278,7 +8300,7 @@ msgstr ""
 msgid "Matched by email"
 msgstr "הותאם לפי אימייל"
 
-#: packages/admin/src/components/FieldEditor.tsx:1342
+#: packages/admin/src/components/FieldEditor.tsx:1344
 msgid "Max Items"
 msgstr "מספר פריטים מרבי"
 
@@ -8311,9 +8333,9 @@ msgstr "תחביר MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:428
-#: packages/admin/src/components/WordPressImport.tsx:778
-#: packages/admin/src/components/WordPressImport.tsx:1176
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:797
+#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1388
 msgid "Media"
 msgstr "מדיה"
 
@@ -8322,7 +8344,7 @@ msgid "Media details"
 msgstr "פרטי מדיה"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2429
+#: packages/admin/src/components/WordPressImport.tsx:2454
 msgid "Media Errors ({0})"
 msgstr "שגיאות מדיה ({0})"
 
@@ -8331,15 +8353,15 @@ msgstr "שגיאות מדיה ({0})"
 msgid "Media folders"
 msgstr "תיקיות מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2391
+#: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "Media Import"
 msgstr "ייבוא מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2332
+#: packages/admin/src/components/WordPressImport.tsx:2357
 msgid "Media Import Complete"
 msgstr "ייבוא המדיה הושלם"
 
-#: packages/admin/src/components/WordPressImport.tsx:2343
+#: packages/admin/src/components/WordPressImport.tsx:2368
 msgid "Media import was skipped"
 msgstr "ייבוא המדיה דולג"
 
@@ -8465,12 +8487,12 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:445
-#: packages/admin/src/components/WordPressImport.tsx:1180
+#: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Menus"
 msgstr "תפריטים"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1796
+#: packages/admin/src/components/WordPressImport.tsx:1821
 msgid "Menus ({0})"
 msgstr "תפריטים ({0})"
 
@@ -8487,15 +8509,15 @@ msgstr "מיזוג תאים נבחרים"
 msgid "Meta Description"
 msgstr "תיאור meta"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:255
+#: packages/admin/src/components/settings/SeoSettings.tsx:259
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "תוכן תגית meta לאימות Bing Webmaster Tools"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:247
+#: packages/admin/src/components/settings/SeoSettings.tsx:251
 msgid "Meta tag content for Google Search Console verification"
 msgstr "תוכן תגית meta לאימות Google Search Console"
 
-#: packages/admin/src/components/WordPressImport.tsx:1874
+#: packages/admin/src/components/WordPressImport.tsx:1899
 msgid "Meta titles, descriptions, and social images"
 msgstr "כותרות meta, תיאורים ותמונות חברתיות"
 
@@ -8503,11 +8525,11 @@ msgstr "כותרות meta, תיאורים ותמונות חברתיות"
 msgid "Migration guide"
 msgstr "מדריך העברה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1080
+#: packages/admin/src/components/WordPressImport.tsx:1099
 msgid "Migration key"
 msgstr "מפתח העברה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1335
+#: packages/admin/src/components/FieldEditor.tsx:1337
 msgid "Min Items"
 msgstr "מספר פריטים מזערי"
 
@@ -8848,7 +8870,7 @@ msgstr "קרדיט חדש"
 msgid "New byline field"
 msgstr "שדה קרדיט חדש"
 
-#: packages/admin/src/components/WordPressImport.tsx:2011
+#: packages/admin/src/components/WordPressImport.tsx:2036
 msgid "New collection"
 msgstr "אוסף חדש"
 
@@ -8924,7 +8946,7 @@ msgstr "החדש ביותר"
 msgid "News"
 msgstr "חדשות"
 
-#: packages/admin/src/components/FieldEditor.tsx:1382
+#: packages/admin/src/components/FieldEditor.tsx:1384
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "הבא"
@@ -9092,7 +9114,7 @@ msgstr "לא הוגדר ספק אימייל"
 msgid "No email provider configured. Share this link manually."
 msgstr "לא הוגדר ספק אימייל. שתפו את הקישור הזה ידנית."
 
-#: packages/admin/src/components/WordPressImport.tsx:2545
+#: packages/admin/src/components/WordPressImport.tsx:2570
 msgid "No EmDash users found"
 msgstr "לא נמצאו משתמשי EmDash"
 
@@ -9165,7 +9187,7 @@ msgstr "לא סופק אסימון הזמנה"
 msgid "No items yet"
 msgstr "עדיין אין פריטים"
 
-#: packages/admin/src/components/FieldEditor.tsx:1346
+#: packages/admin/src/components/FieldEditor.tsx:1348
 msgid "No limit"
 msgstr "ללא מגבלה"
 
@@ -9434,7 +9456,7 @@ msgid "Now · {time}"
 msgstr "עכשיו · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:402
-#: packages/admin/src/components/FieldEditor.tsx:1291
+#: packages/admin/src/components/FieldEditor.tsx:1293
 msgid "Number"
 msgstr "מספר"
 
@@ -9452,7 +9474,7 @@ msgstr "מספר הפוסטים להצגה בכל עמוד בתצוגות רשי
 msgid "Numbered List"
 msgstr "רשימה ממוספרת"
 
-#: packages/admin/src/components/WordPressImport.tsx:522
+#: packages/admin/src/components/WordPressImport.tsx:541
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "הרשאת OAuth דורשת HTTPS. השתמשו באישורים ידניים."
 
@@ -9572,7 +9594,7 @@ msgstr "פתחו את דף ההתחברות בכתובת החדשה:"
 msgid "Open Windows settings"
 msgstr "פתיחת הגדרות Windows"
 
-#: packages/admin/src/components/WordPressImport.tsx:1563
+#: packages/admin/src/components/WordPressImport.tsx:1588
 msgid "Open WordPress Profile"
 msgstr "פתיחת פרופיל WordPress"
 
@@ -9620,11 +9642,11 @@ msgstr "אפשרויות (אחת בכל שורה)"
 msgid "Or browse files from your computer"
 msgstr "או עיינו בקבצים מהמחשב שלכם"
 
-#: packages/admin/src/components/WordPressImport.tsx:1619
+#: packages/admin/src/components/WordPressImport.tsx:1644
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "או לחצו לעיון. מתקבל קובץ .xml שיוצא מ-WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:1100
+#: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "or connect by URL"
 msgstr "או התחברו באמצעות URL"
 
@@ -9634,11 +9656,11 @@ msgstr "או התחברו באמצעות URL"
 msgid "Or continue with"
 msgstr "או המשיכו עם"
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Or upload an export file"
 msgstr "או העלו קובץ ייצוא"
 
-#: packages/admin/src/components/WordPressImport.tsx:1138
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "or upload directly"
 msgstr "או העלו ישירות"
 
@@ -9694,7 +9716,7 @@ msgstr "מחליף את כותרת העמוד בתוצאות מנועי חיפו
 msgid "Ownership"
 msgstr "בעלות"
 
-#: packages/admin/src/components/PluginManager.tsx:648
+#: packages/admin/src/components/PluginManager.tsx:654
 msgid "Package"
 msgstr "חבילה"
 
@@ -9708,7 +9730,7 @@ msgstr "תמצית החבילה"
 msgid "Package downloaded"
 msgstr "החבילה הורדה"
 
-#: packages/admin/src/router.tsx:3245
+#: packages/admin/src/router.tsx:3254
 msgid "Page Not Found"
 msgstr "העמוד לא נמצא"
 
@@ -9722,8 +9744,8 @@ msgstr "מספר עמוד"
 msgid "Page size"
 msgstr "גודל עמוד"
 
-#: packages/admin/src/components/PluginManager.tsx:472
-#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "עמודים"
 
@@ -9750,7 +9772,7 @@ msgstr "הורה"
 msgid "Part of a redirect loop"
 msgstr "חלק מלולאת הפניות"
 
-#: packages/admin/src/components/WordPressImport.tsx:1184
+#: packages/admin/src/components/WordPressImport.tsx:1203
 msgid "Partial"
 msgstr "חלקי"
 
@@ -9838,7 +9860,7 @@ msgstr "מפתחות גישה דורשים HTTPS או http://localhost (עם ה�
 msgid "Paste an embed code or an https link…"
 msgstr "הדביקו קוד הטמעה או קישור https…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1065
+#: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "Paste your migration key"
 msgstr "הדביקו את מפתח ההעברה שלכם"
 
@@ -9925,7 +9947,7 @@ msgstr "שפת PHP"
 msgid "Picked up {label}."
 msgstr "{label} נאסף."
 
-#: packages/admin/src/components/FieldEditor.tsx:1450
+#: packages/admin/src/components/FieldEditor.tsx:1452
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "בחירת הפריטים שהפריט הזה מקשר אליהם מאפשרת לעורכים לגרור אותם לסדר הרצוי. הכיוון השני מציג את כל מה שמצביע על הפריט, ואי אפשר לשנות את הסדר שלו."
 
@@ -9965,7 +9987,7 @@ msgstr "הזינו כתובת אימייל תקינה"
 msgid "Please enter a valid URL"
 msgstr "הזינו URL תקין"
 
-#: packages/admin/src/components/WordPressImport.tsx:1213
+#: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "Plugin"
 msgstr "תוסף"
 
@@ -10019,7 +10041,7 @@ msgstr "שגיאת תוסף ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "התקנת תוסף דורשת הסכמה מפורשת"
 
-#: packages/admin/src/components/PluginManager.tsx:395
+#: packages/admin/src/components/PluginManager.tsx:401
 msgid "Plugin MCP access updated"
 msgstr "גישת MCP של תוסף עודכנה"
 
@@ -10040,7 +10062,7 @@ msgstr "התוסף לא נמצא"
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr "התוסף לא נמצא. ייתכן שהמפרסם או ה-slug אינם תקינים."
 
-#: packages/admin/src/components/PluginManager.tsx:541
+#: packages/admin/src/components/PluginManager.tsx:547
 msgid "Plugin pages"
 msgstr "עמודי תוסף"
 
@@ -10078,7 +10100,7 @@ msgstr "התוסף השיב עם {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr "כלי תוסף: {0}"
 
-#: packages/admin/src/components/PluginManager.tsx:384
+#: packages/admin/src/components/PluginManager.tsx:390
 msgid "Plugin uninstalled"
 msgstr "התוסף הוסר"
 
@@ -10087,7 +10109,7 @@ msgstr "התוסף הוסר"
 msgid "Plugin update requires re-consent"
 msgstr "עדכון תוסף דורש הסכמה מחדש"
 
-#: packages/admin/src/components/PluginManager.tsx:293
+#: packages/admin/src/components/PluginManager.tsx:299
 msgid "Plugin updated"
 msgstr "התוסף עודכן"
 
@@ -10131,11 +10153,11 @@ msgstr "כתובות URL של פוסטים (אחת בכל שורה)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:479
 #: packages/admin/src/components/RelationForm.tsx:297
-#: packages/admin/src/components/WordPressImport.tsx:1351
+#: packages/admin/src/components/WordPressImport.tsx:1376
 msgid "Posts"
 msgstr "פוסטים"
 
-#: packages/admin/src/components/WordPressImport.tsx:1175
+#: packages/admin/src/components/WordPressImport.tsx:1194
 msgid "Posts & Pages"
 msgstr "פוסטים ועמודים"
 
@@ -10147,7 +10169,7 @@ msgstr "פוסטים בכל עמוד"
 msgid "Pre-release"
 msgstr "קדם-הפצה"
 
-#: packages/admin/src/components/WordPressImport.tsx:924
+#: packages/admin/src/components/WordPressImport.tsx:943
 msgid "Preparing categories and tags..."
 msgstr "מתבצעת הכנת קטגוריות ותגיות..."
 
@@ -10159,7 +10181,7 @@ msgstr "ההרשמה מוכנה..."
 msgid "Preparing this site"
 msgstr "מתבצעת הכנת האתר"
 
-#: packages/admin/src/components/WordPressImport.tsx:2208
+#: packages/admin/src/components/WordPressImport.tsx:2233
 msgid "Preparing to download files from WordPress..."
 msgstr "מתבצעת הכנה להורדת קבצים מ-WordPress..."
 
@@ -10416,7 +10438,7 @@ msgstr "יצירה מהירה נותנת לקשר שם לפי השדה הזה ו
 msgid "Quote"
 msgstr "ציטוט"
 
-#: packages/admin/src/components/WordPressImport.tsx:1193
+#: packages/admin/src/components/WordPressImport.tsx:1212
 msgid "Raw meta"
 msgstr "meta גולמי"
 
@@ -10507,7 +10529,7 @@ msgstr "מתבצעת קריאת החבילה"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2015
+#: packages/admin/src/components/WordPressImport.tsx:2040
 msgid "Ready"
 msgstr "מוכן"
 
@@ -10649,7 +10671,7 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "ההרשמה בוטלה או שתם זמנה. נסו שוב."
 
 #: packages/admin/src/components/PluginManager.tsx:210
-#: packages/admin/src/components/PluginManager.tsx:447
+#: packages/admin/src/components/PluginManager.tsx:453
 #: packages/admin/src/components/Sidebar.tsx:497
 msgid "Registry"
 msgstr "רישום"
@@ -10712,7 +10734,7 @@ msgstr "הסרה"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
-#: packages/admin/src/components/settings/SeoSettings.tsx:217
+#: packages/admin/src/components/settings/SeoSettings.tsx:221
 msgid "Remove"
 msgstr "הסרה"
 
@@ -10801,7 +10823,7 @@ msgstr "להסיר מפתח גישה?"
 msgid "Remove schedule"
 msgstr "הסרת תזמון"
 
-#: packages/admin/src/components/FieldEditor.tsx:1325
+#: packages/admin/src/components/FieldEditor.tsx:1327
 msgid "Remove sub-field"
 msgstr "הסרת שדה משנה"
 
@@ -10980,12 +11002,12 @@ msgstr "דרישת slug לפני שניתן לפרסם תוכן"
 #: packages/admin/src/components/BylineFieldEditor.tsx:275
 #: packages/admin/src/components/ContentTypeEditor.tsx:949
 #: packages/admin/src/components/FieldEditor.tsx:866
-#: packages/admin/src/components/FieldEditor.tsx:1307
+#: packages/admin/src/components/FieldEditor.tsx:1309
 #: packages/admin/src/routes/byline-schema.tsx:246
 msgid "Required"
 msgstr "נדרש"
 
-#: packages/admin/src/components/WordPressImport.tsx:2028
+#: packages/admin/src/components/WordPressImport.tsx:2053
 msgid "Required fields:"
 msgstr "שדות נדרשים:"
 
@@ -11137,7 +11159,7 @@ msgstr "הוצא משימוש"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3233
+#: packages/admin/src/router.tsx:3242
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
@@ -11192,7 +11214,7 @@ msgstr "בלוקי תוכן לשימוש חוזר שניתן להוסיף לכל
 msgid "Reverted to published version"
 msgstr "הוחזר לגרסה שפורסמה"
 
-#: packages/admin/src/components/WordPressImport.tsx:750
+#: packages/admin/src/components/WordPressImport.tsx:769
 msgid "Review"
 msgstr "סקירה"
 
@@ -11292,8 +11314,8 @@ msgstr "ימין"
 msgid "Risk score: {0}/100"
 msgstr "ציון סיכון: {0}/100"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:260
-#: packages/admin/src/components/settings/SeoSettings.tsx:263
+#: packages/admin/src/components/settings/SeoSettings.tsx:264
+#: packages/admin/src/components/settings/SeoSettings.tsx:267
 msgid "robots.txt"
 msgstr "קובץ robots.txt"
 
@@ -11328,7 +11350,7 @@ msgstr "ניתן לניתוב"
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:305
-#: packages/admin/src/components/PluginManager.tsx:624
+#: packages/admin/src/components/PluginManager.tsx:630
 msgid "Route: {0} · Permission: {1}"
 msgstr "נתיב: {0} · הרשאה: {1}"
 
@@ -11469,7 +11491,7 @@ msgid "Saving a collection here turns this field into an entry picker. Its store
 msgstr "שמירת אוסף כאן הופכת את השדה הזה לבורר פריטים. מזהי הפריטים השמורים בו עוברים לקשר, ולא ניתן עוד לחפש או לסנן לפי השדה."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:549
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1396
 #: packages/admin/src/components/MediaDetailPanel.tsx:1888
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
@@ -11559,11 +11581,11 @@ msgstr "פרסום מתוזמן"
 msgid "Scheduled publishing needs attention"
 msgstr "פרסום מתוזמן דורש תשומת לב"
 
-#: packages/admin/src/components/WordPressImport.tsx:2351
+#: packages/admin/src/components/WordPressImport.tsx:2376
 msgid "Schema Changes"
 msgstr "שינויי סכמה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Schema preparation failed"
 msgstr "הכנת הסכמה נכשלה"
 
@@ -11686,12 +11708,12 @@ msgstr "חיפוש תגובות..."
 msgid "Search content..."
 msgstr "חיפוש תוכן..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:166
+#: packages/admin/src/components/settings/SeoSettings.tsx:170
 msgid "Search Engine Optimization"
 msgstr "אופטימיזציה למנועי חיפוש"
 
 #: packages/admin/src/components/Settings.tsx:67
-#: packages/admin/src/components/settings/SeoSettings.tsx:123
+#: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "אופטימיזציה למנועי חיפוש ואימות"
 
@@ -11900,7 +11922,7 @@ msgstr "ראו היכן נעשה שימוש בקובץ זה."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:51
 #: packages/admin/src/components/FieldEditor.tsx:426
-#: packages/admin/src/components/FieldEditor.tsx:1295
+#: packages/admin/src/components/FieldEditor.tsx:1297
 #: packages/admin/src/components/MediaPickerModal.tsx:870
 #: packages/admin/src/components/Settings.tsx:159
 msgid "Select"
@@ -11976,7 +11998,7 @@ msgstr "בחירת תוכן"
 msgid "Select dark mode variant for {label}"
 msgstr "בחירת גרסה למצב כהה עבור {label}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:289
+#: packages/admin/src/components/settings/SeoSettings.tsx:309
 msgid "Select default social image"
 msgstr "בחירת תמונה חברתית כברירת מחדל"
 
@@ -12003,7 +12025,7 @@ msgstr "בחירת תמונות גלריה"
 msgid "Select image"
 msgstr "בחירת תמונה"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:228
+#: packages/admin/src/components/settings/SeoSettings.tsx:232
 msgid "Select Image"
 msgstr "בחירת תמונה"
 
@@ -12036,7 +12058,7 @@ msgstr "ניתן לבחור עד 50 פוסטים בכל פעם."
 msgid "Select video"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1761
+#: packages/admin/src/components/WordPressImport.tsx:1786
 msgid "Select which content types to import."
 msgstr "בחרו אילו סוגי תוכן לייבא."
 
@@ -12135,15 +12157,15 @@ msgstr "SEO"
 msgid "SEO settings"
 msgstr "הגדרות SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:122
+#: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "הגדרות SEO"
 
-#: packages/admin/src/components/WordPressImport.tsx:1872
+#: packages/admin/src/components/WordPressImport.tsx:1897
 msgid "SEO settings (Yoast)"
 msgstr "הגדרות SEO ‏(Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
 msgstr "הגדרות SEO נשמרו"
 
@@ -12216,10 +12238,10 @@ msgstr "בהגדרה..."
 #: packages/admin/src/components/ContentEditor.tsx:2026
 #: packages/admin/src/components/ContentTypeEditor.tsx:465
 #: packages/admin/src/components/Header.tsx:102
-#: packages/admin/src/components/PluginManager.tsx:530
+#: packages/admin/src/components/PluginManager.tsx:536
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:510
-#: packages/admin/src/components/WordPressImport.tsx:1840
+#: packages/admin/src/components/WordPressImport.tsx:1865
 msgid "Settings"
 msgstr "הגדרות"
 
@@ -12258,7 +12280,7 @@ msgid "Short text"
 msgstr "טקסט קצר"
 
 #: packages/admin/src/components/FieldEditor.tsx:390
-#: packages/admin/src/components/FieldEditor.tsx:1289
+#: packages/admin/src/components/FieldEditor.tsx:1291
 msgid "Short Text"
 msgstr "טקסט קצר"
 
@@ -12400,7 +12422,7 @@ msgstr "זהות האתר"
 msgid "Site Identity"
 msgstr "זהות האתר"
 
-#: packages/admin/src/components/WordPressImport.tsx:2299
+#: packages/admin/src/components/WordPressImport.tsx:2324
 msgid "site identity applied (title, tagline, logo)"
 msgstr "זהות האתר הוחלה (כותרת, סלוגן, לוגו)"
 
@@ -12423,7 +12445,7 @@ msgstr "הגדרות אתר"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1182
+#: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "הגדרות אתר"
 
@@ -12436,7 +12458,7 @@ msgstr "כותרת אתר"
 msgid "Site Title"
 msgstr "כותרת אתר"
 
-#: packages/admin/src/components/WordPressImport.tsx:1852
+#: packages/admin/src/components/WordPressImport.tsx:1877
 msgid "Site title & tagline"
 msgstr "כותרת האתר והסלוגן"
 
@@ -12477,11 +12499,11 @@ msgstr "גודל אינו רלוונטי לתיקיות"
 msgid "Size:"
 msgstr "גודל:"
 
-#: packages/admin/src/components/WordPressImport.tsx:2133
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "Skip Media Import"
 msgstr "דילוג על ייבוא מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2158
+#: packages/admin/src/components/WordPressImport.tsx:2183
 msgid "Skipped"
 msgstr "דולג"
 
@@ -12493,7 +12515,7 @@ msgstr "דולג"
 #: packages/admin/src/components/ContentTypeList.tsx:201
 #: packages/admin/src/components/FieldEditor.tsx:468
 #: packages/admin/src/components/FieldEditor.tsx:844
-#: packages/admin/src/components/FieldEditor.tsx:1265
+#: packages/admin/src/components/FieldEditor.tsx:1266
 #: packages/admin/src/components/RelationForm.tsx:322
 #: packages/admin/src/components/RelationList.tsx:90
 #: packages/admin/src/components/SectionEditor.tsx:280
@@ -12555,7 +12577,7 @@ msgstr "חלק מהתוכן מקשר לקובצי מדיה שאין באתר ה�
 msgid "Some content may not appear here yet."
 msgstr "ייתכן שחלק מהתוכן עדיין לא מופיע כאן."
 
-#: packages/admin/src/components/WordPressImport.tsx:1889
+#: packages/admin/src/components/WordPressImport.tsx:1914
 msgid "Some content types cannot be imported"
 msgstr "לא ניתן לייבא חלק מסוגי התוכן"
 
@@ -12601,7 +12623,7 @@ msgstr "מיון ערכות עיצוב"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:566
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:787
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/PluginManager.tsx:636
+#: packages/admin/src/components/PluginManager.tsx:642
 #: packages/admin/src/components/Redirects.tsx:488
 #: packages/admin/src/components/SectionEditor.tsx:315
 msgid "Source"
@@ -12658,7 +12680,7 @@ msgstr "התחלת ייבוא חדש"
 msgid "Start import"
 msgstr "התחלת ייבוא"
 
-#: packages/admin/src/components/WordPressImport.tsx:1951
+#: packages/admin/src/components/WordPressImport.tsx:1976
 msgid "Start Import"
 msgstr "התחלת ייבוא"
 
@@ -12745,15 +12767,15 @@ msgstr "נשמר לפי שפה — כל תרגום של קרדיט מקבל ער
 msgid "Strikethrough"
 msgstr "קו חוצה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1781
+#: packages/admin/src/components/WordPressImport.tsx:1806
 msgid "Structure"
 msgstr "מבנה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1214
 msgid "Structured"
 msgstr "מובנה"
 
-#: packages/admin/src/components/FieldEditor.tsx:1303
+#: packages/admin/src/components/FieldEditor.tsx:1305
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr ""
 
@@ -12854,7 +12876,7 @@ msgid "Tags"
 msgstr "תגיות"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1826
+#: packages/admin/src/components/WordPressImport.tsx:1851
 msgid "Tags ({0})"
 msgstr "תגיות ({0})"
 
@@ -13046,7 +13068,7 @@ msgstr "למכשיר לא תינתן גישה."
 msgid "The download stopped"
 msgstr "ההורדה נעצרה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1891
+#: packages/admin/src/components/WordPressImport.tsx:1916
 msgid "The existing collection has fields with incompatible types."
 msgstr "לאוסף הקיים יש שדות עם סוגים לא תואמים."
 
@@ -13249,7 +13271,7 @@ msgstr "תוכן החבילה נכתב לאתר זה. אי אפשר לבטל א�
 msgid "The package’s file index is not valid."
 msgstr "אינדקס הקבצים של החבילה אינו תקין."
 
-#: packages/admin/src/router.tsx:3247
+#: packages/admin/src/router.tsx:3256
 msgid "The page you're looking for doesn't exist."
 msgstr "העמוד שאתם מחפשים אינו קיים."
 
@@ -13287,7 +13309,7 @@ msgstr "לא ניתן לאמת את זהות המפרסם."
 msgid "The range has more entries than the calendar can show."
 msgstr "בטווח יש יותר פריטים ממה שלוח השנה יכול להציג."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:197
+#: packages/admin/src/components/settings/SeoSettings.tsx:201
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "התמונה המקושרת אינה זמינה עוד. בחרו תמונה חדשה או הסירו את הקישור."
 
@@ -13452,7 +13474,7 @@ msgstr "היום הזה לא נטען. בטווח יש יותר פריטים מ�
 msgid "This device is requesting permission to use:"
 msgstr "המכשיר הזה מבקש הרשאה להשתמש ב:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1088
+#: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "זה אינו נראה כמפתח העברה תקין. צרו מפתח חדש בתוסף והדביקו את המחרוזת המלאה המתחילה ב-\"em1.\"."
 
@@ -13523,7 +13545,7 @@ msgstr "השדה הזה מצפה לרשימה. הערך השמור יישאר ל
 msgid "This field is required"
 msgstr "שדה זה נדרש"
 
-#: packages/admin/src/components/FieldEditor.tsx:1418
+#: packages/admin/src/components/FieldEditor.tsx:1420
 msgid "This field lists entries that link to this one."
 msgstr "השדה הזה מציג פריטים שמקשרים לפריט הזה."
 
@@ -13532,16 +13554,16 @@ msgstr "השדה הזה מציג פריטים שמקשרים לפריט הזה."
 msgid "This field picks"
 msgstr "השדה הזה בוחר"
 
-#: packages/admin/src/components/FieldEditor.tsx:1417
+#: packages/admin/src/components/FieldEditor.tsx:1419
 msgid "This field picks entries this one links to."
 msgstr "השדה הזה בוחר פריטים שהפריט הזה מקשר אליהם."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1429
+#: packages/admin/src/components/FieldEditor.tsx:1431
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "בשדה הזה יוצגו <0>{0}</0> ש{linkingSide} זה מקשר אליהם"
 
-#: packages/admin/src/components/FieldEditor.tsx:1434
+#: packages/admin/src/components/FieldEditor.tsx:1436
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "בשדה הזה יוצגו <0>{linkingSide}</0> שמקשרים אל {linkedSide} זה"
 
@@ -13573,7 +13595,7 @@ msgstr "הייבוא הזה כבר התחיל"
 msgid "This is a custom section."
 msgstr "זהו מקטע מותאם אישית."
 
-#: packages/admin/src/components/WordPressImport.tsx:1337
+#: packages/admin/src/components/WordPressImport.tsx:1362
 msgid "This is a WordPress site."
 msgstr "זהו אתר WordPress."
 
@@ -13597,7 +13619,7 @@ msgstr "תוקף קישור זה יפוג בעוד 7 ימים וניתן להש�
 msgid "This link expires in 7 days."
 msgstr "תוקף הקישור יפוג בעוד 7 ימים."
 
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:968
 msgid "This may take a while for large exports."
 msgstr "פעולה זו עשויה להימשך זמן מה בייצואים גדולים."
 
@@ -13667,7 +13689,7 @@ msgstr "תוסף זה עדיין אינו זמין"
 msgid "This plugin requires no special permissions."
 msgstr "תוסף זה אינו דורש הרשאות מיוחדות."
 
-#: packages/admin/src/components/PluginManager.tsx:457
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "This publisher identity no longer resolves."
 msgstr "זהות מפרסם זו אינה נפתרת עוד."
 
@@ -13807,7 +13829,7 @@ msgstr "פעולה זו תמחק לצמיתות את \"{0}\". לא ניתן לב
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "פעולה זו תמחק תגובה זו לצמיתות. לא ניתן לבטל פעולה זו."
 
-#: packages/admin/src/components/PluginManager.tsx:791
+#: packages/admin/src/components/PluginManager.tsx:797
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "פעולה זו תסיר את התוסף ואת החבילה שלו מהאתר שלכם."
 
@@ -13848,7 +13870,7 @@ msgstr "כותרת"
 msgid "Title (Tooltip)"
 msgstr "כותרת (חלונית מידע)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:169
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Title Separator"
 msgstr "מפריד כותרות"
 
@@ -14034,7 +14056,7 @@ msgstr "נסו לשנות את החיפוש או את המסננים שלכם."
 msgid "Try again"
 msgstr "נסו שוב"
 
-#: packages/admin/src/components/WordPressImport.tsx:1611
+#: packages/admin/src/components/WordPressImport.tsx:1636
 msgid "Try Again"
 msgstr "נסו שוב"
 
@@ -14059,8 +14081,8 @@ msgstr "נסו שם קובץ אחר או נקו את החיפוש."
 msgid "Try another filename, or clear your search and filters."
 msgstr "נסו שם קובץ אחר או נקו את החיפוש והמסננים."
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
-#: packages/admin/src/components/WordPressImport.tsx:1437
+#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:1462
 msgid "Try Another URL"
 msgstr "נסו URL אחר"
 
@@ -14105,7 +14127,7 @@ msgid "Two records have the same value where it must be unique"
 msgstr "לשתי רשומות יש אותו ערך בשדה שחייב להיות ייחודי"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:255
-#: packages/admin/src/components/FieldEditor.tsx:1281
+#: packages/admin/src/components/FieldEditor.tsx:1283
 #: packages/admin/src/components/MediaLibrary.tsx:1142
 #: packages/admin/src/routes/byline-schema.tsx:240
 #: packages/admin/src/routes/bylines.tsx:343
@@ -14121,7 +14143,7 @@ msgid "Type caption for video (optional)"
 msgstr ""
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2047
+#: packages/admin/src/components/WordPressImport.tsx:2072
 msgid "Type mismatch ({0})"
 msgstr "אי-התאמת סוג ({0})"
 
@@ -14165,20 +14187,20 @@ msgid "Unfinished media uploads were left out"
 msgstr "העלאות מדיה שלא הסתיימו הושמטו"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
-#: packages/admin/src/components/PluginManager.tsx:686
-#: packages/admin/src/components/PluginManager.tsx:805
+#: packages/admin/src/components/PluginManager.tsx:692
+#: packages/admin/src/components/PluginManager.tsx:811
 msgid "Uninstall"
 msgstr "הסרה"
 
-#: packages/admin/src/components/PluginManager.tsx:789
+#: packages/admin/src/components/PluginManager.tsx:795
 msgid "Uninstall {pluginName}?"
 msgstr "להסיר את {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:784
+#: packages/admin/src/components/PluginManager.tsx:790
 msgid "Uninstall confirmation"
 msgstr "אישור הסרה"
 
-#: packages/admin/src/components/PluginManager.tsx:805
+#: packages/admin/src/components/PluginManager.tsx:811
 msgid "Uninstalling..."
 msgstr "בהסרה..."
 
@@ -14294,7 +14316,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Update Field"
 msgstr "עדכון שדה"
 
@@ -14330,7 +14352,7 @@ msgid "Update this redirect rule."
 msgstr "עדכנו כלל הפניה זה."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:522
+#: packages/admin/src/components/PluginManager.tsx:528
 msgid "Update to v{0}"
 msgstr "עדכון לגרסה v{0}"
 
@@ -14344,7 +14366,7 @@ msgstr "עודכן"
 msgid "Updated At"
 msgstr "עודכן בתאריך"
 
-#: packages/admin/src/components/WordPressImport.tsx:974
+#: packages/admin/src/components/WordPressImport.tsx:993
 msgid "Updating content URLs..."
 msgstr "מתבצע עדכון כתובות URL של תוכן..."
 
@@ -14357,7 +14379,7 @@ msgid "Updating usage"
 msgstr "מתבצע עדכון שימוש"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:353
-#: packages/admin/src/components/PluginManager.tsx:522
+#: packages/admin/src/components/PluginManager.tsx:528
 #: packages/admin/src/components/SandboxedPluginPage.tsx:161
 #: packages/admin/src/components/SandboxedPluginPage.tsx:165
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:122
@@ -14382,7 +14404,7 @@ msgstr "העלו קובץ כדי להתחיל"
 msgid "Upload a video to get started"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Upload an export file"
 msgstr "העלאת קובץ ייצוא"
 
@@ -14399,8 +14421,8 @@ msgstr "העלאה ומחיקת מדיה"
 msgid "Upload and manage media"
 msgstr "העלאה וניהול מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1313
-#: packages/admin/src/components/WordPressImport.tsx:1434
+#: packages/admin/src/components/WordPressImport.tsx:1338
+#: packages/admin/src/components/WordPressImport.tsx:1459
 msgid "Upload Export File"
 msgstr "העלאת קובץ ייצוא"
 
@@ -14452,7 +14474,7 @@ msgstr "העלאה אל {0}"
 msgid "Upload to {providerName}"
 msgstr "העלאה אל {providerName}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1149
+#: packages/admin/src/components/WordPressImport.tsx:1168
 msgid "Upload WordPress export file"
 msgstr "העלאת קובץ ייצוא מ-WordPress"
 
@@ -14466,7 +14488,7 @@ msgstr "הועלה:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2156
+#: packages/admin/src/components/WordPressImport.tsx:2181
 msgid "Uploading"
 msgstr "בהעלאה"
 
@@ -14491,7 +14513,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
-#: packages/admin/src/components/FieldEditor.tsx:1296
+#: packages/admin/src/components/FieldEditor.tsx:1298
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuEditor.tsx:719
 msgid "URL"
@@ -14595,7 +14617,7 @@ msgstr "השתמשו באימות הביומטרי, מפתח האבטחה או �
 msgid "Use your registered passkey to sign in securely."
 msgstr "השתמשו במפתח הגישה הרשום שלכם כדי להתחבר באופן מאובטח."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:178
+#: packages/admin/src/components/settings/SeoSettings.tsx:182
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "משמש כתמונת Open Graph חלופית כשלעמוד אין תמונה. גודל מומלץ: 1200×630."
 
@@ -14678,7 +14700,7 @@ msgid "v{0}"
 msgstr "גרסה {0}"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:450
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "v{0} available"
 msgstr "גרסה v{0} זמינה"
 
@@ -14843,11 +14865,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "בדקנו לפני פתיחת הנחיית מפתח הגישה של הדפדפן כדי שתוכלו לבחור מה יקרה בהמשך."
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1295
+#: packages/admin/src/components/WordPressImport.tsx:1320
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "לא הצלחנו להתחבר לאתר WordPress ב-{0}. משמעות הדבר עשויה להיות שהאתר אינו WordPress, ש-REST API מושבת או שהאתר אינו נגיש."
 
-#: packages/admin/src/components/WordPressImport.tsx:1113
+#: packages/admin/src/components/WordPressImport.tsx:1132
 msgid "We'll check what import options are available for your site."
 msgstr "נבדוק אילו אפשרויות ייבוא זמינות לאתר שלכם."
 
@@ -14894,7 +14916,7 @@ msgstr "השם של כל צד. אלה השמות של השדות המקושרי�
 msgid "What happens next?"
 msgstr "מה קורה בהמשך?"
 
-#: packages/admin/src/components/WordPressImport.tsx:2120
+#: packages/admin/src/components/WordPressImport.tsx:2145
 msgid "What happens when you import:"
 msgstr "מה קורה בעת ייבוא:"
 
@@ -14906,7 +14928,7 @@ msgstr "מהו מפתח גישה?"
 msgid "What it leaves out"
 msgstr "מה לא נכלל"
 
-#: packages/admin/src/components/FieldEditor.tsx:1463
+#: packages/admin/src/components/FieldEditor.tsx:1465
 msgid "What the direction changes"
 msgstr "מה משנה הכיוון"
 
@@ -14918,7 +14940,7 @@ msgstr "מה החבילה כוללת"
 msgid "What will be imported"
 msgstr "מה ייובא"
 
-#: packages/admin/src/components/WordPressImport.tsx:1903
+#: packages/admin/src/components/WordPressImport.tsx:1928
 msgid "What will happen when you import"
 msgstr "מה יקרה בעת ייבוא"
 
@@ -15033,12 +15055,12 @@ msgid "Widget updated"
 msgstr "הווידג׳ט עודכן"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:484
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/components/WordPressImport.tsx:1188
+#: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
 msgstr "וידג׳טים"
 
@@ -15055,7 +15077,7 @@ msgstr "רוחבים"
 msgid "Will be cleared on save"
 msgstr "יימחק בעת השמירה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2043
+#: packages/admin/src/components/WordPressImport.tsx:2068
 msgid "Will create"
 msgstr "ייצור"
 
@@ -15075,11 +15097,11 @@ msgstr "עם מפתח גישה, אין צורך לזכור סיסמאות מור
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "ללא ספק אימייל, יש לשתף קישורי הזמנה ידנית."
 
-#: packages/admin/src/components/WordPressImport.tsx:228
+#: packages/admin/src/components/WordPressImport.tsx:235
 msgid "WordPress authorization was rejected"
 msgstr "ההרשאה של WordPress נדחתה"
 
-#: packages/admin/src/components/WordPressImport.tsx:1505
+#: packages/admin/src/components/WordPressImport.tsx:1530
 msgid "WordPress Username"
 msgstr "שם משתמש WordPress"
 
@@ -15115,7 +15137,7 @@ msgstr "כתיבת תוכן וידג׳ט..."
 msgid "Writing the file index"
 msgstr "מתבצעת כתיבת אינדקס הקבצים"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "WXR File"
 msgstr "קובץ WXR"
 
@@ -15123,7 +15145,7 @@ msgstr "קובץ WXR"
 msgid "XML"
 msgstr "קובץ XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1526
+#: packages/admin/src/components/WordPressImport.tsx:1551
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "קוד לדוגמה: xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -15142,7 +15164,7 @@ msgstr "שנתי"
 msgid "Yes"
 msgstr "כן"
 
-#: packages/admin/src/components/WordPressImport.tsx:1191
+#: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Yoast/RankMath"
 msgstr "תוספי Yoast/RankMath"
 
@@ -15229,7 +15251,7 @@ msgstr "תצטרפו בתור <0>{0}</0>"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "תתבקשו להשתמש באימות הביומטרי, במפתח האבטחה או ב-PIN של המכשיר שלכם."
 
-#: packages/admin/src/components/WordPressImport.tsx:1398
+#: packages/admin/src/components/WordPressImport.tsx:1423
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "תופנו אל WordPress כדי לאשר את החיבור."
 
@@ -15363,7 +15385,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr "שינויי המדיה שלא נשמרו יאבדו."
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2091
+#: packages/admin/src/components/WordPressImport.tsx:2116
 msgid "Your WordPress export contains {0} media files."
 msgstr "ייצוא ה-WordPress שלכם מכיל {0} קובצי מדיה."
 

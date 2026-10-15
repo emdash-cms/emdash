@@ -1,7 +1,7 @@
 ---
 title: Readable revision history
 type: feature-plan
-status: accepted
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null
@@ -24,7 +24,7 @@ Clicking a version in the Revisions list shows that version in the editor, read-
 - The selected version lists what changed in plain words, like "Changed the title", "Edited “Most teams plan posts in…”", or "Turned on Featured post". Clicking an item scrolls to that change.
 - A bar at the bottom of the canvas has Show changes, Back to editing, and Restore. Save and Publish pause while you're looking, and the formatting toolbar hides because there's nothing to format.
 - Restore works like it does today: the version becomes the current draft, and the live post doesn't change until someone publishes.
-- The list uses plain labels. The newest version reads "Current version" and the live one reads "Published".
+- The list uses plain labels. The version open in the editor reads "Current version" and the live one reads "Published".
 - On phones, the list lives in the settings sheet and the bar gets arrows to step between versions.
 
 ## Goals
@@ -46,13 +46,13 @@ Clicking a version in the Revisions list shows that version in the editor, read-
 
 - The revisions list response (`GET /_emdash/api/content/{collection}/{id}/revisions`) gains an `author` field with the author's ID and display name, or `null`. Revisions already store `authorId`, but only admins can look up users, so other roles can't show names today. Existing fields don't change. The name comes from a join on the existing query, so it adds no round trip, and the route keeps requiring `content:read_drafts`.
 - No database changes. The admin computes the diff from revision data the list already returns. Blocks are paired by their Portable Text `_key`, and words are split with `Intl.Segmenter`, so languages that don't put spaces between words work too.
-- "Published" comes from the entry's existing `liveRevisionId`. "Current version" marks the newest revision.
+- "Published" comes from the entry's existing `liveRevisionId`. "Current version" marks the version open in the editor: its draft, or the live version when there is no draft.
 - Restore keeps using the existing endpoint.
 - The JSON diff in the Revisions panel goes away.
 
 ## Errors and edge cases
 
-- The first version has nothing to compare with, so it reads "Created this post". If older revisions were pruned (EmDash keeps 50 per entry), the oldest one left reads "Earliest saved version" instead.
+- The first version has nothing to compare with, so it reads "First version". If older revisions were pruned (EmDash keeps 50 per entry), the oldest one left reads "Earliest saved version" instead.
 - The list loads one revision more than it shows, so the oldest version in the list still has something to compare with.
 - The current version has no Restore button.
 - Fields the preview can't mark up inline, like references and custom blocks, show up in the change list as "Changed <field label>".

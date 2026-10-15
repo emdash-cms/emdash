@@ -87,7 +87,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# คอลเลกชัน} other {# คอลเลกชัน}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2292
+#: packages/admin/src/components/WordPressImport.tsx:2317
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {นำเข้าความคิดเห็น # รายการแล้ว} other {นำเข้าความคิดเห็น # รายการแล้ว}}"
 
@@ -102,12 +102,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# ความคิดเห็น} other {# ความคิดเห็น}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2303
+#: packages/admin/src/components/WordPressImport.tsx:2328
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {ข้อผิดพลาดเนื้อหา # รายการ} other {ข้อผิดพลาดเนื้อหา # รายการ}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2244
+#: packages/admin/src/components/WordPressImport.tsx:2269
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {นำเข้าเนื้อหา # รายการแล้ว} other {นำเข้าเนื้อหา # รายการแล้ว}}"
 
@@ -151,27 +151,27 @@ msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {# แท็กที่ตรงกัน} other {# แท็กที่ตรงกัน}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:490
+#: packages/admin/src/components/PluginManager.tsx:496
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# เครื่องมือ MCP} other {# เครื่องมือ MCP}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2308
+#: packages/admin/src/components/WordPressImport.tsx:2333
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {ข้อผิดพลาดมีเดีย # รายการ} other {ข้อผิดพลาดมีเดีย # รายการ}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2260
+#: packages/admin/src/components/WordPressImport.tsx:2285
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {นำเข้าไฟล์มีเดีย # ไฟล์แล้ว} other {นำเข้าไฟล์มีเดีย # ไฟล์แล้ว}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2284
+#: packages/admin/src/components/WordPressImport.tsx:2309
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {นำเข้าเมนู # รายการแล้ว} other {นำเข้าเมนู # รายการแล้ว}}"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1932
+#: packages/admin/src/components/WordPressImport.tsx:1957
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {จะนำเข้าเมนู # รายการ} other {จะนำเข้าเมนู # รายการ}}"
 
@@ -182,12 +182,12 @@ msgstr "{0, plural, one {ขอสิทธิ์ # รายการ} other {�
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:504
+#: packages/admin/src/components/PluginManager.tsx:510
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# สิทธิ์} other {# สิทธิ์}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2515
+#: packages/admin/src/components/WordPressImport.tsx:2540
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# โพสต์} other {# โพสต์}}"
 
@@ -222,17 +222,17 @@ msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {เลือกแล้ว #} other {เลือกแล้ว #}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2252
+#: packages/admin/src/components/WordPressImport.tsx:2277
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {ข้ามไป # รายการ (มีอยู่แล้ว)} other {ข้ามไป # รายการ (มีอยู่แล้ว)}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2276
+#: packages/admin/src/components/WordPressImport.tsx:2301
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {การกำหนดอนุกรมวิธาน # รายการ} other {การกำหนดอนุกรมวิธาน # รายการ}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2268
+#: packages/admin/src/components/WordPressImport.tsx:2293
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {สร้างอนุกรมวิธาน # รายการแล้ว} other {สร้างอนุกรมวิธาน # รายการแล้ว}}"
 
@@ -324,7 +324,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "ย้าย {0} มาที่นี่ไม่ได้ — รายการแม่ไม่มีคำแปลในภาษานี้ รายการนี้จึงไม่ใช่กลุ่มที่ถูกต้อง"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1332
+#: packages/admin/src/components/WordPressImport.tsx:1357
 msgid "{0} detected"
 msgstr "ตรวจพบ {0}"
 
@@ -339,7 +339,7 @@ msgid "{0} has been deactivated"
 msgstr "ปิดใช้งาน {0} แล้ว"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:391
 msgid "{0} has been removed"
 msgstr "นำ {0} ออกแล้ว"
 
@@ -360,12 +360,12 @@ msgstr "ขณะนี้ {0} เปิดใช้งานอยู่"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2002
+#: packages/admin/src/components/WordPressImport.tsx:2027
 msgid "{0} items → {1}"
 msgstr "{0} รายการ → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1925
+#: packages/admin/src/components/WordPressImport.tsx:1950
 msgid "{0} items will be imported"
 msgstr "จะนำเข้า {0} รายการ"
 
@@ -459,7 +459,7 @@ msgid "{0} updated everywhere it appears."
 msgstr "อัปเดต {0} ในทุกที่ที่ปรากฏแล้ว"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:294
+#: packages/admin/src/components/PluginManager.tsx:300
 msgid "{0} updated to v{installedVersion}"
 msgstr "อัปเดต {0} เป็น v{installedVersion} แล้ว"
 
@@ -509,15 +509,15 @@ msgstr "เสร็จแล้ว {completedCount} จาก {0}"
 msgid "{completedCount} of {0} uploads complete"
 msgstr "อัปโหลดเสร็จแล้ว {completedCount} จาก {0} รายการ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2101
+#: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# ไฟล์} other {# ไฟล์}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2380
+#: packages/admin/src/components/WordPressImport.tsx:2405
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# รายการ} other {# รายการ}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2172
+#: packages/admin/src/components/WordPressImport.tsx:2197
 msgid "{current} of {total}"
 msgstr "{current} จาก {total}"
 
@@ -598,11 +598,11 @@ msgstr "ล่าช้า {lateness}"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# รายการที่ตรงกับ \"{searchQuery}\"} other {# รายการที่ตรงกับ \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2502
+#: packages/admin/src/components/WordPressImport.tsx:2527
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "กำหนดแล้ว {matchedCount} จาก {totalCount}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2490
+#: packages/admin/src/components/WordPressImport.tsx:2515
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "จับคู่ผู้เขียนตามอีเมลแล้ว {matchedCount} จาก {totalCount}"
 
@@ -662,11 +662,11 @@ msgstr "{name} ต้องมีค่าไม่เกิน {bound}"
 msgid "{name}: this site already has some"
 msgstr "{name}: ไซต์นี้มีอยู่แล้วบางส่วน"
 
-#: packages/admin/src/components/WordPressImport.tsx:1908
+#: packages/admin/src/components/WordPressImport.tsx:1933
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {จะมีการสร้างคอลเลกชันใหม่ # รายการ} other {จะมีการสร้างคอลเลกชันใหม่ # รายการ}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1917
+#: packages/admin/src/components/WordPressImport.tsx:1942
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {จะมีการเพิ่มฟิลด์ไปยังคอลเลกชันที่มีอยู่ # รายการ} other {จะมีการเพิ่มฟิลด์ไปยังคอลเลกชันที่มีอยู่ # รายการ}}"
 
@@ -843,21 +843,21 @@ msgstr "/new-page หรือ /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page หรือ /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2122
+#: packages/admin/src/components/WordPressImport.tsx:2147
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• ไฟล์จะถูกดาวน์โหลดจากเว็บไซต์ WordPress ของคุณ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2123
+#: packages/admin/src/components/WordPressImport.tsx:2148
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• อัปโหลดไปยังที่จัดเก็บมีเดียของ EmDash ของคุณ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2124
+#: packages/admin/src/components/WordPressImport.tsx:2149
 msgid "• URLs in your content are updated automatically"
 msgstr "• URL ในเนื้อหาของคุณจะถูกอัปเดตโดยอัตโนมัติ"
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 #: packages/admin/src/components/SetupWizard.tsx:339
-#: packages/admin/src/components/WordPressImport.tsx:1630
+#: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "← Back"
 msgstr "← กลับ"
 
@@ -901,11 +901,11 @@ msgstr "อัปเดตโพสต์ 1 รายการแล้ว"
 msgid "1 year"
 msgstr "1 ปี"
 
-#: packages/admin/src/components/WordPressImport.tsx:1551
+#: packages/admin/src/components/WordPressImport.tsx:1576
 msgid "1. Log into your WordPress admin"
 msgstr "1. เข้าสู่ระบบ WordPress admin ของคุณ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1304
+#: packages/admin/src/components/WordPressImport.tsx:1329
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. เข้าสู่ระบบแดชบอร์ด WordPress admin ของคุณ"
 
@@ -913,11 +913,11 @@ msgstr "1. เข้าสู่ระบบแดชบอร์ด WordPress a
 msgid "16:9"
 msgstr "16:9"
 
-#: packages/admin/src/components/WordPressImport.tsx:76
+#: packages/admin/src/components/WordPressImport.tsx:77
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. ไปที่ <0>Tools → Export</0>"
 
-#: packages/admin/src/components/WordPressImport.tsx:1552
+#: packages/admin/src/components/WordPressImport.tsx:1577
 msgid "2. Go to Users → Profile"
 msgstr "2. ไปที่ Users → Profile"
 
@@ -925,11 +925,11 @@ msgstr "2. ไปที่ Users → Profile"
 msgid "3:2"
 msgstr "3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1553
+#: packages/admin/src/components/WordPressImport.tsx:1578
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. เลื่อนไปที่ \"Application Passwords\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1308
+#: packages/admin/src/components/WordPressImport.tsx:1333
 msgid "3. Select \"All content\""
 msgstr "3. เลือก \"All content\""
 
@@ -957,11 +957,11 @@ msgstr "308 ถาวร (Strict)"
 msgid "4:3"
 msgstr "4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1309
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "4. Click \"Download Export File\""
 msgstr "4. คลิก \"Download Export File\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1554
+#: packages/admin/src/components/WordPressImport.tsx:1579
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. ป้อน \"EmDash\" แล้วคลิก \"Add New\""
 
@@ -977,11 +977,11 @@ msgstr "410 เนื้อหาถูกลบแล้ว (Gone)"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 ไม่พร้อมใช้งานด้วยเหตุผลทางกฎหมาย"
 
-#: packages/admin/src/components/WordPressImport.tsx:1555
+#: packages/admin/src/components/WordPressImport.tsx:1580
 msgid "5. Copy the generated password"
 msgstr "5. คัดลอกรหัสผ่านที่สร้างขึ้น"
 
-#: packages/admin/src/components/WordPressImport.tsx:1310
+#: packages/admin/src/components/WordPressImport.tsx:1335
 msgid "5. Upload the file here"
 msgstr "5. อัปโหลดไฟล์ที่นี่"
 
@@ -1167,7 +1167,7 @@ msgstr "มีบัญชีอยู่แล้ว"
 msgid "Account Info"
 msgstr "ข้อมูลบัญชี"
 
-#: packages/admin/src/components/WordPressImport.tsx:1189
+#: packages/admin/src/components/WordPressImport.tsx:1208
 msgid "ACF Fields"
 msgstr "ฟิลด์ ACF"
 
@@ -1292,11 +1292,11 @@ msgstr "เพิ่มโดเมน"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:762
 #: packages/admin/src/components/FieldEditor.tsx:701
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Add Field"
 msgstr "เพิ่มฟิลด์"
 
-#: packages/admin/src/components/WordPressImport.tsx:2013
+#: packages/admin/src/components/WordPressImport.tsx:2038
 msgid "Add fields"
 msgstr "เพิ่มฟิลด์"
 
@@ -1433,7 +1433,7 @@ msgstr "กำลังเพิ่ม..."
 msgid "Adding…"
 msgstr "กำลังเพิ่ม…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1782
+#: packages/admin/src/components/WordPressImport.tsx:1807
 msgid "Additional data to import."
 msgstr "ข้อมูลเพิ่มเติมที่จะนำเข้า"
 
@@ -1441,7 +1441,11 @@ msgstr "ข้อมูลเพิ่มเติมที่จะนำเข
 msgid "Additional details"
 msgstr "รายละเอียดเพิ่มเติม"
 
-#: packages/admin/src/components/WordPressImport.tsx:1512
+#: packages/admin/src/components/settings/SeoSettings.tsx:278
+msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
+msgstr ""
+
+#: packages/admin/src/components/WordPressImport.tsx:1537
 msgid "admin"
 msgstr "admin"
 
@@ -1484,12 +1488,12 @@ msgstr "หลังจากคุณเรียกใช้ปลั๊กอ
 msgid "Agenda"
 msgstr "กำหนดการ"
 
-#: packages/admin/src/components/PluginManager.tsx:599
+#: packages/admin/src/components/PluginManager.tsx:605
 msgid "Agent access"
 msgstr "การเข้าถึงของเอเจนต์"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Agent access for {0} has been updated"
 msgstr "อัปเดตการเข้าถึงของเอเจนต์สำหรับ {0} แล้ว"
 
@@ -1546,7 +1550,7 @@ msgstr "คอลเลกชันทั้งหมด"
 msgid "All comments require approval"
 msgstr "ความคิดเห็นทั้งหมดต้องได้รับการอนุมัติ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2547
+#: packages/admin/src/components/WordPressImport.tsx:2572
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "เนื้อหาที่นำเข้าทั้งหมดจะไม่ถูกกำหนดผู้เขียน คุณสามารถกำหนดผู้เขียนใหม่ได้ภายหลังจากตัวแก้ไขเนื้อหา"
 
@@ -1578,7 +1582,7 @@ msgstr "ทุกประเภท"
 msgid "All uploads finished"
 msgstr "อัปโหลดเสร็จทั้งหมดแล้ว"
 
-#: packages/admin/src/components/PluginManager.tsx:601
+#: packages/admin/src/components/PluginManager.tsx:607
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "อนุญาตให้โทเคน MCP ที่มีขอบเขต plugin-tool เรียกใช้เส้นทางเหล่านี้"
 
@@ -1615,7 +1619,7 @@ msgstr "กำหนดแล้วหรือซ้ำกัน"
 msgid "Already have an account?"
 msgstr "มีบัญชีอยู่แล้ว?"
 
-#: packages/admin/src/components/PluginManager.tsx:796
+#: packages/admin/src/components/PluginManager.tsx:802
 msgid "Also delete plugin storage data"
 msgstr "ลบข้อมูลที่จัดเก็บของปลั๊กอินด้วย"
 
@@ -1660,7 +1664,7 @@ msgstr "ข้อความ Alt ใช้กับโฟลเดอร์ไ�
 msgid "Alt text set"
 msgstr "ตั้งค่าข้อความ Alt แล้ว"
 
-#: packages/admin/src/components/WordPressImport.tsx:1424
+#: packages/admin/src/components/WordPressImport.tsx:1449
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "หรืออีกทางหนึ่ง คุณสามารถส่งออกจาก WordPress (Tools → Export) และอัปโหลดไฟล์ได้"
 
@@ -1680,7 +1684,7 @@ msgstr "กุญแจดิจิทัลที่เข้ารหัส �
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:136
 #: packages/admin/src/components/PluginManager.tsx:155
-#: packages/admin/src/components/PluginManager.tsx:327
+#: packages/admin/src/components/PluginManager.tsx:333
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -1699,9 +1703,9 @@ msgstr "กุญแจดิจิทัลที่เข้ารหัส �
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
-#: packages/admin/src/components/settings/SeoSettings.tsx:82
-#: packages/admin/src/components/settings/SeoSettings.tsx:144
-#: packages/admin/src/components/settings/SeoSettings.tsx:145
+#: packages/admin/src/components/settings/SeoSettings.tsx:86
+#: packages/admin/src/components/settings/SeoSettings.tsx:148
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
@@ -1726,7 +1730,8 @@ msgstr "กุญแจดิจิทัลที่เข้ารหัส �
 #: packages/admin/src/router.tsx:2312
 #: packages/admin/src/router.tsx:2328
 #: packages/admin/src/router.tsx:2353
-#: packages/admin/src/router.tsx:2955
+#: packages/admin/src/router.tsx:2779
+#: packages/admin/src/router.tsx:2964
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1746,11 +1751,11 @@ msgstr "เกิดข้อผิดพลาดที่ไม่คาดค
 msgid "An unknown error occurred"
 msgstr "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1604
+#: packages/admin/src/components/WordPressImport.tsx:1629
 msgid "Analyzing export file..."
 msgstr "กำลังวิเคราะห์ไฟล์ส่งออก..."
 
-#: packages/admin/src/components/WordPressImport.tsx:836
+#: packages/admin/src/components/WordPressImport.tsx:855
 msgid "Analyzing WordPress site..."
 msgstr "กำลังวิเคราะห์เว็บไซต์ WordPress..."
 
@@ -1786,7 +1791,7 @@ msgstr "API Tokens"
 msgid "Appears on posts and pages"
 msgstr "ปรากฏบนโพสต์และหน้า"
 
-#: packages/admin/src/components/WordPressImport.tsx:1519
+#: packages/admin/src/components/WordPressImport.tsx:1544
 msgid "Application Password"
 msgstr "Application Password"
 
@@ -1889,7 +1894,7 @@ msgstr "ให้ผู้ดูแลระบบตั้งค่านี้
 msgid "Aspect ratio"
 msgstr "อัตราส่วนภาพ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2485
+#: packages/admin/src/components/WordPressImport.tsx:2510
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "กำหนดผู้เขียน WordPress ให้กับผู้ใช้ EmDash โพสต์จะถูกระบุว่าเป็นของผู้ใช้ที่เลือก"
 
@@ -1955,7 +1960,7 @@ msgstr "การยืนยันตัวตนถูกยกเลิกห
 msgid "Author"
 msgstr "ผู้เขียน"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2525
 msgid "Author Mapping"
 msgstr "การแม็พผู้เขียน"
 
@@ -2068,8 +2073,8 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1815
 #: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1539
-#: packages/admin/src/components/WordPressImport.tsx:2556
+#: packages/admin/src/components/WordPressImport.tsx:1564
+#: packages/admin/src/components/WordPressImport.tsx:2581
 msgid "Back"
 msgstr "ย้อนกลับ"
 
@@ -2173,8 +2178,8 @@ msgstr "ก่อนดำเนินการต่อ:"
 msgid "Between {min} and {max}"
 msgstr "ระหว่าง {min} ถึง {max}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:252
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:256
 msgid "Bing Verification"
 msgstr "การยืนยัน Bing"
 
@@ -2232,9 +2237,13 @@ msgstr "ตัวหนา"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:50
 #: packages/admin/src/components/FieldEditor.tsx:414
-#: packages/admin/src/components/FieldEditor.tsx:1293
+#: packages/admin/src/components/FieldEditor.tsx:1295
 msgid "Boolean"
 msgstr "บูลีน"
+
+#: packages/admin/src/components/WordPressImport.tsx:1314
+msgid "Bot protection blocked the connection"
+msgstr ""
 
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
@@ -2260,8 +2269,8 @@ msgstr "เรียกดูและติดตั้งปลั๊กอิ
 msgid "Browse files"
 msgstr "เลือกไฟล์"
 
-#: packages/admin/src/components/WordPressImport.tsx:1155
-#: packages/admin/src/components/WordPressImport.tsx:1623
+#: packages/admin/src/components/WordPressImport.tsx:1174
+#: packages/admin/src/components/WordPressImport.tsx:1648
 msgid "Browse Files"
 msgstr "เรียกดูไฟล์"
 
@@ -2400,7 +2409,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:818
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
-#: packages/admin/src/components/FieldEditor.tsx:1379
+#: packages/admin/src/components/FieldEditor.tsx:1381
 #: packages/admin/src/components/MediaDetailPanel.tsx:1857
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
@@ -2408,7 +2417,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/MenuEditor.tsx:548
 #: packages/admin/src/components/MenuEditor.tsx:753
 #: packages/admin/src/components/MenuList.tsx:184
-#: packages/admin/src/components/PluginManager.tsx:802
+#: packages/admin/src/components/PluginManager.tsx:808
 #: packages/admin/src/components/PortableTextEditor.tsx:5719
 #: packages/admin/src/components/PortableTextEditor.tsx:5745
 #: packages/admin/src/components/PortableTextEditor.tsx:6485
@@ -2426,7 +2435,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/TaxonomyManager.tsx:1098
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:452
-#: packages/admin/src/components/WordPressImport.tsx:1946
+#: packages/admin/src/components/WordPressImport.tsx:1971
 msgid "Cancel"
 msgstr "ยกเลิก"
 
@@ -2469,7 +2478,7 @@ msgstr "ไม่สามารถลบส่วนของธีมได้
 msgid "Canonical URL"
 msgstr "Canonical URL"
 
-#: packages/admin/src/components/PluginManager.tsx:575
+#: packages/admin/src/components/PluginManager.tsx:581
 msgid "Capabilities"
 msgstr "ความสามารถ"
 
@@ -2500,11 +2509,11 @@ msgid "Categories"
 msgstr "หมวดหมู่"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1814
+#: packages/admin/src/components/WordPressImport.tsx:1839
 msgid "Categories ({0})"
 msgstr "หมวดหมู่ ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1177
+#: packages/admin/src/components/WordPressImport.tsx:1196
 msgid "Categories & Tags"
 msgstr "หมวดหมู่และแท็ก"
 
@@ -2549,7 +2558,7 @@ msgstr ""
 msgid "Change Favicon"
 msgstr "เปลี่ยน Favicon"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:208
+#: packages/admin/src/components/settings/SeoSettings.tsx:212
 msgid "Change Image"
 msgstr "เปลี่ยนรูปภาพ"
 
@@ -2591,7 +2600,7 @@ msgstr "ละทิ้งการเปลี่ยนแปลงแล้ว
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
 msgstr "บันทึกการเปลี่ยนแปลงแล้ว แต่หน้าที่แคชไว้อาจยังแสดง {pluralLower} เดิม ลองรีเฟรชแคชใหม่"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:172
+#: packages/admin/src/components/settings/SeoSettings.tsx:176
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "อักขระระหว่างชื่อหน้าและชื่อเว็บไซต์ (เช่น \"My Post | My Site\")"
 
@@ -2619,7 +2628,7 @@ msgstr "ตรวจสอบ registry.policy.minimumReleaseAge ใน astro.con
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "ตรวจสอบ registry.policy.minimumReleaseAgeExclude ใน astro.config.mjs แล้วรีสตาร์ท EmDash"
 
-#: packages/admin/src/components/WordPressImport.tsx:1126
+#: packages/admin/src/components/WordPressImport.tsx:1145
 msgid "Check Site"
 msgstr "ตรวจสอบเว็บไซต์"
 
@@ -2637,7 +2646,7 @@ msgstr "ตรวจสอบการเชื่อมต่อแล้วล
 msgid "Check your email"
 msgstr "ตรวจสอบอีเมลของคุณ"
 
-#: packages/admin/src/components/WordPressImport.tsx:802
+#: packages/admin/src/components/WordPressImport.tsx:821
 msgid "Checking {urlInput}..."
 msgstr "กำลังตรวจสอบ {urlInput}..."
 
@@ -2934,6 +2943,10 @@ msgstr "ปิดแผง"
 msgid "Close settings"
 msgstr "ปิดการตั้งค่า"
 
+#: packages/admin/src/components/WordPressImport.tsx:93
+msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeList.tsx:388
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
 #: packages/admin/src/components/Redirects.tsx:491
@@ -2954,8 +2967,8 @@ msgstr "การดำเนินการกับบล็อกโค้ด
 msgid "Collapse block"
 msgstr "ยุบบล็อก"
 
-#: packages/admin/src/components/PluginManager.tsx:558
-#: packages/admin/src/components/PluginManager.tsx:563
+#: packages/admin/src/components/PluginManager.tsx:564
+#: packages/admin/src/components/PluginManager.tsx:569
 msgid "Collapse details"
 msgstr "ย่อรายละเอียด"
 
@@ -2991,7 +3004,7 @@ msgstr "คอลเลกชัน"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "คอลเลกชันและฟิลด์ เนื้อหาทั้งหมดพร้อมฉบับร่าง รุ่นแก้ไข โพสต์ที่กำหนดเวลา และถังขยะ คำแปล อนุกรมวิธาน ชื่อผู้เขียน ไฟล์มีเดีย เมนู วิดเจ็ต ส่วน การเปลี่ยนเส้นทาง SEO และการตั้งค่าไซต์"
 
-#: packages/admin/src/components/WordPressImport.tsx:2356
+#: packages/admin/src/components/WordPressImport.tsx:2381
 msgid "Collections created:"
 msgstr "คอลเลกชันที่สร้าง:"
 
@@ -3096,17 +3109,17 @@ msgstr "ยืนยันด้วย Face ID, Touch ID หรือรหั�
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "ยืนยันด้วยลายนิ้วมือ ใบหน้า หรือ PIN"
 
-#: packages/admin/src/components/WordPressImport.tsx:727
-#: packages/admin/src/components/WordPressImport.tsx:1083
+#: packages/admin/src/components/WordPressImport.tsx:746
+#: packages/admin/src/components/WordPressImport.tsx:1102
 msgid "Connect"
 msgstr "เชื่อมต่อ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1536
+#: packages/admin/src/components/WordPressImport.tsx:1561
 msgid "Connect & Analyze"
 msgstr "เชื่อมต่อและวิเคราะห์"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1486
+#: packages/admin/src/components/WordPressImport.tsx:1511
 msgid "Connect to {0}"
 msgstr "เชื่อมต่อกับ {0}"
 
@@ -3120,7 +3133,7 @@ msgstr "เชื่อมต่อกับโฮสต์เครือข่
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "เชื่อมต่อกับโฮสต์เครือข่ายและโหลดรูปภาพผู้ดูแลระบบของปลั๊กอินจากภายนอก"
 
-#: packages/admin/src/components/WordPressImport.tsx:1402
+#: packages/admin/src/components/WordPressImport.tsx:1427
 msgid "Connect with WordPress"
 msgstr "เชื่อมต่อกับ WordPress"
 
@@ -3156,11 +3169,11 @@ msgid "Content digest"
 msgstr "Digestของเนื้อหา"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2411
+#: packages/admin/src/components/WordPressImport.tsx:2436
 msgid "Content Errors ({0})"
 msgstr "ข้อผิดพลาดของเนื้อหา ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1346
+#: packages/admin/src/components/WordPressImport.tsx:1371
 msgid "Content found:"
 msgstr "พบเนื้อหา:"
 
@@ -3217,7 +3230,7 @@ msgstr "ผลการค้นหาเนื้อหา"
 msgid "Content snapshot:"
 msgstr "สแนปช็อตเนื้อหา:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1760
+#: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Content to Import"
 msgstr "เนื้อหาที่จะนำเข้า"
 
@@ -3239,7 +3252,7 @@ msgstr "ประเภทเนื้อหาที่อยู่ในกล
 msgid "Content using this media item may show a broken reference."
 msgstr "เนื้อหาที่ใช้รายการมีเดียนี้อาจแสดงการอ้างอิงที่เสีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:2339
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Content was skipped because it already exists"
 msgstr "ข้ามเนื้อหาเนื่องจากมีอยู่แล้ว"
 
@@ -3258,7 +3271,7 @@ msgstr "ดำเนินการต่อ"
 msgid "Continue →"
 msgstr "ดำเนินการต่อ →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2558
+#: packages/admin/src/components/WordPressImport.tsx:2583
 msgid "Continue Import"
 msgstr "ดำเนินการนำเข้าต่อ"
 
@@ -3420,7 +3433,7 @@ msgstr "ตรวจทานโพสต์ไม่สำเร็จ"
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "ยืนยันไม่ได้ว่ารายการมีเดียหรือโฟลเดอร์ที่เลือกยังคงอยู่หรือไม่ ลองอีกครั้ง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1293
+#: packages/admin/src/components/WordPressImport.tsx:1315
 msgid "Couldn't detect WordPress"
 msgstr "ตรวจไม่พบ WordPress"
 
@@ -3601,7 +3614,7 @@ msgstr "สร้าง {singularLower} ใหม่"
 msgid "Create New Token"
 msgstr "สร้างโทเค็นใหม่"
 
-#: packages/admin/src/components/WordPressImport.tsx:1530
+#: packages/admin/src/components/WordPressImport.tsx:1555
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "สร้างใน WordPress: Users → Profile → Application Passwords"
 
@@ -3641,7 +3654,7 @@ msgstr "สร้างความสัมพันธ์"
 msgid "Create Relation"
 msgstr "สร้างความสัมพันธ์"
 
-#: packages/admin/src/components/WordPressImport.tsx:1950
+#: packages/admin/src/components/WordPressImport.tsx:1975
 msgid "Create Schema & Import"
 msgstr "สร้างสคีมาและนำเข้า"
 
@@ -3744,7 +3757,7 @@ msgstr "สร้างเมื่อ"
 msgid "Creating collections and fields"
 msgstr "กำลังสร้างคอลเลกชันและฟิลด์"
 
-#: packages/admin/src/components/WordPressImport.tsx:913
+#: packages/admin/src/components/WordPressImport.tsx:932
 msgid "Creating collections and fields..."
 msgstr "กำลังสร้างคอลเลกชันและฟิลด์..."
 
@@ -3826,7 +3839,7 @@ msgstr "กำหนดเอง"
 msgid "Custom Fields"
 msgstr "ฟิลด์กำหนดเอง"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:267
+#: packages/admin/src/components/settings/SeoSettings.tsx:271
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "เนื้อหา robots.txt แบบกำหนดเอง เว้นว่างไว้เพื่อใช้ค่าเริ่มต้น"
 
@@ -3834,7 +3847,7 @@ msgstr "เนื้อหา robots.txt แบบกำหนดเอง เ�
 msgid "Custom Section"
 msgstr "ส่วนกำหนดเอง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1178
+#: packages/admin/src/components/WordPressImport.tsx:1197
 msgid "Custom Taxonomies"
 msgstr "อนุกรมวิธานที่กำหนดเอง"
 
@@ -3842,7 +3855,7 @@ msgstr "อนุกรมวิธานที่กำหนดเอง"
 msgid "Daily automatic backups"
 msgstr "การสำรองข้อมูลอัตโนมัติรายวัน"
 
-#: packages/admin/src/components/FieldEditor.tsx:1364
+#: packages/admin/src/components/FieldEditor.tsx:1366
 #: packages/admin/src/components/ImageFieldRenderer.tsx:399
 msgid "Dark mode variant"
 msgstr "รูปภาพสำหรับโหมดมืด"
@@ -3865,7 +3878,7 @@ msgid "Date"
 msgstr "วันที่"
 
 #: packages/admin/src/components/FieldEditor.tsx:420
-#: packages/admin/src/components/FieldEditor.tsx:1294
+#: packages/admin/src/components/FieldEditor.tsx:1296
 msgid "Date & Time"
 msgstr "วันที่และเวลา"
 
@@ -3906,12 +3919,12 @@ msgstr "บทบาทเริ่มต้น"
 msgid "Default role:"
 msgstr "บทบาทเริ่มต้น:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:186
+#: packages/admin/src/components/settings/SeoSettings.tsx:190
 msgid "Default social image"
 msgstr "รูปภาพโซเชียลเริ่มต้น"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:46
-#: packages/admin/src/components/settings/SeoSettings.tsx:177
+#: packages/admin/src/components/settings/SeoSettings.tsx:181
 msgid "Default Social Image"
 msgstr "รูปภาพโซเชียลเริ่มต้น"
 
@@ -4258,7 +4271,7 @@ msgid "Destination path"
 msgstr "เส้นทางปลายทาง"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:309
-#: packages/admin/src/components/PluginManager.tsx:620
+#: packages/admin/src/components/PluginManager.tsx:626
 msgid "Destructive"
 msgstr "ทำลายข้อมูล"
 
@@ -4303,11 +4316,11 @@ msgstr "ขนาด:"
 msgid "Disable"
 msgstr "ปิดใช้งาน"
 
-#: packages/admin/src/components/PluginManager.tsx:552
+#: packages/admin/src/components/PluginManager.tsx:558
 msgid "Disable plugin"
 msgstr "ปิดใช้งานปลั๊กอิน"
 
-#: packages/admin/src/components/PluginManager.tsx:610
+#: packages/admin/src/components/PluginManager.tsx:616
 msgid "Disable plugin MCP tools"
 msgstr "ปิดใช้งานเครื่องมือ MCP ของปลั๊กอิน"
 
@@ -4323,14 +4336,14 @@ msgstr "ปิดใช้งานผู้ใช้"
 msgid "Disable User?"
 msgstr "ปิดใช้งานผู้ใช้หรือไม่?"
 
-#: packages/admin/src/components/PluginManager.tsx:445
+#: packages/admin/src/components/PluginManager.tsx:451
 #: packages/admin/src/components/Redirects.tsx:395
 #: packages/admin/src/components/users/UserDetail.tsx:213
 #: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
 msgstr "ปิดใช้งานแล้ว"
 
-#: packages/admin/src/components/PluginManager.tsx:670
+#: packages/admin/src/components/PluginManager.tsx:676
 msgid "Disabled:"
 msgstr "ปิดใช้งานแล้ว:"
 
@@ -4342,6 +4355,11 @@ msgstr "การปิดใช้งาน <0>{0}</0> จะทำให้ผ
 #: packages/admin/src/routes/users.tsx:284
 msgid "Disabling..."
 msgstr "กำลังปิดใช้งาน..."
+
+#: packages/admin/src/components/settings/SeoSettings.tsx:276
+#: packages/admin/src/components/settings/SeoSettings.tsx:286
+msgid "Disallow AI training"
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Discard"
@@ -4481,7 +4499,7 @@ msgstr "ไม่จับคู่"
 #: packages/admin/src/components/ContentList.tsx:1229
 #: packages/admin/src/components/MediaUploadDialog.tsx:335
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2182
 msgid "Done"
 msgstr "เสร็จสิ้น"
 
@@ -4539,7 +4557,7 @@ msgstr "ดาวน์โหลดไซต์นี้เป็นไฟล์
 msgid "Downloaded"
 msgstr "ดาวน์โหลดแล้ว"
 
-#: packages/admin/src/components/WordPressImport.tsx:2155
+#: packages/admin/src/components/WordPressImport.tsx:2180
 msgid "Downloading"
 msgstr "กำลังดาวน์โหลด"
 
@@ -4576,7 +4594,7 @@ msgstr "ฉบับร่าง เผยแพร่แล้ว หรือ�
 msgid "Drafts"
 msgstr "ฉบับร่าง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1216
 msgid "Drafts & Private"
 msgstr "ฉบับร่างและส่วนตัว"
 
@@ -4584,7 +4602,7 @@ msgstr "ฉบับร่างและส่วนตัว"
 msgid "Drag and drop files here"
 msgstr "ลากและวางไฟล์ที่นี่"
 
-#: packages/admin/src/components/WordPressImport.tsx:1150
+#: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "ลากแล้ววางหรือคลิกเพื่อเลือกไฟล์ (.xml)"
 
@@ -4636,7 +4654,7 @@ msgstr "วางรูปภาพครั้งละหนึ่งภาพ
 msgid "Drop to add widget"
 msgstr "วางเพื่อเพิ่มวิดเจ็ต"
 
-#: packages/admin/src/components/WordPressImport.tsx:1617
+#: packages/admin/src/components/WordPressImport.tsx:1642
 msgid "Drop your WordPress export file here"
 msgstr "วางไฟล์ส่งออก WordPress ของคุณที่นี่"
 
@@ -4863,11 +4881,11 @@ msgstr ""
 "ผู้สื่อข่าว\n"
 "ช่างภาพ"
 
-#: packages/admin/src/components/FieldEditor.tsx:1367
+#: packages/admin/src/components/FieldEditor.tsx:1369
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "ผู้แก้ไขสามารถเลือกรูปภาพที่สองที่ไซต์จะแสดงในโหมดมืดได้"
 
-#: packages/admin/src/components/WordPressImport.tsx:1073
+#: packages/admin/src/components/WordPressImport.tsx:1092
 msgid "em1.…"
 msgstr "em1.…"
 
@@ -4969,7 +4987,7 @@ msgstr "EmDash ไม่เก็บรูปภาพก่อนหน้า�
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash ไม่เก็บรูปภาพที่ยังไม่ได้ครอบตัดไว้"
 
-#: packages/admin/src/components/WordPressImport.tsx:1336
+#: packages/admin/src/components/WordPressImport.tsx:1361
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "ตรวจพบปลั๊กอิน EmDash Exporter! คุณสามารถนำเข้าได้โดยตรง"
 
@@ -5013,11 +5031,11 @@ msgstr "เปิดใช้งานความคิดเห็น"
 msgid "Enable full-text search on this collection"
 msgstr "เปิดใช้งานการค้นหาแบบเต็มข้อความในคอลเลกชันนี้"
 
-#: packages/admin/src/components/PluginManager.tsx:552
+#: packages/admin/src/components/PluginManager.tsx:558
 msgid "Enable plugin"
 msgstr "เปิดใช้งานปลั๊กอิน"
 
-#: packages/admin/src/components/PluginManager.tsx:611
+#: packages/admin/src/components/PluginManager.tsx:617
 msgid "Enable plugin MCP tools"
 msgstr "เปิดใช้งานเครื่องมือ MCP ของปลั๊กอิน"
 
@@ -5071,7 +5089,7 @@ msgstr "ป้อน URL (https://…) หรือพาธสัมพัท�
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "ป้อน URL ที่ถูกต้อง (เช่น https://example.com)"
 
-#: packages/admin/src/components/WordPressImport.tsx:1409
+#: packages/admin/src/components/WordPressImport.tsx:1434
 msgid "Enter credentials manually"
 msgstr "ป้อนข้อมูลรับรองด้วยตนเอง"
 
@@ -5108,12 +5126,12 @@ msgstr "ป้อน URL..."
 msgid "Enter your handle to sign in."
 msgstr "ป้อน handle ของคุณเพื่อเข้าสู่ระบบ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1488
+#: packages/admin/src/components/WordPressImport.tsx:1513
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "ป้อนข้อมูลรับรอง WordPress ของคุณเพื่อนำเข้าเนื้อหาโดยตรง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1111
-#: packages/admin/src/components/WordPressImport.tsx:1123
+#: packages/admin/src/components/WordPressImport.tsx:1130
+#: packages/admin/src/components/WordPressImport.tsx:1142
 msgid "Enter your WordPress site URL"
 msgstr "ป้อน URL ของเว็บไซต์ WordPress ของคุณ"
 
@@ -5145,7 +5163,7 @@ msgstr "รายการฝั่งที่ลิงก์"
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
-#: packages/admin/src/router.tsx:3230
+#: packages/admin/src/router.tsx:3239
 msgid "Error"
 msgstr "ข้อผิดพลาด"
 
@@ -5214,7 +5232,7 @@ msgstr "{pluralLower} ที่มีอยู่จะคงไว้ตาม�
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "ทำดัชนีเนื้อหาที่มีอยู่แล้ว การเปลี่ยนแปลงใหม่จะถูกติดตามอัตโนมัติ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2039
+#: packages/admin/src/components/WordPressImport.tsx:2064
 msgid "Exists"
 msgstr "มีอยู่"
 
@@ -5230,8 +5248,8 @@ msgstr "ออกจากโหมดไร้สิ่งรบกวน (⌘�
 msgid "Expand block"
 msgstr "ขยายบล็อก"
 
-#: packages/admin/src/components/PluginManager.tsx:558
-#: packages/admin/src/components/PluginManager.tsx:563
+#: packages/admin/src/components/PluginManager.tsx:564
+#: packages/admin/src/components/PluginManager.tsx:569
 msgid "Expand details"
 msgstr "ขยายรายละเอียด"
 
@@ -5253,7 +5271,7 @@ msgstr "วันหมดอายุ"
 msgid "Export"
 msgstr "ส่งออก"
 
-#: packages/admin/src/components/WordPressImport.tsx:1302
+#: packages/admin/src/components/WordPressImport.tsx:1327
 msgid "Export from WordPress manually"
 msgstr "ส่งออกจาก WordPress ด้วยตนเอง"
 
@@ -5269,7 +5287,7 @@ msgstr "{requester} ขอการส่งออก"
 msgid "Export site"
 msgstr "ส่งออกไซต์"
 
-#: packages/admin/src/components/WordPressImport.tsx:1426
+#: packages/admin/src/components/WordPressImport.tsx:1451
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "ส่งออกเนื้อหาของคุณจาก WordPress เพื่อนำเข้าทุกอย่างรวมถึงฉบับร่าง"
 
@@ -5303,7 +5321,7 @@ msgstr "ล้มเหลว"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2159
+#: packages/admin/src/components/WordPressImport.tsx:2184
 msgid "Failed"
 msgstr "ล้มเหลว"
 
@@ -5339,8 +5357,8 @@ msgstr ""
 msgid "Failed to analyze import"
 msgstr "วิเคราะห์การนำเข้าไม่สำเร็จ"
 
-#: packages/admin/src/components/WordPressImport.tsx:421
-#: packages/admin/src/lib/api/import.ts:766
+#: packages/admin/src/components/WordPressImport.tsx:433
+#: packages/admin/src/lib/api/import.ts:768
 msgid "Failed to analyze WordPress site"
 msgstr "วิเคราะห์เว็บไซต์ WordPress ไม่สำเร็จ"
 
@@ -5352,7 +5370,7 @@ msgstr "อนุมัติคำขอไม่สำเร็จ"
 msgid "Failed to cancel import"
 msgstr "ยกเลิกการนำเข้าไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/settings.ts:118
+#: packages/admin/src/lib/api/settings.ts:119
 msgid "Failed to change the domain"
 msgstr ""
 
@@ -5386,7 +5404,7 @@ msgid "Failed to create {0}"
 msgstr "สร้าง {0} ไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:146
-#: packages/admin/src/lib/api/settings.ts:95
+#: packages/admin/src/lib/api/settings.ts:96
 msgid "Failed to create a sign-in link"
 msgstr ""
 
@@ -5464,7 +5482,7 @@ msgstr ""
 msgid "Failed to create section"
 msgstr "สร้างส่วนไม่สำเร็จ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1743
+#: packages/admin/src/components/WordPressImport.tsx:1768
 msgid "Failed to create some collections"
 msgstr "สร้างบางคอลเลกชันไม่สำเร็จ"
 
@@ -5633,7 +5651,7 @@ msgstr "ทำสำเนาไม่สำเร็จ"
 msgid "Failed to duplicate content"
 msgstr ""
 
-#: packages/admin/src/lib/api/settings.ts:105
+#: packages/admin/src/lib/api/settings.ts:106
 msgid "Failed to email users"
 msgstr ""
 
@@ -5650,7 +5668,7 @@ msgstr "เปิดใช้งานการค้นหาไม่สำเ
 msgid "Failed to enable user"
 msgstr "เปิดใช้งานผู้ใช้ไม่สำเร็จ"
 
-#: packages/admin/src/components/WordPressImport.tsx:348
+#: packages/admin/src/components/WordPressImport.tsx:355
 msgid "Failed to execute import"
 msgstr "ดำเนินการนำเข้าไม่สำเร็จ"
 
@@ -5843,7 +5861,7 @@ msgstr "ดึงข้อมูลส่วนไม่สำเร็จ"
 msgid "Failed to fetch sections"
 msgstr "ดึงรายการส่วนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/settings.ts:60
+#: packages/admin/src/lib/api/settings.ts:61
 msgid "Failed to fetch settings"
 msgstr "ดึงข้อมูลการตั้งค่าไม่สำเร็จ"
 
@@ -5864,7 +5882,7 @@ msgstr ""
 msgid "Failed to fetch terms"
 msgstr "ดึงข้อมูลเทอมไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/settings.ts:87
+#: packages/admin/src/lib/api/settings.ts:88
 msgid "Failed to fetch the site domain"
 msgstr ""
 
@@ -5933,12 +5951,12 @@ msgstr "รับ URL สำหรับอัปโหลดไม่สำเ�
 msgid "Failed to import"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:444
+#: packages/admin/src/components/WordPressImport.tsx:462
 #: packages/admin/src/lib/api/import.ts:257
 msgid "Failed to import from WordPress"
 msgstr "นำเข้าจาก WordPress ไม่สำเร็จ"
 
-#: packages/admin/src/components/WordPressImport.tsx:373
+#: packages/admin/src/components/WordPressImport.tsx:380
 #: packages/admin/src/lib/api/import.ts:534
 #: packages/admin/src/lib/api/import.ts:539
 msgid "Failed to import media"
@@ -6089,12 +6107,12 @@ msgstr "ดำเนินการแบบกลุ่มไม่สำเร
 msgid "Failed to permanently delete content"
 msgstr "ลบเนื้อหาอย่างถาวรไม่สำเร็จ"
 
-#: packages/admin/src/components/WordPressImport.tsx:327
+#: packages/admin/src/components/WordPressImport.tsx:334
 #: packages/admin/src/lib/api/import.ts:390
 msgid "Failed to prepare import"
 msgstr "เตรียมการนำเข้าไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/import.ts:710
+#: packages/admin/src/lib/api/import.ts:712
 msgid "Failed to probe URL"
 msgstr ""
 
@@ -6110,6 +6128,10 @@ msgstr ""
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
 msgstr "อ่านข้อมูลการใช้งานฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
+
+#: packages/admin/src/router.tsx:2778
+msgid "Failed to register {slug}"
+msgstr ""
 
 #: packages/admin/src/lib/api/schema.ts:548
 msgid "Failed to register orphaned table"
@@ -6183,14 +6205,14 @@ msgstr "กู้คืนรุ่นแก้ไขไม่สำเร็จ
 msgid "Failed to revoke API token"
 msgstr "เพิกถอนโทเค็น API ไม่สำเร็จ"
 
-#: packages/admin/src/components/WordPressImport.tsx:386
-#: packages/admin/src/lib/api/import.ts:727
+#: packages/admin/src/components/WordPressImport.tsx:393
+#: packages/admin/src/lib/api/import.ts:729
 msgid "Failed to rewrite URLs"
 msgstr "เขียน URL ใหม่ไม่สำเร็จ"
 
 #: packages/admin/src/router.tsx:843
 #: packages/admin/src/router.tsx:1245
-#: packages/admin/src/router.tsx:2954
+#: packages/admin/src/router.tsx:2963
 msgid "Failed to save"
 msgstr "บันทึกไม่สำเร็จ"
 
@@ -6204,7 +6226,7 @@ msgstr "บันทึกฟิลด์ไม่สำเร็จ"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:133
-#: packages/admin/src/components/settings/SeoSettings.tsx:81
+#: packages/admin/src/components/settings/SeoSettings.tsx:85
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
 msgstr "บันทึกการตั้งค่าไม่สำเร็จ"
@@ -6330,7 +6352,7 @@ msgstr ""
 msgid "Failed to update menu item"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:326
+#: packages/admin/src/components/PluginManager.tsx:332
 #: packages/admin/src/lib/api/marketplace.ts:373
 #: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
@@ -6356,7 +6378,7 @@ msgstr ""
 msgid "Failed to update section"
 msgstr "อัปเดตส่วนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/settings.ts:72
+#: packages/admin/src/lib/api/settings.ts:73
 msgid "Failed to update settings"
 msgstr "อัปเดตการตั้งค่าไม่สำเร็จ"
 
@@ -6414,11 +6436,11 @@ msgstr "คำถามที่พบบ่อย"
 msgid "Favicon"
 msgstr "Favicon"
 
-#: packages/admin/src/components/WordPressImport.tsx:1211
+#: packages/admin/src/components/WordPressImport.tsx:1230
 msgid "Feature"
 msgstr "คุณสมบัติ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1179
+#: packages/admin/src/components/WordPressImport.tsx:1198
 msgid "Featured Images"
 msgstr "รูปภาพเด่น"
 
@@ -6427,7 +6449,7 @@ msgstr "รูปภาพเด่น"
 msgid "Features"
 msgstr "คุณสมบัติ"
 
-#: packages/admin/src/components/WordPressImport.tsx:837
+#: packages/admin/src/components/WordPressImport.tsx:856
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "กำลังดึงเนื้อหาจาก EmDash Exporter API"
 
@@ -6439,7 +6461,7 @@ msgstr "สร้างฟิลด์แล้ว"
 msgid "Field deleted"
 msgstr "ลบฟิลด์แล้ว"
 
-#: packages/admin/src/components/FieldEditor.tsx:1262
+#: packages/admin/src/components/FieldEditor.tsx:1263
 msgid "Field label"
 msgstr "ป้ายกำกับฟิลด์"
 
@@ -6459,7 +6481,7 @@ msgstr "เปลี่ยนประเภทฟิลด์หลังจา
 msgid "Field updated"
 msgstr "อัปเดตฟิลด์แล้ว"
 
-#: packages/admin/src/components/FieldEditor.tsx:1277
+#: packages/admin/src/components/FieldEditor.tsx:1279
 msgid "field_slug"
 msgstr ""
 
@@ -6469,7 +6491,7 @@ msgstr ""
 msgid "Fields"
 msgstr "ฟิลด์"
 
-#: packages/admin/src/components/WordPressImport.tsx:2362
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Fields created:"
 msgstr "ฟิลด์ที่สร้าง:"
 
@@ -6478,7 +6500,7 @@ msgid "File"
 msgstr "ไฟล์"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2187
+#: packages/admin/src/components/WordPressImport.tsx:2212
 msgid "File {0}"
 msgstr "ไฟล์ {0}"
 
@@ -6642,11 +6664,11 @@ msgstr "การนำทางโฟลเดอร์"
 msgid "Fonts"
 msgstr "แบบอักษร"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1452
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "สำหรับการนำเข้าที่สมบูรณ์รวมถึงฉบับร่างและเนื้อหาทั้งหมด ให้ส่งออกจาก WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:67
+#: packages/admin/src/components/WordPressImport.tsx:68
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "เพื่อประสบการณ์การนำเข้าที่ดีที่สุด ให้ติดตั้งปลั๊กอิน <0>EmDash Exporter</0> บนเว็บไซต์ WordPress ของคุณ"
 
@@ -6684,7 +6706,7 @@ msgid "From URL"
 msgstr "จาก URL"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1186
+#: packages/admin/src/components/WordPressImport.tsx:1205
 msgid "Full"
 msgstr "เต็ม"
 
@@ -6743,8 +6765,8 @@ msgstr "Go"
 msgid "Go live {countdown}"
 msgstr "เผยแพร่ {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2447
-#: packages/admin/src/router.tsx:3250
+#: packages/admin/src/components/WordPressImport.tsx:2472
+#: packages/admin/src/router.tsx:3259
 msgid "Go to Dashboard"
 msgstr "ไปที่แดชบอร์ด"
 
@@ -6760,8 +6782,8 @@ msgstr "เผยแพร่จริง"
 msgid "Goes live {countdown}"
 msgstr "เผยแพร่จริง {countdown}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:238
-#: packages/admin/src/components/settings/SeoSettings.tsx:244
+#: packages/admin/src/components/settings/SeoSettings.tsx:242
+#: packages/admin/src/components/settings/SeoSettings.tsx:248
 msgid "Google Verification"
 msgstr "การยืนยัน Google"
 
@@ -6932,7 +6954,7 @@ msgstr "หน้าแรก"
 msgid "Homepage"
 msgstr "หน้าแรก"
 
-#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/PluginManager.tsx:490
 msgid "Hooks"
 msgstr "Hooks"
 
@@ -6958,7 +6980,7 @@ msgstr "สร้าง slug อย่างไร?"
 msgid "How many"
 msgstr "จำนวน"
 
-#: packages/admin/src/components/WordPressImport.tsx:1549
+#: packages/admin/src/components/WordPressImport.tsx:1574
 msgid "How to create an Application Password"
 msgstr "วิธีสร้าง Application Password"
 
@@ -7006,7 +7028,7 @@ msgstr "https://example.com/blog/my-post"
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1138
 msgid "https://yoursite.com"
 msgstr "https://yoursite.com"
 
@@ -7059,7 +7081,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:444
-#: packages/admin/src/components/FieldEditor.tsx:1297
+#: packages/admin/src/components/FieldEditor.tsx:1299
 #: packages/admin/src/components/PortableTextEditor.tsx:3648
 msgid "Image"
 msgstr "รูปภาพ"
@@ -7136,12 +7158,12 @@ msgstr "รูปภาพ"
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:506
-#: packages/admin/src/components/WordPressImport.tsx:764
+#: packages/admin/src/components/WordPressImport.tsx:783
 msgid "Import"
 msgstr "นำเข้า"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:1987
+#: packages/admin/src/components/WordPressImport.tsx:2012
 msgid "Import {0}"
 msgstr "นำเข้า {0}"
 
@@ -7153,7 +7175,7 @@ msgstr "นำเข้าแพ็กเกจไซต์"
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "นำเข้าแพ็กเกจไซต์เข้าสู่ไซต์นี้ขณะที่ไซต์ยังว่าง โดยเขียนทับการตั้งค่าเริ่มต้น สิทธิ์ Admin รวมสิทธิ์นี้อยู่แล้ว เลือกสิทธิ์นี้แทน Admin เพื่อให้เอเจนต์มีสิทธิ์เข้าถึงที่แคบลง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1395
+#: packages/admin/src/components/WordPressImport.tsx:1420
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "นำเข้าเนื้อหาทั้งหมดโดยตรง รวมถึงฉบับร่าง custom post type ฟิลด์ ACF และข้อมูล SEO โดยไม่ต้องดาวน์โหลดไฟล์"
 
@@ -7161,11 +7183,11 @@ msgstr "นำเข้าเนื้อหาทั้งหมดโดยต
 msgid "Import an existing EmDash site"
 msgstr "นำเข้าไซต์ EmDash ที่มีอยู่"
 
-#: packages/admin/src/components/WordPressImport.tsx:2445
+#: packages/admin/src/components/WordPressImport.tsx:2470
 msgid "Import Another File"
 msgstr "นำเข้าไฟล์อื่น"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1224
 msgid "Import Capabilities"
 msgstr "ความสามารถในการนำเข้า"
 
@@ -7174,31 +7196,31 @@ msgstr "ความสามารถในการนำเข้า"
 msgid "Import complete"
 msgstr "นำเข้าเสร็จสมบูรณ์"
 
-#: packages/admin/src/components/WordPressImport.tsx:2333
+#: packages/admin/src/components/WordPressImport.tsx:2358
 msgid "Import Complete"
 msgstr "นำเข้าเสร็จสมบูรณ์"
 
-#: packages/admin/src/components/WordPressImport.tsx:2334
+#: packages/admin/src/components/WordPressImport.tsx:2359
 msgid "Import Completed with Errors"
 msgstr "นำเข้าเสร็จสมบูรณ์โดยมีข้อผิดพลาด"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Import failed"
 msgstr "นำเข้าไม่สำเร็จ"
 
-#: packages/admin/src/components/WordPressImport.tsx:717
+#: packages/admin/src/components/WordPressImport.tsx:736
 msgid "Import from WordPress"
 msgstr "นำเข้าจาก WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:2136
+#: packages/admin/src/components/WordPressImport.tsx:2161
 msgid "Import Media"
 msgstr "นำเข้ามีเดีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:2089
+#: packages/admin/src/components/WordPressImport.tsx:2114
 msgid "Import Media Files"
 msgstr "นำเข้าไฟล์มีเดีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:719
+#: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "นำเข้าโพสต์ หน้า และ custom post type จาก WordPress"
 
@@ -7206,7 +7228,7 @@ msgstr "นำเข้าโพสต์ หน้า และ custom post typ
 msgid "Import requested by {requester}"
 msgstr "{requester} ขอการนำเข้า"
 
-#: packages/admin/src/components/WordPressImport.tsx:1843
+#: packages/admin/src/components/WordPressImport.tsx:1868
 msgid "Import site configuration from WordPress."
 msgstr "นำเข้าการกำหนดค่าเว็บไซต์จาก WordPress"
 
@@ -7214,7 +7236,7 @@ msgstr "นำเข้าการกำหนดค่าเว็บไซต
 msgid "Import this package?"
 msgstr "นำเข้าแพ็กเกจนี้หรือไม่?"
 
-#: packages/admin/src/components/WordPressImport.tsx:1393
+#: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Import via EmDash Exporter"
 msgstr "นำเข้าผ่าน EmDash Exporter"
 
@@ -7222,7 +7244,7 @@ msgstr "นำเข้าผ่าน EmDash Exporter"
 msgid "Imported"
 msgstr "นำเข้าแล้ว"
 
-#: packages/admin/src/components/WordPressImport.tsx:2373
+#: packages/admin/src/components/WordPressImport.tsx:2398
 msgid "Imported by Collection"
 msgstr "นำเข้าตามคอลเลกชัน"
 
@@ -7231,7 +7253,7 @@ msgid "Importing"
 msgstr "กำลังนำเข้า"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:930
+#: packages/admin/src/components/WordPressImport.tsx:949
 msgid "Importing comments... {0}"
 msgstr "กำลังนำเข้าความคิดเห็น... {0}"
 
@@ -7239,25 +7261,25 @@ msgstr "กำลังนำเข้าความคิดเห็น... {0
 msgid "Importing content"
 msgstr "กำลังนำเข้าเนื้อหา"
 
-#: packages/admin/src/components/WordPressImport.tsx:948
+#: packages/admin/src/components/WordPressImport.tsx:967
 msgid "Importing content..."
 msgstr "กำลังนำเข้าเนื้อหา..."
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:928
+#: packages/admin/src/components/WordPressImport.tsx:947
 msgid "Importing content... {0}"
 msgstr "กำลังนำเข้าเนื้อหา... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:927
+#: packages/admin/src/components/WordPressImport.tsx:946
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "กำลังนำเข้าเนื้อหา... {0} จาก {totalSelectedPosts}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2168
+#: packages/admin/src/components/WordPressImport.tsx:2193
 msgid "Importing Media"
 msgstr "กำลังนำเข้ามีเดีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:931
+#: packages/admin/src/components/WordPressImport.tsx:950
 msgid "Importing menus and site settings..."
 msgstr "กำลังนำเข้าเมนูและการตั้งค่าเว็บไซต์..."
 
@@ -7265,7 +7287,7 @@ msgstr "กำลังนำเข้าเมนูและการตั้
 msgid "Importing menus, widgets, and settings"
 msgstr "กำลังนำเข้าเมนู วิดเจ็ต และการตั้งค่า"
 
-#: packages/admin/src/components/WordPressImport.tsx:932
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Importing reusable blocks..."
 msgstr "กำลังนำเข้าบล็อกที่ใช้ซ้ำได้..."
 
@@ -7294,7 +7316,7 @@ msgstr "รวมความคิดเห็น"
 msgid "Include inferred bylines"
 msgstr "รวมชื่อผู้เขียนที่อนุมานอัตโนมัติ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2009
+#: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Incompatible"
 msgstr "ไม่เข้ากัน"
 
@@ -7433,7 +7455,7 @@ msgstr "ติดตั้งและเปิดใช้งานปลั๊
 msgid "Install blocked"
 msgstr "การติดตั้งถูกบล็อก"
 
-#: packages/admin/src/components/WordPressImport.tsx:1067
+#: packages/admin/src/components/WordPressImport.tsx:1086
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "ติดตั้งปลั๊กอิน EmDash Exporter บนเว็บไซต์ WordPress ของคุณ แล้วสร้างคีย์ที่ Tools → EmDash Migration"
 
@@ -7453,11 +7475,11 @@ msgid "Installed"
 msgstr "ติดตั้งแล้ว"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/PluginManager.tsx:645
 msgid "Installed from marketplace (v{0})"
 msgstr "ติดตั้งจากมาร์เก็ตเพลส (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:658
+#: packages/admin/src/components/PluginManager.tsx:664
 msgid "Installed:"
 msgstr "ติดตั้งแล้ว:"
 
@@ -7466,7 +7488,7 @@ msgid "Installing..."
 msgstr "กำลังติดตั้ง..."
 
 #: packages/admin/src/components/FieldEditor.tsx:408
-#: packages/admin/src/components/FieldEditor.tsx:1292
+#: packages/admin/src/components/FieldEditor.tsx:1294
 msgid "Integer"
 msgstr "จำนวนเต็ม"
 
@@ -7638,7 +7660,7 @@ msgstr "ใช้ค่าของไซต์นี้ (ว่าง)"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "ใช้ค่าของไซต์นี้: “{targetValue}”"
 
-#: packages/admin/src/components/WordPressImport.tsx:944
+#: packages/admin/src/components/WordPressImport.tsx:963
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "เปิดแท็บนี้ไว้ การนำเข้าทำงานเป็นขั้นตอนย่อยและรันซ้ำได้อย่างปลอดภัยหากถูกขัดจังหวะ"
 
@@ -7697,7 +7719,7 @@ msgstr "หัวข้อส่วนขนาดใหญ่"
 msgid "Last edited"
 msgstr "แก้ไขล่าสุด"
 
-#: packages/admin/src/components/PluginManager.tsx:664
+#: packages/admin/src/components/PluginManager.tsx:670
 msgid "Last enabled:"
 msgstr "เปิดใช้งานล่าสุด:"
 
@@ -7744,7 +7766,7 @@ msgstr "ดูวิธีติดตั้งปลั๊กอินใน<0>
 msgid "Learn more"
 msgstr "ดูข้อมูลเพิ่มเติม"
 
-#: packages/admin/src/components/WordPressImport.tsx:2526
+#: packages/admin/src/components/WordPressImport.tsx:2551
 msgid "Leave unassigned"
 msgstr "เว้นว่างไว้โดยไม่กำหนด"
 
@@ -7915,7 +7937,7 @@ msgid "Load preview"
 msgstr "โหลดตัวอย่าง"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3205
+#: packages/admin/src/router.tsx:3214
 msgid "Loading"
 msgstr "กำลังโหลด"
 
@@ -7944,8 +7966,8 @@ msgstr "กำลังโหลดคอลเลกชัน..."
 msgid "Loading comments..."
 msgstr "กำลังโหลดความคิดเห็น..."
 
-#: packages/admin/src/router.tsx:3207
-#: packages/admin/src/router.tsx:3219
+#: packages/admin/src/router.tsx:3216
+#: packages/admin/src/router.tsx:3228
 msgid "Loading configuration..."
 msgstr "กำลังโหลดการกำหนดค่า..."
 
@@ -8019,7 +8041,7 @@ msgstr "กำลังโหลดส่วนต่างๆ..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:133
+#: packages/admin/src/components/settings/SeoSettings.tsx:137
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
 msgstr "กำลังโหลดการตั้งค่า..."
@@ -8133,7 +8155,7 @@ msgstr "ออกจากระบบ"
 msgid "Logo"
 msgstr "โลโก้"
 
-#: packages/admin/src/components/WordPressImport.tsx:1861
+#: packages/admin/src/components/WordPressImport.tsx:1886
 msgid "Logo & favicon"
 msgstr "โลโก้และ favicon"
 
@@ -8142,7 +8164,7 @@ msgid "Long text"
 msgstr "ข้อความยาว"
 
 #: packages/admin/src/components/FieldEditor.tsx:396
-#: packages/admin/src/components/FieldEditor.tsx:1290
+#: packages/admin/src/components/FieldEditor.tsx:1292
 msgid "Long Text"
 msgstr "ข้อความยาว"
 
@@ -8226,12 +8248,12 @@ msgstr ""
 msgid "Manual"
 msgstr "กำหนดเอง"
 
-#: packages/admin/src/components/WordPressImport.tsx:2483
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Map Authors"
 msgstr "จับคู่ผู้เขียน"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2531
+#: packages/admin/src/components/WordPressImport.tsx:2556
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "จับคู่ผู้ใช้ WordPress {0} กับผู้ใช้ EmDash"
 
@@ -8253,7 +8275,7 @@ msgid "Markdown"
 msgstr "Markdown"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:446
+#: packages/admin/src/components/PluginManager.tsx:452
 msgid "Marketplace"
 msgstr "Marketplace"
 
@@ -8277,7 +8299,7 @@ msgstr ""
 msgid "Matched by email"
 msgstr "จับคู่ด้วยอีเมล"
 
-#: packages/admin/src/components/FieldEditor.tsx:1342
+#: packages/admin/src/components/FieldEditor.tsx:1344
 msgid "Max Items"
 msgstr "จำนวนรายการสูงสุด"
 
@@ -8310,9 +8332,9 @@ msgstr "MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:428
-#: packages/admin/src/components/WordPressImport.tsx:778
-#: packages/admin/src/components/WordPressImport.tsx:1176
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:797
+#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1388
 msgid "Media"
 msgstr "มีเดีย"
 
@@ -8321,7 +8343,7 @@ msgid "Media details"
 msgstr "รายละเอียดมีเดีย"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2429
+#: packages/admin/src/components/WordPressImport.tsx:2454
 msgid "Media Errors ({0})"
 msgstr "ข้อผิดพลาดของมีเดีย ({0})"
 
@@ -8330,15 +8352,15 @@ msgstr "ข้อผิดพลาดของมีเดีย ({0})"
 msgid "Media folders"
 msgstr "โฟลเดอร์มีเดีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:2391
+#: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "Media Import"
 msgstr "นำเข้ามีเดีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:2332
+#: packages/admin/src/components/WordPressImport.tsx:2357
 msgid "Media Import Complete"
 msgstr "นำเข้ามีเดียเสร็จสมบูรณ์"
 
-#: packages/admin/src/components/WordPressImport.tsx:2343
+#: packages/admin/src/components/WordPressImport.tsx:2368
 msgid "Media import was skipped"
 msgstr "ข้ามการนำเข้ามีเดียแล้ว"
 
@@ -8464,12 +8486,12 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:445
-#: packages/admin/src/components/WordPressImport.tsx:1180
+#: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Menus"
 msgstr "เมนู"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1796
+#: packages/admin/src/components/WordPressImport.tsx:1821
 msgid "Menus ({0})"
 msgstr "เมนู ({0})"
 
@@ -8486,15 +8508,15 @@ msgstr "ผสานเซลล์ที่เลือก"
 msgid "Meta Description"
 msgstr "Meta Description"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:255
+#: packages/admin/src/components/settings/SeoSettings.tsx:259
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "เนื้อหา Meta tag สำหรับการยืนยัน Bing Webmaster Tools"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:247
+#: packages/admin/src/components/settings/SeoSettings.tsx:251
 msgid "Meta tag content for Google Search Console verification"
 msgstr "เนื้อหา Meta tag สำหรับการยืนยัน Google Search Console"
 
-#: packages/admin/src/components/WordPressImport.tsx:1874
+#: packages/admin/src/components/WordPressImport.tsx:1899
 msgid "Meta titles, descriptions, and social images"
 msgstr "Meta title คำอธิบาย และรูปภาพสำหรับโซเชียล"
 
@@ -8502,11 +8524,11 @@ msgstr "Meta title คำอธิบาย และรูปภาพสำห
 msgid "Migration guide"
 msgstr "คู่มือการย้ายข้อมูล"
 
-#: packages/admin/src/components/WordPressImport.tsx:1080
+#: packages/admin/src/components/WordPressImport.tsx:1099
 msgid "Migration key"
 msgstr "คีย์การย้ายข้อมูล"
 
-#: packages/admin/src/components/FieldEditor.tsx:1335
+#: packages/admin/src/components/FieldEditor.tsx:1337
 msgid "Min Items"
 msgstr "รายการขั้นต่ำ"
 
@@ -8847,7 +8869,7 @@ msgstr "ชื่อผู้เขียนใหม่"
 msgid "New byline field"
 msgstr "ฟิลด์ชื่อผู้เขียนใหม่"
 
-#: packages/admin/src/components/WordPressImport.tsx:2011
+#: packages/admin/src/components/WordPressImport.tsx:2036
 msgid "New collection"
 msgstr "คอลเลกชันใหม่"
 
@@ -8923,7 +8945,7 @@ msgstr "ใหม่ที่สุด"
 msgid "News"
 msgstr "ข่าวสาร"
 
-#: packages/admin/src/components/FieldEditor.tsx:1382
+#: packages/admin/src/components/FieldEditor.tsx:1384
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "ถัดไป"
@@ -9091,7 +9113,7 @@ msgstr "ยังไม่ได้กำหนดค่าผู้ให้บ
 msgid "No email provider configured. Share this link manually."
 msgstr "ยังไม่ได้กำหนดค่าผู้ให้บริการอีเมล แชร์ลิงก์นี้ด้วยตนเอง"
 
-#: packages/admin/src/components/WordPressImport.tsx:2545
+#: packages/admin/src/components/WordPressImport.tsx:2570
 msgid "No EmDash users found"
 msgstr "ไม่พบผู้ใช้ EmDash"
 
@@ -9164,7 +9186,7 @@ msgstr "ไม่ได้ระบุโทเค็นคำเชิญ"
 msgid "No items yet"
 msgstr "ยังไม่มีรายการ"
 
-#: packages/admin/src/components/FieldEditor.tsx:1346
+#: packages/admin/src/components/FieldEditor.tsx:1348
 msgid "No limit"
 msgstr "ไม่จำกัด"
 
@@ -9433,7 +9455,7 @@ msgid "Now · {time}"
 msgstr "ขณะนี้ · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:402
-#: packages/admin/src/components/FieldEditor.tsx:1291
+#: packages/admin/src/components/FieldEditor.tsx:1293
 msgid "Number"
 msgstr "ตัวเลข"
 
@@ -9451,7 +9473,7 @@ msgstr "จำนวนโพสต์ที่จะแสดงต่อหน
 msgid "Numbered List"
 msgstr "รายการแบบมีลำดับเลข"
 
-#: packages/admin/src/components/WordPressImport.tsx:522
+#: packages/admin/src/components/WordPressImport.tsx:541
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "การให้สิทธิ์ OAuth ต้องใช้ HTTPS ให้ใช้ข้อมูลรับรองแบบกรอกเองแทน"
 
@@ -9571,7 +9593,7 @@ msgstr ""
 msgid "Open Windows settings"
 msgstr "เปิดการตั้งค่า Windows"
 
-#: packages/admin/src/components/WordPressImport.tsx:1563
+#: packages/admin/src/components/WordPressImport.tsx:1588
 msgid "Open WordPress Profile"
 msgstr "เปิดโปรไฟล์ WordPress"
 
@@ -9619,11 +9641,11 @@ msgstr "ตัวเลือก (หนึ่งรายการต่อบ�
 msgid "Or browse files from your computer"
 msgstr "หรือเลือกไฟล์จากคอมพิวเตอร์ของคุณ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1619
+#: packages/admin/src/components/WordPressImport.tsx:1644
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "หรือคลิกเพื่อเรียกดู รองรับไฟล์ .xml ที่ส่งออกจาก WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:1100
+#: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "or connect by URL"
 msgstr "หรือเชื่อมต่อด้วย URL"
 
@@ -9633,11 +9655,11 @@ msgstr "หรือเชื่อมต่อด้วย URL"
 msgid "Or continue with"
 msgstr "หรือดำเนินการต่อด้วย"
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Or upload an export file"
 msgstr "หรืออัปโหลดไฟล์ส่งออก"
 
-#: packages/admin/src/components/WordPressImport.tsx:1138
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "or upload directly"
 msgstr "หรืออัปโหลดโดยตรง"
 
@@ -9693,7 +9715,7 @@ msgstr "แทนที่ชื่อหน้าในผลการค้น
 msgid "Ownership"
 msgstr "ความเป็นเจ้าของ"
 
-#: packages/admin/src/components/PluginManager.tsx:648
+#: packages/admin/src/components/PluginManager.tsx:654
 msgid "Package"
 msgstr "แพ็กเกจ"
 
@@ -9707,7 +9729,7 @@ msgstr "Digest ของแพ็กเกจ"
 msgid "Package downloaded"
 msgstr "ดาวน์โหลดแพ็กเกจแล้ว"
 
-#: packages/admin/src/router.tsx:3245
+#: packages/admin/src/router.tsx:3254
 msgid "Page Not Found"
 msgstr "ไม่พบหน้า"
 
@@ -9721,8 +9743,8 @@ msgstr "หมายเลขหน้า"
 msgid "Page size"
 msgstr "จำนวนรายการต่อหน้า"
 
-#: packages/admin/src/components/PluginManager.tsx:472
-#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "หน้า"
 
@@ -9749,7 +9771,7 @@ msgstr "รายการแม่"
 msgid "Part of a redirect loop"
 msgstr "เป็นส่วนหนึ่งของวงวนการเปลี่ยนเส้นทาง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1184
+#: packages/admin/src/components/WordPressImport.tsx:1203
 msgid "Partial"
 msgstr "บางส่วน"
 
@@ -9837,7 +9859,7 @@ msgstr "Passkey ต้องใช้ HTTPS หรือ http://localhost (พ�
 msgid "Paste an embed code or an https link…"
 msgstr "วางโค้ดฝังหรือลิงก์ https…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1065
+#: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "Paste your migration key"
 msgstr "วางคีย์การย้ายข้อมูลของคุณ"
 
@@ -9924,7 +9946,7 @@ msgstr "PHP"
 msgid "Picked up {label}."
 msgstr "หยิบ {label} แล้ว"
 
-#: packages/admin/src/components/FieldEditor.tsx:1450
+#: packages/admin/src/components/FieldEditor.tsx:1452
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "การเลือกรายการที่รายการนี้ลิงก์ไปช่วยให้ผู้แก้ไขลากเพื่อจัดลำดับได้ ทิศทางตรงข้ามจะแสดงรายการที่ชี้มายังรายการนี้ และจัดลำดับใหม่ไม่ได้"
 
@@ -9964,7 +9986,7 @@ msgstr "โปรดป้อนที่อยู่อีเมลที่ถ
 msgid "Please enter a valid URL"
 msgstr "โปรดป้อน URL ที่ถูกต้อง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1213
+#: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "Plugin"
 msgstr "ปลั๊กอิน"
 
@@ -10018,7 +10040,7 @@ msgstr "ข้อผิดพลาดของปลั๊กอิน ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "การติดตั้งปลั๊กอินต้องได้รับความยินยอมอย่างชัดแจ้ง"
 
-#: packages/admin/src/components/PluginManager.tsx:395
+#: packages/admin/src/components/PluginManager.tsx:401
 msgid "Plugin MCP access updated"
 msgstr "อัปเดตการเข้าถึง MCP ของปลั๊กอินแล้ว"
 
@@ -10039,7 +10061,7 @@ msgstr "ไม่พบปลั๊กอิน"
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr "ไม่พบปลั๊กอิน ผู้เผยแพร่หรือ slug อาจไม่ถูกต้อง"
 
-#: packages/admin/src/components/PluginManager.tsx:541
+#: packages/admin/src/components/PluginManager.tsx:547
 msgid "Plugin pages"
 msgstr "หน้าของปลั๊กอิน"
 
@@ -10077,7 +10099,7 @@ msgstr "ปลั๊กอินตอบกลับด้วย {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr "เครื่องมือของปลั๊กอิน: {0}"
 
-#: packages/admin/src/components/PluginManager.tsx:384
+#: packages/admin/src/components/PluginManager.tsx:390
 msgid "Plugin uninstalled"
 msgstr "ถอนการติดตั้งปลั๊กอินแล้ว"
 
@@ -10086,7 +10108,7 @@ msgstr "ถอนการติดตั้งปลั๊กอินแล้
 msgid "Plugin update requires re-consent"
 msgstr "การอัปเดตปลั๊กอินต้องขอความยินยอมใหม่"
 
-#: packages/admin/src/components/PluginManager.tsx:293
+#: packages/admin/src/components/PluginManager.tsx:299
 msgid "Plugin updated"
 msgstr "อัปเดตปลั๊กอินแล้ว"
 
@@ -10130,11 +10152,11 @@ msgstr "URL ของโพสต์ (บรรทัดละหนึ่งร
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:479
 #: packages/admin/src/components/RelationForm.tsx:297
-#: packages/admin/src/components/WordPressImport.tsx:1351
+#: packages/admin/src/components/WordPressImport.tsx:1376
 msgid "Posts"
 msgstr "โพสต์"
 
-#: packages/admin/src/components/WordPressImport.tsx:1175
+#: packages/admin/src/components/WordPressImport.tsx:1194
 msgid "Posts & Pages"
 msgstr "โพสต์และหน้า"
 
@@ -10146,7 +10168,7 @@ msgstr "จำนวนโพสต์ต่อหน้า"
 msgid "Pre-release"
 msgstr "รุ่นก่อนเผยแพร่"
 
-#: packages/admin/src/components/WordPressImport.tsx:924
+#: packages/admin/src/components/WordPressImport.tsx:943
 msgid "Preparing categories and tags..."
 msgstr "กำลังเตรียมหมวดหมู่และแท็ก..."
 
@@ -10158,7 +10180,7 @@ msgstr "กำลังเตรียมการลงทะเบียน...
 msgid "Preparing this site"
 msgstr "กำลังเตรียมเว็บไซต์นี้"
 
-#: packages/admin/src/components/WordPressImport.tsx:2208
+#: packages/admin/src/components/WordPressImport.tsx:2233
 msgid "Preparing to download files from WordPress..."
 msgstr "กำลังเตรียมดาวน์โหลดไฟล์จาก WordPress..."
 
@@ -10415,7 +10437,7 @@ msgstr "การสร้างด่วนจะตั้งชื่อคว
 msgid "Quote"
 msgstr "คำพูดอ้างอิง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1193
+#: packages/admin/src/components/WordPressImport.tsx:1212
 msgid "Raw meta"
 msgstr "ข้อมูลเมตาดิบ"
 
@@ -10506,7 +10528,7 @@ msgstr "กำลังอ่านแพ็กเกจ"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2015
+#: packages/admin/src/components/WordPressImport.tsx:2040
 msgid "Ready"
 msgstr "พร้อม"
 
@@ -10648,7 +10670,7 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "การลงทะเบียนถูกยกเลิกหรือหมดเวลา โปรดลองอีกครั้ง"
 
 #: packages/admin/src/components/PluginManager.tsx:210
-#: packages/admin/src/components/PluginManager.tsx:447
+#: packages/admin/src/components/PluginManager.tsx:453
 #: packages/admin/src/components/Sidebar.tsx:497
 msgid "Registry"
 msgstr "รีจิสทรี"
@@ -10711,7 +10733,7 @@ msgstr ""
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
-#: packages/admin/src/components/settings/SeoSettings.tsx:217
+#: packages/admin/src/components/settings/SeoSettings.tsx:221
 msgid "Remove"
 msgstr "นำออก"
 
@@ -10800,7 +10822,7 @@ msgstr "นำ passkey ออกหรือไม่"
 msgid "Remove schedule"
 msgstr "นำกำหนดเวลาออก"
 
-#: packages/admin/src/components/FieldEditor.tsx:1325
+#: packages/admin/src/components/FieldEditor.tsx:1327
 msgid "Remove sub-field"
 msgstr "นำฟิลด์ย่อยออก"
 
@@ -10979,12 +11001,12 @@ msgstr "ต้องมี slug ก่อนจึงจะเผยแพร่
 #: packages/admin/src/components/BylineFieldEditor.tsx:275
 #: packages/admin/src/components/ContentTypeEditor.tsx:949
 #: packages/admin/src/components/FieldEditor.tsx:866
-#: packages/admin/src/components/FieldEditor.tsx:1307
+#: packages/admin/src/components/FieldEditor.tsx:1309
 #: packages/admin/src/routes/byline-schema.tsx:246
 msgid "Required"
 msgstr "ต้องระบุ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2028
+#: packages/admin/src/components/WordPressImport.tsx:2053
 msgid "Required fields:"
 msgstr "ฟิลด์ที่ต้องระบุ:"
 
@@ -11136,7 +11158,7 @@ msgstr "เลิกใช้แล้ว"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3233
+#: packages/admin/src/router.tsx:3242
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
@@ -11191,7 +11213,7 @@ msgstr "บล็อกเนื้อหาที่นำกลับมาใ
 msgid "Reverted to published version"
 msgstr "เปลี่ยนกลับเป็นเวอร์ชันที่เผยแพร่แล้ว"
 
-#: packages/admin/src/components/WordPressImport.tsx:750
+#: packages/admin/src/components/WordPressImport.tsx:769
 msgid "Review"
 msgstr "ตรวจสอบ"
 
@@ -11291,8 +11313,8 @@ msgstr "ขวา"
 msgid "Risk score: {0}/100"
 msgstr "คะแนนความเสี่ยง: {0}/100"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:260
-#: packages/admin/src/components/settings/SeoSettings.tsx:263
+#: packages/admin/src/components/settings/SeoSettings.tsx:264
+#: packages/admin/src/components/settings/SeoSettings.tsx:267
 msgid "robots.txt"
 msgstr "robots.txt"
 
@@ -11327,7 +11349,7 @@ msgstr "เข้าถึงได้ด้วย URL"
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:305
-#: packages/admin/src/components/PluginManager.tsx:624
+#: packages/admin/src/components/PluginManager.tsx:630
 msgid "Route: {0} · Permission: {1}"
 msgstr "เส้นทาง: {0} · สิทธิ์: {1}"
 
@@ -11468,7 +11490,7 @@ msgid "Saving a collection here turns this field into an entry picker. Its store
 msgstr "การบันทึกคอลเลกชันที่นี่จะเปลี่ยนฟิลด์นี้เป็นตัวเลือกรายการ ID รายการที่จัดเก็บไว้จะย้ายไปยังความสัมพันธ์ และจะค้นหาหรือกรองด้วยฟิลด์นี้ไม่ได้อีก"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:549
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1396
 #: packages/admin/src/components/MediaDetailPanel.tsx:1888
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
@@ -11558,11 +11580,11 @@ msgstr "การเผยแพร่ตามกำหนดเวลา"
 msgid "Scheduled publishing needs attention"
 msgstr "การเผยแพร่ตามกำหนดเวลาต้องการการตรวจสอบ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2351
+#: packages/admin/src/components/WordPressImport.tsx:2376
 msgid "Schema Changes"
 msgstr "การเปลี่ยนแปลงสคีมา"
 
-#: packages/admin/src/components/WordPressImport.tsx:1728
+#: packages/admin/src/components/WordPressImport.tsx:1753
 msgid "Schema preparation failed"
 msgstr "การเตรียมสคีมาล้มเหลว"
 
@@ -11685,12 +11707,12 @@ msgstr "ค้นหาความคิดเห็น..."
 msgid "Search content..."
 msgstr "ค้นหาเนื้อหา..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:166
+#: packages/admin/src/components/settings/SeoSettings.tsx:170
 msgid "Search Engine Optimization"
 msgstr "Search Engine Optimization"
 
 #: packages/admin/src/components/Settings.tsx:67
-#: packages/admin/src/components/settings/SeoSettings.tsx:123
+#: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "การทำ SEO และการยืนยัน"
 
@@ -11899,7 +11921,7 @@ msgstr "ดูว่าไฟล์นี้ถูกใช้ที่ใด"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:51
 #: packages/admin/src/components/FieldEditor.tsx:426
-#: packages/admin/src/components/FieldEditor.tsx:1295
+#: packages/admin/src/components/FieldEditor.tsx:1297
 #: packages/admin/src/components/MediaPickerModal.tsx:870
 #: packages/admin/src/components/Settings.tsx:159
 msgid "Select"
@@ -11975,7 +11997,7 @@ msgstr "เลือกเนื้อหา"
 msgid "Select dark mode variant for {label}"
 msgstr "เลือกตัวแปรโหมดมืดของ {label}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:289
+#: packages/admin/src/components/settings/SeoSettings.tsx:309
 msgid "Select default social image"
 msgstr "เลือกรูปภาพโซเชียลเริ่มต้น"
 
@@ -12002,7 +12024,7 @@ msgstr "เลือกรูปภาพแกลเลอรี"
 msgid "Select image"
 msgstr "เลือกรูปภาพ"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:228
+#: packages/admin/src/components/settings/SeoSettings.tsx:232
 msgid "Select Image"
 msgstr "เลือกรูปภาพ"
 
@@ -12035,7 +12057,7 @@ msgstr "เลือกได้ครั้งละไม่เกิน 50 �
 msgid "Select video"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1761
+#: packages/admin/src/components/WordPressImport.tsx:1786
 msgid "Select which content types to import."
 msgstr "เลือกประเภทเนื้อหาที่จะนำเข้า"
 
@@ -12134,15 +12156,15 @@ msgstr "SEO"
 msgid "SEO settings"
 msgstr "การตั้งค่า SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:122
+#: packages/admin/src/components/settings/SeoSettings.tsx:126
 msgid "SEO Settings"
 msgstr "ตั้งค่า SEO"
 
-#: packages/admin/src/components/WordPressImport.tsx:1872
+#: packages/admin/src/components/WordPressImport.tsx:1897
 msgid "SEO settings (Yoast)"
 msgstr "การตั้งค่า SEO (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:77
+#: packages/admin/src/components/settings/SeoSettings.tsx:81
 msgid "SEO settings saved"
 msgstr "บันทึกการตั้งค่า SEO แล้ว"
 
@@ -12215,10 +12237,10 @@ msgstr "กำลังตั้งค่า..."
 #: packages/admin/src/components/ContentEditor.tsx:2026
 #: packages/admin/src/components/ContentTypeEditor.tsx:465
 #: packages/admin/src/components/Header.tsx:102
-#: packages/admin/src/components/PluginManager.tsx:530
+#: packages/admin/src/components/PluginManager.tsx:536
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:510
-#: packages/admin/src/components/WordPressImport.tsx:1840
+#: packages/admin/src/components/WordPressImport.tsx:1865
 msgid "Settings"
 msgstr "ตั้งค่า"
 
@@ -12257,7 +12279,7 @@ msgid "Short text"
 msgstr "ข้อความสั้น"
 
 #: packages/admin/src/components/FieldEditor.tsx:390
-#: packages/admin/src/components/FieldEditor.tsx:1289
+#: packages/admin/src/components/FieldEditor.tsx:1291
 msgid "Short Text"
 msgstr "ข้อความสั้น"
 
@@ -12399,7 +12421,7 @@ msgstr "ข้อมูลประจำตัวเว็บไซต์"
 msgid "Site Identity"
 msgstr "เอกลักษณ์เว็บไซต์"
 
-#: packages/admin/src/components/WordPressImport.tsx:2299
+#: packages/admin/src/components/WordPressImport.tsx:2324
 msgid "site identity applied (title, tagline, logo)"
 msgstr "ใช้เอกลักษณ์เว็บไซต์แล้ว (ชื่อ คำโปรย โลโก้)"
 
@@ -12422,7 +12444,7 @@ msgstr "การตั้งค่าเว็บไซต์"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:405
-#: packages/admin/src/components/WordPressImport.tsx:1182
+#: packages/admin/src/components/WordPressImport.tsx:1201
 msgid "Site Settings"
 msgstr "ตั้งค่าเว็บไซต์"
 
@@ -12435,7 +12457,7 @@ msgstr "ชื่อเว็บไซต์"
 msgid "Site Title"
 msgstr "ชื่อเว็บไซต์"
 
-#: packages/admin/src/components/WordPressImport.tsx:1852
+#: packages/admin/src/components/WordPressImport.tsx:1877
 msgid "Site title & tagline"
 msgstr "ชื่อเว็บไซต์และคำโปรย"
 
@@ -12476,11 +12498,11 @@ msgstr "ขนาดใช้กับโฟลเดอร์ไม่ได้
 msgid "Size:"
 msgstr "ขนาด:"
 
-#: packages/admin/src/components/WordPressImport.tsx:2133
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "Skip Media Import"
 msgstr "ข้ามการนำเข้ามีเดีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:2158
+#: packages/admin/src/components/WordPressImport.tsx:2183
 msgid "Skipped"
 msgstr "ข้ามแล้ว"
 
@@ -12492,7 +12514,7 @@ msgstr "ข้ามแล้ว"
 #: packages/admin/src/components/ContentTypeList.tsx:201
 #: packages/admin/src/components/FieldEditor.tsx:468
 #: packages/admin/src/components/FieldEditor.tsx:844
-#: packages/admin/src/components/FieldEditor.tsx:1265
+#: packages/admin/src/components/FieldEditor.tsx:1266
 #: packages/admin/src/components/RelationForm.tsx:322
 #: packages/admin/src/components/RelationList.tsx:90
 #: packages/admin/src/components/SectionEditor.tsx:280
@@ -12554,7 +12576,7 @@ msgstr "เนื้อหาบางส่วนลิงก์ไปยัง
 msgid "Some content may not appear here yet."
 msgstr "เนื้อหาบางส่วนอาจยังไม่ปรากฏที่นี่"
 
-#: packages/admin/src/components/WordPressImport.tsx:1889
+#: packages/admin/src/components/WordPressImport.tsx:1914
 msgid "Some content types cannot be imported"
 msgstr "เนื้อหาบางประเภทไม่สามารถนำเข้าได้"
 
@@ -12600,7 +12622,7 @@ msgstr "จัดเรียงธีม"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:566
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:787
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/PluginManager.tsx:636
+#: packages/admin/src/components/PluginManager.tsx:642
 #: packages/admin/src/components/Redirects.tsx:488
 #: packages/admin/src/components/SectionEditor.tsx:315
 msgid "Source"
@@ -12657,7 +12679,7 @@ msgstr "เริ่มการนำเข้าใหม่"
 msgid "Start import"
 msgstr "เริ่มนำเข้า"
 
-#: packages/admin/src/components/WordPressImport.tsx:1951
+#: packages/admin/src/components/WordPressImport.tsx:1976
 msgid "Start Import"
 msgstr "เริ่มการนำเข้า"
 
@@ -12744,15 +12766,15 @@ msgstr "จัดเก็บแยกตามภาษา — คำแปล�
 msgid "Strikethrough"
 msgstr "ขีดทับ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1781
+#: packages/admin/src/components/WordPressImport.tsx:1806
 msgid "Structure"
 msgstr "โครงสร้าง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1195
+#: packages/admin/src/components/WordPressImport.tsx:1214
 msgid "Structured"
 msgstr "มีโครงสร้าง"
 
-#: packages/admin/src/components/FieldEditor.tsx:1303
+#: packages/admin/src/components/FieldEditor.tsx:1305
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr ""
 
@@ -12853,7 +12875,7 @@ msgid "Tags"
 msgstr "แท็ก"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1826
+#: packages/admin/src/components/WordPressImport.tsx:1851
 msgid "Tags ({0})"
 msgstr "แท็ก ({0})"
 
@@ -13045,7 +13067,7 @@ msgstr "อุปกรณ์จะไม่ได้รับสิทธิ์
 msgid "The download stopped"
 msgstr "การดาวน์โหลดหยุดลง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1891
+#: packages/admin/src/components/WordPressImport.tsx:1916
 msgid "The existing collection has fields with incompatible types."
 msgstr "คอลเลกชันที่มีอยู่มีฟิลด์ที่มีประเภทไม่เข้ากัน"
 
@@ -13248,7 +13270,7 @@ msgstr "เนื้อหาของแพ็กเกจจะถูกเข
 msgid "The package’s file index is not valid."
 msgstr "ดัชนีไฟล์ของแพ็กเกจไม่ถูกต้อง"
 
-#: packages/admin/src/router.tsx:3247
+#: packages/admin/src/router.tsx:3256
 msgid "The page you're looking for doesn't exist."
 msgstr "ไม่พบหน้าที่คุณกำลังค้นหา"
 
@@ -13286,7 +13308,7 @@ msgstr "ยืนยันตัวตนของผู้เผยแพร่
 msgid "The range has more entries than the calendar can show."
 msgstr "ช่วงนี้มีรายการมากกว่าที่ปฏิทินแสดงได้"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:197
+#: packages/admin/src/components/settings/SeoSettings.tsx:201
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "รูปภาพที่อ้างอิงไม่พร้อมใช้งานอีกต่อไป เลือกรูปใหม่หรือนำการอ้างอิงออก"
 
@@ -13451,7 +13473,7 @@ msgstr "ยังไม่ได้โหลดวันนี้ ช่วง�
 msgid "This device is requesting permission to use:"
 msgstr "อุปกรณ์นี้กำลังขอสิทธิ์ใช้งาน:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1088
+#: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "นี่ไม่เหมือนคีย์การย้ายข้อมูลที่ถูกต้อง ให้สร้างคีย์ใหม่ในปลั๊กอิน แล้ววางสตริงเต็มที่ขึ้นต้นด้วย \"em1.\""
 
@@ -13522,7 +13544,7 @@ msgstr "ฟิลด์นี้ต้องการรายการแบบ
 msgid "This field is required"
 msgstr "ฟิลด์นี้ต้องระบุ"
 
-#: packages/admin/src/components/FieldEditor.tsx:1418
+#: packages/admin/src/components/FieldEditor.tsx:1420
 msgid "This field lists entries that link to this one."
 msgstr "ฟิลด์นี้แสดงรายการที่ลิงก์มายังรายการนี้"
 
@@ -13531,16 +13553,16 @@ msgstr "ฟิลด์นี้แสดงรายการที่ลิง
 msgid "This field picks"
 msgstr "ฟิลด์นี้เลือก"
 
-#: packages/admin/src/components/FieldEditor.tsx:1417
+#: packages/admin/src/components/FieldEditor.tsx:1419
 msgid "This field picks entries this one links to."
 msgstr "ฟิลด์นี้เลือกรายการที่รายการนี้ลิงก์ไป"
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1429
+#: packages/admin/src/components/FieldEditor.tsx:1431
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "ฟิลด์นี้จะแสดง <0>{0}</0> ที่ {linkingSide} นี้ลิงก์ไป"
 
-#: packages/admin/src/components/FieldEditor.tsx:1434
+#: packages/admin/src/components/FieldEditor.tsx:1436
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "ฟิลด์นี้จะแสดง <0>{linkingSide}</0> ที่ลิงก์มายัง {linkedSide} นี้"
 
@@ -13572,7 +13594,7 @@ msgstr "การนำเข้านี้เริ่มไปแล้ว"
 msgid "This is a custom section."
 msgstr "นี่เป็นส่วนที่กำหนดเอง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1337
+#: packages/admin/src/components/WordPressImport.tsx:1362
 msgid "This is a WordPress site."
 msgstr "นี่เป็นเว็บไซต์ WordPress"
 
@@ -13596,7 +13618,7 @@ msgstr "ลิงก์นี้หมดอายุใน 7 วันและ
 msgid "This link expires in 7 days."
 msgstr "ลิงก์นี้จะหมดอายุใน 7 วัน"
 
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:968
 msgid "This may take a while for large exports."
 msgstr "การดำเนินการนี้อาจใช้เวลาสักครู่สำหรับการส่งออกขนาดใหญ่"
 
@@ -13666,7 +13688,7 @@ msgstr "ปลั๊กอินนี้ยังไม่พร้อมใช
 msgid "This plugin requires no special permissions."
 msgstr "ปลั๊กอินนี้ไม่ต้องการสิทธิ์พิเศษใด ๆ"
 
-#: packages/admin/src/components/PluginManager.tsx:457
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "This publisher identity no longer resolves."
 msgstr "ตัวตนของผู้เผยแพร่นี้ไม่สามารถระบุได้อีกต่อไป"
 
@@ -13806,7 +13828,7 @@ msgstr "การดำเนินการนี้จะลบ \"{0}\" อย
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "การดำเนินการนี้จะลบความคิดเห็นนี้อย่างถาวร ไม่สามารถยกเลิกการดำเนินการนี้ได้"
 
-#: packages/admin/src/components/PluginManager.tsx:791
+#: packages/admin/src/components/PluginManager.tsx:797
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "การดำเนินการนี้จะนำปลั๊กอินและบันเดิลของปลั๊กอินออกจากเว็บไซต์ของคุณ"
 
@@ -13847,7 +13869,7 @@ msgstr "ชื่อ"
 msgid "Title (Tooltip)"
 msgstr "ชื่อ (Tooltip)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:169
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Title Separator"
 msgstr "ตัวคั่นชื่อ"
 
@@ -14033,7 +14055,7 @@ msgstr "ลองปรับการค้นหาหรือตัวกร
 msgid "Try again"
 msgstr "ลองอีกครั้ง"
 
-#: packages/admin/src/components/WordPressImport.tsx:1611
+#: packages/admin/src/components/WordPressImport.tsx:1636
 msgid "Try Again"
 msgstr "ลองอีกครั้ง"
 
@@ -14058,8 +14080,8 @@ msgstr "ลองชื่อไฟล์อื่น หรือล้าง�
 msgid "Try another filename, or clear your search and filters."
 msgstr "ลองชื่อไฟล์อื่น หรือล้างการค้นหาและตัวกรองของคุณ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
-#: packages/admin/src/components/WordPressImport.tsx:1437
+#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:1462
 msgid "Try Another URL"
 msgstr "ลอง URL อื่น"
 
@@ -14104,7 +14126,7 @@ msgid "Two records have the same value where it must be unique"
 msgstr "มีสองระเบียนที่มีค่าเดียวกันในส่วนที่ต้องไม่ซ้ำกัน"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:255
-#: packages/admin/src/components/FieldEditor.tsx:1281
+#: packages/admin/src/components/FieldEditor.tsx:1283
 #: packages/admin/src/components/MediaLibrary.tsx:1142
 #: packages/admin/src/routes/byline-schema.tsx:240
 #: packages/admin/src/routes/bylines.tsx:343
@@ -14120,7 +14142,7 @@ msgid "Type caption for video (optional)"
 msgstr ""
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2047
+#: packages/admin/src/components/WordPressImport.tsx:2072
 msgid "Type mismatch ({0})"
 msgstr "ประเภทไม่ตรงกัน ({0})"
 
@@ -14164,20 +14186,20 @@ msgid "Unfinished media uploads were left out"
 msgstr "ไม่ได้รวมการอัปโหลดมีเดียที่ยังไม่เสร็จ"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
-#: packages/admin/src/components/PluginManager.tsx:686
-#: packages/admin/src/components/PluginManager.tsx:805
+#: packages/admin/src/components/PluginManager.tsx:692
+#: packages/admin/src/components/PluginManager.tsx:811
 msgid "Uninstall"
 msgstr "ถอนการติดตั้ง"
 
-#: packages/admin/src/components/PluginManager.tsx:789
+#: packages/admin/src/components/PluginManager.tsx:795
 msgid "Uninstall {pluginName}?"
 msgstr "ถอนการติดตั้ง {pluginName} หรือไม่?"
 
-#: packages/admin/src/components/PluginManager.tsx:784
+#: packages/admin/src/components/PluginManager.tsx:790
 msgid "Uninstall confirmation"
 msgstr "การยืนยันการถอนการติดตั้ง"
 
-#: packages/admin/src/components/PluginManager.tsx:805
+#: packages/admin/src/components/PluginManager.tsx:811
 msgid "Uninstalling..."
 msgstr "กำลังถอนการติดตั้ง..."
 
@@ -14293,7 +14315,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Update Field"
 msgstr "อัปเดตฟิลด์"
 
@@ -14329,7 +14351,7 @@ msgid "Update this redirect rule."
 msgstr "อัปเดตกฎการเปลี่ยนเส้นทางนี้"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:522
+#: packages/admin/src/components/PluginManager.tsx:528
 msgid "Update to v{0}"
 msgstr "อัปเดตเป็น v{0}"
 
@@ -14343,7 +14365,7 @@ msgstr "อัปเดตแล้ว"
 msgid "Updated At"
 msgstr "อัปเดตเมื่อ"
 
-#: packages/admin/src/components/WordPressImport.tsx:974
+#: packages/admin/src/components/WordPressImport.tsx:993
 msgid "Updating content URLs..."
 msgstr "กำลังอัปเดต URL ของเนื้อหา..."
 
@@ -14356,7 +14378,7 @@ msgid "Updating usage"
 msgstr "กำลังอัปเดตข้อมูลการใช้งาน"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:353
-#: packages/admin/src/components/PluginManager.tsx:522
+#: packages/admin/src/components/PluginManager.tsx:528
 #: packages/admin/src/components/SandboxedPluginPage.tsx:161
 #: packages/admin/src/components/SandboxedPluginPage.tsx:165
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:122
@@ -14381,7 +14403,7 @@ msgstr "อัปโหลดไฟล์เพื่อเริ่มต้น
 msgid "Upload a video to get started"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1445
 msgid "Upload an export file"
 msgstr "อัปโหลดไฟล์ส่งออก"
 
@@ -14398,8 +14420,8 @@ msgstr "อัปโหลดและลบมีเดีย"
 msgid "Upload and manage media"
 msgstr "อัปโหลดและจัดการมีเดีย"
 
-#: packages/admin/src/components/WordPressImport.tsx:1313
-#: packages/admin/src/components/WordPressImport.tsx:1434
+#: packages/admin/src/components/WordPressImport.tsx:1338
+#: packages/admin/src/components/WordPressImport.tsx:1459
 msgid "Upload Export File"
 msgstr "อัปโหลดไฟล์ส่งออก"
 
@@ -14451,7 +14473,7 @@ msgstr "อัปโหลดไปยัง {0}"
 msgid "Upload to {providerName}"
 msgstr "อัปโหลดไปยัง {providerName}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1149
+#: packages/admin/src/components/WordPressImport.tsx:1168
 msgid "Upload WordPress export file"
 msgstr "อัปโหลดไฟล์ส่งออก WordPress"
 
@@ -14465,7 +14487,7 @@ msgstr "อัปโหลดแล้ว:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2156
+#: packages/admin/src/components/WordPressImport.tsx:2181
 msgid "Uploading"
 msgstr "กำลังอัปโหลด"
 
@@ -14490,7 +14512,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
-#: packages/admin/src/components/FieldEditor.tsx:1296
+#: packages/admin/src/components/FieldEditor.tsx:1298
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuEditor.tsx:719
 msgid "URL"
@@ -14594,7 +14616,7 @@ msgstr "ใช้การยืนยันตัวตนด้วยข้อ
 msgid "Use your registered passkey to sign in securely."
 msgstr "ใช้ Passkey ที่ลงทะเบียนไว้เพื่อเข้าสู่ระบบอย่างปลอดภัย"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:178
+#: packages/admin/src/components/settings/SeoSettings.tsx:182
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "ใช้เป็นรูปภาพ Open Graph สำรองเมื่อหน้าไม่มีรูปภาพ ขนาดที่แนะนำ: 1200×630"
 
@@ -14677,7 +14699,7 @@ msgid "v{0}"
 msgstr "v{0}"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:450
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "v{0} available"
 msgstr "มี v{0} ให้ใช้งาน"
 
@@ -14842,11 +14864,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "เราตรวจสอบก่อนเปิดหน้าต่าง Passkey ของเบราว์เซอร์ เพื่อให้คุณเลือกได้ว่าจะทำอะไรต่อ"
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1295
+#: packages/admin/src/components/WordPressImport.tsx:1320
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "เราไม่สามารถเชื่อมต่อกับเว็บไซต์ WordPress ที่ {0} ได้ อาจเป็นเพราะเว็บไซต์ไม่ใช่ WordPress, REST API ถูกปิดใช้งาน หรือไม่สามารถเข้าถึงเว็บไซต์ได้"
 
-#: packages/admin/src/components/WordPressImport.tsx:1113
+#: packages/admin/src/components/WordPressImport.tsx:1132
 msgid "We'll check what import options are available for your site."
 msgstr "เราจะตรวจสอบว่ามีตัวเลือกการนำเข้าใดบ้างที่พร้อมใช้งานสำหรับเว็บไซต์ของคุณ"
 
@@ -14893,7 +14915,7 @@ msgstr "ชื่อของแต่ละฝั่ง ชื่อเหล�
 msgid "What happens next?"
 msgstr "จะเกิดอะไรขึ้นต่อไป?"
 
-#: packages/admin/src/components/WordPressImport.tsx:2120
+#: packages/admin/src/components/WordPressImport.tsx:2145
 msgid "What happens when you import:"
 msgstr "สิ่งที่จะเกิดขึ้นเมื่อคุณนำเข้า:"
 
@@ -14905,7 +14927,7 @@ msgstr "Passkey คืออะไร?"
 msgid "What it leaves out"
 msgstr "สิ่งที่ไม่ได้รวมไว้"
 
-#: packages/admin/src/components/FieldEditor.tsx:1463
+#: packages/admin/src/components/FieldEditor.tsx:1465
 msgid "What the direction changes"
 msgstr "สิ่งที่ทิศทางเปลี่ยนแปลง"
 
@@ -14917,7 +14939,7 @@ msgstr "สิ่งที่แพ็กเกจรวมไว้"
 msgid "What will be imported"
 msgstr "สิ่งที่จะถูกนำเข้า"
 
-#: packages/admin/src/components/WordPressImport.tsx:1903
+#: packages/admin/src/components/WordPressImport.tsx:1928
 msgid "What will happen when you import"
 msgstr "สิ่งที่จะเกิดขึ้นเมื่อคุณนำเข้า"
 
@@ -15032,12 +15054,12 @@ msgid "Widget updated"
 msgstr "อัปเดตวิดเจ็ตแล้ว"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:484
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/components/WordPressImport.tsx:1188
+#: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
 msgstr "วิดเจ็ต"
 
@@ -15054,7 +15076,7 @@ msgstr "ความกว้าง"
 msgid "Will be cleared on save"
 msgstr "จะถูกล้างเมื่อบันทึก"
 
-#: packages/admin/src/components/WordPressImport.tsx:2043
+#: packages/admin/src/components/WordPressImport.tsx:2068
 msgid "Will create"
 msgstr "จะสร้าง"
 
@@ -15074,11 +15096,11 @@ msgstr "เมื่อใช้ Passkey คุณไม่ต้องจำร
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "หากไม่มีผู้ให้บริการอีเมล ต้องแชร์ลิงก์คำเชิญด้วยตนเอง"
 
-#: packages/admin/src/components/WordPressImport.tsx:228
+#: packages/admin/src/components/WordPressImport.tsx:235
 msgid "WordPress authorization was rejected"
 msgstr "การให้สิทธิ์ WordPress ถูกปฏิเสธ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1505
+#: packages/admin/src/components/WordPressImport.tsx:1530
 msgid "WordPress Username"
 msgstr "ชื่อผู้ใช้ WordPress"
 
@@ -15114,7 +15136,7 @@ msgstr "เขียนเนื้อหาวิดเจ็ต..."
 msgid "Writing the file index"
 msgstr "กำลังเขียนดัชนีไฟล์"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "WXR File"
 msgstr "ไฟล์ WXR"
 
@@ -15122,7 +15144,7 @@ msgstr "ไฟล์ WXR"
 msgid "XML"
 msgstr "XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1526
+#: packages/admin/src/components/WordPressImport.tsx:1551
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -15141,7 +15163,7 @@ msgstr "รายปี"
 msgid "Yes"
 msgstr "ใช่"
 
-#: packages/admin/src/components/WordPressImport.tsx:1191
+#: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
@@ -15228,7 +15250,7 @@ msgstr "คุณจะเข้าร่วมในฐานะ <0>{0}</0>"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "คุณจะได้รับการแจ้งให้ใช้การยืนยันตัวตนด้วยข้อมูลชีวมาตรของอุปกรณ์ คีย์รักษาความปลอดภัย หรือ PIN"
 
-#: packages/admin/src/components/WordPressImport.tsx:1398
+#: packages/admin/src/components/WordPressImport.tsx:1423
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "คุณจะถูกเปลี่ยนเส้นทางไปยัง WordPress เพื่ออนุญาตการเชื่อมต่อ"
 
@@ -15362,7 +15384,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr "การเปลี่ยนแปลงมีเดียที่ยังไม่ได้บันทึกจะสูญหาย"
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2091
+#: packages/admin/src/components/WordPressImport.tsx:2116
 msgid "Your WordPress export contains {0} media files."
 msgstr "การส่งออก WordPress ของคุณมีไฟล์มีเดีย {0} ไฟล์"
 
