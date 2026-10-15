@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-webhook-notifier
 
+## 0.2.3
+
+### Patch Changes
+
+- [#3362](https://github.com/emdash-cms/emdash/pull/3362) [`6f42c77`](https://github.com/emdash-cms/emdash/commit/6f42c7770c2fb8b6a844eefa51f9ac4b62bf2ac0) Thanks [@DavidPivert](https://github.com/DavidPivert)! - Fixes the Webhook Settings page failing with `502 INVALID_BLOCK_RESPONSE` ("Plugin returned invalid Block Kit content") when the plugin runs sandboxed on EmDash 0.39. The Test Webhook button now uses `label`, and the "Enter a webhook URL first." and "Failed to save settings" banners use `title` and `variant`, as Block Kit requires. The Webhooks dashboard widget now loads: the plugin answers the `widget:status` id declared in its manifest instead of `widget:webhook-status`.
+
 ## 0.2.2
 
 No changes in this release.

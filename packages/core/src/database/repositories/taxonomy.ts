@@ -2,6 +2,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { slugify } from "../../utils/slugify.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, TaxonomyTable } from "../types.js";
@@ -19,6 +20,8 @@ export interface SiblingPosition {
  * statement inside D1's 100-parameter ceiling.
  */
 const GROUPS_PER_UPDATE = 32;
+/** Rows per `content_taxonomies` insert. Each row binds three parameters. */
+const ASSIGNMENTS_PER_INSERT = 32;
 const NUMERIC_SUFFIX_PATTERN = /^\d+$/;
 
 /** Deal the listed groups back out over the slots they hold, in the order given. */
@@ -618,8 +621,8 @@ export class TaxonomyRepository {
 	}
 
 	/**
-	 * Attach already-resolved term translation groups in one insert and return
-	 * the number of assignments that did not already exist.
+	 * Attach already-resolved term translation groups and return the number of
+	 * assignments that did not already exist.
 	 */
 	async attachGroupsToEntry(
 		collection: string,
@@ -631,20 +634,58 @@ export class TaxonomyRepository {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return 0;
 
-		const result = await this.db
-			.insertInto("content_taxonomies")
-			.values(
-				uniqueGroups.map((taxonomy_id) => ({
-					collection,
-					entry_id: entryGroup,
-					taxonomy_id,
-				})),
-			)
-			.onConflict((oc) => oc.doNothing())
-			.executeTakeFirst();
-		const inserted = Number(result.numInsertedOrUpdatedRows ?? 0n);
+		const inserted = await this.insertAssignments(collection, entryGroup, uniqueGroups);
 		if (inserted > 0) invalidateTaxonomyObjectCache();
 		return inserted;
+	}
+
+	private async insertAssignments(
+		collection: string,
+		entryGroup: string,
+		taxonomyGroups: string[],
+	): Promise<number> {
+		let inserted = 0;
+		try {
+			for (const batch of chunks(taxonomyGroups, ASSIGNMENTS_PER_INSERT)) {
+				// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
+				const result = await this.db
+					.insertInto("content_taxonomies")
+					.values(batch.map((taxonomy_id) => ({ collection, entry_id: entryGroup, taxonomy_id })))
+					.onConflict((oc) => oc.doNothing())
+					.executeTakeFirst();
+				inserted += Number(result.numInsertedOrUpdatedRows ?? 0n);
+			}
+		} catch (error) {
+			// Earlier batches are already written.
+			if (inserted > 0) invalidateTaxonomyObjectCache();
+			throw error;
+		}
+		return inserted;
+	}
+
+	private async deleteAssignments(
+		collection: string,
+		entryGroup: string,
+		taxonomyGroups: string[],
+	): Promise<number> {
+		let removed = 0;
+		try {
+			for (const batch of chunks(taxonomyGroups, SQL_BATCH_SIZE)) {
+				// oxlint-disable-next-line no-await-in-loop -- one statement per D1-safe batch
+				const result = await this.db
+					.deleteFrom("content_taxonomies")
+					.where("collection", "=", collection)
+					.where("entry_id", "=", entryGroup)
+					.where("taxonomy_id", "in", batch)
+					.executeTakeFirst();
+				removed += Number(result.numDeletedRows ?? 0n);
+			}
+		} catch (error) {
+			// Earlier batches are already deleted.
+			if (removed > 0) invalidateTaxonomyObjectCache();
+			throw error;
+		}
+		return removed;
 	}
 
 	async detachFromEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
@@ -674,13 +715,7 @@ export class TaxonomyRepository {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return 0;
 
-		const result = await this.db
-			.deleteFrom("content_taxonomies")
-			.where("collection", "=", collection)
-			.where("entry_id", "=", entryGroup)
-			.where("taxonomy_id", "in", uniqueGroups)
-			.executeTakeFirst();
-		const removed = Number(result.numDeletedRows ?? 0n);
+		const removed = await this.deleteAssignments(collection, entryGroup, uniqueGroups);
 		if (removed > 0) invalidateTaxonomyObjectCache();
 		return removed;
 	}
@@ -792,31 +827,13 @@ export class TaxonomyRepository {
 		const currentGroups = new Set(current.map((r) => r.group));
 
 		const toRemove = [...currentGroups].filter((g) => !newGroups.has(g));
-		if (toRemove.length > 0) {
-			await this.db
-				.deleteFrom("content_taxonomies")
-				.where("collection", "=", collection)
-				.where("entry_id", "=", entryGroup)
-				.where("taxonomy_id", "in", toRemove)
-				.execute();
-		}
-
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
-		if (toAdd.length > 0) {
-			await this.db
-				.insertInto("content_taxonomies")
-				.values(
-					toAdd.map((taxonomy_id) => ({
-						collection,
-						entry_id: entryGroup,
-						taxonomy_id,
-					})),
-				)
-				.onConflict((oc) => oc.doNothing())
-				.execute();
+		try {
+			if (toRemove.length > 0) await this.deleteAssignments(collection, entryGroup, toRemove);
+			if (toAdd.length > 0) await this.insertAssignments(collection, entryGroup, toAdd);
+		} finally {
+			if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 		}
-
-		if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
@@ -920,8 +937,6 @@ export class TaxonomyRepository {
 	 */
 	async countEntriesForTerms(translationGroups: string[]): Promise<Map<string, number>> {
 		if (translationGroups.length === 0) return new Map();
-
-		const { chunks, SQL_BATCH_SIZE } = await import("../../utils/chunks.js");
 
 		const counts = new Map<string, number>();
 		for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {

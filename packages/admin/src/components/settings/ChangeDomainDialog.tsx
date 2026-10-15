@@ -1,9 +1,11 @@
 import { Button, Dialog, Input } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation } from "@tanstack/react-query";
 import * as React from "react";
 
-import { changeSiteDomain, updateSettings } from "../../lib/api";
+import { ApiResponseError, changeSiteDomain, updateSettings } from "../../lib/api";
 import { DialogError, getMutationError } from "../DialogError.js";
 
 export interface ChangeDomainDialogProps {
@@ -25,6 +27,29 @@ export function uncheckedSiteUrl(input: string): string | undefined {
 	if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
 	if (url.username || url.password) return undefined;
 	return `${url.origin}${url.pathname.replace(TRAILING_SLASHES, "")}`;
+}
+
+/** The reason a domain check failed, in the admin language, from the error's details. */
+function domainCheckFailure(error: unknown): string | undefined {
+	if (!(error instanceof ApiResponseError) || error.code !== "DOMAIN_CHECK_FAILED")
+		return undefined;
+	const { reason, host, origin, target } = error.details ?? {};
+	if (reason === "NO_PUBLIC_ADDRESS" && typeof host === "string") {
+		return i18n._(msg`${host} does not resolve to a public address`);
+	}
+	if (typeof origin !== "string") return undefined;
+	switch (reason) {
+		case "UNREACHABLE":
+			return i18n._(msg`Could not reach ${origin}`);
+		case "REDIRECT":
+			return typeof target === "string"
+				? i18n._(msg`${origin} redirects to ${target}. Enter that address instead.`)
+				: i18n._(msg`${origin} redirects elsewhere`);
+		case "NOT_SERVING":
+			return i18n._(msg`${origin} does not serve this site yet`);
+		default:
+			return undefined;
+	}
 }
 
 export function ChangeDomainDialog({
@@ -58,6 +83,11 @@ export function ChangeDomainDialog({
 
 	const isPending = checkMutation.isPending || uncheckedMutation.isPending;
 	const fallbackUrl = checkMutation.isError ? uncheckedSiteUrl(domain) : undefined;
+	const checkError = checkMutation.error;
+	const errorMessage =
+		checkError instanceof ApiResponseError && checkError.code === "VALIDATION_ERROR"
+			? t`Enter a domain such as example.com, without a path or port`
+			: (domainCheckFailure(checkError) ?? getMutationError(checkError ?? uncheckedMutation.error));
 
 	const submit = (event: React.FormEvent) => {
 		event.preventDefault();
@@ -113,10 +143,7 @@ export function ChangeDomainDialog({
 						{t`Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one.`}
 					</p>
 
-					<DialogError
-						message={getMutationError(checkMutation.error ?? uncheckedMutation.error)}
-						className="mt-4"
-					/>
+					<DialogError message={errorMessage} className="mt-4" />
 					{fallbackUrl && (
 						<div className="mt-3 grid gap-2 rounded-md border border-kumo-line p-3 text-sm">
 							<p>

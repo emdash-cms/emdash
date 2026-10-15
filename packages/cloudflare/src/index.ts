@@ -72,11 +72,14 @@ export interface D1Config {
 	 *
 	 * **Warning:** incompatible with the `global_fetch_strictly_public`
 	 * compatibility flag. With that flag set, the internal request the D1
-	 * Sessions API makes to route queries to replicas is silently blocked
-	 * and every SSR request hangs until the Worker is killed — with no
-	 * error logged (`outcome: "canceled"`, empty `exceptions`). The hang
-	 * may only start once replicas finish provisioning, so it can pass an
-	 * initial post-deploy check. Remove the flag or keep sessions
+	 * Sessions API makes to route queries to replicas is silently blocked,
+	 * so session queries never complete. EmDash waits five seconds on the
+	 * first session query in each isolate, logs an error, re-runs `SELECT`
+	 * queries on the primary database, rejects writes caught in that
+	 * window, and turns sessions off for the rest of the isolate. Every new
+	 * isolate repeats the delay, and no request reads from a replica. The
+	 * problem may only start once replicas finish provisioning, so it can
+	 * pass an initial post-deploy check. Remove the flag or keep sessions
 	 * disabled. See https://github.com/emdash-cms/emdash/issues/1273.
 	 */
 	session?: "disabled" | "auto" | "primary-first";
@@ -242,7 +245,7 @@ export interface AccessConfig {
 
 	/**
 	 * Role level for users not matching any group in roleMapping
-	 * @default 30 (Editor)
+	 * @default 30 (Author, who can publish their own content)
 	 */
 	defaultRole?: number;
 
@@ -268,8 +271,8 @@ export interface AccessConfig {
 	 * ```ts
 	 * roleMapping: {
 	 *   "Admins": 50,        // Admin
-	 *   "Developers": 40,    // Developer
-	 *   "Content Team": 30,  // Editor
+	 *   "Editors": 40,       // Editor
+	 *   "Content Team": 30,  // Author
 	 * }
 	 * ```
 	 */
@@ -521,7 +524,8 @@ export function r2(config: R2StorageConfig): StorageDescriptor {
  *   audience: "abc123...",
  *   roleMapping: {
  *     "Admins": 50,
- *     "Editors": 30,
+ *     "Editors": 40, // Editor
+ *     "Authors": 30, // Author
  *   },
  * })
  * ```

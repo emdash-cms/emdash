@@ -176,6 +176,17 @@ describe("gutenbergToPortableText", () => {
 			const result = gutenbergToPortableText(content);
 			expect(result).toHaveLength(2);
 		});
+
+		it("converts a paragraph with formatting nested thousands of levels deep", () => {
+			const content = `<!-- wp:paragraph -->
+<p>${"<strong>".repeat(20_000)}deep</p>
+<!-- /wp:paragraph -->`;
+
+			const result = gutenbergToPortableText(content);
+			const block = result[0] as PortableTextTextBlock;
+
+			expect(block.children).toMatchObject([{ text: "deep", marks: ["strong"] }]);
+		});
 	});
 
 	describe("heading blocks", () => {
@@ -755,9 +766,40 @@ https://${domain}/123456
 				style: "fill",
 			});
 		});
+
+		it("reads the link from the markup when the url attribute is missing", () => {
+			const content = `<!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" data-href="https://wrong.example/" href="https://example.com/?a=1&amp;b=2&#038;c=3">Go</a></div>
+<!-- /wp:button -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result[0]).toMatchObject({
+				_type: "button",
+				text: "Go",
+				url: "https://example.com/?a=1&b=2&c=3",
+			});
+		});
 	});
 
 	describe("buttons block", () => {
+		it("reads links from the markup and drops unsafe ones", () => {
+			const content = `<!-- wp:buttons -->
+<div class="wp-block-buttons">
+<!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link" href="https://example.com/one">First</a></div>
+<!-- /wp:button -->
+<!-- wp:button {"url":"javascript:alert(1)"} -->
+<div class="wp-block-button"><a href="javascript:alert(1)">Second</a></div>
+<!-- /wp:button -->
+</div>
+<!-- /wp:buttons -->`;
+
+			const block = gutenbergToPortableText(content)[0] as PortableTextButtonsBlock;
+
+			expect(block.buttons.map((b) => b.url)).toEqual(["https://example.com/one", ""]);
+		});
+
 		it("converts a buttons container", () => {
 			const content = `<!-- wp:buttons -->
 <div class="wp-block-buttons">
@@ -1008,6 +1050,34 @@ https://${domain}/123456
 					count: 5,
 				},
 			);
+		});
+
+		it("keeps a placeholder for a self-closing dynamic block", () => {
+			const content = `<!-- wp:paragraph --><p>Before</p><!-- /wp:paragraph -->
+<!-- wp:acme/testimonial {"author":"Kunde","note":"a--b <i> \\u0022q\\u0022"} /-->
+<!-- wp:paragraph --><p>After</p><!-- /wp:paragraph -->`;
+
+			const result = gutenbergToPortableText(content);
+
+			expect(result).toHaveLength(3);
+			expect(result[1]).toMatchObject({
+				_type: "htmlBlock",
+				html: '<!-- wp:acme/testimonial {"author":"Kunde","note":"a\\u002d\\u002db \\u003ci\\u003e \\u0022q\\u0022"} /-->',
+				originalBlockName: "acme/testimonial",
+				originalAttrs: { author: "Kunde", note: 'a--b <i> "q"' },
+			});
+		});
+
+		it("names core blocks the way WordPress serializes them", () => {
+			const result = gutenbergToPortableText("<!-- wp:latest-posts /-->");
+
+			expect(result).toEqual([
+				expect.objectContaining({
+					_type: "htmlBlock",
+					html: "<!-- wp:latest-posts /-->",
+					originalBlockName: "core/latest-posts",
+				}),
+			]);
 		});
 	});
 

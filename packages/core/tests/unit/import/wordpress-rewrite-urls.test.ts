@@ -1,3 +1,4 @@
+import type { PortableTextBlock } from "@emdash-cms/gutenberg-to-portable-text";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,6 +8,7 @@ import {
 	rewritePortableTextUrls,
 	rewriteStringUrls,
 } from "../../../src/astro/routes/api/import/wordpress/rewrite-url-helpers.js";
+import { relativizeContentLinks } from "../../../src/import/utils.js";
 
 describe("WordPress import URL rewriting", () => {
 	const oldOriginalUrl = "https://example.com/wp-content/uploads/2026/01/hero.jpg";
@@ -139,5 +141,75 @@ describe("WordPress import URL rewriting", () => {
 
 		expect(result).toEqual({ changed: true, urlsRewritten: 1 });
 		expect(blocks[0]?.link).toEqual({ href: newUrl, blank: true });
+	});
+
+	it("rewrites media URLs outside image blocks", () => {
+		const pdf = "https://example.com/wp-content/uploads/2026/01/report.pdf";
+		const mp3 = "https://example.com/wp-content/uploads/2026/01/song.mp3";
+		const map = {
+			...urlMap,
+			[pdf]: "/_emdash/media/file/imported/report.pdf",
+			[mp3]: "/_emdash/media/file/imported/song.mp3",
+		};
+		const link = (href: string) => ({ _type: "link", _key: "l", href });
+		const blocks = [
+			{ _type: "block", markDefs: [link(pdf), link("https://example.com/about/")] },
+			{
+				_type: "table",
+				rows: [{ cells: [{ markDefs: [link(pdf)] }] }],
+			},
+			{
+				_type: "cover",
+				backgroundImage: oldVariantUrl,
+				content: [{ _type: "block", markDefs: [link(pdf)] }],
+			},
+			{ _type: "file", url: pdf },
+			{ _type: "embed", url: mp3, html: `<audio controls src="${mp3}"></audio>` },
+			{ _type: "htmlBlock", html: `<a href="${pdf}">Report</a>` },
+			{ _type: "button", url: pdf },
+			{ _type: "buttons", buttons: [{ _type: "button", url: pdf }] },
+		];
+
+		const result = rewritePortableTextUrls(blocks, map, buildBaseUrlMap(map));
+
+		expect(result).toEqual({ changed: true, urlsRewritten: 9 });
+		expect(JSON.stringify(blocks)).not.toContain("wp-content");
+		expect(blocks[0]).toMatchObject({
+			markDefs: [{ href: map[pdf] }, { href: "https://example.com/about/" }],
+		});
+		expect(blocks[2]).toMatchObject({ backgroundImage: newUrl });
+		expect(blocks[4]).toMatchObject({
+			url: map[mp3],
+			html: `<audio controls src="${map[mp3]}"></audio>`,
+		});
+	});
+	it("rewrites upload links that survived link relativization", () => {
+		const pdf = "https://example.com/wp-content/uploads/2026/01/report.pdf";
+		const map = { [pdf]: "/_emdash/media/file/imported/report.pdf" };
+		const blocks: PortableTextBlock[] = [
+			{ _type: "htmlBlock", _key: "h", html: `<a href="${pdf}">Report</a>` },
+			{
+				_type: "columns",
+				_key: "c",
+				columns: [
+					{
+						_type: "column",
+						_key: "co",
+						content: [
+							{
+								_type: "buttons",
+								_key: "b",
+								buttons: [{ _type: "button", _key: "bt", text: "PDF", url: pdf }],
+							},
+						],
+					},
+				],
+			},
+		];
+
+		relativizeContentLinks(blocks, "https://example.com");
+		rewritePortableTextUrls(blocks, map, buildBaseUrlMap(map));
+
+		expect(JSON.stringify(blocks)).not.toContain("wp-content");
 	});
 });

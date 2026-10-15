@@ -211,3 +211,75 @@ describe("astro middleware cache validator", () => {
 		expect(cache.options.lastModified).toBeUndefined();
 	});
 });
+
+describe("astro middleware route cache sharing", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("keeps an anonymous page with a route rule cacheable", async () => {
+		const cache = createCache();
+		cache.set({ maxAge: 300 });
+
+		await onRequest(
+			anonymousPublicPageContext(cache) as Parameters<typeof onRequest>[0],
+			pageSetting(cache, { tags: ["posts"] }),
+		);
+
+		expect(cache.disabled).toBe(false);
+	});
+
+	it("keeps a page rendered for a signed-in user out of the shared cache", async () => {
+		const cache = createCache();
+		cache.set({ maxAge: 300 });
+		const context = anonymousPublicPageContext(cache);
+		context.cookies = {
+			get: vi.fn((name: string) => (name === "astro-session" ? { value: "s1" } : undefined)),
+			set: vi.fn(),
+		};
+		const locals = context.locals as Record<string, unknown>;
+		const renderPage = pageSetting(cache, { tags: ["posts"] });
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			locals.user = { id: "u1", role: 10 };
+			return renderPage();
+		});
+
+		expect(cache.disabled).toBe(true);
+	});
+
+	it("keeps a public media file requested anonymously cacheable", async () => {
+		const cache = createCache();
+		cache.set({ maxAge: 300 });
+		const context = anonymousPublicPageContext(cache);
+		context.request = new Request("https://example.com/_emdash/api/media/file/photo.jpg");
+		context.url = new URL("https://example.com/_emdash/api/media/file/photo.jpg");
+
+		await onRequest(
+			context as Parameters<typeof onRequest>[0],
+			async () =>
+				new Response("image", {
+					headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000" },
+				}),
+		);
+
+		expect(cache.disabled).toBe(false);
+	});
+
+	it("keeps a private response out of the shared cache when a route rule matches it", async () => {
+		const cache = createCache();
+		cache.set({ maxAge: 300 });
+		const context = anonymousPublicPageContext(cache);
+		context.request = new Request("https://example.com/_emdash/api/content/posts");
+		context.url = new URL("https://example.com/_emdash/api/content/posts");
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () =>
+			Response.json(
+				{ success: false, error: { code: "NOT_AUTHENTICATED", message: "" } },
+				{ status: 401, headers: { "Cache-Control": "private, no-store" } },
+			),
+		);
+
+		expect(cache.disabled).toBe(true);
+	});
+});

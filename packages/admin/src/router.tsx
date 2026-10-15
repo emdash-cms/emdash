@@ -29,6 +29,7 @@ import * as React from "react";
 
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
+import type { BylineFormValues } from "./components/BylineFormDialog.js";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
@@ -279,6 +280,38 @@ function patchAutosaveQueries(
 		references:
 			savedItem.references ?? withAutosavedReferences(cached?.references, referenceRows, fields),
 	}));
+}
+
+/**
+ * Decode the entry version encoded in an opaque `_rev` token
+ * (`base64("version:updatedAt")`). Returns `undefined` for malformed tokens.
+ */
+function decodeRevVersion(rev: string): number | undefined {
+	try {
+		const decoded = atob(rev);
+		const colonIdx = decoded.indexOf(":");
+		if (colonIdx === -1) return undefined;
+
+		const version = parseInt(decoded.slice(0, colonIdx), 10);
+		return Number.isNaN(version) ? undefined : version;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Decide whether a refetched revision should replace the stored write token.
+ * Adopt the fetched revision when there is no stored version, and ratchet
+ * forward by the decoded entry version so a delayed old read cannot replace a
+ * newer successful-write token.
+ */
+function shouldAdoptRevision(
+	storedVersion: number | undefined,
+	fetchedRev: string | undefined,
+): boolean {
+	if (storedVersion === undefined) return true;
+	const fetchedVersion = fetchedRev ? decodeRevVersion(fetchedRev) : undefined;
+	return typeof fetchedVersion === "number" && fetchedVersion > storedVersion;
 }
 
 // Create a base root route without Shell for setup
@@ -775,6 +808,7 @@ function ContentNewPage() {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
+	const { data: currentUser } = useCurrentUser();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -831,19 +865,15 @@ function ContentNewPage() {
 	});
 
 	const createBylineMutation = useMutation({
-		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true, locale: pickerLocale }),
+		mutationFn: (values: BylineFormValues) => createByline({ ...values, locale: pickerLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
 	});
 
 	const updateBylineMutation = useMutation({
-		mutationFn: (input: { id: string; slug: string; displayName: string }) =>
-			updateByline(input.id, {
-				slug: input.slug,
-				displayName: input.displayName,
-			}),
+		mutationFn: ({ bylineId, values }: { bylineId: string; values: BylineFormValues }) =>
+			updateByline(bylineId, values),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -865,13 +895,13 @@ function ContentNewPage() {
 	);
 
 	const handleQuickCreateByline = React.useCallback(
-		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		(values: BylineFormValues) => createBylineMutation.mutateAsync(values),
 		[createBylineMutation.mutateAsync],
 	);
 
 	const handleQuickEditByline = React.useCallback(
-		(bylineId: string, input: { slug: string; displayName: string }) =>
-			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		(bylineId: string, values: BylineFormValues) =>
+			updateBylineMutation.mutateAsync({ bylineId, values }),
 		[updateBylineMutation.mutateAsync],
 	);
 
@@ -902,6 +932,7 @@ function ContentNewPage() {
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
+			currentUser={currentUser}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>
@@ -921,6 +952,7 @@ const contentEditRoute = createRoute({
 });
 
 // Role levels from @emdash-cms/auth
+const ROLE_CONTRIBUTOR = 20;
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
@@ -937,6 +969,19 @@ function ContentEditPage() {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
+	const isEditorDirtyRef = React.useRef(false);
+	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
+	const [editorItemReset, setEditorItemReset] = React.useState({ entryId: "", token: 0 });
+	const resetEditorItem = React.useCallback((entryId: string) => {
+		setEditorItemReset((previous) => ({ entryId, token: previous.token + 1 }));
+	}, []);
+	const handleEditorDirtyChange = React.useCallback((isDirty: boolean) => {
+		isEditorDirtyRef.current = isDirty;
+		setIsEditorDirty(isDirty);
+	}, []);
+	// The ref is updated synchronously from editor interaction callbacks so a
+	// clean refetch that resolves in the same render batch as an edit still sees
+	// dirty=true when the token adoption layout effect runs.
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -947,10 +992,16 @@ function ContentEditPage() {
 	const activeLocale = i18n ? (searchParams.locale ?? i18n.defaultLocale) : undefined;
 	const collectionFields = manifest?.collections[collection]?.fields ?? EMPTY_FIELDS;
 
-	const { data: rawItem, isLoading } = useQuery({
+	const {
+		data: rawItem,
+		isLoading,
+		error: itemError,
+	} = useQuery({
 		queryKey: ["content", collection, id, { locale: activeLocale }],
 		queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
 		enabled: !i18n || !!activeLocale,
+		retry: (failureCount, queryError) =>
+			!(queryError instanceof ApiResponseError && queryError.status === 404) && failureCount < 1,
 	});
 	const entryLock = useEntryLock({
 		collection,
@@ -959,14 +1010,31 @@ function ContentEditPage() {
 		ready: Boolean(rawItem),
 	});
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
+	const revisionVersionsRef = React.useRef(new Map<string, number>());
 	const activeRevisionEntryRef = React.useRef("");
-	if (activeRevisionEntryRef.current !== id) {
-		activeRevisionEntryRef.current = id;
+	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
+	if (activeRevisionEntryRef.current !== revisionIdentity) {
+		activeRevisionEntryRef.current = revisionIdentity;
 		revisionTokensRef.current.delete(id);
+		revisionVersionsRef.current.delete(id);
 	}
-	if (rawItem && !revisionTokensRef.current.has(rawItem.id)) {
-		revisionTokensRef.current.set(rawItem.id, rawItem._rev);
-	}
+	const recordWriteRevision = React.useCallback(
+		(entryId: string, item: Pick<ContentItem, "_rev">) => {
+			if (!item._rev) return;
+			revisionTokensRef.current.set(entryId, item._rev);
+			const version = decodeRevVersion(item._rev);
+			if (typeof version === "number") revisionVersionsRef.current.set(entryId, version);
+		},
+		[],
+	);
+	React.useLayoutEffect(() => {
+		if (!rawItem?._rev) return;
+		if (isEditorDirtyRef.current) return;
+		const storedVersion = revisionVersionsRef.current.get(rawItem.id);
+		if (shouldAdoptRevision(storedVersion, rawItem._rev)) {
+			recordWriteRevision(rawItem.id, rawItem);
+		}
+	}, [rawItem?._rev, rawItem?.id, isEditorDirty, recordWriteRevision]);
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
 	// Written together with the conflict state rather than on render, so a save
@@ -1113,32 +1181,28 @@ function ContentEditPage() {
 	});
 
 	const createBylineMutation = useMutation({
-		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true, locale: itemLocale }),
+		mutationFn: (values: BylineFormValues) => createByline({ ...values, locale: itemLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
 	});
 
 	const updateBylineMutation = useMutation({
-		mutationFn: (input: { id: string; slug: string; displayName: string }) =>
-			updateByline(input.id, {
-				slug: input.slug,
-				displayName: input.displayName,
-			}),
+		mutationFn: ({ bylineId, values }: { bylineId: string; values: BylineFormValues }) =>
+			updateByline(bylineId, values),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
 	});
 
 	const handleContentUpdateSuccess = React.useCallback(
-		(targetId: string) => {
+		async (targetId: string) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
 			// locale-scoped invalidation key would not match and the item would never
 			// refetch — leaving the publish/save buttons stale until a hard refresh.
-			void queryClient.invalidateQueries({
+			const contentRefresh = queryClient.invalidateQueries({
 				queryKey: ["content", collection, targetId],
 			});
 			// Also invalidate revisions since a new one was created
@@ -1147,10 +1211,11 @@ function ContentEditPage() {
 			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
 			if (rawItem?.draftRevisionId) {
-				void queryClient.invalidateQueries({
+				await queryClient.invalidateQueries({
 					queryKey: ["revision", rawItem.draftRevisionId],
 				});
 			}
+			await contentRefresh;
 		},
 		[collection, queryClient, rawItem?.draftRevisionId],
 	);
@@ -1161,7 +1226,7 @@ function ContentEditPage() {
 				const server = await fetchContent(collection, entryId, {
 					locale: rawItem?.locale ?? activeLocale,
 				});
-				revisionTokensRef.current.set(entryId, server._rev);
+				recordWriteRevision(entryId, server);
 				return true;
 			} catch {
 				// Dropping the refused token would make the next save a blind write, so
@@ -1171,7 +1236,7 @@ function ContentEditPage() {
 				return false;
 			}
 		},
-		[activeLocale, collection, rawItem?.locale],
+		[activeLocale, collection, rawItem?.locale, recordWriteRevision],
 	);
 	const handleContentUpdateError = React.useCallback(
 		(error: unknown, targetId: string) => {
@@ -1195,7 +1260,7 @@ function ContentEditPage() {
 				{ ...changes, _rev: revisionTokensRef.current.get(targetId) },
 				{ locale: targetLocale },
 			);
-			revisionTokensRef.current.set(targetId, savedItem._rev);
+			recordWriteRevision(targetId, savedItem);
 			return savedItem;
 		},
 		onMutate: (variables) => {
@@ -1210,7 +1275,10 @@ function ContentEditPage() {
 			if (variables.source === "editor") {
 				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 			}
-			handleContentUpdateSuccess(variables.targetId);
+			void handleContentUpdateSuccess(variables.targetId).then(() => {
+				if (variables.source === "editor") resetEditorItem(variables.targetId);
+				return undefined;
+			});
 		},
 		onError: async (error, variables) => {
 			if (isSaveConflict(error) && (await recoverFromSaveConflict(variables.targetId))) return;
@@ -1230,12 +1298,12 @@ function ContentEditPage() {
 				{ publishedAt, _rev: revisionTokensRef.current.get(id) },
 				{ locale: rawItem?.locale ?? activeLocale },
 			);
-			revisionTokensRef.current.set(id, savedItem._rev);
+			recordWriteRevision(id, savedItem);
 			return savedItem;
 		},
 		onSuccess: () => {
 			setConflictedEntryId((current) => (current === id ? "" : current));
-			handleContentUpdateSuccess(id);
+			void handleContentUpdateSuccess(id);
 		},
 		onError: async (error) => {
 			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
@@ -1252,7 +1320,7 @@ function ContentEditPage() {
 				{ ...changes, skipRevision: true, _rev: revisionTokensRef.current.get(targetId) },
 				{ locale: targetLocale },
 			);
-			revisionTokensRef.current.set(targetId, savedItem._rev);
+			recordWriteRevision(targetId, savedItem);
 			return savedItem;
 		},
 		onSuccess: (savedItem, variables) => {
@@ -1293,7 +1361,7 @@ function ContentEditPage() {
 				_rev: revision,
 			}),
 		onSuccess: (publishedItem, { savedReferences }) => {
-			revisionTokensRef.current.set(id, publishedItem._rev);
+			recordWriteRevision(id, publishedItem);
 			// A selection the preceding save sent is in no cached page yet, so the
 			// entry is read again instead of keeping the pages from before it.
 			queryClient.setQueriesData<ContentItem>(
@@ -1327,7 +1395,7 @@ function ContentEditPage() {
 				_rev,
 			}),
 		onSuccess: (unpublishedItem) => {
-			revisionTokensRef.current.set(id, unpublishedItem._rev);
+			recordWriteRevision(id, unpublishedItem);
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
@@ -1346,13 +1414,14 @@ function ContentEditPage() {
 
 	const discardDraftMutation = useMutation({
 		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: (discardedItem) => {
+		onSuccess: async (discardedItem) => {
 			setConflictedEntryId((conflicted) => (conflicted === id ? "" : conflicted));
-			revisionTokensRef.current.set(id, discardedItem._rev);
-			void queryClient.invalidateQueries({
+			recordWriteRevision(id, discardedItem);
+			await queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			resetEditorItem(id);
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
@@ -1377,9 +1446,7 @@ function ContentEditPage() {
 			const currentChangedItem = changedItem._rev
 				? changedItem
 				: await fetchContent(collection, id, { locale: rawItem?.locale ?? activeLocale });
-			if (currentChangedItem._rev) {
-				revisionTokensRef.current.set(id, currentChangedItem._rev);
-			}
+			recordWriteRevision(id, currentChangedItem);
 			queryClient.setQueriesData<ContentItem>(
 				{ queryKey: ["content", collection, id] },
 				(existing) => {
@@ -1405,7 +1472,7 @@ function ContentEditPage() {
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			}
 		},
-		[activeLocale, collection, id, queryClient, rawItem?.locale],
+		[activeLocale, collection, id, queryClient, rawItem?.locale, recordWriteRevision],
 	);
 	const scheduleMutation = useMutation({
 		mutationFn: (scheduledAt: string) =>
@@ -1751,21 +1818,21 @@ function ContentEditPage() {
 		[translateMutation.mutate],
 	);
 	const handleQuickCreateByline = React.useCallback(
-		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		(values: BylineFormValues) => createBylineMutation.mutateAsync(values),
 		[createBylineMutation.mutateAsync],
 	);
 	const handleQuickEditByline = React.useCallback(
-		(bylineId: string, input: { slug: string; displayName: string }) =>
-			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		(bylineId: string, values: BylineFormValues) =>
+			updateBylineMutation.mutateAsync({ bylineId, values }),
 		[updateBylineMutation.mutateAsync],
 	);
 	const handleRevisionRestored = React.useCallback(
-		(restoredItem: ContentItem) => {
-			if (restoredItem._rev) {
-				revisionTokensRef.current.set(id, restoredItem._rev);
-			}
+		async (restoredItem: ContentItem) => {
+			recordWriteRevision(id, restoredItem);
+			await handleContentUpdateSuccess(id);
+			resetEditorItem(id);
 		},
-		[id],
+		[id, recordWriteRevision, handleContentUpdateSuccess, resetEditorItem],
 	);
 	const handlePluginEntryRefresh = React.useCallback(async () => {
 		await Promise.all([
@@ -1789,6 +1856,18 @@ function ContentEditPage() {
 		return <LoadingScreen />;
 	}
 
+	if (itemError && !rawItem) {
+		if (itemError instanceof ApiResponseError && itemError.status === 404) {
+			// Users without content:read_drafts get 404 for anything not published.
+			const message =
+				currentUser && currentUser.role < ROLE_CONTRIBUTOR
+					? t`This entry doesn't exist or isn't published. Your role can only view published content.`
+					: t`This entry doesn't exist or was deleted.`;
+			return <NotFoundPage message={message} />;
+		}
+		return <ErrorScreen error={itemError.message} />;
+	}
+
 	return (
 		<ContentEditor
 			collection={collection}
@@ -1800,6 +1879,8 @@ function ContentEditPage() {
 				updateMutation.isPending || publishedAtMutation.isPending || publishMutation.isPending
 			}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
+			onDirtyChange={handleEditorDirtyChange}
+			itemResetToken={editorItemReset.entryId === id ? editorItemReset.token : 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
 			isAutosaving={autosaveMutation.isPending}
@@ -2644,7 +2725,9 @@ const contentTypesListRoute = createRoute({
 });
 
 function ContentTypesListPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 
 	const {
 		data: collections,
@@ -2689,6 +2772,13 @@ function ContentTypesListPage() {
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["schema", "orphans"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+		onError: (error, slug) => {
+			toastManager.add({
+				title: t`Failed to register ${slug}`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+			});
 		},
 	});
 

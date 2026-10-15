@@ -147,13 +147,14 @@ describe("marketplace API client", () => {
 			await expect(installMarketplacePlugin("my-plugin")).rejects.toThrow("Version conflict");
 		});
 
-		it("falls back to statusText when body has no message", async () => {
+		it("falls back to the install message when body has no message", async () => {
 			fetchSpy.mockResolvedValue(
 				new Response("not json", { status: 500, statusText: "Server Error" }),
 			);
-			await expect(installMarketplacePlugin("my-plugin")).rejects.toThrow(
-				"Failed to install plugin: Server Error",
-			);
+			await expect(installMarketplacePlugin("my-plugin")).rejects.toMatchObject({
+				message: "Failed to install plugin",
+				status: 500,
+			});
 		});
 
 		it.each([

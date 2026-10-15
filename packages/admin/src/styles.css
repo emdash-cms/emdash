@@ -80,8 +80,10 @@
 }
 
 /* Base styles */
-* {
-	border-color: var(--color-kumo-line);
+@layer base {
+	* {
+		border-color: var(--color-kumo-line);
+	}
 }
 
 body {
@@ -223,6 +225,11 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 .prose code::before,
 .prose code::after {
 	content: none !important;
+}
+
+.ProseMirror blockquote p::before,
+.ProseMirror blockquote p::after {
+	content: none;
 }
 
 /* Tighter list spacing for editor */

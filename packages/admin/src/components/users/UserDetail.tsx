@@ -14,7 +14,7 @@ import * as React from "react";
 
 import type { UserDetail as UserDetailType, UpdateUserInput } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
-import { cn } from "../../lib/utils";
+import { cn, formatDate, isolate } from "../../lib/utils.js";
 import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface UserDetailProps {
@@ -26,6 +26,8 @@ export interface UserDetailProps {
 	recoverySent?: boolean;
 	recoveryError?: string | null;
 	currentUserId?: string;
+	/** The external auth provider overwrites names, so the name field is read-only. */
+	providerManagedName?: boolean;
 	onClose: () => void;
 	onSave: (data: UpdateUserInput) => void;
 	onDisable: () => void;
@@ -45,13 +47,14 @@ export function UserDetail({
 	recoverySent,
 	recoveryError,
 	currentUserId,
+	providerManagedName,
 	onClose,
 	onSave,
 	onDisable,
 	onEnable,
 	onSendRecovery,
 }: UserDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const { roles, roleLabels, getRoleLabel } = useRolesConfig();
 	const [name, setName] = React.useState(user?.name ?? "");
 	const [email, setEmail] = React.useState(user?.email ?? "");
@@ -144,12 +147,21 @@ export function UserDetail({
 										</div>
 									)}
 									<div className="flex-1 min-w-0 space-y-3">
-										<Input
-											label={t`Name`}
-											value={name}
-											onChange={(e) => setName(e.target.value)}
-											placeholder={t`Enter name`}
-										/>
+										{providerManagedName ? (
+											<Input
+												label={t`Name`}
+												value={name}
+												readOnly
+												description={t`Managed by your identity provider. Change the name there.`}
+											/>
+										) : (
+											<Input
+												label={t`Name`}
+												value={name}
+												onChange={(e) => setName(e.target.value)}
+												placeholder={t`Enter name`}
+											/>
+										)}
 										<Input
 											label={t`Email`}
 											type="email"
@@ -217,18 +229,24 @@ export function UserDetail({
 										<div className="space-y-2 text-sm">
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Created`}</span>
-												<span>{new Date(user.createdAt).toLocaleDateString()}</span>
+												<span>
+													<bdi>{formatDate(user.createdAt, i18n.locale)}</bdi>
+												</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Last updated`}</span>
-												<span>{new Date(user.updatedAt).toLocaleDateString()}</span>
+												<span>
+													<bdi>{formatDate(user.updatedAt, i18n.locale)}</bdi>
+												</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Last login`}</span>
 												<span>
-													{user.lastLogin
-														? new Date(user.lastLogin).toLocaleDateString()
-														: t`Never`}
+													{user.lastLogin ? (
+														<bdi>{formatDate(user.lastLogin, i18n.locale)}</bdi>
+													) : (
+														t`Never`
+													)}
 												</span>
 											</div>
 											<div className="flex justify-between">
@@ -257,9 +275,9 @@ export function UserDetail({
 															</div>
 														</div>
 														<div className="text-end text-kumo-subtle">
-															<div>{t`Created ${new Date(cred.createdAt).toLocaleDateString()}`}</div>
+															<div>{t`Created ${isolate(formatDate(cred.createdAt, i18n.locale))}`}</div>
 															<div className="text-xs">
-																{t`Last used ${new Date(cred.lastUsedAt).toLocaleDateString()}`}
+																{t`Last used ${isolate(formatDate(cred.lastUsedAt, i18n.locale))}`}
 															</div>
 														</div>
 													</div>
@@ -283,7 +301,7 @@ export function UserDetail({
 													>
 														<span className="capitalize">{account.provider}</span>
 														<span className="text-kumo-subtle">
-															{t`Connected ${new Date(account.createdAt).toLocaleDateString()}`}
+															{t`Connected ${isolate(formatDate(account.createdAt, i18n.locale))}`}
 														</span>
 													</div>
 												))}

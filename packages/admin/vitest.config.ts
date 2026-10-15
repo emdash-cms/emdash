@@ -18,9 +18,7 @@ export default defineConfig({
 			"@lezer/highlight",
 			"react-image-crop",
 			"date-fns",
-			"date-fns/locale/en-US",
-			"date-fns/locale/ar",
-			"date-fns/locale/fr",
+			"react-day-picker/locale/*",
 		],
 	},
 	plugins: [

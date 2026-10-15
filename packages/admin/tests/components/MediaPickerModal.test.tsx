@@ -58,7 +58,20 @@ vi.mock("../../src/lib/api", async () => {
 		fetchMediaFolder: vi.fn().mockResolvedValue({ id: "folder-1", name: "Photography" }),
 		fetchMediaProviders: vi.fn().mockResolvedValue([]),
 		fetchProviderMedia: vi.fn().mockResolvedValue({ items: [] }),
-		uploadMedia: vi.fn().mockResolvedValue({ id: "m3", filename: "new.jpg" }),
+		uploadMedia: vi.fn().mockResolvedValue({
+			id: "m3",
+			filename: "new.jpg",
+			mimeType: "image/jpeg",
+			url: "/media/new.jpg",
+			size: 1024,
+			width: 800,
+			height: 600,
+			storageKey: "new.jpg",
+			status: "ready",
+			authorId: "user-1",
+			folderId: null,
+			createdAt: "2024-01-01",
+		}),
 		uploadToProvider: vi.fn().mockResolvedValue({}),
 		updateMedia: vi.fn().mockResolvedValue({}),
 	};
@@ -705,7 +718,8 @@ describe("MediaPickerModal", () => {
 			});
 		});
 
-		it("keeps uploads in the main library by hiding upload inside a folder", async () => {
+		it("allows uploads inside a folder and sends the current folder id", async () => {
+			const api = await import("../../src/lib/api");
 			const screen = await renderModal();
 			await expect
 				.element(screen.getByRole("button", { name: "Open folder Photography" }))
@@ -713,7 +727,24 @@ describe("MediaPickerModal", () => {
 			screen.getByRole("button", { name: "Open folder Photography" }).element().click();
 
 			await expect.element(screen.getByText("Photography", { exact: true })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: UPLOAD_BUTTON_REGEX }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_BUTTON_REGEX }))
+				.toBeInTheDocument();
+
+			const file = new File(["image"], "folder-upload.jpg", { type: "image/jpeg" });
+			const input = screen.getByLabelText("Choose files to upload").element() as HTMLInputElement;
+			const transfer = new DataTransfer();
+			transfer.items.add(file);
+			input.files = transfer.files;
+			input.dispatchEvent(new Event("change", { bubbles: true }));
+
+			await vi.waitFor(() => {
+				expect(api.uploadMedia).toHaveBeenCalledTimes(1);
+			});
+			expect(api.uploadMedia).toHaveBeenCalledWith(
+				expect.objectContaining({ name: "folder-upload.jpg" }),
+				expect.objectContaining({ folderId: "folder-1" }),
+			);
 		});
 
 		it("offers grid and list views", async () => {

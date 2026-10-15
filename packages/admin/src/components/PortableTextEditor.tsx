@@ -132,7 +132,11 @@ import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
-import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
+import {
+	canonicalMediaProviderId,
+	dropsDisplayHeight,
+	localMediaFileUrl,
+} from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -223,7 +227,6 @@ import {
 	VideoExtension,
 	isVideoBlock,
 	mediaItemToVideoAttrs,
-	openPickerOnInsert,
 	videoBlockFields,
 	videoNodeAttrs,
 } from "./editor/VideoNode";
@@ -619,6 +622,23 @@ function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | unde
 	if (Object.hasOwn(block, "id")) return "id";
 	if (Object.hasOwn(block, "url")) return "url";
 	return undefined;
+}
+
+/**
+ * TrailingNode adds an empty paragraph after a final block on the first
+ * transaction. It isn't content: `prosemirrorToPortableText` drops it too.
+ */
+function withoutTrailingEmptyParagraph(doc: ProseMirrorNode): ProseMirrorNode {
+	const last = doc.lastChild;
+	if (
+		doc.childCount > 1 &&
+		last?.type.name === "paragraph" &&
+		last.childCount === 0 &&
+		portableTextKeyFromAttrs(last.attrs) === undefined
+	) {
+		return doc.copy(doc.content.cut(0, doc.content.size - last.nodeSize));
+	}
+	return doc;
 }
 
 function equalJsonValues(left: unknown, right: unknown): boolean {
@@ -1955,14 +1975,6 @@ function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(editor, editor.schema.nodes.iframeBlock!.create(), range, position);
 }
 
-// The new block opens its picker over the editor, which keeps focus underneath: closing the
-// picker returns focus there, with the empty block selected so Enter reopens it.
-function insertVideoBlock(editor: Editor, range?: Range, position?: number) {
-	openPickerOnInsert(editor);
-	insertTopLevelBlock(editor, editor.schema.nodes.videoBlock!.create(), range, position);
-	editor.view.focus();
-}
-
 function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(
 		editor,
@@ -2094,16 +2106,6 @@ const htmlSlashCommand: SlashCommandItem = {
 	aliases: ["html", "raw", "markup"],
 	category: ADVANCED_CATEGORY,
 	command: ({ editor, range }) => insertHtmlBlock(editor, range),
-};
-
-const videoSlashCommand: SlashCommandItem = {
-	id: "video",
-	title: msg`Video`,
-	description: msg`Upload or choose a video`,
-	icon: VideoCamera,
-	aliases: ["movie", "clip", "mp4", "film"],
-	category: MEDIA_CATEGORY,
-	command: ({ editor, range }) => insertVideoBlock(editor, range),
 };
 
 const iframeSlashCommand: SlashCommandItem = {
@@ -3501,6 +3503,8 @@ export function PortableTextEditor({
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
 	const lastPortableTextValueRef = React.useRef(value || []);
+	// The document last handed to onChange, starting from the loaded one.
+	const lastReportedDocRef = React.useRef<ProseMirrorNode | null>(null);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
@@ -3509,6 +3513,8 @@ export function PortableTextEditor({
 
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+
+	const [videoPickerOpen, setVideoPickerOpen] = React.useState(false);
 
 	// Multi-select media picker state (for gallery insertion)
 	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
@@ -3666,7 +3672,19 @@ export function PortableTextEditor({
 		);
 		// A plugin's own video block replaces the built-in one.
 		if (!pluginBlockTypes.has("video")) {
-			cmds.push(topLevelInsert(videoSlashCommand, insertVideoBlock));
+			cmds.push({
+				id: "video",
+				title: msg`Video`,
+				description: msg`Upload or choose a video`,
+				icon: VideoCamera,
+				aliases: ["movie", "clip", "mp4", "film"],
+				category: MEDIA_CATEGORY,
+				deferInsertion: true,
+				command: ({ editor, range }) => {
+					editor.chain().focus().deleteRange(range).run();
+					setVideoPickerOpen(true);
+				},
+			});
 		}
 		cmds.push(topLevelInsert(htmlSlashCommand, insertHtmlBlock), {
 			id: "section",
@@ -3771,12 +3789,24 @@ export function PortableTextEditor({
 	 * Hands the document to `onChange` as Portable Text. While the slash line
 	 * the block insert button typed is open, changes wait until its menu
 	 * closes, so the line alone isn't an edit for autosave to save.
+	 *
+	 * Documents are compared rather than their Portable Text: stored content
+	 * the converter would write in a different shape (empty `markDefs`, a
+	 * missing `style`, fields it doesn't map) is unchanged until the document is.
 	 */
 	const reportChange = React.useCallback((changedEditor: Editor) => {
 		const cb = onChangeRef.current;
 		if (!cb) return;
 		if (insertedLineRef.current && SuggestionPluginKey.getState(changedEditor.state)?.active)
 			return;
+		lastReportedDocRef.current ??= changedEditor.schema.nodeFromJSON(initialContent);
+		if (
+			withoutTrailingEmptyParagraph(changedEditor.state.doc).eq(
+				withoutTrailingEmptyParagraph(lastReportedDocRef.current),
+			)
+		)
+			return;
+		lastReportedDocRef.current = changedEditor.state.doc;
 		const doc = changedEditor.getJSON();
 		// TipTap's getJSON() returns JSONContent which is structurally compatible
 		const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
@@ -4202,6 +4232,23 @@ export function PortableTextEditor({
 		};
 	}, [editor]);
 
+	// A picker can stay open while an upload lands, so the insert position follows the document.
+	React.useEffect(() => {
+		if (!editor) return;
+		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
+			const position = pendingBlockInsertPosRef.current;
+			if (position === null) return;
+			pendingBlockInsertPosRef.current = [transaction, ...appendedTransactions].reduce(
+				(pos, tr) => tr.mapping.map(pos, -1),
+				position,
+			);
+		};
+		editor.on("transaction", follow);
+		return () => {
+			editor.off("transaction", follow);
+		};
+	}, [editor]);
+
 	// Handle image selection from media picker
 	const handleImageSelect = React.useCallback(
 		(item: MediaItem) => {
@@ -4221,6 +4268,20 @@ export function PortableTextEditor({
 			}
 			pendingBlockInsertPosRef.current = null;
 			setMediaPickerOpen(false);
+		},
+		[editor],
+	);
+
+	const handleVideoSelect = React.useCallback(
+		(item: MediaItem) => {
+			if (editor?.isEditable) {
+				const video = editor.schema.nodes.videoBlock!.create(mediaItemToVideoAttrs(item));
+				const position = pendingBlockInsertPosRef.current ?? undefined;
+				insertTopLevelBlock(editor, video, undefined, position);
+				editor.view.focus();
+			}
+			pendingBlockInsertPosRef.current = null;
+			setVideoPickerOpen(false);
 		},
 		[editor],
 	);
@@ -4600,6 +4661,20 @@ export function PortableTextEditor({
 					mimeTypeFilter="image/"
 					title={t`Select image`}
 					confirmLabel={t`Insert image`}
+				/>
+
+				<MediaPickerModal
+					open={videoPickerOpen}
+					onOpenChange={(open) => {
+						setVideoPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					onSelect={handleVideoSelect}
+					mimeTypeFilter="video/"
+					mediaKind="video"
+					localOnly
+					title={t`Select video`}
+					confirmLabel={t`Insert video`}
 				/>
 
 				{/* Multi-select media picker for gallery insertion */}
@@ -5744,11 +5819,17 @@ function ImageBubbleMenu({
 					setPickerOpen(open);
 				}}
 				onSelect={(item) => {
-					if (!getSelectedImage(editor.state)) return;
+					const selected = getSelectedImage(editor.state);
+					if (!selected) return;
 					if (canonicalMediaProviderId(item.provider) === "local") {
 						queryClient.setQueryData(["media", item.id], item);
 					}
-					const attrs = { ...mediaItemToImageAttrs(item), caption: undefined, title: undefined };
+					const attrs = {
+						...mediaItemToImageAttrs(item),
+						caption: undefined,
+						title: undefined,
+						...(dropsDisplayHeight(selected.node.attrs, item) ? { displayHeight: undefined } : {}),
+					};
 					editor.chain().updateAttributes("image", attrs).run();
 				}}
 				mimeTypeFilter="image/"
@@ -6021,8 +6102,8 @@ function EditorToolbar({
 	React.useEffect(() => {
 		const sentinel = stuckSentinelRef.current;
 		if (!sentinel) return;
-		const observer = new IntersectionObserver(([entry]) =>
-			setStuck(entry?.isIntersecting === false),
+		const observer = new IntersectionObserver((entries) =>
+			setStuck(entries.at(-1)?.isIntersecting === false),
 		);
 		observer.observe(sentinel);
 		return () => observer.disconnect();

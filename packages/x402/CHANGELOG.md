@@ -1,5 +1,11 @@
 # @emdash-cms/x402
 
+## 1.2.0
+
+### Patch Changes
+
+- [#3674](https://github.com/emdash-cms/emdash/pull/3674) [`fab06ed`](https://github.com/emdash-cms/emdash/commit/fab06edc27883d374ae19a5a003fbb7616342c75) Thanks [@masonjames](https://github.com/masonjames)! - Fixes Astro builds failing to resolve the x402 middleware when a site gets `@emdash-cms/x402` only through another integration, such as under pnpm.
+
 ## 1.1.0
 
 No changes in this release.

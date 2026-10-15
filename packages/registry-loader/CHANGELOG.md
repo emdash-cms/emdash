@@ -1,5 +1,11 @@
 # @emdash-cms/registry-loader
 
+## 0.1.2
+
+### Patch Changes
+
+- [#3548](https://github.com/emdash-cms/emdash/pull/3548) [`7541959`](https://github.com/emdash-cms/emdash/commit/7541959ff8b38a906eb928277d59d451a0b4cbbf) Thanks [@swissky](https://github.com/swissky)! - Adds an `includeLatestRelease` option to the collection filter, for example `getLiveCollection("plugins", { limit: 20, includeLatestRelease: true })`. Each entry then also carries its package's latest release as `latestRelease`, the same data `getLiveEntry` returns, so a listing can show release artifacts such as icons. It costs one extra registry request per package that has a published release. An entry whose release can't be loaded within 3 seconds is returned without it, and failures other than a missing release are logged as warnings.
+
 ## 0.1.1
 
 ### Patch Changes

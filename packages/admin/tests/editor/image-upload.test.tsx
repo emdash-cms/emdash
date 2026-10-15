@@ -513,62 +513,6 @@ describe("ImageUploadExtension with videos", () => {
 		expect(upload).not.toHaveBeenCalled();
 	});
 
-	const EMPTY_VIDEO_BETWEEN = [textBlock("First"), { type: "videoBlock" }, textBlock("Second")];
-
-	function emptyVideo() {
-		const element = document.querySelector<HTMLElement>("[data-video-placeholder]");
-		if (!element) throw new Error("No empty video block");
-		return element;
-	}
-
-	it("puts files dropped on an empty video block in its place", async () => {
-		const editor = await setup(async (file) => videoAttrsFor(file), {
-			acceptsVideo,
-			content: EMPTY_VIDEO_BETWEEN,
-		});
-		expect(blockTypes(editor)).toEqual(["First", "video:null", "Second"]);
-
-		dropFiles(emptyVideo(), [videoFile("a.mp4"), videoFile("b.mp4")]);
-
-		await vi.waitFor(() =>
-			expect(blockTypes(editor)).toEqual([
-				"First",
-				"video:media-a.mp4",
-				"video:media-b.mp4",
-				"Second",
-			]),
-		);
-	});
-
-	it("puts a video pasted over the selected empty video block in its place", async () => {
-		const editor = await setup(async (file) => videoAttrsFor(file), {
-			acceptsVideo,
-			content: EMPTY_VIDEO_BETWEEN,
-		});
-		editor.commands.setNodeSelection(textEnd(editor, "First") + 1);
-
-		pasteData(editor.view.dom, { files: [videoFile("clip.mp4")] });
-
-		await vi.waitFor(() =>
-			expect(blockTypes(editor)).toEqual(["First", "video:media-clip.mp4", "Second"]),
-		);
-	});
-
-	it("keeps an empty video block when nothing dropped on it can be uploaded", async () => {
-		const upload = vi.fn(async (file: File) => videoAttrsFor(file));
-		const editor = await setup(upload, { acceptsVideo, content: EMPTY_VIDEO_BETWEEN });
-
-		dropFiles(emptyVideo(), [new File(["%PDF"], "report.pdf", { type: "application/pdf" })]);
-
-		await vi.waitFor(() =>
-			expect(
-				document.querySelector("[data-image-upload-placeholder] [role='alert']")?.textContent,
-			).toContain("Only images and videos can be uploaded here."),
-		);
-		expect(upload).not.toHaveBeenCalled();
-		expect(blockTypes(editor)).toEqual(["First", "video:null", "Second"]);
-	});
-
 	it("refuses videos while the editor doesn't take them", async () => {
 		const upload = vi.fn(async (file: File) => videoAttrsFor(file));
 		const editor = await setup(upload, { acceptsVideo: () => false });

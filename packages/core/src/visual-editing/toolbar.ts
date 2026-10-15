@@ -950,7 +950,37 @@ export function renderToolbar(config: ToolbarConfig): string {
     return text;
   }
 
-  function startTextEdit(element, annotation, multiline) {
+  function caretRangeAt(x, y) {
+    if (document.caretPositionFromPoint) {
+      var position = document.caretPositionFromPoint(x, y);
+      // Over a text input the offset counts into its value, which a range can't hold.
+      if (!position || position.offsetNode.nodeType !== Node.TEXT_NODE) return null;
+      var range = document.createRange();
+      range.setStart(position.offsetNode, position.offset);
+      return range;
+    }
+    return document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+  }
+
+  function selectionPoints() {
+    var selection = window.getSelection();
+    return [selection.anchorNode, selection.anchorOffset, selection.focusNode, selection.focusOffset];
+  }
+
+  // A click on text moves the selection to where it landed (a caret, or the
+  // end of a drag), and focusing the field keeps it there. A click on a link
+  // leaves the selection where it was.
+  var selectionAtMousedown = null;
+
+  // Where to put the caret for a click, or null when the click placed it.
+  function caretForClick(e) {
+    var moved = !selectionAtMousedown || selectionPoints().some(function(point, i) {
+      return point !== selectionAtMousedown[i];
+    });
+    return moved ? null : caretRangeAt(e.clientX, e.clientY);
+  }
+
+  function startTextEdit(element, annotation, caret, multiline) {
     if (currentlyEditing === element) return;
     if (currentlyEditing) endCurrentEdit();
 
@@ -965,13 +995,9 @@ export function renderToolbar(config: ToolbarConfig): string {
     element.setAttribute("data-emdash-editing", "");
     element.contentEditable = "plaintext-only";
     element.focus();
-
-    // Select all text
-    var range = document.createRange();
-    range.selectNodeContents(element);
-    var sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+    if (caret && element.contains(caret.startContainer)) {
+      window.getSelection().collapse(caret.startContainer, caret.startOffset);
+    }
 
     // Track dirty state via input events
     function handleInput() {
@@ -1025,7 +1051,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   // Text fields are often rendered transformed (Markdown to HTML, truncated
   // excerpts). Saving the page text over the stored value would lose content,
   // so they are edited in place only when the page shows the stored text.
-  function startTextEditIfShownAsStored(element, annotation) {
+  function startTextEditIfShownAsStored(element, annotation, caret) {
     // Rendered markup means the text was transformed. Open the admin before the
     // lookup, while the click still lets popup blockers allow window.open().
     if (element.children.length > 0) {
@@ -1040,7 +1066,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       var item = body && body.data && body.data.item;
       var stored = item && item.data ? item.data[annotation.field] : null;
       if (typeof stored === "string" && stored.trim() === (element.textContent || "").trim()) {
-        startTextEdit(element, annotation, true);
+        startTextEdit(element, annotation, caret, true);
       } else {
         openAdmin(annotation);
       }
@@ -1507,6 +1533,10 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Click handler for edit mode
   if (isEditMode) {
+    document.addEventListener("mousedown", function() {
+      selectionAtMousedown = selectionPoints();
+    }, true);
+
     document.addEventListener("click", function(e) {
       var target = e.target;
 
@@ -1530,6 +1560,10 @@ export function renderToolbar(config: ToolbarConfig): string {
               continue;
             }
 
+            // Read now: editing may only start once the manifest or the stored
+            // value has loaded, and the page can scroll in the meantime.
+            var caret = caretForClick(e);
+
             function dispatchInline(kind) {
               closeImagePopover();
               // Portable Text is edited in-page by InlinePortableTextEditor — do not open admin
@@ -1539,9 +1573,9 @@ export function renderToolbar(config: ToolbarConfig): string {
               e.preventDefault();
               e.stopPropagation();
               if (kind === "string" || kind === "text") {
-                startTextEdit(target, annotation);
+                startTextEdit(target, annotation, caret);
               } else if (kind === "richText") {
-                startTextEditIfShownAsStored(target, annotation);
+                startTextEditIfShownAsStored(target, annotation, caret);
               } else if (kind === "image") {
                 startImageEdit(target, annotation);
               } else {

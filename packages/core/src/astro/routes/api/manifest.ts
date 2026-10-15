@@ -33,6 +33,14 @@ export const GET: APIRoute = async ({ locals }) => {
 
 		// Determine auth mode from config
 		const authMode = getAuthMode(emdash?.config);
+		const providerManagedName =
+			authMode.type === "external" &&
+			!(
+				typeof authMode.config === "object" &&
+				authMode.config !== null &&
+				"syncName" in authMode.config &&
+				authMode.config.syncName === false
+			);
 
 		// Read admin branding from the per-request config plumbed through middleware
 		// (same source admin.astro reads from). Reading from a build-time global
@@ -94,6 +102,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					timezone: siteTimezone,
 					staging,
 					authMode: authMode.type === "external" ? authMode.providerType : "passkey",
+					providerManagedName,
 					signupEnabled,
 					admin: adminBranding,
 				}
@@ -107,6 +116,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					staging,
 					taxonomies: [],
 					authMode: "passkey",
+					providerManagedName,
 					signupEnabled,
 					admin: adminBranding,
 				};

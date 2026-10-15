@@ -1,5 +1,18 @@
 # @emdash-cms/registry-cli
 
+## 0.13.3
+
+### Patch Changes
+
+- [#3884](https://github.com/emdash-cms/emdash/pull/3884) [`fa71be7`](https://github.com/emdash-cms/emdash/commit/fa71be7658fe82fdd78ca5044c11f4ab17fb177a) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes `emdash-plugin build` for sandboxed plugins that use Block Kit helpers from `@emdash-cms/blocks/server`. The runtime and probe builds now bundle `@emdash-cms/blocks` so the probe step no longer fails with `ERR_MODULE_NOT_FOUND` when the package cannot be resolved from the temporary probe directory.
+
+- [#3546](https://github.com/emdash-cms/emdash/pull/3546) [`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6) Thanks [@swissky](https://github.com/swissky)! - Adds `group` to plugin admin pages, in native plugin descriptors and in `admin.pages` of `emdash-plugin.jsonc`, to place them in collapsible admin sidebar folders. A page whose group matches the group of a collection shown in the sidebar appears inside that folder, after its collections and taxonomies. Pages that share any other group, from one plugin or several, fold into one folder in the Plugins section. Pages without a group stay where they are.
+
+- [#3777](https://github.com/emdash-cms/emdash/pull/3777) [`f2fe380`](https://github.com/emdash-cms/emdash/commit/f2fe3807a45b27d33dc3b39e1eb5783b71c309e2) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes `emdash-plugin publish --no-manifest` failing with a `paths[0]` type error, and `emdash-plugin release submit --no-wait` still waiting for the release to be published. `--no-manifest` now skips `emdash-plugin.jsonc`, and `--no-wait` returns once the release service accepts the intent.
+- Updated dependencies [[`8450114`](https://github.com/emdash-cms/emdash/commit/845011455d8badcede71d4a2c994b1c492b197be), [`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6), [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412), [`f223ecd`](https://github.com/emdash-cms/emdash/commit/f223ecdc060038ffb75363a4e10ef341d065e5ca)]:
+  - @emdash-cms/registry-verification@0.3.4
+  - @emdash-cms/plugin-types@0.6.0
+
 ## 0.13.2
 
 ### Patch Changes

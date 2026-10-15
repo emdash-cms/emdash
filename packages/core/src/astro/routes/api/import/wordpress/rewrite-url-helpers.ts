@@ -106,6 +106,10 @@ export interface PortableTextBlock {
 	// For nested content like galleries
 	images?: PortableTextBlock[];
 	columns?: Array<{ content?: PortableTextBlock[] }>;
+	content?: PortableTextBlock[];
+	markDefs?: Array<Record<string, unknown>>;
+	rows?: Array<{ cells?: Array<{ markDefs?: Array<Record<string, unknown>> }> }>;
+	buttons?: Array<Record<string, unknown>>;
 	[key: string]: unknown;
 }
 
@@ -120,54 +124,88 @@ export function rewritePortableTextUrls(
 	let changed = false;
 	let urlsRewritten = 0;
 
+	const rewriteField = (target: Record<string, unknown>, key: string): boolean => {
+		const value = target[key];
+		const newUrl = typeof value === "string" ? findMatchingUrl(value, exactMap, baseMap) : null;
+		if (!newUrl) return false;
+		target[key] = newUrl;
+		changed = true;
+		urlsRewritten++;
+		return true;
+	};
+	const rewriteHtml = (target: Record<string, unknown>, count = true) => {
+		if (typeof target.html !== "string") return;
+		const result = rewriteStringUrls(target.html, exactMap, baseMap);
+		if (result.changed) {
+			target.html = result.newValue;
+			changed = true;
+			if (count) urlsRewritten += result.urlsRewritten;
+		}
+	};
+	const rewriteMarkDefs = (markDefs: Array<Record<string, unknown>> | undefined) => {
+		for (const def of markDefs ?? []) rewriteField(def, "href");
+	};
+	const rewriteNested = (content: PortableTextBlock[] | undefined) => {
+		if (!Array.isArray(content)) return;
+		const result = rewritePortableTextUrls(content, exactMap, baseMap);
+		if (result.changed) {
+			changed = true;
+			urlsRewritten += result.urlsRewritten;
+		}
+	};
+
 	for (const block of blocks) {
-		// Handle image blocks
-		if (block._type === "image" && block.asset?.url) {
-			const newUrl = findMatchingUrl(block.asset.url, exactMap, baseMap);
-			if (newUrl) {
-				block.asset.url = newUrl;
-				block.asset._ref = newUrl; // Also update the reference
-				changed = true;
-				urlsRewritten++;
-			}
-		}
-
-		// Handle image link URLs (for linked images). The link is a bare string on
-		// freshly imported content and `{ href, blank? }` once edited in the editor.
-		if (block._type === "image" && block.link) {
-			const linkHref = typeof block.link === "string" ? block.link : block.link.href;
-			const newUrl = linkHref ? findMatchingUrl(linkHref, exactMap, baseMap) : null;
-			if (newUrl) {
-				if (typeof block.link === "string") {
-					block.link = newUrl;
-				} else {
-					block.link.href = newUrl;
-				}
-				changed = true;
-				urlsRewritten++;
-			}
-		}
-
-		// Handle gallery blocks with nested images
-		if (block._type === "gallery" && Array.isArray(block.images)) {
-			const result = rewritePortableTextUrls(block.images, exactMap, baseMap);
-			if (result.changed) {
-				changed = true;
-				urlsRewritten += result.urlsRewritten;
-			}
-		}
-
-		// Handle columns blocks with nested content
-		if (block._type === "columns" && Array.isArray(block.columns)) {
-			for (const column of block.columns) {
-				if (Array.isArray(column.content)) {
-					const result = rewritePortableTextUrls(column.content, exactMap, baseMap);
-					if (result.changed) {
+		switch (block._type) {
+			case "image":
+				if (block.asset?.url) {
+					const newUrl = findMatchingUrl(block.asset.url, exactMap, baseMap);
+					if (newUrl) {
+						block.asset.url = newUrl;
+						block.asset._ref = newUrl; // Also update the reference
 						changed = true;
-						urlsRewritten += result.urlsRewritten;
+						urlsRewritten++;
 					}
 				}
-			}
+				// The link is a bare string on freshly imported content and
+				// `{ href, blank? }` once edited in the editor.
+				if (typeof block.link === "string") {
+					rewriteField(block, "link");
+				} else if (block.link) {
+					rewriteField(block.link, "href");
+				}
+				break;
+			case "gallery":
+				rewriteNested(block.images);
+				break;
+			case "columns":
+				for (const column of block.columns ?? []) rewriteNested(column.content);
+				break;
+			case "cover":
+				rewriteField(block, "backgroundImage");
+				rewriteNested(block.content);
+				break;
+			case "block":
+				rewriteMarkDefs(block.markDefs);
+				break;
+			case "table":
+				for (const row of block.rows ?? []) {
+					for (const cell of row.cells ?? []) rewriteMarkDefs(cell.markDefs);
+				}
+				break;
+			case "file":
+			case "button":
+				rewriteField(block, "url");
+				break;
+			case "embed":
+				// The html carries the same media URL; count it only when the url didn't match
+				rewriteHtml(block, !rewriteField(block, "url"));
+				break;
+			case "htmlBlock":
+				rewriteHtml(block);
+				break;
+			case "buttons":
+				for (const button of block.buttons ?? []) rewriteField(button, "url");
+				break;
 		}
 	}
 

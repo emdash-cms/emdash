@@ -253,6 +253,18 @@ export class MigrationLockHeldError extends Error {
 	}
 }
 
+/**
+ * Thrown when the migrator reports an error while applying pending migrations.
+ * Callers with failure backoff apply it. Errors from the applied-migration
+ * count check before the migrator runs are not wrapped and stay retryable.
+ */
+export class MigrationFailedError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MigrationFailedError";
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 
@@ -551,7 +563,7 @@ export async function runMigrations(
 		}
 
 		const failedSuffix = failedMigration ? ` (migration: ${failedMigration.migrationName})` : "";
-		throw new Error(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
+		throw new MigrationFailedError(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
 	}
 
 	return { applied };

@@ -564,6 +564,33 @@ describe("EmDashClient", () => {
 			}
 		});
 
+		it("schema TypeScript export imports every type emitted by the interfaces", async () => {
+			const db = await setupTestDatabaseWithCollections();
+
+			try {
+				const response = await schemaGET({
+					request: new Request("http://localhost:4321/_emdash/api/schema?format=typescript"),
+					locals: {
+						emdash: { db },
+						user: { id: "user_1", role: Role.EDITOR },
+					},
+				} as never);
+
+				expect(response.status).toBe(200);
+				expect(response.headers.get("Content-Type")).toBe("text/typescript");
+
+				const body = await response.text();
+				expect(body).toContain(
+					'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";',
+				);
+				expect(body).toContain("byline?: BylineSummary | null;");
+				expect(body).toContain("bylines?: ContentBylineCredit[];");
+				expect(body).toContain("terms?: Record<string, TaxonomyTerm[]>;");
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		});
+
 		it("collections() returns list", async () => {
 			const backend = createMockBackend([
 				{
@@ -1554,6 +1581,62 @@ describe("EmDashClient", () => {
 			expect(capturedData!.title).toBe("Hello");
 			expect(Array.isArray(capturedData!.body)).toBe(true);
 		});
+
+		it.each([false, true])(
+			"converts nested Markdown for a single-type block with a preloaded schema: %s",
+			async (preloadSchema) => {
+				let capturedData: Record<string, unknown> | undefined;
+				const backend = createMockBackend([
+					{
+						method: "GET",
+						path: "/schema/collections/posts",
+						handler: () =>
+							jsonResponse({
+								item: {
+									slug: "posts",
+									fields: [
+										{
+											slug: "layout",
+											type: "blocks",
+											validation: { allowedTypes: ["hero"] },
+											blockTypes: [
+												{
+													slug: "hero",
+													currentVersion: 1,
+													versions: [
+														{ version: 1, fields: [{ slug: "body", type: "portableText" }] },
+													],
+												},
+											],
+										},
+									],
+								},
+							}),
+					},
+					{
+						method: "POST",
+						path: "/content/posts",
+						handler: async (request) => {
+							const body = (await request.json()) as { data: Record<string, unknown> };
+							capturedData = body.data;
+							return jsonResponse({ item: { id: "new1", data: {} } });
+						},
+					},
+				]);
+				const client = new EmDashClient({
+					baseUrl: "http://localhost:4321",
+					token: "test",
+					interceptors: [backend],
+				});
+				if (preloadSchema) await client.collection("posts");
+				await client.create("posts", { data: { layout: [{ body: "**Welcome**" }] } });
+				expect(capturedData).toBeDefined();
+				const block = (capturedData!.layout as Array<Record<string, unknown>>)[0]!;
+				expect(block.body).toMatchObject([
+					{ _type: "block", children: [{ text: "Welcome", marks: ["strong"] }] },
+				]);
+			},
+		);
 	});
 
 	// -----------------------------------------------------------------------

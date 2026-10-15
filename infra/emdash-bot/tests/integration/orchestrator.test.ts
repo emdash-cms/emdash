@@ -86,6 +86,35 @@ describe("OrchestratorDO (workers-pool)", () => {
 		await expect(stub.getInstallationTokenForGitProxy()).resolves.toBe("cached-token");
 	});
 
+	test("workspace preparation posts one comment while the alarm flushes the same comment", async () => {
+		const posts: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = init?.method ?? "GET";
+			if (method === "POST" && url.endsWith("/comments")) {
+				posts.push(url);
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				return Response.json({ id: 776 });
+			}
+			return Response.json(method === "GET" && url.includes("/comments") ? [] : {});
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:anchorNumber": 42, "o:state": "working", "o:kind": "bug" });
+		});
+		await stub.debugSetStaleRun("work-run", Date.now(), "investigate-work", "work");
+
+		await Promise.all([
+			stub.prepareWorkPlanComment({ runId: "work-run", summary: "Fix the adapter" }),
+			stub.tick(),
+		]);
+
+		expect(posts).toHaveLength(1);
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
 	test("review revisions publish progress and completion on the PR and remain reviewable", async () => {
 		const requests: Array<{ method: string; url: string; body: string }> = [];
 		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
@@ -265,6 +294,175 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(nextAt).toBeGreaterThan(Date.now() + 9 * 60_000);
 		expect((await stub.tick()).pullRequestPoll).toBe("waiting");
 		expect(graphqlRequests).toBe(1);
+	});
+
+	describe("automatic PR repairs", () => {
+		const instances: Array<ReturnType<TestEnv["Orchestrator"]["getByName"]>> = [];
+
+		afterEach(async () => {
+			for (const stub of instances.splice(0)) {
+				await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+			}
+		});
+
+		function orchestrator(): ReturnType<TestEnv["Orchestrator"]["getByName"]> {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			instances.push(stub);
+			return stub;
+		}
+
+		function stubPullRequest(pullRequest: () => Record<string, unknown>): {
+			comments: string[];
+			graphqlRequests: () => number;
+		} {
+			testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+			const comments: string[] = [];
+			let graphqlRequests = 0;
+			vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				const method = (init?.method ?? "GET").toUpperCase();
+				if (method === "POST" && url.endsWith("/graphql")) {
+					graphqlRequests += 1;
+					return Promise.resolve(
+						Response.json({ data: { repository: { pullRequest: pullRequest() } } }),
+					);
+				}
+				if (method === "POST" && url.endsWith("/comments")) {
+					comments.push(typeof init?.body === "string" ? init.body : "");
+					return Promise.resolve(Response.json({ id: 501 }));
+				}
+				if (url.includes("/issues/42/labels?")) {
+					return Promise.resolve(Response.json([{ name: "bot:in-review" }, { name: "bot:bug" }]));
+				}
+				return Promise.resolve(Response.json({}));
+			});
+			return { comments, graphqlRequests: () => graphqlRequests };
+		}
+
+		function openPullRequest(overrides: Record<string, unknown>): Record<string, unknown> {
+			return {
+				number: 99,
+				state: "OPEN",
+				isDraft: false,
+				merged: false,
+				mergeable: "MERGEABLE",
+				headRefOid: "head-a",
+				reviewDecision: null,
+				commits: {
+					nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [] } } } }],
+				},
+				...overrides,
+			};
+		}
+
+		const failingTypecheck = {
+			commits: {
+				nodes: [
+					{
+						commit: {
+							statusCheckRollup: {
+								state: "FAILURE",
+								contexts: {
+									nodes: [{ name: "Typecheck", status: "COMPLETED", conclusion: "FAILURE" }],
+								},
+							},
+						},
+					},
+				],
+			},
+		};
+
+		async function primeInReview(
+			stub: ReturnType<TestEnv["Orchestrator"]["getByName"]>,
+			extra: Record<string, unknown> = {},
+		): Promise<void> {
+			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:prPollNextAt": Date.now() - 1_000,
+					"o:state": "in_review",
+					"o:kind": "bug",
+					...extra,
+				});
+			});
+		}
+
+		test("a change request handled during a revision is not repaired again after it pushes", async () => {
+			let head = "head-a";
+			stubPullRequest(() =>
+				openPullRequest({
+					headRefOid: head,
+					reviewDecision: "CHANGES_REQUESTED",
+					latestOpinionatedReviews: { nodes: [{ databaseId: 5, state: "CHANGES_REQUESTED" }] },
+				}),
+			);
+			const stub = orchestrator();
+			await primeInReview(stub);
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+
+			expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+
+			head = "head-b";
+			await runInDurableObject(stub, async (_instance, state) => {
+				const run = await state.storage.get<Record<string, unknown>>("o:runLifecycle");
+				await state.storage.put({
+					"o:runLifecycle": { ...run, status: "succeeded" },
+					"o:prPollNextAt": Date.now() - 1_000,
+				});
+			});
+			expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+			expect((await stub.getPersistedState()).state).toBe("in_review");
+		});
+
+		test("hands the issue to a maintainer once the automatic repairs are used up", async () => {
+			const github = stubPullRequest(() => openPullRequest(failingTypecheck));
+			const stub = orchestrator();
+			await primeInReview(stub, { "o:prRepairCount": 3 });
+
+			expect((await stub.tick()).pullRequestPoll).toBe("exhausted");
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(github.comments.join("\n")).toContain("3 automatic repairs");
+			expect(github.comments.join("\n")).toContain("Typecheck");
+
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put("o:prPollNextAt", Date.now() - 1_000);
+			});
+			expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+			expect(github.comments).toHaveLength(1);
+		});
+
+		test("a green pull request resets the automatic repair count", async () => {
+			stubPullRequest(() => openPullRequest({}));
+			const stub = orchestrator();
+			await primeInReview(stub, { "o:prRepairCount": 2 });
+
+			expect((await stub.tick()).pullRequestPoll).toBe("green");
+			const count = await runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<number>("o:prRepairCount"),
+			);
+			expect(count).toBeUndefined();
+		});
+
+		test("a maintainer action resets the automatic repair count", async () => {
+			const stub = orchestrator();
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:state": "needs_attention",
+					"o:kind": "bug",
+					"o:prRepairCount": 3,
+				});
+			});
+
+			await stub.event(makeEvent({ event: "take_over", arg: null, actor: "maintainer" }));
+			const count = await runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<number>("o:prRepairCount"),
+			);
+			expect(count).toBeUndefined();
+		});
 	});
 
 	test.each([
@@ -1486,9 +1684,248 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments.at(-1)).toContain(
 			"The run stopped at its execution deadline before it could provide a checkpoint summary.",
 		);
-		expect(comments.at(-1)).toContain("`@emdashbot retry`");
+		expect(comments.at(-1)).toContain("I'll continue from this checkpoint automatically");
 		expect(comments.at(-1)).toContain("Failed stage: `timeout`");
 		expect(comments.at(-1)).toContain("Run: `timed-out-comment-run`");
+	});
+
+	test("a timed-out run past its automatic recoveries asks a maintainer to retry", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put("o:automaticRecoveryCount", 2);
+		});
+		await stub.debugSetStaleRun(
+			"exhausted-run",
+			Date.now() - 61 * 60_000,
+			"investigate-42-exhausted-run",
+			"implement",
+		);
+
+		expect((await stub.tick()).droppedStaleRun).toBe(true);
+		expect(comments.at(-1)).toContain("`@emdashbot retry`");
+		const recovery = await runInDurableObject(stub, async (_instance, state) =>
+			state.storage.get("o:automaticRecovery"),
+		);
+		expect(recovery).toBeUndefined();
+	});
+
+	describe("automatic recovery", () => {
+		async function scheduledRecovery(
+			stub: ReturnType<TestEnv["Orchestrator"]["getByName"]>,
+		): Promise<Record<string, unknown> | undefined> {
+			return runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<Record<string, unknown>>("o:automaticRecovery"),
+			);
+		}
+
+		async function makeRecoveryDue(
+			stub: ReturnType<TestEnv["Orchestrator"]["getByName"]>,
+		): Promise<void> {
+			await runInDurableObject(stub, async (_instance, state) => {
+				const recovery = await state.storage.get<Record<string, unknown>>("o:automaticRecovery");
+				await state.storage.put("o:automaticRecovery", { ...recovery, at: Date.now() - 1_000 });
+			});
+		}
+
+		test("a timed-out run schedules its own resume and continues from the checkpoint", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.debugPrimeFixing(42);
+			await stub.debugSetStaleRun(
+				"timed-out-run",
+				Date.now() - 61 * 60_000,
+				"investigate-42-timed-out-run",
+				"implement",
+			);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put("o:currentRunDryRun", true);
+			});
+
+			expect((await stub.tick()).droppedStaleRun).toBe(true);
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(await scheduledRecovery(stub)).toMatchObject({
+				action: "resume",
+				attempt: 1,
+				dryRun: true,
+			});
+
+			await makeRecoveryDue(stub);
+			await stub.tick();
+			expect(await stub.getPersistedState()).toMatchObject({
+				state: "fixing",
+				currentRunId: "timed-out-run",
+			});
+			expect(await scheduledRecovery(stub)).toBeUndefined();
+		});
+
+		test("a workspace failure schedules a retry of the same mode", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.event(makeEvent({ anchorNumber: 42 }));
+			await stub.debugSetStaleRun(
+				"workspace-run",
+				Date.now(),
+				"investigate-42-workspace-run",
+				"implement",
+			);
+			await stub.applyAgentResult({
+				runId: "workspace-run",
+				result: {
+					implemented: false,
+					summary: "Container service disconnected.",
+					failureStage: "workspace",
+				},
+				pushed: false,
+				ok: true,
+			});
+
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(await scheduledRecovery(stub)).toMatchObject({ action: "retry", attempt: 1 });
+
+			await makeRecoveryDue(stub);
+			await stub.tick();
+			expect((await stub.getPersistedState()).state).toBe("working");
+		});
+
+		test("a change that failed its own verification waits for a maintainer", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.event(makeEvent({ anchorNumber: 42 }));
+			await stub.debugSetStaleRun(
+				"verification-run",
+				Date.now(),
+				"investigate-42-verification-run",
+				"implement",
+			);
+			await stub.applyAgentResult({
+				runId: "verification-run",
+				result: {
+					implemented: false,
+					summary: "The focused tests still fail.",
+					failureStage: "verification",
+				},
+				pushed: false,
+				ok: true,
+			});
+
+			expect((await stub.getPersistedState()).state).toBe("needs_attention");
+			expect(await scheduledRecovery(stub)).toBeUndefined();
+		});
+
+		test("a maintainer command cancels a scheduled recovery", async () => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:state": "needs_attention",
+					"o:kind": "bug",
+					"o:automaticRecovery": { action: "retry", at: Date.now() + 60_000, attempt: 1 },
+					"o:automaticRecoveryCount": 1,
+				});
+			});
+
+			await stub.event(makeEvent({ event: "take_over", arg: null, actor: "maintainer" }));
+			expect(await scheduledRecovery(stub)).toBeUndefined();
+			const count = await runInDurableObject(stub, async (_instance, state) =>
+				state.storage.get<number>("o:automaticRecoveryCount"),
+			);
+			expect(count).toBeUndefined();
+		});
+	});
+
+	test("triage holds off automatic work when someone is already on the issue", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		const { GITHUB_OWNER: owner, GITHUB_REPO: repo } = env as unknown as {
+			GITHUB_OWNER: string;
+			GITHUB_REPO: string;
+		};
+		const comments: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			if (method === "GET" && url.endsWith("/issues/42")) {
+				return Promise.resolve(Response.json({ assignees: [] }));
+			}
+			if (method === "GET" && url.includes("/issues/42/timeline")) {
+				return Promise.resolve(
+					Response.json([
+						{
+							event: "cross-referenced",
+							source: {
+								issue: {
+									number: 3010,
+									state: "open",
+									pull_request: {},
+									user: { login: "contributor" },
+									repository_url: `https://api.github.com/repos/${owner}/${repo}`,
+								},
+							},
+						},
+					]),
+				);
+			}
+			if (method === "POST" && url.endsWith("/comments")) {
+				comments.push(typeof init?.body === "string" ? init.body : "");
+				return Promise.resolve(Response.json({ id: 1 }));
+			}
+			return Promise.resolve(Response.json({}));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "triaging", "o:kind": "bug", "o:anchorNumber": 42 });
+		});
+		await stub.debugSetStaleRun("triage-run", Date.now(), "investigate-42-triage-run", "triage");
+
+		await stub.applyAgentResult({
+			runId: "triage-run",
+			result: { disposition: "auto-work", kind: "bug", summary: "The slug helper drops accents." },
+			pushed: false,
+			ok: true,
+		});
+
+		expect((await stub.getPersistedState()).state).toBe("awaiting_approval");
+		expect(comments.join("\n")).toContain("#3010");
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
+	test("triage waits for approval when it can't check whether someone is on the issue", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		const comments: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			if (method === "GET" && url.includes("/issues/42/timeline")) {
+				return Promise.resolve(new Response("unavailable", { status: 502 }));
+			}
+			if (method === "POST" && url.endsWith("/comments")) {
+				comments.push(typeof init?.body === "string" ? init.body : "");
+				return Promise.resolve(Response.json({ id: 1 }));
+			}
+			return Promise.resolve(Response.json({}));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "triaging", "o:kind": "bug", "o:anchorNumber": 42 });
+		});
+		await stub.debugSetStaleRun("triage-run", Date.now(), "investigate-42-triage-run", "triage");
+
+		await stub.applyAgentResult({
+			runId: "triage-run",
+			result: { disposition: "auto-work", kind: "bug", summary: "The slug helper drops accents." },
+			pushed: false,
+			ok: true,
+		});
+
+		expect((await stub.getPersistedState()).state).toBe("awaiting_approval");
+		expect(comments.join("\n")).toContain(
+			"couldn't check whether someone is already working on this",
+		);
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
 	});
 
 	test("tick recovers a stale run", async () => {
@@ -2041,6 +2478,67 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).state).toBe("in_review");
 	});
 
+	async function pollPreviewWithBuild(
+		checkRun: { status: string; conclusion: string | null },
+		deadline: number,
+	): Promise<{ previewPoll: string; state: string | null; comments: string[] }> {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await driveToPreviewBuilding(stub, 42);
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		const comments: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			if (url.startsWith("https://pkg.pr.new/")) {
+				return Promise.resolve(new Response("", { status: 404 }));
+			}
+			if (url.includes("/branches/bot%2Ffix-42")) {
+				return Promise.resolve(Response.json({ commit: { sha: "abc123" } }));
+			}
+			if (url.includes("/commits/abc123/check-runs")) {
+				return Promise.resolve(Response.json({ check_runs: [checkRun] }));
+			}
+			if (method === "POST" && url.endsWith("/comments")) {
+				comments.push(typeof init?.body === "string" ? init.body : "");
+			}
+			return Promise.resolve(Response.json({ id: 1, number: 500 }));
+		});
+		await stub.debugSetPreviewPoll(deadline, Date.now() - 1_000);
+		const tick = await stub.tick();
+		vi.unstubAllGlobals();
+		const { state } = await stub.getPersistedState();
+		await runInDurableObject(stub, (_instance, storage) => storage.storage.deleteAlarm());
+		return { previewPoll: tick.previewPoll, state, comments };
+	}
+
+	test("preview poll keeps waiting past the budget while the preview build is running", async () => {
+		const result = await pollPreviewWithBuild(
+			{ status: "in_progress", conclusion: null },
+			Date.now() - 1_000,
+		);
+		expect(result.previewPoll).toBe("polling");
+		expect(result.state).toBe("preview_building");
+	});
+
+	test("preview poll stops waiting for a running build at the hard cap", async () => {
+		const result = await pollPreviewWithBuild(
+			{ status: "in_progress", conclusion: null },
+			Date.now() - 21 * 60_000,
+		);
+		expect(result.previewPoll).toBe("failed");
+		expect(result.comments.join("\n")).toContain("within 30 minutes");
+	});
+
+	test("preview poll says when the preview build itself failed", async () => {
+		const result = await pollPreviewWithBuild(
+			{ status: "completed", conclusion: "failure" },
+			Date.now() - 1_000,
+		);
+		expect(result.previewPoll).toBe("failed");
+		expect(result.comments.join("\n")).toContain("The preview build failed");
+	});
+
 	test("invalid preview package configuration fails instead of retrying forever", async () => {
 		testEnv.PREVIEW_PACKAGE = "../invalid";
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
@@ -2345,6 +2843,57 @@ describe("OrchestratorDO (workers-pool)", () => {
 		]);
 	});
 
+	test.each([
+		["not_planned", "declined"],
+		["completed", "done"],
+	] as const)("closing an issue as %s settles it as %s", async (closedAs, settled) => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "awaiting_approval", "o:kind": "bug" });
+		});
+		await stub.cleanupOnClose(42, closedAs);
+		expect((await stub.getPersistedState()).state).toBe(settled);
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
+	test("closing an issue cancels the run working on it", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "triaging", "o:kind": "bug", "o:anchorNumber": 42 });
+		});
+		await stub.debugSetStaleRun("triage-run", Date.now(), "investigate-42-triage-run", "triage");
+		await stub.cleanupOnClose(42, "not_planned");
+		expect((await stub.getPersistedState()).state).toBe("declined");
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.get("o:runLifecycle")).toMatchObject({ status: "cancelled" });
+			await state.storage.deleteAlarm();
+		});
+	});
+
+	test("a completed close leaves an open bot PR's issue for the PR's own merge to settle", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:state": "in_review",
+				"o:kind": "bug",
+				"o:prNumber": 500,
+				"o:prStatus": { number: 500, state: "open" },
+			});
+		});
+		await stub.cleanupOnClose(42, "completed");
+		expect((await stub.getPersistedState()).state).toBe("in_review");
+		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
+	});
+
+	test("closing leaves an issue a maintainer took over alone", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:state": "human_owned", "o:kind": "bug" });
+		});
+		await stub.cleanupOnClose(42, "completed");
+		expect((await stub.getPersistedState()).state).toBe("human_owned");
+	});
+
 	test("cleanupOnClose clears idle scheduling state without live credentials", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await runInDurableObject(stub, async (_instance, state) => {
@@ -2354,7 +2903,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 			});
 			await state.storage.setAlarm(Date.now() + 15 * 60_000);
 		});
-		const outcome = await stub.cleanupOnClose(42);
+		const outcome = await stub.cleanupOnClose(42, "completed");
 		expect(outcome.kind).toBe("skipped");
 		await runInDurableObject(stub, async (_instance, state) => {
 			expect(await state.storage.getAlarm()).toBeNull();

@@ -17,6 +17,7 @@ import {
 	requestedPermissions,
 	safeExternalUrl,
 } from "../../../lib/registry.js";
+import { pluginJsonLd } from "../../../lib/seo.js";
 
 const publisher = Astro.params.publisher;
 const slug = Astro.params.slug;
@@ -90,7 +91,12 @@ function formatDate(value: string): string {
 	title={name}
 	description={description}
 	canonical={canonicalPath}
-	image={banner || icon}
+	image={banner}
+	jsonLd={pluginJsonLd(
+		data,
+		new URL(canonicalPath, Astro.site ?? Astro.url.origin).href,
+		{ image: icon, dateModified: result.entry.cacheHint?.lastModified },
+	)}
 >
 	<div class="detail-shell shell">
 		<a class="back-link" href="/">

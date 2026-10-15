@@ -74,7 +74,7 @@ catalog:
   "@astrojs/check": ^0.9.10
   "@astrojs/cloudflare": ^14.3.1
   "@astrojs/node": ^11.1.5
-  "@astrojs/react": ^6.0.5
+  "@astrojs/react": ^7.0.0
   "@atcute/atproto": ^4.0.2
   "@atcute/car": ^6.0.0
   "@atcute/cbor": ^2.3.3
@@ -178,7 +178,7 @@ catalog:
   semver: ^7.6.3
   tsdown: 0.20.3
   typescript: ^6.0.3
-  vite: ^8.0.11
+  vite: ^8.3.0
   vitest: 4.1.10
   wrangler: ^4.125.0
   "y-protocols": ^1.0.7

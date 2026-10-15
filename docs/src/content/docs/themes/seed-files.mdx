@@ -468,6 +468,8 @@ Within one apply call, repeated references to the same URL reuse the resolved me
 
 When no storage adapter is supplied, `$media` references are skipped and resolve to `null`. With `skipMediaDownload: true`, they become external media values and no storage adapter is required.
 
+The `emdash seed` CLI has a `--skip-media` flag that sets this option. In that mode every `$media` reference remains an external URL instead of being downloaded and stored, so the resulting media fields point at the original remote URLs.
+
 ## Menus
 
 Menus are structural data and are applied even when `includeContent` is false:
@@ -669,6 +671,12 @@ Apply a seed to a local SQLite database with explicit conflict behavior:
 
 ```bash
 npx emdash seed seed/seed.json --database ./data.db --on-conflict skip
+```
+
+Apply a seed without downloading or storing `$media` references, leaving them as external URLs:
+
+```bash
+npx emdash seed seed/seed.json --database ./data.db --skip-media
 ```
 
 Export the current local model and all content back to the template path:

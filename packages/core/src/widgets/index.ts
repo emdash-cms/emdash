@@ -1,4 +1,7 @@
+import type { Kysely } from "kysely";
+
 import { widgetAreaTag } from "../cache/chrome-tags.js";
+import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
@@ -19,10 +22,6 @@ export type {
 
 /**
  * Get a widget area by name, with all its widgets.
- *
- * Single query with a left join rather than area-then-widgets so the
- * common case costs one round-trip. An area with no widgets yields one
- * row with null widget columns, which we skip when mapping.
  */
 export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 	return requestCached(`widget-area:${name}`, async () => {
@@ -37,62 +36,77 @@ export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 		}
 
 		const db = await getDb();
-		const rows = await db
-			.selectFrom("_emdash_widget_areas as a")
-			.leftJoin("_emdash_widgets as w", "w.area_id", "a.id")
-			.select([
-				"a.id as a_id",
-				"a.name as a_name",
-				"a.label as a_label",
-				"a.description as a_description",
-				"w.id as w_id",
-				"w.type as w_type",
-				"w.title as w_title",
-				"w.content as w_content",
-				"w.menu_name as w_menu_name",
-				"w.component_id as w_component_id",
-				"w.component_props as w_component_props",
-				"w.area_id as w_area_id",
-				"w.sort_order as w_sort_order",
-				"w.created_at as w_created_at",
-			])
+		const rows = await selectAreasWithWidgets(db)
 			.where("a.name", "=", name)
 			.orderBy("w.sort_order", "asc")
 			.execute();
-
-		const first = rows[0];
-		if (!first) return null;
-		const widgets: Widget[] = [];
-		for (const row of rows) {
-			if (row.w_id === null) continue; // area has no widgets (left-join null row)
-			// Left-join makes every w_* column nullable in the type; at runtime
-			// they're all non-null once w_id is (we match on widgets.area_id, so
-			// a widget row always has the not-null columns filled). Cast is the
-			// price of that structural fact.
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- left-join row is non-null when w_id is set; see above
-			const widgetRow = {
-				id: row.w_id,
-				type: row.w_type,
-				title: row.w_title,
-				content: row.w_content,
-				menu_name: row.w_menu_name,
-				component_id: row.w_component_id,
-				component_props: row.w_component_props,
-				area_id: row.w_area_id,
-				sort_order: row.w_sort_order,
-				created_at: row.w_created_at,
-			} as WidgetRow;
-			widgets.push(rowToWidget(widgetRow));
-		}
-
-		return {
-			id: first.a_id,
-			name: first.a_name,
-			label: first.a_label,
-			description: first.a_description ?? undefined,
-			widgets,
-		};
+		return groupAreaRows(rows)[0] ?? null;
 	});
+}
+
+/**
+ * Areas left-joined with their widgets, so areas and widgets load in one
+ * round trip. An area with no widgets yields one row with null widget columns.
+ */
+function selectAreasWithWidgets(db: Kysely<Database>) {
+	return db
+		.selectFrom("_emdash_widget_areas as a")
+		.leftJoin("_emdash_widgets as w", "w.area_id", "a.id")
+		.select([
+			"a.id as a_id",
+			"a.name as a_name",
+			"a.label as a_label",
+			"a.description as a_description",
+			"w.id as w_id",
+			"w.type as w_type",
+			"w.title as w_title",
+			"w.content as w_content",
+			"w.menu_name as w_menu_name",
+			"w.component_id as w_component_id",
+			"w.component_props as w_component_props",
+			"w.area_id as w_area_id",
+			"w.sort_order as w_sort_order",
+			"w.created_at as w_created_at",
+		]);
+}
+
+type AreaWidgetRow = Awaited<
+	ReturnType<ReturnType<typeof selectAreasWithWidgets>["execute"]>
+>[number];
+
+/** Group joined rows into areas, keeping row order for areas and widgets. */
+function groupAreaRows(rows: AreaWidgetRow[]): WidgetArea[] {
+	const areas = new Map<string, WidgetArea>();
+	for (const row of rows) {
+		let area = areas.get(row.a_id);
+		if (!area) {
+			area = {
+				id: row.a_id,
+				name: row.a_name,
+				label: row.a_label,
+				description: row.a_description ?? undefined,
+				widgets: [],
+			};
+			areas.set(row.a_id, area);
+		}
+		if (row.w_id === null) continue;
+		// Every w_* column is non-null whenever w_id is set.
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- left-join row is non-null when w_id is set; see above
+		const widgetRow = {
+			id: row.w_id,
+			type: row.w_type,
+			title: row.w_title,
+			content: row.w_content,
+			menu_name: row.w_menu_name,
+			component_id: row.w_component_id,
+			component_props: row.w_component_props,
+			area_id: row.w_area_id,
+			sort_order: row.w_sort_order,
+			created_at: row.w_created_at,
+		} as WidgetRow;
+		area.widgets.push(rowToWidget(widgetRow));
+	}
+	return [...areas.values()];
 }
 
 /**
@@ -114,34 +128,12 @@ export async function getWidgetAreaWithCacheHint(name: string): Promise<{
  */
 export async function getWidgetAreas(): Promise<WidgetArea[]> {
 	const db = await getDb();
-	// Get all areas
-	const areaRows = await db.selectFrom("_emdash_widget_areas").selectAll().execute();
-
-	// Get all widgets
-	const widgetRows = await db
-		.selectFrom("_emdash_widgets")
-		.selectAll()
-		.$castTo<WidgetRow>()
-		.orderBy("sort_order", "asc")
+	const rows = await selectAreasWithWidgets(db)
+		.orderBy("a.created_at", "asc")
+		.orderBy("a.id", "asc")
+		.orderBy("w.sort_order", "asc")
 		.execute();
-
-	// Group widgets by area
-	const widgetsByArea = new Map<string, Widget[]>();
-	for (const row of widgetRows) {
-		if (!widgetsByArea.has(row.area_id)) {
-			widgetsByArea.set(row.area_id, []);
-		}
-		widgetsByArea.get(row.area_id)!.push(rowToWidget(row));
-	}
-
-	// Combine
-	return areaRows.map((areaRow) => ({
-		id: areaRow.id,
-		name: areaRow.name,
-		label: areaRow.label,
-		description: areaRow.description ?? undefined,
-		widgets: widgetsByArea.get(areaRow.id) || [],
-	}));
+	return groupAreaRows(rows);
 }
 
 /**

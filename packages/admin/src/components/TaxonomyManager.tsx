@@ -672,7 +672,7 @@ function TermFormDialog({
 					slug,
 					label,
 					parentId: parentId || undefined,
-					description: description || undefined,
+					description,
 				},
 				{ locale: term.locale ?? locale },
 			);

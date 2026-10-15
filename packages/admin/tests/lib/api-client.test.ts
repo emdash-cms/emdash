@@ -183,9 +183,11 @@ describe("throwResponseError", () => {
 
 	it("falls back to the generic fallback when the body has no error", async () => {
 		const response = new Response("", { status: 500, statusText: "Internal Server Error" });
-		await expect(throwResponseError(response, "fallback")).rejects.toThrow(
-			"fallback: Internal Server Error",
-		);
+		await expect(throwResponseError(response, "fallback")).rejects.toMatchObject({
+			message: "fallback",
+			status: 500,
+			code: "UNKNOWN_ERROR",
+		});
 	});
 });
 

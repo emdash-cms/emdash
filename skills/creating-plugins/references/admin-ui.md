@@ -20,6 +20,8 @@ Declare navigation and widget cards in `emdash-plugin.jsonc`:
 
 Pages mount at `/_emdash/admin/plugins/<plugin-id>/<path>`. Widget sizes are `full`, `half`, and `third`.
 
+Set `group` on a page to place it in a collapsible sidebar folder. A group matching the group of a collection shown in the sidebar puts the page in that folder next to the collections it manages; pages with any other group, from any plugin, share one folder with that label in the Plugins section.
+
 Any sandboxed plugin that declares a page or widget must define an `admin` route. The admin sends a `page_load`, `block_action`, or `form_submit` interaction as `routeCtx.input`:
 
 ```typescript title="src/plugin.ts"

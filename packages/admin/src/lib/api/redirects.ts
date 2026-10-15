@@ -74,7 +74,7 @@ export async function fetchRedirects(options?: RedirectListOptions): Promise<Red
 
 	const url = params.toString() ? `${API_BASE}/redirects?${params}` : `${API_BASE}/redirects`;
 	const response = await apiFetch(url);
-	return parseApiResponse<RedirectListResult>(response, "Failed to fetch redirects");
+	return parseApiResponse<RedirectListResult>(response, i18n._(msg`Failed to fetch redirects`));
 }
 
 /**
@@ -86,7 +86,7 @@ export async function createRedirect(input: CreateRedirectInput): Promise<Redire
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<Redirect>(response, "Failed to create redirect");
+	return parseApiResponse<Redirect>(response, i18n._(msg`Failed to create redirect`));
 }
 
 /**
@@ -98,7 +98,7 @@ export async function updateRedirect(id: string, input: UpdateRedirectInput): Pr
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<Redirect>(response, "Failed to update redirect");
+	return parseApiResponse<Redirect>(response, i18n._(msg`Failed to update redirect`));
 }
 
 /**
@@ -124,7 +124,7 @@ export async function fetch404Summary(limit?: number): Promise<NotFoundSummary[]
 	const response = await apiFetch(url);
 	const data = await parseApiResponse<{ items: NotFoundSummary[] }>(
 		response,
-		"Failed to fetch 404 summary",
+		i18n._(msg`Failed to fetch 404 summary`),
 	);
 	return data.items;
 }

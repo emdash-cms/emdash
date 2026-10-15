@@ -20,7 +20,7 @@ import {
 	type CalendarState,
 } from "../../lib/calendar.js";
 import { cn } from "../../lib/utils.js";
-import { getDayPickerLocale } from "../../locales/day-picker.js";
+import { useDateLocale } from "../../locales/date-locale.js";
 import { getLocaleDir } from "../../locales/index.js";
 import {
 	CalendarDayList,
@@ -510,6 +510,7 @@ function CalendarMonthPicker({
 	onClearFilters,
 }: CalendarMonthProps) {
 	const { t, i18n } = useLingui();
+	const dateLocale = useDateLocale();
 	const headingId = React.useId();
 	const [picked, setPicked] = React.useState<string>();
 	const [pickedMonth, setPickedMonth] = React.useState(month);
@@ -544,7 +545,7 @@ function CalendarMonthPicker({
 					hideNavigation
 					showOutsideDays={false}
 					animate={false}
-					locale={getDayPickerLocale(i18n.locale)}
+					locale={dateLocale}
 					dir={getLocaleDir(i18n.locale)}
 					components={{ DayButton: CalendarDayButton }}
 					style={PICKER_STYLE}

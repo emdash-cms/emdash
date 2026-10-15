@@ -72,3 +72,16 @@ export function taxonomyGroup(
 	}
 	return shared;
 }
+
+/**
+ * Decide where a plugin page renders: inside the content folder whose group
+ * it names, or in the Plugins section, where pages sharing any other group
+ * fold together via `groupNavItems`.
+ */
+export function joinsContentFolder(
+	group: string | null | undefined,
+	contentGroups: ReadonlySet<string>,
+): boolean {
+	const normalized = normalizeGroup(group);
+	return normalized !== undefined && contentGroups.has(normalized);
+}

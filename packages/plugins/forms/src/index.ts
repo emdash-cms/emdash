@@ -22,6 +22,7 @@ import type { PluginDescriptor, ResolvedPlugin } from "emdash";
 import { definePlugin } from "emdash";
 
 import { version } from "../package.json";
+import { formIdFromDigestTask } from "./digest-task.js";
 import { handleCleanup, handleDigest } from "./handlers/cron.js";
 import {
 	formsCreateHandler,
@@ -112,9 +113,9 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 				handler: async (event, ctx) => {
 					if (event.name === "cleanup") {
 						await handleCleanup(ctx);
-					} else if (event.name.startsWith("digest:")) {
-						const formId = event.name.slice("digest:".length);
-						await handleDigest(formId, ctx);
+					} else {
+						const formId = formIdFromDigestTask(event.name);
+						if (formId) await handleDigest(formId, ctx);
 					}
 				},
 			},

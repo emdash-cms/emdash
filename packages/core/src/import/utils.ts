@@ -27,6 +27,11 @@ export const INTERNAL_POST_TYPES = [
 	"wp_template_part",
 	"attachment", // Handled separately as media
 	"wp_block", // Handled separately as sections (reusable blocks)
+	"acf-field-group",
+	"acf-field",
+	"acf-post-type",
+	"acf-taxonomy",
+	"acf-ui-options-page",
 ];
 
 /** Internal meta key prefixes to filter out */
@@ -378,9 +383,8 @@ export function relativizeContentLinks(blocks: PortableTextBlock[], siteUrl: str
 			case "htmlBlock":
 				block.html = block.html.replace(
 					hrefPattern,
-					(_m, _quote: string, path: string | undefined) => {
-						return `href="${path || "/"}"`;
-					},
+					(match, _quote: string, path: string | undefined) =>
+						path?.startsWith("/wp-content/") ? match : `href="${path || "/"}"`,
 				);
 				break;
 			// URL-less or media-only blocks: media URLs are the media pass's job

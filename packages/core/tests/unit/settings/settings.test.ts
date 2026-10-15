@@ -19,7 +19,8 @@ import {
 	invalidateSiteSettingsCache,
 	setSiteSettings,
 } from "../../../src/settings/index.js";
-import { setupTestDatabase } from "../../utils/test-db.js";
+import { createTestRuntime } from "../../utils/mcp-runtime.js";
+import { setupTestDatabase, setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("Site Settings", () => {
 	let db: Kysely<Database>;
@@ -661,9 +662,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaDelete invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 
@@ -701,9 +699,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaUpdate invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 
@@ -740,9 +735,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaReplaceMetadata invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 		const mediaId = "med_invalidation_replace";

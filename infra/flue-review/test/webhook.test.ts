@@ -88,4 +88,18 @@ describe("pull request webhook gate", () => {
 			}),
 		).toMatchObject({ review: true });
 	});
+
+	it.each([
+		{ title: "design: add content locking", body: "" },
+		{ title: "Add content locking", body: "<!-- design-pr -->" },
+	])("skips a design PR, including a manual review request", ({ title, body }) => {
+		const designEvent = event("labeled", "contributor");
+		expect(
+			gatePullRequestEvent({
+				...designEvent,
+				label: { name: "bot:review" },
+				pull_request: { ...designEvent.pull_request, title, body },
+			}),
+		).toEqual({ review: false, reason: "design PRs require human discussion" });
+	});
 });

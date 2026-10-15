@@ -17,6 +17,7 @@ on:
       - "!packages/**/test/**"
       - "!packages/**/tests/**"
       - "!packages/**/__tests__/**"
+      - "!packages/admin/src/locales/*/messages.po"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"

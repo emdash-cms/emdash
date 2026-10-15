@@ -366,6 +366,55 @@ Two behaviors described above currently apply only to sandboxed plugins on admin
 
 The Portable Text field editor also supports `repeater` and `media_picker`. They are not form fields for a sandboxed plugin admin page.
 
+### Load select options from a plugin route
+
+A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill its dropdown from one of the plugin's own routes. The same works for a `select` nested in a `repeater` in those fields.
+
+```typescript title="src/index.ts"
+definePlugin({
+	id: "plugin-cards",
+	version: "0.1.0",
+	storage: {
+		cards: { indexes: ["title"] },
+	},
+	routes: {
+		"cards/list": {
+			handler: async (ctx) => {
+				const result = await ctx.storage.cards.query({ limit: 100 });
+				return {
+					items: result.items.map((card) => ({ id: card.id, name: card.data.title })),
+				};
+			},
+		},
+	},
+	admin: {
+		portableTextBlocks: [
+			{
+				type: "card",
+				label: "Card",
+				fields: [
+					{
+						type: "select",
+						action_id: "cardId",
+						label: "Card",
+						options: [],
+						optionsRoute: "cards/list",
+					},
+				],
+			},
+		],
+	},
+});
+```
+
+Each `select` with `optionsRoute` calls the route when it renders, so a block with two such fields, or a repeater with several items, sends one request for each. Collapsing and reopening a repeater item sends the request again. The request is `POST /_emdash/api/plugins/<pluginId>/<optionsRoute>`. The request carries the `X-EmDash-Request: 1` header and an empty JSON object as its body. The route is a normal plugin route, so it needs the `plugins:manage` permission unless it declares another `permission`.
+
+The handler returns `{ items: Array<{ id: string; name: string }> }`. The route responds with the standard EmDash envelope (`{ success: true, data: { items: [...] } }`, see [API routes](/plugins/creating-plugins/api-routes/)), and the block editor reads the options from `data.items`. The admin shows each item as an option with `id` as the stored value and `name` as the label. Extra properties on an item are ignored.
+
+While the request runs, the field shows a loading state. If the request fails, the response is not OK, or the response has no `items` array, the field falls back to the static `options` array. A static `options` array that is empty leaves the dropdown without choices in that case.
+
+`optionsRoute` only takes effect in the Portable Text block editor. The Block Kit renderer for admin pages, widgets, and saved-entry panels, and the declarative field widget renderer, read only the static `options` array and ignore `optionsRoute`. A `select` in those places must list its options statically, and a Block Kit response must give it at least one.
+
 ## Builder helpers
 
 The `@emdash-cms/blocks` package exports the same shapes through `blocks` and `elements` builder objects. Builders reduce property-name mistakes while returning ordinary JSON-compatible objects:

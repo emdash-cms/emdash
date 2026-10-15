@@ -71,6 +71,7 @@ import {
 	runWithContext,
 } from "../request-context.js";
 import type { PublishedRef } from "../scheduled-publish.js";
+import { parseCollectionSitemapName } from "../seo/sitemap-name.js";
 import { EmDashStorageError } from "../storage/types.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
@@ -83,7 +84,10 @@ import {
 } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
-import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
+import {
+	createPublicPluginApiRouteHandler,
+	getPublicPluginRouteMeta,
+} from "./public-plugin-api-routes.js";
 import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -590,7 +594,13 @@ function pushMetricsTimings(
 
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
-const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*(?:-[1-9]\d*)?\.xml$/;
+const SITEMAP_COLLECTION_RE = /^\/sitemap-([^/]+)\.xml$/;
+
+/** Whether `pathname` is a per-collection sitemap a collection could have. */
+function isCollectionSitemapPath(pathname: string): boolean {
+	const match = SITEMAP_COLLECTION_RE.exec(pathname);
+	return match !== null && parseCollectionSitemapName(match[1]!) !== null;
+}
 
 function isImageEndpointRequest(context: APIContext): boolean {
 	const route = virtualConfig?.imageEndpointRoute;
@@ -711,6 +721,26 @@ function applyBuildValidator(context: APIContext): void {
 	context.cache.set({ lastModified: buildDate });
 }
 
+const UNSHARED_CACHE_CONTROL_RE = /\b(?:private|no-store)\b/i;
+
+/**
+ * Route rules match by path, so a rule can cover responses rendered for a
+ * signed-in user or marked private by the route itself. Opting them out of the
+ * route cache keeps the shared edge cache from serving them to anyone else.
+ *
+ * Must run after next(): the route and its layout call `cache.set()` while
+ * rendering, which turns caching back on.
+ */
+function keepUnsharedResponsesOutOfRouteCache(context: APIContext, response: Response): void {
+	if (!context.cache?.enabled) return;
+	if (
+		context.locals.user ||
+		UNSHARED_CACHE_CONTROL_RE.test(response.headers.get("Cache-Control") ?? "")
+	) {
+		context.cache.set(false);
+	}
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
@@ -742,7 +772,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 		const isEmDashRoute = url.pathname.startsWith("/_emdash");
 		const isPublicRuntimeRoute =
-			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || SITEMAP_COLLECTION_RE.test(url.pathname);
+			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || isCollectionSitemapPath(url.pathname);
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing
@@ -812,12 +842,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// bypasses runtime init and would crash with "no such table: options".
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
-				// have ever run, and the page may only render once runtime init below
-				// has migrated the database.
+				// have ever run, and the page may only render once runtime init has
+				// migrated the database.
 				// Skip the probe when prerendering: the build database is legitimately
 				// empty in CI, and a response derived from it would be baked into the
 				// static page (session reads are already skipped for prerender above
 				// for the same reason).
+				// Runtime init starts before the probe so the two round trips overlap.
+				// Sub-phase timings are populated only on the cold init. Warm
+				// requests hit the cached runtime and leave this empty.
+				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
+				const runtimeInitStart = performance.now();
+				const runtimeInit = config ? getRuntime(config, migrationMode, initSubTimings) : undefined;
+				// Awaited below unless the probe fails; then it settles in the background.
+				runtimeInit?.catch(() => {});
+
 				let unmigrated = false;
 				let probeFailed = false;
 				if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
@@ -835,8 +874,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							// race, locked SQLite) must NOT be read as "fresh install". Leave the
 							// flag unset so a later request can re-verify, and fall through to
 							// render the page normally. Unless a runtime is already running,
-							// skip runtime init for this request: it would connect to the same
-							// database again and make the visitor wait through a second timeout.
+							// don't wait for runtime init on this request: it connects to the
+							// same database and would make the visitor wait through a second
+							// timeout. getRuntime anchors it with after(), so it can still
+							// finish for later requests.
 							probeFailed = !getRuntimeHolder().instance;
 							console.error("Setup probe failed (non-fatal):", error);
 						}
@@ -844,23 +885,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
 
-				// Initialize the runtime for page:metadata and page:fragments hooks.
+				// Wait for the runtime for page:metadata and page:fragments hooks.
 				// The runtime is a cached singleton — after the first request,
 				// getRuntime() is just a null-check. This enables SEO plugins to
 				// contribute meta tags for all visitors, not just logged-in editors,
 				// except on a request whose setup probe just failed.
-				if (config && !probeFailed) {
-					// Sub-phase timings are populated only on the cold init. Warm
-					// requests hit the cached runtime and leave this empty.
-					const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
-					const t0 = performance.now();
+				if (runtimeInit && !probeFailed) {
 					try {
-						const runtime = await getRuntime(config, migrationMode, initSubTimings);
+						const runtime = await runtimeInit;
 						markSetupVerified();
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
+							getPublicPluginRouteMeta: (pluginId, path) =>
+								getPublicPluginRouteMeta(runtime, pluginId, path),
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
@@ -886,7 +925,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							console.error("[emdash] runtime init failed (page renders without CMS data):", error);
 						}
 					}
-					timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
+					timings.push({
+						name: "rt",
+						dur: performance.now() - runtimeInitStart,
+						desc: "Runtime init",
+					});
 					// Append cold-only sub-phase timings so the breakdown is visible
 					// in Server-Timing (rt.db, rt.fts, rt.plugins, rt.site,
 					// rt.sandbox, rt.market, rt.hooks, rt.cron).
@@ -933,9 +976,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Eagerly warm site-global layout data (menus, widget areas,
 					// taxonomy terms, settings) concurrently so the layout's
 					// per-component reads overlap into ~one wall-clock round trip and
-					// hit a warm cache instead of serializing. Three guards:
+					// hit a warm cache instead of serializing. Four guards:
 					//  - request-scoped (remote) backend only -- this branch implies it;
 					//    pointless on synchronous local SQLite.
+					//  - an adapter that can overlap queries -- without that, Kysely's
+					//    connection mutex (D1 sessions without `coalesce`) queues the
+					//    prefetch ahead of the page's own first query.
 					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
 					//    layout, so prefetching their chrome is pure waste.
 					//  - the work starts immediately, then after() keeps both it and the
@@ -949,7 +995,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.trim()
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
-						if (acceptsHtml) after(() => prefetchLayoutData());
+						if (
+							acceptsHtml &&
+							anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
+						) {
+							after(() => prefetchLayoutData());
+						}
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
 						// waits for stream-end and request-owned deferred work. See finishScoped.
@@ -1054,6 +1105,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					getPluginEditorExtension: runtime.getPluginEditorExtension.bind(runtime),
 					getPluginEditorDraftSchema: runtime.getPluginEditorDraftSchema.bind(runtime),
 					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
+					getPublicPluginRouteMeta: (pluginId, path) =>
+						getPublicPluginRouteMeta(runtime, pluginId, path),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 					getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
 					getEnabledPluginMcpTools: runtime.getEnabledPluginMcpTools.bind(runtime),
@@ -1202,6 +1255,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	try {
 		const response = await runWithContext({ editMode: false, queryRecorder, metrics }, run);
 		applyBuildValidator(context);
+		keepUnsharedResponsesOutOfRouteCache(context, response);
 		return response;
 	} finally {
 		// Streamed responses defer the flush to stream end (see

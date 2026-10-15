@@ -47,8 +47,15 @@ export function parseSiteDomain(input: string): string | undefined {
 	return url.origin;
 }
 
-function checkFailed(message: string): ApiResult<never> {
-	return { success: false, error: { code: "DOMAIN_CHECK_FAILED", message } };
+/** Why a domain check failed, sent as `error.details` with the addresses its message names. */
+type DomainCheckFailure =
+	| { reason: "NO_PUBLIC_ADDRESS"; host: string }
+	| { reason: "UNREACHABLE"; origin: string }
+	| { reason: "REDIRECT"; origin: string; target?: string }
+	| { reason: "NOT_SERVING"; origin: string };
+
+function checkFailed(message: string, details: DomainCheckFailure): ApiResult<never> {
+	return { success: false, error: { code: "DOMAIN_CHECK_FAILED", message, details } };
 }
 
 /**
@@ -79,7 +86,11 @@ export async function handleSiteDomainChange(
 		try {
 			await resolveAndValidateExternalUrl(proofUrl);
 		} catch {
-			return checkFailed(`${new URL(origin).hostname} does not resolve to a public address`);
+			const host = new URL(origin).hostname;
+			return checkFailed(`${host} does not resolve to a public address`, {
+				reason: "NO_PUBLIC_ADDRESS",
+				host,
+			});
 		}
 
 		let response: Response;
@@ -91,18 +102,20 @@ export async function handleSiteDomainChange(
 				signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
 			});
 		} catch {
-			return checkFailed(`Could not reach ${origin}`);
+			return checkFailed(`Could not reach ${origin}`, { reason: "UNREACHABLE", origin });
 		}
 
 		if (response.status >= 300 && response.status < 400) {
 			const location = response.headers.get("Location");
 			const target =
 				location && URL.canParse(location, proofUrl) ? new URL(location, proofUrl) : null;
-			return checkFailed(
-				target
-					? `${origin} redirects to ${target.origin}. Enter that address instead.`
-					: `${origin} redirects elsewhere`,
-			);
+			return target
+				? checkFailed(`${origin} redirects to ${target.origin}. Enter that address instead.`, {
+						reason: "REDIRECT",
+						origin,
+						target: target.origin,
+					})
+				: checkFailed(`${origin} redirects elsewhere`, { reason: "REDIRECT", origin });
 		}
 
 		const body: unknown = response.ok ? await response.json().catch(() => null) : null;
@@ -115,7 +128,10 @@ export async function handleSiteDomainChange(
 				? (body.data as { token?: unknown }).token
 				: undefined;
 		if (received !== token) {
-			return checkFailed(`${origin} does not serve this site yet`);
+			return checkFailed(`${origin} does not serve this site yet`, {
+				reason: "NOT_SERVING",
+				origin,
+			});
 		}
 
 		await setSiteSettings({ url: origin }, db);
