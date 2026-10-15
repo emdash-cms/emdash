@@ -559,7 +559,8 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 
 /*
  * Portable Text stores each paragraph of a quote as its own block, so quotes
- * next to each other open as one quote. They read as one while editing too.
+ * next to each other open as one quote. They read as one while editing too,
+ * and in a revision, which draws each block on its own.
  */
 .emdash-document > blockquote:has(+ blockquote) {
 	margin-bottom: 0;
@@ -632,19 +633,32 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
  * gets 0.5rem: each then looks as far from the heading as text would.
  */
 .emdash-document
-	> :is(blockquote, .tableWrapper, .react-renderer, [data-image-upload-placeholder]):has(+ h1) {
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h1) {
 	margin-bottom: 2.5rem;
 }
 
 .emdash-document
-	> :is(blockquote, .tableWrapper, .react-renderer, [data-image-upload-placeholder]):has(+ h2) {
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h2) {
 	margin-bottom: 1.9rem;
 }
 
 .emdash-document
-	> :is(blockquote, .tableWrapper, .react-renderer, [data-image-upload-placeholder]):has(
-		+ :is(h3, h4, h5, h6)
-	) {
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ :is(h3, h4, h5, h6)) {
 	margin-bottom: 1.5rem;
 }
 
@@ -1105,7 +1119,10 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	margin-top: 1rem;
 }
 
-/* Quotes next to each other open as one quote, so they read as one while editing too. */
+/*
+ * Quotes next to each other open as one quote, so they read as one while
+ * editing too, and in a revision, which draws each block on its own.
+ */
 :is(.ProseMirror, [data-emdash-static-document]).prose > blockquote:has(+ blockquote) {
 	margin-bottom: 0;
 	padding-bottom: 1rem;
@@ -1132,19 +1149,32 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
  * gap shifts less than in the page layout: 0.25rem more above the heading.
  */
 :is(.ProseMirror, [data-emdash-static-document]).prose
-	> :is(blockquote, .tableWrapper, .react-renderer, [data-image-upload-placeholder]):has(+ h1) {
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h1) {
 	margin-bottom: 3rem;
 }
 
 :is(.ProseMirror, [data-emdash-static-document]).prose
-	> :is(blockquote, .tableWrapper, .react-renderer, [data-image-upload-placeholder]):has(+ h2) {
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ h2) {
 	margin-bottom: 2.5rem;
 }
 
 :is(.ProseMirror, [data-emdash-static-document]).prose
-	> :is(blockquote, .tableWrapper, .react-renderer, [data-image-upload-placeholder]):has(
-		+ :is(h3, h4, h5, h6)
-	) {
+	> :is(
+		blockquote,
+		.tableWrapper,
+		:has(> [data-node-view-wrapper]),
+		[data-image-upload-placeholder]
+	):has(+ :is(h3, h4, h5, h6)) {
 	margin-bottom: 2rem;
 }
 
