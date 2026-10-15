@@ -245,7 +245,7 @@ Every content route checks that the actor holds some content permission in the U
 
 Reads that cross collections apply the scope per collection:
 
-- The dashboard, the calendar, draft search in REST and search in MCP drop collections the actor may not read from the query. An empty result short-circuits, because the search layer treats an empty collection list as all collections.
+- The dashboard, the calendar, draft search in REST and search in MCP drop collections the actor may not read from the query. An empty result short-circuits, because the search layer treats an empty collection list as all collections. The dashboard shows drafts and policy rejections only in collections where the actor holds `content:read_drafts`.
 - Reference routes return rows from the other side of the relation, so they check read and draft access on that collection, not on the URL's.
 - Reference fields that point into another collection resolve on the entry read with the actor's `content:read` and `content:read_drafts` in the target collection, and resolve to an empty list when the actor cannot read it. A write that selects or keeps a reference is refused unless the actor holds `content:read` in the target collection.
 - Revision routes answer 404, not 403, for a revision in a collection whose drafts the actor may not read.
@@ -430,4 +430,5 @@ Caching role rows in the object cache with invalidation on role writes avoids to
 - **Compatibility level after an upgrade.** A permission that a release adds at or below a custom role's level is not part of that role, so the role no longer contains the level stored for its users. As designed, the stored level is kept until the role's next update. Should a release that adds a permission recompute it instead, which can lower it?
 - **`search:read`.** The map defines it, but no route checks it. Should search check it, or should the role editor leave it out?
 - **Own drafts only.** Every role with `content:read_drafts` sees all drafts, revisions and trashed entries of a collection. A role for external users, as in #2317, may need to see only its own entries. Leave this for a follow-up proposal?
+- **Draft-only edits.** `content:edit_own_drafts` covers saving, locking and setting terms on an entry while it is a draft. Discarding a draft, restoring from the trash and duplicating still require `content:edit_own` or `content:edit_any`, as they do today for a Contributor. Should those three accept the draft-only permission too?
 - **One role per user.** Several additive roles per user is the alternative.
