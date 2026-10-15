@@ -337,6 +337,8 @@ export default {
 				event: { content: Record<string, unknown>; collection: string; isNew: boolean },
 				ctx: PluginContext,
 			) => {
+				// With a pending draft, afterSave carries the draft's data, not the published version.
+				if (event.content.draftRevisionId) return;
 				await syndicatePublishedContent(event, ctx, { allowCreate: false });
 			},
 		},
