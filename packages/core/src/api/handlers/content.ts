@@ -1610,12 +1610,16 @@ export async function handleContentUpdate(
 				}
 			}
 
+			// Collections without revisions save to the columns, and reads show any
+			// draft revision over them, so no draft pointer may outlive a save.
+			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
 			const updated = await trxRepo.update(collection, resolvedId, {
 				data: body.data,
 				slug: body.slug,
 				status: body.status,
 				authorId: body.authorId,
 				publishedAt: body.publishedAt,
+				...(supportsRevisions ? {} : { draftRevisionId: null }),
 			});
 
 			if (body.bylines !== undefined) {
@@ -2583,7 +2587,8 @@ export async function handleContentUnpublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unpublish(collection, resolvedId, expectedRevision);
+			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
+			return repo.unpublish(collection, resolvedId, expectedRevision, supportsRevisions);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
