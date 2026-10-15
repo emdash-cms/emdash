@@ -93,6 +93,7 @@ export async function retryRecord(
 	indexer: RetryIndexer,
 	record: RecordRef,
 ): Promise<RetryOutcome> {
+	const startedAt = Date.now();
 	try {
 		await indexer.syncRecord(record.source, record.id);
 	} catch (error) {
@@ -100,12 +101,28 @@ export async function retryRecord(
 		await queueRetries(ctx, [{ source: record.source, id: record.id, ...failureOf(error) }]);
 		return "failed";
 	}
+	return (await finishSync(ctx, indexer, record, startedAt)) ? "synced" : "busy";
+}
+
+/**
+ * Settles the queue after `indexer` synced a record, starting at `startedAt`.
+ * Removes the record's failures recorded before then; a newer one may come
+ * from a change the sync did not see. When the settings changed meanwhile,
+ * queues the record for an immediate retry with the new ones instead, and
+ * returns false.
+ */
+export async function finishSync(
+	ctx: RetryContext,
+	indexer: Pick<Indexer, "config">,
+	record: RecordRef,
+	startedAt: number,
+): Promise<boolean> {
 	if (!(await isSavedConfig(ctx, indexer.config))) {
 		await retryNow(ctx, record);
-		return "busy";
+		return false;
 	}
-	await clearRetry(ctx, record);
-	return "synced";
+	await clearSynced(ctx, [record], startedAt);
+	return true;
 }
 
 /**
@@ -132,17 +149,8 @@ async function retryNow(ctx: RetryContext, record: RecordRef): Promise<void> {
 	await scheduleRetries(ctx);
 }
 
-/** Removes a record from the queue once it has been synced. */
-export async function clearRetry(ctx: Pick<PluginContext, "kv">, record: RecordRef): Promise<void> {
-	await updateKv<RetryQueue>(ctx, RETRY, (queue) => {
-		if (!queue?.items.some((item) => refKey(item) === refKey(record))) return undefined;
-		const items = queue.items.filter((item) => refKey(item) !== refKey(record));
-		return items.length > 0 || queue.dropped > 0 ? { ...queue, items } : null;
-	});
-}
-
 /**
- * Removes records from the queue once a build has synced them, including
+ * Removes records from the queue once they have been synced, including
  * those whose automatic retries ran out. Keeps failures recorded at or after
  * `syncedSince`, which may be newer than the sync.
  */

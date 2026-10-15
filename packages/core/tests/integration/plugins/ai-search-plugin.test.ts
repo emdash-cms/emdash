@@ -103,6 +103,11 @@ describe("ai-search plugin", () => {
 	/** Saves the default configuration and runs its build from the settings page. */
 	async function setUpSearch() {
 		const { config } = (await data("GET", "config")) as { config: unknown };
+		await setUpSearchWith(config);
+	}
+
+	/** Saves `config` and runs its build from the settings page. */
+	async function setUpSearchWith(config: unknown) {
 		await data("POST", "config/save", config);
 		for (let step = 0; step < 20; step++) {
 			const { build } = (await data("POST", "index/step")) as { build: unknown };
@@ -258,6 +263,32 @@ describe("ai-search plugin", () => {
 		finishIndexing();
 
 		expect(await resultUrls("hedges")).toEqual(["/posts/pruning"]);
+	});
+
+	it("indexes a post with the new settings when they are saved while its publish hook syncs it", async () => {
+		await setUpSearch();
+		const post = await createPost("Pruning", "Pruning hedges in winter.");
+		const { config } = (await data("GET", "config")) as {
+			config: { sources: Record<string, { fields: string[] }> };
+		};
+		const upload = service.items.upload.bind(service.items);
+		let saved = false;
+		service.items.upload = async (...args) => {
+			if (!saved) {
+				saved = true;
+				config.sources.posts!.fields = ["title"];
+				await setUpSearchWith(config);
+			}
+			return upload(...args);
+		};
+
+		await publish(post.id);
+		service.items.upload = upload;
+		await tick(1);
+		finishIndexing();
+
+		expect(await resultUrls("pruning")).toEqual(["/posts/pruning"]);
+		expect(await resultUrls("hedges")).toEqual([]);
 	});
 
 	it("refuses index work before AI Search is set up", async () => {

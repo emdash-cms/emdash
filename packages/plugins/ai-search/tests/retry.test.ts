@@ -2,7 +2,7 @@ import type { PluginContext } from "emdash";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Indexer } from "../src/indexer.js";
-import { getRetryQueue, queueRetries, retryRecord, runRetries } from "../src/retry.js";
+import { finishSync, getRetryQueue, queueRetries, retryRecord, runRetries } from "../src/retry.js";
 import { FakeItems } from "./fake-ai-search.js";
 import { config, entry, fakeEmDash, memoryKv } from "./fakes.js";
 
@@ -95,12 +95,14 @@ describe("retries", () => {
 	});
 
 	it("retries on request, even after automatic attempts ran out", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
 		const { ctx, indexer, post } = await setup();
 		const failure = { source: "posts", id: post.id, error: "internal_error" };
 		for (let attempt = 0; attempt < 5; attempt++) {
 			// oxlint-disable-next-line no-await-in-loop -- attempts must be counted in order
 			await queueRetries(ctx, [failure]);
 		}
+		vi.advanceTimersByTime(MINUTE);
 
 		const outcome = await retryRecord(ctx, indexer, failure);
 
@@ -116,6 +118,7 @@ describe("retries", () => {
 			// oxlint-disable-next-line no-await-in-loop -- attempts must be counted in order
 			await queueRetries(ctx, [failure]);
 		}
+		vi.advanceTimersByTime(MINUTE);
 		const changed = config({ sources: { posts: { ...config().sources.posts!, weight: 5 } } });
 		const upload = items.upload.bind(items);
 		items.upload = async (...args) => {
@@ -126,11 +129,25 @@ describe("retries", () => {
 		const outcome = await retryRecord(ctx, indexer, failure);
 		items.upload = upload;
 		const fresh = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, changed);
+		vi.advanceTimersByTime(MINUTE);
 		await runRetries(ctx, fresh, 10_000);
 
 		expect(outcome).toBe("busy");
 		expect(items.items.get("posts/entry-1.md")?.metadata).toMatchObject({ priority: "5" });
 		expect((await getRetryQueue(ctx)).items).toEqual([]);
+	});
+
+	it("keeps a failure recorded while an older sync of the same record was running", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		const { ctx, indexer, post } = await setup();
+		const record = { source: "posts", id: post.id };
+		const startedAt = Date.now();
+		vi.advanceTimersByTime(1000);
+		await queueRetries(ctx, [{ ...record, error: "internal_error" }]);
+
+		await finishSync(ctx, indexer, record, startedAt);
+
+		expect((await getRetryQueue(ctx)).items).toMatchObject([record]);
 	});
 
 	it("keeps the newest failures and counts the ones it drops", async () => {

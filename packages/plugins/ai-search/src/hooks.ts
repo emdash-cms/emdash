@@ -5,7 +5,7 @@ import { AUTHORS } from "./config.js";
 import { openSession } from "./context.js";
 import { failureOf } from "./indexer.js";
 import type { AiSearchOptions } from "./options.js";
-import { clearRetry, queueRetries, runRetries } from "./retry.js";
+import { finishSync, queueRetries, runRetries } from "./retry.js";
 
 /** Cron runs are cut off after 30 seconds; stop starting new work well before that. */
 const CRON_BUDGET_MS = 15_000;
@@ -22,9 +22,10 @@ export function createHooks(options: AiSearchOptions): PluginHooks {
 	const sync = async (ctx: PluginContext, source: string, id: string) => {
 		const session = await openSession(ctx, options);
 		if (!session) return;
+		const startedAt = Date.now();
 		try {
 			await session.indexer.syncRecord(source, id);
-			await clearRetry(ctx, { source, id });
+			await finishSync(ctx, session.indexer, { source, id }, startedAt);
 		} catch (error) {
 			const failure = failureOf(error);
 			ctx.log.warn(`[ai-search] could not sync ${source}/${id}; will retry: ${failure.error}`);
