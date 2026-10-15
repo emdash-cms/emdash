@@ -612,6 +612,69 @@ describe("resolveExclusiveHooks — shared function", () => {
 			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
 		});
 	});
+
+	describe("with a manual provider", () => {
+		function providerPipeline(...ids: string[]): HookPipeline {
+			return new HookPipeline(
+				ids.map((id) =>
+					createTestPlugin({
+						id,
+						hooks: {
+							"content:beforeSave": createTestHook(id, vi.fn(), { exclusive: true }),
+						},
+					}),
+				),
+			);
+		}
+
+		async function resolveWithManual(
+			pipeline: HookPipeline,
+			store: Map<string, string>,
+		): Promise<void> {
+			await resolveExclusiveHooks({
+				pipeline,
+				isActive: () => true,
+				getOption: async (key) => store.get(key) ?? null,
+				setOption: async (key, value) => {
+					store.set(key, value);
+				},
+				deleteOption: async (key) => {
+					store.delete(key);
+				},
+				preferredHints: new Map([["built-in", ["content:beforeSave"]]]),
+				manualProviders: new Set(["built-in"]),
+			});
+		}
+
+		it("never auto-selects it, even as the only provider or a preferred one", async () => {
+			const pipeline = providerPipeline("built-in");
+			const store = new Map<string, string>();
+
+			await resolveWithManual(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
+			expect(store.size).toBe(0);
+		});
+
+		it("does not block auto-selection of the one other provider", async () => {
+			const pipeline = providerPipeline("built-in", "plugin-a");
+			const store = new Map<string, string>();
+
+			await resolveWithManual(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("plugin-a");
+			expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("plugin-a");
+		});
+
+		it("keeps a stored selection of it", async () => {
+			const pipeline = providerPipeline("built-in", "plugin-a");
+			const store = new Map([["emdash:exclusive_hook:content:beforeSave", "built-in"]]);
+
+			await resolveWithManual(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("built-in");
+		});
+	});
 });
 
 // ---------------------------------------------------------------------------

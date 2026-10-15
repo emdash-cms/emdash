@@ -1,8 +1,9 @@
 /**
  * Email Settings API endpoint
  *
- * GET  /_emdash/api/settings/email      — current provider, available providers, middleware
- * POST /_emdash/api/settings/email/test — send a test email through the full pipeline
+ * GET  /_emdash/api/settings/email: current provider, available providers, middleware
+ * POST /_emdash/api/settings/email: send a test email through the full pipeline
+ * PUT  /_emdash/api/settings/email: save SMTP settings or select the provider
  */
 
 import { escapeHtml } from "@emdash-cms/auth";
@@ -13,6 +14,15 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+import {
+	loadSmtpConfigFromDb,
+	isSmtpEnvConfigured,
+	loadSmtpConfigFromEnv,
+	saveSmtpConfigToDb,
+	SMTP_EMAIL_PLUGIN_ID,
+	SmtpDeliveryError,
+	type SmtpConfig,
+} from "#plugins/email-smtp.js";
 
 export const prerender = false;
 
@@ -45,9 +55,10 @@ export const GET: APIRoute = async ({ locals }) => {
 
 		// Get email:deliver providers and current selection
 		const providers = pipeline.getExclusiveHookProviders(EMAIL_DELIVER_HOOK);
-		const selectedProviderId = await optionsRepo.get<string>(
-			`emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`,
-		);
+		// Env-configured SMTP can be selected in memory only, without a stored option.
+		const selectedProviderId =
+			(await optionsRepo.get<string>(`emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`)) ??
+			pipeline.getExclusiveSelection(EMAIL_DELIVER_HOOK);
 
 		// Get middleware hooks (beforeSend / afterSend). These are non-exclusive —
 		// many plugins can subscribe — so we enumerate non-exclusive providers.
@@ -57,6 +68,43 @@ export const GET: APIRoute = async ({ locals }) => {
 		const afterSendPlugins = pipeline
 			.getHookProviders(EMAIL_AFTER_SEND_HOOK)
 			.map((p) => p.pluginId);
+
+		// SMTP transport status: DB config takes precedence over env vars
+		let smtpStatus: {
+			configured: boolean;
+			source: "db" | "env" | null;
+			host?: string;
+			port?: number;
+			secure?: "starttls" | "tls";
+			user?: string;
+			fromName?: string;
+			fromEmail?: string;
+			replyTo?: string;
+		} = { configured: false, source: null };
+		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
+		const dbConfig = encryptionKey ? await loadSmtpConfigFromDb(emdash.db, encryptionKey) : null;
+		let envConfig: SmtpConfig | null = null;
+		if (!dbConfig) {
+			try {
+				envConfig = loadSmtpConfigFromEnv();
+			} catch {
+				// Shown as unconfigured; the runtime logs why the env config is ignored.
+			}
+		}
+		const smtpConfig = dbConfig ?? envConfig;
+		if (smtpConfig) {
+			smtpStatus = {
+				configured: true,
+				source: dbConfig ? "db" : "env",
+				host: smtpConfig.host,
+				port: smtpConfig.port,
+				secure: smtpConfig.secure,
+				user: smtpConfig.user,
+				...(smtpConfig.fromName ? { fromName: smtpConfig.fromName } : {}),
+				...(smtpConfig.fromEmail ? { fromEmail: smtpConfig.fromEmail } : {}),
+				...(smtpConfig.replyTo ? { replyTo: smtpConfig.replyTo } : {}),
+			};
+		}
 
 		return apiSuccess({
 			available: emdash.email?.isAvailable() ?? false,
@@ -68,6 +116,7 @@ export const GET: APIRoute = async ({ locals }) => {
 				beforeSend: beforeSendPlugins,
 				afterSend: afterSendPlugins,
 			},
+			smtp: smtpStatus,
 		});
 	} catch (error) {
 		return handleError(error, "Failed to get email settings", "EMAIL_SETTINGS_READ_ERROR");
@@ -75,7 +124,7 @@ export const GET: APIRoute = async ({ locals }) => {
 };
 
 /**
- * POST /_emdash/api/settings/email/test
+ * POST /_emdash/api/settings/email
  *
  * Send a test email through the full pipeline.
  * Validates the pipeline is configured and the provider works.
@@ -97,7 +146,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	if (!emdash.email?.isAvailable()) {
 		return apiError(
 			"EMAIL_NOT_CONFIGURED",
-			"No email provider is configured. Install and activate an email provider plugin.",
+			"No email provider is configured. Configure SMTP or activate an email provider plugin.",
 			503,
 		);
 	}
@@ -140,6 +189,139 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			message: `Test email sent to ${body.to}`,
 		});
 	} catch (error) {
+		if (error instanceof SmtpDeliveryError) {
+			console.error("[EMAIL_TEST_ERROR]", error);
+			return apiError("EMAIL_TEST_ERROR", `Failed to send test email: ${error.message}`, 502);
+		}
 		return handleError(error, "Failed to send test email", "EMAIL_TEST_ERROR");
+	}
+};
+
+// ---------------------------------------------------------------------------
+// PUT /_emdash/api/settings/email: configure email provider
+// ---------------------------------------------------------------------------
+
+const smtpConfigSchema = z.object({
+	host: z.string().min(1),
+	port: z
+		.number()
+		.int()
+		.min(1)
+		.max(65535)
+		.refine((p) => p !== 25, {
+			message: "Port 25 is not supported. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
+		}),
+	secure: z.enum(["starttls", "tls"]),
+	user: z.string().min(1),
+	pass: z.string().min(1).optional(), // undefined = keep existing password
+	fromName: z.string().optional(),
+	fromEmail: z.string().email().optional(),
+	replyTo: z.string().email().optional(),
+});
+
+const emailSettingsBody = z.discriminatedUnion("provider", [
+	// Without `smtp`, selects SMTP configured through environment variables.
+	z.object({ provider: z.literal("smtp"), smtp: smtpConfigSchema.optional() }),
+	z.object({ provider: z.literal("plugin"), pluginId: z.string().min(1) }),
+]);
+
+export const PUT: APIRoute = async ({ request, locals }) => {
+	const { emdash, user } = locals;
+
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
+
+	const denied = requirePerm(user, "settings:manage");
+	if (denied) return denied;
+
+	try {
+		const body = await parseBody(request, emailSettingsBody);
+		if (isParseError(body)) return body;
+
+		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
+		const optionsRepo = new OptionsRepository(emdash.db);
+		const optionKey = `emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`;
+
+		switch (body.provider) {
+			case "smtp": {
+				if (!body.smtp) {
+					const saved = encryptionKey ? await loadSmtpConfigFromDb(emdash.db, encryptionKey) : null;
+					if (!saved && !isSmtpEnvConfigured()) {
+						return apiError("VALIDATION_ERROR", "SMTP settings are required", 400);
+					}
+					await optionsRepo.set(optionKey, SMTP_EMAIL_PLUGIN_ID);
+					emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, SMTP_EMAIL_PLUGIN_ID);
+					return apiSuccess({ success: true, message: "SMTP activated" });
+				}
+				if (!encryptionKey) {
+					return apiError(
+						"ENCRYPTION_KEY_MISSING",
+						"EMDASH_ENCRYPTION_KEY is required to store SMTP credentials securely",
+						500,
+					);
+				}
+
+				// The saved password is only reused for the same server and login, so
+				// it cannot be sent to a host chosen by someone who never knew it.
+				let pass = body.smtp.pass;
+				if (!pass) {
+					const existing = await loadSmtpConfigFromDb(emdash.db, encryptionKey);
+					if (!existing) {
+						return apiError(
+							"VALIDATION_ERROR",
+							"Password is required for initial SMTP configuration",
+							400,
+						);
+					}
+					if (existing.host !== body.smtp.host || existing.user !== body.smtp.user) {
+						return apiError(
+							"VALIDATION_ERROR",
+							"Re-enter the password when changing the SMTP host or username",
+							400,
+						);
+					}
+					pass = existing.pass;
+				}
+
+				await saveSmtpConfigToDb(emdash.db, encryptionKey, {
+					host: body.smtp.host,
+					port: body.smtp.port,
+					secure: body.smtp.secure,
+					user: body.smtp.user,
+					pass,
+					...(body.smtp.fromName ? { fromName: body.smtp.fromName } : {}),
+					...(body.smtp.fromEmail ? { fromEmail: body.smtp.fromEmail } : {}),
+					...(body.smtp.replyTo ? { replyTo: body.smtp.replyTo } : {}),
+				});
+
+				await optionsRepo.set(optionKey, SMTP_EMAIL_PLUGIN_ID);
+				emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, SMTP_EMAIL_PLUGIN_ID);
+
+				return apiSuccess({ success: true, message: "SMTP configured and activated" });
+			}
+
+			case "plugin": {
+				if (body.pluginId === SMTP_EMAIL_PLUGIN_ID) {
+					return apiError("VALIDATION_ERROR", "Use the smtp provider variant for SMTP", 400);
+				}
+				const registered = emdash.hooks
+					.getExclusiveHookProviders(EMAIL_DELIVER_HOOK)
+					.some((p) => p.pluginId === body.pluginId);
+				if (!registered) {
+					return apiError("VALIDATION_ERROR", "Unknown email provider", 400);
+				}
+				await optionsRepo.set(optionKey, body.pluginId);
+				emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, body.pluginId);
+				return apiSuccess({ success: true, message: "Email provider updated" });
+			}
+
+			default: {
+				const exhaustive: never = body;
+				return exhaustive;
+			}
+		}
+	} catch (error) {
+		return handleError(error, "Failed to save email settings", "EMAIL_SETTINGS_SAVE_ERROR");
 	}
 };

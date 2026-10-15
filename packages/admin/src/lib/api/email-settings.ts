@@ -15,6 +15,18 @@ export interface EmailProvider {
 	pluginId: string;
 }
 
+export interface SmtpConfigStatus {
+	configured: boolean;
+	source: "db" | "env" | null;
+	host?: string;
+	port?: number;
+	secure?: "starttls" | "tls";
+	user?: string;
+	fromName?: string;
+	fromEmail?: string;
+	replyTo?: string;
+}
+
 export interface EmailSettings {
 	available: boolean;
 	providers: EmailProvider[];
@@ -23,6 +35,7 @@ export interface EmailSettings {
 		beforeSend: string[];
 		afterSend: string[];
 	};
+	smtp: SmtpConfigStatus;
 }
 
 // =============================================================================
@@ -43,5 +56,37 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; mes
 	return parseApiResponse<{ success: boolean; message: string }>(
 		res,
 		i18n._(msg`Failed to send test email`),
+	);
+}
+
+export type EmailProviderChoice = "smtp" | "plugin";
+
+export interface SaveEmailSettingsInput {
+	provider: EmailProviderChoice;
+	/** Plugin ID when provider is "plugin" */
+	pluginId?: string;
+	smtp?: {
+		host: string;
+		port: number;
+		secure: "starttls" | "tls";
+		user: string;
+		pass?: string;
+		fromName?: string;
+		fromEmail?: string;
+		replyTo?: string;
+	};
+}
+
+export async function saveEmailSettings(
+	input: SaveEmailSettingsInput,
+): Promise<{ success: boolean; message: string }> {
+	const res = await apiFetch(`${API_BASE}/settings/email`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	return parseApiResponse<{ success: boolean; message: string }>(
+		res,
+		i18n._(msg`Failed to save email settings`),
 	);
 }
