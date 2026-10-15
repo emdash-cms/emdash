@@ -148,6 +148,20 @@ Export the file again from **Tools → Export** and confirm the download complet
 
 An existing field has the same slug but a different type. Change the post-type mapping or reconcile the field under **Content Types** before retrying. The prepare step adds missing fields but does not change existing field types.
 
+### Bot protection blocks the exporter
+
+Cloudflare's bot protection can answer EmDash's requests with a challenge page instead of the exporter API. EmDash then reports that bot protection blocked the connection. Let the exporter requests through for the duration of the migration:
+
+- With Super Bot Fight Mode or other Cloudflare WAF features, add a custom rule with the _Skip_ action and place it above any rule that issues challenges. Select **All Super Bot Fight Mode rules**, and **Security Level** if the zone uses _I'm Under Attack_ mode. This expression matches the exporter API with and without pretty permalinks, including WordPress installs in a subdirectory, and the media files EmDash downloads:
+
+  ```txt
+  (http.request.uri.path contains "/wp-json/emdash/v1/")
+  or (http.request.uri.query contains "rest_route=%2Femdash%2Fv1%2F")
+  or (http.request.uri.path contains "/wp-content/uploads/")
+  ```
+
+- Bot Fight Mode on the Cloudflare Free plan can't be skipped by rules. Turn it off during the migration and turn it back on afterwards.
+
 ### Media URLs fail to download
 
 Check that the source attachment is reachable without a WordPress session. Media behind authentication, removed files, and redirects to private network addresses fail individually and remain in the media error list.
