@@ -344,14 +344,14 @@ Permission names stay identifiers; the admin shows a translated label and descri
 
 - **Logged-out routes.** No change. Anonymous requests load no user and no role. The query-count snapshots for logged-out routes must not change.
 
-A [prototype](https://github.com/danielmlr/emdash/tree/poc/custom-roles) ([findings](https://github.com/danielmlr/emdash/blob/poc/custom-roles/demos/custom-roles/FINDINGS.md)) measured database queries per request on a Node.js and SQLite demo site with `EMDASH_QUERY_LOG=1`, after one warm-up request per route. `jobs-editor` is the role from the example; `site-editor` is a custom role without collection scope.
+A [prototype](https://github.com/danielmlr/emdash/tree/poc/custom-roles) ([findings](https://github.com/danielmlr/emdash/blob/poc/custom-roles/demos/custom-roles/FINDINGS.md)) measured database queries per request on a Node.js and SQLite demo site with `EMDASH_QUERY_LOG=1`, on a freshly seeded database, after one warm-up request per route and role. `jobs-editor` is the role from the example; `site-editor` is a custom role without collection scope.
 
 | Request                         | Anonymous | Admin | Editor | Contributor | `jobs-editor` | `site-editor` |
 | ------------------------------- | --------- | ----- | ------ | ----------- | ------------- | ------------- |
 | `GET /`                         | 6         | 7     | 7      | 7           | 7             | 7             |
-| `GET /jobs`                     | 8         | 9     | 9      | 9           | 9             | 9             |
+| `GET /jobs`                     | 6         | 7     | 7      | 7           | 7             | 7             |
 | `GET /_emdash/api/auth/me`      | 401       | 1     | 1      | 1           | 1             | 1             |
-| `GET /_emdash/api/content/jobs` | 401       | 6     | 6      | 6           | 6             | 6             |
+| `GET /_emdash/api/content/jobs` | 401       | 5     | 5      | 5           | 5             | 5             |
 | `GET /_emdash/api/dashboard`    | 401       | 14    | 14     | 14          | 10            | 14            |
 
 The extra query on authenticated pages is the existing user lookup, which carries the role through the join. `jobs-editor` reads one collection on the dashboard, so it runs fewer queries. `pnpm query-counts` matches the committed logged-out snapshots for SQLite and D1 in count and query text. The per-role counts above have not been measured on D1 yet. An anonymous request to an API route is refused with 401 and has no count.
