@@ -646,7 +646,7 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 
 	const fields = await db
 		.selectFrom("_emdash_fields")
-		.select(["slug", "searchable"])
+		.select(["slug", "searchable", "type", "validation"])
 		.where("collection_id", "=", row.id)
 		.orderBy("sort_order", "asc")
 		.execute();
@@ -660,7 +660,7 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		if (fieldSlugs.has(candidate)) columns.add(candidate);
 	}
 	for (const field of fields) {
-		if (field.searchable === 1) columns.add(field.slug);
+		if (field.searchable === 1 && !isStoragelessFieldRow(field)) columns.add(field.slug);
 	}
 	return [...columns];
 }
