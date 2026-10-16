@@ -441,7 +441,7 @@ describe("Indexer", () => {
 		expect(page.failures).toEqual([]);
 	});
 
-	it("does not upload unchanged records again when retrying a rate-limited page", async () => {
+	it("uploads each changed record once when a rate-limited page runs again", async () => {
 		const entries = Array.from({ length: 4 }, (_, i) =>
 			entry({ id: `entry-${i}`, slug: `s-${i}` }),
 		);
@@ -449,6 +449,7 @@ describe("Indexer", () => {
 		await buildSource(indexer, "posts");
 		for (const changed of entries.slice(0, 2)) changed.data = { title: "Changed" };
 		await indexer.snapshotPage("posts", 1);
+		const before = items.uploads;
 
 		items.rateLimitAfter = items.uploads + 1;
 		const limited = await indexer.syncPage("posts", undefined);
@@ -456,7 +457,8 @@ describe("Indexer", () => {
 		const retried = await indexer.syncPage("posts", undefined);
 
 		expect(limited.backOff).toBe(true);
-		expect(retried).toMatchObject({ uploaded: 2, backOff: false });
+		expect(retried.backOff).toBe(false);
+		expect(items.uploads - before).toBe(2);
 		expect((await indexer.sweepPage("posts")).done).toBe(true);
 		expect(items.items.size).toBe(4);
 	});

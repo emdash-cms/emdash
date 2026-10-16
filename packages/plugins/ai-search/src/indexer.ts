@@ -248,6 +248,8 @@ export class Indexer {
 			return "unchanged";
 		}
 		const item = await this.upload(plan, existing);
+		// A rate-limited page runs again; its snapshot must not send this record again.
+		if (snapshot) await saveSnapshot(this.deps.snapshot, source, [item]);
 		await this.recheck(source, id, { document: plan, item });
 		return "uploaded";
 	}
