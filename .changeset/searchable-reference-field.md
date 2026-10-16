@@ -2,8 +2,8 @@
 "emdash": patch
 ---
 
-Fixes marking a reference field as searchable breaking its collection. Adding such a field to a search-enabled collection failed, after a seed every new entry in that collection failed with `no such column`, and the admin's content list search failed the same way. The `searchable` flag now has no effect on a reference field.
+Fixes marking a reference field as searchable breaking its collection. Adding such a field to a search-enabled collection failed; after a seed turned search on, creating or saving any entry in that collection failed; and searching the admin's content list failed too. Search now leaves out a reference field bound to a relation.
 
 #### What should I do?
 
-If new entries in a collection already fail with `no such column` after upgrading, turn its **Search** support off and on again in the content type editor to rebuild its search index.
+If creating or saving entries in a collection still fails after upgrading and the server log shows `no such column`, open the collection under **Content Types**, untick **Search** and save, then tick it again and save. This rebuilds the collection's search index.

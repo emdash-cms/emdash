@@ -633,8 +633,8 @@ export interface TrashedContentItem {
  * includes `slug` (a standard column), adds the configured `titleField` plus
  * the `title`/`name` display fields when the collection actually defines them,
  * mirroring the admin's item-title resolution (titleField -> title -> name ->
- * slug), and includes every field explicitly marked searchable. Returning only
- * schema-backed columns avoids "no such column" errors.
+ * slug), and includes every field explicitly marked searchable that has a
+ * column. Returning only schema-backed columns avoids "no such column" errors.
  */
 async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
 	const row = await db
