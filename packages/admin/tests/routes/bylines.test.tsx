@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
-import { fetchBylines } from "../../src/lib/api";
+import { createByline, fetchBylines } from "../../src/lib/api";
 import type { BylineSummary } from "../../src/lib/api/bylines";
 import { BylinesPage } from "../../src/routes/bylines";
 import { render } from "../utils/render.tsx";
@@ -36,6 +36,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchBylines: vi.fn(),
+		createByline: vi.fn(),
 		fetchUsers: vi.fn().mockResolvedValue({ items: [] }),
 		fetchByline: vi.fn().mockResolvedValue(null),
 		fetchBylineTranslations: vi.fn().mockResolvedValue({ items: [] }),
@@ -48,6 +49,7 @@ vi.mock("../../src/lib/api/byline-fields.js", async () => {
 });
 
 const fetchBylinesMock = vi.mocked(fetchBylines);
+const createBylineMock = vi.mocked(createByline);
 
 afterEach(async () => {
 	await page.viewport(1280, 800);
@@ -277,5 +279,132 @@ describe("BylinesPage directory", () => {
 					.getByRole("textbox", { name: "Display name" }),
 			)
 			.toHaveValue("Guest Contributor");
+	});
+
+	it("creates a byline from just a display name", async () => {
+		createBylineMock.mockResolvedValue({ id: "new" } as BylineSummary);
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Laurel Wamsley");
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug" }))
+			.toHaveValue("laurel-wamsley");
+		await dialog.getByRole("button", { name: "Create" }).click();
+
+		await vi.waitFor(() =>
+			expect(createBylineMock).toHaveBeenCalledWith(
+				expect.objectContaining({ displayName: "Laurel Wamsley", slug: "laurel-wamsley" }),
+			),
+		);
+	});
+
+	it("stops filling the slug once it is edited and never rewrites an existing slug", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const createDialog = screen.getByRole("dialog", { name: "New byline" });
+		const createName = createDialog.getByRole("textbox", { name: "Display name" });
+		const createSlug = createDialog.getByRole("textbox", { name: "Slug" });
+		await createName.fill("Laurel Wamsley");
+		await createSlug.fill("laurel");
+		await createName.fill("Laurel A. Wamsley");
+		await expect.element(createSlug).toHaveValue("laurel");
+		await createSlug.fill("");
+		await createName.fill("Laurel Wamsley");
+		await expect.element(createSlug).toHaveValue("laurel-wamsley");
+		await createDialog.getByRole("button", { name: "Cancel" }).click();
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		const editDialog = screen.getByRole("dialog", { name: "Edit byline" });
+		await editDialog.getByRole("textbox", { name: "Display name" }).fill("Guest Writer");
+		await expect
+			.element(editDialog.getByRole("textbox", { name: "Slug" }))
+			.toHaveValue("guest-contributor");
+	});
+
+	it("explains missing and invalid fields instead of disabling Create", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		const displayName = dialog.getByRole("textbox", { name: "Display name" });
+		const slug = dialog.getByRole("textbox", { name: "Slug" });
+		const create = dialog.getByRole("button", { name: "Create" });
+		let announcedOnFocus: { invalid: string | null; description: string } | undefined;
+		displayName.element().addEventListener(
+			"focus",
+			(event) => {
+				const input = event.currentTarget as HTMLInputElement;
+				announcedOnFocus = {
+					invalid: input.getAttribute("aria-invalid"),
+					description: (input.getAttribute("aria-describedby") ?? "")
+						.split(" ")
+						.map((id) => document.getElementById(id)?.textContent ?? "")
+						.join(" "),
+				};
+			},
+			{ once: true },
+		);
+
+		await create.click();
+		await expect.element(dialog.getByText("Enter a display name.")).toBeVisible();
+		await expect.element(displayName).toHaveFocus();
+		expect(announcedOnFocus?.invalid).toBe("true");
+		expect(announcedOnFocus?.description).toContain("Enter a display name.");
+
+		await displayName.fill("Laurel");
+		await expect.element(dialog.getByText("Enter a display name.")).not.toBeInTheDocument();
+		await slug.fill("Laurel Wamsley");
+		await dialog.getByRole("textbox", { name: "Website URL" }).fill("laurel.example");
+		await create.click();
+		await expect
+			.element(
+				dialog.getByText("Use lowercase letters, numbers, and hyphens, starting with a letter."),
+			)
+			.toBeVisible();
+		await expect
+			.element(dialog.getByText("Enter a full URL that starts with https:// or http://."))
+			.toBeVisible();
+		await expect.element(slug).toHaveFocus();
+		expect(createBylineMock).not.toHaveBeenCalled();
+	});
+
+	it("keeps the optional linked user select named", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		await expect
+			.element(
+				screen
+					.getByRole("dialog", { name: "New byline" })
+					.getByRole("combobox", { name: "Linked user" }),
+			)
+			.toBeInTheDocument();
 	});
 });

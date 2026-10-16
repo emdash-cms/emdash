@@ -32,6 +32,41 @@ export function getMediaObjectPosition(value: {
 	return `${Math.round(point.focalX * 10_000) / 100}% ${Math.round(point.focalY * 10_000) / 100}%`;
 }
 
+function isDimension(value: unknown): value is number {
+	return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/** Whether a width and height have a picture's shape, within a pixel of rounding either way. */
+function hasShapeOf(
+	width: unknown,
+	height: unknown,
+	picture: { width?: unknown; height?: unknown },
+) {
+	if (!isDimension(width) || !isDimension(height)) return false;
+	if (!isDimension(picture.width) || !isDimension(picture.height)) return false;
+	return (
+		Math.abs(width * picture.height - height * picture.width) <=
+		Math.max(picture.width, picture.height)
+	);
+}
+
+/**
+ * Whether replacing an image's picture with `next` drops its display height.
+ * A display size in the old picture's shape would crop a new picture of
+ * another shape, so the height goes, and follows the new picture. A display
+ * size in another shape crops on purpose, as an imported WordPress thumbnail
+ * does, and stays.
+ */
+export function dropsDisplayHeight(
+	image: { width?: unknown; height?: unknown; displayWidth?: unknown; displayHeight?: unknown },
+	next: { width?: unknown; height?: unknown },
+): boolean {
+	return (
+		hasShapeOf(image.displayWidth, image.displayHeight, image) &&
+		!hasShapeOf(image.displayWidth, image.displayHeight, next)
+	);
+}
+
 /** Read a string value from an untyped `meta` bag, or undefined. */
 export function metaString(
 	meta: Record<string, unknown> | undefined,

@@ -1,161 +1,311 @@
-import { describe, it, expect } from "vitest";
+import { Editor, type JSONContent } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
+import * as React from "react";
+import { flushSync } from "react-dom";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
+	DocumentOutline,
 	extractHeadings,
-	findCurrentHeading,
-	type HeadingItem,
+	findCurrentHeadingIndex,
 } from "../../src/components/editor/DocumentOutline";
+import { Sidebar, useSidebar } from "../../src/components/Sidebar";
+import { render } from "../utils/render.tsx";
 
-/**
- * Create a mock editor with a document containing the specified headings
- */
-function createMockEditor(headings: Array<{ level: number; text: string; pos: number }>) {
-	const mockDoc = {
-		descendants: (
-			callback: (
-				node: { type: { name: string }; attrs: { level: number }; textContent: string },
-				pos: number,
-			) => void,
-		) => {
-			for (const heading of headings) {
-				callback(
-					{
-						type: { name: "heading" },
-						attrs: { level: heading.level },
-						textContent: heading.text,
-					},
-					heading.pos,
-				);
-			}
-		},
-	};
+import "../../dist/styles.css";
 
-	return {
-		state: {
-			doc: mockDoc,
-		},
-	} as unknown as Parameters<typeof extractHeadings>[0];
+const SCROLL_MARGIN_TOP = 96;
+
+const editors: Editor[] = [];
+const hosts: HTMLElement[] = [];
+
+afterEach(() => {
+	for (const editor of editors.splice(0)) editor.destroy();
+	for (const host of hosts.splice(0)) host.remove();
+});
+
+function heading(level: number, text: string): JSONContent {
+	return { type: "heading", attrs: { level }, content: [{ type: "text", text }] };
 }
 
+function paragraphs(count: number): JSONContent[] {
+	return Array.from({ length: count }, (_value, index) => ({
+		type: "paragraph",
+		content: [{ type: "text", text: `Paragraph ${index + 1}` }],
+	}));
+}
+
+function createEditor(content: JSONContent[]) {
+	const scroller = document.createElement("div");
+	scroller.style.height = "400px";
+	scroller.style.overflowY = "auto";
+	const element = document.createElement("div");
+	scroller.append(element);
+	document.body.append(scroller);
+	hosts.push(scroller);
+
+	const editor = new Editor({
+		element,
+		extensions: [StarterKit],
+		content: { type: "doc", content },
+		editorProps: { scrollMargin: { top: SCROLL_MARGIN_TOP, right: 5, bottom: 5, left: 5 } },
+	});
+	editors.push(editor);
+	return { editor, scroller };
+}
+
+function headingElement(editor: Editor, text: string): HTMLElement {
+	const element = [...editor.view.dom.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")].find(
+		(candidate) => candidate.textContent === text,
+	);
+	if (!element) throw new Error(`No heading "${text}"`);
+	return element;
+}
+
+function offsetFromScrollerTop(element: HTMLElement, scroller: HTMLElement): number {
+	return element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+}
+
+function expectAtScrollMargin(editor: Editor, text: string, scroller: HTMLElement) {
+	const offset = offsetFromScrollerTop(headingElement(editor, text), scroller);
+	expect(Math.abs(offset - SCROLL_MARGIN_TOP)).toBeLessThanOrEqual(1);
+}
+
+function tap(element: Element) {
+	element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }));
+	element.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerType: "touch" }));
+	element.dispatchEvent(
+		new PointerEvent("click", { bubbles: true, detail: 1, pointerType: "touch" }),
+	);
+}
+
+function nextFrames() {
+	return new Promise<void>((resolve) => {
+		requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+	});
+}
+
+const longDocument = [
+	...paragraphs(10),
+	heading(2, "Introduction"),
+	...paragraphs(12),
+	heading(3, "Install"),
+	...paragraphs(12),
+	heading(3, "Configure"),
+	...paragraphs(12),
+	heading(2, "Conclusion"),
+	...paragraphs(2),
+];
+
+function SheetProbe() {
+	const { openMobile, setOpenMobile } = useSidebar();
+	return (
+		<button type="button" data-open={openMobile} onClick={() => setOpenMobile(true)}>
+			Open sheet
+		</button>
+	);
+}
+
+function renderOutline(editor: Editor, { mobile = false } = {}) {
+	return render(
+		<Sidebar.Provider mobileBreakpoint={mobile ? 10_000 : 100}>
+			<SheetProbe />
+			<DocumentOutline editor={editor} />
+		</Sidebar.Provider>,
+	);
+}
+
+describe("extractHeadings", () => {
+	it("returns empty array when editor is null", () => {
+		expect(extractHeadings(null)).toEqual([]);
+	});
+
+	it("skips headings with no text", () => {
+		const { editor } = createEditor([
+			heading(2, "Title"),
+			{ type: "heading", attrs: { level: 2 } },
+			heading(2, "   "),
+			heading(2, "Valid"),
+		]);
+
+		expect(extractHeadings(editor).map((item) => item.text)).toEqual(["Title", "Valid"]);
+	});
+
+	it("nests headings by the document's structure rather than their absolute level", () => {
+		const { editor } = createEditor([
+			heading(2, "Introduction"),
+			heading(3, "Why"),
+			heading(4, "Level four"),
+			heading(5, "Level five"),
+			heading(6, "Level six"),
+			heading(2, "Setup"),
+			heading(4, "Skipped a level"),
+			heading(1, "Stray H1"),
+			heading(2, "Under the H1"),
+		]);
+
+		expect(extractHeadings(editor).map(({ text, depth }) => [text, depth])).toEqual([
+			["Introduction", 0],
+			["Why", 1],
+			["Level four", 2],
+			["Level five", 3],
+			["Level six", 4],
+			["Setup", 0],
+			["Skipped a level", 1],
+			["Stray H1", 0],
+			["Under the H1", 1],
+		]);
+	});
+});
+
+describe("findCurrentHeadingIndex", () => {
+	it("returns -1 while every heading is below the reading line", () => {
+		expect(findCurrentHeadingIndex([200, 400], 100)).toBe(-1);
+	});
+
+	it("returns the last heading at or above the reading line", () => {
+		expect(findCurrentHeadingIndex([-300, 50, 100, 400], 100)).toBe(2);
+	});
+});
+
 describe("DocumentOutline", () => {
-	describe("extractHeadings", () => {
-		it("returns empty array when editor is null", () => {
-			const result = extractHeadings(null);
-			expect(result).toEqual([]);
-		});
+	it("puts the caret at the start of the clicked heading and scrolls it below the toolbar margin", async () => {
+		const { editor, scroller } = createEditor(longDocument);
+		const screen = await renderOutline(editor);
 
-		it("extracts headings from editor document", () => {
-			const editor = createMockEditor([
-				{ level: 1, text: "Main Title", pos: 0 },
-				{ level: 2, text: "Section One", pos: 50 },
-				{ level: 3, text: "Subsection", pos: 100 },
-			]);
+		await screen.getByRole("button", { name: "Configure" }).click();
+		await nextFrames();
 
-			const result = extractHeadings(editor);
-
-			expect(result).toHaveLength(3);
-			expect(result[0]).toMatchObject({
-				level: 1,
-				text: "Main Title",
-				pos: 0,
-			});
-			expect(result[1]).toMatchObject({
-				level: 2,
-				text: "Section One",
-				pos: 50,
-			});
-			expect(result[2]).toMatchObject({
-				level: 3,
-				text: "Subsection",
-				pos: 100,
-			});
-		});
-
-		it("skips headings with empty text", () => {
-			const editor = createMockEditor([
-				{ level: 1, text: "Title", pos: 0 },
-				{ level: 2, text: "", pos: 50 },
-				{ level: 2, text: "   ", pos: 100 },
-				{ level: 2, text: "Valid", pos: 150 },
-			]);
-
-			const result = extractHeadings(editor);
-
-			expect(result).toHaveLength(2);
-			expect(result[0]?.text).toBe("Title");
-			expect(result[1]?.text).toBe("Valid");
-		});
-
-		it("assigns unique keys to headings", () => {
-			const editor = createMockEditor([
-				{ level: 1, text: "Title", pos: 0 },
-				{ level: 2, text: "Section", pos: 50 },
-			]);
-
-			const result = extractHeadings(editor);
-
-			expect(result[0]?.key).toBeDefined();
-			expect(result[1]?.key).toBeDefined();
-			expect(result[0]?.key).not.toBe(result[1]?.key);
-		});
+		const { $from } = editor.state.selection;
+		expect($from.parent.type.name).toBe("heading");
+		expect($from.parent.textContent).toBe("Configure");
+		expect($from.parentOffset).toBe(0);
+		expect(document.activeElement).toBe(editor.view.dom);
+		expectAtScrollMargin(editor, "Configure", scroller);
+		await expect
+			.element(screen.getByRole("button", { name: "Configure" }))
+			.toHaveAttribute("aria-current", "location");
 	});
 
-	describe("findCurrentHeading", () => {
-		const headings: HeadingItem[] = [
-			{ level: 1, text: "Title", pos: 0, key: "h1" },
-			{ level: 2, text: "Section One", pos: 100, key: "h2" },
-			{ level: 2, text: "Section Two", pos: 200, key: "h3" },
-			{ level: 3, text: "Subsection", pos: 300, key: "h4" },
-		];
+	it("marks the heading of the section scrolled to the top as current", async () => {
+		const { editor, scroller } = createEditor(longDocument);
+		const screen = await renderOutline(editor);
+		await nextFrames();
+		expect(screen.container.querySelector("[aria-current]")).toBeNull();
 
-		it("returns null for empty headings array", () => {
-			const result = findCurrentHeading([], 50);
-			expect(result).toBeNull();
-		});
+		scroller.scrollTop += offsetFromScrollerTop(headingElement(editor, "Install"), scroller) - 40;
 
-		it("returns null when cursor is before first heading", () => {
-			const headingsWithOffset: HeadingItem[] = [{ level: 1, text: "Title", pos: 100, key: "h1" }];
-			const result = findCurrentHeading(headingsWithOffset, 50);
-			expect(result).toBeNull();
-		});
+		await expect
+			.element(screen.getByRole("button", { name: "Install" }))
+			.toHaveAttribute("aria-current", "location");
 
-		it("returns first heading when cursor is at its position", () => {
-			const result = findCurrentHeading(headings, 0);
-			expect(result?.key).toBe("h1");
-		});
+		scroller.scrollTop += offsetFromScrollerTop(headingElement(editor, "Configure"), scroller) - 40;
 
-		it("returns heading that contains cursor position", () => {
-			const result = findCurrentHeading(headings, 150);
-			expect(result?.key).toBe("h2");
-		});
-
-		it("returns last heading when cursor is past all headings", () => {
-			const result = findCurrentHeading(headings, 500);
-			expect(result?.key).toBe("h4");
-		});
-
-		it("returns heading when cursor is exactly at heading position", () => {
-			const result = findCurrentHeading(headings, 200);
-			expect(result?.key).toBe("h3");
-		});
+		await expect
+			.element(screen.getByRole("button", { name: "Configure" }))
+			.toHaveAttribute("aria-current", "location");
 	});
 
-	describe("indentation", () => {
-		it("correctly structures heading levels", () => {
-			const editor = createMockEditor([
-				{ level: 1, text: "H1", pos: 0 },
-				{ level: 2, text: "H2", pos: 50 },
-				{ level: 3, text: "H3", pos: 100 },
-			]);
+	it("updates the current section when the editor reflows without scrolling", async () => {
+		const { editor, scroller } = createEditor(longDocument);
+		// Scroll anchoring would hold the content in place with a scroll.
+		scroller.style.overflowAnchor = "none";
+		const screen = await renderOutline(editor);
+		scroller.scrollTop += offsetFromScrollerTop(headingElement(editor, "Install"), scroller) - 40;
+		await expect
+			.element(screen.getByRole("button", { name: "Install" }))
+			.toHaveAttribute("aria-current", "location");
 
-			const result = extractHeadings(editor);
+		scroller.style.fontSize = "2em";
 
-			// H1 should be at root level
-			expect(result[0]?.level).toBe(1);
-			// H2 should be indented (level 2)
-			expect(result[1]?.level).toBe(2);
-			// H3 should be further indented (level 3)
-			expect(result[2]?.level).toBe(3);
+		await expect
+			.element(screen.getByRole("button", { name: "Introduction" }))
+			.toHaveAttribute("aria-current", "location");
+	});
+
+	it("keeps a clicked heading current when it can't scroll up to the reading line", async () => {
+		const { editor, scroller } = createEditor(longDocument);
+		const screen = await renderOutline(editor);
+		const conclusion = screen.getByRole("button", { name: "Conclusion" });
+
+		await conclusion.click();
+		await nextFrames();
+
+		expect(offsetFromScrollerTop(headingElement(editor, "Conclusion"), scroller)).toBeGreaterThan(
+			SCROLL_MARGIN_TOP + 1,
+		);
+		await expect.element(conclusion).toHaveAttribute("aria-current", "location");
+
+		scroller.scrollTop -= 1;
+
+		await expect
+			.element(screen.getByRole("button", { name: "Configure" }))
+			.toHaveAttribute("aria-current", "location");
+	});
+
+	it("keeps a clicked heading current when a heading above it is cleared", async () => {
+		const { editor } = createEditor(longDocument);
+		const screen = await renderOutline(editor);
+		const conclusion = screen.getByRole("button", { name: "Conclusion" });
+		await conclusion.click();
+		await expect.element(conclusion).toHaveAttribute("aria-current", "location");
+
+		const install = extractHeadings(editor).find((item) => item.text === "Install")!;
+		editor.commands.deleteRange({
+			from: install.pos + 1,
+			to: install.pos + 1 + install.text.length,
 		});
+
+		await expect.element(screen.getByRole("button", { name: "Install" })).not.toBeInTheDocument();
+		await nextFrames();
+		expect(screen.container.querySelector("[aria-current]")?.textContent).toBe("Conclusion");
+	});
+
+	it("shows the current-heading indicator in place, then slides it between headings", async () => {
+		const { editor } = createEditor(longDocument);
+		const screen = await renderOutline(editor);
+		const indicatorTop = () =>
+			screen.container.querySelector("ul + [aria-hidden]")?.getBoundingClientRect().top ?? NaN;
+		const row = (name: string) => screen.getByRole("button", { name }).element();
+		await nextFrames();
+		expect(screen.container.querySelector("[aria-current]")).toBeNull();
+
+		flushSync(() => row("Configure").click());
+		expect(indicatorTop()).toBeCloseTo(row("Configure").getBoundingClientRect().top, 0);
+
+		flushSync(() => row("Introduction").click());
+		const introductionTop = row("Introduction").getBoundingClientRect().top;
+		expect(indicatorTop()).toBeGreaterThan(introductionTop + 1);
+		await expect.poll(indicatorTop).toBeCloseTo(introductionTop, 0);
+	});
+
+	it("closes the settings sheet and focuses the editor when the sidebar is a sheet", async () => {
+		const { editor, scroller } = createEditor(longDocument);
+		const screen = await renderOutline(editor, { mobile: true });
+		const sheetProbe = screen.getByRole("button", { name: "Open sheet" });
+		await sheetProbe.click();
+		await expect.element(sheetProbe).toHaveAttribute("data-open", "true");
+
+		await screen.getByRole("button", { name: "Install" }).click();
+
+		await expect.element(sheetProbe).toHaveAttribute("data-open", "false");
+		await nextFrames();
+		expect(document.activeElement).toBe(editor.view.dom);
+		expect(editor.state.selection.$from.parent.textContent).toBe("Install");
+		expectAtScrollMargin(editor, "Install", scroller);
+	});
+
+	it("moves the caret without focusing the editor when a heading is tapped", async () => {
+		const { editor, scroller } = createEditor(longDocument);
+		const screen = await renderOutline(editor);
+		const install = screen.getByRole("button", { name: "Install" });
+
+		tap(install.element());
+
+		await expect.element(install).toHaveAttribute("aria-current", "location");
+		await nextFrames();
+		expect(document.activeElement).not.toBe(editor.view.dom);
+		expect(editor.state.selection.$from.parent.textContent).toBe("Install");
+		expectAtScrollMargin(editor, "Install", scroller);
 	});
 });

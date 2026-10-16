@@ -114,7 +114,7 @@ function validColumnWidths(value: unknown, colspan: number): boolean {
 	if (value === null || value === undefined) return true;
 	return (
 		Array.isArray(value) &&
-		value.length === colspan &&
+		value.length <= colspan &&
 		value.every(
 			(width) =>
 				typeof width === "number" &&
@@ -129,9 +129,8 @@ function cellContentStatus(cell: ProseMirrorNode): "valid" | TablePasteRejection
 	if (cell.childCount === 0) return "unsupported-content";
 	for (const paragraph of cell.content.content) {
 		if (paragraph.type.name !== "paragraph") return "unsupported-content";
-		if (paragraph.attrs.textAlign !== null && paragraph.attrs.textAlign !== undefined) {
-			return "invalid-table";
-		}
+		// Paragraph-level text-align is dropped when the table is serialised,
+		// so a centred cell paragraph is safe to accept.
 		if (
 			!paragraph.content.content.every(
 				(node) =>

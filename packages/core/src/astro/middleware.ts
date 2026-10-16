@@ -42,6 +42,7 @@ import {
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
 import {
+	isMigrationRequiredError,
 	PendingMigrationsError,
 	resolveRuntimeMigrationMode,
 	type RuntimeMigrationMode,
@@ -484,6 +485,18 @@ function pendingMigrationsResponse(error: PendingMigrationsError): Response {
 	return migrationRequiredResponse();
 }
 
+function migrationRequiredErrorResponse(error: unknown): Response {
+	if (error instanceof PendingMigrationsError) return pendingMigrationsResponse(error);
+	if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+		lastRuntimeInitErrorLogAt = Date.now();
+		console.error(
+			"[emdash] database migrations are required:",
+			error instanceof Error ? error.message : error,
+		);
+	}
+	return migrationRequiredResponse();
+}
+
 function migrationRequiredResponse(): Response {
 	return new Response(
 		"Database migrations are required. Apply the deployment migration manifest and retry.",
@@ -906,8 +919,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
-						if (error instanceof PendingMigrationsError) {
-							return pendingMigrationsResponse(error);
+						if (isMigrationRequiredError(error)) {
+							return migrationRequiredErrorResponse(error);
 						}
 						if (migrationMode === "manual" && isMissingTableError(error)) {
 							console.error(
@@ -976,9 +989,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Eagerly warm site-global layout data (menus, widget areas,
 					// taxonomy terms, settings) concurrently so the layout's
 					// per-component reads overlap into ~one wall-clock round trip and
-					// hit a warm cache instead of serializing. Three guards:
+					// hit a warm cache instead of serializing. Four guards:
 					//  - request-scoped (remote) backend only -- this branch implies it;
 					//    pointless on synchronous local SQLite.
+					//  - an adapter that can overlap queries -- without that, Kysely's
+					//    connection mutex (D1 sessions without `coalesce`) queues the
+					//    prefetch ahead of the page's own first query.
 					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
 					//    layout, so prefetching their chrome is pure waste.
 					//  - the work starts immediately, then after() keeps both it and the
@@ -992,7 +1008,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.trim()
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
-						if (acceptsHtml) after(() => prefetchLayoutData());
+						if (
+							acceptsHtml &&
+							anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
+						) {
+							after(() => prefetchLayoutData());
+						}
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
 						// waits for stream-end and request-owned deferred work. See finishScoped.
@@ -1168,8 +1189,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
 				};
 			} catch (error) {
-				if (error instanceof PendingMigrationsError) {
-					return pendingMigrationsResponse(error);
+				if (isMigrationRequiredError(error)) {
+					return migrationRequiredErrorResponse(error);
 				}
 				if (migrationMode === "manual" && isMissingTableError(error)) {
 					console.error("[emdash] database schema is unavailable in manual migration mode:", error);

@@ -281,7 +281,9 @@ export function MediaPickerModal({
 			if (providerId === "local") {
 				return {
 					providerId,
-					item: withLocalMediaUrl(await uploadMedia(file, { fieldId, signal })),
+					item: withLocalMediaUrl(
+						await uploadMedia(file, { fieldId, folderId: folderId ?? null, signal }),
+					),
 				};
 			}
 			return {
@@ -289,7 +291,7 @@ export function MediaPickerModal({
 				item: await uploadToProvider(providerId, file, undefined, { signal }),
 			};
 		},
-		[fieldId],
+		[fieldId, folderId],
 	);
 	const uploadQueue = useMediaUploadQueue<UploadedMedia>({ upload: uploadFile });
 
@@ -878,8 +880,7 @@ export function MediaPickerModal({
 			: (localQuery.data?.items ?? []).filter((item) =>
 					matchesAnyFilter(item.mimeType, effectiveMimeFilters),
 				);
-	const canUpload =
-		activeSource === "local" ? !folderId : Boolean(activeProviderInfo?.capabilities.upload);
+	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
 	const hasSourceControls = sourceTabs.length > 1 || canUpload;
 	const canSearch = activeSource === "local" || Boolean(activeProviderInfo?.capabilities.search);
 	const currentLoading = activeSource === "local" ? localQuery.isPending : providerQuery.isPending;

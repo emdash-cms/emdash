@@ -9,6 +9,7 @@ import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
+import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
 	PluginEditorExtensionDispatch,
 	ResolvedPluginEditorExtension,
@@ -343,6 +344,7 @@ export interface EmDashHandlers {
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			seo?: ContentSeoInput;
 			taxonomies?: Record<string, string[]>;
 			references?: Record<string, string[]>;
 			createdAt?: string | null;

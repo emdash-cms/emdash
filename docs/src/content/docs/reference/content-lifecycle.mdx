@@ -52,7 +52,7 @@ unless an authorized request uses the supported lock override.
 
 | Action | Permission | REST `_rev` | MCP `_rev` | Entry lock | Hooks |
 | --- | --- | --- | --- | --- | --- |
-| Save changes | `content:edit_own` or `content:edit_any` | Optional | Required | Enforced | `content:beforeSave`, `content:afterSave` |
+| Save changes | `content:edit_own` or `content:edit_any`; `content:edit_own_drafts` for the owner's draft | Optional | Required | Enforced | `content:beforeSave`, `content:afterSave` |
 | Publish | `content:publish_own` or `content:publish_any` | Optional | Required | Enforced | `content:beforePublish`, `content:afterPublish` |
 | Unpublish | `content:publish_own` or `content:publish_any` | Optional | Required | Enforced | `content:beforeUnpublish`, `content:afterUnpublish` |
 | Schedule | `content:publish_own` or `content:publish_any` | Optional | Required | Enforced | `content:beforeSchedule`, `content:afterSchedule` |
