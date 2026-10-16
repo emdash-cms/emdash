@@ -633,8 +633,9 @@ export interface TrashedContentItem {
  * includes `slug` (a standard column), adds the configured `titleField` plus
  * the `title`/`name` display fields when the collection actually defines them,
  * mirroring the admin's item-title resolution (titleField -> title -> name ->
- * slug), and includes every field explicitly marked searchable that has a
- * column. Returning only schema-backed columns avoids "no such column" errors.
+ * slug), and includes every field explicitly marked searchable. Returning only
+ * fields that have a column (a reference field bound to a relation has none)
+ * avoids "no such column" errors.
  */
 async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
 	const row = await db
@@ -644,12 +645,13 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		.executeTakeFirst();
 	if (!row) return ["slug"];
 
-	const fields = await db
+	const fieldRows = await db
 		.selectFrom("_emdash_fields")
 		.select(["slug", "searchable", "type", "validation"])
 		.where("collection_id", "=", row.id)
 		.orderBy("sort_order", "asc")
 		.execute();
+	const fields = fieldRows.filter((f) => !isStoragelessFieldRow(f));
 	const columns = new Set(["slug"]);
 	const fieldSlugs = new Set(fields.map((f) => f.slug));
 
@@ -660,7 +662,7 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		if (fieldSlugs.has(candidate)) columns.add(candidate);
 	}
 	for (const field of fields) {
-		if (field.searchable === 1 && !isStoragelessFieldRow(field)) columns.add(field.slug);
+		if (field.searchable === 1) columns.add(field.slug);
 	}
 	return [...columns];
 }
