@@ -8,7 +8,7 @@ const leavesPage: ShouldBlockFn = ({ current, next }) => current.pathname !== ne
 /**
  * While `when` is true, asks before leaving the page: a link to another page
  * opens a dialog, and reloading or closing the tab shows the browser's prompt.
- * Navigation the app starts itself after a save passes `ignoreBlocker`.
+ * A navigation the app starts after a save must pass `ignoreBlocker`.
  */
 export function UnsavedChangesGuard({ when }: { when: boolean }) {
 	const { t } = useLingui();
