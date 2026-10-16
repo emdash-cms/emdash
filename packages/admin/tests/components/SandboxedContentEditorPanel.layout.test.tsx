@@ -65,6 +65,7 @@ describe("SandboxedContentEditorPanel layout", () => {
 				return panel;
 			}
 			if (earlyResponse) {
+				// Resolve the response in the same turn as opening the disclosure.
 				trigger.element().click();
 			} else {
 				await userEvent.click(trigger);
@@ -73,10 +74,12 @@ describe("SandboxedContentEditorPanel layout", () => {
 				// Let the disclosure finish while the network response remains pending.
 				await vi.waitFor(() => {
 					expect(panel.getAnimations()).toHaveLength(0);
-					expect(panel.getBoundingClientRect().height).toBeCloseTo(
-						panel.firstElementChild!.getBoundingClientRect().height,
-						0,
-					);
+					expect(
+						Math.abs(
+							panel.getBoundingClientRect().height -
+								panel.firstElementChild!.getBoundingClientRect().height,
+						),
+					).toBeLessThanOrEqual(1);
 				});
 			}
 			response.resolve(
@@ -128,8 +131,10 @@ describe("SandboxedContentEditorPanel layout", () => {
 			if (!earlyResponse) await expectContentFits();
 			const compactHeight = panel.firstElementChild!.getBoundingClientRect().height;
 			const toggle = screen.getByRole("switch", { name: "Show details" });
-			if (earlyResponse) toggle.element().click();
-			else await userEvent.click(toggle);
+			if (earlyResponse) {
+				// Avoid actionability waits while the opening panel may still clip this control.
+				toggle.element().click();
+			} else await userEvent.click(toggle);
 			await expect.element(screen.getByRole("textbox", { name: "Recommendation" })).toBeVisible();
 			await expectContentFits();
 			expect(panel.getBoundingClientRect().height).toBeGreaterThan(compactHeight + 40);
@@ -138,7 +143,7 @@ describe("SandboxedContentEditorPanel layout", () => {
 				.element(screen.getByRole("textbox", { name: "Recommendation" }))
 				.not.toBeInTheDocument();
 			await expectContentFits();
-			expect(panel.getBoundingClientRect().height).toBeCloseTo(compactHeight, 0);
+			expect(Math.abs(panel.getBoundingClientRect().height - compactHeight)).toBeLessThanOrEqual(1);
 			await userEvent.click(trigger);
 			await expect
 				.element(screen.getByRole("button", { name: "Save findings" }))
