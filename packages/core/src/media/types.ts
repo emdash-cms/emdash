@@ -96,6 +96,8 @@ export interface MediaProviderItem {
 	dominantColor?: string;
 	/** Accessibility text */
 	alt?: string;
+	/** Default caption for display or attribution */
+	caption?: string;
 	/** Preview URL for admin UI thumbnail */
 	previewUrl?: string;
 	/** Provider-specific metadata */
@@ -277,6 +279,8 @@ export interface MediaValue {
 	/** Cached LQIP dominant-color placeholder, as a CSS color (images only) */
 	dominantColor?: string;
 	alt?: string;
+	/** Caption for display or attribution */
+	caption?: string;
 
 	/** Provider-specific data needed for embedding */
 	meta?: Record<string, unknown>;
@@ -298,6 +302,7 @@ export function mediaItemToValue(providerId: string, item: MediaProviderItem): M
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
+		caption: item.caption,
 		meta: item.meta,
 	};
 }

@@ -18,6 +18,43 @@ function getProvider(
 }
 
 describe("normalizeMediaValue", () => {
+	it.each(["A saved caption", ""])("preserves caller caption %j", async (caption) => {
+		const local = mockProvider({
+			id: "01ABC",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			caption: "Library caption",
+		});
+		const result = await normalizeMediaValue({ id: "01ABC", caption }, getProvider({ local }));
+		expect(result?.caption).toBe(caption);
+	});
+
+	it("backfills a missing caption even when image metadata is complete", async () => {
+		const item = {
+			id: "01ABC",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			width: 1200,
+			height: 800,
+			blurhash: "hash",
+			dominantColor: "#112233",
+			meta: { storageKey: "01ABC.jpg" },
+		};
+		const local = mockProvider({ ...item, caption: "Library caption" });
+		const result = await normalizeMediaValue(item, getProvider({ local }));
+		expect(result?.caption).toBe("Library caption");
+	});
+
+	it("keeps external captions without a provider lookup", async () => {
+		const value = {
+			provider: "external",
+			id: "",
+			src: "https://example.com/photo.jpg",
+			caption: "Credit",
+		};
+		expect(await normalizeMediaValue(value, getProvider({}))).toEqual(value);
+	});
+
 	it("returns null for null input", async () => {
 		const result = await normalizeMediaValue(null, getProvider({}));
 		expect(result).toBeNull();
@@ -96,6 +133,7 @@ describe("normalizeMediaValue", () => {
 			width: 1024,
 			height: 768,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "uploads/photo.png" },
 		};
 		const local = mockProvider(providerItem);
@@ -111,6 +149,7 @@ describe("normalizeMediaValue", () => {
 			width: 1024,
 			height: 768,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "uploads/photo.png" },
 		});
 	});
@@ -123,6 +162,7 @@ describe("normalizeMediaValue", () => {
 			width: 1200,
 			height: 800,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "01ABC.jpg" },
 		};
 		const local = mockProvider(providerItem);
@@ -141,6 +181,7 @@ describe("normalizeMediaValue", () => {
 			width: 1200,
 			height: 800,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "01ABC.jpg" },
 		});
 	});

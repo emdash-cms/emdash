@@ -30,6 +30,7 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 							focalX: 0.2,
 							focalY: 0.8,
 							alt: "Replacement image",
+							caption: "Replacement caption",
 							createdAt: "2026-07-23T12:00:00.000Z",
 						})
 					}
@@ -91,6 +92,7 @@ vi.mock("../../src/components/MediaDetailPanel.js", () => ({
 							width: 1200,
 							height: 800,
 							contentHash: "sha256:replaced-original",
+							caption: "Edited asset caption",
 							status: "ready",
 							authorId: "editor-1",
 							folderId: null,
@@ -114,6 +116,7 @@ vi.mock("../../src/components/MediaDetailPanel.js", () => ({
 							height: 600,
 							contentHash: "sha256:cropped-copy",
 							alt: "Cropped asset alt",
+							caption: "Cropped asset caption",
 							focalX: 0.4,
 							focalY: 0.6,
 							blurhash: "cropped-hash",
@@ -357,6 +360,7 @@ describe("ImageFieldRenderer", () => {
 				height: 800,
 				focalX: 0.2,
 				focalY: 0.8,
+				caption: "Replacement caption",
 			}),
 		);
 	});
@@ -628,6 +632,7 @@ describe("ImageFieldRenderer", () => {
 			src: undefined,
 			previewUrl: undefined,
 			alt: "Cropped asset alt",
+			caption: "Cropped asset caption",
 			width: 900,
 			height: 600,
 			focalX: 0.4,
@@ -681,10 +686,12 @@ describe("ImageFieldRenderer", () => {
 			).toBe(true);
 		});
 		observer.disconnect();
+		expect(persistedValue).toHaveProperty("caption", "Cropped asset caption");
 		expect(persistedValue).not.toHaveProperty("contentHash");
 	});
 
 	it("refreshes both previews when light and dark variants share one replaced asset", async () => {
+		const onChange = vi.fn();
 		function Harness() {
 			const [value, setValue] = React.useState<ImageFieldValue>({
 				...selectedImage,
@@ -694,7 +701,10 @@ describe("ImageFieldRenderer", () => {
 				<ImageFieldRenderer
 					label="Image"
 					value={value}
-					onChange={(next) => next && setValue(next)}
+					onChange={(next) => {
+						if (next) onChange(next);
+						if (next) setValue(next);
+					}}
 					darkVariant
 				/>
 			);
@@ -720,5 +730,8 @@ describe("ImageFieldRenderer", () => {
 			expect(sources.filter((source) => source.endsWith(refreshedSource))).toHaveLength(2);
 		});
 		observer.disconnect();
+		expect(onChange).toHaveBeenCalledWith(
+			expect.objectContaining({ caption: "Edited asset caption" }),
+		);
 	});
 });
