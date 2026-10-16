@@ -1,0 +1,132 @@
+---
+import { Icon } from "astro-iconset/components";
+import { sanitizeHref } from "emdash";
+import { Image, type BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
+import { toParagraphs } from "../../utils/text";
+
+type SplitBlock = Extract<PageContentBlock, { _type: "marketing_split" }>;
+type Props = BlockComponentProps<SplitBlock>;
+
+const { value } = Astro.props;
+const { anchor_id, eyebrow, headline, image, image_caption, image_first } = value;
+
+const paragraphs = toParagraphs(value.body);
+const points = (value.points ?? "")
+	.split("\n")
+	.map((point) => point.trim())
+	.filter(Boolean);
+const cta =
+	value.cta_label && value.cta_url
+		? { label: value.cta_label, url: sanitizeHref(value.cta_url) }
+		: undefined;
+---
+
+<section
+	id={anchor_id || undefined}
+	class:list={[
+		"split",
+		"section",
+		{ "split--image-first": image_first, "split--text-only": !image },
+	]}
+>
+	<div class="container split__grid">
+		<div>
+			{eyebrow && <p class="eyebrow">{eyebrow}</p>}
+			<h2 class="section-headline split__headline">{headline}</h2>
+			{paragraphs.map((paragraph) => <p class="split__body">{paragraph}</p>)}
+			{points.length > 0 && (
+				<ul class="split__points" role="list">
+					{points.map((point) => (
+						<li>
+							<span class="tick" aria-hidden="true">
+								<Icon name="ph:check" />
+							</span>
+							{point}
+						</li>
+					))}
+				</ul>
+			)}
+			{cta && (
+				<a href={cta.url} class="text-link split__link">
+					{cta.label}
+					<Icon name="ph:arrow-right" aria-hidden="true" class="arrow" />
+				</a>
+			)}
+		</div>
+		{image && (
+			<figure class="media settle split__media">
+				<div class="media__img">
+					<Image image={image} sizes="(max-width: 960px) 100vw, 600px" />
+				</div>
+				{image_caption && (
+					<figcaption class="media-chip">
+						{image_caption}
+					</figcaption>
+				)}
+			</figure>
+		)}
+	</div>
+</section>
+
+<style>
+	.split__grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: clamp(48px, 7vw, 112px);
+		align-items: center;
+	}
+
+	.split--text-only .split__grid {
+		grid-template-columns: minmax(0, 780px);
+	}
+
+	.eyebrow + .split__headline {
+		margin-block-start: 18px;
+	}
+
+	.split__body {
+		max-width: 46ch;
+		margin-block-start: 20px;
+		font-size: 17px;
+		color: var(--color-text-secondary);
+		text-wrap: pretty;
+	}
+
+	.split__points {
+		display: grid;
+		gap: 14px;
+		margin-block-start: 28px;
+		list-style: none;
+	}
+
+	.split__points li {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		font-size: 15.5px;
+		color: var(--color-text-secondary);
+	}
+
+	.split__link {
+		margin-block-start: 32px;
+	}
+
+	.split__media {
+		aspect-ratio: 4 / 5;
+	}
+
+	.split--image-first .split__media {
+		order: -1;
+	}
+
+	@media (max-width: 960px) {
+		.split__grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.split--image-first .split__media {
+			order: 0;
+		}
+	}
+</style>

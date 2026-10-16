@@ -58,8 +58,8 @@ The following table shows the minimum role for the broad capability. Ownership c
 | --- | --- |
 | Read published content, media, taxonomies, terms, and menus | Subscriber |
 | Read drafts, scheduled content, trash, comparisons, and revisions | Contributor |
-| Create content or upload media | Contributor |
-| Edit or publish owned content and register media | Author |
+| Create content, edit owned drafts, or upload media | Contributor |
+| Edit owned published or scheduled content, publish owned content, or register media | Author |
 | Manage bylines, taxonomies, menus, or all users' content | Editor |
 | Read schemas or settings | Editor |
 | Change schemas or settings, permanently delete content, or repair media usage | Admin |
@@ -315,7 +315,9 @@ After an approved call starts an operation, the same user and token can call `si
 
 ## Plugin tools
 
-An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` as `<pluginId>__<localName>` and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
+An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` with an MCP-safe plugin prefix followed by `__<localName>` (for example, `@acme/calendar` and `createEvent` become `acme__calendar__createEvent`) and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
+
+Scoped IDs with ambiguous separators include a short hash before the local tool name. Use `tools/list` to discover generated names. If two tools generate the same name, EmDash keeps the first and logs a warning for the skipped tool.
 
 Because plugin tools are installation-specific, they are not part of the static inventory above.
 

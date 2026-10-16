@@ -52,6 +52,7 @@ export interface MigrateCommandOptions extends MigrationTargetOverrides {
 	json?: boolean;
 	expectedTargetFingerprint?: string;
 	releaseLock?: string;
+	takeOverLock?: string;
 }
 
 export interface MigrateCommandDependencies {
@@ -240,6 +241,16 @@ function validateOptions(options: MigrateCommandOptions): void {
 		}
 		if (!LOCK_ID_PATTERN.test(options.releaseLock)) {
 			throw new MigrateCommandError("--release-lock requires the lock id shown by --status.");
+		}
+	}
+	if (options.takeOverLock !== undefined) {
+		if (options.check || options.status || options.releaseLock !== undefined) {
+			throw new MigrateCommandError(
+				"--take-over-lock cannot be used with --check, --status, or --release-lock.",
+			);
+		}
+		if (!LOCK_ID_PATTERN.test(options.takeOverLock)) {
+			throw new MigrateCommandError("--take-over-lock requires the lock id shown by --status.");
 		}
 	}
 	if (
@@ -515,12 +526,15 @@ export async function runMigrateCommand(
 			);
 
 			const releasing = options.releaseLock !== undefined;
+			const takingOver = options.takeOverLock !== undefined;
 			const applying = !options.check && !options.status && !releasing;
 			if (applying || releasing) {
-				const operation = releasing ? "lock release" : "apply";
+				const operation = releasing ? "lock release" : takingOver ? "lock take-over" : "apply";
 				const question = releasing
 					? `Release migration lock ${options.releaseLock} on ${target.label}? Release it only when no migration is running.`
-					: `Apply EmDash migrations to ${target.label}?`;
+					: takingOver
+						? `Take over migration lock ${options.takeOverLock} on ${target.label} and apply EmDash migrations? Take it over only when no migration is running.`
+						: `Apply EmDash migrations to ${target.label}?`;
 				if (options.expectedTargetFingerprint) {
 					if (options.expectedTargetFingerprint !== target.fingerprint) {
 						dependencies.writeStderr("Expected target fingerprint does not match the target.");
@@ -534,7 +548,13 @@ export async function runMigrateCommand(
 					exitCode = MIGRATE_EXIT_CODES.confirmation;
 					return exitCode;
 				} else if (!(await dependencies.confirm(question))) {
-					dependencies.writeStderr(releasing ? "Lock release cancelled." : "Migration cancelled.");
+					dependencies.writeStderr(
+						releasing
+							? "Lock release cancelled."
+							: takingOver
+								? "Lock take-over cancelled."
+								: "Migration cancelled.",
+					);
 					exitCode = MIGRATE_EXIT_CODES.confirmation;
 					return exitCode;
 				}
@@ -549,6 +569,10 @@ export async function runMigrateCommand(
 				},
 			};
 			if (applying) request.action = "apply";
+			if (takingOver) {
+				request.action = "take-over-lock";
+				request.lockId = options.takeOverLock;
+			}
 			if (releasing) {
 				request.action = "release-lock";
 				request.lockId = options.releaseLock;
@@ -563,6 +587,8 @@ export async function runMigrateCommand(
 				dependencies.writeStdout(JSON.stringify(report));
 			} else {
 				if (releasing) dependencies.writeStdout(`Released migration lock ${options.releaseLock}.`);
+				if (takingOver)
+					dependencies.writeStdout(`Took over migration lock ${options.takeOverLock}.`);
 				printHumanReport(report, dependencies.writeStdout);
 			}
 			exitCode = reportExitCode(options, report);
@@ -604,11 +630,16 @@ export const migrateCommand = defineCommand({
 		json: { type: "boolean", description: "Print the stable JSON report" },
 		"expected-target-fingerprint": {
 			type: "string",
-			description: "Required target fingerprint for noninteractive apply or lock release",
+			description:
+				"Required target fingerprint for noninteractive apply, lock release, or take-over",
 		},
 		"release-lock": {
 			type: "string",
 			description: "Release the migration lock with the id shown by --status",
+		},
+		"take-over-lock": {
+			type: "string",
+			description: "Apply migrations, taking over the migration lock with the id shown by --status",
 		},
 		database: { type: "string", description: "Override the SQLite database path" },
 		"database-url-env": {
@@ -630,6 +661,7 @@ export const migrateCommand = defineCommand({
 			json: args.json,
 			expectedTargetFingerprint: args["expected-target-fingerprint"],
 			releaseLock: args["release-lock"],
+			takeOverLock: args["take-over-lock"],
 			database: args.database,
 			databaseUrlEnv: args["database-url-env"],
 			d1: args.d1,

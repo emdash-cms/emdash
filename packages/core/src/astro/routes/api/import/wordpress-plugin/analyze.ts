@@ -14,7 +14,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginAnalyzeBody } from "#api/schemas.js";
-import { getSource } from "#import/index.js";
+import { getSource, SiteChallengeError } from "#import/index.js";
 import { resolveAndValidateExternalUrl, SsrfError } from "#import/ssrf.js";
 import type { ImportAnalysis } from "#import/types.js";
 import type { EmDashHandlers } from "#types";
@@ -69,6 +69,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			analysis,
 		});
 	} catch (error) {
+		if (error instanceof SiteChallengeError) {
+			return apiError("WP_SITE_CHALLENGE", error.message, 502);
+		}
 		return handleError(error, "Failed to analyze WordPress site", "WP_PLUGIN_ANALYZE_ERROR");
 	}
 };
