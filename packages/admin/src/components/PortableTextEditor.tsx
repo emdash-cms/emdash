@@ -2740,6 +2740,7 @@ function BlockKitField({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
+	const id = React.useId();
 	switch (field.type) {
 		case "text_input": {
 			const multiline = !!field.multiline;
@@ -2747,9 +2748,13 @@ function BlockKitField({
 			const Tag = multiline ? "textarea" : "input";
 			return (
 				<div>
-					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+					<label id={`${id}-label`} htmlFor={id} className="text-sm font-medium mb-1.5 block">
+						{field.label}
+					</label>
 					{multiline ? (
 						<Tag
+							id={id}
+							aria-labelledby={`${id}-label`}
 							className="flex w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-kumo-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2 min-h-[80px]"
 							placeholder={placeholder}
 							value={typeof value === "string" ? value : ""}
@@ -2757,6 +2762,8 @@ function BlockKitField({
 						/>
 					) : (
 						<Input
+							id={id}
+							aria-labelledby={`${id}-label`}
 							type="text"
 							className="w-full"
 							placeholder={placeholder}
@@ -2772,8 +2779,12 @@ function BlockKitField({
 			const max = typeof field.max === "number" ? field.max : undefined;
 			return (
 				<div>
-					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+					<label id={`${id}-label`} htmlFor={id} className="text-sm font-medium mb-1.5 block">
+						{field.label}
+					</label>
 					<Input
+						id={id}
+						aria-labelledby={`${id}-label`}
 						type="number"
 						className="w-full"
 						min={min}
@@ -2792,6 +2803,7 @@ function BlockKitField({
 		case "toggle": {
 			return (
 				<Switch
+					aria-label={field.label}
 					checked={!!value}
 					onCheckedChange={(checked) => onChange(field.action_id, checked)}
 					label={<span className="text-sm font-medium">{field.label}</span>}
@@ -2856,6 +2868,7 @@ function BlockKitRepeater({
 	onChange: (actionId: string, value: unknown) => void;
 }) {
 	const { t } = useLingui();
+	const labelId = React.useId();
 	const rawItems = React.useMemo<unknown[]>(() => (Array.isArray(value) ? value : []), [value]);
 
 	const [items, setItems] = React.useState<RepeaterItem[]>(() => ensureKeys(rawItems));
@@ -2966,14 +2979,14 @@ function BlockKitRepeater({
 	};
 
 	return (
-		<div className="space-y-2">
+		<div role="group" aria-labelledby={labelId} className="space-y-2">
 			<div className="flex items-center justify-between">
-				<label className="text-sm font-medium">
+				<span id={labelId} className="text-sm font-medium">
 					{field.label}
 					{items.length > 0 && (
 						<span className="ms-2 text-kumo-subtle font-normal">({items.length})</span>
 					)}
-				</label>
+				</span>
 				{canAdd && (
 					<Button variant="outline" size="sm" icon={<Plus />} onClick={handleAdd} type="button">
 						{addButtonLabel}
@@ -3138,6 +3151,7 @@ function DynamicSelect({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
+	const labelId = React.useId();
 	const [dynamicOptions, setDynamicOptions] = React.useState<Array<{
 		label: string;
 		value: string;
@@ -3185,12 +3199,14 @@ function DynamicSelect({
 
 	return (
 		<div>
-			<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+			<span id={labelId} className="text-sm font-medium mb-1.5 block">
+				{field.label}
+			</span>
 			{loading ? (
 				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">{t`Loading...`}</div>
 			) : (
 				<Select
-					aria-label={field.label}
+					aria-labelledby={labelId}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(field.action_id, v ?? "")}
 					items={{
