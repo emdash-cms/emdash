@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
+import "../dist/styles.css";
 import { TextInputElementComponent } from "../../blocks/src/elements/text-input.js";
+import { renderElement } from "../../blocks/src/render-element.js";
 import { BlockRenderer } from "../../blocks/src/renderer.js";
-import type { Block } from "../../blocks/src/types.js";
+import type { Block, FormField } from "../../blocks/src/types.js";
 
 const blocks: Block[] = [
 	{
@@ -184,5 +186,101 @@ describe("embedded plugin forms in Chromium", () => {
 				values: { date: "2026-10-15", token: "local-fixture-token" },
 			}),
 		);
+	});
+
+	it("isolates select input ownership and preserves choice control values", async () => {
+		const fields: FormField[] = [
+			{
+				type: "select",
+				action_id: "choice",
+				label: "Choice",
+				initial_value: "first",
+				options: [
+					{ label: "First", value: "first" },
+					{ label: "Second", value: "second" },
+				],
+			},
+			{
+				type: "checkbox",
+				action_id: "checks",
+				label: "Checks",
+				options: [{ label: "Include", value: "included" }],
+			},
+			{
+				type: "radio",
+				action_id: "radio",
+				label: "Radio choice",
+				initial_value: "first",
+				options: [
+					{ label: "Radio first", value: "first" },
+					{ label: "Radio second", value: "second" },
+				],
+			},
+			{ type: "toggle", action_id: "enabled", label: "Enabled", initial_value: false },
+		];
+		const onAction = vi.fn();
+		const standaloneAction = vi.fn();
+		const outerSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+		const nativeSubmit = vi.fn((event: Event) => event.preventDefault());
+		submitListener = nativeSubmit;
+		document.addEventListener("submit", submitListener, true);
+		const screen = await render(
+			<form id="editor" onSubmit={outerSubmit}>
+				<input name="article" defaultValue="Article title" />
+				<div data-testid="standalone-choices">
+					{fields.map((field) => (
+						<div key={field.action_id}>{renderElement(field, standaloneAction)}</div>
+					))}
+				</div>
+				<BlockRenderer
+					blocks={[
+						{
+							type: "form",
+							block_id: "choices",
+							fields,
+							submit: { label: "Save controls", action_id: "save_choices" },
+						},
+					]}
+					onAction={onAction}
+				/>
+				<button type="submit">Save article</button>
+			</form>,
+		);
+		const group = screen.getByRole("group", { name: "Save controls", exact: true });
+		const standalone = screen.getByTestId("standalone-choices").element();
+		const owner = document.getElementById("editor") as HTMLFormElement;
+		const nativeStandalone = standalone.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+			"input, select",
+		);
+		expect(nativeStandalone.length).toBeGreaterThanOrEqual(4);
+		for (const control of nativeStandalone) expect(control.form).toBe(owner);
+		expect((standalone.querySelector('[role="switch"]') as HTMLButtonElement).form).toBe(owner);
+		const nativeSelect = group
+			.getByRole("combobox")
+			.element()
+			.parentElement!.querySelector<HTMLInputElement>("input");
+		const toggle = group.getByRole("switch", { name: "Enabled" });
+		expect(nativeSelect).not.toBeNull();
+		expect(nativeSelect!.form).toBeNull();
+		await group.getByRole("combobox").click();
+		await page.getByRole("option", { name: "Second", exact: true }).click();
+		await group.getByRole("checkbox", { name: "Include" }).click();
+		await group.getByRole("radio", { name: "Radio second" }).click();
+		await toggle.click();
+		expect(onAction).not.toHaveBeenCalled();
+		await group.getByRole("button", { name: "Save controls" }).click();
+		expect(onAction).toHaveBeenCalledExactlyOnceWith({
+			type: "form_submit",
+			block_id: "choices",
+			action_id: "save_choices",
+			values: { choice: "second", checks: ["included"], radio: "second", enabled: true },
+		});
+		expect(standaloneAction).not.toHaveBeenCalled();
+		expect(outerSubmit).not.toHaveBeenCalled();
+		expect(nativeSubmit).not.toHaveBeenCalled();
+		expect([...new FormData(owner)]).toEqual([["article", "Article title"]]);
+		expect(owner.checkValidity()).toBe(true);
+		await screen.getByRole("button", { name: "Save article" }).click();
+		expect(outerSubmit).toHaveBeenCalledOnce();
 	});
 });
