@@ -79,21 +79,35 @@ export function createTestDatabase(): Kysely<DatabaseSchema> {
 }
 
 class StalledDriver extends DummyDriver {
+	#pending = new Set<(reason?: unknown) => void>();
+
 	override acquireConnection(): Promise<never> {
-		return new Promise(() => {});
+		return new Promise((_, reject) => {
+			this.#pending.add(reject);
+		});
+	}
+
+	abort(): void {
+		const pending = [...this.#pending];
+		this.#pending.clear();
+		for (const reject of pending) {
+			reject(new Error("stalled database aborted"));
+		}
 	}
 }
 
 /** A database whose queries never settle, like a query whose request workerd cancelled. */
-export function createStalledDatabase(): Kysely<DatabaseSchema> {
-	return new Kysely<DatabaseSchema>({
+export function createStalledDatabase(): { db: Kysely<DatabaseSchema>; abort(): void } {
+	const driver = new StalledDriver();
+	const db = new Kysely<DatabaseSchema>({
 		dialect: {
 			createAdapter: () => new SqliteAdapter(),
-			createDriver: () => new StalledDriver(),
-			createIntrospector: (db) => new SqliteIntrospector(db),
+			createDriver: () => driver,
+			createIntrospector: (kysely) => new SqliteIntrospector(kysely),
 			createQueryCompiler: () => new SqliteQueryCompiler(),
 		},
 	});
+	return { db, abort: () => driver.abort() };
 }
 
 /**

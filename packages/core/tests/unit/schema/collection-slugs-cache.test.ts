@@ -26,7 +26,8 @@ describe("filterToRegisteredCollections", () => {
 	});
 
 	it("does not strand later requests on a first query that never settles", async () => {
-		const stranded = filterToRegisteredCollections(createStalledDatabase(), ["post"]);
+		const stalled = createStalledDatabase();
+		const stranded = filterToRegisteredCollections(stalled.db, ["post"]);
 		void stranded.catch(() => {});
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -34,7 +35,11 @@ describe("filterToRegisteredCollections", () => {
 		vi.useFakeTimers({ toFake: ["Date"] });
 		vi.setSystemTime(Date.now() + 60_000);
 
-		expect(await filterToRegisteredCollections(db, ["post", "missing"])).toEqual(["post"]);
+		try {
+			expect(await filterToRegisteredCollections(db, ["post", "missing"])).toEqual(["post"]);
+		} finally {
+			stalled.abort();
+		}
 	});
 
 	it("refetches a stale slug set once for parallel readers", async () => {

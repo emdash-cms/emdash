@@ -99,7 +99,8 @@ describe("getTaxonomyDefs — isolate cache", () => {
 	});
 
 	it("does not strand later requests on a first query that never settles", async () => {
-		const stranded = inScope(createStalledDatabase(), () => getTaxonomyDefs());
+		const stalled = createStalledDatabase();
+		const stranded = inScope(stalled.db, () => getTaxonomyDefs());
 		void stranded.catch(() => {});
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -107,8 +108,12 @@ describe("getTaxonomyDefs — isolate cache", () => {
 		vi.useFakeTimers({ toFake: ["Date"] });
 		vi.setSystemTime(Date.now() + 60_000);
 
-		const defs = await inScope(db, () => getTaxonomyDefs());
-		expect(defs.map((d) => d.name)).toContain("genre");
+		try {
+			const defs = await inScope(db, () => getTaxonomyDefs());
+			expect(defs.map((d) => d.name)).toContain("genre");
+		} finally {
+			stalled.abort();
+		}
 	});
 
 	it("re-queries after invalidateTaxonomyDefsCache()", async () => {
