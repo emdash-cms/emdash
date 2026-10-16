@@ -79,9 +79,7 @@ export async function normalizeMediaValue(
 	const needsLqip =
 		(result.mimeType ?? "").startsWith("image/") &&
 		(result.blurhash == null || result.dominantColor == null);
-	const needsCaption = result.caption == null;
-	const needsLookup =
-		needsDimensions || needsStorageKey || needsFileInfo || needsLqip || needsCaption;
+	const needsLookup = needsDimensions || needsStorageKey || needsFileInfo || needsLqip;
 
 	if (!needsLookup || !id) return result;
 

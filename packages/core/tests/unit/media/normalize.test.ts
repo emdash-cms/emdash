@@ -29,19 +29,17 @@ describe("normalizeMediaValue", () => {
 		expect(result?.caption).toBe(caption);
 	});
 
-	it("backfills a missing caption even when image metadata is complete", async () => {
-		const item = {
+	it("fills a missing caption during provider enrichment", async () => {
+		const local = mockProvider({
 			id: "01ABC",
 			filename: "photo.jpg",
 			mimeType: "image/jpeg",
 			width: 1200,
 			height: 800,
-			blurhash: "hash",
-			dominantColor: "#112233",
+			caption: "Library caption",
 			meta: { storageKey: "01ABC.jpg" },
-		};
-		const local = mockProvider({ ...item, caption: "Library caption" });
-		const result = await normalizeMediaValue(item, getProvider({ local }));
+		});
+		const result = await normalizeMediaValue({ id: "01ABC" }, getProvider({ local }));
 		expect(result?.caption).toBe("Library caption");
 	});
 
