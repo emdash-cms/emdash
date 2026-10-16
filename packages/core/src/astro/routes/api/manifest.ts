@@ -62,20 +62,19 @@ export const GET: APIRoute = async ({ locals }) => {
 		if (emdash?.db) {
 			try {
 				const options = new OptionsRepository(emdash.db);
-				const settings = await options.getMany<string | object>([
+				const titles = await options.getMany<string>([
 					"site:title",
 					"emdash:site_title",
 					"site:timezone",
 					"site:logo",
 				]);
-				const siteTitle = settings.get("site:title") || settings.get("emdash:site_title");
-				const timezone = settings.get("site:timezone");
-				if (typeof timezone === "string") siteTimezone = timezone;
-				if (!adminBranding?.siteName && typeof siteTitle === "string") {
+				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
+				siteTimezone = titles.get("site:timezone") || "UTC";
+				if (!adminBranding?.siteName && siteTitle) {
 					adminBranding = { ...adminBranding, siteName: siteTitle };
 				}
 
-				const siteLogo = settings.get("site:logo");
+				const siteLogo: unknown = titles.get("site:logo");
 				if (
 					!adminBranding?.logo &&
 					typeof siteLogo === "object" &&
