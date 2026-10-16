@@ -3,10 +3,15 @@ import { describe, expect, it } from "vitest";
 
 import {
 	isLiveEntryNotFoundError,
+	isNewPlugin,
+	isOfficialPublisher,
+	isRegistryRequestRejected,
 	permissionCopy,
+	permissionCountLabel,
 	pluginPath,
 	publisherHandle,
 	publisherPath,
+	relativeUpdated,
 	renderRegistryMarkdown,
 	requestedPermissions,
 	safeExternalUrl,
@@ -49,6 +54,40 @@ describe("registry presentation boundaries", () => {
 		expect(html).not.toContain('href="/admin"');
 		expect(html).not.toContain("javascript:");
 		expect(html).not.toContain("<script");
+	});
+
+	it("tells a rejected registry request apart from an unreachable registry", () => {
+		const loaderError = (cause: unknown) => new Error("Failed to load registry entry", { cause });
+		const clientError = (name: string, fields: Record<string, unknown>) =>
+			Object.assign(new Error(name), { name, ...fields });
+
+		expect(
+			isRegistryRequestRejected(
+				loaderError(clientError("ClientValidationError", { target: "params" })),
+			),
+		).toBe(true);
+		expect(
+			isRegistryRequestRejected(loaderError(clientError("ClientResponseError", { status: 400 }))),
+		).toBe(true);
+		expect(
+			isRegistryRequestRejected(
+				loaderError(clientError("ClientValidationError", { target: "output" })),
+			),
+		).toBe(false);
+		expect(
+			isRegistryRequestRejected(loaderError(clientError("ClientResponseError", { status: 502 }))),
+		).toBe(false);
+		expect(isRegistryRequestRejected(loaderError(new TypeError("fetch failed")))).toBe(false);
+		expect(isRegistryRequestRejected(new Error("Failed to load registry entry"))).toBe(false);
+	});
+
+	it("nests publisher headings under the section heading from their shallowest level", () => {
+		expect(renderRegistryMarkdown("# One\n\n## Two\n\n### Three")).toBe(
+			"<h3>One</h3>\n<h4>Two</h4>\n<h4>Three</h4>\n",
+		);
+		expect(renderRegistryMarkdown("### Install\n\n#### Requirements")).toBe(
+			"<h3>Install</h3>\n<h4>Requirements</h4>\n",
+		);
 	});
 
 	it("extracts requested permissions from the validated release extension", () => {
@@ -117,5 +156,44 @@ describe("registry presentation boundaries", () => {
 
 		expect(isLiveEntryNotFoundError(notFound)).toBe(true);
 		expect(isLiveEntryNotFoundError(new Error("upstream unavailable"))).toBe(false);
+	});
+});
+
+describe("plugin card signals", () => {
+	it("calls a plugin new only when a complete history proves one recent release", () => {
+		const now = new Date("2026-10-15T12:00:00Z");
+		const indexedAt = "2026-10-10T12:00:00Z";
+		const firstRelease = { historicalReleaseCount: 1, releaseHistoryComplete: true, indexedAt };
+
+		expect(isNewPlugin(firstRelease, now)).toBe(true);
+		expect(isNewPlugin({ ...firstRelease, releaseHistoryComplete: false }, now)).toBe(false);
+		expect(isNewPlugin({ historicalReleaseCount: 1, indexedAt }, now)).toBe(false);
+		expect(isNewPlugin({ ...firstRelease, historicalReleaseCount: 2 }, now)).toBe(false);
+		expect(isNewPlugin({ ...firstRelease, indexedAt: "2026-09-01T12:00:00Z" }, now)).toBe(false);
+	});
+
+	it("marks the official publisher by DID, not by a handle another account could report", () => {
+		expect(isOfficialPublisher({ did: "did:plc:xyraubanwc5fwemkduw3upi6" })).toBe(true);
+		expect(isOfficialPublisher({ did: "did:plc:someone-else" })).toBe(false);
+		const spoofed = { did: "did:plc:someone-else", handle: "plugins.emdashcms.com" } as const;
+		expect(isOfficialPublisher(spoofed)).toBe(false);
+	});
+
+	it("counts permissions in words", () => {
+		expect(permissionCountLabel(0)).toBe("No permissions");
+		expect(permissionCountLabel(1)).toBe("1 permission");
+		expect(permissionCountLabel(4)).toBe("4 permissions");
+	});
+
+	it("shows recent updates relative to now and older ones as a date", () => {
+		const now = new Date("2026-10-15T12:00:00Z");
+		expect(relativeUpdated("2026-10-15T11:59:50Z", now)).toBe("1 min. ago");
+		expect(relativeUpdated("2026-10-15T07:00:00Z", now)).toBe("5 hr. ago");
+		expect(relativeUpdated("2026-10-14T08:00:00Z", now)).toBe("yesterday");
+		expect(relativeUpdated("2026-10-10T12:00:00Z", now)).toBe("5 days ago");
+		expect(relativeUpdated("2026-10-01T12:00:00Z", now)).toBe("Oct 1");
+		expect(relativeUpdated("2025-12-24T12:00:00Z", now)).toBe("Dec 24, 2025");
+		expect(relativeUpdated("2026-11-01T12:00:00Z", now)).toBe("Nov 1");
+		expect(relativeUpdated("not a date", now)).toBeUndefined();
 	});
 });
