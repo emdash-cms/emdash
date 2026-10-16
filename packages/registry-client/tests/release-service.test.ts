@@ -138,6 +138,31 @@ describe("ReleaseServiceClient", () => {
 		});
 	});
 
+	it("preserves publisher guidance and accepts servers without it", async () => {
+		for (const guidance of [{}, { reasonMessage: "Reconnect your publisher account." }]) {
+			const client = new ReleaseServiceClient({
+				serviceUrl: SERVICE,
+				workloadToken: "header.payload.signature",
+				fetch: async () => success({ intent: { ...intent("failed"), ...guidance } }),
+			});
+			await expect(client.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+				...intent("failed"),
+				...guidance,
+			});
+		}
+	});
+
+	it.each([42, "x".repeat(2049)])("rejects malformed publisher guidance", async (reasonMessage) => {
+		const client = new ReleaseServiceClient({
+			serviceUrl: SERVICE,
+			workloadToken: "header.payload.signature",
+			fetch: async () => success({ intent: { ...intent("failed"), reasonMessage } }),
+		});
+		await expect(client.getIntent(PUBLISHER_DID, INTENT_ID)).rejects.toMatchObject({
+			code: "CLIENT_RESPONSE_INVALID",
+		});
+	});
+
 	it("submits a typed intent without retaining or exposing the workload token", async () => {
 		const calls: Array<{ init: RequestInit | undefined; url: string }> = [];
 		const workloadToken = "header.payload.signature";

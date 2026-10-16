@@ -10,6 +10,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	approvalRefreshTarget,
 	classifyActor,
 	normalizeWebhook,
 	resolvePullRequestWebhook,
@@ -593,41 +594,49 @@ describe("normalizeWebhook", () => {
 			base: { repo: { full_name: "emdash-cms/emdash" } },
 		};
 
+		const review = { state: "approved", author_association: "MEMBER", user: { login: "alice" } };
+
 		test.each(["submitted", "dismissed"])(
-			"%s on a fork PR the bot did not open refreshes its review label",
+			"%s on an open PR refreshes its approval state, whoever opened it",
 			(action) => {
-				const payload: PullRequestReviewEvent = {
-					action,
-					review: { state: "approved", author_association: "MEMBER", user: { login: "alice" } },
-					pull_request: forkPullRequest,
-					sender: { login: "alice" },
-				};
-				expect(normalizeWebhook({ eventType: "pull_request_review", payload })).toEqual({
-					kind: "review_state",
-					pullRequestNumber: 120,
-					authorLogin: "contributor",
-					draft: false,
-				});
+				for (const pullRequest of [
+					forkPullRequest,
+					{
+						...forkPullRequest,
+						head: { ref: "fix/in-repo", repo: { full_name: "emdash-cms/emdash" } },
+					},
+					{
+						...forkPullRequest,
+						user: { login: "emdashbot[bot]", type: "Bot" },
+						head: { ref: "bot/fix-42", repo: { full_name: "emdash-cms/emdash" } },
+					},
+					{ ...forkPullRequest, user: { login: "dependabot[bot]", type: "Bot" } },
+				]) {
+					const payload: PullRequestReviewEvent = { action, review, pull_request: pullRequest };
+					expect(approvalRefreshTarget("pull_request_review", payload)).toBe(120);
+				}
 			},
 		);
 
-		test("a review on a bot-authored, closed or same-repo PR changes no review label", () => {
-			const review = { state: "approved", author_association: "MEMBER", user: { login: "alice" } };
-			for (const pullRequest of [
-				{ ...forkPullRequest, user: { login: "dependabot[bot]", type: "Bot" } },
-				{ ...forkPullRequest, state: "closed" },
-				{
-					...forkPullRequest,
-					head: { ref: "fix/in-repo", repo: { full_name: "emdash-cms/emdash" } },
-				},
-			]) {
-				const payload: PullRequestReviewEvent = {
-					action: "submitted",
-					review,
-					pull_request: pullRequest,
-				};
-				expect(normalizeWebhook({ eventType: "pull_request_review", payload }).kind).toBe("skip");
+		test("a review on a closed or draft PR, or another review action, refreshes nothing", () => {
+			for (const [action, pullRequest] of [
+				["submitted", { ...forkPullRequest, state: "closed" }],
+				["submitted", { ...forkPullRequest, draft: true }],
+				["edited", forkPullRequest],
+			] as const) {
+				const payload: PullRequestReviewEvent = { action, review, pull_request: pullRequest };
+				expect(approvalRefreshTarget("pull_request_review", payload)).toBeNull();
 			}
+			expect(approvalRefreshTarget("pull_request", { action: "labeled" })).toBeNull();
+		});
+
+		test("a review on a PR the bot did not open dispatches nothing", () => {
+			const payload: PullRequestReviewEvent = {
+				action: "submitted",
+				review,
+				pull_request: forkPullRequest,
+			};
+			expect(normalizeWebhook({ eventType: "pull_request_review", payload }).kind).toBe("skip");
 		});
 	});
 

@@ -1317,7 +1317,9 @@ export class ContentRepository {
 			let stored: Record<string, unknown> = existing.data ?? {};
 			if (existing.draftRevisionId) {
 				const draft = await revisionRepo.findById(existing.draftRevisionId);
-				if (draft?.data) stored = draft.data;
+				// A retired key may survive in the published row while the draft
+				// revision has already shed it, so the baseline has to cover both.
+				if (draft?.data) stored = { ...stored, ...draft.data };
 			}
 			const stale = staleStoredKeys(data, stored, fieldSlugs);
 			if (stale.length > 0) {

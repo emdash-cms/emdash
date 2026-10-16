@@ -215,7 +215,9 @@ const plugin: SandboxedPlugin = {
 export default plugin;
 ```
 
-EmDash exposes this as `<pluginId>__createEvent`. The referenced route must be private and declare `permission`. Input schemas are required; output schemas are optional. Set `destructive: true` for tools that delete, overwrite, publish, charge, or otherwise perform a difficult-to-reverse action.
+EmDash exposes this as `<pluginId>__createEvent`. For a scoped ID such as `@acme/calendar`, the tool name is `acme__calendar__createEvent`. Scoped IDs with ambiguous separators include a short hash before the local tool name. Use `tools/list` to discover the generated name.
+
+The referenced route must be private and declare `permission`. Input schemas are required; output schemas are optional. Set `destructive: true` for tools that delete, overwrite, publish, charge, or otherwise perform a difficult-to-reverse action.
 
 An administrator must separately enable a plugin's MCP tools after reviewing their names, descriptions, routes, permissions, and destructive flags. Calling the tool then requires both the route permission and either the `mcp:tools` token scope or `mcp:tools:<pluginId>`.
 

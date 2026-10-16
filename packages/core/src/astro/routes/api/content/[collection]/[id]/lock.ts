@@ -8,7 +8,7 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm } from "#api/authorize.js";
+import { requireEntryEditPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import {
 	handleEntryLockAcquire,
@@ -60,7 +60,7 @@ async function resolveEntry(
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
-	const denied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
+	const denied = requireEntryEditPerm(user, { authorId, status: existingItem?.status });
 	if (denied) return denied;
 
 	return {

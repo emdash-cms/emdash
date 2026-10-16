@@ -423,7 +423,7 @@ async function resolveArtifact(
 			.map(recordScopedCacheEndpoint)
 			.find((value) => value !== null);
 		if (serviceEndpoint) {
-			const preset = kind === "icon" ? "avatar" : kind === "banner" ? "banner" : "feed_thumbnail";
+			const preset = kind === "icon" ? "avatar" : kind === "banner" ? "banner" : "feed_fullsize";
 			const cacheUrl = recordScopedImageCacheUrl(
 				serviceEndpoint,
 				preset,

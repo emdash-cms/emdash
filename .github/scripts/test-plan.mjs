@@ -22,7 +22,7 @@ export const TEST_LANES = [
 
 const BROWSER_SUITES = ["browser_admin", "browser_embeds", "browser_release"];
 const REPOSITORY_METADATA_PATTERN =
-	/^\.github\/(?:dependabot\.yml|bonk-models\.json|codeql-config\.yml|zizmor\.yml)$/;
+	/^\.github\/(?:dependabot\.yml|codeql-config\.yml|zizmor\.yml)$/;
 const UNIT_PACKAGE_PATH_PATTERN =
 	/^packages\/(?:blocks|gutenberg-to-portable-text|plugin-(?:cli|types)|registry-(?:client|lexicons|moderation|verification))\//;
 
@@ -86,7 +86,8 @@ const RULES = [
 			path.startsWith("docs/") ||
 			path.startsWith("skills/") ||
 			path.startsWith(".changeset/") ||
-			path.startsWith(".github/ISSUE_TEMPLATE/"),
+			path.startsWith(".github/ISSUE_TEMPLATE/") ||
+			path.startsWith(".github/DISCUSSION_TEMPLATE/"),
 		lanes: [],
 	},
 	{
@@ -263,6 +264,7 @@ function createFullPlan(paths, reason, unknownPaths = []) {
 		unit_mode: "full",
 		unit_packages: ALL_UNIT_PACKAGES,
 		full: true,
+		design_only: false,
 		reason,
 		paths,
 		unknown_paths: unknownPaths,
@@ -334,6 +336,9 @@ export function createTestPlan(inputPaths) {
 		unit_mode: unitMode,
 		unit_packages: unitMode === "full" ? ALL_UNIT_PACKAGES : [...unitPackages],
 		full: TEST_LANES.every((lane) => selected.has(lane)),
+		design_only:
+			paths.length > 0 &&
+			paths.every((path) => path.startsWith("proposals/") && path.endsWith(".md")),
 		reason: `Matched ${[...categories].join(", ")}.`,
 		paths,
 		unknown_paths: [],
@@ -342,7 +347,7 @@ export function createTestPlan(inputPaths) {
 
 export function formatGitHubOutput(plan) {
 	const lines = [];
-	for (const lane of [...TEST_LANES, ...BROWSER_SUITES, "full"]) {
+	for (const lane of [...TEST_LANES, ...BROWSER_SUITES, "full", "design_only"]) {
 		lines.push(`${lane}=${String(plan[lane])}`);
 	}
 	lines.push(`reason=${plan.reason}`);

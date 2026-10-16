@@ -29,6 +29,7 @@ import * as React from "react";
 
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
+import type { BylineFormValues } from "./components/BylineFormDialog.js";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
@@ -139,8 +140,11 @@ import {
 	type BylineCreditInput,
 	type ContentSeoInput,
 	type ContentItem,
+	type CurrentUser,
 	type MediaUploadOptions,
 	type Revision,
+	type RevisionListItem,
+	type RevisionListResponse,
 } from "./lib/api";
 import {
 	fetchComments,
@@ -155,6 +159,7 @@ import { parseCalendarSearch } from "./lib/calendar";
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
+import { withAutosavedDraft } from "./lib/revision-list-cache.js";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { usePagedQuery } from "./lib/use-paged-query";
 import { useEntryLock } from "./lib/useEntryLock";
@@ -228,6 +233,17 @@ function withAutosavedReferences(
 	return next;
 }
 
+/** The `limit` a revision list query key asks for. */
+function revisionListLimit(queryKey: readonly unknown[]): number {
+	const options = queryKey[3];
+	return options &&
+		typeof options === "object" &&
+		"limit" in options &&
+		typeof options.limit === "number"
+		? options.limit
+		: Number.POSITIVE_INFINITY;
+}
+
 function patchAutosaveQueries(
 	queryClient: QueryClient,
 	params: {
@@ -240,31 +256,80 @@ function patchAutosaveQueries(
 		};
 		referenceRows?: Record<string, ReferenceEntryRow[]>;
 		fields: Record<string, { validation?: Record<string, unknown> }>;
+		/** The draft revision the entry had when the autosave was sent. */
+		previousDraftId: string | null;
 	},
 ) {
-	const { collection, id, savedItem, payload, referenceRows, fields } = params;
+	const { collection, id, savedItem, payload, referenceRows, fields, previousDraftId } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
-		queryClient.setQueryData<Revision>(["revision", draftRevisionId], (existing) => {
-			const nextData: Record<string, unknown> = {
-				...existing?.data,
-				...payload.data,
-			};
+		const listsKey = ["revisions", collection, id];
+		const lists = queryClient.getQueriesData<RevisionListResponse>({ queryKey: listsKey });
+		const listRead = queryClient.isFetching({ queryKey: listsKey }) > 0;
+		// The server writes the new draft over the one it replaces, keeping that one's
+		// staged references and slug.
+		const previousDraft = previousDraftId
+			? (queryClient.getQueryData<Revision>(["revision", previousDraftId]) ??
+				lists.flatMap(([, list]) => list?.items ?? []).find((item) => item.id === previousDraftId))
+			: undefined;
+		const existing = queryClient.getQueryData<Revision>(["revision", draftRevisionId]);
+		const nextData: Record<string, unknown> = {
+			...previousDraft?.data,
+			...existing?.data,
+			...payload.data,
+		};
 
-			if (payload.slug !== undefined) {
-				nextData._slug = payload.slug;
-			}
+		if (payload.slug !== undefined) {
+			nextData._slug = payload.slug;
+		}
+		// A draft autosave doesn't move the entry's `updatedAt`.
+		const createdAt = new Date().toISOString();
 
-			return {
-				id: draftRevisionId,
-				collection,
-				entryId: id,
-				data: nextData,
-				authorId: existing?.authorId ?? savedItem.authorId,
-				createdAt: existing?.createdAt ?? savedItem.updatedAt,
-			};
+		queryClient.setQueryData<Revision>(["revision", draftRevisionId], {
+			id: draftRevisionId,
+			collection,
+			entryId: id,
+			data: nextData,
+			authorId: existing?.authorId ?? savedItem.authorId,
+			createdAt: existing?.createdAt ?? createdAt,
 		});
+
+		// An autosave replaces the draft revision, so an open version list would otherwise
+		// mark a revision that no longer exists as the current version.
+		const me = queryClient.getQueryData<CurrentUser>(["currentUser"]);
+		const draft: RevisionListItem = {
+			id: draftRevisionId,
+			collection,
+			entryId: id,
+			data: nextData,
+			authorId: me?.id ?? savedItem.authorId,
+			createdAt,
+			author: me ? { id: me.id, name: me.name?.trim() || null } : null,
+		};
+		for (const [queryKey, list] of lists) {
+			if (!list) continue;
+			queryClient.setQueryData(
+				queryKey,
+				withAutosavedDraft(list, {
+					draft,
+					previousDraftId,
+					liveRevisionId: savedItem.liveRevisionId ?? null,
+					limit: revisionListLimit(queryKey),
+				}),
+			);
+		}
+		if (listRead) {
+			// A read already in flight may predate this write and would land over the patch,
+			// so it is dropped and made again.
+			void queryClient
+				.cancelQueries({ queryKey: listsKey })
+				.then(() => queryClient.invalidateQueries({ queryKey: listsKey }));
+		} else {
+			// The patched lists stay on screen; the next list that mounts, or view that opens,
+			// reads the exact server copy.
+			void queryClient.invalidateQueries({ queryKey: listsKey, refetchType: "none" });
+		}
 	}
 
 	// Match by (collection, id) prefix rather than an exact locale-scoped key: the
@@ -807,6 +872,7 @@ function ContentNewPage() {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
+	const { data: currentUser } = useCurrentUser();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -863,19 +929,15 @@ function ContentNewPage() {
 	});
 
 	const createBylineMutation = useMutation({
-		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true, locale: pickerLocale }),
+		mutationFn: (values: BylineFormValues) => createByline({ ...values, locale: pickerLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
 	});
 
 	const updateBylineMutation = useMutation({
-		mutationFn: (input: { id: string; slug: string; displayName: string }) =>
-			updateByline(input.id, {
-				slug: input.slug,
-				displayName: input.displayName,
-			}),
+		mutationFn: ({ bylineId, values }: { bylineId: string; values: BylineFormValues }) =>
+			updateByline(bylineId, values),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -897,13 +959,13 @@ function ContentNewPage() {
 	);
 
 	const handleQuickCreateByline = React.useCallback(
-		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		(values: BylineFormValues) => createBylineMutation.mutateAsync(values),
 		[createBylineMutation.mutateAsync],
 	);
 
 	const handleQuickEditByline = React.useCallback(
-		(bylineId: string, input: { slug: string; displayName: string }) =>
-			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		(bylineId: string, values: BylineFormValues) =>
+			updateBylineMutation.mutateAsync({ bylineId, values }),
 		[updateBylineMutation.mutateAsync],
 	);
 
@@ -934,6 +996,7 @@ function ContentNewPage() {
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
+			currentUser={currentUser}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>
@@ -1012,17 +1075,22 @@ function ContentEditPage() {
 	});
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const revisionVersionsRef = React.useRef(new Map<string, number>());
+	// The draft revision of the entry version each token names, which an autosave sent with that
+	// token replaces.
+	const tokenDraftRevisionsRef = React.useRef(new Map<string, string | null>());
 	const activeRevisionEntryRef = React.useRef("");
 	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
 	if (activeRevisionEntryRef.current !== revisionIdentity) {
 		activeRevisionEntryRef.current = revisionIdentity;
 		revisionTokensRef.current.delete(id);
 		revisionVersionsRef.current.delete(id);
+		tokenDraftRevisionsRef.current.delete(id);
 	}
 	const recordWriteRevision = React.useCallback(
-		(entryId: string, item: Pick<ContentItem, "_rev">) => {
+		(entryId: string, item: Pick<ContentItem, "_rev" | "draftRevisionId">) => {
 			if (!item._rev) return;
 			revisionTokensRef.current.set(entryId, item._rev);
+			tokenDraftRevisionsRef.current.set(entryId, item.draftRevisionId ?? null);
 			const version = decodeRevVersion(item._rev);
 			if (typeof version === "number") revisionVersionsRef.current.set(entryId, version);
 		},
@@ -1182,19 +1250,15 @@ function ContentEditPage() {
 	});
 
 	const createBylineMutation = useMutation({
-		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true, locale: itemLocale }),
+		mutationFn: (values: BylineFormValues) => createByline({ ...values, locale: itemLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
 	});
 
 	const updateBylineMutation = useMutation({
-		mutationFn: (input: { id: string; slug: string; displayName: string }) =>
-			updateByline(input.id, {
-				slug: input.slug,
-				displayName: input.displayName,
-			}),
+		mutationFn: ({ bylineId, values }: { bylineId: string; values: BylineFormValues }) =>
+			updateByline(bylineId, values),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -1318,6 +1382,21 @@ function ContentEditPage() {
 
 	// Autosave mutation - skips revision creation
 	const autosaveMutation = useMutation({
+		// Read when the autosave starts, after any autosave queued before it has landed. The cached
+		// entry can lag behind the token while a save's read of it is still on its way.
+		onMutate: ({ targetId }: AutosaveMutationInput) => {
+			const tokenDrafts = tokenDraftRevisionsRef.current;
+			return {
+				previousDraftId: tokenDrafts.has(targetId)
+					? (tokenDrafts.get(targetId) ?? null)
+					: (queryClient.getQueryData<ContentItem>([
+							"content",
+							collection,
+							targetId,
+							{ locale: activeLocale },
+						])?.draftRevisionId ?? null),
+			};
+		},
 		mutationFn: async ({ targetId, targetLocale, changes }: AutosaveMutationInput) => {
 			const savedItem = await updateContent(
 				collection,
@@ -1328,7 +1407,7 @@ function ContentEditPage() {
 			recordWriteRevision(targetId, savedItem);
 			return savedItem;
 		},
-		onSuccess: (savedItem, variables) => {
+		onSuccess: (savedItem, variables, started) => {
 			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
@@ -1341,6 +1420,7 @@ function ContentEditPage() {
 				},
 				referenceRows: variables.referenceRows,
 				fields: collectionFields,
+				previousDraftId: started?.previousDraftId ?? null,
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
@@ -1823,21 +1903,22 @@ function ContentEditPage() {
 		[translateMutation.mutate],
 	);
 	const handleQuickCreateByline = React.useCallback(
-		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
+		(values: BylineFormValues) => createBylineMutation.mutateAsync(values),
 		[createBylineMutation.mutateAsync],
 	);
 	const handleQuickEditByline = React.useCallback(
-		(bylineId: string, input: { slug: string; displayName: string }) =>
-			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
+		(bylineId: string, values: BylineFormValues) =>
+			updateBylineMutation.mutateAsync({ bylineId, values }),
 		[updateBylineMutation.mutateAsync],
 	);
 	const handleRevisionRestored = React.useCallback(
 		async (restoredItem: ContentItem) => {
 			recordWriteRevision(id, restoredItem);
+			setConflictedEntryId((conflicted) => (conflicted === id ? "" : conflicted));
 			await handleContentUpdateSuccess(id);
 			resetEditorItem(id);
 		},
-		[id, recordWriteRevision, handleContentUpdateSuccess, resetEditorItem],
+		[id, recordWriteRevision, setConflictedEntryId, handleContentUpdateSuccess, resetEditorItem],
 	);
 	const handlePluginEntryRefresh = React.useCallback(async () => {
 		await Promise.all([
@@ -2730,7 +2811,9 @@ const contentTypesListRoute = createRoute({
 });
 
 function ContentTypesListPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
 
 	const {
 		data: collections,
@@ -2775,6 +2858,13 @@ function ContentTypesListPage() {
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["schema", "orphans"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+		onError: (error, slug) => {
+			toastManager.add({
+				title: t`Failed to register ${slug}`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+			});
 		},
 	});
 

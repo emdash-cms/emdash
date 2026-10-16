@@ -170,7 +170,7 @@ describe("renderPullRequestBody", () => {
 		expect(completed).toContain("- [x] Bug fix (include a regression test)");
 		expect(completed).toContain("- [ ] Feature (link the approved discussion)");
 		expect(completed).toContain(
-			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+			"- [x] This PR includes AI-generated code or text — model/tool: emdashbot + Kimi K2.7 Code",
 		);
 	});
 
@@ -204,7 +204,7 @@ describe("renderPullRequestBody", () => {
 		expect(body).toContain("## Type of change");
 		expect(body).toContain("- [x] Bug fix");
 		expect(body).toContain("## Checklist");
-		expect(body).toContain("## AI-generated code disclosure");
+		expect(body).toContain("## AI assistance disclosure");
 		expect(body).toContain("- [x] This PR includes AI-generated code");
 		expect(body).toContain("## Screenshots / test output");
 		expect(body).not.toContain("<!-- Describe the change");

@@ -391,3 +391,71 @@ test("approver enrols and uses a user-verified virtual passkey", async ({ page }
 		await removeAuthenticator();
 	}
 });
+
+for (const locale of ["en", "ar"]) {
+	test(`publisher sees actionable release failures (${locale})`, async ({ page }) => {
+		await page.setViewportSize({ width: locale === "ar" ? 390 : 1280, height: 900 });
+		const reasonMessage =
+			"Your PDS rejected the release record. Contact the release service operator with the intent ID so they can check the PDS rejection. Start a fresh workflow dispatch after resolving the problem; re-running jobs reuses this terminal intent.";
+		await page.route("**/v1/**", async (route) => {
+			const path = new URL(route.request().url()).pathname;
+			if (path === "/v1/publisher") {
+				await route.fulfill(
+					success({
+						publisher: {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							delegation: {
+								releaseNsid: "com.emdashcms.experimental.package.release",
+								scope:
+									"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+								issuer: "https://authorization.example.com",
+								pdsUrl: "https://pds.example.com",
+								expiresAt: null,
+								refreshBefore: null,
+								status: "active",
+								stateVersion: 1,
+							},
+						},
+					}),
+				);
+			} else if (path === "/v1/publisher/intents") {
+				await route.fulfill(
+					success({
+						items: [
+							{
+								id: INTENT_ID,
+								publisherDid: PUBLISHER_DID,
+								packageSlug: "linguadash",
+								version: "0.2.1",
+								state: "failed",
+								stateGeneration: 13,
+								reasonCode: "PDS_RETRY_EXHAUSTED",
+								reasonMessage,
+								workflowId: INTENT_ID,
+								expiresAt: 1_800_000_000_000,
+								createdAt: 1_799_999_000_000,
+								updatedAt: 1_799_999_500_000,
+								result: null,
+								approvalUrl: null,
+							},
+						],
+					}),
+				);
+			} else {
+				await route.fulfill(success({ items: [] }));
+			}
+		});
+		await page.goto(`/publisher?locale=${locale}`);
+		await expect(page.getByText(reasonMessage, { exact: true })).toBeVisible();
+		await expect(page.getByText("PDS_RETRY_EXHAUSTED", { exact: true })).toBeVisible();
+		await expect(page.getByText(INTENT_ID, { exact: true })).toBeVisible();
+		expect(await page.locator("html").getAttribute("dir")).toBe(locale === "ar" ? "rtl" : "ltr");
+		expect(
+			await page.evaluate(
+				() => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+			),
+		).toBe(true);
+		await page.screenshot({ path: `/tmp/emdash-release-failure-${locale}.png`, fullPage: true });
+	});
+}

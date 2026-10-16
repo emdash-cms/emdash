@@ -17,6 +17,7 @@ export const MEDIA_SEARCH_MAX_LENGTH = 200;
 
 export interface MediaUploadOptions {
 	signal?: AbortSignal;
+	folderId?: string | null;
 }
 
 export interface UploadMediaOptions extends MediaUploadOptions {

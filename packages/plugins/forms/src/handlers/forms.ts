@@ -8,6 +8,7 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
+import { digestTaskName } from "../digest-task.js";
 import type {
 	FormCreateInput,
 	FormDeleteInput,
@@ -88,7 +89,7 @@ export async function formsCreateHandler(ctx: RouteContext<FormCreateInput>) {
 
 	// Schedule digest cron if enabled
 	if (form.settings.digestEnabled && ctx.cron) {
-		await ctx.cron.schedule(`digest:${id}`, {
+		await ctx.cron.schedule(digestTaskName(id), {
 			schedule: `0 ${form.settings.digestHour} * * *`,
 		});
 	}
@@ -140,16 +141,16 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 	// Update digest cron if settings changed
 	if (ctx.cron) {
 		if (updated.settings.digestEnabled && !existing.settings.digestEnabled) {
-			await ctx.cron.schedule(`digest:${input.id}`, {
+			await ctx.cron.schedule(digestTaskName(input.id), {
 				schedule: `0 ${updated.settings.digestHour} * * *`,
 			});
 		} else if (!updated.settings.digestEnabled && existing.settings.digestEnabled) {
-			await ctx.cron.cancel(`digest:${input.id}`);
+			await ctx.cron.cancel(digestTaskName(input.id));
 		} else if (
 			updated.settings.digestEnabled &&
 			updated.settings.digestHour !== existing.settings.digestHour
 		) {
-			await ctx.cron.schedule(`digest:${input.id}`, {
+			await ctx.cron.schedule(digestTaskName(input.id), {
 				schedule: `0 ${updated.settings.digestHour} * * *`,
 			});
 		}
@@ -175,7 +176,7 @@ export async function formsDeleteHandler(ctx: RouteContext<FormDeleteInput>) {
 
 	// Cancel digest cron
 	if (ctx.cron) {
-		await ctx.cron.cancel(`digest:${input.id}`).catch(() => {});
+		await ctx.cron.cancel(digestTaskName(input.id)).catch(() => {});
 	}
 
 	await forms(ctx).delete(input.id);
@@ -218,6 +219,13 @@ export async function formsDuplicateHandler(ctx: RouteContext<FormDuplicateInput
 	};
 
 	await forms(ctx).put(id, duplicate);
+
+	// The copy carries the digest setting, so it needs its own task
+	if (duplicate.settings.digestEnabled && ctx.cron) {
+		await ctx.cron.schedule(digestTaskName(id), {
+			schedule: `0 ${duplicate.settings.digestHour} * * *`,
+		});
+	}
 
 	return { id, ...duplicate };
 }

@@ -379,12 +379,14 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(await res.text()).toMatch(/skipped/);
 	});
 
-	test("submitted review batches its body and inline comments before admission", async () => {
+	test("submitted review on a bot PR refreshes its approval state and batches its feedback before admission", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const pullRequestNumber = uniqueIssueNumber();
 		await configureGitHubToken();
-		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) => {
+		const labelWrites: string[] = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (init?.method === "POST" && url.endsWith("/labels")) labelWrites.push(url);
 			return Promise.resolve(
 				new Response(
 					JSON.stringify(
@@ -439,6 +441,10 @@ describe("POST /webhook/github (workers-pool)", () => {
 			admission: { kind: "duplicate" },
 		});
 		expect(await stub.getInboxDepth()).toBe(1);
+		expect(labelWrites.every((url) => url.endsWith(`/issues/${pullRequestNumber}/labels`))).toBe(
+			true,
+		);
+		expect(labelWrites.length).toBeGreaterThan(0);
 		await runInDurableObject(stub, async (_instance, state) => {
 			const inbox =
 				await state.storage.get<
@@ -506,22 +512,11 @@ describe("POST /webhook/github (workers-pool)", () => {
 		},
 	);
 
-	test("a review on a contributor's PR moves its review label", async () => {
+	test("a review on a contributor's PR re-applies its review label", async () => {
 		const pullRequestNumber = uniqueIssueNumber();
 		await configureGitHubToken();
 		const repoUrl = `https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}`;
 		const reads: Record<string, unknown> = {
-			[`${repoUrl}/pulls/${pullRequestNumber}/reviews?per_page=100&page=1`]: [
-				{
-					state: "COMMENTED",
-					submitted_at: "2026-09-14T10:22:00Z",
-					author_association: "NONE",
-					user: { login: "emdashbot[bot]", type: "Bot" },
-				},
-			],
-			[`${repoUrl}/pulls/${pullRequestNumber}/commits?per_page=100&page=1`]: [
-				{ parents: [{ sha: "a1" }], commit: { committer: { date: "2026-09-14T09:40:00Z" } } },
-			],
 			[`${repoUrl}/issues/${pullRequestNumber}/labels?per_page=100`]: [
 				{ name: "review/needs-review" },
 				{ name: "area/core" },
@@ -553,21 +548,21 @@ describe("POST /webhook/github (workers-pool)", () => {
 					head: { repo: { full_name: `contributor/${testEnv.GITHUB_REPO}` } },
 					base: { repo: { full_name: `${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}` } },
 				},
-				review: { state: "commented", user: { login: "emdashbot[bot]", type: "Bot" } },
+				review: { state: "approved", user: { login: "alice", type: "User" } },
 			},
 		});
 
 		expect(res.status).toBe(202);
 		expect(writes).toEqual([
 			{
-				method: "POST",
-				url: `${repoUrl}/issues/${pullRequestNumber}/labels`,
-				body: { labels: ["review/awaiting-author"] },
-			},
-			{
 				method: "DELETE",
 				url: `${repoUrl}/issues/${pullRequestNumber}/labels/review%2Fneeds-review`,
 				body: null,
+			},
+			{
+				method: "POST",
+				url: `${repoUrl}/issues/${pullRequestNumber}/labels`,
+				body: { labels: ["review/needs-review"] },
 			},
 		]);
 	});

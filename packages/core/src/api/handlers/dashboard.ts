@@ -20,6 +20,7 @@ import {
 	type ScheduledPolicyRejection,
 	type VersionedScheduledPolicyRejection,
 } from "../../plugins/content-policy.js";
+import type { VersionedValue } from "../../plugins/types.js";
 import { getSchedulerHealth, type SchedulerHealth } from "../../scheduler-health.js";
 import type { ApiResult } from "../types.js";
 
@@ -61,9 +62,14 @@ const POLICY_REJECTION_PREVIEW_LIMIT = 20;
  *
  * Queries are intentionally lightweight — counts use indexed columns,
  * and recent items are capped at 10.
+ *
+ * Without `includeDrafts` (callers lacking `content:read_drafts`), only
+ * published entries are counted or listed, and scheduled-publication policy
+ * rejections are omitted.
  */
 export async function handleDashboardStats(
 	db: Kysely<Database>,
+	{ includeDrafts }: { includeDrafts: boolean },
 	now = new Date(),
 ): Promise<ApiResult<DashboardStats>> {
 	try {
@@ -79,6 +85,17 @@ export async function handleDashboardStats(
 		const collectionStats: CollectionStats[] = await Promise.all(
 			collections.map(async (col) => {
 				const stats = await contentRepo.getStats(col.slug, now);
+				if (!includeDrafts) {
+					return {
+						slug: col.slug,
+						label: col.label,
+						total: stats.published,
+						published: stats.published,
+						draft: 0,
+						scheduled: 0,
+						overdueScheduled: 0,
+					};
+				}
 				return {
 					slug: col.slug,
 					label: col.label,
@@ -105,20 +122,22 @@ export async function handleDashboardStats(
 			mediaRepo.count(),
 			userRepo.count(),
 			getSchedulerHealth(db, now),
-			optionsRepo.countByPrefix(SCHEDULED_POLICY_REJECTION_PREFIX),
-			optionsRepo.getVersionedByPrefix<ScheduledPolicyRejection>(
-				SCHEDULED_POLICY_REJECTION_PREFIX,
-				{
-					limit: POLICY_REJECTION_PREVIEW_LIMIT,
-				},
-			),
+			includeDrafts ? optionsRepo.countByPrefix(SCHEDULED_POLICY_REJECTION_PREFIX) : 0,
+			includeDrafts
+				? optionsRepo.getVersionedByPrefix<ScheduledPolicyRejection>(
+						SCHEDULED_POLICY_REJECTION_PREFIX,
+						{
+							limit: POLICY_REJECTION_PREVIEW_LIMIT,
+						},
+					)
+				: new Map<string, VersionedValue<ScheduledPolicyRejection>>(),
 		]);
 		const policyRejections = [...versionedPolicyRejectionOptions.values()]
 			.filter(({ value }) => isScheduledPolicyRejection(value))
 			.map(({ value, revision }) => ({ ...value, _rev: revision }));
 
-		// Recent items across all collections (last 10 updated, any status)
-		const recentItems = await fetchRecentItems(db, collections);
+		// Recent items across all collections (last 10 updated)
+		const recentItems = await fetchRecentItems(db, collections, includeDrafts);
 
 		return {
 			success: true,
@@ -165,10 +184,13 @@ interface RecentItemRow {
  * `title` is not a standard column — it's a user-defined field. We query
  * `_emdash_fields` to discover which collections have one and fall back
  * to `slug` (which is always present) otherwise.
+ *
+ * Without `includeDrafts`, only published entries are considered.
  */
 async function fetchRecentItems(
 	db: Kysely<Database>,
 	collections: Array<{ slug: string; label: string }>,
+	includeDrafts: boolean,
 ): Promise<RecentItem[]> {
 	if (collections.length === 0) return [];
 
@@ -181,6 +203,7 @@ async function fetchRecentItems(
 		.execute();
 
 	const collectionsWithTitle = new Set(titleFields.map((r) => r.collection_slug));
+	const statusFilter = includeDrafts ? sql`` : sql`AND status = 'published'`;
 
 	// Issue one query per collection in parallel, then merge in JS.
 	// A single UNION ALL across N collections trips D1's
@@ -208,7 +231,7 @@ async function fetchRecentItems(
 					updated_at,
 					author_id
 				FROM ${sql.ref(table)}
-				WHERE deleted_at IS NULL
+				WHERE deleted_at IS NULL ${statusFilter}
 				ORDER BY updated_at DESC
 				LIMIT 10
 			`.execute(db);

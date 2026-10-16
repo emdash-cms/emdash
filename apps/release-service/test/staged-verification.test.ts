@@ -27,58 +27,110 @@ afterEach(async () => {
 });
 
 describe("staged release verification", () => {
-	it("sends exact private R2 bytes to the isolated verifier", async () => {
-		const packageChecksum = await checksum(PACKAGE);
-		const provenanceChecksum = await checksum(PROVENANCE);
-		for (const artifact of [
-			{
-				slot: "package" as const,
-				bytes: PACKAGE,
-				checksum: packageChecksum,
-				contentType: "application/gzip",
-			},
-			{
-				slot: "provenance" as const,
-				bytes: PROVENANCE,
-				checksum: provenanceChecksum,
-				contentType: "application/json",
-			},
-		]) {
-			await persistWorkloadStagedArtifact(env.PUBLICATION_STAGING, {
-				publisherDid: PUBLISHER_DID,
-				workloadDigest: WORKLOAD_DIGEST,
-				packageSlug: "gallery",
-				version: "1.2.3",
-				slot: artifact.slot,
-				checksum: artifact.checksum,
-				contentType: artifact.contentType,
-				contentLength: artifact.bytes.byteLength,
-				body: new Response(artifact.bytes).body!,
+	it.each([false, true])(
+		"distinguishes verifier RPC failures after loading private bytes (rpcFailure=%s)",
+		async (rpcFailure) => {
+			const packageChecksum = await checksum(PACKAGE);
+			const provenanceChecksum = await checksum(PROVENANCE);
+			for (const artifact of [
+				{
+					slot: "package" as const,
+					bytes: PACKAGE,
+					checksum: packageChecksum,
+					contentType: "application/gzip",
+				},
+				{
+					slot: "provenance" as const,
+					bytes: PROVENANCE,
+					checksum: provenanceChecksum,
+					contentType: "application/json",
+				},
+			]) {
+				await persistWorkloadStagedArtifact(env.PUBLICATION_STAGING, {
+					publisherDid: PUBLISHER_DID,
+					workloadDigest: WORKLOAD_DIGEST,
+					packageSlug: "gallery",
+					version: "1.2.3",
+					slot: artifact.slot,
+					checksum: artifact.checksum,
+					contentType: artifact.contentType,
+					contentLength: artifact.bytes.byteLength,
+					body: new Response(artifact.bytes).body!,
+				});
+			}
+			const input: VerifyReleaseInput = {
+				artifact: {
+					url: workloadArtifactSourceUrl(ORIGIN, "package", packageChecksum),
+					checksum: packageChecksum,
+					packageSlug: "gallery",
+					version: "1.2.3",
+				},
+				provenance: {
+					url: workloadArtifactSourceUrl(ORIGIN, "provenance", provenanceChecksum),
+					checksum: provenanceChecksum,
+					predicateType: "https://slsa.dev/provenance/v1",
+					sourceRepository: "https://github.com/example/gallery",
+					builderId:
+						"https://github.com/example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+				},
+				profileRepository: "https://github.com/example/gallery",
+			};
+			const verifyReleaseBytes = vi.fn(async () => {
+				if (rpcFailure) throw new Error("provider detail with secret-token");
+				return {
+					success: false as const,
+					error: { code: "VERIFIER_INTERNAL_ERROR" as const, message: "verified private bytes" },
+				};
 			});
-		}
+			const verifyRelease = vi.fn();
+
+			await expect(
+				verifyReleaseEvidence(
+					{
+						publisherDid: PUBLISHER_DID,
+						packageSlug: "gallery",
+						version: "1.2.3",
+						workloadIdempotencyDigest: WORKLOAD_DIGEST,
+					},
+					input,
+					{
+						bucket: env.PUBLICATION_STAGING,
+						publicOrigin: ORIGIN,
+						verifier: { verifyRelease, verifyReleaseBytes },
+					},
+				),
+			).resolves.toMatchObject({
+				error: {
+					code: "VERIFIER_INTERNAL_ERROR",
+					message: rpcFailure
+						? "The release verifier could not complete its check"
+						: "verified private bytes",
+				},
+			});
+			expect(verifyRelease).not.toHaveBeenCalled();
+			expect(verifyReleaseBytes).toHaveBeenCalledWith(input, PACKAGE, PROVENANCE);
+		},
+	);
+
+	it("reports missing private uploads separately from verifier failures", async () => {
 		const input: VerifyReleaseInput = {
 			artifact: {
-				url: workloadArtifactSourceUrl(ORIGIN, "package", packageChecksum),
-				checksum: packageChecksum,
+				url: workloadArtifactSourceUrl(ORIGIN, "package", await checksum(PACKAGE)),
+				checksum: await checksum(PACKAGE),
 				packageSlug: "gallery",
 				version: "1.2.3",
 			},
 			provenance: {
-				url: workloadArtifactSourceUrl(ORIGIN, "provenance", provenanceChecksum),
-				checksum: provenanceChecksum,
+				url: workloadArtifactSourceUrl(ORIGIN, "provenance", await checksum(PROVENANCE)),
+				checksum: await checksum(PROVENANCE),
 				predicateType: "https://slsa.dev/provenance/v1",
 				sourceRepository: "https://github.com/example/gallery",
 				builderId:
-					"https://github.com/example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+					"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
 			},
 			profileRepository: "https://github.com/example/gallery",
 		};
-		const verifyReleaseBytes = vi.fn(async () => ({
-			success: false as const,
-			error: { code: "VERIFIER_INTERNAL_ERROR" as const, message: "verified private bytes" },
-		}));
-		const verifyRelease = vi.fn();
-
+		const verifyReleaseBytes = vi.fn();
 		await expect(
 			verifyReleaseEvidence(
 				{
@@ -91,12 +143,11 @@ describe("staged release verification", () => {
 				{
 					bucket: env.PUBLICATION_STAGING,
 					publicOrigin: ORIGIN,
-					verifier: { verifyRelease, verifyReleaseBytes },
+					verifier: { verifyRelease: vi.fn(), verifyReleaseBytes },
 				},
 			),
-		).resolves.toMatchObject({ error: { message: "verified private bytes" } });
-		expect(verifyRelease).not.toHaveBeenCalled();
-		expect(verifyReleaseBytes).toHaveBeenCalledWith(input, PACKAGE, PROVENANCE);
+		).resolves.toMatchObject({ error: { code: "WORKLOAD_STAGING_MISSING" } });
+		expect(verifyReleaseBytes).not.toHaveBeenCalled();
 	});
 
 	it("preserves URL verification for existing hand-authored release records", async () => {

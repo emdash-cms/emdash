@@ -302,7 +302,7 @@ export function fillPullRequestTemplate(template: string, kind: Kind): string {
 		.replace(typeCheckbox, `- [x] ${typeLabel}$1`)
 		.replace(
 			AI_DISCLOSURE_CHECKBOX_RE,
-			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+			"- [x] This PR includes AI-generated code or text — model/tool: emdashbot + Kimi K2.7 Code",
 		)
 		.trim();
 }
