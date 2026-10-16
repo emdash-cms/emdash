@@ -18,6 +18,7 @@ it("bundles emdash/client helpers into an independently executable plugin", asyn
 	try {
 		await mkdir(join(dir, "src"));
 		await mkdir(join(dir, "node_modules"));
+		// Requires a root `pnpm build` for the real emdash/client artifact.
 		await symlink(
 			fileURLToPath(new URL("../../core/", import.meta.url)),
 			join(dir, "node_modules", "emdash"),
