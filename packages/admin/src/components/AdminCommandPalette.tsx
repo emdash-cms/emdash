@@ -34,6 +34,7 @@ type CommandPaletteManifest = {
 		{ label: string; labelSingular?: string; icon?: string; hidden?: boolean }
 	>;
 	plugins: AdminManifest["plugins"];
+	admin?: { hiddenNavItems?: string[] };
 };
 
 // Role levels (matching @emdash-cms/auth)
@@ -289,8 +290,10 @@ export function buildNavItems(
 		}
 	}
 
-	// Filter by role
-	return items.filter((item) => !item.minRole || userRole >= item.minRole);
+	const hidden = manifest.admin?.hiddenNavItems ?? [];
+	return items.filter(
+		(item) => (!item.minRole || userRole >= item.minRole) && !hidden.includes(item.id),
+	);
 }
 
 function filterNavItems(
