@@ -162,6 +162,7 @@ async function resolveInternalUrl(
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
+		caption: item.caption,
 		meta: item.meta,
 	};
 }
@@ -195,13 +196,14 @@ async function resolveLocalId(
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
+		caption: item.caption,
 		meta: item.meta,
 	};
 }
 
 /**
  * Merge provider data into an existing MediaValue, preserving caller-supplied fields.
- * Caller `alt` takes priority over provider `alt` (per-usage, not per-image).
+ * Caller text takes priority over provider defaults (per-usage, not per-image).
  */
 function mergeProviderData(existing: MediaValue, item: MediaProviderItem): MediaValue {
 	const result = { ...existing };
@@ -222,6 +224,8 @@ function mergeProviderData(existing: MediaValue, item: MediaProviderItem): Media
 
 	// Fill missing alt (provider alt is fallback, not override)
 	if (!result.alt && item.alt) result.alt = item.alt;
+
+	if (result.caption == null && item.caption != null) result.caption = item.caption;
 
 	// Fill missing meta (merge, don't replace)
 	if (item.meta) {
@@ -258,6 +262,7 @@ function recordToMediaValue(obj: Record<string, unknown>): MediaValue {
 	if (typeof obj.blurhash === "string") result.blurhash = obj.blurhash;
 	if (typeof obj.dominantColor === "string") result.dominantColor = obj.dominantColor;
 	if (typeof obj.alt === "string") result.alt = obj.alt;
+	if (typeof obj.caption === "string") result.caption = obj.caption;
 	if (isRecord(obj.meta)) result.meta = obj.meta;
 	return result;
 }

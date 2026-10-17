@@ -12,6 +12,7 @@ describe("mediaItemToValue", () => {
 			mimeType: "image/jpeg",
 			width: 1200,
 			height: 800,
+			caption: "Photo credit",
 			blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
 			dominantColor: "#aabbcc",
 		};
@@ -23,6 +24,7 @@ describe("mediaItemToValue", () => {
 			id: "01ABC",
 			width: 1200,
 			height: 800,
+			caption: "Photo credit",
 			blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
 			dominantColor: "#aabbcc",
 		});

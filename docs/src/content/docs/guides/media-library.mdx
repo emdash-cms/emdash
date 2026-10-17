@@ -101,6 +101,10 @@ the selection. A field's MIME-type rules limit which library items and media sou
 The blog template's `featured_image` field stores the selected media value with the post. Saving the
 entry saves that reference to the draft; publishing makes it available to public content queries.
 
+When a selected image has a caption, the image field's media value includes it as `caption`, alongside
+`alt`. These are saved with the content reference; changing library metadata does not rewrite other
+entries.
+
 ### Gallery fields
 
 Select one or more images, arrange them under **Selected media**, and confirm. A gallery keeps its
