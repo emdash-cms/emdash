@@ -49,6 +49,23 @@ export function isMissingColumnError(error: unknown, column?: string): boolean {
 }
 
 /**
+ * System tables carry the `_emdash_` prefix. A missing column error on one of
+ * these tables signals a pending migration rather than a caller typo, so it
+ * should surface as an error instead of being swallowed as an empty result.
+ *
+ * The match is anchored to a whole system table name (a `_emdash_` token that
+ * starts a word) so content tables whose slugs happen to contain `_emdash_`
+ * are not misclassified as system tables.
+ */
+const SYSTEM_TABLE_NAME_RE = /\b_emdash_[a-z][a-z0-9_]*\b/;
+
+export function isMissingSystemColumnError(error: unknown): boolean {
+	if (!isMissingColumnError(error)) return false;
+	const message = messageOf(error);
+	return SYSTEM_TABLE_NAME_RE.test(message);
+}
+
+/**
  * Returns true when `error` is a "table does not exist" error across the
  * dialects EmDash supports (D1/SQLite and PostgreSQL). Used by runtime
  * probes to treat pre-migration databases as empty without logging a scary

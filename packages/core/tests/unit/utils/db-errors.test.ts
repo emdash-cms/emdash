@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { isMissingColumnError, isMissingTableError } from "../../../src/utils/db-errors.js";
+import {
+	isMissingColumnError,
+	isMissingSystemColumnError,
+	isMissingTableError,
+} from "../../../src/utils/db-errors.js";
 
 describe("isMissingTableError", () => {
 	it("detects SQLite / D1 phrasing", () => {
@@ -78,5 +82,40 @@ describe("isMissingColumnError", () => {
 			true,
 		);
 		expect(isMissingColumnError(new Error("no such column: name"), "deleted_at")).toBe(false);
+	});
+});
+
+describe("isMissingSystemColumnError", () => {
+	it("detects missing columns on _emdash_ system tables", () => {
+		expect(isMissingSystemColumnError(new Error("no such column: _emdash_relations.slug"))).toBe(
+			true,
+		);
+		expect(
+			isMissingSystemColumnError(
+				new Error('column "_emdash_bylines"."avatar_media_id" does not exist'),
+			),
+		).toBe(true);
+	});
+
+	it("rejects missing columns on content tables whose names contain _emdash_", () => {
+		expect(
+			isMissingSystemColumnError(new Error("no such column: ec_my_emdash_collection.title")),
+		).toBe(false);
+	});
+
+	it("rejects missing columns that do not name a system table", () => {
+		expect(isMissingSystemColumnError(new Error("no such column: r.slug"))).toBe(false);
+		expect(isMissingSystemColumnError(new Error("no such column: ec_posts.nonexistent"))).toBe(
+			false,
+		);
+		expect(isMissingSystemColumnError(new Error("no such column: my_emdash_field"))).toBe(false);
+		expect(isMissingSystemColumnError(new Error("no such table: _emdash_relations"))).toBe(false);
+	});
+
+	it("handles non-Error inputs safely", () => {
+		expect(isMissingSystemColumnError("no such column: _emdash_relations.slug")).toBe(true);
+		expect(isMissingSystemColumnError(null)).toBe(false);
+		expect(isMissingSystemColumnError(undefined)).toBe(false);
+		expect(isMissingSystemColumnError(42)).toBe(false);
 	});
 });
