@@ -7,6 +7,8 @@ import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
+import { createObjectCache } from "../../../src/object-cache/memory.js";
 import { encryptPluginSetting } from "../../../src/plugins/settings.js";
 import { runWithContext } from "../../../src/request-context.js";
 import {
@@ -514,8 +516,66 @@ async function setupCountingDb(): Promise<{
 
 describe("Site Settings caching", () => {
 	beforeEach(() => {
+		__setObjectCacheBackendForTests(null);
 		invalidateSiteSettingsCache();
 	});
+
+	afterEach(() => {
+		__setObjectCacheBackendForTests(null);
+		vi.restoreAllMocks();
+	});
+
+	it("refreshes settings changed by another isolate after 30 seconds", async () => {
+		const { db, queries, reset } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		await setSiteSettings({ seo: { googleVerification: "old" } }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).seo?.googleVerification).toBe("old");
+
+		// A write in another isolate does not invalidate this isolate's cache.
+		await new OptionsRepository(db).set("site:seo", { googleVerification: "new" });
+		reset();
+		clock.mockReturnValue(now + 29_999);
+		expect((await read()).seo?.googleVerification).toBe("old");
+		expect(queries).toEqual([]);
+
+		clock.mockReturnValue(now + 30_000);
+		const refreshed = await Promise.all([read(), read(), read()]);
+		expect(refreshed.map((settings) => settings.seo?.googleVerification)).toEqual([
+			"new",
+			"new",
+			"new",
+		]);
+		expect(queries.filter((q) => q.includes("LIKE") && q.includes("options"))).toHaveLength(1);
+
+		reset();
+		clock.mockReturnValue(now + 59_999);
+		expect((await read()).seo?.googleVerification).toBe("new");
+		expect(queries).toEqual([]);
+	});
+
+	it.each([false, true])(
+		"reads live settings for route-cache fills (object cache: %s)",
+		async (objectCache) => {
+			if (objectCache) {
+				__setObjectCacheBackendForTests(createObjectCache({}), { keyPrefix: "settings-fill-test" });
+			}
+			const { db } = await setupCountingDb();
+			await setSiteSettings({ seo: { googleVerification: "old" } }, db);
+			const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+			expect((await read()).seo?.googleVerification).toBe("old");
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			await new OptionsRepository(db).set("site:seo", { googleVerification: "new" });
+			await runWithContext({ editMode: false, db, routeCacheFill: true }, async () => {
+				expect((await getSiteSettings()).seo?.googleVerification).toBe("new");
+				expect((await getSiteSetting("seo"))?.googleVerification).toBe("new");
+			});
+
+			expect((await read()).seo?.googleVerification).toBe("old");
+		},
+	);
 
 	it("getSiteSetting() does not hit the DB after getSiteSettings() in the same request", async () => {
 		const { db, queries, reset } = await setupCountingDb();

@@ -24,6 +24,7 @@ import {
 } from "../plugins/settings.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
 import { bumpRunningExportWriteEpochs } from "../transfer/fence.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 
@@ -82,10 +83,8 @@ async function decodePersistedPluginSetting(
  * Worker-isolate cache for the resolved `site:*` settings.
  *
  * Site settings (title, logo, SEO defaults) change rarely but are read on
- * every public request. Caching across the isolate's lifetime drops the
- * `options WHERE name LIKE 'site:%'` prefix scan from once-per-request to
- * once-per-isolate. Cross-isolate staleness is bounded by isolate lifetime
- * (workerd typically recycles within minutes); acceptable for chrome.
+ * every public request. Cache for 30 seconds so writes in other isolates
+ * become visible without an options-table scan on every request.
  *
  * Backed by single-flight-cache.ts: concurrent cold reads coalesce onto one
  * query via a reclaimable single-flight lock and the resolved *value* is
@@ -94,13 +93,19 @@ async function decodePersistedPluginSetting(
  * Symbol.for key so Vite SSR chunk duplication doesn't produce two
  * independent caches (same pattern as request-context.ts).
  */
-const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings");
+interface CachedSiteSettings {
+	data: Partial<SiteSettings>;
+	expiresAt: number;
+}
+
+const SITE_SETTINGS_CACHE_TTL_MS = 30_000;
+const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings:ttl");
 const g = globalThis as Record<symbol, unknown>;
-const settingsCache: SingleFlightCache<Partial<SiteSettings>> =
+const settingsCache: SingleFlightCache<CachedSiteSettings> =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(g[SITE_SETTINGS_CACHE_KEY] as SingleFlightCache<Partial<SiteSettings>> | undefined) ??
+	(g[SITE_SETTINGS_CACHE_KEY] as SingleFlightCache<CachedSiteSettings> | undefined) ??
 	(() => {
-		const c = createSingleFlightCache<Partial<SiteSettings>>();
+		const c = createSingleFlightCache<CachedSiteSettings>();
 		g[SITE_SETTINGS_CACHE_KEY] = c;
 		return c;
 	})();
@@ -110,7 +115,7 @@ const settingsCache: SingleFlightCache<Partial<SiteSettings>> =
  * `getSiteSettings()` to re-query the database.
  *
  * Called from every `site:*` write path. Other isolates still serve their
- * own cached copy until they expire — staleness bounded by isolate lifetime.
+ * own cached copy until its 30-second TTL expires.
  */
 export function invalidateSiteSettingsCache(): void {
 	invalidateSingleFlightCache(settingsCache);
@@ -263,26 +268,34 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
  * ```
  */
 export function getSiteSettings(): Promise<Partial<SiteSettings>> {
-	// requestCached dedupes within a single request; singleFlightCached
-	// coalesces across requests and caches the resolved value for the
-	// global scope's lifetime without ever sharing an awaitable promise. The
-	// distributed object cache (cachedQuery) sits beneath both, backing cold
-	// isolates without a database round-trip.
-	return requestCached("siteSettings", () =>
-		singleFlightCached(
+	return requestCached("siteSettings", async () => {
+		const load = async () => getSiteSettingsWithDb(await getDb());
+		// A purged page must not be rebuilt from an isolate's stale snapshot.
+		// Keep the live read request-local rather than publishing it across requests.
+		if (getRequestContext()?.routeCacheFill) return load();
+
+		if (
+			settingsCache.hasValue &&
+			settingsCache.value &&
+			Date.now() >= settingsCache.value.expiresAt
+		) {
+			invalidateSingleFlightCache(settingsCache);
+		}
+
+		const cached = await singleFlightCached(
 			settingsCache,
-			() =>
-				cachedQuery({
+			async () => {
+				const data = await cachedQuery({
 					namespace: SETTINGS_CACHE_NAMESPACE,
 					key: "all",
-					load: async () => {
-						const db = await getDb();
-						return getSiteSettingsWithDb(db);
-					},
-				}),
+					load,
+				});
+				return { data, expiresAt: Date.now() + SITE_SETTINGS_CACHE_TTL_MS };
+			},
 			{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
-		),
-	);
+		);
+		return cached.data;
+	});
 }
 
 /**
