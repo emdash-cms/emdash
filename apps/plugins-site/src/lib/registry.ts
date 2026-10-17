@@ -13,6 +13,8 @@ import sanitizeHtml from "sanitize-html";
 
 const RELEASE_COLLECTION = "com.emdashcms.experimental.package.release";
 const OFFICIAL_PUBLISHER_DID = "did:plc:xyraubanwc5fwemkduw3upi6";
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+const HEADING_TAG = /<h([1-6])[\s>]/gi;
 
 export const REGISTRY_PAGE_CACHE = {
 	maxAge: 60,
@@ -112,8 +114,11 @@ export function repositoryUrl(
  */
 export function renderRegistryMarkdown(markdown: string): string {
 	const rendered = marked.parse(markdown, { async: false });
+	// Sanitizing drops comments, so headings inside them don't count.
 	const shallowest = Math.min(
-		...Array.from(rendered.matchAll(/<h([1-6])[\s>]/gi), (match) => Number(match[1])),
+		...Array.from(rendered.replace(HTML_COMMENT, "").matchAll(HEADING_TAG), (match) =>
+			Number(match[1]),
+		),
 	);
 	const nestHeading = (tagName: string) => ({
 		tagName: `h${Math.min(4, 3 + Number(tagName.slice(1)) - shallowest)}`,
