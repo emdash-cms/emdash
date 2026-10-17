@@ -1,0 +1,19 @@
+skills/adversarial-reviewer/SKILL.md
+  s_4c97aa8e7b616f::t_95b9ef4d16ba57 15,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ff3a42d450a0fc637ade1a37e28eb8b615ff95d4",
+  "prompts": {},
+  "sessions": {
+    "s_4c97aa8e7b616f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cbbb5cb7-3002-4f75-9ee5-0c59d1b89d52",
+        "model": "unknown"
+      },
+      "human_author": "Matt Kane <mkane@cloudflare.com>"
+    }
+  }
+}
