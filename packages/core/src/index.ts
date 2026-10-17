@@ -446,6 +446,15 @@ export type {
 	CommentListOptions,
 	CommentCountOptions,
 
+	// Email hook types
+	EmailMessage,
+	EmailBeforeSendEvent,
+	EmailDeliverEvent,
+	EmailAfterSendEvent,
+	EmailBeforeSendHandler,
+	EmailDeliverHandler,
+	EmailAfterSendHandler,
+
 	// Scheduler types
 	CronScheduler,
 	SystemCleanupFn,
