@@ -2091,7 +2091,7 @@ async function applyContentTaxonomies(
 }
 
 /**
- * Apply menu items recursively.
+ * Collect menu item rows recursively.
  *
  * When a `SeedMenuItem` carries `id`/`translationOf`, the import resolves the
  * source item's `translation_group` so cross-locale "same nav entry" links
