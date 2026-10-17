@@ -11,7 +11,7 @@ import {
 	type DialectTestContext,
 } from "../utils/test-db.js";
 
-describeEachDialect("atomic seed menu replacement", (dialect) => {
+describeEachDialect("atomic seed menu and widget replacement", (dialect) => {
 	let db: Kysely<Database>;
 	let context: DialectTestContext;
 
