@@ -62,3 +62,37 @@ Time is the workflow's duration, including about 10 to 15 seconds to hydrate the
 ## Recommendation
 
 Switching the review model to Claude Opus 5.5 would be cheaper and roughly ten times faster than Kimi, and it more than doubles the key findings (6 against 2.5 of 20) with no false claims. GPT-6.1 Sol is close (5 of 20) and the cheapest, but it made the one overstated finding and has the one wrong verdict on a clean PR. The model is not the main limit, though: no model came close to the answer key with the current brief. Before changing models, test whether giving the reviewer the linked issue and framing the review around the reported problem lifts recall; the variants below measure that. Treat these numbers as indicative: there is one run per case, and per-case results varied between runs in earlier replays.
+
+## Variants: linked issue and review framing
+
+Two eval-only context variants, run on the five bot PRs with Opus and Sol. Each is gated by `REVIEW_CONTEXT_VARIANT`, which production never sets.
+
+- **issue**: the issue each PR says it resolves (title and body, no comments), fetched by the runner and rendered as an untrusted "Linked issue" section after the description. Production passes only the PR text, although the review skill says the linked issue is among its inputs.
+- **issue+framing**: the issue, plus an instruction to apply first, before enumerating candidates: establish whether the change fixes what was reported in the reporter's situation and on their path; whether every claim in the title, description and changeset is true; whether the same problem exists elsewhere (sibling call sites, other backends, data already stored in the old shape); and what the tests prove and cannot catch.
+
+One run per case. The variants ran with eight reviews at a time, so their times are slightly inflated.
+
+| PR (key items)          | Opus baseline | Opus issue | Opus issue+framing | Sol baseline | Sol issue | Sol issue+framing |
+| ----------------------- | ------------- | ---------- | ------------------ | ------------ | --------- | ----------------- |
+| 4226 (K1–K3)            | 2 ✓           | 2 ✓        | 3 ✓                | 2 ✓          | 2 ✓       | 2 ✓               |
+| 4225 (K4, K5, K15, K16) | 0 ✗           | 0 ✗        | 0.5 ✗              | 0 ✗          | 0 ✗       | 0 ✗               |
+| 4224 (K6, K7, K14)      | 0 ✗           | 0 ✗        | 2 ✓                | 0 ✗          | 2 ✓       | 1 ✓               |
+| 4221 (K8, K9)           | 1 ✗           | 1 ✗        | 1 ✓                | 0 ✗          | 0 ✗       | 0 ✗               |
+| 4201 (K10–K13)          | 1 ✓           | 0 ✗        | 1 ✓                | 1 ✓          | 1 ✓       | 1 ✓               |
+| **Key score (of 16)**   | **4**         | **3**      | **7.5**            | **3**        | **5**     | **4**             |
+| False claims            | 0             | 0          | 0                  | 0            | 0         | 0                 |
+| Verdicts right (of 5)   | 2             | 1          | 4                  | 2            | 3         | 3                 |
+| Mean tool calls         | 11            | 11         | 13                 | 11           | 11        | 13                |
+| Mean tokens             | 0.36M         | 0.33M      | 0.47M              | 0.61M        | 0.67M     | 0.76M             |
+| Mean time               | 1.3 min       | 1.3 min    | 1.7 min            | 1.3 min      | 1.4 min   | 1.6 min           |
+| Mean cost               | $0.34         | $0.33      | $0.43              | $0.28        | $0.31     | $0.31             |
+
+✓ and ✗ mark whether the verdict was right; every PR here has a should-fix defect, so approving is wrong.
+
+- **Opus with framing** nearly doubled its key findings (7.5 against 4) and got 4 of 5 verdicts right, for about $0.09 more a review. On 4224 it found K6 and K14: rows already stored under a code become unreachable, and re-applying a seed creates a duplicate row. On 4226 it found K3 for the first time in any run: expiry drops the snapshot before the refresh, so a failed refresh errors, and it suggested stale-while-revalidate. On 4221 it withheld approval over K9, which it had found every time but had approved past.
+- **The issue alone did not help Opus** (3 against 4): it tied K1 to the reporter's setup on 4226, but it approved 4201 without K11, which it found in the baseline. With one run per case, the difference is within run-to-run noise.
+- **Sol gained from the issue** (5 against 3), all of it on 4224, where the issue text names code-stamped rows; the framing added nothing further (4). Sol still approved 4225 and 4221 in every variant.
+- **Still missed by every run**: K4 (the widget-area race), K7, K8, K10, K12, K13, K15 and K16. K5 came closest, with a dismissed half (Opus with framing, on the REST D1 dialect rather than Durable Object SQL).
+- No variant introduced a false claim.
+
+With the framing and the linked issue in the context, Opus is the strongest reviewer measured here: 7.5 of 16 against Kimi's 1.5 on the same five PRs in the baseline, at a fraction of Kimi's time. These are single runs on five PRs, so the next step is repeat runs, and the clean and human PRs under the framing variant, to check that the framing does not raise false alarms there before it reaches production.

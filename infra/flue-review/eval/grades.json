@@ -2,142 +2,277 @@
 	"baseline": {
 		"4226": {
 			"kimi": {
-				"scores": { "K1": 1, "K2": 0, "K3": 0 },
+				"scores": {
+					"K1": 1,
+					"K2": 0,
+					"K3": 0
+				},
 				"falseClaims": [],
 				"note": "K1 with the exact middleware gate; praised the routeCacheFill test instead of noting it hides K1"
 			},
 			"opus": {
-				"scores": { "K1": 1, "K2": 1, "K3": 0 },
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
 				"falseClaims": [],
 				"note": "K1 with the exact gate; K2 names the objectCache:false test that sets routeCacheFill by hand"
 			},
 			"sol": {
-				"scores": { "K1": 1, "K2": 1, "K3": 0 },
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
 				"falseClaims": [],
 				"note": "K1 and K2, same as Opus"
 			}
 		},
 		"4225": {
 			"kimi": {
-				"scores": { "K4": 0, "K5": 0, "K15": 0, "K16": 0 },
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
 				"falseClaims": [],
 				"note": "judged the replacement atomic everywhere; comment verdict only for two stale-comment and test-layout suggestions"
 			},
 			"opus": {
-				"scores": { "K4": 0, "K5": 0, "K15": 0, "K16": 0 },
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
 				"falseClaims": [],
 				"note": "noted the Durable Object dialect takes the transaction fallback without seeing that the fallback is not atomic there"
 			},
 			"sol": {
-				"scores": { "K4": 0, "K5": 0, "K15": 0, "K16": 0 },
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
 				"falseClaims": [],
 				"note": "clean approve"
 			}
 		},
 		"4224": {
 			"kimi": {
-				"scores": { "K6": 0, "K7": 0, "K14": 0 },
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
 				"falseClaims": [],
 				"note": "repeated the PR's \"no migration is required\""
 			},
 			"opus": {
-				"scores": { "K6": 0, "K7": 0, "K14": 0 },
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
 				"falseClaims": [],
 				"note": "repeated the PR's \"no migration is needed\""
 			},
 			"sol": {
-				"scores": { "K6": 0, "K7": 0, "K14": 0 },
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
 				"falseClaims": [],
 				"note": "clean approve"
 			}
 		},
 		"4221": {
 			"kimi": {
-				"scores": { "K8": 0, "K9": 0.5 },
+				"scores": {
+					"K8": 0,
+					"K9": 0.5
+				},
 				"falseClaims": [],
 				"note": "noted the <img> leak and the ignored getImage path, then dismissed both as pre-existing"
 			},
 			"opus": {
-				"scores": { "K8": 0, "K9": 1 },
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
 				"falseClaims": [],
 				"note": "K9 in full (leak onto <img>, no effect on the getImage path) as a suggestion; approved"
 			},
-			"sol": { "scores": { "K8": 0, "K9": 0 }, "falseClaims": [], "note": "clean approve" }
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
 		},
 		"4201": {
 			"kimi": {
-				"scores": { "K10": 0, "K11": 0, "K12": 0, "K13": 0 },
+				"scores": {
+					"K10": 0,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
 				"falseClaims": [],
 				"note": "clean approve"
 			},
 			"opus": {
-				"scores": { "K10": 0, "K11": 1, "K12": 0, "K13": 0 },
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
 				"falseClaims": [],
 				"note": "K11 with generator and schema locations; valid backfill note"
 			},
 			"sol": {
-				"scores": { "K10": 0, "K11": 1, "K12": 0, "K13": 0 },
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
 				"falseClaims": [],
 				"note": "K11, including the dark variant"
 			}
 		},
 		"4208": {
-			"kimi": { "scores": { "H1": 0 }, "falseClaims": [], "note": "clean approve" },
-			"opus": { "scores": { "H1": 0 }, "falseClaims": [], "note": "clean approve" },
-			"sol": { "scores": { "H1": 0 }, "falseClaims": [], "note": "clean approve" }
+			"kimi": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
 		},
 		"4128": {
 			"kimi": {
-				"scores": { "H2": 0 },
+				"scores": {
+					"H2": 0
+				},
 				"falseClaims": [],
 				"note": "accepted \"drafts are not visible on public pages\""
 			},
 			"opus": {
-				"scores": { "H2": 0 },
+				"scores": {
+					"H2": 0
+				},
 				"falseClaims": [],
 				"note": "accepted the claim; checked status validation only"
 			},
 			"sol": {
-				"scores": { "H2": 1 },
+				"scores": {
+					"H2": 1
+				},
 				"falseClaims": [],
 				"note": "draft translation with taxonomies clears the published source's group-level terms, purge removed, with a reproduction"
 			}
 		},
 		"4167": {
 			"kimi": {
-				"scores": { "H3": 1 },
+				"scores": {
+					"H3": 1
+				},
 				"falseClaims": [],
 				"note": "issue reference as a suggestion"
 			},
 			"opus": {
-				"scores": { "H3": 1 },
+				"scores": {
+					"H3": 1
+				},
 				"falseClaims": [],
 				"note": "issue reference, plus a narrative test-header nit"
 			},
-			"sol": { "scores": { "H3": 1 }, "falseClaims": [], "note": "issue reference as needs_fixing" }
+			"sol": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference as needs_fixing"
+			}
 		},
 		"4150": {
 			"kimi": {
-				"scores": { "H4": 0 },
+				"scores": {
+					"H4": 0
+				},
 				"falseClaims": [],
 				"note": "conditional changeset-overlap suggestion (valid)"
 			},
 			"opus": {
-				"scores": { "H4": 1 },
+				"scores": {
+					"H4": 1
+				},
 				"falseClaims": [],
 				"note": "changeset omits comments, plus stale comments"
 			},
-			"sol": { "scores": { "H4": 0 }, "falseClaims": [], "note": "clean approve" }
+			"sol": {
+				"scores": {
+					"H4": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
 		},
 		"4203": {
-			"kimi": { "scores": {}, "falseClaims": [], "note": "clean approve" },
-			"opus": { "scores": {}, "falseClaims": [], "note": "clean approve" },
-			"sol": { "scores": {}, "falseClaims": [], "note": "clean approve" }
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
 		},
 		"4186": {
-			"kimi": { "scores": {}, "falseClaims": [], "note": "clean approve" },
-			"opus": { "scores": {}, "falseClaims": [], "note": "clean approve" },
-			"sol": { "scores": {}, "falseClaims": [], "note": "clean approve" }
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
 		},
 		"4172": {
 			"kimi": {
@@ -159,9 +294,229 @@
 			}
 		},
 		"4157": {
-			"kimi": { "scores": {}, "falseClaims": [], "note": "clean approve" },
-			"opus": { "scores": {}, "falseClaims": [], "note": "clean approve" },
-			"sol": { "scores": {}, "falseClaims": [], "note": "clean approve" }
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		}
+	},
+	"issue": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1 tied to the reporter's setup (no object cache); K2"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1 tied to the reporter's setup; K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved; called the overlap test a genuine regression test"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "approved; repeated \"no migration is needed\""
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 1
+				},
+				"falseClaims": [],
+				"note": "K6 (code-stored seed rows unreachable, 1.x compatibility) and re-seed not matching the existing row; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 in full, as a suggestion; approved"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "approved; saw meta.caption only as a fallback"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11"
+			}
+		}
+	},
+	"issue+framing": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 1
+				},
+				"falseClaims": [],
+				"note": "K1, K2 and the first K3 of any run: expiry drops the snapshot before refresh, so a failed refresh errors; suggests stale-while-revalidate"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 0.5,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "noted the REST/CLI D1 dialect falls back to non-atomic writes and dismissed it; approved"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 1
+				},
+				"falseClaims": [],
+				"note": "K6 and K14 (re-applying a seed creates a duplicate en row); \"no migration\" false"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6 with the seed source of code-stamped rows; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 across all three render paths; comment"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; existing entries never gain a caption (valid)"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; fully populated older values skip caption enrichment (valid)"
+			}
 		}
 	}
 }

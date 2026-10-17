@@ -27,21 +27,28 @@ node eval/run.ts --gateway-env /path/to/.env
 node eval/run.ts --models opus --cases 4150,4208 --gateway-env /path/to/.env
 ```
 
-| Option          | Default         | Meaning                                                     |
-| --------------- | --------------- | ----------------------------------------------------------- |
-| `--models`      | `kimi,opus,sol` | Model keys. Each model runs on its own server, in parallel. |
-| `--cases`       | all             | Comma-separated PR numbers from `cases.json`.               |
-| `--concurrency` | `1`             | Concurrent runs per model.                                  |
-| `--base-port`   | `3591`          | First server port; later models take the next ports.        |
-| `--timeout-min` | `45`            | Per-run timeout.                                            |
-| `--force`       | off             | Re-run cases that already have a completed result.          |
+| Option          | Default         | Meaning                                                                      |
+| --------------- | --------------- | ---------------------------------------------------------------------------- |
+| `--models`      | `kimi,opus,sol` | Model keys. Each model runs on its own server, in parallel.                  |
+| `--cases`       | all             | Comma-separated PR numbers from `cases.json`.                                |
+| `--concurrency` | `1`             | Concurrent runs per model.                                                   |
+| `--base-port`   | `3591`          | First server port; later models take the next ports.                         |
+| `--timeout-min` | `45`            | Per-run timeout.                                                             |
+| `--force`       | off             | Re-run cases that already have a completed result.                           |
+| `--variant`     | none            | `issue` or `issue+framing`: an eval-only review context variant (see below). |
 
 A failed run is retried once. Unauthenticated GitHub API calls are limited to 60 an hour per IP and each run spends two, so the runner waits for the allowance to reset when it runs low.
 
-Results go to `eval/results/<pr>-<model>.json` (gitignored): the `ReviewResult`, status, wall time, workflow duration, token usage and estimated cost. Server logs go to `eval/results/logs/`.
+Results go to `eval/results/<pr>-<model>.json`, or `<pr>-<model>-<variant>.json` (gitignored): the `ReviewResult`, status, wall time, workflow duration, token usage and estimated cost. Server logs go to `eval/results/logs/`.
 
 ## Cases and grading
 
 `cases.json` holds each PR, the head to review and an answer key: the known defects with their severities, whether the PR is clean, the expected verdict, and any known false claims. A clean PR should be approved, and a PR with a should-fix defect should not.
 
 Each key item scores 1 when a review finds it clearly, 0.5 when it finds part of it or raises and dismisses it, and 0 when it misses it. False or overstated claims are counted separately, checked against the code at the reviewed head. `RESULTS.md` records the latest graded run.
+
+`grades.json` holds the grades, keyed by variant, PR and model. `node eval/summarize.ts [variant] [models] [cases]` prints the per-case and totals tables from the grades and raw results.
+
+## Context variants
+
+`--variant` sets `REVIEW_CONTEXT_VARIANT` on the servers. With `issue`, the runner fetches the issues each PR closes (title and body, no comments) with `gh` and passes them in the workflow payload, and the workflow renders them as an untrusted "Linked issue" section after the description. With `issue+framing`, the context also asks the reviewer to establish, before enumerating candidates, whether the change fixes what was reported, whether its claims are true, whether the same problem exists elsewhere, and what the tests cannot catch. Without the variant setting, the workflow ignores linked issues and the context is unchanged.

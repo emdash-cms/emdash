@@ -559,7 +559,7 @@ async function runModel(
 				}
 				writeFileSync(resultPath(next.pr, spec), `${JSON.stringify(outcome, null, "\t")}\n`);
 				log(
-					`${spec.key} #${next.pr}: ${outcome.status} in ${Math.round(outcome.wallMs / 1_000)}s, $${outcome.costUsd.toFixed(3)}`,
+					`${runKey(spec)} #${next.pr}: ${outcome.status} in ${Math.round(outcome.wallMs / 1_000)}s, $${outcome.costUsd.toFixed(3)}`,
 				);
 			}
 		};
