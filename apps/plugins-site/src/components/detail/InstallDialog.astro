@@ -567,6 +567,18 @@ const { did, slug, name, publicName, icon, artSeed } = Astro.props;
 		"button[type='submit']",
 	);
 
+	let siteCheck: AbortController | undefined;
+
+	function endSiteCheck(message = "") {
+		siteCheck = undefined;
+		siteForm?.removeAttribute("aria-busy");
+		if (siteError) siteError.textContent = message;
+		if (siteSubmit) {
+			siteSubmit.disabled = false;
+			siteSubmit.textContent = "Continue to your site";
+		}
+	}
+
 	function readSavedSite(): string | undefined {
 		try {
 			const stored = localStorage.getItem(SITE_STORAGE_KEY);
@@ -644,22 +656,19 @@ const { did, slug, name, publicName, icon, artSeed } = Astro.props;
 			siteSubmit.textContent = "Checking site…";
 		}
 
-		const controller = new AbortController();
-		const timeout = window.setTimeout(() => controller.abort(), 4_000);
-		const probe = await probeEmDashSite(origin, controller.signal);
+		const check = new AbortController();
+		siteCheck = check;
+		const timeout = window.setTimeout(() => check.abort(), 4_000);
+		const probe = await probeEmDashSite(origin, check.signal);
 		window.clearTimeout(timeout);
+		// Closing cancels the check; `open` covers a close whose event hasn't run yet.
+		if (siteCheck !== check || !dialog?.open) return;
 
 		if (probe === "registry-disabled") {
 			siteInput.setAttribute("aria-invalid", "true");
-			if (siteError) {
-				siteError.textContent =
-					"This EmDash site does not have the plugin registry enabled.";
-			}
-			siteForm.removeAttribute("aria-busy");
-			if (siteSubmit) {
-				siteSubmit.disabled = false;
-				siteSubmit.textContent = "Continue to your site";
-			}
+			endSiteCheck(
+				"This EmDash site does not have the plugin registry enabled.",
+			);
 			return;
 		}
 
@@ -675,15 +684,16 @@ const { did, slug, name, publicName, icon, artSeed } = Astro.props;
 		if (event.target === dialog) dialog.close();
 	});
 
-	// Back from the site restores this page from the bfcache with the hand-off still open.
+	// Closing the dialog cancels a site check that hasn't handed off yet.
+	dialog?.addEventListener("close", () => {
+		siteCheck?.abort();
+		endSiteCheck();
+	});
+
+	// Back from the site restores this page from the bfcache mid hand-off.
 	window.addEventListener("pageshow", (event) => {
-		if (!event.persisted || !dialog?.open) return;
-		siteForm?.removeAttribute("aria-busy");
-		if (siteError) siteError.textContent = "";
-		if (siteSubmit) {
-			siteSubmit.disabled = false;
-			siteSubmit.textContent = "Continue to your site";
-		}
-		dialog.close();
+		if (!event.persisted) return;
+		endSiteCheck();
+		if (dialog?.open) dialog.close();
 	});
 </script>
