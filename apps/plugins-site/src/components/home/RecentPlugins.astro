@@ -51,11 +51,13 @@ const { entries, hasError } = Astro.props;
 					</a>
 				</StatePanel>
 			) : (
-				<div class="plugin-grid">
+				<ul class="plugin-grid">
 					{entries.map((entry) => (
-						<PluginCard entry={entry} />
+						<li>
+							<PluginCard entry={entry} />
+						</li>
 					))}
-				</div>
+				</ul>
 			)
 		}
 	</div>
