@@ -24,6 +24,7 @@ import {
 	resolveTransformQuality,
 	validatorHeaders,
 	isNotModified,
+	type ImageTransformFit,
 	type ImageTransformFormat,
 } from "emdash/media/image-endpoint";
 
@@ -35,6 +36,44 @@ const FORMAT_MIME: Record<ImageTransformFormat, ImageOutputOptions["format"]> = 
 	jpeg: "image/jpeg",
 	png: "image/png",
 };
+
+/**
+ * Astro's cover, contain, and inside fits map to non-enlarging binding fits.
+ * fill may enlarge small sources. Unmapped fits use the binding's default.
+ */
+const FIT_TO_BINDING: Record<ImageTransformFit, ImageTransform["fit"] | undefined> = {
+	fill: "squeeze",
+	contain: "scale-down",
+	cover: "crop",
+	"scale-down": "scale-down",
+	inside: "scale-down",
+	outside: undefined,
+};
+
+/**
+ * Maps Astro `position` values to the Cloudflare Images binding's gravity
+ * vocabulary. Compound or unknown positions are dropped.
+ */
+const GRAVITY_BY_POSITION = new Map<string, ImageTransform["gravity"]>([
+	["face", "face"],
+	["left", "left"],
+	["right", "right"],
+	["top", "top"],
+	["bottom", "bottom"],
+	["center", "center"],
+	["centre", "center"],
+	["auto", "auto"],
+	["entropy", "entropy"],
+	["attention", "auto"],
+	["north", "top"],
+	["south", "bottom"],
+	["east", "right"],
+	["west", "left"],
+]);
+
+function toBindingGravity(position: string): ImageTransform["gravity"] | undefined {
+	return GRAVITY_BY_POSITION.get(position.trim().toLowerCase());
+}
 
 /** Resolve the Images binding by the name the Cloudflare adapter configured. */
 function resolveImagesBinding(): ImagesBinding | undefined {
@@ -116,16 +155,24 @@ export const GET: APIRoute = async (ctx) => {
 			return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
 		}
 
-		const fingerprint = getTransformFingerprint(url.searchParams);
+		const fingerprint = `cf-images-v2:${getTransformFingerprint(url.searchParams)}`;
 		if (isNotModified(ctx.request, source.size, source.lastModified, fingerprint)) {
 			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
 		}
 
-		const { width, height, format, quality } = parsed.options;
+		const { width, height, format, quality, fit, position } = parsed.options;
 		const outputMime = FORMAT_MIME[format] ?? "image/webp";
 		const transform: ImageTransform = {};
 		if (width) transform.width = width;
 		if (height) transform.height = height;
+		if (fit) {
+			const bindingFit = FIT_TO_BINDING[fit];
+			if (bindingFit) transform.fit = bindingFit;
+		}
+		if (position) {
+			const gravity = toBindingGravity(position);
+			if (gravity) transform.gravity = gravity;
+		}
 		// Lossy formats get an explicit quality: the Images binding has no
 		// default of its own and encodes near-losslessly without one, producing
 		// renditions several times the size of the original. PNG is exempt —
