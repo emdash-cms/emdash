@@ -18,6 +18,7 @@ import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-context";
+import { refetchCurrentUserOnForbidden } from "./lib/api/current-user";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
@@ -33,6 +34,8 @@ const queryClient = new QueryClient({
 		},
 	},
 });
+
+refetchCurrentUserOnForbidden(queryClient);
 
 // Create the router with query client context
 const router = createAdminRouter(queryClient);
