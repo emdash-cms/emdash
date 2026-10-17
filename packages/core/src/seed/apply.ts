@@ -7,6 +7,8 @@
 
 import { imageSize } from "image-size";
 import type {
+	Compilable,
+	Insertable,
 	Kysely,
 	KyselyPlugin,
 	PluginTransformQueryArgs,
@@ -22,6 +24,7 @@ import { setReferenceSelection } from "../api/handlers/relations.js";
 import { bindReferenceField, createFieldRelation } from "../api/handlers/schema.js";
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import type { DatetimeContextCache } from "../database/content-datetime.js";
+import { executeAtomicBatchIfSupported, isPostgres } from "../database/dialect-helpers.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -35,7 +38,7 @@ import {
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { ContentItem } from "../database/repositories/types.js";
 import { withTransaction } from "../database/transaction.js";
-import type { Database } from "../database/types.js";
+import type { Database, MenuItemTable, WidgetTable } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
@@ -66,6 +69,40 @@ import type {
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+// Each menu item binds 15 columns; six rows stay below D1's 100-parameter limit.
+const SEED_MENU_ITEM_INSERT_BATCH_SIZE = 6;
+// Widgets bind nine columns; ten rows stay below the same limit.
+const SEED_WIDGET_INSERT_BATCH_SIZE = 10;
+
+interface SeedReplacementStatement extends Compilable {
+	execute(): Promise<unknown>;
+}
+
+async function replaceSeedChildren(
+	db: Kysely<Database>,
+	parentTable: "_emdash_menus" | "_emdash_widget_areas",
+	parentIds: string[],
+	buildStatements: (target: Kysely<Database>) => readonly SeedReplacementStatement[],
+): Promise<void> {
+	if (parentIds.length === 0) return;
+	const batched = await executeAtomicBatchIfSupported(db, buildStatements(db));
+	if (batched !== null) return;
+	await withTransaction(db, async (trx) => {
+		if (isPostgres(trx)) {
+			await trx
+				.selectFrom(parentTable)
+				.select("id")
+				.where("id", "in", parentIds)
+				.orderBy("id")
+				.forUpdate()
+				.execute();
+		}
+		for (const statement of buildStatements(trx)) {
+			await statement.execute();
+		}
+	});
+}
 
 async function applySiteSettings(
 	db: Kysely<Database>,
@@ -1087,6 +1124,8 @@ async function applySeedWrites(
 		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		// Shared across menus: translated items reference anchor items in sibling menus.
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
+		const menuIds: string[] = [];
+		const itemRows: Insertable<MenuItemTable>[] = [];
 
 		try {
 			for (const menu of seed.menus) {
@@ -1104,8 +1143,6 @@ async function applySeedWrites(
 				if (existingMenu) {
 					menuId = existingMenu.id;
 					translationGroup = existingMenu.translation_group ?? existingMenu.id;
-					// Clear existing items (menus are recreated)
-					await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
 				} else {
 					menuId = ulid();
 					// Resolve translationOf to the source menu's translation_group.
@@ -1118,7 +1155,7 @@ async function applySeedWrites(
 								`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
 							);
 					}
-					await db
+					const inserted = await db
 						.insertInto("_emdash_menus")
 						.values({
 							id: menuId,
@@ -1129,15 +1166,24 @@ async function applySeedWrites(
 							locale,
 							translation_group: translationGroup,
 						})
-						.execute();
-					result.menus.created++;
+						.onConflict((conflict) => conflict.columns(["name", "locale"]).doNothing())
+						.returning("id")
+						.executeTakeFirst();
+					if (inserted) {
+						result.menus.created++;
+					} else {
+						const concurrentMenu = await lookup.executeTakeFirstOrThrow();
+						menuId = concurrentMenu.id;
+						translationGroup = concurrentMenu.translation_group ?? concurrentMenu.id;
+					}
 				}
 
 				if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
 
 				// Create menu items
-				const itemCount = await applyMenuItems(
-					db,
+				menuIds.push(menuId);
+				const itemCount = collectMenuItems(
+					itemRows,
 					menuId,
 					locale,
 					menu.items,
@@ -1148,6 +1194,16 @@ async function applySeedWrites(
 				);
 				result.menus.items += itemCount;
 			}
+
+			// Keep translated menus in the same replacement: their items share
+			// translation groups minted while collecting the rows.
+			const buildStatements = (target: Kysely<Database>) => [
+				...menuIds.map((id) => target.deleteFrom("_emdash_menu_items").where("menu_id", "=", id)),
+				...chunks(itemRows, SEED_MENU_ITEM_INSERT_BATCH_SIZE).map((rows) =>
+					target.insertInto("_emdash_menu_items").values(rows),
+				),
+			];
+			await replaceSeedChildren(db, "_emdash_menus", menuIds, buildStatements);
 		} finally {
 			invalidateMenuObjectCache();
 		}
@@ -1193,24 +1249,24 @@ async function applySeedWrites(
 
 	// 10. Widget Areas and Widgets
 	if (seed.widgetAreas) {
+		const areaIds: string[] = [];
+		const widgetRows: Insertable<WidgetTable>[] = [];
 		for (const area of seed.widgetAreas) {
 			// Check if area exists
-			const existingArea = await db
+			const lookup = db
 				.selectFrom("_emdash_widget_areas")
 				.selectAll()
-				.where("name", "=", area.name)
-				.executeTakeFirst();
+				.where("name", "=", area.name);
+			const existingArea = await lookup.executeTakeFirst();
 
 			let areaId: string;
 
 			if (existingArea) {
 				areaId = existingArea.id;
-				// Clear existing widgets (areas are recreated)
-				await db.deleteFrom("_emdash_widgets").where("area_id", "=", areaId).execute();
 			} else {
 				// Create area
 				areaId = ulid();
-				await db
+				const inserted = await db
 					.insertInto("_emdash_widget_areas")
 					.values({
 						id: areaId,
@@ -1218,17 +1274,29 @@ async function applySeedWrites(
 						label: area.label,
 						description: area.description ?? null,
 					})
-					.execute();
-				result.widgetAreas.created++;
+					.onConflict((conflict) => conflict.column("name").doNothing())
+					.returning("id")
+					.executeTakeFirst();
+				if (inserted) {
+					result.widgetAreas.created++;
+				} else {
+					areaId = (await lookup.executeTakeFirstOrThrow()).id;
+				}
 			}
 
-			// Create widgets
+			areaIds.push(areaId);
 			for (let i = 0; i < area.widgets.length; i++) {
 				const widget = area.widgets[i];
-				await applyWidget(db, areaId, widget, i);
+				widgetRows.push(createSeedWidgetRow(areaId, widget, i));
 				result.widgetAreas.widgets++;
 			}
 		}
+		await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
+			...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
+			...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
+				target.insertInto("_emdash_widgets").values(rows),
+			),
+		]);
 	}
 
 	// 11. Sections
@@ -2030,8 +2098,8 @@ async function applyContentTaxonomies(
  * survive export → apply. Items without `translationOf` get a fresh group
  * (= their own id).
  */
-async function applyMenuItems(
-	db: Kysely<Database>,
+function collectMenuItems(
+	rows: Insertable<MenuItemTable>[],
 	menuId: string,
 	locale: string,
 	items: SeedMenuItem[],
@@ -2039,7 +2107,7 @@ async function applyMenuItems(
 	startOrder: number,
 	seedIdMap: Map<string, string>,
 	itemSeedIdMap: Map<string, { id: string; translationGroup: string }>,
-): Promise<number> {
+): number {
 	let count = 0;
 	let order = startOrder;
 
@@ -2077,26 +2145,23 @@ async function applyMenuItems(
 				);
 		}
 
-		await db
-			.insertInto("_emdash_menu_items")
-			.values({
-				id: itemId,
-				menu_id: menuId,
-				parent_id: parentId,
-				sort_order: order,
-				type: item.type,
-				reference_collection: referenceCollection,
-				reference_id: referenceId,
-				custom_url: item.url ?? null,
-				label: item.label || "",
-				title_attr: item.titleAttr ?? null,
-				target: item.target ?? null,
-				css_classes: item.cssClasses ?? null,
-				created_at: new Date().toISOString(),
-				locale: itemLocale,
-				translation_group: translationGroup,
-			})
-			.execute();
+		rows.push({
+			id: itemId,
+			menu_id: menuId,
+			parent_id: parentId,
+			sort_order: order,
+			type: item.type,
+			reference_collection: referenceCollection,
+			reference_id: referenceId,
+			custom_url: item.url ?? null,
+			label: item.label || "",
+			title_attr: item.titleAttr ?? null,
+			target: item.target ?? null,
+			css_classes: item.cssClasses ?? null,
+			created_at: new Date().toISOString(),
+			locale: itemLocale,
+			translation_group: translationGroup,
+		});
 
 		if (item.id) itemSeedIdMap.set(item.id, { id: itemId, translationGroup });
 
@@ -2104,8 +2169,8 @@ async function applyMenuItems(
 		order++;
 
 		if (item.children && item.children.length > 0) {
-			const childCount = await applyMenuItems(
-				db,
+			const childCount = collectMenuItems(
+				rows,
 				menuId,
 				itemLocale,
 				item.children,
@@ -2122,30 +2187,26 @@ async function applyMenuItems(
 }
 
 /**
- * Apply a widget
+ * Build a widget row
  */
-async function applyWidget(
-	db: Kysely<Database>,
+function createSeedWidgetRow(
 	areaId: string,
 	widget: SeedWidget,
 	sortOrder: number,
-): Promise<void> {
-	await db
-		.insertInto("_emdash_widgets")
-		.values({
-			id: ulid(),
-			area_id: areaId,
-			sort_order: sortOrder,
-			type: widget.type,
-			title: widget.title ?? null,
-			// `widget.content` is Portable Text for content-type widgets;
-			// for other widget kinds it's null.
-			content: widget.content ? JSON.stringify(widget.content) : null,
-			menu_name: widget.menuName ?? null,
-			component_id: widget.componentId ?? null,
-			component_props: widget.props ? JSON.stringify(widget.props) : null,
-		})
-		.execute();
+): Insertable<WidgetTable> {
+	return {
+		id: ulid(),
+		area_id: areaId,
+		sort_order: sortOrder,
+		type: widget.type,
+		title: widget.title ?? null,
+		// `widget.content` is Portable Text for content-type widgets;
+		// for other widget kinds it's null.
+		content: widget.content ? JSON.stringify(widget.content) : null,
+		menu_name: widget.menuName ?? null,
+		component_id: widget.componentId ?? null,
+		component_props: widget.props ? JSON.stringify(widget.props) : null,
+	};
 }
 
 /**
