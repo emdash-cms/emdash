@@ -1,4 +1,5 @@
 import { CURRENT_PLUGIN_CAPABILITIES } from "@emdash-cms/plugin-types";
+import { registryLoader } from "@emdash-cms/registry-loader";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -56,29 +57,33 @@ describe("registry presentation boundaries", () => {
 		expect(html).not.toContain("<script");
 	});
 
-	it("tells a rejected registry request apart from an unreachable registry", () => {
-		const loaderError = (cause: unknown) => new Error("Failed to load registry entry", { cause });
-		const clientError = (name: string, fields: Record<string, unknown>) =>
-			Object.assign(new Error(name), { name, ...fields });
+	it("tells a rejected registry request apart from an unreachable registry", async () => {
+		const answering = (status: number) =>
+			registryLoader({
+				fetch: async () => Response.json({ error: "Example", message: "Example" }, { status }),
+			});
+		const entryError = async (loader: ReturnType<typeof registryLoader>) => {
+			const result = await loader.loadEntry({
+				collection: "plugins",
+				filter: { publisher: "@example.com", slug: "search-ping" },
+			});
+			return result && "error" in result ? result.error : undefined;
+		};
+		// Longer than the lexicon allows, so the client refuses to send it at all.
+		const overLongQuery = await answering(502).loadCollection({
+			collection: "plugins",
+			filter: { q: "a".repeat(257) },
+		});
+		const offline = registryLoader({
+			fetch: async () => {
+				throw new TypeError("fetch failed");
+			},
+		});
 
-		expect(
-			isRegistryRequestRejected(
-				loaderError(clientError("ClientValidationError", { target: "params" })),
-			),
-		).toBe(true);
-		expect(
-			isRegistryRequestRejected(loaderError(clientError("ClientResponseError", { status: 400 }))),
-		).toBe(true);
-		expect(
-			isRegistryRequestRejected(
-				loaderError(clientError("ClientValidationError", { target: "output" })),
-			),
-		).toBe(false);
-		expect(
-			isRegistryRequestRejected(loaderError(clientError("ClientResponseError", { status: 502 }))),
-		).toBe(false);
-		expect(isRegistryRequestRejected(loaderError(new TypeError("fetch failed")))).toBe(false);
-		expect(isRegistryRequestRejected(new Error("Failed to load registry entry"))).toBe(false);
+		expect(isRegistryRequestRejected(await entryError(answering(400)))).toBe(true);
+		expect("error" in overLongQuery && isRegistryRequestRejected(overLongQuery.error)).toBe(true);
+		expect(isRegistryRequestRejected(await entryError(answering(502)))).toBe(false);
+		expect(isRegistryRequestRejected(await entryError(offline))).toBe(false);
 	});
 
 	it("nests publisher headings under the section heading from their shallowest level", () => {
