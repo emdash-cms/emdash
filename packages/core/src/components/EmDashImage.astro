@@ -22,6 +22,7 @@
  */
 import type { ImageValue, MediaValue } from "../fields/types.js";
 import type { HTMLAttributes } from "astro/types";
+import type { LocalImageProps } from "astro:assets";
 import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
@@ -52,6 +53,8 @@ interface Props extends Omit<
 	width?: number;
 	/** Override height (uses image.height by default) */
 	height?: number;
+	/** Output quality when rendered through Astro's image service. */
+	quality?: LocalImageProps["quality"];
 	/** Priority loading (disables lazy loading) */
 	priority?: boolean;
 	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
