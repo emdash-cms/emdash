@@ -319,9 +319,9 @@ export function createPlugin() {
 
 A native plugin uses Block Kit when it declares pages, widgets, or editor extensions and no `admin.entry`. Setting `admin.entry` switches it to [React admin pages](/plugins/creating-native-plugins/react-admin/). Declare the `admin` route explicitly: the implicit `admin` route exists only for older sandboxed bundles. A native handler receives a single `RouteContext`, so the interaction arrives as `ctx.input`.
 
-Two behaviors described above currently apply only to sandboxed plugins on admin pages and dashboard widgets:
+Two behaviors described above differ for a native plugin's admin pages and dashboard widgets:
 
-- `ctx.ui` is `undefined` on a native plugin's page or widget, so the route cannot read the admin locale or text direction from it. Native editor panels and actions do receive `ctx.ui`.
+- `ctx.ui` carries the admin locale and text direction when the admin loads a page or widget the plugin declares, as it does for sandboxed plugins. A request for an undeclared page or widget gets `ctx.ui` as `undefined` instead of the error a sandboxed plugin receives, so check it before reading `ctx.ui.locale`. Native editor panels and actions receive `ctx.ui` too.
 - EmDash does not validate a native plugin's page or widget response before the admin renders it. Keep native responses within the same block types, limits, and link and image rules, because the same renderer draws them.
 
 ## Block types
