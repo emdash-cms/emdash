@@ -294,7 +294,7 @@ async function findExistingTerms(
 				eb.or(batch.map((d) => eb.and([eb("name", "=", d.taxonomyName), eb("slug", "=", d.slug)]))),
 			)
 			.$if(locale !== undefined, (qb) => qb.where(localeMatches("locale", locale!)))
-			.orderBy(locale !== undefined ? localeOrder("locale", locale!) : "locale", "asc")
+			.orderBy(locale !== undefined ? localeOrder("locale", locale) : "locale", "asc")
 			.execute();
 
 		for (const row of batchRows) {

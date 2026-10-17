@@ -529,7 +529,7 @@ async function loadTerm(
 		row = await selectTerm()
 			.where((eb) => eb.or(chain.map((locale) => localeMatches("locale", locale))))
 			.orderBy(chainOrder, "asc")
-			.orderBy(localeOrder("locale", chain[0]!), "asc")
+			.orderBy(localeOrder("locale", chain[0]), "asc")
 			.orderBy("id", "asc")
 			.executeTakeFirst();
 	}

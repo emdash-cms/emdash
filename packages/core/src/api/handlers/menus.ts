@@ -107,12 +107,12 @@ async function resolveMenu(
 			error: ambiguousMenuLocaleError(name, [...canonicalLocales]).error,
 		};
 	}
-	const preferredLocale = locale ?? resolveConfiguredLocale(matches[0]!.locale);
+	const preferredLocale = locale ?? resolveConfiguredLocale(matches[0].locale);
 	const menu = matches.toSorted(
 		(a, b) =>
 			getLocaleRank(a.locale, preferredLocale) - getLocaleRank(b.locale, preferredLocale) ||
 			a.id.localeCompare(b.id),
-	)[0]!;
+	)[0];
 	return { success: true, menu };
 }
 

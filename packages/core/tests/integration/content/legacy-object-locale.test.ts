@@ -228,10 +228,11 @@ describeEachDialect("legacy object-locale compatibility", (dialect) => {
 		const all = await runWithContext({ db, editMode: true }, () =>
 			getEmDashCollection("pages", { locale: "en-US" }),
 		);
-		expect(all.entries.map((item) => item.data.title).toSorted()).toEqual([
-			"Canonical path",
-			"Terms",
-		]);
+		expect(
+			all.entries
+				.map((item) => item.data.title)
+				.toSorted((a, b) => String(a).localeCompare(String(b))),
+		).toEqual(["Canonical path", "Terms"]);
 	});
 
 	it("rejects explicit alias-aware slug collisions on create and update", async () => {
