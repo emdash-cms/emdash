@@ -122,6 +122,32 @@ describe("generatePlaceholder", () => {
 		expect(result).toBeNull();
 	});
 
+	it("returns null when decoded pixel area exceeds the CPU guard", async () => {
+		// A real 2002×2000 JPEG (just over the 4 MP CPU guard, but only ~15 MB
+		// decoded RGBA) would previously decode successfully and consume
+		// substantial CPU. The pixel guard should skip it before decoding.
+		const { encode } = await import("jpeg-js");
+		const width = 2002;
+		const height = 2000;
+		const raw = { data: Buffer.alloc(width * height * 4, 0xff), width, height };
+		const bigJpeg = new Uint8Array(encode(raw, 50).data);
+
+		const result = await generatePlaceholder(bigJpeg, "image/jpeg");
+		expect(result).toBeNull();
+	});
+
+	it("still generates a placeholder for images at the CPU guard boundary", async () => {
+		const { encode } = await import("jpeg-js");
+		const width = 2000;
+		const height = 2000; // exactly 4 MP
+		const raw = { data: Buffer.alloc(width * height * 4, 0xff), width, height };
+		const jpeg = new Uint8Array(encode(raw, 50).data);
+
+		const result = await generatePlaceholder(jpeg, "image/jpeg");
+		expect(result).not.toBeNull();
+		expect(result!.blurhash).toBeTruthy();
+	});
+
 	it("returns null when fallback dimensions exceed memory budget", async () => {
 		// Unrecognizable buffer — image-size can't parse it, so fallback dims are used
 		const buffer = new Uint8Array([0x00, 0x01, 0x02, 0x03]);

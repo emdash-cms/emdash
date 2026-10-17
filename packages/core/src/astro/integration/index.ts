@@ -232,6 +232,7 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
+		imagePlaceholders: resolvedConfig.imagePlaceholders,
 		admin: resolvedConfig.admin,
 		toolbar: resolvedConfig.toolbar,
 		updateCheck: resolvedConfig.updateCheck,
@@ -302,6 +303,24 @@ const EDGE_SLASHES = /^\/+|\/+$/g;
  */
 export function imageEndpointRoutePattern(route: string | undefined): string {
 	return `/${(route ?? "/_image").replace(EDGE_SLASHES, "")}`;
+}
+
+/**
+ * Resolve the effective `imagePlaceholders` default for the active Astro adapter.
+ *
+ * Server-side LQIP generation decodes the full image in JavaScript, which can
+ * exceed request CPU limits on constrained edge runtimes. On Cloudflare Workers
+ * (detected via the `@astrojs/cloudflare` adapter) the default is therefore
+ * `false`; everywhere else the previous default (`true`) is preserved for
+ * backwards compatibility. An explicit config value always wins.
+ *
+ * @internal Exported for unit testing.
+ */
+export function resolveImagePlaceholdersDefault(
+	configured: boolean | undefined,
+	usesCloudflareAdapter: boolean,
+): boolean {
+	return configured ?? !usesCloudflareAdapter;
 }
 
 /**
@@ -624,6 +643,15 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			}) => {
 				astroCommand = command;
 				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
+
+				// On Cloudflare Workers, server-side placeholder generation is off by
+				// default to avoid blowing the request CPU budget decoding large images.
+				resolvedConfig.imagePlaceholders = resolveImagePlaceholdersDefault(
+					config.imagePlaceholders,
+					usesCloudflareAdapter,
+				);
+				serializableConfig.imagePlaceholders = resolvedConfig.imagePlaceholders;
+
 				normalizeRegistryConfig(registry, {
 					allowLocalhost: command === "dev" || command === "sync",
 				});

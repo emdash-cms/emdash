@@ -259,11 +259,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// (avoids OOM on large originals on memory-constrained runtimes).
 		const thumbnailEntry = formData.get("thumbnail");
 		const thumbnail = thumbnailEntry instanceof File ? thumbnailEntry : null;
+		const placeholdersEnabled = emdash.config?.imagePlaceholders ?? true;
 		const enriched = await enrichImageMetadata(buffer, mimeType, {
 			knownDimensions: width != null && height != null ? { width, height } : undefined,
 			placeholder: thumbnail
 				? { bytes: new Uint8Array(await thumbnail.arrayBuffer()), contentType: thumbnail.type }
 				: undefined,
+			placeholders: placeholdersEnabled,
 		});
 
 		// Create media record

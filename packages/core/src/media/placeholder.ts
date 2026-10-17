@@ -28,6 +28,14 @@ const MAX_ENCODE_WIDTH = 32;
 /** Max decoded RGBA size (32 MB). Images exceeding this skip placeholder generation. */
 const MAX_DECODED_BYTES = 32 * 1024 * 1024;
 
+/**
+ * Max decoded pixel area. Decoding cost scales with pixel count, so this guards
+ * CPU usage on constrained runtimes (e.g. Cloudflare Workers Free) even when an
+ * image fits inside the memory budget. LQIP is progressive enhancement: large
+ * originals simply ship without a server-generated placeholder.
+ */
+const MAX_DECODE_PIXELS = 4_000_000;
+
 interface DecodedImage {
 	width: number;
 	height: number;
@@ -113,8 +121,10 @@ export function readDimensions(buffer: Uint8Array): { width: number; height: num
  *   readDimensions); otherwise dimensions are read from this buffer's header.
  *   Generation is skipped (returns null) when no dimensions are available at
  *   all, or when the decoded size (width * height * 4) exceeds
- *   MAX_DECODED_BYTES — both guards avoid OOM from unbounded decodes on
- *   memory-constrained runtimes.
+ *   MAX_DECODED_BYTES, or when the pixel area exceeds MAX_DECODE_PIXELS — the
+ *   extra pixel guard avoids CPU exhaustion on constrained runtimes for large
+ *   originals that fit inside the memory budget. LQIP is progressive
+ *   enhancement; missing it is preferable to exceeding request CPU limits.
  */
 export async function generatePlaceholder(
 	buffer: Uint8Array,
@@ -139,6 +149,9 @@ export async function generatePlaceholder(
 		// it is preferable to crashing the request.
 		if (!dims) return null;
 		if (dims.width * dims.height * 4 > MAX_DECODED_BYTES) {
+			return null;
+		}
+		if (dims.width * dims.height > MAX_DECODE_PIXELS) {
 			return null;
 		}
 

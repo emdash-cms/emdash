@@ -17,6 +17,7 @@ import { mediaConfirmBody } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
 import type { MediaItem } from "#types";
+import { decodeBase64Bytes } from "#utils/base64.js";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
 
 import { after } from "../../../../../after.js";
@@ -71,6 +72,19 @@ async function confirmationConflict(repo: MediaRepository, id: string): Promise<
 		return apiError("INVALID_STATE", "Media item changed during confirmation", 409);
 	}
 	return apiError("INVALID_STATE", `Media item is not pending: ${current.status}`, 400);
+}
+
+function decodeThumbnail(thumbnail?: {
+	contentType: string;
+	data: string;
+}): Uint8Array | undefined {
+	if (!thumbnail) return undefined;
+	try {
+		return decodeBase64Bytes(thumbnail.data);
+	} catch (error) {
+		console.error("[media] confirm thumbnail decode failed:", error);
+		return undefined;
+	}
 }
 
 async function consumeDownload(download: DownloadResult): Promise<Uint8Array> {
@@ -208,11 +222,18 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		let height = body.height;
 		if (imageBytes) {
 			try {
+				const thumbnail = body.thumbnail;
+				const thumbnailBytes = decodeThumbnail(thumbnail);
+				const placeholdersEnabled = emdash.config?.imagePlaceholders ?? true;
 				const enriched = await enrichImageMetadata(imageBytes, existing.mimeType, {
 					knownDimensions:
 						body.width != null && body.height != null
 							? { width: body.width, height: body.height }
 							: undefined,
+					placeholder: thumbnailBytes
+						? { bytes: thumbnailBytes, contentType: thumbnail.contentType }
+						: undefined,
+					placeholders: placeholdersEnabled,
 				});
 				blurhash = enriched.blurhash;
 				dominantColor = enriched.dominantColor;
