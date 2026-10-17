@@ -12,7 +12,7 @@ Look for defects that survive an ordinary review. Treat the implementation's ass
 1. Identify the exact diff, branch, pull request head, or files under review.
 2. Read the surrounding code needed to understand data flow and invariants.
 3. Check repository instructions and the tests that define expected behavior.
-4. Compare the change with its stated purpose. Trace the scenario and configuration from the issue it addresses through the real code, and treat each claim in the description and changeset as something to verify.
+4. Compare the change with its stated purpose. Trace the scenario and configuration from the issue, discussion, or accepted design it addresses through the real code, and treat each claim in the description and changeset as something to verify.
 5. Separate defects introduced by the reviewed change from unrelated observations. Report an out-of-scope issue only when it materially affects the change's safety.
 
 Do not modify code, post a review, or expand the review target unless the user asks.
@@ -28,7 +28,7 @@ Choose the checks that fit the change instead of mechanically applying every cat
 - **Data integrity:** partial writes, migration restart behavior, dialect differences, uniqueness assumptions, destructive cascades, and old/new version compatibility.
 - **Resources and performance:** unbounded collections, repeated round trips, retained resources, logged-out hot-path regressions, and work that scales with attacker-controlled input.
 - **Scope:** the same defect left in place elsewhere, such as sibling call sites, other storage backends or render paths, and data already stored in the old shape.
-- **Interfaces:** exported types, generated schemas and site types, and documentation that no longer match the new behavior.
+- **Interfaces:** exported types, generated schemas, generated types, and documentation that no longer match the new behavior.
 
 Trace concrete inputs and event sequences through the real implementation. Run focused tests or a minimal reproduction when that is the fastest way to establish a claim. Do not infer a bug solely from an unfamiliar pattern.
 
