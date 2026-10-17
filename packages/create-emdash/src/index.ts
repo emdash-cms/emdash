@@ -27,6 +27,7 @@ import {
 	validateProjectName,
 	wantsHelp,
 } from "./flags.js";
+import { CLOUDFLARE_TEMPLATES, NODE_TEMPLATES, resolveTemplateSource } from "./template-source.js";
 import {
 	isDirNonEmpty,
 	replacePackageManagerCommands,
@@ -35,61 +36,6 @@ import {
 	setWorkerLoader,
 	writeEncryptionKey,
 } from "./utils.js";
-
-const GITHUB_REPO = "emdash-cms/templates";
-
-interface TemplateConfig {
-	name: string;
-	description: string;
-	/** Directory name in the templates repo */
-	dir: string;
-}
-
-const NODE_TEMPLATES = {
-	blog: {
-		name: "Blog",
-		description: "A blog with posts, pages, and authors",
-		dir: "blog",
-	},
-	starter: {
-		name: "Starter",
-		description: "A general-purpose starter with posts and pages",
-		dir: "starter",
-	},
-	marketing: {
-		name: "Marketing",
-		description: "A marketing site with landing pages and CTAs",
-		dir: "marketing",
-	},
-	portfolio: {
-		name: "Portfolio",
-		description: "A portfolio site with projects and case studies",
-		dir: "portfolio",
-	},
-} as const satisfies Record<TemplateKey, TemplateConfig>;
-
-const CLOUDFLARE_TEMPLATES = {
-	blog: {
-		name: "Blog",
-		description: "A blog with posts, pages, and authors",
-		dir: "blog-cloudflare",
-	},
-	starter: {
-		name: "Starter",
-		description: "A general-purpose starter with posts and pages",
-		dir: "starter-cloudflare",
-	},
-	marketing: {
-		name: "Marketing",
-		description: "A marketing site with landing pages and CTAs",
-		dir: "marketing-cloudflare",
-	},
-	portfolio: {
-		name: "Portfolio",
-		description: "A portfolio site with projects and case studies",
-		dir: "portfolio-cloudflare",
-	},
-} as const satisfies Record<TemplateKey, TemplateConfig>;
 
 /** Defaults applied under `--yes` when the user omits a flag. */
 const DEFAULT_PLATFORM: Platform = "cloudflare";
@@ -136,10 +82,6 @@ function ensureGitignored(projectDir: string, fileName: string): void {
 	const sep = existing.length === 0 ? "" : existing.endsWith("\n") ? "" : "\n";
 	const next = `${existing}${sep}${fileName}\n`;
 	writeFileSync(target, next);
-}
-
-function getTemplateConfig(platform: Platform, key: TemplateKey): TemplateConfig {
-	return platform === "node" ? NODE_TEMPLATES[key] : CLOUDFLARE_TEMPLATES[key];
 }
 
 async function selectTemplate(platform: Platform): Promise<TemplateKey> {
@@ -262,7 +204,7 @@ async function resolvePlatform(flags: ParsedFlags): Promise<Platform> {
 	return platform;
 }
 
-async function resolveTemplate(flags: ParsedFlags, platform: Platform): Promise<TemplateKey> {
+async function resolveTemplate(flags: ParsedFlags, platform: Platform): Promise<string> {
 	if (flags.template !== undefined) return flags.template;
 	if (flags.yes) return DEFAULT_TEMPLATE;
 	return selectTemplate(platform);
@@ -358,7 +300,7 @@ async function main() {
 
 	const platform = await resolvePlatform(flags);
 	const templateKey = await resolveTemplate(flags, platform);
-	const templateConfig = getTemplateConfig(platform, templateKey);
+	const templateSource = resolveTemplateSource(templateKey, platform, process.env);
 	const pm = await resolvePackageManager(flags);
 	const shouldInstall = await resolveShouldInstall(flags);
 	const enableSandboxedPlugins = await resolveSandboxedPlugins(flags, platform);
@@ -370,7 +312,7 @@ async function main() {
 	s.start("Creating project...");
 
 	try {
-		await downloadTemplate(`github:${GITHUB_REPO}/${templateConfig.dir}`, {
+		await downloadTemplate(`github:${templateSource.repo}/${templateSource.dir}`, {
 			dir: projectDir,
 			force: true,
 		});
@@ -394,7 +336,7 @@ async function main() {
 			const seedPath = resolve(projectDir, "seed", "seed.json");
 			if (existsSync(seedPath)) {
 				pkg.emdash = {
-					label: templateConfig.name,
+					label: templateSource.name,
 					seed: "seed/seed.json",
 				};
 			}

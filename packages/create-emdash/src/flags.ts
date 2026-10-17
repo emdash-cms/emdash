@@ -14,7 +14,11 @@ export interface ParsedFlags {
 	/** Positional project name (or "."). Validated against PROJECT_NAME_PATTERN. */
 	name?: string;
 	platform?: Platform;
-	template?: TemplateKey;
+	/**
+	 * `--template <key>`. A built-in key (see {@link TemplateKey}) or any
+	 * repo-relative directory name, treated as a literal ad-hoc template dir.
+	 */
+	template?: string;
 	packageManager?: PackageManager;
 	/** `--install` / `--no-install`. Undefined means "ask". */
 	install?: boolean;
@@ -59,8 +63,21 @@ function isPlatform(value: string): value is Platform {
 	return (PLATFORMS as readonly string[]).includes(value);
 }
 
-function isTemplate(value: string): value is TemplateKey {
+export function isTemplateKey(value: string): value is TemplateKey {
 	return (TEMPLATES as readonly string[]).includes(value);
+}
+
+/**
+ * Ad-hoc template names are used verbatim as repo-relative directories, so
+ * they must look like one: lowercase path segments separated by `/`. This
+ * keeps typos of built-in keys harmless (they just 404 at download time)
+ * while refusing values that could produce a malformed giget specifier.
+ */
+const AD_HOC_TEMPLATE_PATTERN = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/;
+
+function isAdHocTemplateDir(value: string): boolean {
+	if (!AD_HOC_TEMPLATE_PATTERN.test(value)) return false;
+	return value.split("/").every((segment) => segment !== "." && segment !== "..");
 }
 
 function isPackageManager(value: string): value is PackageManager {
@@ -83,7 +100,8 @@ export function wantsHelp(argv: string[]): boolean {
  * Accepted forms (lifted from established `create-*` tools):
  * - Positional: `[name]` — the project directory (or `.` for cwd).
  * - `--template <key>` — one of `blog | starter | marketing | portfolio`,
- *   or the combined form `<platform>:<template>` (e.g. `cloudflare:blog`).
+ *   a repo-relative directory name (downloaded as-is from the templates
+ *   repo), or the combined form `<platform>:<template>` (e.g. `cloudflare:blog`).
  * - `--platform <node | cloudflare>`.
  * - `--pm <pnpm | npm | yarn | bun>` (alias: `--package-manager`).
  * - `--install` / `--no-install` — toggle dependency install.
@@ -177,16 +195,18 @@ export function parseFlags(argv: string[]): ParsedFlags {
 					`--template platform prefix must be one of ${PLATFORMS.join(", ")} (got "${platformPart}").`,
 				);
 			}
-			if (!isTemplate(templatePart)) {
+			if (!isTemplateKey(templatePart) && !isAdHocTemplateDir(templatePart)) {
 				throw new FlagError(
-					`--template name must be one of ${TEMPLATES.join(", ")} (got "${templatePart}").`,
+					`--template name must be one of ${TEMPLATES.join(", ")} or a repo-relative directory name (got "${templatePart}").`,
 				);
 			}
 			platformFromTemplate = platformPart;
 			flags.template = templatePart;
 		} else {
-			if (!isTemplate(raw)) {
-				throw new FlagError(`--template must be one of ${TEMPLATES.join(", ")} (got "${raw}").`);
+			if (!isTemplateKey(raw) && !isAdHocTemplateDir(raw)) {
+				throw new FlagError(
+					`--template must be one of ${TEMPLATES.join(", ")} or a repo-relative directory name (got "${raw}").`,
+				);
 			}
 			flags.template = raw;
 		}
@@ -267,8 +287,11 @@ Arguments:
   [name]                       Project directory name, or "." for cwd
 
 Options:
-  --template <key>             blog | starter | marketing | portfolio
-                               or "<platform>:<key>" (e.g. cloudflare:blog)
+  --template <key>             blog | starter | marketing | portfolio,
+                               or "<platform>:<key>" (e.g. cloudflare:blog).
+                               Any other repo-relative directory name is
+                               accepted as an ad-hoc template and downloaded
+                               as-is (see EMDASH_TEMPLATES_REPO below).
   --platform <key>             node | cloudflare
   --pm <key>                   pnpm | npm | yarn | bun
   --package-manager <key>      Alias of --pm
@@ -281,6 +304,11 @@ Options:
   --force                      Allow overwriting a non-empty target dir
                                (required with --yes when the target is non-empty)
   -h, --help                   Show this help text
+
+Environment:
+  EMDASH_TEMPLATES_REPO        "owner/repo" override for the templates repo
+                               (default: emdash-cms/templates). Ad-hoc
+                               --template dirs are looked up in this repo.
 
 Examples:
   npm create emdash@latest
