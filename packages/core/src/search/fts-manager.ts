@@ -455,10 +455,9 @@ export class FTSManager {
 				"c.title_field",
 				// bm25 weights are positional, so use the index's physical column order.
 				sql<string>`(
-					SELECT json_group_array(name) FROM (
-						SELECT name FROM pragma_table_info(${"_emdash_fts_"} || c.slug)
-						WHERE cid >= 2 ORDER BY cid
-					)
+					SELECT json_group_array(name ORDER BY cid)
+					FROM pragma_table_info(${"_emdash_fts_"} || c.slug)
+					WHERE cid >= 2
 				)`.as("searchable_fields"),
 				sql<number>`EXISTS (
 					SELECT 1 FROM _emdash_fields WHERE collection_id = c.id AND slug = 'title'
