@@ -1,0 +1,21 @@
+infra/flue-review/.flue/lib/webhook.ts
+  s_4c97aa8e7b616f::t_6b5ecb4e6364c7 84-86,90-91,107
+infra/flue-review/test/webhook.test.ts
+  s_4c97aa8e7b616f::t_e99adcc45251dc 75-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2f3a7940a4ad300d321e00543dc54506ef321805",
+  "prompts": {},
+  "sessions": {
+    "s_4c97aa8e7b616f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cbbb5cb7-3002-4f75-9ee5-0c59d1b89d52",
+        "model": "unknown"
+      },
+      "human_author": "Matt Kane <mkane@cloudflare.com>"
+    }
+  }
+}
