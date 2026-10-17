@@ -127,6 +127,8 @@ Preview links and visual editing bypass the object cache, so editors previewing 
 
 For requests that are not route-cache fills, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
 
+Every change also rewrites a single site-wide change marker. When an isolate's epochs are older than `revalidate`, it reads that marker first and, if nothing has changed, keeps all of its epochs, so a render past the window costs one epoch read instead of one per collection and shared namespace. An isolate still re-reads its epochs for two minutes after each change, which keeps the KV propagation bound above, and at least every ten minutes. With `revalidate: 0`, every query reads its epochs directly.
+
 ### Scheduled content
 
 Scheduled entries become visible when their publish time passes. A cached page reflects a newly-published scheduled entry on the next change to its collection, or when the cached entry's `defaultTtl` lapses. If precise scheduled publishing matters for your site, set a lower `defaultTtl`.
