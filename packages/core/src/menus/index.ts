@@ -450,7 +450,10 @@ function shouldPreferLocalizedRow(
 	const candidateRank = getLocaleRank(candidate.locale, locale);
 	const existingRank = getLocaleRank(existing.locale, locale);
 	return (
-		candidateRank < existingRank || (candidateRank === existingRank && candidate.id < existing.id)
+		candidateRank < existingRank ||
+		(candidateRank === existingRank &&
+			(candidate.locale < existing.locale ||
+				(candidate.locale === existing.locale && candidate.id < existing.id)))
 	);
 }
 
