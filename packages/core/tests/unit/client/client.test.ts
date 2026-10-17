@@ -1905,7 +1905,7 @@ describe("EmDashClient", () => {
 				const collections = await client.collections();
 				expect(collections.map((c) => c.slug)).toEqual(["posts"]);
 			} finally {
-				server.close();
+				await new Promise<void>((done) => server.close(() => done()));
 			}
 		});
 	});
