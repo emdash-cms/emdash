@@ -28,6 +28,16 @@ describe("normalizeMediaValue", () => {
 		expect(result).toBeNull();
 	});
 
+	it.each(["", "   "])(
+		"returns null for an empty string (%j) without asking a provider",
+		async (value) => {
+			const local = mockProvider();
+			const result = await normalizeMediaValue(value, getProvider({ local }));
+			expect(result).toBeNull();
+			expect(local.get).not.toHaveBeenCalled();
+		},
+	);
+
 	it("converts bare HTTP URL to external MediaValue", async () => {
 		const result = await normalizeMediaValue("https://example.com/photo.jpg", getProvider({}));
 		expect(result).toEqual({
