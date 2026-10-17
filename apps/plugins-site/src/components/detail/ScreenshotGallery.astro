@@ -293,7 +293,10 @@ const count = screenshots.length;
 		white-space: nowrap;
 	}
 
+	/* Its focus ring sits on the dark backdrop in both themes. */
 	.lightbox-close {
+		--accent-ink: #ff7a45;
+
 		position: absolute;
 		inset-block-start: 16px;
 		inset-inline-end: 16px;
