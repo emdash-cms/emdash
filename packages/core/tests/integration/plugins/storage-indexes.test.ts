@@ -16,6 +16,34 @@ import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js"
 
 const UNIQUE_CONSTRAINT_PATTERN = /UNIQUE constraint failed/;
 
+/**
+ * Attach an audit trigger that counts UPDATEs on _plugin_indexes.
+ * Returns a function that reads the current count. SQLite only.
+ */
+async function attachIndexUpdateCounter(db: Kysely<Database>): Promise<() => Promise<number>> {
+	await sql`
+		CREATE TABLE IF NOT EXISTS _plugin_index_update_audit (n INTEGER NOT NULL DEFAULT 1)
+	`.execute(db);
+	await sql`DELETE FROM _plugin_index_update_audit`.execute(db);
+	await sql`
+		DROP TRIGGER IF EXISTS _plugin_index_update_trigger
+	`.execute(db);
+	await sql`
+		CREATE TRIGGER _plugin_index_update_trigger
+		AFTER UPDATE ON _plugin_indexes
+		BEGIN
+			INSERT INTO _plugin_index_update_audit (n) VALUES (1);
+		END
+	`.execute(db);
+
+	return async () => {
+		const result = await sql<{ count: number }>`
+			SELECT COALESCE(SUM(n), 0) AS count FROM _plugin_index_update_audit
+		`.execute(db);
+		return result.rows[0].count;
+	};
+}
+
 describe("Plugin Storage Indexes Integration", () => {
 	let db: Kysely<Database>;
 
@@ -25,6 +53,84 @@ describe("Plugin Storage Indexes Integration", () => {
 
 	afterEach(async () => {
 		await teardownTestDatabase(db);
+	});
+
+	describe("unchanged declaration writes", () => {
+		it("does not UPDATE _plugin_indexes rows when declarations are unchanged", async () => {
+			const getUpdateCount = await attachIndexUpdateCounter(db);
+
+			// First sync creates two tracking rows.
+			await createStorageIndexes(db, "write-repro", "records", ["status", ["status", "updatedAt"]]);
+			expect(await getUpdateCount()).toBe(0);
+
+			// Repeated sync with identical declarations should not write the
+			// registry rows again, matching the reproduction in issue #4228.
+			await createStorageIndexes(db, "write-repro", "records", ["status", ["status", "updatedAt"]]);
+			expect(await getUpdateCount()).toBe(0);
+
+			const rows = await db
+				.selectFrom("_plugin_indexes")
+				.selectAll()
+				.where("plugin_id", "=", "write-repro")
+				.execute();
+			expect(rows).toHaveLength(2);
+		});
+
+		it("still UPDATES _plugin_indexes when stored fields differ", async () => {
+			await createStorageIndexes(db, "write-repro", "records", ["status"], {
+				uniqueIndexes: ["slug"],
+			});
+
+			// Simulate a stale/corrupted tracking row where the stored fields
+			// disagree with the declared index. Re-syncing should rewrite it.
+			await db
+				.updateTable("_plugin_indexes")
+				.set({ fields: JSON.stringify(["oldField"]) })
+				.where("plugin_id", "=", "write-repro")
+				.where("index_name", "=", "idx_plugin_write-repro_records_status")
+				.execute();
+
+			const getUpdateCount = await attachIndexUpdateCounter(db);
+
+			await createStorageIndexes(db, "write-repro", "records", ["status"], {
+				uniqueIndexes: ["slug"],
+			});
+
+			// Only the mismatched regular-index row is rewritten.
+			expect(await getUpdateCount()).toBe(1);
+			const row = await db
+				.selectFrom("_plugin_indexes")
+				.select("fields")
+				.where("plugin_id", "=", "write-repro")
+				.where("index_name", "=", "idx_plugin_write-repro_records_status")
+				.executeTakeFirstOrThrow();
+			expect(JSON.parse(row.fields)).toEqual(["status"]);
+		});
+
+		it("repairs a missing physical index without rewriting unchanged registry rows", async () => {
+			await createStorageIndexes(db, "write-repro", "records", ["status"]);
+
+			// Drop the physical index from sqlite_master but leave the tracking
+			// row in place, simulating a partial previous sync.
+			await sql`
+				DROP INDEX IF EXISTS ${sql.ref("idx_plugin_write-repro_records_status")}
+			`.execute(db);
+
+			const getUpdateCount = await attachIndexUpdateCounter(db);
+
+			// Re-creating the same declaration should repair the index without
+			// touching the registry row.
+			const result = await createStorageIndexes(db, "write-repro", "records", ["status"]);
+			expect(result.created).toContain("idx_plugin_write-repro_records_status");
+			expect(result.errors).toHaveLength(0);
+			expect(await getUpdateCount()).toBe(0);
+
+			const repaired = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_plugin_write-repro_records_status'
+			`.execute(db);
+			expect(repaired.rows).toHaveLength(1);
+		});
 	});
 
 	describe("createStorageIndexes", () => {
