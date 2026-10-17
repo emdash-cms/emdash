@@ -43,6 +43,7 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
+import { interpolateUrlPattern } from "../../i18n/resolve.js";
 import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
@@ -811,6 +812,45 @@ async function createSlugChangeRedirect(
 	return redirect !== null;
 }
 
+/**
+ * Remove any auto-redirect whose source is the URL a newly published entry
+ * now occupies. This prevents an earlier slug-change redirect from shadowing
+ * the new live page, because the redirect middleware runs before routing.
+ */
+async function removeShadowingAutoRedirect(
+	db: Kysely<Database>,
+	collection: string,
+	slug: string | null | undefined,
+	contentId: string,
+	publishedAt: string | null | undefined,
+): Promise<boolean> {
+	if (!slug) return false;
+	validateIdentifier(collection, "collection slug");
+
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("url_pattern")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+
+	const url = interpolateUrlPattern({
+		pattern: collectionRow?.url_pattern ?? null,
+		collection,
+		slug,
+		id: contentId,
+		date: publishedAt,
+	});
+
+	const result = await db
+		.deleteFrom("_emdash_redirects")
+		.where("source", "=", url)
+		.where("auto", "=", 1)
+		.executeTakeFirst();
+	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
+	if (removed) invalidateRedirectCache();
+	return removed;
+}
+
 /** Whether a row other than `contentId` still holds `slug` in this collection. */
 async function slugStillTaken(
 	db: Kysely<Database>,
@@ -1393,6 +1433,18 @@ export async function handleContentCreate(
 			return created;
 		});
 
+		let redirectChanged = false;
+		if (item.status === "published") {
+			redirectChanged = await removeShadowingAutoRedirect(
+				db,
+				collection,
+				item.slug,
+				item.id,
+				item.publishedAt,
+			);
+		}
+		if (redirectChanged) after(() => publishRedirectChanges(db));
+
 		return {
 			success: true,
 			data: { item, _rev: encodeRev(item) },
@@ -1687,7 +1739,13 @@ export async function handleContentUpdate(
 
 			return updated;
 		});
-		if (redirectCreated) after(() => publishRedirectChanges(db));
+		let redirectChanged = redirectCreated;
+		if (item.status === "published") {
+			redirectChanged =
+				(await removeShadowingAutoRedirect(db, collection, item.slug, item.id, item.publishedAt)) ||
+				redirectChanged;
+		}
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		return {
 			success: true,
@@ -2485,7 +2543,11 @@ export async function handleContentPublish(
 
 			return published;
 		});
-		if (redirectCreated) after(() => publishRedirectChanges(db));
+		let redirectChanged = redirectCreated;
+		redirectChanged =
+			(await removeShadowingAutoRedirect(db, collection, item.slug, item.id, item.publishedAt)) ||
+			redirectChanged;
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);

@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import { handleContentUpdate } from "../../../src/api/handlers/content.js";
+import { handleContentCreate, handleContentUpdate } from "../../../src/api/handlers/content.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
@@ -80,5 +80,76 @@ describeEachDialect("published slug-change redirects", (dialect) => {
 			expect.objectContaining({ source: "/blog/a", destination: "/blog/b", auto: 1 }),
 			expect.objectContaining({ source: "/promo", destination: "/blog/b" }),
 		]);
+	});
+
+	it("removes the auto-redirect from the URL a new entry is published at", async () => {
+		const redirects = new RedirectRepository(db);
+		const entry = await new ContentRepository(db).create({
+			type: "posts",
+			slug: "a",
+			status: "published",
+			data: { title: "A" },
+		});
+		await handleContentUpdate(db, "posts", entry.id, { slug: "b" });
+		await new ContentRepository(db).delete("posts", entry.id);
+
+		await expect(
+			handleContentCreate(db, "posts", {
+				slug: "a",
+				status: "published",
+				data: { title: "New A" },
+			}),
+		).resolves.toMatchObject({ success: true });
+
+		await expect(redirects.findBySource("/blog/a")).resolves.toBeNull();
+		await expect(
+			db.selectFrom("_emdash_redirects").select(["source", "destination", "auto"]).execute(),
+		).resolves.toEqual([]);
+	});
+
+	it("removes the auto-redirect when a new entry is created as published", async () => {
+		const redirects = new RedirectRepository(db);
+		const entry = await new ContentRepository(db).create({
+			type: "posts",
+			slug: "a",
+			status: "published",
+			data: { title: "A" },
+		});
+		await handleContentUpdate(db, "posts", entry.id, { slug: "b" });
+
+		await expect(
+			handleContentCreate(db, "posts", {
+				slug: "a",
+				status: "published",
+				data: { title: "New A" },
+			}),
+		).resolves.toMatchObject({ success: true });
+
+		await expect(redirects.findBySource("/blog/a")).resolves.toBeNull();
+	});
+
+	it("removes the auto-redirect when an update publishes a new entry", async () => {
+		const redirects = new RedirectRepository(db);
+		const entry = await new ContentRepository(db).create({
+			type: "posts",
+			slug: "a",
+			status: "published",
+			data: { title: "A" },
+		});
+		await handleContentUpdate(db, "posts", entry.id, { slug: "b" });
+		const newEntry = await new ContentRepository(db).create({
+			type: "posts",
+			slug: "a",
+			status: "draft",
+			data: { title: "New A" },
+		});
+
+		await expect(
+			handleContentUpdate(db, "posts", newEntry.id, { status: "published" }),
+		).resolves.toMatchObject({
+			success: true,
+		});
+
+		await expect(redirects.findBySource("/blog/a")).resolves.toBeNull();
 	});
 });
