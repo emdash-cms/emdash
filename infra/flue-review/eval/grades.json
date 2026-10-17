@@ -1,0 +1,167 @@
+{
+	"baseline": {
+		"4226": {
+			"kimi": {
+				"scores": { "K1": 1, "K2": 0, "K3": 0 },
+				"falseClaims": [],
+				"note": "K1 with the exact middleware gate; praised the routeCacheFill test instead of noting it hides K1"
+			},
+			"opus": {
+				"scores": { "K1": 1, "K2": 1, "K3": 0 },
+				"falseClaims": [],
+				"note": "K1 with the exact gate; K2 names the objectCache:false test that sets routeCacheFill by hand"
+			},
+			"sol": {
+				"scores": { "K1": 1, "K2": 1, "K3": 0 },
+				"falseClaims": [],
+				"note": "K1 and K2, same as Opus"
+			}
+		},
+		"4225": {
+			"kimi": {
+				"scores": { "K4": 0, "K5": 0, "K15": 0, "K16": 0 },
+				"falseClaims": [],
+				"note": "judged the replacement atomic everywhere; comment verdict only for two stale-comment and test-layout suggestions"
+			},
+			"opus": {
+				"scores": { "K4": 0, "K5": 0, "K15": 0, "K16": 0 },
+				"falseClaims": [],
+				"note": "noted the Durable Object dialect takes the transaction fallback without seeing that the fallback is not atomic there"
+			},
+			"sol": {
+				"scores": { "K4": 0, "K5": 0, "K15": 0, "K16": 0 },
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4224": {
+			"kimi": {
+				"scores": { "K6": 0, "K7": 0, "K14": 0 },
+				"falseClaims": [],
+				"note": "repeated the PR's \"no migration is required\""
+			},
+			"opus": {
+				"scores": { "K6": 0, "K7": 0, "K14": 0 },
+				"falseClaims": [],
+				"note": "repeated the PR's \"no migration is needed\""
+			},
+			"sol": {
+				"scores": { "K6": 0, "K7": 0, "K14": 0 },
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4221": {
+			"kimi": {
+				"scores": { "K8": 0, "K9": 0.5 },
+				"falseClaims": [],
+				"note": "noted the <img> leak and the ignored getImage path, then dismissed both as pre-existing"
+			},
+			"opus": {
+				"scores": { "K8": 0, "K9": 1 },
+				"falseClaims": [],
+				"note": "K9 in full (leak onto <img>, no effect on the getImage path) as a suggestion; approved"
+			},
+			"sol": { "scores": { "K8": 0, "K9": 0 }, "falseClaims": [], "note": "clean approve" }
+		},
+		"4201": {
+			"kimi": {
+				"scores": { "K10": 0, "K11": 0, "K12": 0, "K13": 0 },
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": { "K10": 0, "K11": 1, "K12": 0, "K13": 0 },
+				"falseClaims": [],
+				"note": "K11 with generator and schema locations; valid backfill note"
+			},
+			"sol": {
+				"scores": { "K10": 0, "K11": 1, "K12": 0, "K13": 0 },
+				"falseClaims": [],
+				"note": "K11, including the dark variant"
+			}
+		},
+		"4208": {
+			"kimi": { "scores": { "H1": 0 }, "falseClaims": [], "note": "clean approve" },
+			"opus": { "scores": { "H1": 0 }, "falseClaims": [], "note": "clean approve" },
+			"sol": { "scores": { "H1": 0 }, "falseClaims": [], "note": "clean approve" }
+		},
+		"4128": {
+			"kimi": {
+				"scores": { "H2": 0 },
+				"falseClaims": [],
+				"note": "accepted \"drafts are not visible on public pages\""
+			},
+			"opus": {
+				"scores": { "H2": 0 },
+				"falseClaims": [],
+				"note": "accepted the claim; checked status validation only"
+			},
+			"sol": {
+				"scores": { "H2": 1 },
+				"falseClaims": [],
+				"note": "draft translation with taxonomies clears the published source's group-level terms, purge removed, with a reproduction"
+			}
+		},
+		"4167": {
+			"kimi": {
+				"scores": { "H3": 1 },
+				"falseClaims": [],
+				"note": "issue reference as a suggestion"
+			},
+			"opus": {
+				"scores": { "H3": 1 },
+				"falseClaims": [],
+				"note": "issue reference, plus a narrative test-header nit"
+			},
+			"sol": { "scores": { "H3": 1 }, "falseClaims": [], "note": "issue reference as needs_fixing" }
+		},
+		"4150": {
+			"kimi": {
+				"scores": { "H4": 0 },
+				"falseClaims": [],
+				"note": "conditional changeset-overlap suggestion (valid)"
+			},
+			"opus": {
+				"scores": { "H4": 1 },
+				"falseClaims": [],
+				"note": "changeset omits comments, plus stale comments"
+			},
+			"sol": { "scores": { "H4": 0 }, "falseClaims": [], "note": "clean approve" }
+		},
+		"4203": {
+			"kimi": { "scores": {}, "falseClaims": [], "note": "clean approve" },
+			"opus": { "scores": {}, "falseClaims": [], "note": "clean approve" },
+			"sol": { "scores": {}, "falseClaims": [], "note": "clean approve" }
+		},
+		"4186": {
+			"kimi": { "scores": {}, "falseClaims": [], "note": "clean approve" },
+			"opus": { "scores": {}, "falseClaims": [], "note": "clean approve" },
+			"sol": { "scores": {}, "falseClaims": [], "note": "clean approve" }
+		},
+		"4172": {
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve; did not repeat the masking claim"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve; said outright that the folded-read await cannot reject; valid test-name nit"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [
+					"needs_fixing: speculative reads now run before the migration-failure backoff check. True at this head, but a minor cost during an error backoff window, overstated as blocking"
+				],
+				"note": "comment verdict on a clean PR"
+			}
+		},
+		"4157": {
+			"kimi": { "scores": {}, "falseClaims": [], "note": "clean approve" },
+			"opus": { "scores": {}, "falseClaims": [], "note": "clean approve" },
+			"sol": { "scores": {}, "falseClaims": [], "note": "clean approve" }
+		}
+	}
+}

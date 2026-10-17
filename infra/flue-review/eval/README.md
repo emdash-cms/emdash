@@ -10,11 +10,11 @@ Without GitHub App credentials the workflow reviews the given head once. It fetc
 
 `REVIEW_EVAL=1` mounts Flue's workflow and run routes under `/eval`, which the runner uses to start runs and read their results and events. Production sets no evaluation settings, so it serves neither route.
 
-| Key | Model | Route |
-| --- | --- | --- |
+| Key    | Model                                      | Route                                       |
+| ------ | ------------------------------------------ | ------------------------------------------- |
 | `kimi` | `cloudflare/@cf/moonshotai/kimi-k2.7-code` | Workers AI binding (the production default) |
-| `opus` | `anthropic/claude-opus-5-5` | AI Gateway, Unified Billing |
-| `sol` | `openai/gpt-6.1-sol` | AI Gateway, Unified Billing |
+| `opus` | `anthropic/claude-opus-5-5`                | AI Gateway, Unified Billing                 |
+| `sol`  | `openai/gpt-6.1-sol`                       | AI Gateway, Unified Billing                 |
 
 The gateway models are not in the bundled Pi catalog, so Flue treats them as non-reasoning models with no pricing. Claude Opus 5.5 thinks adaptively when no thinking setting is sent, and GPT-6.1 Sol reasons at its default effort. Their responses are stored server-side so reasoning items can be replayed across tool turns. Both get the same 262,144-token context budget as Kimi, so compaction behaves the same. The runner prices usage from its own table, using the AI Gateway catalog rates.
 
@@ -27,14 +27,14 @@ node eval/run.ts --gateway-env /path/to/.env
 node eval/run.ts --models opus --cases 4150,4208 --gateway-env /path/to/.env
 ```
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `--models` | `kimi,opus,sol` | Model keys. Each model runs on its own server, in parallel. |
-| `--cases` | all | Comma-separated PR numbers from `cases.json`. |
-| `--concurrency` | `1` | Concurrent runs per model. |
-| `--base-port` | `3591` | First server port; later models take the next ports. |
-| `--timeout-min` | `45` | Per-run timeout. |
-| `--force` | off | Re-run cases that already have a completed result. |
+| Option          | Default         | Meaning                                                     |
+| --------------- | --------------- | ----------------------------------------------------------- |
+| `--models`      | `kimi,opus,sol` | Model keys. Each model runs on its own server, in parallel. |
+| `--cases`       | all             | Comma-separated PR numbers from `cases.json`.               |
+| `--concurrency` | `1`             | Concurrent runs per model.                                  |
+| `--base-port`   | `3591`          | First server port; later models take the next ports.        |
+| `--timeout-min` | `45`            | Per-run timeout.                                            |
+| `--force`       | off             | Re-run cases that already have a completed result.          |
 
 A failed run is retried once. Unauthenticated GitHub API calls are limited to 60 an hour per IP and each run spends two, so the runner waits for the allowance to reset when it runs low.
 
