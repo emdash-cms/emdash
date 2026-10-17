@@ -82,7 +82,10 @@ interface PullRequestEvent {
 }
 
 /** Bot authors whose PRs are reviewed without a `bot:review` label. */
-const REVIEWED_BOT_AUTHORS: ReadonlySet<string> = new Set(["emdashbot[bot]", "emdash-autofix[bot]"]);
+const REVIEWED_BOT_AUTHORS: ReadonlySet<string> = new Set([
+	"emdashbot[bot]",
+	"emdash-autofix[bot]",
+]);
 
 /**
  * Decide whether a `pull_request` webhook should trigger a review, and extract
