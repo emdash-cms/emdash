@@ -343,6 +343,8 @@ type ContentPolicyCheck =
  */
 export interface SandboxedPluginEntry {
 	id: string;
+	displayName?: string;
+	description?: string;
 	version: string;
 	options: Record<string, unknown>;
 	code: string;
