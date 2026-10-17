@@ -1,5 +1,26 @@
 # emdash
 
+## 1.3.1
+
+### Patch Changes
+
+- [#4069](https://github.com/emdash-cms/emdash/pull/4069) [`30604dc`](https://github.com/emdash-cms/emdash/commit/30604dcb0538df477ea0d8bde894ecdb57388bad) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes sites on Cloudflare Workers in the default `auto` migration mode serving pages without their content, with a 200 status, after an upgrade whose migrations a request could not finish.
+  
+  Such a site now answers with a 503 response until its migrations are applied, so uptime checks notice it. A deployed Worker also no longer starts a migration that processes every entry and revision of a large site, such as the datetime normalization from 0.39.0; it answers with 503 until `emdash migrate` applies it.
+  
+  #### What should I do?
+  
+  If your site runs on Workers in `auto` mode and upgrades from 0.38 or earlier, run `emdash migrate` before you deploy, as described in [Apply large content migrations from the CLI](https://docs.emdashcms.com/deployment/core-migrations/#apply-large-content-migrations-from-the-cli).
+  
+  If a site answers with 503 after an upgrade, read the Worker log. When it names a pending migration, apply it with `emdash migrate`. When it reports a held migration lock, follow [Release a stuck migration lock](https://docs.emdashcms.com/deployment/core-migrations/#release-a-stuck-migration-lock).
+
+- [#4043](https://github.com/emdash-cms/emdash/pull/4043) [`c958045`](https://github.com/emdash-cms/emdash/commit/c95804553d01deba84f2dfc0015e5a63cb4b90a2) Thanks [@giffeler](https://github.com/giffeler)! - Fixes media previews and file downloads timing out on Node.js sites using S3-compatible storage, including Cloudflare R2, after repeated cache revalidation or HEAD requests.
+- Updated dependencies [[`66d0294`](https://github.com/emdash-cms/emdash/commit/66d029411fb53c660f8706030d782dd9b3b8d70d), [`a763760`](https://github.com/emdash-cms/emdash/commit/a7637608a591bcfc4b92c76145d75aa5e4edf792), [`68b954e`](https://github.com/emdash-cms/emdash/commit/68b954e651da818b53cdacc477ea6fd5ae8ad5cf), [`fabbbb0`](https://github.com/emdash-cms/emdash/commit/fabbbb00713a52b84411be01b961402f0b1eaf14), [`7846c84`](https://github.com/emdash-cms/emdash/commit/7846c84b3686bec825d70e1f601f5735a6709e42), [`34b218d`](https://github.com/emdash-cms/emdash/commit/34b218de2e6ef4073cc8fb7da07c9499fe562467)]:
+  - @emdash-cms/admin@1.3.1
+  - @emdash-cms/auth@1.3.1
+  - @emdash-cms/blocks@1.3.1
+  - @emdash-cms/gutenberg-to-portable-text@1.3.1
+
 <!-- emdash-changelog-archive: ./changelog/1.0.1-rc.0-to-1.0.1-rc.0.md -->
 
 ## 1.3.0

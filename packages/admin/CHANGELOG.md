@@ -1,5 +1,23 @@
 # @emdash-cms/admin
 
+## 1.3.1
+
+### Patch Changes
+
+- [#4104](https://github.com/emdash-cms/emdash/pull/4104) [`66d0294`](https://github.com/emdash-cms/emdash/commit/66d029411fb53c660f8706030d782dd9b3b8d70d) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Adds Hindi (`hi`) admin translations for deleting and editing media, folders, tags, table and block controls, domain changes, and error messages. Hindi strings now consistently use the transliterations "एरर" for error and "सोर्स" for source.
+
+- [#4197](https://github.com/emdash-cms/emdash/pull/4197) [`a763760`](https://github.com/emdash-cms/emdash/commit/a7637608a591bcfc4b92c76145d75aa5e4edf792) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes accessible field names in Portable Text plugin block dialogs so screen readers announce text, number, select, and toggle labels, and identify media picker and repeater groups.
+
+- [#4142](https://github.com/emdash-cms/emdash/pull/4142) [`68b954e`](https://github.com/emdash-cms/emdash/commit/68b954e651da818b53cdacc477ea6fd5ae8ad5cf) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Adds missing Indonesian (`id`) translations for publishing-date labels, menu rename notices, menu CSS class hints, and scheduled-publication descriptions in the admin UI.
+
+- [#4211](https://github.com/emdash-cms/emdash/pull/4211) [`fabbbb0`](https://github.com/emdash-cms/emdash/commit/fabbbb00713a52b84411be01b961402f0b1eaf14) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Adds missing Indonesian (`id`) translations for revision history, version restore dialogs, AI crawler training rules, and WordPress import bot-protection notices in the admin UI.
+
+- [#3556](https://github.com/emdash-cms/emdash/pull/3556) [`7846c84`](https://github.com/emdash-cms/emdash/commit/7846c84b3686bec825d70e1f601f5735a6709e42) Thanks [@nesmachny](https://github.com/nesmachny)! - Adds Russian (Русский) translations for the admin UI. The locale is selectable from the language picker.
+
+- [#4222](https://github.com/emdash-cms/emdash/pull/4222) [`34b218d`](https://github.com/emdash-cms/emdash/commit/34b218de2e6ef4073cc8fb7da07c9499fe562467) Thanks [@Yusaku01](https://github.com/Yusaku01)! - Adds Japanese translations for media deletion, image replacement, and cropping confirmation dialogs and their progress messages.
+- Updated dependencies []:
+  - @emdash-cms/blocks@1.3.1
+
 <!-- emdash-changelog-archive: ./changelog/0.39.0-to-0.39.0.md -->
 
 ## 1.3.0
