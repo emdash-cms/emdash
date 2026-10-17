@@ -814,6 +814,12 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string | readon
 	["/_emdash/api/admin", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
 
+	// Redirects — site configuration. Without a rule these fall to the admin
+	// default, so no token short of full admin could manage a redirect. The
+	// handlers still enforce redirects:read / redirects:manage on the owner's role.
+	["/_emdash/api/redirects", "GET", "content:read"],
+	["/_emdash/api/redirects", "WRITE", "settings:manage"],
+
 	// Backups are a full-site content export and must precede the generic
 	// settings rules, which would otherwise let a settings:read token through.
 	["/_emdash/api/settings/backups", "*", "admin"],
