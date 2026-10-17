@@ -43,12 +43,19 @@ export function resolveConfiguredLocale(
 	locale: string,
 	config: I18nConfig | null = getI18nConfig(),
 ): string {
+	const configured = config?.locales.find(
+		(candidate) => candidate.toLowerCase() === locale.toLowerCase(),
+	);
+	if (configured) return configured;
+
+	const aliased = Object.entries(config?.localeAliases ?? {}).find(
+		([code]) => code.toLowerCase() === locale.toLowerCase(),
+	)?.[1];
+	if (aliased === undefined) return locale;
+
 	return (
-		config?.locales.find((configured) => configured.toLowerCase() === locale.toLowerCase()) ??
-		Object.entries(config?.localeAliases ?? {}).find(
-			([code]) => code.toLowerCase() === locale.toLowerCase(),
-		)?.[1] ??
-		locale
+		config?.locales.find((candidate) => candidate.toLowerCase() === aliased.toLowerCase()) ??
+		aliased
 	);
 }
 
