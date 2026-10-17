@@ -1,6 +1,7 @@
 import { getFieldLabel } from "../field-label.js";
 import { diffBlocks } from "./blocks.js";
 import type { DiffContext } from "./context.js";
+import { diffItems, describeBlock, describeRepeaterItem } from "./items.js";
 import {
 	blockSignature,
 	canonicalJson,
@@ -24,6 +25,8 @@ type FieldMode =
 	| "text"
 	| "url"
 	| "portableText"
+	| "blocks"
+	| "repeater"
 	| "boolean"
 	| "number"
 	| "datetime"
@@ -47,6 +50,8 @@ export function fieldMode(descriptor: DiffFieldDescriptor): FieldMode {
 		case "number":
 		case "datetime":
 		case "multiSelect":
+		case "blocks":
+		case "repeater":
 			return descriptor.kind;
 		case "image":
 		case "file":
@@ -115,12 +120,14 @@ export function diffFields(
 	);
 }
 
-function diffField(
+/** `path` names the field in target ids; a field inside a block or repeater item has its own. */
+export function diffField(
 	slug: string,
 	descriptor: DiffFieldDescriptor,
 	previous: RevisionData,
 	current: RevisionData,
 	context: DiffContext,
+	path = slug,
 ): FieldDiff {
 	const mode = fieldMode(descriptor);
 	const before = previous[slug];
@@ -129,7 +136,7 @@ function diffField(
 		slug,
 		label: getFieldLabel(slug, descriptor),
 		kind: descriptor.kind,
-		targetId: `f-${slug}`,
+		targetId: `f-${path}`,
 	};
 
 	if (mode === "relation") {
@@ -167,10 +174,24 @@ function diffField(
 			const rows = diffBlocks(
 				normalizeBlocks(oldBlocks),
 				normalizeBlocks(newBlocks),
-				slug,
+				path,
 				context,
 			);
 			return { ...base, type: "portableText", status, rows };
+		}
+	}
+	if (mode === "blocks" || mode === "repeater") {
+		const oldItems = blocksOf(before);
+		const newItems = blocksOf(after);
+		if (oldItems && newItems) {
+			const describe =
+				mode === "blocks"
+					? describeBlock(descriptor.blockTypes ?? [])
+					: describeRepeaterItem(descriptor);
+			const rows = diffItems(oldItems, newItems, path, describe, context);
+			// A block type upgrade rewrites stored items without changing anything an editor sees.
+			const visible = rows.some((row) => row.status !== "unchanged" || row.moved);
+			return { ...base, type: "items", status: visible ? status : "unchanged", rows };
 		}
 	}
 	if (mode === "boolean") {

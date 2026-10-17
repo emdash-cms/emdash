@@ -1,12 +1,17 @@
 import * as React from "react";
 
 import { getFieldLabel } from "../../lib/field-label.js";
-import type { FieldDiff, RevisionDiff } from "../../lib/revision-diff/types.js";
+import type {
+	DiffFieldDescriptor,
+	FieldDiff,
+	RevisionDiff,
+} from "../../lib/revision-diff/types.js";
 import type { FieldDescriptor } from "../ContentEditor";
 import { OptionalLabel } from "../OptionalLabel.js";
 import { type AuthorColor, revisionTargetElementId } from "./revision-format.js";
 import { RevisionDocument } from "./RevisionDocument.js";
 import { BooleanFieldValue, TextFieldValue, ValueFieldValue } from "./RevisionFieldValue.js";
+import { type RenderItemField, RevisionItems } from "./RevisionItems.js";
 
 export interface RevisionViewCanvasProps {
 	diff: RevisionDiff;
@@ -46,22 +51,46 @@ function FieldValue({
 	field,
 	descriptor,
 	isTitle,
+	nested,
 	marked,
 	timezone,
 }: {
 	field: Exclude<FieldDiff, { type: "boolean" }>;
-	descriptor: FieldDescriptor | undefined;
+	descriptor: DiffFieldDescriptor | undefined;
 	isTitle: boolean;
+	nested: boolean;
 	marked: boolean;
 	timezone: string;
 }) {
+	const renderItemField = React.useCallback<RenderItemField>(
+		(itemField, itemDescriptor, itemMarked) => (
+			<RevisionField
+				field={itemField}
+				descriptor={itemDescriptor}
+				isTitle={false}
+				nested
+				marked={itemMarked}
+				timezone={timezone}
+			/>
+		),
+		[timezone],
+	);
 	switch (field.type) {
 		case "portableText":
 			return (
 				<RevisionDocument
 					rows={field.rows}
-					variant={field.slug === "content" ? "document" : "boxed"}
+					variant={field.slug === "content" && !nested ? "document" : "boxed"}
 					marked={marked}
+				/>
+			);
+		case "items":
+			return (
+				<RevisionItems
+					kind={field.kind}
+					rows={field.rows}
+					marked={marked}
+					renderField={renderItemField}
 				/>
 			);
 		case "text":
@@ -94,12 +123,15 @@ const RevisionField = React.memo(function RevisionField({
 	field,
 	descriptor,
 	isTitle,
+	nested = false,
 	marked,
 	timezone,
 }: {
 	field: FieldDiff;
-	descriptor: FieldDescriptor | undefined;
+	descriptor: DiffFieldDescriptor | undefined;
 	isTitle: boolean;
+	/** Inside a block or repeater item. */
+	nested?: boolean;
 	marked: boolean;
 	timezone: string;
 }) {
@@ -128,6 +160,7 @@ const RevisionField = React.memo(function RevisionField({
 				field={field}
 				descriptor={descriptor}
 				isTitle={isTitle}
+				nested={nested}
 				marked={marked}
 				timezone={timezone}
 			/>

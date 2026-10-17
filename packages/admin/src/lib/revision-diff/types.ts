@@ -12,6 +12,24 @@ export interface DiffFieldDescriptor {
 	options?: ReadonlyArray<{ value: string; label: string }> | Record<string, unknown>;
 	validation?: Record<string, unknown>;
 	widget?: string;
+	required?: boolean;
+	/** For a blocks field: the block types its items can have. */
+	blockTypes?: readonly DiffBlockType[];
+}
+
+/** The parts of a block type the diff reads. */
+export interface DiffBlockType {
+	slug: string;
+	label: string;
+	versions: ReadonlyArray<{ version: number; fields: readonly DiffBlockFieldDefinition[] }>;
+}
+
+export interface DiffBlockFieldDefinition {
+	slug: string;
+	label?: string;
+	type: string;
+	required?: boolean;
+	validation?: Record<string, unknown>;
 }
 
 export interface DiffLimits {
@@ -144,6 +162,27 @@ export type BlockRow =
 			change: BlockChange;
 	  };
 
+/**
+ * One block of a blocks field or one item of a repeater, in the new order. Removed items sit after
+ * the item that preceded them.
+ */
+export interface ItemRow {
+	status: "unchanged" | "added" | "removed" | "changed";
+	targetId: string;
+	/** The block's `_type`; empty for a repeater item. */
+	type: string;
+	/** The block type's label, or the `_type` when the block type is unknown; null for a repeater item. */
+	label: string | null;
+	/** 1-based position in the version the item belongs to: the old one when removed. */
+	position: number;
+	moved: boolean;
+	/** The item's fields in the order the editor shows them, then changed values it doesn't define. */
+	fields: readonly FieldDiff[];
+	descriptors: Readonly<Record<string, DiffFieldDescriptor>>;
+	/** The item as stored, from the old version when removed. */
+	value: Readonly<Record<string, unknown>>;
+}
+
 interface FieldDiffBase {
 	slug: string;
 	/** The field's label as the editor shows it, which is the capitalized slug when it has none. */
@@ -156,6 +195,7 @@ interface FieldDiffBase {
 export type FieldDiff =
 	| (FieldDiffBase & { type: "text"; text: TextDiff })
 	| (FieldDiffBase & { type: "portableText"; rows: readonly BlockRow[] })
+	| (FieldDiffBase & { type: "items"; rows: readonly ItemRow[] })
 	| (FieldDiffBase & { type: "boolean"; before: boolean; after: boolean })
 	| (FieldDiffBase & { type: "value"; before: unknown; after: unknown });
 
@@ -201,6 +241,29 @@ export type ChangeItem =
 			action: "added" | "removed" | "edited" | "restyled" | "moved";
 			noun: BlockNoun;
 			snippet: Snippet | null;
+			target: string;
+	  }
+	| {
+			kind: "blockItem";
+			field: FieldRef;
+			action: "added" | "removed" | "edited" | "moved";
+			/** The block type's label. */
+			label: string;
+			/** For an edit, the block field that changed. */
+			blockField: FieldRef | null;
+			target: string;
+	  }
+	| {
+			kind: "repeaterItem";
+			/** The repeater field. */
+			field: FieldRef;
+			action: "added" | "removed" | "edited" | "moved";
+			/** The item's number as its card shows it: the old one for a removed item. */
+			position: number;
+			/** For an edit, the item field that changed. */
+			itemField: FieldRef | null;
+			/** The block type's label when the repeater is a field of a block. */
+			block: string | null;
 			target: string;
 	  }
 	| {
