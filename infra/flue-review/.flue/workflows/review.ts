@@ -22,8 +22,10 @@ import {
 	defineWorkflow,
 	type ActionContext,
 	type WorkflowRouteHandler,
+	type WorkflowRunsHandler,
 } from "@flue/runtime";
 import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cloudflare";
+import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
 import { withCapacityRetry } from "../lib/capacity.js";
@@ -49,6 +51,7 @@ import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
 import { omitReviewArtifacts } from "../lib/review-context.js";
 import { formatReviewFailureSummary } from "../lib/review-failure.js";
 import { reviewUntilCurrentHead, type PullRequestRevision } from "../lib/review-head.js";
+import { reviewModel } from "../lib/review-model.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import {
 	getReviewWatchdog,
@@ -144,8 +147,7 @@ function workflowRunId(): string {
 const reviewAgent = defineAgent<Env>(({ env }) => {
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	return {
-		// Kimi K2.7 Code via the Workers AI binding: no model API key needed.
-		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
+		model: reviewModel(env),
 		compaction: REVIEW_COMPACTION,
 		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
 		cwd: REPO_DIR,
@@ -597,3 +599,7 @@ export default defineWorkflow({
 // Enable POST /workflows/review (the internal admission route the webhook
 // handler calls). Pass-through: admission control lives in the webhook handler.
 export const route: WorkflowRouteHandler = async (_c, next) => next();
+
+// Run reads are served only under the local evaluation mount.
+export const runs: WorkflowRunsHandler = async (c, next) =>
+	workerEnv.REVIEW_EVAL === "1" ? next() : c.json({ error: "Not found" }, 404);

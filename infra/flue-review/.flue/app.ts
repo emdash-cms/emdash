@@ -9,10 +9,12 @@
 // workflow from an alarm; the review and GitHub post happen in durable state.
 
 import { getRun, listRuns, registerProvider } from "@flue/runtime";
+import { flue } from "@flue/runtime/routing";
 import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 
 import { createAiPayloadGuard } from "./lib/ai-payload-budget.js";
+import { registerGatewayProviders } from "./lib/review-model.js";
 import { getReviewWatchdog, type ReviewAttempt } from "./lib/review-watchdog.js";
 import {
 	verifyWebhookSignature,
@@ -24,6 +26,7 @@ registerProvider("cloudflare", {
 	api: "cloudflare-ai-binding",
 	binding: createAiPayloadGuard(env.AI),
 });
+registerGatewayProviders(env);
 
 // Extract a short, displayable message from an unknown run error without
 // risking an "[object Object]" stringification.
@@ -160,5 +163,9 @@ app.post("/webhook/github", async (c) => {
 	}
 	return c.json({ message: `review setup queued for PR #${decision.pr.prNumber}`, attemptId }, 202);
 });
+
+// Local model evaluation only (see eval/README.md): exposes workflow
+// invocation and run reads, which production must never serve.
+if (env.REVIEW_EVAL === "1") app.mount("/eval", flue().fetch);
 
 export default app;
