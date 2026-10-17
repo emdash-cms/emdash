@@ -33,16 +33,19 @@
  * ```
  */
 
+import { createRequire } from "node:module";
+
 import type {
 	AuthDescriptor,
 	DatabaseDescriptor,
 	ObjectCacheDescriptor,
 	StorageDescriptor,
 } from "emdash";
-import { unstable_readConfig } from "wrangler";
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
+
+const require = createRequire(import.meta.url);
 
 const ENVIRONMENT_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -552,6 +555,7 @@ export function access(config: AccessConfig): AuthDescriptor {
  */
 export function sandbox(): string | undefined {
 	const environment = process.env.CLOUDFLARE_ENV;
+	const { unstable_readConfig } = require("wrangler") as typeof import("wrangler");
 	const config = unstable_readConfig(environment ? { env: environment } : {}, {
 		hideWarnings: true,
 	});
