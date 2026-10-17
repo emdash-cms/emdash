@@ -63,7 +63,8 @@ const WORKER_NAME = /"name":\s*"emdash-flue-review"/;
 const REQUIRED_SECRETS = /"required":\s*\[[^\]]*\]/;
 
 const GATEWAY_KEYS = ["AI_GATEWAY_ACCOUNT_ID", "AI_GATEWAY_NAME", "AI_GATEWAY_TOKEN"] as const;
-const EVAL_SECRET_KEYS = ["REVIEW_EVAL", "REVIEW_MODEL", ...GATEWAY_KEYS];
+const EVAL_SECRET_KEYS = ["REVIEW_EVAL", "REVIEW_MODEL", "REVIEW_CONTEXT_VARIANT", ...GATEWAY_KEYS];
+const VARIANTS = ["issue", "issue+framing"] as const;
 
 const casesFileSchema = v.object({
 	owner: v.string(),
@@ -83,6 +84,9 @@ const payloadSchema = v.object({
 	baseSha: v.string(),
 	owner: v.string(),
 	repo: v.string(),
+	linkedIssues: v.optional(
+		v.array(v.object({ number: v.number(), title: v.string(), body: v.string() })),
+	),
 });
 type ReviewPayload = v.InferOutput<typeof payloadSchema>;
 
@@ -140,6 +144,7 @@ interface RunOutcome {
 	headSha: string;
 	model: string;
 	modelKey: string;
+	variant?: string;
 	runId?: string;
 	status: string;
 	attempt: number;
@@ -161,8 +166,20 @@ const { values: args } = parseArgs({
 		concurrency: { type: "string", default: "1" },
 		force: { type: "boolean", default: false },
 		"timeout-min": { type: "string", default: "45" },
+		variant: { type: "string" },
 	},
 });
+
+const variant = v.parse(v.optional(v.picklist(VARIANTS)), args.variant);
+
+// Scratch directories, Worker names and logs need a name without "+".
+function runKey(spec: ModelSpec): string {
+	return variant ? `${spec.key}-${variant.replace("+", "-")}` : spec.key;
+}
+
+function resultPath(pr: number, spec: ModelSpec): string {
+	return join(RESULTS_DIR, `${pr}-${spec.key}${variant ? `-${variant}` : ""}.json`);
+}
 
 function log(message: string): void {
 	console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
@@ -198,7 +215,39 @@ function gh(ghArgs: string[]): string {
 	}).trim();
 }
 
+const issueSchema = v.object({ title: v.string(), body: v.string() });
+const closingIssuesSchema = v.object({
+	closingIssuesReferences: v.array(v.looseObject({ number: v.number() })),
+});
+
+// The issues a PR says it resolves, without comments. Cached per PR.
+function linkedIssuesFor(file: CasesFile, pr: number): NonNullable<ReviewPayload["linkedIssues"]> {
+	const cachePath = join(RESULTS_DIR, "payloads", `${pr}-issues.json`);
+	const schema = v.array(v.object({ number: v.number(), title: v.string(), body: v.string() }));
+	if (existsSync(cachePath)) return readJson(schema, readFileSync(cachePath, "utf8"));
+	const repo = `${file.owner}/${file.repo}`;
+	const { closingIssuesReferences } = readJson(
+		closingIssuesSchema,
+		gh(["pr", "view", String(pr), "-R", repo, "--json", "closingIssuesReferences"]),
+	);
+	const issues = closingIssuesReferences.map(({ number }) => ({
+		number,
+		...readJson(
+			issueSchema,
+			gh(["issue", "view", String(number), "-R", repo, "--json", "title,body"]),
+		),
+	}));
+	mkdirSync(dirname(cachePath), { recursive: true });
+	writeFileSync(cachePath, `${JSON.stringify(issues, null, "\t")}\n`);
+	return issues;
+}
+
 function payloadFor(file: CasesFile, evalCase: EvalCase): ReviewPayload {
+	const base = basePayloadFor(file, evalCase);
+	return variant ? { ...base, linkedIssues: linkedIssuesFor(file, evalCase.pr) } : base;
+}
+
+function basePayloadFor(file: CasesFile, evalCase: EvalCase): ReviewPayload {
 	const cachePath = join(RESULTS_DIR, "payloads", `${evalCase.pr}.json`);
 	if (existsSync(cachePath)) {
 		const cached = readJson(payloadSchema, readFileSync(cachePath, "utf8"));
@@ -258,7 +307,7 @@ function evalWranglerConfig(key: string): string {
 }
 
 function prepareWorkDir(spec: ModelSpec, gateway: Record<string, string> | undefined): string {
-	const dir = join(WORK_DIR, spec.key);
+	const dir = join(WORK_DIR, runKey(spec));
 	rmSync(dir, { recursive: true, force: true });
 	mkdirSync(dir, { recursive: true });
 	symlinkSync(join(PACKAGE_DIR, ".flue"), join(dir, ".flue"));
@@ -266,10 +315,11 @@ function prepareWorkDir(spec: ModelSpec, gateway: Record<string, string> | undef
 	for (const file of ["package.json", "tsconfig.json"]) {
 		copyFileSync(join(PACKAGE_DIR, file), join(dir, file));
 	}
-	writeFileSync(join(dir, "wrangler.jsonc"), evalWranglerConfig(spec.key));
+	writeFileSync(join(dir, "wrangler.jsonc"), evalWranglerConfig(runKey(spec)));
 	const vars: Record<string, string> = {
 		REVIEW_EVAL: "1",
 		REVIEW_MODEL: spec.model,
+		...(variant ? { REVIEW_CONTEXT_VARIANT: variant } : {}),
 		...(spec.gateway ? gateway : {}),
 	};
 	const devVars = Object.entries(vars)
@@ -285,7 +335,7 @@ async function startServer(spec: ModelSpec, dir: string, port: number): Promise<
 		if (key.startsWith("GITHUB_") || key.startsWith("AI_GATEWAY_")) delete env[key];
 	}
 	mkdirSync(join(RESULTS_DIR, "logs"), { recursive: true });
-	const logFile = createWriteStream(join(RESULTS_DIR, "logs", `${spec.key}-server.log`));
+	const logFile = createWriteStream(join(RESULTS_DIR, "logs", `${runKey(spec)}-server.log`));
 	const child = spawn(
 		join(PACKAGE_DIR, "node_modules", ".bin", "flue"),
 		["dev", "--target", "cloudflare", "--port", String(port)],
@@ -430,6 +480,7 @@ async function runOnce(
 		headSha: payload.headSha,
 		model: spec.model,
 		modelKey: spec.key,
+		variant,
 		runId: admission.runId,
 		status: "admission_failed",
 		attempt,
@@ -449,7 +500,7 @@ async function runOnce(
 	if (!admitted.ok || !admission.runId) {
 		outcome.error = `admission returned ${admitted.status}`;
 	} else {
-		log(`${spec.key} #${payload.prNumber} attempt ${attempt}: run ${admission.runId}`);
+		log(`${runKey(spec)} #${payload.prNumber} attempt ${attempt}: run ${admission.runId}`);
 		const deadline = started + Number(args["timeout-min"]) * 60_000;
 		let record: v.InferOutput<typeof runRecordSchema> = {};
 		while (Date.now() < deadline) {
@@ -468,7 +519,7 @@ async function runOnce(
 			outcome.usage = await readUsage(base, admission.runId);
 			outcome.costUsd = cost(spec, outcome.usage);
 		} catch (error) {
-			log(`${spec.key} #${payload.prNumber}: usage unavailable: ${String(error)}`);
+			log(`${runKey(spec)} #${payload.prNumber}: usage unavailable: ${String(error)}`);
 		}
 	}
 	outcome.finishedAt = new Date().toISOString();
@@ -483,17 +534,17 @@ async function runModel(
 	gateway: Record<string, string> | undefined,
 ): Promise<void> {
 	const pending = cases.filter((evalCase) => {
-		const out = join(RESULTS_DIR, `${evalCase.pr}-${spec.key}.json`);
+		const out = resultPath(evalCase.pr, spec);
 		if (args.force || !existsSync(out)) return true;
 		const previous = readJson(previousOutcomeSchema, readFileSync(out, "utf8"));
 		return previous.status !== "completed" || previous.headSha !== evalCase.headSha;
 	});
 	if (pending.length === 0) {
-		log(`${spec.key}: all cases already have results`);
+		log(`${runKey(spec)}: all cases already have results`);
 		return;
 	}
 	const dir = prepareWorkDir(spec, gateway);
-	log(`${spec.key}: starting server on port ${port}`);
+	log(`${runKey(spec)}: starting server on port ${port}`);
 	const server = await startServer(spec, dir, port);
 	const base = `http://127.0.0.1:${port}`;
 	try {
@@ -503,13 +554,10 @@ async function runModel(
 				const payload = payloadFor(file, next);
 				let outcome = await runOnce(spec, base, payload, 1);
 				if (outcome.status !== "completed") {
-					log(`${spec.key} #${next.pr}: ${outcome.status}; retrying once`);
+					log(`${runKey(spec)} #${next.pr}: ${outcome.status}; retrying once`);
 					outcome = await runOnce(spec, base, payload, 2);
 				}
-				writeFileSync(
-					join(RESULTS_DIR, `${next.pr}-${spec.key}.json`),
-					`${JSON.stringify(outcome, null, "\t")}\n`,
-				);
+				writeFileSync(resultPath(next.pr, spec), `${JSON.stringify(outcome, null, "\t")}\n`);
 				log(
 					`${spec.key} #${next.pr}: ${outcome.status} in ${Math.round(outcome.wallMs / 1_000)}s, $${outcome.costUsd.toFixed(3)}`,
 				);

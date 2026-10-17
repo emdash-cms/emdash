@@ -48,6 +48,7 @@ import {
 	type GitHubToken,
 } from "../lib/github.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
+import { reviewContextVariant, variantContextSections } from "../lib/review-context-variant.js";
 import { omitReviewArtifacts } from "../lib/review-context.js";
 import { formatReviewFailureSummary } from "../lib/review-failure.js";
 import { reviewUntilCurrentHead, type PullRequestRevision } from "../lib/review-head.js";
@@ -78,6 +79,10 @@ const reviewPayloadSchema = v.object({
 	expectedRunId: v.optional(v.string()),
 	deliveryId: v.optional(v.string()),
 	checkRunId: v.optional(v.number()),
+	// Set only by the local evaluation runner; rendered only under a context variant.
+	linkedIssues: v.optional(
+		v.array(v.object({ number: v.number(), title: v.string(), body: v.string() })),
+	),
 });
 
 async function coordinatedToken(env: Env, consumer: string): Promise<GitHubToken> {
@@ -166,6 +171,7 @@ function buildPrContext(
 	payload: ReviewPayload,
 	priorReview?: string,
 	acceptedDesign?: AcceptedDesign,
+	variantSections: readonly string[] = [],
 ): string {
 	const lines = [
 		`PR #${payload.prNumber} in ${payload.owner}/${payload.repo}.`,
@@ -176,6 +182,7 @@ function buildPrContext(
 		"## Description",
 		"",
 		payload.prBody || "(no description provided)",
+		...variantSections,
 	];
 	if (acceptedDesign) {
 		lines.push(
@@ -429,7 +436,12 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 				(signal) =>
 					session.skill("review", {
 						args: {
-							prContext: buildPrContext(activePayload, priorReview, acceptedDesign),
+							prContext: buildPrContext(
+								activePayload,
+								priorReview,
+								acceptedDesign,
+								variantContextSections(reviewContextVariant(env), activePayload.linkedIssues),
+							),
 							owner: activePayload.owner,
 							repo: activePayload.repo,
 							prNumber: activePayload.prNumber,
