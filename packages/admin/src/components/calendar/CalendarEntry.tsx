@@ -1,4 +1,5 @@
 import { Badge, Tooltip } from "@cloudflare/kumo";
+import { useDraggable } from "@dnd-kit/core";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -59,6 +60,14 @@ const COLLECTION_TINTS: Record<CollectionColor, string> = {
 	neutral: "bg-kumo-fill",
 };
 
+const COLLECTION_HOVER_TINTS: Record<CollectionColor, string> = {
+	blue: "hover:bg-kumo-badge-blue/25",
+	purple: "hover:bg-kumo-badge-purple/25",
+	teal: "hover:bg-kumo-badge-teal/25",
+	green: "hover:bg-kumo-badge-green/25",
+	neutral: "hover:bg-kumo-tint",
+};
+
 /**
  * Whether a click on an entry link should open the side panel. Clicks with a
  * modifier key keep the link's default, so they open the editor in a new tab.
@@ -109,36 +118,22 @@ export function CalendarCollectionIcon({
 	);
 }
 
-/**
- * A collection's icon and name on its tint. `labelClassName` can hide the
- * name where space is short, leaving the icon.
- */
+/** A collection's icon and name on its tint. */
 export function CalendarCollectionTag({
 	slug,
 	display,
-	size = "base",
-	className,
-	labelClassName,
 }: {
 	slug: string;
 	display: CalendarDisplay;
-	size?: "sm" | "base";
-	className?: string;
-	labelClassName?: string;
 }) {
 	const { label, color } = display.collection(slug);
 	return (
 		<Badge
 			variant="secondary"
-			className={cn(
-				"max-w-40 gap-1 rounded-sm ps-1.5 text-kumo-default",
-				size === "sm" && "py-0 ps-1 pe-1",
-				COLLECTION_TINTS[color],
-				className,
-			)}
+			className={cn("max-w-40 gap-1 rounded-sm ps-1.5 text-kumo-default", COLLECTION_TINTS[color])}
 		>
 			<CalendarCollectionIcon slug={slug} display={display} />
-			<span className={cn("truncate", size === "sm" && "pe-0.5", labelClassName)}>{label}</span>
+			<span className="truncate">{label}</span>
 		</Badge>
 	);
 }
@@ -203,7 +198,6 @@ export function CalendarEntryRow({
 	const { t } = useLingui();
 	const note = useStateNote(item, display, now);
 	const published = item.state === "published";
-	const viewerTime = display.viewerZoneDiffers ? display.formatViewerTime(item.time) : null;
 
 	return (
 		<Link
@@ -217,16 +211,10 @@ export function CalendarEntryRow({
 				event.preventDefault();
 				onSelect(item, event.currentTarget);
 			}}
-			className={cn(
-				"grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand aria-[current=true]:bg-kumo-tint motion-reduce:transition-none",
-				display.viewerZoneDiffers
-					? "@lg:grid-cols-[8.5rem_minmax(0,1fr)_auto]"
-					: "@lg:grid-cols-[5rem_minmax(0,1fr)_auto]",
-			)}
+			className="grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand aria-[current=true]:bg-kumo-tint motion-reduce:transition-none @lg:grid-cols-[5rem_minmax(0,1fr)_auto]"
 		>
 			<span className="row-span-2 self-start leading-5 text-kumo-subtle tabular-nums @lg:row-span-1 @lg:self-center">
 				{display.formatTime(item.time)}
-				{viewerTime && <span className="hidden text-xs leading-4 @lg:block">{viewerTime}</span>}
 			</span>
 			<span className="flex min-w-0 items-center gap-2">
 				<CalendarStateIcon state={item.state} />
@@ -255,9 +243,6 @@ export function CalendarEntryRow({
 				)}
 			</span>
 			<span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 @lg:col-start-auto @lg:justify-end">
-				{viewerTime && (
-					<span className="text-xs text-kumo-subtle tabular-nums @lg:hidden">{viewerTime}</span>
-				)}
 				<CalendarCollectionTag slug={item.collection} display={display} />
 				{display.showLocale && <CalendarLocaleChip locale={item.locale} />}
 			</span>
@@ -291,32 +276,136 @@ function CalendarEntryDetails({ item, display }: { item: CalendarItem; display: 
 	);
 }
 
-/**
- * A month-cell entry linking to the editor. Published entries lie flat;
- * scheduled ones are raised cards, and overdue cards turn warning-tinted.
- */
-export function CalendarEntryChip({
+function chipClassName(item: CalendarItem, display: CalendarDisplay): string {
+	const { color } = display.collection(item.collection);
+	return cn(
+		// The time wraps onto a clipped second line when the whole title doesn't fit.
+		"flex h-[22px] min-w-0 flex-wrap items-center gap-x-1.5 overflow-hidden rounded px-1.5 text-xs leading-[22px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand aria-[current=true]:ring-2 aria-[current=true]:ring-kumo-brand aria-[current=true]:ring-inset motion-reduce:transition-none",
+		item.state === "published"
+			? "text-kumo-subtle hover:bg-kumo-tint aria-[current=true]:bg-kumo-tint"
+			: item.state === "overdue"
+				? "bg-kumo-warning-tint text-kumo-default hover:bg-kumo-warning/20"
+				: cn("text-kumo-default", COLLECTION_TINTS[color], COLLECTION_HOVER_TINTS[color]),
+	);
+}
+
+function ChipContent({
 	item,
 	display,
 	now,
-	selected,
-	onSelect,
 }: {
+	item: CalendarItem;
+	display: CalendarDisplay;
+	now: number;
+}) {
+	const { t } = useLingui();
+	const state = t(CALENDAR_STATE_LABELS[item.state]);
+	const time = display.formatTime(item.time);
+	const overdue = item.state === "overdue";
+	const lateness = overdue ? formatShortDuration(now - item.time, display.locale) : "";
+
+	return (
+		<>
+			<span className="flex h-[22px] min-w-0 flex-auto items-center gap-1">
+				<CalendarStateIcon state={item.state} className="size-3.5" />
+				<span className="sr-only">
+					{overdue ? t`${state}, ${lateness} late, ${time}:` : t`${state}, ${time}:`}
+				</span>
+				<span dir="auto" className={cn("truncate", item.state !== "published" && "font-medium")}>
+					{item.title}
+				</span>
+				{display.showLocale && <CalendarLocaleChip locale={item.locale} />}
+			</span>
+			<span
+				aria-hidden="true"
+				className={cn(
+					"ms-auto shrink-0 tabular-nums",
+					overdue ? "font-medium text-kumo-warning" : "text-kumo-subtle",
+				)}
+			>
+				{overdue ? t`${lateness} late` : time}
+			</span>
+		</>
+	);
+}
+
+interface CalendarEntryChipProps {
 	item: CalendarItem;
 	display: CalendarDisplay;
 	now: number;
 	selected?: boolean;
 	onSelect?: CalendarSelectHandler;
-}) {
-	const { t } = useLingui();
-	const state = t(CALENDAR_STATE_LABELS[item.state]);
-	const time = display.formatTime(item.time);
-	const flat = item.state === "published";
-	const overdue = item.state === "overdue";
-	const lateness = overdue ? formatShortDuration(now - item.time, display.locale) : "";
+	/** The entry can be dragged to another day. */
+	movable?: boolean;
+}
 
+/**
+ * A one-line month-cell entry linking to the editor: published entries lie
+ * flat, scheduled ones take their collection's tint, and overdue ones turn
+ * warning-tinted. It is 22px tall, which the month grid's row math relies on.
+ */
+export function CalendarEntryChip(props: CalendarEntryChipProps) {
+	return props.movable ? <MovableEntryChip {...props} /> : <EntryChipLink {...props} />;
+}
+
+/**
+ * A click handler that swallows the click a drag can end with, which would
+ * otherwise open the dragged link.
+ */
+function useClickAfterDragGuard(isDragging: boolean) {
+	const dragged = React.useRef(false);
+	React.useEffect(() => {
+		if (isDragging) {
+			dragged.current = true;
+			return;
+		}
+		const timer = setTimeout(() => {
+			dragged.current = false;
+		});
+		return () => clearTimeout(timer);
+	}, [isDragging]);
+	return (event: React.MouseEvent) => {
+		if (!dragged.current) return;
+		event.preventDefault();
+		event.stopPropagation();
+	};
+}
+
+function MovableEntryChip(props: CalendarEntryChipProps) {
+	const { setNodeRef, listeners, isDragging } = useDraggable({
+		id: props.item.key,
+		data: { item: props.item },
+	});
+	const onClickCapture = useClickAfterDragGuard(isDragging);
+
+	return (
+		<EntryChipLink
+			{...props}
+			linkRef={setNodeRef}
+			linkProps={{ ...listeners, draggable: false, onClickCapture }}
+			dragging={isDragging}
+		/>
+	);
+}
+
+function EntryChipLink({
+	item,
+	display,
+	now,
+	selected,
+	onSelect,
+	linkRef,
+	linkProps,
+	dragging,
+}: CalendarEntryChipProps & {
+	linkRef?: (element: HTMLElement | null) => void;
+	linkProps?: React.HTMLAttributes<HTMLElement> & { draggable?: boolean };
+	dragging?: boolean;
+}) {
 	const link = (
 		<Link
+			ref={linkRef}
+			{...linkProps}
 			to="/content/$collection/$id"
 			params={{ collection: item.collection, id: item.id }}
 			search={{ locale: item.locale }}
@@ -328,55 +417,13 @@ export function CalendarEntryChip({
 				onSelect(item, event.currentTarget);
 			}}
 			className={cn(
-				"min-w-0 text-xs transition-[background-color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand motion-reduce:transition-none",
-				flat
-					? "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-kumo-subtle hover:bg-kumo-tint aria-[current=true]:bg-kumo-tint"
-					: "grid gap-0.5 overflow-hidden rounded-md px-2 py-1.5 shadow-xs ring-1 hover:shadow-sm aria-[current=true]:ring-2 aria-[current=true]:ring-kumo-brand",
-				!flat &&
-					(overdue
-						? "bg-kumo-warning-tint ring-kumo-warning/30 hover:ring-kumo-warning/50"
-						: "bg-kumo-base ring-kumo-line hover:ring-kumo-interact"),
+				chipClassName(item, display),
+				// A long press starts a drag on touch screens, not the link preview.
+				linkRef && "[-webkit-touch-callout:none]",
+				dragging && "opacity-40",
 			)}
 		>
-			{flat ? (
-				<>
-					<CalendarStateIcon state={item.state} className="size-3.5" />
-					<span className="sr-only">{t`${state}, ${time}:`}</span>
-					<span dir="auto" className="truncate">
-						{item.title}
-					</span>
-				</>
-			) : (
-				<>
-					<span className="flex min-w-0 items-center gap-1.5">
-						<span dir="auto" className="truncate font-medium text-kumo-default">
-							{item.title}
-						</span>
-						{display.showLocale && (
-							<span className="ms-auto">
-								<CalendarLocaleChip locale={item.locale} />
-							</span>
-						)}
-					</span>
-					<span className="flex min-w-0 items-center gap-1 text-kumo-subtle">
-						<CalendarStateIcon state={item.state} className="size-3.5" />
-						<span className="shrink-0 tabular-nums">{time}</span>
-						<span className="sr-only">{state}</span>
-						{overdue ? (
-							<span className="truncate font-medium text-kumo-warning">{t`${lateness} late`}</span>
-						) : (
-							// The tag shows its icon once the cell has room, and its name once it has more.
-							<CalendarCollectionTag
-								slug={item.collection}
-								display={display}
-								size="sm"
-								className="ms-auto hidden min-w-0 shrink @min-[7.5rem]:inline-flex"
-								labelClassName="hidden @min-[9.5rem]:inline"
-							/>
-						)}
-					</span>
-				</>
-			)}
+			<ChipContent item={item} display={display} now={now} />
 		</Link>
 	);
 
@@ -386,6 +433,33 @@ export function CalendarEntryChip({
 			render={link}
 			className="cursor-pointer"
 		/>
+	);
+}
+
+/** The chip that follows the pointer while an entry is dragged. */
+export function CalendarEntryChipPreview({
+	item,
+	display,
+	now,
+	allowed,
+}: {
+	item: CalendarItem;
+	display: CalendarDisplay;
+	now: number;
+	/** Whether dropping here would move the entry. */
+	allowed: boolean;
+}) {
+	return (
+		<div
+			className={cn(
+				chipClassName(item, display),
+				// The landing time matters most while dragging, so the title gives way to it.
+				"max-w-56 flex-nowrap cursor-grabbing shadow-lg ring-1 ring-kumo-line",
+				!allowed && "cursor-not-allowed opacity-60",
+			)}
+		>
+			<ChipContent item={item} display={display} now={now} />
+		</div>
 	);
 }
 

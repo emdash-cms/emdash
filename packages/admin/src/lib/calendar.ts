@@ -43,6 +43,19 @@ export interface CalendarItem extends CalendarEntry {
 	state: CalendarState;
 }
 
+// Role levels (matching @emdash-cms/auth)
+const ROLE_AUTHOR = 30;
+const ROLE_EDITOR = 40;
+
+/** Whether the user may publish, schedule, or reschedule an entry with this author. */
+export function canPublishEntry(
+	user: { id: string; role: number } | undefined,
+	authorId: string | null | undefined,
+): boolean {
+	if (!user) return false;
+	return user.role >= ROLE_EDITOR || (user.role >= ROLE_AUTHOR && authorId === user.id);
+}
+
 /** Schedules publish at the next minute sweep; the grace allows for one more. */
 export const OVERDUE_GRACE_MS = 2 * 60_000;
 
@@ -137,6 +150,55 @@ export function dayKeyInZone(time: number, timeZone: string): string {
 	const part = (type: Intl.DateTimeFormatPartTypes) =>
 		parts.find((entry) => entry.type === type)?.value ?? "";
 	return `${part("year").padStart(4, "0")}-${part("month")}-${part("day")}`;
+}
+
+const zoneFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** How far the zone's wall clock is ahead of UTC at `time`, in milliseconds. */
+function zoneOffset(time: number, timeZone: string): number {
+	let formatter = zoneFormatters.get(timeZone);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat("en-US", {
+			timeZone,
+			hourCycle: "h23",
+			year: "numeric",
+			month: "numeric",
+			day: "numeric",
+			hour: "numeric",
+			minute: "numeric",
+			second: "numeric",
+		});
+		zoneFormatters.set(timeZone, formatter);
+	}
+	const parts = Object.fromEntries(
+		formatter.formatToParts(time).map((part) => [part.type, Number(part.value)]),
+	);
+	const wall = Date.UTC(
+		parts.year ?? 1970,
+		(parts.month ?? 1) - 1,
+		parts.day ?? 1,
+		parts.hour ?? 0,
+		parts.minute ?? 0,
+		parts.second ?? 0,
+	);
+	const wholeSeconds = time - (((time % 1000) + 1000) % 1000);
+	return wall - wholeSeconds;
+}
+
+/** Minutes since midnight on the zone's wall clock. */
+export function minutesInZone(time: number, timeZone: string): number {
+	const wall = time + zoneOffset(time, timeZone);
+	return Math.floor((((wall % DAY_MS) + DAY_MS) % DAY_MS) / 60_000);
+}
+
+/**
+ * The instant a zone's wall clock reads `minutes` past midnight on `day`. A
+ * wall time that a daylight saving change skips lands an hour to one side.
+ */
+export function zonedInstant(day: string, minutes: number, timeZone: string): number {
+	const wall = dayKeyToUTC(day) + minutes * 60_000;
+	const guess = wall - zoneOffset(wall, timeZone);
+	return wall - zoneOffset(guess, timeZone);
 }
 
 export function calendarState(
