@@ -7,6 +7,7 @@
 
 import { imageSize } from "image-size";
 import type {
+	Compilable,
 	Insertable,
 	Kysely,
 	KyselyPlugin,
@@ -37,7 +38,7 @@ import {
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { ContentItem } from "../database/repositories/types.js";
 import { withTransaction } from "../database/transaction.js";
-import type { Database, MenuItemTable } from "../database/types.js";
+import type { Database, MenuItemTable, WidgetTable } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
@@ -71,6 +72,37 @@ import type {
 
 // Each menu item binds 15 columns; six rows stay below D1's 100-parameter limit.
 const SEED_MENU_ITEM_INSERT_BATCH_SIZE = 6;
+// Widgets bind nine columns; ten rows stay below the same limit.
+const SEED_WIDGET_INSERT_BATCH_SIZE = 10;
+
+interface SeedReplacementStatement extends Compilable {
+	execute(): Promise<unknown>;
+}
+
+async function replaceSeedChildren(
+	db: Kysely<Database>,
+	parentTable: "_emdash_menus" | "_emdash_widget_areas",
+	parentIds: string[],
+	buildStatements: (target: Kysely<Database>) => readonly SeedReplacementStatement[],
+): Promise<void> {
+	if (parentIds.length === 0) return;
+	const batched = await executeAtomicBatchIfSupported(db, buildStatements(db));
+	if (batched !== null) return;
+	await withTransaction(db, async (trx) => {
+		if (isPostgres(trx)) {
+			await trx
+				.selectFrom(parentTable)
+				.select("id")
+				.where("id", "in", parentIds)
+				.orderBy("id")
+				.forUpdate()
+				.execute();
+		}
+		for (const statement of buildStatements(trx)) {
+			await statement.execute();
+		}
+	});
+}
 
 async function applySiteSettings(
 	db: Kysely<Database>,
@@ -1171,25 +1203,7 @@ async function applySeedWrites(
 					target.insertInto("_emdash_menu_items").values(rows),
 				),
 			];
-			if (menuIds.length > 0) {
-				const batched = await executeAtomicBatchIfSupported(db, buildStatements(db));
-				if (batched === null) {
-					await withTransaction(db, async (trx) => {
-						if (isPostgres(trx)) {
-							await trx
-								.selectFrom("_emdash_menus")
-								.select("id")
-								.where("id", "in", menuIds)
-								.orderBy("id")
-								.forUpdate()
-								.execute();
-						}
-						for (const statement of buildStatements(trx)) {
-							await statement.execute();
-						}
-					});
-				}
-			}
+			await replaceSeedChildren(db, "_emdash_menus", menuIds, buildStatements);
 		} finally {
 			invalidateMenuObjectCache();
 		}
@@ -1235,24 +1249,24 @@ async function applySeedWrites(
 
 	// 10. Widget Areas and Widgets
 	if (seed.widgetAreas) {
+		const areaIds: string[] = [];
+		const widgetRows: Insertable<WidgetTable>[] = [];
 		for (const area of seed.widgetAreas) {
 			// Check if area exists
-			const existingArea = await db
+			const lookup = db
 				.selectFrom("_emdash_widget_areas")
 				.selectAll()
-				.where("name", "=", area.name)
-				.executeTakeFirst();
+				.where("name", "=", area.name);
+			const existingArea = await lookup.executeTakeFirst();
 
 			let areaId: string;
 
 			if (existingArea) {
 				areaId = existingArea.id;
-				// Clear existing widgets (areas are recreated)
-				await db.deleteFrom("_emdash_widgets").where("area_id", "=", areaId).execute();
 			} else {
 				// Create area
 				areaId = ulid();
-				await db
+				const inserted = await db
 					.insertInto("_emdash_widget_areas")
 					.values({
 						id: areaId,
@@ -1260,17 +1274,29 @@ async function applySeedWrites(
 						label: area.label,
 						description: area.description ?? null,
 					})
-					.execute();
-				result.widgetAreas.created++;
+					.onConflict((conflict) => conflict.column("name").doNothing())
+					.returning("id")
+					.executeTakeFirst();
+				if (inserted) {
+					result.widgetAreas.created++;
+				} else {
+					areaId = (await lookup.executeTakeFirstOrThrow()).id;
+				}
 			}
 
-			// Create widgets
+			areaIds.push(areaId);
 			for (let i = 0; i < area.widgets.length; i++) {
 				const widget = area.widgets[i];
-				await applyWidget(db, areaId, widget, i);
+				widgetRows.push(createSeedWidgetRow(areaId, widget, i));
 				result.widgetAreas.widgets++;
 			}
 		}
+		await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
+			...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
+			...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
+				target.insertInto("_emdash_widgets").values(rows),
+			),
+		]);
 	}
 
 	// 11. Sections
@@ -2161,30 +2187,26 @@ function collectMenuItems(
 }
 
 /**
- * Apply a widget
+ * Build a widget row
  */
-async function applyWidget(
-	db: Kysely<Database>,
+function createSeedWidgetRow(
 	areaId: string,
 	widget: SeedWidget,
 	sortOrder: number,
-): Promise<void> {
-	await db
-		.insertInto("_emdash_widgets")
-		.values({
-			id: ulid(),
-			area_id: areaId,
-			sort_order: sortOrder,
-			type: widget.type,
-			title: widget.title ?? null,
-			// `widget.content` is Portable Text for content-type widgets;
-			// for other widget kinds it's null.
-			content: widget.content ? JSON.stringify(widget.content) : null,
-			menu_name: widget.menuName ?? null,
-			component_id: widget.componentId ?? null,
-			component_props: widget.props ? JSON.stringify(widget.props) : null,
-		})
-		.execute();
+): Insertable<WidgetTable> {
+	return {
+		id: ulid(),
+		area_id: areaId,
+		sort_order: sortOrder,
+		type: widget.type,
+		title: widget.title ?? null,
+		// `widget.content` is Portable Text for content-type widgets;
+		// for other widget kinds it's null.
+		content: widget.content ? JSON.stringify(widget.content) : null,
+		menu_name: widget.menuName ?? null,
+		component_id: widget.componentId ?? null,
+		component_props: widget.props ? JSON.stringify(widget.props) : null,
+	};
 }
 
 /**

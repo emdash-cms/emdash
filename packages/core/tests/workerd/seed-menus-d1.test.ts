@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { Kysely, sql, type QueryId } from "kysely";
+import { Kysely, sql } from "kysely";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { D1Adapter, RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
@@ -90,52 +90,35 @@ describe("applySeed menus on D1", () => {
 		expect(await db.selectFrom("_emdash_menu_items").select("id").execute()).toHaveLength(6);
 	});
 
-	it("does not duplicate nested items when two applications overlap", async () => {
-		const adapter = db.getExecutor().adapter;
-		if (!(adapter instanceof D1Adapter)) throw new Error("Expected D1 adapter");
-		const executeAtomicBatch = adapter.executeAtomicBatch.bind(adapter);
-		const firstBatch = Promise.withResolvers<void>();
+	it("keeps nested and translated items consistent when two replacements reach D1 together", async () => {
+		await applySeed(db, menusSeed);
+		const first = new Kysely<Database>({ dialect: new RawBindingD1Dialect({ database: env.DB }) });
+		const second = new Kysely<Database>({ dialect: new RawBindingD1Dialect({ database: env.DB }) });
+		const ready = Promise.withResolvers<void>();
 		const release = Promise.withResolvers<void>();
-		const itemInsertQueries = new Set<QueryId>();
-		let pausedInsert = false;
-		const firstDb = db.withPlugin({
-			transformQuery(args) {
-				if (
-					args.node.kind === "InsertQueryNode" &&
-					args.node.into?.table.identifier.name === "_emdash_menu_items"
-				) {
-					itemInsertQueries.add(args.queryId);
-				}
-				return args.node;
-			},
-			async transformResult(args) {
-				if (itemInsertQueries.has(args.queryId) && !pausedInsert) {
-					pausedInsert = true;
-					firstBatch.resolve();
-					await release.promise;
-				}
-				return args.result;
-			},
-		});
-		let batches = 0;
-		const spy = vi.spyOn(adapter, "executeAtomicBatch").mockImplementation(async (queries) => {
-			if (++batches === 1) {
-				firstBatch.resolve();
+		let arrived = 0;
+		const spies = [first, second].map((database) => {
+			const adapter = database.getExecutor().adapter;
+			if (!(adapter instanceof D1Adapter)) throw new Error("Expected D1 adapter");
+			const execute = adapter.executeAtomicBatch.bind(adapter);
+			return vi.spyOn(adapter, "executeAtomicBatch").mockImplementation(async (queries) => {
+				if (++arrived === 2) ready.resolve();
 				await release.promise;
-			}
-			return executeAtomicBatch(queries);
+				return execute(queries);
+			});
 		});
 		try {
-			const firstApply = applySeed(firstDb, menusSeed);
-			await Promise.race([firstBatch.promise, firstApply]);
+			const applications = Promise.all([applySeed(first, menusSeed), applySeed(second, menusSeed)]);
 			try {
-				await applySeed(db, menusSeed);
+				await Promise.race([ready.promise, applications]);
 			} finally {
 				release.resolve();
-				await firstApply;
 			}
+			await applications;
+			expect(arrived).toBe(2);
 		} finally {
-			spy.mockRestore();
+			for (const spy of spies) spy.mockRestore();
+			await Promise.all([first.destroy(), second.destroy()]);
 		}
 
 		const items = await db

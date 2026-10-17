@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import type { Kysely, KyselyPlugin } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import type { Database } from "../../src/database/types.js";
@@ -37,6 +37,34 @@ describeEachDialect("atomic seed menu replacement", (dialect) => {
 			],
 		};
 	};
+
+	const widgetSeed = (prefix: string): SeedFile => ({
+		version: "1",
+		widgetAreas: [
+			{
+				name: "sidebar",
+				label: "Sidebar",
+				widgets: [
+					{
+						type: "component",
+						title: `${prefix}-sidebar-title`,
+						componentId: `${prefix}-sidebar-component`,
+					},
+				],
+			},
+			{
+				name: "footer",
+				label: "Footer",
+				widgets: [
+					{
+						type: "component",
+						title: `${prefix}-footer-title`,
+						componentId: `${prefix}-footer-component`,
+					},
+				],
+			},
+		],
+	});
 
 	it("replaces nested items and reapplying leaves the exact item count", async () => {
 		const seed = menuSeed([
@@ -105,17 +133,137 @@ describeEachDialect("atomic seed menu replacement", (dialect) => {
 		]);
 	});
 
-	it.skipIf(dialect !== "postgres")(
-		"serializes concurrent replacement of an existing menu",
-		async () => {
-			const seed = menuSeed([
-				{ type: "custom", label: "Home", url: "/" },
-				{ type: "custom", label: "About", url: "/about" },
-			]);
-			await applySeed(db, seed);
-			await Promise.all([applySeed(db, seed), applySeed(db, seed)]);
+	it("serializes concurrent replacement of an existing menu", async () => {
+		const seedA = menuSeed([
+			{ type: "custom", label: "A Home", url: "/a" },
+			{ type: "custom", label: "A About", url: "/a/about" },
+		]);
+		const seedB = menuSeed([
+			{ type: "custom", label: "B Home", url: "/b" },
+			{ type: "custom", label: "B About", url: "/b/about" },
+		]);
+		await applySeed(db, seedA);
+		await Promise.all([
+			applySeed(db, seedA, { onConflict: "skip" }),
+			applySeed(db, seedB, { onConflict: "skip" }),
+		]);
 
-			expect(await db.selectFrom("_emdash_menu_items").select("id").execute()).toHaveLength(2);
-		},
-	);
+		const labels = (
+			await db.selectFrom("_emdash_menu_items").select("label").orderBy("label").execute()
+		).map((item) => item.label);
+		expect(labels).toHaveLength(2);
+		expect([
+			["A About", "A Home"],
+			["B About", "B Home"],
+		]).toContainEqual(labels);
+	});
+
+	it("atomically replaces, reapplies, and clears widgets", async () => {
+		await applySeed(db, widgetSeed("original"));
+		await applySeed(db, widgetSeed("original"));
+		expect(
+			await db.selectFrom("_emdash_widgets").select("title").orderBy("title").execute(),
+		).toEqual([{ title: "original-footer-title" }, { title: "original-sidebar-title" }]);
+		await applySeed(db, {
+			version: "1",
+			widgetAreas: [
+				{ name: "sidebar", label: "Sidebar", widgets: [] },
+				{ name: "footer", label: "Footer", widgets: [] },
+			],
+		});
+
+		expect(await db.selectFrom("_emdash_widgets").select("id").execute()).toEqual([]);
+	});
+
+	it("rolls back widget replacement across areas when insertion fails", async () => {
+		await applySeed(db, widgetSeed("original"));
+		const failingDb = db.withPlugin({
+			transformQuery(args) {
+				if (
+					args.node.kind === "InsertQueryNode" &&
+					args.node.into?.table.identifier.name === "_emdash_widgets"
+				) {
+					throw new Error("seed widget rejected");
+				}
+				return args.node;
+			},
+			async transformResult(args) {
+				return args.result;
+			},
+		} satisfies KyselyPlugin);
+
+		await expect(applySeed(failingDb, widgetSeed("replacement"))).rejects.toThrow(
+			"seed widget rejected",
+		);
+		const widgets = await db
+			.selectFrom("_emdash_widgets")
+			.select(["title", "component_id"])
+			.orderBy("title")
+			.execute();
+		expect(widgets).toEqual([
+			{ title: "original-footer-title", component_id: "original-footer-component" },
+			{ title: "original-sidebar-title", component_id: "original-sidebar-component" },
+		]);
+	});
+
+	it("serializes concurrent replacement of existing widget areas", async () => {
+		const seedA = widgetSeed("A");
+		const seedB = widgetSeed("B");
+		await applySeed(db, seedA);
+		await Promise.all([
+			applySeed(db, seedA, { onConflict: "skip" }),
+			applySeed(db, seedB, { onConflict: "skip" }),
+		]);
+
+		const widgets = await db
+			.selectFrom("_emdash_widgets")
+			.select(["title", "component_id"])
+			.orderBy("title")
+			.execute();
+		expect(widgets).toHaveLength(2);
+		expect(
+			widgets.every(
+				(widget) => widget.title?.startsWith("A-") && widget.component_id?.startsWith("A-"),
+			) ||
+				widgets.every(
+					(widget) => widget.title?.startsWith("B-") && widget.component_id?.startsWith("B-"),
+				),
+		).toBe(true);
+	});
+
+	it("handles concurrent creation of a fresh widget area", async () => {
+		const seedA = {
+			version: "1" as const,
+			widgetAreas: [
+				{
+					name: "fresh",
+					label: "Fresh",
+					widgets: [{ type: "component" as const, title: "A-title", componentId: "A-component" }],
+				},
+			],
+		};
+		const seedB = {
+			version: "1" as const,
+			widgetAreas: [
+				{
+					name: "fresh",
+					label: "Fresh",
+					widgets: [{ type: "component" as const, title: "B-title", componentId: "B-component" }],
+				},
+			],
+		};
+		await expect(
+			Promise.all([
+				applySeed(db, seedA, { onConflict: "skip" }),
+				applySeed(db, seedB, { onConflict: "skip" }),
+			]),
+		).resolves.toHaveLength(2);
+
+		const widgets = await db
+			.selectFrom("_emdash_widgets")
+			.select(["title", "component_id"])
+			.execute();
+		expect(widgets).toHaveLength(1);
+		expect(["A-title", "B-title"]).toContain(widgets[0]?.title);
+	});
 });
