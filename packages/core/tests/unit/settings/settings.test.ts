@@ -555,6 +555,43 @@ describe("Site Settings caching", () => {
 		expect(queries).toEqual([]);
 	});
 
+	it("renews the isolate TTL on object-cache hits without repeated backend reads", async () => {
+		const backend = createObjectCache({});
+		const backendReads = vi.spyOn(backend, "get");
+		__setObjectCacheBackendForTests(backend, {
+			keyPrefix: "settings-ttl-test",
+			defaultTtl: 3600,
+			revalidate: 1000,
+		});
+		const { db, queries, reset } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		await setSiteSettings({ title: "Cached Site" }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).title).toBe("Cached Site");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		reset();
+		backendReads.mockClear();
+		clock.mockReturnValue(now + 30_000);
+		expect((await read()).title).toBe("Cached Site");
+		expect(backendReads).toHaveBeenCalled();
+		expect(queries).toEqual([]);
+
+		backendReads.mockClear();
+		for (const elapsed of [30_001, 45_000, 59_999]) {
+			clock.mockReturnValue(now + elapsed);
+			expect((await read()).title).toBe("Cached Site");
+		}
+		expect(backendReads).not.toHaveBeenCalled();
+		expect(queries).toEqual([]);
+
+		clock.mockReturnValue(now + 60_000);
+		expect((await read()).title).toBe("Cached Site");
+		expect(backendReads).toHaveBeenCalled();
+		expect(queries).toEqual([]);
+	});
+
 	it.each([false, true])(
 		"reads live settings for route-cache fills (object cache: %s)",
 		async (objectCache) => {
