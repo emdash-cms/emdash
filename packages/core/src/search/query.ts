@@ -13,6 +13,7 @@ import { validateIdentifier } from "../database/validate.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
+import type { CollectionSearchMetadata } from "./fts-manager.js";
 import type {
 	SearchOptions,
 	CollectionSearchOptions,
@@ -130,15 +131,10 @@ export async function searchWithDb(
 	const status = options.status ?? "published";
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
-	// Get searchable collections
-	let collections = options.collections;
-	if (!collections || collections.length === 0) {
-		collections = await getSearchableCollections(db);
-	}
+	if (!escapeQuery(query)) return { items: [] };
 
-	if (collections.length === 0) {
-		return { items: [] };
-	}
+	const metadata = await ftsManager.getSearchMetadata(options.collections);
+	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
 
 	// To rank the merged window [offset, offset + limit) correctly, each
 	// collection must contribute its own top (offset + limit) rows — in the
@@ -148,11 +144,9 @@ export async function searchWithDb(
 
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
-	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
-
 	for (const collection of collections) {
-		const config = await ftsManager.getSearchConfig(collection);
-		if (!config?.enabled) {
+		const collectionMetadata = metadata.get(collection);
+		if (!collectionMetadata) {
 			continue;
 		}
 
@@ -166,9 +160,7 @@ export async function searchWithDb(
 				limit: perCollectionLimit,
 				scope: options.scope,
 			},
-			config.weights,
-			titleColumns.has(collection),
-			config.titleField,
+			collectionMetadata,
 		);
 
 		allResults.push(...collectionResults);
@@ -208,15 +200,13 @@ export async function searchCollection(
 	query: string,
 	options: CollectionSearchOptions = {},
 ): Promise<SearchResponse> {
-	const ftsManager = new FTSManager(db);
-	const config = await ftsManager.getSearchConfig(collection);
-
-	if (!config?.enabled) {
-		return { items: [] };
-	}
-
 	const limit = options.limit ?? 20;
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
+	if (!escapeQuery(query)) return { items: [] };
+
+	const ftsManager = new FTSManager(db);
+	const metadata = (await ftsManager.getSearchMetadata([collection])).get(collection);
+	if (!metadata) return { items: [] };
 
 	// Over-fetch the [offset, offset + limit) window plus one row to detect a
 	// further page, then slice. Keeps the FTS SQL (LIMIT-only) unchanged and
@@ -231,9 +221,7 @@ export async function searchCollection(
 			limit: offset + limit + 1,
 			scope: options.scope,
 		},
-		config.weights,
-		undefined,
-		config.titleField,
+		metadata,
 	);
 
 	const items = fetched.slice(offset, offset + limit);
@@ -251,9 +239,7 @@ async function searchSingleCollection(
 	collection: string,
 	query: string,
 	options: CollectionSearchOptions,
-	weights?: Record<string, number>,
-	hasTitle?: boolean,
-	titleField?: string,
+	metadata: CollectionSearchMetadata,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -265,11 +251,6 @@ async function searchSingleCollection(
 	const status = options.status ?? "published";
 	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
-	// Check if FTS table exists
-	if (!(await ftsManager.ftsTableExists(collection))) {
-		return [];
-	}
-
 	// Escape the query for FTS5
 	const escapedQuery = escapeQuery(query);
 	if (!escapedQuery) {
@@ -277,7 +258,8 @@ async function searchSingleCollection(
 	}
 
 	// Get searchable fields for snippet generation
-	const searchableFields = await ftsManager.getSearchableFields(collection);
+	const { searchableFields, hasTitle, config } = metadata;
+	const { weights, titleField } = config;
 
 	// Title scope restricts the FTS5 match to the collection's title column.
 	// The scoped column must be one of the indexed searchable fields; a
@@ -300,9 +282,7 @@ async function searchSingleCollection(
 
 	// `title` is an optional user-defined field, not a system column. Only
 	// select it when the collection actually has one; otherwise the query
-	// errors with "no such column: c.title". Multi-collection callers
-	// precompute this in bulk and pass it in; single-collection callers fall
-	// back to the per-collection check.
+	// errors with "no such column: c.title".
 	// A configured titleField drives the result title so search shows
 	// the same value as the content list. It's a validated existing field, so
 	// the column exists; otherwise fall back to the optional `title` column.
@@ -311,8 +291,7 @@ async function searchSingleCollection(
 		validateIdentifier(titleField, "title field");
 		titleExpr = sql`c.${sql.ref(titleField)}`;
 	} else {
-		const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
-		titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+		titleExpr = hasTitle ? sql`c.title` : sql`NULL`;
 	}
 
 	// Build weight string for bm25 if weights provided
