@@ -49,9 +49,9 @@ export interface ManifestCollection {
 	titleField?: string;
 	dateField?: string;
 	/**
-	 * Omit the auto-generated sidebar entry and dashboard quick action in the
-	 * admin. The collection is still listed in the manifest so its routes,
-	 * editor, and API keep working.
+	 * Omit the auto-generated sidebar entry, dashboard quick action, and
+	 * dashboard Content card row in the admin. The collection is still listed
+	 * in the manifest so its routes, editor, and API keep working.
 	 */
 	hidden?: boolean;
 	/** Phosphor icon name for the sidebar entry (kebab-case, e.g. `calendar-blank`). */
