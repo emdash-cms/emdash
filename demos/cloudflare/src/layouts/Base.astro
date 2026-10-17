@@ -8,6 +8,7 @@ import {
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
+import { AiSearch } from "@emdash-cms/plugin-ai-search/astro";
 import { getSiteLocale } from "../utils/locale";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import "../styles/tokens.css";
@@ -185,42 +186,7 @@ const year = new Date().getFullYear();
 					)
 				}
 				<div class="site-header__actions">
-					<button type="button" class="site-search" data-search-trigger>
-						<svg
-							class="site-search__icon"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.75"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							aria-hidden="true"
-							><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
-							></path></svg
-						>
-						Search
-						<kbd class="site-search__kbd" aria-hidden="true"
-							><span dir="ltr">⌘K</span></kbd
-						>
-					</button>
-					<button
-						type="button"
-						class="icon-btn site-search-link"
-						data-search-trigger
-						aria-label="Search"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.75"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							aria-hidden="true"
-							><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
-							></path></svg
-						>
-					</button>
+					<AiSearch class="site-search" placeholder="Search…" maxResults={10} />
 					{
 						isLoggedIn && (
 							<a href="/_emdash/admin" class="btn btn--ghost btn--sm nav-admin">
@@ -1126,65 +1092,12 @@ const year = new Date().getFullYear();
 			}
 
 			.site-search {
-				position: relative;
-				width: var(--search-input-width);
-				height: 36px;
-				padding-block: 0;
-				padding-inline: 36px 48px;
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius-full);
-				background: var(--color-surface);
-				color: var(--color-muted);
-				font-family: var(--font-body);
-				font-size: var(--font-size-sm);
-				text-align: start;
-				cursor: pointer;
-				transition:
-					border-color var(--transition-fast),
-					box-shadow var(--transition-fast);
-			}
-
-			.site-search:hover {
-				border-color: var(--color-border-strong);
-			}
-
-			.site-search:focus-visible {
-				outline: 2px solid transparent;
-				border-color: var(--color-muted);
-				box-shadow: 0 0 0 3px var(--color-brand-ring);
-			}
-
-			.site-search__icon {
-				position: absolute;
-				inset-inline-start: 12px;
-				top: 50%;
-				width: 16px;
-				height: 16px;
-				translate: 0 -50%;
-				pointer-events: none;
-			}
-
-			.site-search__kbd {
-				position: absolute;
-				inset-inline-end: 8px;
-				top: 50%;
-				translate: 0 -50%;
-				padding: 2px 6px;
-				border-radius: var(--radius-sm);
-				background: var(--color-bg);
-				box-shadow: inset 0 0 0 1px var(--color-border);
-				color: var(--color-muted);
-				font-size: 11px;
-				font-weight: 500;
-				line-height: 1.4;
-				pointer-events: none;
-			}
-
-			.site-search-link {
-				display: none;
-				padding: 0;
-				border: 0;
-				cursor: pointer;
+				--ai-search-trigger-width: var(--search-input-width);
+				--ai-search-trigger-background: var(--color-surface);
+				--ai-search-trigger-border: var(--color-border);
+				--ai-search-trigger-color: var(--color-muted);
+				--ai-search-trigger-accent: var(--color-border-strong);
+				--ai-search-trigger-radius: var(--radius-full);
 			}
 
 			/* Footer */
@@ -1359,13 +1272,7 @@ const year = new Date().getFullYear();
 				}
 
 				.site-search {
-					display: none;
-				}
-
-				.site-search-link {
-					display: inline-grid;
-					width: 2.5rem;
-					height: 2.5rem;
+					--ai-search-trigger-width: auto;
 				}
 			}
 
@@ -1380,35 +1287,6 @@ const year = new Date().getFullYear();
 			}
 		</style>
 
-		<search-modal-snippet
-			id="site-search"
-			api-url="/api/ai-search"
-			placeholder="Search…"
-			theme="auto"
-			max-results="30"
-			max-render-results="10"
-			show-url="true"
-			show-date="true"
-			disable-analytics="true"></search-modal-snippet>
-		<script>
-			import * as aiSearchSnippet from "@cloudflare/ai-search-snippet";
-
-			void aiSearchSnippet;
-
-			// The snippet opens itself on ⌘K / Ctrl+K
-			const searchModal = document.getElementById(
-				"site-search",
-			) as HTMLElement & {
-				open?: () => void;
-			};
-			document.querySelectorAll("[data-search-trigger]").forEach((trigger) => {
-				trigger.addEventListener("click", () => searchModal?.open?.());
-			});
-			const kbd = document.querySelector(".site-search__kbd span");
-			if (kbd && !/Mac|iPhone|iPad|iPod/.test(navigator.platform)) {
-				kbd.textContent = "Ctrl K";
-			}
-		</script>
 		<EmDashBodyEnd page={pageCtx} />
 	</body>
 </html>
