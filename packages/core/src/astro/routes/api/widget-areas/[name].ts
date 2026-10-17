@@ -11,7 +11,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { widgetAreaTag } from "#cache/chrome-tags.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
-import { rowToWidget } from "#widgets/index.js";
+import { invalidateWidgetObjectCache, rowToWidget } from "#widgets/index.js";
 import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
@@ -85,6 +85,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 		// Delete area (widgets cascade)
 		await db.deleteFrom("_emdash_widget_areas").where("id", "=", area.id).execute();
 
+		invalidateWidgetObjectCache();
 		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ deleted: true });
 	} catch (error) {
