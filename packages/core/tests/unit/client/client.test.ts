@@ -532,6 +532,30 @@ describe("EmDashClient", () => {
 	});
 
 	describe("schema methods", () => {
+		it("deleteCollection sends force to the API as a query parameter", async () => {
+			const calledPaths: string[] = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				calledPaths.push(`${req.method} ${url.pathname}${url.search}`);
+				return jsonResponse({});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.deleteCollection("posts");
+			await client.deleteCollection("posts", { force: false });
+			await client.deleteCollection("posts", { force: true });
+
+			expect(calledPaths).toEqual([
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts?force=true",
+			]);
+		});
+
 		it("schema route wraps JSON exports in the API data envelope", async () => {
 			const db = await setupTestDatabaseWithCollections();
 
