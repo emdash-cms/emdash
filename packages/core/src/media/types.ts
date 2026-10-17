@@ -121,6 +121,8 @@ export interface EmbedOptions {
 	height?: number;
 	/** Image format preference */
 	format?: "webp" | "avif" | "jpeg" | "png" | "auto";
+	/** Output quality (numeric or a provider-supported preset). */
+	quality?: number | string;
 }
 
 /**
@@ -143,7 +145,12 @@ export interface ImageEmbed {
 	/** Base URL without transforms, for responsive image generation */
 	cdnBaseUrl?: string;
 	/** For providers with URL-based transforms (Cloudinary, imgix) */
-	getSrc?: (opts: { width?: number; height?: number; format?: string }) => string;
+	getSrc?: (opts: {
+		width?: number;
+		height?: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	}) => string;
 }
 
 export interface VideoEmbed {

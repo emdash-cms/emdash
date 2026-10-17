@@ -53,7 +53,7 @@ interface Props extends Omit<
 	width?: number;
 	/** Override height (uses image.height by default) */
 	height?: number;
-	/** Output quality when rendered through Astro's image service. */
+	/** Output quality for Astro's image service or providers that support it. */
 	quality?: LocalImageProps["quality"];
 	/** Priority loading (disables lazy loading) */
 	priority?: boolean;
@@ -67,6 +67,7 @@ const {
 	alt,
 	width,
 	height,
+	quality,
 	priority,
 	placeholder = true,
 	class: className,
@@ -108,7 +109,7 @@ function generateSrcset(
 	return responsiveWidths(maxWidth, originalWidth)
 		.map((w) => {
 			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
-			return `${getSrc({ width: w, height: h })} ${w}w`;
+			return `${getSrc({ width: w, height: h, quality })} ${w}w`;
 		})
 		.join(", ");
 }
@@ -152,6 +153,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 				width: finalWidth,
 				height: finalHeight,
 				originalWidth: img.width,
+				quality,
 			});
 			if (optimized) {
 				src = optimized.src;
@@ -167,6 +169,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 				const result = provider.getEmbed(img, {
 					width: finalWidth,
 					height: finalHeight,
+					quality,
 				});
 				const embed = result instanceof Promise ? await result : result;
 				if (embed.type === "image") {
@@ -280,6 +283,7 @@ const astroClass = (variantClass: string | undefined) =>
 			alt={finalAlt}
 			width={resolved.width}
 			height={resolved.height}
+			quality={quality}
 			priority={priority}
 			layout="constrained"
 			loading={priority ? "eager" : "lazy"}
@@ -300,6 +304,7 @@ const astroClass = (variantClass: string | undefined) =>
 			alt={finalAlt}
 			width={resolvedDark.width}
 			height={resolvedDark.height}
+			quality={quality}
 			priority={priority}
 			layout="constrained"
 			loading={priority ? "eager" : "lazy"}
