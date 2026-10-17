@@ -483,9 +483,16 @@ export class FTSManager {
 				? parseSearchConfig(row.search_config, row.title_field)
 				: null;
 			if (!config?.enabled) continue;
+			const searchableFields: unknown = JSON.parse(row.searchable_fields);
+			if (
+				!Array.isArray(searchableFields) ||
+				!searchableFields.every((field: unknown) => typeof field === "string")
+			) {
+				throw new Error("Invalid FTS field metadata");
+			}
 			metadata.set(row.slug, {
 				config,
-				searchableFields: JSON.parse(row.searchable_fields) as string[],
+				searchableFields,
 				hasTitle: Boolean(row.has_title),
 			});
 		}

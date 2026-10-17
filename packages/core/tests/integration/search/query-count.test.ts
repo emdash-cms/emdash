@@ -109,11 +109,11 @@ describe("search query counts", () => {
 		executeQuery.mockClear();
 		const discovered = await searchWithDb(db, "farrier");
 		expect(executeQuery).toHaveBeenCalledTimes(3);
-		expect(discovered.items.map((item) => item.slug).toSorted()).toEqual([
-			"body-match",
-			"note-match",
-			"title-match",
-		]);
+		expect(
+			discovered.items
+				.map((item) => item.slug)
+				.toSorted((a, b) => (a ?? "").localeCompare(b ?? "")),
+		).toEqual(["body-match", "note-match", "title-match"]);
 		expect(discovered.items.find((item) => item.collection === "notes")?.title).toBeUndefined();
 
 		executeQuery.mockClear();

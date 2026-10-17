@@ -165,7 +165,9 @@ describe("search metadata on D1", () => {
 
 		expect(executeQuery).toHaveBeenCalledTimes(3);
 		expect(result.items).toHaveLength(2);
-		expect(result.items.map((item) => item.collection).toSorted()).toEqual(["articles", "guides"]);
+		expect(
+			result.items.map((item) => item.collection).toSorted((a, b) => a.localeCompare(b)),
+		).toEqual(["articles", "guides"]);
 		expect(result.items[0]?.collection).toBe("articles");
 		expect(
 			executeQuery.mock.calls.filter(([query]) => String(query.sql).includes("MATCH")),
