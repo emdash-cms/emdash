@@ -274,7 +274,7 @@ msgstr "{0, plural, one {Не меньше # символа} few {Не мень�
 #. placeholder {0}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:230
 msgid "{0, plural, one {Column deleted} other {# columns deleted}}"
-msgstr "{0, plural, one {Столбец удалён} few {# столбца удалено} many {# столбцов удалено} other {# столбцов удалено}}"
+msgstr "{0, plural, =1 {Столбец удалён} one {# столбец удалён} few {# столбца удалено} many {# столбцов удалено} other {# столбцов удалено}}"
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:756
@@ -289,12 +289,12 @@ msgstr "{0, plural, one {Медиафайл} few {Медиафайла} many {М
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:211
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr "{0, plural, one {Ещё одна заблокированная запись не показана.} few {Ещё # заблокированные записи не показаны.} many {Ещё # заблокированных записей не показано.} other {Ещё # заблокированных записей не показано.}}"
+msgstr "{0, plural, =1 {Ещё одна заблокированная запись не показана.} one {Ещё # заблокированная запись не показана.} few {Ещё # заблокированные записи не показаны.} many {Ещё # заблокированных записей не показано.} other {Ещё # заблокированных записей не показано.}}"
 
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:228
 msgid "{0, plural, one {Row deleted} other {# rows deleted}}"
-msgstr "{0, plural, one {Строка удалена} few {# строки удалено} many {# строк удалено} other {# строк удалено}}"
+msgstr "{0, plural, =1 {Строка удалена} one {# строка удалена} few {# строки удалено} many {# строк удалено} other {# строк удалено}}"
 
 #. placeholder {0}: names.length - SCAFFOLD_NAMES_SHOWN
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:575
@@ -498,7 +498,7 @@ msgstr "{collectionLabel}: постраничная навигация"
 
 #: packages/admin/src/components/editor/TableControls.tsx:199
 msgid "{columns, plural, one {Column deleted} other {# columns deleted}}"
-msgstr "{columns, plural, one {Столбец удалён} few {# столбца удалено} many {# столбцов удалено} other {# столбцов удалено}}"
+msgstr "{columns, plural, =1 {Столбец удалён} one {# столбец удалён} few {# столбца удалено} many {# столбцов удалено} other {# столбцов удалено}}"
 
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:311
@@ -706,11 +706,11 @@ msgstr "{origin} перенаправляет на {target}. Введите эт
 
 #: packages/admin/src/components/Dashboard.tsx:151
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr "{overdueCount, plural, one {Один запланированный материал просрочен, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} few {# запланированных материала просрочены, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} many {# запланированных материалов просрочены, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} other {# запланированных материалов просрочены, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.}}"
+msgstr "{overdueCount, plural, =1 {Один запланированный материал просрочен, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} one {# запланированный материал просрочен, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} few {# запланированных материала просрочены, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} many {# запланированных материалов просрочены, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} other {# запланированных материалов просрочены, а пульс планировщика устарел. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.}}"
 
 #: packages/admin/src/components/Dashboard.tsx:146
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr "{overdueCount, plural, one {Один запланированный материал просрочен, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} few {# запланированных материала просрочены, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} many {# запланированных материалов просрочены, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} other {# запланированных материалов просрочены, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.}}"
+msgstr "{overdueCount, plural, =1 {Один запланированный материал просрочен, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} one {# запланированный материал просрочен, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} few {# запланированных материала просрочены, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} many {# запланированных материалов просрочены, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.} other {# запланированных материалов просрочены, но планировщик ещё ни разу не отработал. Запустите `npx emdash doctor` и проверьте развёрнутый Cron Trigger.}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:287
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
@@ -736,7 +736,7 @@ msgstr "{plural} применяются сразу; правки чернови�
 
 #: packages/admin/src/components/Dashboard.tsx:165
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr "{policyRejected, plural, one {Откройте затронутую запись, устраните причину отказа политики и запланируйте её снова. Успешное планирование или публикация снимет это уведомление.} few {Откройте затронутые записи, устраните причины отказа политики и запланируйте их снова. Успешное планирование или публикация снимет каждое уведомление.} many {Откройте затронутые записи, устраните причины отказа политики и запланируйте их снова. Успешное планирование или публикация снимет каждое уведомление.} other {Откройте затронутые записи, устраните причины отказа политики и запланируйте их снова. Успешное планирование или публикация снимет каждое уведомление.}}"
+msgstr "{policyRejected, plural, =1 {Откройте затронутую запись, устраните причину отказа политики и запланируйте её снова. Успешное планирование или публикация снимет это уведомление.} one {Откройте затронутые записи, устраните причины отказа политики и запланируйте их снова. Успешное планирование или публикация снимет каждое уведомление.} few {Откройте затронутые записи, устраните причины отказа политики и запланируйте их снова. Успешное планирование или публикация снимет каждое уведомление.} many {Откройте затронутые записи, устраните причины отказа политики и запланируйте их снова. Успешное планирование или публикация снимет каждое уведомление.} other {Откройте затронутые записи, устраните причины отказа политики и запланируйте их снова. Успешное планирование или публикация снимет каждое уведомление.}}"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:303
 msgid "{position} of {total}"
@@ -774,7 +774,7 @@ msgstr "Таблица {row} × {column}"
 
 #: packages/admin/src/components/editor/TableControls.tsx:197
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
-msgstr "{rows, plural, one {Строка удалена} few {# строки удалено} many {# строк удалено} other {# строк удалено}}"
+msgstr "{rows, plural, =1 {Строка удалена} one {# строка удалена} few {# строки удалено} many {# строк удалено} other {# строк удалено}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3563
 msgid "{rows} × {columns} table pasted"
