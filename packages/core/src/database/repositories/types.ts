@@ -192,8 +192,8 @@ export interface FindManyOptions {
 		/**
 		 * Columns the `q` substring filter is applied to (OR'd together).
 		 * Resolved by the handler from the collection's display fields, slug,
-		 * and any field marked searchable. Each name is validated as a SQL
-		 * identifier.
+		 * and any field marked searchable that has a column. Each name is
+		 * validated as a SQL identifier.
 		 */
 		searchColumns?: string[];
 		/**
