@@ -900,6 +900,7 @@ function ContentNewPage() {
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
 				search: { locale: result.locale },
+				ignoreBlocker: true,
 			});
 		},
 		onError: (error) => {
