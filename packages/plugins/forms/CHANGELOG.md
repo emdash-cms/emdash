@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.10
+
+### Patch Changes
+
+- [#3979](https://github.com/emdash-cms/emdash/pull/3979) [`65aa1f4`](https://github.com/emdash-cms/emdash/commit/65aa1f4608116c668b9e04f81dcf468a15b3a1b8) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes the daily digest. Creating a form with the digest on, or turning it on for an existing form, failed with an "Invalid task name" error, and a form created that way was saved with the digest on but never sent one. The digest is now scheduled, including for a duplicated form, and is rescheduled or cancelled when the form's digest settings change.
+
+- [#3031](https://github.com/emdash-cms/emdash/pull/3031) [`cc40400`](https://github.com/emdash-cms/emdash/commit/cc40400341760dbf5fce53b54205dfb6bbee5dbd) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes duplicate element IDs when the same form is embedded more than once on a page. Field IDs were built from the form ID and the field name alone, so a form appearing in, say, a sidebar and a pop-up produced several elements sharing an ID: clicking a label focused the first copy rather than the one beside it, and anything resolving an ID — `aria-describedby`, a password manager, a test selector — reached the wrong instance. Each rendering now suffixes its IDs with a per-instance value, so labels, inputs and the honeypot stay paired within their own copy. Element IDs are not part of the plugin's API and nothing else references them; the client script scopes its lookups to the form element.
+
+- [#3032](https://github.com/emdash-cms/emdash/pull/3032) [`b709d72`](https://github.com/emdash-cms/emdash/commit/b709d720e801ce48e5fcae28e25df57f1b34aae6) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes embedded forms showing only the browser's validation bubble instead of the plugin's inline field errors. Native validation is turned off by the client script once it loads, so readers without JavaScript keep it.
+
 ## 0.2.9
 
 No changes in this release.

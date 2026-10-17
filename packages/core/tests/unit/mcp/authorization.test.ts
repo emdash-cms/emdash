@@ -317,6 +317,44 @@ describe("MCP Authorization", () => {
 			outputSchema: z.object({ id: z.string() }),
 		};
 
+		it("normalizes scoped plugin IDs into valid, stable tool names", async () => {
+			({ client, cleanup } = await setupMcpPair({
+				userId: ADMIN_USER_ID,
+				userRole: Role.ADMIN,
+				pluginTools: [{ ...pluginTool, pluginId: "@emdash-cms/calendar" }],
+			}));
+
+			const { tools } = await client.listTools();
+			const toolNames = tools.map((tool) => tool.name);
+
+			expect(toolNames).toContain("emdash_cms__calendar__createEvent");
+			expect(toolNames).not.toContain("@emdash-cms/calendar__createEvent");
+		});
+
+		it("skips colliding names without losing the first tool or unrelated tools", async () => {
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				({ client, cleanup } = await setupMcpPair({
+					userId: ADMIN_USER_ID,
+					userRole: Role.ADMIN,
+					pluginTools: [
+						{ ...pluginTool, pluginId: "@acme/forms", name: "submit", description: "First tool" },
+						{ ...pluginTool, pluginId: "acme", name: "forms__submit", description: "Collision" },
+						pluginTool,
+					],
+				}));
+
+				const { tools } = await client.listTools();
+				expect(tools.filter((tool) => tool.name === "acme__forms__submit")).toMatchObject([
+					{ description: "First tool" },
+				]);
+				expect(tools.map((tool) => tool.name)).toContain("calendar__createEvent");
+				expect(warn).toHaveBeenCalledWith(expect.stringContaining("acme__forms__submit"));
+			} finally {
+				warn.mockRestore();
+			}
+		});
+
 		it("does not let the legacy admin scope bypass plugin-tool scope", async () => {
 			const handlers = createMockHandlers();
 			handlers.handlePluginMcpDenied = vi.fn().mockResolvedValue(undefined);

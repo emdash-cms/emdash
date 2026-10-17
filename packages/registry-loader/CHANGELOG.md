@@ -1,5 +1,12 @@
 # @emdash-cms/registry-loader
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`af92bf7`](https://github.com/emdash-cms/emdash/commit/af92bf731e33f7d2d1b81b3c75fdf840c99067c8)]:
+  - @emdash-cms/registry-client@0.7.1
+
 ## 0.1.2
 
 ### Patch Changes

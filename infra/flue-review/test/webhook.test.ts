@@ -72,10 +72,26 @@ describe("pull request webhook gate", () => {
 		});
 	});
 
-	it("automatically reviews emdashbot PRs", () => {
-		expect(gatePullRequestEvent(event("opened", "emdashbot[bot]"))).toMatchObject({
-			review: true,
-		});
+	it.each(["emdashbot[bot]", "emdash-autofix[bot]"])("automatically reviews %s PRs", (author) => {
+		expect(gatePullRequestEvent(event("opened", author))).toMatchObject({ review: true });
+	});
+
+	it("reviews emdash-autofix's own pushes to its PRs", () => {
+		const push = event("synchronize", "emdash-autofix[bot]");
+		expect(
+			gatePullRequestEvent({ ...push, sender: { login: "emdash-autofix[bot]" } }),
+		).toMatchObject({ review: true, pr: { headSha: "abc123" } });
+	});
+
+	it.each([
+		{ author: "emdash-autofix[bot]", sender: "emdashbot[bot]" },
+		{ author: "emdash-autofix[bot]", sender: "ascorbic" },
+		{ author: "emdashbot[bot]", sender: "emdashbot[bot]" },
+		{ author: "contributor", sender: "contributor" },
+	])("skips a push by $sender to a PR by $author", ({ author, sender }) => {
+		expect(
+			gatePullRequestEvent({ ...event("synchronize", author), sender: { login: sender } }),
+		).toEqual({ review: false, reason: 'action "synchronize" is not reviewable' });
 	});
 
 	it("honors a bot:review label on any bot PR", () => {
@@ -87,5 +103,19 @@ describe("pull request webhook gate", () => {
 				pull_request: { ...botEvent.pull_request, draft: true },
 			}),
 		).toMatchObject({ review: true });
+	});
+
+	it.each([
+		{ title: "design: add content locking", body: "" },
+		{ title: "Add content locking", body: "<!-- design-pr -->" },
+	])("skips a design PR, including a manual review request", ({ title, body }) => {
+		const designEvent = event("labeled", "contributor");
+		expect(
+			gatePullRequestEvent({
+				...designEvent,
+				label: { name: "bot:review" },
+				pull_request: { ...designEvent.pull_request, title, body },
+			}),
+		).toEqual({ review: false, reason: "design PRs require human discussion" });
 	});
 });

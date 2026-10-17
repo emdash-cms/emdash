@@ -37,6 +37,7 @@ function eventCategory(id: string): string {
 	if (id.startsWith("agent.")) return "agent result";
 	if (id.startsWith("pr.")) return "pr lifecycle";
 	if (id.startsWith("preview.")) return "preview";
+	if (id.startsWith("issue.")) return "issue lifecycle";
 	if (id === "expire") return "timer";
 	return "command";
 }

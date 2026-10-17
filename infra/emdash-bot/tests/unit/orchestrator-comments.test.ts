@@ -4,6 +4,7 @@ import {
 	fillPullRequestTemplate,
 	renderAgentComment,
 	renderCommandFeedback,
+	renderCompetingWork,
 	renderPreviewReadyAsk,
 	renderPullRequestBody,
 	renderVerifiedThanks,
@@ -169,7 +170,7 @@ describe("renderPullRequestBody", () => {
 		expect(completed).toContain("- [x] Bug fix (include a regression test)");
 		expect(completed).toContain("- [ ] Feature (link the approved discussion)");
 		expect(completed).toContain(
-			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+			"- [x] This PR includes AI-generated code or text — model/tool: emdashbot + Kimi K2.7 Code",
 		);
 	});
 
@@ -203,7 +204,7 @@ describe("renderPullRequestBody", () => {
 		expect(body).toContain("## Type of change");
 		expect(body).toContain("- [x] Bug fix");
 		expect(body).toContain("## Checklist");
-		expect(body).toContain("## AI-generated code disclosure");
+		expect(body).toContain("## AI assistance disclosure");
 		expect(body).toContain("- [x] This PR includes AI-generated code");
 		expect(body).toContain("## Screenshots / test output");
 		expect(body).not.toContain("<!-- Describe the change");
@@ -265,5 +266,17 @@ describe("renderCommandFeedback", () => {
 		const body = renderCommandFeedback("unmanaged", "investigate", "reporter");
 		expect(body).toContain("can only be used by a maintainer");
 		expect(body).not.toContain("Available now: `@emdashbot fix");
+	});
+});
+
+describe("renderCompetingWork", () => {
+	test("names every pull request and assignee without mentioning them", () => {
+		expect(renderCompetingWork({ pullRequests: [3010, 3012], assignees: ["alice", "bob"] })).toBe(
+			"I haven't started work because #3010, #3012 already reference this issue and it's assigned to alice, bob.",
+		);
+	});
+
+	test("says nothing when nobody is on the issue", () => {
+		expect(renderCompetingWork({ pullRequests: [], assignees: [] })).toBeNull();
 	});
 });

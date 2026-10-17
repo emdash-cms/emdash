@@ -38,7 +38,7 @@ Connection flags vary by command. The grouped commands below mean every subcomma
 | ------------------------- | ----- | ------------ | ----------------------- |
 | `--url`                   | `-u`  | `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Instance URL; defaults to `EMDASH_URL` or `http://localhost:4321` |
 | `--token`                 | `-t`  | `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Token from the flag, `EMDASH_TOKEN`, or stored credentials |
-| `--header "Name: Value"` | `-H`  | `types`, `login`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
+| `--header "Name: Value"` | `-H`  | `types`, `login`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
 | `--json`                  |       | `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Write raw JSON instead of terminal-formatted output |
 
 ## Output
@@ -96,6 +96,7 @@ npx emdash seed [path] [options]
 | `--on-conflict`    |       | Handle existing records with `skip`, `update`, or `error` | `skip`                         |
 | `--uploads-dir`    |       | Local directory used for seed media                    | `./uploads`                      |
 | `--media-base-url` |       | Base URL stored for local seed media                   | `/_emdash/api/media/file`        |
+| `--skip-media`     |       | Resolve `$media` references to external URLs instead of downloading and storing them | `false` |
 
 Applying a seed runs core migrations first. Use `--validate` in continuous integration when you need to check the file without opening or creating the database.
 
@@ -108,6 +109,7 @@ npx emdash migrate [options]
 npx emdash migrate --check [options]
 npx emdash migrate --status --json [options]
 npx emdash migrate --release-lock <id> [options]
+npx emdash migrate --take-over-lock <id> [options]
 ```
 
 By default the command discovers the project root and reads `.emdash/migrations.json`. It validates the manifest against the project's installed EmDash package, resolves the adapter's project-local executor, and prints the immutable target before any SQL.
@@ -122,8 +124,9 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--manifest <path>` | Read a non-standard manifest path |
 | `--from-config` | Explicitly evaluate trusted Astro configuration instead of a manifest |
 | `--config <path>` | Astro config path used with `--from-config` |
-| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply or lock release |
+| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply, lock release, or lock take-over |
 | `--release-lock <id>` | Release the D1 migration lock with the id that `--status` reports; cannot be combined with `--check` or `--status` |
+| `--take-over-lock <id>` | Apply pending migrations under the D1 migration lock with the id that `--status` reports, without freeing it in between; cannot be combined with `--check`, `--status`, or `--release-lock` |
 | `--database <path>` | Override a SQLite path |
 | `--database-url-env <name>` | Override a PostgreSQL connection-variable name |
 | `--d1 <uuid-or-name>` | Select a D1 database explicitly |
@@ -131,7 +134,7 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--wrangler-config <path>` | Read D1 binding metadata from an explicit Wrangler config |
 | `--wrangler-env <name>` | Select an environment; requires `--wrangler-config` |
 
-Interactive human-readable apply and lock release ask for confirmation. Non-interactive apply or lock release, and every apply or lock release using `--json`, require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
+Interactive human-readable apply, lock release, and lock take-over ask for confirmation. Non-interactive apply, lock release, or lock take-over, and every one of them using `--json`, require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
 
 #### Exit codes
 
@@ -233,13 +236,14 @@ npx emdash whoami [options]
 
 #### Options
 
-| Option    | Alias | Description           | Default                |
-| --------- | ----- | --------------------- | ---------------------- |
-| `--url`   | `-u`  | EmDash instance URL | `http://localhost:4321` |
-| `--token` | `-t`  | Auth token            | From env/stored creds  |
-| `--json`  |       | Output as JSON        |                        |
+| Option                   | Alias | Description           | Default                                  |
+| ------------------------ | ----- | --------------------- | ---------------------------------------- |
+| `--url`                  | `-u`  | EmDash instance URL   | `EMDASH_URL` or `http://localhost:4321` |
+| `--token`                | `-t`  | Auth token            | From env/stored creds                    |
+| `--header "Name: Value"` | `-H`  | Custom header, repeatable | Merged with `EMDASH_HEADERS`         |
+| `--json`                 |       | Output as JSON        |                                          |
 
-Displays email, name, role, auth method, and instance URL.
+Displays email, name, role, auth method, and instance URL. On localhost with no token or stored credentials, `whoami` signs in through the dev bypass, which creates the `dev@emdash.local` admin user if it doesn't exist, and reports that user. It exits with a non-zero status when the instance can't be reached or the dev bypass is unavailable, for example when the site isn't running under `astro dev`.
 
 ### `emdash content`
 
