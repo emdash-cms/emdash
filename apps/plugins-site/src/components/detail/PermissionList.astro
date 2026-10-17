@@ -65,9 +65,7 @@ const rows = permissions.capabilities.map((capability) => ({
 									aria-labelledby={`allowed-hosts-${row.capability}`}
 								>
 									{row.hosts.map((host) => (
-										<li dir="auto" title={host}>
-											{host}
-										</li>
+										<li dir="auto">{host}</li>
 									))}
 								</ul>
 							</div>
@@ -198,16 +196,15 @@ const rows = permissions.capabilities.map((capability) => ({
 		list-style: none;
 	}
 
+	/* Hosts wrap rather than truncate: the end of a hostname is its registrable domain. */
 	.host-list li {
-		overflow: hidden;
 		max-width: 100%;
 		padding: 3px 8px;
 		color: var(--ink);
 		font-family: var(--font-mono);
 		font-size: 12px;
 		line-height: 1.5;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 		background: var(--surface-soft);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-xs);
