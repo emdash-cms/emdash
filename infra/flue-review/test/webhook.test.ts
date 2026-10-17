@@ -76,6 +76,24 @@ describe("pull request webhook gate", () => {
 		expect(gatePullRequestEvent(event("opened", author))).toMatchObject({ review: true });
 	});
 
+	it("reviews emdash-autofix's own pushes to its PRs", () => {
+		const push = event("synchronize", "emdash-autofix[bot]");
+		expect(
+			gatePullRequestEvent({ ...push, sender: { login: "emdash-autofix[bot]" } }),
+		).toMatchObject({ review: true, pr: { headSha: "abc123" } });
+	});
+
+	it.each([
+		{ author: "emdash-autofix[bot]", sender: "emdashbot[bot]" },
+		{ author: "emdash-autofix[bot]", sender: "ascorbic" },
+		{ author: "emdashbot[bot]", sender: "emdashbot[bot]" },
+		{ author: "contributor", sender: "contributor" },
+	])("skips a push by $sender to a PR by $author", ({ author, sender }) => {
+		expect(
+			gatePullRequestEvent({ ...event("synchronize", author), sender: { login: sender } }),
+		).toEqual({ review: false, reason: 'action "synchronize" is not reviewable' });
+	});
+
 	it("honors a bot:review label on any bot PR", () => {
 		const botEvent = event("labeled", "dependabot[bot]");
 		expect(
