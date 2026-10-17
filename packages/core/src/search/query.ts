@@ -174,8 +174,25 @@ export async function searchWithDb(
 		allResults.push(...collectionResults);
 	}
 
-	// Sort by score descending
-	allResults.sort((a, b) => b.score - a.score);
+	// BM25 scores are computed per FTS5 table, so raw values are on different
+	// scales across collections. Normalize each result against its
+	// collection's best score and then rank by title-match quality. Without
+	// this, a larger collection's passing mentions can outrank an exact title
+	// match in a smaller collection because the larger table's IDF is higher.
+	normalizeScoresPerCollection(allResults);
+	const titleTiers = new Map<SearchResult, TitleMatchTier>();
+	for (const result of allResults) {
+		titleTiers.set(result, classifyTitleMatch(result.title, query));
+	}
+
+	allResults.sort((a, b) => {
+		const tierA = titleTiers.get(a) ?? TITLE_MATCH_TIER.None;
+		const tierB = titleTiers.get(b) ?? TITLE_MATCH_TIER.None;
+		if (tierB !== tierA) {
+			return tierB - tierA;
+		}
+		return b.score - a.score;
+	});
 
 	// Page the merged set by offset. A nextCursor is issued only when at least
 	// one result exists past this page.
@@ -422,6 +439,114 @@ function sanitizeSnippet(snippet: string): string {
 		.replace(SNIPPET_APOS_RE, "&#39;")
 		.replaceAll("&lt;mark&gt;", "<mark>")
 		.replaceAll("&lt;/mark&gt;", "</mark>");
+}
+
+// Operator words are ordinary search terms in lowercase, but when they appear
+// alone in a query string they are interpreted as FTS5 syntax. Strip them
+// from the title-match heuristic so a search like "boarding and wil" doesn't
+// require the word "and" to be present in a title.
+const TITLE_MATCH_OPERATOR_WORDS = new Set(["and", "or", "not", "near"]);
+
+const TITLE_MATCH_TIER = {
+	None: 0,
+	Contains: 1,
+	Exact: 2,
+} as const;
+
+type TitleMatchTier = (typeof TITLE_MATCH_TIER)[keyof typeof TITLE_MATCH_TIER];
+
+/**
+ * Pull searchable words out of the raw query string for title matching.
+ *
+ * Surrounding quotes on a phrase query are removed so the whole phrase can
+ * match a title, and any trailing prefix wildcard (`*`) inserted by
+ * `escapeQuery` is stripped. Punctuation is trimmed from the ends of each
+ * term; operator words are dropped because they are syntax, not required
+ * words.
+ */
+function extractQueryTerms(query: string): string[] {
+	const lowered = query.trim().toLowerCase();
+	if (lowered.startsWith('"') && lowered.endsWith('"')) {
+		return [lowered.slice(1, -1).trim()].filter((t) => t.length > 0);
+	}
+	return lowered
+		.split(WHITESPACE_SPLIT_PATTERN)
+		.map(trimNonAlphanumeric)
+		.filter((term) => term.length > 0 && !TITLE_MATCH_OPERATOR_WORDS.has(term));
+}
+
+function isAlphanumeric(charCode: number): boolean {
+	return (
+		(charCode >= 0x30 && charCode <= 0x39) || // 0-9
+		(charCode >= 0x41 && charCode <= 0x5a) || // A-Z
+		(charCode >= 0x61 && charCode <= 0x7a) // a-z
+	);
+}
+
+function trimNonAlphanumeric(term: string): string {
+	let start = 0;
+	let end = term.length;
+	while (start < end && !isAlphanumeric(term.charCodeAt(start))) {
+		start++;
+	}
+	while (end > start && !isAlphanumeric(term.charCodeAt(end - 1))) {
+		end--;
+	}
+	return term.slice(start, end);
+}
+
+/**
+ * Classify how strongly a result title matches the original query.
+ *
+ * Exact title matches rank above titles that merely contain all query
+ * terms; everything else falls into the lowest tier. This prevents an exact
+ * title hit in one collection from being buried below passing mentions in
+ * another collection because the two collections' bm25 scores are not
+ * comparable.
+ */
+function classifyTitleMatch(title: string | undefined, query: string): TitleMatchTier {
+	if (!title) {
+		return TITLE_MATCH_TIER.None;
+	}
+	const normalizedTitle = title.trim().toLowerCase();
+	const normalizedQuery = query.trim().toLowerCase().replace(/^"|"$/g, "");
+	if (normalizedTitle === normalizedQuery) {
+		return TITLE_MATCH_TIER.Exact;
+	}
+	const terms = extractQueryTerms(query);
+	if (terms.length > 0 && terms.every((term) => normalizedTitle.includes(term))) {
+		return TITLE_MATCH_TIER.Contains;
+	}
+	return TITLE_MATCH_TIER.None;
+}
+
+const SCORE_NORMALIZATION_EPSILON = 1e-9;
+
+/**
+ * Normalize per-collection bm25 scores so they can be compared across
+ * collections.
+ *
+ * Each FTS5 table computes bm25 from its own document frequencies, so the
+ * absolute numbers are only meaningful inside one collection. Dividing each
+ * result by the best score in its collection maps every collection's top hit
+ * to 1. Title-match tiers then provide the rank ordering that bm25 alone cannot.
+ */
+function normalizeScoresPerCollection(results: SearchResult[]): void {
+	const maxByCollection = new Map<string, number>();
+	for (const result of results) {
+		maxByCollection.set(
+			result.collection,
+			Math.max(maxByCollection.get(result.collection) ?? 0, result.score),
+		);
+	}
+	for (const result of results) {
+		const max = maxByCollection.get(result.collection) ?? 0;
+		if (max <= SCORE_NORMALIZATION_EPSILON) {
+			result.score = 0;
+		} else {
+			result.score = result.score / max;
+		}
+	}
 }
 
 /**
