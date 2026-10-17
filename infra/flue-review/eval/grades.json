@@ -562,5 +562,433 @@
 				"note": "K6, including code- and path-stamped rows coexisting; request_changes"
 			}
 		}
+	},
+	"issue+framing-v1": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0.5
+				},
+				"falseClaims": [],
+				"note": "K1, K2; noted a failed refresh now errors instead of serving the last snapshot, as a minor unanchored note"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6 with the seed source and a migration or changeset fix; comment"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 as needs_fixing"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0.5,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "top-level caption duplicates meta.caption, leaving a stale copy (suggestion); backfill gap"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			}
+		},
+		"4208": {
+			"opus": {
+				"scores": {
+					"H1": 0.5
+				},
+				"falseClaims": [],
+				"note": "found the same storage-less title bug in FTS title detection (verified at head), not the media-usage site"
+			},
+			"sol": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4128": {
+			"opus": {
+				"scores": {
+					"H2": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			},
+			"sol": {
+				"scores": {
+					"H2": 1
+				},
+				"falseClaims": [],
+				"note": "draft translation with taxonomies clears the published source's terms"
+			}
+		},
+		"4167": {
+			"opus": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference; narrative test header"
+			},
+			"sol": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference"
+			}
+		},
+		"4150": {
+			"opus": {
+				"scores": {
+					"H4": 1
+				},
+				"falseClaims": [],
+				"note": "changeset omits comments"
+			},
+			"sol": {
+				"scores": {
+					"H4": 0
+				},
+				"falseClaims": [],
+				"note": "valid docs point: the Skip rule does not skip later custom WAF rules"
+			}
+		},
+		"4203": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			}
+		},
+		"4186": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			}
+		},
+		"4172": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [
+					"Speculative reads now run before the migration-failure backoff check: true, but a minor cost during an error backoff window, overstated as needs_fixing"
+				],
+				"note": "comment; did not repeat the masking claim"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [
+					"Speculative reads now run before the migration-failure backoff check: true, but a minor cost during an error backoff window, overstated as needs_fixing"
+				],
+				"note": "comment; did not repeat the masking claim"
+			}
+		},
+		"4157": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			}
+		}
+	},
+	"issue+framing-v2": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 1,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "K5: D1 REST and DO SQL dialects reject transactions, so the changeset's intact-on-failure claim is false there (suggestion); approved"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "approved; repeated \"no migration is needed\""
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6, including code- and path-stamped rows coexisting; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 as needs_fixing"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "backfill gap and gallery picker notes only"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			}
+		}
+	},
+	"issue+framing-v3": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 1,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "K4: the widget-area step still deletes then reinserts; comment"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 1
+				},
+				"falseClaims": [],
+				"note": "K6 and K14 (re-applying a seed duplicates the row)"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 as needs_fixing"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			}
+		}
 	}
 }

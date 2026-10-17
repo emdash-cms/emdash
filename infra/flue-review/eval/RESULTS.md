@@ -113,3 +113,41 @@ PR 4224 with issue+framing, reasoning on, two runs each, against the earlier run
 | Sol, reasoning, run 2       | K6 (1)      | request_changes ✓ | 0            | 16         | 1.23M (3.5k, 1.2k)         | 120 s | $0.47 |
 
 Output tokens, tool calls and cost barely moved, which fits both models already reasoning at medium effort. Sol was consistent across all three runs. Opus varied from 2 key items to an approval on the same inputs, so single runs of Opus are noisy, and the variant comparison above needs repeat runs before it is trusted. Reasoning tokens were recorded only once the runner began saving event streams.
+
+## Variance (issue+framing, reasoning on)
+
+Three runs per bot PR and one per human PR, for Opus and Sol, with the linked issue and framing variant and reasoning on. Two of the three 4224 runs per model are the reasoning runs above (same setup). None of the human PRs closes an issue, so their context had the framing but no "Linked issue" section; the event streams confirm this. Grades are under `issue+framing-v1` to `-v3` in `grades.json`.
+
+Key score per bot PR, as the mean and range over three runs:
+
+| PR (key items)                      | Opus          | Sol         |
+| ----------------------------------- | ------------- | ----------- |
+| 4226 (3)                            | 2.2 (2–2.5)   | 2 (2–2)     |
+| 4225 (4)                            | 0.7 (0–1)     | 0 (0–0)     |
+| 4224 (3)                            | 1 (0–2)       | 1 (1–1)     |
+| 4221 (2)                            | 1 (1–1)       | 0 (0–0)     |
+| 4201 (4)                            | 0.5 (0–1)     | 1 (1–1)     |
+| **Total (16)**                      | **5.3 (4–7)** | **4 (4–4)** |
+| Runs that missed everything on a PR | 3 of 15       | 6 of 15     |
+| Bot verdicts right                  | 12 of 15      | 9 of 15     |
+
+Human PRs, one run each:
+
+|                                                    | Opus   | Sol    |
+| -------------------------------------------------- | ------ | ------ |
+| Key score (4)                                      | 2.5    | 2      |
+| Verdicts right (4208, 4128 and the four clean PRs) | 3 of 6 | 4 of 6 |
+| False or overstated claims                         | 1      | 1      |
+| Clean PRs approved                                 | 3 of 4 | 3 of 4 |
+
+|           | Opus    | Sol     |
+| --------- | ------- | ------- |
+| Mean time | 1.5 min | 1.4 min |
+| Mean cost | $0.42   | $0.30   |
+
+- **Opus varies from run to run**: 4 to 7 of 16, and on single PRs from nothing to everything it found elsewhere. Each run found something different: one found K4 (the widget-area race, never found before), another K5 (Durable Object SQL transactions; raised only as a suggestion), and another K14. Summed over its runs, Opus found at least once K1, K2, K4, K5, K6, K9, K11 and K14, plus a partial K3 and K10.
+- **Sol is consistent but narrow**: 4 of 16 in every run, the same items each time (K1, K2, K6, K11). It never flagged 4225 or 4221 and approved them all nine times.
+- **False claims**: both raised the same overstated needs-fixing point on clean 4172 (speculative reads before the backoff check), so both gave it a `comment`. Neither repeated the known false masking claim. Every other clean-PR verdict was right, with no other needs-fixing findings.
+- **Human PRs**: Opus found the 4208 bug class in a different place (full-text search title detection, verified at the head) rather than media-usage discovery. Sol again found 4128's taxonomy bug, which Opus missed.
+
+Single runs of either model are not reliable enough to compare variants on five PRs. Opus finds more over repeated runs, Sol is more predictable. Running two independent reviews would catch more on the bot PRs than one Opus review.
