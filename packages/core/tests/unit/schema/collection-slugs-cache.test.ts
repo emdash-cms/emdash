@@ -10,6 +10,7 @@ import {
 	createStalledDatabase,
 	setupTestDatabaseWithCollections,
 	setupTestDatabaseWithCompoundSelectLimit,
+	teardownTestDatabase,
 } from "../../utils/test-db.js";
 
 describe("filterToRegisteredCollections", () => {
@@ -21,8 +22,7 @@ describe("filterToRegisteredCollections", () => {
 
 	afterEach(async () => {
 		vi.useRealTimers();
-		// teardownTestDatabase would wait on the stranded query that after() anchors.
-		await db.destroy();
+		await teardownTestDatabase(db);
 	});
 
 	it("does not strand later requests on a first query that never settles", async () => {
