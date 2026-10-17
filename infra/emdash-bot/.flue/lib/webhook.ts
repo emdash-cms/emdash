@@ -672,7 +672,10 @@ function firstRecord(value: unknown): Record<string, unknown> | undefined {
 
 /**
  * The PR whose approval state a review changed: every submitted or dismissed
- * review on an open, ready PR, whoever opened it (see review-state.ts). This is
+ * review by a person on an open, ready PR, whoever opened it (see review-state.ts).
+ * approval.yml counts only reviews by people, so a bot's review (including the
+ * empty review GitHub records for each inline reply a bot posts) changes nothing
+ * and would only toggle the review label. This is
  * separate from `normalizeWebhook`, which also routes reviews on the bot's own
  * PRs as revision feedback.
  */
@@ -683,6 +686,9 @@ export function approvalRefreshTarget(eventType: string, payload: unknown): numb
 	if (action !== "submitted" && action !== "dismissed") return null;
 	const pr = asRecord(event?.pull_request);
 	if (pr?.state === "closed" || pr?.draft === true) return null;
+	const reviewer = asRecord(asRecord(event?.review)?.user);
+	if (readString(reviewer?.type) === "Bot" || readString(reviewer?.login)?.endsWith("[bot]"))
+		return null;
 	return readNumber(pr?.number) ?? null;
 }
 
