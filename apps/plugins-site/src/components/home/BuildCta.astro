@@ -256,6 +256,10 @@ import { storyIcons as i } from "./story/icons.js";
 		}
 	}
 
+	:global(:root:not(.js)) .cta-copy-btn {
+		display: none;
+	}
+
 	.is-copied .cta-copy-btn {
 		color: var(--success);
 	}

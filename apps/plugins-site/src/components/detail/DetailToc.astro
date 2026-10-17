@@ -239,6 +239,10 @@ const labelId = `toc-${variant}-label`;
 		margin-block-start: 1.5rem;
 	}
 
+	:global(:root:not(.js)) .toc-install {
+		display: none;
+	}
+
 	@media (min-width: 1024px) {
 		.toc--chips {
 			display: none;

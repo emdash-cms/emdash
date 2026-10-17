@@ -995,6 +995,11 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 		transform: none;
 	}
 
+	:global(:root:not(.js)) [data-install-trigger],
+	:global(:root:not(.js)) .public-name-copy {
+		display: none;
+	}
+
 	.public-name-hint {
 		max-width: 26rem;
 		margin: 0;

@@ -198,6 +198,10 @@ const searchIcon = '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>';
 		transition: opacity 150ms ease;
 	}
 
+	:global(:root:not(.js)) .search-field-kbd {
+		display: none;
+	}
+
 	.search-field:focus-within .search-field-kbd,
 	.search-field-input:not(:placeholder-shown) ~ .search-field-kbd {
 		opacity: 0;
