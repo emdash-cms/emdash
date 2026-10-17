@@ -75,7 +75,10 @@ async function resolveSafeArtifactTarget(urlString: string): Promise<{
 	const hostname = stripIpv6Brackets(rawHostname);
 	const localhost = isLocalhostHostname(hostname);
 
-	if (!import.meta.env.DEV) {
+	// `import.meta.env` only exists under Vite/Astro; guard with typeof so
+	// plain-Node headless callers (registry pins, CI) don't throw here.
+	const isDev = typeof import.meta.env !== "undefined" && import.meta.env.DEV;
+	if (!isDev) {
 		if (url.protocol === "http:") {
 			throw new Error("Artifact URL must use https");
 		}

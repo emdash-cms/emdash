@@ -280,7 +280,11 @@ export function validateAggregatorUrl(
 		hostname.startsWith("::ffff:127.") ||
 		hostname.startsWith("::ffff:7f00:");
 
-	const allowLocalhost = options.allowLocalhost ?? import.meta.env.DEV;
+	const allowLocalhost =
+		options.allowLocalhost ??
+		// Guarded typeof: import.meta.env is undefined under plain Node,
+		// where localhost aggregator URLs must not be implicitly allowed.
+		(typeof import.meta.env !== "undefined" && import.meta.env.DEV);
 	if (!allowLocalhost) {
 		if (parsed.protocol === "http:") {
 			throw new RegistryConfigurationError(
