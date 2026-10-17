@@ -206,6 +206,10 @@ export function MediaUploadPlaceholder({
 	const { t } = useLingui();
 	const failed = job.status === "failed";
 	const status = failed ? t`Upload failed` : t`Uploading`;
+	const errorMessage =
+		failed && job.error ? (
+			<p className="text-sm wrap-break-word text-kumo-danger">{job.error}</p>
+		) : null;
 	const statusIcon = failed ? (
 		<WarningCircle className="size-5 text-kumo-danger" weight="fill" aria-hidden="true" />
 	) : (
@@ -238,6 +242,7 @@ export function MediaUploadPlaceholder({
 					<p className={cn("text-sm", failed ? "text-kumo-danger" : "text-kumo-subtle")}>
 						{status}
 					</p>
+					{errorMessage}
 				</div>
 				{actions}
 			</LayerCard>
@@ -254,6 +259,7 @@ export function MediaUploadPlaceholder({
 					{job.file.name}
 				</p>
 				<p className={cn("text-sm", failed ? "text-kumo-danger" : "text-kumo-subtle")}>{status}</p>
+				{errorMessage}
 				{actions}
 			</LayerCard.Secondary>
 		</LayerCard>
