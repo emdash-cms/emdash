@@ -123,29 +123,42 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
+	const routeCache: APIContext["cache"] | undefined = context.cache;
+	let repo: RedirectRepository | undefined;
+	let source: ReturnType<typeof createRedirectSource> | undefined;
+	let cached: CachedRedirects | undefined;
+	let match: RedirectMatch | null = null;
+	let verified = false;
+
 	try {
-		const repo = new RedirectRepository(db);
-		const source = createRedirectSource(db);
-		const routeCache: APIContext["cache"] | undefined = context.cache;
+		repo = new RedirectRepository(db);
+		source = createRedirectSource(db);
 
 		// One query loads the published rules into the cache; warm requests
 		// issue zero queries, and an expired cache checks the published version
 		// in the background. Empty-redirect sites cache an empty Map + array.
 		// A response the route cache stores is served to every visitor until it
 		// is purged, so before one is returned the rules are verified current.
-		let cached = await loadCachedRedirects(source);
-		let match = matchRedirect(cached, pathname);
-		let verified = false;
+		cached = await loadCachedRedirects(source);
+		match = matchRedirect(cached, pathname);
 		if (match && routeCacheStores(routeCache)) {
 			cached = await loadCachedRedirects(source, { verify: true });
 			verified = true;
 			match = matchRedirect(cached, pathname);
 		}
-		if (match) return redirectResponse(context, repo, match) ?? next();
+	} catch {
+		// If the redirects table doesn't exist yet (pre-migration), skip silently.
+		return next();
+	}
 
-		// No redirect matched -- proceed and check for 404
-		const response = await next();
+	if (match) return redirectResponse(context, repo, match) ?? next();
 
+	// No redirect matched -- proceed and check for 404
+	const response = await next();
+
+	// Post-response work must not re-run the route either. Swallow errors here
+	// and return the response the route already produced.
+	try {
 		// Keep a 404 out of the route cache: publishing the missing entry later
 		// purges content tags, not the missed path, so a cached 404 would outlive
 		// the fix. Astro has no cache handle for URLs that match no route, but a
@@ -154,7 +167,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			routeCache?.set(false);
 		}
 
-		if (!verified && routeCacheStores(routeCache)) {
+		if (!verified && routeCacheStores(routeCache) && source && cached) {
 			const current = await loadCachedRedirects(source, { verify: true }).catch(() => cached);
 			const late = current === cached ? null : matchRedirect(current, pathname);
 			const redirected = late && redirectResponse(context, repo, late);
@@ -194,10 +207,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				}
 			});
 		}
-
-		return response;
-	} catch {
-		// If the redirects table doesn't exist yet (pre-migration), skip silently
-		return next();
+	} catch (error) {
+		console.error("[emdash:redirects] post-response step failed:", error);
 	}
+
+	return response;
 });
