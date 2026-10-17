@@ -40,6 +40,16 @@ const labelId = `toc-${variant}-label`;
 </nav>
 
 <script>
+	const SCROLL_KEYS = new Set([
+		"ArrowDown",
+		"ArrowUp",
+		"PageDown",
+		"PageUp",
+		"Home",
+		"End",
+		" ",
+	]);
+
 	const links = [
 		...document.querySelectorAll<HTMLAnchorElement>(
 			"[data-toc] [data-toc-link]",
@@ -59,11 +69,41 @@ const labelId = `toc-${variant}-label`;
 
 	const first = sections[0];
 	if (first && "IntersectionObserver" in window) {
-		setCurrent(first.id);
+		// A section the visitor jumps to stays current until the jump settles, even
+		// when it is too short, or too near the end, to reach the band below. Their
+		// own scrolling takes over at once.
+		let pinned = false;
+		let settle: number | undefined;
+		const unpin = () => {
+			pinned = false;
+			window.clearTimeout(settle);
+		};
+		const unpinWhenSettled = () => {
+			window.clearTimeout(settle);
+			settle = window.setTimeout(unpin, 150);
+		};
+		const pin = (id: string) => {
+			pinned = true;
+			setCurrent(id);
+			unpinWhenSettled();
+		};
+		window.addEventListener("scroll", () => pinned && unpinWhenSettled(), {
+			passive: true,
+		});
+		window.addEventListener("wheel", unpin, { passive: true });
+		window.addEventListener("touchstart", unpin, { passive: true });
+		window.addEventListener("keydown", (event) => {
+			if (SCROLL_KEYS.has(event.key)) unpin();
+		});
+
+		const hash = location.hash.slice(1);
+		if (ids.includes(hash)) pin(hash);
+		else setCurrent(first.id);
 
 		// A thin band 30% down the viewport: the section crossing it is the one being read.
 		const observer = new IntersectionObserver(
 			(entries) => {
+				if (pinned) return;
 				const crossing = entries.filter((entry) => entry.isIntersecting);
 				const last = crossing.at(-1);
 				if (last) setCurrent(last.target.id);
@@ -73,7 +113,7 @@ const labelId = `toc-${variant}-label`;
 		for (const section of sections) observer.observe(section);
 
 		for (const link of links) {
-			link.addEventListener("click", () => setCurrent(link.hash.slice(1)));
+			link.addEventListener("click", () => pin(link.hash.slice(1)));
 		}
 	}
 </script>
