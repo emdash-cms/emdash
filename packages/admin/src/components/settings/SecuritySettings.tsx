@@ -11,7 +11,8 @@ import { Plus } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { deletePasskey, fetchManifest, fetchPasskeys, renamePasskey } from "../../lib/api";
+import { deletePasskey, fetchManifest, fetchPasskeyList, renamePasskey } from "../../lib/api";
+import { signalAcceptedPasskeys } from "../../lib/passkey-signals.js";
 import { PasskeyRegistration } from "../auth/PasskeyRegistration.js";
 import { PasskeyList } from "./PasskeyList.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
@@ -35,14 +36,24 @@ export function SecuritySettings({ addPasskey = false }: SecuritySettingsProps) 
 	const isExternalAuth = manifest?.authMode && manifest.authMode !== "passkey";
 
 	const {
-		data: passkeys,
+		data: passkeyList,
 		isLoading,
 		error,
 	} = useQuery({
 		queryKey: ["passkeys"],
-		queryFn: fetchPasskeys,
+		queryFn: fetchPasskeyList,
 		enabled: !isExternalAuth && !manifestLoading,
 	});
+	const passkeys = passkeyList?.items;
+
+	React.useEffect(() => {
+		if (!passkeyList) return;
+		signalAcceptedPasskeys(
+			passkeyList.rpId,
+			passkeyList.userHandle,
+			passkeyList.items.map((passkey) => passkey.id),
+		);
+	}, [passkeyList]);
 
 	const renameMutation = useMutation({
 		mutationFn: ({ id, name }: { id: string; name: string }) => renamePasskey(id, name),

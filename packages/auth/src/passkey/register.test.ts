@@ -29,6 +29,68 @@ function base64url(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString("base64url");
 }
 
+const FLAG_USER_PRESENT = 0x01;
+const FLAG_USER_VERIFIED = 0x04;
+const FLAG_BACKUP_ELIGIBLE = 0x08;
+const FLAG_BACKUP_STATE = 0x10;
+const FLAG_ATTESTED_CREDENTIAL = 0x40;
+const BASE_FLAGS = FLAG_USER_PRESENT | FLAG_USER_VERIFIED | FLAG_ATTESTED_CREDENTIAL;
+
+/** A CBOR "none" attestation object whose authenticator data carries `flags`. */
+function attestationObject(flags = BASE_FLAGS): string {
+	const authData = Buffer.concat([Buffer.alloc(32), Buffer.from([flags]), Buffer.alloc(4)]);
+	const text = (value: string) =>
+		Buffer.concat([Buffer.from([0x60 + value.length]), Buffer.from(value)]);
+	return base64url(
+		Buffer.concat([
+			Buffer.from([0xa3]),
+			text("fmt"),
+			text("none"),
+			text("attStmt"),
+			Buffer.from([0xa0]),
+			text("authData"),
+			Buffer.from([0x58, authData.length]),
+			authData,
+		]),
+	);
+}
+
+function mockParsedRsaAttestation() {
+	const { publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+	const jwk = publicKey.export({ format: "jwk" });
+	const n = BigInt(`0x${Buffer.from(jwk.n!, "base64url").toString("hex")}`);
+	const e = BigInt(`0x${Buffer.from(jwk.e!, "base64url").toString("hex")}`);
+	vi.mocked(parseAttestationObject).mockReturnValueOnce({
+		authenticatorData: {
+			verifyRelyingPartyIdHash: () => true,
+			userPresent: true,
+			userVerified: true,
+			signatureCounter: 0,
+			credential: {
+				id: new Uint8Array(16),
+				publicKey: {
+					algorithm: () => coseAlgorithmRS256,
+					type: () => COSEKeyType.RSA,
+					rsa: () => ({ n, e }),
+				},
+			},
+		},
+		attestationStatement: { format: "none" },
+	} as any);
+}
+
+function registrationClientData(): string {
+	return base64url(
+		Buffer.from(
+			JSON.stringify({
+				type: "webauthn.create",
+				challenge: encodeBase64urlNoPadding(new TextEncoder().encode("test-challenge")),
+				origin: "https://example.com",
+			}),
+		),
+	);
+}
+
 function makeChallengeStore(): ChallengeStore {
 	return {
 		set: vi.fn(async () => undefined),
@@ -173,7 +235,7 @@ describe("verifyRegistrationResponse", () => {
 				type: "public-key",
 				response: {
 					clientDataJSON: base64url(clientDataJSON),
-					attestationObject: "AA",
+					attestationObject: attestationObject(),
 				},
 			},
 			atomicStore,
@@ -297,7 +359,7 @@ describe("verifyRegistrationResponse", () => {
 				type: "public-key",
 				response: {
 					clientDataJSON: base64url(clientDataJSON),
-					attestationObject: "AA", // Mocked
+					attestationObject: attestationObject(),
 				},
 			},
 			makeChallengeStore(),
@@ -310,5 +372,56 @@ describe("verifyRegistrationResponse", () => {
 		const decoded = decodePKIXRSAPublicKey(result.publicKey);
 		expect(decoded.n).toEqual(n);
 		expect(decoded.e).toEqual(e);
+	});
+	it.each([
+		[
+			"a synced passkey",
+			BASE_FLAGS | FLAG_BACKUP_ELIGIBLE | FLAG_BACKUP_STATE,
+			{ deviceType: "multiDevice", backedUp: true },
+		],
+		[
+			"a syncable passkey that is not backed up yet",
+			BASE_FLAGS | FLAG_BACKUP_ELIGIBLE,
+			{ deviceType: "multiDevice", backedUp: false },
+		],
+		["a device-bound passkey", BASE_FLAGS, { deviceType: "singleDevice", backedUp: false }],
+	] as const)("records the backup state of %s", async (_label, flags, expected) => {
+		mockParsedRsaAttestation();
+
+		const result = await verifyRegistrationResponse(
+			config,
+			{
+				id: "test-credential",
+				rawId: "test-credential",
+				type: "public-key",
+				response: {
+					clientDataJSON: registrationClientData(),
+					attestationObject: attestationObject(flags),
+				},
+			},
+			makeChallengeStore(),
+		);
+
+		expect(result).toMatchObject(expected);
+	});
+
+	it("rejects a credential that reports a backup without backup eligibility", async () => {
+		mockParsedRsaAttestation();
+
+		await expect(
+			verifyRegistrationResponse(
+				config,
+				{
+					id: "test-credential",
+					rawId: "test-credential",
+					type: "public-key",
+					response: {
+						clientDataJSON: registrationClientData(),
+						attestationObject: attestationObject(BASE_FLAGS | FLAG_BACKUP_STATE),
+					},
+				},
+				makeChallengeStore(),
+			),
+		).rejects.toThrow("Authenticator reported a backup without backup eligibility");
 	});
 });

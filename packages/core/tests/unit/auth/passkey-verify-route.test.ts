@@ -16,7 +16,7 @@ describe("passkey verify route", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("returns unauthorized instead of internal server error when the credential is not registered", async () => {
+	it("reports an unregistered credential distinctly so the browser can forget it", async () => {
 		const request = new Request("http://localhost:4321/_emdash/api/auth/passkey/verify", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -51,8 +51,8 @@ describe("passkey verify route", () => {
 		await expect(response.json()).resolves.toEqual({
 			success: false,
 			error: {
-				code: "UNAUTHORIZED",
-				message: "Authentication failed",
+				code: "CREDENTIAL_NOT_FOUND",
+				message: "Passkey is not registered",
 			},
 		});
 	});

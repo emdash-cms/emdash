@@ -38,6 +38,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
+    "@oslojs/cbor": "catalog:",
     "@oslojs/crypto": "catalog:",
     "@oslojs/encoding": "catalog:",
     "@oslojs/webauthn": "catalog:",

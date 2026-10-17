@@ -29,6 +29,7 @@ import {
 
 import { generateToken } from "../tokens.js";
 import type { Credential, AuthAdapter, User } from "../types.js";
+import { readBackupState } from "./backup-state.js";
 import {
 	createContextBoundChallenge,
 	decodeChallengeContext,
@@ -94,6 +95,14 @@ function decodeAuthenticationResponse(response: AuthenticationResponse) {
 function parseAuthenticationData(authenticatorData: Uint8Array) {
 	try {
 		return parseAuthenticatorData(authenticatorData);
+	} catch {
+		throw invalidPasskeyResponseError();
+	}
+}
+
+function readAssertionBackupState(authenticatorData: Uint8Array) {
+	try {
+		return readBackupState(authenticatorData);
 	} catch {
 		throw invalidPasskeyResponseError();
 	}
@@ -252,6 +261,8 @@ export async function verifyAuthenticationResponse<Type extends string, Context>
 		);
 	}
 
+	const backupState = readAssertionBackupState(authenticatorData);
+
 	// Verify counter (prevent replay attacks)
 	if (
 		(authData.signatureCounter !== 0 || credential.counter !== 0) &&
@@ -304,6 +315,7 @@ export async function verifyAuthenticationResponse<Type extends string, Context>
 	const verified: VerifiedAuthentication = {
 		credentialId: response.id,
 		newCounter: authData.signatureCounter,
+		backupState,
 	};
 	return !contextResult.present ? verified : { ...verified, challengeContext: contextResult.value };
 }
@@ -338,7 +350,11 @@ export async function authenticateWithPasskey(
 	const verified = await verifyAuthenticationResponse(config, response, credential, challengeStore);
 
 	// Update counter
-	await adapter.updateCredentialCounter(verified.credentialId, verified.newCounter);
+	await adapter.updateCredentialCounter(
+		verified.credentialId,
+		verified.newCounter,
+		verified.backupState,
+	);
 
 	// Get the user
 	const user = await adapter.getUserById(credential.userId);

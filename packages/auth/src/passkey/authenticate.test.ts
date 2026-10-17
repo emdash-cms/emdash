@@ -68,6 +68,7 @@ function createValidAssertion(
 		userVerified?: boolean;
 		challenge?: string;
 		signatureCounter?: number;
+		backupFlags?: number;
 	} = {},
 ) {
 	const rpId = opts.rpId ?? config.rpId;
@@ -95,7 +96,7 @@ function createValidAssertion(
 	const rpIdHash = createHash("sha256").update(rpId).digest();
 	const signatureCounter = Buffer.alloc(4);
 	signatureCounter.writeUInt32BE(opts.signatureCounter ?? 1);
-	const flags = opts.userVerified ? 0x05 : 0x01;
+	const flags = (opts.userVerified ? 0x05 : 0x01) | (opts.backupFlags ?? 0);
 	const authenticatorData = Buffer.concat([rpIdHash, Buffer.from([flags]), signatureCounter]);
 	const signatureMessage = createAssertionSignatureMessage(authenticatorData, clientDataJSON);
 	const signatureBytes = sign("sha256", signatureMessage, privateKey);
@@ -543,5 +544,37 @@ describe("authenticateWithPasskey", () => {
 				message: "Unsupported credential algorithm: 0",
 			});
 		}
+	});
+
+	it("records the passkey's current backup state when the user signs in", async () => {
+		const {
+			credential: validCredential,
+			response,
+			challengeStore,
+		} = createValidAssertion({ backupFlags: 0x08 | 0x10, signatureCounter: 7 });
+		const adapter = {
+			getCredentialById: vi.fn(async () => validCredential),
+			updateCredentialCounter: vi.fn(async () => undefined),
+			getUserById: vi.fn(async () => ({ id: "user_1" })),
+		} as unknown as AuthAdapter;
+
+		await authenticateWithPasskey(config, adapter, response, challengeStore);
+
+		expect(adapter.updateCredentialCounter).toHaveBeenCalledWith(validCredential.id, 7, {
+			deviceType: "multiDevice",
+			backedUp: true,
+		});
+	});
+
+	it("rejects an assertion that reports a backup without backup eligibility", async () => {
+		const {
+			credential: validCredential,
+			response,
+			challengeStore,
+		} = createValidAssertion({ backupFlags: 0x10 });
+
+		await expect(
+			verifyAuthenticationResponse(config, response, validCredential, challengeStore),
+		).rejects.toMatchObject({ code: "invalid_response" });
 	});
 });

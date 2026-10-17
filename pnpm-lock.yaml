@@ -141,6 +141,9 @@ catalogs:
     '@lingui/react':
       specifier: ^5.9.4
       version: 5.9.5
+    '@oslojs/cbor':
+      specifier: ^1.0.0
+      version: 1.0.0
     '@oslojs/crypto':
       specifier: ^1.0.1
       version: 1.0.1
@@ -1836,6 +1839,9 @@ importers:
 
   packages/auth:
     dependencies:
+      '@oslojs/cbor':
+        specifier: 'catalog:'
+        version: 1.0.0
       '@oslojs/crypto':
         specifier: 'catalog:'
         version: 1.0.1

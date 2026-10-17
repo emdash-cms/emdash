@@ -9,6 +9,9 @@ import { SecuritySettings } from "../../../src/components/settings/SecuritySetti
 import type { PasskeyInfo } from "../../../src/lib/api";
 import { render } from "../../utils/render";
 
+const RP_ID = "example.com";
+const USER_HANDLE = "dXNlcl8x";
+
 const mockFetchManifest = vi.fn();
 const mockFetchPasskeys = vi.fn();
 const mockRenamePasskey = vi.fn();
@@ -27,7 +30,11 @@ vi.mock("../../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchManifest: (...args: unknown[]) => mockFetchManifest(...args),
-		fetchPasskeys: (...args: unknown[]) => mockFetchPasskeys(...args),
+		fetchPasskeyList: async () => ({
+			items: await mockFetchPasskeys(),
+			rpId: RP_ID,
+			userHandle: USER_HANDLE,
+		}),
 		renamePasskey: (...args: unknown[]) => mockRenamePasskey(...args),
 		deletePasskey: (...args: unknown[]) => mockDeletePasskey(...args),
 	};
@@ -231,6 +238,51 @@ describe("SecuritySettings", () => {
 			expect(mockDeletePasskey).toHaveBeenCalledWith("passkey-1");
 		});
 		await expect.element(screen.getByText("Passkey removed")).toBeInTheDocument();
+	});
+
+	it("tells the browser which passkeys remain registered after one is removed", async () => {
+		const original = Object.getOwnPropertyDescriptor(
+			window.PublicKeyCredential,
+			"signalAllAcceptedCredentials",
+		);
+		const signal = vi.fn(async () => undefined);
+		Object.defineProperty(window.PublicKeyCredential, "signalAllAcceptedCredentials", {
+			value: signal,
+			configurable: true,
+			writable: true,
+		});
+		try {
+			mockFetchPasskeys.mockResolvedValueOnce(passkeys).mockResolvedValue([passkeys[1]]);
+			const screen = await renderSecuritySettings();
+			await expect.element(screen.getByText("Laptop")).toBeInTheDocument();
+			await vi.waitFor(() => {
+				expect(signal).toHaveBeenCalledWith({
+					rpId: RP_ID,
+					userId: USER_HANDLE,
+					allAcceptedCredentialIds: ["passkey-1", "passkey-2"],
+				});
+			});
+
+			await userEvent.click(screen.getByRole("button", { name: "Remove Laptop" }));
+			const confirmButton = screen
+				.getByRole("button", { name: "Remove", exact: true })
+				.element() as HTMLButtonElement;
+			confirmButton.click();
+
+			await vi.waitFor(() => {
+				expect(signal).toHaveBeenLastCalledWith({
+					rpId: RP_ID,
+					userId: USER_HANDLE,
+					allAcceptedCredentialIds: ["passkey-2"],
+				});
+			});
+		} finally {
+			if (original) {
+				Object.defineProperty(window.PublicKeyCredential, "signalAllAcceptedCredentials", original);
+			} else {
+				Reflect.deleteProperty(window.PublicKeyCredential, "signalAllAcceptedCredentials");
+			}
+		}
 	});
 
 	it("opens the add-passkey form for this address after a sign-in handover", async () => {

@@ -225,15 +225,30 @@ export interface PasskeyInfo {
 }
 
 /**
+ * The current user's passkeys, with the relying party ID and base64url
+ * WebAuthn user handle they were registered under
+ */
+export interface PasskeyList {
+	items: PasskeyInfo[];
+	rpId: string;
+	userHandle: string;
+}
+
+/**
+ * List all passkeys for the current user, with the WebAuthn identifiers
+ * needed to report them to the browser
+ */
+export async function fetchPasskeyList(): Promise<PasskeyList> {
+	const response = await apiFetch(`${API_BASE}/auth/passkey`);
+	return parseApiResponse<PasskeyList>(response, i18n._(msg`Failed to fetch passkeys`));
+}
+
+/**
  * List all passkeys for the current user
  */
 export async function fetchPasskeys(): Promise<PasskeyInfo[]> {
-	const response = await apiFetch(`${API_BASE}/auth/passkey`);
-	const data = await parseApiResponse<{ items: PasskeyInfo[] }>(
-		response,
-		i18n._(msg`Failed to fetch passkeys`),
-	);
-	return data.items;
+	const { items } = await fetchPasskeyList();
+	return items;
 }
 
 /**
