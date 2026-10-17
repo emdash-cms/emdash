@@ -26,6 +26,10 @@ pnpm build
 pnpm emdash migrate --status
 ```
 
+<Aside type="note" title="D1 needs an explicit target">
+	EmDash does not read a Wrangler config it has not been given, so on D1 each `emdash migrate` command needs `--wrangler-config wrangler.jsonc` (plus `--wrangler-env` for a named environment) or `--d1 <uuid-or-name>`, as in [Provision D1 before migrating it](#provision-d1-before-migrating-it). Without either, the command exits with an error naming both options.
+</Aside>
+
 After confirming that the reported target is the intended database, start the interactive migration. Review the target again at the prompt before confirming. Then deploy the same build and check the deployed schema.
 
 ```bash
