@@ -256,11 +256,17 @@ export async function syncStorageIndexes(
 	};
 }
 
+export interface StorageIndexSyncResult {
+	/** True only when every declared index for every passed plugin was materialized. */
+	ok: boolean;
+	/** Per-index failures, with enough context to identify which plugin/collection failed. */
+	errors: Array<{ pluginId: string; collection: string; index: string; error: string }>;
+}
+
 /**
  * Materialize the storage indexes a set of plugins declare in their
- * manifests. Failures are logged per collection and never thrown — a missing
- * index affects query performance, not correctness, so it must not fail an
- * install or a scheduler tick.
+ * manifests. Failures are logged per collection and returned in the result so
+ * callers can decide whether to treat the sync as complete.
  */
 export async function syncDeclaredStorageIndexes(
 	db: Kysely<Database>,
@@ -271,7 +277,9 @@ export async function syncDeclaredStorageIndexes(
 			{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
 		>;
 	}>,
-): Promise<void> {
+): Promise<StorageIndexSyncResult> {
+	const errors: StorageIndexSyncResult["errors"] = [];
+
 	for (const plugin of plugins) {
 		for (const [collection, config] of Object.entries(plugin.storage ?? {})) {
 			try {
@@ -282,15 +290,30 @@ export async function syncDeclaredStorageIndexes(
 					console.error(
 						`[plugins] Failed to sync storage index ${failure.index} for ${plugin.id}/${collection}: ${failure.error}`,
 					);
+					errors.push({
+						pluginId: plugin.id,
+						collection,
+						index: failure.index,
+						error: failure.error,
+					});
 				}
 			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
 				console.error(
 					`[plugins] Failed to sync storage indexes for ${plugin.id}/${collection}:`,
 					error,
 				);
+				errors.push({
+					pluginId: plugin.id,
+					collection,
+					index: "(sync)",
+					error: message,
+				});
 			}
 		}
 	}
+
+	return { ok: errors.length === 0, errors };
 }
 
 /**

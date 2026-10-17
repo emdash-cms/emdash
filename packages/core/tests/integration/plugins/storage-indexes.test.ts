@@ -416,6 +416,70 @@ describe("Plugin Storage Indexes Integration", () => {
 				"uidx_plugin_forms_submissions_token",
 			]);
 		});
+
+		it("returns an incomplete result when a unique index conflicts with existing data", async () => {
+			const pluginId = "conflict-plugin";
+			const repo = new PluginStorageRepository<{ externalId: string }>(db, pluginId, "records", [
+				"externalId",
+			]);
+
+			await repo.put("a", { externalId: "duplicate" });
+			await repo.put("b", { externalId: "duplicate" });
+
+			const result = await syncDeclaredStorageIndexes(db, [
+				{
+					id: pluginId,
+					storage: { records: { indexes: ["status"], uniqueIndexes: ["externalId"] } },
+				},
+			]);
+
+			expect(result.ok).toBe(false);
+			expect(result.errors.length).toBeGreaterThan(0);
+			expect(result.errors.some((e) => e.index.includes("uidx_") && e.pluginId === pluginId)).toBe(
+				true,
+			);
+
+			const tracked = await db
+				.selectFrom("_plugin_indexes")
+				.where("plugin_id", "=", pluginId)
+				.select("index_name")
+				.execute();
+			expect(tracked).toHaveLength(1);
+		});
+
+		it("retries a previously failed unique index after the conflict is removed", async () => {
+			const pluginId = "retry-plugin";
+			const repo = new PluginStorageRepository<{ externalId: string }>(db, pluginId, "records", [
+				"externalId",
+			]);
+
+			await repo.put("a", { externalId: "duplicate" });
+			await repo.put("b", { externalId: "duplicate" });
+
+			const declaration = {
+				id: pluginId,
+				storage: { records: { indexes: ["status"], uniqueIndexes: ["externalId"] } },
+			};
+
+			const first = await syncDeclaredStorageIndexes(db, [declaration]);
+			expect(first.ok).toBe(false);
+
+			await repo.delete("b");
+
+			const second = await syncDeclaredStorageIndexes(db, [declaration]);
+			expect(second.ok).toBe(true);
+			expect(second.errors).toHaveLength(0);
+
+			const tracked = await db
+				.selectFrom("_plugin_indexes")
+				.where("plugin_id", "=", pluginId)
+				.select("index_name")
+				.execute();
+			expect(tracked.map((r) => r.index_name).toSorted()).toEqual([
+				"idx_plugin_retry-plugin_records_status",
+				"uidx_plugin_retry-plugin_records_externalId",
+			]);
+		});
 	});
 
 	describe("query plan", () => {
