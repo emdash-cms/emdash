@@ -630,6 +630,21 @@ describe("normalizeWebhook", () => {
 			expect(approvalRefreshTarget("pull_request", { action: "labeled" })).toBeNull();
 		});
 
+		test("a review by a bot refreshes nothing, since approval counts only people", () => {
+			for (const user of [
+				{ login: "emdashbot[bot]", type: "Bot" },
+				{ login: "emdash-autofix[bot]", type: "Bot" },
+				{ login: "some-app[bot]" },
+			]) {
+				const payload: PullRequestReviewEvent = {
+					action: "submitted",
+					review: { state: "commented", user },
+					pull_request: forkPullRequest,
+				};
+				expect(approvalRefreshTarget("pull_request_review", payload)).toBeNull();
+			}
+		});
+
 		test("a review on a PR the bot did not open dispatches nothing", () => {
 			const payload: PullRequestReviewEvent = {
 				action: "submitted",
