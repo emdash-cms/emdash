@@ -133,6 +133,9 @@
     },
     "react": {
       "optional": true
+    },
+    "wrangler": {
+      "optional": true
     }
   },
   "devDependencies": {
