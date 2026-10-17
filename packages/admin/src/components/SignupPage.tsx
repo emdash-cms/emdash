@@ -12,12 +12,20 @@
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { useAdminBranding } from "../lib/admin-branding-context";
-import { requestSignup, verifySignupToken, type SignupVerifyResult } from "../lib/api";
+import {
+	ApiResponseError,
+	fetchAuthMode,
+	requestSignup,
+	verifySignupToken,
+	type SignupVerifyResult,
+} from "../lib/api";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
+import { TurnstileWidget } from "./auth/TurnstileWidget";
 import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -49,15 +57,23 @@ type SignupStep = "email" | "check-email" | "verify" | "complete" | "error";
 // ============================================================================
 
 interface EmailStepProps {
-	onSubmit: (email: string) => void;
+	onSubmit: (email: string, turnstileToken?: string) => void;
 	isLoading: boolean;
 	error?: string;
+	turnstileSiteKey?: string;
+	/** Changes after each submit so the single-use Turnstile token is replaced. */
+	turnstileKey: number;
 }
 
-function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
+function EmailStep({ onSubmit, isLoading, error, turnstileSiteKey, turnstileKey }: EmailStepProps) {
 	const { t } = useLingui();
 	const [email, setEmail] = React.useState("");
 	const [validationError, setValidationError] = React.useState<string | null>(null);
+	const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+
+	React.useEffect(() => {
+		setTurnstileToken(null);
+	}, [turnstileKey]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -73,7 +89,7 @@ function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
 			return;
 		}
 
-		onSubmit(email.trim().toLowerCase());
+		onSubmit(email.trim().toLowerCase(), turnstileToken ?? undefined);
 	};
 
 	return (
@@ -95,11 +111,23 @@ function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
 				</div>
 			</div>
 
+			{turnstileSiteKey && (
+				<TurnstileWidget
+					key={turnstileKey}
+					siteKey={turnstileSiteKey}
+					onToken={setTurnstileToken}
+				/>
+			)}
+
 			{error && (
 				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div>
 			)}
 
-			<Button type="submit" className="w-full" disabled={isLoading}>
+			<Button
+				type="submit"
+				className="w-full"
+				disabled={isLoading || (!!turnstileSiteKey && !turnstileToken)}
+			>
 				{isLoading ? (
 					<>
 						<Loader size="sm" />
@@ -119,13 +147,29 @@ function EmailStep({ onSubmit, isLoading, error }: EmailStepProps) {
 
 interface CheckEmailStepProps {
 	email: string;
-	onResend: () => void;
+	onResend: (turnstileToken?: string) => void;
 	isResending: boolean;
 	resendCooldown: number;
+	turnstileSiteKey?: string;
+	turnstileKey: number;
+	resendError?: string;
 }
 
-function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckEmailStepProps) {
+function CheckEmailStep({
+	email,
+	onResend,
+	isResending,
+	resendCooldown,
+	turnstileSiteKey,
+	turnstileKey,
+	resendError,
+}: CheckEmailStepProps) {
 	const { t } = useLingui();
+	const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+
+	React.useEffect(() => {
+		setTurnstileToken(null);
+	}, [turnstileKey]);
 	return (
 		<div className="space-y-6 text-center">
 			<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto">
@@ -158,11 +202,20 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 
 			<div className="pt-4 border-t">
 				<p className="text-sm text-kumo-subtle mb-2">{t`Didn't receive the email?`}</p>
+				{turnstileSiteKey && resendCooldown === 0 && (
+					<div className="mb-3">
+						<TurnstileWidget
+							key={turnstileKey}
+							siteKey={turnstileSiteKey}
+							onToken={setTurnstileToken}
+						/>
+					</div>
+				)}
 				<Button
 					variant="outline"
 					size="sm"
-					onClick={onResend}
-					disabled={isResending || resendCooldown > 0}
+					onClick={() => onResend(turnstileToken ?? undefined)}
+					disabled={isResending || resendCooldown > 0 || (!!turnstileSiteKey && !turnstileToken)}
 				>
 					{isResending
 						? t`Sending...`
@@ -170,6 +223,11 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 							? t`Resend in ${resendCooldown}s`
 							: t`Resend email`}
 				</Button>
+				{resendError && (
+					<p role="alert" className="mt-2 text-sm text-kumo-danger">
+						{resendError}
+					</p>
+				)}
 			</div>
 		</div>
 	);
@@ -315,6 +373,13 @@ export function SignupPage() {
 	const [verifyResult, setVerifyResult] = React.useState<SignupVerifyResult | null>(null);
 	const [token, setToken] = React.useState<string | null>(null);
 	const [resendCooldown, setResendCooldown] = React.useState(0);
+	const [turnstileKey, setTurnstileKey] = React.useState(0);
+	const [resendError, setResendError] = React.useState<string | undefined>();
+	const { data: authInfo, isLoading: authModeLoading } = useQuery({
+		queryKey: ["authMode"],
+		queryFn: fetchAuthMode,
+	});
+	const turnstileSiteKey = authInfo?.turnstileSiteKey;
 
 	// Check for token in URL on mount
 	React.useEffect(() => {
@@ -355,32 +420,44 @@ export function SignupPage() {
 		}
 	};
 
-	const handleEmailSubmit = async (submittedEmail: string) => {
+	const handleEmailSubmit = async (submittedEmail: string, turnstileToken?: string) => {
 		setIsLoading(true);
 		setError(undefined);
 		setEmail(submittedEmail);
 
 		try {
-			await requestSignup(submittedEmail);
+			await requestSignup(submittedEmail, turnstileToken);
 			setStep("check-email");
 		} catch (err) {
-			setError(err instanceof Error ? err.message : t`Failed to send verification email`);
+			setError(
+				err instanceof ApiResponseError && err.code === "TURNSTILE_FAILED"
+					? t`The security check failed. Please try again.`
+					: err instanceof Error
+						? err.message
+						: t`Failed to send verification email`,
+			);
 		} finally {
 			setIsLoading(false);
+			setTurnstileKey((key) => key + 1);
 		}
 	};
 
-	const handleResend = async () => {
+	const handleResend = async (turnstileToken?: string) => {
 		if (!email || resendCooldown > 0) return;
 
 		setIsLoading(true);
+		setResendError(undefined);
 		try {
-			await requestSignup(email);
+			await requestSignup(email, turnstileToken);
 			setResendCooldown(60); // 60 second cooldown
-		} catch {
-			// Silently fail - don't reveal if email exists
+		} catch (err) {
+			// Other failures stay silent so they don't reveal whether the email exists
+			if (err instanceof ApiResponseError && err.code === "TURNSTILE_FAILED") {
+				setResendError(t`The security check failed. Please try again.`);
+			}
 		} finally {
 			setIsLoading(false);
+			setTurnstileKey((key) => key + 1);
 		}
 	};
 
@@ -423,8 +500,20 @@ export function SignupPage() {
 
 				{/* Form Card */}
 				<div className="bg-kumo-base border rounded-lg shadow-sm p-6">
-					{step === "email" && (
-						<EmailStep onSubmit={handleEmailSubmit} isLoading={isLoading} error={error} />
+					{step === "email" && authModeLoading && (
+						<div className="flex justify-center py-8">
+							<Loader />
+						</div>
+					)}
+
+					{step === "email" && !authModeLoading && (
+						<EmailStep
+							onSubmit={handleEmailSubmit}
+							isLoading={isLoading}
+							error={error}
+							turnstileSiteKey={turnstileSiteKey}
+							turnstileKey={turnstileKey}
+						/>
 					)}
 
 					{step === "check-email" && (
@@ -433,6 +522,9 @@ export function SignupPage() {
 							onResend={handleResend}
 							isResending={isLoading}
 							resendCooldown={resendCooldown}
+							turnstileSiteKey={turnstileSiteKey}
+							turnstileKey={turnstileKey}
+							resendError={resendError}
 						/>
 					)}
 
