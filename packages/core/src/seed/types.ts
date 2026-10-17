@@ -469,7 +469,9 @@ export interface SeedMediaReference {
 		alt?: string;
 		/** Custom filename (defaults to URL basename or generated) */
 		filename?: string;
-		/** Caption for the media */
+		/** Caption for this content use */
 		caption?: string;
+		/** Default caption stored on the library media record */
+		libraryCaption?: string | null;
 	};
 }

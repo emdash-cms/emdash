@@ -6,6 +6,7 @@
  * alongside the built-in local media library.
  */
 
+import { syncMediaCaption } from "./caption.js";
 import { normalizeFocalPoint } from "./focal-point.js";
 
 /**
@@ -291,7 +292,7 @@ export interface MediaValue {
  */
 export function mediaItemToValue(providerId: string, item: MediaProviderItem): MediaValue {
 	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
-	return {
+	return syncMediaCaption({
 		provider: providerId,
 		id: item.id,
 		filename: item.filename,
@@ -304,5 +305,5 @@ export function mediaItemToValue(providerId: string, item: MediaProviderItem): M
 		alt: item.alt,
 		caption: item.caption,
 		meta: item.meta,
-	};
+	});
 }

@@ -81,10 +81,10 @@ describeEachDialect("image captions in content responses", (dialect) => {
 				data: { hero: { id: mediaId, provider: "local", caption } },
 			});
 			if (!created.success) throw new Error(JSON.stringify(created.error));
-			expect(created.data.item.data.hero).toHaveProperty("caption", caption);
+			expect(created.data.item.data.hero).toMatchObject({ caption, meta: { caption } });
 			const fetched = await runtime.handleContentGet("posts", created.data.item.id);
 			if (!fetched.success) throw new Error(JSON.stringify(fetched.error));
-			expect(fetched.data.item.data.hero).toHaveProperty("caption", caption);
+			expect(fetched.data.item.data.hero).toMatchObject({ caption, meta: { caption } });
 		},
 	);
 });

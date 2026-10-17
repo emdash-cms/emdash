@@ -5,6 +5,20 @@ import { mediaItemToValue } from "../../../src/media/types.js";
 import type { MediaProviderItem, MediaValue } from "../../../src/media/types.js";
 
 describe("mediaItemToValue", () => {
+	it.each(["Credit", ""])(
+		"synchronizes legacy caption metadata when selecting caption %j",
+		(caption) => {
+			const value = mediaItemToValue("local", {
+				id: "01ABC",
+				filename: "photo.jpg",
+				mimeType: "image/jpeg",
+				caption,
+				meta: { caption: "Library credit", storageKey: "01ABC.jpg" },
+			});
+			expect(value).toMatchObject({ caption, meta: { caption, storageKey: "01ABC.jpg" } });
+		},
+	);
+
 	it("copies blurhash and dominantColor onto the MediaValue", () => {
 		const item: MediaProviderItem = {
 			id: "01ABC",

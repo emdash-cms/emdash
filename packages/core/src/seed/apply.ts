@@ -2306,26 +2306,33 @@ async function resolveMedia(
 	ctx: MediaContext,
 	result: SeedApplyResult,
 ): Promise<MediaValue | null> {
-	const { url, alt, filename, caption } = ref.$media;
+	const { url, alt, filename, caption, libraryCaption } = ref.$media;
 
-	// Check cache first
+	// Check cache first. The cached caption is the library default; a reference's
+	// caption is only an override for the content value being resolved.
 	const cached = ctx.mediaCache.get(url);
 	if (cached) {
 		result.media.skipped++;
-		return { ...cached, alt: alt ?? cached.alt };
+		return {
+			...cached,
+			alt: alt ?? cached.alt,
+			caption: caption ?? cached.caption,
+		};
 	}
 
 	// When skipMediaDownload is set, resolve $media to an external URL reference
 	// without downloading or storing anything. Used by playground mode.
 	if (ctx.skipMediaDownload) {
+		const defaultCaption = libraryCaption ?? undefined;
 		const mediaValue: MediaValue = {
 			provider: "external",
 			id: ulid(),
 			src: url,
 			alt: alt ?? undefined,
+			caption: caption ?? defaultCaption,
 			filename: filename ?? undefined,
 		};
-		ctx.mediaCache.set(url, mediaValue);
+		ctx.mediaCache.set(url, { ...mediaValue, caption: defaultCaption });
 		result.media.skipped++;
 		return mediaValue;
 	}
@@ -2375,13 +2382,14 @@ async function resolveMedia(
 				provider: "local",
 				id: existing.id,
 				alt: alt ?? existing.alt ?? undefined,
+				caption: caption ?? existing.caption ?? undefined,
 				width: existing.width ?? undefined,
 				height: existing.height ?? undefined,
 				mimeType: existing.mimeType,
 				filename: existing.filename,
 				meta: { storageKey: existing.storageKey },
 			};
-			ctx.mediaCache.set(url, mediaValue);
+			ctx.mediaCache.set(url, { ...mediaValue, caption: existing.caption ?? undefined });
 			result.media.skipped++;
 			console.log(`  ✅ Reused: ${existing.filename}`);
 			return mediaValue;
@@ -2416,7 +2424,7 @@ async function resolveMedia(
 			width,
 			height,
 			alt,
-			caption,
+			caption: (libraryCaption === undefined ? caption : libraryCaption) ?? undefined,
 			storageKey,
 			contentHash,
 			status: "ready",
@@ -2427,6 +2435,7 @@ async function resolveMedia(
 			provider: "local",
 			id: media.id,
 			alt: alt ?? undefined,
+			caption: caption ?? media.caption ?? undefined,
 			width,
 			height,
 			mimeType: contentType,
@@ -2434,8 +2443,11 @@ async function resolveMedia(
 			meta: { storageKey },
 		};
 
-		// Cache for reuse
-		ctx.mediaCache.set(url, mediaValue);
+		// Cache the library default for reuse; this reference may have a per-use override.
+		ctx.mediaCache.set(url, {
+			...mediaValue,
+			caption: media.caption ?? undefined,
+		});
 		result.media.created++;
 
 		console.log(`  ✅ Uploaded: ${finalFilename}`);

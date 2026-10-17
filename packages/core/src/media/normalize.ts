@@ -9,6 +9,7 @@
  * the provider's `get()` method.
  */
 
+import { syncMediaCaption } from "./caption.js";
 import { normalizeFocalPoint } from "./focal-point.js";
 import type { MediaProvider, MediaProviderItem, MediaValue } from "./types.js";
 
@@ -151,7 +152,7 @@ async function resolveInternalUrl(
 	}
 
 	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
-	return {
+	return syncMediaCaption({
 		provider: "local",
 		id: item.id,
 		filename: item.filename,
@@ -164,7 +165,7 @@ async function resolveInternalUrl(
 		alt: item.alt,
 		caption: item.caption,
 		meta: item.meta,
-	};
+	});
 }
 
 async function resolveLocalId(
@@ -185,7 +186,7 @@ async function resolveLocalId(
 	if (!item) return null;
 
 	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
-	return {
+	return syncMediaCaption({
 		provider: "local",
 		id: item.id,
 		filename: item.filename,
@@ -198,12 +199,13 @@ async function resolveLocalId(
 		alt: item.alt,
 		caption: item.caption,
 		meta: item.meta,
-	};
+	});
 }
 
 /**
- * Merge provider data into an existing MediaValue, preserving caller-supplied fields.
- * Caller text takes priority over provider defaults (per-usage, not per-image).
+ * Fill missing media metadata from a provider.
+ * Caller captions, including empty strings, take priority over provider captions.
+ * Provider alt text fills missing or empty caller alt text.
  */
 function mergeProviderData(existing: MediaValue, item: MediaProviderItem): MediaValue {
 	const result = { ...existing };
@@ -232,7 +234,7 @@ function mergeProviderData(existing: MediaValue, item: MediaProviderItem): Media
 		result.meta = { ...item.meta, ...result.meta };
 	}
 
-	return result;
+	return syncMediaCaption(result);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -264,5 +266,5 @@ function recordToMediaValue(obj: Record<string, unknown>): MediaValue {
 	if (typeof obj.alt === "string") result.alt = obj.alt;
 	if (typeof obj.caption === "string") result.caption = obj.caption;
 	if (isRecord(obj.meta)) result.meta = obj.meta;
-	return result;
+	return syncMediaCaption(result);
 }

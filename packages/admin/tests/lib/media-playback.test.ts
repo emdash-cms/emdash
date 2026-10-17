@@ -43,6 +43,7 @@ describe("providerItemToMediaItem", () => {
 			filename: "image.jpg",
 			mimeType: "image/jpeg",
 			caption: "First-class caption",
+			meta: { caption: "Old caption" },
 		});
 		const legacy = providerItemToMediaItem("cloudflare-images", {
 			id: "image-2",
@@ -52,6 +53,7 @@ describe("providerItemToMediaItem", () => {
 		});
 
 		expect(firstClass.caption).toBe("First-class caption");
+		expect(firstClass.meta?.caption).toBe("First-class caption");
 		expect(legacy.caption).toBe("Legacy caption");
 	});
 });

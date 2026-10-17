@@ -43,6 +43,66 @@ describe("normalizeMediaValue", () => {
 		expect(result?.caption).toBe("Library caption");
 	});
 
+	it.each(["Usage credit", ""])(
+		"keeps legacy metadata consistent with caller caption %j",
+		async (caption) => {
+			const local = mockProvider({
+				id: "01ABC",
+				filename: "photo.jpg",
+				mimeType: "image/jpeg",
+				caption: "Library credit",
+				meta: { storageKey: "01ABC.jpg", caption: "Library credit" },
+			});
+			const result = await normalizeMediaValue(
+				{ id: "01ABC", caption, meta: { caption: "Old credit" } },
+				getProvider({ local }),
+			);
+			expect(result).toMatchObject({ caption, meta: { caption, storageKey: "01ABC.jpg" } });
+		},
+	);
+
+	it("promotes legacy metadata captions without a provider lookup", async () => {
+		const value = {
+			id: "01ABC",
+			provider: "local",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			width: 1200,
+			height: 800,
+			blurhash: "hash",
+			dominantColor: "#112233",
+			meta: { storageKey: "01ABC.jpg", caption: "Legacy credit" },
+		};
+		const lookup = vi.fn();
+		expect(await normalizeMediaValue(value, lookup)).toMatchObject({
+			caption: "Legacy credit",
+			meta: value.meta,
+		});
+		expect(lookup).not.toHaveBeenCalled();
+		expect(value).not.toHaveProperty("caption");
+	});
+
+	it("synchronizes caption metadata in complete snapshots", async () => {
+		const lookup = vi.fn();
+		const result = await normalizeMediaValue(
+			{
+				id: "01ABC",
+				provider: "local",
+				filename: "photo.jpg",
+				mimeType: "image/jpeg",
+				width: 1200,
+				height: 800,
+				blurhash: "hash",
+				dominantColor: "#112233",
+				caption: "",
+				meta: { storageKey: "01ABC.jpg", caption: "Old credit" },
+			},
+			lookup,
+		);
+		expect(result).toMatchObject({ caption: "", meta: { caption: "" } });
+		expect(lookup).not.toHaveBeenCalled();
+	});
+
 	it("keeps external captions without a provider lookup", async () => {
 		const value = {
 			provider: "external",
