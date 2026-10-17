@@ -59,6 +59,41 @@ export function resolveConfiguredLocale(
 	);
 }
 
+/** Stored locale spellings for one configured locale, in read-preference order. */
+export function getLocaleCandidates(locale: string): string[] {
+	const canonical = resolveConfiguredLocale(locale);
+	const candidates = [canonical];
+	const seen = new Set([canonical.toLowerCase()]);
+	for (const code of Object.keys(getI18nConfig()?.localeAliases ?? {})) {
+		if (resolveConfiguredLocale(code) === canonical && !seen.has(code.toLowerCase())) {
+			candidates.push(code);
+			seen.add(code.toLowerCase());
+		}
+	}
+	return candidates;
+}
+
+/** Rank a stored row's locale for a lookup by path or code. */
+export function getLocaleRank(stored: string, requested: string): number {
+	const candidates = getLocaleCandidates(requested);
+	const rank = candidates.findIndex(
+		(candidate) => candidate.toLowerCase() === stored.toLowerCase(),
+	);
+	return rank === -1 ? candidates.length : rank;
+}
+
+/** Rank stored locale variants before moving to the next fallback locale. */
+export function getLocaleChainRank(stored: string, chain: readonly string[]): number {
+	let offset = 0;
+	for (const locale of chain) {
+		const candidates = getLocaleCandidates(locale);
+		const rank = getLocaleRank(stored, locale);
+		if (rank < candidates.length) return offset + rank;
+		offset += candidates.length;
+	}
+	return offset;
+}
+
 /** Whether a string matches the locale-code subset accepted by EmDash. */
 export function isValidLocaleCode(locale: string): boolean {
 	return LOCALE_CODE_PATTERN.test(locale);

@@ -11,6 +11,7 @@ import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repo
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { localeMatches } from "../i18n/query.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
 import type {
@@ -354,7 +355,7 @@ async function searchSingleCollection(
 		WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
-		${locale ? sql`AND c.locale = ${locale}` : sql``}
+		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
 		ORDER BY score
 		LIMIT ${limit}
 	`.execute(db);
@@ -506,7 +507,7 @@ export async function getSuggestions(
 				AND c.status = 'published'
 				AND c.deleted_at IS NULL
 				AND ${titleExpr} IS NOT NULL
-				${locale ? sql`AND c.locale = ${locale}` : sql``}
+				${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}
 			`.execute(db);

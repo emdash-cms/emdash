@@ -37,7 +37,8 @@ import type { ContentItem } from "../database/repositories/types.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
-import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
+import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../i18n/config.js";
+import { localeMatches, localeOrder } from "../i18n/query.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
@@ -582,8 +583,15 @@ async function applySeedWrites(
 				.select(["id", "locale"])
 				.where("name", "=", taxonomy.name)
 				.execute();
-			// (name, locale) is the UNIQUE key after migration 036.
-			const existingDef = defsOfName.find((def) => def.locale === defLocale);
+			// Prefer the canonical path when a legacy code-stamped row also exists.
+			const matchingDefs = defsOfName
+				.filter((def) => resolveConfiguredLocale(def.locale) === defLocale)
+				.toSorted(
+					(a, b) =>
+						getLocaleRank(a.locale, defLocale) - getLocaleRank(b.locale, defLocale) ||
+						a.id.localeCompare(b.id),
+				);
+			const existingDef = matchingDefs[0];
 			const unclaimed = existingDef !== undefined && untouchedBuiltInDefIds.has(existingDef.id);
 			if (existingDef && onConflict === "error" && !unclaimed) {
 				throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
@@ -1095,7 +1103,9 @@ async function applySeedWrites(
 					.selectFrom("_emdash_menus")
 					.selectAll()
 					.where("name", "=", menu.name)
-					.where("locale", "=", locale);
+					.where(localeMatches("locale", locale))
+					.orderBy(localeOrder("locale", locale), "asc")
+					.orderBy("id", "asc");
 				const existingMenu = await lookup.executeTakeFirst();
 
 				let menuId: string;
@@ -1139,7 +1149,7 @@ async function applySeedWrites(
 				const itemCount = await applyMenuItems(
 					db,
 					menuId,
-					locale,
+					existingMenu?.locale ?? locale,
 					menu.items,
 					null, // parent_id
 					0, // sort_order
@@ -1347,7 +1357,7 @@ async function findExistingSeedTerms(
 	taxonomyName: string,
 	terms: SeedTaxonomyTerm[],
 ): Promise<Map<string, string>> {
-	const existing = new Map<string, string>();
+	const selected = new Map<string, { id: string; locale: string }>();
 	for (const batch of chunks([...new Set(terms.map((term) => term.slug))], SQL_BATCH_SIZE)) {
 		const rows = await db
 			.selectFrom("taxonomies")
@@ -1355,33 +1365,54 @@ async function findExistingSeedTerms(
 			.where("name", "=", taxonomyName)
 			.where("slug", "in", batch)
 			.execute();
-		for (const row of rows) existing.set(seedTermKey(row.locale, row.slug), row.id);
+		for (const row of rows) {
+			const canonicalLocale = resolveConfiguredLocale(row.locale);
+			const key = seedTermKey(canonicalLocale, row.slug);
+			const previous = selected.get(key);
+			if (
+				previous === undefined ||
+				getLocaleRank(row.locale, canonicalLocale) <
+					getLocaleRank(previous.locale, canonicalLocale) ||
+				(getLocaleRank(row.locale, canonicalLocale) ===
+					getLocaleRank(previous.locale, canonicalLocale) &&
+					row.id.localeCompare(previous.id) < 0)
+			) {
+				selected.set(key, { id: row.id, locale: row.locale });
+			}
+		}
 	}
-	return existing;
+	return new Map(Array.from(selected, ([key, value]) => [key, value.id]));
 }
 
 /**
- * Find which seed bylines already exist, as byline ids keyed by slug. A slug
- * in several locales resolves to the lowest locale code, as
- * `BylineRepository.findBySlug` does. Each query covers a batch of slugs.
+ * Match seed bylines by slug, preferring a path over its stored code aliases.
+ * Across different configured locales, keep the lowest-locale selection.
  */
 async function findExistingSeedBylines(
 	db: Kysely<Database>,
 	slugs: string[],
 ): Promise<Map<string, string>> {
-	const existing = new Map<string, string>();
+	const existing = new Map<string, { id: string; locale: string }>();
 	for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
 		const rows = await db
 			.selectFrom("_emdash_bylines")
-			.select(["id", "slug"])
+			.select(["id", "slug", "locale"])
 			.where("slug", "in", batch)
 			.orderBy("locale", "asc")
+			.orderBy("id", "asc")
 			.execute();
 		for (const row of rows) {
-			if (!existing.has(row.slug)) existing.set(row.slug, row.id);
+			const previous = existing.get(row.slug);
+			const locale = resolveConfiguredLocale(row.locale);
+			if (
+				!previous ||
+				(resolveConfiguredLocale(previous.locale) === locale &&
+					getLocaleRank(row.locale, locale) < getLocaleRank(previous.locale, locale))
+			)
+				existing.set(row.slug, row);
 		}
 	}
-	return existing;
+	return new Map(Array.from(existing, ([slug, row]) => [slug, row.id]));
 }
 
 /**

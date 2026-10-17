@@ -28,6 +28,7 @@ import type { ContentSeo } from "./database/repositories/types.js";
 import {
 	getFallbackChain,
 	getI18nConfig,
+	getLocaleCandidates,
 	isI18nEnabled,
 	resolveConfiguredLocale,
 } from "./i18n/config.js";
@@ -1345,7 +1346,14 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			const locale = localeChain[i];
 			const fallbackLocale = i > 0 ? locale : undefined;
 
-			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
+			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, {
+				type,
+				id,
+				locale,
+				...(locale !== undefined && getLocaleCandidates(locale).length > 1
+					? { publishedOnly: true }
+					: {}),
+			});
 			if (error) {
 				// Astro reports a missing entry as an error; try the next locale.
 				if (error.name === "LiveEntryNotFoundError") continue;

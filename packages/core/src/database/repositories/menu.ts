@@ -16,6 +16,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { localeMatches, localeOrder } from "../../i18n/query.js";
 import { invalidateMenuObjectCache } from "../../object-cache/index.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, MenuItemTable, MenuTable } from "../types.js";
@@ -225,7 +226,8 @@ export class MenuRepository {
 				"m.translation_group",
 			])
 			.orderBy("m.name", "asc");
-		if (options.locale !== undefined) query = query.where("m.locale", "=", options.locale);
+		if (options.locale !== undefined)
+			query = query.where(localeMatches("m.locale", options.locale));
 		const rows = await query.execute();
 
 		return rows.map((row) => ({
@@ -249,12 +251,15 @@ export class MenuRepository {
 	 * is supplied) and to detect AMBIGUOUS_LOCALE situations (`length > 1`).
 	 */
 	async findByName(name: string, options: { locale?: string } = {}): Promise<Menu[]> {
-		let query = this.db
-			.selectFrom("_emdash_menus")
-			.selectAll()
-			.where("name", "=", name)
-			.orderBy("locale", "asc");
-		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+		let query = this.db.selectFrom("_emdash_menus").selectAll().where("name", "=", name);
+		if (options.locale !== undefined) {
+			query = query
+				.where(localeMatches("locale", options.locale))
+				.orderBy(localeOrder("locale", options.locale), "asc")
+				.orderBy("id", "asc");
+		} else {
+			query = query.orderBy("locale", "asc");
+		}
 		const rows = await query.execute();
 		return rows.map(rowToMenu);
 	}
@@ -295,7 +300,7 @@ export class MenuRepository {
 			.selectFrom("_emdash_menus")
 			.select("id")
 			.where("name", "=", name)
-			.where("locale", "=", locale)
+			.where(localeMatches("locale", locale))
 			.executeTakeFirst();
 		return row !== undefined;
 	}

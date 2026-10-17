@@ -2,6 +2,8 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { getBylineFieldDefs } from "../../bylines/field-defs-cache.js";
+import { getLocaleRank } from "../../i18n/config.js";
+import { localeMatches, localeOrder } from "../../i18n/query.js";
 import {
 	invalidateBylineObjectCache,
 	invalidateCollectionCache,
@@ -27,6 +29,33 @@ import {
 } from "./types.js";
 
 type BylineRow = Selectable<BylineTable>;
+
+type LocalizedBylineRow = {
+	id: string;
+	locale: string;
+	translation_group: string | null;
+	content_id?: string;
+};
+
+function preferLocalizedRows<T extends LocalizedBylineRow>(rows: T[], locale?: string): T[] {
+	if (locale === undefined) return rows;
+	const selected = new Map<string, T>();
+	for (const row of rows) {
+		const key = `${row.content_id ?? ""}:${row.translation_group ?? row.id}`;
+		const existing = selected.get(key);
+		if (
+			!existing ||
+			getLocaleRank(row.locale, locale) < getLocaleRank(existing.locale, locale) ||
+			(getLocaleRank(row.locale, locale) === getLocaleRank(existing.locale, locale) &&
+				row.id < existing.id)
+		) {
+			selected.set(key, row);
+		}
+	}
+	return rows.filter(
+		(row) => selected.get(`${row.content_id ?? ""}:${row.translation_group ?? row.id}`) === row,
+	);
+}
 
 /**
  * A byline row optionally augmented with the avatar's media columns, folded in
@@ -536,8 +565,15 @@ export class BylineRepository {
 	 */
 	async findBySlug(slug: string, options?: { locale?: string }): Promise<BylineSummary | null> {
 		let query = this.selectBylineWithAvatar().where("b.slug", "=", slug);
-		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
-		const row = await query.orderBy("b.locale", "asc").executeTakeFirst();
+		if (options?.locale !== undefined)
+			query = query.where(localeMatches("b.locale", options.locale));
+		const row = await query
+			.orderBy(
+				options?.locale !== undefined ? localeOrder("b.locale", options.locale) : "b.locale",
+				"asc",
+			)
+			.orderBy("b.id", "asc")
+			.executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 
@@ -549,8 +585,15 @@ export class BylineRepository {
 	 */
 	async findByUserId(userId: string, options?: { locale?: string }): Promise<BylineSummary | null> {
 		let query = this.selectBylineWithAvatar().where("b.user_id", "=", userId);
-		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
-		const row = await query.orderBy("b.locale", "asc").executeTakeFirst();
+		if (options?.locale !== undefined)
+			query = query.where(localeMatches("b.locale", options.locale));
+		const row = await query
+			.orderBy(
+				options?.locale !== undefined ? localeOrder("b.locale", options.locale) : "b.locale",
+				"asc",
+			)
+			.orderBy("b.id", "asc")
+			.executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 
@@ -591,7 +634,7 @@ export class BylineRepository {
 		}
 
 		if (options?.locale !== undefined) {
-			query = query.where("locale", "=", options.locale);
+			query = query.where(localeMatches("locale", options.locale));
 		}
 
 		if (options?.cursor) {
@@ -980,9 +1023,10 @@ export class BylineRepository {
 			.where("cb.collection_slug", "=", collectionSlug)
 			.where("cb.content_id", "=", contentId)
 			.orderBy("cb.sort_order", "asc");
-		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+		if (options?.locale !== undefined)
+			query = query.where(localeMatches("b.locale", options.locale));
 
-		const rows = await query.execute();
+		const rows = preferLocalizedRows(await query.execute(), options?.locale);
 		// Reconstruct byline rows to feed `withCustomFields`. The JOIN selects
 		// the `BylineRow` columns under the `b.` alias plus the avatar media
 		// columns from the `media` LEFT JOIN; carry both through so
@@ -1120,9 +1164,10 @@ export class BylineRepository {
 				.where("cb.collection_slug", "=", collectionSlug)
 				.where("cb.content_id", "in", chunk)
 				.orderBy("cb.sort_order", "asc");
-			if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+			if (options?.locale !== undefined)
+				query = query.where(localeMatches("b.locale", options.locale));
 
-			const rows = await query.execute();
+			const rows = preferLocalizedRows(await query.execute(), options?.locale);
 			// Carry the avatar media columns from the LEFT JOIN through the
 			// reshape so `rowToByline` can populate avatarStorageKey/avatarAlt.
 			const bylineRows: BylineRowWithAvatar[] = rows.map((row) => ({
@@ -1224,7 +1269,8 @@ export class BylineRepository {
 					"b.translation_group as translation_group",
 				])
 				.where("b.user_id", "in", chunk);
-			if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+			if (options?.locale !== undefined)
+				query = query.where(localeMatches("b.locale", options.locale));
 
 			const rows = await query.execute();
 			let bylines: BylineSummary[];
@@ -1239,7 +1285,18 @@ export class BylineRepository {
 				const row = rows[i];
 				const summary = bylines[i];
 				if (!row || !summary || !row.user_id) continue;
-				result.set(row.user_id, summary);
+				const existing = result.get(row.user_id);
+				if (
+					!existing ||
+					options?.locale === undefined ||
+					getLocaleRank(row.locale, options.locale) <
+						getLocaleRank(existing.locale, options.locale) ||
+					(getLocaleRank(row.locale, options.locale) ===
+						getLocaleRank(existing.locale, options.locale) &&
+						row.id < existing.id)
+				) {
+					result.set(row.user_id, summary);
+				}
 			}
 		}
 		return result;
