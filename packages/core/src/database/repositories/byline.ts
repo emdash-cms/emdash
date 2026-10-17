@@ -374,21 +374,23 @@ export class BylineRepository {
 		// query covers everything).
 		const translatableByByline = new Map<string, Map<string, string | null>>();
 		const bylineIds = [...new Set(summaries.map((s) => s.id))];
-		for (const chunk of chunks(bylineIds, SQL_BATCH_SIZE)) {
-			const trRows = await this.db
-				.selectFrom("_emdash_byline_field_values")
-				.select(["byline_id", "field_id", "value"])
-				.where("byline_id", "in", chunk)
-				.execute();
-			for (const trRow of trRows) {
-				let fieldMap = translatableByByline.get(trRow.byline_id);
-				if (!fieldMap) {
-					fieldMap = new Map();
-					translatableByByline.set(trRow.byline_id, fieldMap);
+		const loadTranslatable = async () => {
+			for (const chunk of chunks(bylineIds, SQL_BATCH_SIZE)) {
+				const trRows = await this.db
+					.selectFrom("_emdash_byline_field_values")
+					.select(["byline_id", "field_id", "value"])
+					.where("byline_id", "in", chunk)
+					.execute();
+				for (const trRow of trRows) {
+					let fieldMap = translatableByByline.get(trRow.byline_id);
+					if (!fieldMap) {
+						fieldMap = new Map();
+						translatableByByline.set(trRow.byline_id, fieldMap);
+					}
+					fieldMap.set(trRow.field_id, trRow.value);
 				}
-				fieldMap.set(trRow.field_id, trRow.value);
 			}
-		}
+		};
 
 		// Group-shared values, batched over the union of translation_groups,
 		// with per-group request-cache priming so subsequent calls within
@@ -404,7 +406,12 @@ export class BylineRepository {
 					.filter((g): g is string => typeof g === "string" && g.length > 0),
 			),
 		];
-		const groupByGroup = await this.loadGroupValuesByIds(groups);
+		// The two reads are independent: issue them together so a batching
+		// driver (D1 sessions) sends one round trip instead of two.
+		const [, groupByGroup] = await Promise.all([
+			loadTranslatable(),
+			this.loadGroupValuesByIds(groups),
+		]);
 
 		// Each loop gates on `field.translatable` so a row in the wrong
 		// owner table (e.g. left over from a translatable flip) can't
