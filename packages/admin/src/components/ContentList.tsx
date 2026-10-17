@@ -117,6 +117,8 @@ export interface ContentListProps {
 	isTrashedLoading?: boolean;
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
+	/** Whether to offer Duplicate on an entry's row. Offered on every row when omitted. */
+	canDuplicate?: (item: ContentItem) => boolean;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
 	onLoadMore?: () => void;
@@ -263,6 +265,7 @@ export function ContentList({
 	isTrashedLoading,
 	onDelete,
 	onDuplicate,
+	canDuplicate,
 	onRestore,
 	onPermanentDelete,
 	onLoadMore,
@@ -823,7 +826,7 @@ export function ContentList({
 											visibleItems={paginatedItems}
 											collection={collection}
 											onDelete={deleteRow}
-											onDuplicate={onDuplicate}
+											onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
 											showLocale={!!i18n}
 											i18n={i18n}
 											urlPattern={urlPattern}
@@ -1507,14 +1510,16 @@ function ContentListItem({
 						shape="square"
 						icon={<Pencil />}
 					/>
-					<Button
-						variant="ghost"
-						shape="square"
-						aria-label={t`Duplicate ${title}`}
-						onClick={() => onDuplicate?.(item.id)}
-					>
-						<Copy className="h-4 w-4" aria-hidden="true" />
-					</Button>
+					{onDuplicate && (
+						<Button
+							variant="ghost"
+							shape="square"
+							aria-label={t`Duplicate ${title}`}
+							onClick={() => onDuplicate(item.id)}
+						>
+							<Copy className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					)}
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
 							render={(p) => (
