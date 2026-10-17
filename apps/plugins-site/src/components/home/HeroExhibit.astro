@@ -34,9 +34,9 @@ for (let row = 0; row < 6; row++) {
 }
 ---
 
-<div class="exhibit" aria-hidden="true" data-exhibit>
+<div class="exhibit" data-exhibit>
 	<div class="x-frame-box">
-		<div class="x-canvas" dir="ltr">
+		<div class="x-canvas" dir="ltr" aria-hidden="true">
 			<div class="x-dots"></div>
 			<div class="x-glow"></div>
 			<HeroSchematic />
@@ -164,23 +164,62 @@ for (let row = 0; row < 6; row++) {
 		<span class="x-mark x-mark--se"></span>
 		<span class="x-mark x-mark--es"></span>
 		<span class="x-mark x-mark--ee"></span>
+		<button
+			class="x-toggle tap-target"
+			type="button"
+			aria-label="Pause animation"
+			aria-pressed="false"
+			data-exhibit-toggle
+		>
+			<svg
+				class="x-toggle-pause"
+				viewBox="0 0 12 12"
+				aria-hidden="true"
+				focusable="false"
+			>
+				<rect x="3" y="2.5" width="2" height="7" rx="0.5"></rect>
+				<rect x="7" y="2.5" width="2" height="7" rx="0.5"></rect>
+			</svg>
+			<svg
+				class="x-toggle-play"
+				viewBox="0 0 12 12"
+				aria-hidden="true"
+				focusable="false"
+			>
+				<path d="M4 2.6v6.8L9.6 6Z"></path>
+			</svg>
+		</button>
 	</div>
 </div>
 
 <script>
 	const exhibit = document.querySelector<HTMLElement>("[data-exhibit]");
-	if (exhibit && "IntersectionObserver" in window) {
-		let visible = false;
+	const toggle = exhibit?.querySelector<HTMLButtonElement>(
+		"[data-exhibit-toggle]",
+	);
+	if (exhibit && toggle) {
+		let visible = true;
+		let pausedByVisitor = false;
 		const update = () =>
-			exhibit.toggleAttribute("data-paused", !visible || document.hidden);
-		new IntersectionObserver(
-			(entries) => {
-				visible = entries.at(-1)?.isIntersecting ?? false;
-				update();
-			},
-			{ threshold: 0.2 },
-		).observe(exhibit);
+			exhibit.toggleAttribute(
+				"data-paused",
+				pausedByVisitor || !visible || document.hidden,
+			);
+		toggle.addEventListener("click", () => {
+			pausedByVisitor = !pausedByVisitor;
+			toggle.setAttribute("aria-pressed", String(pausedByVisitor));
+			update();
+		});
 		document.addEventListener("visibilitychange", update);
+		if ("IntersectionObserver" in window) {
+			new IntersectionObserver(
+				(entries) => {
+					visible = entries.at(-1)?.isIntersecting ?? false;
+					update();
+				},
+				{ threshold: 0.2 },
+			).observe(exhibit);
+		}
 	}
 </script>
 
@@ -677,6 +716,55 @@ for (let row = 0; row < 6; row++) {
 	.x-mark--ee {
 		inset-block-end: 10px;
 		inset-inline-end: 10px;
+	}
+
+	/* Takes the end corner mark's place while the loop can run. */
+	.x-toggle {
+		position: absolute;
+		inset-block-end: 10px;
+		inset-inline-end: 10px;
+		display: none;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		padding: 0;
+		color: var(--muted);
+		cursor: pointer;
+		background: var(--page);
+		border: 1px solid var(--line-strong);
+		border-radius: 50%;
+		transition:
+			color 150ms ease,
+			border-color 150ms ease;
+	}
+
+	.x-toggle svg {
+		grid-area: 1 / 1;
+		width: 10px;
+		height: 10px;
+		fill: currentColor;
+	}
+
+	.x-toggle[aria-pressed="true"] .x-toggle-pause,
+	.x-toggle:not([aria-pressed="true"]) .x-toggle-play {
+		visibility: hidden;
+	}
+
+	@media (hover: hover) {
+		.x-toggle:hover {
+			color: var(--ink);
+			border-color: var(--subtle);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		:global(:root.js) .x-toggle {
+			display: grid;
+		}
+
+		:global(:root.js) .x-mark--ee {
+			display: none;
+		}
 	}
 
 	/*
