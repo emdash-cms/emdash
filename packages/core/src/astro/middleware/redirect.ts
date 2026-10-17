@@ -25,6 +25,13 @@ import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import { isTerminalStatus } from "../../redirects/status.js";
+import { peekRequestCache } from "../../request-cache.js";
+import {
+	getRequestContext,
+	runWithContext,
+	type EmDashRequestContext,
+} from "../../request-context.js";
+import { invalidateSiteSettingsSnapshot, peekSiteSettingsSnapshot } from "../../settings/index.js";
 
 /** Paths that should never be intercepted by redirects */
 const SKIP_PREFIXES = ["/_emdash", "/_image"];
@@ -123,81 +130,157 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	try {
-		const repo = new RedirectRepository(db);
-		const source = createRedirectSource(db);
-		const routeCache: APIContext["cache"] | undefined = context.cache;
-
-		// One query loads the published rules into the cache; warm requests
-		// issue zero queries, and an expired cache checks the published version
-		// in the background. Empty-redirect sites cache an empty Map + array.
-		// A response the route cache stores is served to every visitor until it
-		// is purged, so before one is returned the rules are verified current.
-		let cached = await loadCachedRedirects(source);
-		let match = matchRedirect(cached, pathname);
-		let verified = false;
-		if (match && routeCacheStores(routeCache)) {
-			cached = await loadCachedRedirects(source, { verify: true });
-			verified = true;
-			match = matchRedirect(cached, pathname);
-		}
-		if (match) return redirectResponse(context, repo, match) ?? next();
-
-		// No redirect matched -- proceed and check for 404
-		const response = await next();
-
-		// Keep a 404 out of the route cache: publishing the missing entry later
-		// purges content tags, not the missed path, so a cached 404 would outlive
-		// the fix. Astro has no cache handle for URLs that match no route, but a
-		// page answering a content miss with Astro.rewrite("/404") has one.
-		if (response.status === 404) {
+	const routeCache: APIContext["cache"] | undefined = context.cache;
+	const renderedSettings = new Set<string>();
+	let currentSettingsVersion: string | null | undefined;
+	const checkSettings = () => {
+		if (currentSettingsVersion === undefined || renderedSettings.size === 0) return;
+		if (currentSettingsVersion === null) {
 			routeCache?.set(false);
+		} else if ([...renderedSettings].some((v) => v !== currentSettingsVersion)) {
+			routeCache?.set(false);
+			invalidateSiteSettingsSnapshot();
 		}
+	};
+	const requestSettings: NonNullable<EmDashRequestContext["siteSettings"]> = {
+		onRead(version) {
+			renderedSettings.add(version);
+			checkSettings();
+		},
+	};
+	const finalizeSettings = async () => {
+		if (!routeCacheStores(routeCache)) return;
+		if (requestSettings.live) {
+			if (currentSettingsVersion == null) routeCache?.set(false);
+			return;
+		}
+		const prefetched =
+			await peekRequestCache<NonNullable<ReturnType<typeof peekSiteSettingsSnapshot>>>(
+				"siteSettingsSnapshot",
+			);
+		if (prefetched) requestSettings.onRead(prefetched.version);
+		const snapshot = peekSiteSettingsSnapshot();
+		// Layouts and head components can first read settings after cache headers
+		// are sent. Pin the verified snapshot before handing off the stream.
+		if (currentSettingsVersion == null) {
+			routeCache?.set(false);
+		} else if (!snapshot) {
+			requestSettings.version = currentSettingsVersion;
+		} else if (snapshot.version !== currentSettingsVersion) {
+			routeCache?.set(false);
+			invalidateSiteSettingsSnapshot();
+		} else {
+			requestSettings.snapshot = snapshot;
+		}
+	};
+	const run = async () => {
+		try {
+			const repo = new RedirectRepository(db);
+			const source = createRedirectSource(
+				db,
+				routeCache?.enabled
+					? (version) => {
+							currentSettingsVersion = version;
+							checkSettings();
+						}
+					: undefined,
+			);
 
-		if (!verified && routeCacheStores(routeCache)) {
-			const current = await loadCachedRedirects(source, { verify: true }).catch(() => cached);
-			const late = current === cached ? null : matchRedirect(current, pathname);
-			const redirected = late && redirectResponse(context, repo, late);
-			if (redirected) {
-				routeCache?.set(false);
-				// Finish the discarded render instead of cancelling it: a render cut off
-				// with its request never settles an isolate-wide fetch it started, and
-				// every later render awaiting that fetch hangs.
-				after(() => response.body?.pipeTo(new WritableStream()));
-				return redirected;
+			// One query loads the published rules into the cache; warm requests
+			// issue zero queries, and an expired cache checks the published version
+			// in the background. Empty-redirect sites cache an empty Map + array.
+			// A response the route cache stores is served to every visitor until it
+			// is purged, so before one is returned the rules are verified current.
+			let cached = await loadCachedRedirects(source);
+			let match = matchRedirect(cached, pathname);
+			let verified = false;
+			if (match && routeCacheStores(routeCache)) {
+				cached = await loadCachedRedirects(source, { verify: true });
+				verified = true;
+				match = matchRedirect(cached, pathname);
 			}
-		}
+			if (match) {
+				const redirected = redirectResponse(context, repo, match);
+				if (redirected) return redirected;
+			}
 
-		// Log misses under the path the visitor requested.
-		// Two shapes count as a miss: a 404 response (an unmatched route, or a
-		// page answering a content miss with Astro.rewrite("/404")), and a
-		// matched route answering a content miss with a redirect to /404 —
-		// there the missed path exists only on this first pass, before the
-		// browser follows the redirect. The error page itself is never logged: /404
-		// answers 404 by design and carries no path information.
-		const location = response.headers.get("location");
-		const missedByRedirect =
-			isRedirectCode(response.status) && (location === "/404" || location === "/404/");
-		const missedDirectly = response.status === 404 && pathname !== "/404" && pathname !== "/404/";
-		if (missedDirectly || missedByRedirect) {
-			const referrer = context.request.headers.get("referer") ?? null;
-			const userAgent = context.request.headers.get("user-agent") ?? null;
-			after(async () => {
-				try {
-					await repo.log404({
-						path: pathname,
-						referrer,
-						userAgent,
-					});
-				} catch (error) {
-					console.error("[emdash:redirects] failed to log 404:", error);
+			// No redirect matched -- proceed and check for 404
+			const response = await next();
+
+			// Keep a 404 out of the route cache: publishing the missing entry later
+			// purges content tags, not the missed path, so a cached 404 would outlive
+			// the fix. Astro has no cache handle for URLs that match no route, but a
+			// page answering a content miss with Astro.rewrite("/404") has one.
+			if (response.status === 404) {
+				routeCache?.set(false);
+			}
+
+			if (!verified && routeCacheStores(routeCache)) {
+				currentSettingsVersion = undefined;
+				const current = await loadCachedRedirects(source, { verify: true }).catch(() => cached);
+				if (currentSettingsVersion === undefined) {
+					currentSettingsVersion = null;
+					checkSettings();
 				}
-			});
-		}
+				const late = current === cached ? null : matchRedirect(current, pathname);
+				const redirected = late && redirectResponse(context, repo, late);
+				if (redirected) {
+					routeCache?.set(false);
+					// Finish the discarded render instead of cancelling it: a render cut off
+					// with its request never settles an isolate-wide fetch it started, and
+					// every later render awaiting that fetch hangs.
+					after(() => response.body?.pipeTo(new WritableStream()));
+					return redirected;
+				}
+			}
 
-		return response;
-	} catch {
-		// If the redirects table doesn't exist yet (pre-migration), skip silently
-		return next();
+			try {
+				await finalizeSettings();
+			} catch {
+				routeCache?.set(false);
+			}
+
+			// Log misses under the path the visitor requested.
+			// Two shapes count as a miss: a 404 response (an unmatched route, or a
+			// page answering a content miss with Astro.rewrite("/404")), and a
+			// matched route answering a content miss with a redirect to /404 —
+			// there the missed path exists only on this first pass, before the
+			// browser follows the redirect. The error page itself is never logged: /404
+			// answers 404 by design and carries no path information.
+			const location = response.headers.get("location");
+			const missedByRedirect =
+				isRedirectCode(response.status) && (location === "/404" || location === "/404/");
+			const missedDirectly = response.status === 404 && pathname !== "/404" && pathname !== "/404/";
+			if (missedDirectly || missedByRedirect) {
+				const referrer = context.request.headers.get("referer") ?? null;
+				const userAgent = context.request.headers.get("user-agent") ?? null;
+				after(async () => {
+					try {
+						await repo.log404({
+							path: pathname,
+							referrer,
+							userAgent,
+						});
+					} catch (error) {
+						console.error("[emdash:redirects] failed to log 404:", error);
+					}
+				});
+			}
+
+			return response;
+		} catch {
+			// If the redirects table doesn't exist yet (pre-migration), skip silently.
+			// Without a freshness check, a settings snapshot must not be edge-cached.
+			currentSettingsVersion = null;
+			routeCache?.set(false);
+			return next();
+		}
+	};
+	if (!routeCache?.enabled) return run();
+	const parent = getRequestContext();
+	if (parent) {
+		parent.siteSettings = requestSettings;
+		return run();
 	}
+	return runWithContext({ editMode: false, siteSettings: requestSettings }, run);
 });
