@@ -25,7 +25,13 @@
  */
 
 import type { ContentSeo } from "./database/repositories/types.js";
-import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
+import {
+	getFallbackChain,
+	getI18nConfig,
+	isI18nEnabled,
+	resolveConfiguredLocale,
+} from "./i18n/config.js";
+import { resolveLocale } from "./i18n/resolve.js";
 import {
 	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
@@ -781,7 +787,7 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.offset ?? "",
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
-		filter.locale ?? "",
+		filter.locale === undefined ? "" : resolveConfiguredLocale(filter.locale),
 	];
 	return `collection:${type}:${parts.join("|")}`;
 }
@@ -915,11 +921,7 @@ function reviveEntry<D>(raw: unknown): ContentEntry<D> {
 
 /** Resolve the effective locale used by content reads, for the L2 cache key. */
 function effectiveLocaleKey(filter?: { locale?: string }): string {
-	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	return (
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined) ?? ""
-	);
+	return resolveLocale(filter?.locale) ?? "";
 }
 
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
@@ -932,9 +934,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	// Resolve locale: explicit filter > ALS context > defaultLocale (when i18n enabled)
 	// Without this, queries return all locale rows, producing broken IDs
 	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	const resolvedLocale =
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
+	const resolvedLocale = resolveLocale(filter?.locale);
 
 	const requestedLimit = filter?.limit;
 	// cursor and offset are mutually exclusive on the loader filter union, so
@@ -1197,7 +1197,8 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	const serveDrafts = isPreviewMode || isEditMode;
 
 	// Resolve locale: explicit option > ALS context > undefined (no filter)
-	const requestedLocale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const requestedLocale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 	const references = options?.references;
 	const portableTextFields = isEditMode ? await getPortableTextFieldSlugs(type) : undefined;
 
@@ -1446,7 +1447,8 @@ export async function getEmDashReferences<D = Record<string, unknown>>(
 	const ctx = getRequestContext();
 	const preview = ctx?.preview;
 	const isEditMode = ctx?.editMode ?? false;
-	const locale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const locale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 
 	try {
 		const { getDb } = await import("./loader.js");

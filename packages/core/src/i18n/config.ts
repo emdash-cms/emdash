@@ -8,6 +8,8 @@
 export interface I18nConfig {
 	defaultLocale: string;
 	locales: string[];
+	/** Astro locale codes mapped to their canonical content locale paths. */
+	localeAliases?: Record<string, string>;
 	fallback?: Record<string, string>;
 	prefixDefaultLocale?: boolean;
 }
@@ -36,11 +38,16 @@ export function getI18nConfig(): I18nConfig | null {
 	return configStore()[I18N_CONFIG_KEY] ?? null;
 }
 
-/** Match a locale to the exact casing used by the site configuration. */
-export function resolveConfiguredLocale(locale: string): string {
-	const config = getI18nConfig();
+/** Match a locale path or Astro code to the canonical content locale. */
+export function resolveConfiguredLocale(
+	locale: string,
+	config: I18nConfig | null = getI18nConfig(),
+): string {
 	return (
 		config?.locales.find((configured) => configured.toLowerCase() === locale.toLowerCase()) ??
+		Object.entries(config?.localeAliases ?? {}).find(
+			([code]) => code.toLowerCase() === locale.toLowerCase(),
+		)?.[1] ??
 		locale
 	);
 }
@@ -59,10 +66,8 @@ export function resolveContentCreateLocale(
 		if (typeof locale !== "string") {
 			throw new Error("Invalid locale code: expected a string");
 		}
-		const configured = config?.locales.find(
-			(candidate) => candidate.toLowerCase() === locale.toLowerCase(),
-		);
-		if (configured) return configured;
+		const configured = resolveConfiguredLocale(locale, config);
+		if (config?.locales.includes(configured)) return configured;
 		if (!isValidLocaleCode(locale)) {
 			throw new Error(`Invalid locale code: "${locale}"`);
 		}
@@ -93,13 +98,14 @@ export function getFallbackChain(locale: string): string[] {
 	const config = getI18nConfig();
 	if (!config) return [locale];
 
+	locale = resolveConfiguredLocale(locale, config);
 	const chain: string[] = [locale];
 	let current = locale;
 	const visited = new Set<string>([locale]);
 
 	while (config.fallback?.[current]) {
 		// eslint-disable-next-line typescript/no-unnecessary-type-assertion -- noUncheckedIndexedAccess
-		const next = config.fallback[current]!;
+		const next = resolveConfiguredLocale(config.fallback[current]!, config);
 		if (visited.has(next)) break; // prevent cycles
 		chain.push(next);
 		visited.add(next);
