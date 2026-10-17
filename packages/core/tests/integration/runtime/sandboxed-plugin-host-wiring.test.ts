@@ -295,6 +295,36 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		expect(calls).toEqual(["plugin:install", "plugin:activate"]);
 	});
 
+	it("rejects the install lifecycle when plugin:install fails so install flows can roll back", async () => {
+		const calls: string[] = [];
+		const invokeHook = vi.fn(async (name: string) => {
+			calls.push(name);
+			if (name === "plugin:install") throw new Error("install setup failed");
+		});
+		const deps = createDeps(invokeHook, {}, "sandbox-install-failure");
+		deps.sandboxedPluginEntries[0]!.hooks = [
+			"plugin:install",
+			...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+		];
+		runtime = await EmDashRuntime.create(deps);
+
+		await expect(runtime.runPluginInstallLifecycle("sandbox-install-failure")).rejects.toThrow(
+			"install setup failed",
+		);
+		expect(calls).toEqual(["plugin:install"]);
+	});
+
+	it("rejects the activate lifecycle when plugin:activate fails", async () => {
+		const invokeHook = vi.fn(async (name: string) => {
+			if (name === "plugin:activate") throw new Error("activate failed");
+		});
+		runtime = await EmDashRuntime.create(createDeps(invokeHook, {}, "sandbox-activate-failure"));
+
+		await expect(runtime.runPluginActivateLifecycle("sandbox-activate-failure")).rejects.toThrow(
+			"activate failed",
+		);
+	});
+
 	it("orders sandboxed and trusted hooks by shared pipeline priority", async () => {
 		const calls: string[] = [];
 		const invokeHook = vi.fn(async (name: string) => {
