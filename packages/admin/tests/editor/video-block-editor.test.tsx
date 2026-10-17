@@ -423,6 +423,31 @@ describe("Video block editor", () => {
 		expect(videos(latest())[0]?.caption).toBe("Launch day");
 	});
 
+	it("keeps an input method composition in the caption until it is committed", async () => {
+		const { editor, latest } = await renderEditor({ value: [videoBlock()] });
+		await userEvent.click(caption());
+		// A real input method commits its unconverted text when the editor re-renders mid-composition.
+		let docChanges = 0;
+		editor.on("transaction", ({ transaction }) => {
+			if (transaction.docChanged) docChanges++;
+		});
+
+		// Type きむら and convert it to 木村, as a Japanese input method does.
+		for (const text of ["ｋ", "き", "きｍ", "きむ", "きむｒ", "きむら", "木村"]) {
+			await cdp().send("Input.imeSetComposition", {
+				text,
+				selectionStart: text.length,
+				selectionEnd: text.length,
+			});
+		}
+		expect(caption()).toHaveValue("木村");
+		expect(docChanges).toBe(0);
+
+		await cdp().send("Input.insertText", { text: "木村" });
+		await vi.waitFor(() => expect(videos(latest())[0]?.caption).toBe("木村"));
+		expect(caption()).toHaveValue("木村");
+	});
+
 	it("replaces the video and keeps its caption", async () => {
 		picker.item = {
 			...mediaItem("02VIDEO", `${playableUrl}#replacement`),

@@ -18,6 +18,30 @@ async function savedImage(request: APIRequestContext, id: string) {
 	return { alt: image?.alt, caption: image?.caption };
 }
 
+async function createImagePost(request: APIRequestContext, token: string) {
+	const slug = `image-toolbar-${crypto.randomUUID()}`;
+	const response = await request.post("/_emdash/api/content/posts", {
+		headers: csrfHeaders(token),
+		data: {
+			slug,
+			data: {
+				title: slug,
+				body: [
+					{
+						_type: "image",
+						_key: "image-1",
+						asset: { _ref: "", url: IMAGE_URL },
+						alt: "editor-toolbar.png",
+					},
+				],
+			},
+		},
+	});
+	expect(response.ok(), await response.text()).toBe(true);
+	const payload = (await response.json()) as { data: { item?: { id: string }; id?: string } };
+	return payload.data.item?.id ?? payload.data.id!;
+}
+
 test.describe("Editor image toolbar", () => {
 	const postIds: string[] = [];
 
@@ -44,27 +68,7 @@ test.describe("Editor image toolbar", () => {
 		page,
 		serverInfo,
 	}) => {
-		const slug = `image-toolbar-${crypto.randomUUID()}`;
-		const response = await page.request.post("/_emdash/api/content/posts", {
-			headers: csrfHeaders(serverInfo.token),
-			data: {
-				slug,
-				data: {
-					title: slug,
-					body: [
-						{
-							_type: "image",
-							_key: "image-1",
-							asset: { _ref: "", url: IMAGE_URL },
-							alt: "editor-toolbar.png",
-						},
-					],
-				},
-			},
-		});
-		expect(response.ok(), await response.text()).toBe(true);
-		const payload = (await response.json()) as { data: { item?: { id: string }; id?: string } };
-		const id = payload.data.item?.id ?? payload.data.id!;
+		const id = await createImagePost(page.request, serverInfo.token);
 		postIds.push(id);
 
 		await admin.goToEditContent("posts", id);
@@ -88,5 +92,54 @@ test.describe("Editor image toolbar", () => {
 			"Seen from the harbour",
 		);
 		await expect(reloaded.getByRole("img", { name: "A grey test card" })).toBeVisible();
+	});
+
+	test("keeps an IME composition in the caption until it is committed", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		const id = await createImagePost(page.request, serverInfo.token);
+		postIds.push(id);
+
+		await admin.goToEditContent("posts", id);
+		await admin.waitForLoading();
+		const editor = page.locator(EDITOR);
+		const caption = editor.getByRole("textbox", { name: "Caption" });
+		await caption.click();
+		await expect(caption).toBeFocused();
+		// A real IME commits its unconverted text when the editor re-renders mid-composition.
+		await editor.evaluate((dom) => {
+			type Tiptap = {
+				on(
+					event: "transaction",
+					fn: (event: { transaction: { docChanged: boolean } }) => void,
+				): void;
+			};
+			const tiptap = (dom as HTMLElement & { editor: Tiptap }).editor;
+			tiptap.on("transaction", ({ transaction }) => {
+				if (transaction.docChanged)
+					dom.dataset.docChanges = String(Number(dom.dataset.docChanges ?? 0) + 1);
+			});
+		});
+
+		// Type きむら and convert it to 木村, as a Japanese IME does.
+		const cdp = await page.context().newCDPSession(page);
+		for (const text of ["ｋ", "き", "きｍ", "きむ", "きむｒ", "きむら", "木村"]) {
+			await cdp.send("Input.imeSetComposition", {
+				text,
+				selectionStart: text.length,
+				selectionEnd: text.length,
+			});
+		}
+		await expect(caption).toHaveValue("木村");
+		await expect(editor).not.toHaveAttribute("data-doc-changes");
+
+		await cdp.send("Input.insertText", { text: "木村" });
+		await expect(caption).toHaveValue("木村");
+		await expect(editor).toHaveAttribute("data-doc-changes", "1");
+		await expect
+			.poll(() => savedImage(page.request, id), { timeout: 20_000 })
+			.toEqual({ alt: "editor-toolbar.png", caption: "木村" });
 	});
 });
