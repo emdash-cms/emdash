@@ -148,7 +148,7 @@ msgstr "{0, plural, one {#件} other {#件}}"
 #: packages/admin/src/components/RelationList.tsx:215
 #: packages/admin/src/components/RelationsPanel.tsx:195
 msgid "{0, plural, one {# link} other {# links}}"
-msgstr ""
+msgstr "{0, plural, one {#件のリンク} other {#件のリンク}}"
 
 #. placeholder {0}: tagMatches?.matchCount ?? 0
 #: packages/admin/src/components/TaxonomyManager.tsx:1388
@@ -1721,7 +1721,7 @@ msgstr "プラグインが保存したデータも削除する"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:882
 msgid "Also delete the relationship this field uses"
-msgstr ""
+msgstr "このフィールドが使用する関連付けも削除する"
 
 #: packages/admin/src/components/BylineFilter.tsx:183
 msgid "Also match the byline linked to an entry's author when it has none assigned."
@@ -4152,7 +4152,7 @@ msgstr "削除"
 #. placeholder {0}: relation.slug
 #: packages/admin/src/components/RelationDeleteDialog.tsx:38
 msgid "Delete \"{0}\"?"
-msgstr ""
+msgstr "「{0}」を削除しますか？"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaFolderDialog.tsx:182
@@ -5446,7 +5446,7 @@ msgstr "このプラグインのリリースはすべて撤回されたか、確
 
 #: packages/admin/src/components/ContentTypeList.tsx:270
 msgid "Every relationship this content type takes part in goes too:"
-msgstr ""
+msgstr "このコンテンツタイプが含まれるすべての関連付けも削除されます："
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:501
 msgid "Example: {pattern} → {preview}"
@@ -5816,7 +5816,7 @@ msgstr "リダイレクトの削除に失敗しました"
 
 #: packages/admin/src/lib/api/relations.ts:146
 msgid "Failed to delete relation"
-msgstr ""
+msgstr "関連付けの削除に失敗しました"
 
 #: packages/admin/src/lib/api/sections.ts:110
 msgid "Failed to delete section"
@@ -13403,13 +13403,13 @@ msgstr ""
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:59
 msgid "the {0} field on {1}, which lists entries that link to it"
-msgstr ""
+msgstr "「{1}」の「{0}」フィールド（参照元のコンテンツを一覧表示）"
 
 #. placeholder {0}: bound.fieldSlug
 #. placeholder {1}: bound.collectionSlug
 #: packages/admin/src/components/RelationImpact.tsx:58
 msgid "the {0} field on {1}, which picks entries it links to"
-msgstr ""
+msgstr "「{1}」の「{0}」フィールド（参照先のコンテンツを選択）"
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
@@ -13844,7 +13844,7 @@ msgstr "これらのツールは、インストール後もエージェントア
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:886
 msgid "This also removes:"
-msgstr ""
+msgstr "次の項目も削除されます："
 
 #: packages/admin/src/components/BlocksField.tsx:403
 msgid "This block cannot be edited because its stored definition is unavailable."
@@ -14139,7 +14139,7 @@ msgstr "この執筆者情報を削除します。コンテンツとの関連付
 
 #: packages/admin/src/components/RelationDeleteDialog.tsx:39
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
-msgstr ""
+msgstr "この関連付けと保存済みのすべてのリンク、およびこの関連付けを使用する参照フィールドを削除します："
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:512
 msgid "This removes the schedule and publishes immediately."
