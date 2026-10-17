@@ -4,12 +4,15 @@ import type { Generated } from "kysely";
 // Note: Content tables (ec_posts, ec_pages, etc.) are created dynamically
 // by the SchemaRegistry. They are not defined in this type file.
 
+export type RevisionSource = "manual" | "autosave" | "baseline";
+
 export interface RevisionTable {
 	id: string;
 	collection: string; // e.g., 'posts'
 	entry_id: string; // ID in the ec_* table
 	data: string; // JSON snapshot
 	author_id: string | null;
+	source: string;
 	created_at: Generated<string>;
 }
 

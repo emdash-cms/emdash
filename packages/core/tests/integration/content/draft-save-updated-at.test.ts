@@ -108,10 +108,11 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		});
 		const id = created.data!.item.id;
 		await runtime.handleContentPublish("posts", id);
-		const firstSave = await runtime.handleContentUpdate("posts", id, {
+		const firstAutosave = await runtime.handleContentUpdate("posts", id, {
 			data: { title: "Draft v1" },
+			skipRevision: true,
 		});
-		const firstDraftId = firstSave.data!.item.draftRevisionId!;
+		const firstDraftId = firstAutosave.data!.item.draftRevisionId!;
 		const revisionRepo = new RevisionRepository(db);
 
 		const autosaved = await runtime.handleContentUpdate("posts", id, {

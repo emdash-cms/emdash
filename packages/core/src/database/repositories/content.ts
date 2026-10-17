@@ -599,7 +599,7 @@ export class ContentRepository {
 			: null;
 
 		// Create the duplicate as a draft — use override authorId if provided (caller owns the copy)
-		return this.create({
+		const duplicate = await this.create({
 			type,
 			slug,
 			data: newData,
@@ -607,6 +607,34 @@ export class ContentRepository {
 			authorId: authorId || original.authorId || undefined,
 			locale: original.locale ?? undefined,
 		});
+
+		// On collections that keep revisions, stage a baseline snapshot of the
+		// duplicated state so the pre-edit checkpoint survives autosave rotation.
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections")
+			.select("supports")
+			.where("slug", "=", type)
+			.executeTakeFirst();
+		const supports: unknown = collectionRows?.supports ? JSON.parse(collectionRows.supports) : [];
+		if (Array.isArray(supports) && supports.includes("revisions")) {
+			const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
+			const baseline = await revisionRepo.create({
+				collection: type,
+				entryId: duplicate.id,
+				data: duplicate.data,
+				authorId: authorId || original.authorId || undefined,
+				source: "baseline",
+			});
+			const tableName = getTableName(type);
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${baseline.id}
+				WHERE id = ${duplicate.id}
+			`.execute(this.db);
+			duplicate.draftRevisionId = baseline.id;
+		}
+
+		return duplicate;
 	}
 
 	/**

@@ -2,7 +2,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { monotonicFactory } from "ulidx";
 
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
-import type { Database, RevisionTable } from "../types.js";
+import type { Database, RevisionSource, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
 const monotonic = monotonicFactory();
@@ -17,6 +17,7 @@ export interface Revision {
 	entryId: string;
 	data: Record<string, unknown>;
 	authorId: string | null;
+	source: RevisionSource;
 	createdAt: string;
 }
 
@@ -36,6 +37,12 @@ export interface CreateRevisionInput {
 	entryId: string;
 	data: Record<string, unknown>;
 	authorId?: string;
+	source?: RevisionSource;
+}
+
+function asRevisionSource(value: string): RevisionSource {
+	if (value === "autosave" || value === "baseline") return value;
+	return "manual";
 }
 
 export function normalizeRevisionLimit(value: unknown): number {
@@ -73,6 +80,7 @@ export class RevisionRepository {
 			entry_id: input.entryId,
 			data: JSON.stringify(data),
 			author_id: input.authorId ?? null,
+			source: input.source ?? "manual",
 		};
 
 		await this.db.insertInto("revisions").values(row).execute();
@@ -383,6 +391,7 @@ export class RevisionRepository {
 		entry_id: string;
 		data: string;
 		author_id: string | null;
+		source: string;
 		created_at: string;
 	}): Promise<Revision> {
 		const data = await this.datetimes.normalizeData(row.collection, JSON.parse(row.data));
@@ -396,6 +405,7 @@ export class RevisionRepository {
 			entry_id: string;
 			data: string;
 			author_id: string | null;
+			source: string;
 			created_at: string;
 		},
 		data: Record<string, unknown>,
@@ -406,6 +416,7 @@ export class RevisionRepository {
 			entryId: row.entry_id,
 			data,
 			authorId: row.author_id,
+			source: asRevisionSource(row.source),
 			createdAt: row.created_at,
 		};
 	}
