@@ -3,6 +3,8 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { AdminBrandingProvider } from "../../src/lib/admin-branding-context";
+import { AuthProviderProvider } from "../../src/lib/auth-provider-context";
+import type { AuthProviderModule } from "../../src/lib/auth-provider-context";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -55,6 +57,9 @@ describe("LoginPage", () => {
 	beforeEach(() => {
 		// Clean URL params
 		window.history.replaceState({}, "", window.location.pathname);
+		// Reset auth mode mock to the default passkey response
+		mockFetchAuthMode.mockReset();
+		mockFetchAuthMode.mockResolvedValue({ authMode: "passkey" });
 	});
 
 	it("shows passkey login button when authMode is passkey", async () => {
@@ -169,5 +174,86 @@ describe("LoginPage", () => {
 			</QueryWrapper>,
 		);
 		await expect.element(screen.getByRole("img", { name: "EmDash" })).toBeInTheDocument();
+	});
+
+	it("falls back to neutral help text for providers without a loginHelp export", async () => {
+		const passwordProvider: AuthProviderModule = {
+			id: "password",
+			label: "Email & Password",
+			LoginButton: () => <button type="button">Email & Password</button>,
+			LoginForm: () => (
+				<form data-testid="password-form">
+					<input />
+				</form>
+			),
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<AuthProviderProvider authProviders={{ password: passwordProvider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByText("Email & Password").click();
+		await expect.element(screen.getByText("Continue with Email & Password.")).toBeInTheDocument();
+		expect(screen.getByText("Enter your handle to sign in.").query()).toBeNull();
+	});
+
+	it("shows a provider's exported loginHelp string on its LoginForm", async () => {
+		const handleProvider: AuthProviderModule = {
+			id: "atproto-mock",
+			label: "Mock Atmosphere",
+			LoginButton: () => <button type="button">Mock Atmosphere</button>,
+			LoginForm: () => (
+				<form data-testid="handle-form">
+					<input />
+				</form>
+			),
+			loginHelp: "Enter your handle to sign in.",
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<AuthProviderProvider authProviders={{ "atproto-mock": handleProvider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByText("Mock Atmosphere").click();
+		await expect.element(screen.getByText("Enter your handle to sign in.")).toBeInTheDocument();
+		expect(screen.getByText("Continue with Mock Atmosphere.").query()).toBeNull();
+	});
+
+	it("supports loginHelp exported as a component", async () => {
+		function CustomHelp() {
+			return <>Custom provider help.</>;
+		}
+
+		const customProvider: AuthProviderModule = {
+			id: "custom",
+			label: "Custom Provider",
+			LoginButton: () => <button type="button">Custom Provider</button>,
+			LoginForm: () => (
+				<form data-testid="custom-form">
+					<input />
+				</form>
+			),
+			loginHelp: CustomHelp,
+		};
+
+		const screen = await render(
+			<QueryWrapper>
+				<AuthProviderProvider authProviders={{ custom: customProvider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByText("Custom Provider").click();
+		await expect.element(screen.getByText("Custom provider help.")).toBeInTheDocument();
+		expect(screen.getByText("Continue with Custom Provider.").query()).toBeNull();
 	});
 });
