@@ -1,0 +1,275 @@
+import { env } from "cloudflare:test";
+import { Kysely, sql, type QueryId } from "kysely";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { D1Adapter, RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
+import { runMigrations } from "../../src/database/migrations/runner.js";
+import type { Database } from "../../src/database/types.js";
+import { activateMediaUsageCapture } from "../../src/media/usage/activation.js";
+import {
+	buildSeedCollectionCaptureFingerprint,
+	SchemaRegistry,
+} from "../../src/schema/registry.js";
+import { applySeed } from "../../src/seed/apply.js";
+import type { SeedFile } from "../../src/seed/types.js";
+import { resetD1Schema } from "./d1-schema.js";
+
+declare module "cloudflare:test" {
+	interface ProvidedEnv {
+		DB: D1Database;
+	}
+}
+
+let db: Kysely<Database>;
+
+beforeAll(() => {
+	db = new Kysely<Database>({ dialect: new RawBindingD1Dialect({ database: env.DB }) });
+});
+
+beforeEach(async () => {
+	await resetD1Schema(db);
+	await runMigrations(db);
+});
+
+afterAll(async () => {
+	await db.destroy();
+});
+
+const menusSeed: SeedFile = {
+	version: "1",
+	menus: [
+		{
+			id: "primary-en",
+			name: "primary",
+			label: "Primary",
+			locale: "en",
+			items: [
+				{ id: "home-en", type: "custom", label: "Home", url: "/" },
+				{
+					id: "products-en",
+					type: "custom",
+					label: "Products",
+					url: "/products",
+					children: [{ id: "all-en", type: "custom", label: "All", url: "/products/all" }],
+				},
+			],
+		},
+		{
+			id: "primary-fr",
+			name: "primary",
+			label: "Principal",
+			locale: "fr",
+			translationOf: "primary-en",
+			items: [
+				{ id: "home-fr", type: "custom", label: "Accueil", url: "/fr" },
+				{
+					id: "products-fr",
+					type: "custom",
+					label: "Produits",
+					url: "/fr/products",
+					translationOf: "products-en",
+					children: [
+						{
+							id: "all-fr",
+							type: "custom",
+							label: "Tous",
+							url: "/fr/products/all",
+							translationOf: "all-en",
+						},
+					],
+				},
+			],
+		},
+	],
+};
+
+describe("applySeed menus on D1", () => {
+	it("allows concurrent creation of the same menus", async () => {
+		await Promise.all([applySeed(db, menusSeed), applySeed(db, menusSeed)]);
+		expect(await db.selectFrom("_emdash_menus").select("id").execute()).toHaveLength(2);
+		expect(await db.selectFrom("_emdash_menu_items").select("id").execute()).toHaveLength(6);
+	});
+
+	it("does not duplicate nested items when two applications overlap", async () => {
+		const adapter = db.getExecutor().adapter;
+		if (!(adapter instanceof D1Adapter)) throw new Error("Expected D1 adapter");
+		const executeAtomicBatch = adapter.executeAtomicBatch.bind(adapter);
+		const firstBatch = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		const itemInsertQueries = new Set<QueryId>();
+		let pausedInsert = false;
+		const firstDb = db.withPlugin({
+			transformQuery(args) {
+				if (
+					args.node.kind === "InsertQueryNode" &&
+					args.node.into?.table.identifier.name === "_emdash_menu_items"
+				) {
+					itemInsertQueries.add(args.queryId);
+				}
+				return args.node;
+			},
+			async transformResult(args) {
+				if (itemInsertQueries.has(args.queryId) && !pausedInsert) {
+					pausedInsert = true;
+					firstBatch.resolve();
+					await release.promise;
+				}
+				return args.result;
+			},
+		});
+		let batches = 0;
+		const spy = vi.spyOn(adapter, "executeAtomicBatch").mockImplementation(async (queries) => {
+			if (++batches === 1) {
+				firstBatch.resolve();
+				await release.promise;
+			}
+			return executeAtomicBatch(queries);
+		});
+		try {
+			const firstApply = applySeed(firstDb, menusSeed);
+			await Promise.race([firstBatch.promise, firstApply]);
+			try {
+				await applySeed(db, menusSeed);
+			} finally {
+				release.resolve();
+				await firstApply;
+			}
+		} finally {
+			spy.mockRestore();
+		}
+
+		const items = await db
+			.selectFrom("_emdash_menu_items")
+			.innerJoin("_emdash_menus", "_emdash_menus.id", "_emdash_menu_items.menu_id")
+			.select([
+				"_emdash_menus.locale",
+				"_emdash_menu_items.id",
+				"_emdash_menu_items.label",
+				"_emdash_menu_items.parent_id",
+				"_emdash_menu_items.translation_group",
+			])
+			.orderBy("_emdash_menus.locale")
+			.orderBy("_emdash_menu_items.label")
+			.execute();
+		expect(items).toHaveLength(6);
+		expect(items.map(({ locale, label }) => [locale, label])).toEqual([
+			["en", "All"],
+			["en", "Home"],
+			["en", "Products"],
+			["fr", "Accueil"],
+			["fr", "Produits"],
+			["fr", "Tous"],
+		]);
+		expect(items[0]?.parent_id).toBe(items[2]?.id);
+		expect(items[5]?.parent_id).toBe(items[4]?.id);
+		expect(items[2]?.translation_group).toBe(items[4]?.translation_group);
+		expect(items[0]?.translation_group).toBe(items[5]?.translation_group);
+	});
+
+	it("replaces items across parameter-limited inserts and clears an empty menu", async () => {
+		const seed: SeedFile = {
+			version: "1",
+			menus: [
+				{
+					name: "large",
+					label: "Large",
+					items: Array.from({ length: 13 }, (_, i) => ({
+						type: "custom" as const,
+						label: `Item ${i}`,
+						url: `/${i}`,
+						children: [{ type: "custom" as const, label: `Child ${i}`, url: `/${i}/child` }],
+					})),
+				},
+			],
+		};
+		await applySeed(db, seed);
+		await applySeed(db, seed);
+		const items = await db.selectFrom("_emdash_menu_items").select(["id", "parent_id"]).execute();
+		expect(items).toHaveLength(26);
+		const ids = new Set(items.map((item) => item.id));
+		for (const item of items) {
+			if (item.parent_id) expect(ids.has(item.parent_id)).toBe(true);
+		}
+		await applySeed(db, { version: "1", menus: [{ name: "large", label: "Large", items: [] }] });
+		expect(await db.selectFrom("_emdash_menu_items").select("id").execute()).toEqual([]);
+	});
+
+	it("retains existing items when an atomic replacement fails", async () => {
+		const seed: SeedFile = {
+			version: "1",
+			menus: [
+				{
+					name: "primary",
+					label: "Primary",
+					items: [{ type: "custom", label: "Original", url: "/" }],
+				},
+			],
+		};
+		await applySeed(db, seed);
+		await sql`
+			CREATE TRIGGER fail_seed_menu_item
+			BEFORE INSERT ON _emdash_menu_items
+			WHEN NEW.label = 'Fail'
+			BEGIN SELECT RAISE(ABORT, 'seed menu item rejected'); END
+		`.execute(db);
+
+		const replacement: SeedFile = {
+			version: "1",
+			menus: [
+				{
+					name: "primary",
+					label: "Primary",
+					items: [{ type: "custom", label: "Fail", url: "/fail" }],
+				},
+			],
+		};
+		await expect(applySeed(db, replacement)).rejects.toThrow("seed menu item rejected");
+		expect(await db.selectFrom("_emdash_menu_items").select("label").execute()).toEqual([
+			{ label: "Original" },
+		]);
+	});
+});
+
+describe("interrupted collection seed on D1", () => {
+	it("recovers the orphaned table and preserves its collection id", async () => {
+		await activateMediaUsageCapture(db, { writersDrained: true });
+		const seed: SeedFile = {
+			version: "1",
+			collections: [
+				{
+					slug: "routes",
+					label: "Routes",
+					supports: [],
+					fields: [{ slug: "title", label: "Title", type: "string" }],
+				},
+			],
+		};
+		await applySeed(db, seed);
+		const registry = new SchemaRegistry(db);
+		const original = await registry.getCollection("routes");
+		if (!original) throw new Error("Expected seeded collection");
+		await db.deleteFrom("_emdash_fields").where("collection_id", "=", original.id).execute();
+		await db.deleteFrom("_emdash_collections").where("id", "=", original.id).execute();
+		const fingerprint = await buildSeedCollectionCaptureFingerprint(
+			{ slug: "routes", label: "Routes", supports: [] },
+			[{ slug: "title", label: "Title", type: "string" }],
+		);
+		await db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "installing", cursor: fingerprint })
+			.where("collection_id", "=", original.id)
+			.execute();
+
+		await applySeed(db, seed);
+		const recovered = await registry.getCollectionWithFields("routes");
+		expect(recovered?.id).toBe(original.id);
+		expect(recovered?.fields.map((field) => field.slug)).toEqual(["title"]);
+		expect(
+			await db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select("capture_state")
+				.where("collection_id", "=", original.id)
+				.executeTakeFirstOrThrow(),
+		).toEqual({ capture_state: "active" });
+	});
+});

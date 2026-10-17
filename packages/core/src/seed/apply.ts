@@ -7,6 +7,7 @@
 
 import { imageSize } from "image-size";
 import type {
+	Insertable,
 	Kysely,
 	KyselyPlugin,
 	PluginTransformQueryArgs,
@@ -22,6 +23,7 @@ import { setReferenceSelection } from "../api/handlers/relations.js";
 import { bindReferenceField, createFieldRelation } from "../api/handlers/schema.js";
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import type { DatetimeContextCache } from "../database/content-datetime.js";
+import { executeAtomicBatchIfSupported, isPostgres } from "../database/dialect-helpers.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -35,7 +37,7 @@ import {
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { ContentItem } from "../database/repositories/types.js";
 import { withTransaction } from "../database/transaction.js";
-import type { Database } from "../database/types.js";
+import type { Database, MenuItemTable } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
@@ -66,6 +68,9 @@ import type {
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+// Each menu item binds 15 columns; six rows stay below D1's 100-parameter limit.
+const SEED_MENU_ITEM_INSERT_BATCH_SIZE = 6;
 
 async function applySiteSettings(
 	db: Kysely<Database>,
@@ -1087,6 +1092,8 @@ async function applySeedWrites(
 		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		// Shared across menus: translated items reference anchor items in sibling menus.
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
+		const menuIds: string[] = [];
+		const itemRows: Insertable<MenuItemTable>[] = [];
 
 		try {
 			for (const menu of seed.menus) {
@@ -1104,8 +1111,6 @@ async function applySeedWrites(
 				if (existingMenu) {
 					menuId = existingMenu.id;
 					translationGroup = existingMenu.translation_group ?? existingMenu.id;
-					// Clear existing items (menus are recreated)
-					await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
 				} else {
 					menuId = ulid();
 					// Resolve translationOf to the source menu's translation_group.
@@ -1118,7 +1123,7 @@ async function applySeedWrites(
 								`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
 							);
 					}
-					await db
+					const inserted = await db
 						.insertInto("_emdash_menus")
 						.values({
 							id: menuId,
@@ -1129,15 +1134,24 @@ async function applySeedWrites(
 							locale,
 							translation_group: translationGroup,
 						})
-						.execute();
-					result.menus.created++;
+						.onConflict((conflict) => conflict.columns(["name", "locale"]).doNothing())
+						.returning("id")
+						.executeTakeFirst();
+					if (inserted) {
+						result.menus.created++;
+					} else {
+						const concurrentMenu = await lookup.executeTakeFirstOrThrow();
+						menuId = concurrentMenu.id;
+						translationGroup = concurrentMenu.translation_group ?? concurrentMenu.id;
+					}
 				}
 
 				if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
 
 				// Create menu items
-				const itemCount = await applyMenuItems(
-					db,
+				menuIds.push(menuId);
+				const itemCount = collectMenuItems(
+					itemRows,
 					menuId,
 					locale,
 					menu.items,
@@ -1147,6 +1161,34 @@ async function applySeedWrites(
 					itemSeedIdMap,
 				);
 				result.menus.items += itemCount;
+			}
+
+			// Keep translated menus in the same replacement: their items share
+			// translation groups minted while collecting the rows.
+			const buildStatements = (target: Kysely<Database>) => [
+				...menuIds.map((id) => target.deleteFrom("_emdash_menu_items").where("menu_id", "=", id)),
+				...chunks(itemRows, SEED_MENU_ITEM_INSERT_BATCH_SIZE).map((rows) =>
+					target.insertInto("_emdash_menu_items").values(rows),
+				),
+			];
+			if (menuIds.length > 0) {
+				const batched = await executeAtomicBatchIfSupported(db, buildStatements(db));
+				if (batched === null) {
+					await withTransaction(db, async (trx) => {
+						if (isPostgres(trx)) {
+							await trx
+								.selectFrom("_emdash_menus")
+								.select("id")
+								.where("id", "in", menuIds)
+								.orderBy("id")
+								.forUpdate()
+								.execute();
+						}
+						for (const statement of buildStatements(trx)) {
+							await statement.execute();
+						}
+					});
+				}
 			}
 		} finally {
 			invalidateMenuObjectCache();
@@ -2030,8 +2072,8 @@ async function applyContentTaxonomies(
  * survive export → apply. Items without `translationOf` get a fresh group
  * (= their own id).
  */
-async function applyMenuItems(
-	db: Kysely<Database>,
+function collectMenuItems(
+	rows: Insertable<MenuItemTable>[],
 	menuId: string,
 	locale: string,
 	items: SeedMenuItem[],
@@ -2039,7 +2081,7 @@ async function applyMenuItems(
 	startOrder: number,
 	seedIdMap: Map<string, string>,
 	itemSeedIdMap: Map<string, { id: string; translationGroup: string }>,
-): Promise<number> {
+): number {
 	let count = 0;
 	let order = startOrder;
 
@@ -2077,26 +2119,23 @@ async function applyMenuItems(
 				);
 		}
 
-		await db
-			.insertInto("_emdash_menu_items")
-			.values({
-				id: itemId,
-				menu_id: menuId,
-				parent_id: parentId,
-				sort_order: order,
-				type: item.type,
-				reference_collection: referenceCollection,
-				reference_id: referenceId,
-				custom_url: item.url ?? null,
-				label: item.label || "",
-				title_attr: item.titleAttr ?? null,
-				target: item.target ?? null,
-				css_classes: item.cssClasses ?? null,
-				created_at: new Date().toISOString(),
-				locale: itemLocale,
-				translation_group: translationGroup,
-			})
-			.execute();
+		rows.push({
+			id: itemId,
+			menu_id: menuId,
+			parent_id: parentId,
+			sort_order: order,
+			type: item.type,
+			reference_collection: referenceCollection,
+			reference_id: referenceId,
+			custom_url: item.url ?? null,
+			label: item.label || "",
+			title_attr: item.titleAttr ?? null,
+			target: item.target ?? null,
+			css_classes: item.cssClasses ?? null,
+			created_at: new Date().toISOString(),
+			locale: itemLocale,
+			translation_group: translationGroup,
+		});
 
 		if (item.id) itemSeedIdMap.set(item.id, { id: itemId, translationGroup });
 
@@ -2104,8 +2143,8 @@ async function applyMenuItems(
 		order++;
 
 		if (item.children && item.children.length > 0) {
-			const childCount = await applyMenuItems(
-				db,
+			const childCount = collectMenuItems(
+				rows,
 				menuId,
 				itemLocale,
 				item.children,
