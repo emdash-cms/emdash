@@ -1,0 +1,159 @@
+---
+/**
+ * The trail back to the catalog. The last item is the current page. On phones
+ * only the parent shows, as a back link.
+ */
+export interface Crumb {
+	label: string;
+	href?: string;
+}
+
+interface Props {
+	items: Crumb[];
+}
+
+const { items } = Astro.props;
+const parentIndex = items.length - 2;
+---
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+	<ol class="breadcrumbs-list">
+		{
+			items.map((item, index) => {
+				const current = index === items.length - 1;
+				return (
+					<li
+						class:list={[
+							"breadcrumbs-item",
+							{ "is-parent": index === parentIndex, "is-current": current },
+						]}
+					>
+						{current || !item.href ? (
+							<span aria-current={current ? "page" : undefined} dir="auto">
+								{item.label}
+							</span>
+						) : (
+							<a href={item.href} dir="auto" data-astro-prefetch>
+								{index === parentIndex && (
+									<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+										<path d="m14.5 6-6 6 6 6" />
+									</svg>
+								)}
+								{item.label}
+							</a>
+						)}
+					</li>
+				);
+			})
+		}
+	</ol>
+</nav>
+
+<style>
+	.breadcrumbs {
+		min-width: 0;
+		font-size: 14px;
+		line-height: 1.4;
+	}
+
+	.breadcrumbs-list {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.breadcrumbs-item {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+		flex: none;
+		color: var(--muted);
+	}
+
+	.breadcrumbs-item + .breadcrumbs-item::before {
+		margin-inline: 8px;
+		color: var(--subtle);
+		content: "/";
+	}
+
+	.breadcrumbs-item.is-current {
+		flex: 0 1 auto;
+		overflow: hidden;
+		color: var(--ink);
+		font-weight: 500;
+	}
+
+	.breadcrumbs-item.is-parent {
+		flex: 0 1 auto;
+		min-width: 3rem;
+	}
+
+	.breadcrumbs-item span,
+	.breadcrumbs-item a {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.breadcrumbs-item a {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		color: inherit;
+		text-decoration: none;
+		border-radius: var(--radius-xs);
+		transition: color 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.breadcrumbs-item a:hover {
+			color: var(--ink);
+		}
+	}
+
+	.breadcrumbs-item svg {
+		display: none;
+		width: 16px;
+		height: 16px;
+		flex: none;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.breadcrumbs-item svg:dir(rtl) {
+		transform: scaleX(-1);
+	}
+
+	@media (max-width: 639.98px) {
+		.breadcrumbs-item:not(.is-parent) {
+			display: none;
+		}
+
+		.breadcrumbs-item.is-parent::before {
+			display: none;
+		}
+
+		.breadcrumbs-item svg {
+			display: block;
+		}
+
+		/* The back link is the only crumb here; give it a 40px touch target. */
+		.breadcrumbs-item.is-parent a {
+			padding-block: 10px;
+			margin-block: -10px;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.breadcrumbs-item a {
+			transition: none;
+		}
+	}
+</style>
