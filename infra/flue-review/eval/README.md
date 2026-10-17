@@ -16,7 +16,7 @@ Without GitHub App credentials the workflow reviews the given head once. It fetc
 | `opus` | `anthropic/claude-opus-5-5`                | AI Gateway, Unified Billing                 |
 | `sol`  | `openai/gpt-6.1-sol`                       | AI Gateway, Unified Billing                 |
 
-The gateway models are not in the bundled Pi catalog, so Flue treats them as non-reasoning models with no pricing. Claude Opus 5.5 thinks adaptively when no thinking setting is sent, and GPT-6.1 Sol reasons at its default effort. Their responses are stored server-side so reasoning items can be replayed across tool turns. Both get the same 262,144-token context budget as Kimi, so compaction behaves the same. The runner prices usage from its own table, using the AI Gateway catalog rates.
+The gateway models are not in the bundled Pi catalog, so `review-model.ts` wraps the stock Anthropic and OpenAI Responses protocols with the AI Gateway catalog's metadata for them (reasoning, pricing, adaptive thinking for Opus). The agent's thinking level (`medium`) then reaches the request as adaptive thinking with `effort: medium` for Opus, and `reasoning.effort: medium` with encrypted reasoning carried across turns for Sol. Both get the same 262,144-token context budget as Kimi, so compaction behaves the same. The runner prices usage from its own table, using the AI Gateway catalog rates.
 
 ## Running
 
@@ -36,10 +36,11 @@ node eval/run.ts --models opus --cases 4150,4208 --gateway-env /path/to/.env
 | `--timeout-min` | `45`            | Per-run timeout.                                                             |
 | `--force`       | off             | Re-run cases that already have a completed result.                           |
 | `--variant`     | none            | `issue` or `issue+framing`: an eval-only review context variant (see below). |
+| `--label`       | none            | Extra result-file suffix, to keep repeat runs apart.                         |
 
 A failed run is retried once. Unauthenticated GitHub API calls are limited to 60 an hour per IP and each run spends two, so the runner waits for the allowance to reset when it runs low.
 
-Results go to `eval/results/<pr>-<model>.json`, or `<pr>-<model>-<variant>.json` (gitignored): the `ReviewResult`, status, wall time, workflow duration, token usage and estimated cost. Server logs go to `eval/results/logs/`.
+Results go to `eval/results/<pr>-<model>.json`, or `<pr>-<model>-<variant>.json` (gitignored): the `ReviewResult`, status, wall time, workflow duration, token usage and estimated cost. Server logs go to `eval/results/logs/`, and each run's Flue event stream to `eval/results/events/`.
 
 ## Cases and grading
 

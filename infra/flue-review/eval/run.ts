@@ -18,7 +18,7 @@ import {
 	symlinkSync,
 	writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
 
@@ -59,6 +59,7 @@ const MODELS: readonly ModelSpec[] = [
 ];
 
 const SHA = /^[0-9a-f]{40}$/;
+const LABEL = /^[a-z0-9-]+$/;
 const WORKER_NAME = /"name":\s*"emdash-flue-review"/;
 const REQUIRED_SECRETS = /"required":\s*\[[^\]]*\]/;
 
@@ -167,18 +168,22 @@ const { values: args } = parseArgs({
 		force: { type: "boolean", default: false },
 		"timeout-min": { type: "string", default: "45" },
 		variant: { type: "string" },
+		label: { type: "string" },
 	},
 });
 
 const variant = v.parse(v.optional(v.picklist(VARIANTS)), args.variant);
 
+const label = v.parse(v.optional(v.pipe(v.string(), v.regex(LABEL))), args.label);
+const resultSuffix = [variant, label].filter(Boolean).join("-");
+
 // Scratch directories, Worker names and logs need a name without "+".
 function runKey(spec: ModelSpec): string {
-	return variant ? `${spec.key}-${variant.replace("+", "-")}` : spec.key;
+	return resultSuffix ? `${spec.key}-${resultSuffix.replace("+", "-")}` : spec.key;
 }
 
 function resultPath(pr: number, spec: ModelSpec): string {
-	return join(RESULTS_DIR, `${pr}-${spec.key}${variant ? `-${variant}` : ""}.json`);
+	return join(RESULTS_DIR, `${pr}-${spec.key}${resultSuffix ? `-${resultSuffix}` : ""}.json`);
 }
 
 function log(message: string): void {
@@ -408,7 +413,8 @@ async function reserveGitHubCalls(calls: number): Promise<void> {
 	await turn;
 }
 
-async function readUsage(base: string, runId: string): Promise<Usage> {
+async function readUsage(base: string, runId: string, eventsPath: string): Promise<Usage> {
+	const raw: unknown[] = [];
 	const usage: Usage = {
 		input: 0,
 		output: 0,
@@ -422,7 +428,9 @@ async function readUsage(base: string, runId: string): Promise<Usage> {
 	for (let page = 0; page < 500; page++) {
 		const res = await fetch(`${base}/eval/runs/${runId}?offset=${encodeURIComponent(offset)}`);
 		if (!res.ok) throw new Error(`run events read failed: ${res.status}`);
-		const events = v.parse(eventsSchema, await res.json());
+		const eventPage = await res.json();
+		if (Array.isArray(eventPage)) raw.push(...eventPage);
+		const events = v.parse(eventsSchema, eventPage);
 		for (const event of events) {
 			const counted =
 				event.type === "turn"
@@ -444,6 +452,8 @@ async function readUsage(base: string, runId: string): Promise<Usage> {
 		if (res.headers.get("stream-up-to-date") === "true" || !next || next === offset) break;
 		offset = next;
 	}
+	mkdirSync(dirname(eventsPath), { recursive: true });
+	writeFileSync(eventsPath, JSON.stringify(raw));
 	return usage;
 }
 
@@ -516,7 +526,11 @@ async function runOnce(
 		outcome.result = record.result;
 		outcome.error = record.error;
 		try {
-			outcome.usage = await readUsage(base, admission.runId);
+			outcome.usage = await readUsage(
+				base,
+				admission.runId,
+				join(RESULTS_DIR, "events", basename(resultPath(payload.prNumber, spec))),
+			);
 			outcome.costUsd = cost(spec, outcome.usage);
 		} catch (error) {
 			log(`${runKey(spec)} #${payload.prNumber}: usage unavailable: ${String(error)}`);

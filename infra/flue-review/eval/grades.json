@@ -518,5 +518,49 @@
 				"note": "K11; fully populated older values skip caption enrichment (valid)"
 			}
 		}
+	},
+	"issue+framing-reasoning-r1": {
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6 with the seed source and a migration or changeset fix; comment"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6; request_changes"
+			}
+		}
+	},
+	"issue+framing-reasoning": {
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "approved; repeated \"no migration is needed\""
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6, including code- and path-stamped rows coexisting; request_changes"
+			}
+		}
 	}
 }

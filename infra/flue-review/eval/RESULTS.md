@@ -96,3 +96,20 @@ One run per case. The variants ran with eight reviews at a time, so their times 
 - No variant introduced a false claim.
 
 With the framing and the linked issue in the context, Opus is the strongest reviewer measured here: 7.5 of 16 against Kimi's 1.5 on the same five PRs in the baseline, at a fraction of Kimi's time. These are single runs on five PRs, so the next step is repeat runs, and the clean and human PRs under the framing variant, to check that the framing does not raise false alarms there before it reaches production.
+
+## Reasoning settings
+
+The runs above predate a fix: the bundled catalog does not know Claude Opus 5.5 or GPT-6.1 Sol, so Flue built them as non-reasoning models and sent no thinking or reasoning settings. Opus 5.5 still thinks adaptively at its default `medium` effort when the setting is absent, and Sol reasons at its default, so the effect was mainly that thinking was not summarized and Sol's reasoning was not carried across turns. `review-model.ts` now restores the catalog metadata, so the agent's `medium` thinking level is sent: `thinking: { type: "adaptive" }` with `output_config.effort: "medium"` for Opus, and `reasoning: { effort: "medium" }` with `include: ["reasoning.encrypted_content"]` for Sol (asserted in `test/review-model.test.ts`). In a live run, every turn reported `reasoningLevel: "medium"`. Opus returned 13 summarized thinking blocks and 4,309 reasoning tokens, and Sol 11 reasoning summaries and 1,190 reasoning tokens.
+
+PR 4224 with issue+framing, reasoning on, two runs each, against the earlier run without reasoning settings (K6, K7, K14; 3 points):
+
+| Run                         | Key items   | Verdict           | False claims | Tool calls | Tokens (output, reasoning) | Time  | Cost  |
+| --------------------------- | ----------- | ----------------- | ------------ | ---------- | -------------------------- | ----- | ----- |
+| Opus, no reasoning settings | K6, K14 (2) | comment ✓         | 0            | 17         | 0.68M (8.6k, not recorded) | 137 s | $0.56 |
+| Opus, reasoning, run 1      | K6 (1)      | comment ✓         | 0            | 17         | 0.68M (8.8k, not recorded) | 127 s | $0.57 |
+| Opus, reasoning, run 2      | none (0)    | approve ✗         | 0            | 15         | 0.59M (8.7k, 4.3k)         | 117 s | $0.43 |
+| Sol, no reasoning settings  | K6 (1)      | request_changes ✓ | 0            | 18         | 1.29M (3.6k, not recorded) | 126 s | $0.44 |
+| Sol, reasoning, run 1       | K6 (1)      | request_changes ✓ | 0            | 17         | 1.23M (3.5k, not recorded) | 134 s | $0.44 |
+| Sol, reasoning, run 2       | K6 (1)      | request_changes ✓ | 0            | 16         | 1.23M (3.5k, 1.2k)         | 120 s | $0.47 |
+
+Output tokens, tool calls and cost barely moved, which fits both models already reasoning at medium effort. Sol was consistent across all three runs. Opus varied from 2 key items to an approval on the same inputs, so single runs of Opus are noisy, and the variant comparison above needs repeat runs before it is trusted. Reasoning tokens were recorded only once the runner began saving event streams.
