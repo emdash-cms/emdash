@@ -72,10 +72,8 @@ describe("pull request webhook gate", () => {
 		});
 	});
 
-	it("automatically reviews emdashbot PRs", () => {
-		expect(gatePullRequestEvent(event("opened", "emdashbot[bot]"))).toMatchObject({
-			review: true,
-		});
+	it.each(["emdashbot[bot]", "emdash-autofix[bot]"])("automatically reviews %s PRs", (author) => {
+		expect(gatePullRequestEvent(event("opened", author))).toMatchObject({ review: true });
 	});
 
 	it("honors a bot:review label on any bot PR", () => {

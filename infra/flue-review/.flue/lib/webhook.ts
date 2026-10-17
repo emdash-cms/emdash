@@ -81,10 +81,14 @@ interface PullRequestEvent {
 	repository?: { name?: string; owner?: { login?: string } };
 }
 
+/** Bot authors whose PRs are reviewed without a `bot:review` label. */
+const REVIEWED_BOT_AUTHORS: ReadonlySet<string> = new Set(["emdashbot[bot]", "emdash-autofix[bot]"]);
+
 /**
  * Decide whether a `pull_request` webhook should trigger a review, and extract
  * the fields the workflow needs. Skips drafts and unsolicited bot-authored PRs,
- * except for emdashbot's PRs, which always need review.
+ * except for PRs from bots that write code for review (emdashbot and
+ * emdash-autofix), which always need review.
  */
 export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 	const pr = event.pull_request;
@@ -100,7 +104,7 @@ export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 	}
 
 	const author = pr.user?.login ?? "";
-	if (!isManual && author.endsWith("[bot]") && author !== "emdashbot[bot]") {
+	if (!isManual && author.endsWith("[bot]") && !REVIEWED_BOT_AUTHORS.has(author)) {
 		return { review: false, reason: `author "${author}" is a bot` };
 	}
 
