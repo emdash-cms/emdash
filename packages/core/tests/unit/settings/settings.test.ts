@@ -7,6 +7,7 @@ import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
 import { createObjectCache } from "../../../src/object-cache/memory.js";
 import { encryptPluginSetting } from "../../../src/plugins/settings.js";
@@ -520,7 +521,8 @@ describe("Site Settings caching", () => {
 		invalidateSiteSettingsCache();
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
+		await waitForDeferredTasks();
 		__setObjectCacheBackendForTests(null);
 		vi.restoreAllMocks();
 	});
@@ -543,16 +545,70 @@ describe("Site Settings caching", () => {
 		clock.mockReturnValue(now + 30_000);
 		const refreshed = await Promise.all([read(), read(), read()]);
 		expect(refreshed.map((settings) => settings.seo?.googleVerification)).toEqual([
-			"new",
-			"new",
-			"new",
+			"old",
+			"old",
+			"old",
 		]);
+		await waitForDeferredTasks();
+		expect((await read()).seo?.googleVerification).toBe("new");
 		expect(queries.filter((q) => q.includes("LIKE") && q.includes("options"))).toHaveLength(1);
 
 		reset();
 		clock.mockReturnValue(now + 59_999);
 		expect((await read()).seo?.googleVerification).toBe("new");
 		expect(queries).toEqual([]);
+	});
+
+	it("serves stale settings while revalidating and fences an invalidated reload", async () => {
+		const { db } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		await setSiteSettings({ title: "Old" }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).title).toBe("Old");
+
+		await new OptionsRepository(db).set("site:title", "Remote");
+
+		let releaseReload!: () => void;
+		const reloadGate = new Promise<void>((resolve) => {
+			releaseReload = resolve;
+		});
+		let reloadReached!: () => void;
+		const reloadStarted = new Promise<void>((resolve) => {
+			reloadReached = resolve;
+		});
+		const originalGetVersionedByPrefix = OptionsRepository.prototype.getVersionedByPrefix;
+		let calls = 0;
+		vi.spyOn(OptionsRepository.prototype, "getVersionedByPrefix").mockImplementation(
+			async function (this: OptionsRepository, prefix, options) {
+				const result = await originalGetVersionedByPrefix.call(this, prefix, options);
+				calls++;
+				if (calls === 1) {
+					reloadReached();
+					await reloadGate;
+				}
+				return result;
+			},
+		);
+
+		try {
+			clock.mockReturnValue(now + 30_000);
+			expect((await read()).title).toBe("Old");
+			await reloadStarted;
+
+			const warmReads = await Promise.all([read(), read(), read()]);
+			expect(warmReads.map((settings) => settings.title)).toEqual(["Old", "Old", "Old"]);
+			expect(calls).toBe(1);
+
+			await setSiteSettings({ title: "Local" }, db);
+			expect((await read()).title).toBe("Local");
+
+			releaseReload();
+			await waitForDeferredTasks();
+			expect((await read()).title).toBe("Local");
+		} finally {
+			releaseReload();
+		}
 	});
 
 	it("renews the isolate TTL on object-cache hits without repeated backend reads", async () => {
@@ -575,6 +631,7 @@ describe("Site Settings caching", () => {
 		backendReads.mockClear();
 		clock.mockReturnValue(now + 30_000);
 		expect((await read()).title).toBe("Cached Site");
+		await waitForDeferredTasks();
 		expect(backendReads).toHaveBeenCalled();
 		expect(queries).toEqual([]);
 
@@ -588,31 +645,39 @@ describe("Site Settings caching", () => {
 
 		clock.mockReturnValue(now + 60_000);
 		expect((await read()).title).toBe("Cached Site");
+		await waitForDeferredTasks();
 		expect(backendReads).toHaveBeenCalled();
 		expect(queries).toEqual([]);
 	});
 
-	it.each([false, true])(
-		"reads live settings for route-cache fills (object cache: %s)",
-		async (objectCache) => {
-			if (objectCache) {
-				__setObjectCacheBackendForTests(createObjectCache({}), { keyPrefix: "settings-fill-test" });
-			}
-			const { db } = await setupCountingDb();
-			await setSiteSettings({ seo: { googleVerification: "old" } }, db);
-			const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
-			expect((await read()).seo?.googleVerification).toBe("old");
-			await new Promise((resolve) => setTimeout(resolve, 0));
+	it("keeps the last good settings after a failed background reload and retries later", async () => {
+		const { db } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+		await setSiteSettings({ title: "Last good" }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).title).toBe("Last good");
 
-			await new OptionsRepository(db).set("site:seo", { googleVerification: "new" });
-			await runWithContext({ editMode: false, db, routeCacheFill: true }, async () => {
-				expect((await getSiteSettings()).seo?.googleVerification).toBe("new");
-				expect((await getSiteSetting("seo"))?.googleVerification).toBe("new");
-			});
-
-			expect((await read()).seo?.googleVerification).toBe("old");
-		},
-	);
+		await db.schema.alterTable("options").renameTo("unavailable_options").execute();
+		try {
+			clock.mockReturnValue(now + 30_000);
+			expect((await read()).title).toBe("Last good");
+			await waitForDeferredTasks();
+			expect(errorLog).toHaveBeenCalledWith(
+				"[emdash:settings] revalidating site settings failed:",
+				expect.any(Error),
+			);
+			expect((await read()).title).toBe("Last good");
+		} finally {
+			await db.schema.alterTable("unavailable_options").renameTo("options").execute();
+		}
+		await new OptionsRepository(db).set("site:title", "Recovered");
+		clock.mockReturnValue(now + 60_000);
+		expect((await read()).title).toBe("Last good");
+		await waitForDeferredTasks();
+		expect((await read()).title).toBe("Recovered");
+	});
 
 	it("getSiteSetting() does not hit the DB after getSiteSettings() in the same request", async () => {
 		const { db, queries, reset } = await setupCountingDb();
