@@ -547,6 +547,7 @@ export function access(config: AccessConfig): AuthDescriptor {
  * Returns the module path for the Cloudflare sandbox runner when the project's
  * Wrangler config includes the `LOADER` Worker Loader binding. Without that
  * paid-plan binding, sandboxed plugins are disabled at build time.
+ * Requires `wrangler` to be installed; other config helpers do not need it.
  *
  * @example
  * ```ts

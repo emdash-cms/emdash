@@ -1,31 +1,44 @@
-import { describe, expect, it, vi } from "vitest";
+import { execFileSync } from "node:child_process";
+import { cpSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-vi.mock("wrangler", () => {
-	throw new Error("wrangler was loaded during root-entry import");
-});
+import { expect, it } from "vitest";
 
-import { d1, kvCache, r2 } from "../src/index.js";
+it("loads the published config descriptors without Wrangler installed", () => {
+	const dir = mkdtempSync(join(tmpdir(), "emdash-no-wrangler-"));
+	const packageDir = join(dir, "node_modules/@emdash-cms/cloudflare");
 
-describe("root entry without wrangler", () => {
-	it("imports successfully even when wrangler is not available", () => {
-		expect(d1).toBeTypeOf("function");
-		expect(r2).toBeTypeOf("function");
-		expect(kvCache).toBeTypeOf("function");
-	});
+	try {
+		mkdirSync(packageDir, { recursive: true });
+		cpSync(new URL("../package.json", import.meta.url), join(packageDir, "package.json"));
+		cpSync(new URL("../dist", import.meta.url), join(packageDir, "dist"), { recursive: true });
 
-	it("d1() returns a descriptor without loading wrangler", () => {
-		const descriptor = d1({ binding: "DB" });
-		expect(descriptor.entrypoint).toBe("@emdash-cms/cloudflare/db/d1");
-		expect(descriptor.type).toBe("sqlite");
-	});
+		const output = execFileSync(
+			process.execPath,
+			[
+				"--input-type=module",
+				"--eval",
+				`
+					import assert from "node:assert/strict";
+					import { createRequire } from "node:module";
 
-	it("r2() returns a descriptor without loading wrangler", () => {
-		const descriptor = r2({ binding: "MEDIA" });
-		expect(descriptor.entrypoint).toBe("@emdash-cms/cloudflare/storage/r2");
-	});
+					const require = createRequire(import.meta.url);
+					assert.throws(() => require.resolve("wrangler"), { code: "MODULE_NOT_FOUND" });
 
-	it("kvCache() returns a descriptor without loading wrangler", () => {
-		const descriptor = kvCache({ binding: "CACHE" });
-		expect(descriptor.entrypoint).toBe("@emdash-cms/cloudflare/cache/kv");
-	});
+					const { d1, r2, kvCache, sandbox } = await import("@emdash-cms/cloudflare");
+					assert.equal(d1({ binding: "DB" }).entrypoint, "@emdash-cms/cloudflare/db/d1");
+					assert.equal(r2({ binding: "MEDIA" }).entrypoint, "@emdash-cms/cloudflare/storage/r2");
+					assert.equal(kvCache({ binding: "CACHE" }).entrypoint, "@emdash-cms/cloudflare/cache/kv");
+					assert.throws(() => sandbox(), { code: "MODULE_NOT_FOUND" });
+					console.log("Descriptors loaded without Wrangler");
+				`,
+			],
+			{ cwd: dir, encoding: "utf8", env: { ...process.env, NODE_PATH: "" } },
+		);
+
+		expect(output.trim()).toBe("Descriptors loaded without Wrangler");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 });

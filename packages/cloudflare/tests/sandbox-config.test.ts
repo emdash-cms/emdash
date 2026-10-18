@@ -18,11 +18,13 @@ describe("sandbox", () => {
 	}
 
 	beforeEach(() => {
-		vi.unstubAllEnvs();
+		vi.stubEnv("CLOUDFLARE_ENV", undefined);
 	});
 
 	afterEach(() => {
 		process.chdir(originalCwd);
+		vi.unstubAllEnvs();
+		vi.restoreAllMocks();
 	});
 
 	afterAll(() => {
