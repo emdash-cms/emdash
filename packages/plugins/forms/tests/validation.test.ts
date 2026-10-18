@@ -67,9 +67,7 @@ describe("validateSubmission checkbox", () => {
 	it("rejects a required checkbox that is not submitted", () => {
 		const result = validateSubmission([singleCheckboxField(true)], {});
 		expect(result.valid).toBe(false);
-		expect(result.errors).toEqual([
-			{ field: "agree", message: "I agree is required" },
-		]);
+		expect(result.errors).toEqual([{ field: "agree", message: "I agree is required" }]);
 	});
 });
 
