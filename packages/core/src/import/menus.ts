@@ -11,6 +11,7 @@ import type { WxrNavMenu, WxrNavMenuItem } from "../cli/wxr/parser.js";
 import type { Database } from "../database/types.js";
 import type { MenuItemType } from "../menus/types.js";
 import { invalidateMenuObjectCache } from "../object-cache/index.js";
+import { mapPostTypeToCollection } from "./utils.js";
 
 /**
  * Result of menu import operation
@@ -427,13 +428,5 @@ function mapPluginMenuItem(
  */
 function mapObjectToCollection(objectType: string | undefined | null): string {
 	if (!objectType) return "posts";
-
-	const mapping: Record<string, string> = {
-		post: "posts",
-		page: "pages",
-		product: "products",
-		portfolio: "portfolio",
-	};
-
-	return mapping[objectType] || objectType;
+	return mapPostTypeToCollection(objectType);
 }
