@@ -1,4 +1,9 @@
-import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import {
+	createExecutionContext,
+	runDurableObjectAlarm,
+	runInDurableObject,
+	waitOnExecutionContext,
+} from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -243,6 +248,34 @@ describe("Contributor link lifecycle", () => {
 		expect(api.roleCalls().filter((call) => call.method === "DELETE")).toHaveLength(1);
 	});
 
+	test("expires /unlink replay records after the full signature replay window", async () => {
+		const discordId = randomDiscordId();
+		const interactionId = crypto.randomUUID();
+		const interactionKey = `unlink:${interactionId}`;
+		const links = testEnv.CONTRIBUTOR_LINKS.getByName("global");
+		const startedAt = Date.now();
+
+		expect(await links.unlink(discordId, interactionId)).toEqual({ unlinked: false });
+		await runInDurableObject(links, async (_instance, state) => {
+			const replay = await state.storage.get<{
+				result: { unlinked: boolean };
+				expiresAt: number;
+			}>(interactionKey);
+			expect(replay?.result).toEqual({ unlinked: false });
+			expect(replay?.expiresAt).toBeGreaterThanOrEqual(startedAt + 10 * 60 * 1000);
+			await state.storage.put(interactionKey, {
+				result: { unlinked: false },
+				expiresAt: Date.now() - 1,
+			});
+			await state.storage.setAlarm(Date.now());
+		});
+
+		await runDurableObjectAlarm(links);
+		await runInDurableObject(links, async (_instance, state) => {
+			expect(await state.storage.get(interactionKey)).toBeUndefined();
+		});
+	});
+
 	test("does not accept an OAuth callback started before /unlink", async () => {
 		const githubId = randomGithubId();
 		const discordId = randomDiscordId();
@@ -411,6 +444,33 @@ describe("Contributor link lifecycle", () => {
 		expect(api.messages).toHaveLength(0);
 	});
 
+	test("restores the original role and link when the destination role grant fails", async () => {
+		const githubId = randomGithubId();
+		const oldDiscordId = randomDiscordId();
+		const newDiscordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		await storeLink(testEnv.KV, linkRecord(githubId, oldDiscordId));
+		const api = mockExternalApi(githubId);
+		api.roles.set(oldDiscordId, new Set([roleId]));
+		api.addRoleStatuses.set(newDiscordId, 503);
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		expect((await linkByCallback(githubId, newDiscordId)).status).toBe(502);
+
+		expect(api.roleCalls()).toEqual([
+			{ discordId: oldDiscordId, method: "DELETE" },
+			{ discordId: newDiscordId, method: "PUT" },
+			{ discordId: oldDiscordId, method: "PUT" },
+		]);
+		expect(api.roles.get(oldDiscordId)?.has(roleId)).toBe(true);
+		expect(api.roles.get(newDiscordId)?.has(roleId)).not.toBe(true);
+		expect(await linkButtonLabel(oldDiscordId)).toBe("Relink GitHub Account");
+		expect(await linkButtonLabel(newDiscordId)).toBe("Link GitHub Account");
+		expect(await testEnv.KV.get(`github:${githubId}`)).not.toBeNull();
+		expect(await testEnv.KV.get(`discord:${oldDiscordId}`)).not.toBeNull();
+		expect(api.messages).toHaveLength(0);
+	});
+
 	test("does not grant a role when the legacy link keys disagree", async () => {
 		const githubId = randomGithubId();
 		const oldDiscordId = randomDiscordId();
@@ -457,6 +517,7 @@ function mockExternalApi(githubId: number) {
 		roles,
 		messages,
 		addRoleStatus: 204,
+		addRoleStatuses: new Map<string, number>(),
 		removeRoleStatus: 204,
 		beforeMemberGet: undefined as ((discordId: string) => Promise<void>) | undefined,
 		roleCalls: () =>
@@ -492,7 +553,8 @@ function mockExternalApi(githubId: number) {
 				url,
 			);
 		if (roleMatch && method === "PUT") {
-			if (api.addRoleStatus >= 400) return new Response(null, { status: api.addRoleStatus });
+			const status = api.addRoleStatuses.get(roleMatch[1]!) ?? api.addRoleStatus;
+			if (status >= 400) return new Response(null, { status });
 			const memberRoles = roles.get(roleMatch[1]!) ?? new Set<string>();
 			memberRoles.add(roleId);
 			roles.set(roleMatch[1]!, memberRoles);
