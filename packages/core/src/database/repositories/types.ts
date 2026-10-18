@@ -43,6 +43,8 @@ export interface UpdateContentInput {
 	/** Revision author, separate from entry ownership. */
 	revisionAuthorId?: string | null;
 	primaryBylineId?: string | null;
+	/** `null` drops the entry's draft revision pointer. */
+	draftRevisionId?: null;
 }
 
 /** SEO fields for content items */

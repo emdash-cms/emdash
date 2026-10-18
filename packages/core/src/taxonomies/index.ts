@@ -12,6 +12,7 @@
 
 import { sql, type Kysely } from "kysely";
 
+import { after } from "../after.js";
 import { taxonomyTag } from "../cache/chrome-tags.js";
 import {
 	parseTaxonomyCollections,
@@ -40,6 +41,12 @@ import { peekRequestCache, requestCached, setRequestCacheEntry } from "../reques
 import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
+import {
+	createSingleFlightCache,
+	invalidateSingleFlightCache,
+	type SingleFlightCache,
+	singleFlightCached,
+} from "../utils/single-flight-cache.js";
 import { fetchVisibleTermCounts } from "./term-counts.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
@@ -148,7 +155,9 @@ export function invalidateTermCache(): void {
  *
  * Stored on globalThis behind a Symbol key (same pattern as
  * `settings/index.ts`) so the bundler duplicating this module across SSR
- * chunks can't produce two independent caches.
+ * chunks can't produce two independent caches. It holds the resolved rows
+ * behind a reclaimable single-flight lock, never an in-flight promise (see
+ * `utils/single-flight-cache.ts`).
  *
  * When the distributed object cache is configured, it is authoritative and this
  * fallback is bypassed so cross-isolate epoch invalidation cannot be undercut
@@ -159,21 +168,15 @@ export function invalidateTermCache(): void {
  * skip both reading and writing the global holder and fall back to the
  * per-request cache (same precedent as `getTaxonomyNames` / byline field defs).
  */
-interface TaxonomyDefsHolder {
-	version: number;
-	/** The rows and the version they were fetched at. */
-	cache: Map<"all", { version: number; promise: Promise<TaxonomyDef[]> }>;
-}
-
-const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs");
+const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs@2");
 const taxonomyDefsStore = globalThis as Record<symbol, unknown>;
-const defsHolder: TaxonomyDefsHolder =
+const defsCache: SingleFlightCache<TaxonomyDef[]> =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see settings/index.ts)
-	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as TaxonomyDefsHolder | undefined) ??
+	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as SingleFlightCache<TaxonomyDef[]> | undefined) ??
 	(() => {
-		const h: TaxonomyDefsHolder = { version: 0, cache: new Map() };
-		taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] = h;
-		return h;
+		const c = createSingleFlightCache<TaxonomyDef[]>();
+		taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] = c;
+		return c;
 	})();
 
 /**
@@ -183,8 +186,7 @@ const defsHolder: TaxonomyDefsHolder =
  * refresh on their next recycle — staleness bounded by isolate lifetime.
  */
 export function invalidateTaxonomyDefsCache(): void {
-	defsHolder.version++;
-	defsHolder.cache.clear();
+	invalidateSingleFlightCache(defsCache);
 	resetTaxonomyNamesCache();
 	invalidateTaxonomyObjectCache();
 }
@@ -196,8 +198,7 @@ export function invalidateTaxonomyDefsCache(): void {
  * `invalidateTaxonomyDefsCache()`.
  */
 export function resetTaxonomyDefsCacheForTests(): void {
-	defsHolder.version++;
-	defsHolder.cache.clear();
+	invalidateSingleFlightCache(defsCache);
 }
 
 /** Every locale's definition rows, straight from the database (no caching). */
@@ -212,28 +213,16 @@ async function fetchTaxonomyDefRows(): Promise<TaxonomyDef[]> {
 
 /**
  * Resolve the definition rows through the isolate fallback cache, bypassing it
- * for isolated databases. The returned promise is cached (not the resolved
- * value) so concurrent cold-isolate readers share one in-flight query; a
- * rejection evicts the entry so the next caller retries.
+ * for isolated databases.
  */
 function loadTaxonomyDefRows(): Promise<TaxonomyDef[]> {
 	if (getRequestContext()?.dbIsIsolated === true) {
 		return fetchTaxonomyDefRows();
 	}
-	const existing = defsHolder.cache.get("all");
-	if (existing && existing.version === defsHolder.version) {
-		return existing.promise;
-	}
-	const version = defsHolder.version;
-	const promise = fetchTaxonomyDefRows().catch((error: unknown) => {
-		const current = defsHolder.cache.get("all");
-		if (current && current.promise === promise) {
-			defsHolder.cache.delete("all");
-		}
-		throw error;
+	return singleFlightCached(defsCache, fetchTaxonomyDefRows, {
+		anchor: (promise) => after(() => promise),
+		ownerTimeoutMs: 30_000,
 	});
-	defsHolder.cache.set("all", { version, promise });
-	return promise;
 }
 
 /**

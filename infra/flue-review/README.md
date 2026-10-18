@@ -13,6 +13,14 @@ A follow-up of a large change, more than `REVIEW_FOLLOWUP_MAX_LINES` added and d
 
 Every review keeps all `needs_fixing` findings and at most `REVIEW_MAX_SUGGESTIONS` suggestions, in the merged order.
 
+## Review labels and GitHub rate limits
+
+When a person submits or dismisses a review on an open, ready PR, the webhook removes and re-adds the PR's `review/*` label (or adds `review/needs-review` when it has none). The `labeled` event runs `.github/workflows/approval.yml` from `main`, which recalculates the label and the `Human Maintainer approval` check. The workflow doesn't trigger on reviews itself, because a review event would run the PR branch's copy of it. Reviews by bots are ignored, since the workflow counts only reviews by people.
+
+Every GitHub request goes through the `GitHubRateLimitDO` Durable Object, one per App installation. It caches the installation token, paces requests from GitHub's rate-limit headers, and holds every caller back after a 403 or 429 until the limit resets.
+
+The webhook needs the `pull_request` and `pull_request_review` events.
+
 ## Reviewers
 
 Each reviewer runs the review skill independently, in parallel, on the same checked-out head with the same context: the PR title and description, any issues the PR says it closes (title and body only), the accepted design proposals it links, and the bot's previous review on a re-review. A tool-less merge model then combines the completed reviews into one, and trusted code checks every anchor and decides the verdict. The posted review ends with a footer naming the reviewers and whether one was unavailable.

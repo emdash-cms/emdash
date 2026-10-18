@@ -29,7 +29,6 @@
 			{
 				"name": "GITHUB_RATE_LIMIT",
 				"class_name": "GitHubRateLimitDO",
-				"script_name": "emdash-bot",
 			},
 			{
 				"name": "REVIEW_WATCHDOG",
@@ -107,6 +106,10 @@
 		{
 			"tag": "v9-rereview-scheduler",
 			"new_sqlite_classes": ["ReReviewScheduler"],
+		},
+		{
+			"tag": "v10-github-rate-limit",
+			"new_sqlite_classes": ["GitHubRateLimitDO"],
 		},
 	],
 	"vars": {

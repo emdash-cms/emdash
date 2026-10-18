@@ -1,6 +1,6 @@
 # AI usage policy
 
-EmDash welcomes contributions created with AI tools. The human contributor remains responsible for the result, and conversations with community members remain human except for the narrow implementation-pull-request review cases and the EmDashBot issue work described below.
+EmDash welcomes contributions created with AI tools. The human contributor remains responsible for the result, and conversations with community members remain human except for the narrow implementation-pull-request review cases and the autofix bot's issue work described below.
 
 This policy covers generative AI agents. Ordinary CI automation, dependency updates, test results, and deterministic status comments are outside its scope.
 
@@ -80,7 +80,7 @@ Project-operated AI bots use identifiable bot accounts. Unless this section gran
 - comment on issues; or
 - comment on design pull requests.
 
-EmDashBot's issue work is exempt from these rules. It triages and investigates issues, comments on them, and opens pull requests for the fixes it prepares, as described in [TRIAGE.md](TRIAGE.md#issue-work-and-bot-labels). Its pull requests need human Maintainer approval to merge like any other. The exemption does not extend to Discussions or design pull requests.
+The autofix bot's (`emdash-autofix[bot]`) issue work is exempt from these rules. It works on issues that Maintainers hand to it, triages new issues when auto-intake is enabled, comments on them, and opens pull requests for the fixes it prepares, as described in [TRIAGE.md](TRIAGE.md#issue-work-and-the-autofix-bot). Its pull requests need human Maintainer approval to merge like any other. The exemption does not extend to Discussions or design pull requests.
 
 Deterministic repository automation can report status or perform an action explicitly requested through a documented repository command.
 

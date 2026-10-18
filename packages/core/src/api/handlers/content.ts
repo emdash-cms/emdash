@@ -44,6 +44,7 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
+import { interpolateUrlPattern } from "../../i18n/resolve.js";
 import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
@@ -812,6 +813,45 @@ async function createSlugChangeRedirect(
 	return redirect !== null;
 }
 
+/**
+ * Remove any auto-redirect whose source is the URL a newly published entry
+ * now occupies. This prevents an earlier slug-change redirect from shadowing
+ * the new live page, because the redirect middleware runs before routing.
+ */
+async function removeShadowingAutoRedirect(
+	db: Kysely<Database>,
+	collection: string,
+	slug: string | null | undefined,
+	contentId: string,
+	publishedAt: string | null | undefined,
+): Promise<boolean> {
+	if (!slug) return false;
+	validateIdentifier(collection, "collection slug");
+
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("url_pattern")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+
+	const url = interpolateUrlPattern({
+		pattern: collectionRow?.url_pattern ?? null,
+		collection,
+		slug,
+		id: contentId,
+		date: publishedAt,
+	});
+
+	const result = await db
+		.deleteFrom("_emdash_redirects")
+		.where("source", "=", url)
+		.where("auto", "=", 1)
+		.executeTakeFirst();
+	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
+	if (removed) invalidateRedirectCache();
+	return removed;
+}
+
 /** Whether a row other than `contentId` still holds `slug` in this collection. */
 async function slugStillTaken(
 	db: Kysely<Database>,
@@ -1251,6 +1291,7 @@ export async function handleContentCreate(
 		if (!requiredReferences.success) return requiredReferences;
 
 		// Wrap content + SEO writes in a transaction for atomicity
+		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
@@ -1391,8 +1432,19 @@ export async function handleContentCreate(
 				}
 			}
 
+			if (created.status === "published") {
+				redirectChanged = await removeShadowingAutoRedirect(
+					trx,
+					collection,
+					created.slug,
+					created.id,
+					created.publishedAt,
+				);
+			}
+
 			return created;
 		});
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		return {
 			success: true,
@@ -1555,7 +1607,7 @@ export async function handleContentUpdate(
 		// Wrap content + SEO writes in a transaction for atomicity.
 		// The _rev check is inside the transaction so the read-then-write
 		// is atomic -- no concurrent write can slip between the check and update.
-		let redirectCreated = false;
+		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
@@ -1623,6 +1675,9 @@ export async function handleContentUpdate(
 				}
 			}
 
+			// Collections without revisions save to the columns, and reads show any
+			// draft revision over them, so no draft pointer may outlive a save.
+			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
 			const updated = await trxRepo.update(collection, resolvedId, {
 				data: body.data,
 				slug: body.slug,
@@ -1630,6 +1685,7 @@ export async function handleContentUpdate(
 				status: body.status,
 				authorId: body.authorId,
 				publishedAt: body.publishedAt,
+				...(supportsRevisions ? {} : { draftRevisionId: null }),
 			});
 
 			if (body.bylines !== undefined) {
@@ -1646,7 +1702,7 @@ export async function handleContentUpdate(
 			// pre-update date (the URL that was actually live) and the new URL
 			// the post-update one.
 			if (oldSlug && body.slug) {
-				redirectCreated = await createSlugChangeRedirect(
+				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
 					oldSlug,
@@ -1699,9 +1755,20 @@ export async function handleContentUpdate(
 				await writeReferenceSelection(trx, write);
 			}
 
+			if (updated.status === "published") {
+				redirectChanged =
+					(await removeShadowingAutoRedirect(
+						trx,
+						collection,
+						updated.slug,
+						updated.id,
+						updated.publishedAt,
+					)) || redirectChanged;
+			}
+
 			return updated;
 		});
-		if (redirectCreated) after(() => publishRedirectChanges(db));
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		return {
 			success: true,
@@ -2375,7 +2442,7 @@ export async function handleContentPublish(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const expectedRevision = decodeRevisionPrecondition(options._rev);
-		let redirectCreated = false;
+		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
@@ -2495,7 +2562,7 @@ export async function handleContentPublish(
 				published.slug &&
 				existing.slug !== published.slug
 			) {
-				redirectCreated = await createSlugChangeRedirect(
+				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
 					existing.slug,
@@ -2506,9 +2573,18 @@ export async function handleContentPublish(
 				);
 			}
 
+			redirectChanged =
+				(await removeShadowingAutoRedirect(
+					trx,
+					collection,
+					published.slug,
+					published.id,
+					published.publishedAt,
+				)) || redirectChanged;
+
 			return published;
 		});
-		if (redirectCreated) after(() => publishRedirectChanges(db));
+		if (redirectChanged) after(() => publishRedirectChanges(db));
 
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);
@@ -2606,7 +2682,8 @@ export async function handleContentUnpublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unpublish(collection, resolvedId, expectedRevision);
+			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
+			return repo.unpublish(collection, resolvedId, expectedRevision, supportsRevisions);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);

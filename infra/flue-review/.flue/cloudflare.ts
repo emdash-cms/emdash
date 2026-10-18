@@ -37,6 +37,8 @@ import {
 import type { GatedPr } from "./lib/webhook.js";
 import { admitReviewWorkflow } from "./lib/workflow-admission.js";
 
+export { GitHubRateLimitDO } from "./lib/github-rate-limit.js";
+
 const ATTEMPT_KEY = "attempt";
 const TERMINAL_RETRY_BASE_MS = 60_000;
 const TERMINAL_RETRY_MAX_MS = 60 * 60_000;

@@ -25,6 +25,7 @@
 	"author": "Matt Kane",
 	"license": "MIT",
 	"peerDependencies": {
+		"@lingui/react": "catalog:",
 		"astro": ">=5",
 		"emdash": "workspace:>=0.15.0",
 		"react": ">=18"

@@ -3873,7 +3873,11 @@ export function PortableTextEditor({
 				link: {
 					shouldAutoLink: (url) => URL_SCHEME_REGEX.test(url) || WWW_PREFIX_REGEX.test(url),
 					openOnClick: false,
+					// TipTap's Link extension defaults HTMLAttributes.target to "_blank".
+					// Without an explicit override every link created via setLink would be
+					// serialized as blank: true, even though there is no UI to enable it.
 					HTMLAttributes: {
+						target: null,
 						class: "text-kumo-link underline",
 					},
 				},

@@ -67,9 +67,7 @@ describe("runReviewPanel", () => {
 		expect(merges).toEqual([SONNET]);
 		expect(outcome.result.findings).toHaveLength(2);
 		expect(outcome.result.summary).toContain("Merged from: true");
-		expect(outcome.result.summary).toContain(
-			`Reviewed by \`${OPUS}\` and \`${SOL}\`, merged by \`${SONNET}\`.`,
-		);
+		expect(outcome.result.summary).toContain(`Reviewed by \`${OPUS}\` and \`${SOL}\`.`);
 		const finished = logs.filter((entry) => entry.message === "reviewer finished");
 		expect(finished.map((entry) => [entry.fields.model, entry.fields.ok])).toEqual([
 			[OPUS, true],
@@ -207,7 +205,7 @@ describe("runReviewPanel", () => {
 		expect(merges).toEqual([SONNET]);
 		expect(outcome.result.findings).toHaveLength(2);
 		expect(outcome.result.summary).toContain(
-			`merged by \`${SONNET}\`. Too large for a scoped follow-up.`,
+			`Reviewed by \`${OPUS}\` and \`${SOL}\`. Too large for a scoped follow-up.`,
 		);
 	});
 });

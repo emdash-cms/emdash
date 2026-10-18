@@ -31,7 +31,11 @@ import type { Database } from "./index.js";
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
-import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
+import {
+	isMissingColumnError,
+	getMissingColumnIdentifier,
+	isMissingTableError,
+} from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -1711,6 +1715,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 		 * Load all entries for a content type
 		 */
 		async loadCollection({ filter }) {
+			const callerColumns = new Set<string>();
 			try {
 				// Get DB instance (initializes on first use)
 				const db = await getDb();
@@ -1809,6 +1814,19 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					// `error` would otherwise see the same empty list this replaced.
 					console.warn(`[emdash] where filter: ${message}`);
 					return { error: new Error(message) };
+				}
+
+				// Only caller-supplied field columns may fail as invalid filters.
+				// Keep qualifiers so a folded system-table read cannot be mistaken
+				// for a caller field with the same name.
+				for (const key of [...Object.keys(fieldFilters), ...Object.keys(orderBy ?? {})]) {
+					if (!FIELD_NAME_PATTERN.test(key) || SYSTEM_QUERY_KEYS.has(key)) continue;
+					const name = key.toLowerCase();
+					callerColumns.add(name);
+					callerColumns.add(`${tableName}.${name}`);
+					if (taxonomyFilters.length > 0 && Object.keys(fieldFilters).length === 0) {
+						callerColumns.add(`r.${name}`);
+					}
 				}
 
 				// A byline or taxonomy filter with no values matches nothing —
@@ -2027,14 +2045,15 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					},
 				};
 			} catch (error) {
-				// Handle missing table/column gracefully - return empty collection.
-				// Missing table happens before migrations have run.
-				// Missing column happens when a where filter references a non-existent field.
+				// Missing tables are expected before migrations run. Only a missing
+				// caller field is an invalid filter; other columns indicate schema errors.
 				const message = error instanceof Error ? error.message : String(error);
-				if (isMissingTableError(error) || isMissingColumnError(error)) {
-					if (isMissingColumnError(error)) {
-						console.warn(`[emdash] where filter: ${message}`);
-					}
+				if (isMissingTableError(error)) {
+					return { entries: [] };
+				}
+				const missingColumn = getMissingColumnIdentifier(error);
+				if (missingColumn && callerColumns.has(missingColumn)) {
+					console.warn(`[emdash] where filter: ${message}`);
 					return { entries: [] };
 				}
 

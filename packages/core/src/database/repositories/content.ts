@@ -1122,6 +1122,9 @@ export class ContentRepository {
 		if (hasColumnWrites) {
 			updates.updated_at = now;
 		}
+		if (input.draftRevisionId === null) {
+			updates.draft_revision_id = null;
+		}
 		updates.version = sql`version + 1`;
 
 		await this.db
@@ -1347,7 +1350,8 @@ export class ContentRepository {
 		const supportsRaw = collectionRows[0]?.supports;
 		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
 		if (!Array.isArray(supports) || !supports.includes("revisions")) {
-			return this.update(type, id, { ...input, data });
+			// Reads show any draft revision over the columns this writes.
+			return this.update(type, id, { ...input, data, draftRevisionId: null });
 		}
 
 		const fieldSlugs = new Set(
@@ -2776,13 +2780,16 @@ export class ContentRepository {
 	 * Unpublish content
 	 *
 	 * Removes live pointer and cancels any pending schedule, but preserves the
-	 * draft and publication date. If no draft exists, creates one from the live
-	 * version so the content isn't lost.
+	 * draft and publication date. If no draft exists and `draftFromLive` is set,
+	 * creates one from the live version so the content isn't lost. Collections
+	 * without revisions save to the columns, and a draft revision would hide
+	 * those saves.
 	 */
 	async unpublish(
 		type: string,
 		id: string,
 		expectedRevision?: ContentRevisionPrecondition,
+		draftFromLive = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -2800,7 +2807,7 @@ export class ContentRepository {
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
-			if (!draftRevisionId && existing.liveRevisionId) {
+			if (draftFromLive && !draftRevisionId && existing.liveRevisionId) {
 				const liveRevision = await revisionRepo.findById(existing.liveRevisionId);
 				if (liveRevision) {
 					const draft = await revisionRepo.create({

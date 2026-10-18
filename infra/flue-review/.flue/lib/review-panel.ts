@@ -136,12 +136,10 @@ function list(models: readonly string[]): string {
 		: `${quoted.slice(0, -1).join(", ")} and ${quoted.at(-1)}`;
 }
 
-function footer(runs: readonly ReviewerRun[], mergeModel: string | undefined, merged: boolean) {
+function footer(runs: readonly ReviewerRun[]) {
 	const completed = runs.filter((run) => run.result).map((run) => run.model);
 	const unavailable = runs.filter((run) => !run.result).map((run) => run.model);
-	const parts = [`Reviewed by ${list(completed)}`];
-	if (merged && mergeModel) parts.push(`merged by \`${mergeModel}\``);
-	const sentence = `${parts.join(", ")}.`;
+	const sentence = `Reviewed by ${list(completed)}.`;
 	return unavailable.length === 0
 		? sentence
 		: `${sentence} ${list(unavailable)} ${unavailable.length === 1 ? "was" : "were"} unavailable.`;
@@ -242,9 +240,7 @@ export async function runReviewPanel(
 	return {
 		result: withReviewFooter(
 			limitFindings(outcome.result, options, deps),
-			[footer(runs, mergeModel, outcome.source === "merged"), options.footerNote]
-				.filter(Boolean)
-				.join(" "),
+			[footer(runs), options.footerNote].filter(Boolean).join(" "),
 		),
 		runs,
 		mergePath,
