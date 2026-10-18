@@ -240,9 +240,7 @@ export async function runReviewPanel(
 	return {
 		result: withReviewFooter(
 			limitFindings(outcome.result, options, deps),
-			[footer(runs), options.footerNote]
-				.filter(Boolean)
-				.join(" "),
+			[footer(runs), options.footerNote].filter(Boolean).join(" "),
 		),
 		runs,
 		mergePath,
