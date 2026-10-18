@@ -7,6 +7,7 @@ interface ReviewEvalEnv {
 	REVIEW_MODELS?: string;
 	REVIEW_MERGE_MODEL?: string;
 	REVIEW_FOLLOWUP_MODELS?: string;
+	REVIEW_FOLLOWUP_MAX_LINES?: string;
 	REVIEW_MAX_SUGGESTIONS?: string;
 	REVIEW_AUTO_REREVIEW_LIMIT?: string;
 	AI_GATEWAY_ACCOUNT_ID?: string;

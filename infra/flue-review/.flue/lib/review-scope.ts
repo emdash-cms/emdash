@@ -14,6 +14,13 @@ const DIFF_FILE = /^diff --git a\/.+ b\/(.+)$/;
 const NEW_FILE = /^\+\+\+ (?:b\/(.+)|\/dev\/null)$/;
 const HUNK = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
+export const DEFAULT_FOLLOW_UP_MAX_LINES = 1_000;
+
+export function followUpMaxLines(env: { readonly REVIEW_FOLLOWUP_MAX_LINES?: string }): number {
+	const limit = Number(env.REVIEW_FOLLOWUP_MAX_LINES);
+	return Number.isInteger(limit) && limit >= 0 ? limit : DEFAULT_FOLLOW_UP_MAX_LINES;
+}
+
 export function maxSuggestions(env: { readonly REVIEW_MAX_SUGGESTIONS?: string }): number {
 	const limit = Number(env.REVIEW_MAX_SUGGESTIONS);
 	return Number.isInteger(limit) && limit >= 0 ? limit : DEFAULT_MAX_SUGGESTIONS;
@@ -136,5 +143,56 @@ export function scopeReview(
 		droppedOutsideChange,
 		markedMissedEarlier,
 		droppedOverLimit,
+	};
+}
+
+/** Added plus deleted lines in a unified diff, counting only `files`. */
+export function changedLineCount(diff: string, files: ReadonlySet<string>): number {
+	let path: string | undefined;
+	let inHunk = false;
+	let count = 0;
+	for (const text of diff.split("\n")) {
+		const file = DIFF_FILE.exec(text);
+		if (file) {
+			path = file[1];
+			inHunk = false;
+			continue;
+		}
+		if (HUNK.test(text)) {
+			inHunk = true;
+			continue;
+		}
+		if (!inHunk || !path || !files.has(path)) continue;
+		if (
+			(text.startsWith("+") || text.startsWith("-")) &&
+			!text.startsWith("+++") &&
+			!text.startsWith("---")
+		) {
+			count++;
+		}
+	}
+	return count;
+}
+
+export type FollowUpScope =
+	| { readonly scoped: true; readonly changed: ChangedLines; readonly lines: number }
+	| { readonly scoped: false; readonly lines: number };
+
+/**
+ * Whether a follow-up stays scoped: a change since the last reviewed head over
+ * `maxLines` changed lines in the PR's files gets a full review instead.
+ */
+export function followUpScope(
+	prDiff: string,
+	followUpDiff: string,
+	maxLines: number,
+): FollowUpScope {
+	const prFiles = changedLines(prDiff);
+	const lines = changedLineCount(followUpDiff, new Set(prFiles.keys()));
+	if (lines > maxLines) return { scoped: false, lines };
+	return {
+		scoped: true,
+		lines,
+		changed: new Map([...changedLines(followUpDiff)].filter(([path]) => prFiles.has(path))),
 	};
 }

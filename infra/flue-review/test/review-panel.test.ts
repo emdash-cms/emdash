@@ -196,4 +196,18 @@ describe("runReviewPanel", () => {
 		).rejects.toThrow(`404 model ${SOL} not found`);
 		expect(reviewed).toEqual([SOL]);
 	});
+
+	it("says in the footer when a large change got a full review", async () => {
+		const { panelDeps, merges } = deps();
+		const outcome = await runReviewPanel(
+			{ reviewers: [OPUS, SOL], mergeModel: SONNET },
+			panelDeps,
+			{ priorReview: "Earlier review.", footerNote: "Too large for a scoped follow-up." },
+		);
+		expect(merges).toEqual([SONNET]);
+		expect(outcome.result.findings).toHaveLength(2);
+		expect(outcome.result.summary).toContain(
+			`merged by \`${SONNET}\`. Too large for a scoped follow-up.`,
+		);
+	});
 });

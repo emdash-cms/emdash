@@ -153,6 +153,8 @@ export interface ReviewPanelOptions {
 	/** Lines changed since the last reviewed head, for a scoped follow-up review. */
 	readonly changed?: ChangedLines;
 	readonly maxSuggestions?: number;
+	/** Extra sentence for the review footer. */
+	readonly footerNote?: string;
 }
 
 function limitFindings(
@@ -192,13 +194,11 @@ export async function runReviewPanel(
 	if (runs.length === 1) {
 		deps.log("review merge path", { mergePath: "only_reviewer" });
 		const limited = limitFindings(first.result, options, deps);
+		const soloFooter = options.changed
+			? `Follow-up review by \`${first.reviewer}\`, scoped to the changes since the last review.`
+			: options.footerNote;
 		return {
-			result: options.changed
-				? withReviewFooter(
-						limited,
-						`Follow-up review by \`${first.reviewer}\`, scoped to the changes since the last review.`,
-					)
-				: limited,
+			result: soloFooter ? withReviewFooter(limited, soloFooter) : limited,
 			runs,
 			mergePath: "only_reviewer",
 		};
@@ -242,7 +242,9 @@ export async function runReviewPanel(
 	return {
 		result: withReviewFooter(
 			limitFindings(outcome.result, options, deps),
-			footer(runs, mergeModel, outcome.source === "merged"),
+			[footer(runs, mergeModel, outcome.source === "merged"), options.footerNote]
+				.filter(Boolean)
+				.join(" "),
 		),
 		runs,
 		mergePath,

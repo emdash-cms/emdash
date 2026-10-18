@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { ReviewResult } from "../.flue/lib/review-schema.js";
 import {
+	changedLineCount,
 	changedLines,
+	DEFAULT_FOLLOW_UP_MAX_LINES,
 	DEFAULT_MAX_SUGGESTIONS,
+	followUpMaxLines,
+	followUpScope,
 	maxSuggestions,
 	MISSED_EARLIER_PREFIX,
 	scopeReview,
@@ -126,5 +130,55 @@ describe("scopeReview", () => {
 	it("reads the suggestion limit from configuration", () => {
 		expect(maxSuggestions({})).toBe(3);
 		expect(maxSuggestions({ REVIEW_MAX_SUGGESTIONS: "0" })).toBe(0);
+	});
+});
+
+describe("followUpScope", () => {
+	const prDiff = [
+		"diff --git a/src/a.ts b/src/a.ts",
+		"--- a/src/a.ts",
+		"+++ b/src/a.ts",
+		"@@ -1,1 +1,1 @@",
+		"-old",
+		"+new",
+	].join("\n");
+	function followUpDiff(changes: number): string {
+		const hunk = Array.from({ length: changes }, (_, i) => `+line ${i}`);
+		return [
+			"diff --git a/src/a.ts b/src/a.ts",
+			"--- a/src/a.ts",
+			"+++ b/src/a.ts",
+			`@@ -1,0 +1,${changes} @@`,
+			...hunk,
+			"diff --git a/src/elsewhere.ts b/src/elsewhere.ts",
+			"--- a/src/elsewhere.ts",
+			"+++ b/src/elsewhere.ts",
+			"@@ -1,2000 +0,0 @@",
+			...Array.from({ length: 2000 }, (_, i) => `-gone ${i}`),
+		].join("\n");
+	}
+
+	it("counts added and deleted lines only in the PR's files", () => {
+		expect(changedLineCount(followUpDiff(12), new Set(["src/a.ts"]))).toBe(12);
+	});
+
+	it("stays scoped just under the threshold and becomes a full review just over it", () => {
+		const under = followUpScope(
+			prDiff,
+			followUpDiff(DEFAULT_FOLLOW_UP_MAX_LINES),
+			DEFAULT_FOLLOW_UP_MAX_LINES,
+		);
+		expect(under).toMatchObject({ scoped: true, lines: DEFAULT_FOLLOW_UP_MAX_LINES });
+		const over = followUpScope(
+			prDiff,
+			followUpDiff(DEFAULT_FOLLOW_UP_MAX_LINES + 1),
+			DEFAULT_FOLLOW_UP_MAX_LINES,
+		);
+		expect(over).toEqual({ scoped: false, lines: DEFAULT_FOLLOW_UP_MAX_LINES + 1 });
+	});
+
+	it("reads the threshold from configuration", () => {
+		expect(followUpMaxLines({})).toBe(1_000);
+		expect(followUpMaxLines({ REVIEW_FOLLOWUP_MAX_LINES: "250" })).toBe(250);
 	});
 });

@@ -56,7 +56,12 @@ import { linkedIssueSections, type LinkedIssue } from "../lib/review-linked-issu
 import { completeWithGateway, reviewPlan } from "../lib/review-model.js";
 import { MODEL_REVIEW_STAGE_LIMIT_MS, runReviewPanel } from "../lib/review-panel.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
-import { changedLines, maxSuggestions, type ChangedLines } from "../lib/review-scope.js";
+import {
+	followUpMaxLines,
+	followUpScope,
+	maxSuggestions,
+	type ChangedLines,
+} from "../lib/review-scope.js";
 import {
 	getReviewWatchdog,
 	withStageHeartbeats,
@@ -446,8 +451,9 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			);
 			await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
 
-			const followUpFrom = followUpHead(activePayload, priorReview);
+			let followUpFrom = followUpHead(activePayload, priorReview);
 			let changed: ChangedLines | undefined;
+			let largeFollowUp: { lines: number; maxLines: number } | undefined;
 			if (followUpFrom) {
 				const followUpDiff =
 					activePayload.interHeadDiff ??
@@ -459,12 +465,24 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 						followUpFrom,
 						revision.headSha,
 					));
-				await context.harness.fs.writeFile(
-					FOLLOW_UP_DIFF_PATH,
-					elideLargeDiffSections(followUpDiff),
-				);
-				const prFiles = changedLines(diff);
-				changed = new Map([...changedLines(followUpDiff)].filter(([path]) => prFiles.has(path)));
+				const maxLines = followUpMaxLines(env);
+				const scope = followUpScope(diff, followUpDiff, maxLines);
+				logReviewEvent("log", activePayload, runId, "follow-up scope chosen", {
+					priorHeadSha: followUpFrom,
+					changedLines: scope.lines,
+					maxLines,
+					reviewMode: scope.scoped ? "scoped" : "full",
+				});
+				if (scope.scoped) {
+					changed = scope.changed;
+					await context.harness.fs.writeFile(
+						FOLLOW_UP_DIFF_PATH,
+						elideLargeDiffSections(followUpDiff),
+					);
+				} else {
+					largeFollowUp = { lines: scope.lines, maxLines };
+					followUpFrom = undefined;
+				}
 			}
 
 			stage = "model_review";
@@ -534,6 +552,11 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 						{
 							...(priorReview ? { priorReview } : {}),
 							...(changed ? { changed } : {}),
+							...(largeFollowUp
+								? {
+										footerNote: `The change since the last review (${largeFollowUp.lines} lines) was too large for a scoped follow-up, so this is a full review.`,
+									}
+								: {}),
 							maxSuggestions: maxSuggestions(env),
 							signal,
 						},
