@@ -556,7 +556,7 @@ export function access(config: AccessConfig): AuthDescriptor {
  */
 export function sandbox(): string | undefined {
 	const environment = process.env.CLOUDFLARE_ENV;
-	const { unstable_readConfig } = require("wrangler") as typeof import("wrangler");
+	const { unstable_readConfig }: typeof import("wrangler") = require("wrangler");
 	const config = unstable_readConfig(environment ? { env: environment } : {}, {
 		hideWarnings: true,
 	});
