@@ -113,10 +113,10 @@ describe("embeds that render remote HTML", () => {
 				expect(html).toContain(
 					'<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:a/app.bsky.feed.post/b" data-bluesky-cid="bafy" data-bluesky-embed-color-mode="dark"><p lang="en">post</p>',
 				);
-				const scripts = html.match(/<script[^>]*>/gi) ?? [];
-				expect(scripts).toHaveLength(1);
-				expect(scripts[0]).toContain('src="https://embed.bsky.app/static/embed.js"');
-				expectInert(html.replace(/<script[^>]*><\/script>/i, ""));
+				const embedScript =
+					'<script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>';
+				expect(html.split(embedScript)).toHaveLength(2);
+				expectInert(html.replace(embedScript, ""));
 			} finally {
 				fetchSpy.mockRestore();
 			}
