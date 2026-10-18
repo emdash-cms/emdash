@@ -9,7 +9,9 @@ import { initForms } from "../src/client/index.js";
 const formsCss = readFileSync(resolve(import.meta.dirname, "../src/styles/forms.css"), "utf-8");
 
 function embed(html: string): HTMLFormElement {
-	document.head.innerHTML = `<style>${formsCss.replace(/<\//g, "<\\/")}</style>`;
+	const style = document.createElement("style");
+	style.textContent = formsCss;
+	document.head.appendChild(style);
 	document.body.innerHTML = html;
 	return document.querySelector<HTMLFormElement>("[data-ec-form]")!;
 }
