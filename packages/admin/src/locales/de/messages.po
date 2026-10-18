@@ -3465,7 +3465,7 @@ msgstr "Weiter zum Import"
 #. placeholder {0}: activeProviderEntry.label
 #: packages/admin/src/components/LoginPage.tsx:222
 msgid "Continue with {0}."
-msgstr ""
+msgstr "Mit {0} fortfahren."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
 msgid "Continue with another device"
