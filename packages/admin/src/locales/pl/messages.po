@@ -32,17 +32,17 @@ msgid ", "
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1924
+#: packages/admin/src/components/MediaDetailPanel.tsx:1925
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "Plik „{0}” zostanie usunięty z usługi {providerName}."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
+#: packages/admin/src/components/MediaDetailPanel.tsx:1926
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "Plik „{0}” zostanie usunięty z usługi dostawcy mediów."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1926
+#: packages/admin/src/components/MediaDetailPanel.tsx:1927
 msgid "\"{0}\" will be permanently deleted."
 msgstr "Plik „{0}” zostanie trwale usunięty."
 
@@ -133,7 +133,7 @@ msgstr "{0, plural, one {# plik nie został dodany, ponieważ lista przesyłania
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1518
+#: packages/admin/src/components/MediaDetailPanel.tsx:1519
 #: packages/admin/src/components/MediaLibrary.tsx:938
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {Załadowano # folder} few {Załadowano # foldery} other {Załadowano # folderów}}"
@@ -1311,7 +1311,7 @@ msgstr "Dodaj treść"
 msgid "Add Custom Link"
 msgstr "Dodaj własny link"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:455
+#: packages/admin/src/components/ImageFieldRenderer.tsx:467
 msgid "Add dark mode variant"
 msgstr "Dodaj wariant dla trybu ciemnego"
 
@@ -1746,8 +1746,8 @@ msgid "Alt text"
 msgstr "Tekst alternatywny"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:743
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
-#: packages/admin/src/components/MediaDetailPanel.tsx:1603
+#: packages/admin/src/components/MediaDetailPanel.tsx:1587
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Alt Text"
 msgstr "Tekst alternatywny"
 
@@ -1855,7 +1855,7 @@ msgstr "Analizowanie pliku eksportu..."
 msgid "Analyzing WordPress site..."
 msgstr "Analizowanie witryny WordPress..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1771
+#: packages/admin/src/components/MediaDetailPanel.tsx:1772
 msgid "Animated WebP files become still images when cropped."
 msgstr "Animowane pliki WebP po kadrowaniu stają się obrazami statycznymi."
 
@@ -1986,7 +1986,7 @@ msgstr "Jako administrator możesz zapraszać innych użytkowników z sekcji Uż
 msgid "Ask an administrator to complete this setup."
 msgstr "Poproś administratora o dokończenie tej konfiguracji."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1714
 msgid "Aspect ratio"
 msgstr "Proporcje"
 
@@ -2166,7 +2166,7 @@ msgstr "Wstecz"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/FieldEditor.tsx:673
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:405
 #: packages/admin/src/components/WordPressImport.tsx:1564
@@ -2518,7 +2518,7 @@ msgstr "Może przeglądać treści"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1381
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
 #: packages/admin/src/components/MenuEditor.tsx:464
@@ -2599,7 +2599,7 @@ msgstr "Zgoda na uprawnienia"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:751
 #: packages/admin/src/components/editor/ImageNode.tsx:304
 #: packages/admin/src/components/editor/VideoNode.tsx:325
-#: packages/admin/src/components/MediaDetailPanel.tsx:1614
+#: packages/admin/src/components/MediaDetailPanel.tsx:1615
 msgid "Caption"
 msgstr "Podpis"
 
@@ -2893,7 +2893,7 @@ msgid "Choose a new publication time for this draft."
 msgstr "Wybierz nową datę i godzinę publikacji tego szkicu."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:917
+#: packages/admin/src/components/MediaDetailPanel.tsx:918
 msgid "Choose a non-empty {0} image."
 msgstr "Wybierz niepusty obraz w formacie {0}."
 
@@ -2931,7 +2931,7 @@ msgstr "Wybierz pliki do przesłania"
 msgid "Choose package file"
 msgstr "Wybierz plik paczki"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 msgid "Choose replacement image"
 msgstr "Wybierz obraz zastępczy"
 
@@ -3051,8 +3051,8 @@ msgstr "Kliknij ten link, aby zalogować się do witryny {siteName}:"
 #: packages/admin/src/components/FieldEditor.tsx:710
 #: packages/admin/src/components/FieldEditor.tsx:715
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:462
-#: packages/admin/src/components/MediaDetailPanel.tsx:1126
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaPickerModal.tsx:1010
 #: packages/admin/src/components/MediaPickerModal.tsx:1017
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
@@ -3418,7 +3418,7 @@ msgstr "Typy treści"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "Typy treści z tą samą grupą są wyświetlane we wspólnym zwijanym folderze na pasku bocznym"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1945
 msgid "Content using this media item may show a broken reference."
 msgstr "Treści korzystające z tego pliku multimedialnego mogą wyświetlać uszkodzone odwołanie."
 
@@ -3523,7 +3523,7 @@ msgstr "Skopiuj token"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:307
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:308
-#: packages/admin/src/components/MediaDetailPanel.tsx:1377
+#: packages/admin/src/components/MediaDetailPanel.tsx:1378
 msgid "Copy URL"
 msgstr "Kopiuj URL"
 
@@ -3599,7 +3599,7 @@ msgstr "Nie udało się anulować zaplanowanej publikacji"
 msgid "Could not review posts"
 msgstr "Nie udało się sprawdzić wpisów"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:826
+#: packages/admin/src/components/MediaDetailPanel.tsx:827
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "Nie udało się potwierdzić, czy plik multimedialny lub wybrany folder nadal istnieje. Spróbuj ponownie."
 
@@ -3767,7 +3767,7 @@ msgstr "Utwórz i dodaj"
 msgid "Create Content Type"
 msgstr "Utwórz typ treści"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1878
+#: packages/admin/src/components/MediaDetailPanel.tsx:1879
 msgid "Create cropped copy"
 msgstr "Utwórz wykadrowaną kopię"
 
@@ -3939,7 +3939,7 @@ msgstr "Tworzenie kolekcji i pól"
 msgid "Creating collections and fields..."
 msgstr "Tworzenie kolekcji i pól..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
 msgid "Creating cropped copy..."
 msgstr "Tworzenie wykadrowanej kopii..."
 
@@ -3952,7 +3952,7 @@ msgstr "Tworzenie wykadrowanej kopii..."
 msgid "Creating..."
 msgstr "Tworzenie..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1639
+#: packages/admin/src/components/MediaDetailPanel.tsx:1640
 msgid "Crop"
 msgstr "Kadruj"
 
@@ -3962,7 +3962,7 @@ msgstr "Kadruj"
 msgid "Crop area {0} by {1} pixels."
 msgstr "Obszar kadrowania: {0} na {1} pikseli."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1746
+#: packages/admin/src/components/MediaDetailPanel.tsx:1747
 msgid "Crop output dimensions"
 msgstr "Wymiary wyjściowe kadru"
 
@@ -3970,7 +3970,7 @@ msgstr "Wymiary wyjściowe kadru"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "Zaznaczenie kadru. Użyj klawiszy strzałek, aby je przesunąć."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:772
 #: packages/admin/src/components/MediaLibrary.tsx:1289
 msgid "Cropped copy created."
 msgstr "Utworzono wykadrowaną kopię."
@@ -4035,7 +4035,7 @@ msgid "Daily automatic backups"
 msgstr "Codzienne automatyczne kopie zapasowe"
 
 #: packages/admin/src/components/FieldEditor.tsx:1366
-#: packages/admin/src/components/ImageFieldRenderer.tsx:399
+#: packages/admin/src/components/ImageFieldRenderer.tsx:411
 msgid "Dark mode variant"
 msgstr "Wariant dla trybu ciemnego"
 
@@ -4134,8 +4134,8 @@ msgstr "Zdefiniowane w kodzie"
 #: packages/admin/src/components/ContentTypeList.tsx:256
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:363
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1930
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
 #: packages/admin/src/components/MenuEditor.tsx:672
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:616
@@ -4258,7 +4258,7 @@ msgstr "Usuń galerię"
 msgid "Delete image"
 msgstr "Usuń obraz"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1918
+#: packages/admin/src/components/MediaDetailPanel.tsx:1919
 msgid "Delete media?"
 msgstr "Usunąć plik multimedialny?"
 
@@ -4356,8 +4356,8 @@ msgstr "Usunięcie pola „{0}” spowoduje również usunięcie {1, plural, one
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:864
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1932
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:236
 #: packages/admin/src/components/Redirects.tsx:617
@@ -4421,7 +4421,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "Opisz przeznaczenie obrazu i istotne szczegóły dla osób, które go nie widzą."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:746
-#: packages/admin/src/components/MediaDetailPanel.tsx:1606
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Describe this image for accessibility"
 msgstr "Opisz ten obraz na potrzeby dostępności"
 
@@ -4454,8 +4454,8 @@ msgstr "Ścieżka docelowa"
 msgid "Destructive"
 msgstr "Destrukcyjne"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1154
-#: packages/admin/src/components/MediaDetailPanel.tsx:1196
+#: packages/admin/src/components/MediaDetailPanel.tsx:1155
+#: packages/admin/src/components/MediaDetailPanel.tsx:1197
 msgid "Details"
 msgstr "Szczegóły"
 
@@ -4487,7 +4487,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr "Różnice względem witryny źródłowej"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1324
+#: packages/admin/src/components/MediaDetailPanel.tsx:1325
 msgid "Dimensions:"
 msgstr "Wymiary:"
 
@@ -4540,7 +4540,7 @@ msgstr "Wyłączanie..."
 msgid "Disallow AI training"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "Discard"
 msgstr "Odrzuć"
 
@@ -4549,7 +4549,7 @@ msgstr "Odrzuć"
 msgid "Discard changes"
 msgstr "Odrzuć zmiany"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "Discard changes?"
 msgstr "Odrzucić zmiany?"
 
@@ -4557,7 +4557,7 @@ msgstr "Odrzucić zmiany?"
 msgid "Discard draft changes?"
 msgstr "Odrzucić zmiany szkicu?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1905
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "Discarding..."
 msgstr "Odrzucanie..."
 
@@ -4934,9 +4934,9 @@ msgstr "Edytuj {title}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
-#: packages/admin/src/components/ImageFieldRenderer.tsx:305
-#: packages/admin/src/components/ImageFieldRenderer.tsx:362
-#: packages/admin/src/components/ImageFieldRenderer.tsx:430
+#: packages/admin/src/components/ImageFieldRenderer.tsx:317
+#: packages/admin/src/components/ImageFieldRenderer.tsx:374
+#: packages/admin/src/components/ImageFieldRenderer.tsx:442
 #: packages/admin/src/components/MediaPickerModal.tsx:1595
 msgid "Edit asset"
 msgstr "Edytuj plik multimedialny"
@@ -4950,7 +4950,7 @@ msgstr "Edytuj autora"
 msgid "Edit byline field"
 msgstr "Edytuj pole autora"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:428
+#: packages/admin/src/components/ImageFieldRenderer.tsx:440
 msgid "Edit dark mode asset"
 msgstr "Edytuj obraz dla trybu ciemnego"
 
@@ -4972,8 +4972,8 @@ msgstr "Edytuj folder"
 msgid "Edit folder {0}"
 msgstr "Edytuj folder {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1159
-#: packages/admin/src/components/MediaDetailPanel.tsx:1199
+#: packages/admin/src/components/MediaDetailPanel.tsx:1160
+#: packages/admin/src/components/MediaDetailPanel.tsx:1200
 msgid "Edit image"
 msgstr "Edytuj obraz"
 
@@ -5207,11 +5207,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "Dostępna jest wersja EmDash {latest} (używasz wersji {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1980
+#: packages/admin/src/components/MediaDetailPanel.tsx:1981
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash nie zachowuje poprzedniego obrazu."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:2014
+#: packages/admin/src/components/MediaDetailPanel.tsx:2015
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash nie zachowuje obrazu sprzed kadrowania."
 
@@ -5432,11 +5432,11 @@ msgstr "Każdy zaimportowany rekord i plik multimedialny został ponownie odczyt
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "Każdy pozostały użytkownik z aktywnym kontem otrzyma e-mail z informacją, że witryna jest teraz pod adresem {siteHost}, wraz z linkiem do logowania. Klucze dostępu z innego adresu nie działają pod adresem {siteHost}, więc użytkownicy logują się linkiem z e-maila i dodają nowy klucz dostępu."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1996
+#: packages/admin/src/components/MediaDetailPanel.tsx:1997
 msgid "Every place using this image will update to the cropped version."
 msgstr "Wszystkie miejsca, w których użyto tego obrazu, zostaną zaktualizowane do wykadrowanej wersji."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1961
+#: packages/admin/src/components/MediaDetailPanel.tsx:1962
 msgid "Every place using this image will update to the selected version."
 msgstr "Wszystkie miejsca, w których użyto tego obrazu, zostaną zaktualizowane do wybranej wersji."
 
@@ -5786,7 +5786,7 @@ msgstr "Nie udało się usunąć treści"
 msgid "Failed to delete field"
 msgstr "Nie udało się usunąć pola"
 
-#: packages/admin/src/lib/api/media.ts:764
+#: packages/admin/src/lib/api/media.ts:765
 msgid "Failed to delete from provider"
 msgstr "Nie udało się usunąć u dostawcy"
 
@@ -6011,7 +6011,7 @@ msgstr "Nie udało się pobrać folderów mediów"
 msgid "Failed to fetch media item"
 msgstr "Nie udało się pobrać pliku multimedialnego"
 
-#: packages/admin/src/lib/api/media.ts:697
+#: packages/admin/src/lib/api/media.ts:698
 msgid "Failed to fetch media providers"
 msgstr "Nie udało się pobrać dostawców mediów"
 
@@ -6053,7 +6053,7 @@ msgstr "Nie udało się pobrać ustawień wtyczki"
 msgid "Failed to fetch plugins"
 msgstr "Nie udało się pobrać wtyczek"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:728
 msgid "Failed to fetch provider media"
 msgstr "Nie udało się pobrać mediów dostawcy"
 
@@ -6639,7 +6639,7 @@ msgstr "Nie udało się przesłać pliku"
 msgid "Failed to upload media"
 msgstr "Nie udało się przesłać mediów"
 
-#: packages/admin/src/lib/api/media.ts:752
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to upload to provider"
 msgstr "Nie udało się przesłać do dostawcy"
 
@@ -6737,8 +6737,8 @@ msgstr "Plik {0}"
 msgid "File from media library"
 msgstr "Plik z biblioteki mediów"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1425
-#: packages/admin/src/components/MediaDetailPanel.tsx:1442
+#: packages/admin/src/components/MediaDetailPanel.tsx:1426
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
 #: packages/admin/src/components/MediaLibrary.tsx:1141
 msgid "Filename"
 msgstr "Nazwa pliku"
@@ -6835,8 +6835,8 @@ msgstr "Popraw nieprawidłowe pola przed zmianą daty publikacji"
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Popraw nieprawidłowe pola przed zmianą terminu publikacji"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1644
-#: packages/admin/src/components/MediaDetailPanel.tsx:1655
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
+#: packages/admin/src/components/MediaDetailPanel.tsx:1656
 msgid "Focal point"
 msgstr "Punkt centralny"
 
@@ -6882,7 +6882,7 @@ msgstr "Folder niedostępny"
 msgid "Folders"
 msgstr "Foldery"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1545
+#: packages/admin/src/components/MediaDetailPanel.tsx:1546
 #: packages/admin/src/components/MediaLibrary.tsx:963
 #: packages/admin/src/components/MediaLibrary.tsx:1467
 #: packages/admin/src/components/MediaPickerModal.tsx:1328
@@ -6909,7 +6909,7 @@ msgstr "Aby import przebiegł jak najlepiej, zainstaluj wtyczkę <0>EmDash Expor
 msgid "Format selection"
 msgstr "Formatuj zaznaczenie"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Format:"
 msgstr "Format:"
 
@@ -7337,8 +7337,8 @@ msgstr "Obraz"
 msgid "Image {0}"
 msgstr "Obraz {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:339
+#: packages/admin/src/components/ImageFieldRenderer.tsx:336
+#: packages/admin/src/components/ImageFieldRenderer.tsx:351
 #: packages/admin/src/components/SeoImageField.tsx:128
 msgid "Image actions"
 msgstr "Akcje obrazu"
@@ -7356,8 +7356,8 @@ msgid "Image link"
 msgstr "Link obrazu"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
-#: packages/admin/src/components/ImageFieldRenderer.tsx:476
-#: packages/admin/src/components/ImageFieldRenderer.tsx:531
+#: packages/admin/src/components/ImageFieldRenderer.tsx:488
+#: packages/admin/src/components/ImageFieldRenderer.tsx:543
 #: packages/admin/src/components/SeoImageField.tsx:107
 msgid "Image not found"
 msgstr "Nie znaleziono obrazu"
@@ -7366,7 +7366,7 @@ msgstr "Nie znaleziono obrazu"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:718
 msgid "Image replaced."
 msgstr "Zastąpiono obraz."
 
@@ -8170,7 +8170,7 @@ msgstr "Załaduj więcej"
 msgid "Load More"
 msgstr "Załaduj więcej"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
+#: packages/admin/src/components/MediaDetailPanel.tsx:1565
 #: packages/admin/src/components/MediaLibrary.tsx:993
 #: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -8234,7 +8234,7 @@ msgstr "Ładowanie eksportów…"
 msgid "Loading folders"
 msgstr "Ładowanie folderów"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1516
+#: packages/admin/src/components/MediaDetailPanel.tsx:1517
 msgid "Loading folders..."
 msgstr "Ładowanie folderów..."
 
@@ -8321,7 +8321,7 @@ msgstr "Ładowanie widżetów..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
 #: packages/admin/src/components/MediaDetailPanel.tsx:622
 #: packages/admin/src/components/MediaDetailPanel.tsx:624
-#: packages/admin/src/components/MediaDetailPanel.tsx:1751
+#: packages/admin/src/components/MediaDetailPanel.tsx:1752
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3206
@@ -8369,10 +8369,10 @@ msgstr "Język"
 msgid "Locales will use this site’s capitalization"
 msgstr "Kody języków zostaną dostosowane do wielkości liter używanej w tej witrynie"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1453
-#: packages/admin/src/components/MediaDetailPanel.tsx:1481
-#: packages/admin/src/components/MediaDetailPanel.tsx:1572
-#: packages/admin/src/components/MediaDetailPanel.tsx:1574
+#: packages/admin/src/components/MediaDetailPanel.tsx:1454
+#: packages/admin/src/components/MediaDetailPanel.tsx:1482
+#: packages/admin/src/components/MediaDetailPanel.tsx:1573
+#: packages/admin/src/components/MediaDetailPanel.tsx:1575
 msgid "Location"
 msgstr "Lokalizacja"
 
@@ -8477,11 +8477,11 @@ msgstr "Zarządzaj przekierowaniami URL i przeglądaj błędy 404."
 msgid "Manage your passkeys and authentication"
 msgstr "Zarządzaj kluczami dostępu i uwierzytelnianiem"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1411
+#: packages/admin/src/components/MediaDetailPanel.tsx:1412
 msgid "Managed by {providerName}"
 msgstr "Plik zarządzany przez {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1412
+#: packages/admin/src/components/MediaDetailPanel.tsx:1413
 msgid "Managed by an external media provider"
 msgstr "Plik zarządzany przez zewnętrznego dostawcę mediów"
 
@@ -8583,7 +8583,7 @@ msgstr "MDX"
 msgid "Media"
 msgstr "Media"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1119
+#: packages/admin/src/components/MediaDetailPanel.tsx:1120
 msgid "Media details"
 msgstr "Szczegóły mediów"
 
@@ -8840,7 +8840,7 @@ msgstr "Więcej działań: {0}"
 msgid "More formatting"
 msgstr "Więcej formatowania"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:516
+#: packages/admin/src/components/ImageFieldRenderer.tsx:528
 msgid "More information about {label}"
 msgstr "Więcej informacji: {label}"
 
@@ -9447,7 +9447,7 @@ msgstr "Brak pól"
 msgid "No files added"
 msgstr "Nie dodano plików"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1524
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 msgid "No folders found"
 msgstr "Nie znaleziono folderów"
 
@@ -9604,7 +9604,7 @@ msgstr "W tym rejestrze nie opublikowano jeszcze żadnych wtyczek."
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "Brak wtyczek pasujących do „{debouncedQuery}”."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1380
+#: packages/admin/src/components/MediaDetailPanel.tsx:1381
 msgid "No public URL available"
 msgstr "Brak publicznego adresu URL"
 
@@ -9930,7 +9930,7 @@ msgstr "Opcjonalny podpis"
 msgid "Optional caption displayed below the image"
 msgstr "Opcjonalny podpis wyświetlany pod obrazem"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1618
 msgid "Optional caption for display"
 msgstr "Opcjonalny podpis do wyświetlenia"
 
@@ -9989,7 +9989,7 @@ msgstr "Uporządkowane bloki do budowania stron"
 msgid "Original"
 msgstr "Oryginalne"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:786
 msgid "Original image cropped."
 msgstr "Wykadrowano oryginalny obraz."
 
@@ -10008,7 +10008,7 @@ msgstr "Inne"
 msgid "Outline"
 msgstr "Konspekt"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1745
 msgid "Output size"
 msgstr "Rozmiar wyjściowy"
 
@@ -10516,7 +10516,7 @@ msgstr "Naciśnij spację, aby podnieść obraz. Przesuwaj go klawiszami strzał
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1698
+#: packages/admin/src/components/MediaDetailPanel.tsx:1699
 #: packages/admin/src/components/MediaLibrary.tsx:1140
 msgid "Preview"
 msgstr "Podgląd"
@@ -11040,9 +11040,9 @@ msgstr "Usuń"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:814
-#: packages/admin/src/components/ImageFieldRenderer.tsx:317
-#: packages/admin/src/components/ImageFieldRenderer.tsx:371
-#: packages/admin/src/components/ImageFieldRenderer.tsx:442
+#: packages/admin/src/components/ImageFieldRenderer.tsx:329
+#: packages/admin/src/components/ImageFieldRenderer.tsx:383
+#: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6513
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
@@ -11083,7 +11083,7 @@ msgstr "Usuń {label}"
 msgid "Remove assignment"
 msgstr "Usuń przypisanie"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:440
+#: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Remove dark mode variant"
 msgstr "Usuń wariant dla trybu ciemnego"
 
@@ -11100,7 +11100,7 @@ msgid "Remove from post"
 msgstr "Usuń z wpisu"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:594
-#: packages/admin/src/components/ImageFieldRenderer.tsx:315
+#: packages/admin/src/components/ImageFieldRenderer.tsx:327
 msgid "Remove image"
 msgstr "Usuń obraz"
 
@@ -11282,11 +11282,11 @@ msgstr "Zamień"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/editor/VideoNode.tsx:403
-#: packages/admin/src/components/ImageFieldRenderer.tsx:291
-#: packages/admin/src/components/ImageFieldRenderer.tsx:352
-#: packages/admin/src/components/ImageFieldRenderer.tsx:415
-#: packages/admin/src/components/ImageFieldRenderer.tsx:589
-#: packages/admin/src/components/ImageFieldRenderer.tsx:592
+#: packages/admin/src/components/ImageFieldRenderer.tsx:303
+#: packages/admin/src/components/ImageFieldRenderer.tsx:364
+#: packages/admin/src/components/ImageFieldRenderer.tsx:427
+#: packages/admin/src/components/ImageFieldRenderer.tsx:601
+#: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/PortableTextEditor.tsx:5779
 #: packages/admin/src/components/PortableTextEditor.tsx:5853
 #: packages/admin/src/components/SeoImageField.tsx:151
@@ -11295,39 +11295,39 @@ msgid "Replace"
 msgstr "Zamień"
 
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:583
+#: packages/admin/src/components/ImageFieldRenderer.tsx:595
 #: packages/admin/src/components/SeoImageField.tsx:148
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Replace {label}"
 msgstr "Zamień {label}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:413
+#: packages/admin/src/components/ImageFieldRenderer.tsx:425
 msgid "Replace dark mode image"
 msgstr "Zastąp obraz dla trybu ciemnego"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:580
+#: packages/admin/src/components/ImageFieldRenderer.tsx:592
 msgid "Replace dark mode variant for {label}"
 msgstr "Zastąp wariant dla trybu ciemnego: {label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1837
-#: packages/admin/src/components/MediaDetailPanel.tsx:1965
+#: packages/admin/src/components/MediaDetailPanel.tsx:1838
+#: packages/admin/src/components/MediaDetailPanel.tsx:1966
 #: packages/admin/src/components/PortableTextEditor.tsx:5852
 msgid "Replace image"
 msgstr "Zastąp obraz"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1868
-#: packages/admin/src/components/MediaDetailPanel.tsx:2000
+#: packages/admin/src/components/MediaDetailPanel.tsx:1869
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "Replace original"
 msgstr "Zastąp oryginał"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1957
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1993
 msgid "Replace original image?"
 msgstr "Zastąpić oryginalny obraz?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1756
+#: packages/admin/src/components/MediaDetailPanel.tsx:1757
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Zastąpienie oryginału jest dostępne przy proporcjach „Oryginalne”."
 
@@ -11353,14 +11353,14 @@ msgstr "Zastąp pustą listą"
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:942
-#: packages/admin/src/components/MediaDetailPanel.tsx:1966
+#: packages/admin/src/components/MediaDetailPanel.tsx:943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replacing image..."
 msgstr "Zastępowanie obrazu..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
-#: packages/admin/src/components/MediaDetailPanel.tsx:2001
-#: packages/admin/src/components/MediaDetailPanel.tsx:2021
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
+#: packages/admin/src/components/MediaDetailPanel.tsx:2002
+#: packages/admin/src/components/MediaDetailPanel.tsx:2022
 msgid "Replacing original..."
 msgstr "Zastępowanie oryginału..."
 
@@ -11422,8 +11422,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "Wyślij ponownie za {resendCooldown}s"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1690
-#: packages/admin/src/components/MediaDetailPanel.tsx:1740
+#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "Reset"
 msgstr "Resetuj"
 
@@ -11431,7 +11431,7 @@ msgstr "Resetuj"
 msgid "Reset column widths"
 msgstr "Resetuj szerokości kolumn"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Reset crop"
 msgstr "Resetuj kadrowanie"
 
@@ -11535,7 +11535,7 @@ msgstr "Wycofany"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
-#: packages/admin/src/components/MediaDetailPanel.tsx:1551
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1470
 #: packages/admin/src/components/MediaPickerModal.tsx:1217
@@ -11787,7 +11787,7 @@ msgstr "Przykładowa treść"
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:821
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:402
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
 #: packages/admin/src/components/MenuEditor.tsx:756
@@ -11839,7 +11839,7 @@ msgstr "Nie udało się zapisać"
 msgid "Save name"
 msgstr "Zapisz nazwę"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1766
+#: packages/admin/src/components/MediaDetailPanel.tsx:1767
 msgid "Save or discard the other changes before cropping."
 msgstr "Przed kadrowaniem zapisz lub odrzuć pozostałe zmiany."
 
@@ -11880,7 +11880,7 @@ msgstr "Zapisanie tutaj kolekcji zmieni to pole w selektor wpisów. Zapisane w n
 
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/FieldEditor.tsx:1396
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
 #: packages/admin/src/components/MenuEditor.tsx:756
@@ -12113,8 +12113,8 @@ msgstr "Wyszukiwanie nie powiodło się"
 msgid "Search failed. Check your connection and try again."
 msgstr "Wyszukiwanie nie powiodło się. Sprawdź połączenie i spróbuj ponownie."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1504
 #: packages/admin/src/components/MediaDetailPanel.tsx:1505
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Search folders"
 msgstr "Szukaj folderów"
 
@@ -12319,7 +12319,7 @@ msgstr "Wybierz"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
 #: packages/admin/src/components/ContentEditor.tsx:3417
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:584
+#: packages/admin/src/components/ImageFieldRenderer.tsx:596
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Select {label}"
 msgstr "Wybierz {label}"
@@ -12341,7 +12341,7 @@ msgstr "Wybierz komponent..."
 msgid "Select a content type"
 msgstr "Wybierz typ treści"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Select a location"
 msgstr "Wybierz lokalizację"
 
@@ -12382,7 +12382,7 @@ msgstr "Zaznacz komentarz (autor: {0})"
 msgid "Select content"
 msgstr "Wybierz treść"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:581
+#: packages/admin/src/components/ImageFieldRenderer.tsx:593
 msgid "Select dark mode variant for {label}"
 msgstr "Wybierz wariant dla trybu ciemnego: {label}"
 
@@ -12407,7 +12407,7 @@ msgstr "Wybierz plik"
 msgid "Select gallery images"
 msgstr "Wybierz obrazy do galerii"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:564
+#: packages/admin/src/components/ImageFieldRenderer.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 #: packages/admin/src/components/PortableTextEditor.tsx:4678
 msgid "Select image"
@@ -12464,8 +12464,8 @@ msgstr "Wybrane: {label}"
 msgid "Selected {selectedItemTitle}"
 msgstr "Wybrano: {selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:253
-#: packages/admin/src/components/ImageFieldRenderer.tsx:268
+#: packages/admin/src/components/ImageFieldRenderer.tsx:265
+#: packages/admin/src/components/ImageFieldRenderer.tsx:280
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr "Wybrany obraz"
@@ -12892,7 +12892,7 @@ msgstr "Rozmiar"
 msgid "Size is not applicable to folders"
 msgstr "Rozmiar nie dotyczy folderów"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1311
+#: packages/admin/src/components/MediaDetailPanel.tsx:1312
 msgid "Size:"
 msgstr "Rozmiar:"
 
@@ -13463,7 +13463,7 @@ msgstr "Typy treści i slug są stałe. Nazwy obu stron relacji i liczbę wpisó
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "Zapisuje go menedżer haseł na wybranym telefonie lub tablecie. EmDash nie otrzymuje klucza dostępu."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:832
+#: packages/admin/src/components/MediaDetailPanel.tsx:833
 msgid "The cropped image could not be created."
 msgstr "Nie udało się utworzyć wykadrowanego obrazu."
 
@@ -13741,11 +13741,11 @@ msgstr "Dotychczas dodana przykładowa treść zostanie zachowana. Kontynuuj, ab
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Zaplanowane zmiany we wpisie {title} pozostają szkicem."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:827
+#: packages/admin/src/components/MediaDetailPanel.tsx:828
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "Wybrany folder już nie istnieje. Wybierz inną lokalizację i zapisz ponownie."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:924
+#: packages/admin/src/components/MediaDetailPanel.tsx:925
 msgid "The selected image could not be read."
 msgstr "Nie udało się odczytać wybranego obrazu."
 
@@ -13863,9 +13863,9 @@ msgstr "Ten blok uruchamia JavaScript."
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "Ta przeglądarka przechowuje całą paczkę w pamięci do zakończenia pobierania. Przy eksporcie tej wielkości użyj przeglądarki opartej na Chromium, która zapisuje bezpośrednio na dysk, lub uruchom emdash site export z poziomu CLI."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1977
-#: packages/admin/src/components/MediaDetailPanel.tsx:2011
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:2012
 msgid "This cannot be undone"
 msgstr "Tej operacji nie można cofnąć"
 
@@ -13965,7 +13965,7 @@ msgid "This field expects a list. The stored value stays unchanged until you rep
 msgstr "To pole oczekuje listy. Zapisana wartość pozostanie bez zmian, dopóki nie zastąpisz jej pustą listą, co ją usunie. Najpierw skopiuj z niej wszystko, czego potrzebujesz."
 
 #: packages/admin/src/components/ContentEditor.tsx:3437
-#: packages/admin/src/components/ImageFieldRenderer.tsx:603
+#: packages/admin/src/components/ImageFieldRenderer.tsx:615
 msgid "This field is required"
 msgstr "To pole jest wymagane"
 
@@ -14007,7 +14007,7 @@ msgstr "Ten folder jest pusty"
 msgid "This folder is empty."
 msgstr "Ten folder jest pusty."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1761
+#: packages/admin/src/components/MediaDetailPanel.tsx:1762
 msgid "This image could not be loaded for cropping."
 msgstr "Nie udało się załadować tego obrazu do kadrowania."
 
@@ -14047,12 +14047,12 @@ msgstr "Ten link wygaśnie za 7 dni."
 msgid "This may take a while for large exports."
 msgstr "To może chwilę potrwać przy dużych eksportach."
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:83
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:86
 msgid "This media item could not be loaded. Try again."
 msgstr "Nie udało się załadować tego pliku multimedialnego. Spróbuj ponownie."
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:81
-#: packages/admin/src/components/MediaDetailPanel.tsx:821
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
+#: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "This media item no longer exists."
 msgstr "Ten plik multimedialny już nie istnieje."
 
@@ -14929,7 +14929,7 @@ msgstr "Prześlij plik eksportu WordPress"
 msgid "Uploaded"
 msgstr "Przesłano"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1340
+#: packages/admin/src/components/MediaDetailPanel.tsx:1341
 msgid "Uploaded:"
 msgstr "Przesłane:"
 
@@ -14984,7 +14984,7 @@ msgstr "Szablon URL (np. /blog/:slug)"
 msgid "URL-friendly identifier"
 msgstr "Identyfikator przyjazny dla URL"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1370
+#: packages/admin/src/components/MediaDetailPanel.tsx:1371
 msgid "URL:"
 msgstr "URL:"
 
@@ -15080,8 +15080,8 @@ msgstr "Używany jako główna grafika tego wpisu na stronach z listą i na gór
 msgid "Used by screen readers and when image fails to load"
 msgstr "Używany przez czytniki ekranu i gdy obraz nie załaduje się"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1165
-#: packages/admin/src/components/MediaDetailPanel.tsx:1198
+#: packages/admin/src/components/MediaDetailPanel.tsx:1166
+#: packages/admin/src/components/MediaDetailPanel.tsx:1199
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "Używane w"
@@ -15660,8 +15660,8 @@ msgstr "Później możesz przeglądać klucze dostępu, zmieniać ich nazwy i do
 msgid "You cannot change your own role"
 msgstr "Nie możesz zmienić własnej roli"
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:70
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:79
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:73
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:82
 msgid "You do not have permission to edit this asset."
 msgstr "Nie masz uprawnień do edycji tego pliku."
 
@@ -15856,7 +15856,7 @@ msgstr "Twoja nazwa użytkownika na Twitterze/X (np. @nazwa)"
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Your unsaved media changes will be lost."
 msgstr "Niezapisane zmiany w mediach zostaną utracone."
 

@@ -26,6 +26,7 @@ import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
 	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
+	ContentSlugConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
 	InvalidCursorError,
@@ -1415,6 +1416,18 @@ export async function handleContentCreate(
 				},
 			};
 		}
+		if (error instanceof ContentMutationConflictError) {
+			return { success: false, error: { code: "CONFLICT", message: error.message } };
+		}
+		if (error instanceof ContentSlugConflictError) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+				},
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			if (error.message === "Translation source content not found") {
 				return {
@@ -1613,6 +1626,7 @@ export async function handleContentUpdate(
 			const updated = await trxRepo.update(collection, resolvedId, {
 				data: body.data,
 				slug: body.slug,
+				locale: existing?.locale ?? body.locale,
 				status: body.status,
 				authorId: body.authorId,
 				publishedAt: body.publishedAt,
@@ -1715,6 +1729,15 @@ export async function handleContentUpdate(
 			return {
 				success: false,
 				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		if (error instanceof ContentSlugConflictError) {
+			return {
+				success: false,
+				error: {
+					code: "SLUG_CONFLICT",
+					message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+				},
 			};
 		}
 		const message = error instanceof Error ? error.message.toLowerCase() : "";

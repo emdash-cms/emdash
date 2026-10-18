@@ -29,20 +29,20 @@ msgstr "-- Pilih --"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:156
 msgctxt "Read aloud between a version's author and status"
 msgid ", "
-msgstr ""
+msgstr ", "
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1924
+#: packages/admin/src/components/MediaDetailPanel.tsx:1925
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "\"{0}\" akan dihapus dari {providerName}."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
+#: packages/admin/src/components/MediaDetailPanel.tsx:1926
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "\"{0}\" akan dihapus dari penyedia medianya."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1926
+#: packages/admin/src/components/MediaDetailPanel.tsx:1927
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" akan dihapus secara permanen."
 
@@ -133,7 +133,7 @@ msgstr "{0, plural, other {# berkas tidak ditambahkan karena daftar unggahan pen
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1518
+#: packages/admin/src/components/MediaDetailPanel.tsx:1519
 #: packages/admin/src/components/MediaLibrary.tsx:938
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, other {# map dimuat}}"
@@ -512,11 +512,11 @@ msgstr "{completedCount} dari {0} unggahan selesai"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:419
 msgid "{count, plural, one {# block} other {# blocks}}"
-msgstr ""
+msgstr "{count, plural, other {# blok}}"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:420
 msgid "{count, plural, one {# entry} other {# entries}}"
-msgstr ""
+msgstr "{count, plural, other {# entri}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "{count, plural, one {# file} other {# files}}"
@@ -537,7 +537,7 @@ msgstr "{dayLabel}, {entries}"
 
 #: packages/admin/src/components/revisions/revision-format.ts:123
 msgid "{dayLabel}, {timeLabel}"
-msgstr ""
+msgstr "{dayLabel}, {timeLabel}"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:120
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
@@ -571,7 +571,7 @@ msgstr "{hidden, plural, other {+# lainnya}}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:390
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
-msgstr ""
+msgstr "{hiddenCount, plural, other {Tampilkan # lainnya}}"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:38
 msgid "{host} does not resolve to a public address"
@@ -610,7 +610,7 @@ msgstr "Opsi {label}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:246
 msgid "{label}, {restored}"
-msgstr ""
+msgstr "{label}, {restored}"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:366
 msgid "{lateness} late"
@@ -842,19 +842,19 @@ msgstr "{totalScheduled, plural, other {Terjadwal}}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:239
 msgid "{when}, {author}"
-msgstr ""
+msgstr "{when}, {author}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:236
 msgid "{when}, Current version, {author}"
-msgstr ""
+msgstr "{when}, Versi saat ini, {author}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:234
 msgid "{when}, Current version, Published, {author}"
-msgstr ""
+msgstr "{when}, Versi saat ini, Dipublikasikan, {author}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:238
 msgid "{when}, Published, {author}"
-msgstr ""
+msgstr "{when}, Dipublikasikan, {author}"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{widgetType} in {areaName}"
@@ -1311,7 +1311,7 @@ msgstr "Tambahkan Konten"
 msgid "Add Custom Link"
 msgstr "Tambah Tautan Kustom"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:455
+#: packages/admin/src/components/ImageFieldRenderer.tsx:467
 msgid "Add dark mode variant"
 msgstr "Tambahkan varian mode gelap"
 
@@ -1456,60 +1456,60 @@ msgstr "Ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:133
 msgid "Added “{snippet}”"
-msgstr ""
+msgstr "“{snippet}” ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:121
 msgid "Added {label}"
-msgstr ""
+msgstr "{label} ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:51
 msgid "Added a code block"
-msgstr ""
+msgstr "Blok kode ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:87
 msgid "Added a divider"
-msgstr ""
+msgstr "Pembatas ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:63
 msgid "Added a gallery"
-msgstr ""
+msgstr "Galeri ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:24
 msgid "Added a heading"
-msgstr ""
+msgstr "Judul ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:38
 msgid "Added a list item"
-msgstr ""
+msgstr "Item daftar ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:17
 msgid "Added a paragraph"
-msgstr ""
+msgstr "Paragraf ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:31
 msgid "Added a quote"
-msgstr ""
+msgstr "Kutipan ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:57
 msgid "Added a table"
-msgstr ""
+msgstr "Tabel ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:69
 msgid "Added a video"
-msgstr ""
+msgstr "Video ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:75
 msgid "Added an embed"
-msgstr ""
+msgstr "Sematan ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:81
 msgid "Added an HTML block"
-msgstr ""
+msgstr "Blok HTML ditambahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:45
 #: packages/admin/src/components/revisions/change-labels.ts:95
 msgid "Added an image"
-msgstr ""
+msgstr "Gambar ditambahkan"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:108
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:230
@@ -1518,7 +1518,7 @@ msgstr ""
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:270
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:139
 msgid "Added:"
-msgstr ""
+msgstr "Ditambahkan:"
 
 #: packages/admin/src/components/MenuEditor.tsx:551
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
@@ -1539,7 +1539,7 @@ msgstr "Rincian tambahan"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:278
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
-msgstr ""
+msgstr "Menambahkan aturan ke robots.txt yang meminta crawler AI untuk tidak menggunakan situs ini untuk pelatihan. Mesin pencari masih dapat mengindeksnya."
 
 #: packages/admin/src/components/WordPressImport.tsx:1537
 msgid "admin"
@@ -1746,8 +1746,8 @@ msgid "Alt text"
 msgstr "Teks alt"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:743
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
-#: packages/admin/src/components/MediaDetailPanel.tsx:1603
+#: packages/admin/src/components/MediaDetailPanel.tsx:1587
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Alt Text"
 msgstr "Teks Alt"
 
@@ -1855,7 +1855,7 @@ msgstr "Menganalisis berkas ekspor..."
 msgid "Analyzing WordPress site..."
 msgstr "Menganalisis situs WordPress..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1771
+#: packages/admin/src/components/MediaDetailPanel.tsx:1772
 msgid "Animated WebP files become still images when cropped."
 msgstr "Berkas WebP animasi menjadi gambar diam saat dipotong."
 
@@ -1986,7 +1986,7 @@ msgstr "Sebagai administrator, Anda dapat mengundang pengguna lain dari bagian P
 msgid "Ask an administrator to complete this setup."
 msgstr "Tanya administrator untuk menyelesaikan penyiapan ini."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1714
 msgid "Aspect ratio"
 msgstr "Rasio aspek"
 
@@ -2166,7 +2166,7 @@ msgstr "Kembali"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/FieldEditor.tsx:673
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:405
 #: packages/admin/src/components/WordPressImport.tsx:1564
@@ -2185,15 +2185,15 @@ msgstr "Kembali ke Tipe Konten"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:206
 msgid "Back to editing"
-msgstr ""
+msgstr "Kembali menyunting"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:196
 msgid "Back to editing (Esc)"
-msgstr ""
+msgstr "Kembali menyunting (Esc)"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:392
 msgid "Back to editing."
-msgstr ""
+msgstr "Kembali menyunting."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
@@ -2351,7 +2351,7 @@ msgstr "Boolean"
 
 #: packages/admin/src/components/WordPressImport.tsx:1314
 msgid "Bot protection blocked the connection"
-msgstr ""
+msgstr "Perlindungan bot memblokir sambungan"
 
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
@@ -2518,7 +2518,7 @@ msgstr "Dapat melihat konten"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1381
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
 #: packages/admin/src/components/MenuEditor.tsx:464
@@ -2599,7 +2599,7 @@ msgstr "Persetujuan kapabilitas"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:751
 #: packages/admin/src/components/editor/ImageNode.tsx:304
 #: packages/admin/src/components/editor/VideoNode.tsx:325
-#: packages/admin/src/components/MediaDetailPanel.tsx:1614
+#: packages/admin/src/components/MediaDetailPanel.tsx:1615
 msgid "Caption"
 msgstr "Takarir"
 
@@ -2694,56 +2694,56 @@ msgstr "Ubah di mana pengunjung diarahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:110
 msgid "Changed {label}"
-msgstr ""
+msgstr "{label} diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:89
 msgid "Changed a divider"
-msgstr ""
+msgstr "Pembatas diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:65
 msgid "Changed a gallery"
-msgstr ""
+msgstr "Galeri diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:71
 msgid "Changed a video"
-msgstr ""
+msgstr "Video diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:77
 msgid "Changed an embed"
-msgstr ""
+msgstr "Sematan diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:47
 #: packages/admin/src/components/revisions/change-labels.ts:100
 msgid "Changed an image"
-msgstr ""
+msgstr "Gambar diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:177
 msgid "Changed the slug to “{slug}”"
-msgstr ""
+msgstr "Slug diubah menjadi “{slug}”"
 
 #: packages/admin/src/components/revisions/change-labels.ts:139
 msgid "Changed the style of “{snippet}”"
-msgstr ""
+msgstr "Gaya “{snippet}” diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:27
 msgid "Changed the style of a heading"
-msgstr ""
+msgstr "Gaya judul diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:41
 msgid "Changed the style of a list item"
-msgstr ""
+msgstr "Gaya item daftar diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:20
 msgid "Changed the style of a paragraph"
-msgstr ""
+msgstr "Gaya paragraf diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:34
 msgid "Changed the style of a quote"
-msgstr ""
+msgstr "Gaya kutipan diubah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:165
 msgid "Changed the title"
-msgstr ""
+msgstr "Judul diubah"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:126
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:254
@@ -2752,7 +2752,7 @@ msgstr ""
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:59
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:110
 msgid "Changed:"
-msgstr ""
+msgstr "Diubah:"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:901
 msgid "Changelog"
@@ -2768,7 +2768,7 @@ msgstr "Perubahan dibatalkan"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:347
 msgid "Changes in this version"
-msgstr ""
+msgstr "Perubahan di versi ini"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:478
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
@@ -2893,7 +2893,7 @@ msgid "Choose a new publication time for this draft."
 msgstr "Pilih waktu publikasi baru untuk draf ini."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:917
+#: packages/admin/src/components/MediaDetailPanel.tsx:918
 msgid "Choose a non-empty {0} image."
 msgstr "Pilih gambar {0} yang tidak kosong."
 
@@ -2931,7 +2931,7 @@ msgstr "Pilih berkas untuk diunggah"
 msgid "Choose package file"
 msgstr "Pilih berkas paket"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 msgid "Choose replacement image"
 msgstr "Pilih gambar pengganti"
 
@@ -3007,7 +3007,7 @@ msgstr "Bersihkan nilai tersimpan untuk {fieldKey}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:123
 msgid "Cleared {label}"
-msgstr ""
+msgstr "{label} dibersihkan"
 
 #: packages/admin/src/locales/emails.ts:56
 msgid "Click the button below to create your account:"
@@ -3051,8 +3051,8 @@ msgstr "Klik tautan ini untuk masuk ke {siteName}:"
 #: packages/admin/src/components/FieldEditor.tsx:710
 #: packages/admin/src/components/FieldEditor.tsx:715
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:462
-#: packages/admin/src/components/MediaDetailPanel.tsx:1126
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaPickerModal.tsx:1010
 #: packages/admin/src/components/MediaPickerModal.tsx:1017
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
@@ -3123,7 +3123,7 @@ msgstr "Tutup pengaturan"
 
 #: packages/admin/src/components/WordPressImport.tsx:93
 msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
-msgstr ""
+msgstr "Perlindungan bot Cloudflare menjawab dengan halaman tantangan, jadi EmDash tidak dapat mencapai EmDash Exporter API. Izinkan permintaan ke /wp-json/emdash/v1/ (dan ?rest_route=/emdash/v1/ di situs tanpa permalink bagus), misalnya dengan aturan khusus WAF yang melewati perlindungan bot, atau jeda perlindungan bot selama migrasi, lalu coba lagi."
 
 #: packages/admin/src/components/ContentTypeList.tsx:388
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
@@ -3418,7 +3418,7 @@ msgstr "Tipe Konten"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "Tipe konten dengan grup yang sama berbagi map yang dapat diciutkan di bilah sisi"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1945
 msgid "Content using this media item may show a broken reference."
 msgstr "Konten yang menggunakan item media ini mungkin menunjukkan referensi yang rusak."
 
@@ -3523,7 +3523,7 @@ msgstr "Salin token"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:307
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:308
-#: packages/admin/src/components/MediaDetailPanel.tsx:1377
+#: packages/admin/src/components/MediaDetailPanel.tsx:1378
 msgid "Copy URL"
 msgstr "Salin URL"
 
@@ -3599,7 +3599,7 @@ msgstr "Tidak dapat menghapus jadwal"
 msgid "Could not review posts"
 msgstr "Tidak dapat meninjau postingan"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:826
+#: packages/admin/src/components/MediaDetailPanel.tsx:827
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "Tidak dapat memastikan apakah item media atau map yang dipilih masih ada. Coba lagi."
 
@@ -3649,7 +3649,7 @@ msgstr "Tidak dapat memuat rencana impor"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:564
 msgid "Couldn't load this version. Back to editing."
-msgstr ""
+msgstr "Tidak dapat memuat versi ini. Kembali menyunting."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:274
 msgid "Couldn’t load usage."
@@ -3657,7 +3657,7 @@ msgstr "Tidak dapat memuat penggunaan."
 
 #: packages/admin/src/components/RevisionHistory.tsx:91
 msgid "Couldn't load versions"
-msgstr ""
+msgstr "Tidak dapat memuat versi"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -3767,7 +3767,7 @@ msgstr "Buat dan tambahkan"
 msgid "Create Content Type"
 msgstr "Buat Tipe Konten"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1878
+#: packages/admin/src/components/MediaDetailPanel.tsx:1879
 msgid "Create cropped copy"
 msgstr "Buat salinan terpangkas"
 
@@ -3939,7 +3939,7 @@ msgstr "Membuat koleksi dan field"
 msgid "Creating collections and fields..."
 msgstr "Membuat koleksi dan field..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
 msgid "Creating cropped copy..."
 msgstr "Membuat salinan terpangkas..."
 
@@ -3952,7 +3952,7 @@ msgstr "Membuat salinan terpangkas..."
 msgid "Creating..."
 msgstr "Membuat..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1639
+#: packages/admin/src/components/MediaDetailPanel.tsx:1640
 msgid "Crop"
 msgstr "Pangkas"
 
@@ -3962,7 +3962,7 @@ msgstr "Pangkas"
 msgid "Crop area {0} by {1} pixels."
 msgstr "Pangkas area {0} kali {1} piksel."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1746
+#: packages/admin/src/components/MediaDetailPanel.tsx:1747
 msgid "Crop output dimensions"
 msgstr "Pangkas dimensi luaran"
 
@@ -3970,7 +3970,7 @@ msgstr "Pangkas dimensi luaran"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "Pangkas pemilihan. Gunakan tombol Panah untuk memindahkannya."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:772
 #: packages/admin/src/components/MediaLibrary.tsx:1289
 msgid "Cropped copy created."
 msgstr "Salinan terpangkas dibuat."
@@ -4004,7 +4004,7 @@ msgstr "Sel saat ini"
 #: packages/admin/src/components/revisions/RevisionList.tsx:265
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
-msgstr ""
+msgstr "Versi saat ini"
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
@@ -4035,7 +4035,7 @@ msgid "Daily automatic backups"
 msgstr "Cadangan otomatis harian"
 
 #: packages/admin/src/components/FieldEditor.tsx:1366
-#: packages/admin/src/components/ImageFieldRenderer.tsx:399
+#: packages/admin/src/components/ImageFieldRenderer.tsx:411
 msgid "Dark mode variant"
 msgstr "Varian mode gelap"
 
@@ -4134,8 +4134,8 @@ msgstr "Didefinisikan dalam kode"
 #: packages/admin/src/components/ContentTypeList.tsx:256
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:363
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1930
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
 #: packages/admin/src/components/MenuEditor.tsx:672
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:616
@@ -4258,7 +4258,7 @@ msgstr "Hapus galeri"
 msgid "Delete image"
 msgstr "Hapus gambar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1918
+#: packages/admin/src/components/MediaDetailPanel.tsx:1919
 msgid "Delete media?"
 msgstr "Hapus media?"
 
@@ -4356,8 +4356,8 @@ msgstr "Menghapus \"{0}\" juga akan menghapus {1, plural, other {# nilai tersimp
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:864
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1932
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:236
 #: packages/admin/src/components/Redirects.tsx:617
@@ -4421,7 +4421,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "Deskripsikan tujuan dan rincian relevan dari gambar ini untuk orang yang tidak dapat melihatnya."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:746
-#: packages/admin/src/components/MediaDetailPanel.tsx:1606
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Describe this image for accessibility"
 msgstr "Deskripsikan gambar ini untuk aksesibilitas"
 
@@ -4454,8 +4454,8 @@ msgstr "Jalur destinasi"
 msgid "Destructive"
 msgstr "Destruktif"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1154
-#: packages/admin/src/components/MediaDetailPanel.tsx:1196
+#: packages/admin/src/components/MediaDetailPanel.tsx:1155
+#: packages/admin/src/components/MediaDetailPanel.tsx:1197
 msgid "Details"
 msgstr "Rincian"
 
@@ -4487,7 +4487,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr "Perbedaan dari situs sumber"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1324
+#: packages/admin/src/components/MediaDetailPanel.tsx:1325
 msgid "Dimensions:"
 msgstr "Dimensi:"
 
@@ -4538,9 +4538,9 @@ msgstr "Menonaktifkan..."
 #: packages/admin/src/components/settings/SeoSettings.tsx:276
 #: packages/admin/src/components/settings/SeoSettings.tsx:286
 msgid "Disallow AI training"
-msgstr ""
+msgstr "Tolak pelatihan AI"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "Discard"
 msgstr "Buang"
 
@@ -4549,7 +4549,7 @@ msgstr "Buang"
 msgid "Discard changes"
 msgstr "Buang perubahan"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "Discard changes?"
 msgstr "Buang perubahan?"
 
@@ -4557,7 +4557,7 @@ msgstr "Buang perubahan?"
 msgid "Discard draft changes?"
 msgstr "Buang perubahan draf?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1905
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "Discarding..."
 msgstr "Membuang..."
 
@@ -4884,7 +4884,7 @@ msgstr "Setiap segmen jalur dapat berisi paling banyak satu pengganti, cth. {0}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:155
 msgid "Earliest saved version"
-msgstr ""
+msgstr "Versi tersimpan paling awal"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:352
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:353
@@ -4934,9 +4934,9 @@ msgstr "Sunting {title}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
-#: packages/admin/src/components/ImageFieldRenderer.tsx:305
-#: packages/admin/src/components/ImageFieldRenderer.tsx:362
-#: packages/admin/src/components/ImageFieldRenderer.tsx:430
+#: packages/admin/src/components/ImageFieldRenderer.tsx:317
+#: packages/admin/src/components/ImageFieldRenderer.tsx:374
+#: packages/admin/src/components/ImageFieldRenderer.tsx:442
 #: packages/admin/src/components/MediaPickerModal.tsx:1595
 msgid "Edit asset"
 msgstr "Sunting aset"
@@ -4950,7 +4950,7 @@ msgstr "Sunting byline"
 msgid "Edit byline field"
 msgstr "Sunting kolom byline"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:428
+#: packages/admin/src/components/ImageFieldRenderer.tsx:440
 msgid "Edit dark mode asset"
 msgstr "Sunting aset mode gelap"
 
@@ -4972,8 +4972,8 @@ msgstr "Sunting map"
 msgid "Edit folder {0}"
 msgstr "Sunting map {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1159
-#: packages/admin/src/components/MediaDetailPanel.tsx:1199
+#: packages/admin/src/components/MediaDetailPanel.tsx:1160
+#: packages/admin/src/components/MediaDetailPanel.tsx:1200
 msgid "Edit image"
 msgstr "Sunting gambar"
 
@@ -5034,47 +5034,47 @@ msgstr "Sunting URL"
 
 #: packages/admin/src/components/revisions/change-labels.ts:137
 msgid "Edited “{snippet}”"
-msgstr ""
+msgstr "“{snippet}” disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:125
 msgid "Edited {label}"
-msgstr ""
+msgstr "{label} disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:53
 msgid "Edited a code block"
-msgstr ""
+msgstr "Blok kode disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:26
 msgid "Edited a heading"
-msgstr ""
+msgstr "Judul disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:40
 msgid "Edited a list item"
-msgstr ""
+msgstr "Item daftar disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:19
 msgid "Edited a paragraph"
-msgstr ""
+msgstr "Paragraf disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:33
 msgid "Edited a quote"
-msgstr ""
+msgstr "Kutipan disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:59
 msgid "Edited a table"
-msgstr ""
+msgstr "Tabel disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:83
 msgid "Edited an HTML block"
-msgstr ""
+msgstr "Blok HTML disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:98
 msgid "Edited an image caption"
-msgstr ""
+msgstr "Takarir gambar disunting"
 
 #: packages/admin/src/components/revisions/change-labels.ts:99
 msgid "Edited an image description"
-msgstr ""
+msgstr "Deskripsi gambar disunting"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
@@ -5207,11 +5207,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} tersedia (Anda menjalankan {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1980
+#: packages/admin/src/components/MediaDetailPanel.tsx:1981
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash tidak menyimpan gambar sebelumnya."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:2014
+#: packages/admin/src/components/MediaDetailPanel.tsx:2015
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash tidak menyimpan gambar sebelum dipangkas."
 
@@ -5242,7 +5242,7 @@ msgstr "EmDash akan memindai konten yang ada untuk menunjukkan di mana media dig
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:442
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:21
 msgid "Empty"
-msgstr ""
+msgstr "Kosong"
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:191
 msgid "Empty gallery — open settings to add images"
@@ -5432,11 +5432,11 @@ msgstr "Setiap rekaman dan berkas media yang diimpor dibaca kembali dan cocok de
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "Setiap pengguna lain dengan akun aktif mendapatkan surel mengatakan situs sekarang berada di {siteHost}, dengan tautan untuk masuk di sana. Kunci sandi dari alamat lain tidak bekerja di {siteHost}, jadi pengguna masuk dengan tautan surel dan menambahkan kunci sandi baru."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1996
+#: packages/admin/src/components/MediaDetailPanel.tsx:1997
 msgid "Every place using this image will update to the cropped version."
 msgstr "Setiap tempat menggunakan gambar ini akan diperbarui ke versi yang dipangkas."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1961
+#: packages/admin/src/components/MediaDetailPanel.tsx:1962
 msgid "Every place using this image will update to the selected version."
 msgstr "Setiap tempat menggunakan gambar ini akan diperbarui ke versi yang dipilih."
 
@@ -5786,7 +5786,7 @@ msgstr "Gagal menghapus konten"
 msgid "Failed to delete field"
 msgstr "Gagal menghapus kolom"
 
-#: packages/admin/src/lib/api/media.ts:764
+#: packages/admin/src/lib/api/media.ts:765
 msgid "Failed to delete from provider"
 msgstr "Gagal menghapus dari penyedia"
 
@@ -6011,7 +6011,7 @@ msgstr "Gagal mengambil map media"
 msgid "Failed to fetch media item"
 msgstr "Gagal mengambil item media"
 
-#: packages/admin/src/lib/api/media.ts:697
+#: packages/admin/src/lib/api/media.ts:698
 msgid "Failed to fetch media providers"
 msgstr "Gagal mengambil penyedia media"
 
@@ -6053,7 +6053,7 @@ msgstr "Gagal mengambil pengaturan pengaya"
 msgid "Failed to fetch plugins"
 msgstr "Gagal mengambil pengaya"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:728
 msgid "Failed to fetch provider media"
 msgstr "Gagal mengambil media penyedia"
 
@@ -6360,7 +6360,7 @@ msgstr "Gagal membaca penggunaan kolom byline"
 
 #: packages/admin/src/router.tsx:2864
 msgid "Failed to register {slug}"
-msgstr ""
+msgstr "Gagal mendaftarkan {slug}"
 
 #: packages/admin/src/lib/api/schema.ts:548
 msgid "Failed to register orphaned table"
@@ -6639,7 +6639,7 @@ msgstr "Gagal mengunggah berkas"
 msgid "Failed to upload media"
 msgstr "Gagal mengunggah media"
 
-#: packages/admin/src/lib/api/media.ts:752
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to upload to provider"
 msgstr "Gagal mengunggah ke penyedia"
 
@@ -6737,8 +6737,8 @@ msgstr "Berkas {0}"
 msgid "File from media library"
 msgstr "Berkas dari pustaka media"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1425
-#: packages/admin/src/components/MediaDetailPanel.tsx:1442
+#: packages/admin/src/components/MediaDetailPanel.tsx:1426
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
 #: packages/admin/src/components/MediaLibrary.tsx:1141
 msgid "Filename"
 msgstr "Nama berkas"
@@ -6821,7 +6821,7 @@ msgstr "Publikasi pertama"
 
 #: packages/admin/src/components/revisions/change-labels.ts:153
 msgid "First version"
-msgstr ""
+msgstr "Versi pertama"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:84
 msgid "First-time commenters only"
@@ -6835,8 +6835,8 @@ msgstr "Perbaiki kolom yang tidak valid sebelum mengubah tanggal publikasi"
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Perbaiki kolom yang tidak valid sebelum mengubah jadwal"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1644
-#: packages/admin/src/components/MediaDetailPanel.tsx:1655
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
+#: packages/admin/src/components/MediaDetailPanel.tsx:1656
 msgid "Focal point"
 msgstr "Titik fokus"
 
@@ -6882,7 +6882,7 @@ msgstr "Map tidak tersedia"
 msgid "Folders"
 msgstr "Map"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1545
+#: packages/admin/src/components/MediaDetailPanel.tsx:1546
 #: packages/admin/src/components/MediaLibrary.tsx:963
 #: packages/admin/src/components/MediaLibrary.tsx:1467
 #: packages/admin/src/components/MediaPickerModal.tsx:1328
@@ -6909,7 +6909,7 @@ msgstr "Untuk pengalaman impor terbaik, pasang pengaya <0>EmDash Exporter</0> di
 msgid "Format selection"
 msgstr "Pemilihan format"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Format:"
 msgstr "Format:"
 
@@ -6997,7 +6997,7 @@ msgstr "Go"
 
 #: packages/admin/src/components/ContentEditor.tsx:1323
 msgid "Go back to editing first."
-msgstr ""
+msgstr "Kembali menyunting lebih dahulu."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
 msgid "Go live {countdown}"
@@ -7337,8 +7337,8 @@ msgstr "Gambar"
 msgid "Image {0}"
 msgstr "Gambar {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:339
+#: packages/admin/src/components/ImageFieldRenderer.tsx:336
+#: packages/admin/src/components/ImageFieldRenderer.tsx:351
 #: packages/admin/src/components/SeoImageField.tsx:128
 msgid "Image actions"
 msgstr "Tindakan gambar"
@@ -7356,17 +7356,17 @@ msgid "Image link"
 msgstr "Tautan gambar"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
-#: packages/admin/src/components/ImageFieldRenderer.tsx:476
-#: packages/admin/src/components/ImageFieldRenderer.tsx:531
+#: packages/admin/src/components/ImageFieldRenderer.tsx:488
+#: packages/admin/src/components/ImageFieldRenderer.tsx:543
 #: packages/admin/src/components/SeoImageField.tsx:107
 msgid "Image not found"
 msgstr "Gambar tidak ditemukan"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:254
 msgid "Image replaced:"
-msgstr ""
+msgstr "Gambar diganti:"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:718
 msgid "Image replaced."
 msgstr "Gambar diganti."
 
@@ -8170,7 +8170,7 @@ msgstr "Muat lebih banyak"
 msgid "Load More"
 msgstr "Muat Lebih Banyak"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
+#: packages/admin/src/components/MediaDetailPanel.tsx:1565
 #: packages/admin/src/components/MediaLibrary.tsx:993
 #: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -8234,7 +8234,7 @@ msgstr "Memuat ekspor…"
 msgid "Loading folders"
 msgstr "Memuat map"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1516
+#: packages/admin/src/components/MediaDetailPanel.tsx:1517
 msgid "Loading folders..."
 msgstr "Memuat map..."
 
@@ -8321,7 +8321,7 @@ msgstr "Memuat widget..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
 #: packages/admin/src/components/MediaDetailPanel.tsx:622
 #: packages/admin/src/components/MediaDetailPanel.tsx:624
-#: packages/admin/src/components/MediaDetailPanel.tsx:1751
+#: packages/admin/src/components/MediaDetailPanel.tsx:1752
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3206
@@ -8369,10 +8369,10 @@ msgstr "Bahasa"
 msgid "Locales will use this site’s capitalization"
 msgstr "Bahasa akan menggunakan kapitalisasi situs ini"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1453
-#: packages/admin/src/components/MediaDetailPanel.tsx:1481
-#: packages/admin/src/components/MediaDetailPanel.tsx:1572
-#: packages/admin/src/components/MediaDetailPanel.tsx:1574
+#: packages/admin/src/components/MediaDetailPanel.tsx:1454
+#: packages/admin/src/components/MediaDetailPanel.tsx:1482
+#: packages/admin/src/components/MediaDetailPanel.tsx:1573
+#: packages/admin/src/components/MediaDetailPanel.tsx:1575
 msgid "Location"
 msgstr "Lokasi"
 
@@ -8477,11 +8477,11 @@ msgstr "Kelola pengalihan URL dan lihat galat 404."
 msgid "Manage your passkeys and authentication"
 msgstr "Kelola kunci sandi dan otentikasi Anda"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1411
+#: packages/admin/src/components/MediaDetailPanel.tsx:1412
 msgid "Managed by {providerName}"
 msgstr "Dikelola oleh {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1412
+#: packages/admin/src/components/MediaDetailPanel.tsx:1413
 msgid "Managed by an external media provider"
 msgstr "Dikelola oleh penyedia media eksternal"
 
@@ -8583,7 +8583,7 @@ msgstr "MDX"
 msgid "Media"
 msgstr "Media"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1119
+#: packages/admin/src/components/MediaDetailPanel.tsx:1120
 msgid "Media details"
 msgstr "Rincian media"
 
@@ -8840,7 +8840,7 @@ msgstr "Tindakan lainnya untuk {0}"
 msgid "More formatting"
 msgstr "Pemformatan lainnya"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:516
+#: packages/admin/src/components/ImageFieldRenderer.tsx:528
 msgid "More information about {label}"
 msgstr "Informasi lebih lanjut tentang {label}"
 
@@ -8981,7 +8981,7 @@ msgstr "Pindahkan {0} ke atas"
 
 #: packages/admin/src/components/revisions/change-labels.ts:141
 msgid "Moved “{snippet}”"
-msgstr ""
+msgstr "“{snippet}” dipindahkan"
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:701
@@ -8998,51 +8998,51 @@ msgstr "{total} item dipindahkan ke tempat sampah"
 
 #: packages/admin/src/components/revisions/change-labels.ts:54
 msgid "Moved a code block"
-msgstr ""
+msgstr "Blok kode dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:90
 msgid "Moved a divider"
-msgstr ""
+msgstr "Pembatas dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:66
 msgid "Moved a gallery"
-msgstr ""
+msgstr "Galeri dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:28
 msgid "Moved a heading"
-msgstr ""
+msgstr "Judul dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:42
 msgid "Moved a list item"
-msgstr ""
+msgstr "Item daftar dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:21
 msgid "Moved a paragraph"
-msgstr ""
+msgstr "Paragraf dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:35
 msgid "Moved a quote"
-msgstr ""
+msgstr "Kutipan dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:60
 msgid "Moved a table"
-msgstr ""
+msgstr "Tabel dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:72
 msgid "Moved a video"
-msgstr ""
+msgstr "Video dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:78
 msgid "Moved an embed"
-msgstr ""
+msgstr "Sematan dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:84
 msgid "Moved an HTML block"
-msgstr ""
+msgstr "Blok HTML dipindahkan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:48
 msgid "Moved an image"
-msgstr ""
+msgstr "Gambar dipindahkan"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:568
@@ -9235,7 +9235,7 @@ msgstr "Jendela baru"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:188
 msgid "Newer version"
-msgstr ""
+msgstr "Versi lebih baru"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:36
@@ -9360,7 +9360,7 @@ msgstr "Belum ada byline"
 
 #: packages/admin/src/components/revisions/change-labels.ts:163
 msgid "No changes"
-msgstr ""
+msgstr "Tidak ada perubahan"
 
 #: packages/admin/src/components/Dashboard.tsx:485
 msgid "No collections configured"
@@ -9447,7 +9447,7 @@ msgstr "Tidak ada kolom"
 msgid "No files added"
 msgstr "Tidak ada berkas ditambahkan"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1524
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 msgid "No folders found"
 msgstr "Tidak ada map ditemukan"
 
@@ -9604,7 +9604,7 @@ msgstr "Belum ada pengaya telah dipublikasikan ke registri ini."
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "Tidak ada pengaya cocok \"{debouncedQuery}\"."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1380
+#: packages/admin/src/components/MediaDetailPanel.tsx:1381
 msgid "No public URL available"
 msgstr "Tidak ada URL publik tersedia"
 
@@ -9687,7 +9687,7 @@ msgstr "Belum ada pengguna."
 
 #: packages/admin/src/components/RevisionHistory.tsx:84
 msgid "No versions yet"
-msgstr ""
+msgstr "Belum ada versi"
 
 #: packages/admin/src/components/Widgets.tsx:506
 msgid "No widget areas yet. Create one to get started."
@@ -9725,7 +9725,7 @@ msgstr "Tidak cocok"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:499
 msgid "Not recorded in this version"
-msgstr ""
+msgstr "Tidak direkam di versi ini"
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
@@ -9793,11 +9793,11 @@ msgstr "Gambar OG"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:178
 msgid "Older version"
-msgstr ""
+msgstr "Versi lebih lama"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
 msgid "On"
-msgstr ""
+msgstr "Nyala"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
@@ -9930,7 +9930,7 @@ msgstr "Takarir opsional"
 msgid "Optional caption displayed below the image"
 msgstr "Takarir opsional di bawah gambar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1618
 msgid "Optional caption for display"
 msgstr "Takarir opsional untuk tampilan"
 
@@ -9989,7 +9989,7 @@ msgstr "Blok build halaman terurut"
 msgid "Original"
 msgstr "Asli"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:786
 msgid "Original image cropped."
 msgstr "Gambar asli dipangkas."
 
@@ -10008,7 +10008,7 @@ msgstr "Lainnya"
 msgid "Outline"
 msgstr "Kerangka"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1745
 msgid "Output size"
 msgstr "Ukuran luaran"
 
@@ -10516,7 +10516,7 @@ msgstr "Tekan Spasi untuk mengambil gambar. Gunakan tombol Panah untuk memindahk
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1698
+#: packages/admin/src/components/MediaDetailPanel.tsx:1699
 #: packages/admin/src/components/MediaLibrary.tsx:1140
 msgid "Preview"
 msgstr "Pratinjau"
@@ -11040,9 +11040,9 @@ msgstr "Hapus"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:814
-#: packages/admin/src/components/ImageFieldRenderer.tsx:317
-#: packages/admin/src/components/ImageFieldRenderer.tsx:371
-#: packages/admin/src/components/ImageFieldRenderer.tsx:442
+#: packages/admin/src/components/ImageFieldRenderer.tsx:329
+#: packages/admin/src/components/ImageFieldRenderer.tsx:383
+#: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6513
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
@@ -11083,7 +11083,7 @@ msgstr "Hapus {label}"
 msgid "Remove assignment"
 msgstr "Hapus penetapan"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:440
+#: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Remove dark mode variant"
 msgstr "Hapus varian mode gelap"
 
@@ -11100,7 +11100,7 @@ msgid "Remove from post"
 msgstr "Hapus dari postingan"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:594
-#: packages/admin/src/components/ImageFieldRenderer.tsx:315
+#: packages/admin/src/components/ImageFieldRenderer.tsx:327
 msgid "Remove image"
 msgstr "Hapus gambar"
 
@@ -11148,7 +11148,7 @@ msgstr "Hapus gambar ini dari dokumen?"
 
 #: packages/admin/src/components/revisions/change-labels.ts:135
 msgid "Removed “{snippet}”"
-msgstr ""
+msgstr "“{snippet}” dihapus"
 
 #. placeholder {0}: selected.item.filename
 #: packages/admin/src/components/MediaPickerModal.tsx:706
@@ -11157,56 +11157,56 @@ msgstr "{0} dihapus dari pilihan."
 
 #: packages/admin/src/components/revisions/change-labels.ts:52
 msgid "Removed a code block"
-msgstr ""
+msgstr "Blok kode dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:88
 msgid "Removed a divider"
-msgstr ""
+msgstr "Pembatas dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:64
 msgid "Removed a gallery"
-msgstr ""
+msgstr "Galeri dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:25
 msgid "Removed a heading"
-msgstr ""
+msgstr "Judul dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:39
 msgid "Removed a list item"
-msgstr ""
+msgstr "Item daftar dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:18
 msgid "Removed a paragraph"
-msgstr ""
+msgstr "Paragraf dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:32
 msgid "Removed a quote"
-msgstr ""
+msgstr "Kutipan dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:58
 msgid "Removed a table"
-msgstr ""
+msgstr "Tabel dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:70
 msgid "Removed a video"
-msgstr ""
+msgstr "Video dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:76
 msgid "Removed an embed"
-msgstr ""
+msgstr "Sematan dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:82
 msgid "Removed an HTML block"
-msgstr ""
+msgstr "Blok HTML dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:46
 #: packages/admin/src/components/revisions/change-labels.ts:96
 msgid "Removed an image"
-msgstr ""
+msgstr "Gambar dihapus"
 
 #: packages/admin/src/components/revisions/change-labels.ts:175
 msgid "Removed the slug"
-msgstr ""
+msgstr "Slug dihapus"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:117
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:232
@@ -11215,7 +11215,7 @@ msgstr ""
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:265
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:140
 msgid "Removed:"
-msgstr ""
+msgstr "Dihapus:"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:590
 msgid "Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins"
@@ -11282,11 +11282,11 @@ msgstr "Ganti"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/editor/VideoNode.tsx:403
-#: packages/admin/src/components/ImageFieldRenderer.tsx:291
-#: packages/admin/src/components/ImageFieldRenderer.tsx:352
-#: packages/admin/src/components/ImageFieldRenderer.tsx:415
-#: packages/admin/src/components/ImageFieldRenderer.tsx:589
-#: packages/admin/src/components/ImageFieldRenderer.tsx:592
+#: packages/admin/src/components/ImageFieldRenderer.tsx:303
+#: packages/admin/src/components/ImageFieldRenderer.tsx:364
+#: packages/admin/src/components/ImageFieldRenderer.tsx:427
+#: packages/admin/src/components/ImageFieldRenderer.tsx:601
+#: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/PortableTextEditor.tsx:5779
 #: packages/admin/src/components/PortableTextEditor.tsx:5853
 #: packages/admin/src/components/SeoImageField.tsx:151
@@ -11295,39 +11295,39 @@ msgid "Replace"
 msgstr "Ganti"
 
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:583
+#: packages/admin/src/components/ImageFieldRenderer.tsx:595
 #: packages/admin/src/components/SeoImageField.tsx:148
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Replace {label}"
 msgstr "Ganti {label}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:413
+#: packages/admin/src/components/ImageFieldRenderer.tsx:425
 msgid "Replace dark mode image"
 msgstr "Ganti gambar mode gelap"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:580
+#: packages/admin/src/components/ImageFieldRenderer.tsx:592
 msgid "Replace dark mode variant for {label}"
 msgstr "Ganti varian mode gelap untuk {label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1837
-#: packages/admin/src/components/MediaDetailPanel.tsx:1965
+#: packages/admin/src/components/MediaDetailPanel.tsx:1838
+#: packages/admin/src/components/MediaDetailPanel.tsx:1966
 #: packages/admin/src/components/PortableTextEditor.tsx:5852
 msgid "Replace image"
 msgstr "Ganti gambar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1868
-#: packages/admin/src/components/MediaDetailPanel.tsx:2000
+#: packages/admin/src/components/MediaDetailPanel.tsx:1869
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "Replace original"
 msgstr "Ganti asli"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1957
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1993
 msgid "Replace original image?"
 msgstr "Ganti gambar asli?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1756
+#: packages/admin/src/components/MediaDetailPanel.tsx:1757
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Ganti asli tersedia dengan rasio aspek Asli."
 
@@ -11351,16 +11351,16 @@ msgstr "Ganti dengan daftar kosong"
 
 #: packages/admin/src/components/revisions/change-labels.ts:97
 msgid "Replaced an image"
-msgstr ""
+msgstr "Gambar diganti"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:942
-#: packages/admin/src/components/MediaDetailPanel.tsx:1966
+#: packages/admin/src/components/MediaDetailPanel.tsx:943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replacing image..."
 msgstr "Mengganti gambar..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
-#: packages/admin/src/components/MediaDetailPanel.tsx:2001
-#: packages/admin/src/components/MediaDetailPanel.tsx:2021
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
+#: packages/admin/src/components/MediaDetailPanel.tsx:2002
+#: packages/admin/src/components/MediaDetailPanel.tsx:2022
 msgid "Replacing original..."
 msgstr "Mengganti asli..."
 
@@ -11422,8 +11422,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "Kirimkan ulang dalam {resendCooldown}d"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1690
-#: packages/admin/src/components/MediaDetailPanel.tsx:1740
+#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "Reset"
 msgstr "Atur ulang"
 
@@ -11431,7 +11431,7 @@ msgstr "Atur ulang"
 msgid "Reset column widths"
 msgstr "Atur ulang lebar kolom"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Reset crop"
 msgstr "Atur ulang pangkas"
 
@@ -11503,23 +11503,23 @@ msgstr "Pemulihan gagal"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:109
 msgid "Restore this version?"
-msgstr ""
+msgstr "Pulihkan versi ini?"
 
 #: packages/admin/src/components/revisions/change-labels.ts:158
 msgid "Restored an earlier version"
-msgstr ""
+msgstr "Versi sebelumnya dipulihkan"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:242
 msgid "Restored from {restoredDate}"
-msgstr ""
+msgstr "Dipulihkan dari {restoredDate}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:160
 msgid "Restored the version from {date}"
-msgstr ""
+msgstr "Versi dari {date} dipulihkan"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:130
 msgid "Restoring…"
-msgstr ""
+msgstr "Memulihkan…"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:444
 msgid "Results"
@@ -11535,7 +11535,7 @@ msgstr "Pensiun"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
-#: packages/admin/src/components/MediaDetailPanel.tsx:1551
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1470
 #: packages/admin/src/components/MediaPickerModal.tsx:1217
@@ -11770,7 +11770,7 @@ msgstr "Rust"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:86
 msgid "Same as current version"
-msgstr ""
+msgstr "Sama seperti versi saat ini"
 
 #: packages/admin/src/components/MenuEditor.tsx:534
 #: packages/admin/src/components/MenuEditor.tsx:536
@@ -11787,7 +11787,7 @@ msgstr "Konten sampel"
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:821
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:402
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
 #: packages/admin/src/components/MenuEditor.tsx:756
@@ -11839,7 +11839,7 @@ msgstr "Gagal menyimpan"
 msgid "Save name"
 msgstr "Simpan nama"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1766
+#: packages/admin/src/components/MediaDetailPanel.tsx:1767
 msgid "Save or discard the other changes before cropping."
 msgstr "Simpan atau buang perubahan lain sebelum memungkas."
 
@@ -11880,7 +11880,7 @@ msgstr "Menyimpan koleksi di sini mengubah kolom ini menjadi pemilih entri. ID e
 
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/FieldEditor.tsx:1396
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
 #: packages/admin/src/components/MenuEditor.tsx:756
@@ -12113,8 +12113,8 @@ msgstr "Pencarian gagal"
 msgid "Search failed. Check your connection and try again."
 msgstr "Pencarian gagal. Periksa sambungan Anda dan coba lagi."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1504
 #: packages/admin/src/components/MediaDetailPanel.tsx:1505
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Search folders"
 msgstr "Cari map"
 
@@ -12319,7 +12319,7 @@ msgstr "Pilih"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
 #: packages/admin/src/components/ContentEditor.tsx:3417
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:584
+#: packages/admin/src/components/ImageFieldRenderer.tsx:596
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Select {label}"
 msgstr "Pilih {label}"
@@ -12341,7 +12341,7 @@ msgstr "Pilih komponen..."
 msgid "Select a content type"
 msgstr "Pilih tipe konten"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Select a location"
 msgstr "Pilih lokasi"
 
@@ -12382,7 +12382,7 @@ msgstr "Pilih komentar oleh {0}"
 msgid "Select content"
 msgstr "Pilih konten"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:581
+#: packages/admin/src/components/ImageFieldRenderer.tsx:593
 msgid "Select dark mode variant for {label}"
 msgstr "Pilih varian mode gelap untuk {label}"
 
@@ -12407,7 +12407,7 @@ msgstr "Pilih berkas"
 msgid "Select gallery images"
 msgstr "Pilih gambar galeri"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:564
+#: packages/admin/src/components/ImageFieldRenderer.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 #: packages/admin/src/components/PortableTextEditor.tsx:4678
 msgid "Select image"
@@ -12464,8 +12464,8 @@ msgstr "{label} dipilih"
 msgid "Selected {selectedItemTitle}"
 msgstr "{selectedItemTitle} dipilih"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:253
-#: packages/admin/src/components/ImageFieldRenderer.tsx:268
+#: packages/admin/src/components/ImageFieldRenderer.tsx:265
+#: packages/admin/src/components/ImageFieldRenderer.tsx:280
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr "Gambar dipilih"
@@ -12675,7 +12675,7 @@ msgstr "Teks Pendek"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
 msgid "Show changes"
-msgstr ""
+msgstr "Tampilkan perubahan"
 
 #: packages/admin/src/components/Widgets.tsx:147
 msgid "Show count"
@@ -12691,7 +12691,7 @@ msgstr "Tampilkan hirarki"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:192
 msgid "Show older versions"
-msgstr ""
+msgstr "Tampilkan versi lebih lama"
 
 #: packages/admin/src/components/Widgets.tsx:139
 msgid "Show post count"
@@ -12892,7 +12892,7 @@ msgstr "Ukuran"
 msgid "Size is not applicable to folders"
 msgstr "Ukuran tidak dapat diterapkan ke berkas"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1311
+#: packages/admin/src/components/MediaDetailPanel.tsx:1312
 msgid "Size:"
 msgstr "Ukuran:"
 
@@ -13175,7 +13175,7 @@ msgstr "Terstruktur"
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:135
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:163
 msgid "Style changed:"
-msgstr ""
+msgstr "Gaya diubah:"
 
 #: packages/admin/src/components/FieldEditor.tsx:1305
 msgid "Sub-field slugs cannot be changed after creation."
@@ -13397,7 +13397,7 @@ msgstr "Pemformatan teks"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:546
 msgid "That version is no longer available. Back to editing."
-msgstr ""
+msgstr "Versi itu tidak lagi tersedia. Kembali menyunting."
 
 #. placeholder {0}: bound.fieldSlug
 #. placeholder {1}: bound.collectionSlug
@@ -13463,7 +13463,7 @@ msgstr "Tipe konten dan slug tidak dapat diubah. Bagaimana tiap sisi disebut dan
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "Pengelola kredensial pada ponsel atau tablet yang Anda pilih akan menyimpannya. EmDash tidak menerima kunci sandi."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:832
+#: packages/admin/src/components/MediaDetailPanel.tsx:833
 msgid "The cropped image could not be created."
 msgstr "Gambar terpangkas tidak dapat dibuat."
 
@@ -13741,11 +13741,11 @@ msgstr "Konten sampel yang ditambahkan sejauh ini disimpan. Lanjutkan untuk mena
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Perubahan terjadwal ke {title} tetap menjadi draf."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:827
+#: packages/admin/src/components/MediaDetailPanel.tsx:828
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "Map yang dipilih tidak lagi ada. Pilih lokasi lain dan simpan lagi."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:924
+#: packages/admin/src/components/MediaDetailPanel.tsx:925
 msgid "The selected image could not be read."
 msgstr "Gambar yang dipilih tidak dapat dibaca."
 
@@ -13783,19 +13783,19 @@ msgstr "Paket yang diunggah dibuang. Tidak ada di situs ini yang berubah."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:117
 msgid "The version from {when} becomes your draft and goes live at the scheduled time."
-msgstr ""
+msgstr "Versi dari {when} menjadi draf Anda dan tayang pada waktu yang dijadwalkan."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:118
 msgid "The version from {when} becomes your draft. The live site won't change until you publish."
-msgstr ""
+msgstr "Versi dari {when} menjadi draf Anda. Situs live tidak akan berubah hingga Anda menerbitkan."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:82
 msgid "The version from {when} is now your draft. It goes live at the scheduled time."
-msgstr ""
+msgstr "Versi dari {when} sekarang menjadi draf Anda. Tayang pada waktu yang dijadwalkan."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:83
 msgid "The version from {when} is now your draft. Publish when you're ready."
-msgstr ""
+msgstr "Versi dari {when} sekarang menjadi draf Anda. Terbitkan saat Anda siap."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:211
 msgid "The video is in the Media Library, but this entry is now read-only."
@@ -13863,9 +13863,9 @@ msgstr "Blok ini menjalankan JavaScript."
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "Peramban ini menyimpan seluruh paket dalam memori hingga pengunduhan selesai. Untuk ekspor sebesar ini, gunakan peramban berbasis Chromium, yang menyimpan langsung ke disk, atau jalankan emdash site export dari CLI."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1977
-#: packages/admin/src/components/MediaDetailPanel.tsx:2011
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:2012
 msgid "This cannot be undone"
 msgstr "Ini tidak dapat dibatalkan"
 
@@ -13965,7 +13965,7 @@ msgid "This field expects a list. The stored value stays unchanged until you rep
 msgstr "Kolom ini mengharapkan sebuah daftar. Nilai yang tersimpan tidak akan berubah sampai Anda menggantinya dengan daftar kosong, yang akan menghapusnya. Salin apa pun yang Anda perlukan darinya terlebih dahulu."
 
 #: packages/admin/src/components/ContentEditor.tsx:3437
-#: packages/admin/src/components/ImageFieldRenderer.tsx:603
+#: packages/admin/src/components/ImageFieldRenderer.tsx:615
 msgid "This field is required"
 msgstr "Kolom ini diperlukan"
 
@@ -14007,7 +14007,7 @@ msgstr "Map ini kosong"
 msgid "This folder is empty."
 msgstr "Map ini kosong."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1761
+#: packages/admin/src/components/MediaDetailPanel.tsx:1762
 msgid "This image could not be loaded for cropping."
 msgstr "Gambar ini tidak dapat dimuat untuk pangkas."
 
@@ -14047,12 +14047,12 @@ msgstr "Tautan ini kedaluwarsa dalam 7 hari."
 msgid "This may take a while for large exports."
 msgstr "Proses ini mungkin memerlukan waktu untuk ekspor berukuran besar."
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:83
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:86
 msgid "This media item could not be loaded. Try again."
 msgstr "Item media ini tidak dapat dimuat. Coba lagi."
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:81
-#: packages/admin/src/components/MediaDetailPanel.tsx:821
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
+#: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "This media item no longer exists."
 msgstr "Item media ini tidak ada lagi."
 
@@ -14225,7 +14225,7 @@ msgstr "Pembaruan ini membuka rute berikut tanpa otentikasi:"
 
 #: packages/admin/src/components/revisions/RevisionViewErrorBoundary.tsx:7
 msgid "This version can't be shown."
-msgstr ""
+msgstr "Versi ini tidak dapat ditampilkan."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:168
 msgid "This version is not visible on the site"
@@ -14542,11 +14542,11 @@ msgstr "Nyalakan pelacakan penggunaan media?"
 
 #: packages/admin/src/components/revisions/change-labels.ts:170
 msgid "Turned off {label}"
-msgstr ""
+msgstr "{label} dimatikan"
 
 #: packages/admin/src/components/revisions/change-labels.ts:170
 msgid "Turned on {label}"
-msgstr ""
+msgstr "{label} dinyalakan"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Turning on…"
@@ -14658,7 +14658,7 @@ msgstr "Tidak diketahui"
 
 #: packages/admin/src/components/revisions/revision-format.ts:129
 msgid "Unknown author"
-msgstr ""
+msgstr "Penulis tidak diketahui"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
@@ -14680,7 +14680,7 @@ msgstr "Kunci sandi tanpa nama"
 
 #: packages/admin/src/components/revisions/revision-format.ts:129
 msgid "Unnamed user"
-msgstr ""
+msgstr "Pengguna tanpa nama"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "Unpublish {itemLabel}"
@@ -14761,7 +14761,7 @@ msgstr "Perbarui"
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:49
 msgctxt "A published entry's scheduled changes"
 msgid "Update"
-msgstr ""
+msgstr "Perbarui"
 
 #: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Update Field"
@@ -14929,7 +14929,7 @@ msgstr "Unggah berkas ekspor WordPress"
 msgid "Uploaded"
 msgstr "Diunggah"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1340
+#: packages/admin/src/components/MediaDetailPanel.tsx:1341
 msgid "Uploaded:"
 msgstr "Diunggah:"
 
@@ -14984,7 +14984,7 @@ msgstr "Templat URL (cth. /blog/:slug)"
 msgid "URL-friendly identifier"
 msgstr "Pengenal ramah URL"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1370
+#: packages/admin/src/components/MediaDetailPanel.tsx:1371
 msgid "URL:"
 msgstr "URL:"
 
@@ -15080,8 +15080,8 @@ msgstr "Digunakan sebagai visual utama postingan ini di halaman daftar dan di at
 msgid "Used by screen readers and when image fails to load"
 msgstr "Digunakan oleh pembaca layar dan saat gambar gagal dimuat"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1165
-#: packages/admin/src/components/MediaDetailPanel.tsx:1198
+#: packages/admin/src/components/MediaDetailPanel.tsx:1166
+#: packages/admin/src/components/MediaDetailPanel.tsx:1199
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "Digunakan di"
@@ -15212,11 +15212,11 @@ msgstr "Versi {0} (aktif)"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:652
 msgid "Version from {when}"
-msgstr ""
+msgstr "Versi dari {when}"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:80
 msgid "Version restored"
-msgstr ""
+msgstr "Versi dipulihkan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
@@ -15271,7 +15271,7 @@ msgstr "Lihat lisensi {license} di spdx.org"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:517
 msgid "Viewing the version from {when} by {name}."
-msgstr ""
+msgstr "Melihat versi dari {when} oleh {name}."
 
 #: packages/admin/src/components/Redirects.tsx:469
 msgid "Visitors hitting these paths will see an error."
@@ -15626,7 +15626,7 @@ msgstr "Ya"
 
 #: packages/admin/src/components/revisions/revision-format.ts:109
 msgid "Yesterday"
-msgstr ""
+msgstr "Kemarin"
 
 #: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Yoast/RankMath"
@@ -15660,8 +15660,8 @@ msgstr "Anda dapat melihat, mengganti nama, atau menambahkan kunci sandi lainnya
 msgid "You cannot change your own role"
 msgstr "Anda tidak dapat mengubah peran Anda sendiri"
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:70
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:79
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:73
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:82
 msgid "You do not have permission to edit this asset."
 msgstr "Anda tidak memiliki izin untuk menyunting aset ini."
 
@@ -15786,11 +15786,11 @@ msgstr "Permintaan kunci sandi perangkat Anda"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:115
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the live site won't change until you publish."
-msgstr ""
+msgstr "Draf Anda akan diganti dengan versi dari {when}. Draf Anda saat ini tetap di Revisions, dan situs live tidak akan berubah hingga Anda menerbitkan."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:114
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
-msgstr ""
+msgstr "Draf Anda akan diganti dengan versi dari {when}. Draf Anda saat ini tetap di Revisions, dan versi yang dipulihkan tayang pada waktu yang dijadwalkan."
 
 #: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
@@ -15854,9 +15854,9 @@ msgstr "Handle Twitter/X Anda (cth., @username)"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:123
 msgid "Your unsaved changes will be lost."
-msgstr ""
+msgstr "Perubahan yang belum Anda simpan akan hilang."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Your unsaved media changes will be lost."
 msgstr "Perubahan media Anda yang belum disimpan akan hilang."
 

@@ -32,17 +32,17 @@ msgid ", "
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1924
+#: packages/admin/src/components/MediaDetailPanel.tsx:1925
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "„{0}“ წაიშლება {providerName}-დან."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
+#: packages/admin/src/components/MediaDetailPanel.tsx:1926
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "„{0}“ წაიშლება მისი მედია პროვაიდერიდან."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1926
+#: packages/admin/src/components/MediaDetailPanel.tsx:1927
 msgid "\"{0}\" will be permanently deleted."
 msgstr "„{0}“ სამუდამოდ წაიშლება."
 
@@ -133,7 +133,7 @@ msgstr "{0, plural, one {# ფაილი არ დაემატა, რა�
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1518
+#: packages/admin/src/components/MediaDetailPanel.tsx:1519
 #: packages/admin/src/components/MediaLibrary.tsx:938
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {# საქაღალდე ჩაიტვირთა} other {# საქაღალდე ჩაიტვირთა}}"
@@ -1311,7 +1311,7 @@ msgstr "შიგთავსის დამატება"
 msgid "Add Custom Link"
 msgstr "მორგებული ბმულის დამატება"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:455
+#: packages/admin/src/components/ImageFieldRenderer.tsx:467
 msgid "Add dark mode variant"
 msgstr "მუქი რეჟიმის ვარიანტის დამატება"
 
@@ -1746,8 +1746,8 @@ msgid "Alt text"
 msgstr "ალტ-ტექსტი"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:743
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
-#: packages/admin/src/components/MediaDetailPanel.tsx:1603
+#: packages/admin/src/components/MediaDetailPanel.tsx:1587
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Alt Text"
 msgstr "ალტ-ტექსტი"
 
@@ -1855,7 +1855,7 @@ msgstr "ექსპორტის ფაილის ანალიზი..."
 msgid "Analyzing WordPress site..."
 msgstr "WordPress-ის საიტის ანალიზი..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1771
+#: packages/admin/src/components/MediaDetailPanel.tsx:1772
 msgid "Animated WebP files become still images when cropped."
 msgstr "ანიმაციური WebP ფაილები მოჭრისას სტატიკურ სურათებად იქცევა."
 
@@ -1986,7 +1986,7 @@ msgstr "როგორც ადმინისტრატორს, შეგ
 msgid "Ask an administrator to complete this setup."
 msgstr "თხოვეთ ადმინისტრატორს, დაასრულოს ეს გამართვა."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1714
 msgid "Aspect ratio"
 msgstr "ასპექტის შეფარდება"
 
@@ -2166,7 +2166,7 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/FieldEditor.tsx:673
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaLibrary.tsx:747
 #: packages/admin/src/components/MenuEditor.tsx:405
 #: packages/admin/src/components/WordPressImport.tsx:1564
@@ -2518,7 +2518,7 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1381
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
 #: packages/admin/src/components/MenuEditor.tsx:464
@@ -2599,7 +2599,7 @@ msgstr "შესაძლებლობაზე თანხმობა"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:751
 #: packages/admin/src/components/editor/ImageNode.tsx:304
 #: packages/admin/src/components/editor/VideoNode.tsx:325
-#: packages/admin/src/components/MediaDetailPanel.tsx:1614
+#: packages/admin/src/components/MediaDetailPanel.tsx:1615
 msgid "Caption"
 msgstr "წარწერა"
 
@@ -2893,7 +2893,7 @@ msgid "Choose a new publication time for this draft."
 msgstr "აირჩიეთ გამოქვეყნების ახალი დრო ამ მონახაზისთვის."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:917
+#: packages/admin/src/components/MediaDetailPanel.tsx:918
 msgid "Choose a non-empty {0} image."
 msgstr "აირჩიეთ არადაცარიელი {0} სურათი."
 
@@ -2931,7 +2931,7 @@ msgstr "ასატვირთი ფაილების არჩევა"
 msgid "Choose package file"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 msgid "Choose replacement image"
 msgstr "შემცვლელი სურათის არჩევა"
 
@@ -3051,8 +3051,8 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:710
 #: packages/admin/src/components/FieldEditor.tsx:715
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:462
-#: packages/admin/src/components/MediaDetailPanel.tsx:1126
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaPickerModal.tsx:1010
 #: packages/admin/src/components/MediaPickerModal.tsx:1017
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
@@ -3418,7 +3418,7 @@ msgstr "შიგთავსის ტიპები"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "ერთი ჯგუფის შიგთავსის ტიპები გვერდით ზოლში საერთო ჩამოსაშლელ საქაღალდეში ჯგუფდება"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1945
 msgid "Content using this media item may show a broken reference."
 msgstr "შიგთავსში, რომელიც ამ მედია ელემენტს იყენებს, შესაძლოა გატეხილი მითითება ჩანდეს."
 
@@ -3523,7 +3523,7 @@ msgstr "ტოკენის კოპირება"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:307
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:308
-#: packages/admin/src/components/MediaDetailPanel.tsx:1377
+#: packages/admin/src/components/MediaDetailPanel.tsx:1378
 msgid "Copy URL"
 msgstr "URL-ის კოპირება"
 
@@ -3599,7 +3599,7 @@ msgstr ""
 msgid "Could not review posts"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:826
+#: packages/admin/src/components/MediaDetailPanel.tsx:827
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "ვერ დადასტურდა, არსებობს თუ არა ჯერ კიდევ მედია ელემენტი ან არჩეული საქაღალდე. სცადეთ ხელახლა."
 
@@ -3767,7 +3767,7 @@ msgstr "შექმნა და დამატება"
 msgid "Create Content Type"
 msgstr "შიგთავსის ტიპის შექმნა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1878
+#: packages/admin/src/components/MediaDetailPanel.tsx:1879
 msgid "Create cropped copy"
 msgstr "მოჭრილი ასლის შექმნა"
 
@@ -3939,7 +3939,7 @@ msgstr ""
 msgid "Creating collections and fields..."
 msgstr "იქმნება კოლექციები და ველები..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
 msgid "Creating cropped copy..."
 msgstr "იქმნება მოჭრილი ასლი..."
 
@@ -3952,7 +3952,7 @@ msgstr "იქმნება მოჭრილი ასლი..."
 msgid "Creating..."
 msgstr "იქმნება..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1639
+#: packages/admin/src/components/MediaDetailPanel.tsx:1640
 msgid "Crop"
 msgstr "მოჭრა"
 
@@ -3962,7 +3962,7 @@ msgstr "მოჭრა"
 msgid "Crop area {0} by {1} pixels."
 msgstr "მოჭრის არე {0} × {1} პიქსელი."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1746
+#: packages/admin/src/components/MediaDetailPanel.tsx:1747
 msgid "Crop output dimensions"
 msgstr "მოჭრილი სურათის ზომები"
 
@@ -3970,7 +3970,7 @@ msgstr "მოჭრილი სურათის ზომები"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "მოჭრის არჩევანი. გადასატანად გამოიყენეთ ისრის ღილაკები."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:772
 #: packages/admin/src/components/MediaLibrary.tsx:1289
 msgid "Cropped copy created."
 msgstr "მოჭრილი ასლი შეიქმნა."
@@ -4035,7 +4035,7 @@ msgid "Daily automatic backups"
 msgstr "ყოველდღიური ავტომატური სარეზერვო ასლები"
 
 #: packages/admin/src/components/FieldEditor.tsx:1366
-#: packages/admin/src/components/ImageFieldRenderer.tsx:399
+#: packages/admin/src/components/ImageFieldRenderer.tsx:411
 msgid "Dark mode variant"
 msgstr "მუქი რეჟიმის ვარიანტი"
 
@@ -4134,8 +4134,8 @@ msgstr "კოდში განსაზღვრული"
 #: packages/admin/src/components/ContentTypeList.tsx:256
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:363
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1930
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
 #: packages/admin/src/components/MenuEditor.tsx:672
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:616
@@ -4258,7 +4258,7 @@ msgstr "გალერეის წაშლა"
 msgid "Delete image"
 msgstr "სურათის წაშლა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1918
+#: packages/admin/src/components/MediaDetailPanel.tsx:1919
 msgid "Delete media?"
 msgstr "წავშალოთ მედია?"
 
@@ -4356,8 +4356,8 @@ msgstr "„{0}“-ის წაშლა ასევე მოხსნის {
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:864
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1932
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:236
 #: packages/admin/src/components/Redirects.tsx:617
@@ -4421,7 +4421,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "აღწერეთ სურათის დანიშნულება და შესაბამისი დეტალები მათთვის, ვინც ვერ ხედავს."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:746
-#: packages/admin/src/components/MediaDetailPanel.tsx:1606
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Describe this image for accessibility"
 msgstr "აღწერეთ ეს სურათი ხელმისაწვდომობისთვის"
 
@@ -4454,8 +4454,8 @@ msgstr "დანიშნულების ბილიკი"
 msgid "Destructive"
 msgstr "დესტრუქციული"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1154
-#: packages/admin/src/components/MediaDetailPanel.tsx:1196
+#: packages/admin/src/components/MediaDetailPanel.tsx:1155
+#: packages/admin/src/components/MediaDetailPanel.tsx:1197
 msgid "Details"
 msgstr "დეტალები"
 
@@ -4487,7 +4487,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1324
+#: packages/admin/src/components/MediaDetailPanel.tsx:1325
 msgid "Dimensions:"
 msgstr "ზომები:"
 
@@ -4540,7 +4540,7 @@ msgstr "ითიშება..."
 msgid "Disallow AI training"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "Discard"
 msgstr "უარყოფა"
 
@@ -4549,7 +4549,7 @@ msgstr "უარყოფა"
 msgid "Discard changes"
 msgstr "ცვლილებების უარყოფა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "Discard changes?"
 msgstr "უარყოთ ცვლილებები?"
 
@@ -4557,7 +4557,7 @@ msgstr "უარყოთ ცვლილებები?"
 msgid "Discard draft changes?"
 msgstr "უარყოთ მონახაზის ცვლილებები?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1905
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "Discarding..."
 msgstr "მიმდინარეობს უარყოფა..."
 
@@ -4934,9 +4934,9 @@ msgstr "{title}-ის რედაქტირება"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
-#: packages/admin/src/components/ImageFieldRenderer.tsx:305
-#: packages/admin/src/components/ImageFieldRenderer.tsx:362
-#: packages/admin/src/components/ImageFieldRenderer.tsx:430
+#: packages/admin/src/components/ImageFieldRenderer.tsx:317
+#: packages/admin/src/components/ImageFieldRenderer.tsx:374
+#: packages/admin/src/components/ImageFieldRenderer.tsx:442
 #: packages/admin/src/components/MediaPickerModal.tsx:1595
 msgid "Edit asset"
 msgstr "მედია ფაილის რედაქტირება"
@@ -4950,7 +4950,7 @@ msgstr ""
 msgid "Edit byline field"
 msgstr "ბაილაინის ველის რედაქტირება"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:428
+#: packages/admin/src/components/ImageFieldRenderer.tsx:440
 msgid "Edit dark mode asset"
 msgstr "მუქი რეჟიმის სურათის რედაქტირება"
 
@@ -4972,8 +4972,8 @@ msgstr "საქაღალდის რედაქტირება"
 msgid "Edit folder {0}"
 msgstr "{0} საქაღალდის რედაქტირება"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1159
-#: packages/admin/src/components/MediaDetailPanel.tsx:1199
+#: packages/admin/src/components/MediaDetailPanel.tsx:1160
+#: packages/admin/src/components/MediaDetailPanel.tsx:1200
 msgid "Edit image"
 msgstr "სურათის რედაქტირება"
 
@@ -5207,11 +5207,11 @@ msgstr ""
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1980
+#: packages/admin/src/components/MediaDetailPanel.tsx:1981
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash წინა სურათს არ ინახავს."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:2014
+#: packages/admin/src/components/MediaDetailPanel.tsx:2015
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash მოუჭრელ სურათს არ ინახავს."
 
@@ -5432,11 +5432,11 @@ msgstr ""
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1996
+#: packages/admin/src/components/MediaDetailPanel.tsx:1997
 msgid "Every place using this image will update to the cropped version."
 msgstr "ყველგან, სადაც ეს სურათი გამოიყენება, განახლდება მოჭრილი ვერსიით."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1961
+#: packages/admin/src/components/MediaDetailPanel.tsx:1962
 msgid "Every place using this image will update to the selected version."
 msgstr "ყველგან, სადაც ეს სურათი გამოიყენება, განახლდება არჩეული ვერსიით."
 
@@ -5786,7 +5786,7 @@ msgstr "შიგთავსის წაშლა ვერ მოხერხ
 msgid "Failed to delete field"
 msgstr "ველის წაშლა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:764
+#: packages/admin/src/lib/api/media.ts:765
 msgid "Failed to delete from provider"
 msgstr "პროვაიდერიდან წაშლა ვერ მოხერხდა"
 
@@ -6011,7 +6011,7 @@ msgstr "მედია საქაღალდეების ჩატვი�
 msgid "Failed to fetch media item"
 msgstr "მედია ელემენტის ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:697
+#: packages/admin/src/lib/api/media.ts:698
 msgid "Failed to fetch media providers"
 msgstr "მედია პროვაიდერების ჩატვირთვა ვერ მოხერხდა"
 
@@ -6053,7 +6053,7 @@ msgstr "პლაგინის პარამეტრების ჩატ�
 msgid "Failed to fetch plugins"
 msgstr "პლაგინების ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:728
 msgid "Failed to fetch provider media"
 msgstr "პროვაიდერის მედიის ჩატვირთვა ვერ მოხერხდა"
 
@@ -6639,7 +6639,7 @@ msgstr "ფაილის ატვირთვა ვერ მოხერხ
 msgid "Failed to upload media"
 msgstr "მედიის ატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:752
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to upload to provider"
 msgstr "პროვაიდერზე ატვირთვა ვერ მოხერხდა"
 
@@ -6737,8 +6737,8 @@ msgstr "ფაილი {0}"
 msgid "File from media library"
 msgstr "ფაილი მედია ბიბლიოთეკიდან"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1425
-#: packages/admin/src/components/MediaDetailPanel.tsx:1442
+#: packages/admin/src/components/MediaDetailPanel.tsx:1426
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
 #: packages/admin/src/components/MediaLibrary.tsx:1141
 msgid "Filename"
 msgstr "ფაილის სახელი"
@@ -6835,8 +6835,8 @@ msgstr "გამოქვეყნების თარიღის შეც�
 msgid "Fix invalid fields before changing the schedule"
 msgstr "დაგეგმვის შეცვლამდე გაასწორეთ არასწორი ველები"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1644
-#: packages/admin/src/components/MediaDetailPanel.tsx:1655
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
+#: packages/admin/src/components/MediaDetailPanel.tsx:1656
 msgid "Focal point"
 msgstr "ფოკუსის წერტილი"
 
@@ -6882,7 +6882,7 @@ msgstr "საქაღალდე მიუწვდომელია"
 msgid "Folders"
 msgstr "საქაღალდეები"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1545
+#: packages/admin/src/components/MediaDetailPanel.tsx:1546
 #: packages/admin/src/components/MediaLibrary.tsx:963
 #: packages/admin/src/components/MediaLibrary.tsx:1467
 #: packages/admin/src/components/MediaPickerModal.tsx:1328
@@ -6909,7 +6909,7 @@ msgstr "საუკეთესო იმპორტისთვის და�
 msgid "Format selection"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Format:"
 msgstr "ფორმატი:"
 
@@ -7337,8 +7337,8 @@ msgstr "სურათი"
 msgid "Image {0}"
 msgstr "სურათი {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:339
+#: packages/admin/src/components/ImageFieldRenderer.tsx:336
+#: packages/admin/src/components/ImageFieldRenderer.tsx:351
 #: packages/admin/src/components/SeoImageField.tsx:128
 msgid "Image actions"
 msgstr "სურათის მოქმედებები"
@@ -7356,8 +7356,8 @@ msgid "Image link"
 msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
-#: packages/admin/src/components/ImageFieldRenderer.tsx:476
-#: packages/admin/src/components/ImageFieldRenderer.tsx:531
+#: packages/admin/src/components/ImageFieldRenderer.tsx:488
+#: packages/admin/src/components/ImageFieldRenderer.tsx:543
 #: packages/admin/src/components/SeoImageField.tsx:107
 msgid "Image not found"
 msgstr "სურათი ვერ მოიძებნა"
@@ -7366,7 +7366,7 @@ msgstr "სურათი ვერ მოიძებნა"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:718
 msgid "Image replaced."
 msgstr "სურათი შეიცვალა."
 
@@ -8170,7 +8170,7 @@ msgstr "მეტის ჩატვირთვა"
 msgid "Load More"
 msgstr "მეტის ჩატვირთვა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
+#: packages/admin/src/components/MediaDetailPanel.tsx:1565
 #: packages/admin/src/components/MediaLibrary.tsx:993
 #: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -8234,7 +8234,7 @@ msgstr ""
 msgid "Loading folders"
 msgstr "საქაღალდეები იტვირთება"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1516
+#: packages/admin/src/components/MediaDetailPanel.tsx:1517
 msgid "Loading folders..."
 msgstr "საქაღალდეები იტვირთება..."
 
@@ -8321,7 +8321,7 @@ msgstr "ვიჯეტები იტვირთება..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
 #: packages/admin/src/components/MediaDetailPanel.tsx:622
 #: packages/admin/src/components/MediaDetailPanel.tsx:624
-#: packages/admin/src/components/MediaDetailPanel.tsx:1751
+#: packages/admin/src/components/MediaDetailPanel.tsx:1752
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3206
@@ -8369,10 +8369,10 @@ msgstr "ლოკალი"
 msgid "Locales will use this site’s capitalization"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1453
-#: packages/admin/src/components/MediaDetailPanel.tsx:1481
-#: packages/admin/src/components/MediaDetailPanel.tsx:1572
-#: packages/admin/src/components/MediaDetailPanel.tsx:1574
+#: packages/admin/src/components/MediaDetailPanel.tsx:1454
+#: packages/admin/src/components/MediaDetailPanel.tsx:1482
+#: packages/admin/src/components/MediaDetailPanel.tsx:1573
+#: packages/admin/src/components/MediaDetailPanel.tsx:1575
 msgid "Location"
 msgstr "მდებარეობა"
 
@@ -8477,11 +8477,11 @@ msgstr "URL გადამისამართებების მართ�
 msgid "Manage your passkeys and authentication"
 msgstr "პასკებისა და აუთენტიფიკაციის მართვა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1411
+#: packages/admin/src/components/MediaDetailPanel.tsx:1412
 msgid "Managed by {providerName}"
 msgstr "მართავს {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1412
+#: packages/admin/src/components/MediaDetailPanel.tsx:1413
 msgid "Managed by an external media provider"
 msgstr "იმართება გარე მედია პროვაიდერის მიერ"
 
@@ -8583,7 +8583,7 @@ msgstr "MDX"
 msgid "Media"
 msgstr "მედია"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1119
+#: packages/admin/src/components/MediaDetailPanel.tsx:1120
 msgid "Media details"
 msgstr "მედიის დეტალები"
 
@@ -8840,7 +8840,7 @@ msgstr "მეტი მოქმედება: {0}"
 msgid "More formatting"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:516
+#: packages/admin/src/components/ImageFieldRenderer.tsx:528
 msgid "More information about {label}"
 msgstr "მეტი ინფორმაცია: {label}"
 
@@ -9447,7 +9447,7 @@ msgstr ""
 msgid "No files added"
 msgstr "ფაილები არ დამატებულა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1524
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 msgid "No folders found"
 msgstr "საქაღალდეები ვერ მოიძებნა"
 
@@ -9604,7 +9604,7 @@ msgstr "ამ რეესტრში პლაგინები ჯერ �
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "პლაგინები „{debouncedQuery}“-ს არ ემთხვევა."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1380
+#: packages/admin/src/components/MediaDetailPanel.tsx:1381
 msgid "No public URL available"
 msgstr "საჯარო URL მიუწვდომელია"
 
@@ -9930,7 +9930,7 @@ msgstr "სურვილისამებრ წარწერა"
 msgid "Optional caption displayed below the image"
 msgstr "სურათის ქვემოთ გამოსაჩენი სურვილისამებრ წარწერა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1618
 msgid "Optional caption for display"
 msgstr "სურვილისამებრ წარწერა ჩვენებისთვის"
 
@@ -9989,7 +9989,7 @@ msgstr ""
 msgid "Original"
 msgstr "ორიგინალი"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:786
 msgid "Original image cropped."
 msgstr "ორიგინალი სურათი მოჭრილია."
 
@@ -10008,7 +10008,7 @@ msgstr ""
 msgid "Outline"
 msgstr "სარჩევი"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1745
 msgid "Output size"
 msgstr "შედეგის ზომა"
 
@@ -10516,7 +10516,7 @@ msgstr "სურათის ასაღებად დააჭირეთ 
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1698
+#: packages/admin/src/components/MediaDetailPanel.tsx:1699
 #: packages/admin/src/components/MediaLibrary.tsx:1140
 msgid "Preview"
 msgstr "გადახედვა"
@@ -11040,9 +11040,9 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:814
-#: packages/admin/src/components/ImageFieldRenderer.tsx:317
-#: packages/admin/src/components/ImageFieldRenderer.tsx:371
-#: packages/admin/src/components/ImageFieldRenderer.tsx:442
+#: packages/admin/src/components/ImageFieldRenderer.tsx:329
+#: packages/admin/src/components/ImageFieldRenderer.tsx:383
+#: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6513
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
@@ -11083,7 +11083,7 @@ msgstr "{label}-ის მოცილება"
 msgid "Remove assignment"
 msgstr "მინიჭების მოცილება"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:440
+#: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Remove dark mode variant"
 msgstr "მუქი რეჟიმის ვარიანტის მოცილება"
 
@@ -11100,7 +11100,7 @@ msgid "Remove from post"
 msgstr "პოსტიდან მოცილება"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:594
-#: packages/admin/src/components/ImageFieldRenderer.tsx:315
+#: packages/admin/src/components/ImageFieldRenderer.tsx:327
 msgid "Remove image"
 msgstr "სურათის მოცილება"
 
@@ -11282,11 +11282,11 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/editor/VideoNode.tsx:403
-#: packages/admin/src/components/ImageFieldRenderer.tsx:291
-#: packages/admin/src/components/ImageFieldRenderer.tsx:352
-#: packages/admin/src/components/ImageFieldRenderer.tsx:415
-#: packages/admin/src/components/ImageFieldRenderer.tsx:589
-#: packages/admin/src/components/ImageFieldRenderer.tsx:592
+#: packages/admin/src/components/ImageFieldRenderer.tsx:303
+#: packages/admin/src/components/ImageFieldRenderer.tsx:364
+#: packages/admin/src/components/ImageFieldRenderer.tsx:427
+#: packages/admin/src/components/ImageFieldRenderer.tsx:601
+#: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/PortableTextEditor.tsx:5779
 #: packages/admin/src/components/PortableTextEditor.tsx:5853
 #: packages/admin/src/components/SeoImageField.tsx:151
@@ -11295,39 +11295,39 @@ msgid "Replace"
 msgstr "შეცვლა"
 
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:583
+#: packages/admin/src/components/ImageFieldRenderer.tsx:595
 #: packages/admin/src/components/SeoImageField.tsx:148
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Replace {label}"
 msgstr "{label}-ის შეცვლა"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:413
+#: packages/admin/src/components/ImageFieldRenderer.tsx:425
 msgid "Replace dark mode image"
 msgstr "მუქი რეჟიმის სურათის შეცვლა"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:580
+#: packages/admin/src/components/ImageFieldRenderer.tsx:592
 msgid "Replace dark mode variant for {label}"
 msgstr "{label}-ის მუქი რეჟიმის ვარიანტის შეცვლა"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1837
-#: packages/admin/src/components/MediaDetailPanel.tsx:1965
+#: packages/admin/src/components/MediaDetailPanel.tsx:1838
+#: packages/admin/src/components/MediaDetailPanel.tsx:1966
 #: packages/admin/src/components/PortableTextEditor.tsx:5852
 msgid "Replace image"
 msgstr "სურათის შეცვლა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1868
-#: packages/admin/src/components/MediaDetailPanel.tsx:2000
+#: packages/admin/src/components/MediaDetailPanel.tsx:1869
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "Replace original"
 msgstr "ორიგინალის შეცვლა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1957
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1993
 msgid "Replace original image?"
 msgstr "შევცვალოთ ორიგინალი სურათი?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1756
+#: packages/admin/src/components/MediaDetailPanel.tsx:1757
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "ორიგინალის შეცვლა ხელმისაწვდომია „ორიგინალი“ ასპექტის თანაფარდობით."
 
@@ -11353,14 +11353,14 @@ msgstr ""
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:942
-#: packages/admin/src/components/MediaDetailPanel.tsx:1966
+#: packages/admin/src/components/MediaDetailPanel.tsx:943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replacing image..."
 msgstr "სურათი იცვლება..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
-#: packages/admin/src/components/MediaDetailPanel.tsx:2001
-#: packages/admin/src/components/MediaDetailPanel.tsx:2021
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
+#: packages/admin/src/components/MediaDetailPanel.tsx:2002
+#: packages/admin/src/components/MediaDetailPanel.tsx:2022
 msgid "Replacing original..."
 msgstr "ორიგინალი იცვლება..."
 
@@ -11422,8 +11422,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "ხელახლა გაგზავნა {resendCooldown} წმ-ში"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1690
-#: packages/admin/src/components/MediaDetailPanel.tsx:1740
+#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "Reset"
 msgstr "ჩამოყრა"
 
@@ -11431,7 +11431,7 @@ msgstr "ჩამოყრა"
 msgid "Reset column widths"
 msgstr "სვეტების სიგანის ჩამოყრა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Reset crop"
 msgstr "მოჭრის ჩამოყრა"
 
@@ -11535,7 +11535,7 @@ msgstr ""
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
-#: packages/admin/src/components/MediaDetailPanel.tsx:1551
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1470
 #: packages/admin/src/components/MediaPickerModal.tsx:1217
@@ -11787,7 +11787,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:821
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:402
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
 #: packages/admin/src/components/MenuEditor.tsx:756
@@ -11839,7 +11839,7 @@ msgstr ""
 msgid "Save name"
 msgstr "სახელის შენახვა"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1766
+#: packages/admin/src/components/MediaDetailPanel.tsx:1767
 msgid "Save or discard the other changes before cropping."
 msgstr "მოჭრამდე შეინახეთ ან გააუქმეთ სხვა ცვლილებები."
 
@@ -11880,7 +11880,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/FieldEditor.tsx:1396
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:467
 #: packages/admin/src/components/MenuEditor.tsx:756
@@ -12113,8 +12113,8 @@ msgstr "ძებნა ვერ მოხერხდა"
 msgid "Search failed. Check your connection and try again."
 msgstr "ძებნა ვერ მოხერხდა. შეამოწმეთ კავშირი და სცადეთ ხელახლა."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1504
 #: packages/admin/src/components/MediaDetailPanel.tsx:1505
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Search folders"
 msgstr "საქაღალდეების ძებნა"
 
@@ -12319,7 +12319,7 @@ msgstr "არჩევა"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
 #: packages/admin/src/components/ContentEditor.tsx:3417
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:584
+#: packages/admin/src/components/ImageFieldRenderer.tsx:596
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Select {label}"
 msgstr "{label}-ის არჩევა"
@@ -12341,7 +12341,7 @@ msgstr "აირჩიეთ კომპონენტი..."
 msgid "Select a content type"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Select a location"
 msgstr "აირჩიეთ მდებარეობა"
 
@@ -12382,7 +12382,7 @@ msgstr "{0}-ის კომენტარის არჩევა"
 msgid "Select content"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:581
+#: packages/admin/src/components/ImageFieldRenderer.tsx:593
 msgid "Select dark mode variant for {label}"
 msgstr "{label}-ის მუქი რეჟიმის ვარიანტის არჩევა"
 
@@ -12407,7 +12407,7 @@ msgstr "ფაილის არჩევა"
 msgid "Select gallery images"
 msgstr "გალერეის სურათების არჩევა"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:564
+#: packages/admin/src/components/ImageFieldRenderer.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 #: packages/admin/src/components/PortableTextEditor.tsx:4678
 msgid "Select image"
@@ -12464,8 +12464,8 @@ msgstr ""
 msgid "Selected {selectedItemTitle}"
 msgstr "არჩეული: {selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:253
-#: packages/admin/src/components/ImageFieldRenderer.tsx:268
+#: packages/admin/src/components/ImageFieldRenderer.tsx:265
+#: packages/admin/src/components/ImageFieldRenderer.tsx:280
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr "არჩეული სურათი"
@@ -12892,7 +12892,7 @@ msgstr "ზომა"
 msgid "Size is not applicable to folders"
 msgstr "ზომა საქაღალდეებზე არ ვრცელდება"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1311
+#: packages/admin/src/components/MediaDetailPanel.tsx:1312
 msgid "Size:"
 msgstr "ზომა:"
 
@@ -13463,7 +13463,7 @@ msgstr ""
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "მას ინახავს არჩეულ ტელეფონსა თუ ტაბლეტზე არსებული პასკების მენეჯერი. EmDash პასკის არ იღებს."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:832
+#: packages/admin/src/components/MediaDetailPanel.tsx:833
 msgid "The cropped image could not be created."
 msgstr "მოჭრილი სურათის შექმნა ვერ მოხერხდა."
 
@@ -13741,11 +13741,11 @@ msgstr ""
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:827
+#: packages/admin/src/components/MediaDetailPanel.tsx:828
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "არჩეული საქაღალდე აღარ არსებობს. აირჩიეთ სხვა მდებარეობა და კვლავ შეინახეთ."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:924
+#: packages/admin/src/components/MediaDetailPanel.tsx:925
 msgid "The selected image could not be read."
 msgstr "არჩეული სურათის წაკითხვა ვერ მოხერხდა."
 
@@ -13863,9 +13863,9 @@ msgstr ""
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1977
-#: packages/admin/src/components/MediaDetailPanel.tsx:2011
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:2012
 msgid "This cannot be undone"
 msgstr "ეს ვერ დაბრუნდება"
 
@@ -13965,7 +13965,7 @@ msgid "This field expects a list. The stored value stays unchanged until you rep
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3437
-#: packages/admin/src/components/ImageFieldRenderer.tsx:603
+#: packages/admin/src/components/ImageFieldRenderer.tsx:615
 msgid "This field is required"
 msgstr "ეს ველი სავალდებულოა"
 
@@ -14007,7 +14007,7 @@ msgstr "ეს საქაღალდე ცარიელია"
 msgid "This folder is empty."
 msgstr "ეს საქაღალდე ცარიელია."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1761
+#: packages/admin/src/components/MediaDetailPanel.tsx:1762
 msgid "This image could not be loaded for cropping."
 msgstr "ეს სურათი ვერ ჩაიტვირთა მოსაჭრელად."
 
@@ -14047,12 +14047,12 @@ msgstr ""
 msgid "This may take a while for large exports."
 msgstr "დიდი მოცულობის ექსპორტისას ამას დრო დასჭირდება."
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:83
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:86
 msgid "This media item could not be loaded. Try again."
 msgstr "ეს მედია ელემენტი ვერ ჩაიტვირთა. სცადეთ ხელახლა."
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:81
-#: packages/admin/src/components/MediaDetailPanel.tsx:821
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
+#: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "This media item no longer exists."
 msgstr "ეს მედია ელემენტი აღარ არსებობს."
 
@@ -14929,7 +14929,7 @@ msgstr "WordPress-ის ექსპორტის ფაილის ატ�
 msgid "Uploaded"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1340
+#: packages/admin/src/components/MediaDetailPanel.tsx:1341
 msgid "Uploaded:"
 msgstr "ატვირთულია:"
 
@@ -14984,7 +14984,7 @@ msgstr ""
 msgid "URL-friendly identifier"
 msgstr "URL-თან თავსებადი იდენტიფიკატორი"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1370
+#: packages/admin/src/components/MediaDetailPanel.tsx:1371
 msgid "URL:"
 msgstr "URL:"
 
@@ -15080,8 +15080,8 @@ msgstr "გამოიყენება ამ ჩანაწერის მ
 msgid "Used by screen readers and when image fails to load"
 msgstr "გამოიყენება ეკრანის წამკითხველების მიერ და მაშინ, როცა სურათი ვერ ჩაიტვირთება"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1165
-#: packages/admin/src/components/MediaDetailPanel.tsx:1198
+#: packages/admin/src/components/MediaDetailPanel.tsx:1166
+#: packages/admin/src/components/MediaDetailPanel.tsx:1199
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "სად გამოიყენება"
@@ -15660,8 +15660,8 @@ msgstr "შეგიძლიათ მოგვიანებით ნახ�
 msgid "You cannot change your own role"
 msgstr "საკუთარი როლის შეცვლა შეუძლებელია"
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:70
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:79
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:73
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:82
 msgid "You do not have permission to edit this asset."
 msgstr "ამ აქტივის რედაქტირების ნებართვა არ გაქვთ."
 
@@ -15856,7 +15856,7 @@ msgstr "Twitter/X-ის მომხმარებლის სახელი
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Your unsaved media changes will be lost."
 msgstr "მედიაში შეტანილი შეუნახავი ცვლილებები დაიკარგება."
 

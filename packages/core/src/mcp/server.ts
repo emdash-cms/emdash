@@ -41,6 +41,7 @@ import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import { resolveConfiguredLocale } from "../i18n/config.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -3182,7 +3183,8 @@ export function createMcpServer(
 					if (
 						!cursorTerm ||
 						cursorTerm.name !== args.taxonomy ||
-						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+						(args.locale !== undefined &&
+							resolveConfiguredLocale(cursorTerm.locale) !== resolveConfiguredLocale(args.locale))
 					) {
 						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
 					}
