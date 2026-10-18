@@ -208,6 +208,22 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 	// All providers with a LoginButton show in the button grid
 	const buttonProviders = authProviderList.filter((p) => p.LoginButton);
 
+	const activeProviderEntry = activeProvider
+		? authProviderList.find((p) => p.id === activeProvider)
+		: undefined;
+
+	let helpText: React.ReactNode;
+	if (method === "magic-link") {
+		helpText = t`We'll send you a link to sign in without a password.`;
+	} else if (activeProviderEntry?.loginHelp) {
+		const LoginHelp = activeProviderEntry.loginHelp;
+		helpText = typeof LoginHelp === "string" ? LoginHelp : <LoginHelp />;
+	} else if (activeProviderEntry) {
+		helpText = t`Continue with ${activeProviderEntry.label}.`;
+	} else {
+		helpText = t`Use your registered passkey to sign in securely.`;
+	}
+
 	// Show loading state while checking auth mode
 	if (authModeLoading || (authInfo?.authMode && authInfo.authMode !== "passkey")) {
 		return (
@@ -229,8 +245,8 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{method === "magic-link"
 							? t`Sign in with email`
-							: activeProvider
-								? t`Sign in with ${authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider}`
+							: activeProviderEntry
+								? t`Sign in with ${activeProviderEntry.label ?? activeProvider}`
 								: t`Sign in to your site`}
 					</h1>
 				</div>
@@ -320,13 +336,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 				</div>
 
 				{/* Help text */}
-				<p className="text-center mt-6 text-sm text-kumo-subtle">
-					{method === "magic-link"
-						? t`We'll send you a link to sign in without a password.`
-						: activeProvider
-							? t`Enter your handle to sign in.`
-							: t`Use your registered passkey to sign in securely.`}
-				</p>
+				<p className="text-center mt-6 text-sm text-kumo-subtle">{helpText}</p>
 
 				{/* Signup link — only shown when self-signup is enabled */}
 				{authInfo?.signupEnabled && (

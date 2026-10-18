@@ -11,8 +11,10 @@ import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repo
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { localeMatches } from "../i18n/query.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
+import type { CollectionSearchMetadata } from "./fts-manager.js";
 import type {
 	SearchOptions,
 	CollectionSearchOptions,
@@ -130,15 +132,10 @@ export async function searchWithDb(
 	const status = options.status ?? "published";
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
-	// Get searchable collections
-	let collections = options.collections;
-	if (!collections || collections.length === 0) {
-		collections = await getSearchableCollections(db);
-	}
+	if (!escapeQuery(query)) return { items: [] };
 
-	if (collections.length === 0) {
-		return { items: [] };
-	}
+	const metadata = await ftsManager.getSearchMetadata(options.collections);
+	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
 
 	// To rank the merged window [offset, offset + limit) correctly, each
 	// collection must contribute its own top (offset + limit) rows — in the
@@ -148,11 +145,9 @@ export async function searchWithDb(
 
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
-	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
-
 	for (const collection of collections) {
-		const config = await ftsManager.getSearchConfig(collection);
-		if (!config?.enabled) {
+		const collectionMetadata = metadata.get(collection);
+		if (!collectionMetadata) {
 			continue;
 		}
 
@@ -166,9 +161,7 @@ export async function searchWithDb(
 				limit: perCollectionLimit,
 				scope: options.scope,
 			},
-			config.weights,
-			titleColumns.has(collection),
-			config.titleField,
+			collectionMetadata,
 		);
 
 		allResults.push(...collectionResults);
@@ -208,15 +201,13 @@ export async function searchCollection(
 	query: string,
 	options: CollectionSearchOptions = {},
 ): Promise<SearchResponse> {
-	const ftsManager = new FTSManager(db);
-	const config = await ftsManager.getSearchConfig(collection);
-
-	if (!config?.enabled) {
-		return { items: [] };
-	}
-
 	const limit = options.limit ?? 20;
 	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
+	if (!escapeQuery(query)) return { items: [] };
+
+	const ftsManager = new FTSManager(db);
+	const metadata = (await ftsManager.getSearchMetadata([collection])).get(collection);
+	if (!metadata) return { items: [] };
 
 	// Over-fetch the [offset, offset + limit) window plus one row to detect a
 	// further page, then slice. Keeps the FTS SQL (LIMIT-only) unchanged and
@@ -231,9 +222,7 @@ export async function searchCollection(
 			limit: offset + limit + 1,
 			scope: options.scope,
 		},
-		config.weights,
-		undefined,
-		config.titleField,
+		metadata,
 	);
 
 	const items = fetched.slice(offset, offset + limit);
@@ -251,9 +240,7 @@ async function searchSingleCollection(
 	collection: string,
 	query: string,
 	options: CollectionSearchOptions,
-	weights?: Record<string, number>,
-	hasTitle?: boolean,
-	titleField?: string,
+	metadata: CollectionSearchMetadata,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -265,11 +252,6 @@ async function searchSingleCollection(
 	const status = options.status ?? "published";
 	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
-	// Check if FTS table exists
-	if (!(await ftsManager.ftsTableExists(collection))) {
-		return [];
-	}
-
 	// Escape the query for FTS5
 	const escapedQuery = escapeQuery(query);
 	if (!escapedQuery) {
@@ -277,7 +259,8 @@ async function searchSingleCollection(
 	}
 
 	// Get searchable fields for snippet generation
-	const searchableFields = await ftsManager.getSearchableFields(collection);
+	const { searchableFields, hasTitle, config } = metadata;
+	const { weights, titleField } = config;
 
 	// Title scope restricts the FTS5 match to the collection's title column.
 	// The scoped column must be one of the indexed searchable fields; a
@@ -300,9 +283,7 @@ async function searchSingleCollection(
 
 	// `title` is an optional user-defined field, not a system column. Only
 	// select it when the collection actually has one; otherwise the query
-	// errors with "no such column: c.title". Multi-collection callers
-	// precompute this in bulk and pass it in; single-collection callers fall
-	// back to the per-collection check.
+	// errors with "no such column: c.title".
 	// A configured titleField drives the result title so search shows
 	// the same value as the content list. It's a validated existing field, so
 	// the column exists; otherwise fall back to the optional `title` column.
@@ -311,8 +292,7 @@ async function searchSingleCollection(
 		validateIdentifier(titleField, "title field");
 		titleExpr = sql`c.${sql.ref(titleField)}`;
 	} else {
-		const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
-		titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+		titleExpr = hasTitle ? sql`c.title` : sql`NULL`;
 	}
 
 	// Build weight string for bm25 if weights provided
@@ -354,7 +334,7 @@ async function searchSingleCollection(
 		WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
-		${locale ? sql`AND c.locale = ${locale}` : sql``}
+		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
 		ORDER BY score
 		LIMIT ${limit}
 	`.execute(db);
@@ -440,25 +420,19 @@ export async function getSuggestions(
 	const limit = options.limit ?? 5;
 	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
-	// Get searchable collections
-	let collections = options.collections;
-	if (!collections || collections.length === 0) {
-		collections = await getSearchableCollections(db);
-	}
+	// escapeQuery already appends the prefix wildcard to each term.
+	const prefixQuery = escapeQuery(query);
+	if (!prefixQuery) return [];
 
-	if (collections.length === 0) {
-		return [];
-	}
-
-	const suggestions: Suggestion[] = [];
 	const ftsManager = new FTSManager(db);
-	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
+	const metadata = await ftsManager.getSearchMetadata(options.collections);
+	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
+	const suggestions: Suggestion[] = [];
 
 	for (const collection of collections) {
-		const config = await ftsManager.getSearchConfig(collection);
-		if (!config?.enabled) {
-			continue;
-		}
+		const collectionMetadata = metadata.get(collection);
+		if (!collectionMetadata) continue;
+		const { config, hasTitle } = collectionMetadata;
 
 		// Suggestions are title-based (Suggestion.title is required). A configured
 		// titleField supplies it -- a validated existing column -- so it
@@ -470,7 +444,7 @@ export async function getSuggestions(
 		if (config.titleField) {
 			validateIdentifier(config.titleField, "title field");
 			titleExpr = sql`c.${sql.ref(config.titleField)}`;
-		} else if (titleColumns.has(collection)) {
+		} else if (hasTitle) {
 			titleExpr = sql`c.title`;
 		} else {
 			continue;
@@ -481,13 +455,6 @@ export async function getSuggestions(
 
 		const ftsTable = ftsManager.getFtsTableName(collection);
 		const contentTable = ftsManager.getContentTableName(collection);
-
-		// Use prefix search for autocomplete. `escapeQuery` already appends `*`
-		// to each term for prefix matching, so we must not append another one.
-		const prefixQuery = escapeQuery(query);
-		if (!prefixQuery) {
-			continue;
-		}
 
 		let results;
 		try {
@@ -506,7 +473,7 @@ export async function getSuggestions(
 				AND c.status = 'published'
 				AND c.deleted_at IS NULL
 				AND ${titleExpr} IS NOT NULL
-				${locale ? sql`AND c.locale = ${locale}` : sql``}
+				${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}
 			`.execute(db);

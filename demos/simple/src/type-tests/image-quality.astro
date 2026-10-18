@@ -1,0 +1,17 @@
+---
+import { Image } from "emdash/ui";
+import type { ComponentProps } from "astro/types";
+
+const optionalQuality: number | undefined = Math.random() > 0.5 ? 70 : undefined;
+// @ts-expect-error - image quality cannot be a boolean
+const invalid = { image: null, quality: true } satisfies ComponentProps<typeof Image>;
+void invalid;
+---
+
+<Image image={null} quality={70} />
+<Image image={null} quality="low" />
+<Image image={null} quality="mid" />
+<Image image={null} quality="high" />
+<Image image={null} quality="max" />
+<Image image={null} quality={optionalQuality} />
+<Image image={null} />

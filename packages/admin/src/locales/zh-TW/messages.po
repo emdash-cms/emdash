@@ -18,7 +18,7 @@ msgstr ""
 msgid " (default)"
 msgstr " (預設)"
 
-#: packages/admin/src/components/MenuEditor.tsx:635
+#: packages/admin/src/components/MenuEditor.tsx:634
 msgid " (opens in new window)"
 msgstr " (在新視窗中開啟)"
 
@@ -32,17 +32,17 @@ msgid ", "
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1924
+#: packages/admin/src/components/MediaDetailPanel.tsx:1925
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "將從 {providerName} 刪除「{0}」。"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
+#: packages/admin/src/components/MediaDetailPanel.tsx:1926
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "將從媒體供應商刪除「{0}」。"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1926
+#: packages/admin/src/components/MediaDetailPanel.tsx:1927
 msgid "\"{0}\" will be permanently deleted."
 msgstr "將永久刪除「{0}」。"
 
@@ -133,7 +133,7 @@ msgstr "{0, plural, one {上傳清單已滿，未加入 # 個檔案。} other {�
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1518
+#: packages/admin/src/components/MediaDetailPanel.tsx:1519
 #: packages/admin/src/components/MediaLibrary.tsx:938
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {已載入 # 個資料夾} other {已載入 # 個資料夾}}"
@@ -1231,7 +1231,7 @@ msgstr "使用中 v{0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:174
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
-#: packages/admin/src/components/MenuEditor.tsx:551
+#: packages/admin/src/components/MenuEditor.tsx:550
 msgid "Add"
 msgstr "新增"
 
@@ -1300,18 +1300,18 @@ msgstr "在後方新增欄"
 msgid "Add column before"
 msgstr "在前方新增欄"
 
-#: packages/admin/src/components/MenuEditor.tsx:482
-#: packages/admin/src/components/MenuEditor.tsx:607
+#: packages/admin/src/components/MenuEditor.tsx:481
+#: packages/admin/src/components/MenuEditor.tsx:606
 msgid "Add Content"
 msgstr "新增內容"
 
-#: packages/admin/src/components/MenuEditor.tsx:494
-#: packages/admin/src/components/MenuEditor.tsx:501
-#: packages/admin/src/components/MenuEditor.tsx:610
+#: packages/admin/src/components/MenuEditor.tsx:493
+#: packages/admin/src/components/MenuEditor.tsx:500
+#: packages/admin/src/components/MenuEditor.tsx:609
 msgid "Add Custom Link"
 msgstr "新增自訂連結"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:455
+#: packages/admin/src/components/ImageFieldRenderer.tsx:467
 msgid "Add dark mode variant"
 msgstr "新增深色模式版本"
 
@@ -1368,7 +1368,7 @@ msgstr "新增項目"
 msgid "Add link"
 msgstr "新增連結"
 
-#: packages/admin/src/components/MenuEditor.tsx:600
+#: packages/admin/src/components/MenuEditor.tsx:599
 msgid "Add links to build your navigation menu"
 msgstr "新增連結以建立導覽選單"
 
@@ -1520,7 +1520,7 @@ msgstr ""
 msgid "Added:"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:551
+#: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
 msgstr "正在新增…"
@@ -1537,7 +1537,7 @@ msgstr "要匯入的其他資料。"
 msgid "Additional details"
 msgstr "其他詳細資料"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:278
+#: packages/admin/src/components/settings/SeoSettings.tsx:279
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
 msgstr ""
 
@@ -1746,8 +1746,8 @@ msgid "Alt text"
 msgstr "替代文字"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:743
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
-#: packages/admin/src/components/MediaDetailPanel.tsx:1603
+#: packages/admin/src/components/MediaDetailPanel.tsx:1587
+#: packages/admin/src/components/MediaDetailPanel.tsx:1604
 msgid "Alt Text"
 msgstr "替代文字"
 
@@ -1855,7 +1855,7 @@ msgstr "正在分析匯出檔案..."
 msgid "Analyzing WordPress site..."
 msgstr "正在分析 WordPress 網站..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1771
+#: packages/admin/src/components/MediaDetailPanel.tsx:1772
 msgid "Animated WebP files become still images when cropped."
 msgstr "裁切動態 WebP 檔案後會變成靜態圖片。"
 
@@ -1986,7 +1986,7 @@ msgstr "身為管理員，您可以從 [使用者] 區段邀請其他使用者�
 msgid "Ask an administrator to complete this setup."
 msgstr "請網站管理員完成這項設定。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1714
 msgid "Aspect ratio"
 msgstr "長寬比"
 
@@ -2166,9 +2166,9 @@ msgstr "返回"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:499
 #: packages/admin/src/components/FieldEditor.tsx:673
-#: packages/admin/src/components/MediaDetailPanel.tsx:1815
+#: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaLibrary.tsx:747
-#: packages/admin/src/components/MenuEditor.tsx:405
+#: packages/admin/src/components/MenuEditor.tsx:404
 #: packages/admin/src/components/WordPressImport.tsx:1564
 #: packages/admin/src/components/WordPressImport.tsx:2581
 msgid "Back"
@@ -2198,7 +2198,7 @@ msgstr ""
 #: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
 #: packages/admin/src/components/LoginPage.tsx:154
-#: packages/admin/src/components/LoginPage.tsx:313
+#: packages/admin/src/components/LoginPage.tsx:329
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:92
 #: packages/admin/src/components/SignupPage.tsx:298
 msgid "Back to login"
@@ -2213,7 +2213,7 @@ msgstr "返回主要媒體庫"
 msgid "Back to marketplace"
 msgstr "返回市集"
 
-#: packages/admin/src/components/MenuEditor.tsx:403
+#: packages/admin/src/components/MenuEditor.tsx:402
 msgid "Back to menus"
 msgstr "返回選單"
 
@@ -2286,8 +2286,8 @@ msgstr "繼續之前："
 msgid "Between {min} and {max}"
 msgstr "介於 {min} 與 {max} 之間"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:256
+#: packages/admin/src/components/settings/SeoSettings.tsx:243
+#: packages/admin/src/components/settings/SeoSettings.tsx:257
 msgid "Bing Verification"
 msgstr "Bing 驗證"
 
@@ -2518,12 +2518,12 @@ msgstr "可以檢視內容"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:391
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:78
 #: packages/admin/src/components/FieldEditor.tsx:1381
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
-#: packages/admin/src/components/MenuEditor.tsx:464
-#: packages/admin/src/components/MenuEditor.tsx:548
-#: packages/admin/src/components/MenuEditor.tsx:753
+#: packages/admin/src/components/MenuEditor.tsx:463
+#: packages/admin/src/components/MenuEditor.tsx:547
+#: packages/admin/src/components/MenuEditor.tsx:752
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:808
 #: packages/admin/src/components/PortableTextEditor.tsx:5735
@@ -2599,7 +2599,7 @@ msgstr "權限同意"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:751
 #: packages/admin/src/components/editor/ImageNode.tsx:304
 #: packages/admin/src/components/editor/VideoNode.tsx:325
-#: packages/admin/src/components/MediaDetailPanel.tsx:1614
+#: packages/admin/src/components/MediaDetailPanel.tsx:1615
 msgid "Caption"
 msgstr "說明文字"
 
@@ -2666,7 +2666,7 @@ msgstr "變更網域"
 msgid "Change Favicon"
 msgstr "變更網站圖示"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:212
+#: packages/admin/src/components/settings/SeoSettings.tsx:213
 msgid "Change Image"
 msgstr "變更圖片"
 
@@ -2774,7 +2774,7 @@ msgstr ""
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
 msgstr "變更已儲存，但快取頁面可能仍顯示舊的 {pluralLower}。請重試重新整理快取。"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:176
+#: packages/admin/src/components/settings/SeoSettings.tsx:177
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "頁面標題與網站名稱之間的字元 (例如「我的文章 | 我的網站」)"
 
@@ -2893,7 +2893,7 @@ msgid "Choose a new publication time for this draft."
 msgstr "為這份草稿選擇新的發佈時間。"
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:917
+#: packages/admin/src/components/MediaDetailPanel.tsx:918
 msgid "Choose a non-empty {0} image."
 msgstr "請選擇不是空檔案的 {0} 圖片。"
 
@@ -2931,7 +2931,7 @@ msgstr "選擇要上傳的檔案"
 msgid "Choose package file"
 msgstr "選擇套件檔案"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1846
+#: packages/admin/src/components/MediaDetailPanel.tsx:1847
 msgid "Choose replacement image"
 msgstr "選擇替換圖片"
 
@@ -3051,20 +3051,20 @@ msgstr "請點擊這個連結以登入 {siteName}："
 #: packages/admin/src/components/FieldEditor.tsx:710
 #: packages/admin/src/components/FieldEditor.tsx:715
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:462
-#: packages/admin/src/components/MediaDetailPanel.tsx:1126
-#: packages/admin/src/components/MediaDetailPanel.tsx:1857
+#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaPickerModal.tsx:1010
 #: packages/admin/src/components/MediaPickerModal.tsx:1017
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
-#: packages/admin/src/components/MenuEditor.tsx:433
-#: packages/admin/src/components/MenuEditor.tsx:439
-#: packages/admin/src/components/MenuEditor.tsx:443
-#: packages/admin/src/components/MenuEditor.tsx:504
-#: packages/admin/src/components/MenuEditor.tsx:510
-#: packages/admin/src/components/MenuEditor.tsx:514
-#: packages/admin/src/components/MenuEditor.tsx:699
-#: packages/admin/src/components/MenuEditor.tsx:705
-#: packages/admin/src/components/MenuEditor.tsx:709
+#: packages/admin/src/components/MenuEditor.tsx:432
+#: packages/admin/src/components/MenuEditor.tsx:438
+#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/MenuEditor.tsx:503
+#: packages/admin/src/components/MenuEditor.tsx:509
+#: packages/admin/src/components/MenuEditor.tsx:513
+#: packages/admin/src/components/MenuEditor.tsx:698
+#: packages/admin/src/components/MenuEditor.tsx:704
+#: packages/admin/src/components/MenuEditor.tsx:708
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/PortableTextEditor.tsx:2676
 #: packages/admin/src/components/PortableTextEditor.tsx:2682
@@ -3418,7 +3418,7 @@ msgstr "內容類型"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "同群組的內容類型會放在側邊欄的同一個可收合資料夾中"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1945
 msgid "Content using this media item may show a broken reference."
 msgstr "使用這個媒體項目的內容可能會出現失效的參照。"
 
@@ -3461,6 +3461,11 @@ msgstr "繼續以完成登入。這個連結只能使用一次。"
 #: packages/admin/src/components/SetupWizard.tsx:355
 msgid "Continue to import"
 msgstr "繼續匯入"
+
+#. placeholder {0}: activeProviderEntry.label
+#: packages/admin/src/components/LoginPage.tsx:222
+msgid "Continue with {0}."
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
 msgid "Continue with another device"
@@ -3523,7 +3528,7 @@ msgstr "複製權杖"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:307
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:308
-#: packages/admin/src/components/MediaDetailPanel.tsx:1377
+#: packages/admin/src/components/MediaDetailPanel.tsx:1378
 msgid "Copy URL"
 msgstr "複製網址"
 
@@ -3599,7 +3604,7 @@ msgstr "無法移除排程"
 msgid "Could not review posts"
 msgstr "無法檢查文章"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:826
+#: packages/admin/src/components/MediaDetailPanel.tsx:827
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "無法確認媒體項目或選取的資料夾是否仍存在。請再試一次。"
 
@@ -3767,7 +3772,7 @@ msgstr "建立並加入"
 msgid "Create Content Type"
 msgstr "建立內容類型"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1878
+#: packages/admin/src/components/MediaDetailPanel.tsx:1879
 msgid "Create cropped copy"
 msgstr "建立裁切副本"
 
@@ -3939,7 +3944,7 @@ msgstr "正在建立集合與欄位"
 msgid "Creating collections and fields..."
 msgstr "正在建立內容集合及欄位…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
 msgid "Creating cropped copy..."
 msgstr "正在建立裁切副本..."
 
@@ -3952,7 +3957,7 @@ msgstr "正在建立裁切副本..."
 msgid "Creating..."
 msgstr "正在建立…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1639
+#: packages/admin/src/components/MediaDetailPanel.tsx:1640
 msgid "Crop"
 msgstr "裁切"
 
@@ -3962,7 +3967,7 @@ msgstr "裁切"
 msgid "Crop area {0} by {1} pixels."
 msgstr "裁切區域為 {0} × {1} 像素。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1746
+#: packages/admin/src/components/MediaDetailPanel.tsx:1747
 msgid "Crop output dimensions"
 msgstr "裁切輸出尺寸"
 
@@ -3970,7 +3975,7 @@ msgstr "裁切輸出尺寸"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "裁切選取範圍。使用方向鍵移動範圍。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:772
 #: packages/admin/src/components/MediaLibrary.tsx:1289
 msgid "Cropped copy created."
 msgstr "已建立裁切副本。"
@@ -3980,12 +3985,12 @@ msgstr "已建立裁切副本。"
 msgid "CSS"
 msgstr "CSS"
 
-#: packages/admin/src/components/MenuEditor.tsx:540
-#: packages/admin/src/components/MenuEditor.tsx:738
+#: packages/admin/src/components/MenuEditor.tsx:539
+#: packages/admin/src/components/MenuEditor.tsx:737
 msgid "CSS classes"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:639
+#: packages/admin/src/components/MenuEditor.tsx:638
 msgid "CSS classes:"
 msgstr ""
 
@@ -4018,7 +4023,7 @@ msgstr "自訂"
 msgid "Custom Fields"
 msgstr "自訂欄位"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:271
+#: packages/admin/src/components/settings/SeoSettings.tsx:272
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "自訂 robots.txt 內容。留空即可使用預設值。"
 
@@ -4035,7 +4040,7 @@ msgid "Daily automatic backups"
 msgstr "每日自動備份"
 
 #: packages/admin/src/components/FieldEditor.tsx:1366
-#: packages/admin/src/components/ImageFieldRenderer.tsx:399
+#: packages/admin/src/components/ImageFieldRenderer.tsx:411
 msgid "Dark mode variant"
 msgstr "深色模式版本"
 
@@ -4098,12 +4103,12 @@ msgstr "預設角色"
 msgid "Default role:"
 msgstr "預設角色:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:190
+#: packages/admin/src/components/settings/SeoSettings.tsx:191
 msgid "Default social image"
 msgstr "預設社群圖片"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:46
-#: packages/admin/src/components/settings/SeoSettings.tsx:181
+#: packages/admin/src/components/settings/SeoSettings.tsx:182
 msgid "Default Social Image"
 msgstr "預設社群圖片"
 
@@ -4134,9 +4139,9 @@ msgstr "在程式碼中定義"
 #: packages/admin/src/components/ContentTypeList.tsx:256
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:363
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1930
-#: packages/admin/src/components/MenuEditor.tsx:672
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MenuEditor.tsx:671
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:616
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
@@ -4258,7 +4263,7 @@ msgstr "刪除圖庫"
 msgid "Delete image"
 msgstr "刪除圖片"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1918
+#: packages/admin/src/components/MediaDetailPanel.tsx:1919
 msgid "Delete media?"
 msgstr "要刪除媒體嗎？"
 
@@ -4356,8 +4361,8 @@ msgstr "刪除「{0}」也會移除所有署名資料中的 {1, plural, one {# �
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:864
 #: packages/admin/src/components/ContentTypeList.tsx:257
-#: packages/admin/src/components/MediaDetailPanel.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1827
+#: packages/admin/src/components/MediaDetailPanel.tsx:1932
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:236
 #: packages/admin/src/components/Redirects.tsx:617
@@ -4421,7 +4426,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "為看不到圖片的人說明圖片的用途與相關細節。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:746
-#: packages/admin/src/components/MediaDetailPanel.tsx:1606
+#: packages/admin/src/components/MediaDetailPanel.tsx:1607
 msgid "Describe this image for accessibility"
 msgstr "請提供此圖片的無障礙說明"
 
@@ -4454,8 +4459,8 @@ msgstr "目的地路徑"
 msgid "Destructive"
 msgstr "破壞性操作"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1154
-#: packages/admin/src/components/MediaDetailPanel.tsx:1196
+#: packages/admin/src/components/MediaDetailPanel.tsx:1155
+#: packages/admin/src/components/MediaDetailPanel.tsx:1197
 msgid "Details"
 msgstr "詳細資料"
 
@@ -4487,7 +4492,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr "與來源網站的差異"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1324
+#: packages/admin/src/components/MediaDetailPanel.tsx:1325
 msgid "Dimensions:"
 msgstr "尺寸:"
 
@@ -4535,12 +4540,12 @@ msgstr "停用 <0>{0}</0> 後，對方在重新啟用前將無法登入。其內
 msgid "Disabling..."
 msgstr "正在停用..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:276
-#: packages/admin/src/components/settings/SeoSettings.tsx:286
+#: packages/admin/src/components/settings/SeoSettings.tsx:277
+#: packages/admin/src/components/settings/SeoSettings.tsx:287
 msgid "Disallow AI training"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1904
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "Discard"
 msgstr "捨棄"
 
@@ -4549,7 +4554,7 @@ msgstr "捨棄"
 msgid "Discard changes"
 msgstr "捨棄變更"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1902
+#: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "Discard changes?"
 msgstr "要捨棄變更嗎？"
 
@@ -4557,7 +4562,7 @@ msgstr "要捨棄變更嗎？"
 msgid "Discard draft changes?"
 msgstr "要捨棄草稿變更嗎？"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1905
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "Discarding..."
 msgstr "正在捨棄變更…"
 
@@ -4665,7 +4670,7 @@ msgstr "網域已移除"
 msgid "Domain updated"
 msgstr "網域已更新"
 
-#: packages/admin/src/components/LoginPage.tsx:334
+#: packages/admin/src/components/LoginPage.tsx:344
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "還沒有帳號嗎？<0>註冊</0>"
 
@@ -4889,7 +4894,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:352
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:353
 #: packages/admin/src/components/MenuCard.tsx:59
-#: packages/admin/src/components/MenuEditor.tsx:667
+#: packages/admin/src/components/MenuEditor.tsx:666
 #: packages/admin/src/components/Sections.tsx:439
 #: packages/admin/src/components/Shell.tsx:86
 #: packages/admin/src/components/TranslationsPanel.tsx:95
@@ -4934,9 +4939,9 @@ msgstr "編輯 {title}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
-#: packages/admin/src/components/ImageFieldRenderer.tsx:305
-#: packages/admin/src/components/ImageFieldRenderer.tsx:362
-#: packages/admin/src/components/ImageFieldRenderer.tsx:430
+#: packages/admin/src/components/ImageFieldRenderer.tsx:317
+#: packages/admin/src/components/ImageFieldRenderer.tsx:374
+#: packages/admin/src/components/ImageFieldRenderer.tsx:442
 #: packages/admin/src/components/MediaPickerModal.tsx:1595
 msgid "Edit asset"
 msgstr "編輯媒體檔案"
@@ -4950,7 +4955,7 @@ msgstr "編輯署名"
 msgid "Edit byline field"
 msgstr "編輯署名欄位"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:428
+#: packages/admin/src/components/ImageFieldRenderer.tsx:440
 msgid "Edit dark mode asset"
 msgstr "編輯深色模式媒體檔案"
 
@@ -4972,8 +4977,8 @@ msgstr "編輯資料夾"
 msgid "Edit folder {0}"
 msgstr "編輯資料夾 {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1159
-#: packages/admin/src/components/MediaDetailPanel.tsx:1199
+#: packages/admin/src/components/MediaDetailPanel.tsx:1160
+#: packages/admin/src/components/MediaDetailPanel.tsx:1200
 msgid "Edit image"
 msgstr "編輯圖片"
 
@@ -4997,11 +5002,11 @@ msgstr "編輯鎖定"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "編輯媒體的替代文字、說明文字與焦點"
 
-#: packages/admin/src/components/MenuEditor.tsx:696
+#: packages/admin/src/components/MenuEditor.tsx:695
 msgid "Edit Menu Item"
 msgstr "編輯選單項目"
 
-#: packages/admin/src/components/MenuEditor.tsx:474
+#: packages/admin/src/components/MenuEditor.tsx:473
 msgid "Edit menu items"
 msgstr "編輯選單項目"
 
@@ -5207,11 +5212,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} 已推出 (你目前使用的是 {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1980
+#: packages/admin/src/components/MediaDetailPanel.tsx:1981
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash 不會保留先前的圖片。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:2014
+#: packages/admin/src/components/MediaDetailPanel.tsx:2015
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash 不會保留未裁切的圖片。"
 
@@ -5313,8 +5318,8 @@ msgstr "請輸入可辨識的時區才能儲存"
 msgid "Enter a slug."
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:527
-#: packages/admin/src/components/MenuEditor.tsx:724
+#: packages/admin/src/components/MenuEditor.tsx:526
+#: packages/admin/src/components/MenuEditor.tsx:723
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "輸入 URL (https://…) 或相對路徑 (/…)"
 
@@ -5355,7 +5360,7 @@ msgstr "請在下方輸入網域。EmDash 會先確認該網域提供的是這�
 msgid "Enter URL..."
 msgstr "輸入 URL…"
 
-#: packages/admin/src/components/LoginPage.tsx:327
+#: packages/auth-atproto/src/admin.tsx:44
 msgid "Enter your handle to sign in."
 msgstr "輸入您的代號以登入。"
 
@@ -5390,9 +5395,9 @@ msgstr "連結目標端的內容"
 msgid "entry on the linking side"
 msgstr "連結來源端的內容"
 
-#: packages/admin/src/components/MenuEditor.tsx:159
-#: packages/admin/src/components/MenuEditor.tsx:227
-#: packages/admin/src/components/MenuEditor.tsx:267
+#: packages/admin/src/components/MenuEditor.tsx:158
+#: packages/admin/src/components/MenuEditor.tsx:226
+#: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
@@ -5432,11 +5437,11 @@ msgstr "已重新讀取每筆匯入記錄與媒體檔案，並確認與套件一
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "其他每位帳號仍啟用的使用者都會收到電子郵件，通知網站現在位於 {siteHost}，並附上該處的登入連結。其他網址的通行密鑰無法在 {siteHost} 使用，因此使用者需要透過電子郵件連結登入，再新增通行密鑰。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1996
+#: packages/admin/src/components/MediaDetailPanel.tsx:1997
 msgid "Every place using this image will update to the cropped version."
 msgstr "所有使用這張圖片的地方都會更新為裁切後的版本。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1961
+#: packages/admin/src/components/MediaDetailPanel.tsx:1962
 msgid "Every place using this image will update to the selected version."
 msgstr "所有使用這張圖片的地方都會更新為選取的版本。"
 
@@ -5786,7 +5791,7 @@ msgstr "無法刪除內容"
 msgid "Failed to delete field"
 msgstr "無法刪除欄位"
 
-#: packages/admin/src/lib/api/media.ts:764
+#: packages/admin/src/lib/api/media.ts:765
 msgid "Failed to delete from provider"
 msgstr "無法從服務提供者刪除"
 
@@ -6011,7 +6016,7 @@ msgstr "無法取得媒體資料夾"
 msgid "Failed to fetch media item"
 msgstr "擷取媒體項目失敗"
 
-#: packages/admin/src/lib/api/media.ts:697
+#: packages/admin/src/lib/api/media.ts:698
 msgid "Failed to fetch media providers"
 msgstr "無法擷取媒體服務提供者"
 
@@ -6053,7 +6058,7 @@ msgstr "無法擷取外掛設定"
 msgid "Failed to fetch plugins"
 msgstr "無法擷取外掛"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:728
 msgid "Failed to fetch provider media"
 msgstr "無法擷取服務提供者媒體"
 
@@ -6639,7 +6644,7 @@ msgstr "上傳檔案失敗"
 msgid "Failed to upload media"
 msgstr "上傳媒體失敗"
 
-#: packages/admin/src/lib/api/media.ts:752
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to upload to provider"
 msgstr "無法上傳至服務提供者"
 
@@ -6737,8 +6742,8 @@ msgstr "檔案 {0}"
 msgid "File from media library"
 msgstr "媒體庫中的檔案"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1425
-#: packages/admin/src/components/MediaDetailPanel.tsx:1442
+#: packages/admin/src/components/MediaDetailPanel.tsx:1426
+#: packages/admin/src/components/MediaDetailPanel.tsx:1443
 #: packages/admin/src/components/MediaLibrary.tsx:1141
 msgid "Filename"
 msgstr "檔案名稱"
@@ -6835,8 +6840,8 @@ msgstr "請先修正無效的欄位，再變更發佈日期"
 msgid "Fix invalid fields before changing the schedule"
 msgstr "請先修正無效的欄位，再變更排程"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1644
-#: packages/admin/src/components/MediaDetailPanel.tsx:1655
+#: packages/admin/src/components/MediaDetailPanel.tsx:1645
+#: packages/admin/src/components/MediaDetailPanel.tsx:1656
 msgid "Focal point"
 msgstr "焦點"
 
@@ -6882,7 +6887,7 @@ msgstr "無法使用資料夾"
 msgid "Folders"
 msgstr "資料夾"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1545
+#: packages/admin/src/components/MediaDetailPanel.tsx:1546
 #: packages/admin/src/components/MediaLibrary.tsx:963
 #: packages/admin/src/components/MediaLibrary.tsx:1467
 #: packages/admin/src/components/MediaPickerModal.tsx:1328
@@ -6909,7 +6914,7 @@ msgstr "若要獲得最佳匯入體驗，請在 WordPress 網站安裝 <0>EmDash
 msgid "Format selection"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1358
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Format:"
 msgstr "格式："
 
@@ -7020,8 +7025,8 @@ msgstr "上線時間"
 msgid "Goes live {countdown}"
 msgstr "{countdown} 上線"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:248
+#: packages/admin/src/components/settings/SeoSettings.tsx:243
+#: packages/admin/src/components/settings/SeoSettings.tsx:249
 msgid "Google Verification"
 msgstr "Google 驗證"
 
@@ -7184,7 +7189,7 @@ msgstr "有人編輯內容項目時將其鎖定，並拒絕其他人寫入"
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "儲存內容項目 ID。如要改為選取內容項目，請在 [內容類型] 中設定目標集合。"
 
-#: packages/admin/src/components/MenuEditor.tsx:520
+#: packages/admin/src/components/MenuEditor.tsx:519
 msgid "Home"
 msgstr "首頁"
 
@@ -7250,7 +7255,7 @@ msgstr "只保留經過清理的 HTML，並使用網站的樣式。"
 msgid "https://example.com"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:528
+#: packages/admin/src/components/MenuEditor.tsx:527
 msgid "https://example.com or /about"
 msgstr "https://example.com 或 /about"
 
@@ -7337,8 +7342,8 @@ msgstr "圖片"
 msgid "Image {0}"
 msgstr "圖片 {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:339
+#: packages/admin/src/components/ImageFieldRenderer.tsx:336
+#: packages/admin/src/components/ImageFieldRenderer.tsx:351
 #: packages/admin/src/components/SeoImageField.tsx:128
 msgid "Image actions"
 msgstr "圖片操作"
@@ -7356,8 +7361,8 @@ msgid "Image link"
 msgstr "圖片連結"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
-#: packages/admin/src/components/ImageFieldRenderer.tsx:476
-#: packages/admin/src/components/ImageFieldRenderer.tsx:531
+#: packages/admin/src/components/ImageFieldRenderer.tsx:488
+#: packages/admin/src/components/ImageFieldRenderer.tsx:543
 #: packages/admin/src/components/SeoImageField.tsx:107
 msgid "Image not found"
 msgstr "找不到圖片"
@@ -7366,7 +7371,7 @@ msgstr "找不到圖片"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:718
 msgid "Image replaced."
 msgstr "已取代圖片。"
 
@@ -7813,15 +7818,15 @@ msgstr "斜體"
 msgid "Item {0}"
 msgstr "項目 {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:209
+#: packages/admin/src/components/MenuEditor.tsx:208
 msgid "Item added"
 msgstr "已新增項目"
 
-#: packages/admin/src/components/MenuEditor.tsx:221
+#: packages/admin/src/components/MenuEditor.tsx:220
 msgid "Item deleted"
 msgstr "項目已刪除"
 
-#: packages/admin/src/components/MenuEditor.tsx:246
+#: packages/admin/src/components/MenuEditor.tsx:245
 msgid "Item updated"
 msgstr "項目已更新"
 
@@ -7926,9 +7931,9 @@ msgstr "Kotlin"
 #: packages/admin/src/components/BylineFieldEditor.tsx:226
 #: packages/admin/src/components/FieldEditor.tsx:837
 #: packages/admin/src/components/FieldEditor.tsx:1249
-#: packages/admin/src/components/MenuEditor.tsx:450
-#: packages/admin/src/components/MenuEditor.tsx:520
-#: packages/admin/src/components/MenuEditor.tsx:716
+#: packages/admin/src/components/MenuEditor.tsx:449
+#: packages/admin/src/components/MenuEditor.tsx:519
+#: packages/admin/src/components/MenuEditor.tsx:715
 #: packages/admin/src/components/MenuList.tsx:153
 #: packages/admin/src/components/TaxonomyManager.tsx:1034
 #: packages/admin/src/components/Widgets.tsx:437
@@ -7949,7 +7954,7 @@ msgid "Landscape"
 msgstr "橫向"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:286
-#: packages/admin/src/components/LoginPage.tsx:347
+#: packages/admin/src/components/LoginPage.tsx:357
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/Settings.tsx:142
 #: packages/admin/src/components/Settings.tsx:156
@@ -8170,7 +8175,7 @@ msgstr "載入更多"
 msgid "Load More"
 msgstr "載入更多"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1564
+#: packages/admin/src/components/MediaDetailPanel.tsx:1565
 #: packages/admin/src/components/MediaLibrary.tsx:993
 #: packages/admin/src/components/MediaLibrary.tsx:1185
 #: packages/admin/src/components/MediaPickerModal.tsx:1377
@@ -8234,7 +8239,7 @@ msgstr "正在載入匯出記錄…"
 msgid "Loading folders"
 msgstr "正在載入資料夾"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1516
+#: packages/admin/src/components/MediaDetailPanel.tsx:1517
 msgid "Loading folders..."
 msgstr "正在載入資料夾..."
 
@@ -8250,7 +8255,7 @@ msgstr "正在載入媒體"
 msgid "Loading media usage tracking settings…"
 msgstr "正在載入媒體使用追蹤設定…"
 
-#: packages/admin/src/components/MenuEditor.tsx:381
+#: packages/admin/src/components/MenuEditor.tsx:380
 msgid "Loading menu..."
 msgstr "正在載入選單…"
 
@@ -8321,7 +8326,7 @@ msgstr "正在載入小工具…"
 #: packages/admin/src/components/MediaDetailPanel.tsx:606
 #: packages/admin/src/components/MediaDetailPanel.tsx:622
 #: packages/admin/src/components/MediaDetailPanel.tsx:624
-#: packages/admin/src/components/MediaDetailPanel.tsx:1751
+#: packages/admin/src/components/MediaDetailPanel.tsx:1752
 #: packages/admin/src/components/MediaLibrary.tsx:1248
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3206
@@ -8369,10 +8374,10 @@ msgstr "語系"
 msgid "Locales will use this site’s capitalization"
 msgstr "語言地區代碼會沿用這個網站的大小寫"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1453
-#: packages/admin/src/components/MediaDetailPanel.tsx:1481
-#: packages/admin/src/components/MediaDetailPanel.tsx:1572
-#: packages/admin/src/components/MediaDetailPanel.tsx:1574
+#: packages/admin/src/components/MediaDetailPanel.tsx:1454
+#: packages/admin/src/components/MediaDetailPanel.tsx:1482
+#: packages/admin/src/components/MediaDetailPanel.tsx:1573
+#: packages/admin/src/components/MediaDetailPanel.tsx:1575
 msgid "Location"
 msgstr "位置"
 
@@ -8477,11 +8482,11 @@ msgstr "管理網址重新導向並檢視 404 錯誤。"
 msgid "Manage your passkeys and authentication"
 msgstr "管理您的通行密鑰與驗證方式"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1411
+#: packages/admin/src/components/MediaDetailPanel.tsx:1412
 msgid "Managed by {providerName}"
 msgstr "由 {providerName} 管理"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1412
+#: packages/admin/src/components/MediaDetailPanel.tsx:1413
 msgid "Managed by an external media provider"
 msgstr "由外部媒體服務提供者管理"
 
@@ -8583,7 +8588,7 @@ msgstr "MDX"
 msgid "Media"
 msgstr "媒體"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1119
+#: packages/admin/src/components/MediaDetailPanel.tsx:1120
 msgid "Media details"
 msgstr "媒體詳情"
 
@@ -8681,7 +8686,7 @@ msgstr "選單"
 
 #. placeholder {0}: translated.label
 #. placeholder {1}: translated.locale.toUpperCase()
-#: packages/admin/src/components/MenuEditor.tsx:148
+#: packages/admin/src/components/MenuEditor.tsx:147
 msgid "Menu \"{0}\" ({1}) created."
 msgstr "已建立選單「{0}」({1})。"
 
@@ -8698,15 +8703,15 @@ msgstr "選單已建立"
 msgid "Menu deleted"
 msgstr "選單已刪除"
 
-#: packages/admin/src/components/MenuEditor.tsx:209
+#: packages/admin/src/components/MenuEditor.tsx:208
 msgid "Menu item has been added."
 msgstr "已新增選單項目。"
 
-#: packages/admin/src/components/MenuEditor.tsx:222
+#: packages/admin/src/components/MenuEditor.tsx:221
 msgid "Menu item has been deleted."
 msgstr "選單項目已刪除。"
 
-#: packages/admin/src/components/MenuEditor.tsx:247
+#: packages/admin/src/components/MenuEditor.tsx:246
 msgid "Menu item has been updated."
 msgstr "選單項目已更新。"
 
@@ -8715,15 +8720,15 @@ msgstr "選單項目已更新。"
 msgid "Menu items"
 msgstr "選單項目"
 
-#: packages/admin/src/components/MenuEditor.tsx:389
+#: packages/admin/src/components/MenuEditor.tsx:388
 msgid "Menu not found"
 msgstr "找不到選單"
 
-#: packages/admin/src/components/MenuEditor.tsx:262
+#: packages/admin/src/components/MenuEditor.tsx:261
 msgid "Menu order has been updated."
 msgstr "選單順序已更新。"
 
-#: packages/admin/src/components/MenuEditor.tsx:174
+#: packages/admin/src/components/MenuEditor.tsx:173
 msgid "Menu renamed"
 msgstr ""
 
@@ -8753,11 +8758,11 @@ msgstr "合併選取的儲存格"
 msgid "Meta Description"
 msgstr "中繼說明"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:259
+#: packages/admin/src/components/settings/SeoSettings.tsx:260
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "用於 Bing Webmaster Tools 驗證的中繼標籤內容"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:251
+#: packages/admin/src/components/settings/SeoSettings.tsx:252
 msgid "Meta tag content for Google Search Console verification"
 msgstr "用於 Google Search Console 驗證的中繼標籤內容"
 
@@ -8840,7 +8845,7 @@ msgstr "{0} 的更多操作"
 msgid "More formatting"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:516
+#: packages/admin/src/components/ImageFieldRenderer.tsx:528
 msgid "More information about {label}"
 msgstr "{label} 的詳細資訊"
 
@@ -8925,7 +8930,7 @@ msgid "Move {title} to trash"
 msgstr "將 {title} 移至回收桶"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
-#: packages/admin/src/components/MenuEditor.tsx:660
+#: packages/admin/src/components/MenuEditor.tsx:659
 #: packages/admin/src/components/TaxonomyManager.tsx:345
 msgid "Move down"
 msgstr "下移"
@@ -8969,7 +8974,7 @@ msgid "Move to Trash?"
 msgstr "要移至回收桶嗎？"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
-#: packages/admin/src/components/MenuEditor.tsx:651
+#: packages/admin/src/components/MenuEditor.tsx:650
 #: packages/admin/src/components/TaxonomyManager.tsx:337
 msgid "Move up"
 msgstr "上移"
@@ -9226,10 +9231,10 @@ msgstr "新增分類法"
 msgid "New Taxonomy"
 msgstr "新增分類法"
 
-#: packages/admin/src/components/MenuEditor.tsx:534
-#: packages/admin/src/components/MenuEditor.tsx:537
-#: packages/admin/src/components/MenuEditor.tsx:732
-#: packages/admin/src/components/MenuEditor.tsx:735
+#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:536
+#: packages/admin/src/components/MenuEditor.tsx:731
+#: packages/admin/src/components/MenuEditor.tsx:734
 msgid "New window"
 msgstr "新視窗"
 
@@ -9447,7 +9452,7 @@ msgstr "沒有欄位"
 msgid "No files added"
 msgstr "尚未加入檔案"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1524
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 msgid "No folders found"
 msgstr "找不到資料夾"
 
@@ -9555,7 +9560,7 @@ msgstr "此服務提供者沒有可用的媒體。"
 msgid "No media found"
 msgstr "找不到媒體"
 
-#: packages/admin/src/components/MenuEditor.tsx:599
+#: packages/admin/src/components/MenuEditor.tsx:598
 msgid "No menu items yet"
 msgstr "尚無選單項目"
 
@@ -9572,7 +9577,7 @@ msgstr "無最小值"
 msgid "No moderation (auto-approve all)"
 msgstr "不進行審核 (全部自動核准)"
 
-#: packages/admin/src/components/MenuEditor.tsx:368
+#: packages/admin/src/components/MenuEditor.tsx:367
 msgid "No parent (top level)"
 msgstr "沒有上層項目 (最上層)"
 
@@ -9604,7 +9609,7 @@ msgstr "這個外掛庫中尚未發佈任何外掛。"
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "找不到符合「{debouncedQuery}」的外掛。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1380
+#: packages/admin/src/components/MediaDetailPanel.tsx:1381
 msgid "No public URL available"
 msgstr "沒有可用的公開網址"
 
@@ -9930,7 +9935,7 @@ msgstr "選填圖說"
 msgid "Optional caption displayed below the image"
 msgstr "顯示於圖片下方的選填圖說"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1617
+#: packages/admin/src/components/MediaDetailPanel.tsx:1618
 msgid "Optional caption for display"
 msgstr "選填顯示圖說"
 
@@ -9964,7 +9969,7 @@ msgid "or connect by URL"
 msgstr "或透過網址連線"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:96
-#: packages/admin/src/components/LoginPage.tsx:263
+#: packages/admin/src/components/LoginPage.tsx:279
 #: packages/admin/src/components/SetupWizard.tsx:368
 msgid "Or continue with"
 msgstr "或繼續使用"
@@ -9977,7 +9982,7 @@ msgstr "或上傳匯出檔案"
 msgid "or upload directly"
 msgstr "或直接上傳"
 
-#: packages/admin/src/components/MenuEditor.tsx:261
+#: packages/admin/src/components/MenuEditor.tsx:260
 msgid "Order saved"
 msgstr "順序已儲存"
 
@@ -9989,7 +9994,7 @@ msgstr "依順序排列的頁面編排區塊"
 msgid "Original"
 msgstr "原始比例"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:786
 msgid "Original image cropped."
 msgstr "已裁切原始圖片。"
 
@@ -10008,7 +10013,7 @@ msgstr "其他"
 msgid "Outline"
 msgstr "大綱"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1744
+#: packages/admin/src/components/MediaDetailPanel.tsx:1745
 msgid "Output size"
 msgstr "輸出尺寸"
 
@@ -10075,7 +10080,7 @@ msgstr "已在表格後插入段落"
 msgid "Paragraph inserted before table"
 msgstr "已在表格前插入段落"
 
-#: packages/admin/src/components/MenuEditor.tsx:745
+#: packages/admin/src/components/MenuEditor.tsx:744
 #: packages/admin/src/components/TaxonomyManager.tsx:815
 msgid "Parent"
 msgstr "上層項目"
@@ -10516,7 +10521,7 @@ msgstr "按空白鍵抓起圖片。使用方向鍵移動，再按空白鍵放下
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1698
+#: packages/admin/src/components/MediaDetailPanel.tsx:1699
 #: packages/admin/src/components/MediaLibrary.tsx:1140
 msgid "Preview"
 msgstr "預覽"
@@ -11040,16 +11045,16 @@ msgstr "移除"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:814
-#: packages/admin/src/components/ImageFieldRenderer.tsx:317
-#: packages/admin/src/components/ImageFieldRenderer.tsx:371
-#: packages/admin/src/components/ImageFieldRenderer.tsx:442
+#: packages/admin/src/components/ImageFieldRenderer.tsx:329
+#: packages/admin/src/components/ImageFieldRenderer.tsx:383
+#: packages/admin/src/components/ImageFieldRenderer.tsx:454
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:220
 #: packages/admin/src/components/PortableTextEditor.tsx:6513
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
-#: packages/admin/src/components/settings/SeoSettings.tsx:221
+#: packages/admin/src/components/settings/SeoSettings.tsx:222
 msgid "Remove"
 msgstr "移除"
 
@@ -11083,7 +11088,7 @@ msgstr "移除 {label}"
 msgid "Remove assignment"
 msgstr "移除指派"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:440
+#: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Remove dark mode variant"
 msgstr "移除深色模式版本"
 
@@ -11100,7 +11105,7 @@ msgid "Remove from post"
 msgstr "從文章移除"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:594
-#: packages/admin/src/components/ImageFieldRenderer.tsx:315
+#: packages/admin/src/components/ImageFieldRenderer.tsx:327
 msgid "Remove image"
 msgstr "移除圖片"
 
@@ -11240,8 +11245,8 @@ msgstr "重新命名"
 msgid "Rename {0}"
 msgstr "重新命名 {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:423
-#: packages/admin/src/components/MenuEditor.tsx:430
+#: packages/admin/src/components/MenuEditor.tsx:422
+#: packages/admin/src/components/MenuEditor.tsx:429
 msgid "Rename menu"
 msgstr ""
 
@@ -11282,11 +11287,11 @@ msgstr "取代"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/editor/VideoNode.tsx:403
-#: packages/admin/src/components/ImageFieldRenderer.tsx:291
-#: packages/admin/src/components/ImageFieldRenderer.tsx:352
-#: packages/admin/src/components/ImageFieldRenderer.tsx:415
-#: packages/admin/src/components/ImageFieldRenderer.tsx:589
-#: packages/admin/src/components/ImageFieldRenderer.tsx:592
+#: packages/admin/src/components/ImageFieldRenderer.tsx:303
+#: packages/admin/src/components/ImageFieldRenderer.tsx:364
+#: packages/admin/src/components/ImageFieldRenderer.tsx:427
+#: packages/admin/src/components/ImageFieldRenderer.tsx:601
+#: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/PortableTextEditor.tsx:5779
 #: packages/admin/src/components/PortableTextEditor.tsx:5853
 #: packages/admin/src/components/SeoImageField.tsx:151
@@ -11295,39 +11300,39 @@ msgid "Replace"
 msgstr "取代"
 
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:583
+#: packages/admin/src/components/ImageFieldRenderer.tsx:595
 #: packages/admin/src/components/SeoImageField.tsx:148
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Replace {label}"
 msgstr "取代 {label}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:413
+#: packages/admin/src/components/ImageFieldRenderer.tsx:425
 msgid "Replace dark mode image"
 msgstr "取代深色模式圖片"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:580
+#: packages/admin/src/components/ImageFieldRenderer.tsx:592
 msgid "Replace dark mode variant for {label}"
 msgstr "取代 {label} 的深色模式版本"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1837
-#: packages/admin/src/components/MediaDetailPanel.tsx:1965
+#: packages/admin/src/components/MediaDetailPanel.tsx:1838
+#: packages/admin/src/components/MediaDetailPanel.tsx:1966
 #: packages/admin/src/components/PortableTextEditor.tsx:5852
 msgid "Replace image"
 msgstr "取代圖片"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1868
-#: packages/admin/src/components/MediaDetailPanel.tsx:2000
+#: packages/admin/src/components/MediaDetailPanel.tsx:1869
+#: packages/admin/src/components/MediaDetailPanel.tsx:2001
 msgid "Replace original"
 msgstr "取代原始圖片"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1957
-#: packages/admin/src/components/MediaDetailPanel.tsx:1992
+#: packages/admin/src/components/MediaDetailPanel.tsx:1958
+#: packages/admin/src/components/MediaDetailPanel.tsx:1993
 msgid "Replace original image?"
 msgstr "要取代原始圖片嗎？"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1756
+#: packages/admin/src/components/MediaDetailPanel.tsx:1757
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "使用原始比例時，才能取代原始圖片。"
 
@@ -11353,14 +11358,14 @@ msgstr "以空白清單取代"
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:942
-#: packages/admin/src/components/MediaDetailPanel.tsx:1966
+#: packages/admin/src/components/MediaDetailPanel.tsx:943
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replacing image..."
 msgstr "正在取代圖片..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:961
-#: packages/admin/src/components/MediaDetailPanel.tsx:2001
-#: packages/admin/src/components/MediaDetailPanel.tsx:2021
+#: packages/admin/src/components/MediaDetailPanel.tsx:962
+#: packages/admin/src/components/MediaDetailPanel.tsx:2002
+#: packages/admin/src/components/MediaDetailPanel.tsx:2022
 msgid "Replacing original..."
 msgstr "正在取代原始圖片..."
 
@@ -11422,8 +11427,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "{resendCooldown} 秒後可重新傳送"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1690
-#: packages/admin/src/components/MediaDetailPanel.tsx:1740
+#: packages/admin/src/components/MediaDetailPanel.tsx:1691
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "Reset"
 msgstr "重設"
 
@@ -11431,7 +11436,7 @@ msgstr "重設"
 msgid "Reset column widths"
 msgstr "重設欄寬"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Reset crop"
 msgstr "重設裁切"
 
@@ -11535,7 +11540,7 @@ msgstr "已淘汰"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
-#: packages/admin/src/components/MediaDetailPanel.tsx:1551
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1470
 #: packages/admin/src/components/MediaPickerModal.tsx:1217
@@ -11698,8 +11703,8 @@ msgstr "靠右"
 msgid "Risk score: {0}/100"
 msgstr "風險分數: {0}/100"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:264
-#: packages/admin/src/components/settings/SeoSettings.tsx:267
+#: packages/admin/src/components/settings/SeoSettings.tsx:265
+#: packages/admin/src/components/settings/SeoSettings.tsx:268
 msgid "robots.txt"
 msgstr "robots.txt"
 
@@ -11772,10 +11777,10 @@ msgstr "Rust"
 msgid "Same as current version"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:534
-#: packages/admin/src/components/MenuEditor.tsx:536
-#: packages/admin/src/components/MenuEditor.tsx:732
-#: packages/admin/src/components/MenuEditor.tsx:734
+#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:535
+#: packages/admin/src/components/MenuEditor.tsx:731
+#: packages/admin/src/components/MenuEditor.tsx:733
 msgid "Same window"
 msgstr "同一視窗"
 
@@ -11787,10 +11792,10 @@ msgstr "範例內容"
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:821
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:402
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:467
-#: packages/admin/src/components/MenuEditor.tsx:756
+#: packages/admin/src/components/MenuEditor.tsx:466
+#: packages/admin/src/components/MenuEditor.tsx:755
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
@@ -11839,7 +11844,7 @@ msgstr "儲存失敗"
 msgid "Save name"
 msgstr "儲存名稱"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1766
+#: packages/admin/src/components/MediaDetailPanel.tsx:1767
 msgid "Save or discard the other changes before cropping."
 msgstr "裁切前，請先儲存或捨棄其他變更。"
 
@@ -11880,10 +11885,10 @@ msgstr "在這裡儲存集合後，這個欄位會改為內容項目選擇器。
 
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/FieldEditor.tsx:1396
-#: packages/admin/src/components/MediaDetailPanel.tsx:1888
+#: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:467
-#: packages/admin/src/components/MenuEditor.tsx:756
+#: packages/admin/src/components/MenuEditor.tsx:466
+#: packages/admin/src/components/MenuEditor.tsx:755
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:190
@@ -12113,8 +12118,8 @@ msgstr "搜尋失敗"
 msgid "Search failed. Check your connection and try again."
 msgstr "搜尋失敗。請檢查連線後再試一次。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1504
 #: packages/admin/src/components/MediaDetailPanel.tsx:1505
+#: packages/admin/src/components/MediaDetailPanel.tsx:1506
 msgid "Search folders"
 msgstr "搜尋資料夾"
 
@@ -12319,7 +12324,7 @@ msgstr "選取"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
 #: packages/admin/src/components/ContentEditor.tsx:3417
 #: packages/admin/src/components/ContentEditor.tsx:3433
-#: packages/admin/src/components/ImageFieldRenderer.tsx:584
+#: packages/admin/src/components/ImageFieldRenderer.tsx:596
 #: packages/admin/src/components/SeoImageField.tsx:183
 msgid "Select {label}"
 msgstr "選取 {label}"
@@ -12341,7 +12346,7 @@ msgstr "選取元件..."
 msgid "Select a content type"
 msgstr "選取內容類型"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1494
+#: packages/admin/src/components/MediaDetailPanel.tsx:1495
 msgid "Select a location"
 msgstr "選取位置"
 
@@ -12382,11 +12387,11 @@ msgstr "選取 {0} 的留言"
 msgid "Select content"
 msgstr "選取內容"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:581
+#: packages/admin/src/components/ImageFieldRenderer.tsx:593
 msgid "Select dark mode variant for {label}"
 msgstr "選取 {label} 的深色模式版本"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:309
+#: packages/admin/src/components/settings/SeoSettings.tsx:310
 msgid "Select default social image"
 msgstr "選取預設社群分享圖片"
 
@@ -12407,13 +12412,13 @@ msgstr "選取檔案"
 msgid "Select gallery images"
 msgstr "選取圖庫圖片"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:564
+#: packages/admin/src/components/ImageFieldRenderer.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 #: packages/admin/src/components/PortableTextEditor.tsx:4678
 msgid "Select image"
 msgstr "選取圖片"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:232
+#: packages/admin/src/components/settings/SeoSettings.tsx:233
 msgid "Select Image"
 msgstr "選取圖片"
 
@@ -12464,8 +12469,8 @@ msgstr "已選取 {label}"
 msgid "Selected {selectedItemTitle}"
 msgstr "已選取 {selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:253
-#: packages/admin/src/components/ImageFieldRenderer.tsx:268
+#: packages/admin/src/components/ImageFieldRenderer.tsx:265
+#: packages/admin/src/components/ImageFieldRenderer.tsx:280
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr "已選取的圖片"
@@ -12563,8 +12568,8 @@ msgstr "SEO 設定已儲存"
 msgid "SEO Title"
 msgstr "SEO 標題"
 
-#: packages/admin/src/components/MenuEditor.tsx:543
-#: packages/admin/src/components/MenuEditor.tsx:742
+#: packages/admin/src/components/MenuEditor.tsx:542
+#: packages/admin/src/components/MenuEditor.tsx:741
 msgid "Separate class names with spaces. Themes can use them to style the link."
 msgstr ""
 
@@ -12713,7 +12718,7 @@ msgstr "顯示權杖"
 msgid "Showing {pageShowingRange} of {0}"
 msgstr "顯示 {pageShowingRange}，共 {0} 筆"
 
-#: packages/admin/src/components/MenuEditor.tsx:455
+#: packages/admin/src/components/MenuEditor.tsx:454
 #: packages/admin/src/components/MenuList.tsx:159
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
@@ -12748,28 +12753,28 @@ msgstr "改為登入"
 msgid "Sign in to {siteName}"
 msgstr "登入 {siteName}"
 
-#: packages/admin/src/components/LoginPage.tsx:234
+#: packages/admin/src/components/LoginPage.tsx:250
 msgid "Sign in to your site"
 msgstr "登入您的網站"
 
-#. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
+#. placeholder {0}: activeProviderEntry.label ?? activeProvider
 #. placeholder {0}: provider.label
-#: packages/admin/src/components/LoginPage.tsx:233
+#: packages/admin/src/components/LoginPage.tsx:249
 #: packages/admin/src/components/SetupWizard.tsx:326
 msgid "Sign in with {0}"
 msgstr "使用 {0} 登入"
 
-#: packages/admin/src/components/LoginPage.tsx:231
+#: packages/admin/src/components/LoginPage.tsx:247
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:63
 msgid "Sign in with email"
 msgstr "使用電子郵件登入"
 
-#: packages/admin/src/components/LoginPage.tsx:292
+#: packages/admin/src/components/LoginPage.tsx:308
 msgid "Sign in with email link"
 msgstr "使用電子郵件連結登入"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:134
-#: packages/admin/src/components/LoginPage.tsx:254
+#: packages/admin/src/components/LoginPage.tsx:270
 msgid "Sign in with Passkey"
 msgstr "使用通行密鑰登入"
 
@@ -12892,7 +12897,7 @@ msgstr "大小"
 msgid "Size is not applicable to folders"
 msgstr "資料夾不適用大小資訊"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1311
+#: packages/admin/src/components/MediaDetailPanel.tsx:1312
 msgid "Size:"
 msgstr "大小:"
 
@@ -13293,8 +13298,8 @@ msgstr "接手編輯"
 msgid "Taking over..."
 msgstr "正在接手編輯..."
 
-#: packages/admin/src/components/MenuEditor.tsx:531
-#: packages/admin/src/components/MenuEditor.tsx:729
+#: packages/admin/src/components/MenuEditor.tsx:530
+#: packages/admin/src/components/MenuEditor.tsx:728
 msgid "Target"
 msgstr "目標"
 
@@ -13463,7 +13468,7 @@ msgstr "內容類型與代稱固定不變。兩端的名稱，以及各端可包
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "你所選手機或平板上的憑證管理程式會儲存通行密鑰。EmDash 不會收到通行密鑰。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:832
+#: packages/admin/src/components/MediaDetailPanel.tsx:833
 msgid "The cropped image could not be created."
 msgstr "無法建立裁切後的圖片。"
 
@@ -13590,7 +13595,7 @@ msgid "The menu has been deleted."
 msgstr "選單已刪除。"
 
 #. placeholder {0}: renamed.label
-#: packages/admin/src/components/MenuEditor.tsx:175
+#: packages/admin/src/components/MenuEditor.tsx:174
 msgid "The menu is now called \"{0}\"."
 msgstr ""
 
@@ -13716,7 +13721,7 @@ msgstr "無法驗證發佈者身分。"
 msgid "The range has more entries than the calendar can show."
 msgstr "這個範圍的內容項目數量超過行事曆可顯示的上限。"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:201
+#: packages/admin/src/components/settings/SeoSettings.tsx:202
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "參照的圖片已無法使用。請選取新圖片或移除參照。"
 
@@ -13741,11 +13746,11 @@ msgstr "目前已加入的範例內容會保留。繼續即可加入其餘內容
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "{title} 的排程變更會保留為草稿。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:827
+#: packages/admin/src/components/MediaDetailPanel.tsx:828
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "選取的資料夾已不存在。請選取其他位置後重新儲存。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:924
+#: packages/admin/src/components/MediaDetailPanel.tsx:925
 msgid "The selected image could not be read."
 msgstr "無法讀取選取的圖片。"
 
@@ -13863,9 +13868,9 @@ msgstr "這個區塊會執行 JavaScript。"
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "這個瀏覽器會將整個套件保留在記憶體中，直到下載完成。匯出這麼大的套件時，請使用能直接儲存至磁碟的 Chromium 系列瀏覽器，或從 CLI 執行 emdash site export。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1977
-#: packages/admin/src/components/MediaDetailPanel.tsx:2011
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/MediaDetailPanel.tsx:1978
+#: packages/admin/src/components/MediaDetailPanel.tsx:2012
 msgid "This cannot be undone"
 msgstr "此操作無法復原"
 
@@ -13965,7 +13970,7 @@ msgid "This field expects a list. The stored value stays unchanged until you rep
 msgstr "這個欄位需要清單。儲存的值會保持不變，直到你用空白清單取代它，這會刪除原本的值。請先複製需要保留的內容。"
 
 #: packages/admin/src/components/ContentEditor.tsx:3437
-#: packages/admin/src/components/ImageFieldRenderer.tsx:603
+#: packages/admin/src/components/ImageFieldRenderer.tsx:615
 msgid "This field is required"
 msgstr "此欄位為必填"
 
@@ -14007,7 +14012,7 @@ msgstr "這個資料夾是空的"
 msgid "This folder is empty."
 msgstr "這個資料夾是空的。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1761
+#: packages/admin/src/components/MediaDetailPanel.tsx:1762
 msgid "This image could not be loaded for cropping."
 msgstr "無法載入這張圖片以進行裁切。"
 
@@ -14047,12 +14052,12 @@ msgstr "這個連結將在 7 天後過期。"
 msgid "This may take a while for large exports."
 msgstr "大型匯出可能需要一些時間。"
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:83
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:86
 msgid "This media item could not be loaded. Try again."
 msgstr "無法載入這個媒體項目。請再試一次。"
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:81
-#: packages/admin/src/components/MediaDetailPanel.tsx:821
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
+#: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "This media item no longer exists."
 msgstr "這個媒體項目已不存在。"
 
@@ -14408,7 +14413,7 @@ msgstr "翻譯 {0}"
 msgid "Translating..."
 msgstr "正在翻譯..."
 
-#: packages/admin/src/components/MenuEditor.tsx:147
+#: packages/admin/src/components/MenuEditor.tsx:146
 #: packages/admin/src/components/TaxonomyManager.tsx:1252
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1618
@@ -14929,7 +14934,7 @@ msgstr "上傳 WordPress 匯出檔案"
 msgid "Uploaded"
 msgstr "已上傳"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1340
+#: packages/admin/src/components/MediaDetailPanel.tsx:1341
 msgid "Uploaded:"
 msgstr "上傳時間:"
 
@@ -14961,8 +14966,8 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
 #: packages/admin/src/components/FieldEditor.tsx:1298
-#: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuEditor.tsx:719
+#: packages/admin/src/components/MenuEditor.tsx:521
+#: packages/admin/src/components/MenuEditor.tsx:718
 msgid "URL"
 msgstr "網址"
 
@@ -14984,7 +14989,7 @@ msgstr "網址範本 (例如 /blog/:slug)"
 msgid "URL-friendly identifier"
 msgstr "適合用於網址的識別碼"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1370
+#: packages/admin/src/components/MediaDetailPanel.tsx:1371
 msgid "URL:"
 msgstr "URL:"
 
@@ -15060,11 +15065,11 @@ msgstr "使用網址"
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr "使用裝置的生物特徵辨識、安全金鑰或 PIN 登入。"
 
-#: packages/admin/src/components/LoginPage.tsx:328
+#: packages/admin/src/components/LoginPage.tsx:224
 msgid "Use your registered passkey to sign in securely."
 msgstr "使用已註冊的通行密鑰安全登入。"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:182
+#: packages/admin/src/components/settings/SeoSettings.tsx:183
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "當頁面沒有圖片時，用作備用 Open Graph 圖片。建議尺寸: 1200×630。"
 
@@ -15080,8 +15085,8 @@ msgstr "在清單頁面及文章頂端作為這篇文章的主要視覺"
 msgid "Used by screen readers and when image fails to load"
 msgstr "供螢幕閱讀器使用，並在圖片載入失敗時顯示"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1165
-#: packages/admin/src/components/MediaDetailPanel.tsx:1198
+#: packages/admin/src/components/MediaDetailPanel.tsx:1166
+#: packages/admin/src/components/MediaDetailPanel.tsx:1199
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "使用位置"
@@ -15333,7 +15338,7 @@ msgstr "我們無法連線至位於 {0} 的 WordPress 網站。這可能表示�
 msgid "We'll check what import options are available for your site."
 msgstr "我們會檢查您的網站有哪些可用的匯入選項。"
 
-#: packages/admin/src/components/LoginPage.tsx:325
+#: packages/admin/src/components/LoginPage.tsx:217
 msgid "We'll send you a link to sign in without a password."
 msgstr "我們會傳送連結給您，讓您不必輸入密碼即可登入。"
 
@@ -15660,8 +15665,8 @@ msgstr "你可以稍後在安全性設定中查看、重新命名或新增通行
 msgid "You cannot change your own role"
 msgstr "您無法變更自己的角色"
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:70
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:79
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:73
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:82
 msgid "You do not have permission to edit this asset."
 msgstr "你沒有編輯這個媒體檔案的權限。"
 
@@ -15856,7 +15861,7 @@ msgstr "您的 Twitter/X 代號 (例如 @username)"
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1903
+#: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Your unsaved media changes will be lost."
 msgstr "未儲存的媒體變更將會遺失。"
 
