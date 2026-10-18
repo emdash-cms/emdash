@@ -24,7 +24,6 @@ export interface ReviewModelEnv {
 	readonly REVIEW_MODEL?: string;
 	readonly REVIEW_MODELS?: string;
 	readonly REVIEW_MERGE_MODEL?: string;
-	readonly REVIEW_KIMI_FALLBACK?: string;
 	readonly AI_GATEWAY_ACCOUNT_ID?: string;
 	readonly AI_GATEWAY_NAME?: string;
 	readonly AI_GATEWAY_TOKEN?: string;
@@ -39,8 +38,6 @@ export interface ReviewPlan {
 	readonly reviewers: readonly string[];
 	/** Tool-less model that merges two or more reviews; absent without the gateway. */
 	readonly mergeModel?: string;
-	/** Model to review with when every reviewer fails; absent unless enabled. */
-	readonly fallbackReviewer?: string;
 }
 
 function hasGateway(env: ReviewModelEnv): boolean {
@@ -56,27 +53,22 @@ function modelList(value: string | undefined): string[] {
 }
 
 /**
- * Which models review a PR. `REVIEW_MODELS` wins, then a single `REVIEW_MODEL`,
- * then the default gateway pair when the gateway is configured, then Kimi alone.
+ * Which models review a PR. Without the gateway, one model reviews as it always
+ * has: `REVIEW_MODEL`, or Kimi. With the gateway, `REVIEW_MODELS` wins, then a
+ * single `REVIEW_MODEL` (used by the local evaluation), then Opus and Sol.
  */
 export function reviewPlan(env: ReviewModelEnv): ReviewPlan {
-	const gateway = hasGateway(env);
+	if (!hasGateway(env)) return { reviewers: [reviewModel(env)] };
 	const configured = modelList(env.REVIEW_MODELS);
 	const reviewers =
 		configured.length > 0
 			? configured
 			: env.REVIEW_MODEL?.trim()
 				? [reviewModel(env)]
-				: gateway
-					? [...DEFAULT_GATEWAY_REVIEWERS]
-					: [DEFAULT_REVIEW_MODEL];
-	const fallbackEnabled = env.REVIEW_KIMI_FALLBACK === "1" || env.REVIEW_KIMI_FALLBACK === "true";
+				: [...DEFAULT_GATEWAY_REVIEWERS];
 	return {
 		reviewers,
-		...(gateway ? { mergeModel: env.REVIEW_MERGE_MODEL?.trim() || DEFAULT_MERGE_MODEL } : {}),
-		...(fallbackEnabled && !reviewers.includes(DEFAULT_REVIEW_MODEL)
-			? { fallbackReviewer: DEFAULT_REVIEW_MODEL }
-			: {}),
+		mergeModel: env.REVIEW_MERGE_MODEL?.trim() || DEFAULT_MERGE_MODEL,
 	};
 }
 

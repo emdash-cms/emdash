@@ -448,11 +448,10 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 						{
 							review: async (model, attemptSignal) => {
 								// A lone reviewer keeps the session name earlier runs used.
-								const index = plan.reviewers.indexOf(model);
 								const session = await context.harness.session(
-									plan.reviewers.length === 1 && index === 0
+									plan.reviewers.length === 1
 										? `review-${revision.headSha}`
-										: `review-${revision.headSha}-${index === -1 ? "fallback" : index}`,
+										: `review-${revision.headSha}-${plan.reviewers.indexOf(model)}`,
 								);
 								return session.skill("review", {
 									args: {

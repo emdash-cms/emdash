@@ -107,24 +107,6 @@ describe("runReviewPanel", () => {
 		expect(reviewed).toEqual([OPUS, SOL]);
 	});
 
-	it("reviews with the fallback model only when enabled and every reviewer failed", async () => {
-		const { panelDeps, reviewed } = deps([OPUS, SOL]);
-		const outcome = await runReviewPanel(
-			{ reviewers: [OPUS, SOL], mergeModel: SONNET, fallbackReviewer: KIMI },
-			panelDeps,
-		);
-		expect(reviewed).toEqual([OPUS, SOL, KIMI]);
-		expect(outcome.mergePath).toBe("single_reviewer");
-		expect(outcome.result.summary).toContain(`Reviewed by \`${KIMI}\``);
-
-		const healthy = deps();
-		await runReviewPanel(
-			{ reviewers: [OPUS, SOL], mergeModel: SONNET, fallbackReviewer: KIMI },
-			healthy.panelDeps,
-		);
-		expect(healthy.reviewed).toEqual([OPUS, SOL]);
-	});
-
 	it("gives the merge the prior-review context on a re-review", async () => {
 		const { panelDeps } = deps();
 		let prompt = "";

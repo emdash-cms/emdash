@@ -36,6 +36,9 @@ describe("reviewPlan", () => {
 		expect(reviewPlan({ ...GATEWAY, AI_GATEWAY_NAME: "" })).toEqual({
 			reviewers: [DEFAULT_REVIEW_MODEL],
 		});
+		expect(reviewPlan({ REVIEW_MODELS: "anthropic/claude-opus-5-5,openai/gpt-6.1-sol" })).toEqual({
+			reviewers: [DEFAULT_REVIEW_MODEL],
+		});
 	});
 
 	it("defaults to Opus and Sol merged by Sonnet with the gateway", () => {
@@ -60,14 +63,6 @@ describe("reviewPlan", () => {
 		expect(reviewPlan({ ...GATEWAY, REVIEW_MODEL: "anthropic/claude-opus-5-5" }).reviewers).toEqual(
 			["anthropic/claude-opus-5-5"],
 		);
-	});
-
-	it("adds the Kimi fallback only when enabled", () => {
-		expect(reviewPlan({ ...GATEWAY, REVIEW_KIMI_FALLBACK: "1" }).fallbackReviewer).toBe(
-			DEFAULT_REVIEW_MODEL,
-		);
-		expect(reviewPlan({ ...GATEWAY, REVIEW_KIMI_FALLBACK: "0" }).fallbackReviewer).toBeUndefined();
-		expect(reviewPlan({ REVIEW_KIMI_FALLBACK: "1" }).fallbackReviewer).toBeUndefined();
 	});
 });
 

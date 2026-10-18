@@ -7,7 +7,7 @@
 // installation access token (valid ~1h, scoped to the installation's repos and
 // the app's permissions), and use that token for reads and for posting the
 // review. The app needs `pull_requests: write`, `checks: write`, and
-// `contents: read`; `issues: read` lets the review include the linked issue.
+// `contents: read`, and `issues: read` for linked issues.
 
 import { limitUtf8Text } from "./byte-budget.js";
 import type { PullRequestRevision, ReviewHeadMove } from "./review-head.js";

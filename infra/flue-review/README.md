@@ -6,11 +6,10 @@ A Cloudflare Worker that reviews pull requests on `emdash-cms/emdash` as `emdash
 
 Each reviewer runs the review skill independently, in parallel, on the same checked-out head with the same context: the PR title and description, any issues the PR says it closes (title and body only), the accepted design proposals it links, and the bot's previous review on a re-review. A tool-less merge model then combines the completed reviews into one, and trusted code checks every anchor and decides the verdict. The posted review ends with a footer naming the reviewers and whether one was unavailable.
 
-| Setting                | Default                                        | Meaning                                                                                      |
-| ---------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `REVIEW_MODELS`        | `anthropic/claude-opus-5-5,openai/gpt-6.1-sol` | Comma-separated reviewer model IDs. The default applies when the AI Gateway secrets are set. |
-| `REVIEW_MERGE_MODEL`   | `anthropic/claude-sonnet-5-5`                  | Gateway model that merges two or more reviews, at low reasoning effort.                      |
-| `REVIEW_KIMI_FALLBACK` | off                                            | Set to `1` to review with Kimi when every configured reviewer fails.                         |
+| Setting              | Default                                        | Meaning                                                                            |
+| -------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `REVIEW_MODELS`      | `anthropic/claude-opus-5-5,openai/gpt-6.1-sol` | Comma-separated reviewer model IDs. Read only when the AI Gateway secrets are set. |
+| `REVIEW_MERGE_MODEL` | `anthropic/claude-sonnet-5-5`                  | Gateway model that merges two or more reviews, at low reasoning effort.            |
 
 Without the AI Gateway secrets, Kimi K2.7 Code reviews alone over the Workers AI binding, with no merge and no footer.
 
@@ -26,7 +25,7 @@ If one reviewer fails, the review from the other is posted with a note that a re
 | `AI_GATEWAY_NAME`        | No       | AI Gateway name.                                                 |
 | `AI_GATEWAY_TOKEN`       | No       | AI Gateway token, with Unified Billing for Anthropic and OpenAI. |
 
-Set each with `wrangler secret put <NAME>`. All three `AI_GATEWAY_*` secrets must be set to enable the gateway reviewers. The GitHub App needs `issues: read` for the review to include linked issues; without it the review proceeds without them.
+Set each with `wrangler secret put <NAME>`. All three `AI_GATEWAY_*` secrets must be set to enable the gateway reviewers.
 
 ## Development
 

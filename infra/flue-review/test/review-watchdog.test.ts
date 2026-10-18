@@ -114,7 +114,7 @@ describe("model review stage limits", () => {
 			reviewerTimeoutMs("anthropic/claude-opus-5-5"),
 		);
 		expect(slowestReviewer).toBeLessThanOrEqual(REVIEW_PHASE_LIMIT_MS);
-		expect(2 * REVIEW_PHASE_LIMIT_MS + MERGE_ATTEMPTS * MERGE_TIMEOUT_MS).toBeLessThan(
+		expect(REVIEW_PHASE_LIMIT_MS + MERGE_ATTEMPTS * MERGE_TIMEOUT_MS).toBeLessThan(
 			MODEL_REVIEW_STAGE_LIMIT_MS,
 		);
 	});

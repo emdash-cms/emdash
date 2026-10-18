@@ -6,7 +6,6 @@ interface ReviewEvalEnv {
 	REVIEW_EVAL?: string;
 	REVIEW_MODELS?: string;
 	REVIEW_MERGE_MODEL?: string;
-	REVIEW_KIMI_FALLBACK?: string;
 	AI_GATEWAY_ACCOUNT_ID?: string;
 	AI_GATEWAY_NAME?: string;
 	AI_GATEWAY_TOKEN?: string;

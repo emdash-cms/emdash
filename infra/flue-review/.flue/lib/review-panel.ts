@@ -22,11 +22,10 @@ export const REVIEW_PHASE_LIMIT_MS = 45 * 60_000;
 export const MERGE_TIMEOUT_MS = 5 * 60_000;
 export const MERGE_ATTEMPTS = 2;
 /**
- * Upper bound for the whole model_review stage: the reviewers, the optional
- * fallback reviewer, and the merge.
+ * Upper bound for the whole model_review stage: the reviewers and the merge.
  */
 export const MODEL_REVIEW_STAGE_LIMIT_MS =
-	2 * REVIEW_PHASE_LIMIT_MS + MERGE_ATTEMPTS * MERGE_TIMEOUT_MS + 60_000;
+	REVIEW_PHASE_LIMIT_MS + MERGE_ATTEMPTS * MERGE_TIMEOUT_MS + 60_000;
 
 export function reviewerTimeoutMs(model: string): number {
 	return model.startsWith("cloudflare/") ? WORKERS_AI_REVIEW_TIMEOUT_MS : GATEWAY_REVIEW_TIMEOUT_MS;
@@ -45,7 +44,6 @@ export interface ReviewPanelDeps {
 
 export interface ReviewerRun {
 	readonly model: string;
-	readonly fallback: boolean;
 	readonly durationMs: number;
 	readonly result?: ReviewResult;
 	readonly error?: unknown;
@@ -85,7 +83,6 @@ function anySignal(signals: readonly (AbortSignal | undefined)[]): AbortSignal {
 
 async function runReviewer(
 	model: string,
-	fallback: boolean,
 	deps: ReviewPanelDeps,
 	signal: AbortSignal | undefined,
 ): Promise<ReviewerRun> {
@@ -108,13 +105,12 @@ async function runReviewer(
 				}),
 		});
 		usage = response.usage;
-		run = { model, fallback, durationMs: Date.now() - startedAt, result: response.data };
+		run = { model, durationMs: Date.now() - startedAt, result: response.data };
 	} catch (error) {
-		run = { model, fallback, durationMs: Date.now() - startedAt, error };
+		run = { model, durationMs: Date.now() - startedAt, error };
 	}
 	deps.log("reviewer finished", {
 		model,
-		fallback,
 		ok: run.result !== undefined,
 		durationMs: run.durationMs,
 		verdict: run.result?.verdict,
@@ -155,12 +151,9 @@ export async function runReviewPanel(
 	deps: ReviewPanelDeps,
 	options: { readonly priorReview?: string; readonly signal?: AbortSignal } = {},
 ): Promise<ReviewPanelOutcome> {
-	const runs: ReviewerRun[] = await Promise.all(
-		plan.reviewers.map((model) => runReviewer(model, false, deps, options.signal)),
+	const runs = await Promise.all(
+		plan.reviewers.map((model) => runReviewer(model, deps, options.signal)),
 	);
-	if (!runs.some((run) => run.result) && plan.fallbackReviewer) {
-		runs.push(await runReviewer(plan.fallbackReviewer, true, deps, options.signal));
-	}
 	const completed: ReviewerResult[] = runs.flatMap((run) =>
 		run.result ? [{ reviewer: run.model, result: run.result }] : [],
 	);
