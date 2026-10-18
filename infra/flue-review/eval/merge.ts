@@ -131,6 +131,8 @@ async function callModel(
 			body: JSON.stringify({
 				model: merger.model,
 				max_tokens: 16_000,
+				// Match the production merge request, which the registered model sends with adaptive thinking.
+				thinking: { type: "adaptive" },
 				output_config: { effort: "low" },
 				messages: [{ role: "user", content: prompt }],
 			}),

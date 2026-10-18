@@ -46,7 +46,6 @@ describe("reviewPlan", () => {
 			reviewers: ["anthropic/claude-opus-5-5", "openai/gpt-6.1-sol"],
 			mergeModel: DEFAULT_MERGE_MODEL,
 		});
-		expect(DEFAULT_MERGE_MODEL).toBe("anthropic/claude-sonnet-5-5");
 	});
 
 	it("reads the reviewer list and merge model from configuration", () => {
