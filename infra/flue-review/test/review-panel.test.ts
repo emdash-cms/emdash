@@ -125,4 +125,34 @@ describe("runReviewPanel", () => {
 		expect(prompt).toContain("the author fixed a.ts");
 		expect(prompt).toContain("Do not resurrect");
 	});
+
+	it("scopes a follow-up review to the changed lines and logs the filter counts", async () => {
+		const { panelDeps, logs } = deps();
+		let prompt = "";
+		const outcome = await runReviewPanel(
+			{ reviewers: [OPUS, SOL], mergeModel: SONNET },
+			{
+				...panelDeps,
+				merge: async (_model, text) => {
+					prompt = text;
+					return {
+						data: JSON.stringify({
+							verdict: "comment",
+							summary: "Follow-up.",
+							findings: [finding("a.ts", 1), { ...finding("b.ts", 2), severity: "suggestion" }],
+						}),
+					};
+				},
+			},
+			{ priorReview: "Earlier review.", changed: new Map([["c.ts", new Set([3])]]) },
+		);
+		expect(prompt).toContain("follow-up review of the changes since the last reviewed head");
+		expect(outcome.result.findings).toHaveLength(1);
+		expect(outcome.result.findings[0]?.body).toContain("Missed in the earlier review");
+		expect(logs.find((entry) => entry.message === "review scope filter")?.fields).toMatchObject({
+			followUp: true,
+			droppedOutsideChange: 1,
+			markedMissedEarlier: 1,
+		});
+	});
 });

@@ -102,6 +102,10 @@ const payloadSchema = v.object({
 	linkedIssues: v.optional(
 		v.array(v.object({ number: v.number(), title: v.string(), body: v.string() })),
 	),
+	reviewMode: v.optional(v.literal("scoped")),
+	priorHeadSha: v.optional(v.string()),
+	priorReview: v.optional(v.string()),
+	interHeadDiff: v.optional(v.string()),
 });
 type ReviewPayload = v.InferOutput<typeof payloadSchema>;
 
@@ -185,6 +189,9 @@ const { values: args } = parseArgs({
 		label: { type: "string" },
 		reviewers: { type: "string" },
 		"merge-model": { type: "string" },
+		head: { type: "string" },
+		"prior-head": { type: "string" },
+		"prior-result": { type: "string" },
 	},
 });
 
@@ -229,6 +236,7 @@ function gatewayEnv(): Record<string, string> {
 function gh(ghArgs: string[]): string {
 	return execFileSync("gh", ghArgs, {
 		encoding: "utf8",
+		maxBuffer: 64 * 1024 * 1024,
 		stdio: ["ignore", "pipe", "inherit"],
 	}).trim();
 }
@@ -260,10 +268,64 @@ function linkedIssuesFor(file: CasesFile, pr: number): NonNullable<ReviewPayload
 	return issues;
 }
 
+const priorResultSchema = v.looseObject({
+	result: v.object({
+		verdict: v.string(),
+		summary: v.string(),
+		findings: v.array(v.looseObject({ path: v.string(), line: v.number(), body: v.string() })),
+	}),
+});
+
+// The prior-review context production builds from the bot's last review,
+// rendered from an earlier result file: the review body and its findings, with
+// no author replies.
+function priorReviewFrom(path: string): string {
+	const { result } = readJson(priorResultSchema, readFileSync(path, "utf8"));
+	const state = result.verdict === "approve" ? "APPROVED" : "COMMENTED";
+	const findings = result.findings.toReversed().map(
+		({ path: file, line, body }) =>
+			`- \`${file}:${line}\`\n${body
+				.trim()
+				.split("\n")
+				.map((text) => `  > ${text}`)
+				.join("\n")}`,
+	);
+	return `Your previous review (state: ${state}):\n\n${result.summary}${
+		findings.length > 0
+			? `\n\n### Your inline findings, newest first, with the replies to each\n\n${findings.join("\n\n")}`
+			: ""
+	}`;
+}
+
+// A scoped follow-up of the head against an earlier head: the runner supplies
+// the earlier review and the inter-head diff, which production reads with its
+// installation token.
+function followUpFor(file: CasesFile, headSha: string): Partial<ReviewPayload> {
+	const priorHead = args["prior-head"];
+	const priorResult = args["prior-result"];
+	if (!priorHead || !priorResult) return {};
+	return {
+		reviewMode: "scoped",
+		priorHeadSha: priorHead,
+		priorReview: priorReviewFrom(priorResult),
+		interHeadDiff: gh([
+			"api",
+			`repos/${file.owner}/${file.repo}/compare/${priorHead}...${headSha}`,
+			"-H",
+			"Accept: application/vnd.github.v3.diff",
+		]),
+	};
+}
+
 // Production fetches the linked issues with its installation token; the
 // runner has none, so it supplies them in the payload.
 function payloadFor(file: CasesFile, evalCase: EvalCase): ReviewPayload {
-	return { ...basePayloadFor(file, evalCase), linkedIssues: linkedIssuesFor(file, evalCase.pr) };
+	const base = basePayloadFor(file, evalCase);
+	return {
+		...base,
+		linkedIssues: linkedIssuesFor(file, evalCase.pr),
+		...followUpFor(file, base.headSha),
+	};
 }
 
 function basePayloadFor(file: CasesFile, evalCase: EvalCase): ReviewPayload {
@@ -610,7 +672,10 @@ async function main(): Promise<void> {
 	assertNoGitHubCredentials();
 	const file = readJson(casesFileSchema, readFileSync(join(EVAL_DIR, "cases.json"), "utf8"));
 	const wanted = args.cases?.split(",").map(Number);
-	const cases = wanted ? file.cases.filter((c) => wanted.includes(c.pr)) : file.cases;
+	const selected = wanted ? file.cases.filter((c) => wanted.includes(c.pr)) : file.cases;
+	const head = v.parse(v.optional(v.pipe(v.string(), v.regex(SHA))), args.head);
+	if (head && selected.length !== 1) throw new Error("--head needs exactly one case");
+	const cases = head ? selected.map((c) => ({ ...c, headSha: head })) : selected;
 	const specs = (args.models ?? "").split(",").map((key) => {
 		const spec = MODELS.find((m) => m.key === key.trim());
 		if (!spec) throw new Error(`unknown model key: ${key}`);

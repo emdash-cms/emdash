@@ -61,6 +61,7 @@ interface ReviewWatchdogRpc {
 	beginAdmission(attemptId: string, setupLease: string): Promise<boolean>;
 	identify(attemptId: string, expectedRunId: string, runId: string): Promise<boolean>;
 	heartbeat(attemptId: string, runId: string, stage: ReviewStage): Promise<boolean>;
+	isActive(attemptId: string): Promise<boolean>;
 	complete(attemptId: string): Promise<void>;
 	finish(attemptId: string, runId: string, terminal: ReviewTerminal): Promise<boolean>;
 }

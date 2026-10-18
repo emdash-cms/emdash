@@ -14,6 +14,7 @@ import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 
 import { createAiPayloadGuard } from "./lib/ai-payload-budget.js";
+import { getRereviewScheduler } from "./lib/rereview.js";
 import { registerGatewayProviders } from "./lib/review-model.js";
 import { getReviewWatchdog, type ReviewAttempt } from "./lib/review-watchdog.js";
 import {
@@ -136,6 +137,10 @@ app.post("/webhook/github", async (c) => {
 		review: decision.review,
 		reason: decision.review ? undefined : decision.reason,
 	});
+	if (!decision.review && decision.rereview) {
+		await getRereviewScheduler(c.env, decision.rereview).schedule(decision.rereview);
+		return c.text(`re-review scheduled for PR #${decision.rereview.prNumber}`, 202);
+	}
 	if (!decision.review) return c.text(`skipped: ${decision.reason}`, 202);
 
 	const deliveryId = getWebhookDeliveryId(c.req.header("x-github-delivery"));

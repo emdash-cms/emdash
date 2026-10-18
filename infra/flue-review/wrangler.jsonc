@@ -35,6 +35,10 @@
 				"name": "REVIEW_WATCHDOG",
 				"class_name": "ReviewWatchdog",
 			},
+			{
+				"name": "REREVIEW_SCHEDULER",
+				"class_name": "ReReviewScheduler",
+			},
 		],
 	},
 	// Migration history must stay append-only and keep every previously applied
@@ -99,6 +103,10 @@
 		{
 			"tag": "v8-reset-registry-new-v2",
 			"new_sqlite_classes": ["FlueRegistry"],
+		},
+		{
+			"tag": "v9-rereview-scheduler",
+			"new_sqlite_classes": ["ReReviewScheduler"],
 		},
 	],
 	"vars": {

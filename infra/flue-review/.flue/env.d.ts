@@ -6,6 +6,8 @@ interface ReviewEvalEnv {
 	REVIEW_EVAL?: string;
 	REVIEW_MODELS?: string;
 	REVIEW_MERGE_MODEL?: string;
+	REVIEW_MAX_SUGGESTIONS?: string;
+	REVIEW_AUTO_REREVIEW_LIMIT?: string;
 	AI_GATEWAY_ACCOUNT_ID?: string;
 	AI_GATEWAY_NAME?: string;
 	AI_GATEWAY_TOKEN?: string;

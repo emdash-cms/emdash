@@ -39,6 +39,9 @@ node eval/run.ts --models opus --cases 4150,4208 --gateway-env /path/to/.env
 | `--label`       | none            | Extra result-file suffix, to keep repeat runs apart.        |
 | `--reviewers`   | Opus,Sol        | `panel` only: the `REVIEW_MODELS` list.                     |
 | `--merge-model` | Sonnet          | `panel` only: the `REVIEW_MERGE_MODEL`.                     |
+| `--head` | the case's head | Review this head instead; needs exactly one case. |
+| `--prior-head` | none | With `--prior-result`: run a scoped follow-up from this head. |
+| `--prior-result` | none | Result file whose review is the prior-review context. |
 
 A failed run is retried once. Unauthenticated GitHub API calls are limited to 60 an hour per IP and each run spends two, so the runner waits for the allowance to reset when it runs low.
 
@@ -55,6 +58,8 @@ Each key item scores 1 when a review finds it clearly, 0.5 when it finds part of
 ## Panel runs
 
 The `panel` key runs the production configuration: each reviewer in its own session, then the merge. The server log in `eval/results/logs/` has one `reviewer finished` line per reviewer (model, outcome, error class, tokens, cost, duration) and a `review merge path` line (`merged`, `fallback` or `single_reviewer`). The recorded cost covers the reviewers; the merge cost is in its log line. To see the single-reviewer path, pass a reviewer that cannot complete, for example `--reviewers anthropic/claude-opus-5-5,openai/not-a-model`.
+
+To run a scoped follow-up review, pass a later head and the earlier review: `--head <sha>` overrides the case's head, `--prior-head <sha>` names the last reviewed head, and `--prior-result <file>` is an earlier result file whose review becomes the prior-review context. The runner fetches the diff between the heads with `gh`, and the log's `review scope filter` line counts the suggestions dropped outside the change and the `needs_fixing` findings marked as missed earlier.
 
 The results in `RESULTS.md` under "Variants" were run with an earlier `--variant` option, before the linked issue and the framing became part of production.
 

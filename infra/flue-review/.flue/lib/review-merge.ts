@@ -32,6 +32,8 @@ const UNAVAILABLE_NOTE = "_Only one reviewer completed; the other reviewer was u
 export interface MergeOptions {
 	/** The bot's previous review and the replies to it, when this is a re-review. */
 	readonly priorReview?: string;
+	/** A follow-up review scoped to what changed since the last reviewed head. */
+	readonly followUp?: boolean;
 }
 
 export function buildMergePrompt(
@@ -41,6 +43,11 @@ export function buildMergePrompt(
 	const reReview = options.priorReview
 		? [
 				"7. This is a re-review. Do not resurrect a finding that the prior-review context below shows was resolved, or that the author reasonably pushed back on, unless a reviewer gives a new reason it still applies at this head. This is the only case where you may drop a finding.",
+			]
+		: [];
+	const followUp = options.followUp
+		? [
+				"8. This is a follow-up review of the changes since the last reviewed head. A finding the author replied to is settled: do not reopen it. Keep suggestions only about the changed code; a clean review is the expected outcome when the earlier findings were addressed.",
 			]
 		: [];
 	const priorContext = options.priorReview
@@ -65,6 +72,7 @@ export function buildMergePrompt(
 		"5. Write one summary. Open with the judgment of the approach, then the headline conclusions. Attribute a point to a reviewer only where the reviewers disagree.",
 		"6. Choose a verdict, but it is advisory: approve only if every reviewer approved and no finding is needs_fixing.",
 		...reReview,
+		...followUp,
 		"",
 		"Return only a JSON object, with no prose or code fence, matching:",
 		'{"verdict":"approve"|"comment"|"request_changes","summary":string,"findings":[{"path":string,"line":number,"startLine"?:number,"side":"LEFT"|"RIGHT","severity":"needs_fixing"|"suggestion","body":string}]}',
