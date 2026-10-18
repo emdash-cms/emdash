@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
 import type { Database } from "../../src/database/types.js";
-import { searchWithDb } from "../../src/search/query.js";
+import { getSuggestions, searchWithDb } from "../../src/search/query.js";
 import { resetD1Schema } from "./d1-schema.js";
 
 declare module "cloudflare:test" {
@@ -137,6 +137,19 @@ describe("search metadata on D1", () => {
 		});
 		expect(executeQuery).toHaveBeenCalledTimes(2);
 		expect(noMatch.items).toEqual([]);
+
+		executeQuery.mockClear();
+		const suggestions = await getSuggestions(db, "far", { collections: ["articles"] });
+		expect(executeQuery).toHaveBeenCalledTimes(2);
+		expect(suggestions.map((item) => item.title)).toEqual(["The farrier"]);
+
+		executeQuery.mockClear();
+		expect(await getSuggestions(db, "blacksmith", { collections: ["articles"] })).toEqual([]);
+		expect(executeQuery).toHaveBeenCalledTimes(2);
+
+		executeQuery.mockClear();
+		expect(await getSuggestions(db, " \t\n")).toEqual([]);
+		expect(executeQuery).toHaveBeenCalledTimes(0);
 	});
 
 	it("loads metadata once for multiple collections and skips disabled or missing indexes", async () => {
@@ -185,5 +198,10 @@ describe("search metadata on D1", () => {
 		});
 		expect(executeQuery).toHaveBeenCalledTimes(3);
 		expect(explicit.items).toEqual(result.items);
+
+		executeQuery.mockClear();
+		const suggestions = await getSuggestions(db, "far");
+		expect(executeQuery).toHaveBeenCalledTimes(2);
+		expect(suggestions.map((item) => item.collection)).toEqual(["articles"]);
 	});
 });

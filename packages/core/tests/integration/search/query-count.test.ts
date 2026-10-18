@@ -5,7 +5,7 @@ import { ContentRepository } from "../../../src/database/repositories/content.js
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { FTSManager } from "../../../src/search/fts-manager.js";
-import { searchCollection, searchWithDb } from "../../../src/search/query.js";
+import { getSuggestions, searchCollection, searchWithDb } from "../../../src/search/query.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("search query counts", () => {
@@ -139,6 +139,107 @@ describe("search query counts", () => {
 		executeQuery.mockClear();
 		expect((await searchCollection(db, "articles", "\t\n")).items).toEqual([]);
 		expect(executeQuery).toHaveBeenCalledTimes(0);
+	});
+
+	it("counts autocomplete matches and skips blank queries", async () => {
+		const executeQuery = vi.spyOn(db.getExecutor(), "executeQuery");
+
+		executeQuery.mockClear();
+		const matching = await getSuggestions(db, "far", { collections: ["articles"] });
+		expect(executeQuery).toHaveBeenCalledTimes(2);
+		expect(
+			matching
+				.map((suggestion) => suggestion.slug)
+				.toSorted((a, b) => (a ?? "").localeCompare(b ?? "")),
+		).toEqual(["body-match", "title-match"]);
+		expect(matching.map((suggestion) => suggestion.title)).toEqual(
+			expect.arrayContaining(["Farrier handbook", "Stable handbook"]),
+		);
+
+		executeQuery.mockClear();
+		const empty = await getSuggestions(db, "does-not-exist", { collections: ["articles"] });
+		expect(executeQuery).toHaveBeenCalledTimes(2);
+		expect(empty).toEqual([]);
+
+		for (const query of ["", " \t\n"]) {
+			executeQuery.mockClear();
+			expect(await getSuggestions(db, query, { collections: ["articles"] })).toEqual([]);
+			expect(executeQuery).toHaveBeenCalledTimes(0);
+		}
+	});
+
+	it("uses one metadata query for multi-collection autocomplete", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "employees",
+			label: "Employees",
+			supports: ["search"],
+		});
+		await registry.createField("employees", {
+			slug: "name",
+			label: "Name",
+			type: "text",
+			searchable: true,
+		});
+		await registry.updateCollection("employees", { titleField: "name" });
+		await fts.enableSearch("employees");
+		await repo.create({
+			type: "employees",
+			slug: "farrier-amy",
+			status: "published",
+			data: { name: "Farrier Amy" },
+		});
+
+		await registry.createCollection({ slug: "notes", label: "Notes", supports: ["search"] });
+		await registry.createField("notes", {
+			slug: "body",
+			label: "Body",
+			type: "text",
+			searchable: true,
+		});
+		await fts.enableSearch("notes");
+
+		await registry.createCollection({ slug: "missing", label: "Missing", supports: ["search"] });
+		await registry.createField("missing", {
+			slug: "title",
+			label: "Title",
+			type: "text",
+			searchable: true,
+		});
+		await fts.enableSearch("missing");
+		await fts.dropFtsTable("missing");
+
+		await registry.createCollection({ slug: "disabled", label: "Disabled", supports: ["search"] });
+		await registry.createField("disabled", {
+			slug: "title",
+			label: "Title",
+			type: "text",
+			searchable: true,
+		});
+		await fts.enableSearch("disabled");
+		await fts.setSearchConfig("disabled", { enabled: false });
+
+		const executeQuery = vi.spyOn(db.getExecutor(), "executeQuery");
+		const requested = ["employees", "articles", "notes", "missing", "disabled", "unknown"];
+
+		executeQuery.mockClear();
+		const explicit = await getSuggestions(db, "far", { collections: requested, limit: 1 });
+		expect(executeQuery).toHaveBeenCalledTimes(3);
+		expect(explicit).toHaveLength(1);
+		expect(explicit[0]?.collection).toBe("employees");
+		expect(explicit[0]?.title).toBe("Farrier Amy");
+
+		executeQuery.mockClear();
+		const discovered = await getSuggestions(db, "far", { collections: [] });
+		expect(executeQuery).toHaveBeenCalledTimes(3);
+		expect(discovered.map((suggestion) => suggestion.collection)).toEqual([
+			"articles",
+			"articles",
+			"employees",
+		]);
+		expect(discovered.map((suggestion) => suggestion.title)).toEqual(
+			expect.arrayContaining(["Farrier handbook", "Stable handbook", "Farrier Amy"]),
+		);
 	});
 
 	it("keeps ranking weights aligned with the indexed column order", async () => {

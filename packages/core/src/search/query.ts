@@ -420,25 +420,19 @@ export async function getSuggestions(
 	const limit = options.limit ?? 5;
 	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 
-	// Get searchable collections
-	let collections = options.collections;
-	if (!collections || collections.length === 0) {
-		collections = await getSearchableCollections(db);
-	}
+	// escapeQuery already appends the prefix wildcard to each term.
+	const prefixQuery = escapeQuery(query);
+	if (!prefixQuery) return [];
 
-	if (collections.length === 0) {
-		return [];
-	}
-
-	const suggestions: Suggestion[] = [];
 	const ftsManager = new FTSManager(db);
-	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
+	const metadata = await ftsManager.getSearchMetadata(options.collections);
+	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
+	const suggestions: Suggestion[] = [];
 
 	for (const collection of collections) {
-		const config = await ftsManager.getSearchConfig(collection);
-		if (!config?.enabled) {
-			continue;
-		}
+		const collectionMetadata = metadata.get(collection);
+		if (!collectionMetadata) continue;
+		const { config, hasTitle } = collectionMetadata;
 
 		// Suggestions are title-based (Suggestion.title is required). A configured
 		// titleField supplies it -- a validated existing column -- so it
@@ -450,7 +444,7 @@ export async function getSuggestions(
 		if (config.titleField) {
 			validateIdentifier(config.titleField, "title field");
 			titleExpr = sql`c.${sql.ref(config.titleField)}`;
-		} else if (titleColumns.has(collection)) {
+		} else if (hasTitle) {
 			titleExpr = sql`c.title`;
 		} else {
 			continue;
@@ -461,13 +455,6 @@ export async function getSuggestions(
 
 		const ftsTable = ftsManager.getFtsTableName(collection);
 		const contentTable = ftsManager.getContentTableName(collection);
-
-		// Use prefix search for autocomplete. `escapeQuery` already appends `*`
-		// to each term for prefix matching, so we must not append another one.
-		const prefixQuery = escapeQuery(query);
-		if (!prefixQuery) {
-			continue;
-		}
 
 		let results;
 		try {
