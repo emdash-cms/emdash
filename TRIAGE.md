@@ -75,7 +75,7 @@ And even on PRs, where the bot reviews every change, there is a lot of work it c
 
 ### Issue work and the autofix bot
 
-The autofix bot works only on issues and PRs a maintainer hands to it. Organization members and repository collaborators can hand work to it in two ways:
+The autofix bot works on issues and PRs a maintainer hands to it, and on new issues it takes on through auto-intake (below). Organization members and repository collaborators can hand work to it in two ways:
 
 - **Apply the `bot:fix` label** to an issue, or to a PR opened from a branch in this repository. Removing the label from the issue or from the bot's PR stops the bot, and the bot takes its labels off both.
 - **Start a comment with `@emdash-autofix`**, followed by instructions. The bot takes the issue on and records the rest of the comment as maintainer instructions. On an issue or PR the bot already has, the comment reaches it as feedback.
