@@ -191,7 +191,17 @@ export async function runReviewPanel(
 
 	if (runs.length === 1) {
 		deps.log("review merge path", { mergePath: "only_reviewer" });
-		return { result: limitFindings(first.result, options, deps), runs, mergePath: "only_reviewer" };
+		const limited = limitFindings(first.result, options, deps);
+		return {
+			result: options.changed
+				? withReviewFooter(
+						limited,
+						`Follow-up review by \`${first.reviewer}\`, scoped to the changes since the last review.`,
+					)
+				: limited,
+			runs,
+			mergePath: "only_reviewer",
+		};
 	}
 
 	const startedAt = Date.now();

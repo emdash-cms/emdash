@@ -4,6 +4,7 @@ import type { PullRequestState } from "../.flue/lib/github.js";
 import {
 	DEFAULT_REREVIEW_LIMIT,
 	evaluateRereview,
+	followUpHead,
 	REREVIEW_NO_CI_GRACE_MS,
 	REREVIEW_WINDOW_MS,
 	rereviewLimit,
@@ -132,5 +133,16 @@ describe("evaluateRereview", () => {
 			kind: "admit",
 			reason: "no_ci",
 		});
+	});
+});
+
+describe("followUpHead", () => {
+	it("follows up only from a scheduled scoped re-review with an earlier review", () => {
+		expect(followUpHead({ reviewMode: "scoped", priorHeadSha: "A" }, "Earlier review.")).toBe("A");
+		expect(followUpHead({ priorHeadSha: "A" }, "Earlier review.")).toBeUndefined();
+		expect(
+			followUpHead({ reviewMode: "full", priorHeadSha: "A" }, "Earlier review."),
+		).toBeUndefined();
+		expect(followUpHead({ reviewMode: "scoped", priorHeadSha: "A" }, undefined)).toBeUndefined();
 	});
 });

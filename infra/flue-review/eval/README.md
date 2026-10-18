@@ -28,20 +28,20 @@ node eval/run.ts --gateway-env /path/to/.env
 node eval/run.ts --models opus --cases 4150,4208 --gateway-env /path/to/.env
 ```
 
-| Option          | Default         | Meaning                                                     |
-| --------------- | --------------- | ----------------------------------------------------------- |
-| `--models`      | `kimi,opus,sol` | Model keys. Each model runs on its own server, in parallel. |
-| `--cases`       | all             | Comma-separated PR numbers from `cases.json`.               |
-| `--concurrency` | `1`             | Concurrent runs per model.                                  |
-| `--base-port`   | `3591`          | First server port; later models take the next ports.        |
-| `--timeout-min` | `45`            | Per-run timeout.                                            |
-| `--force`       | off             | Re-run cases that already have a completed result.          |
-| `--label`       | none            | Extra result-file suffix, to keep repeat runs apart.        |
-| `--reviewers`   | Opus,Sol        | `panel` only: the `REVIEW_MODELS` list.                     |
-| `--merge-model` | Sonnet          | `panel` only: the `REVIEW_MERGE_MODEL`.                     |
-| `--head` | the case's head | Review this head instead; needs exactly one case. |
-| `--prior-head` | none | With `--prior-result`: run a scoped follow-up from this head. |
-| `--prior-result` | none | Result file whose review is the prior-review context. |
+| Option           | Default         | Meaning                                                       |
+| ---------------- | --------------- | ------------------------------------------------------------- |
+| `--models`       | `kimi,opus,sol` | Model keys. Each model runs on its own server, in parallel.   |
+| `--cases`        | all             | Comma-separated PR numbers from `cases.json`.                 |
+| `--concurrency`  | `1`             | Concurrent runs per model.                                    |
+| `--base-port`    | `3591`          | First server port; later models take the next ports.          |
+| `--timeout-min`  | `45`            | Per-run timeout.                                              |
+| `--force`        | off             | Re-run cases that already have a completed result.            |
+| `--label`        | none            | Extra result-file suffix, to keep repeat runs apart.          |
+| `--reviewers`    | Opus,Sol        | `panel` only: the `REVIEW_MODELS` list.                       |
+| `--merge-model`  | Sonnet          | `panel` only: the `REVIEW_MERGE_MODEL`.                       |
+| `--head`         | the case's head | Review this head instead; needs exactly one case.             |
+| `--prior-head`   | none            | With `--prior-result`: run a scoped follow-up from this head. |
+| `--prior-result` | none            | Result file whose review is the prior-review context.         |
 
 A failed run is retried once. Unauthenticated GitHub API calls are limited to 60 an hour per IP and each run spends two, so the runner waits for the allowance to reset when it runs low.
 

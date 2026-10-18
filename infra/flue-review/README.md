@@ -9,7 +9,7 @@ A Cloudflare Worker that reviews pull requests on `emdash-cms/emdash` as `emdash
 - **A push by `emdash-autofix` to its own PR**: a full review, straight away.
 - **Any other push to a PR the bot has reviewed before**: an automatic follow-up review once CI on the new head has finished. The `ReReviewScheduler` Durable Object, one per PR, polls the head's check runs every 2 minutes. It reviews once every check run has completed on two polls in a row, once 10 minutes pass with no check runs at all, or after 60 minutes regardless. It always works on the PR's current head, so a push superseded while its CI ran is never reviewed, and each head is reviewed at most once. It skips the head when the change since the last reviewed head is only the bot's formatting commits or only a merge of the base branch, waits while an earlier automatic re-review is still running, and stops after `REVIEW_AUTO_REREVIEW_LIMIT` automatic re-reviews of the PR in 24 hours.
 
-A follow-up review is scoped to what changed. The reviewers get the earlier review with the author's replies and the diff between the two heads, and are asked to check whether each earlier finding was addressed or reasonably answered and whether the new changes introduce a defect, not to look for new issues in unchanged code. After the merge, trusted code drops any suggestion anchored outside the lines that changed between the heads, keeps a `needs_fixing` finding outside them with a note that the earlier review missed it, and approves when no `needs_fixing` finding remains.
+A follow-up review is scoped to what changed, and with the AI Gateway it runs a single reviewer, `REVIEW_FOLLOWUP_MODELS` (GPT-6.1 Sol by default), with no merge step. If it fails, the run fails like any other review; the `bot:review` label then forces a full review with the panel. The reviewer gets the earlier review with the author's replies and the diff between the two heads, and is asked to check whether each earlier finding was addressed or reasonably answered and whether the new changes introduce a defect, not to look for new issues in unchanged code. Trusted code then drops any suggestion anchored outside the lines that changed between the heads, keeps a `needs_fixing` finding outside them with a note that the earlier review missed it, and approves when no `needs_fixing` finding remains.
 
 Every review keeps all `needs_fixing` findings and at most `REVIEW_MAX_SUGGESTIONS` suggestions, in the merged order.
 
@@ -17,12 +17,13 @@ Every review keeps all `needs_fixing` findings and at most `REVIEW_MAX_SUGGESTIO
 
 Each reviewer runs the review skill independently, in parallel, on the same checked-out head with the same context: the PR title and description, any issues the PR says it closes (title and body only), the accepted design proposals it links, and the bot's previous review on a re-review. A tool-less merge model then combines the completed reviews into one, and trusted code checks every anchor and decides the verdict. The posted review ends with a footer naming the reviewers and whether one was unavailable.
 
-| Setting              | Default                                        | Meaning                                                                            |
-| -------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `REVIEW_MODELS`      | `anthropic/claude-opus-5-5,openai/gpt-6.1-sol` | Comma-separated reviewer model IDs. Read only when the AI Gateway secrets are set. |
-| `REVIEW_MERGE_MODEL` | `anthropic/claude-sonnet-5-5`                  | Gateway model that merges two or more reviews, at low reasoning effort.            |
-| `REVIEW_MAX_SUGGESTIONS` | `3` | Suggestions kept per review. |
-| `REVIEW_AUTO_REREVIEW_LIMIT` | `5` | Automatic re-reviews per PR in 24 hours. The `bot:review` label is not limited. |
+| Setting                      | Default                                        | Meaning                                                                                                            |
+| ---------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `REVIEW_MODELS`              | `anthropic/claude-opus-5-5,openai/gpt-6.1-sol` | Comma-separated reviewer model IDs. Read only when the AI Gateway secrets are set.                                 |
+| `REVIEW_MERGE_MODEL`         | `anthropic/claude-sonnet-5-5`                  | Gateway model that merges two or more reviews, at low reasoning effort.                                            |
+| `REVIEW_FOLLOWUP_MODELS`     | `openai/gpt-6.1-sol`                           | Comma-separated reviewer model IDs for automatic follow-up reviews. Read only when the AI Gateway secrets are set. |
+| `REVIEW_MAX_SUGGESTIONS`     | `3`                                            | Suggestions kept per review.                                                                                       |
+| `REVIEW_AUTO_REREVIEW_LIMIT` | `5`                                            | Automatic re-reviews per PR in 24 hours. The `bot:review` label is not limited.                                    |
 
 Without the AI Gateway secrets, Kimi K2.7 Code reviews alone over the Workers AI binding, with no merge and no footer.
 

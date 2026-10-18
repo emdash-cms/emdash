@@ -51,6 +51,18 @@ export type RereviewDecision =
 			readonly reason: string;
 	  };
 
+/**
+ * The head a review follows up from: set only for a scheduled scoped re-review
+ * that has the earlier review to follow up on. Label-forced and first reviews
+ * are full reviews.
+ */
+export function followUpHead(
+	payload: { readonly reviewMode?: "full" | "scoped"; readonly priorHeadSha?: string },
+	priorReview: string | undefined,
+): string | undefined {
+	return payload.reviewMode === "scoped" && priorReview ? payload.priorHeadSha : undefined;
+}
+
 export function rereviewLimit(env: { readonly REVIEW_AUTO_REREVIEW_LIMIT?: string }): number {
 	const limit = Number(env.REVIEW_AUTO_REREVIEW_LIMIT);
 	return Number.isInteger(limit) && limit >= 0 ? limit : DEFAULT_REREVIEW_LIMIT;

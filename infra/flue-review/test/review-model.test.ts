@@ -48,6 +48,24 @@ describe("reviewPlan", () => {
 		});
 	});
 
+	it("follows up with Sol alone, and full reviews keep the panel", () => {
+		expect(reviewPlan(GATEWAY, { followUp: true })).toEqual({
+			reviewers: ["openai/gpt-6.1-sol"],
+			mergeModel: DEFAULT_MERGE_MODEL,
+		});
+		expect(
+			reviewPlan(
+				{ ...GATEWAY, REVIEW_FOLLOWUP_MODELS: "anthropic/claude-opus-5-5" },
+				{ followUp: true },
+			).reviewers,
+		).toEqual(["anthropic/claude-opus-5-5"]);
+		expect(reviewPlan(GATEWAY, { followUp: false }).reviewers).toEqual([
+			"anthropic/claude-opus-5-5",
+			"openai/gpt-6.1-sol",
+		]);
+		expect(reviewPlan({}, { followUp: true })).toEqual({ reviewers: [DEFAULT_REVIEW_MODEL] });
+	});
+
 	it("reads the reviewer list and merge model from configuration", () => {
 		expect(
 			reviewPlan({

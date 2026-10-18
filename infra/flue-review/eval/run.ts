@@ -78,6 +78,7 @@ const EVAL_SECRET_KEYS = [
 	"REVIEW_MODEL",
 	"REVIEW_MODELS",
 	"REVIEW_MERGE_MODEL",
+	"REVIEW_FOLLOWUP_MODELS",
 	...GATEWAY_KEYS,
 ];
 
@@ -672,8 +673,14 @@ async function main(): Promise<void> {
 	assertNoGitHubCredentials();
 	const file = readJson(casesFileSchema, readFileSync(join(EVAL_DIR, "cases.json"), "utf8"));
 	const wanted = args.cases?.split(",").map(Number);
-	const selected = wanted ? file.cases.filter((c) => wanted.includes(c.pr)) : file.cases;
 	const head = v.parse(v.optional(v.pipe(v.string(), v.regex(SHA))), args.head);
+	const listed = wanted ? file.cases.filter((c) => wanted.includes(c.pr)) : file.cases;
+	// With --head, a single PR outside cases.json can be reviewed too.
+	const [onlyPr] = wanted ?? [];
+	const selected =
+		head && listed.length === 0 && wanted?.length === 1 && onlyPr !== undefined
+			? [{ pr: onlyPr, headSha: head }]
+			: listed;
 	if (head && selected.length !== 1) throw new Error("--head needs exactly one case");
 	const cases = head ? selected.map((c) => ({ ...c, headSha: head })) : selected;
 	const specs = (args.models ?? "").split(",").map((key) => {

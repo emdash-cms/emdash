@@ -15,6 +15,7 @@ export const DEFAULT_GATEWAY_REVIEWERS = [
 	"openai/gpt-6.1-sol",
 ] as const;
 export const DEFAULT_MERGE_MODEL = "anthropic/claude-sonnet-5-5";
+export const DEFAULT_FOLLOW_UP_REVIEWERS = ["openai/gpt-6.1-sol"] as const;
 
 // Keeps vendor models within the same compaction budget as the default model,
 // so model comparisons do not also compare context sizes.
@@ -24,6 +25,7 @@ export interface ReviewModelEnv {
 	readonly REVIEW_MODEL?: string;
 	readonly REVIEW_MODELS?: string;
 	readonly REVIEW_MERGE_MODEL?: string;
+	readonly REVIEW_FOLLOWUP_MODELS?: string;
 	readonly AI_GATEWAY_ACCOUNT_ID?: string;
 	readonly AI_GATEWAY_NAME?: string;
 	readonly AI_GATEWAY_TOKEN?: string;
@@ -54,11 +56,24 @@ function modelList(value: string | undefined): string[] {
 
 /**
  * Which models review a PR. Without the gateway, one model reviews as it always
- * has: `REVIEW_MODEL`, or Kimi. With the gateway, `REVIEW_MODELS` wins, then a
- * single `REVIEW_MODEL` (used by the local evaluation), then Opus and Sol.
+ * has: `REVIEW_MODEL`, or Kimi. With the gateway, a full review uses
+ * `REVIEW_MODELS`, then a single `REVIEW_MODEL` (used by the local evaluation),
+ * then Opus and Sol; an automatic follow-up uses `REVIEW_FOLLOWUP_MODELS`, then
+ * Sol alone.
  */
-export function reviewPlan(env: ReviewModelEnv): ReviewPlan {
+export function reviewPlan(
+	env: ReviewModelEnv,
+	options: { readonly followUp?: boolean } = {},
+): ReviewPlan {
 	if (!hasGateway(env)) return { reviewers: [reviewModel(env)] };
+	const mergeModel = env.REVIEW_MERGE_MODEL?.trim() || DEFAULT_MERGE_MODEL;
+	if (options.followUp) {
+		const followUp = modelList(env.REVIEW_FOLLOWUP_MODELS);
+		return {
+			reviewers: followUp.length > 0 ? followUp : [...DEFAULT_FOLLOW_UP_REVIEWERS],
+			mergeModel,
+		};
+	}
 	const configured = modelList(env.REVIEW_MODELS);
 	const reviewers =
 		configured.length > 0
@@ -66,10 +81,7 @@ export function reviewPlan(env: ReviewModelEnv): ReviewPlan {
 			: env.REVIEW_MODEL?.trim()
 				? [reviewModel(env)]
 				: [...DEFAULT_GATEWAY_REVIEWERS];
-	return {
-		reviewers,
-		mergeModel: env.REVIEW_MERGE_MODEL?.trim() || DEFAULT_MERGE_MODEL,
-	};
+	return { reviewers, mergeModel };
 }
 
 // The bundled catalog predates these models, so Flue would build them as

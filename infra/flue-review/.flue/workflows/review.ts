@@ -47,6 +47,7 @@ import {
 	type AcceptedDesign,
 	type GitHubToken,
 } from "../lib/github.js";
+import { followUpHead } from "../lib/rereview.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
 import { omitReviewArtifacts } from "../lib/review-context.js";
 import { formatReviewFailureSummary } from "../lib/review-failure.js";
@@ -445,11 +446,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			);
 			await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
 
-			// A scoped follow-up needs the earlier review to follow up on.
-			const followUpFrom =
-				activePayload.reviewMode === "scoped" && priorReview
-					? activePayload.priorHeadSha
-					: undefined;
+			const followUpFrom = followUpHead(activePayload, priorReview);
 			let changed: ChangedLines | undefined;
 			if (followUpFrom) {
 				const followUpDiff =
@@ -483,7 +480,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			) {
 				throw new Error("Review attempt is no longer active");
 			}
-			const plan = reviewPlan(env);
+			const plan = reviewPlan(env, { followUp: Boolean(followUpFrom) });
 			const prContext = buildPrContext(
 				activePayload,
 				priorReview,

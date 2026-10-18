@@ -155,4 +155,45 @@ describe("runReviewPanel", () => {
 			markedMissedEarlier: 1,
 		});
 	});
+
+	it("runs a follow-up with its single reviewer, no merge, and the scope filter", async () => {
+		const { panelDeps, merges, reviewed, logs } = deps();
+		const outcome = await runReviewPanel(
+			{ reviewers: [SOL], mergeModel: SONNET },
+			{
+				...panelDeps,
+				review: async (model) => {
+					reviewed.push(model);
+					return {
+						data: {
+							verdict: "comment",
+							summary: "Addressed.",
+							findings: [{ ...finding("b.ts", 9), severity: "suggestion" }],
+						},
+					};
+				},
+			},
+			{ priorReview: "Earlier review.", changed: new Map([["b.ts", new Set([2])]]) },
+		);
+		expect(reviewed).toEqual([SOL]);
+		expect(merges).toEqual([]);
+		expect(outcome.mergePath).toBe("only_reviewer");
+		expect(outcome.result.findings).toEqual([]);
+		expect(outcome.result.verdict).toBe("approve");
+		expect(outcome.result.summary).toContain(`Follow-up review by \`${SOL}\``);
+		expect(logs.find((entry) => entry.message === "review scope filter")?.fields).toMatchObject({
+			droppedOutsideChange: 1,
+		});
+	});
+
+	it("fails a follow-up when its single reviewer fails, with no panel fallback", async () => {
+		const { panelDeps, reviewed } = deps([SOL]);
+		await expect(
+			runReviewPanel({ reviewers: [SOL], mergeModel: SONNET }, panelDeps, {
+				priorReview: "Earlier review.",
+				changed: new Map(),
+			}),
+		).rejects.toThrow(`404 model ${SOL} not found`);
+		expect(reviewed).toEqual([SOL]);
+	});
 });
