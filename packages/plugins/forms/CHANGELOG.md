@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.11
+
+### Patch Changes
+
+- [#4249](https://github.com/emdash-cms/emdash/pull/4249) [`05c06a3`](https://github.com/emdash-cms/emdash/commit/05c06a31cc87f1b38916eff596efaeb378f4e4f9) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes conditional form fields remaining visible when their condition is false on sites using the forms plugin's default stylesheet.
+
+- [#4247](https://github.com/emdash-cms/emdash/pull/4247) [`1d9bc72`](https://github.com/emdash-cms/emdash/commit/1d9bc72126ef86b0553f9ef7548a12496a17fc96) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes single `checkbox` fields so the input keeps its intrinsic width and sits next to its label, instead of stretching to full width and pushing the label away.
+
+- [#4248](https://github.com/emdash-cms/emdash/pull/4248) [`29c43c3`](https://github.com/emdash-cms/emdash/commit/29c43c38e2d9698740485cc1fb17b86168eb922d) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes single checkbox fields so a checked box is stored as `true` when the default submitted value is `"1"`. Required checkbox fields that are not checked are still rejected during validation.
+
 ## 0.2.10
 
 ### Patch Changes
