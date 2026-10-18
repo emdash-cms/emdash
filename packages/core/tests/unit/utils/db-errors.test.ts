@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	isMissingColumnError,
-	isMissingSystemColumnError,
+	getMissingColumnIdentifier,
 	isMissingTableError,
 } from "../../../src/utils/db-errors.js";
 
@@ -85,37 +85,30 @@ describe("isMissingColumnError", () => {
 	});
 });
 
-describe("isMissingSystemColumnError", () => {
-	it("detects missing columns on _emdash_ system tables", () => {
-		expect(isMissingSystemColumnError(new Error("no such column: _emdash_relations.slug"))).toBe(
-			true,
-		);
-		expect(
-			isMissingSystemColumnError(
-				new Error('column "_emdash_bylines"."avatar_media_id" does not exist'),
-			),
-		).toBe(true);
+describe("getMissingColumnIdentifier", () => {
+	it.each([
+		["no such column: _emdash_missing", "_emdash_missing"],
+		['no such column: "missing" - should this be a string literal in single-quotes?', "missing"],
+		['column "_emdash_missing" does not exist', "_emdash_missing"],
+		["no such column: b.avatar_media_id", "b.avatar_media_id"],
+		["column b.avatar_media_id does not exist", "b.avatar_media_id"],
+		['column "ec_posts"."missing" does not exist', "ec_posts.missing"],
+		["D1_ERROR: no such column: r.slug: SQLITE_ERROR", "r.slug"],
+		["COLUMN _emdash_relations.slug DOES NOT EXIST", "_emdash_relations.slug"],
+		["query on _emdash_relations.slug failed: no such column: title", "title"],
+		['column "title" does not exist; query referenced _emdash_bylines.avatar_media_id', "title"],
+	])("extracts only the missing identifier from %s", (message, identifier) => {
+		expect(getMissingColumnIdentifier(new Error(message))).toBe(identifier);
 	});
 
-	it("rejects missing columns on content tables whose names contain _emdash_", () => {
-		expect(
-			isMissingSystemColumnError(new Error("no such column: ec_my_emdash_collection.title")),
-		).toBe(false);
-	});
-
-	it("rejects missing columns that do not name a system table", () => {
-		expect(isMissingSystemColumnError(new Error("no such column: r.slug"))).toBe(false);
-		expect(isMissingSystemColumnError(new Error("no such column: ec_posts.nonexistent"))).toBe(
-			false,
-		);
-		expect(isMissingSystemColumnError(new Error("no such column: my_emdash_field"))).toBe(false);
-		expect(isMissingSystemColumnError(new Error("no such table: _emdash_relations"))).toBe(false);
-	});
-
-	it("handles non-Error inputs safely", () => {
-		expect(isMissingSystemColumnError("no such column: _emdash_relations.slug")).toBe(true);
-		expect(isMissingSystemColumnError(null)).toBe(false);
-		expect(isMissingSystemColumnError(undefined)).toBe(false);
-		expect(isMissingSystemColumnError(42)).toBe(false);
+	it.each([
+		"no such column: title; query referenced _emdash_relations.slug",
+		"no such table: _emdash_relations",
+		"column permission denied",
+		null,
+		undefined,
+		42,
+	])("rejects unrelated or ambiguous errors: %s", (error) => {
+		expect(getMissingColumnIdentifier(error)).toBeUndefined();
 	});
 });

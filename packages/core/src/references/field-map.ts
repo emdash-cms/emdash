@@ -43,7 +43,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function loadBindings(
 	db: Kysely<Database>,
 	collection: string,
-): Promise<ReferenceFieldBinding[]> {
+): Promise<ReferenceFieldBinding[] | null> {
 	// The relation's id joins in here rather than being looked up per field at
 	// render time: the field stores a slug, but the link table is keyed by id.
 	const relationSlug = jsonExtractExpr(db, "validation", "relation");
@@ -62,12 +62,8 @@ async function loadBindings(
 		`.execute(db);
 		rows = result.rows;
 	} catch (error) {
-		// When core migrations are pending, `_emdash_relations` may exist without
-		// the `slug` column that this query joins on (added in 086). Treat that
-		// exactly like a missing table: no bound reference fields are known yet,
-		// so filtering/sorting by an ordinary custom field can still fall through
-		// to the content table instead of being misread as a bad filter.
-		if (isMissingTableError(error) || isMissingColumnError(error)) return [];
+		// A partial schema is transient; don't retain its degraded result in cache.
+		if (isMissingTableError(error) || isMissingColumnError(error)) return null;
 		throw error;
 	}
 
@@ -114,7 +110,8 @@ export function getReferenceFieldMap(
 			namespace: CacheNamespace.SCHEMA,
 			key: `reference-field-map:${collection}`,
 			load: async () => loadBindings(await getDb(), collection),
+			cacheable: (value) => value !== null,
 		});
-		return new Map(bindings.map((binding) => [binding.slug, binding]));
+		return new Map((bindings ?? []).map((binding) => [binding.slug, binding]));
 	});
 }
