@@ -5,8 +5,8 @@
  */
 
 const BSKY_POST_URL_RE =
-	/^https:\/\/(?:staging\.)?bsky\.app\/profile\/[^/]+\/post\/[^/?#]+\/?(?:[?#].*)?$/i;
-const AT_URI_POST_RE = /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/;
+	/^https:\/\/(?:staging\.)?bsky\.app\/profile\/[A-Za-z0-9._:%-]+\/post\/[A-Za-z0-9._:~-]+\/?(?:[?#].*)?$/i;
+const AT_URI_POST_RE = /^at:\/\/([A-Za-z0-9._:%-]+)\/app\.bsky\.feed\.post\/([A-Za-z0-9._:~-]+)$/;
 
 export function resolveBlueskyPostUrl(postId: string): string | null {
 	const trimmed = postId.trim();

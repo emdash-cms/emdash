@@ -38,6 +38,14 @@ describe("resolveBlueskyPostUrl", () => {
 		).toBeNull();
 	});
 
+	it.each([
+		"at://alice?x/app.bsky.feed.post/3juwcxjcku52k",
+		"at://did:plc:abc123/app.bsky.feed.post/3juw#x",
+		"https://bsky.app/profile/alice?x/post/3juwcxjcku52k",
+	])("rejects %s, whose handle or record key contains URL delimiters", (input) => {
+		expect(resolveBlueskyPostUrl(input)).toBeNull();
+	});
+
 	it("rejects a plain-http post URL", () => {
 		expect(
 			resolveBlueskyPostUrl("http://bsky.app/profile/alice.bsky.social/post/3juwcxjcku52k"),

@@ -105,13 +105,13 @@ describe("embeds that render remote HTML", () => {
 		it("keeps only the quote markup from the oEmbed HTML and loads Bluesky's embed script", async () => {
 			const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
 				Response.json({
-					html: `<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:a/app.bsky.feed.post/b" onclick="alert(0)"><p lang="en">post</p>${XSS}</blockquote><script src="https://attacker.example/x.js"></script>`,
+					html: `<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:a/app.bsky.feed.post/b" data-bluesky-cid="bafy" data-bluesky-embed-color-mode="dark" onclick="alert(0)"><p lang="en">post</p>${XSS}</blockquote><script src="https://attacker.example/x.js"></script>`,
 				}),
 			);
 			try {
 				const html = await renderBluesky(postUrl);
 				expect(html).toContain(
-					'<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:a/app.bsky.feed.post/b"><p lang="en">post</p>',
+					'<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:a/app.bsky.feed.post/b" data-bluesky-cid="bafy" data-bluesky-embed-color-mode="dark"><p lang="en">post</p>',
 				);
 				const scripts = html.match(/<script[^>]*>/gi) ?? [];
 				expect(scripts).toHaveLength(1);
@@ -139,6 +139,25 @@ describe("embeds that render remote HTML", () => {
 				expect(html).not.toContain("<blockquote");
 			} finally {
 				fetchSpy.mockRestore();
+			}
+		});
+
+		it("links to the post when the endpoint does not answer within five seconds", async () => {
+			vi.useFakeTimers();
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+				(_input, init) =>
+					new Promise((_resolve, reject) => {
+						init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+					}),
+			);
+			try {
+				const rendering = renderBluesky(postUrl);
+				await vi.advanceTimersByTimeAsync(5000);
+				const html = await rendering;
+				expect(html).toContain(`<a href="${postUrl}">`);
+			} finally {
+				fetchSpy.mockRestore();
+				vi.useRealTimers();
 			}
 		});
 
