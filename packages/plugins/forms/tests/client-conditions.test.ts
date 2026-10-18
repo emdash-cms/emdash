@@ -1,10 +1,4 @@
-/**
- * @vitest-environment jsdom
- *
- * Conditional fields are shown or hidden by setting `wrapper.hidden`.
- * The plugin's stylesheet rules that relationship back to `display: none`,
- * so a regression test must exercise the CSS cascade, not just the JS.
- */
+/** @vitest-environment jsdom */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -100,6 +94,9 @@ describe("initForms conditional fields", () => {
 		const select = form.querySelector<HTMLSelectElement>("select[name='workshift']")!;
 		const wrapper = wrapperFor(form, "workshift");
 
+		expect(wrapper.hidden).toBe(false);
+		expect(getComputedStyle(wrapper).display).toBe("flex");
+
 		select.value = "NPC";
 		select.dispatchEvent(new Event("change", { bubbles: true }));
 
@@ -127,11 +124,19 @@ describe("initForms conditional fields", () => {
 		const input = form.querySelector<HTMLInputElement>("input[name='details']")!;
 
 		expect(input.disabled).toBe(true);
+		expect(new FormData(form).has("details")).toBe(false);
 
 		const select = form.querySelector<HTMLSelectElement>("select[name='workshift']")!;
 		select.value = "Other";
 		select.dispatchEvent(new Event("change", { bubbles: true }));
 
 		expect(input.disabled).toBe(false);
+		expect(new FormData(form).has("details")).toBe(true);
+
+		select.value = "NPC";
+		select.dispatchEvent(new Event("change", { bubbles: true }));
+
+		expect(input.disabled).toBe(true);
+		expect(new FormData(form).has("details")).toBe(false);
 	});
 });
