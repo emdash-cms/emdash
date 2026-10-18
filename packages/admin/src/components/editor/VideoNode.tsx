@@ -174,6 +174,13 @@ function VideoNodeView({
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const captionRef = React.useRef<HTMLTextAreaElement>(null);
 	const caption = isString(attrs.caption) ? attrs.caption : "";
+	// Writing each IME keystroke to the document re-renders the editor, which commits the
+	// unconverted text, so hold it until the composition ends.
+	const [composingCaption, setComposingCaption] = React.useState<string | null>(null);
+	const commitCaption = (value: string) => {
+		setComposingCaption(null);
+		if (editor.isEditable) updateAttributes({ caption: value });
+	};
 	const width = isDimension(attrs.width) ? attrs.width : undefined;
 	const height = isDimension(attrs.height) ? attrs.height : undefined;
 	const figureRef = React.useRef<HTMLElement>(null);
@@ -327,11 +334,16 @@ function VideoNodeView({
 							rows={1}
 							tabIndex={-1}
 							dir="auto"
-							value={caption}
+							value={composingCaption ?? caption}
 							data-video-stop=""
 							onChange={(event) => {
-								if (editor.isEditable) updateAttributes({ caption: event.target.value });
+								if ((event.nativeEvent as InputEvent).isComposing) {
+									setComposingCaption(event.target.value);
+								} else {
+									commitCaption(event.target.value);
+								}
 							}}
+							onCompositionEnd={(event) => commitCaption(event.currentTarget.value)}
 							onFocus={() => selectBlock(false)}
 							onKeyDown={handleCaptionKeyDown}
 							className="block w-full resize-none field-sizing-content rounded-sm bg-transparent text-center text-sm text-kumo-subtle placeholder:text-kumo-placeholder focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-focus/50"

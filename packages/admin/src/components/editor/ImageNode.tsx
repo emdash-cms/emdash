@@ -114,6 +114,13 @@ function ImageNodeView({
 
 	const caption = typeof node.attrs.caption === "string" ? node.attrs.caption : "";
 	const captionRef = React.useRef<HTMLTextAreaElement>(null);
+	// Writing each IME keystroke to the document re-renders the editor, which commits the
+	// unconverted text (きむら becomes ｋいｍうｒあ), so hold it until the composition ends.
+	const [composingCaption, setComposingCaption] = React.useState<string | null>(null);
+	const commitCaption = (value: string) => {
+		setComposingCaption(null);
+		if (editor.isEditable) updateAttributes({ caption: value });
+	};
 	// ProseMirror would take text dragged over or dropped on the caption into the document.
 	React.useEffect(() => {
 		const textarea = captionRef.current;
@@ -306,10 +313,15 @@ function ImageNodeView({
 							rows={1}
 							tabIndex={-1}
 							dir="auto"
-							value={caption}
+							value={composingCaption ?? caption}
 							onChange={(event) => {
-								if (editor.isEditable) updateAttributes({ caption: event.target.value });
+								if ((event.nativeEvent as InputEvent).isComposing) {
+									setComposingCaption(event.target.value);
+								} else {
+									commitCaption(event.target.value);
+								}
 							}}
+							onCompositionEnd={(event) => commitCaption(event.currentTarget.value)}
 							onFocus={selectImage}
 							onPointerEnter={(event) => setNodeViewDraggable(event, false)}
 							onPointerLeave={(event) => setNodeViewDraggable(event, true)}
