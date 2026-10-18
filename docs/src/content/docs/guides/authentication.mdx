@@ -254,6 +254,29 @@ export function myProvider(): AuthProviderDescriptor {
 }
 ```
 
+#### Customize login help
+
+If your admin entry exports a `LoginForm`, it can also export `loginHelp` to show instructions beneath the login card. This optional export accepts a string or a React component with no props (`string | React.ComponentType`). If you omit it, the login page shows `Continue with {label}.` using the provider's label. Button-only providers do not show this help.
+
+Strings render as supplied; EmDash does not translate them. A component can use the admin's Lingui context. The following example uses Lingui's runtime `Trans` component, so it does not require a macro transform in your package:
+
+```tsx title="my-provider/admin.tsx"
+import { Trans } from "@lingui/react";
+
+export function loginHelp() {
+	return (
+		<Trans
+			id="my-provider.loginHelp"
+			message="Enter your email address and password to sign in."
+		/>
+	);
+}
+```
+
+Declare `@lingui/react` as a peer dependency compatible with the version used by the admin. EmDash extracts messages for its built-in providers, but does not extract messages or bundle translations from third-party packages. The example shows the English fallback unless the active Lingui catalog contains that message ID. Third-party components must supply their own translated content; there is no configuration option to extend the bundled admin catalogs.
+
+The component renders inside a paragraph, so return inline content rather than another paragraph or a form.
+
 The Atmosphere package (`@emdash-cms/auth-atproto`) is the most complete real-world reference for a provider that needs a custom login form, OAuth route handlers, and persistent storage.
 
 ## User roles

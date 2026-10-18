@@ -1,10 +1,14 @@
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { loginHelp as AtprotoLoginHelp } from "../../../auth-atproto/src/admin.js";
 import { AdminBrandingProvider } from "../../src/lib/admin-branding-context";
 import { AuthProviderProvider } from "../../src/lib/auth-provider-context";
 import type { AuthProviderModule } from "../../src/lib/auth-provider-context";
+import { loadMessages } from "../../src/locales/loadMessages.js";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -225,6 +229,37 @@ describe("LoginPage", () => {
 		await screen.getByText("Mock Atmosphere").click();
 		await expect.element(screen.getByText("Enter your handle to sign in.")).toBeInTheDocument();
 		expect(screen.getByText("Continue with Mock Atmosphere.").query()).toBeNull();
+	});
+
+	it("renders AT Protocol help in the active admin locale", async () => {
+		const i18n = setupI18n({
+			locale: "ar",
+			messages: {
+				ar: await loadMessages("ar"),
+				en: {},
+			},
+		});
+		const provider: AuthProviderModule = {
+			id: "atproto",
+			label: "Atmosphere",
+			LoginButton: () => <button type="button">Atmosphere</button>,
+			LoginForm: () => <input aria-label="Handle" />,
+			loginHelp: AtprotoLoginHelp,
+		};
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<AuthProviderProvider authProviders={{ atproto: provider }}>
+					<LoginPage />
+				</AuthProviderProvider>
+			</I18nProvider>,
+		);
+
+		await screen.getByText("Atmosphere").click();
+		await expect.element(screen.getByText("أدخل معرّفك لتسجيل الدخول.")).toBeInTheDocument();
+		expect(screen.getByText("Enter your handle to sign in.").query()).toBeNull();
+
+		i18n.activate("en");
+		await expect.element(screen.getByText("Enter your handle to sign in.")).toBeInTheDocument();
 	});
 
 	it("supports loginHelp exported as a component", async () => {

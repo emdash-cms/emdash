@@ -1891,6 +1891,9 @@ importers:
       '@emdash-cms/auth':
         specifier: workspace:*
         version: link:../auth
+      '@lingui/react':
+        specifier: 'catalog:'
+        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))(react@19.2.4)
       emdash:
         specifier: workspace:>=0.15.0
         version: link:../core
