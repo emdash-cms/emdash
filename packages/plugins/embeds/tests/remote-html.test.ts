@@ -102,6 +102,26 @@ describe("embeds that render remote HTML", () => {
 			}
 		});
 
+		it("keeps only the quote markup from the oEmbed HTML and loads Bluesky's embed script", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+				Response.json({
+					html: `<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:a/app.bsky.feed.post/b" onclick="alert(0)"><p lang="en">post</p>${XSS}</blockquote><script src="https://attacker.example/x.js"></script>`,
+				}),
+			);
+			try {
+				const html = await renderBluesky(postUrl);
+				expect(html).toContain(
+					'<blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:a/app.bsky.feed.post/b"><p lang="en">post</p>',
+				);
+				const scripts = html.match(/<script[^>]*>/gi) ?? [];
+				expect(scripts).toHaveLength(1);
+				expect(scripts[0]).toContain('src="https://embed.bsky.app/static/embed.js"');
+				expectInert(html.replace(/<script[^>]*><\/script>/i, ""));
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
 		it.each([
 			["the endpoint returns an error", async () => new Response("nope", { status: 404 })],
 			["the endpoint returns no HTML", async () => Response.json({ html: 42 })],

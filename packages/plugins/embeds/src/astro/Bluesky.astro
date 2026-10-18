@@ -2,10 +2,13 @@
 /**
  * Bluesky post embed component for Portable Text
  *
- * Renders the HTML returned by Bluesky's oEmbed endpoint.
+ * Renders the post quote returned by Bluesky's oEmbed endpoint, reduced to the
+ * markup Bluesky's embed script reads, and loads that script itself.
  * astro-portabletext passes `node` (not `value`) for custom type components.
  * Accepts either `id` or `url` field for compatibility with different content sources.
  */
+import sanitizeHtml from "sanitize-html";
+
 import type { BlueskyBlock } from "../schemas.js";
 import { resolveBlueskyPostUrl } from "./bluesky-url.js";
 
@@ -29,7 +32,22 @@ if (postUrl) {
 		if (response.ok) {
 			const data: unknown = await response.json();
 			if (data && typeof data === "object" && "html" in data && typeof data.html === "string") {
-				html = data.html;
+				html =
+					sanitizeHtml(data.html, {
+						allowedTags: ["blockquote", "p", "a", "br"],
+						allowedAttributes: {
+							blockquote: [
+								"class",
+								"data-bluesky-uri",
+								"data-bluesky-cid",
+								"data-bluesky-embed-color-mode",
+							],
+							p: ["lang"],
+							a: ["href"],
+						},
+						allowedSchemes: ["https"],
+						allowProtocolRelative: false,
+					}).trim() || null;
 			}
 		}
 	} catch {
@@ -40,4 +58,13 @@ if (postUrl) {
 }
 ---
 
-{html ? <Fragment set:html={html} /> : postUrl && <a href={postUrl}>{postUrl}</a>}
+{
+	html ? (
+		<>
+			<Fragment set:html={html} />
+			<script is:inline async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>
+		</>
+	) : (
+		postUrl && <a href={postUrl}>{postUrl}</a>
+	)
+}
