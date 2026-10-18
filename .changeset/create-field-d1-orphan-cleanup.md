@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes `createField` on D1 so a column-limit failure no longer leaves an orphaned `_emdash_fields` row behind. The field can now be created again once a column is freed.
+Fixes `createField` on D1 leaving a field in the schema without a backing column when the collection reaches the column limit. Failed fields can now be created after freeing a column, without a `FIELD_EXISTS` error.

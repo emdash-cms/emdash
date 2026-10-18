@@ -1316,6 +1316,7 @@ export class SchemaRegistry {
 		);
 
 		let schemaMutated = false;
+		let fieldStorageReady = false;
 		try {
 			const created = await withTransaction(this.db, async (trx) => {
 				// Insert field record
@@ -1359,6 +1360,8 @@ export class SchemaRegistry {
 					);
 				}
 
+				fieldStorageReady = true;
+
 				if (input.indexed) {
 					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
 				}
@@ -1397,10 +1400,11 @@ export class SchemaRegistry {
 			return created;
 		} catch (error) {
 			if (schemaMutated) {
-				// On D1 withTransaction runs the callback without a real transaction,
-				// so a DDL failure after the _emdash_fields insert leaves an orphan
-				// row. Remove it so the caller can retry once room is available.
-				await this.db.deleteFrom("_emdash_fields").where("id", "=", id).execute();
+				// D1 cannot roll back the insert when ADD COLUMN fails. Once storage
+				// exists, later failures must not remove its field metadata.
+				if (!fieldStorageReady) {
+					await this.db.deleteFrom("_emdash_fields").where("id", "=", id).execute();
+				}
 
 				if (activeCoverageInvalidated) {
 					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
