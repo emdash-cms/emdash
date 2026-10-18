@@ -107,9 +107,6 @@
 			"tag": "v9-rereview-scheduler",
 			"new_sqlite_classes": ["ReReviewScheduler"],
 		},
-		// GitHubRateLimitDO was hosted by the emdash-bot Worker and bound here
-		// with script_name. Its state is rate-limit bookkeeping and a cached
-		// installation token, so a new local class starts empty without loss.
 		{
 			"tag": "v10-github-rate-limit",
 			"new_sqlite_classes": ["GitHubRateLimitDO"],

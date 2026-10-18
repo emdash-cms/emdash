@@ -45,7 +45,7 @@ You can also review pull requests. A Project Team review is useful evidence for 
 Two project-operated bots work in this repository, each with its own GitHub App account:
 
 - **EmDashBot** (`emdashbot[bot]`) reviews implementation PRs.
-- **The autofix bot** (`emdash-autofix[bot]`) works on issues a maintainer hands to it and opens PRs with its fixes.
+- **The autofix bot** (`emdash-autofix[bot]`) works on issues it is handed or takes on through auto-intake, and opens PRs with its fixes.
 
 Their reviews and PRs are evidence for a Maintainer, not approval. Either bot can submit an approving GitHub review or have repository permissions, but neither is a Maintainer, and neither satisfies the human approval requirement.
 
@@ -59,14 +59,7 @@ Their reviews and PRs are evidence for a Maintainer, not approval. Either bot ca
 
 EmDashBot compares a feature implementation with its linked accepted proposal. It reports omissions, divergences, unplanned scope, and missing tests alongside its normal correctness review.
 
-You can help by:
-
-- Confirming whether a bug is reproducible.
-- Asking for missing reproduction details.
-- Adding priority labels when the impact is clear.
-- Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
-
-And even on PRs, where the bot reviews every change, there is a lot of work it consistently can't do:
+EmDashBot reviews every change, but there is a lot of work it consistently can't do:
 
 - **Running a real site.** The bot checks out the branch, but it doesn't build, run, or deploy it, or look at any real site. Clicking through the admin UI as an editor would, or trying a change against the workflows real users hit, catches things no code review will.
 - **Judging whether the change should happen at all.** The bot reviews the diff in front of it and does try to judge if the fix is taking the right approach as well as being correct. However it won't notice that a feature contradicts a roadmap decision, that a fix papers over the real bug, or that the same problem was already solved elsewhere.
@@ -97,6 +90,13 @@ The bot keeps `bot:fix` on whatever it is working on, including its own PR. It a
 The bot's PRs carry `bot:fix` and no `review/*` label. They need human Maintainer approval to merge like any other PR, and a Maintainer who makes substantial changes to one counts as an author (see [MAINTAINING.md](MAINTAINING.md)).
 
 To see what the bot is doing, read its progress comment or open the public board at [autofix.emdashcms.com](https://autofix.emdashcms.com). The board groups every case by who acts next: needs a maintainer, ready for review, working or queued, waiting, and finished this week. The same data is available as JSON at `https://autofix.emdashcms.com/api/cases`, and `https://autofix.emdashcms.com/api/cases?issue=<number>` returns the cases for one issue or PR number. The board shows only what is already public on GitHub.
+
+For issues the bot doesn't take on, or hasn't reached yet, you can help by:
+
+- Confirming whether a bug is reproducible.
+- Asking for missing reproduction details.
+- Adding priority labels when the impact is clear.
+- Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
 
 Older issues may still carry `bot:*` lifecycle labels such as `bot:triage` or `bot:in-review`, and `triage/*` labels other than those listed above. They come from earlier triage automation; treat them as historical.
 
