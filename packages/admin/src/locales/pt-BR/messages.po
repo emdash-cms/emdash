@@ -29,7 +29,7 @@ msgstr "-- Selecionar --"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:156
 msgctxt "Read aloud between a version's author and status"
 msgid ", "
-msgstr ""
+msgstr ", "
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1924
@@ -48,7 +48,7 @@ msgstr "\"{0}\" será excluído permanentemente."
 
 #: packages/admin/src/components/OptionalLabel.tsx:13
 msgid "(optional)"
-msgstr ""
+msgstr "(opcional)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:613
 msgid "(pre-release)"
@@ -512,11 +512,11 @@ msgstr "{completedCount} de {0} envios concluídos"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:419
 msgid "{count, plural, one {# block} other {# blocks}}"
-msgstr ""
+msgstr "{count, plural, one {# bloco} other {# blocos}}"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:420
 msgid "{count, plural, one {# entry} other {# entries}}"
-msgstr ""
+msgstr "{count, plural, one {# entrada} other {# entradas}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2126
 msgid "{count, plural, one {# file} other {# files}}"
@@ -537,7 +537,7 @@ msgstr "{dayLabel}, {entries}"
 
 #: packages/admin/src/components/revisions/revision-format.ts:123
 msgid "{dayLabel}, {timeLabel}"
-msgstr ""
+msgstr "{dayLabel}, {timeLabel}"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:120
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
@@ -571,7 +571,7 @@ msgstr "{hidden, plural, one {+# mais} other {+# mais}}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:390
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
-msgstr ""
+msgstr "{hiddenCount, plural, one {Exibir mais #} other {Exibir mais #}}"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:38
 msgid "{host} does not resolve to a public address"
@@ -610,7 +610,7 @@ msgstr "Opções de {label}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:246
 msgid "{label}, {restored}"
-msgstr ""
+msgstr "{label}, {restored}"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:366
 msgid "{lateness} late"
@@ -842,19 +842,19 @@ msgstr "{totalScheduled, plural, one {Agendado} other {Agendados}}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:239
 msgid "{when}, {author}"
-msgstr ""
+msgstr "{when}, {author}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:236
 msgid "{when}, Current version, {author}"
-msgstr ""
+msgstr "{when}, Versão atual, {author}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:234
 msgid "{when}, Current version, Published, {author}"
-msgstr ""
+msgstr "{when}, Versão atual, Publicado, {author}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:238
 msgid "{when}, Published, {author}"
-msgstr ""
+msgstr "{when}, Publicado, {author}"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{widgetType} in {areaName}"
@@ -1456,60 +1456,60 @@ msgstr "Adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:133
 msgid "Added “{snippet}”"
-msgstr ""
+msgstr "Adicionado: “{snippet}”"
 
 #: packages/admin/src/components/revisions/change-labels.ts:121
 msgid "Added {label}"
-msgstr ""
+msgstr "Adicionado: {label}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:51
 msgid "Added a code block"
-msgstr ""
+msgstr "Bloco de código adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:87
 msgid "Added a divider"
-msgstr ""
+msgstr "Divisor adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:63
 msgid "Added a gallery"
-msgstr ""
+msgstr "Galeria adicionada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:24
 msgid "Added a heading"
-msgstr ""
+msgstr "Título adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:38
 msgid "Added a list item"
-msgstr ""
+msgstr "Item de lista adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:17
 msgid "Added a paragraph"
-msgstr ""
+msgstr "Parágrafo adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:31
 msgid "Added a quote"
-msgstr ""
+msgstr "Citação adicionada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:57
 msgid "Added a table"
-msgstr ""
+msgstr "Tabela adicionada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:69
 msgid "Added a video"
-msgstr ""
+msgstr "Vídeo adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:75
 msgid "Added an embed"
-msgstr ""
+msgstr "Incorporação adicionada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:81
 msgid "Added an HTML block"
-msgstr ""
+msgstr "Bloco HTML adicionado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:45
 #: packages/admin/src/components/revisions/change-labels.ts:95
 msgid "Added an image"
-msgstr ""
+msgstr "Imagem adicionada"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:108
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:230
@@ -1518,7 +1518,7 @@ msgstr ""
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:270
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:139
 msgid "Added:"
-msgstr ""
+msgstr "Adicionado:"
 
 #: packages/admin/src/components/MenuEditor.tsx:551
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
@@ -1539,7 +1539,7 @@ msgstr "Detalhes adicionais"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:278
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
-msgstr ""
+msgstr "Adiciona ao robots.txt regras que pedem aos rastreadores de IA que não usem este site para treinamento. Os mecanismos de busca ainda podem indexá-lo."
 
 #: packages/admin/src/components/WordPressImport.tsx:1537
 msgid "admin"
@@ -2185,15 +2185,15 @@ msgstr "Voltar aos tipos de conteúdo"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:206
 msgid "Back to editing"
-msgstr ""
+msgstr "Voltar à edição"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:196
 msgid "Back to editing (Esc)"
-msgstr ""
+msgstr "Voltar à edição (Esc)"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:392
 msgid "Back to editing."
-msgstr ""
+msgstr "Você voltou à edição."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
@@ -2351,7 +2351,7 @@ msgstr "Booleano"
 
 #: packages/admin/src/components/WordPressImport.tsx:1314
 msgid "Bot protection blocked the connection"
-msgstr ""
+msgstr "A proteção contra bots bloqueou a conexão"
 
 #: packages/admin/src/components/RelationForm.tsx:344
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
@@ -2681,7 +2681,7 @@ msgstr "Alterar data de publicação"
 #. placeholder {0}: isolate(formattedValue)
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:604
 msgid "Change publication date: {0}"
-msgstr ""
+msgstr "Alterar data de publicação: {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
@@ -2694,56 +2694,56 @@ msgstr "Alterar para onde os visitantes são enviados"
 
 #: packages/admin/src/components/revisions/change-labels.ts:110
 msgid "Changed {label}"
-msgstr ""
+msgstr "Alterado: {label}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:89
 msgid "Changed a divider"
-msgstr ""
+msgstr "Divisor alterado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:65
 msgid "Changed a gallery"
-msgstr ""
+msgstr "Galeria alterada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:71
 msgid "Changed a video"
-msgstr ""
+msgstr "Vídeo alterado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:77
 msgid "Changed an embed"
-msgstr ""
+msgstr "Incorporação alterada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:47
 #: packages/admin/src/components/revisions/change-labels.ts:100
 msgid "Changed an image"
-msgstr ""
+msgstr "Imagem alterada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:177
 msgid "Changed the slug to “{slug}”"
-msgstr ""
+msgstr "Slug alterado para “{slug}”"
 
 #: packages/admin/src/components/revisions/change-labels.ts:139
 msgid "Changed the style of “{snippet}”"
-msgstr ""
+msgstr "Estilo de “{snippet}” alterado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:27
 msgid "Changed the style of a heading"
-msgstr ""
+msgstr "Estilo do título alterado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:41
 msgid "Changed the style of a list item"
-msgstr ""
+msgstr "Estilo do item de lista alterado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:20
 msgid "Changed the style of a paragraph"
-msgstr ""
+msgstr "Estilo do parágrafo alterado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:34
 msgid "Changed the style of a quote"
-msgstr ""
+msgstr "Estilo da citação alterado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:165
 msgid "Changed the title"
-msgstr ""
+msgstr "Título da entrada alterado"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:126
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:254
@@ -2752,7 +2752,7 @@ msgstr ""
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:59
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:110
 msgid "Changed:"
-msgstr ""
+msgstr "Alterado:"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:901
 msgid "Changelog"
@@ -2768,7 +2768,7 @@ msgstr "Alterações descartadas"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:347
 msgid "Changes in this version"
-msgstr ""
+msgstr "Alterações nesta versão"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:478
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
@@ -3007,7 +3007,7 @@ msgstr "Limpar valor armazenado de {fieldKey}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:123
 msgid "Cleared {label}"
-msgstr ""
+msgstr "Esvaziado: {label}"
 
 #: packages/admin/src/locales/emails.ts:56
 msgid "Click the button below to create your account:"
@@ -3123,7 +3123,7 @@ msgstr "Fechar configurações"
 
 #: packages/admin/src/components/WordPressImport.tsx:93
 msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
-msgstr ""
+msgstr "A proteção contra bots da Cloudflare respondeu com uma página de desafio, então o EmDash não consegue se conectar à API do EmDash Exporter. Permita solicitações para /wp-json/emdash/v1/ (e ?rest_route=/emdash/v1/ em sites sem links permanentes amigáveis), por exemplo com uma regra personalizada de WAF que ignore a proteção contra bots, ou pause a proteção contra bots durante a migração e tente novamente."
 
 #: packages/admin/src/components/ContentTypeList.tsx:388
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:40
@@ -3649,7 +3649,7 @@ msgstr "Não foi possível carregar o plano de importação"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:564
 msgid "Couldn't load this version. Back to editing."
-msgstr ""
+msgstr "Não foi possível carregar esta versão. Você voltou à edição."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:274
 msgid "Couldn’t load usage."
@@ -3657,7 +3657,7 @@ msgstr "Não foi possível carregar o uso."
 
 #: packages/admin/src/components/RevisionHistory.tsx:91
 msgid "Couldn't load versions"
-msgstr ""
+msgstr "Não foi possível carregar as versões"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -3983,11 +3983,11 @@ msgstr "CSS"
 #: packages/admin/src/components/MenuEditor.tsx:540
 #: packages/admin/src/components/MenuEditor.tsx:738
 msgid "CSS classes"
-msgstr ""
+msgstr "Classes CSS"
 
 #: packages/admin/src/components/MenuEditor.tsx:639
 msgid "CSS classes:"
-msgstr ""
+msgstr "Classes CSS:"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:59
 msgid "CSS code"
@@ -4004,7 +4004,7 @@ msgstr "Célula atual"
 #: packages/admin/src/components/revisions/RevisionList.tsx:265
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
-msgstr ""
+msgstr "Versão atual"
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
@@ -4538,7 +4538,7 @@ msgstr "Desativando..."
 #: packages/admin/src/components/settings/SeoSettings.tsx:276
 #: packages/admin/src/components/settings/SeoSettings.tsx:286
 msgid "Disallow AI training"
-msgstr ""
+msgstr "Não permitir treinamento de IA"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1904
 msgid "Discard"
@@ -4884,7 +4884,7 @@ msgstr "Cada segmento do caminho pode conter no máximo um marcador, ex.: {0}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:155
 msgid "Earliest saved version"
-msgstr ""
+msgstr "Versão salva mais antiga"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:352
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:353
@@ -5034,47 +5034,47 @@ msgstr "Editar URL"
 
 #: packages/admin/src/components/revisions/change-labels.ts:137
 msgid "Edited “{snippet}”"
-msgstr ""
+msgstr "Editado: “{snippet}”"
 
 #: packages/admin/src/components/revisions/change-labels.ts:125
 msgid "Edited {label}"
-msgstr ""
+msgstr "Editado: {label}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:53
 msgid "Edited a code block"
-msgstr ""
+msgstr "Bloco de código editado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:26
 msgid "Edited a heading"
-msgstr ""
+msgstr "Título editado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:40
 msgid "Edited a list item"
-msgstr ""
+msgstr "Item de lista editado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:19
 msgid "Edited a paragraph"
-msgstr ""
+msgstr "Parágrafo editado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:33
 msgid "Edited a quote"
-msgstr ""
+msgstr "Citação editada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:59
 msgid "Edited a table"
-msgstr ""
+msgstr "Tabela editada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:83
 msgid "Edited an HTML block"
-msgstr ""
+msgstr "Bloco HTML editado"
 
 #: packages/admin/src/components/revisions/change-labels.ts:98
 msgid "Edited an image caption"
-msgstr ""
+msgstr "Legenda da imagem editada"
 
 #: packages/admin/src/components/revisions/change-labels.ts:99
 msgid "Edited an image description"
-msgstr ""
+msgstr "Texto alternativo da imagem editado"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
@@ -5242,7 +5242,7 @@ msgstr "O EmDash vai analisar o conteúdo existente para mostrar onde a mídia �
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:442
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:21
 msgid "Empty"
-msgstr ""
+msgstr "Vazio"
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:191
 msgid "Empty gallery — open settings to add images"
@@ -5295,7 +5295,7 @@ msgstr "O inglês é usado porque nenhum idioma de conteúdo está configurado. 
 
 #: packages/admin/src/components/BylineFormDialog.tsx:281
 msgid "Enter a display name."
-msgstr ""
+msgstr "Digite um nome de exibição."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:89
 msgid "Enter a domain such as example.com, without a path or port"
@@ -5303,7 +5303,7 @@ msgstr "Digite um domínio como example.com, sem caminho nem porta"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:288
 msgid "Enter a full URL that starts with https:// or http://."
-msgstr ""
+msgstr "Digite uma URL completa que comece com https:// ou http://."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:520
 msgid "Enter a recognized timezone to save"
@@ -5311,7 +5311,7 @@ msgstr "Digite um fuso horário reconhecido para salvar"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:283
 msgid "Enter a slug."
-msgstr ""
+msgstr "Digite um slug."
 
 #: packages/admin/src/components/MenuEditor.tsx:527
 #: packages/admin/src/components/MenuEditor.tsx:724
@@ -6360,7 +6360,7 @@ msgstr "Falha ao ler o uso do campo de crédito"
 
 #: packages/admin/src/router.tsx:2864
 msgid "Failed to register {slug}"
-msgstr ""
+msgstr "Falha ao registrar {slug}"
 
 #: packages/admin/src/lib/api/schema.ts:548
 msgid "Failed to register orphaned table"
@@ -6753,7 +6753,7 @@ msgstr "Os arquivos são enviados assim que você os adiciona."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:420
 msgid "Filled in from the display name. Use lowercase letters, numbers, and hyphens."
-msgstr ""
+msgstr "Preenchido a partir do nome de exibição. Use letras minúsculas, números e hífens."
 
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:131
 msgid "Filter"
@@ -6821,7 +6821,7 @@ msgstr "Primeira publicação"
 
 #: packages/admin/src/components/revisions/change-labels.ts:153
 msgid "First version"
-msgstr ""
+msgstr "Primeira versão"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:84
 msgid "First-time commenters only"
@@ -6997,7 +6997,7 @@ msgstr "Go"
 
 #: packages/admin/src/components/ContentEditor.tsx:1323
 msgid "Go back to editing first."
-msgstr ""
+msgstr "Volte primeiro à edição."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
 msgid "Go live {countdown}"
@@ -7248,7 +7248,7 @@ msgstr "Apenas HTML, limpo, usando os estilos do seu site."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:432
 msgid "https://example.com"
-msgstr ""
+msgstr "https://example.com"
 
 #: packages/admin/src/components/MenuEditor.tsx:528
 msgid "https://example.com or /about"
@@ -7364,7 +7364,7 @@ msgstr "Imagem não encontrada"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:254
 msgid "Image replaced:"
-msgstr ""
+msgstr "Imagem substituída:"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:717
 msgid "Image replaced."
@@ -8725,7 +8725,7 @@ msgstr "A ordem do menu foi atualizada."
 
 #: packages/admin/src/components/MenuEditor.tsx:174
 msgid "Menu renamed"
-msgstr ""
+msgstr "Menu renomeado"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:101
@@ -8981,7 +8981,7 @@ msgstr "Mover {0} para cima"
 
 #: packages/admin/src/components/revisions/change-labels.ts:141
 msgid "Moved “{snippet}”"
-msgstr ""
+msgstr "Movido: “{snippet}”"
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:701
@@ -8998,51 +8998,51 @@ msgstr "{total} itens movidos para a lixeira"
 
 #: packages/admin/src/components/revisions/change-labels.ts:54
 msgid "Moved a code block"
-msgstr ""
+msgstr "Bloco de código movido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:90
 msgid "Moved a divider"
-msgstr ""
+msgstr "Divisor movido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:66
 msgid "Moved a gallery"
-msgstr ""
+msgstr "Galeria movida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:28
 msgid "Moved a heading"
-msgstr ""
+msgstr "Título movido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:42
 msgid "Moved a list item"
-msgstr ""
+msgstr "Item de lista movido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:21
 msgid "Moved a paragraph"
-msgstr ""
+msgstr "Parágrafo movido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:35
 msgid "Moved a quote"
-msgstr ""
+msgstr "Citação movida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:60
 msgid "Moved a table"
-msgstr ""
+msgstr "Tabela movida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:72
 msgid "Moved a video"
-msgstr ""
+msgstr "Vídeo movido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:78
 msgid "Moved an embed"
-msgstr ""
+msgstr "Incorporação movida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:84
 msgid "Moved an HTML block"
-msgstr ""
+msgstr "Bloco HTML movido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:48
 msgid "Moved an image"
-msgstr ""
+msgstr "Imagem movida"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:568
@@ -9235,7 +9235,7 @@ msgstr "Nova janela"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:188
 msgid "Newer version"
-msgstr ""
+msgstr "Versão mais recente"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:36
@@ -9360,7 +9360,7 @@ msgstr "Nenhum crédito ainda"
 
 #: packages/admin/src/components/revisions/change-labels.ts:163
 msgid "No changes"
-msgstr ""
+msgstr "Nenhuma alteração"
 
 #: packages/admin/src/components/Dashboard.tsx:485
 msgid "No collections configured"
@@ -9687,7 +9687,7 @@ msgstr "Nenhum usuário ainda."
 
 #: packages/admin/src/components/RevisionHistory.tsx:84
 msgid "No versions yet"
-msgstr ""
+msgstr "Nenhuma versão ainda"
 
 #: packages/admin/src/components/Widgets.tsx:506
 msgid "No widget areas yet. Create one to get started."
@@ -9725,7 +9725,7 @@ msgstr "Sem correspondência"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:499
 msgid "Not recorded in this version"
-msgstr ""
+msgstr "Não registrado nesta versão"
 
 #: packages/admin/src/components/ContentList.tsx:1569
 #: packages/admin/src/components/PluginSettings.tsx:341
@@ -9793,11 +9793,11 @@ msgstr "Imagem OG"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:178
 msgid "Older version"
-msgstr ""
+msgstr "Versão mais antiga"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
 msgid "On"
-msgstr ""
+msgstr "Ativado"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
@@ -11148,7 +11148,7 @@ msgstr "Remover esta imagem do documento?"
 
 #: packages/admin/src/components/revisions/change-labels.ts:135
 msgid "Removed “{snippet}”"
-msgstr ""
+msgstr "Removido: “{snippet}”"
 
 #. placeholder {0}: selected.item.filename
 #: packages/admin/src/components/MediaPickerModal.tsx:706
@@ -11157,56 +11157,56 @@ msgstr "{0} removido da seleção."
 
 #: packages/admin/src/components/revisions/change-labels.ts:52
 msgid "Removed a code block"
-msgstr ""
+msgstr "Bloco de código removido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:88
 msgid "Removed a divider"
-msgstr ""
+msgstr "Divisor removido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:64
 msgid "Removed a gallery"
-msgstr ""
+msgstr "Galeria removida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:25
 msgid "Removed a heading"
-msgstr ""
+msgstr "Título removido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:39
 msgid "Removed a list item"
-msgstr ""
+msgstr "Item de lista removido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:18
 msgid "Removed a paragraph"
-msgstr ""
+msgstr "Parágrafo removido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:32
 msgid "Removed a quote"
-msgstr ""
+msgstr "Citação removida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:58
 msgid "Removed a table"
-msgstr ""
+msgstr "Tabela removida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:70
 msgid "Removed a video"
-msgstr ""
+msgstr "Vídeo removido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:76
 msgid "Removed an embed"
-msgstr ""
+msgstr "Incorporação removida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:82
 msgid "Removed an HTML block"
-msgstr ""
+msgstr "Bloco HTML removido"
 
 #: packages/admin/src/components/revisions/change-labels.ts:46
 #: packages/admin/src/components/revisions/change-labels.ts:96
 msgid "Removed an image"
-msgstr ""
+msgstr "Imagem removida"
 
 #: packages/admin/src/components/revisions/change-labels.ts:175
 msgid "Removed the slug"
-msgstr ""
+msgstr "Slug removido"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:117
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:232
@@ -11215,7 +11215,7 @@ msgstr ""
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:265
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:140
 msgid "Removed:"
-msgstr ""
+msgstr "Removido:"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:590
 msgid "Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins"
@@ -11243,7 +11243,7 @@ msgstr "Renomear {0}"
 #: packages/admin/src/components/MenuEditor.tsx:423
 #: packages/admin/src/components/MenuEditor.tsx:430
 msgid "Rename menu"
-msgstr ""
+msgstr "Renomear menu"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:150
 msgid "Rename passkey"
@@ -11351,7 +11351,7 @@ msgstr "Substituir por lista vazia"
 
 #: packages/admin/src/components/revisions/change-labels.ts:97
 msgid "Replaced an image"
-msgstr ""
+msgstr "Imagem substituída"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:942
 #: packages/admin/src/components/MediaDetailPanel.tsx:1966
@@ -11503,23 +11503,23 @@ msgstr "Restauração falhou"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:109
 msgid "Restore this version?"
-msgstr ""
+msgstr "Restaurar esta versão?"
 
 #: packages/admin/src/components/revisions/change-labels.ts:158
 msgid "Restored an earlier version"
-msgstr ""
+msgstr "Versão anterior restaurada"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:242
 msgid "Restored from {restoredDate}"
-msgstr ""
+msgstr "Restaurada de {restoredDate}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:160
 msgid "Restored the version from {date}"
-msgstr ""
+msgstr "Versão de {date} restaurada"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:130
 msgid "Restoring…"
-msgstr ""
+msgstr "Restaurando…"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:444
 msgid "Results"
@@ -11770,7 +11770,7 @@ msgstr "Rust"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:86
 msgid "Same as current version"
-msgstr ""
+msgstr "Igual à versão atual"
 
 #: packages/admin/src/components/MenuEditor.tsx:534
 #: packages/admin/src/components/MenuEditor.tsx:536
@@ -11958,7 +11958,7 @@ msgstr "As entradas agendadas aparecem aqui com o horário de publicação."
 #. placeholder {0}: isolate(formattedSchedule)
 #: packages/admin/src/components/ContentSettingsPanel.tsx:146
 msgid "Scheduled for {0}"
-msgstr ""
+msgstr "Agendado para {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:154
 #: packages/admin/src/components/ContentSettingsPanel.tsx:253
@@ -12566,7 +12566,7 @@ msgstr "Título SEO"
 #: packages/admin/src/components/MenuEditor.tsx:543
 #: packages/admin/src/components/MenuEditor.tsx:742
 msgid "Separate class names with spaces. Themes can use them to style the link."
-msgstr ""
+msgstr "Separe os nomes das classes com espaços. Os temas podem usá-las para estilizar o link."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:715
 msgid "Set a custom display size for this image instance."
@@ -12675,7 +12675,7 @@ msgstr "Texto curto"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
 msgid "Show changes"
-msgstr ""
+msgstr "Exibir alterações"
 
 #: packages/admin/src/components/Widgets.tsx:147
 msgid "Show count"
@@ -12691,7 +12691,7 @@ msgstr "Exibir hierarquia"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:192
 msgid "Show older versions"
-msgstr ""
+msgstr "Exibir versões mais antigas"
 
 #: packages/admin/src/components/Widgets.tsx:139
 msgid "Show post count"
@@ -12716,7 +12716,7 @@ msgstr "Exibindo {pageShowingRange} de {0}"
 #: packages/admin/src/components/MenuEditor.tsx:455
 #: packages/admin/src/components/MenuList.tsx:159
 msgid "Shown in the admin. Some themes also show it on the site."
-msgstr ""
+msgstr "Exibido no painel. Alguns temas também o exibem no site."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1152
 msgid "Shown to readers in this order."
@@ -13175,7 +13175,7 @@ msgstr "Estruturado"
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:135
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:163
 msgid "Style changed:"
-msgstr ""
+msgstr "Estilo alterado:"
 
 #: packages/admin/src/components/FieldEditor.tsx:1305
 msgid "Sub-field slugs cannot be changed after creation."
@@ -13397,7 +13397,7 @@ msgstr "Formatação de texto"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:546
 msgid "That version is no longer available. Back to editing."
-msgstr ""
+msgstr "Essa versão não está mais disponível. Você voltou à edição."
 
 #. placeholder {0}: bound.fieldSlug
 #. placeholder {1}: bound.collectionSlug
@@ -13592,7 +13592,7 @@ msgstr "O menu foi excluído."
 #. placeholder {0}: renamed.label
 #: packages/admin/src/components/MenuEditor.tsx:175
 msgid "The menu is now called \"{0}\"."
-msgstr ""
+msgstr "O menu agora se chama \"{0}\"."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "The name of your site, used in the header and metadata"
@@ -13783,19 +13783,19 @@ msgstr "O pacote enviado é descartado. Nada neste site foi alterado."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:117
 msgid "The version from {when} becomes your draft and goes live at the scheduled time."
-msgstr ""
+msgstr "A versão de {when} se torna o seu rascunho e entra no ar no horário agendado."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:118
 msgid "The version from {when} becomes your draft. The live site won't change until you publish."
-msgstr ""
+msgstr "A versão de {when} se torna o seu rascunho. O site no ar não muda até você publicar."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:82
 msgid "The version from {when} is now your draft. It goes live at the scheduled time."
-msgstr ""
+msgstr "A versão de {when} agora é o seu rascunho. Ela entra no ar no horário agendado."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:83
 msgid "The version from {when} is now your draft. Publish when you're ready."
-msgstr ""
+msgstr "A versão de {when} agora é o seu rascunho. Publique quando estiver tudo pronto."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:211
 msgid "The video is in the Media Library, but this entry is now read-only."
@@ -14225,7 +14225,7 @@ msgstr "Esta atualização expõe as seguintes rotas sem autenticação:"
 
 #: packages/admin/src/components/revisions/RevisionViewErrorBoundary.tsx:7
 msgid "This version can't be shown."
-msgstr ""
+msgstr "Esta versão não pode ser exibida."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:168
 msgid "This version is not visible on the site"
@@ -14542,11 +14542,11 @@ msgstr "Ativar o índice de uso da mídia?"
 
 #: packages/admin/src/components/revisions/change-labels.ts:170
 msgid "Turned off {label}"
-msgstr ""
+msgstr "Desativado: {label}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:170
 msgid "Turned on {label}"
-msgstr ""
+msgstr "Ativado: {label}"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Turning on…"
@@ -14658,7 +14658,7 @@ msgstr "Desconhecido"
 
 #: packages/admin/src/components/revisions/revision-format.ts:129
 msgid "Unknown author"
-msgstr ""
+msgstr "Autor desconhecido"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
@@ -14680,7 +14680,7 @@ msgstr "Chave de acesso sem nome"
 
 #: packages/admin/src/components/revisions/revision-format.ts:129
 msgid "Unnamed user"
-msgstr ""
+msgstr "Usuário sem nome"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "Unpublish {itemLabel}"
@@ -14761,7 +14761,7 @@ msgstr "Atualizar"
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:49
 msgctxt "A published entry's scheduled changes"
 msgid "Update"
-msgstr ""
+msgstr "Atualização"
 
 #: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Update Field"
@@ -15050,7 +15050,7 @@ msgstr "Use letras minúsculas, números e hífens, começando com uma letra."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:421
 msgid "Use lowercase letters, numbers, and hyphens."
-msgstr ""
+msgstr "Use letras minúsculas, números e hífens."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1149
 msgid "Use URL"
@@ -15212,11 +15212,11 @@ msgstr "Versão {0} (ativa)"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:652
 msgid "Version from {when}"
-msgstr ""
+msgstr "Versão de {when}"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:80
 msgid "Version restored"
-msgstr ""
+msgstr "Versão restaurada"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
@@ -15271,7 +15271,7 @@ msgstr "Ver a licença {license} no spdx.org"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:517
 msgid "Viewing the version from {when} by {name}."
-msgstr ""
+msgstr "Visualizando a versão de {when} por {name}."
 
 #: packages/admin/src/components/Redirects.tsx:469
 msgid "Visitors hitting these paths will see an error."
@@ -15626,7 +15626,7 @@ msgstr "Sim"
 
 #: packages/admin/src/components/revisions/revision-format.ts:109
 msgid "Yesterday"
-msgstr ""
+msgstr "Ontem"
 
 #: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "Yoast/RankMath"
@@ -15786,11 +15786,11 @@ msgstr "a janela de chave de acesso do seu dispositivo"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:115
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the live site won't change until you publish."
-msgstr ""
+msgstr "Seu rascunho será substituído pela versão de {when}. O rascunho atual continua em Revisões, e o site no ar não muda até você publicar."
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:114
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
-msgstr ""
+msgstr "Seu rascunho será substituído pela versão de {when}. O rascunho atual continua em Revisões, e a versão restaurada entra no ar no horário agendado."
 
 #: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
@@ -15854,7 +15854,7 @@ msgstr "Seu usuário do Twitter/X (ex.: @usuario)"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:123
 msgid "Your unsaved changes will be lost."
-msgstr ""
+msgstr "Suas alterações não salvas serão perdidas."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1903
 msgid "Your unsaved media changes will be lost."
