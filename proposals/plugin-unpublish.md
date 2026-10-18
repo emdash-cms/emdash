@@ -1,7 +1,7 @@
 ---
 title: Unpublish a plugin from the registry
 type: feature-plan
-status: proposed
+status: accepted
 authors:
   - Daniel Mueller (@danielmlr)
 discussion: null
@@ -45,7 +45,9 @@ Running `emdash-plugin publish` for the same slug later creates a new package pr
 
 The version numbers already used stay used. Their release records are still in the repository, so `publish` refuses an existing version with `RELEASE_ALREADY_PUBLISHED`, as it does today. `publish --allow-overwrite` can rewrite such a record, but the aggregator rejects changed content for a version it has already indexed, and that version stays hidden. Re-publishing therefore needs a new version.
 
-The package profile also holds the release settings that `emdash-plugin profile setup` stores, such as the approvers for automated releases and whether every release must carry provenance. While the package profile is missing, the release service refuses the package's automated releases with `PACKAGE_PROFILE_REQUIRED`. A profile that `publish` creates again does not carry those settings, so `profile setup` has to run again, with `--provenance required` when every release must carry provenance. When the fetched profile has release settings, the dry run says so and names that flag.
+Versions published before the unpublish stay hidden after a re-publish. The aggregator shows such a release again only when it reads the release record anew, which an operator backfill of the publisher does. Restoring them automatically when a package profile is re-created changes the aggregator and is outside this plan.
+
+The package profile also holds the release settings that `emdash-plugin profile setup` stores, such as the approvers for automated releases and whether every release must carry provenance. While the package profile is missing, the release service refuses the package's automated releases with `PACKAGE_PROFILE_REQUIRED`. A profile that `publish` creates again does not carry those settings, so `profile setup` has to run again. It defaults to `--provenance required`, so when the fetched profile has release settings, the dry run and `--yes` both say so and name the flag with the package's earlier value: `required` when every release had to carry provenance, `optional` otherwise.
 
 ## Goals
 
@@ -58,6 +60,7 @@ The package profile also holds the release settings that `emdash-plugin profile 
 
 - Hiding a single version. The aggregator already handles a deleted release record, but deleting release records takes away the check that keeps `publish` from reusing a version number. A per-version command needs its own plan.
 - Deleting release records or bundles from the publisher's repository.
+- Showing versions published before an unpublish again after a re-publish.
 - Removing the plugin from sites that installed it. Removing an installed plugin from a site through a CLI is the idea in [#3999](https://github.com/emdash-cms/emdash/discussions/3999).
 - Any change to the aggregator, the lexicons, or `@emdash-cms/registry-client`.
 
@@ -90,7 +93,3 @@ Tests in `packages/plugin-cli/tests/`, using the existing mock PDS:
 Manual check against a real PDS and the production registry, with a throwaway package: publish it, run `unpublish --yes` with an existing login, confirm that `emdash-plugin info` and `search` no longer find it, publish a new version, and confirm that the listing shows only the new version once it reappears.
 
 The implementation PR also adds the command to the `emdash-plugin` README, documents it on the CLI reference page next to `update-package`, and adds a minor changeset for `@emdash-cms/plugin-cli`.
-
-## Open questions
-
-- After a re-publish, versions from before the unpublish stay hidden, because the aggregator only shows them again when it reads their release records anew. An operator backfill of the publisher does that and brings them back. This plan leaves the aggregator unchanged; whether re-creating a package profile should restore its earlier versions is open.
