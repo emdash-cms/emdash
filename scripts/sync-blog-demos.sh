@@ -6,8 +6,8 @@
 # - demos/plugins-demo (plugin API/hook coverage)
 #
 # Demos with custom runtime/config but shared visual template:
-# - demos/cloudflare (kitchen sink Cloudflare features)
-# - demos/playground (playground-specific runtime wiring)
+# - demos/cloudflare (kitchen sink Cloudflare features, AI Search header)
+# - demos/playground (playground-specific runtime wiring, bundled seed media)
 # - demos/preview (preview DB workflow)
 # - demos/postgres (Postgres adapter coverage)
 #
@@ -22,12 +22,12 @@ TEMPLATES_DIR="$ROOT_DIR/templates"
 DEMOS_DIR="$ROOT_DIR/demos"
 
 # Files/directories to sync from template to demo.
-# Intentionally excludes package.json so demo package identity/scripts stay stable.
+# Intentionally excludes package.json and astro.config.mjs so demo package
+# identity/scripts and plugin wiring stay stable.
 SYNC_ITEMS=(
 	"src"
 	"public"
 	"seed"
-	"astro.config.mjs"
 	"tsconfig.json"
 	"emdash-env.d.ts"
 	".gitignore"
@@ -45,6 +45,12 @@ FRONTEND_PAIRS=(
 	"blog-cloudflare:preview"
 	"blog:playground"
 	"blog:postgres"
+)
+
+# Demos that keep their own seed. The playground's seed references bundled
+# media instead of the template's remote image URLs.
+CUSTOM_SEED_DEMOS=(
+	"playground"
 )
 
 sync_demo() {
@@ -122,7 +128,9 @@ sync_frontend() {
 		echo "  Copied file: emdash-env.d.ts"
 	fi
 
-	if [[ -d "$template_dir/seed" && -d "$demo_dir/seed" ]]; then
+	if [[ " ${CUSTOM_SEED_DEMOS[*]} " == *" $demo "* ]]; then
+		echo "  Kept custom seed"
+	elif [[ -d "$template_dir/seed" && -d "$demo_dir/seed" ]]; then
 		rsync -a --delete "$template_dir/seed/" "$demo_dir/seed/"
 		echo "  Synced directory: seed"
 	fi
@@ -141,8 +149,15 @@ for pair in "${FRONTEND_PAIRS[@]}"; do
 	IFS=':' read -r template demo <<< "$pair"
 	case "$demo" in
 	cloudflare)
+		# Base.astro and 404.astro open the AI Search modal instead of linking
+		# to /search, which this demo doesn't have. Port template changes to
+		# them by hand.
 		sync_frontend "$template" "$demo" \
 			"worker.ts" \
+			"layouts/Base.astro" \
+			"pages/404.astro" \
+			"pages/search.astro" \
+			"pages/api" \
 			"pages/als-test.astro" \
 			"pages/sandbox-test.astro" \
 			"pages/sandbox-plugin-test.astro"

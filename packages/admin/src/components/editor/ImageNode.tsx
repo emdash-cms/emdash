@@ -99,11 +99,17 @@ function ImageNodeView({
 		}
 	};
 
-	const handlePointerDown = (event: React.PointerEvent) => {
-		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+	const selectFromPointer = (event: React.MouseEvent) => {
+		if (!editor.isEditable) return;
 		// The caption selects the image once it has focus, so the toolbar sees that focus.
 		if ((event.target as HTMLElement).closest("figcaption")) return;
 		selectImage();
+	};
+
+	const handlePointerDown = (event: React.PointerEvent) => {
+		// A finger pressing on the image may be scrolling the page, so a tap selects it on click.
+		if (event.pointerType !== "mouse" || !event.isPrimary || event.button !== 0) return;
+		selectFromPointer(event);
 	};
 
 	const caption = typeof node.attrs.caption === "string" ? node.attrs.caption : "";
@@ -265,6 +271,7 @@ function ImageNodeView({
 		<NodeViewWrapper
 			style={alignmentStyle}
 			onPointerDown={handlePointerDown}
+			onClick={selectFromPointer}
 			className={cn(
 				"relative my-4 max-w-full",
 				(alignment === "left" || alignment === "right") &&

@@ -75,11 +75,21 @@ import {
 	normalizeMediaFocalPoint,
 	type MediaFocalPoint,
 } from "../lib/media-utils";
+import { formatDate } from "../lib/utils.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { FocalPointEditor, FocalPointPreviews } from "./FocalPointEditor.js";
 import { MediaImageCropper, type MediaCropSelection } from "./MediaImageCropper.js";
 import { MediaUsedIn } from "./MediaUsedIn.js";
+
+/** Media timestamps show the date with the time, unlike the plain dates elsewhere. */
+const MEDIA_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+	year: "numeric",
+	month: "short",
+	day: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+};
 
 const CLOSE_FALLBACK_MS = 500;
 const DIALOG_RESIZE_DURATION_MS = 340;
@@ -153,7 +163,7 @@ export interface MediaDetailPanelProps {
 	onExit?: () => void;
 	onClosed?: () => void;
 	onUpdated?: () => void;
-	onItemRefreshed?: (item: LocalMediaItem) => void;
+	onItemRefreshed?: (item: LocalMediaItem, metadataChanges?: MediaUpdateInput) => void;
 	onCroppedCopyCreated?: (item: LocalMediaItem) => void;
 	onUnavailable?: (id: string) => void;
 	onDeleted?: () => void;
@@ -245,7 +255,7 @@ export function MediaDetailPanel({
 	onUnavailable,
 	onDeleted,
 }: MediaDetailPanelProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const restoreFocusAfterDeleteRef = React.useRef(false);
@@ -650,7 +660,7 @@ export function MediaDetailPanel({
 
 	const updateMutation = useMutation({
 		mutationFn: (data: MediaUpdateInput) => updateMedia(item.id, data),
-		onSuccess: (updatedItem) => {
+		onSuccess: (updatedItem, metadataChanges) => {
 			if (locationChanged) restoreFocusAfterDeleteRef.current = true;
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			onItemRefreshed?.(
@@ -661,6 +671,7 @@ export function MediaDetailPanel({
 							url: updatedItem.url || localItem.url,
 						}
 					: updatedItem,
+				metadataChanges,
 			);
 			onUpdated?.();
 		},
@@ -1330,9 +1341,9 @@ export function MediaDetailPanel({
 											<span className="shrink-0 text-kumo-subtle">{t`Uploaded:`}</span>
 											<span
 												className="min-w-0 truncate tabular-nums"
-												title={formatDate(item.createdAt)}
+												title={formatDate(item.createdAt, i18n.locale, MEDIA_DATE_FORMAT)}
 											>
-												{formatDate(item.createdAt)}
+												<bdi>{formatDate(item.createdAt, i18n.locale, MEDIA_DATE_FORMAT)}</bdi>
 											</span>
 										</p>
 									</div>
@@ -2013,16 +2024,6 @@ export function MediaDetailPanel({
 			</ConfirmDialog>
 		</>
 	);
-}
-
-function formatDate(isoString: string): string {
-	return new Date(isoString).toLocaleDateString(undefined, {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
 }
 
 function formatFileFormat(mimeType: string): string {

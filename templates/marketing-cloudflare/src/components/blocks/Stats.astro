@@ -1,0 +1,87 @@
+---
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
+
+type StatsBlock = Extract<PageContentBlock, { _type: "marketing_stats" }>;
+type Props = BlockComponentProps<StatsBlock>;
+
+const { value } = Astro.props;
+const { anchor_id, headline, subheadline, stats } = value;
+---
+
+<section class="stats sheet sheet--night sheet-section" id={anchor_id || undefined}>
+	<div class="container sheet-body">
+		{(headline || subheadline) && (
+			<h2 class="display stats__headline">
+				{headline}
+				{headline && subheadline && " "}
+				{subheadline && <span class="stats__subheadline">{subheadline}</span>}
+			</h2>
+		)}
+		<dl class="stats__list">
+			{stats.map((stat) => (
+				<div class="stats__item">
+					<dt class="stats__label">{stat.label}</dt>
+					<dd class="stats__value">{stat.value}</dd>
+				</div>
+			))}
+		</dl>
+	</div>
+</section>
+
+<style>
+	.stats__headline {
+		max-width: 26ch;
+		margin-block-end: clamp(48px, 6vw, 88px);
+		font-size: clamp(34px, 3.6vw, 52px);
+		line-height: 1.06;
+	}
+
+	.stats__subheadline {
+		color: var(--color-on-night-muted);
+	}
+
+	.stats__list {
+		--stats-column-gap: 32px;
+		display: grid;
+		grid-template-columns: repeat(
+			auto-fit,
+			minmax(min(100%, max(200px, (100% - 3 * var(--stats-column-gap)) / 4)), 1fr)
+		);
+		gap: 40px var(--stats-column-gap);
+	}
+
+	.stats__item {
+		display: flex;
+		flex-direction: column-reverse;
+		justify-content: flex-end;
+	}
+
+	.stats__value {
+		font-family: var(--font-display);
+		font-size: clamp(56px, 6.2vw, 92px);
+		font-weight: var(--font-weight-display);
+		font-variant-numeric: tabular-nums;
+		line-height: 0.95;
+		letter-spacing: -0.025em;
+		overflow-wrap: anywhere;
+	}
+
+	.stats__label {
+		max-width: 24ch;
+		margin-block-start: 14px;
+		font-size: 14.5px;
+		color: var(--color-on-night-muted);
+		text-wrap: pretty;
+	}
+
+	@media (max-width: 960px) {
+		.stats__list {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.stats__value {
+			font-size: clamp(40px, 14vw, 72px);
+		}
+	}
+</style>

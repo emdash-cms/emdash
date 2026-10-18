@@ -1,27 +1,32 @@
 ---
-import { getEmDashEntry, getSeoMeta } from "emdash";
+import { getContentSeo, getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
 import Base from "../layouts/Base.astro";
-import MarketingBlocks from "../components/MarketingBlocks.astro";
+import PageView from "../components/PageView.astro";
+import { heroSeoDefaults } from "../utils/page";
+import { resolveSiteIdentity } from "../utils/site";
 
-const { entry: page, cacheHint } = await getEmDashEntry("pages", "home");
+const [{ entry: page, cacheHint }, settings] = await Promise.all([
+	getEmDashEntry("pages", "home"),
+	getSiteSettings(),
+]);
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
-const pageTitle = page?.data.title;
-const pageContent = page?.data.content;
+const { siteTitle, siteTagline } = resolveSiteIdentity(settings);
 const seo = page
 	? getSeoMeta(page, {
 			siteUrl: Astro.url.origin,
 			path: "/",
-			defaultDescription:
-				"Build products people actually want. The all-in-one platform for modern teams.",
+			...heroSeoDefaults(page.data.content, Astro.url.origin),
 		})
 	: null;
+// The home page is titled after the site unless its SEO panel sets a title.
+const seoTitle = page ? getContentSeo(page)?.title || undefined : undefined;
 ---
 
 <Base
-	title={seo?.title !== "Home" ? seo?.title : undefined}
-	pageTitle={pageTitle}
+	title={seoTitle}
+	pageTitle={seoTitle}
 	description={seo?.description}
 	image={seo?.ogImage}
 	canonical={seo?.canonical}
@@ -29,38 +34,25 @@ const seo = page
 	content={page ? { collection: "pages", id: page.data.id, slug: page.id } : undefined}
 >
 	{
-		page && pageContent ? (
-			<div {...page.edit.content}>
-				<MarketingBlocks value={pageContent} />
-			</div>
+		page ? (
+			<PageView page={page} heading={siteTitle} />
 		) : (
-			<div class="empty-state">
-				<h1>Welcome to Acme</h1>
-				<p>Edit the home page content in the admin to get started.</p>
-					{Astro.locals.user && (
-						<a href="/_emdash/admin" class="btn btn-primary">
-							Open Admin
-						</a>
-					)}
-			</div>
+			<section class="container empty-state">
+				<h1 class="display empty-state__title">{siteTitle}</h1>
+				{siteTagline && <p class="lead">{siteTagline}</p>}
+				{Astro.locals.user && (
+					<>
+						<p class="lead">
+							Create or publish a page with the slug “home” to show it here.
+						</p>
+						<div class="actions">
+							<a href="/_emdash/admin/content/pages/new" class="btn btn-lg">
+								Create page
+							</a>
+						</div>
+					</>
+				)}
+			</section>
 		)
 	}
 </Base>
-
-<style>
-	.empty-state {
-		text-align: center;
-		padding: var(--spacing-5xl) var(--spacing-lg);
-		max-width: var(--max-width);
-		margin: 0 auto;
-	}
-
-	.empty-state h1 {
-		margin-bottom: var(--spacing-md);
-	}
-
-	.empty-state p {
-		color: var(--color-muted);
-		margin-bottom: var(--spacing-xl);
-	}
-</style>

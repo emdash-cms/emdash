@@ -1,6 +1,7 @@
 import { sql, type Kysely, type RawBuilder, type Selectable, type Transaction } from "kysely";
 import { ulid } from "ulidx";
 
+import { deleteSharedCollectionRecords } from "../../database/collection-cleanup.js";
 import { isPostgres } from "../../database/dialect-helpers.js";
 import {
 	decodeCursor,
@@ -555,6 +556,9 @@ export async function deleteActivatedMediaUsageCollection(
 			leaseToken: claim.leaseToken,
 		});
 		if (result.outcome !== "dropped") throw new Error("Collection deletion lost its table fence");
+		// The content table is gone, so the FKs from ec_* to revisions.id are
+		// released and the remaining shared-table records can be removed.
+		await deleteSharedCollectionRecords(db, claim.collectionSlug);
 		if (
 			!(await repository.checkpoint({
 				...lease,

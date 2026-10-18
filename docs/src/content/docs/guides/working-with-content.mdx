@@ -255,14 +255,33 @@ The calendar loads at most 1,000 entries for a month, including the days from ne
 that the grid shows. When there are more, it says on which day the loaded entries end and marks the
 later days as not loaded.
 
-## Restore a revision
+## Review and restore revisions
 
-Collections with revision support show **Revisions** in the settings panel. Expand it to see saved
-versions and the fields that changed between them. Select a revision to inspect its content, then
-select **Restore** if you want to use that version again.
+Collections with revision support show **Revisions** in the settings panel. Expand it to see the
+entry's saved versions, grouped by day, with the time and the person who saved each one.
+**Current version** marks the version in the editor, and **Published** marks the version visitors
+see. The list shows the 20 newest versions; select **Show older versions** to see the rest.
 
-Restoring creates a new revision containing the selected content. It does not erase the revisions
-that came before it, so you can still inspect the complete sequence afterward.
+Select a version to show it in the editor, read-only:
+
+- Added text is highlighted and removed text is struck through, in the color of the person who
+  saved the version. The dot next to their name in the list shows that color.
+- The version's entry in the list describes each change, such as "Changed the title" or
+  "Edited “Most teams plan posts in…”". Select a change to scroll to it.
+- Turn off **Show changes** to read the version without highlights.
+
+**Save** and **Publish** pause while a version is open, and your unsaved edits stay in the editor.
+Select the **×** in the bar (**Back to editing**) or press Esc to return to them. On a
+phone, choose a version in the settings panel, then use the arrows in the bar at the bottom of the
+editor to step between versions.
+
+To use a version again, select **Restore** in that bar. Restoring copies the version into a new
+draft at the top of the list. Your previous draft stays in the list, and visitors keep seeing the
+published version until you publish. If the entry is scheduled, the restored version goes live at the
+scheduled time.
+
+A version whose content matches an earlier one is marked "Restored from" with that version's date. A
+version that matches the current one shows **Same as current version** in place of **Restore**.
 
 ## Translate an entry
 
