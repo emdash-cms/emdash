@@ -151,3 +151,52 @@ Human PRs, one run each:
 - **Human PRs**: Opus found the 4208 bug class in a different place (full-text search title detection, verified at the head) rather than media-usage discovery. Sol again found 4128's taxonomy bug, which Opus missed.
 
 Single runs of either model are not reliable enough to compare variants on five PRs. Opus finds more over repeated runs, Sol is more predictable. Running two independent reviews would catch more on the bot PRs than one Opus review.
+
+## Merge
+
+`.flue/lib/review-merge.ts` merges independent reviews into one `ReviewResult`; it is not wired into the workflow. A merge model with no tools gets both structured reviews. It must keep every finding, collapse only true duplicates, keep disagreements, and write one summary. Trusted code then makes the decisions that do not depend on the model:
+
+- **Verdict:** `request_changes` if either reviewer requested changes; `approve` only if both approved and no merged finding is needs-fixing; otherwise `comment`.
+- **Anchors:** every merged anchor must match an input anchor. One in a reviewed file is moved to the nearest input anchor; one in any other file is dropped. Both are counted.
+- **Coverage:** input findings that no merged finding covers are reported.
+- **Fallback:** a deterministic union, deduplicated only by same path and overlapping lines, used when the merge call fails or its output is invalid.
+- **One reviewer:** a single review is returned unchanged, with a note that the other reviewer was unavailable.
+
+`eval/merge.ts` merged the 23 Opus and Sol issue+framing pairs offline (15 bot-PR pairs, 8 human-PR pairs) with Claude Haiku 5.5 and Claude Sonnet 5.5 (effort `low`) and GPT-5.6 Luna (reasoning `low`) through AI Gateway, and with the deterministic fallback. Key items were scored from the merged text against each pair's graded inputs, and every lost or suspect item was checked by hand.
+
+Mechanical checks (52 input findings across the 23 pairs):
+
+|                                       | Haiku              | Sonnet | Luna                                | Fallback |
+| ------------------------------------- | ------------------ | ------ | ----------------------------------- | -------- |
+| Findings out                          | 41                 | 45     | 40                                  | 44       |
+| Distinct findings dropped             | 0                  | 0      | 1                                   | 0        |
+| Key points lost                       | 0                  | 0      | 1 (4226 v1 K3, a summary-only note) | 0        |
+| Invented anchors (repaired / dropped) | 0 / 0              | 0 / 0  | 0 / 0                               | –        |
+| Invalid output (fallback used)        | 1 (malformed JSON) | 0      | 0                                   | –        |
+| Mean latency                          | 5.4 s              | 6.5 s  | 5.1 s                               | –        |
+| Mean cost per merge                   | $0.0009            | $0.014 | $0.0010                             | –        |
+
+The other uncovered inputs (4 for Haiku, 4 for Luna) were true duplicates collapsed onto the other reviewer's anchor, keeping the content. Luna's one distinct drop was Opus's changeset-scope suggestion on 4224 v2.
+
+Graded results:
+
+|                                        | Opus alone | Sol alone | Merged (Haiku) | Merged (Sonnet) | Merged (Luna) | Fallback |
+| -------------------------------------- | ---------- | --------- | -------------- | --------------- | ------------- | -------- |
+| Bot key score, mean of 3 (16)          | 5.3        | 4.0       | 6.3            | 6.3             | 6.2           | 6.3      |
+| Human key score (4)                    | 2.5        | 2         | 3.5            | 3.5             | 3.5           | 3.5      |
+| Flagged-PR runs that missed everything | 4 of 17    | 7 of 17   | 1 of 17        | 1 of 17         | 1 of 17       | 1 of 17  |
+| Verdicts right                         | 15 of 21   | 13 of 21  | 17 of 21       | 17 of 21        | 17 of 21      | 17 of 21 |
+| False alarms on clean PRs              | 1          | 1         | 1              | 1               | 1             | 1        |
+
+| Bot PR (points) | Opus | Sol | Haiku | Sonnet | Luna | Fallback |
+| --------------- | ---- | --- | ----- | ------ | ---- | -------- |
+| 4226 (3)        | 2.2  | 2.0 | 2.2   | 2.2    | 2.0  | 2.2      |
+| 4225 (4)        | 0.7  | 0   | 0.7   | 0.7    | 0.7  | 0.7      |
+| 4224 (3)        | 1.0  | 1.0 | 1.3   | 1.3    | 1.3  | 1.3      |
+| 4221 (2)        | 1.0  | 0   | 1.0   | 1.0    | 1.0  | 1.0      |
+| 4201 (4)        | 0.5  | 1.0 | 1.2   | 1.2    | 1.2  | 1.2      |
+
+- **Merging works:** merging two reviews beats either alone. The key score rises from 5.3 to 6.3 of 16, runs that missed everything on a flagged PR fall from 4 to 1, and verdicts improve from 15 to 17 of 21. The one remaining all-miss is 4225 v1, where both reviewers approved with no findings.
+- **The merge model barely matters for recall:** the deterministic union scores the same, because the gains come from combining the reviews, not from rewriting them. The model adds a single readable summary and collapses duplicates across anchors; the fallback keeps both summaries under reviewer headings.
+- **Remaining errors:** both reviewers raised the same overstated 4172 point, so every merge keeps it. 4208 merges approve, because both reviewers approved and the FTS point was only a suggestion.
+- **Choice of merge model:** Haiku is cheapest but returned malformed JSON once, which the fallback absorbed. Sonnet was the only model that never dropped anything, at about $0.014 a merge. Luna dropped one distinct suggestion and one summary-only point.

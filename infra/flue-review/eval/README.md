@@ -53,3 +53,7 @@ Each key item scores 1 when a review finds it clearly, 0.5 when it finds part of
 ## Context variants
 
 `--variant` sets `REVIEW_CONTEXT_VARIANT` on the servers. With `issue`, the runner fetches the issues each PR closes (title and body, no comments) with `gh` and passes them in the workflow payload, and the workflow renders them as an untrusted "Linked issue" section after the description. With `issue+framing`, the context also asks the reviewer to establish, before enumerating candidates, whether the change fixes what was reported, whether its claims are true, whether the same problem exists elsewhere, and what the tests cannot catch. Without the variant setting, the workflow ignores linked issues and the context is unchanged.
+
+## Merging reviews
+
+`.flue/lib/review-merge.ts` merges independent reviews of one head. `node --import ./eval/ts-resolve.mjs eval/merge.ts --gateway-env <file> [--mergers haiku,sonnet,luna]` merges each Opus and Sol issue+framing pair from `eval/results` offline, with each merge model and the deterministic fallback, and writes `eval/results/merge/<pr>-<label>-<merger>.json`. `ts-resolve.mjs` lets Node load the `.flue` modules, which import siblings by `.js` names.
