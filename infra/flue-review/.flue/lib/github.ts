@@ -52,7 +52,7 @@ export interface GitHubRateLimitGate {
 	): Promise<void>;
 }
 
-class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
+class StubGitHubRateLimitGate implements GitHubRateLimitGate {
 	constructor(private readonly stub: DurableObjectStub) {}
 
 	async permit(category: string, consumer: string) {
@@ -101,7 +101,7 @@ class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
 }
 
 export function githubRateLimitGate(env: Env): GitHubRateLimitGate {
-	return new ExternalGitHubRateLimitGate(
+	return new StubGitHubRateLimitGate(
 		env.GITHUB_RATE_LIMIT.getByName(`installation:${env.GITHUB_APP_INSTALLATION_ID}`),
 	);
 }
@@ -612,6 +612,7 @@ export async function removePullRequestLabel(
 	repo: string,
 	prNumber: number,
 	label: string,
+	signal?: AbortSignal,
 ): Promise<void> {
 	const res = await coordinatedFetch(
 		token,
@@ -619,9 +620,48 @@ export async function removePullRequestLabel(
 		{
 			method: "DELETE",
 			headers: installationHeaders(token),
+			signal,
 		},
 	);
 	if (res.status !== 404) await requireGitHubResponse(res, "remove pull request label");
+}
+
+export async function getPullRequestLabels(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+	signal?: AbortSignal,
+): Promise<string[]> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/labels?per_page=100`,
+		{ headers: installationHeaders(token), signal },
+	);
+	await requireGitHubResponse(res, "get pull request labels");
+	const labels = await res.json<Array<{ name?: string }>>();
+	return labels.flatMap((label) => (label.name ? [label.name] : []));
+}
+
+export async function addPullRequestLabel(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+	label: string,
+	signal?: AbortSignal,
+): Promise<void> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/labels`,
+		{
+			method: "POST",
+			headers: installationHeaders(token),
+			body: JSON.stringify({ labels: [label] }),
+			signal,
+		},
+	);
+	await requireGitHubResponse(res, "add pull request label");
 }
 
 export async function fetchRepositoryTarball(
