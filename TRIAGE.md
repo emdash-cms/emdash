@@ -82,7 +82,7 @@ The autofix bot works only on issues and PRs a maintainer hands to it. Organizat
 
 The bot reads comments and reviews from maintainers, EmDashBot's reviews, and comments from the issue's reporter on that issue. It ignores comments from anyone else.
 
-The bot can also take on new issues by itself (auto-intake): it triages each new issue, declines likely spam, feature requests, questions, and large changes, and works on clear, small bugs and tasks. Auto-intake is switched off in this repository, so the bot only works on issues a maintainer hands to it.
+The bot also takes on new issues by itself (auto-intake): it triages each new issue, declines likely spam, feature requests, questions, and large changes, and works on clear, small bugs and tasks. A maintainer can still hand it any issue with the `bot:fix` label.
 
 The bot works on a branch named `emdash-bot/issue-<number>` and opens its PR ready for review. It keeps one progress comment with its plan and status, on the issue until the PR opens and on the PR after that. On the PR's head commit it keeps an `EmDash bot` check run, which is in progress while the bot works, succeeds when the PR is ready for human review, and is otherwise neutral; it never fails. EmDashBot reviews every push the bot makes to its own PR. The bot responds to review findings, maintainer reviews and comments, failing checks, and merge conflicts until the PR is ready for human review. When the PR's preview is up, the bot asks the reporter on the issue to try it.
 
