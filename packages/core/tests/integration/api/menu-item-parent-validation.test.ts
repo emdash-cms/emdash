@@ -31,8 +31,10 @@ interface TestItem {
 describeEachDialect("menu item parent validation", (dialect) => {
 	let ctx: DialectTestContext;
 	let db: Kysely<Database>;
+	let nextSortOrder: number;
 
 	beforeEach(async () => {
+		nextSortOrder = 0;
 		ctx = await setupForDialect(dialect);
 		db = ctx.db;
 		const menu = await handleMenuCreate(db, { name: "primary", label: "Primary" });
@@ -47,6 +49,7 @@ describeEachDialect("menu item parent validation", (dialect) => {
 		const result = await handleMenuItemCreate(db, "primary", {
 			...itemInput(label),
 			parentId,
+			sortOrder: nextSortOrder++,
 		});
 		expect(result.success).toBe(true);
 		if (!result.success) throw new Error(result.error.message);
@@ -225,25 +228,29 @@ describeEachDialect("menu item parent validation", (dialect) => {
 		expect(menu?.items[0]?.children[0]?.id).toBe(b.id);
 	});
 
-	it("allows full admin reorder batches with unchanged deleted-parent links", async () => {
-		const a = await createItem("A");
-		const b = await createItem("B", a.id);
-		const c = await createItem("C", b.id);
-		await db.deleteFrom("_emdash_menu_items").where("id", "=", a.id).execute();
-		const result = await reorder([
-			{ ...b, sortOrder: 3 },
-			{ ...c, sortOrder: 2 },
-		]);
-		expect(result.success).toBe(true);
-		const edited = await handleMenuItemUpdate(db, "primary", c.id, {
-			label: "Edited",
-			parentId: b.id,
-		});
-		expect(edited.success).toBe(true);
-		const menu = await getMenuWithDb("primary", db);
-		expect(menu?.items[0]?.id).toBe(b.id);
-		expect(menu?.items[0]?.children[0]?.label).toBe("Edited");
-	});
+	// PostgreSQL retains the parent FK cascade, so deletion cannot leave this legacy state.
+	it.skipIf(dialect === "postgres")(
+		"allows full admin reorder batches with unchanged deleted-parent links",
+		async () => {
+			const a = await createItem("A");
+			const b = await createItem("B", a.id);
+			const c = await createItem("C", b.id);
+			await db.deleteFrom("_emdash_menu_items").where("id", "=", a.id).execute();
+			const result = await reorder([
+				{ ...b, sortOrder: 3 },
+				{ ...c, sortOrder: 2 },
+			]);
+			expect(result.success).toBe(true);
+			const edited = await handleMenuItemUpdate(db, "primary", c.id, {
+				label: "Edited",
+				parentId: b.id,
+			});
+			expect(edited.success).toBe(true);
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu?.items[0]?.id).toBe(b.id);
+			expect(menu?.items[0]?.children[0]?.label).toBe("Edited");
+		},
+	);
 
 	it("allows full admin reorder batches with untouched legacy cycles", async () => {
 		const a = await createItem("A");
