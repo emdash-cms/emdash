@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { fallbackMerge, mergeReviews, type ReviewerResult } from "../.flue/lib/review-merge.js";
+import {
+	buildMergePrompt,
+	fallbackMerge,
+	mergeReviews,
+	withReviewFooter,
+	type ReviewerResult,
+} from "../.flue/lib/review-merge.js";
 import type { ReviewResult } from "../.flue/lib/review-schema.js";
 
 type Finding = ReviewResult["findings"][number];
@@ -130,6 +136,55 @@ describe("mergeReviews", () => {
 			findings: [cacheGate, cacheGateAgain, changeset],
 		}));
 		expect(outcome.uncoveredInputs).toEqual([{ reviewer: "opus", finding: testGap }]);
+	});
+});
+
+describe("re-review merges", () => {
+	const priorReview = [
+		"Your previous review (state: COMMENTED):",
+		"",
+		"### Your inline findings, newest first, with the replies to each",
+		"",
+		"- tests/settings.test.ts:608 The test sets the flag by hand.",
+		"  - author: Fixed in the latest push; the test now drives a real fill.",
+	].join("\n");
+
+	it("gives the merge the prior-review context and the no-resurrection rule", () => {
+		const prompt = buildMergePrompt([opus, sol], { priorReview });
+		expect(prompt).toContain("This is a re-review. Do not resurrect a finding");
+		expect(prompt).toContain("Fixed in the latest push");
+		expect(buildMergePrompt([opus, sol])).not.toContain("re-review");
+	});
+
+	it("accepts a merge that drops a finding the author already resolved", async () => {
+		let prompt = "";
+		const outcome = await mergeReviews(
+			[opus, sol],
+			async (text) => {
+				prompt = text;
+				return {
+					verdict: "comment",
+					summary: "The cache gate is still open; the test gap was fixed.",
+					findings: [cacheGate, changeset],
+				};
+			},
+			{ priorReview },
+		);
+		expect(prompt).toContain("## Prior review context");
+		expect(outcome.source).toBe("merged");
+		expect(outcome.result.findings).toEqual([cacheGate, changeset]);
+		expect(outcome.uncoveredInputs).toContainEqual({ reviewer: "opus", finding: testGap });
+	});
+});
+
+describe("withReviewFooter", () => {
+	it("appends the footer and keeps the summary within the limit", () => {
+		const result = withReviewFooter(
+			{ verdict: "comment", summary: "x".repeat(8_000), findings: [] },
+			"Reviewed by a and b.",
+		);
+		expect(result.summary.length).toBeLessThanOrEqual(8_000);
+		expect(result.summary.endsWith("\n\n---\nReviewed by a and b.")).toBe(true);
 	});
 });
 

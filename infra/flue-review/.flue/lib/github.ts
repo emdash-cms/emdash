@@ -7,10 +7,11 @@
 // installation access token (valid ~1h, scoped to the installation's repos and
 // the app's permissions), and use that token for reads and for posting the
 // review. The app needs `pull_requests: write`, `checks: write`, and
-// `contents: read`.
+// `contents: read`; `issues: read` lets the review include the linked issue.
 
 import { limitUtf8Text } from "./byte-budget.js";
 import type { PullRequestRevision, ReviewHeadMove } from "./review-head.js";
+import { MAX_LINKED_ISSUES, type LinkedIssue } from "./review-linked-issues.js";
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
@@ -976,6 +977,70 @@ export async function fetchAcceptedDesign(
 		return proposals.length > 0 ? { prNumber, proposals } : undefined;
 	} catch {
 		return undefined;
+	}
+}
+
+const LINKED_ISSUES_QUERY = `query($owner: String!, $repo: String!, $number: Int!, $first: Int!) {
+	repository(owner: $owner, name: $repo) {
+		pullRequest(number: $number) {
+			closingIssuesReferences(first: $first) {
+				nodes { number title body repository { nameWithOwner } }
+			}
+		}
+	}
+}`;
+
+interface ClosingIssuesResponse {
+	data?: {
+		repository?: {
+			pullRequest?: {
+				closingIssuesReferences?: {
+					nodes?: Array<{
+						number?: number;
+						title?: string;
+						body?: string | null;
+						repository?: { nameWithOwner?: string };
+					} | null>;
+				};
+			};
+		};
+	};
+}
+
+/**
+ * Title and body (no comments) of the issues in this repository that the PR
+ * says it closes. Empty when there are none or the lookup fails: the review
+ * proceeds without them.
+ */
+export async function fetchLinkedIssues(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<LinkedIssue[]> {
+	try {
+		const res = await coordinatedFetch(token, `${GITHUB_API}/graphql`, {
+			method: "POST",
+			headers: installationHeaders(token),
+			body: JSON.stringify({
+				query: LINKED_ISSUES_QUERY,
+				variables: { owner, repo, number: prNumber, first: MAX_LINKED_ISSUES },
+			}),
+		});
+		if (!res.ok) return [];
+		const body = await res.json<ClosingIssuesResponse>();
+		const nodes = body.data?.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
+		const sameRepo = `${owner}/${repo}`.toLowerCase();
+		return nodes.flatMap((node) =>
+			node &&
+			typeof node.number === "number" &&
+			typeof node.title === "string" &&
+			node.repository?.nameWithOwner?.toLowerCase() === sameRepo
+				? [{ number: node.number, title: node.title, body: node.body ?? "" }]
+				: [],
+		);
+	} catch {
+		return [];
 	}
 }
 

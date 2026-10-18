@@ -3,9 +3,12 @@ import { resetProviderRuntime, resolveModel } from "@flue/runtime/internal";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+	completeWithGateway,
+	DEFAULT_MERGE_MODEL,
 	DEFAULT_REVIEW_MODEL,
 	registerGatewayProviders,
 	reviewModel,
+	reviewPlan,
 } from "../.flue/lib/review-model.js";
 
 const GATEWAY = {
@@ -24,6 +27,47 @@ describe("reviewModel", () => {
 		expect(reviewModel({ REVIEW_MODEL: "anthropic/claude-opus-5-5" })).toBe(
 			"anthropic/claude-opus-5-5",
 		);
+	});
+});
+
+describe("reviewPlan", () => {
+	it("reviews with Kimi alone and no merge without the gateway", () => {
+		expect(reviewPlan({})).toEqual({ reviewers: [DEFAULT_REVIEW_MODEL] });
+		expect(reviewPlan({ ...GATEWAY, AI_GATEWAY_NAME: "" })).toEqual({
+			reviewers: [DEFAULT_REVIEW_MODEL],
+		});
+	});
+
+	it("defaults to Opus and Sol merged by Sonnet with the gateway", () => {
+		expect(reviewPlan(GATEWAY)).toEqual({
+			reviewers: ["anthropic/claude-opus-5-5", "openai/gpt-6.1-sol"],
+			mergeModel: DEFAULT_MERGE_MODEL,
+		});
+		expect(DEFAULT_MERGE_MODEL).toBe("anthropic/claude-sonnet-5-5");
+	});
+
+	it("reads the reviewer list and merge model from configuration", () => {
+		expect(
+			reviewPlan({
+				...GATEWAY,
+				REVIEW_MODELS: " openai/gpt-6.1-sol, anthropic/claude-opus-5-5,,openai/gpt-6.1-sol ",
+				REVIEW_MERGE_MODEL: "openai/gpt-5.6-luna",
+			}),
+		).toEqual({
+			reviewers: ["openai/gpt-6.1-sol", "anthropic/claude-opus-5-5"],
+			mergeModel: "openai/gpt-5.6-luna",
+		});
+		expect(reviewPlan({ ...GATEWAY, REVIEW_MODEL: "anthropic/claude-opus-5-5" }).reviewers).toEqual(
+			["anthropic/claude-opus-5-5"],
+		);
+	});
+
+	it("adds the Kimi fallback only when enabled", () => {
+		expect(reviewPlan({ ...GATEWAY, REVIEW_KIMI_FALLBACK: "1" }).fallbackReviewer).toBe(
+			DEFAULT_REVIEW_MODEL,
+		);
+		expect(reviewPlan({ ...GATEWAY, REVIEW_KIMI_FALLBACK: "0" }).fallbackReviewer).toBeUndefined();
+		expect(reviewPlan({ REVIEW_KIMI_FALLBACK: "1" }).fallbackReviewer).toBeUndefined();
 	});
 });
 
@@ -56,6 +100,10 @@ describe("registerGatewayProviders", () => {
 			{ thinking: { type: "adaptive" }, output_config: { effort: "medium" } },
 		],
 		[
+			"anthropic/claude-sonnet-5-5",
+			{ thinking: { type: "adaptive" }, output_config: { effort: "medium" } },
+		],
+		[
 			"openai/gpt-6.1-sol",
 			{ reasoning: { effort: "medium" }, include: ["reasoning.encrypted_content"] },
 		],
@@ -82,5 +130,84 @@ describe("registerGatewayProviders", () => {
 			vi.unstubAllGlobals();
 		}
 		expect(bodies[0]).toMatchObject(expected);
+	});
+});
+
+describe("completeWithGateway", () => {
+	function stubAnthropic(response: Response) {
+		const requests: Array<{ url: string; body: unknown; headers: Headers }> = [];
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const request = new Request(input, init);
+				requests.push({
+					url: request.url,
+					body: JSON.parse(await request.text()),
+					headers: request.headers,
+				});
+				return response;
+			}),
+		);
+		return requests;
+	}
+
+	afterEach(() => vi.unstubAllGlobals());
+
+	it("sends one tool-less request at low effort through the gateway", async () => {
+		const sse = [
+			'event: message_start\ndata: {"type":"message_start","message":{"id":"m","type":"message","role":"assistant","model":"claude-sonnet-5-5","content":[],"stop_reason":null,"usage":{"input_tokens":1000,"output_tokens":1}}}',
+			'event: content_block_start\ndata: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}',
+			'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"{\\"verdict\\":\\"approve\\"}"}}',
+			'event: content_block_stop\ndata: {"type":"content_block_stop","index":0}',
+			'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":100}}',
+			'event: message_stop\ndata: {"type":"message_stop"}',
+		].join("\n\n");
+		const requests = stubAnthropic(
+			new Response(`${sse}\n\n`, { headers: { "content-type": "text/event-stream" } }),
+		);
+		const { text, usage } = await completeWithGateway(
+			GATEWAY,
+			"anthropic/claude-sonnet-5-5",
+			"Merge these reviews.",
+			{ reasoning: "low" },
+		);
+		expect(text).toBe('{"verdict":"approve"}');
+		expect(usage.output).toBe(100);
+		expect(usage.cost.total).toBeCloseTo((1000 * 2 + 100 * 10) / 1_000_000);
+		const [request] = requests;
+		expect(request?.url).toBe(
+			"https://gateway.ai.cloudflare.com/v1/account/gateway/anthropic/v1/messages",
+		);
+		expect(request?.headers.get("cf-aig-authorization")).toBe("Bearer token");
+		expect(request?.body).toMatchObject({
+			model: "claude-sonnet-5-5",
+			thinking: { type: "adaptive" },
+			output_config: { effort: "low" },
+		});
+		expect(request?.body).not.toHaveProperty("tools");
+	});
+
+	it("throws the provider error so capacity errors can be retried", async () => {
+		stubAnthropic(
+			new Response(
+				JSON.stringify({
+					type: "error",
+					error: { type: "overloaded_error", message: "Overloaded" },
+				}),
+				{ status: 529 },
+			),
+		);
+		await expect(
+			completeWithGateway(GATEWAY, "anthropic/claude-sonnet-5-5", "Merge."),
+		).rejects.toThrow(/overloaded/i);
+	});
+
+	it("refuses models outside the gateway", async () => {
+		await expect(completeWithGateway(GATEWAY, DEFAULT_REVIEW_MODEL, "Merge.")).rejects.toThrow(
+			/not an AI Gateway model/,
+		);
+		await expect(completeWithGateway({}, "anthropic/claude-sonnet-5-5", "Merge.")).rejects.toThrow(
+			/settings are missing/,
+		);
 	});
 });

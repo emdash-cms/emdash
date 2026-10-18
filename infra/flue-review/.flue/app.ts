@@ -48,7 +48,8 @@ const app = new Hono<{ Bindings: Env }>();
 // webhook secret. Note: the FlueRegistry DO was reset 2026-06-21, so history
 // only goes back to then.
 app.get("/webhook/admin/runs", async (c) => {
-	if (c.req.header("x-admin-token") !== c.env.GITHUB_WEBHOOK_SECRET) {
+	const secret = c.env.GITHUB_WEBHOOK_SECRET;
+	if (!secret || c.req.header("x-admin-token") !== secret) {
 		return c.text("unauthorized", 401);
 	}
 	const statusParam = c.req.query("status");

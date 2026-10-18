@@ -1,9 +1,20 @@
 import { anthropicMessagesApi, openAIResponsesApi } from "@earendil-works/pi-ai/compat";
-import type { Api, Model, ProviderStreams } from "@earendil-works/pi-ai/compat";
+import type {
+	Api,
+	Model,
+	ProviderStreams,
+	ThinkingLevel,
+	Usage,
+} from "@earendil-works/pi-ai/compat";
 import { registerApiProvider, registerProvider } from "@flue/runtime";
 
 // Kimi K2.7 Code via the Workers AI binding: no model API key needed.
 export const DEFAULT_REVIEW_MODEL = "cloudflare/@cf/moonshotai/kimi-k2.7-code";
+export const DEFAULT_GATEWAY_REVIEWERS = [
+	"anthropic/claude-opus-5-5",
+	"openai/gpt-6.1-sol",
+] as const;
+export const DEFAULT_MERGE_MODEL = "anthropic/claude-sonnet-5-5";
 
 // Keeps vendor models within the same compaction budget as the default model,
 // so model comparisons do not also compare context sizes.
@@ -11,6 +22,9 @@ const GATEWAY_MODEL_LIMITS = { contextWindow: 262_144, maxTokens: 64_000 };
 
 export interface ReviewModelEnv {
 	readonly REVIEW_MODEL?: string;
+	readonly REVIEW_MODELS?: string;
+	readonly REVIEW_MERGE_MODEL?: string;
+	readonly REVIEW_KIMI_FALLBACK?: string;
 	readonly AI_GATEWAY_ACCOUNT_ID?: string;
 	readonly AI_GATEWAY_NAME?: string;
 	readonly AI_GATEWAY_TOKEN?: string;
@@ -20,65 +34,129 @@ export function reviewModel(env: ReviewModelEnv): string {
 	return env.REVIEW_MODEL?.trim() || DEFAULT_REVIEW_MODEL;
 }
 
+export interface ReviewPlan {
+	/** Models that each review the PR independently, in order. */
+	readonly reviewers: readonly string[];
+	/** Tool-less model that merges two or more reviews; absent without the gateway. */
+	readonly mergeModel?: string;
+	/** Model to review with when every reviewer fails; absent unless enabled. */
+	readonly fallbackReviewer?: string;
+}
+
+function hasGateway(env: ReviewModelEnv): boolean {
+	return Boolean(env.AI_GATEWAY_ACCOUNT_ID && env.AI_GATEWAY_NAME && env.AI_GATEWAY_TOKEN);
+}
+
+function modelList(value: string | undefined): string[] {
+	const models = (value ?? "")
+		.split(",")
+		.map((model) => model.trim())
+		.filter(Boolean);
+	return [...new Set(models)];
+}
+
+/**
+ * Which models review a PR. `REVIEW_MODELS` wins, then a single `REVIEW_MODEL`,
+ * then the default gateway pair when the gateway is configured, then Kimi alone.
+ */
+export function reviewPlan(env: ReviewModelEnv): ReviewPlan {
+	const gateway = hasGateway(env);
+	const configured = modelList(env.REVIEW_MODELS);
+	const reviewers =
+		configured.length > 0
+			? configured
+			: env.REVIEW_MODEL?.trim()
+				? [reviewModel(env)]
+				: gateway
+					? [...DEFAULT_GATEWAY_REVIEWERS]
+					: [DEFAULT_REVIEW_MODEL];
+	const fallbackEnabled = env.REVIEW_KIMI_FALLBACK === "1" || env.REVIEW_KIMI_FALLBACK === "true";
+	return {
+		reviewers,
+		...(gateway ? { mergeModel: env.REVIEW_MERGE_MODEL?.trim() || DEFAULT_MERGE_MODEL } : {}),
+		...(fallbackEnabled && !reviewers.includes(DEFAULT_REVIEW_MODEL)
+			? { fallbackReviewer: DEFAULT_REVIEW_MODEL }
+			: {}),
+	};
+}
+
 // The bundled catalog predates these models, so Flue would build them as
 // zero-metadata, non-reasoning models and the wire protocols would drop the
 // agent's thinking level. These wrappers restore the catalog metadata the
 // AI Gateway catalog publishes for them before delegating to the stock protocol.
-type GatewayModelId = "claude-opus-5-5" | "gpt-6.1-sol";
+type GatewayProvider = "anthropic" | "openai";
 
-const GATEWAY_MODELS: Record<
-	GatewayModelId,
-	{ api: Api; streams: ProviderStreams; metadata: Partial<Model<Api>> }
-> = {
+const ANTHROPIC_COMPAT = {
+	sendSessionAffinityHeaders: true,
+	forceAdaptiveThinking: true,
+	supportsTemperature: false,
+};
+
+const GATEWAY_MODELS: Record<string, Partial<Model<Api>>> = {
 	"claude-opus-5-5": {
-		api: "anthropic-messages",
-		streams: anthropicMessagesApi(),
-		metadata: {
-			reasoning: true,
-			input: ["text", "image"],
-			cost: { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
-			thinkingLevelMap: { xhigh: "xhigh", max: "max" },
-			compat: {
-				sendSessionAffinityHeaders: true,
-				forceAdaptiveThinking: true,
-				supportsTemperature: false,
-			},
-		},
+		reasoning: true,
+		input: ["text", "image"],
+		cost: { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
+		thinkingLevelMap: { xhigh: "xhigh", max: "max" },
+		compat: ANTHROPIC_COMPAT,
+	},
+	"claude-sonnet-5-5": {
+		reasoning: true,
+		input: ["text", "image"],
+		cost: { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+		thinkingLevelMap: { xhigh: "xhigh", max: "max" },
+		compat: ANTHROPIC_COMPAT,
 	},
 	"gpt-6.1-sol": {
-		api: "openai-responses",
-		streams: openAIResponsesApi(),
-		metadata: {
-			reasoning: true,
-			input: ["text", "image"],
-			cost: { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
-			thinkingLevelMap: {
-				off: null,
-				minimal: null,
-				low: "low",
-				medium: "medium",
-				high: "high",
-				xhigh: "xhigh",
-				max: "max",
-			},
-			compat: { supportsStrictMode: true },
+		reasoning: true,
+		input: ["text", "image"],
+		cost: { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
+		thinkingLevelMap: {
+			off: null,
+			minimal: null,
+			low: "low",
+			medium: "medium",
+			high: "high",
+			xhigh: "xhigh",
+			max: "max",
 		},
+		compat: { supportsStrictMode: true },
 	},
+};
+
+const GATEWAY_PROTOCOLS: Record<GatewayProvider, { api: Api; streams: () => ProviderStreams }> = {
+	anthropic: { api: "anthropic-messages", streams: anthropicMessagesApi },
+	openai: { api: "openai-responses", streams: openAIResponsesApi },
 };
 
 const GATEWAY_API_PREFIX = "review-gateway:";
 
-function registerReasoningApi(modelId: GatewayModelId): string {
-	const { api, streams, metadata } = GATEWAY_MODELS[modelId];
-	const withMetadata = (model: Model<Api>): Model<Api> => ({ ...model, ...metadata, api });
-	const wrapped: ProviderStreams = {
-		stream: (model, context, options) => streams.stream(withMetadata(model), context, options),
+function withMetadata(model: Model<Api>, api: Api): Model<Api> {
+	return { ...model, ...GATEWAY_MODELS[model.id], api };
+}
+
+function registerReasoningApi(provider: GatewayProvider): string {
+	const { api, streams: createStreams } = GATEWAY_PROTOCOLS[provider];
+	const streams = createStreams();
+	const name = `${GATEWAY_API_PREFIX}${provider}`;
+	registerApiProvider({
+		api: name,
+		stream: (model, context, options) => streams.stream(withMetadata(model, api), context, options),
 		streamSimple: (model, context, options) =>
-			streams.streamSimple(withMetadata(model), context, options),
-	};
-	const name = `${GATEWAY_API_PREFIX}${modelId}`;
-	registerApiProvider({ api: name, ...wrapped });
+			streams.streamSimple(withMetadata(model, api), context, options),
+	});
 	return name;
+}
+
+function gatewayBase(env: ReviewModelEnv): string {
+	return `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(env.AI_GATEWAY_ACCOUNT_ID ?? "")}/${encodeURIComponent(env.AI_GATEWAY_NAME ?? "")}`;
+}
+
+function gatewayHeaders(env: ReviewModelEnv): Record<string, string> {
+	return {
+		"cf-aig-authorization": `Bearer ${env.AI_GATEWAY_TOKEN ?? ""}`,
+		"cf-aig-skip-cache": "true",
+	};
 }
 
 /**
@@ -89,28 +167,88 @@ function registerReasoningApi(modelId: GatewayModelId): string {
  * nothing, unless all three gateway settings are present.
  */
 export function registerGatewayProviders(env: ReviewModelEnv): boolean {
-	const accountId = env.AI_GATEWAY_ACCOUNT_ID;
-	const gatewayId = env.AI_GATEWAY_NAME;
-	const token = env.AI_GATEWAY_TOKEN;
-	if (!accountId || !gatewayId || !token) return false;
-	const base = `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(accountId)}/${encodeURIComponent(gatewayId)}`;
-	const headers = {
-		"cf-aig-authorization": `Bearer ${token}`,
-		"cf-aig-skip-cache": "true",
-	};
-	registerProvider("anthropic", {
-		api: registerReasoningApi("claude-opus-5-5"),
-		baseUrl: `${base}/anthropic`,
-		apiKey: token,
-		headers,
-		models: { "claude-opus-5-5": GATEWAY_MODEL_LIMITS },
-	});
-	registerProvider("openai", {
-		api: registerReasoningApi("gpt-6.1-sol"),
-		baseUrl: `${base}/openai`,
-		apiKey: token,
-		headers,
-		models: { "gpt-6.1-sol": GATEWAY_MODEL_LIMITS },
-	});
+	if (!hasGateway(env)) return false;
+	for (const provider of ["anthropic", "openai"] as const) {
+		registerProvider(provider, {
+			api: registerReasoningApi(provider),
+			baseUrl: `${gatewayBase(env)}/${provider}`,
+			apiKey: env.AI_GATEWAY_TOKEN,
+			headers: gatewayHeaders(env),
+			...GATEWAY_MODEL_LIMITS,
+		});
+	}
 	return true;
+}
+
+function isGatewayProvider(value: string): value is GatewayProvider {
+	return value === "anthropic" || value === "openai";
+}
+
+function parseGatewaySpecifier(specifier: string): { provider: GatewayProvider; id: string } {
+	const slash = specifier.indexOf("/");
+	const provider = specifier.slice(0, slash);
+	const id = specifier.slice(slash + 1);
+	if (slash <= 0 || !id || !isGatewayProvider(provider)) {
+		throw new Error(`${specifier} is not an AI Gateway model`);
+	}
+	return { provider, id };
+}
+
+/** The gateway model for an `anthropic/...` or `openai/...` specifier, outside any Flue session. */
+export function gatewayModel(env: ReviewModelEnv, specifier: string): Model<Api> {
+	if (!hasGateway(env)) throw new Error("AI Gateway settings are missing");
+	const { provider, id } = parseGatewaySpecifier(specifier);
+	const { api } = GATEWAY_PROTOCOLS[provider];
+	return withMetadata(
+		{
+			id,
+			name: id,
+			api,
+			provider,
+			baseUrl: `${gatewayBase(env)}/${provider}`,
+			headers: gatewayHeaders(env),
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			...GATEWAY_MODEL_LIMITS,
+		},
+		api,
+	);
+}
+
+export interface GatewayCompletion {
+	readonly text: string;
+	readonly usage: Usage;
+}
+
+/**
+ * One tool-less request to a gateway model. Runs outside Flue's agent loop so
+ * the model has no access to the sandbox's tools.
+ */
+export async function completeWithGateway(
+	env: ReviewModelEnv,
+	specifier: string,
+	prompt: string,
+	options: { signal?: AbortSignal; reasoning?: ThinkingLevel } = {},
+): Promise<GatewayCompletion> {
+	const model = gatewayModel(env, specifier);
+	const { streams } = GATEWAY_PROTOCOLS[parseGatewaySpecifier(specifier).provider];
+	const message = await streams()
+		.streamSimple(
+			model,
+			{ messages: [{ role: "user", content: prompt, timestamp: Date.now() }] },
+			{
+				apiKey: env.AI_GATEWAY_TOKEN,
+				signal: options.signal,
+				...(options.reasoning ? { reasoning: options.reasoning } : {}),
+			},
+		)
+		.result();
+	if (message.stopReason === "error" || message.stopReason === "aborted") {
+		throw new Error(message.errorMessage || `${specifier} request failed`);
+	}
+	const text = message.content
+		.flatMap((block) => (block.type === "text" ? [block.text] : []))
+		.join("");
+	return { text, usage: message.usage };
 }

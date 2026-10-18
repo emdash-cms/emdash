@@ -4,6 +4,7 @@ import {
 	completeReviewCheck,
 	createReviewCheck,
 	fetchAcceptedDesign,
+	fetchLinkedIssues,
 	fetchPriorReview,
 	findReviewCheck,
 	classifyPullRequestHeadMove,
@@ -1213,5 +1214,68 @@ describe("fetchAcceptedDesign", () => {
 			),
 		).resolves.toBeUndefined();
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+});
+
+describe("fetchLinkedIssues", () => {
+	function stubClosingIssues(response: Response): ReturnType<typeof vi.fn<typeof fetch>> {
+		const fetchMock = vi.fn<typeof fetch>(async () => response);
+		vi.stubGlobal("fetch", fetchMock);
+		return fetchMock;
+	}
+
+	it("returns the title and body of issues in this repository the PR closes", async () => {
+		const fetchMock = stubClosingIssues(
+			Response.json({
+				data: {
+					repository: {
+						pullRequest: {
+							closingIssuesReferences: {
+								nodes: [
+									{
+										number: 12,
+										title: "Settings stay stale",
+										body: "Steps to reproduce.",
+										repository: { nameWithOwner: "emdash-cms/emdash" },
+									},
+									{
+										number: 3,
+										title: "Elsewhere",
+										body: "Not ours.",
+										repository: { nameWithOwner: "someone/fork" },
+									},
+									{
+										number: 13,
+										title: "No body",
+										body: null,
+										repository: { nameWithOwner: "Emdash-CMS/Emdash" },
+									},
+								],
+							},
+						},
+					},
+				},
+			}),
+		);
+
+		await expect(fetchLinkedIssues(TOKEN, "emdash-cms", "emdash", 7)).resolves.toEqual([
+			{ number: 12, title: "Settings stay stale", body: "Steps to reproduce." },
+			{ number: 13, title: "No body", body: "" },
+		]);
+		const [url, init] = fetchMock.mock.calls[0] ?? [];
+		expect(url).toBe("https://api.github.com/graphql");
+		expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${TOKEN}`);
+		const body = requestBody(fetchMock);
+		expect(body.query).toContain("closingIssuesReferences");
+		expect(body.query).not.toContain("comments");
+		expect(body.variables).toMatchObject({ owner: "emdash-cms", repo: "emdash", number: 7 });
+	});
+
+	it("returns nothing when the lookup fails", async () => {
+		stubClosingIssues(new Response("forbidden", { status: 403 }));
+		await expect(fetchLinkedIssues(TOKEN, "emdash-cms", "emdash", 7)).resolves.toEqual([]);
+
+		stubClosingIssues(Response.json({ errors: [{ message: "Resource not accessible" }] }));
+		await expect(fetchLinkedIssues(TOKEN, "emdash-cms", "emdash", 7)).resolves.toEqual([]);
 	});
 });

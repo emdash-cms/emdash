@@ -33,6 +33,8 @@ interface ModelSpec {
 	readonly key: string;
 	readonly model: string;
 	readonly gateway: boolean;
+	// Runs the production reviewer panel: `model` is the REVIEW_MODELS list.
+	readonly panel?: boolean;
 	// USD per million tokens: input, output, cache read, cache write.
 	readonly price: { input: number; output: number; cacheRead: number; cacheWrite: number };
 }
@@ -56,6 +58,13 @@ const MODELS: readonly ModelSpec[] = [
 		gateway: true,
 		price: { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
 	},
+	{
+		key: "panel",
+		model: "anthropic/claude-opus-5-5,openai/gpt-6.1-sol",
+		gateway: true,
+		panel: true,
+		price: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+	},
 ];
 
 const SHA = /^[0-9a-f]{40}$/;
@@ -64,8 +73,14 @@ const WORKER_NAME = /"name":\s*"emdash-flue-review"/;
 const REQUIRED_SECRETS = /"required":\s*\[[^\]]*\]/;
 
 const GATEWAY_KEYS = ["AI_GATEWAY_ACCOUNT_ID", "AI_GATEWAY_NAME", "AI_GATEWAY_TOKEN"] as const;
-const EVAL_SECRET_KEYS = ["REVIEW_EVAL", "REVIEW_MODEL", "REVIEW_CONTEXT_VARIANT", ...GATEWAY_KEYS];
-const VARIANTS = ["issue", "issue+framing"] as const;
+const EVAL_SECRET_KEYS = [
+	"REVIEW_EVAL",
+	"REVIEW_MODEL",
+	"REVIEW_MODELS",
+	"REVIEW_MERGE_MODEL",
+	"REVIEW_KIMI_FALLBACK",
+	...GATEWAY_KEYS,
+];
 
 const casesFileSchema = v.object({
 	owner: v.string(),
@@ -104,6 +119,7 @@ const tokenUsageSchema = v.looseObject({
 	output: v.optional(v.number(), 0),
 	cacheRead: v.optional(v.number(), 0),
 	cacheWrite: v.optional(v.number(), 0),
+	cost: v.optional(v.looseObject({ total: v.optional(v.number(), 0) })),
 });
 
 const eventsSchema = v.array(
@@ -138,6 +154,7 @@ interface Usage {
 	turns: number;
 	toolCalls: number;
 	compactions: number;
+	costUsd: number;
 }
 
 interface RunOutcome {
@@ -145,7 +162,6 @@ interface RunOutcome {
 	headSha: string;
 	model: string;
 	modelKey: string;
-	variant?: string;
 	runId?: string;
 	status: string;
 	attempt: number;
@@ -167,19 +183,17 @@ const { values: args } = parseArgs({
 		concurrency: { type: "string", default: "1" },
 		force: { type: "boolean", default: false },
 		"timeout-min": { type: "string", default: "45" },
-		variant: { type: "string" },
 		label: { type: "string" },
+		reviewers: { type: "string" },
+		"merge-model": { type: "string" },
 	},
 });
 
-const variant = v.parse(v.optional(v.picklist(VARIANTS)), args.variant);
-
 const label = v.parse(v.optional(v.pipe(v.string(), v.regex(LABEL))), args.label);
-const resultSuffix = [variant, label].filter(Boolean).join("-");
+const resultSuffix = label ?? "";
 
-// Scratch directories, Worker names and logs need a name without "+".
 function runKey(spec: ModelSpec): string {
-	return resultSuffix ? `${spec.key}-${resultSuffix.replace("+", "-")}` : spec.key;
+	return resultSuffix ? `${spec.key}-${resultSuffix}` : spec.key;
 }
 
 function resultPath(pr: number, spec: ModelSpec): string {
@@ -247,9 +261,10 @@ function linkedIssuesFor(file: CasesFile, pr: number): NonNullable<ReviewPayload
 	return issues;
 }
 
+// Production fetches the linked issues with its installation token; the
+// runner has none, so it supplies them in the payload.
 function payloadFor(file: CasesFile, evalCase: EvalCase): ReviewPayload {
-	const base = basePayloadFor(file, evalCase);
-	return variant ? { ...base, linkedIssues: linkedIssuesFor(file, evalCase.pr) } : base;
+	return { ...basePayloadFor(file, evalCase), linkedIssues: linkedIssuesFor(file, evalCase.pr) };
 }
 
 function basePayloadFor(file: CasesFile, evalCase: EvalCase): ReviewPayload {
@@ -323,8 +338,12 @@ function prepareWorkDir(spec: ModelSpec, gateway: Record<string, string> | undef
 	writeFileSync(join(dir, "wrangler.jsonc"), evalWranglerConfig(runKey(spec)));
 	const vars: Record<string, string> = {
 		REVIEW_EVAL: "1",
-		REVIEW_MODEL: spec.model,
-		...(variant ? { REVIEW_CONTEXT_VARIANT: variant } : {}),
+		...(spec.panel
+			? {
+					REVIEW_MODELS: args.reviewers ?? spec.model,
+					...(args["merge-model"] ? { REVIEW_MERGE_MODEL: args["merge-model"] } : {}),
+				}
+			: { REVIEW_MODEL: spec.model }),
 		...(spec.gateway ? gateway : {}),
 	};
 	const devVars = Object.entries(vars)
@@ -423,6 +442,7 @@ async function readUsage(base: string, runId: string, eventsPath: string): Promi
 		turns: 0,
 		toolCalls: 0,
 		compactions: 0,
+		costUsd: 0,
 	};
 	let offset = "-1";
 	for (let page = 0; page < 500; page++) {
@@ -446,6 +466,7 @@ async function readUsage(base: string, runId: string, eventsPath: string): Promi
 				usage.output += counted.output;
 				usage.cacheRead += counted.cacheRead;
 				usage.cacheWrite += counted.cacheWrite;
+				usage.costUsd += counted.cost?.total ?? 0;
 			}
 		}
 		const next = res.headers.get("stream-next-offset");
@@ -457,7 +478,10 @@ async function readUsage(base: string, runId: string, eventsPath: string): Promi
 	return usage;
 }
 
+// A panel mixes models, so it reports the cost Flue recorded per turn; the
+// merge call runs outside Flue and is logged by the workflow instead.
 function cost(spec: ModelSpec, usage: Usage): number {
+	if (spec.panel) return usage.costUsd;
 	const { price } = spec;
 	return (
 		(usage.input * price.input +
@@ -490,7 +514,6 @@ async function runOnce(
 		headSha: payload.headSha,
 		model: spec.model,
 		modelKey: spec.key,
-		variant,
 		runId: admission.runId,
 		status: "admission_failed",
 		attempt,
@@ -503,6 +526,7 @@ async function runOnce(
 			turns: 0,
 			toolCalls: 0,
 			compactions: 0,
+			costUsd: 0,
 		},
 		costUsd: 0,
 		finishedAt: "",

@@ -1,8 +1,12 @@
-// Optional settings for local model evaluation. Production sets none of them.
+// Optional review model settings. Production sets the AI_GATEWAY_* secrets to
+// review with the gateway models; REVIEW_EVAL and REVIEW_MODEL are for local
+// evaluation only.
 interface ReviewEvalEnv {
 	REVIEW_MODEL?: string;
 	REVIEW_EVAL?: string;
-	REVIEW_CONTEXT_VARIANT?: string;
+	REVIEW_MODELS?: string;
+	REVIEW_MERGE_MODEL?: string;
+	REVIEW_KIMI_FALLBACK?: string;
 	AI_GATEWAY_ACCOUNT_ID?: string;
 	AI_GATEWAY_NAME?: string;
 	AI_GATEWAY_TOKEN?: string;
