@@ -1398,17 +1398,16 @@ export class BylineRepository {
 		// actually lands in the junction. Deduping by wire row id BEFORE
 		// resolving would let two locale siblings of the same byline slip
 		// through and trigger a UNIQUE(collection, content, byline_id)
-		// failure at insert time. A single SELECT keeps this O(1) DB
-		// calls regardless of how many credits are being set.
+		// failure at insert time.
 		const idToGroup = new Map<string, string>();
-		if (inputBylines.length > 0) {
-			const wireIds = [...new Set(inputBylines.map((item) => item.bylineId))];
+		const wireIds = [...new Set(inputBylines.map((item) => item.bylineId))];
+		for (const batch of chunks(wireIds, SQL_BATCH_SIZE)) {
 			const rows = await this.db
 				.selectFrom("_emdash_bylines")
 				.select(["id", "translation_group"])
-				.where("id", "in", wireIds)
+				.where("id", "in", batch)
 				.execute();
-			if (rows.length !== wireIds.length) {
+			if (rows.length !== batch.length) {
 				throw new Error("One or more byline IDs do not exist");
 			}
 			for (const row of rows) {

@@ -18,7 +18,7 @@ msgstr ""
 msgid " (default)"
 msgstr " (zadano)"
 
-#: packages/admin/src/components/MenuEditor.tsx:635
+#: packages/admin/src/components/MenuEditor.tsx:634
 msgid " (opens in new window)"
 msgstr " (otvara se u novom prozoru)"
 
@@ -1231,7 +1231,7 @@ msgstr "Aktivna v{0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:174
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
-#: packages/admin/src/components/MenuEditor.tsx:551
+#: packages/admin/src/components/MenuEditor.tsx:550
 msgid "Add"
 msgstr "Dodaj"
 
@@ -1300,14 +1300,14 @@ msgstr "Dodaj stupac iza"
 msgid "Add column before"
 msgstr "Dodaj stupac ispred"
 
-#: packages/admin/src/components/MenuEditor.tsx:482
-#: packages/admin/src/components/MenuEditor.tsx:607
+#: packages/admin/src/components/MenuEditor.tsx:481
+#: packages/admin/src/components/MenuEditor.tsx:606
 msgid "Add Content"
 msgstr "Dodaj sadržaj"
 
-#: packages/admin/src/components/MenuEditor.tsx:494
-#: packages/admin/src/components/MenuEditor.tsx:501
-#: packages/admin/src/components/MenuEditor.tsx:610
+#: packages/admin/src/components/MenuEditor.tsx:493
+#: packages/admin/src/components/MenuEditor.tsx:500
+#: packages/admin/src/components/MenuEditor.tsx:609
 msgid "Add Custom Link"
 msgstr "Dodaj prilagođenu poveznicu"
 
@@ -1368,7 +1368,7 @@ msgstr "Dodaj stavku"
 msgid "Add link"
 msgstr "Dodaj poveznicu"
 
-#: packages/admin/src/components/MenuEditor.tsx:600
+#: packages/admin/src/components/MenuEditor.tsx:599
 msgid "Add links to build your navigation menu"
 msgstr "Dodajte poveznice kako biste izradili navigacijski izbornik"
 
@@ -1520,7 +1520,7 @@ msgstr ""
 msgid "Added:"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:551
+#: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
 msgstr "Dodavanje..."
@@ -1537,7 +1537,7 @@ msgstr "Dodatni podatci za uvoz."
 msgid "Additional details"
 msgstr "Dodatni detalji"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:278
+#: packages/admin/src/components/settings/SeoSettings.tsx:279
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
 msgstr ""
 
@@ -2168,7 +2168,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:673
 #: packages/admin/src/components/MediaDetailPanel.tsx:1816
 #: packages/admin/src/components/MediaLibrary.tsx:747
-#: packages/admin/src/components/MenuEditor.tsx:405
+#: packages/admin/src/components/MenuEditor.tsx:404
 #: packages/admin/src/components/WordPressImport.tsx:1564
 #: packages/admin/src/components/WordPressImport.tsx:2581
 msgid "Back"
@@ -2213,7 +2213,7 @@ msgstr "Natrag na glavnu biblioteku"
 msgid "Back to marketplace"
 msgstr "Natrag na tržnicu"
 
-#: packages/admin/src/components/MenuEditor.tsx:403
+#: packages/admin/src/components/MenuEditor.tsx:402
 msgid "Back to menus"
 msgstr "Natrag na izbornike"
 
@@ -2286,8 +2286,8 @@ msgstr "Prije nego što nastavite:"
 msgid "Between {min} and {max}"
 msgstr "Između {min} i {max}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:256
+#: packages/admin/src/components/settings/SeoSettings.tsx:243
+#: packages/admin/src/components/settings/SeoSettings.tsx:257
 msgid "Bing Verification"
 msgstr "Bing verifikacija"
 
@@ -2521,9 +2521,9 @@ msgstr "Može pregledavati sadržaj"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1858
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1599
-#: packages/admin/src/components/MenuEditor.tsx:464
-#: packages/admin/src/components/MenuEditor.tsx:548
-#: packages/admin/src/components/MenuEditor.tsx:753
+#: packages/admin/src/components/MenuEditor.tsx:463
+#: packages/admin/src/components/MenuEditor.tsx:547
+#: packages/admin/src/components/MenuEditor.tsx:752
 #: packages/admin/src/components/MenuList.tsx:184
 #: packages/admin/src/components/PluginManager.tsx:808
 #: packages/admin/src/components/PortableTextEditor.tsx:5735
@@ -2666,7 +2666,7 @@ msgstr "Promijeni domenu"
 msgid "Change Favicon"
 msgstr "Promijeni favicon"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:212
+#: packages/admin/src/components/settings/SeoSettings.tsx:213
 msgid "Change Image"
 msgstr "Promijeni sliku"
 
@@ -2774,7 +2774,7 @@ msgstr ""
 msgid "Changes were saved, but cached pages may still show old {pluralLower}. Retry the cache refresh."
 msgstr "Promjene su spremljene, ali stranice u predmemoriji možda još prikazuju stare podatke ({pluralLower}). Ponovno pokušajte osvježiti predmemoriju."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:176
+#: packages/admin/src/components/settings/SeoSettings.tsx:177
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Znak između naslova stranice i naziva web-stranice (npr. „Moja objava | Moja web-stranica“)"
 
@@ -3056,15 +3056,15 @@ msgstr "Kliknite ovu poveznicu za prijavu na {siteName}:"
 #: packages/admin/src/components/MediaPickerModal.tsx:1010
 #: packages/admin/src/components/MediaPickerModal.tsx:1017
 #: packages/admin/src/components/MediaUploadDialog.tsx:237
-#: packages/admin/src/components/MenuEditor.tsx:433
-#: packages/admin/src/components/MenuEditor.tsx:439
-#: packages/admin/src/components/MenuEditor.tsx:443
-#: packages/admin/src/components/MenuEditor.tsx:504
-#: packages/admin/src/components/MenuEditor.tsx:510
-#: packages/admin/src/components/MenuEditor.tsx:514
-#: packages/admin/src/components/MenuEditor.tsx:699
-#: packages/admin/src/components/MenuEditor.tsx:705
-#: packages/admin/src/components/MenuEditor.tsx:709
+#: packages/admin/src/components/MenuEditor.tsx:432
+#: packages/admin/src/components/MenuEditor.tsx:438
+#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/MenuEditor.tsx:503
+#: packages/admin/src/components/MenuEditor.tsx:509
+#: packages/admin/src/components/MenuEditor.tsx:513
+#: packages/admin/src/components/MenuEditor.tsx:698
+#: packages/admin/src/components/MenuEditor.tsx:704
+#: packages/admin/src/components/MenuEditor.tsx:708
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/PortableTextEditor.tsx:2676
 #: packages/admin/src/components/PortableTextEditor.tsx:2682
@@ -3980,12 +3980,12 @@ msgstr "Obrezana kopija stvorena."
 msgid "CSS"
 msgstr "CSS"
 
-#: packages/admin/src/components/MenuEditor.tsx:540
-#: packages/admin/src/components/MenuEditor.tsx:738
+#: packages/admin/src/components/MenuEditor.tsx:539
+#: packages/admin/src/components/MenuEditor.tsx:737
 msgid "CSS classes"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:639
+#: packages/admin/src/components/MenuEditor.tsx:638
 msgid "CSS classes:"
 msgstr ""
 
@@ -4018,7 +4018,7 @@ msgstr "Prilagođeno"
 msgid "Custom Fields"
 msgstr "Prilagođena polja"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:271
+#: packages/admin/src/components/settings/SeoSettings.tsx:272
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Prilagođeni sadržaj datoteke robots.txt. Ostavite prazno za zadani sadržaj."
 
@@ -4098,12 +4098,12 @@ msgstr "Zadana uloga"
 msgid "Default role:"
 msgstr "Zadana uloga:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:190
+#: packages/admin/src/components/settings/SeoSettings.tsx:191
 msgid "Default social image"
 msgstr "Zadana slika za društvene mreže"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:46
-#: packages/admin/src/components/settings/SeoSettings.tsx:181
+#: packages/admin/src/components/settings/SeoSettings.tsx:182
 msgid "Default Social Image"
 msgstr "Zadana slika za društvene mreže"
 
@@ -4136,7 +4136,7 @@ msgstr "Definirano u kodu"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:363
 #: packages/admin/src/components/MediaDetailPanel.tsx:1827
 #: packages/admin/src/components/MediaDetailPanel.tsx:1931
-#: packages/admin/src/components/MenuEditor.tsx:672
+#: packages/admin/src/components/MenuEditor.tsx:671
 #: packages/admin/src/components/MenuList.tsx:235
 #: packages/admin/src/components/Redirects.tsx:616
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
@@ -4535,8 +4535,8 @@ msgstr "Onemogućivanjem korisnika <0>{0}</0> spriječit će se njegova prijava 
 msgid "Disabling..."
 msgstr "Onemogućivanje..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:276
-#: packages/admin/src/components/settings/SeoSettings.tsx:286
+#: packages/admin/src/components/settings/SeoSettings.tsx:277
+#: packages/admin/src/components/settings/SeoSettings.tsx:287
 msgid "Disallow AI training"
 msgstr ""
 
@@ -4889,7 +4889,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:352
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:353
 #: packages/admin/src/components/MenuCard.tsx:59
-#: packages/admin/src/components/MenuEditor.tsx:667
+#: packages/admin/src/components/MenuEditor.tsx:666
 #: packages/admin/src/components/Sections.tsx:439
 #: packages/admin/src/components/Shell.tsx:86
 #: packages/admin/src/components/TranslationsPanel.tsx:95
@@ -4997,11 +4997,11 @@ msgstr "Zaključavanje uređivanja"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Uređivanje alternativnog teksta, opisa i žarišnih točaka medija"
 
-#: packages/admin/src/components/MenuEditor.tsx:696
+#: packages/admin/src/components/MenuEditor.tsx:695
 msgid "Edit Menu Item"
 msgstr "Uredi stavku izbornika"
 
-#: packages/admin/src/components/MenuEditor.tsx:474
+#: packages/admin/src/components/MenuEditor.tsx:473
 msgid "Edit menu items"
 msgstr "Uredi stavke izbornika"
 
@@ -5313,8 +5313,8 @@ msgstr "Unesite prepoznatu vremensku zonu za spremanje"
 msgid "Enter a slug."
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:527
-#: packages/admin/src/components/MenuEditor.tsx:724
+#: packages/admin/src/components/MenuEditor.tsx:526
+#: packages/admin/src/components/MenuEditor.tsx:723
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Unesite URL (https://…) ili relativnu putanju (/…)"
 
@@ -5390,9 +5390,9 @@ msgstr "unos na povezanoj strani"
 msgid "entry on the linking side"
 msgstr "unos na strani koja povezuje"
 
-#: packages/admin/src/components/MenuEditor.tsx:159
-#: packages/admin/src/components/MenuEditor.tsx:227
-#: packages/admin/src/components/MenuEditor.tsx:267
+#: packages/admin/src/components/MenuEditor.tsx:158
+#: packages/admin/src/components/MenuEditor.tsx:226
+#: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:772
@@ -7020,8 +7020,8 @@ msgstr "Objavljuje se"
 msgid "Goes live {countdown}"
 msgstr "Objavljuje se {countdown}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:242
-#: packages/admin/src/components/settings/SeoSettings.tsx:248
+#: packages/admin/src/components/settings/SeoSettings.tsx:243
+#: packages/admin/src/components/settings/SeoSettings.tsx:249
 msgid "Google Verification"
 msgstr "Google verifikacija"
 
@@ -7184,7 +7184,7 @@ msgstr "Zadrži unos dok ga netko uređuje i odbij ostale pisce"
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Sadrži ID unosa. Postavite ciljnu zbirku u odjeljku Vrste sadržaja kako biste umjesto toga birali unose."
 
-#: packages/admin/src/components/MenuEditor.tsx:520
+#: packages/admin/src/components/MenuEditor.tsx:519
 msgid "Home"
 msgstr "Početna"
 
@@ -7250,7 +7250,7 @@ msgstr "Samo HTML, pročišćen, uz stilove vaše web-stranice."
 msgid "https://example.com"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:528
+#: packages/admin/src/components/MenuEditor.tsx:527
 msgid "https://example.com or /about"
 msgstr "https://primjer.hr ili /o-nama"
 
@@ -7813,15 +7813,15 @@ msgstr "Kurziv"
 msgid "Item {0}"
 msgstr "Stavka {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:209
+#: packages/admin/src/components/MenuEditor.tsx:208
 msgid "Item added"
 msgstr "Stavka dodana"
 
-#: packages/admin/src/components/MenuEditor.tsx:221
+#: packages/admin/src/components/MenuEditor.tsx:220
 msgid "Item deleted"
 msgstr "Stavka izbrisana"
 
-#: packages/admin/src/components/MenuEditor.tsx:246
+#: packages/admin/src/components/MenuEditor.tsx:245
 msgid "Item updated"
 msgstr "Stavka ažurirana"
 
@@ -7926,9 +7926,9 @@ msgstr "Kotlin"
 #: packages/admin/src/components/BylineFieldEditor.tsx:226
 #: packages/admin/src/components/FieldEditor.tsx:837
 #: packages/admin/src/components/FieldEditor.tsx:1249
-#: packages/admin/src/components/MenuEditor.tsx:450
-#: packages/admin/src/components/MenuEditor.tsx:520
-#: packages/admin/src/components/MenuEditor.tsx:716
+#: packages/admin/src/components/MenuEditor.tsx:449
+#: packages/admin/src/components/MenuEditor.tsx:519
+#: packages/admin/src/components/MenuEditor.tsx:715
 #: packages/admin/src/components/MenuList.tsx:153
 #: packages/admin/src/components/TaxonomyManager.tsx:1034
 #: packages/admin/src/components/Widgets.tsx:437
@@ -8250,7 +8250,7 @@ msgstr "Učitavanje medija"
 msgid "Loading media usage tracking settings…"
 msgstr "Učitavanje postavki praćenja korištenja medija…"
 
-#: packages/admin/src/components/MenuEditor.tsx:381
+#: packages/admin/src/components/MenuEditor.tsx:380
 msgid "Loading menu..."
 msgstr "Učitavanje izbornika..."
 
@@ -8681,7 +8681,7 @@ msgstr "Izbornik"
 
 #. placeholder {0}: translated.label
 #. placeholder {1}: translated.locale.toUpperCase()
-#: packages/admin/src/components/MenuEditor.tsx:148
+#: packages/admin/src/components/MenuEditor.tsx:147
 msgid "Menu \"{0}\" ({1}) created."
 msgstr "Izbornik „{0}“ ({1}) stvoren."
 
@@ -8698,15 +8698,15 @@ msgstr "Izbornik stvoren"
 msgid "Menu deleted"
 msgstr "Izbornik izbrisan"
 
-#: packages/admin/src/components/MenuEditor.tsx:209
+#: packages/admin/src/components/MenuEditor.tsx:208
 msgid "Menu item has been added."
 msgstr "Stavka izbornika je dodana."
 
-#: packages/admin/src/components/MenuEditor.tsx:222
+#: packages/admin/src/components/MenuEditor.tsx:221
 msgid "Menu item has been deleted."
 msgstr "Stavka izbornika je izbrisana."
 
-#: packages/admin/src/components/MenuEditor.tsx:247
+#: packages/admin/src/components/MenuEditor.tsx:246
 msgid "Menu item has been updated."
 msgstr "Stavka izbornika je ažurirana."
 
@@ -8715,15 +8715,15 @@ msgstr "Stavka izbornika je ažurirana."
 msgid "Menu items"
 msgstr "Stavke izbornika"
 
-#: packages/admin/src/components/MenuEditor.tsx:389
+#: packages/admin/src/components/MenuEditor.tsx:388
 msgid "Menu not found"
 msgstr "Izbornik nije pronađen"
 
-#: packages/admin/src/components/MenuEditor.tsx:262
+#: packages/admin/src/components/MenuEditor.tsx:261
 msgid "Menu order has been updated."
 msgstr "Redoslijed izbornika je ažuriran."
 
-#: packages/admin/src/components/MenuEditor.tsx:174
+#: packages/admin/src/components/MenuEditor.tsx:173
 msgid "Menu renamed"
 msgstr ""
 
@@ -8753,11 +8753,11 @@ msgstr "Spoji odabrane ćelije"
 msgid "Meta Description"
 msgstr "Meta opis"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:259
+#: packages/admin/src/components/settings/SeoSettings.tsx:260
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Sadržaj meta oznake za verifikaciju u Bing Webmaster Tools"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:251
+#: packages/admin/src/components/settings/SeoSettings.tsx:252
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Sadržaj meta oznake za verifikaciju u Google Search Consoleu"
 
@@ -8925,7 +8925,7 @@ msgid "Move {title} to trash"
 msgstr "Premjesti {title} u smeće"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
-#: packages/admin/src/components/MenuEditor.tsx:660
+#: packages/admin/src/components/MenuEditor.tsx:659
 #: packages/admin/src/components/TaxonomyManager.tsx:345
 msgid "Move down"
 msgstr "Pomakni dolje"
@@ -8969,7 +8969,7 @@ msgid "Move to Trash?"
 msgstr "Premjestiti u smeće?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
-#: packages/admin/src/components/MenuEditor.tsx:651
+#: packages/admin/src/components/MenuEditor.tsx:650
 #: packages/admin/src/components/TaxonomyManager.tsx:337
 msgid "Move up"
 msgstr "Pomakni gore"
@@ -9226,10 +9226,10 @@ msgstr "Nova taksonomija"
 msgid "New Taxonomy"
 msgstr "Nova taksonomija"
 
-#: packages/admin/src/components/MenuEditor.tsx:534
-#: packages/admin/src/components/MenuEditor.tsx:537
-#: packages/admin/src/components/MenuEditor.tsx:732
-#: packages/admin/src/components/MenuEditor.tsx:735
+#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:536
+#: packages/admin/src/components/MenuEditor.tsx:731
+#: packages/admin/src/components/MenuEditor.tsx:734
 msgid "New window"
 msgstr "Novi prozor"
 
@@ -9555,7 +9555,7 @@ msgstr "Ovaj pružatelj nema dostupnih medija."
 msgid "No media found"
 msgstr "Mediji nisu pronađeni"
 
-#: packages/admin/src/components/MenuEditor.tsx:599
+#: packages/admin/src/components/MenuEditor.tsx:598
 msgid "No menu items yet"
 msgstr "Još nema stavki izbornika"
 
@@ -9572,7 +9572,7 @@ msgstr "Bez minimuma"
 msgid "No moderation (auto-approve all)"
 msgstr "Bez moderiranja (automatski odobri sve)"
 
-#: packages/admin/src/components/MenuEditor.tsx:368
+#: packages/admin/src/components/MenuEditor.tsx:367
 msgid "No parent (top level)"
 msgstr "Bez nadređene stavke (najviša razina)"
 
@@ -9977,7 +9977,7 @@ msgstr "Ili prenesite izvoznu datoteku"
 msgid "or upload directly"
 msgstr "ili prenesite izravno"
 
-#: packages/admin/src/components/MenuEditor.tsx:261
+#: packages/admin/src/components/MenuEditor.tsx:260
 msgid "Order saved"
 msgstr "Redoslijed spremljen"
 
@@ -10075,7 +10075,7 @@ msgstr "Odlomak umetnut iza tablice"
 msgid "Paragraph inserted before table"
 msgstr "Odlomak umetnut ispred tablice"
 
-#: packages/admin/src/components/MenuEditor.tsx:745
+#: packages/admin/src/components/MenuEditor.tsx:744
 #: packages/admin/src/components/TaxonomyManager.tsx:815
 msgid "Parent"
 msgstr "Nadređena stavka"
@@ -11049,7 +11049,7 @@ msgstr ""
 #: packages/admin/src/components/settings/GeneralSettings.tsx:460
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
-#: packages/admin/src/components/settings/SeoSettings.tsx:221
+#: packages/admin/src/components/settings/SeoSettings.tsx:222
 msgid "Remove"
 msgstr "Ukloni"
 
@@ -11240,8 +11240,8 @@ msgstr "Preimenuj"
 msgid "Rename {0}"
 msgstr "Preimenuj {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:423
-#: packages/admin/src/components/MenuEditor.tsx:430
+#: packages/admin/src/components/MenuEditor.tsx:422
+#: packages/admin/src/components/MenuEditor.tsx:429
 msgid "Rename menu"
 msgstr ""
 
@@ -11698,8 +11698,8 @@ msgstr "Desno"
 msgid "Risk score: {0}/100"
 msgstr "Ocjena rizika: {0}/100"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:264
-#: packages/admin/src/components/settings/SeoSettings.tsx:267
+#: packages/admin/src/components/settings/SeoSettings.tsx:265
+#: packages/admin/src/components/settings/SeoSettings.tsx:268
 msgid "robots.txt"
 msgstr "robots.txt"
 
@@ -11772,10 +11772,10 @@ msgstr "Rust"
 msgid "Same as current version"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:534
-#: packages/admin/src/components/MenuEditor.tsx:536
-#: packages/admin/src/components/MenuEditor.tsx:732
-#: packages/admin/src/components/MenuEditor.tsx:734
+#: packages/admin/src/components/MenuEditor.tsx:533
+#: packages/admin/src/components/MenuEditor.tsx:535
+#: packages/admin/src/components/MenuEditor.tsx:731
+#: packages/admin/src/components/MenuEditor.tsx:733
 msgid "Same window"
 msgstr "Isti prozor"
 
@@ -11789,8 +11789,8 @@ msgstr "Primjer sadržaja"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:402
 #: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:467
-#: packages/admin/src/components/MenuEditor.tsx:756
+#: packages/admin/src/components/MenuEditor.tsx:466
+#: packages/admin/src/components/MenuEditor.tsx:755
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:35
 #: packages/admin/src/components/Widgets.tsx:986
@@ -11882,8 +11882,8 @@ msgstr "Spremanjem zbirke ovdje ovo polje postaje birač unosa. Njegovi pohranje
 #: packages/admin/src/components/FieldEditor.tsx:1396
 #: packages/admin/src/components/MediaDetailPanel.tsx:1889
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
-#: packages/admin/src/components/MenuEditor.tsx:467
-#: packages/admin/src/components/MenuEditor.tsx:756
+#: packages/admin/src/components/MenuEditor.tsx:466
+#: packages/admin/src/components/MenuEditor.tsx:755
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:190
@@ -12386,7 +12386,7 @@ msgstr "Odaberi sadržaj"
 msgid "Select dark mode variant for {label}"
 msgstr "Odaberi varijantu za tamni način za {label}"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:309
+#: packages/admin/src/components/settings/SeoSettings.tsx:310
 msgid "Select default social image"
 msgstr "Odaberi zadanu sliku za društvene mreže"
 
@@ -12413,7 +12413,7 @@ msgstr "Odaberi slike galerije"
 msgid "Select image"
 msgstr "Odaberi sliku"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:232
+#: packages/admin/src/components/settings/SeoSettings.tsx:233
 msgid "Select Image"
 msgstr "Odaberi sliku"
 
@@ -12563,8 +12563,8 @@ msgstr "SEO postavke spremljene"
 msgid "SEO Title"
 msgstr "SEO naslov"
 
-#: packages/admin/src/components/MenuEditor.tsx:543
-#: packages/admin/src/components/MenuEditor.tsx:742
+#: packages/admin/src/components/MenuEditor.tsx:542
+#: packages/admin/src/components/MenuEditor.tsx:741
 msgid "Separate class names with spaces. Themes can use them to style the link."
 msgstr ""
 
@@ -12713,7 +12713,7 @@ msgstr "Prikaži token"
 msgid "Showing {pageShowingRange} of {0}"
 msgstr "Prikazano {pageShowingRange} od {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:455
+#: packages/admin/src/components/MenuEditor.tsx:454
 #: packages/admin/src/components/MenuList.tsx:159
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
@@ -13293,8 +13293,8 @@ msgstr "Preuzmi"
 msgid "Taking over..."
 msgstr "Preuzimanje..."
 
-#: packages/admin/src/components/MenuEditor.tsx:531
-#: packages/admin/src/components/MenuEditor.tsx:729
+#: packages/admin/src/components/MenuEditor.tsx:530
+#: packages/admin/src/components/MenuEditor.tsx:728
 msgid "Target"
 msgstr "Cilj"
 
@@ -13590,7 +13590,7 @@ msgid "The menu has been deleted."
 msgstr "Izbornik je izbrisan."
 
 #. placeholder {0}: renamed.label
-#: packages/admin/src/components/MenuEditor.tsx:175
+#: packages/admin/src/components/MenuEditor.tsx:174
 msgid "The menu is now called \"{0}\"."
 msgstr ""
 
@@ -13716,7 +13716,7 @@ msgstr "Identitet izdavača nije moguće provjeriti."
 msgid "The range has more entries than the calendar can show."
 msgstr "Raspon sadrži više unosa nego što kalendar može prikazati."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:201
+#: packages/admin/src/components/settings/SeoSettings.tsx:202
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "Referencirana slika više nije dostupna. Odaberite novu ili uklonite referencu."
 
@@ -14408,7 +14408,7 @@ msgstr "Prevedi {0}"
 msgid "Translating..."
 msgstr "Prevođenje..."
 
-#: packages/admin/src/components/MenuEditor.tsx:147
+#: packages/admin/src/components/MenuEditor.tsx:146
 #: packages/admin/src/components/TaxonomyManager.tsx:1252
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1618
@@ -14961,8 +14961,8 @@ msgstr "Prijenos videozapisa…"
 #: packages/admin/src/components/BylineFieldEditor.tsx:49
 #: packages/admin/src/components/FieldEditor.tsx:474
 #: packages/admin/src/components/FieldEditor.tsx:1298
-#: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuEditor.tsx:719
+#: packages/admin/src/components/MenuEditor.tsx:521
+#: packages/admin/src/components/MenuEditor.tsx:718
 msgid "URL"
 msgstr "URL"
 
@@ -15064,7 +15064,7 @@ msgstr "Za prijavu upotrijebite biometrijsku provjeru uređaja, sigurnosni klju�
 msgid "Use your registered passkey to sign in securely."
 msgstr "Prijavite se sigurno svojim registriranim pristupnim ključem."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:182
+#: packages/admin/src/components/settings/SeoSettings.tsx:183
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "Upotrebljava se kao zamjenska Open Graph slika kada stranica nema vlastitu. Preporučena veličina: 1200 × 630."
 

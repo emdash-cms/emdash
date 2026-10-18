@@ -35,6 +35,59 @@ export class MenuGoneError extends Error {
 	}
 }
 
+export class MenuItemParentError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MenuItemParentError";
+	}
+}
+
+async function validateItemParents(
+	db: Kysely<Database>,
+	menuId: string,
+	changes: ReadonlyArray<{ id: string; parentId: string | null }>,
+	newItemId?: string,
+): Promise<void> {
+	const rows = await db
+		.selectFrom("_emdash_menu_items")
+		.select(["id", "parent_id"])
+		.where("menu_id", "=", menuId)
+		.execute();
+	const parents = new Map(rows.map((row) => [row.id, row.parent_id]));
+	if (newItemId !== undefined) parents.set(newItemId, null);
+
+	const originalParents = new Map(parents);
+	const scopedChanges = changes.filter((change) => parents.has(change.id));
+	// Overlay the whole batch before walking: a valid reorder may temporarily
+	// form a cycle if its entries are considered one at a time.
+	for (const change of scopedChanges) {
+		parents.set(change.id, change.parentId);
+	}
+
+	const validated = new Set<string>();
+	const changedIds = new Set(scopedChanges.map((change) => change.id));
+	for (const id of changedIds) {
+		const parentId = parents.get(id) ?? null;
+		if (id !== newItemId && parentId === originalParents.get(id)) continue;
+		if (parentId !== null && !parents.has(parentId)) {
+			throw new MenuItemParentError("Parent item must exist in the same menu");
+		}
+		const path = new Set<string>();
+		let cursor: string | null = id;
+		while (cursor !== null && !validated.has(cursor)) {
+			if (path.has(cursor)) {
+				throw new MenuItemParentError("A menu item cannot be its own ancestor");
+			}
+			// Deleted ancestors render as roots; unchanged legacy links must not
+			// prevent editing or reordering the remaining menu items.
+			if (!parents.has(cursor)) break;
+			path.add(cursor);
+			cursor = parents.get(cursor) ?? null;
+		}
+		for (const ancestorId of path) validated.add(ancestorId);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Entity shapes (camelCase — what the API returns)
 // ---------------------------------------------------------------------------
@@ -465,6 +518,10 @@ export class MenuRepository {
 	 * item's own id, matching the migration 036 backfill.
 	 */
 	async createItem(menuId: string, locale: string, input: CreateMenuItemInput): Promise<MenuItem> {
+		const id = ulid();
+		if (input.parentId !== undefined) {
+			await validateItemParents(this.db, menuId, [{ id, parentId: input.parentId }], id);
+		}
 		let sortOrder = input.sortOrder ?? 0;
 		if (input.sortOrder === undefined) {
 			const maxOrder = await this.db
@@ -477,7 +534,6 @@ export class MenuRepository {
 			sortOrder = ((maxOrder?.max as number) ?? -1) + 1;
 		}
 
-		const id = ulid();
 		await this.db
 			.insertInto("_emdash_menu_items")
 			.values({
@@ -525,6 +581,9 @@ export class MenuRepository {
 			.where("menu_id", "=", menuId)
 			.executeTakeFirst();
 		if (!existing) return null;
+		if (input.parentId !== undefined) {
+			await validateItemParents(this.db, menuId, [{ id: itemId, parentId: input.parentId }]);
+		}
 
 		const values: Record<string, unknown> = {};
 		if (input.label !== undefined) values.label = input.label;
@@ -639,8 +698,8 @@ export class MenuRepository {
 	 * malicious payload cannot move foreign items into this menu's siblings.
 	 */
 	async reorderItems(menuId: string, items: ReorderItem[]): Promise<MenuItem[]> {
-		invalidateMenuObjectCache();
-		return withTransaction(this.db, async (trx) => {
+		const updated = await withTransaction(this.db, async (trx) => {
+			await validateItemParents(trx, menuId, items);
 			for (const item of items) {
 				await trx
 					.updateTable("_emdash_menu_items")
@@ -658,5 +717,7 @@ export class MenuRepository {
 				.execute();
 			return rows.map(rowToMenuItem);
 		});
+		invalidateMenuObjectCache();
+		return updated;
 	}
 }

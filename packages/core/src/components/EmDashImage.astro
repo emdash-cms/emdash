@@ -218,8 +218,12 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 	// The focal point travels with the media value, so the dark variant gets
 	// its own object-position rather than inheriting the light image's.
 	const objectPosition = focalPointToObjectPosition(img.focalX, img.focalY);
+	const normalizedPlaceholder =
+		placeholderStyle && !placeholderStyle.endsWith(";")
+			? `${placeholderStyle};`
+			: placeholderStyle;
 	const generatedStyle = [
-		placeholderStyle,
+		normalizedPlaceholder,
 		objectPosition ? `object-position: ${objectPosition};` : "",
 	]
 		.filter(Boolean)

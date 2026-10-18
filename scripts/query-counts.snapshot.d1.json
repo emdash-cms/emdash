@@ -19,8 +19,8 @@
 	"GET /related-baseline (warm)": 5,
 	"GET /rss.xml (cold)": 11,
 	"GET /rss.xml (warm)": 2,
-	"GET /search (cold)": 20,
-	"GET /search (warm)": 10,
+	"GET /search (cold)": 16,
+	"GET /search (warm)": 6,
 	"GET /tag/webdev (cold)": 21,
 	"GET /tag/webdev (warm)": 9
 }

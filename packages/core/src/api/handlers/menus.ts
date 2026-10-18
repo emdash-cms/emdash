@@ -15,6 +15,7 @@ import type { Kysely } from "kysely";
 
 import {
 	MenuGoneError,
+	MenuItemParentError,
 	MenuRepository,
 	type CreateMenuItemInput as CreateMenuItemRepoInput,
 	type Menu,
@@ -373,7 +374,10 @@ export async function handleMenuItemCreate(
 
 		const item = await repo.createItem(resolved.menu.id, resolved.menu.locale, input);
 		return { success: true, data: item };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_ITEM_CREATE_ERROR", message: "Failed to create menu item" },
@@ -404,7 +408,10 @@ export async function handleMenuItemUpdate(
 			};
 		}
 		return { success: true, data: updated };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_ITEM_UPDATE_ERROR", message: "Failed to update menu item" },
@@ -532,7 +539,10 @@ export async function handleMenuItemReorder(
 
 		const updated = await repo.reorderItems(resolved.menu.id, items);
 		return { success: true, data: updated };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_REORDER_ERROR", message: "Failed to reorder menu items" },
