@@ -683,6 +683,7 @@ export interface MediaProviderItem {
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */
 	dominantColor?: string;
 	alt?: string;
+	caption?: string;
 	previewUrl?: string;
 	meta?: Record<string, unknown>;
 }

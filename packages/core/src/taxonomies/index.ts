@@ -19,7 +19,13 @@ import {
 } from "../database/repositories/taxonomy-def.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { getI18nConfig } from "../i18n/config.js";
+import { getI18nConfig, getLocaleChainRank, getLocaleCandidates } from "../i18n/config.js";
+import {
+	canonicalLocaleColumn,
+	localeMatches,
+	localeOrder,
+	storedLocaleOrder,
+} from "../i18n/query.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import {
@@ -70,8 +76,12 @@ async function selectEntryTermRows(
 ): Promise<EntryTermRow[]> {
 	validateIdentifier(collection, "collection slug");
 	const tableName = `ec_${collection}`;
-	const preferredLocale = locale ? sql`${locale}` : sql`content.locale`;
 	const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
+	const preferredMatch = locale
+		? localeMatches("exact_term.locale", locale)
+		: sql`${canonicalLocaleColumn("exact_term.locale")} = ${canonicalLocaleColumn("content.locale")}`;
+	const defaultMatch = localeMatches("default_term.locale", defaultLocale);
+	const hasAliases = Object.keys(getI18nConfig()?.localeAliases ?? {}).length > 0;
 	const result = await sql<EntryTermRow>`
 		SELECT content.id AS entry_id,
 			coalesce(exact_term.id, default_term.id) AS id,
@@ -87,14 +97,35 @@ async function selectEntryTermRows(
 			AND pivot.collection = ${collection}
 		LEFT JOIN taxonomies AS exact_term
 			ON exact_term.translation_group = pivot.taxonomy_id
-			AND exact_term.locale = ${preferredLocale}
+			AND ${preferredMatch}
+			${
+				hasAliases
+					? sql`AND exact_term.id = (
+				SELECT candidate.id FROM taxonomies AS candidate
+				WHERE candidate.translation_group = pivot.taxonomy_id
+					AND ${locale ? localeMatches("candidate.locale", locale) : sql`${canonicalLocaleColumn("candidate.locale")} = ${canonicalLocaleColumn("content.locale")}`}
+				ORDER BY ${locale ? localeOrder("candidate.locale", locale) : storedLocaleOrder("candidate.locale")}, candidate.id LIMIT 1
+			)`
+					: sql``
+			}
 		LEFT JOIN taxonomies AS default_term
 			ON default_term.translation_group = pivot.taxonomy_id
-			AND default_term.locale = ${defaultLocale}
+			AND ${defaultMatch}
+			${
+				hasAliases
+					? sql`AND default_term.id = (
+				SELECT candidate.id FROM taxonomies AS candidate
+				WHERE candidate.translation_group = pivot.taxonomy_id
+					AND ${localeMatches("candidate.locale", defaultLocale)}
+				ORDER BY ${localeOrder("candidate.locale", defaultLocale)}, candidate.id LIMIT 1
+			)`
+					: sql``
+			}
 		WHERE content.id IN (${sql.join(entryIds.map((id) => sql`${id}`))})
 			AND coalesce(exact_term.id, default_term.id) IS NOT NULL
 			${taxonomyName ? sql`AND coalesce(exact_term.name, default_term.name) = ${taxonomyName}` : sql``}
-		ORDER BY coalesce(exact_term.label, default_term.label) ASC
+		ORDER BY coalesce(exact_term.label, default_term.label) ASC,
+			coalesce(exact_term.id, default_term.id) ASC
 	`.execute(db);
 	return result.rows;
 }
@@ -235,14 +266,14 @@ function resolveDefs(rows: readonly TaxonomyDef[], chain: readonly string[]): Ta
 	const byName = new Map<string, TaxonomyDef>();
 	for (const row of rows) {
 		const current = byName.get(row.name);
-		if (!current || rank(row.locale) < rank(current.locale)) byName.set(row.name, row);
+		if (
+			!current ||
+			getLocaleChainRank(row.locale, preference) < getLocaleChainRank(current.locale, preference)
+		) {
+			byName.set(row.name, row);
+		}
 	}
 	return [...byName.values()];
-
-	function rank(locale: string): number {
-		const index = preference.indexOf(locale);
-		return index === -1 ? preference.length : index;
-	}
 }
 
 /**
@@ -361,7 +392,11 @@ async function loadTaxonomyTerms(
 		.where("name", "=", def.name)
 		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
-	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
+	if (locale !== undefined) {
+		termsQuery = termsQuery
+			.where(localeMatches("locale", locale))
+			.orderBy(localeOrder("locale", locale), "asc");
+	}
 
 	const rows = await termsQuery.execute();
 
@@ -475,13 +510,28 @@ async function loadTerm(
 			.where("slug", "=", slug);
 
 	if (chain.length === 0) {
-		row = await selectTerm().orderBy("locale", "asc").executeTakeFirst();
+		row = await selectTerm().orderBy("locale", "asc").orderBy("id", "asc").executeTakeFirst();
 	} else {
-		row = undefined;
-		for (const locale of chain) {
-			row = await selectTerm().where("locale", "=", locale).executeTakeFirst();
-			if (row) break;
-		}
+		let offset = 0;
+		const candidates = chain.flatMap((locale) => {
+			const values = getLocaleCandidates(locale);
+			const result = values.map((candidate, index) => ({ candidate, rank: offset + index }));
+			offset += values.length;
+			return result;
+		});
+		const chainOrder = sql<number>`CASE ${sql.join(
+			candidates.map(
+				({ candidate, rank }) =>
+					sql`WHEN lower(locale) = ${candidate.toLowerCase()} THEN ${sql.lit(rank)}`,
+			),
+			sql` `,
+		)} ELSE ${sql.lit(offset)} END`;
+		row = await selectTerm()
+			.where((eb) => eb.or(chain.map((locale) => localeMatches("locale", locale))))
+			.orderBy(chainOrder, "asc")
+			.orderBy(localeOrder("locale", chain[0]), "asc")
+			.orderBy("id", "asc")
+			.executeTakeFirst();
 	}
 
 	if (!row) return null;
@@ -495,7 +545,11 @@ async function loadTerm(
 		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
-	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
+	if (termLocale) {
+		childrenQuery = childrenQuery
+			.where(localeMatches("locale", termLocale))
+			.orderBy(localeOrder("locale", termLocale), "asc");
+	}
 
 	const childRows = await childrenQuery.execute();
 

@@ -9,10 +9,13 @@
 // workflow from an alarm; the review and GitHub post happen in durable state.
 
 import { getRun, listRuns, registerProvider } from "@flue/runtime";
+import { flue } from "@flue/runtime/routing";
 import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 
 import { createAiPayloadGuard } from "./lib/ai-payload-budget.js";
+import { getRereviewScheduler } from "./lib/rereview.js";
+import { registerGatewayProviders } from "./lib/review-model.js";
 import { getReviewWatchdog, type ReviewAttempt } from "./lib/review-watchdog.js";
 import {
 	verifyWebhookSignature,
@@ -24,6 +27,7 @@ registerProvider("cloudflare", {
 	api: "cloudflare-ai-binding",
 	binding: createAiPayloadGuard(env.AI),
 });
+registerGatewayProviders(env);
 
 // Extract a short, displayable message from an unknown run error without
 // risking an "[object Object]" stringification.
@@ -45,7 +49,8 @@ const app = new Hono<{ Bindings: Env }>();
 // webhook secret. Note: the FlueRegistry DO was reset 2026-06-21, so history
 // only goes back to then.
 app.get("/webhook/admin/runs", async (c) => {
-	if (c.req.header("x-admin-token") !== c.env.GITHUB_WEBHOOK_SECRET) {
+	const secret = c.env.GITHUB_WEBHOOK_SECRET;
+	if (!secret || c.req.header("x-admin-token") !== secret) {
 		return c.text("unauthorized", 401);
 	}
 	const statusParam = c.req.query("status");
@@ -132,6 +137,10 @@ app.post("/webhook/github", async (c) => {
 		review: decision.review,
 		reason: decision.review ? undefined : decision.reason,
 	});
+	if (!decision.review && decision.rereview) {
+		await getRereviewScheduler(c.env, decision.rereview).schedule(decision.rereview);
+		return c.text(`re-review scheduled for PR #${decision.rereview.prNumber}`, 202);
+	}
 	if (!decision.review) return c.text(`skipped: ${decision.reason}`, 202);
 
 	const deliveryId = getWebhookDeliveryId(c.req.header("x-github-delivery"));
@@ -160,5 +169,9 @@ app.post("/webhook/github", async (c) => {
 	}
 	return c.json({ message: `review setup queued for PR #${decision.pr.prNumber}`, attemptId }, 202);
 });
+
+// Local model evaluation only (see eval/README.md): exposes workflow
+// invocation and run reads, which production must never serve.
+if (env.REVIEW_EVAL === "1") app.mount("/eval", flue().fetch);
 
 export default app;

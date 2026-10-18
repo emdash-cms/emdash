@@ -9,7 +9,12 @@
 import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
-import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
+import {
+	entryEditAccess,
+	requireEntryEditPerm,
+	requireOwnerPerm,
+	requirePerm,
+} from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { parseBody, isParseError } from "#api/parse.js";
@@ -101,8 +106,14 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
-	const editDenied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
+	const entry = { authorId, status: existingItem?.status };
+	const editDenied = requireEntryEditPerm(user, entry);
 	if (editDenied) return editDenied;
+	// A draft-only grant covers the entry only while it is a draft. Conditioning
+	// the save on the checked revision makes it fail if the entry is published
+	// between this check and the write.
+	const checkedRev = typeof existingData?._rev === "string" ? existingData._rev : undefined;
+	const rev = entryEditAccess(user, entry) === "draft" ? (body._rev ?? checkedRev) : body._rev;
 
 	// Only EDITOR+ can write publishedAt directly — incl. clearing to null.
 	if (body.publishedAt !== undefined && !hasPermission(user, "content:publish_any")) {
@@ -138,7 +149,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const result = await emdash.handleContentUpdate(collection, resolvedId, {
 		...writeBody,
 		locale,
-		_rev: body._rev,
+		_rev: rev,
 		actor,
 	});
 

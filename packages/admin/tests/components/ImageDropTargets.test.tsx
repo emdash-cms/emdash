@@ -134,6 +134,27 @@ describe("Editor image drop targets", () => {
 		},
 	);
 
+	it("shows the brand border while a file is dragged over the target", async () => {
+		const screen = await render(
+			<>
+				<Target kind="featured" />
+				<span data-testid="brand-color" style={{ color: "var(--color-kumo-brand)" }} />
+			</>,
+		);
+		const target = screen
+			.getByRole("button", { name: "Drop an image here or browse for Featured image", exact: true })
+			.element().parentElement!;
+		const brand = getComputedStyle(screen.getByTestId("brand-color").element()).color;
+
+		const dataTransfer = new DataTransfer();
+		dataTransfer.items.add(imageFile());
+		target.dispatchEvent(
+			new DragEvent("dragenter", { dataTransfer, bubbles: true, cancelable: true }),
+		);
+
+		await vi.waitFor(() => expect(getComputedStyle(target).borderTopColor).toBe(brand));
+	});
+
 	it.each(["featured", "og"] as const)(
 		"uploads one file into %s and ignores another drop while busy",
 		async (kind) => {
