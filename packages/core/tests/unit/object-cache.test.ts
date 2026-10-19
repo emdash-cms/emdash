@@ -7,6 +7,7 @@ import {
 	__setObjectCacheBackendForTests,
 	__setObjectCacheBackendInitForTests,
 	cachedQuery,
+	cachedQueryWithEpochs,
 	coalesceObjectCacheWrites,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
@@ -222,7 +223,7 @@ describe("cachedQuery", () => {
 			return Promise.resolve({ n: 1 });
 		});
 		const read = () =>
-			cachedQuery({
+			cachedQueryWithEpochs({
 				namespace: ["posts", "bylines"],
 				key: "k",
 				load,

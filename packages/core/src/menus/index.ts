@@ -23,7 +23,7 @@ import {
 } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import {
-	cachedQuery,
+	cachedQueryWithEpochs,
 	CacheNamespace,
 	contentCacheNamespaces,
 	isObjectCacheActive,
@@ -75,7 +75,7 @@ export async function getMenu(name: string, options: MenuQueryOptions = {}): Pro
 		}
 		const readRows = async () => {
 			let epoch: number | undefined;
-			const rows = await cachedQuery({
+			const rows = await cachedQueryWithEpochs({
 				namespace: CacheNamespace.MENUS,
 				key: `rows:${name}:${locale ?? "*"}`,
 				load: async () => loadMenuRows(name, await getDb(), locale),
@@ -92,7 +92,7 @@ export async function getMenu(name: string, options: MenuQueryOptions = {}): Pro
 		if (!namespaces) return null;
 		let resolvedEpoch: number | undefined;
 		let loaded: string[] | undefined;
-		const menu = await cachedQuery<Menu | null>({
+		const menu = await cachedQueryWithEpochs<Menu | null>({
 			namespace: namespaces,
 			key,
 			onEpochs: ([menus]) => {
