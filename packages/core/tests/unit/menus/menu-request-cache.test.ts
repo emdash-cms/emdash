@@ -371,6 +371,18 @@ describe("getMenu collection-pattern request cache", () => {
 			expect(await urls()).toEqual(["/blog/hello"]);
 		});
 
+		it("returns null for a cached menu once it is deleted", async () => {
+			const read = () => runWithContext({ editMode: false, db }, () => getMenu("primary"));
+			expect(await read()).not.toBeNull();
+			await flush();
+
+			const menus = new MenuRepository(db);
+			const [primary] = await menus.findByName("primary");
+			await menus.delete(primary!.id);
+
+			expect(await read()).toBeNull();
+		});
+
 		it("refreshes a cached menu when a linked term changes", async () => {
 			const repo = new TaxonomyRepository(db);
 			const term = await repo.create({ name: "category", slug: "news", label: "News" });
