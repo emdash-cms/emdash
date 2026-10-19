@@ -1,0 +1,21 @@
+apps/plugins-site/src/components/SiteHeader.astro
+  s_a2cd95cd1e637f::t_4bab8b1bd2a2c4 74,119
+apps/plugins-site/src/styles/global.css
+  s_a2cd95cd1e637f::t_277946d383789b 413-428
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "593f0b44302ce7e92d39a1e9d52323050cb8f819",
+  "prompts": {},
+  "sessions": {
+    "s_a2cd95cd1e637f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca91999b-cbd1-4c4e-8277-58508f9068c9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
