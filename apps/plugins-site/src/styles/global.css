@@ -410,6 +410,22 @@ textarea {
 	}
 }
 
+.btn-accent {
+	color: var(--on-accent);
+	background: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 85%, #000);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 18%),
+		0 1px 2px rgb(0 0 0 / 16%),
+		0 0 0 3px var(--accent-soft);
+}
+
+@media (hover: hover) {
+	.btn-accent:hover {
+		background: color-mix(in srgb, var(--accent) 90%, #000);
+	}
+}
+
 .btn-secondary {
 	color: var(--ink);
 	background: var(--surface);
