@@ -2373,7 +2373,7 @@ msgstr "Bozuk referanslar temizlendi"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:106
 msgid "Browse and install plugins published to the decentralized registry."
-msgstr "Merkeziyetsiz kayıt deposunda yayımlanan eklentilere göz atın ve bunları yükleyin."
+msgstr "Merkezi olmayan eklenti kataloğunda yayımlanan eklentilere göz atın ve bunları yükleyin."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:89
 msgid "Browse and install plugins to extend your site."
@@ -2394,7 +2394,7 @@ msgstr "Yüklenecek dosyalara göz at"
 
 #: packages/admin/src/components/PluginManager.tsx:67
 msgid "Browse the <0>registry</0> to install plugins."
-msgstr "Eklenti yüklemek için <0>kayıt deposuna</0> göz atın."
+msgstr "Eklenti yüklemek için <0>eklenti kataloğuna</0> göz atın."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -6308,7 +6308,7 @@ msgstr "Eklentiler yüklenemedi: {0}"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:131
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
-msgstr "Eklentiler yüklenemedi. Kayıt deposu toplayıcısına ulaşılamıyor olabilir."
+msgstr "Eklentiler yüklenemedi. Katalog hizmetine ulaşılamıyor olabilir."
 
 #: packages/admin/src/components/SetupWizard.tsx:608
 msgid "Failed to load setup"
@@ -9214,7 +9214,7 @@ msgstr "Yeni klasör"
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:15
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
-msgstr "Yeni eklentiler kayıt deposunda keşfedilir. Geçiş yaparken mevcut pazar yeri eklentilerini güncelleyebilir veya kaldırabilirsiniz."
+msgstr "Yeni eklentileri eklenti kataloğunda bulabilirsiniz. Geçiş sırasında mevcut pazar yeri eklentilerini güncelleyebilir veya kaldırabilirsiniz."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "New public routes"
@@ -9623,7 +9623,7 @@ msgstr "Hiçbir eklenti bulunamadı"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:153
 msgid "No plugins have been published to this registry yet."
-msgstr "Bu kayıt deposunda henüz eklenti yayımlanmadı."
+msgstr "Bu katalogda henüz eklenti yayımlanmadı."
 
 #: packages/admin/src/components/RegistryBrowse.tsx:152
 msgid "No plugins match \"{debouncedQuery}\"."
@@ -10415,17 +10415,17 @@ msgstr "Eklenti İzinleri"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
 msgid "Plugin Registry"
-msgstr "Eklenti Kayıt Deposu"
+msgstr "Eklenti kataloğu"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:30
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:31
 msgid "Plugin registry configuration error"
-msgstr "Eklenti kayıt deposu yapılandırma hatası"
+msgstr "Eklenti kataloğu yapılandırma hatası"
 
 #: packages/admin/src/router.tsx:2648
 #: packages/admin/src/router.tsx:2679
 msgid "Plugin registry is not configured."
-msgstr "Eklenti kayıt deposu yapılandırılmamış."
+msgstr "Eklenti kataloğu yapılandırılmamış."
 
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:59
@@ -11015,7 +11015,7 @@ msgstr "Kayıt iptal edildi veya zaman aşımına uğradı. Lütfen tekrar deney
 #: packages/admin/src/components/PluginManager.tsx:453
 #: packages/admin/src/components/Sidebar.tsx:497
 msgid "Registry"
-msgstr "Kayıt deposu"
+msgstr "Eklenti kataloğu"
 
 #: packages/admin/src/components/ContentTypeList.tsx:138
 #: packages/admin/src/components/RelationList.tsx:68
