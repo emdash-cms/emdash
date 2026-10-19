@@ -25,6 +25,7 @@ import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
@@ -379,6 +380,8 @@ interface ContentReferenceRow {
 	published_at: string | null;
 	locale: string;
 	translation_group: string;
+	status: string;
+	deleted_at: string | null;
 }
 
 interface ResolvedContentReference {
@@ -394,19 +397,27 @@ async function resolveContentReferences(
 	references: Map<string, Set<string>>,
 	locale: string,
 ): Promise<ContentReferenceLookup> {
+	// Edit mode renders drafts, so a menu link to one still leads somewhere there.
+	const editMode = getRequestContext()?.editMode === true;
+	const isVisible = (row: { status: string; deleted_at: string | null }) =>
+		row.deleted_at === null && (editMode || row.status === "published");
 	const entries = await Promise.all(
 		Array.from(references, async ([collection, referenceGroups]) => {
 			const lookup = new Map<string, ResolvedContentReference>();
 			const localized = new Map<string, ContentReferenceRow>();
+			const found = new Set<string>();
 			try {
 				validateIdentifier(collection, "menu item collection");
 				for (const batch of chunks([...referenceGroups], SQL_BATCH_SIZE)) {
 					const result = await sql<ContentReferenceRow>`
-						SELECT id, slug, published_at, locale, translation_group
+						SELECT id, slug, published_at, locale, translation_group, status, deleted_at
 						FROM ${sql.ref(`ec_${collection}`)}
 						WHERE translation_group IN (${sql.join(batch)})
 					`.execute(db);
 					for (const row of result.rows) {
+						// A hidden row still counts as found, so the legacy id lookup below is skipped.
+						found.add(row.translation_group);
+						if (!isVisible(row)) continue;
 						const existing = localized.get(row.translation_group);
 						if (shouldPreferLocalizedRow(row, existing, locale)) {
 							localized.set(row.translation_group, row);
@@ -417,13 +428,16 @@ async function resolveContentReferences(
 					lookup.set(referenceGroup, { id: row.id, slug: row.slug, publishedAt: row.published_at });
 				}
 
-				const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
+				const unresolved = [...referenceGroups].filter((id) => !found.has(id));
 				for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
-					const result = await sql<Pick<ContentReferenceRow, "id" | "slug" | "published_at">>`
-						SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
+					const result = await sql<
+						Pick<ContentReferenceRow, "id" | "slug" | "published_at" | "status" | "deleted_at">
+					>`
+						SELECT id, slug, published_at, status, deleted_at FROM ${sql.ref(`ec_${collection}`)}
 						WHERE id IN (${sql.join(batch)})
 					`.execute(db);
 					for (const row of result.rows) {
+						if (!isVisible(row)) continue;
 						lookup.set(row.id, { id: row.id, slug: row.slug, publishedAt: row.published_at });
 					}
 				}
