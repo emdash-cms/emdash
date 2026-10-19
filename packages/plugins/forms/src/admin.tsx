@@ -134,7 +134,6 @@ interface SubmissionItem {
 	notes?: string;
 	createdAt: string;
 	meta: {
-		ip: string | null;
 		country: string | null;
 	};
 }
@@ -931,6 +930,7 @@ function SubmissionsPage() {
 
 	React.useEffect(() => {
 		if (!selectedFormId) return;
+		let stale = false;
 		setSubsLoading(true);
 		setSubsError(null);
 		setActionError(null);
@@ -943,20 +943,26 @@ function SubmissionsPage() {
 				};
 				if (statusFilter) body.status = statusFilter;
 				const res = await apiFetch("submissions/list", body);
+				if (stale) return;
 				if (!res.ok) {
 					setSubmissions([]);
 					setSubsError(submissionsLoadError(res));
 					return;
 				}
 				const data = await parseApiResponse<{ items: SubmissionItem[] }>(res);
+				if (stale) return;
 				setSubmissions(data.items);
 			} catch {
+				if (stale) return;
 				setSubmissions([]);
 				setSubsError(SUBMISSIONS_LOAD_FAILED);
 			} finally {
-				setSubsLoading(false);
+				if (!stale) setSubsLoading(false);
 			}
 		})();
+		return () => {
+			stale = true;
+		};
 	}, [selectedFormId, statusFilter]);
 
 	const handleToggleStar = async (sub: SubmissionItem) => {
@@ -1310,6 +1316,7 @@ function RecentSubmissionsWidget() {
 
 	React.useEffect(() => {
 		void (async () => {
+			let failure = FORMS_LOAD_FAILED;
 			try {
 				const formsRes = await apiFetch("forms/list");
 				if (!formsRes.ok) {
@@ -1320,6 +1327,7 @@ function RecentSubmissionsWidget() {
 				setForms(formsData.items);
 
 				if (formsData.items.length > 0 && formsData.items[0]) {
+					failure = SUBMISSIONS_LOAD_FAILED;
 					const subsRes = await apiFetch("submissions/list", {
 						formId: formsData.items[0].id,
 						limit: 5,
@@ -1334,7 +1342,7 @@ function RecentSubmissionsWidget() {
 					setSubmissions(subsData.items);
 				}
 			} catch {
-				setError(FORMS_LOAD_FAILED);
+				setError(failure);
 			} finally {
 				setLoading(false);
 			}
