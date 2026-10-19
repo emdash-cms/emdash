@@ -96,6 +96,7 @@ describe("registry presentation boundaries", () => {
 		expect(renderRegistryMarkdown("<!-- <h1>Old title</h1> -->\n\n### Install")).toContain(
 			"<h3>Install</h3>",
 		);
+		expect(renderRegistryMarkdown("<h2/>Usage")).toContain("<h3>Usage");
 	});
 
 	it("extracts requested permissions from the validated release extension", () => {

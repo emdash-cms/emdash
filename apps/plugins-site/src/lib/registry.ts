@@ -120,8 +120,9 @@ export function renderRegistryMarkdown(markdown: string): string {
 			Number(match[1]),
 		),
 	);
+	// The pattern can miss a heading the sanitizer still parses, such as `<h2/>`.
 	const nestHeading = (tagName: string) => ({
-		tagName: `h${Math.min(4, 3 + Number(tagName.slice(1)) - shallowest)}`,
+		tagName: `h${Math.max(3, Math.min(4, 3 + Number(tagName.slice(1)) - shallowest))}`,
 		attribs: {},
 	});
 	return sanitizeHtml(rendered, {
