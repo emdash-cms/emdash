@@ -525,6 +525,50 @@ describe("redirect middleware — only redirects to site-relative paths", () => 
  * Astro's per-request route cache: a response is stored when a max age or a
  * tag is set by the time the middleware chain returns it.
  */
+describe("redirect middleware — does not rerun route when next() throws (issue #4158)", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("calls next() exactly once and rethrows when the route throws", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/old", destination: "/new", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/unmatched" });
+		const thrown = new Error("the real failure");
+		const next = vi.fn(async () => {
+			throw thrown;
+		});
+
+		await expect(onRequest(context, next)).rejects.toBe(thrown);
+		expect(next).toHaveBeenCalledTimes(1);
+	});
+
+	it("still swallows redirect-table errors and skips redirects", async () => {
+		getDbMock.mockResolvedValue(db);
+		const spy = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
+		spy.mockRejectedValueOnce(new Error("redirects table missing"));
+
+		const { context } = buildContext({ pathname: "/page" });
+		const next = vi.fn(async () => new Response("ok"));
+		const response = await onRequest(context, next);
+
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+		spy.mockRestore();
+	});
+});
+
 function storingRouteCache(initial: { maxAge?: number } = {}) {
 	let options: { maxAge?: number; tags: string[] } = { ...initial, tags: [] };
 	return {

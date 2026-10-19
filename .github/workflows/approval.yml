@@ -5,8 +5,8 @@ name: Approval
 # with the check. Pure actions/github-script: no checkout, no secrets, no agent.
 #
 # Do not add a pull_request_review trigger: it would run the PR branch's copy of
-# this workflow. Instead emdash-bot re-applies the PR's review label from the
-# review webhook (infra/emdash-bot/.flue/lib/review-state.ts), and the labeled
+# this workflow. Instead the reviewer re-applies the PR's review label from the
+# review webhook (infra/flue-review/.flue/lib/review-state.ts), and the labeled
 # event runs the default branch's copy. Label changes made here use GITHUB_TOKEN
 # and do not trigger it again.
 
@@ -81,7 +81,6 @@ jobs:
               /^apps\/release-action\//,
               /^apps\/release-service\//,
               /^apps\/release-verifier\//,
-              /^infra\/emdash-bot\//,
               /^infra\/flue-review\//,
             ];
 
@@ -311,7 +310,7 @@ jobs:
               }
 
               // Bot-authored PRs have a review status check but carry no review label. This
-              // also removes the label emdash-bot adds to re-run the workflow.
+              // also removes the label the reviewer adds to re-run the workflow.
               await setReviewLabel(pr, pr.user.type === 'Bot' ? null : label);
               core.info(`#${pr.number}: ${label}${met ? '' : ', approval pending'}`);
             }

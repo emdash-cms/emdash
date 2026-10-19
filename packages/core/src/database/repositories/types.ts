@@ -31,6 +31,8 @@ export interface CreateContentInput {
 }
 
 export interface UpdateContentInput {
+	/** Stored locale, supplied by the content handler for alias-aware slug checks. */
+	locale?: string;
 	data?: Record<string, unknown>;
 	status?: string;
 	slug?: string | null;
@@ -41,6 +43,8 @@ export interface UpdateContentInput {
 	/** Revision author, separate from entry ownership. */
 	revisionAuthorId?: string | null;
 	primaryBylineId?: string | null;
+	/** `null` drops the entry's draft revision pointer. */
+	draftRevisionId?: null;
 }
 
 /** SEO fields for content items */
@@ -448,5 +452,12 @@ export class ContentMutationConflictError extends Error {
 	constructor(message = "Content changed while the operation was in progress") {
 		super(message);
 		this.name = "ContentMutationConflictError";
+	}
+}
+
+export class ContentSlugConflictError extends Error {
+	constructor() {
+		super("The slug is already used by another content entry");
+		this.name = "ContentSlugConflictError";
 	}
 }

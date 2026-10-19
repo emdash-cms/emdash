@@ -263,7 +263,7 @@ function createMockServer(options: {
 	};
 }
 
-async function renderPost() {
+async function renderAdmin(open: (router: ReturnType<typeof createAdminRouter>) => Promise<void>) {
 	// The admin's own client keeps a read fresh for a minute, so reopening an
 	// entry within that minute renders from the cache.
 	const queryClient = new QueryClient({
@@ -272,10 +272,7 @@ async function renderPost() {
 	const router = createAdminRouter(queryClient);
 	if (!i18n.locale) i18n.loadAndActivate({ locale: "en", messages: {} });
 
-	await router.navigate({
-		to: "/content/$collection/$id",
-		params: { collection: "posts", id: "post_1" },
-	});
+	await open(router);
 	const screen = await render(
 		<I18nProvider i18n={i18n}>
 			<ThemeProvider defaultTheme="light">
@@ -287,8 +284,20 @@ async function renderPost() {
 			</ThemeProvider>
 		</I18nProvider>,
 	);
-	await expect.element(screen.getByRole("textbox", { name: "Title" })).toHaveValue("First post");
 	return { screen, router };
+}
+
+async function renderPost() {
+	const rendered = await renderAdmin((router) =>
+		router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		}),
+	);
+	await expect
+		.element(rendered.screen.getByRole("textbox", { name: "Title" }))
+		.toHaveValue("First post");
+	return rendered;
 }
 
 async function reopenPost(router: ReturnType<typeof createAdminRouter>) {
@@ -526,5 +535,30 @@ describe("reference field after a save", () => {
 		expect(autosaves(server.requests).at(-1)?.body?.references).toEqual({
 			authors: ["author_ada", "author_grace"],
 		});
+	});
+});
+
+describe("reference field on a new entry", () => {
+	let server: ReturnType<typeof createMockServer> | undefined;
+
+	afterEach(() => {
+		server?.restore();
+		server = undefined;
+	});
+
+	it("asks before leaving when a pick is the only change", async () => {
+		server = createMockServer({ initialAuthors: [] });
+		const { screen, router } = await renderAdmin((admin) =>
+			admin.navigate({ to: "/content/$collection/new", params: { collection: "posts" } }),
+		);
+		await pickAuthor(screen, "Ada Lovelace");
+		await expect.element(screen.getByText("Ada Lovelace")).toBeVisible();
+
+		// A navigation the blocker cancels never settles, so it is not awaited.
+		void router.navigate({ to: "/content/$collection", params: { collection: "posts" } });
+
+		await expect
+			.element(screen.getByRole("dialog", { name: "Leave without saving?" }))
+			.toBeVisible();
 	});
 });

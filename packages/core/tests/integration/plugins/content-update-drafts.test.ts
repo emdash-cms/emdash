@@ -5,6 +5,7 @@ import { RevisionRepository } from "../../../src/database/repositories/revision.
 import { createContentAccessWithWrite } from "../../../src/plugins/context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createPostFixture } from "../../utils/fixtures.js";
+import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -129,6 +130,27 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 
 		const republished = await contentRepo.publish("plain_post", created.id, undefined, false);
 		expect(republished.data).toEqual({ title: "Plugin title", content: "Original body" });
+	});
+
+	it("shows a revisionless update to an entry that still has a draft copy", async () => {
+		await new SchemaRegistry(ctx.db).updateCollection("post", { supports: [] });
+		const created = await contentRepo.create(
+			createPostFixture({ status: "draft", data: { title: "Saved title", content: LIVE_BODY } }),
+		);
+		const copy = await new RevisionRepository(ctx.db).create({
+			collection: "post",
+			entryId: created.id,
+			data: { title: "Live title", content: LIVE_BODY },
+		});
+		await contentRepo.setDraftRevision("post", created.id, copy.id);
+		const access = createContentAccessWithWrite(ctx.db);
+
+		await access.update("post", created.id, { title: "Plugin title" });
+
+		expect(await createTestRuntime(ctx.db).handleContentGet("post", created.id)).toMatchObject({
+			success: true,
+			data: { item: { data: { title: "Plugin title" } } },
+		});
 	});
 
 	it("merges concurrent partial updates and advances the version once per write", async () => {
