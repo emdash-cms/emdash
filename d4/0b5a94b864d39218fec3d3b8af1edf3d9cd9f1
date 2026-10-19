@@ -1,0 +1,19 @@
+apps/plugins-site/src/lib/registry.ts
+  s_a2cd95cd1e637f::t_61a7e48e6931fe 16,116,118-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d40b5a94b864d39218fec3d3b8af1edf3d9cd9f1",
+  "prompts": {},
+  "sessions": {
+    "s_a2cd95cd1e637f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca91999b-cbd1-4c4e-8277-58508f9068c9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
