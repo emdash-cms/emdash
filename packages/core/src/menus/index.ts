@@ -38,6 +38,19 @@ export interface MenuQueryOptions {
 	trailingSlash?: "always" | "never" | "ignore";
 }
 
+/** Per isolate: the namespaces each resolved menu was last cached under. */
+const LAST_RESOLVED_NAMESPACES_KEY = Symbol.for("emdash:menu-resolved-namespaces");
+const lastResolvedNamespaces: Map<string, string[]> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	((globalThis as Record<symbol, unknown>)[LAST_RESOLVED_NAMESPACES_KEY] as
+		| Map<string, string[]>
+		| undefined) ??
+	(() => {
+		const map = new Map<string, string[]>();
+		(globalThis as Record<symbol, unknown>)[LAST_RESOLVED_NAMESPACES_KEY] = map;
+		return map;
+	})();
+
 /**
  * Get a menu by name with resolved URLs.
  *
@@ -50,16 +63,31 @@ export interface MenuQueryOptions {
 export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
 	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
-	return requestCached(`menu:${name}:${locale ?? "*"}:${trailingSlash}`, async () => {
+	const key = `${name}:${locale ?? "*"}:${trailingSlash}`;
+	return requestCached(`menu:${key}`, async () => {
+		const known = lastResolvedNamespaces.get(key);
+		if (known) {
+			// A hit still matches the menus epoch it was stored under, so the rows
+			// these namespaces came from are current and the rows read can be skipped.
+			const cached = await cachedQuery<Menu | null>({
+				namespace: known,
+				key,
+				load: async () => null,
+				cacheable: () => false,
+			});
+			if (cached) return cached;
+		}
 		const rows = await cachedQuery({
 			namespace: CacheNamespace.MENUS,
 			key: `rows:${name}:${locale ?? "*"}`,
 			load: async () => loadMenuRows(name, await getDb(), locale),
 		});
 		if (!rows) return null;
+		const namespaces = resolvedMenuNamespaces(rows.items);
+		lastResolvedNamespaces.set(key, namespaces);
 		return cachedQuery({
-			namespace: resolvedMenuNamespaces(rows.items),
-			key: `${name}:${locale ?? "*"}:${trailingSlash}`,
+			namespace: namespaces,
+			key,
 			load: async () => resolveMenu(rows, await getDb(), trailingSlash),
 		});
 	});

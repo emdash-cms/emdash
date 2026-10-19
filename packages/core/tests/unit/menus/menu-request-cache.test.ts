@@ -145,11 +145,16 @@ describe("getMenu collection-pattern request cache", () => {
 	});
 
 	describe("with an object cache backend", () => {
+		let backendReads = 0;
+
 		beforeEach(() => {
 			const store = new Map<string, string>();
 			__setObjectCacheBackendForTests(
 				{
-					get: (k) => Promise.resolve(store.get(k) ?? null),
+					get: (k) => {
+						backendReads++;
+						return Promise.resolve(store.get(k) ?? null);
+					},
 					set: (k, v) => {
 						store.set(k, v);
 						return Promise.resolve();
@@ -242,6 +247,45 @@ describe("getMenu collection-pattern request cache", () => {
 
 			await repo.delete("post", entry.id);
 			expect(await cachedMenuUrls("header")).toEqual([]);
+		});
+
+		it("reads the cache once for a warm menu, also after its links change", async () => {
+			const urls = async () =>
+				(await runWithContext({ editMode: false, db }, () => getMenu("primary")))?.items.map(
+					(item) => item.url,
+				);
+			const warmReads = async () => {
+				await flush();
+				backendReads = 0;
+				const warm = await urls();
+				expect(backendReads).toBe(1);
+				return warm;
+			};
+
+			await urls();
+			expect(await warmReads()).toEqual(["/blog/hello"]);
+
+			await new SchemaRegistry(db).createCollection({
+				slug: "page",
+				label: "Pages",
+				labelSingular: "Page",
+			});
+			const pages = new ContentRepository(db);
+			const about = await pages.create({ type: "page", slug: "about", data: {} });
+			await pages.publish("page", about.id);
+			const menus = new MenuRepository(db);
+			const [primary] = await menus.findByName("primary");
+			await menus.createItem(primary!.id, primary!.locale, {
+				type: "page",
+				label: "About",
+				referenceCollection: "page",
+				referenceId: about.id,
+			});
+			expect(await urls()).toEqual(["/blog/hello", "/page/about"]);
+			expect(await warmReads()).toEqual(["/blog/hello", "/page/about"]);
+
+			await pages.delete("page", about.id);
+			expect(await urls()).toEqual(["/blog/hello"]);
 		});
 
 		it("refreshes a cached menu when a linked term changes", async () => {
