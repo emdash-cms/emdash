@@ -22,7 +22,12 @@ import {
 	resolveLocaleChain,
 } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
-import { cachedQuery, CacheNamespace, contentCacheNamespaces } from "../object-cache/index.js";
+import {
+	cachedQuery,
+	CacheNamespace,
+	contentCacheNamespaces,
+	isObjectCacheActive,
+} from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
@@ -65,31 +70,38 @@ export async function getMenu(name: string, options: MenuQueryOptions = {}): Pro
 	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
 	const key = `${name}:${locale ?? "*"}:${trailingSlash}`;
 	return requestCached(`menu:${key}`, async () => {
-		const known = lastResolvedNamespaces.get(key);
-		if (known) {
-			// A hit still matches the menus epoch it was stored under, so the rows
-			// these namespaces came from are current and the rows read can be skipped.
-			const cached = await cachedQuery<Menu | null>({
-				namespace: known,
-				key,
-				load: async () => null,
-				cacheable: () => false,
-			});
-			if (cached) return cached;
+		if (!(await isObjectCacheActive())) {
+			return getMenuWithDb(name, await getDb(), { locale, trailingSlash });
 		}
-		const rows = await cachedQuery({
-			namespace: CacheNamespace.MENUS,
-			key: `rows:${name}:${locale ?? "*"}`,
-			load: async () => loadMenuRows(name, await getDb(), locale),
-		});
-		if (!rows) return null;
-		const namespaces = resolvedMenuNamespaces(rows.items);
-		lastResolvedNamespaces.set(key, namespaces);
-		return cachedQuery({
+		const cachedRows = () =>
+			cachedQuery({
+				namespace: CacheNamespace.MENUS,
+				key: `rows:${name}:${locale ?? "*"}`,
+				load: async () => loadMenuRows(name, await getDb(), locale),
+			});
+		const rowNamespaces = async () => {
+			const rows = await cachedRows();
+			return rows && resolvedMenuNamespaces(rows.items);
+		};
+		const namespaces = lastResolvedNamespaces.get(key) ?? (await rowNamespaces());
+		if (!namespaces) return null;
+		let loaded: string[] | undefined;
+		const menu = await cachedQuery<Menu | null>({
 			namespace: namespaces,
 			key,
-			load: async () => resolveMenu(rows, await getDb(), trailingSlash),
+			// The rows are read after this query captured its epochs, so a menu edit
+			// during the render cannot store the old items under the new epoch.
+			load: async () => {
+				const rows = await cachedRows();
+				if (!rows) return null;
+				loaded = resolvedMenuNamespaces(rows.items);
+				return resolveMenu(rows, await getDb(), trailingSlash);
+			},
+			cacheable: (value) => value !== null && sameNamespaces(loaded, namespaces),
 		});
+		if (menu) lastResolvedNamespaces.set(key, loaded ?? namespaces);
+		else lastResolvedNamespaces.delete(key);
+		return menu;
 	});
 }
 
@@ -108,6 +120,10 @@ function resolvedMenuNamespaces(items: MenuItemRow[]): string[] {
 		namespaces.push(CacheNamespace.TAXONOMIES);
 	}
 	return namespaces;
+}
+
+function sameNamespaces(a: readonly string[] | undefined, b: readonly string[]): boolean {
+	return a !== undefined && a.length === b.length && a.every((namespace, i) => namespace === b[i]);
 }
 
 async function getHostTrailingSlash(): Promise<"always" | "never" | "ignore"> {

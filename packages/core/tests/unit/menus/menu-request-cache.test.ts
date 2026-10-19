@@ -21,7 +21,10 @@ import { MenuRepository } from "../../../src/database/repositories/menu.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import { getDb } from "../../../src/loader.js";
 import { getMenu } from "../../../src/menus/index.js";
-import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
+import {
+	__setObjectCacheBackendForTests,
+	invalidateMenuObjectCache,
+} from "../../../src/object-cache/index.js";
 import { runWithContext } from "../../../src/request-context.js";
 
 /** SQL of every query executed against the test database. */
@@ -109,6 +112,7 @@ describe("getMenu collection-pattern request cache", () => {
 		expect(footer?.items.map((i) => i.url)).toEqual(["/blog/hello"]);
 
 		expect(collectionPatternQueries()).toHaveLength(1);
+		expect(queries.filter((q) => q.includes('"_emdash_menu_items"'))).toHaveLength(2);
 	});
 
 	it("returns identical results with and without a request context", async () => {
@@ -146,14 +150,21 @@ describe("getMenu collection-pattern request cache", () => {
 
 	describe("with an object cache backend", () => {
 		let backendReads = 0;
+		let onRowsRead: (() => Promise<void>) | undefined;
 
 		beforeEach(() => {
 			const store = new Map<string, string>();
 			__setObjectCacheBackendForTests(
 				{
-					get: (k) => {
+					get: async (k) => {
 						backendReads++;
-						return Promise.resolve(store.get(k) ?? null);
+						const value = store.get(k) ?? null;
+						if (k.includes(":rows:") && onRowsRead) {
+							const hook = onRowsRead;
+							onRowsRead = undefined;
+							await hook();
+						}
+						return value;
 					},
 					set: (k, v) => {
 						store.set(k, v);
@@ -213,6 +224,10 @@ describe("getMenu collection-pattern request cache", () => {
 			expect(queries).toHaveLength(0);
 			return menu?.items.map((item) => item.url);
 		}
+
+		it("returns null for a menu that does not exist", async () => {
+			expect(await cachedMenuUrls("missing")).toBeUndefined();
+		});
 
 		it("keeps cached menus apart by locale and trailing-slash policy", async () => {
 			await db
@@ -282,9 +297,68 @@ describe("getMenu collection-pattern request cache", () => {
 				referenceId: about.id,
 			});
 			expect(await urls()).toEqual(["/blog/hello", "/page/about"]);
+			await urls();
 			expect(await warmReads()).toEqual(["/blog/hello", "/page/about"]);
 
 			await pages.delete("page", about.id);
+			expect(await urls()).toEqual(["/blog/hello"]);
+		});
+
+		it("keeps a menu edit that lands while a render reads the menu rows", async () => {
+			const labels = async () =>
+				(await runWithContext({ editMode: false, db }, () => getMenu("primary")))?.items.map(
+					(item) => item.label,
+				);
+			await labels();
+			await flush();
+			await new ContentRepository(db).create({ type: "post", slug: "other", data: {} });
+			onRowsRead = async () => {
+				await db.updateTable("_emdash_menu_items").set({ label: "Renamed" }).execute();
+				invalidateMenuObjectCache();
+			};
+
+			await labels();
+			await flush();
+
+			expect(onRowsRead).toBeUndefined();
+			expect(await labels()).toEqual(["Renamed"]);
+		});
+
+		it("never caches a menu under namespaces its links no longer match", async () => {
+			const urls = async () =>
+				(await runWithContext({ editMode: false, db }, () => getMenu("primary")))?.items.map(
+					(item) => item.url,
+				);
+			await urls();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the per-isolate memo
+			const memo = (globalThis as Record<symbol, unknown>)[
+				Symbol.for("emdash:menu-resolved-namespaces")
+			] as Map<string, string[]>;
+			const [memoKey, before] = [...memo].find(([key]) => key.startsWith("primary:"))!;
+			// Another isolate still knows the menu by the namespaces it had before the edit.
+			const asOtherIsolate = () => memo.set(memoKey, before);
+
+			await new SchemaRegistry(db).createCollection({
+				slug: "page",
+				label: "Pages",
+				labelSingular: "Page",
+			});
+			const pages = new ContentRepository(db);
+			const about = await pages.create({ type: "page", slug: "about", data: {} });
+			await pages.publish("page", about.id);
+			const menus = new MenuRepository(db);
+			const [primary] = await menus.findByName("primary");
+			await menus.createItem(primary!.id, primary!.locale, {
+				type: "page",
+				label: "About",
+				referenceCollection: "page",
+				referenceId: about.id,
+			});
+			expect(await urls()).toEqual(["/blog/hello", "/page/about"]);
+			await flush();
+
+			await pages.delete("page", about.id);
+			asOtherIsolate();
 			expect(await urls()).toEqual(["/blog/hello"]);
 		});
 
