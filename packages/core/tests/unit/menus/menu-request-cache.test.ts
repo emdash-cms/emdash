@@ -304,7 +304,18 @@ describe("getMenu collection-pattern request cache", () => {
 			expect(await urls()).toEqual(["/blog/hello"]);
 		});
 
-		it("keeps a menu edit that lands while a render reads the menu rows", async () => {
+		/** The per-isolate memo of the namespaces each menu was last resolved under. */
+		function namespacesMemo(): Map<string, string[]> {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the per-isolate memo
+			return (globalThis as Record<symbol, unknown>)[
+				Symbol.for("emdash:menu-resolved-namespaces")
+			] as Map<string, string[]>;
+		}
+
+		it.each([
+			["a render", false],
+			["a fresh isolate", true],
+		])("keeps a menu edit that lands while %s reads the menu rows", async (_, freshIsolate) => {
 			const labels = async () =>
 				(await runWithContext({ editMode: false, db }, () => getMenu("primary")))?.items.map(
 					(item) => item.label,
@@ -312,6 +323,7 @@ describe("getMenu collection-pattern request cache", () => {
 			await labels();
 			await flush();
 			await new ContentRepository(db).create({ type: "post", slug: "other", data: {} });
+			if (freshIsolate) namespacesMemo().clear();
 			onRowsRead = async () => {
 				await db.updateTable("_emdash_menu_items").set({ label: "Renamed" }).execute();
 				invalidateMenuObjectCache();
@@ -330,10 +342,7 @@ describe("getMenu collection-pattern request cache", () => {
 					(item) => item.url,
 				);
 			await urls();
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the per-isolate memo
-			const memo = (globalThis as Record<symbol, unknown>)[
-				Symbol.for("emdash:menu-resolved-namespaces")
-			] as Map<string, string[]>;
+			const memo = namespacesMemo();
 			const [memoKey, before] = [...memo].find(([key]) => key.startsWith("primary:"))!;
 			// Another isolate still knows the menu by the namespaces it had before the edit.
 			const asOtherIsolate = () => memo.set(memoKey, before);

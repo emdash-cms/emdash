@@ -73,26 +73,36 @@ export async function getMenu(name: string, options: MenuQueryOptions = {}): Pro
 		if (!(await isObjectCacheActive())) {
 			return getMenuWithDb(name, await getDb(), { locale, trailingSlash });
 		}
-		const cachedRows = () =>
-			cachedQuery({
+		const readRows = async () => {
+			let epoch: number | undefined;
+			const rows = await cachedQuery({
 				namespace: CacheNamespace.MENUS,
 				key: `rows:${name}:${locale ?? "*"}`,
 				load: async () => loadMenuRows(name, await getDb(), locale),
+				onEpochs: ([menus]) => {
+					epoch = menus;
+				},
 			});
-		const rowNamespaces = async () => {
-			const rows = await cachedRows();
-			return rows && resolvedMenuNamespaces(rows.items);
+			return { rows, epoch };
 		};
-		const namespaces = lastResolvedNamespaces.get(key) ?? (await rowNamespaces());
+		const remembered = lastResolvedNamespaces.get(key);
+		const earlyRead = remembered ? undefined : await readRows();
+		const namespaces =
+			remembered ?? (earlyRead?.rows && resolvedMenuNamespaces(earlyRead.rows.items));
 		if (!namespaces) return null;
+		let resolvedEpoch: number | undefined;
 		let loaded: string[] | undefined;
 		const menu = await cachedQuery<Menu | null>({
 			namespace: namespaces,
 			key,
-			// The rows are read after this query captured its epochs, so a menu edit
-			// during the render cannot store the old items under the new epoch.
+			onEpochs: ([menus]) => {
+				resolvedEpoch = menus;
+			},
+			// Rows read before this query captured its epochs are reused only if no menu
+			// edit landed in between; otherwise the old items would be stored as current.
 			load: async () => {
-				const rows = await cachedRows();
+				const { rows } =
+					earlyRead && earlyRead.epoch === resolvedEpoch ? earlyRead : await readRows();
 				if (!rows) return null;
 				loaded = resolvedMenuNamespaces(rows.items);
 				return resolveMenu(rows, await getDb(), trailingSlash);

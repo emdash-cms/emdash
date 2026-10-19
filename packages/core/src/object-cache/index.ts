@@ -510,6 +510,12 @@ export interface CachedQueryOptions<T> {
 	 * always-cache. Use it to skip caching error/empty sentinels.
 	 */
 	cacheable?: (value: T) => boolean;
+	/**
+	 * Receives the namespace epochs this read compares against and stores
+	 * under, in namespace order, before the value is checked or loaded. Not
+	 * called when the cache is disabled or bypassed.
+	 */
+	onEpochs?: (epochs: readonly number[]) => void;
 }
 
 /**
@@ -545,6 +551,7 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 		() => null,
 	);
 	const currentEpochs = await epochsPromise;
+	options.onEpochs?.(currentEpochs);
 	const raw = await rawPromise;
 	if (raw !== null) {
 		const decoded = decode(raw);
