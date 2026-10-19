@@ -1,0 +1,19 @@
+apps/plugins-site/src/components/home/HeroExhibit.astro
+  s_a2cd95cd1e637f::t_fae39bb031a27c 809-813
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3f9306c6c89af9dfefbe274fca1de927446e7aeb",
+  "prompts": {},
+  "sessions": {
+    "s_a2cd95cd1e637f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca91999b-cbd1-4c4e-8277-58508f9068c9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
