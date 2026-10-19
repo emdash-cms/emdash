@@ -1,0 +1,31 @@
+apps/plugins-site/src/lib/detail.test.ts
+  s_a2cd95cd1e637f::t_0e0d94a5ca12ff 25-36
+apps/plugins-site/src/lib/detail.ts
+  s_a2cd95cd1e637f::t_b5451689a8cd43 6,32-33,47-52
+apps/plugins-site/src/pages/plugins/[publisher]/[slug].astro
+  s_2561e8e5199906::t_79b5c929a8a6ac 371,375
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f1054fb04ecdfe1a9720f653f2bbbae17c3b32e2",
+  "prompts": {},
+  "sessions": {
+    "s_2561e8e5199906": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eea5a462-b051-43c9-8653-9331efaf3044",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_a2cd95cd1e637f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca91999b-cbd1-4c4e-8277-58508f9068c9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
