@@ -14,6 +14,8 @@ import { sql } from "kysely";
 import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { getLocaleChainRank, getLocaleRank } from "../i18n/config.js";
+import { localeMatches } from "../i18n/query.js";
 import {
 	resolveLocalizedContentRoutePath,
 	resolveLocale,
@@ -94,13 +96,19 @@ export async function getMenuWithDb(
 		])
 		.where("m.name", "=", name)
 		.orderBy("i.sort_order", "asc");
-	if (chain.length > 0) query = query.where("m.locale", "in", chain);
+	if (chain.length > 0) {
+		query = query.where((eb) => eb.or(chain.map((locale) => localeMatches("m.locale", locale))));
+	}
 	const rows = await query.execute();
-
-	const locales = new Set(rows.map((row) => row.m_locale));
-	const locale =
-		chain.length === 0 ? [...locales].toSorted()[0] : chain.find((l) => locales.has(l));
-	const menuRow = rows.find((row) => row.m_locale === locale);
+	const sortedRows = rows.toSorted((a, b) => {
+		if (chain.length === 0)
+			return a.m_locale.localeCompare(b.m_locale) || a.m_id.localeCompare(b.m_id);
+		return (
+			getLocaleChainRank(a.m_locale, chain) - getLocaleChainRank(b.m_locale, chain) ||
+			a.m_id.localeCompare(b.m_id)
+		);
+	});
+	const menuRow = sortedRows[0];
 	if (!menuRow) return null;
 
 	const menuId = menuRow.m_id;
@@ -146,7 +154,7 @@ export async function getMenusWithDb(
 		.selectFrom("_emdash_menus")
 		.select(["id", "name", "label", "locale"])
 		.orderBy("name", "asc");
-	if (locale !== undefined) query = query.where("locale", "=", locale);
+	if (locale !== undefined) query = query.where(localeMatches("locale", locale));
 	return query.execute();
 }
 
@@ -439,11 +447,13 @@ function shouldPreferLocalizedRow(
 	locale: string,
 ): boolean {
 	if (!existing) return true;
-	if (candidate.locale === locale) return existing.locale !== locale || candidate.id < existing.id;
-	if (existing.locale === locale) return false;
+	const candidateRank = getLocaleRank(candidate.locale, locale);
+	const existingRank = getLocaleRank(existing.locale, locale);
 	return (
-		candidate.locale < existing.locale ||
-		(candidate.locale === existing.locale && candidate.id < existing.id)
+		candidateRank < existingRank ||
+		(candidateRank === existingRank &&
+			(candidate.locale < existing.locale ||
+				(candidate.locale === existing.locale && candidate.id < existing.id)))
 	);
 }
 

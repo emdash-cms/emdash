@@ -31,6 +31,7 @@ import {
 } from "#api/schemas.js";
 
 import { after } from "../after.js";
+import { entryEditAccess } from "../api/authorize.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
@@ -40,6 +41,7 @@ import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import { resolveConfiguredLocale } from "../i18n/config.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -179,6 +181,10 @@ const settingsSeoSchema = z.object({
 		.max(5000)
 		.optional()
 		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+	disallowAiTraining: z
+		.boolean()
+		.optional()
+		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -555,6 +561,14 @@ function isPublished(t: unknown): boolean {
 	);
 }
 
+function isEntry(t: unknown, idOrSlug: string): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		(("id" in t && t.id === idOrSlug) || ("slug" in t && t.slug === idOrSlug))
+	);
+}
+
 function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashExtra {
 	const payload = extra.authInfo?.extra as EmDashExtra | undefined;
 	if (!payload?.emdash) {
@@ -827,6 +841,15 @@ async function refuseLockedEntry(
 		override: overrideLock,
 	});
 	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
+}
+
+/** Extract the status from a content handler response. */
+function extractContentStatus(data: unknown): unknown {
+	if (!data || typeof data !== "object") return undefined;
+	const obj = data as Record<string, unknown>;
+	const item =
+		obj.item && typeof obj.item === "object" ? (obj.item as Record<string, unknown>) : obj;
+	return item?.status;
 }
 
 /** Extract the `_rev` token from a content handler response. */
@@ -1124,6 +1147,15 @@ export function createMcpServer(
 						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
 					});
 				}
+				// handleContentGet overlays the draft revision onto item.data and
+				// moves the published values to item.liveData.
+				if (item) {
+					if (item.liveData && typeof item.liveData === "object") {
+						item.data = item.liveData;
+					}
+					delete item.liveData;
+					delete item.draftRevisionId;
+				}
 			}
 			if (result.success && args.markdown && result.data?.item) {
 				await applyReadMarkdown(ec, args.collection, [result.data.item]);
@@ -1372,7 +1404,7 @@ export function createMcpServer(
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
-			requireRole(extra, Role.AUTHOR);
+			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId, userRole } = getExtra(extra);
 			const actor = { id: userId, role: userRole };
 
@@ -1382,7 +1414,17 @@ export function createMcpServer(
 				return unwrap(existing);
 			}
 			const ownerId = extractContentAuthorId(existing.data);
-			requireOwnership(extra, ownerId, "content:edit_own", "content:edit_any");
+			if (
+				!entryEditAccess(
+					{ id: userId, role: userRole },
+					{ authorId: ownerId, status: extractContentStatus(existing.data) },
+				)
+			) {
+				throw new EmDashAuthError(
+					"Insufficient permissions for this operation",
+					"INSUFFICIENT_PERMISSIONS",
+				);
+			}
 
 			const data = args.data
 				? await convertWriteData(emdash, args.collection, args.data)
@@ -1959,6 +2001,8 @@ export function createMcpServer(
 			const result = await ec.handleContentTranslations(args.collection, args.id);
 			// Filter out non-published translations for users without draft
 			// access so a subscriber can't enumerate locales that aren't yet live.
+			// The requested entry is one of the translations; if it isn't
+			// published, report it as not found so its id or slug can't be probed.
 			if (result.success && !canReadDrafts(extra)) {
 				const data =
 					result.data && typeof result.data === "object"
@@ -1967,6 +2011,12 @@ export function createMcpServer(
 						: undefined;
 				const translations = Array.isArray(data?.translations) ? data.translations : [];
 				const filtered = translations.filter(isPublished);
+				if (!filtered.some((t) => isEntry(t, args.id))) {
+					return unwrap({
+						success: false,
+						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+					});
+				}
 				return unwrap({
 					success: true,
 					data: { ...data, translations: filtered },
@@ -3158,7 +3208,8 @@ export function createMcpServer(
 					if (
 						!cursorTerm ||
 						cursorTerm.name !== args.taxonomy ||
-						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+						(args.locale !== undefined &&
+							resolveConfiguredLocale(cursorTerm.locale) !== resolveConfiguredLocale(args.locale))
 					) {
 						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
 					}

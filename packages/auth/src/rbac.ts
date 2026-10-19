@@ -17,6 +17,9 @@ export const Permissions = {
 	// drafts.
 	"content:read_drafts": Role.CONTRIBUTOR,
 	"content:create": Role.CONTRIBUTOR,
+	// Lets an owner edit their entry while it is a draft. Published and scheduled
+	// entries need content:edit_own, since saving one can change what visitors see.
+	"content:edit_own_drafts": Role.CONTRIBUTOR,
 	"content:edit_own": Role.AUTHOR,
 	"content:edit_any": Role.EDITOR,
 	"content:delete_own": Role.AUTHOR,

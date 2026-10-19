@@ -27,6 +27,47 @@ function resolveSearchTokenizer(tokenize?: SearchTokenizer): SearchTokenizer {
 	return tokenize;
 }
 
+export interface CollectionSearchMetadata {
+	config: SearchConfig;
+	searchableFields: string[];
+	hasTitle: boolean;
+}
+
+function parseSearchConfig(searchConfig: string, titleField: string | null): SearchConfig | null {
+	try {
+		const parsed: unknown = JSON.parse(searchConfig);
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			!("enabled" in parsed) ||
+			typeof parsed.enabled !== "boolean"
+		) {
+			return null;
+		}
+		const config: SearchConfig = { enabled: parsed.enabled };
+		if (titleField) config.titleField = titleField;
+		if ("weights" in parsed && typeof parsed.weights === "object" && parsed.weights !== null) {
+			// weights is a JSON-parsed object — safe to treat as Record<string, number>
+			const weights: Record<string, number> = {};
+			for (const [k, v] of Object.entries(parsed.weights)) {
+				if (typeof v === "number") {
+					weights[k] = v;
+				}
+			}
+			config.weights = weights;
+		}
+		if ("tokenize" in parsed) {
+			if (!isSearchTokenizer(parsed.tokenize)) {
+				return null;
+			}
+			config.tokenize = parsed.tokenize;
+		}
+		return config;
+	} catch {
+		return null;
+	}
+}
+
 /**
  * FTS5 Manager
  *
@@ -394,38 +435,67 @@ export class FTSManager {
 			return null;
 		}
 
-		try {
-			const parsed: unknown = JSON.parse(result.search_config);
-			if (
-				typeof parsed !== "object" ||
-				parsed === null ||
-				!("enabled" in parsed) ||
-				typeof parsed.enabled !== "boolean"
-			) {
-				return null;
-			}
-			const config: SearchConfig = { enabled: parsed.enabled };
-			if (result.title_field) config.titleField = result.title_field;
-			if ("weights" in parsed && typeof parsed.weights === "object" && parsed.weights !== null) {
-				// weights is a JSON-parsed object — safe to treat as Record<string, number>
-				const weights: Record<string, number> = {};
-				for (const [k, v] of Object.entries(parsed.weights)) {
-					if (typeof v === "number") {
-						weights[k] = v;
-					}
-				}
-				config.weights = weights;
-			}
-			if ("tokenize" in parsed) {
-				if (!isSearchTokenizer(parsed.tokenize)) {
-					return null;
-				}
-				config.tokenize = parsed.tokenize;
-			}
-			return config;
-		} catch {
-			return null;
+		return parseSearchConfig(result.search_config, result.title_field);
+	}
+
+	/**
+	 * Load all metadata needed to search the requested collections in one round trip.
+	 * Omitted or empty slugs select all search-enabled collections.
+	 */
+	async getSearchMetadata(
+		collectionSlugs?: string[],
+	): Promise<Map<string, CollectionSearchMetadata>> {
+		if (!isSqlite(this.db)) return new Map();
+
+		let query = this.db
+			.selectFrom("_emdash_collections as c")
+			.select([
+				"c.slug",
+				"c.search_config",
+				"c.title_field",
+				// bm25 weights are positional, so use the index's physical column order.
+				sql<string>`(
+					SELECT json_group_array(name ORDER BY cid)
+					FROM pragma_table_info(${"_emdash_fts_"} || c.slug)
+					WHERE cid >= 2
+				)`.as("searchable_fields"),
+				sql<number>`EXISTS (
+					SELECT 1 FROM _emdash_fields WHERE collection_id = c.id AND slug = 'title'
+				)`.as("has_title"),
+			])
+			.where("c.search_config", "is not", null).where(sql<boolean>`EXISTS (
+				SELECT 1 FROM sqlite_master
+				WHERE type = 'table' AND name = ${"_emdash_fts_"} || c.slug
+			)`);
+
+		if (collectionSlugs?.length) {
+			query = query.where(
+				"c.slug",
+				"in",
+				sql<string>`(SELECT value FROM json_each(${JSON.stringify(collectionSlugs)}))`,
+			);
 		}
+
+		const metadata = new Map<string, CollectionSearchMetadata>();
+		for (const row of await query.execute()) {
+			const config = row.search_config
+				? parseSearchConfig(row.search_config, row.title_field)
+				: null;
+			if (!config?.enabled) continue;
+			const searchableFields: unknown = JSON.parse(row.searchable_fields);
+			if (
+				!Array.isArray(searchableFields) ||
+				!searchableFields.every((field: unknown) => typeof field === "string")
+			) {
+				throw new Error("Invalid FTS field metadata");
+			}
+			metadata.set(row.slug, {
+				config,
+				searchableFields,
+				hasTitle: Boolean(row.has_title),
+			});
+		}
+		return metadata;
 	}
 
 	/**

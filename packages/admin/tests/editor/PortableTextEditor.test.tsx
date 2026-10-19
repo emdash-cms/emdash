@@ -1117,7 +1117,8 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(span?.text).toBe("API");
 		expect(span?.marks).toContain("code");
 		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
-		expect(linkDef?.href).toBe("https://api.example.com");
+		expect(linkDef).toMatchObject({ _type: "link", href: "https://api.example.com" });
+		expect(linkDef).not.toMatchObject({ blank: true });
 		expect(span?.marks).toContain(linkDef?._key);
 	});
 

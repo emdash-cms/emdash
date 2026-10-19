@@ -135,19 +135,23 @@ export async function createStorageIndexes(
 			});
 			await createSql.execute(db);
 
-			// Track in _plugin_indexes table
+			// Track in _plugin_indexes table. Only rewrite the row when the stored
+			// fields differ from the declared ones so repeated identical syncs do
+			// not perform needless writes (see issue #4228).
+			const fieldsJson = JSON.stringify(fields);
 			await db
 				.insertInto("_plugin_indexes")
 				.values({
 					plugin_id: pluginId,
 					collection,
 					index_name: indexName,
-					fields: JSON.stringify(fields),
+					fields: fieldsJson,
 				})
 				.onConflict((oc) =>
 					oc
 						.columns(["plugin_id", "collection", "index_name"])
-						.doUpdateSet({ fields: JSON.stringify(fields) }),
+						.doUpdateSet({ fields: fieldsJson })
+						.whereRef("_plugin_indexes.fields", "!=", "excluded.fields"),
 				)
 				.execute();
 

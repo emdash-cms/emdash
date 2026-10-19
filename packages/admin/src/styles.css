@@ -227,8 +227,8 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	content: none !important;
 }
 
-.ProseMirror blockquote p::before,
-.ProseMirror blockquote p::after {
+:is(.ProseMirror, [data-emdash-static-document]) blockquote p::before,
+:is(.ProseMirror, [data-emdash-static-document]) blockquote p::after {
 	content: none;
 }
 
@@ -1015,32 +1015,32 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 /*
  * Keep heading margins compact to minimize drag preview offset.
  */
-.ProseMirror.prose > h1 {
+:is(.ProseMirror, [data-emdash-static-document]).prose > h1 {
 	margin-top: 0.5em !important;
 	margin-bottom: 0.5em !important;
 }
 
-.ProseMirror.prose > h2 {
+:is(.ProseMirror, [data-emdash-static-document]).prose > h2 {
 	margin-top: 0.4em !important;
 	margin-bottom: 0.4em !important;
 }
 
-.ProseMirror.prose > h3,
-.ProseMirror.prose > h4,
-.ProseMirror.prose > h5,
-.ProseMirror.prose > h6 {
+:is(.ProseMirror, [data-emdash-static-document]).prose > h3,
+:is(.ProseMirror, [data-emdash-static-document]).prose > h4,
+:is(.ProseMirror, [data-emdash-static-document]).prose > h5,
+:is(.ProseMirror, [data-emdash-static-document]).prose > h6 {
 	margin-top: 0.3em !important;
 	margin-bottom: 0.3em !important;
 }
 
 /* Top margins add blank space above the text in block drag previews. */
-.ProseMirror.prose > p {
+:is(.ProseMirror, [data-emdash-static-document]).prose > p {
 	font-size: 1rem;
 	line-height: 1.5;
 	margin-block: 0 1em !important;
 }
 
-.ProseMirror.prose > *:first-child {
+:is(.ProseMirror, [data-emdash-static-document]).prose > *:first-child {
 	margin-top: 0 !important;
 }
 
@@ -1058,11 +1058,11 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 /* Low specificity, so the document's block spacing rules win over it. */
-.ProseMirror :where(.tableWrapper) {
+:is(.ProseMirror, [data-emdash-static-document]) :where(.tableWrapper) {
 	margin-block: 1rem;
 }
 
-.ProseMirror .tableWrapper {
+:is(.ProseMirror, [data-emdash-static-document]) .tableWrapper {
 	max-inline-size: 100%;
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -1079,31 +1079,31 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 			6px 100% no-repeat scroll;
 }
 
-.ProseMirror .tableWrapper::-webkit-scrollbar {
+:is(.ProseMirror, [data-emdash-static-document]) .tableWrapper::-webkit-scrollbar {
 	display: none;
 }
 
-.ProseMirror.prose > p:last-child {
+:is(.ProseMirror, [data-emdash-static-document]).prose > p:last-child {
 	margin-bottom: 0 !important;
 }
 
 /* TipTap table styles */
-.ProseMirror table {
+:is(.ProseMirror, [data-emdash-static-document]) table {
 	border-collapse: collapse;
 	inline-size: 100%;
 	margin: 0;
 	table-layout: fixed;
 }
 
-.ProseMirror td,
-.ProseMirror th {
+:is(.ProseMirror, [data-emdash-static-document]) td,
+:is(.ProseMirror, [data-emdash-static-document]) th {
 	border: 1px solid var(--color-kumo-line);
 	position: relative;
 	padding: 0.375rem 0.5rem;
 	vertical-align: top;
 }
 
-.ProseMirror :is(td, th) > p {
+:is(.ProseMirror, [data-emdash-static-document]) :is(td, th) > p {
 	margin-block: 0 !important;
 	min-block-size: 1.5rem;
 }
@@ -1112,7 +1112,7 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	content: none;
 }
 
-.ProseMirror th {
+:is(.ProseMirror, [data-emdash-static-document]) th {
 	background-color: var(--color-kumo-tint);
 	font-weight: 600;
 }
@@ -1154,7 +1154,7 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 @container (max-width: 30rem) {
-	[data-emdash-editor-variant="boxed"] .ProseMirror {
+	[data-emdash-editor-variant="boxed"] :is(.ProseMirror, [data-emdash-static-document]) {
 		padding-inline: 1rem;
 	}
 
@@ -1270,4 +1270,240 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
  */
 [role="region"][aria-label="Notifications"] {
 	z-index: 10000 !important;
+}
+
+/* ==========================================================================
+ * Revision history
+ *
+ * The read-only revision view drawn in the editor canvas, the bar docked
+ * under it, and the author colours shared with the Revisions list.
+ * ========================================================================== */
+
+/* Global, so the author dots in the Revisions list pick them up too. */
+[data-author-color] {
+	--emdash-author: var(--color-kumo-badge-neutral);
+}
+
+[data-author-color="purple"] {
+	--emdash-author: var(--color-kumo-badge-purple);
+}
+
+[data-author-color="teal"] {
+	--emdash-author: var(--color-kumo-badge-teal);
+}
+
+[data-author-color="blue"] {
+	--emdash-author: var(--color-kumo-badge-blue);
+}
+
+[data-author-color="orange"] {
+	--emdash-author: var(--color-kumo-badge-orange);
+}
+
+[data-emdash-revision-view] {
+	--emdash-revision-ring: color-mix(in oklab, var(--emdash-author) 55%, transparent);
+	--emdash-revision-tint: light-dark(
+		color-mix(in oklab, var(--emdash-author) 9%, transparent),
+		color-mix(in oklab, var(--emdash-author) 22%, transparent)
+	);
+}
+
+/* The editor's own text handling, which TipTap only gives its `.ProseMirror` root. */
+[data-emdash-static-document] {
+	position: relative;
+	overflow-wrap: break-word;
+	white-space: break-spaces;
+	font-variant-ligatures: none;
+	font-feature-settings: "liga" 0;
+}
+
+[data-emdash-static-document] pre {
+	white-space: pre-wrap;
+}
+
+/* The editor's code text sits in a block inside `code`, so its lines take the code's line height. */
+[data-emdash-static-document] .emdash-code-block > code {
+	display: block;
+}
+
+/* Square corners keep the added text's underline straight to its ends. */
+[data-emdash-revision-view] :is(ins, del) {
+	background-color: light-dark(
+		color-mix(in oklab, var(--emdash-author) 16%, transparent),
+		color-mix(in oklab, var(--emdash-author) 34%, transparent)
+	);
+	padding-inline: 0.125rem;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+
+[data-emdash-revision-view] ins {
+	box-shadow: inset 0 -1.5px color-mix(in oklab, var(--emdash-author) 50%, transparent);
+	color: inherit;
+	text-decoration: none;
+}
+
+/* 40% of the author's colour keeps struck text above 4.5:1 on its tint on every surface, orange included. */
+[data-emdash-revision-view] del {
+	color: color-mix(in oklab, var(--emdash-author) 40%, var(--text-color-kumo-default));
+	text-decoration-line: line-through;
+	text-decoration-thickness: 1.5px;
+}
+
+[data-emdash-revision-view] del :is(a, code) {
+	color: inherit;
+}
+
+/*
+ * A visual gap between the old and new text of a replacement; it isn't a space in the text.
+ * Each wrapped line repeats it, so it trails the old text rather than indenting the new.
+ */
+[data-emdash-revision-view] [data-revision-pair] > del {
+	margin-inline-end: 0.2em;
+}
+
+[data-emdash-revision-view] [data-revision-restyled] {
+	text-decoration-line: underline;
+	text-decoration-style: dotted;
+	text-decoration-color: color-mix(in oklab, var(--emdash-author) 70%, transparent);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 0.375em;
+}
+
+/*
+ * Added or rewritten blocks get a tint that reaches just past their edges,
+ * like a selected block in the editor. It sits behind the text.
+ */
+[data-emdash-revision-view] [data-revision-tint] {
+	position: relative;
+	isolation: isolate;
+}
+
+[data-emdash-revision-view] [data-revision-tint]::after {
+	position: absolute;
+	z-index: -1;
+	inset: -1px -0.25rem;
+	border-radius: 0.375rem;
+	background-color: var(--emdash-revision-tint);
+	content: "";
+	pointer-events: none;
+}
+
+/* A list item's tint covers its marker. */
+[data-emdash-revision-view] li > [data-revision-tint]::after {
+	inset-inline-start: -1.75rem;
+}
+
+[data-emdash-revision-view] [data-revision-tint="field"]::after {
+	inset: -0.375rem -0.5rem;
+	border-radius: 0.5rem;
+}
+
+/* Images, framed blocks, and field values that changed as a whole. */
+[data-emdash-revision-view] [data-revision-ring]:not([data-revision-ring="box"]) {
+	outline: 2px solid var(--emdash-revision-ring);
+	outline-offset: 3px;
+}
+
+[data-emdash-revision-view] [data-node-view-wrapper][data-revision-ring] {
+	border-radius: 0.5rem;
+}
+
+/* An input-like box swaps its own edge for the author's colour. */
+[data-emdash-revision-view] [data-revision-ring="box"] {
+	box-shadow: 0 0 0 1.5px var(--emdash-revision-ring);
+}
+
+[data-emdash-revision-view] [data-revision-dim] {
+	opacity: 0.4;
+}
+
+/* Changes the view can scroll to. */
+[data-emdash-revision-view] [tabindex="-1"] {
+	border-radius: 0.375rem;
+}
+
+[data-emdash-revision-view] [tabindex="-1"]:focus-visible {
+	outline: 2px solid var(--emdash-author);
+	outline-offset: 4px;
+}
+
+/* Restarted by removing and re-adding the class. */
+.emdash-revision-pulse {
+	animation: emdash-revision-pulse 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes emdash-revision-pulse {
+	from {
+		box-shadow: 0 0 0 0 color-mix(in oklab, var(--emdash-author) 45%, transparent);
+	}
+	to {
+		box-shadow: 0 0 0 14px transparent;
+	}
+}
+
+/* The band behind the version bar fades the document out under it. */
+.emdash-revision-dock {
+	background-image: linear-gradient(
+		to bottom,
+		transparent,
+		var(--emdash-editor-surface, var(--color-kumo-elevated)) 2rem
+	);
+}
+
+/* Draws the card's edge too, since a box-shadow here replaces a Tailwind ring. */
+.emdash-revision-bar {
+	box-shadow:
+		0 0 0 1px var(--color-kumo-line),
+		0 10px 28px var(--color-kumo-shadow-drop),
+		0 2px 6px var(--color-kumo-shadow-drop);
+	animation: emdash-revision-bar-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes emdash-revision-bar-in {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.emdash-revision-pulse,
+	.emdash-revision-bar {
+		animation: none;
+	}
+
+	.emdash-revision-pulse:focus {
+		outline: 2px solid var(--emdash-author);
+		outline-offset: 4px;
+	}
+}
+
+@media (forced-colors: active) {
+	[data-emdash-revision-view] ins {
+		background-color: Mark;
+		box-shadow: none;
+		color: MarkText;
+		text-decoration-line: underline;
+	}
+
+	[data-emdash-revision-view] [data-revision-tint]::after {
+		border: 1px solid CanvasText;
+		background-color: transparent;
+	}
+
+	[data-emdash-revision-view] [data-revision-ring] {
+		outline: 2px solid CanvasText;
+		outline-offset: 3px;
+	}
+
+	[data-emdash-revision-view] [tabindex="-1"]:focus-visible,
+	.emdash-revision-pulse:focus {
+		outline: 2px solid Highlight;
+		outline-offset: 4px;
+	}
+
+	.emdash-revision-bar {
+		outline: 1px solid CanvasText;
+	}
 }

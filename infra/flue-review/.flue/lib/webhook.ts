@@ -51,17 +51,28 @@ export interface GatedPr {
 	baseSha: string;
 	owner: string;
 	repo: string;
+	/** `scoped` re-reviews only what changed since `priorHeadSha`; omitted means a full review. */
+	reviewMode?: "full" | "scoped";
+	priorHeadSha?: string;
 }
 
-export type GateDecision = { review: true; pr: GatedPr } | { review: false; reason: string };
+export type GateDecision =
+	| { review: true; pr: GatedPr }
+	| { review: false; reason: string; rereview?: GatedPr };
 
-function isDesignPullRequest(title: string | undefined, body: string | null | undefined): boolean {
+export function isDesignPullRequest(
+	title: string | undefined,
+	body: string | null | undefined,
+): boolean {
 	return DESIGN_PR_TITLE.test(title ?? "") || (body ?? "").includes("<!-- design-pr -->");
 }
 
-// Actions that warrant an auto-review. Deliberately NOT `synchronize`: we don't
-// re-review on every pushed commit (noisy and costly). Re-review after changes
-// is an explicit action via the bot:review label below.
+// Actions that warrant an immediate review. A `synchronize` push is instead
+// scheduled for an automatic re-review once CI on the new head finishes (see
+// rereview.ts), and the bot:review label below forces a full review at any
+// time. The exception is a push by a bot in SYNC_REVIEWED_BOT_AUTHORS to its
+// own PR: each one is a new candidate published for review, not work in
+// progress, so it is reviewed straight away.
 const REVIEWABLE_ACTIONS = new Set(["opened", "reopened", "ready_for_review"]);
 // Manual trigger (re-review): applying this label to a PR.
 const MANUAL_LABEL = "bot:review";
@@ -79,12 +90,26 @@ interface PullRequestEvent {
 		user?: { login?: string };
 	};
 	repository?: { name?: string; owner?: { login?: string } };
+	sender?: { login?: string };
+}
+
+/** Bot authors whose PRs are reviewed without a `bot:review` label. */
+const REVIEWED_BOT_AUTHORS: ReadonlySet<string> = new Set([
+	"emdashbot[bot]",
+	"emdash-autofix[bot]",
+]);
+/** Bot authors whose own pushes to their PRs are reviewed too. */
+const SYNC_REVIEWED_BOT_AUTHORS: ReadonlySet<string> = new Set(["emdash-autofix[bot]"]);
+
+export function isReviewableAuthor(author: string): boolean {
+	return !author.endsWith("[bot]") || REVIEWED_BOT_AUTHORS.has(author);
 }
 
 /**
  * Decide whether a `pull_request` webhook should trigger a review, and extract
  * the fields the workflow needs. Skips drafts and unsolicited bot-authored PRs,
- * except for emdashbot's PRs, which always need review.
+ * except for PRs from bots that write code for review (emdashbot and
+ * emdash-autofix), which always need review.
  */
 export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 	const pr = event.pull_request;
@@ -95,12 +120,17 @@ export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 
 	const action = event.action ?? "";
 	const isManual = action === "labeled" && event.label?.name === MANUAL_LABEL;
-	if (!isManual && !REVIEWABLE_ACTIONS.has(action)) {
+	const author = pr.user?.login ?? "";
+	const isOwnBotPush =
+		action === "synchronize" &&
+		SYNC_REVIEWED_BOT_AUTHORS.has(author) &&
+		event.sender?.login === author;
+	const isRereviewPush = action === "synchronize" && !isOwnBotPush;
+	if (!isManual && !isOwnBotPush && !isRereviewPush && !REVIEWABLE_ACTIONS.has(action)) {
 		return { review: false, reason: `action "${action}" is not reviewable` };
 	}
 
-	const author = pr.user?.login ?? "";
-	if (!isManual && author.endsWith("[bot]") && author !== "emdashbot[bot]") {
+	if (!isManual && !isReviewableAuthor(author)) {
 		return { review: false, reason: `author "${author}" is a bot` };
 	}
 
@@ -119,19 +149,20 @@ export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 		return { review: false, reason: "payload missing required PR fields" };
 	}
 
-	return {
-		review: true,
-		pr: {
-			prNumber,
-			prTitle: pr.title,
-			prBody: pr.body ?? "",
-			authorLogin: author,
-			headRef,
-			headSha,
-			baseRef,
-			baseSha,
-			owner,
-			repo,
-		},
+	const gated: GatedPr = {
+		prNumber,
+		prTitle: pr.title,
+		prBody: pr.body ?? "",
+		authorLogin: author,
+		headRef,
+		headSha,
+		baseRef,
+		baseSha,
+		owner,
+		repo,
 	};
+	if (isRereviewPush && !isManual) {
+		return { review: false, reason: "push scheduled for re-review after CI", rereview: gated };
+	}
+	return { review: true, pr: gated };
 }
