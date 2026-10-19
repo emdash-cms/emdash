@@ -1,0 +1,29 @@
+apps/plugins-site/src/lib/registry.test.ts
+  s_2561e8e5199906::t_6a5609d7c7b952 99
+apps/plugins-site/src/lib/registry.ts
+  s_a2cd95cd1e637f::t_df58368464044c 123,125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "25ac68f9a87c660f5f8021880444ff187acdfc19",
+  "prompts": {},
+  "sessions": {
+    "s_2561e8e5199906": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eea5a462-b051-43c9-8653-9331efaf3044",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_a2cd95cd1e637f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca91999b-cbd1-4c4e-8277-58508f9068c9",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
