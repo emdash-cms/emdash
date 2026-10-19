@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 
-import { addRole, getRoleState, postMessage, removeRole } from "./discord.js";
+import { addRole, getRoleState, postMessage, postMessageWithNonce, removeRole } from "./discord.js";
 import { findByDiscordId, findByGitHubId, hasContributed } from "./kv.js";
 import type { LinkRecord } from "./types.js";
 
@@ -11,16 +11,32 @@ const retiredDiscordKey = (id: string) => `retired:discord:${id}`;
 const contributedKey = (id: number) => `contributed:${id}`;
 const everLinkedKey = (id: number) => `ever-linked:${id}`;
 const welcomePendingKey = (id: number) => `welcome-pending:${id}`;
+const welcomeDeliveryKey = (id: number) => `welcome-delivery:${id}`;
 const linkGenerationKey = (id: string) => `link-generation:${id}`;
 const roleGrantKey = (id: number) => `role-granted:${id}`;
 const UNLINK_REPLAY_PREFIX = "unlink:";
 const UNLINK_REPLAY_TTL_MS = 10 * 60 * 1000;
+// Discord deduplicates recent nonces, not messages retried indefinitely.
+const WELCOME_RETRY_BUDGET_MS = 15_000;
+const WELCOME_MAX_ATTEMPTS = 2;
 
 type UnlinkResult = { unlinked: boolean; roleRemoved: boolean };
 
 interface RoleGrantRecord {
 	discordId: string;
 	roleId: string;
+}
+
+interface WelcomeDeliveryRecord {
+	discordId: string;
+	channelId: string;
+	content: string;
+	nonce: string;
+	startedAt: number;
+	nextAttemptAt: number;
+	attempts: number;
+	status: "pending" | "sent" | "unresolved";
+	messageId?: string;
 }
 
 interface UnlinkReplayRecord {
@@ -183,9 +199,58 @@ export class ContributorLinks extends DurableObject<Env> {
 			const link = await this.lookupGitHub(githubId);
 			if (link?.discord_id !== discordId) return false;
 			if (!(await this.ctx.storage.get<boolean>(welcomePendingKey(githubId)))) return false;
-			// Claim before posting so a retry cannot send the welcome a second time.
-			await this.ctx.storage.delete(welcomePendingKey(githubId));
-			return postMessage(this.env, this.env.DISCORD_CHANNEL_ID, content, [discordId]);
+			const key = welcomeDeliveryKey(githubId);
+			const delivery = (await this.ctx.storage.get<WelcomeDeliveryRecord>(key)) ?? {
+				discordId,
+				channelId: this.env.DISCORD_CHANNEL_ID,
+				content,
+				nonce: crypto.randomUUID().replaceAll("-", "").slice(0, 25),
+				startedAt: Date.now(),
+				nextAttemptAt: Date.now(),
+				attempts: 0,
+				status: "pending",
+			};
+			if (delivery.status !== "pending") return false;
+			const deadline = delivery.startedAt + WELCOME_RETRY_BUDGET_MS;
+			while (
+				delivery.discordId === discordId &&
+				delivery.channelId === this.env.DISCORD_CHANNEL_ID &&
+				delivery.attempts < WELCOME_MAX_ATTEMPTS &&
+				Math.max(Date.now(), delivery.nextAttemptAt) < deadline
+			) {
+				const delay = delivery.nextAttemptAt - Date.now();
+				if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+				if (Date.now() >= deadline) break;
+				delivery.attempts++;
+				await this.ctx.storage.put(key, delivery);
+				if (Date.now() >= deadline) break;
+				const result = await postMessageWithNonce(
+					this.env,
+					delivery.channelId,
+					delivery.content,
+					[delivery.discordId],
+					delivery.nonce,
+					deadline - Date.now(),
+				);
+				if (result.status === "sent") {
+					await this.ctx.storage.transaction(async (transaction) => {
+						await transaction.put(key, {
+							...delivery,
+							status: "sent",
+							messageId: result.messageId,
+						});
+						await transaction.delete(welcomePendingKey(githubId));
+					});
+					return true;
+				}
+				if (result.status === "rejected") break;
+				delivery.nextAttemptAt = Date.now() + result.retryAfterMs;
+				await this.ctx.storage.put(key, delivery);
+			}
+			delivery.status = "unresolved";
+			await this.ctx.storage.put(key, delivery);
+			console.error("Contributor welcome delivery could not be confirmed", { githubId });
+			return false;
 		});
 	}
 

@@ -36,6 +36,167 @@ afterEach(() => {
 });
 
 describe("Contributor link lifecycle", () => {
+	test("keeps a successful link when the welcome request fails", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		api.beforeMessage = async () => {
+			throw new TypeError("Connection lost");
+		};
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		const response = await linkByCallback(githubId, discordId);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toContain("Successfully linked!");
+		expect(api.roles.get(discordId)?.has(roleId)).toBe(true);
+		expect(await linkButtonLabel(discordId)).toBe("Relink GitHub Account");
+		expect(api.messages).toHaveLength(0);
+		expect(api.messageRequests).toHaveLength(2);
+		await runInDurableObject(testEnv.CONTRIBUTOR_LINKS.getByName("global"), async (_, state) => {
+			expect(await state.storage.get(`welcome-pending:${githubId}`)).toBe(true);
+			expect(await state.storage.get(`welcome-delivery:${githubId}`)).toMatchObject({
+				status: "unresolved",
+				attempts: 2,
+			});
+		});
+	});
+
+	test("confirms one welcome when Discord accepts it but the response is lost", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		api.afterMessage = async () => {
+			throw new TypeError("Response lost after acceptance");
+		};
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		expect((await linkByCallback(githubId, discordId)).status).toBe(200);
+		expect(api.messageRequests).toHaveLength(2);
+		expect(api.messageRequests[0]).toBe(api.messageRequests[1]);
+		expect(api.messages).toHaveLength(1);
+		const links = testEnv.CONTRIBUTOR_LINKS.getByName("global");
+		await runInDurableObject(links, async (_, state) => {
+			expect(await state.storage.get(`welcome-pending:${githubId}`)).toBeUndefined();
+			expect(await state.storage.get(`welcome-delivery:${githubId}`)).toMatchObject({
+				status: "sent",
+				messageId: "test-message",
+			});
+		});
+		expect(await links.postWelcomeIfLinked(githubId, discordId, "Another welcome")).toBe(false);
+		expect((await linkByCallback(githubId, randomDiscordId())).status).toBe(200);
+		expect(api.messageRequests).toHaveLength(2);
+	});
+
+	test("reuses the original welcome after its receipt could not be saved", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		vi.stubGlobal("fetch", api.fetchMock);
+		const links = testEnv.CONTRIBUTOR_LINKS.getByName("global");
+		await links.link(linkRecord(githubId, discordId), 0);
+
+		await runInDurableObject(links, async (instance, state) => {
+			const transaction = vi
+				.spyOn(state.storage, "transaction")
+				.mockRejectedValueOnce(new Error("Receipt storage unavailable"));
+			try {
+				await expect(
+					instance.postWelcomeIfLinked(githubId, discordId, "First welcome"),
+				).rejects.toThrow("Receipt storage unavailable");
+			} finally {
+				transaction.mockRestore();
+			}
+			expect(await state.storage.get(`welcome-pending:${githubId}`)).toBe(true);
+			expect(await instance.postWelcomeIfLinked(githubId, discordId, "Different wording")).toBe(
+				true,
+			);
+			expect(await state.storage.get(`welcome-delivery:${githubId}`)).toMatchObject({
+				status: "sent",
+				messageId: "test-message",
+			});
+		});
+		expect(api.messageRequests).toHaveLength(2);
+		expect(api.messageRequests[0]).toBe(api.messageRequests[1]);
+		expect(api.messages).toHaveLength(1);
+	});
+
+	test("waits for Discord's retry delay before retrying a welcome", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		let rejectedAt = 0;
+		api.beforeMessage = async () => {
+			if (api.messageRequests.length === 1) {
+				rejectedAt = Date.now();
+				return Response.json({ retry_after: 0.05 }, { status: 429 });
+			}
+			expect(Date.now() - rejectedAt).toBeGreaterThanOrEqual(50);
+		};
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		expect((await linkByCallback(githubId, discordId)).status).toBe(200);
+		expect(api.messageRequests).toHaveLength(2);
+		expect(api.messageRequests[0]).toBe(api.messageRequests[1]);
+		expect(api.messages).toHaveLength(1);
+	});
+
+	test.each([403, 429])(
+		"stops welcome retries after HTTP %s without losing the link",
+		async (status) => {
+			const githubId = randomGithubId();
+			const discordId = randomDiscordId();
+			await recordContributor(testEnv.KV, githubId, "contributor");
+			const api = mockExternalApi(githubId);
+			api.beforeMessage = async () => Response.json({ retry_after: 60 }, { status });
+			vi.stubGlobal("fetch", api.fetchMock);
+
+			expect((await linkByCallback(githubId, discordId)).status).toBe(200);
+			expect(api.messages).toHaveLength(0);
+			expect(api.messageRequests).toHaveLength(1);
+			api.beforeMessage = undefined;
+			expect((await linkByCallback(githubId, randomDiscordId())).status).toBe(200);
+			expect(api.messageRequests).toHaveLength(1);
+		},
+	);
+
+	test.each(["expired", "exhausted", "transferred"] as const)(
+		"does not restart an %s welcome attempt after interruption",
+		async (interruption) => {
+			const githubId = randomGithubId();
+			const discordId = randomDiscordId();
+			await recordContributor(testEnv.KV, githubId, "contributor");
+			const api = mockExternalApi(githubId);
+			vi.stubGlobal("fetch", api.fetchMock);
+			const links = testEnv.CONTRIBUTOR_LINKS.getByName("global");
+			await links.link(linkRecord(githubId, discordId), 0);
+			await runInDurableObject(links, async (_, state) => {
+				await state.storage.put(`welcome-delivery:${githubId}`, {
+					discordId: interruption === "transferred" ? randomDiscordId() : discordId,
+					channelId,
+					content: "Original welcome",
+					nonce: "original-send",
+					startedAt: Date.now() - (interruption === "expired" ? 60_000 : 0),
+					nextAttemptAt: Date.now(),
+					attempts: interruption === "exhausted" ? 2 : 1,
+					status: "pending",
+				});
+			});
+
+			expect(await links.postWelcomeIfLinked(githubId, discordId, "New welcome")).toBe(false);
+			expect(api.messageRequests).toHaveLength(0);
+			await runInDurableObject(links, async (_, state) => {
+				const delivery = await state.storage.get(`welcome-delivery:${githubId}`);
+				expect(delivery).toMatchObject({ status: "unresolved", nonce: "original-send" });
+				expect(await state.storage.get(`welcome-pending:${githubId}`)).toBe(true);
+			});
+		},
+	);
+
 	test("moves the role to a new Discord account without a second welcome", async () => {
 		const githubId = randomGithubId();
 		const oldDiscordId = randomDiscordId();
@@ -789,11 +950,16 @@ describe("Contributor link lifecycle", () => {
 function mockExternalApi(githubId: number) {
 	const roles = new Map<string, Set<string>>();
 	const messages: string[] = [];
+	const messageRequests: string[] = [];
+	const receivedNonces = new Set<string>();
 	const api = {
 		githubId,
 		githubLogin: "contributor",
 		roles,
 		messages,
+		messageRequests,
+		beforeMessage: undefined as (() => Promise<Response | void>) | undefined,
+		afterMessage: undefined as (() => Promise<void>) | undefined,
 		addRoleStatus: 204,
 		addRoleStatuses: new Map<string, number>(),
 		removeRoleStatus: 204,
@@ -866,7 +1032,16 @@ function mockExternalApi(githubId: number) {
 		}
 		if (url === messageUrl && method === "POST") {
 			if (typeof init?.body !== "string") throw new Error("Expected message JSON");
+			messageRequests.push(init.body);
+			const response = await api.beforeMessage?.();
+			if (response) return response;
+			const body: { nonce?: string; enforce_nonce?: boolean } = JSON.parse(init.body);
+			if (body.enforce_nonce && body.nonce) {
+				if (receivedNonces.has(body.nonce)) return Response.json({ id: "test-message" });
+				receivedNonces.add(body.nonce);
+			}
 			messages.push(init.body);
+			await api.afterMessage?.();
 			return Response.json({ id: "test-message" });
 		}
 		throw new Error(`Unexpected fetch: ${method} ${url}`);

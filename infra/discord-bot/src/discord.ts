@@ -5,11 +5,15 @@ async function discordRequest<T>(
 	url: string,
 	init: RequestInit,
 	readResponse: (response: Response) => T | Promise<T>,
+	timeoutMs = DISCORD_TIMEOUT_MS,
 ): Promise<T> {
 	const controller = new AbortController();
-	const timeout = setTimeout(() => {
-		controller.abort(new DOMException("Discord request timed out", "TimeoutError"));
-	}, DISCORD_TIMEOUT_MS);
+	const timeout = setTimeout(
+		() => {
+			controller.abort(new DOMException("Discord request timed out", "TimeoutError"));
+		},
+		Math.min(timeoutMs, DISCORD_TIMEOUT_MS),
+	);
 	try {
 		const response = await fetch(url, { ...init, signal: controller.signal });
 		return await readResponse(response);
@@ -129,6 +133,68 @@ export async function postMessage(
 		},
 		(res) => res.ok,
 	);
+}
+
+type MessageDeliveryResult =
+	| { status: "sent"; messageId: string }
+	| { status: "retry"; retryAfterMs: number }
+	| { status: "rejected" };
+
+export async function postMessageWithNonce(
+	env: Env,
+	channelId: string,
+	content: string,
+	mentionUserIds: string[],
+	nonce: string,
+	timeoutMs: number,
+): Promise<MessageDeliveryResult> {
+	try {
+		return await discordRequest<MessageDeliveryResult>(
+			`${DISCORD_API}/channels/${channelId}/messages`,
+			{
+				method: "POST",
+				headers: {
+					Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					content,
+					allowed_mentions: { parse: [], users: mentionUserIds },
+					nonce,
+					enforce_nonce: true,
+				}),
+			},
+			async (response) => {
+				if (response.ok) {
+					const message: { id?: unknown } = await response.json();
+					if (typeof message.id === "string" && message.id.length > 0) {
+						return { status: "sent", messageId: message.id };
+					}
+					return { status: "retry", retryAfterMs: 250 };
+				}
+				if (response.status === 429) {
+					const header = response.headers.get("Retry-After");
+					if (header !== null && header.trim() === "") return { status: "rejected" };
+					let seconds: unknown = header === null ? undefined : Number(header);
+					if (header === null) {
+						const body = await response.json<{ retry_after?: unknown }>().catch(() => null);
+						if (!body) return { status: "rejected" };
+						seconds = body.retry_after;
+					}
+					return typeof seconds === "number" && Number.isFinite(seconds) && seconds >= 0
+						? { status: "retry", retryAfterMs: Math.ceil(seconds * 1000) }
+						: { status: "rejected" };
+				}
+				return response.status >= 500
+					? { status: "retry", retryAfterMs: 250 }
+					: { status: "rejected" };
+			},
+			timeoutMs,
+		);
+	} catch {
+		// A lost response can follow an accepted message; retries must reuse the nonce.
+		return { status: "retry", retryAfterMs: 250 };
+	}
 }
 
 /**

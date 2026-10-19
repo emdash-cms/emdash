@@ -198,14 +198,18 @@ async function handleGitHubCallback(request: Request, env: Env): Promise<Respons
 	}
 
 	if (shouldWelcome) {
-		await links(env).postWelcomeIfLinked(
-			githubUser.id,
-			oauthState.discord_id,
-			pick(welcomeMessages, {
-				user: `<@${oauthState.discord_id}>`,
-				login: githubUser.login,
-			}),
-		);
+		try {
+			await links(env).postWelcomeIfLinked(
+				githubUser.id,
+				oauthState.discord_id,
+				pick(welcomeMessages, {
+					user: `<@${oauthState.discord_id}>`,
+					login: githubUser.login,
+				}),
+			);
+		} catch (error) {
+			console.error("Could not complete Contributor welcome delivery", error);
+		}
 	}
 
 	let statusMessage: string;
@@ -294,7 +298,14 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 				pr: prLink,
 			}),
 		);
-	} else if (!link.linked) {
+	} else if (link.linked) {
+		const posted = await postMessage(
+			env,
+			env.DISCORD_CHANNEL_ID,
+			`PR merged by **${githubLogin}**: ${prLink}`,
+		);
+		if (!posted) throw new Error("Discord rejected merge announcement");
+	} else {
 		const inviteResult = await env.CONTRIBUTOR_INVITATIONS.getByName(String(githubId)).invite({
 			githubId,
 			githubLogin,

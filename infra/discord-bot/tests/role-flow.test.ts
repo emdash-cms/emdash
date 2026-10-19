@@ -153,8 +153,41 @@ describe("linked contributor's first merged PR", () => {
 		expect(retryMock.mock.calls).toHaveLength(callsAfterRetry);
 	});
 
-	test("processes the merge without mentioning a linked member who left the guild", async () => {
+	test("keeps a departed member's merge retryable when the announcement is rejected", async () => {
 		const { githubId, roleUrl, memberUrl, channelUrl } = await linkedContributor();
+		const deliveryId = crypto.randomUUID();
+		const options = {
+			roleUrl,
+			memberUrl,
+			channelUrl,
+			deliveryId,
+			roleStatus: 204,
+			memberStatus: 404,
+		};
+		const rejectedFetch = discordFetch({ ...options, channelStatus: 503 });
+		vi.stubGlobal("fetch", rejectedFetch);
+
+		await expect(
+			worker.fetch(await mergedPrRequest(githubId, deliveryId), testEnv, createExecutionContext()),
+		).rejects.toThrow("Discord rejected merge announcement");
+		expect(await isDeliveryProcessed(testEnv.KV, deliveryId)).toBe(false);
+
+		const retryFetch = discordFetch(options);
+		vi.stubGlobal("fetch", retryFetch);
+		const response = await worker.fetch(
+			await mergedPrRequest(githubId, deliveryId),
+			testEnv,
+			createExecutionContext(),
+		);
+		expect(response.status).toBe(200);
+		expect(await isDeliveryProcessed(testEnv.KV, deliveryId)).toBe(true);
+		expect(
+			retryFetch.mock.calls.filter(([input]) => requestUrl(input) === channelUrl),
+		).toHaveLength(1);
+	});
+
+	test("announces a merge without mentioning or inviting a linked member who left the guild", async () => {
+		const { githubId, discordId, roleUrl, memberUrl, channelUrl } = await linkedContributor();
 		const deliveryId = crypto.randomUUID();
 		const fetchMock = discordFetch({
 			roleUrl,
@@ -179,11 +212,31 @@ describe("linked contributor's first merged PR", () => {
 				([input, init]) => requestUrl(input) === roleUrl && init?.method === "PUT",
 			),
 		).toBe(false);
+		const announcements = fetchMock.mock.calls.filter(
+			([input, init]) => requestUrl(input) === channelUrl && init?.method === "POST",
+		);
+		expect(announcements).toHaveLength(1);
+		const body = announcements[0]?.[1]?.body;
+		if (typeof body !== "string") throw new Error("Expected message JSON");
+		const message = JSON.parse(body);
+		expect(message.content).toContain("regression-contributor");
+		expect(message.content).toContain("[#42 A regression test PR](<https://example.test/pull/42>)");
+		expect(message.content).not.toContain("<@");
+		expect(message.content).not.toContain("/link");
+		expect(message.allowed_mentions).toEqual({ parse: [], users: [] });
+		expect(fetchMock.mock.calls).toHaveLength(2);
 		expect(
-			fetchMock.mock.calls.some(
-				([input, init]) => requestUrl(input) === channelUrl && init?.method === "POST",
-			),
-		).toBe(false);
+			await testEnv.CONTRIBUTOR_LINKS.getByName("global").getByGitHubId(githubId),
+		).toMatchObject({ github_id: githubId, discord_id: discordId });
+
+		const duplicateResponse = await worker.fetch(
+			await mergedPrRequest(githubId, deliveryId),
+			testEnv,
+			createExecutionContext(),
+		);
+		expect(duplicateResponse.status).toBe(200);
+		expect(await duplicateResponse.text()).toBe("Already processed");
+		expect(fetchMock.mock.calls).toHaveLength(2);
 	});
 });
 
@@ -199,6 +252,7 @@ async function linkedContributor() {
 	});
 	return {
 		githubId,
+		discordId,
 		roleUrl: `https://discord.com/api/v10/guilds/${guildId}/members/${discordId}/roles/${roleId}`,
 		memberUrl: `https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`,
 		channelUrl: `https://discord.com/api/v10/channels/${channelId}/messages`,
@@ -213,6 +267,7 @@ function discordFetch({
 	roleStatus,
 	memberStatus = 200,
 	memberRoles = [],
+	channelStatus = 200,
 }: {
 	roleUrl: string;
 	memberUrl: string;
@@ -221,6 +276,7 @@ function discordFetch({
 	roleStatus: number;
 	memberStatus?: number;
 	memberRoles?: string[];
+	channelStatus?: number;
 }) {
 	return vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
 		const url = requestUrl(input);
@@ -234,7 +290,9 @@ function discordFetch({
 			expect(await isDeliveryProcessed(testEnv.KV, deliveryId)).toBe(false);
 			return new Response(null, { status: roleStatus });
 		}
-		if (url === channelUrl && method === "POST") return Response.json({ id: "test-message" });
+		if (url === channelUrl && method === "POST") {
+			return Response.json({ id: "test-message" }, { status: channelStatus });
+		}
 		throw new Error(`Unexpected fetch: ${method} ${url}`);
 	});
 }
