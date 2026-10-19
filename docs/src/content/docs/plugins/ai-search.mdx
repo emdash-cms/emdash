@@ -12,6 +12,13 @@ AI Search is a first-party native plugin that indexes published content into a [
 	`wrangler.jsonc`.
 </Aside>
 
+<Aside type="note" title="Switching from @emdash-cms/cloudflare">
+	This plugin replaces `aiSearch` from `@emdash-cms/cloudflare/plugins`. Both register as
+	`ai-search`, so remove the old plugin, its `src/pages/api/ai-search/search.ts` route, and its
+	`AISearchSnippet` component first. The new plugin builds a new index, in an instance named
+	`emdash` by default.
+</Aside>
+
 ## Installation
 
 Install the package from npm:
