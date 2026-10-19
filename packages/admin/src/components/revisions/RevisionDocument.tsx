@@ -306,15 +306,10 @@ const ImageRow = React.memo(function ImageRow({
 							<ImageBroken className="size-5" aria-hidden="true" />
 						</div>
 					)}
-					{caption ? (
+					{caption && (
 						<figcaption className="text-center text-sm text-kumo-subtle mt-2" dir="auto">
 							{caption}
 						</figcaption>
-					) : (
-						// The editor keeps a line for typing a caption under every image.
-						<div aria-hidden="true" className="mt-2 text-sm">
-							<br />
-						</div>
 					)}
 				</figure>
 			</div>
