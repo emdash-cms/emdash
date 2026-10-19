@@ -1,0 +1,21 @@
+apps/plugins-site/src/lib/plugin-art.test.ts
+  s_a2cd95cd1e637f::t_6e99f4e88d613d 3,19
+apps/plugins-site/src/lib/plugin-art.ts
+  s_a2cd95cd1e637f::t_d2bfc0c10b7b6b 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0315e6a5085f812f422e48dccd4cf8f453443a07",
+  "prompts": {},
+  "sessions": {
+    "s_a2cd95cd1e637f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca91999b-cbd1-4c4e-8277-58508f9068c9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
