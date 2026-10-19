@@ -84,7 +84,7 @@ msgstr "{0, plural, one {{counted} / # karakter} other {{counted} / # karakter}}
 #: packages/admin/src/components/BylineFilter.tsx:105
 #: packages/admin/src/components/BylineFilter.tsx:106
 msgid "{0, plural, one {# byline} other {# bylines}}"
-msgstr "{0, plural, one {# katkı profili} other {# katkı profili}}"
+msgstr "{0, plural, one {# yazar bilgisi} other {# yazar bilgisi}}"
 
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:219
@@ -1151,7 +1151,7 @@ msgstr "Odak noktası hakkında"
 
 #: packages/admin/src/components/BylineFilter.tsx:184
 msgid "About inferred bylines"
-msgstr "Otomatik belirlenen katkı profilleri hakkında"
+msgstr "Otomatik belirlenen yazar bilgileri hakkında"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:357
 msgid "Accept & Install"
@@ -1273,7 +1273,7 @@ msgstr "İçeriğinizde katkısı belirtilecek bir kişi veya ekip ekleyin."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:467
 msgid "Add another byline"
-msgstr "Başka bir katkı profili ekle"
+msgstr "Başka bir yazar bilgisi ekle"
 
 #: packages/admin/src/components/BlocksField.tsx:275
 msgid "Add at least {minItems} blocks."
@@ -1289,7 +1289,7 @@ msgstr "Blok ekle"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:316
 msgid "Add byline"
-msgstr "Katkı profili ekle"
+msgstr "Yazar bilgisi ekle"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:387
 #: packages/admin/src/components/editor/VideoNode.tsx:389
@@ -1338,7 +1338,7 @@ msgstr "Alan ekle"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr "Her katkı profilini zenginleştirmek için \"İş unvanı\" veya \"Zamirler\" gibi alanlar ekleyin."
+msgstr "Her yazar bilgisini zenginleştirmek için \"İş unvanı\" veya \"Zamirler\" gibi alanlar ekleyin."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:784
 msgid "Add fields to define the structure of your content"
@@ -1638,7 +1638,7 @@ msgstr "Tüm yazarlar"
 #: packages/admin/src/components/BylineFilter.tsx:103
 #: packages/admin/src/routes/bylines.tsx:328
 msgid "All bylines"
-msgstr "Tüm katkı profilleri"
+msgstr "Tüm yazar bilgileri"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:110
 msgid "All capabilities"
@@ -1731,7 +1731,7 @@ msgstr "Bu alanın kullandığı ilişkiyi de sil"
 
 #: packages/admin/src/components/BylineFilter.tsx:183
 msgid "Also match the byline linked to an entry's author when it has none assigned."
-msgstr "Kayda katkı profili atanmamışsa kaydın yazarıyla bağlantılı katkı profiliyle de eşleştir."
+msgstr "Kayda yazar bilgisi atanmamışsa kaydın yazarıyla bağlantılı yazar bilgisiyle de eşleştir."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
@@ -2141,7 +2141,7 @@ msgstr "Otomatik kaydetme başarısız oldu"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:353
 msgid "Available bylines"
-msgstr "Kullanılabilir katkı profilleri"
+msgstr "Kullanılabilir yazar bilgileri"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:846
@@ -2412,53 +2412,53 @@ msgstr "Madde İşareti Listesi"
 
 #: packages/admin/src/routes/bylines.tsx:532
 msgid "byline"
-msgstr "katkı profili"
+msgstr "yazar bilgisi"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:239
 #: packages/admin/src/routes/bylines.tsx:342
 msgid "Byline"
-msgstr "Katkı profili"
+msgstr "Yazar bilgisi"
 
 #: packages/admin/src/routes/bylines.tsx:278
 msgid "Byline created"
-msgstr "Katkı profili oluşturuldu"
+msgstr "Yazar bilgisi oluşturuldu"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:25
 #: packages/admin/src/components/settings/transfer/labels.ts:83
 msgid "Byline credits"
-msgstr "Katkı atıfları"
+msgstr "Yazar bilgisi atıfları"
 
 #: packages/admin/src/routes/bylines.tsx:204
 msgid "Byline deleted"
-msgstr "Katkı profili silindi"
+msgstr "Yazar bilgisi silindi"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:21
 msgid "Byline field group values"
-msgstr "Katkı profili alan grubu değerleri"
+msgstr "Yazar bilgisi alan grubu değerleri"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:20
 #: packages/admin/src/components/settings/transfer/labels.ts:81
 #: packages/admin/src/components/settings/transfer/labels.ts:82
 msgid "Byline field values"
-msgstr "Katkı profili alan değerleri"
+msgstr "Yazar bilgisi alan değerleri"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:15
 #: packages/admin/src/components/settings/transfer/labels.ts:80
 msgid "Byline fields"
-msgstr "Katkı profili alanları"
+msgstr "Yazar bilgisi alanları"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:305
 msgid "Byline schema"
-msgstr "Katkı profili alanları"
+msgstr "Yazar bilgisi şeması"
 
 #: packages/admin/src/components/Sidebar.tsx:484
 msgid "Byline Schema"
-msgstr "Katkı profili alanları"
+msgstr "Yazar bilgisi şeması"
 
 #: packages/admin/src/routes/bylines.tsx:278
 msgid "Byline updated"
-msgstr "Katkı profili güncellendi"
+msgstr "Yazar bilgisi güncellendi"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
@@ -2469,7 +2469,7 @@ msgstr "Katkı profili güncellendi"
 #: packages/admin/src/components/Sidebar.tsx:454
 #: packages/admin/src/routes/bylines.tsx:285
 msgid "Bylines"
-msgstr "Katkı profilleri"
+msgstr "Yazar bilgileri"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:29
 msgid "C"
@@ -2766,7 +2766,7 @@ msgstr "Değişiklik günlüğü"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:626
 msgid "Changes apply everywhere this byline appears."
-msgstr "Değişiklikler bu katkı profilinin göründüğü her yere uygulanır."
+msgstr "Değişiklikler bu yazar bilgisinin göründüğü her yere uygulanır."
 
 #: packages/admin/src/router.tsx:1510
 msgid "Changes discarded"
@@ -2926,7 +2926,7 @@ msgstr "Başka bir seçenek belirleyin"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:567
 #: packages/admin/src/components/BylineCreditsEditor.tsx:582
 msgid "Choose bylines"
-msgstr "Katkı profillerini seç"
+msgstr "Yazar bilgilerini seç"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1103
 msgid "Choose files to upload"
@@ -2971,7 +2971,7 @@ msgstr "Seçin…"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:556
 msgid "Choosing a byline replaces this automatic credit."
-msgstr "Seçtiğiniz katkı profili otomatik atfın yerini alır."
+msgstr "Seçtiğiniz yazar bilgisi otomatik atfın yerini alır."
 
 #: packages/admin/src/components/ContentList.tsx:687
 #: packages/admin/src/components/ContentList.tsx:1224
@@ -3105,7 +3105,7 @@ msgstr "Kapat"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:326
 msgid "Close byline search"
-msgstr "Katkı profili aramasını kapat"
+msgstr "Yazar bilgisi aramasını kapat"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:689
 msgid "Close comments after (days)"
@@ -3186,7 +3186,7 @@ msgstr "Koleksiyonlar"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:105
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
-msgstr "Koleksiyonlar ve alanlar; taslaklar, sürümler, zamanlanmış gönderiler ve çöp kutusu dahil tüm içerik; çeviriler, sınıflandırmalar, katkı profilleri, medya dosyaları, menüler, widget'lar, bölümler, yönlendirmeler, SEO ve site ayarları."
+msgstr "Koleksiyonlar ve alanlar; taslaklar, sürümler, zamanlanmış gönderiler ve çöp kutusu dahil tüm içerik; çeviriler, sınıflandırmalar, yazar bilgileri, medya dosyaları, menüler, widget'lar, bölümler, yönlendirmeler, SEO ve site ayarları."
 
 #: packages/admin/src/components/WordPressImport.tsx:2381
 msgid "Collections created:"
@@ -3628,7 +3628,7 @@ msgstr "Onay istekleri yüklenemedi"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
-msgstr "Katkı profili alanları yüklenemedi."
+msgstr "Yazar bilgisi alanları yüklenemedi."
 
 #: packages/admin/src/components/ContentPickerModal.tsx:276
 msgid "Couldn't load content."
@@ -3684,7 +3684,7 @@ msgstr "İçe aktarma planı yeniden yüklenemedi"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:368
 msgid "Couldn’t search bylines."
-msgstr "Katkı profilleri aranamadı."
+msgstr "Yazar bilgileri aranamadı."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:139
 msgid "Couldn’t start the export"
@@ -4124,7 +4124,7 @@ msgstr "İçeriği sınıflandırmak için yeni bir sınıflandırma tanımlayı
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr "Her katkı profilinde saklanan özel alanları tanımlayın: iş unvanı, zamirler, sosyal hesap adları ve daha fazlası."
+msgstr "Her yazar bilgisinde saklanan özel alanları tanımlayın: iş unvanı, zamirler, sosyal hesap adları ve daha fazlası."
 
 #: packages/admin/src/components/RelationList.tsx:70
 msgid "Define how content types link to each other"
@@ -4219,16 +4219,16 @@ msgstr "Bloğu sil"
 #: packages/admin/src/routes/bylines.tsx:427
 #: packages/admin/src/routes/bylines.tsx:534
 msgid "Delete byline"
-msgstr "Katkı profilini sil"
+msgstr "Yazar bilgisini sil"
 
 #. placeholder {0}: item.displayName
 #: packages/admin/src/routes/bylines.tsx:424
 msgid "Delete byline {0}"
-msgstr "{0} adlı katkı profilini sil"
+msgstr "{0} adlı yazar bilgisini sil"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
-msgstr "Katkı profili alanı silinsin mi?"
+msgstr "Yazar bilgisi alanı silinsin mi?"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
 msgid "Delete column"
@@ -4362,7 +4362,7 @@ msgstr "“{0}” silinirse içindeki tüm terimler bütün dillerde silinir ve 
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr "\"{0}\" silinirse tüm katkı profillerindeki {1, plural, one {# kayıtlı değer} other {# kayıtlı değer}} de silinir. Bu işlem geri alınamaz."
+msgstr "\"{0}\" silindiğinde tüm yazar bilgilerinde {1, plural, one {# saklanan değer} other {# saklanan değer}} de kaldırılır. Bu işlem geri alınamaz."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:864
@@ -4866,7 +4866,7 @@ msgstr "Yinelenen yönlendirmeler dahil edilmedi"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:164
 msgid "e.g. application/zip or .pdf"
-msgstr "örneğin uygulama/zip veya.pdf"
+msgstr "ör. application/zip veya .pdf"
 
 #: packages/admin/src/components/Redirects.tsx:170
 msgid "e.g. import, blog"
@@ -4955,11 +4955,11 @@ msgstr "Medya dosyasını düzenle"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:735
 #: packages/admin/src/components/BylineFormDialog.tsx:360
 msgid "Edit byline"
-msgstr "Katkı profilini düzenle"
+msgstr "Yazar bilgisini düzenle"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:203
 msgid "Edit byline field"
-msgstr "Katkı profili alanını düzenle"
+msgstr "Yazar bilgisi alanını düzenle"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:387
 #: packages/admin/src/components/editor/VideoNode.tsx:389
@@ -5681,15 +5681,15 @@ msgstr "Blok türü oluşturulamadı"
 
 #: packages/admin/src/lib/api/bylines.ts:127
 msgid "Failed to create byline"
-msgstr "Katkı profili oluşturulamadı"
+msgstr "Yazar bilgisi oluşturulamadı"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
-msgstr "Katkı profili alanı oluşturulamadı"
+msgstr "Yazar bilgisi alanı oluşturulamadı"
 
 #: packages/admin/src/lib/api/bylines.ts:178
 msgid "Failed to create byline translation"
-msgstr "Katkı profili çevirisi oluşturulamadı"
+msgstr "Yazar bilgisi çevirisi oluşturulamadı"
 
 #: packages/admin/src/lib/api/schema.ts:371
 msgid "Failed to create collection"
@@ -5779,11 +5779,11 @@ msgstr "Yedek silinemedi"
 
 #: packages/admin/src/lib/api/bylines.ts:146
 msgid "Failed to delete byline"
-msgstr "Katkı profili silinemedi"
+msgstr "Yazar bilgisi silinemedi"
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
-msgstr "Katkı profili alanı silinemedi"
+msgstr "Yazar bilgisi alanı silinemedi"
 
 #: packages/admin/src/lib/api/schema.ts:403
 msgid "Failed to delete collection"
@@ -5952,15 +5952,15 @@ msgstr "Blok türleri alınamadı"
 
 #: packages/admin/src/lib/api/bylines.ts:118
 msgid "Failed to fetch byline"
-msgstr "Katkı profili alınamadı"
+msgstr "Yazar bilgisi alınamadı"
 
 #: packages/admin/src/lib/api/bylines.ts:157
 msgid "Failed to fetch byline translations"
-msgstr "Katkı profili çevirileri alınamadı"
+msgstr "Yazar bilgisi çevirileri alınamadı"
 
 #: packages/admin/src/lib/api/bylines.ts:112
 msgid "Failed to fetch bylines"
-msgstr "Katkı profilleri alınamadı"
+msgstr "Yazar bilgileri alınamadı"
 
 #: packages/admin/src/lib/api/schema.ts:351
 #: packages/admin/src/lib/api/schema.ts:355
@@ -6222,7 +6222,7 @@ msgstr "Kullanıcı davet edilemedi"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
-msgstr "Katkı profili alanları listelenemedi"
+msgstr "Yazar bilgisi alanları listelenemedi"
 
 #: packages/admin/src/lib/api/transfer.ts:415
 msgid "Failed to list files to upload"
@@ -6248,7 +6248,7 @@ msgstr "Yedekleme ayarları yüklenemedi"
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:249
 msgid "Failed to load bylines: {0}"
-msgstr "Katkı profilleri yüklenemedi: {0}"
+msgstr "Yazar bilgileri yüklenemedi: {0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:80
 #: packages/admin/src/components/settings/EmailSettings.tsx:81
@@ -6372,7 +6372,7 @@ msgstr "İçerik yayınlanamadı"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
-msgstr "Katkı profili alanı kullanımı okunamadı"
+msgstr "Yazar bilgisi alanı kullanımı okunamadı"
 
 #: packages/admin/src/router.tsx:2876
 msgid "Failed to register {slug}"
@@ -6406,7 +6406,7 @@ msgstr "Geçiş anahtarı yeniden adlandırılamadı"
 
 #: packages/admin/src/lib/api/byline-fields.ts:156
 msgid "Failed to reorder byline fields"
-msgstr "Katkı profili alanları yeniden sıralanamadı"
+msgstr "Yazar bilgisi alanları yeniden sıralanamadı"
 
 #: packages/admin/src/lib/api/schema.ts:505
 msgid "Failed to reorder content types"
@@ -6559,11 +6559,11 @@ msgstr "Blok türü güncellenemedi"
 
 #: packages/admin/src/lib/api/bylines.ts:139
 msgid "Failed to update byline"
-msgstr "Katkı profili güncellenemedi"
+msgstr "Yazar bilgisi güncellenemedi"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
-msgstr "Katkı profili alanı güncellenemedi"
+msgstr "Yazar bilgisi alanı güncellenemedi"
 
 #: packages/admin/src/lib/api/schema.ts:390
 msgid "Failed to update collection"
@@ -6781,7 +6781,7 @@ msgstr "Yazara göre filtrele"
 
 #: packages/admin/src/components/BylineFilter.tsx:116
 msgid "Filter by byline"
-msgstr "Katkı profiline göre filtrele"
+msgstr "Yazar bilgisine göre filtrele"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
@@ -6816,7 +6816,7 @@ msgstr "Türe göre filtrele"
 
 #: packages/admin/src/routes/bylines.tsx:324
 msgid "Filter byline type"
-msgstr "Katkı profillerini türe göre filtrele"
+msgstr "Yazar bilgisi türünü filtrele"
 
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:129
 msgid "Filter: {activeCount} selected"
@@ -7068,7 +7068,7 @@ msgstr "Konuk"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:478
 msgid "Guest byline"
-msgstr "Konuk katkı profili"
+msgstr "Konuk yazar bilgisi"
 
 #: packages/admin/src/routes/bylines.tsx:329
 msgid "Guest only"
@@ -7554,7 +7554,7 @@ msgstr "Yeniden kullanılabilir bloklar içe aktarılıyor..."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:60
 msgid "Importing terms and bylines"
-msgstr "Terimler ve katkı profilleri içe aktarılıyor"
+msgstr "Terimler ve yazar bilgileri içe aktarılıyor"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:355
 msgid "In trash"
@@ -7575,7 +7575,7 @@ msgstr "Yorumları dahil et"
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
-msgstr "Otomatik belirlenen katkı profillerini dahil et"
+msgstr "Otomatik belirlenen yazar bilgilerini dahil et"
 
 #: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Incompatible"
@@ -8078,7 +8078,7 @@ msgstr "Bağlantı seçenekleri"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:456
 msgid "Link this byline to a user or mark it as a guest profile."
-msgstr "Bu katkı profilini bir kullanıcıya bağlayın veya konuk profili olarak işaretleyin."
+msgstr "Bu yazar bilgisini bir kullanıcıya bağlayın veya konuk profili olarak işaretleyin."
 
 #: packages/admin/src/components/FieldEditor.tsx:457
 msgid "Link to another content item"
@@ -8226,7 +8226,7 @@ msgstr "Blok türleri yükleniyor…"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
-msgstr "Katkı profili alanları yükleniyor…"
+msgstr "Yazar bilgisi alanları yükleniyor…"
 
 #: packages/admin/src/components/ContentTypeList.tsx:218
 msgid "Loading collections..."
@@ -8475,7 +8475,7 @@ msgstr "{1} için {0}'i yönetin"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:599
 msgid "Manage bylines in {entryLocale}"
-msgstr "{entryLocale} için katkı profillerini yönetin"
+msgstr "{entryLocale} için yazar bilgilerini yönetin"
 
 #: packages/admin/src/components/Widgets.tsx:391
 msgid "Manage content widgets in your widget areas"
@@ -9185,11 +9185,11 @@ msgstr "Yeni {singularLower} adı"
 #: packages/admin/src/routes/bylines.tsx:309
 #: packages/admin/src/routes/bylines.tsx:467
 msgid "New byline"
-msgstr "Yeni katkı profili"
+msgstr "Yeni yazar bilgisi"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:203
 msgid "New byline field"
-msgstr "Yeni katkı profili alanı"
+msgstr "Yeni yazar bilgisi alanı"
 
 #: packages/admin/src/components/WordPressImport.tsx:2036
 msgid "New collection"
@@ -9357,31 +9357,31 @@ msgstr "Yerleşik geçiş anahtarı doğrulayıcısı bulunamadı"
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
-msgstr "Katkı profili yok"
+msgstr "Yazar bilgisi yok"
 
 #: packages/admin/src/components/BylineFilter.tsx:138
 msgid "No byline assigned"
-msgstr "Katkı profili atanmamış"
+msgstr "Yazar bilgisi atanmamış"
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
-msgstr "Henüz katkı profili alanı yok."
+msgstr "Henüz yazar bilgisi alanı yok."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:591
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
-msgstr "{entryLocale} dilinde katkı profili yok. Bu kayda profil atamadan önce Katkı profilleri sayfasından o dilde bir varyant oluşturun."
+msgstr "{entryLocale} için yazar bilgisi yok. Bu kayda yazar eklemeden önce Yazar bilgileri sayfasından bir varyant oluşturun."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:445
 msgid "No bylines available."
-msgstr "Kullanılabilir katkı profili yok."
+msgstr "Kullanılabilir yazar bilgisi yok."
 
 #: packages/admin/src/components/BylineFilter.tsx:150
 msgid "No bylines found"
-msgstr "Katkı profili bulunamadı"
+msgstr "Yazar bilgisi bulunamadı"
 
 #: packages/admin/src/routes/bylines.tsx:447
 msgid "No bylines yet"
-msgstr "Henüz katkı profili yok"
+msgstr "Henüz yazar bilgisi yok"
 
 #: packages/admin/src/components/revisions/change-labels.ts:163
 msgid "No changes"
@@ -9539,11 +9539,11 @@ msgstr "Eşleşen blok türü yok"
 
 #: packages/admin/src/routes/bylines.tsx:447
 msgid "No matching bylines"
-msgstr "Eşleşen katkı profili yok"
+msgstr "Eşleşen yazar bilgisi yok"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:445
 msgid "No matching bylines."
-msgstr "Eşleşen katkı profili yok."
+msgstr "Eşleşen yazar bilgisi yok."
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:340
 msgid "No matching content found."
@@ -10319,7 +10319,7 @@ msgstr "Lütfen geçerli bir e-posta girin"
 
 #: packages/admin/src/components/SignupPage.tsx:72
 msgid "Please enter a valid email address"
-msgstr "Geçerli bir e"
+msgstr "Lütfen geçerli bir e-posta adresi girin"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:638
 msgid "Please enter a valid URL"
@@ -10817,7 +10817,7 @@ msgstr "Medya dosyalarını okuyun"
 
 #: packages/admin/src/lib/api/marketplace.ts:434
 msgid "Read public byline profiles and content credits"
-msgstr "Herkese açık katkı profillerini ve içerik atıflarını okuyun"
+msgstr "Herkese açık yazar bilgilerini ve içerik atıflarını okuyun"
 
 #: packages/admin/src/lib/api/marketplace.ts:435
 msgid "Read redirect rules"
@@ -11445,7 +11445,7 @@ msgstr "E-postayı yeniden gönder"
 
 #: packages/admin/src/components/SignupPage.tsx:170
 msgid "Resend in {resendCooldown}s"
-msgstr "{resendCooldown}'lerde yeniden gönder"
+msgstr "{resendCooldown} saniye sonra yeniden gönder"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
 #: packages/admin/src/components/MediaDetailPanel.tsx:1691
@@ -12100,15 +12100,15 @@ msgstr "Ada veya e-postaya göre arayın..."
 #: packages/admin/src/routes/bylines.tsx:317
 #: packages/admin/src/routes/bylines.tsx:318
 msgid "Search bylines"
-msgstr "Katkı profillerini ara"
+msgstr "Yazar bilgilerini ara"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:336
 msgid "Search bylines to add…"
-msgstr "Eklemek için katkı profili ara…"
+msgstr "Eklemek için yazar bilgisi ara…"
 
 #: packages/admin/src/components/BylineFilter.tsx:129
 msgid "Search bylines…"
-msgstr "Katkı profillerini ara…"
+msgstr "Yazar bilgilerini ara…"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:175
 msgid "Search comments"
@@ -12688,7 +12688,7 @@ msgstr "Bu bağlantıyı davet edilen kullanıcıyla paylaşın"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:289
 msgid "Shared across all translations of the same byline."
-msgstr "Aynı katkı profilinin tüm çevirilerinde paylaşılır."
+msgstr "Aynı yazar bilgisinin tüm çevirilerinde paylaşılır."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:47
 msgid "Short text"
@@ -12989,7 +12989,7 @@ msgstr "Sosyal Profiller"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
-msgstr "Bazı katkı profillerinin avatarları dahil edilmedi"
+msgstr "Bazı yazar bilgilerinin avatarları dahil edilmedi"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:162
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
@@ -13187,7 +13187,7 @@ msgstr "Saklanan Yedekler"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:288
 msgid "Stored per locale — each translation of a byline gets its own value."
-msgstr "Her yerel ayar için ayrı saklanır; bir katkı profilinin her çevirisi kendi değerini alır."
+msgstr "Her yerel ayar için ayrı saklanır — bir yazar bilgisinin her çevirisi kendi değerini alır."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4797
 #: packages/admin/src/components/PortableTextEditor.tsx:6343
@@ -14165,7 +14165,7 @@ msgstr "Bu sürüm, sitenizin şu anda çalıştığından daha yeni bir ortam g
 
 #: packages/admin/src/routes/bylines.tsx:533
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-msgstr "Bu işlem katkı profilini siler. İçeriklerdeki katkı atıfları kaldırılır ve birincil katkı profili atamaları temizlenir."
+msgstr "Bu, yazar bilgisi profilini kaldırır. İçerikteki yazar bilgisi bağlantıları kaldırılır ve ana yazar işaretçileri temizlenir."
 
 #: packages/admin/src/components/RelationDeleteDialog.tsx:39
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
@@ -14588,7 +14588,7 @@ msgstr "Twitter"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:136
 msgid "Two authors with bylines in the same locale are mapped to the same user"
-msgstr "Aynı dilde katkı profili bulunan iki yazar aynı kullanıcıyla eşleştirilmiş"
+msgstr "Aynı dilde yazar bilgisi bulunan iki yazar aynı kullanıcıyla eşleştirilmiş"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:139
 msgid "Two records have the same value where it must be unique"
@@ -14782,7 +14782,7 @@ msgstr "Kullanılmayan referanslar dahil edilmedi"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
-msgstr "En fazla {MAX_SELECTED} katkı profili seçilebilir"
+msgstr "En fazla {MAX_SELECTED} yazar bilgisi seçilebilir"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:889
 msgid "Update"
@@ -15473,7 +15473,7 @@ msgstr "Tam sayı"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 msgid "Why are bylines shown in this order?"
-msgstr "Katkı profilleri neden bu sırayla gösteriliyor?"
+msgstr "Yazar bilgileri neden bu sırayla gösteriliyor?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "Why can't this be changed?"
@@ -15709,7 +15709,7 @@ msgstr "Kullanıcılar, ayarlar ve tüm içerik dahil olmak üzere bu siteyi yö
 
 #: packages/admin/src/routes/byline-schema.tsx:175
 msgid "You need admin permissions to manage byline schema."
-msgstr "Katkı profili alanlarını yönetmek için yönetici izni gerekir."
+msgstr "Yazar bilgisi şemasını yönetmek için yönetici izinleri gerekir."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:306
 msgid "You need Admin permissions to manage media usage tracking."
