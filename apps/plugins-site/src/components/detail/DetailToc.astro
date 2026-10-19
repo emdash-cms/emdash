@@ -115,6 +115,10 @@ const labelId = `toc-${variant}-label`;
 		for (const link of links) {
 			link.addEventListener("click", () => pin(link.hash.slice(1)));
 		}
+		window.addEventListener("hashchange", () => {
+			const id = location.hash.slice(1);
+			if (ids.includes(id)) pin(id);
+		});
 	}
 </script>
 
