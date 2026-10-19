@@ -22,6 +22,18 @@ describe("plugin detail helpers", () => {
 		]);
 	});
 
+	it("never gives a section the id of another section's heading", () => {
+		const sections = profileSections({
+			faq: "A",
+			"faq title": "B",
+			"notes title": "C",
+			notes: "D",
+		});
+		const ids = sections.flatMap(({ id, titleId }) => [id, titleId]);
+
+		expect(new Set(ids).size).toBe(ids.length);
+	});
+
 	it("links the first security contact that is safe to open", () => {
 		expect(
 			securityContactHref([

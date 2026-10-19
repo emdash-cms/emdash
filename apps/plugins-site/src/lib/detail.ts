@@ -3,6 +3,7 @@ import { safeExternalUrl } from "./registry.js";
 export interface ProfileSection {
 	key: string;
 	id: string;
+	titleId: string;
 	title: string;
 	markdown: string;
 }
@@ -28,8 +29,8 @@ export function sectionTitle(key: string): string {
 
 /**
  * The publisher's extra Markdown sections, in profile order, without the
- * description (shown as the overview). Ids are unique on the page and stay
- * ASCII so they work as URL fragments.
+ * description (shown as the overview). Section and heading ids are unique on
+ * the page and stay ASCII so they work as URL fragments.
  */
 export function profileSections(sections: Record<string, unknown> | undefined): ProfileSection[] {
 	const used = new Set<string>();
@@ -43,9 +44,12 @@ export function profileSections(sections: Record<string, unknown> | undefined): 
 			.replace(/^-+|-+$/g, "");
 		const base = `section-${slug || result.length + 1}`;
 		let id = base;
-		for (let suffix = 2; used.has(id); suffix++) id = `${base}-${suffix}`;
-		used.add(id);
-		result.push({ key, id, title: sectionTitle(key), markdown });
+		for (let suffix = 2; used.has(id) || used.has(`${id}-title`); suffix++) {
+			id = `${base}-${suffix}`;
+		}
+		const titleId = `${id}-title`;
+		used.add(id).add(titleId);
+		result.push({ key, id, titleId, title: sectionTitle(key), markdown });
 	}
 	return result;
 }
