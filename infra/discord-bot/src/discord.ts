@@ -1,4 +1,22 @@
 const DISCORD_API = "https://discord.com/api/v10";
+const DISCORD_TIMEOUT_MS = 5_000;
+
+async function discordRequest<T>(
+	url: string,
+	init: RequestInit,
+	readResponse: (response: Response) => T | Promise<T>,
+): Promise<T> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => {
+		controller.abort(new DOMException("Discord request timed out", "TimeoutError"));
+	}, DISCORD_TIMEOUT_MS);
+	try {
+		const response = await fetch(url, { ...init, signal: controller.signal });
+		return await readResponse(response);
+	} finally {
+		clearTimeout(timeout);
+	}
+}
 
 /**
  * Verify Discord interaction signature using Ed25519.
@@ -41,28 +59,28 @@ export async function verifyDiscordSignature(
  * Add a role to a guild member.
  */
 export async function addRole(env: Env, userId: string, roleId: string): Promise<boolean> {
-	const res = await fetch(
+	return discordRequest(
 		`${DISCORD_API}/guilds/${env.DISCORD_GUILD_ID}/members/${userId}/roles/${roleId}`,
 		{
 			method: "PUT",
 			headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` },
 		},
+		(res) => res.ok,
 	);
-	return res.ok;
 }
 
 /**
  * Remove an existing role from a guild member.
  */
 export async function removeRole(env: Env, userId: string, roleId: string): Promise<boolean> {
-	const res = await fetch(
+	return discordRequest(
 		`${DISCORD_API}/guilds/${env.DISCORD_GUILD_ID}/members/${userId}/roles/${roleId}`,
 		{
 			method: "DELETE",
 			headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` },
 		},
+		(res) => res.ok,
 	);
-	return res.ok;
 }
 
 export type RoleState = "present" | "absent" | "member_missing";
@@ -71,13 +89,16 @@ export type RoleState = "present" | "absent" | "member_missing";
  * Check if a guild member has a specific role.
  */
 export async function getRoleState(env: Env, userId: string, roleId: string): Promise<RoleState> {
-	const res = await fetch(`${DISCORD_API}/guilds/${env.DISCORD_GUILD_ID}/members/${userId}`, {
-		headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` },
-	});
-	if (res.status === 404) return "member_missing";
-	if (!res.ok) throw new Error(`Discord member lookup failed with status ${res.status}`);
-	const member: { roles: string[] } = await res.json();
-	return member.roles.includes(roleId) ? "present" : "absent";
+	return discordRequest<RoleState>(
+		`${DISCORD_API}/guilds/${env.DISCORD_GUILD_ID}/members/${userId}`,
+		{ headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` } },
+		async (res) => {
+			if (res.status === 404) return "member_missing";
+			if (!res.ok) throw new Error(`Discord member lookup failed with status ${res.status}`);
+			const member: { roles: string[] } = await res.json();
+			return member.roles.includes(roleId) ? "present" : "absent";
+		},
+	);
 }
 
 /**
@@ -90,21 +111,24 @@ export async function postMessage(
 	content: string,
 	mentionUserIds?: string[],
 ): Promise<boolean> {
-	const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-		method: "POST",
-		headers: {
-			Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			content,
-			allowed_mentions: {
-				parse: [], // disable @everyone, @here, role mentions
-				users: mentionUserIds ?? [], // only mention these user IDs
+	return discordRequest(
+		`${DISCORD_API}/channels/${channelId}/messages`,
+		{
+			method: "POST",
+			headers: {
+				Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
+				"Content-Type": "application/json",
 			},
-		}),
-	});
-	return res.ok;
+			body: JSON.stringify({
+				content,
+				allowed_mentions: {
+					parse: [], // disable @everyone, @here, role mentions
+					users: mentionUserIds ?? [], // only mention these user IDs
+				},
+			}),
+		},
+		(res) => res.ok,
+	);
 }
 
 /**
@@ -128,17 +152,19 @@ export async function editInteractionResponse(
 	const { data }: { data: Record<string, unknown> } = await response.json();
 	// The initial acknowledgement already set the response's visibility.
 	delete data.flags;
-	const result = await fetch(
+	await discordRequest(
 		`${DISCORD_API}/webhooks/${env.DISCORD_APP_ID}/${encodeURIComponent(token)}/messages/@original`,
 		{
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ ...data, allowed_mentions: { parse: [] } }),
 		},
+		(result) => {
+			if (!result.ok) {
+				throw new Error(`Discord interaction response failed with status ${result.status}`);
+			}
+		},
 	);
-	if (!result.ok) {
-		throw new Error(`Discord interaction response failed with status ${result.status}`);
-	}
 }
 
 /**

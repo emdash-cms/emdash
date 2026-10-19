@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("linked contributor's first merged PR", () => {
-	test("grants the Contributor role before marking the webhook delivery processed", async () => {
+	test("grants Contributor once and only announces subsequent merges", async () => {
 		const { githubId, roleUrl, memberUrl, channelUrl } = await linkedContributor();
 		const deliveryId = crypto.randomUUID();
 		const fetchMock = discordFetch({ roleUrl, memberUrl, channelUrl, deliveryId, roleStatus: 204 });
@@ -49,6 +49,57 @@ describe("linked contributor's first merged PR", () => {
 				([input, init]) => requestUrl(input) === channelUrl && init?.method === "POST",
 			),
 		).toBe(true);
+
+		const nextDeliveryId = crypto.randomUUID();
+		const nextFetch = discordFetch({
+			roleUrl,
+			memberUrl,
+			channelUrl,
+			deliveryId: nextDeliveryId,
+			roleStatus: 204,
+		});
+		vi.stubGlobal("fetch", nextFetch);
+		const nextResponse = await worker.fetch(
+			await mergedPrRequest(githubId, nextDeliveryId),
+			testEnv,
+			createExecutionContext(),
+		);
+		expect(nextResponse.status).toBe(200);
+		expect(nextFetch.mock.calls.some(([input]) => requestUrl(input) === memberUrl)).toBe(false);
+		expect(nextFetch.mock.calls.some(([input]) => requestUrl(input) === roleUrl)).toBe(false);
+		expect(nextFetch.mock.calls.some(([input]) => requestUrl(input) === channelUrl)).toBe(true);
+	});
+
+	test("confirms an existing Contributor role once without granting it again", async () => {
+		const { githubId, roleUrl, memberUrl, channelUrl } = await linkedContributor();
+		const deliveryId = crypto.randomUUID();
+		const fetchMock = discordFetch({
+			roleUrl,
+			memberUrl,
+			channelUrl,
+			deliveryId,
+			roleStatus: 204,
+			memberRoles: [roleId],
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const response = await worker.fetch(
+			await mergedPrRequest(githubId, deliveryId),
+			testEnv,
+			createExecutionContext(),
+		);
+		expect(response.status).toBe(200);
+		expect(fetchMock.mock.calls.some(([input]) => requestUrl(input) === memberUrl)).toBe(true);
+		expect(fetchMock.mock.calls.some(([input]) => requestUrl(input) === roleUrl)).toBe(false);
+
+		fetchMock.mockClear();
+		await worker.fetch(
+			await mergedPrRequest(githubId, crypto.randomUUID()),
+			testEnv,
+			createExecutionContext(),
+		);
+		expect(fetchMock.mock.calls.some(([input]) => requestUrl(input) === memberUrl)).toBe(false);
+		expect(fetchMock.mock.calls.some(([input]) => requestUrl(input) === roleUrl)).toBe(false);
 	});
 
 	test("leaves the delivery retryable when Discord rejects the role grant", async () => {
@@ -161,6 +212,7 @@ function discordFetch({
 	deliveryId,
 	roleStatus,
 	memberStatus = 200,
+	memberRoles = [],
 }: {
 	roleUrl: string;
 	memberUrl: string;
@@ -168,13 +220,14 @@ function discordFetch({
 	deliveryId: string;
 	roleStatus: number;
 	memberStatus?: number;
+	memberRoles?: string[];
 }) {
 	return vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
 		const url = requestUrl(input);
 		const method = init?.method ?? (input instanceof Request ? input.method : "GET");
 		if (url === memberUrl && method === "GET") {
 			return memberStatus === 200
-				? Response.json({ roles: [] })
+				? Response.json({ roles: memberRoles })
 				: new Response(null, { status: memberStatus });
 		}
 		if (url === roleUrl && method === "PUT") {

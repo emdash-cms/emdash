@@ -137,7 +137,9 @@ async function handleUnlinkCommand(interaction: DiscordInteraction, env: Env): P
 		return interactionResponse(
 			result.unlinked
 				? "Your GitHub account has been unlinked and your Contributor role removed."
-				: "Your Discord account is not linked to a GitHub account.",
+				: result.roleRemoved
+					? "Your Contributor role has been removed. Your Discord account was not linked to a GitHub account."
+					: "Your Discord account is not linked to a GitHub account.",
 			true,
 		);
 	} catch {
@@ -278,7 +280,6 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 	// Record this contributor (for retroactive role grant at /link time)
 	await recordContributor(env.KV, githubId, githubLogin);
 
-	// A serialized link lookup also grants the role if this is the first merged PR.
 	const link = await links(env).grantRoleForGitHub(githubId);
 
 	const prLink = `[#${prNumber} ${prTitle}](<${prUrl}>)`;

@@ -12,10 +12,16 @@ const contributedKey = (id: number) => `contributed:${id}`;
 const everLinkedKey = (id: number) => `ever-linked:${id}`;
 const welcomePendingKey = (id: number) => `welcome-pending:${id}`;
 const linkGenerationKey = (id: string) => `link-generation:${id}`;
+const roleGrantKey = (id: number) => `role-granted:${id}`;
 const UNLINK_REPLAY_PREFIX = "unlink:";
 const UNLINK_REPLAY_TTL_MS = 10 * 60 * 1000;
 
-type UnlinkResult = { unlinked: boolean };
+type UnlinkResult = { unlinked: boolean; roleRemoved: boolean };
+
+interface RoleGrantRecord {
+	discordId: string;
+	roleId: string;
+}
 
 interface UnlinkReplayRecord {
 	result: UnlinkResult;
@@ -77,7 +83,16 @@ export class ContributorLinks extends DurableObject<Env> {
 			const contributed =
 				Boolean(await this.ctx.storage.get<boolean>(contributedKey(record.github_id))) ||
 				(await hasContributed(this.env.KV, record.github_id));
-			const firstLink = !(await this.ctx.storage.get<boolean>(everLinkedKey(record.github_id)));
+			let firstLink = !(await this.ctx.storage.get<boolean>(everLinkedKey(record.github_id)));
+			if (firstLink) {
+				const [legacyGitHub, legacyDiscord] = await Promise.all([
+					findByGitHubId(this.env.KV, record.github_id),
+					findByDiscordId(this.env.KV, record.discord_id),
+				]);
+				firstLink =
+					legacyGitHub?.github_id !== record.github_id &&
+					legacyDiscord?.github_id !== record.github_id;
+			}
 
 			const newMemberRole = await getRoleState(
 				this.env,
@@ -94,19 +109,19 @@ export class ContributorLinks extends DurableObject<Env> {
 			let oldRoleRemoved = false;
 			let replacedRoleRemoved = false;
 			let roleGranted = false;
+			let roleGrantAttempted = false;
 			try {
 				if (oldDiscordId) {
-					oldRoleRemoved = await this.revokeRole(oldDiscordId);
+					oldRoleRemoved = await this.revokeRole(oldDiscordId, record.github_id);
 				}
-				if (
-					!contributed &&
-					previousDiscordLink?.github_id !== record.github_id &&
-					previousDiscordLink &&
-					newMemberRole === "present"
-				) {
-					replacedRoleRemoved = await this.revokeRole(record.discord_id);
+				if (!contributed && newMemberRole === "present") {
+					replacedRoleRemoved = await this.revokeRole(
+						record.discord_id,
+						previousDiscordLink?.github_id,
+					);
 				}
 				if (contributed && newMemberRole === "absent") {
+					roleGrantAttempted = true;
 					roleGranted = await addRole(
 						this.env,
 						record.discord_id,
@@ -126,6 +141,7 @@ export class ContributorLinks extends DurableObject<Env> {
 					}
 					if (previousDiscordLink && previousDiscordLink.github_id !== record.github_id) {
 						await transaction.delete(githubKey(previousDiscordLink.github_id));
+						await transaction.delete(roleGrantKey(previousDiscordLink.github_id));
 						await transaction.put(retiredGithubKey(previousDiscordLink.github_id), true);
 					}
 					await transaction.put(githubKey(record.github_id), record);
@@ -134,18 +150,26 @@ export class ContributorLinks extends DurableObject<Env> {
 					await transaction.put(retiredDiscordKey(record.discord_id), true);
 					await transaction.put(everLinkedKey(record.github_id), true);
 					if (contributed) await transaction.put(contributedKey(record.github_id), true);
+					if (contributed) {
+						await transaction.put(roleGrantKey(record.github_id), {
+							discordId: record.discord_id,
+							roleId: this.env.DISCORD_CONTRIBUTOR_ROLE_ID,
+						} satisfies RoleGrantRecord);
+					} else {
+						await transaction.delete(roleGrantKey(record.github_id));
+					}
 					if (firstLink && contributed && newMemberRole === "absent") {
 						await transaction.put(welcomePendingKey(record.github_id), true);
 					}
 				});
 			} catch (error) {
-				if (roleGranted) await this.tryRevokeRole(record.discord_id);
+				if (roleGrantAttempted) await this.tryRevokeRole(record.discord_id);
 				if (replacedRoleRemoved) await this.tryRestoreRole(record.discord_id);
 				if (oldRoleRemoved && oldDiscordId) await this.tryRestoreRole(oldDiscordId);
 				throw error;
 			}
 
-			await this.deleteLegacyLinks(previousGitHubLink, previousDiscordLink);
+			await this.deleteLegacyLinks(record, previousGitHubLink, previousDiscordLink);
 
 			const shouldWelcome =
 				contributed &&
@@ -181,24 +205,17 @@ export class ContributorLinks extends DurableObject<Env> {
 			if (previous && previous.expiresAt > now) return previous.result;
 
 			const link = await this.lookupDiscord(discordId);
-			if (!link) {
-				const result = { unlinked: false };
-				await this.ctx.storage.transaction(async (transaction) => {
-					const generation = (await transaction.get<number>(linkGenerationKey(discordId))) ?? 0;
-					await transaction.put(linkGenerationKey(discordId), generation + 1);
-					await this.storeUnlinkReplay(transaction, interactionKey, result, now);
-				});
-				return result;
-			}
-
-			const result = { unlinked: true };
-			const roleRemoved = await this.revokeRole(discordId);
+			const roleRemoved = await this.revokeRole(discordId, link?.github_id);
+			const result = { unlinked: Boolean(link), roleRemoved };
 			try {
 				await this.ctx.storage.transaction(async (transaction) => {
 					const generation = (await transaction.get<number>(linkGenerationKey(discordId))) ?? 0;
-					await transaction.delete(githubKey(link.github_id));
+					if (link) {
+						await transaction.delete(githubKey(link.github_id));
+						await transaction.delete(roleGrantKey(link.github_id));
+						await transaction.put(retiredGithubKey(link.github_id), true);
+					}
 					await transaction.delete(discordKey(discordId));
-					await transaction.put(retiredGithubKey(link.github_id), true);
 					await transaction.put(retiredDiscordKey(discordId), true);
 					await transaction.put(linkGenerationKey(discordId), generation + 1);
 					await this.storeUnlinkReplay(transaction, interactionKey, result, now);
@@ -207,7 +224,8 @@ export class ContributorLinks extends DurableObject<Env> {
 				if (roleRemoved) await this.tryRestoreRole(discordId);
 				throw error;
 			}
-			await this.deleteLegacyLinks(link);
+			if (link) await this.deleteLegacyLinks(link);
+			else await this.deleteLegacyKeys([discordKey(discordId)]);
 			return result;
 		});
 	}
@@ -217,6 +235,13 @@ export class ContributorLinks extends DurableObject<Env> {
 			await this.ctx.storage.put(contributedKey(githubId), true);
 			const link = await this.lookupGitHub(githubId);
 			if (!link) return { linked: false };
+			const confirmed = await this.ctx.storage.get<RoleGrantRecord>(roleGrantKey(githubId));
+			if (
+				confirmed?.discordId === link.discord_id &&
+				confirmed.roleId === this.env.DISCORD_CONTRIBUTOR_ROLE_ID
+			) {
+				return { linked: true, discordId: link.discord_id };
+			}
 
 			const state = await getRoleState(
 				this.env,
@@ -234,15 +259,25 @@ export class ContributorLinks extends DurableObject<Env> {
 				);
 				if (!granted) throw new Error("Discord rejected Contributor role grant");
 			}
+			await this.ctx.storage.put(roleGrantKey(githubId), {
+				discordId: link.discord_id,
+				roleId: this.env.DISCORD_CONTRIBUTOR_ROLE_ID,
+			} satisfies RoleGrantRecord);
 			return { linked: true, discordId: link.discord_id };
 		});
 	}
 
-	private async revokeRole(discordId: string): Promise<boolean> {
+	private async revokeRole(discordId: string, githubId?: number): Promise<boolean> {
 		const state = await getRoleState(this.env, discordId, this.env.DISCORD_CONTRIBUTOR_ROLE_ID);
 		if (state !== "present") return false;
-		const removed = await removeRole(this.env, discordId, this.env.DISCORD_CONTRIBUTOR_ROLE_ID);
-		if (!removed) throw new Error("Discord rejected Contributor role removal");
+		if (githubId !== undefined) await this.ctx.storage.delete(roleGrantKey(githubId));
+		try {
+			const removed = await removeRole(this.env, discordId, this.env.DISCORD_CONTRIBUTOR_ROLE_ID);
+			if (!removed) throw new Error("Discord rejected Contributor role removal");
+		} catch (error) {
+			await this.tryRestoreRole(discordId);
+			throw error;
+		}
 		return true;
 	}
 
@@ -257,7 +292,11 @@ export class ContributorLinks extends DurableObject<Env> {
 
 	private async tryRevokeRole(discordId: string): Promise<void> {
 		try {
-			await this.revokeRole(discordId);
+			const state = await getRoleState(this.env, discordId, this.env.DISCORD_CONTRIBUTOR_ROLE_ID);
+			if (state === "present") {
+				const removed = await removeRole(this.env, discordId, this.env.DISCORD_CONTRIBUTOR_ROLE_ID);
+				if (!removed) console.error("Could not roll back Contributor role");
+			}
 		} catch (error) {
 			console.error("Could not roll back Contributor role", error);
 		}
@@ -270,7 +309,11 @@ export class ContributorLinks extends DurableObject<Env> {
 			keys.add(githubKey(link.github_id));
 			keys.add(discordKey(link.discord_id));
 		}
-		const results = await Promise.allSettled(Array.from(keys, (key) => this.env.KV.delete(key)));
+		await this.deleteLegacyKeys([...keys]);
+	}
+
+	private async deleteLegacyKeys(keys: string[]): Promise<void> {
+		const results = await Promise.allSettled(keys.map((key) => this.env.KV.delete(key)));
 		for (const result of results) {
 			if (result.status === "rejected") {
 				console.error("Could not delete a retired legacy account link", result.reason);
@@ -319,7 +362,7 @@ export class ContributorLinks extends DurableObject<Env> {
 		if (!legacy) return null;
 		const counterpart = await findByDiscordId(this.env.KV, legacy.discord_id);
 		if (counterpart?.github_id !== githubId) {
-			throw new Error("Inconsistent legacy GitHub link");
+			return null;
 		}
 		return this.importLegacy(legacy);
 	}
@@ -333,7 +376,7 @@ export class ContributorLinks extends DurableObject<Env> {
 		if (!legacy) return null;
 		const counterpart = await findByGitHubId(this.env.KV, legacy.github_id);
 		if (counterpart?.discord_id !== discordId) {
-			throw new Error("Inconsistent legacy Discord link");
+			return null;
 		}
 		return this.importLegacy(legacy);
 	}

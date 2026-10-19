@@ -84,6 +84,49 @@ describe("Contributor link lifecycle", () => {
 		expect(api.roleCalls()).toContainEqual({ discordId, method: "DELETE" });
 	});
 
+	test("removes an orphaned role without replaying the removal after a new link", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		api.roles.set(discordId, new Set([roleId, "other-role"]));
+		vi.stubGlobal("fetch", api.fetchMock);
+		const unlinkRequest = await signedUnlinkRequest(discordId);
+
+		const response = await fetchWorker(unlinkRequest.clone(), testEnv);
+		const result: { data: { content: string } } = await response.json();
+		expect(result.data.content).toBe(
+			"Your Contributor role has been removed. Your Discord account was not linked to a GitHub account.",
+		);
+		expect(api.roles.get(discordId)).toEqual(new Set(["other-role"]));
+
+		expect((await linkByCallback(githubId, discordId)).status).toBe(200);
+		await fetchWorker(unlinkRequest.clone(), testEnv);
+		expect(api.roles.get(discordId)).toEqual(new Set(["other-role", roleId]));
+		expect(api.roleCalls().filter((call) => call.method === "DELETE")).toHaveLength(1);
+	});
+
+	test("retries removing an orphaned role after Discord rejects /unlink", async () => {
+		const discordId = randomDiscordId();
+		const api = mockExternalApi(randomGithubId());
+		api.roles.set(discordId, new Set([roleId]));
+		api.removeRoleStatus = 503;
+		vi.stubGlobal("fetch", api.fetchMock);
+		const unlinkRequest = await signedUnlinkRequest(discordId);
+
+		const failed = await fetchWorker(unlinkRequest.clone(), testEnv);
+		expect(await failed.json()).toMatchObject({
+			data: {
+				content: "Could not unlink your account or remove the Contributor role. Please try again.",
+			},
+		});
+		expect(api.roles.get(discordId)?.has(roleId)).toBe(true);
+
+		api.removeRoleStatus = 204;
+		await fetchWorker(unlinkRequest.clone(), testEnv);
+		expect(api.roles.get(discordId)?.has(roleId)).toBe(false);
+	});
+
 	test("acknowledges /unlink and a queued /link before a slow role removal completes", async () => {
 		const githubId = randomGithubId();
 		const discordId = randomDiscordId();
@@ -250,21 +293,26 @@ describe("Contributor link lifecycle", () => {
 
 	test("expires /unlink replay records after the full signature replay window", async () => {
 		const discordId = randomDiscordId();
+		const api = mockExternalApi(randomGithubId());
+		vi.stubGlobal("fetch", api.fetchMock);
 		const interactionId = crypto.randomUUID();
 		const interactionKey = `unlink:${interactionId}`;
 		const links = testEnv.CONTRIBUTOR_LINKS.getByName("global");
 		const startedAt = Date.now();
 
-		expect(await links.unlink(discordId, interactionId)).toEqual({ unlinked: false });
+		expect(await links.unlink(discordId, interactionId)).toEqual({
+			unlinked: false,
+			roleRemoved: false,
+		});
 		await runInDurableObject(links, async (_instance, state) => {
 			const replay = await state.storage.get<{
-				result: { unlinked: boolean };
+				result: { unlinked: boolean; roleRemoved: boolean };
 				expiresAt: number;
 			}>(interactionKey);
-			expect(replay?.result).toEqual({ unlinked: false });
+			expect(replay?.result).toEqual({ unlinked: false, roleRemoved: false });
 			expect(replay?.expiresAt).toBeGreaterThanOrEqual(startedAt + 10 * 60 * 1000);
 			await state.storage.put(interactionKey, {
-				result: { unlinked: false },
+				result: { unlinked: false, roleRemoved: false },
 				expiresAt: Date.now() - 1,
 			});
 			await state.storage.setAlarm(Date.now());
@@ -471,24 +519,254 @@ describe("Contributor link lifecycle", () => {
 		expect(api.messages).toHaveLength(0);
 	});
 
-	test("does not grant a role when the legacy link keys disagree", async () => {
+	test("recovers a stale GitHub link without disturbing a different valid pair", async () => {
 		const githubId = randomGithubId();
+		const otherGithubId = randomGithubId();
 		const oldDiscordId = randomDiscordId();
 		const newDiscordId = randomDiscordId();
 		await recordContributor(testEnv.KV, githubId, "contributor");
 		await testEnv.KV.put(`github:${githubId}`, JSON.stringify(linkRecord(githubId, oldDiscordId)));
-		await testEnv.KV.put(
-			`discord:${oldDiscordId}`,
-			JSON.stringify(linkRecord(randomGithubId(), oldDiscordId)),
-		);
+		await storeLink(testEnv.KV, linkRecord(otherGithubId, oldDiscordId));
 		const api = mockExternalApi(githubId);
 		api.roles.set(oldDiscordId, new Set([roleId]));
 		vi.stubGlobal("fetch", api.fetchMock);
 
+		expect((await linkByCallback(githubId, newDiscordId)).status).toBe(200);
+		expect(api.roleCalls()).toEqual([{ discordId: newDiscordId, method: "PUT" }]);
+		expect(api.roles.get(oldDiscordId)?.has(roleId)).toBe(true);
+		expect(api.roles.get(newDiscordId)?.has(roleId)).toBe(true);
+		expect(await testEnv.KV.get(`github:${otherGithubId}`)).not.toBeNull();
+		expect(await testEnv.KV.get(`discord:${oldDiscordId}`)).not.toBeNull();
+		expect(api.messages).toHaveLength(0);
+	});
+
+	test("retries a confirmed role after a failed transfer could not restore it", async () => {
+		const githubId = randomGithubId();
+		const oldDiscordId = randomDiscordId();
+		const newDiscordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		vi.stubGlobal("fetch", api.fetchMock);
+		expect((await linkByCallback(githubId, oldDiscordId)).status).toBe(200);
+		api.addRoleStatuses.set(newDiscordId, 503);
+		api.addRoleStatuses.set(oldDiscordId, 503);
+
 		expect((await linkByCallback(githubId, newDiscordId)).status).toBe(502);
-		expect(api.roleCalls()).toHaveLength(0);
+		expect(api.roles.get(oldDiscordId)?.has(roleId)).toBe(false);
+		api.addRoleStatuses.delete(oldDiscordId);
+		expect(
+			await testEnv.CONTRIBUTOR_LINKS.getByName("global").grantRoleForGitHub(githubId),
+		).toEqual({
+			linked: true,
+			discordId: oldDiscordId,
+		});
 		expect(api.roles.get(oldDiscordId)?.has(roleId)).toBe(true);
 		expect(api.roles.get(newDiscordId)?.has(roleId)).not.toBe(true);
+	});
+
+	test("rolls back a transfer when Discord applied the new role before timing out", async () => {
+		const githubId = randomGithubId();
+		const oldDiscordId = randomDiscordId();
+		const newDiscordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		vi.stubGlobal("fetch", api.fetchMock);
+		expect((await linkByCallback(githubId, oldDiscordId)).status).toBe(200);
+		let markStarted!: () => void;
+		const started = new Promise<void>((resolve) => {
+			markStarted = resolve;
+		});
+		api.afterRolePut = async (discordId, signal) => {
+			if (discordId !== newDiscordId) return;
+			markStarted();
+			await untilAborted(signal);
+		};
+		vi.useFakeTimers();
+		try {
+			await runInDurableObject(testEnv.CONTRIBUTOR_LINKS.getByName("global"), async (instance) => {
+				const failed = expect(instance.link(linkRecord(githubId, newDiscordId), 0)).rejects.toThrow(
+					"Discord request timed out",
+				);
+				await started;
+				await vi.advanceTimersByTimeAsync(5_000);
+				await failed;
+				expect((await instance.getByGitHubId(githubId))?.discord_id).toBe(oldDiscordId);
+			});
+		} finally {
+			vi.useRealTimers();
+		}
+		expect(api.roles.get(oldDiscordId)?.has(roleId)).toBe(true);
+		expect(api.roles.get(newDiscordId)?.has(roleId)).toBe(false);
+	});
+
+	test("restores a role when Discord applied /unlink removal before timing out", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		vi.stubGlobal("fetch", api.fetchMock);
+		expect((await linkByCallback(githubId, discordId)).status).toBe(200);
+		let markStarted!: () => void;
+		const started = new Promise<void>((resolve) => {
+			markStarted = resolve;
+		});
+		api.afterRoleDelete = async (_discordId, signal) => {
+			markStarted();
+			await untilAborted(signal);
+		};
+		vi.useFakeTimers();
+		try {
+			await runInDurableObject(testEnv.CONTRIBUTOR_LINKS.getByName("global"), async (instance) => {
+				const failed = expect(instance.unlink(discordId, crypto.randomUUID())).rejects.toThrow(
+					"Discord request timed out",
+				);
+				await started;
+				await vi.advanceTimersByTimeAsync(5_000);
+				await failed;
+				expect((await instance.getLinkContext(discordId)).existing?.github_id).toBe(githubId);
+			});
+		} finally {
+			vi.useRealTimers();
+		}
+		expect(api.roles.get(discordId)?.has(roleId)).toBe(true);
+	});
+
+	test.each(["github", "discord"] as const)(
+		"imports a legacy pair after a temporary %s-side mismatch settles",
+		async (side) => {
+			const githubId = randomGithubId();
+			const discordId = randomDiscordId();
+			const record = linkRecord(githubId, discordId);
+			const links = testEnv.CONTRIBUTOR_LINKS.getByName("global");
+			const read = () =>
+				side === "github"
+					? links.getByGitHubId(githubId)
+					: links.getLinkContext(discordId).then((context) => context.existing);
+			const firstKey = side === "github" ? `github:${githubId}` : `discord:${discordId}`;
+			const secondKey = side === "github" ? `discord:${discordId}` : `github:${githubId}`;
+
+			await testEnv.KV.put(firstKey, JSON.stringify(record));
+			expect(await read()).toBeNull();
+			await testEnv.KV.put(secondKey, JSON.stringify(record));
+			expect(await read()).toEqual(record);
+		},
+	);
+
+	test("unlinks a stale Discord pointer without retiring its GitHub account's valid link", async () => {
+		const githubId = randomGithubId();
+		const oldDiscordId = randomDiscordId();
+		const newDiscordId = randomDiscordId();
+		await storeLink(testEnv.KV, linkRecord(githubId, newDiscordId));
+		await testEnv.KV.put(
+			`discord:${oldDiscordId}`,
+			JSON.stringify(linkRecord(githubId, oldDiscordId)),
+		);
+		const api = mockExternalApi(githubId);
+		api.roles.set(oldDiscordId, new Set([roleId]));
+		api.roles.set(newDiscordId, new Set([roleId]));
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		await fetchWorker(await signedUnlinkRequest(oldDiscordId), testEnv);
+		expect(api.roles.get(oldDiscordId)?.has(roleId)).toBe(false);
+		expect(api.roles.get(newDiscordId)?.has(roleId)).toBe(true);
+		expect(await testEnv.KV.get(`github:${githubId}`)).not.toBeNull();
+		expect(await testEnv.KV.get(`discord:${newDiscordId}`)).not.toBeNull();
+		expect(await linkButtonLabel(newDiscordId)).toBe("Relink GitHub Account");
+	});
+
+	test("does not resurrect a legacy pair that settled after /unlink", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		const record = linkRecord(githubId, discordId);
+		await testEnv.KV.put(`discord:${discordId}`, JSON.stringify(record));
+		const api = mockExternalApi(githubId);
+		api.roles.set(discordId, new Set([roleId]));
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		await fetchWorker(await signedUnlinkRequest(discordId), testEnv);
+		await testEnv.KV.put(`github:${githubId}`, JSON.stringify(record));
+		await testEnv.KV.put(`discord:${discordId}`, JSON.stringify(record));
+		expect(await testEnv.CONTRIBUTOR_LINKS.getByName("global").getByGitHubId(githubId)).toBeNull();
+		expect(await linkButtonLabel(discordId)).toBe("Link GitHub Account");
+		expect(api.roles.get(discordId)?.has(roleId)).toBe(false);
+	});
+
+	test("does not check or restore a confirmed role on subsequent merge events", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await recordContributor(testEnv.KV, githubId, "contributor");
+		const api = mockExternalApi(githubId);
+		vi.stubGlobal("fetch", api.fetchMock);
+		expect((await linkByCallback(githubId, discordId)).status).toBe(200);
+		api.roles.get(discordId)?.delete(roleId);
+		const calls = api.fetchMock.mock.calls.length;
+
+		expect(
+			await testEnv.CONTRIBUTOR_LINKS.getByName("global").grantRoleForGitHub(githubId),
+		).toEqual({
+			linked: true,
+			discordId,
+		});
+		expect(api.fetchMock.mock.calls).toHaveLength(calls);
+		expect(api.roles.get(discordId)?.has(roleId)).toBe(false);
+	});
+
+	test("treats a mismatched legacy GitHub link as unlinked during a merge", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await testEnv.KV.put(`github:${githubId}`, JSON.stringify(linkRecord(githubId, discordId)));
+		const api = mockExternalApi(githubId);
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		expect(
+			await testEnv.CONTRIBUTOR_LINKS.getByName("global").grantRoleForGitHub(githubId),
+		).toEqual({
+			linked: false,
+		});
+		expect(api.fetchMock.mock.calls).toHaveLength(0);
+	});
+
+	test("releases the link queue after a Discord request times out", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		await storeLink(testEnv.KV, linkRecord(githubId, discordId));
+		const api = mockExternalApi(githubId);
+		let markStarted!: () => void;
+		const started = new Promise<void>((resolve) => {
+			markStarted = resolve;
+		});
+		api.beforeMemberGet = async (_discordId, signal) => {
+			markStarted();
+			await untilAborted(signal);
+		};
+		vi.stubGlobal("fetch", api.fetchMock);
+		vi.useFakeTimers();
+		try {
+			const links = testEnv.CONTRIBUTOR_LINKS.getByName("global");
+			await runInDurableObject(links, async (instance) => {
+				const failed = expect(instance.unlink(discordId, crypto.randomUUID())).rejects.toThrow(
+					"Discord request timed out",
+				);
+				await started;
+				const next = instance.getLinkContext(randomDiscordId());
+				await vi.advanceTimersByTimeAsync(5_000);
+				await failed;
+				expect((await next).existing).toBeNull();
+			});
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	test("clears a stale Contributor role when linking a noncontributor", async () => {
+		const githubId = randomGithubId();
+		const discordId = randomDiscordId();
+		const api = mockExternalApi(githubId);
+		api.roles.set(discordId, new Set([roleId, "other-role"]));
+		vi.stubGlobal("fetch", api.fetchMock);
+
+		expect((await linkByCallback(githubId, discordId)).status).toBe(200);
+		expect(api.roles.get(discordId)).toEqual(new Set(["other-role"]));
 	});
 
 	test("does not retain Contributor when one Discord account switches to a non-contributor", async () => {
@@ -519,7 +797,15 @@ function mockExternalApi(githubId: number) {
 		addRoleStatus: 204,
 		addRoleStatuses: new Map<string, number>(),
 		removeRoleStatus: 204,
-		beforeMemberGet: undefined as ((discordId: string) => Promise<void>) | undefined,
+		beforeMemberGet: undefined as
+			| ((discordId: string, signal?: AbortSignal | null) => Promise<void>)
+			| undefined,
+		afterRolePut: undefined as
+			| ((discordId: string, signal?: AbortSignal | null) => Promise<void>)
+			| undefined,
+		afterRoleDelete: undefined as
+			| ((discordId: string, signal?: AbortSignal | null) => Promise<void>)
+			| undefined,
 		roleCalls: () =>
 			fetchMock.mock.calls.flatMap(([input, init]) => {
 				const match =
@@ -545,7 +831,7 @@ function mockExternalApi(githubId: number) {
 		const memberMatch =
 			/^https:\/\/discord\.com\/api\/v10\/guilds\/123456789\/members\/(\d+)$/.exec(url);
 		if (memberMatch && method === "GET") {
-			await api.beforeMemberGet?.(memberMatch[1]!);
+			await api.beforeMemberGet?.(memberMatch[1]!, init?.signal);
 			return Response.json({ roles: [...(roles.get(memberMatch[1]!) ?? [])] });
 		}
 		const roleMatch =
@@ -558,11 +844,13 @@ function mockExternalApi(githubId: number) {
 			const memberRoles = roles.get(roleMatch[1]!) ?? new Set<string>();
 			memberRoles.add(roleId);
 			roles.set(roleMatch[1]!, memberRoles);
+			await api.afterRolePut?.(roleMatch[1]!, init?.signal);
 			return new Response(null, { status: 204 });
 		}
 		if (roleMatch && method === "DELETE") {
 			if (api.removeRoleStatus >= 400) return new Response(null, { status: api.removeRoleStatus });
 			roles.get(roleMatch[1]!)?.delete(roleId);
+			await api.afterRoleDelete?.(roleMatch[1]!, init?.signal);
 			return new Response(null, { status: 204 });
 		}
 		const interactionMatch =
@@ -692,6 +980,14 @@ function randomGithubId(): number {
 
 function randomDiscordId(): string {
 	return String(500000000000000000n + BigInt(randomGithubId()));
+}
+
+function untilAborted(signal?: AbortSignal | null): Promise<never> {
+	if (!signal) return Promise.reject(new Error("Expected an abort signal"));
+	return new Promise((_resolve, reject) => {
+		if (signal.aborted) reject(signal.reason);
+		else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+	});
 }
 
 function requestUrl(input: RequestInfo | URL): string {
