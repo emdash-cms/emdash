@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pluginArt, pluginArtSeed } from "./plugin-art.js";
+import { MOTIFS, pluginArt, pluginArtSeed } from "./plugin-art.js";
 
 const seeds = Array.from({ length: 200 }, (_, i) =>
 	pluginArtSeed({ did: `did:plc:publisher${i % 7}`, slug: `plugin-${i}` }),
@@ -16,7 +16,7 @@ describe("plugin art", () => {
 		const tiles = new Set(seeds.map((seed) => JSON.stringify(pluginArt(seed, "tile").layers)));
 		const motifs = new Set(seeds.map((seed) => pluginArt(seed, "tile").motif));
 		expect(tiles.size).toBeGreaterThan(seeds.length * 0.6);
-		expect(motifs.size).toBe(8);
+		expect(motifs.size).toBe(MOTIFS.length);
 	});
 
 	it("keeps every tile small and gives it an orange focus", () => {

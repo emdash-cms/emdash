@@ -48,7 +48,7 @@ export type ArtMotif =
 	| "horizon"
 	| "blocks";
 
-const MOTIFS: readonly ArtMotif[] = [
+export const MOTIFS: readonly ArtMotif[] = [
 	"ripple",
 	"dash",
 	"sphere",
