@@ -806,6 +806,11 @@ for (let row = 0; row < 6; row++) {
 				var(--x-state, running);
 		}
 
+		/* Without JavaScript there's no pause button, so the loop stays on its finished frame. */
+		:global(:root:not(.js)) .exhibit :global(*) {
+			animation: none !important;
+		}
+
 		.x-plugin-name {
 			--x-anim: x-type;
 		}
