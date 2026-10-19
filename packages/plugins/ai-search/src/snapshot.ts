@@ -38,7 +38,7 @@ export function toIndexedItem(item: AiSearchItemInfo): IndexedItem {
 	return {
 		itemId: item.id,
 		hash: readMetadata(item.metadata)?.hash ?? null,
-		failed: item.status === "error",
+		failed: itemState(item.status) === "failed",
 		state: itemState(item.status),
 	};
 }

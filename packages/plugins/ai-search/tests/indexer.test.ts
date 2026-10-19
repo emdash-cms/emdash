@@ -166,6 +166,18 @@ describe("Indexer", () => {
 		expect(items.uploads).toBe(2);
 	});
 
+	it("uploads again when AI Search skipped the previous upload", async () => {
+		const post = entry();
+		const { items, indexer } = setup({ entries: [post] });
+
+		await indexer.syncRecord("posts", post.id);
+		const indexed = items.items.get("posts/entry-1.md");
+		if (indexed) indexed.status = "skipped";
+		await indexer.syncRecord("posts", post.id);
+
+		expect(items.uploads).toBe(2);
+	});
+
 	it("does not index entries of a disabled collection", async () => {
 		const post = entry();
 		const { items, indexer } = setup(
