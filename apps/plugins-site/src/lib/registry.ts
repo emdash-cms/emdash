@@ -13,8 +13,7 @@ import sanitizeHtml from "sanitize-html";
 
 const RELEASE_COLLECTION = "com.emdashcms.experimental.package.release";
 const OFFICIAL_PUBLISHER_DID = "did:plc:xyraubanwc5fwemkduw3upi6";
-const HTML_COMMENT = /<!--[\s\S]*?-->/g;
-const HEADING_TAG = /<h([1-6])[\s>]/gi;
+const COMMENT_OR_HEADING_TAG = /<!--[\s\S]*?-->|<h([1-6])[\s>]/gi;
 
 export const REGISTRY_PAGE_CACHE = {
 	maxAge: 60,
@@ -114,10 +113,10 @@ export function repositoryUrl(
  */
 export function renderRegistryMarkdown(markdown: string): string {
 	const rendered = marked.parse(markdown, { async: false });
-	// Sanitizing drops comments, so headings inside them don't count.
+	// Sanitizing drops comments, so a comment matches whole and the headings inside it don't count.
 	const shallowest = Math.min(
-		...Array.from(rendered.replace(HTML_COMMENT, "").matchAll(HEADING_TAG), (match) =>
-			Number(match[1]),
+		...[...rendered.matchAll(COMMENT_OR_HEADING_TAG)].flatMap((match) =>
+			match[1] ? [Number(match[1])] : [],
 		),
 	);
 	// The pattern can miss a heading the sanitizer still parses, such as `<h2/>`.
