@@ -22,7 +22,7 @@ import {
 	resolveLocaleChain,
 } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
-import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
+import { cachedQuery, CacheNamespace, contentCacheNamespaces } from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
@@ -50,16 +50,36 @@ export interface MenuQueryOptions {
 export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
 	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
-	return requestCached(`menu:${name}:${locale ?? "*"}:${trailingSlash}`, () =>
-		cachedQuery({
+	return requestCached(`menu:${name}:${locale ?? "*"}:${trailingSlash}`, async () => {
+		const rows = await cachedQuery({
 			namespace: CacheNamespace.MENUS,
+			key: `rows:${name}:${locale ?? "*"}`,
+			load: async () => loadMenuRows(name, await getDb(), locale),
+		});
+		if (!rows) return null;
+		return cachedQuery({
+			namespace: resolvedMenuNamespaces(rows.items),
 			key: `${name}:${locale ?? "*"}:${trailingSlash}`,
-			load: async () => {
-				const db = await getDb();
-				return getMenuWithDb(name, db, { locale, trailingSlash });
-			},
-		}),
-	);
+			load: async () => resolveMenu(rows, await getDb(), trailingSlash),
+		});
+	});
+}
+
+/**
+ * Object-cache namespaces for a resolved menu: the menu epoch plus the content
+ * epoch of every collection its items link to, and the taxonomy epoch when it
+ * links to terms. Which links resolve depends on those rows, so publishing,
+ * unpublishing, or trashing a linked entry invalidates the cached menu.
+ */
+function resolvedMenuNamespaces(items: MenuItemRow[]): string[] {
+	const namespaces: string[] = [CacheNamespace.MENUS];
+	for (const collection of collectContentReferences(items).keys()) {
+		namespaces.push(...contentCacheNamespaces(collection));
+	}
+	if (items.some((item) => item.type === "taxonomy" && item.reference_id)) {
+		namespaces.push(CacheNamespace.TAXONOMIES);
+	}
+	return namespaces;
 }
 
 async function getHostTrailingSlash(): Promise<"always" | "never" | "ignore"> {
@@ -82,7 +102,21 @@ export async function getMenuWithDb(
 	db: Kysely<Database>,
 	options: MenuQueryOptions = {},
 ): Promise<Menu | null> {
-	const chain = resolveLocaleChain(options.locale);
+	const rows = await loadMenuRows(name, db, options.locale);
+	return rows && resolveMenu(rows, db, options.trailingSlash);
+}
+
+interface MenuRows {
+	menu: Omit<Menu, "items">;
+	items: MenuItemRow[];
+}
+
+async function loadMenuRows(
+	name: string,
+	db: Kysely<Database>,
+	requestedLocale: string | undefined,
+): Promise<MenuRows | null> {
+	const chain = resolveLocaleChain(requestedLocale);
 
 	let query = db
 		.selectFrom("_emdash_menus as m")
@@ -117,15 +151,26 @@ export async function getMenuWithDb(
 		(row): row is typeof row & MenuItemRow => row.m_id === menuId && row.id !== null,
 	);
 
-	const items = await buildMenuTree(itemRows, db, menuRow.m_locale, options.trailingSlash);
-
 	return {
-		id: menuRow.m_id,
-		name: menuRow.m_name,
-		label: menuRow.m_label,
-		items,
-		locale: menuRow.m_locale,
-		translationGroup: menuRow.m_translation_group,
+		menu: {
+			id: menuRow.m_id,
+			name: menuRow.m_name,
+			label: menuRow.m_label,
+			locale: menuRow.m_locale,
+			translationGroup: menuRow.m_translation_group,
+		},
+		items: itemRows,
+	};
+}
+
+async function resolveMenu(
+	rows: MenuRows,
+	db: Kysely<Database>,
+	trailingSlash: MenuQueryOptions["trailingSlash"],
+): Promise<Menu> {
+	return {
+		...rows.menu,
+		items: await buildMenuTree(rows.items, db, rows.menu.locale, trailingSlash),
 	};
 }
 

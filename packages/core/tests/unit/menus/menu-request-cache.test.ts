@@ -16,7 +16,9 @@ vi.mock("../../../src/loader.js", () => ({
 }));
 
 import { prefetchLayoutData } from "../../../src/astro/prefetch.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { MenuRepository } from "../../../src/database/repositories/menu.js";
+import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import { getDb } from "../../../src/loader.js";
 import { getMenu } from "../../../src/menus/index.js";
 import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
@@ -182,6 +184,74 @@ describe("getMenu collection-pattern request cache", () => {
 			queries = [];
 			await prefetch();
 			expect(menuNameQueries()).toHaveLength(1);
+		});
+
+		async function insertMenuLinking(
+			name: string,
+			item: { type: string; reference_collection?: string; reference_id: string },
+		): Promise<void> {
+			const menuId = ulid();
+			await db.insertInto("_emdash_menus").values({ id: menuId, name, label: name }).execute();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({ id: ulid(), menu_id: menuId, sort_order: 0, label: name, ...item })
+				.execute();
+		}
+
+		/** Menu URLs in a fresh request, after checking a repeat read is served from the cache. */
+		async function cachedMenuUrls(name: string): Promise<string[] | undefined> {
+			const read = () => runWithContext({ editMode: false, db }, () => getMenu(name));
+			const menu = await read();
+			await flush();
+			queries = [];
+			expect(await read()).toEqual(menu);
+			expect(queries).toHaveLength(0);
+			return menu?.items.map((item) => item.url);
+		}
+
+		it("keeps cached menus apart by locale and trailing-slash policy", async () => {
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: ulid(), name: "primary", label: "Hauptmenü", locale: "de" })
+				.execute();
+			const read = (options: { locale: string; trailingSlash: "always" | "never" }) =>
+				runWithContext({ editMode: false, db }, () => getMenu("primary", options));
+
+			const always = await read({ locale: "en", trailingSlash: "always" });
+			await flush();
+			const never = await read({ locale: "en", trailingSlash: "never" });
+			const german = await read({ locale: "de", trailingSlash: "never" });
+
+			expect(always?.items.map((item) => item.url)).toEqual(["/blog/hello/"]);
+			expect(never?.items.map((item) => item.url)).toEqual(["/blog/hello"]);
+			expect(german?.label).toBe("Hauptmenü");
+		});
+
+		it("refreshes a cached menu when a linked entry is published or trashed", async () => {
+			const repo = new ContentRepository(db);
+			const entry = await repo.create({ type: "post", slug: "launch", data: {} });
+			await insertMenuLinking("header", {
+				type: "post",
+				reference_collection: "post",
+				reference_id: entry.id,
+			});
+			expect(await cachedMenuUrls("header")).toEqual([]);
+
+			await repo.publish("post", entry.id);
+			expect(await cachedMenuUrls("header")).toEqual(["/blog/launch"]);
+
+			await repo.delete("post", entry.id);
+			expect(await cachedMenuUrls("header")).toEqual([]);
+		});
+
+		it("refreshes a cached menu when a linked term changes", async () => {
+			const repo = new TaxonomyRepository(db);
+			const term = await repo.create({ name: "category", slug: "news", label: "News" });
+			await insertMenuLinking("topics", { type: "taxonomy", reference_id: term.id });
+			expect(await cachedMenuUrls("topics")).toEqual(["/category/news"]);
+
+			await repo.update(term.id, { slug: "updates" });
+			expect(await cachedMenuUrls("topics")).toEqual(["/category/updates"]);
 		});
 	});
 });
