@@ -38,6 +38,23 @@ Dynamic Workers are available on the [Workers Paid plan](https://developers.clou
 
    If the Wrangler config uses named environments, set `CLOUDFLARE_ENV` during the Astro build. The Cloudflare Vite plugin and `sandbox()` then read the same environment. Bindings are not inherited, so add `LOADER` to each named environment that runs sandboxed plugins.
 
+   Projects on `@astrojs/cloudflare` 15 are configured with `cloudflare.config.ts` instead. Add the binding under `worker.env`:
+
+   ```ts title="cloudflare.config.ts"
+   import { bindings, defineConfig } from "cf/config";
+
+   export default defineConfig({
+   	worker: {
+   		name: "my-site",
+   		compatibilityDate: "2026-07-01",
+   		entrypoint: "./src/worker.ts",
+   		env: {
+   			LOADER: bindings.workerLoader(),
+   		},
+   	},
+   });
+   ```
+
 2. Export `PluginBridge` from the Worker entry point, and point `main` at that file. `PluginBridge` is the entrypoint through which sandboxed plugins reach content, media, storage, and email; the runner looks it up on the exports of the entry module:
 
    ```ts title="src/worker.ts"
@@ -132,6 +149,8 @@ On Cloudflare Workers, `sandbox()` checks `wrangler.jsonc` at build time. Withou
 ```plain
 [emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding. Worker Loader requires a Workers paid plan.
 ```
+
+When the project has a `cloudflare.config.ts`, `sandbox()` skips this build-time check and always selects the runner, so a missing binding shows up as the runtime warning below.
 
 A selected runner can still be unavailable at runtime: on Cloudflare Workers when the deployed `LOADER` binding or `PluginBridge` export is missing, and on Node.js when `workerd` is not installed or its binary does not run. EmDash then logs a warning with the cause the runner reports after the colon. The following warning is logged on Cloudflare Workers when the binding is missing:
 
