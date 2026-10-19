@@ -30,11 +30,11 @@
 	--danger: #c42b1c;
 	--link-hover: var(--accent-ink);
 
-	--btn-primary-bg: #171717;
-	--btn-primary-hover: #2a2a2a;
-	--btn-primary-fg: #fafafa;
-	--btn-primary-border: #000000;
-	--btn-halo: rgb(0 0 0 / 4%);
+	--btn-primary-bg: var(--accent);
+	--btn-primary-hover: color-mix(in srgb, var(--accent) 90%, #000);
+	--btn-primary-fg: var(--on-accent);
+	--btn-primary-border: color-mix(in srgb, var(--accent) 85%, #000);
+	--btn-halo: var(--accent-soft);
 	--btn-secondary-inset: rgb(0 0 0 / 4%);
 
 	--radius-xs: 6px;
@@ -87,11 +87,6 @@
 	--success: #4cc777;
 	--danger: #ff7b6b;
 	--link-hover: var(--accent);
-	--btn-primary-bg: #f5f5f5;
-	--btn-primary-hover: #e2e2e2;
-	--btn-primary-fg: #0a0a0a;
-	--btn-primary-border: #ffffff;
-	--btn-halo: rgb(255 255 255 / 6%);
 	--btn-secondary-inset: rgb(255 255 255 / 4%);
 	--shadow-sm: 0 1px 2px rgb(0 0 0 / 50%);
 	--shadow-card: 0 0 0 4px var(--line-soft), 0 1px 2px rgb(0 0 0 / 50%);
@@ -129,11 +124,6 @@
 		--success: #4cc777;
 		--danger: #ff7b6b;
 		--link-hover: var(--accent);
-		--btn-primary-bg: #f5f5f5;
-		--btn-primary-hover: #e2e2e2;
-		--btn-primary-fg: #0a0a0a;
-		--btn-primary-border: #ffffff;
-		--btn-halo: rgb(255 255 255 / 6%);
 		--btn-secondary-inset: rgb(255 255 255 / 4%);
 		--shadow-sm: 0 1px 2px rgb(0 0 0 / 50%);
 		--shadow-card: 0 0 0 4px var(--line-soft), 0 1px 2px rgb(0 0 0 / 50%);
@@ -407,22 +397,6 @@ textarea {
 @media (hover: hover) {
 	.btn-primary:hover {
 		background: var(--btn-primary-hover);
-	}
-}
-
-.btn-accent {
-	color: var(--on-accent);
-	background: var(--accent);
-	border-color: color-mix(in srgb, var(--accent) 85%, #000);
-	box-shadow:
-		inset 0 1px 0 rgb(255 255 255 / 18%),
-		0 1px 2px rgb(0 0 0 / 16%),
-		0 0 0 3px var(--accent-soft);
-}
-
-@media (hover: hover) {
-	.btn-accent:hover {
-		background: color-mix(in srgb, var(--accent) 90%, #000);
 	}
 }
 
