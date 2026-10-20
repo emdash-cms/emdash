@@ -547,8 +547,6 @@ export function ContentEditor({
 	);
 	const editorGenerationRef = React.useRef(0);
 	const editorIdentity = `${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
-	const editorIdentityRef = React.useRef(editorIdentity);
-	editorIdentityRef.current = editorIdentity;
 	const [editorDraftError, setEditorDraftError] = React.useState<string | null>(null);
 	const [hasAppliedEditorDraftPatch, setHasAppliedEditorDraftPatch] = React.useState(false);
 	const [pendingEditorDraftPatch, setPendingEditorDraftPatch] = React.useState<{
@@ -685,6 +683,8 @@ export function ContentEditor({
 	const savedSaveKeyRef = React.useRef<string | null>(null);
 	/** The key of the payload most recently sent by any save. */
 	const sentSaveKeyRef = React.useRef<string | null>(null);
+	/** Counts entry switches, a switch back to the same entry included: each one reloads the form. */
+	const entrySwitchesRef = React.useRef(0);
 	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 	const [isPublishing, setIsPublishing] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
@@ -722,6 +722,7 @@ export function ContentEditor({
 		pendingAutosaveReferencesRef.current = null;
 		savedSaveKeyRef.current = null;
 		sentSaveKeyRef.current = null;
+		entrySwitchesRef.current++;
 		setReferenceState(seedReferenceState(item));
 		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
@@ -1121,10 +1122,10 @@ export function ContentEditor({
 			state: string | null,
 			referenceRows: Record<string, ReferenceEntryRow[]> | null | undefined,
 			key: string | null,
-			identity?: string,
+			switches?: number,
 		) => {
 			// The editor stays mounted when it switches to another cached entry.
-			if (identity !== undefined && identity !== editorIdentityRef.current) return;
+			if (switches !== undefined && switches !== entrySwitchesRef.current) return;
 			savedSaveKeyRef.current = key;
 			if (state) {
 				setLastSavedData(state);
@@ -1225,7 +1226,7 @@ export function ContentEditor({
 			});
 			const key = autosavePayloadKey(state, payload.references);
 			sentSaveKeyRef.current = key;
-			return { state, referenceRows, key, identity: editorIdentityRef.current };
+			return { state, referenceRows, key, switches: entrySwitchesRef.current };
 		},
 		[activeBylines],
 	);
@@ -1333,7 +1334,7 @@ export function ContentEditor({
 		if (!result) return;
 		void result.then(
 			() => {
-				markSaved(saved.state, saved.referenceRows, saved.key, saved.identity);
+				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
 				return undefined;
 			},
 			() => undefined,
@@ -1366,7 +1367,7 @@ export function ContentEditor({
 		}
 		void result.then(
 			() => {
-				markSaved(saved.state, saved.referenceRows, saved.key, saved.identity);
+				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
 				isPublishingRef.current = false;
 				setIsPublishing(false);
 				return undefined;
@@ -1438,7 +1439,7 @@ export function ContentEditor({
 
 			return result
 				.then(() => {
-					if (saved) markSaved(saved.state, saved.referenceRows, saved.key, saved.identity);
+					if (saved) markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
 					return undefined;
 				})
 				.finally(() => {

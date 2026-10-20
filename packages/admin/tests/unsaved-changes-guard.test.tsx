@@ -322,7 +322,41 @@ describe("leaving the content editor", () => {
 
 		void leaveForPostList(router);
 
-		await expect.element(screen.getByRole("dialog", { name: "Leave without saving?" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("dialog", { name: "Leave without saving?" }))
+			.toBeVisible();
+	});
+
+	it("keeps an entry reopened while its Save was on the way from sending its old content", async () => {
+		mockFetch
+			.on("GET", `/_emdash/api/content/posts/${OTHER.id}`, { data: { item: OTHER } })
+			.on("PUT", `/_emdash/api/content/posts/${CREATED.id}?locale=en`, {
+				data: { item: { ...CREATED, data: { title: "Edited title" } }, _rev: "rev-2" },
+			});
+		const { router, screen, title } = await renderEditor((start, queryClient) => {
+			queryClient.setQueryDefaults(["content"], { gcTime: Infinity });
+			return openPost(start, OTHER.id);
+		});
+		await openPost(router, CREATED.id);
+		await expect.element(title).toHaveValue("Unsaved title");
+		await title.fill("Edited title");
+
+		const puts = recordPuts();
+		const save = holdPuts();
+		screen.getByRole("button", { name: "Save", exact: true }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await openPost(router, OTHER.id);
+		await expect.element(title).toHaveValue("Other title");
+		holdEntryReads();
+		await openPost(router, CREATED.id);
+		await expect.element(title).toHaveValue("Unsaved title");
+		save.release();
+		await save.answered;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		await leaveForPostList(router);
+
+		expect(puts.map((put) => put.data)).toEqual([{ title: "Edited title" }]);
 	});
 
 	it.each([
