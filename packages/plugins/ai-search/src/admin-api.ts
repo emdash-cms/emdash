@@ -59,6 +59,21 @@ export interface Status {
 	dashboardUrl: string | null;
 }
 
+const POLL_MS = 5_000;
+const SLOW_POLL_MS = 20_000;
+
+/** How often to ask for the status again while something may change on its own, or null when nothing will. */
+export function statusPollInterval(
+	status: Pick<Status, "build" | "retrying" | "recentBuild" | "rateLimited"> & {
+		totals: Pick<IndexTotals, "processing">;
+	},
+): number | null {
+	if (status.build) return null;
+	if (status.totals.processing > 0) return POLL_MS;
+	if (status.retrying || status.recentBuild || status.rateLimited) return SLOW_POLL_MS;
+	return null;
+}
+
 export interface Settings {
 	config: Config;
 	saved: boolean;
