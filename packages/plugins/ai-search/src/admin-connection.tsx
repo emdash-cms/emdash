@@ -86,7 +86,9 @@ export function ConnectPanel(props: { rejected: boolean; onConnected: () => Prom
 }
 
 /**
- * The REST credentials stored in settings, which only this card can change.
+ * The REST credentials stored in settings. This card checks them with
+ * Cloudflare before saving; the plugin manager's generated settings form,
+ * which core shows for any declared settings, saves them unchecked.
  * Renders nothing for a binding or for credentials the environment sets.
  */
 export function ConnectionCard() {
