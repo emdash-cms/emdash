@@ -1,6 +1,6 @@
 import { z } from "astro/zod";
 import type { PluginContext, PluginRoute } from "emdash";
-import { definePluginRoute, PluginRouteError } from "emdash";
+import { definePluginRoute, PluginRouteError, PluginSettingEncryptionError } from "emdash";
 
 import { countBySource, loadActivity } from "./activity.js";
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "./build.js";
@@ -15,7 +15,7 @@ import {
 	resultLabels,
 	updateConfig,
 } from "./config.js";
-import { openProvider } from "./connection.js";
+import { describeConnection, openProvider, saveCredentials } from "./connection.js";
 import { openSession } from "./context.js";
 import { entryIndexStatus } from "./entry-status.js";
 import { listExamples } from "./examples.js";
@@ -23,13 +23,15 @@ import { indexImpact } from "./impact.js";
 import { emdashAccess } from "./indexer.js";
 import { indexTotals } from "./ingestion.js";
 import type { AiSearchOptions } from "./options.js";
-import type { InstanceInfo } from "./ports/ai-search.js";
+import { type InstanceInfo, isProviderError, ProviderError } from "./ports/ai-search.js";
 import { clearDropped, getRetryQueue, retryRecord } from "./retry.js";
 import { searchResponse } from "./search.js";
 import { URL_TEMPLATE } from "./url-template.js";
 import { markInstanceCreated } from "./warm-up.js";
 
 const recordSchema = z.object({ source: z.string(), id: z.string() });
+
+const credentialSchema = z.string().trim().min(1).max(256).optional();
 
 /** Keeps each admin request short so the page can show progress between them. */
 const STEP_BUDGET_MS = 8_000;
@@ -55,14 +57,15 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 		status: {
 			permission: "plugins:read",
 			handler: async (ctx) => {
-				const provider = await openProvider(options);
-				const connected = provider !== null;
+				const provider = await openProvider(ctx, options);
 				const session = provider ? await openSession(ctx, options, provider) : null;
 				const [build, recentUploads, queue] = await Promise.all([
 					getBuild(ctx),
 					recentBuildUploads(ctx),
 					getRetryQueue(ctx),
 				]);
+				let credentialsRejected = false;
+				let rateLimited = false;
 				const [stats, listed, counts, info] = session
 					? await Promise.all([
 							session.provider.stats(),
@@ -70,10 +73,20 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 							// Counts change with every upload; the progress panel replaces them during a build.
 							build ? null : countBySource(session.provider, enabledSources(session.config)),
 							build ? null : session.provider.info().catch(() => null),
-						])
+						]).catch(async (error: unknown) => {
+							if (isProviderError(error, "unauthorized")) credentialsRejected = true;
+							else if (!isProviderError(error, "rate-limited")) throw error;
+							else if (await session.provider.tokenRejected?.()) credentialsRejected = true;
+							else rateLimited = true;
+							return [null, null, null, null] as const;
+						})
 					: [null, null, null, null];
+				const connected = provider !== null && !credentialsRejected;
 				return {
 					connected,
+					method: connected ? provider.kind : null,
+					credentialsRejected,
+					rateLimited,
 					configured: session !== null,
 					build,
 					totals: indexTotals({
@@ -127,11 +140,11 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			methods: ["POST"],
 			input: configSchema,
 			handler: async (ctx) => {
-				const provider = await openProvider(options);
+				const provider = await openProvider(ctx, options);
 				if (!provider) {
-					throw new PluginRouteError("NO_BINDING", "The AI Search binding is not available", 409);
+					throw new PluginRouteError("NOT_CONNECTED", "AI Search is not connected", 409);
 				}
-				const { created } = await provider.ensureInstance();
+				const { created } = await provider.ensureInstance().catch(rethrowProviderError);
 				if (created) await markInstanceCreated(ctx);
 
 				const collections = (await ctx.schema?.listCollections()) ?? [];
@@ -196,6 +209,35 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			},
 		}),
 
+		connection: {
+			permission: "search:manage",
+			handler: async (ctx) => describeConnection(ctx),
+		},
+
+		"connection/save": route({
+			permission: "search:manage",
+			methods: ["POST"],
+			input: z.object({ accountId: credentialSchema, apiToken: credentialSchema }),
+			handler: async (ctx) => {
+				try {
+					await saveCredentials(ctx, options, ctx.input);
+				} catch (error) {
+					if (
+						error instanceof PluginSettingEncryptionError &&
+						error.code === "PLUGIN_SETTING_ENCRYPTION_KEY_MISSING"
+					) {
+						throw new PluginRouteError(
+							"ENCRYPTION_KEY_MISSING",
+							"Storing a token needs EMDASH_ENCRYPTION_KEY. Set EMDASH_AI_SEARCH_API_TOKEN instead, or configure an encryption key.",
+							409,
+						);
+					}
+					rethrowProviderError(error);
+				}
+				return describeConnection(ctx);
+			},
+		}),
+
 		"index/step": {
 			permission: "search:manage",
 			methods: ["POST"],
@@ -205,6 +247,33 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			},
 		},
 	};
+}
+
+/** Turns an AI Search refusal into an error the admin can show. */
+function rethrowProviderError(error: unknown): never {
+	if (!(error instanceof ProviderError)) throw error;
+	if (error.reason === "unauthorized") {
+		throw new PluginRouteError(
+			"INVALID_CREDENTIALS",
+			"Cloudflare rejected the account ID or API token. The token needs the AI Search Edit and AI Search Run permissions on this account.",
+			400,
+		);
+	}
+	if (error.reason === "rate-limited") {
+		throw new PluginRouteError(
+			"RATE_LIMITED",
+			"Cloudflare is limiting requests to AI Search. Try again in a few minutes.",
+			429,
+		);
+	}
+	if (error.reason === "not-found") {
+		throw new PluginRouteError(
+			"NAMESPACE_NOT_FOUND",
+			"The AI Search namespace does not exist in this account.",
+			400,
+		);
+	}
+	throw new PluginRouteError("AI_SEARCH_UNAVAILABLE", `AI Search reported: ${error.message}`, 502);
 }
 
 /** The instance's page in the Cloudflare dashboard, which fills in the account. */

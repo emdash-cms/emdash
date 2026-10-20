@@ -22,7 +22,7 @@ export async function openSession(
 	connected?: AiSearchProvider,
 ): Promise<Session | null> {
 	const config = await loadConfig(ctx);
-	const provider = config ? (connected ?? (await openProvider(options))) : null;
+	const provider = config ? (connected ?? (await openProvider(ctx, options))) : null;
 	if (!config || !provider) return null;
 	return { config, provider, indexer: Indexer.fromContext(ctx, provider, config) };
 }

@@ -11,6 +11,7 @@ import {
 	type ItemPage,
 	type ItemQuery,
 	ProviderError,
+	type ProviderErrorReason,
 	type SearchChunk,
 	type SearchQuery,
 } from "../src/ports/ai-search.js";
@@ -35,6 +36,7 @@ const WHITESPACE = /\s+/;
  * `requireInstance` is set.
  */
 export class FakeAiSearch implements AiSearchProvider {
+	readonly kind = "binding";
 	readonly items = new Map<string, StoredItem>();
 	created = false;
 	uploads = 0;
@@ -47,6 +49,10 @@ export class FakeAiSearch implements AiSearchProvider {
 	/** The instance was just created and AI Search does not serve it yet. */
 	starting = false;
 	searchError: Error | null = null;
+	/** Every call fails for this reason, as when a token expires or the account is rate-limited. */
+	failAll: ProviderErrorReason | null = null;
+	/** Cloudflare rejects the token when asked directly. */
+	rejectsToken = false;
 	/** Search requests received. */
 	readonly searches: SearchQuery[] = [];
 
@@ -56,6 +62,10 @@ export class FakeAiSearch implements AiSearchProvider {
 		if (this.created) return { created: false };
 		this.created = true;
 		return { created: true };
+	}
+
+	async tokenRejected(): Promise<boolean> {
+		return this.rejectsToken;
 	}
 
 	async info(): Promise<InstanceInfo> {
@@ -156,6 +166,7 @@ export class FakeAiSearch implements AiSearchProvider {
 	}
 
 	private assertServing(): void {
+		if (this.failAll) throw new ProviderError(this.failAll, "Cloudflare refused the call");
 		if (this.starting || (this.options.requireInstance && !this.created)) {
 			throw new ProviderError("not-found", "AiSearchNotFoundError: ai_search_not_found");
 		}

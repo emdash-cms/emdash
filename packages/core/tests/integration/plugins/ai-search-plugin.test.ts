@@ -296,6 +296,41 @@ describe("ai-search plugin", () => {
 		});
 	});
 
+	it("reports credentials Cloudflare rejects, so the admin can ask for new ones", async () => {
+		await setUpSearch();
+		service.failAll = "unauthorized";
+
+		expect(await data("GET", "status")).toMatchObject({
+			connected: false,
+			method: null,
+			credentialsRejected: true,
+			configured: true,
+		});
+	});
+
+	it("still reports status while Cloudflare rate-limits it, so the admin stays usable", async () => {
+		await setUpSearch();
+		service.failAll = "rate-limited";
+
+		expect(await data("GET", "status")).toMatchObject({
+			connected: true,
+			rateLimited: true,
+			credentialsRejected: false,
+		});
+	});
+
+	it("reports a rejected token that Cloudflare answers as rate-limited", async () => {
+		await setUpSearch();
+		service.failAll = "rate-limited";
+		service.rejectsToken = true;
+
+		expect(await data("GET", "status")).toMatchObject({
+			connected: false,
+			rateLimited: false,
+			credentialsRejected: true,
+		});
+	});
+
 	it("answers 503 before AI Search is set up and while it is failing", async () => {
 		expect((await search("garden")).status).toBe(503);
 

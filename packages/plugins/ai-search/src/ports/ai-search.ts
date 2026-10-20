@@ -1,6 +1,6 @@
 /**
  * What the plugin needs from Cloudflare AI Search, in its own terms. The
- * Workers binding implements it as an adapter.
+ * Workers binding and the REST API each implement it as an adapter.
  */
 
 /** Where AI Search stands with an item. */
@@ -67,6 +67,7 @@ export interface SearchChunk {
 }
 
 export interface AiSearchProvider {
+	readonly kind: "binding" | "rest";
 	/** Creates the instance unless it exists. `created` is true when this call created it. */
 	ensureInstance(): Promise<{ created: boolean }>;
 	info(): Promise<InstanceInfo>;
@@ -76,14 +77,21 @@ export interface AiSearchProvider {
 	/** Uploads a document, replacing any item with the same key. */
 	uploadItem(key: string, body: string, metadata: Record<string, string>): Promise<Item>;
 	deleteItem(id: string): Promise<void>;
+	/**
+	 * Whether Cloudflare rejects the credentials outright. Cloudflare answers
+	 * repeated calls with a rejected token as rate-limited, so a rate limit
+	 * alone does not tell the two apart. Absent when there are no credentials.
+	 */
+	tokenRejected?(): Promise<boolean>;
 }
 
 /**
  * - `rate-limited`: AI Search refused the call for now.
  * - `not-found`: the instance, namespace, or item does not exist.
+ * - `unauthorized`: the credentials are invalid or lack permission.
  * - `failed`: anything else.
  */
-export type ProviderErrorReason = "rate-limited" | "not-found" | "failed";
+export type ProviderErrorReason = "rate-limited" | "not-found" | "unauthorized" | "failed";
 
 /** A call AI Search refused or could not complete. Adapters throw nothing else. */
 export class ProviderError extends Error {

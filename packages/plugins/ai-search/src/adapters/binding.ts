@@ -20,6 +20,8 @@ const NOT_FOUND_MESSAGE = /ai_search_not_found/;
 
 /** AI Search through an `ai_search_namespaces` binding on Cloudflare Workers. */
 export class BindingAiSearch implements AiSearchProvider {
+	readonly kind = "binding";
+
 	constructor(
 		private readonly namespace: AiSearchNamespace,
 		private readonly name: string,
