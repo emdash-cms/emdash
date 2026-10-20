@@ -50,6 +50,15 @@ const CREATED = {
 
 const OTHER = { ...CREATED, id: "post_other", slug: "other", data: { title: "Other title" } };
 
+const CONFLICT = { error: { code: "CONFLICT", message: "This entry changed somewhere else." } };
+const LOCKED = {
+	error: {
+		code: "ENTRY_LOCKED",
+		message: "Someone else is editing this entry.",
+		details: { userId: "user_02" },
+	},
+};
+
 async function renderEditor(
 	open: (
 		router: ReturnType<typeof createAdminRouter>,
@@ -290,22 +299,29 @@ describe("leaving the content editor", () => {
 		expect(reloadIsBlocked()).toBe(false);
 	});
 
-	it("reports an autosave the server refuses after the editor has closed", async () => {
-		mockFetch.on(
-			"PUT",
-			`/_emdash/api/content/posts/${CREATED.id}?locale=en`,
-			{ error: { code: "CONFLICT", message: "This entry changed somewhere else." } },
-			409,
-		);
-		const { router, screen, title } = await renderSavedEntry();
-		await title.fill("Edited title");
+	it.each([
+		["an autosave", "a conflict", CONFLICT, "Autosave failed"],
+		["an autosave", "another editor's lock", LOCKED, "Autosave failed"],
+		["a Save", "a conflict", CONFLICT, "Failed to save"],
+		["a Save", "another editor's lock", LOCKED, "Failed to save"],
+	] as const)(
+		"reports %s refused because of %s after the editor has closed",
+		async (write, _refusal, body, toast) => {
+			mockFetch.on("PUT", `/_emdash/api/content/posts/${CREATED.id}?locale=en`, body, 409);
+			const { router, screen, title } = await renderSavedEntry();
+			await title.fill("Edited title");
 
-		const autosave = holdPuts();
-		await leaveForPostList(router);
-		autosave.release();
+			const put = holdPuts();
+			if (write === "a Save") {
+				screen.getByRole("button", { name: "Save", exact: true }).element().click();
+				await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
+			}
+			await leaveForPostList(router);
+			put.release();
 
-		await expect.element(screen.getByText("Autosave failed")).toBeVisible();
-	});
+			await expect.element(screen.getByText(toast)).toBeVisible();
+		},
+	);
 
 	describe("after a failed autosave", () => {
 		beforeEach(() => {
