@@ -61,6 +61,19 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Prepare pnpm's lockfile check cache
+        id: pnpm-verdict
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
+        run: |
+          echo "pnpm_config_cache_dir=$HOME/.cache/pnpm" >> "$GITHUB_ENV"
+          echo "key=pnpm-verdict-$(pnpm --version)" >> "$GITHUB_OUTPUT"
+      # pnpm skips its supply-chain check of the lockfile when this file holds
+      # a passing result for the same lockfile content and policy.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
+        with:
+          path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Test query normalization
         if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         run: node --test scripts/query-counts-normalize.test.mjs
