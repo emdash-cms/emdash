@@ -683,6 +683,8 @@ export function ContentEditor({
 	const pendingAutosaveKeyRef = React.useRef<string | null>(null);
 	/** The key of the payload most recently saved. */
 	const savedSaveKeyRef = React.useRef<string | null>(null);
+	/** The key of the payload most recently sent by any save. */
+	const sentSaveKeyRef = React.useRef<string | null>(null);
 	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 	const [isPublishing, setIsPublishing] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
@@ -719,6 +721,7 @@ export function ContentEditor({
 		pendingAutosaveKeyRef.current = null;
 		pendingAutosaveReferencesRef.current = null;
 		savedSaveKeyRef.current = null;
+		sentSaveKeyRef.current = null;
 		setReferenceState(seedReferenceState(item));
 		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
@@ -889,8 +892,6 @@ export function ContentEditor({
 		() => autosavePayloadKey(currentData, buildReferencesPayload(referenceState)),
 		[currentData, referenceState],
 	);
-	/** The key of the payload most recently sent by any save. */
-	const sentSaveKeyRef = React.useRef<string | null>(null);
 	const leaveStateRef = React.useRef({
 		saveKey: "",
 		dirty: false,

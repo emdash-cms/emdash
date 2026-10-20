@@ -299,6 +299,32 @@ describe("leaving the content editor", () => {
 		expect(reloadIsBlocked()).toBe(false);
 	});
 
+	it("asks before leaving an entry whose edits match a Publish still running on the previous one", async () => {
+		const twin = { ...CREATED, id: "post_twin" };
+		mockFetch.on("GET", `/_emdash/api/content/posts/${twin.id}`, { data: { item: twin } });
+		const { router, screen, title } = await renderEditor((start, queryClient) => {
+			queryClient.setQueryDefaults(["content"], { gcTime: Infinity });
+			return openPost(start, twin.id);
+		});
+		await openPost(router, CREATED.id);
+		await expect.element(title).toHaveValue("Unsaved title");
+		await title.fill("Edited title");
+
+		holdPuts();
+		screen.getByRole("button", { name: "Publish now", exact: true }).element().click();
+		const confirm = screen.getByRole("dialog", { name: "Publish now?" });
+		await expect.element(confirm).toBeVisible();
+		confirm.getByRole("button", { name: "Publish now", exact: true }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await openPost(router, twin.id);
+		await expect.element(title).toHaveValue("Unsaved title");
+		await title.fill("Edited title");
+
+		void leaveForPostList(router);
+
+		await expect.element(screen.getByRole("dialog", { name: "Leave without saving?" })).toBeVisible();
+	});
+
 	it.each([
 		["an autosave", "a conflict", CONFLICT, "Autosave failed"],
 		["an autosave", "another editor's lock", LOCKED, "Autosave failed"],
