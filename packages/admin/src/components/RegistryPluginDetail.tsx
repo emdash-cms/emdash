@@ -786,7 +786,11 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 									</a>
 								) : null}
 								{a.email ? (
-									<a href={`mailto:${a.email}`} className="text-kumo-link hover:underline">
+									<a
+										href={`mailto:${a.email}`}
+										dir="ltr"
+										className="text-kumo-link hover:underline"
+									>
 										{a.email}
 									</a>
 								) : null}
@@ -808,13 +812,18 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
 							>
 								{c.email ? (
-									<a href={`mailto:${c.email}`} className="text-kumo-link hover:underline">
+									<a
+										href={`mailto:${c.email}`}
+										dir="ltr"
+										className="text-kumo-link hover:underline"
+									>
 										{c.email}
 									</a>
 								) : null}
 								{c.url ? (
 									<a
 										href={c.url}
+										dir="ltr"
 										target="_blank"
 										rel="noreferrer"
 										className="text-kumo-link hover:underline"

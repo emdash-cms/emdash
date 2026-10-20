@@ -287,7 +287,13 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 			setRegistryVerification(null);
 			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
-			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
+			// The update check query is disabled, and invalidation never refetches a disabled query.
+			// staleTime 0 overrides the client's one-minute default so the check runs again.
+			void queryClient.prefetchQuery({
+				queryKey: ["plugin-updates"],
+				queryFn: checkPluginUpdates,
+				staleTime: 0,
+			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Plugin updated`,
@@ -616,7 +622,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 									{mcpTools.map((tool) => (
 										<li key={tool.name} className="rounded-md bg-kumo-tint p-2 text-xs">
 											<div className="flex flex-wrap items-center gap-2">
-												<code>{tool.mcpName ?? `${plugin.id}__${tool.name}`}</code>
+												<code dir="ltr">{tool.mcpName ?? `${plugin.id}__${tool.name}`}</code>
 												{tool.destructive && <Badge variant="destructive">{t`Destructive`}</Badge>}
 											</div>
 											<p className="mt-1 text-kumo-subtle">{tool.description}</p>
@@ -647,7 +653,9 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 								<h4 className="text-xs font-medium text-kumo-subtle uppercase tracking-wider mb-1">
 									{t`Package`}
 								</h4>
-								<code className="text-xs bg-kumo-tint px-2 py-0.5 rounded">{plugin.package}</code>
+								<code dir="ltr" className="text-xs bg-kumo-tint px-2 py-0.5 rounded">
+									{plugin.package}
+								</code>
 							</div>
 						)}
 

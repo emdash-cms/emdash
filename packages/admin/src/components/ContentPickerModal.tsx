@@ -311,7 +311,7 @@ export function ContentPickerModal({
 										{item.slug && (
 											<>
 												<span className="text-kumo-subtle/50">/</span>
-												<span>{item.slug}</span>
+												<bdi dir="ltr">{item.slug}</bdi>
 											</>
 										)}
 									</div>

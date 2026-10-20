@@ -138,7 +138,7 @@ export function AllowedTypesEditor({ value, onChange }: AllowedTypesEditorProps)
 							key={entry}
 							className="flex items-center gap-1 bg-kumo-tint rounded px-2 py-1 text-xs"
 						>
-							<code>{entry}</code>
+							<code dir="ltr">{entry}</code>
 							<Button
 								type="button"
 								shape="square"
@@ -156,6 +156,7 @@ export function AllowedTypesEditor({ value, onChange }: AllowedTypesEditorProps)
 
 			<div className="flex gap-2">
 				<Input
+					dir="ltr"
 					value={draft}
 					onChange={(e) => {
 						setDraft(e.target.value);

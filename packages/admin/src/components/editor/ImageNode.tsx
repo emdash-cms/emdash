@@ -18,6 +18,7 @@ import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
+import { useCaptionField } from "./useCaptionField.js";
 
 // Extend the Commands interface to include setImage
 declare module "@tiptap/react" {
@@ -114,6 +115,7 @@ function ImageNodeView({
 
 	const caption = typeof node.attrs.caption === "string" ? node.attrs.caption : "";
 	const captionRef = React.useRef<HTMLTextAreaElement>(null);
+	const captionField = useCaptionField(caption);
 	// ProseMirror would take text dragged over or dropped on the caption into the document.
 	React.useEffect(() => {
 		const textarea = captionRef.current;
@@ -298,7 +300,9 @@ function ImageNodeView({
 				{/* Show the caption, never the alt text, as the published renderer (Image.astro) does */}
 				{editor.isEditable ? (
 					// Inline-size containment keeps the placeholder from widening a small image.
-					<figcaption className="mt-2 [contain:inline-size]">
+					<figcaption
+						className={cn("mt-2 [contain:inline-size]", !captionField.shown && "sr-only")}
+					>
 						<textarea
 							ref={captionRef}
 							aria-label={t`Caption`}
@@ -310,7 +314,11 @@ function ImageNodeView({
 							onChange={(event) => {
 								if (editor.isEditable) updateAttributes({ caption: event.target.value });
 							}}
-							onFocus={selectImage}
+							onFocus={() => {
+								captionField.onFocus();
+								selectImage();
+							}}
+							onBlur={captionField.onBlur}
 							onPointerEnter={(event) => setNodeViewDraggable(event, false)}
 							onPointerLeave={(event) => setNodeViewDraggable(event, true)}
 							onKeyDown={handleCaptionKeyDown}

@@ -264,6 +264,7 @@ function SettingFieldInput({
 			return (
 				<Input
 					type={field.type}
+					dir="ltr"
 					label={field.label}
 					description={field.description}
 					placeholder={field.placeholder}

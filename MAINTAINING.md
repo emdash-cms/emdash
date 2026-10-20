@@ -13,7 +13,7 @@ A normal pull request can merge when:
 
 These requirements apply to the Project Lead, Cloudflare employees, external Maintainers, and other contributors. Routine self-merge is not permitted.
 
-The author is the pull request's main author. A Maintainer who has made substantial changes to someone else's pull request, including an EmDashBot pull request, also counts as an author and cannot provide its approval. Automation only excludes the account that opened the pull request, so Maintainers apply this rule themselves.
+The author is the pull request's main author. A Maintainer who has made substantial changes to someone else's pull request, including an autofix bot pull request, also counts as an author and cannot provide its approval. Automation only excludes the account that opened the pull request, so Maintainers apply this rule themselves.
 
 An approval applies to the reviewed revision. A later substantive commit requires another approval. A merge commit that only updates the branch from `main` does not invalidate an approval.
 

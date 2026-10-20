@@ -245,13 +245,12 @@ export function SandboxedContentEditorPanel({
 				/>
 			</Collapsible.Trigger>
 			<Collapsible.Panel
-				className="-mx-2 overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				className="-mx-2 overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 				style={({ transitionStatus }) => ({
 					height:
 						transitionStatus === "starting" || transitionStatus === "ending"
 							? 0
 							: "var(--collapsible-panel-height)",
-					transitionProperty: "height",
 				})}
 			>
 				<div className="min-w-0 px-2 pt-2 pb-1">
