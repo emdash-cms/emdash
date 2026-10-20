@@ -9,6 +9,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { POST as analyzeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/analyze.js";
 import { POST as executeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
+import type { PluginMenu } from "../../../src/import/menus.js";
+import { importMenusFromPlugin } from "../../../src/import/menus.js";
 import {
 	clearSources,
 	probeUrl,
@@ -868,4 +870,63 @@ describe("WordPress Plugin Source: bot-protection challenges", () => {
 			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
 		},
 	);
+});
+
+describe("WordPress Plugin Source: menu skip reporting", () => {
+	it("reports menusSkipped when a same-named menu already exists", async () => {
+		const db = await setupTestDatabase();
+
+		await db
+			.insertInto("_emdash_menus")
+			.values({ id: "existing-menu-id", name: "main-menu", label: "Main Menu" })
+			.execute();
+
+		const menus: PluginMenu[] = [
+			{
+				id: 1,
+				name: "main-menu",
+				label: "Main Menu",
+				items: [
+					{
+						id: 10,
+						parent_id: null,
+						sort_order: 0,
+						type: "custom",
+						object: null,
+						object_id: null,
+						url: "/",
+						title: "Home",
+						target: null,
+						classes: null,
+					},
+				],
+			},
+			{
+				id: 2,
+				name: "footer",
+				label: "Footer",
+				items: [
+					{
+						id: 20,
+						parent_id: null,
+						sort_order: 0,
+						type: "custom",
+						object: null,
+						object_id: null,
+						url: "/privacy",
+						title: "Privacy",
+						target: null,
+						classes: null,
+					},
+				],
+			},
+		];
+
+		const result = await importMenusFromPlugin(menus, db, new Map());
+
+		expect(result.menusSkipped).toBe(1);
+		expect(result.menusCreated).toBe(1);
+		expect(result.menuIdMap.get("main-menu")).toBe("existing-menu-id");
+		expect(result.menuIdMap.has("footer")).toBe(true);
+	});
 });
