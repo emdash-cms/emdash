@@ -201,6 +201,13 @@ interface AutosaveMutationInput {
 	referenceRows?: Record<string, ReferenceEntryRow[]>;
 }
 
+interface PublishMutationInput {
+	targetId: string;
+	targetLocale?: string;
+	revision: string | undefined;
+	savedReferences: boolean;
+}
+
 function isSaveConflict(error: unknown): boolean {
 	return error instanceof ApiResponseError && error.code === "CONFLICT";
 }
@@ -1466,17 +1473,14 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: ({ revision }: { revision: string | undefined; savedReferences: boolean }) =>
-			publishContent(collection, id, {
-				locale: rawItem?.locale ?? activeLocale,
-				_rev: revision,
-			}),
-		onSuccess: (publishedItem, { savedReferences }) => {
-			recordWriteRevision(id, publishedItem);
+		mutationFn: ({ targetId, targetLocale, revision }: PublishMutationInput) =>
+			publishContent(collection, targetId, { locale: targetLocale, _rev: revision }),
+		onSuccess: (publishedItem, { targetId, savedReferences }) => {
+			recordWriteRevision(targetId, publishedItem);
 			// A selection the preceding save sent is in no cached page yet, so the
 			// entry is read again instead of keeping the pages from before it.
 			queryClient.setQueriesData<ContentItem>(
-				{ queryKey: ["content", collection, id] },
+				{ queryKey: ["content", collection, targetId] },
 				(cached) => ({
 					...publishedItem,
 					references:
@@ -1484,13 +1488,13 @@ function ContentEditPage() {
 				}),
 			);
 			if (savedReferences) {
-				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+				void queryClient.invalidateQueries({ queryKey: ["content", collection, targetId] });
 			}
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, targetId] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
+		onError: (error, { targetId }) => {
+			if (entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to publish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1778,6 +1782,8 @@ function ContentEditPage() {
 					}),
 				);
 				await publishMutation.mutateAsync({
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
 					revision: savedItem._rev,
 					savedReferences: Boolean(payload.references),
 				});
