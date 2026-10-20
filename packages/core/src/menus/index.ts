@@ -306,6 +306,7 @@ async function buildMenuTree(
 
 	const itemMap = new Map<string, MenuItem & { children: MenuItem[] }>();
 	const rootItems: MenuItem[] = [];
+	const itemIds = new Set(items.map((item) => item.id));
 
 	for (const item of validItems) {
 		itemMap.set(item.id, { ...item, children: [] });
@@ -314,7 +315,7 @@ async function buildMenuTree(
 	for (const item of items) {
 		const menuItem = itemMap.get(item.id);
 		if (!menuItem) continue;
-		if (item.parent_id) {
+		if (item.parent_id && itemIds.has(item.parent_id)) {
 			itemMap.get(item.parent_id)?.children.push(menuItem);
 		} else {
 			rootItems.push(menuItem);
