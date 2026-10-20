@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "../src/build.js";
 import { Indexer, type PageResult } from "../src/indexer.js";
 import { getRetryQueue, queueRetries } from "../src/retry.js";
-import { FakeItems } from "./fake-ai-search.js";
+import { FakeAiSearch } from "./fake-ai-search.js";
 import { config, entry, fakeEmDash, memoryKv } from "./fakes.js";
 
 const CONFIG = config();
@@ -212,13 +212,13 @@ describe("build", () => {
 	it("removes an unpublished entry when the sweep resumes after its failure could not be queued", async () => {
 		const ctx = await buildContext();
 		const post = entry();
-		const items = new FakeItems();
-		const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), items }, CONFIG);
+		const items = new FakeAiSearch();
+		const indexer = new Indexer({ ...fakeEmDash({ entries: [post] }), provider: items }, CONFIG);
 		await startBuild(ctx, ["posts"]);
 		await runBuild(ctx, indexer, 10_000);
 		post.status = "draft";
-		const remove = items.delete.bind(items);
-		items.delete = async () => {
+		const remove = items.deleteItem.bind(items);
+		items.deleteItem = async () => {
 			throw new Error("AiSearchError: internal_error");
 		};
 		const compareAndSet = ctx.kv.compareAndSet;
@@ -229,7 +229,7 @@ describe("build", () => {
 
 		await startBuild(ctx, ["posts"]);
 		await expect(runBuild(ctx, indexer, 10_000)).rejects.toThrow("kv unavailable");
-		items.delete = remove;
+		items.deleteItem = remove;
 		ctx.kv.compareAndSet = compareAndSet;
 		await runBuild(ctx, indexer, 10_000);
 

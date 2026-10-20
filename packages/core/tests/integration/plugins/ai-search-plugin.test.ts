@@ -1,8 +1,8 @@
 /**
  * Boots a runtime with the AI Search plugin as a site that lists `aiSearch()`
  * does, and drives it through content actions, plugin routes, and scheduled
- * tasks. Only the AI Search namespace binding is replaced, with an in-memory
- * service that indexes what the plugin uploads. As in AI Search, an upload is
+ * tasks. Only the AI Search provider is replaced, with an in-memory one that
+ * indexes what the plugin uploads. As in AI Search, an upload is
  * queued and becomes searchable only after `INDEXING_MS` on the fake clock;
  * until then, searches still find the version it replaces.
  */
@@ -24,12 +24,9 @@ const INDEXING_MS = 30_000;
 
 const aiSearch = vi.hoisted(() => ({ current: null as FakeAiSearch | null }));
 
-vi.mock("cloudflare:workers", () => ({
-	env: {
-		get AI_SEARCH() {
-			return aiSearch.current;
-		},
-	},
+vi.mock("../../../../plugins/ai-search/src/connection.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../../plugins/ai-search/src/connection.js")>()),
+	openProvider: async () => aiSearch.current,
 }));
 
 // The plugin imports its helpers from the `emdash` package. Resolve it to this
@@ -41,7 +38,7 @@ describe("ai-search plugin", () => {
 	let service: FakeAiSearch;
 
 	beforeEach(async () => {
-		service = new FakeAiSearch({ indexingMs: INDEXING_MS });
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
 		aiSearch.current = service;
 		vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-09-01T12:00:00.000Z") });
 		const sqlite = new Database(":memory:");
@@ -255,9 +252,9 @@ describe("ai-search plugin", () => {
 	it("retries an upload that failed when a post was published", async () => {
 		await setUpSearch();
 		const post = await createPost("Pruning", "Pruning hedges in winter.");
-		service.items.failKeys.add(`posts/${post.id}.md`);
+		service.failKeys.add(`posts/${post.id}.md`);
 		await publish(post.id);
-		service.items.failKeys.clear();
+		service.failKeys.clear();
 
 		await tick(2);
 		finishIndexing();
@@ -271,9 +268,9 @@ describe("ai-search plugin", () => {
 		const { config } = (await data("GET", "config")) as {
 			config: { sources: Record<string, { fields: string[] }> };
 		};
-		const upload = service.items.upload.bind(service.items);
+		const upload = service.uploadItem.bind(service);
 		let saved = false;
-		service.items.upload = async (...args) => {
+		service.uploadItem = async (...args) => {
 			if (!saved) {
 				saved = true;
 				config.sources.posts!.fields = ["title"];
@@ -283,7 +280,7 @@ describe("ai-search plugin", () => {
 		};
 
 		await publish(post.id);
-		service.items.upload = upload;
+		service.uploadItem = upload;
 		await tick(1);
 		finishIndexing();
 

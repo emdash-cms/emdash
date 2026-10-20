@@ -3,7 +3,6 @@ import type { PluginContext, PluginRoute } from "emdash";
 import { definePluginRoute, PluginRouteError } from "emdash";
 
 import { countBySource, loadActivity } from "./activity.js";
-import { ensureInstance, getNamespace } from "./binding.js";
 import { getBuild, recentBuildUploads, runBuild, startBuild } from "./build.js";
 import {
 	type Config,
@@ -16,6 +15,7 @@ import {
 	resultLabels,
 	updateConfig,
 } from "./config.js";
+import { openProvider } from "./connection.js";
 import { openSession } from "./context.js";
 import { entryIndexStatus } from "./entry-status.js";
 import { listExamples } from "./examples.js";
@@ -23,6 +23,7 @@ import { indexImpact } from "./impact.js";
 import { emdashAccess } from "./indexer.js";
 import { indexTotals } from "./ingestion.js";
 import type { AiSearchOptions } from "./options.js";
+import type { InstanceInfo } from "./ports/ai-search.js";
 import { clearDropped, getRetryQueue, retryRecord } from "./retry.js";
 import { searchResponse } from "./search.js";
 import { URL_TEMPLATE } from "./url-template.js";
@@ -54,8 +55,9 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 		status: {
 			permission: "plugins:read",
 			handler: async (ctx) => {
-				const connected = (await getNamespace(options)) !== null;
-				const session = connected ? await openSession(ctx, options) : null;
+				const provider = await openProvider(options);
+				const connected = provider !== null;
+				const session = provider ? await openSession(ctx, options, provider) : null;
 				const [build, recentUploads, queue] = await Promise.all([
 					getBuild(ctx),
 					recentBuildUploads(ctx),
@@ -63,11 +65,11 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 				]);
 				const [stats, listed, counts, info] = session
 					? await Promise.all([
-							session.instance.stats(),
-							session.instance.items.list({ per_page: 1 }),
+							session.provider.stats(),
+							session.provider.listItems({ perPage: 1 }),
 							// Counts change with every upload; the progress panel replaces them during a build.
-							build ? null : countBySource(session.instance.items, enabledSources(session.config)),
-							build ? null : session.instance.info().catch(() => null),
+							build ? null : countBySource(session.provider, enabledSources(session.config)),
+							build ? null : session.provider.info().catch(() => null),
 						])
 					: [null, null, null, null];
 				return {
@@ -76,13 +78,13 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 					build,
 					totals: indexTotals({
 						stats,
-						listedItems: listed?.result_info?.total_count ?? 0,
+						listedItems: listed?.total ?? 0,
 						uploadFailures: queue.items,
 						droppedFailures: queue.dropped,
 					}),
 					retrying: queue.items.some((item) => item.nextAt !== null),
 					recentBuild: recentUploads > 0,
-					lastActivity: stats?.last_activity ?? null,
+					lastActivity: stats?.lastActivity ?? null,
 					counts,
 					dashboardUrl: info ? dashboardUrl(info) : null,
 				};
@@ -125,11 +127,11 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			methods: ["POST"],
 			input: configSchema,
 			handler: async (ctx) => {
-				const namespace = await getNamespace(options);
-				if (!namespace) {
+				const provider = await openProvider(options);
+				if (!provider) {
 					throw new PluginRouteError("NO_BINDING", "The AI Search binding is not available", 409);
 				}
-				const { created } = await ensureInstance(namespace, options);
+				const { created } = await provider.ensureInstance();
 				if (created) await markInstanceCreated(ctx);
 
 				const collections = (await ctx.schema?.listCollections()) ?? [];
@@ -165,8 +167,8 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 		activity: {
 			permission: "plugins:read",
 			handler: async (ctx) => {
-				const { instance, indexer } = await requireSession(ctx);
-				return loadActivity(ctx, instance.items, indexer);
+				const { provider, indexer } = await requireSession(ctx);
+				return loadActivity(ctx, provider, indexer);
 			},
 		},
 
@@ -206,7 +208,7 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 }
 
 /** The instance's page in the Cloudflare dashboard, which fills in the account. */
-function dashboardUrl(info: AiSearchInstanceInfo): string {
+function dashboardUrl(info: InstanceInfo): string {
 	const base = "https://dash.cloudflare.com/?to=/:account/ai/ai-search";
 	if (!info.namespace) return base;
 	return `${base}/namespace/${encodeURIComponent(info.namespace)}/instance/${encodeURIComponent(info.id)}/overview`;
