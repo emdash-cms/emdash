@@ -201,6 +201,17 @@ describe("Dashboard", () => {
 		await expect.element(screen.getByText("Scheduled")).not.toBeInTheDocument();
 	});
 
+	it("omits the users summary when the server leaves out the user count", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 40 } });
+		const { userCount: _userCount, ...stats } = makeStats([]);
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Media files")).toBeInTheDocument();
+		await expect.element(screen.getByText("Users", { exact: true })).not.toBeInTheDocument();
+	});
+
 	it("warns when scheduled content is overdue and the scheduler has never completed", async () => {
 		const stats = makeStats([
 			{

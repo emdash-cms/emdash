@@ -1244,7 +1244,10 @@ export function InlinePortableTextEditor({
 			Superscript,
 			Link.configure({
 				openOnClick: false,
-				HTMLAttributes: { class: "underline text-blue-600 dark:text-blue-400" },
+				// TipTap's Link extension defaults target to "_blank". Without an
+				// explicit override it would deep-merge that default in, causing every
+				// link created via setLink to serialize as blank: true.
+				HTMLAttributes: { target: null, class: "underline text-blue-600 dark:text-blue-400" },
 			}),
 			Placeholder.configure({
 				includeChildren: true,

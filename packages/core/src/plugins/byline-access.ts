@@ -8,6 +8,7 @@ import {
 } from "../database/repositories/types.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { localeMatches } from "../i18n/query.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import type { BylineAccess, BylineCreditInfo, BylineInfo } from "./types.js";
 
@@ -116,7 +117,8 @@ export function createBylineAccess(db: Kysely<Database>): BylineAccess {
 				.orderBy("created_at", "desc")
 				.orderBy("id", "desc")
 				.limit(limit + 1);
-			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
+			if (options?.locale !== undefined)
+				query = query.where(localeMatches("locale", options.locale));
 			if (options?.cursor) {
 				const decoded = decodeCursor(options.cursor);
 				query = query.where((eb) =>

@@ -95,6 +95,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
+import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -830,6 +831,11 @@ export function ContentEditor({
 	);
 	const isDirty =
 		isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData || referencesDirty;
+	// A new entry is always "dirty" so it can be saved, but one nobody has
+	// touched has nothing to lose on leaving.
+	const [newEntryInitialState] = React.useState(currentData);
+	const hasUnsavedNewEntry =
+		Boolean(isNew) && (referencesDirty || currentData !== newEntryInitialState);
 	const isDirtyRef = React.useRef(isDirty);
 	isDirtyRef.current = isDirty;
 	const onDirtyChangeRef = React.useRef(onDirtyChange);
@@ -1616,8 +1622,8 @@ export function ContentEditor({
 						supportsPreview={supportsPreview}
 						isLoadingPreview={isLoadingPreview}
 						onPreview={handlePreview}
-						onPublish={handlePublish}
-						onUnpublish={handleUnpublish}
+						onPublish={onPublish ? handlePublish : undefined}
+						onUnpublish={onUnpublish ? handleUnpublish : undefined}
 						onMenuOpenChange={setPublishingMenuOpen}
 						beforePublish={
 							// The settings panel holds these outside distraction-free mode.
@@ -1972,6 +1978,7 @@ export function ContentEditor({
 					onClose={() => setPendingEditorDraftPatch(null)}
 				/>
 			) : null}
+			<UnsavedChangesGuard when={hasUnsavedNewEntry} />
 		</form>
 	);
 }

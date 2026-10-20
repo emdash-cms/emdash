@@ -1,5 +1,17 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.49
+
+### Patch Changes
+
+- [#4013](https://github.com/emdash-cms/emdash/pull/4013) [`03409e6`](https://github.com/emdash-cms/emdash/commit/03409e67ee01a949a8c3ddc4948e10ebbef4f9a7) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes the admin login page so the help text under a provider's `LoginForm` is no longer hard-coded to "Enter your handle to sign in." for every provider.
+  
+  Providers can now export an optional `loginHelp` string or component from their admin entry. When `loginHelp` is absent, the page falls back to a neutral "Continue with {label}." message.
+  
+  The built-in AT Protocol provider keeps its handle-specific prompt and translates it using the admin's active locale. It requires `@lingui/react` as a peer dependency; if your package manager does not install peers automatically, install a compatible Lingui 5 version alongside the provider.
+- Updated dependencies []:
+  - @emdash-cms/auth@1.3.1
+
 ## 0.2.48
 
 ### Patch Changes

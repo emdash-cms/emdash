@@ -48,6 +48,21 @@ export function isMissingColumnError(error: unknown, column?: string): boolean {
 	return false;
 }
 
+const SQLITE_MISSING_COLUMN_RE =
+	/\bno such column:\s*([^:\r\n]+?)(?= - should this be a string literal in single-quotes\?|:|$)/;
+const POSTGRES_MISSING_COLUMN_RE = /\bcolumn\s+(.+?)\s+does not exist\b/;
+const COLUMN_IDENTIFIER_RE =
+	/^(?:"[a-z_][a-z0-9_]*"|[a-z_][a-z0-9_]*)(?:\.(?:"[a-z_][a-z0-9_]*"|[a-z_][a-z0-9_]*))?$/;
+
+/** The missing column, including its qualifier if present, normalized for comparison. */
+export function getMissingColumnIdentifier(error: unknown): string | undefined {
+	const message = messageOf(error);
+	const identifier =
+		SQLITE_MISSING_COLUMN_RE.exec(message)?.[1] ?? POSTGRES_MISSING_COLUMN_RE.exec(message)?.[1];
+	if (!identifier || !COLUMN_IDENTIFIER_RE.test(identifier.trim())) return undefined;
+	return identifier.trim().replaceAll('"', "");
+}
+
 /**
  * Returns true when `error` is a "table does not exist" error across the
  * dialects EmDash supports (D1/SQLite and PostgreSQL). Used by runtime

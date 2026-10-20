@@ -338,6 +338,7 @@ describe("Zod Generator", () => {
 				filename: "photo.webp",
 				mimeType: "image/webp",
 				alt: "A photo",
+				caption: "Photo credit",
 				width: 1200,
 				height: 800,
 				blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
@@ -367,7 +368,13 @@ describe("Zod Generator", () => {
 			const withVariant = {
 				id: "img-light",
 				provider: "local",
-				darkVariant: { id: "img-dark", provider: "local", width: 1200, height: 800 },
+				darkVariant: {
+					id: "img-dark",
+					provider: "local",
+					caption: "Dark credit",
+					width: 1200,
+					height: 800,
+				},
 			};
 			expect(schema.parse(withVariant)).toEqual(withVariant);
 			expect(
@@ -664,7 +671,7 @@ describe("Zod Generator", () => {
 			expect(ts).toContain("featured?: boolean;");
 			expect(ts).toContain('status: "draft" | "published";');
 			expect(ts).toContain(
-				"hero: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };",
+				"hero: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };",
 			);
 			// Hydrated by getEmDashCollection/getEmDashEntry
 			expect(ts).toContain("byline?: BylineSummary | null;");
@@ -859,7 +866,7 @@ describe("Zod Generator", () => {
 		// The literal the top-level `image` case emits. An `image` sub-field must
 		// emit the same shape.
 		const MEDIA_LITERAL =
-			"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }";
+			"{ id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }";
 
 		// A collection with a single `specs` repeater. Passing `undefined` omits
 		// `validation` entirely, which is how a repeater with no declared rows

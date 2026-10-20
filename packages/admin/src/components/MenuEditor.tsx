@@ -47,8 +47,7 @@ interface DisplayItem {
 
 /**
  * Flattens items into parent-then-children display order. Guards against
- * cyclic parentId data (not currently possible via this UI, but the API
- * doesn't validate against it either) with a visited set.
+ * cyclic parentId data from older API writes with a visited set.
  */
 function buildDisplayList(items: MenuItem[]): DisplayItem[] {
 	const childrenByParent = new Map<string | null, MenuItem[]>();

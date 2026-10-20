@@ -140,18 +140,22 @@ export function refreshInterceptor(options: {
 	refreshToken: string;
 	tokenEndpoint: string;
 	onTokenRefreshed?: (accessToken: string, refreshToken: string, expiresAt: string) => void;
+	fetch?: (request: Request) => Promise<Response>;
 }): Interceptor {
+	const send = options.fetch ?? baseFetch;
 	let refreshing: Promise<string | null> | null = null;
 
 	async function refresh(): Promise<string | null> {
-		const res = await globalThis.fetch(options.tokenEndpoint, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				grant_type: "refresh_token",
-				refresh_token: options.refreshToken,
+		const res = await send(
+			new Request(options.tokenEndpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					grant_type: "refresh_token",
+					refresh_token: options.refreshToken,
+				}),
 			}),
-		});
+		);
 
 		if (!res.ok) return null;
 

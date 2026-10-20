@@ -147,6 +147,23 @@ describe("SeoSettings", () => {
 		for (const button of saveButtons) await expect.element(button).toBeDisabled();
 	});
 
+	it("lets the title separator be cleared and replaced without a fallback", async () => {
+		mockFetchSettings.mockResolvedValue({
+			...defaultSettings,
+			seo: { ...defaultSettings.seo, titleSeparator: "|" },
+		});
+		const screen = await renderSeoSettings();
+		const separator = screen.getByLabelText("Title Separator");
+		await expect.element(separator).toHaveValue("|");
+
+		await separator.fill("");
+		await userEvent.type(separator, "-");
+		await expect.element(separator).toHaveValue("-");
+		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
+			await expect.element(button).toBeEnabled();
+		}
+	});
+
 	it("submits the bottom save action and returns both actions to pristine", async () => {
 		const screen = await renderSeoSettings();
 		await screen

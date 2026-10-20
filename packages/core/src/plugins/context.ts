@@ -403,8 +403,7 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 
 	return {
 		async getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
-			let query = selectTaxonomyDefs(db);
-			if (options?.locale !== undefined) query = query.where("d.locale", "=", options.locale);
+			const query = selectTaxonomyDefs(db, options?.locale);
 			const rows = await query.orderBy("d.name", "asc").execute();
 			return rows.map((row) => ({
 				name: row.name,
