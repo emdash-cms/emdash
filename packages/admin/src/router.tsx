@@ -202,6 +202,7 @@ interface AutosaveMutationInput {
 }
 
 interface EntryMutationTarget {
+	targetCollection: string;
 	targetId: string;
 	targetLocale?: string;
 }
@@ -1396,12 +1397,13 @@ function ContentEditPage() {
 	});
 	const publishedAtMutation = useMutation({
 		mutationFn: async ({
+			targetCollection,
 			targetId,
 			targetLocale,
 			publishedAt,
 		}: EntryMutationTarget & { publishedAt: string }) => {
 			const savedItem = await updateContent(
-				collection,
+				targetCollection,
 				targetId,
 				{ publishedAt, _rev: revisionTokensRef.current.get(targetId) },
 				{ locale: targetLocale },
@@ -1480,14 +1482,14 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: ({ targetId, targetLocale, revision }: PublishMutationInput) =>
-			publishContent(collection, targetId, { locale: targetLocale, _rev: revision }),
-		onSuccess: (publishedItem, { targetId, savedReferences }) => {
+		mutationFn: ({ targetCollection, targetId, targetLocale, revision }: PublishMutationInput) =>
+			publishContent(targetCollection, targetId, { locale: targetLocale, _rev: revision }),
+		onSuccess: (publishedItem, { targetCollection, targetId, savedReferences }) => {
 			recordWriteRevision(targetId, publishedItem);
 			// A selection the preceding save sent is in no cached page yet, so the
 			// entry is read again instead of keeping the pages from before it.
 			queryClient.setQueriesData<ContentItem>(
-				{ queryKey: ["content", collection, targetId] },
+				{ queryKey: ["content", targetCollection, targetId] },
 				(cached) => ({
 					...publishedItem,
 					references:
@@ -1495,9 +1497,9 @@ function ContentEditPage() {
 				}),
 			);
 			if (savedReferences) {
-				void queryClient.invalidateQueries({ queryKey: ["content", collection, targetId] });
+				void queryClient.invalidateQueries({ queryKey: ["content", targetCollection, targetId] });
 			}
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, targetId] });
+			void queryClient.invalidateQueries({ queryKey: ["revisions", targetCollection, targetId] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
 		onError: (error, { targetId }) => {
@@ -1512,17 +1514,18 @@ function ContentEditPage() {
 
 	const unpublishMutation = useMutation({
 		mutationFn: ({
+			targetCollection,
 			targetId,
 			targetLocale,
 			revision,
 		}: EntryMutationTarget & { revision: string | undefined }) =>
-			unpublishContent(collection, targetId, { locale: targetLocale, _rev: revision }),
-		onSuccess: (unpublishedItem, { targetId }) => {
+			unpublishContent(targetCollection, targetId, { locale: targetLocale, _rev: revision }),
+		onSuccess: (unpublishedItem, { targetCollection, targetId }) => {
 			recordWriteRevision(targetId, unpublishedItem);
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, targetId],
+				queryKey: ["content", targetCollection, targetId],
 			});
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, targetId] });
+			void queryClient.invalidateQueries({ queryKey: ["revisions", targetCollection, targetId] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
 		onError: (error, { targetId }) => {
@@ -1591,11 +1594,12 @@ function ContentEditPage() {
 	);
 	const scheduleMutation = useMutation({
 		mutationFn: ({
+			targetCollection,
 			targetId,
 			targetLocale,
 			scheduledAt,
 		}: EntryMutationTarget & { scheduledAt: string }) =>
-			scheduleContent(collection, targetId, scheduledAt, { locale: targetLocale }),
+			scheduleContent(targetCollection, targetId, scheduledAt, { locale: targetLocale }),
 		onSuccess: () => {
 			toastManager.add({
 				title: t`Scheduled`,
@@ -1605,8 +1609,8 @@ function ContentEditPage() {
 	});
 
 	const unscheduleMutation = useMutation({
-		mutationFn: ({ targetId, targetLocale }: EntryMutationTarget) =>
-			unscheduleContent(collection, targetId, { locale: targetLocale }),
+		mutationFn: ({ targetCollection, targetId, targetLocale }: EntryMutationTarget) =>
+			unscheduleContent(targetCollection, targetId, { locale: targetLocale }),
 		onSuccess: () => {
 			toastManager.add({
 				title: t`Unscheduled`,
@@ -1750,6 +1754,7 @@ function ContentEditPage() {
 			);
 			await publishedAtMutation
 				.mutateAsync({
+					targetCollection: collection,
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
 					publishedAt,
@@ -1760,6 +1765,7 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			collection,
 			entryLock.reportWriteError,
 			id,
 			publishedAtMutation.mutateAsync,
@@ -1800,6 +1806,7 @@ function ContentEditPage() {
 					}),
 				);
 				await publishMutation.mutateAsync({
+					targetCollection: collection,
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
 					revision: savedItem._rev,
@@ -1816,6 +1823,7 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			collection,
 			id,
 			publishMutation.mutateAsync,
 			rawItem?.locale,
@@ -1843,6 +1851,7 @@ function ContentEditPage() {
 				});
 				const currentToken = savedItem?._rev ?? revisionTokensRef.current.get(id);
 				await unpublishMutation.mutateAsync({
+					targetCollection: collection,
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
 					revision: currentToken,
@@ -1858,6 +1867,7 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			collection,
 			id,
 			rawItem?.locale,
 			serializeEditorSave,
@@ -1896,6 +1906,7 @@ function ContentEditPage() {
 			// The schedule dialog shows the failure, unless the lock explains it.
 			const scheduledItem = await scheduleMutation
 				.mutateAsync({
+					targetCollection: collection,
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
 					scheduledAt,
@@ -1910,6 +1921,7 @@ function ContentEditPage() {
 		[
 			activeLocale,
 			applyScheduleChange,
+			collection,
 			entryLock.reportWriteError,
 			id,
 			rawItem?.locale,
@@ -1935,6 +1947,7 @@ function ContentEditPage() {
 				});
 			});
 			const unscheduledItem = await unscheduleMutation.mutateAsync({
+				targetCollection: collection,
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 			});
@@ -1943,6 +1956,7 @@ function ContentEditPage() {
 		[
 			activeLocale,
 			applyScheduleChange,
+			collection,
 			id,
 			rawItem?.locale,
 			serializeEditorSave,

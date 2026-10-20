@@ -24,6 +24,13 @@ const MANIFEST: AdminManifest = {
 			hasSeo: false,
 			fields: { title: { kind: "string", label: "Title" } },
 		},
+		pages: {
+			label: "Pages",
+			labelSingular: "Page",
+			supports: ["drafts"],
+			hasSeo: false,
+			fields: { title: { kind: "string", label: "Title" } },
+		},
 	},
 	plugins: {},
 	taxonomies: [],
@@ -50,6 +57,8 @@ const ENTRY = {
 
 const OTHER = { ...ENTRY, id: "post_b", slug: "entry-b", data: { title: "Other title" } };
 
+const PAGE = { ...OTHER, id: "page_c", type: "pages", slug: "page-c" };
+
 const PUBLISHED = {
 	...ENTRY,
 	status: "published",
@@ -61,7 +70,10 @@ const SCHEDULED = { ...ENTRY, scheduledAt: "2030-01-01T09:00:00.000Z" };
 
 const ENTRY_PATH = `/_emdash/api/content/posts/${ENTRY.id}`;
 
-async function renderEditorFromOther() {
+type Entry = { id: string; type: string };
+type Screen = Awaited<ReturnType<typeof render>>;
+
+async function renderEditorFrom(other: Entry) {
 	const queryClient = createTestQueryClient();
 	// Kept in the cache, so switching entries keeps the editor mounted.
 	queryClient.setQueryDefaults(["content"], { gcTime: Infinity });
@@ -82,17 +94,20 @@ async function renderEditorFromOther() {
 		);
 	}
 
-	await openPost(router, OTHER.id);
+	await openEntry(router, other);
 	const screen = await render(<TestApp />);
 	const title = screen.getByRole("textbox", { name: "Title", exact: true });
 	await expect.element(title).toHaveValue("Other title");
-	await openPost(router, ENTRY.id);
+	await openEntry(router, ENTRY);
 	await expect.element(title).toHaveValue("First title");
 	return { router, screen, title };
 }
 
-function openPost(router: ReturnType<typeof createAdminRouter>, id: string) {
-	return router.navigate({ to: "/content/$collection/$id", params: { collection: "posts", id } });
+function openEntry(router: ReturnType<typeof createAdminRouter>, entry: Entry) {
+	return router.navigate({
+		to: "/content/$collection/$id",
+		params: { collection: entry.type, id: entry.id },
+	});
 }
 
 /** Holds every PUT from now on until `release`; `answered` settles once one has its response. */
@@ -124,7 +139,7 @@ function recordEntryWrites() {
 		const method = init?.method ?? "GET";
 		if (
 			typeof input === "string" &&
-			input.includes("/content/posts/") &&
+			input.includes("/content/") &&
 			!input.includes("/lock") &&
 			method !== "GET"
 		) {
@@ -144,80 +159,35 @@ function localDateKey(date: Date) {
 	].join("-");
 }
 
-describe("switching entries while a save is on its way", () => {
-	let mockFetch: ReturnType<typeof createMockFetch>;
-
-	beforeEach(() => {
-		mockFetch = createMockFetch();
-		mockFetch
-			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
-			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 50 } })
-			.on("GET", "/_emdash/api/bylines", { data: { items: [], nextCursor: null } })
-			.on("GET", "/_emdash/api/content/posts?", { data: { items: [], nextCursor: null } })
-			.on("GET", `/_emdash/api/content/posts/${OTHER.id}`, { data: { item: OTHER } })
-			.on("PUT", `${ENTRY_PATH}?locale=en`, {
-				data: { item: { ...ENTRY, data: { title: "Edited title" } }, _rev: "rev-2" },
-			});
-	});
-
-	afterEach(() => {
-		mockFetch.restore();
-	});
-
-	/**
-	 * Opens `item` as the first entry and edits it, then runs `act` with saves held and opens the
-	 * other entry before releasing them. Resolves with the save and the write `act` led to.
-	 */
-	async function actThenSwitch(
-		item: object,
-		act: (screen: Awaited<ReturnType<typeof render>>) => Promise<void> | void,
-	) {
-		mockFetch.on("GET", ENTRY_PATH, { data: { item, _rev: "rev-1" } });
-		const writes = recordEntryWrites();
-		const { router, screen, title } = await renderEditorFromOther();
-		await title.fill("Edited title");
-
-		const save = holdPuts();
-		await act(screen);
-		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
-		await openPost(router, OTHER.id);
-		await expect.element(title).toHaveValue("Other title");
-		save.release();
-		await save.answered;
-
-		await expect.poll(() => writes.length).toBe(2);
-		return writes;
-	}
-
-	it("publishes the entry Publish was clicked on when its save lands after a switch", async () => {
-		const writes = await actThenSwitch(ENTRY, async (screen) => {
+const ACTIONS: Array<{
+	title: string;
+	item: object;
+	act: (screen: Screen) => Promise<void> | void;
+	write: Record<string, unknown>;
+}> = [
+	{
+		title: "publishes the entry Publish was clicked on",
+		item: ENTRY,
+		act: async (screen) => {
 			screen.getByRole("button", { name: "Publish now", exact: true }).element().click();
 			const confirm = screen.getByRole("dialog", { name: "Publish now?" });
 			await expect.element(confirm).toBeVisible();
 			confirm.getByRole("button", { name: "Publish now", exact: true }).element().click();
-		});
-
-		expect(writes[1]).toMatchObject({
-			method: "POST",
-			path: `${ENTRY_PATH}/publish?locale=en`,
-			body: { _rev: "rev-2" },
-		});
-	});
-
-	it("unpublishes the entry Unpublish was clicked on when its save lands after a switch", async () => {
-		const writes = await actThenSwitch(PUBLISHED, (screen) => {
+		},
+		write: { method: "POST", path: `${ENTRY_PATH}/publish?locale=en`, body: { _rev: "rev-2" } },
+	},
+	{
+		title: "unpublishes the entry Unpublish was clicked on",
+		item: PUBLISHED,
+		act: (screen) => {
 			screen.getByRole("button", { name: "Unpublish Post", exact: true }).element().click();
-		});
-
-		expect(writes[1]).toMatchObject({
-			method: "POST",
-			path: `${ENTRY_PATH}/unpublish?locale=en`,
-			body: { _rev: "rev-2" },
-		});
-	});
-
-	it("schedules the entry the schedule was set on when its save lands after a switch", async () => {
-		const writes = await actThenSwitch(ENTRY, async (screen) => {
+		},
+		write: { method: "POST", path: `${ENTRY_PATH}/unpublish?locale=en`, body: { _rev: "rev-2" } },
+	},
+	{
+		title: "schedules the entry the schedule was set on",
+		item: ENTRY,
+		act: async (screen) => {
 			screen.getByRole("button", { name: "Schedule", exact: true }).element().click();
 			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
 			await expect.element(dialog).toBeVisible();
@@ -231,21 +201,21 @@ describe("switching entries while a save is on its way", () => {
 			await dialog.getByRole("textbox", { name: "Hour" }).fill("09");
 			await dialog.getByRole("textbox", { name: "Minute" }).fill("00");
 			dialog.getByRole("button", { name: "Schedule", exact: true }).element().click();
-		});
-
-		expect(writes[1]).toMatchObject({ method: "POST", path: `${ENTRY_PATH}/schedule?locale=en` });
-	});
-
-	it("removes the schedule from the entry it was removed on when its save lands after a switch", async () => {
-		const writes = await actThenSwitch(SCHEDULED, (screen) => {
+		},
+		write: { method: "POST", path: `${ENTRY_PATH}/schedule?locale=en` },
+	},
+	{
+		title: "removes the schedule from the entry it was removed on",
+		item: SCHEDULED,
+		act: (screen) => {
 			screen.getByRole("button", { name: "Remove schedule" }).element().click();
-		});
-
-		expect(writes[1]).toMatchObject({ method: "DELETE", path: `${ENTRY_PATH}/schedule?locale=en` });
-	});
-
-	it("changes the publication date of the entry it was set on when its save lands after a switch", async () => {
-		const writes = await actThenSwitch(PUBLISHED, async (screen) => {
+		},
+		write: { method: "DELETE", path: `${ENTRY_PATH}/schedule?locale=en` },
+	},
+	{
+		title: "changes the publication date of the entry it was set on",
+		item: PUBLISHED,
+		act: async (screen) => {
 			screen
 				.getByRole("button", { name: /Change publication date/ })
 				.element()
@@ -253,12 +223,57 @@ describe("switching entries while a save is on its way", () => {
 			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
 			await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
 			dialog.getByRole("button", { name: "Save date", exact: true }).element().click();
-		});
-
-		expect(writes[1]).toMatchObject({
+		},
+		write: {
 			method: "PUT",
 			path: `${ENTRY_PATH}?locale=en`,
 			body: { publishedAt: expect.any(String) },
-		});
+		},
+	},
+];
+
+describe.each([
+	["the same collection", OTHER],
+	["another collection", PAGE],
+])("switching to an entry in %s while a save is on its way", (_, other) => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 50 } })
+			.on("GET", "/_emdash/api/bylines", { data: { items: [], nextCursor: null } })
+			.on("GET", "/_emdash/api/content/posts?", { data: { items: [], nextCursor: null } })
+			.on("GET", "/_emdash/api/content/pages?", { data: { items: [], nextCursor: null } })
+			.on("GET", `/_emdash/api/content/posts/${OTHER.id}`, { data: { item: OTHER } })
+			.on("GET", `/_emdash/api/content/pages/${PAGE.id}`, { data: { item: PAGE } })
+			.on("PUT", `${ENTRY_PATH}?locale=en`, {
+				data: { item: { ...ENTRY, data: { title: "Edited title" } }, _rev: "rev-2" },
+			});
 	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	for (const { title: action, item, act, write } of ACTIONS) {
+		it(`${action} once its save lands`, async () => {
+			mockFetch.on("GET", ENTRY_PATH, { data: { item, _rev: "rev-1" } });
+			const writes = recordEntryWrites();
+			const { router, screen, title } = await renderEditorFrom(other);
+			await title.fill("Edited title");
+
+			const save = holdPuts();
+			await act(screen);
+			await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
+			await openEntry(router, other);
+			await expect.element(title).toHaveValue("Other title");
+			save.release();
+			await save.answered;
+
+			await expect.poll(() => writes.length).toBe(2);
+			expect(writes[1]).toMatchObject(write);
+		});
+	}
 });
