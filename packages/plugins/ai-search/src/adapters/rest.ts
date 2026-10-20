@@ -19,6 +19,7 @@ import {
 } from "./shared.js";
 
 const API = "https://api.cloudflare.com/client/v4";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 /** Cloudflare API error codes for a missing, malformed, or rejected token. */
 const AUTH_ERROR_CODES = new Set([9106, 9109, 10000]);
@@ -104,6 +105,7 @@ export class RestAiSearch implements AiSearchProvider {
 		]) {
 			const response = await this.fetcher(`${API}${path}`, {
 				headers: { authorization: `Bearer ${apiToken}` },
+				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 			}).catch(() => null);
 			if (!response) return false;
 			if (response.ok) {
@@ -137,6 +139,9 @@ export class RestAiSearch implements AiSearchProvider {
 				...(payload && !form ? { "content-type": "application/json" } : {}),
 			},
 			body: payload && !form ? JSON.stringify(payload) : payload,
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+		}).catch((error: unknown) => {
+			throw new ProviderError("failed", "Could not reach the Cloudflare API", { cause: error });
 		});
 		const envelope = (await response.json().catch(() => null)) as Envelope<T> | null;
 		if (response.ok && envelope?.success !== false && envelope) return envelope;
