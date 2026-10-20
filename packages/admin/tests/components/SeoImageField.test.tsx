@@ -1,5 +1,5 @@
 import * as React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RenderResult } from "vitest-browser-react";
 import { cdp, userEvent, type Locator } from "vitest/browser";
 
@@ -201,15 +201,102 @@ beforeEach(() => {
 	pendingSave = undefined;
 });
 
+afterEach(() => {
+	vi.restoreAllMocks();
+});
+
 describe("SeoImageField", () => {
-	it("requests a bare media ID from the media endpoint rather than the editor route", async () => {
+	it("resolves a bare media ID before requesting its storage key", async () => {
 		const id = "01J00000000000000000000000";
-		const url = new URL(`/_emdash/api/media/file/${id}`, window.location.origin).href;
+		const filename = "photo [summer] #?.jpg";
+		const storageKey = "objects/seo-image-2026-10-09.webp";
+		const publicFileUrl = `/_emdash/api/media/file/${storageKey}`;
+		const metadata = {
+			id,
+			filename,
+			mimeType: "image/jpeg",
+			url: `/_emdash/api/media/asset/${encodeURIComponent(id)}/${encodeURIComponent(filename)}`,
+			storageKey,
+			size: 1024,
+			createdAt: "2026-10-09T00:00:00Z",
+			status: "ready",
+		};
+		let resolveMetadata!: (response: Response) => void;
+		const fetchSpy = vi
+			.spyOn(globalThis, "fetch")
+			.mockImplementation(() => new Promise((resolve) => (resolveMetadata = resolve)));
 		performance.clearResourceTimings();
-		await render(<Field image={id} />);
+		const onChange = vi.fn();
+		const screen = await render(<Field image={id} onChange={onChange} />);
+		const idFileUrl = `/_emdash/api/media/file/${id}`;
+
+		await vi.waitFor(() =>
+			expect(fetchSpy).toHaveBeenCalledWith(
+				`/_emdash/api/media/${encodeURIComponent(id)}`,
+				expect.objectContaining({ signal: expect.any(AbortSignal) }),
+			),
+		);
+		expect(screen.container.querySelector("img")).toBeNull();
+		expect(onChange).not.toHaveBeenCalled();
+		expect(
+			performance.getEntriesByName(new URL(idFileUrl, window.location.origin).href),
+		).toHaveLength(0);
+
+		resolveMetadata(Response.json({ success: true, data: { item: metadata } }));
 		await vi.waitFor(() => {
-			expect(performance.getEntriesByName(url).length).toBeGreaterThan(0);
+			expect(
+				performance.getEntriesByName(new URL(publicFileUrl, window.location.origin).href).length,
+			).toBeGreaterThan(0);
 		});
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("shows the existing error state when bare media metadata fails", async () => {
+		const id = "01J00000000000000000000001";
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(
+			Response.json({ success: false }, { status: 500 }),
+		);
+		const onChange = vi.fn();
+		const screen = await render(<Field image={id} onChange={onChange} />);
+
+		await expect.element(screen.getByText("Image not found", { exact: true })).toBeVisible();
+		await removeImage(screen);
+		expect(onChange).toHaveBeenCalledWith({ image: null });
+	});
+
+	it("falls back to the bare ID as an extensionless storage key after a 404", async () => {
+		const id = "01j00000000000000000000002";
+		const fileUrl = `/_emdash/api/media/file/${id}`;
+		const fetchSpy = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(Response.json({ success: false }, { status: 404 }));
+		performance.clearResourceTimings();
+		const onChange = vi.fn();
+		const screen = await render(<Field image={id} onChange={onChange} />);
+
+		await vi.waitFor(() =>
+			expect(fetchSpy).toHaveBeenCalledWith(
+				`/_emdash/api/media/${id}`,
+				expect.objectContaining({ signal: expect.any(AbortSignal) }),
+			),
+		);
+		await vi.waitFor(() => {
+			expect(
+				performance.getEntriesByName(new URL(fileUrl, window.location.origin).href).length,
+			).toBeGreaterThan(0);
+		});
+		await expect.element(screen.getByText("Image not found", { exact: true })).toBeVisible();
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["uploads/og.png", "/_emdash/api/media/file/uploads/og.png"],
+		["/images/og.png", "/images/og.png"],
+		["https://cdn.example.com/og.png", "https://cdn.example.com/og.png"],
+		["data:image/png;base64,AAAA", "data:image/png;base64,AAAA"],
+	])("preserves or normalizes a non-ID image reference (%s)", async (image, expected) => {
+		const screen = await render(<Field image={image} />);
+		expect(screen.container.querySelector("img")?.getAttribute("src")).toBe(expected);
 	});
 
 	it.each([

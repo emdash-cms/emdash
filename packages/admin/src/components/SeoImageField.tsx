@@ -6,12 +6,14 @@
  * social sites apply to link-preview images.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { ImageBroken, ImageSquare, Trash } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import type { ContentSeo, ContentSeoInput, MediaItem } from "../lib/api";
+import { fetchMediaItem, type ContentSeo, type ContentSeoInput, type MediaItem } from "../lib/api";
+import { ApiResponseError } from "../lib/api/client.js";
 import { localMediaFileUrl } from "../lib/media-utils.js";
 import { cn } from "../lib/utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
@@ -22,6 +24,9 @@ export interface SeoImageFieldProps {
 	seo?: ContentSeo;
 	onChange: (seo: ContentSeoInput) => void;
 }
+
+const MEDIA_ID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
+const URL_SCHEME_RE = /^[a-z][a-z\d+.-]*:/i;
 
 // On touch screens the ::after makes each tap target taller than the
 // button, so the toolbar doesn't have to grow over the image.
@@ -45,12 +50,33 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 	const pickerOpenedWithFocusRef = React.useRef(false);
 	const focusHandoffRef = React.useRef<{ image: string | null; viaPicker: boolean } | null>(null);
 	const imageRef = seo?.image || null;
-	const imageUrl =
-		imageRef && !imageRef.includes("/") && !imageRef.includes(":")
+	const mediaId = imageRef && MEDIA_ID_RE.test(imageRef) ? imageRef : null;
+	const mediaQuery = useQuery({
+		queryKey: ["media", mediaId],
+		queryFn: ({ signal }) => fetchMediaItem(mediaId!, { signal }),
+		enabled: !!mediaId,
+		retry: false,
+	});
+	const media = mediaQuery.data;
+	const isStorageKey =
+		mediaQuery.error instanceof ApiResponseError && mediaQuery.error.status === 404;
+	const imageUrl = mediaId
+		? media
+			? localMediaFileUrl(media.storageKey)
+			: isStorageKey
+				? localMediaFileUrl(mediaId)
+				: null
+		: imageRef && !imageRef.startsWith("/") && !URL_SCHEME_RE.test(imageRef)
 			? localMediaFileUrl(imageRef)
 			: imageRef;
-	const hasImage = imageUrl !== null;
-	const failed = hasImage && failedUrl === imageUrl;
+	const hasImage = imageRef !== null;
+	const failed =
+		hasImage &&
+		((!!imageUrl && failedUrl === imageUrl) ||
+			(!!mediaId &&
+				((mediaQuery.isError && !isStorageKey) ||
+					media?.status === "pending" ||
+					media?.status === "failed")));
 	const label = t`OG Image`;
 
 	// Safari and Firefox on macOS don't focus a clicked button. Handing focus to
@@ -110,6 +136,10 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 						<div className="flex h-full flex-col items-center justify-center gap-1.5 text-kumo-subtle">
 							<ImageBroken className="size-6" aria-hidden="true" />
 							<span className="text-xs leading-4">{t`Image not found`}</span>
+						</div>
+					) : !imageUrl ? (
+						<div className="flex h-full items-center justify-center">
+							<Loader />
 						</div>
 					) : (
 						<img
