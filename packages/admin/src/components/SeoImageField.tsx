@@ -6,7 +6,7 @@
  * social sites apply to link-preview images.
  */
 
-import { Button, Loader } from "@cloudflare/kumo";
+import { Banner, Button, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { ImageBroken, ImageSquare, Trash } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -77,6 +77,14 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 				((mediaQuery.isError && !isStorageKey) ||
 					media?.status === "pending" ||
 					media?.status === "failed")));
+	const needsSharingUrl =
+		!!mediaId &&
+		!!media &&
+		media.storageKey !== mediaId &&
+		media.status !== "pending" &&
+		media.status !== "failed" &&
+		!failed &&
+		loadedUrl === imageUrl;
 	const label = t`OG Image`;
 
 	// Safari and Firefox on macOS don't focus a clicked button. Handing focus to
@@ -101,7 +109,7 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 			? replaceButtonRef.current
 			: dropTargetRef.current?.querySelector("button");
 		counterpart?.focus({ preventScroll: true });
-	}, [hasImage, imageUrl]);
+	}, [hasImage, imageRef, imageUrl]);
 
 	const openPicker = () => {
 		pickerOpenedWithFocusRef.current = focusIsInField();
@@ -209,6 +217,32 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 						onUploaded={(item) => onChange({ image: seoImageUrl(item) })}
 					/>
 				</div>
+			)}
+			{needsSharingUrl && imageUrl && (
+				<Banner
+					className="mt-2"
+					variant="alert"
+					role="note"
+					title={t`Sharing image needs a URL`}
+					description={
+						<div className="flex flex-col items-start gap-2">
+							<p>{t`The saved media ID may not work in shared links. Save the image URL to use this file for sharing.`}</p>
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => {
+									if (focusIsInField()) {
+										focusHandoffRef.current = { image: imageUrl, viaPicker: false };
+									}
+									onChange({ image: imageUrl });
+								}}
+							>
+								{t`Save image URL`}
+							</Button>
+						</div>
+					}
+				/>
 			)}
 			<MediaPickerModal
 				open={pickerOpen}
