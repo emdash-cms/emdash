@@ -685,6 +685,8 @@ export function ContentEditor({
 	const sentSaveKeyRef = React.useRef<string | null>(null);
 	/** Counts entry switches, a switch back to the same entry included: each one reloads the form. */
 	const entrySwitchesRef = React.useRef(0);
+	/** The entry switch count when the last autosave was sent. */
+	const autosaveSwitchesRef = React.useRef(0);
 	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 	const [isPublishing, setIsPublishing] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
@@ -742,9 +744,12 @@ export function ContentEditor({
 		if (item) {
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
 			const previousAutosaveToken = autosaveCompletionTokenRef.current;
+			// An autosave sent before an entry switch lands like any other read: the switch
+			// reloaded the form it was sent from.
 			const autosaveJustCompleted =
 				(autosaveCompletionToken ?? 0) > 0 &&
-				(autosaveCompletionToken ?? 0) !== previousAutosaveToken;
+				(autosaveCompletionToken ?? 0) !== previousAutosaveToken &&
+				autosaveSwitchesRef.current === entrySwitchesRef.current;
 			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
 			const itemReset = itemResetToken > 0 && itemResetToken !== itemResetTokenRef.current;
 			itemResetTokenRef.current = itemResetToken;
@@ -1277,10 +1282,11 @@ export function ContentEditor({
 			runAutosaveRef.current = null;
 			if (hasInvalidUrls(formDataRef.current)) return;
 			const payload = createSavePayload();
-			const { state, referenceRows, key } = beginSave(payload);
+			const { state, referenceRows, key, switches } = beginSave(payload);
 			pendingAutosaveStateRef.current = state;
 			pendingAutosaveReferencesRef.current = referenceRows ?? null;
 			pendingAutosaveKeyRef.current = key;
+			autosaveSwitchesRef.current = switches;
 			onAutosave(referenceRows ? { ...payload, referenceRows } : payload);
 		};
 

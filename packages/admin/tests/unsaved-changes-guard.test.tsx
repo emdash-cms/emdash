@@ -327,6 +327,38 @@ describe("leaving the content editor", () => {
 			.toBeVisible();
 	});
 
+	it("saves an entry's edits on leaving when they match an autosave that landed on the previous one", async () => {
+		const twin = { ...CREATED, id: "post_twin" };
+		mockFetch
+			.on("GET", `/_emdash/api/content/posts/${twin.id}`, { data: { item: twin } })
+			.on("PUT", `/_emdash/api/content/posts/${CREATED.id}?locale=en`, {
+				data: { item: { ...CREATED, data: { title: "Edited title" } }, _rev: "rev-2" },
+			})
+			.on("PUT", `/_emdash/api/content/posts/${twin.id}?locale=en`, {
+				data: { item: { ...twin, data: { title: "Edited title" } }, _rev: "rev-2" },
+			});
+		const { router, title } = await renderEditor((start, queryClient) => {
+			queryClient.setQueryDefaults(["content"], { gcTime: Infinity });
+			return openPost(start, twin.id);
+		});
+		await openPost(router, CREATED.id);
+		await expect.element(title).toHaveValue("Unsaved title");
+		const puts = recordPuts();
+		await title.fill("Edited title");
+		await expect.poll(() => puts.length, { timeout: 5000 }).toBe(1);
+		await expect.poll(reloadIsBlocked).toBe(false);
+		await openPost(router, twin.id);
+		await expect.element(title).toHaveValue("Unsaved title");
+		await title.fill("Edited title");
+
+		await leaveForPostList(router);
+
+		expect(puts.map((put) => put.data)).toEqual([
+			{ title: "Edited title" },
+			{ title: "Edited title" },
+		]);
+	});
+
 	it("keeps an entry reopened while its Save was on the way from sending its old content", async () => {
 		mockFetch
 			.on("GET", `/_emdash/api/content/posts/${OTHER.id}`, { data: { item: OTHER } })
@@ -358,6 +390,44 @@ describe("leaving the content editor", () => {
 
 		expect(puts.map((put) => put.data)).toEqual([{ title: "Edited title" }]);
 	});
+
+	it.each([
+		["leaves at once", true],
+		["stays past the autosave delay", false],
+	])(
+		"keeps an entry reopened while its autosave was on the way from sending its old content when the writer %s",
+		async (_writer, leave) => {
+			mockFetch
+				.on("GET", `/_emdash/api/content/posts/${OTHER.id}`, { data: { item: OTHER } })
+				.on("PUT", `/_emdash/api/content/posts/${CREATED.id}?locale=en`, {
+					data: { item: { ...CREATED, data: { title: "Edited title" } }, _rev: "rev-2" },
+				});
+			const { router, title } = await renderEditor((start, queryClient) => {
+				queryClient.setQueryDefaults(["content"], { gcTime: Infinity });
+				return openPost(start, OTHER.id);
+			});
+			await openPost(router, CREATED.id);
+			await expect.element(title).toHaveValue("Unsaved title");
+
+			const autosave = holdPuts();
+			const puts = recordPuts();
+			await title.fill("Edited title");
+			await expect.poll(() => puts.length, { timeout: 5000 }).toBe(1);
+			await openPost(router, OTHER.id);
+			await expect.element(title).toHaveValue("Other title");
+			holdEntryReads();
+			await openPost(router, CREATED.id);
+			await expect.element(title).toHaveValue("Unsaved title");
+			autosave.release();
+			await expect.element(title).toHaveValue("Edited title");
+
+			if (leave) await leaveForPostList(router);
+			else await new Promise((resolve) => setTimeout(resolve, 3000));
+
+			expect(puts.map((put) => put.data)).toEqual([{ title: "Edited title" }]);
+		},
+		10_000,
+	);
 
 	it.each([
 		["an autosave", "a conflict", CONFLICT, "Autosave failed"],
