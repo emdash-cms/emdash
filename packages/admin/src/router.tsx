@@ -507,6 +507,7 @@ const calendarRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/calendar",
 	component: CalendarPage,
+	staticData: { fullBleed: true },
 	validateSearch: parseCalendarSearch,
 });
 
