@@ -61,8 +61,6 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 `Astro.cache.set()` merges with the route rule, and tags accumulate across calls. The cache hints carry tags but no `maxAge`, so the route rule decides how long a page is cached.
 
-Menus are an exception. Publishing, unpublishing, trashing, or restoring an entry that a menu links to, or changing its slug, doesn't invalidate the menu's tag. A page that shows the menu picks up the change when its tags also name that entry's collection, or otherwise when the page expires.
-
 Give every public route an explicit rule. Rules match the request path, so list your public routes individually: a rest parameter at the site root, such as `/[...slug]`, also matches the admin and API routes under `/_emdash/`.
 
 ## Invalidation on publish is built-in
@@ -70,6 +68,8 @@ Give every public route an explicit rule. Rules match the request path, so list 
 EmDash's content API routes invalidate the route cache whenever live content changes: publishing, unpublishing, deleting, or restoring an entry from the trash, and saving changes that reach the live entry, invalidate the tags `[collection, id]`. Creating or duplicating an entry invalidates nothing, because the new entry is a draft. Any route rule tagged with the collection name (as above) is therefore usually refreshed within seconds of a publish, even with a long `maxAge`.
 
 Site chrome is covered too: saving site settings invalidates `emdash:settings`, menu edits invalidate `emdash:menu:{name}`, and taxonomy and widget-area writes invalidate their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()`, `getSiteSettingsWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, or `getWidgetAreaWithCacheHint()`.
+
+Menu tags cover menu edits only. Publishing, unpublishing, trashing, or restoring an entry that a menu links to, or changing the slug of a linked entry or taxonomy term, doesn't invalidate the menu's tag. A page that shows the menu picks up such a change when its tags also name that entry's collection or that term's taxonomy, or otherwise when the page expires.
 
 Creating, editing, or deleting a redirect invalidates the cached page at the redirect's source path, with and without a trailing slash, so the redirect applies on the next request.
 
