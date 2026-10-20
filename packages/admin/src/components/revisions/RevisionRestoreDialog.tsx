@@ -1,4 +1,4 @@
-import { Toast } from "@cloudflare/kumo";
+import { useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -49,7 +49,7 @@ export function RevisionRestoreDialog({
 	const { t } = useLingui();
 	const format = useRevisionFormat();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const when = isolate(format.when(revisionDate(revision.createdAt)));
 	const shownRef = React.useRef(false);
 	React.useEffect(() => {
@@ -81,7 +81,7 @@ export function RevisionRestoreDialog({
 				description: scheduled
 					? t`The version from ${when} is now your draft. It goes live at the scheduled time.`
 					: t`The version from ${when} is now your draft. Publish when you're ready.`,
-				type: "success",
+				variant: "success",
 			});
 		},
 		onError: (error) => {
@@ -90,7 +90,7 @@ export function RevisionRestoreDialog({
 			toastManager.add({
 				title: t`Restore failed`,
 				description: getMutationError(error) ?? undefined,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
