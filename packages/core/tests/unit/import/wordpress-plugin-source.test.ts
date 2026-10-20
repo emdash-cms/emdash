@@ -446,6 +446,106 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		expect(analysis.attachments.items.map((a) => a.id)).toEqual([1, 2, 3]);
 	});
 
+	it("includes navigation menus from the plugin API in the analysis", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/emdash/v1/analyze")) {
+				return Promise.resolve(
+					new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+				);
+			}
+			if (url.includes("menus")) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify([
+							{
+								id: 1,
+								name: "main-menu",
+								label: "Main Menu",
+								items: [
+									{
+										id: 10,
+										parent_id: null,
+										sort_order: 0,
+										type: "custom",
+										object: null,
+										object_id: null,
+										url: "/",
+										title: "Home",
+										target: null,
+										classes: null,
+									},
+									{
+										id: 11,
+										parent_id: null,
+										sort_order: 1,
+										type: "custom",
+										object: null,
+										object_id: null,
+										url: "/about",
+										title: "About",
+										target: null,
+										classes: null,
+									},
+								],
+							},
+							{
+								id: 2,
+								name: "footer",
+								label: "Footer",
+								items: [
+									{
+										id: 20,
+										parent_id: null,
+										sort_order: 0,
+										type: "custom",
+										object: null,
+										object_id: null,
+										url: "/privacy",
+										title: "Privacy",
+										target: null,
+										classes: null,
+									},
+								],
+							},
+						]),
+						{ status: 200 },
+					),
+				);
+			}
+			return Promise.resolve(new Response("[]", { status: 200 }));
+		});
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+
+		expect(analysis.navMenus).toEqual([
+			{ name: "main-menu", label: "Main Menu", itemCount: 2 },
+			{ name: "footer", label: "Footer", itemCount: 1 },
+		]);
+	});
+
+	it("omits navMenus when the plugin has no menus endpoint", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/emdash/v1/analyze")) {
+				return Promise.resolve(
+					new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+				);
+			}
+			return Promise.resolve(new Response("Not Found", { status: 404 }));
+		});
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+
+		expect(analysis.navMenus).toBeUndefined();
+	});
+
 	it("falls back to ?rest_route= when the pretty route 404s (plain permalinks)", async () => {
 		mockFetch.mockImplementation((input: RequestInfo | URL) => {
 			const url = toUrlString(input);
@@ -713,6 +813,17 @@ describe("WordPress Plugin Source: bot-protection challenges", () => {
 
 	it("rejects analyze when only the media list answers with a challenge", async () => {
 		challengeOnly("media");
+
+		await expect(
+			wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{},
+			),
+		).rejects.toBeInstanceOf(SiteChallengeError);
+	});
+
+	it("rejects analyze when only the menus endpoint answers with a challenge", async () => {
+		challengeOnly("menus");
 
 		await expect(
 			wordpressPluginSource.analyze(
