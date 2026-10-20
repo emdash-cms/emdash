@@ -1,6 +1,14 @@
 # @emdash-cms/cloudflare
 
-<!-- emdash-changelog-archive: ./changelog/0.24.0-to-0.27.0.md -->
+<!-- emdash-changelog-archive: ./changelog/0.28.0-to-0.28.0.md -->
+
+## 1.3.1
+
+### Patch Changes
+
+- [#4234](https://github.com/emdash-cms/emdash/pull/4234) [`7ad1393`](https://github.com/emdash-cms/emdash/commit/7ad139355023e14c2f9c1606c4184e397f8a99fd) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes imports of `d1()`, `r2()`, `kvCache()`, and other config descriptors when `wrangler` is not installed. Wrangler is now an optional peer dependency and is only loaded when calling `sandbox()`. Projects using `sandbox()` must still install `wrangler`.
+- Updated dependencies [[`30604dc`](https://github.com/emdash-cms/emdash/commit/30604dcb0538df477ea0d8bde894ecdb57388bad), [`b01d06e`](https://github.com/emdash-cms/emdash/commit/b01d06e0f1939b772969c506ff35f8c1ef314748), [`ed01613`](https://github.com/emdash-cms/emdash/commit/ed01613f5258b45e3d8da8e83e43ae946586ee55), [`fedaf4c`](https://github.com/emdash-cms/emdash/commit/fedaf4caad7b0db828079f8fc18442c626e34f21), [`421cb0a`](https://github.com/emdash-cms/emdash/commit/421cb0a42acd56f0cac1c3f5487d1dc5ba7d7892), [`974b77b`](https://github.com/emdash-cms/emdash/commit/974b77b682b078211f72c13a4538a9b68b161a68), [`d33d0a5`](https://github.com/emdash-cms/emdash/commit/d33d0a50b40ca3b2f1f79069895f2917988ebb5c), [`4045436`](https://github.com/emdash-cms/emdash/commit/404543656d9dd21729a9be6776f949f9fead36b7), [`03409e6`](https://github.com/emdash-cms/emdash/commit/03409e67ee01a949a8c3ddc4948e10ebbef4f9a7), [`c958045`](https://github.com/emdash-cms/emdash/commit/c95804553d01deba84f2dfc0015e5a63cb4b90a2), [`bfc435a`](https://github.com/emdash-cms/emdash/commit/bfc435a437feb253c6a474ecc26a5116a38687a0), [`cfbd6bb`](https://github.com/emdash-cms/emdash/commit/cfbd6bb78751077d1b9bf6ef23846b4cc46937e5), [`ee8ed8e`](https://github.com/emdash-cms/emdash/commit/ee8ed8e7113b9ef79015e5a969d7540857b30149), [`621d12f`](https://github.com/emdash-cms/emdash/commit/621d12f0b9aec0b6747e4619c268f7c9de480a4c), [`b0129fb`](https://github.com/emdash-cms/emdash/commit/b0129fb2da697a575322aacc30fe15f31801e97b), [`185c709`](https://github.com/emdash-cms/emdash/commit/185c709c096f78f390da81279f1732929e67423a), [`37c6537`](https://github.com/emdash-cms/emdash/commit/37c653726028308780a3a5134112ac5135b91bec), [`5be4504`](https://github.com/emdash-cms/emdash/commit/5be45045e147063b6e7e2a3b11c310e39501e686), [`d45bd2d`](https://github.com/emdash-cms/emdash/commit/d45bd2d71ee4f3f26111c7246aeed2fc9f97a15c), [`f1ccf45`](https://github.com/emdash-cms/emdash/commit/f1ccf45bf434314603873a6dba03ce43906c4c01), [`ba4d402`](https://github.com/emdash-cms/emdash/commit/ba4d4025d1516ef8b4145e51d9409545a4dac21c), [`4752b90`](https://github.com/emdash-cms/emdash/commit/4752b9011d098b19974896e638919a5f79495657), [`a0b6610`](https://github.com/emdash-cms/emdash/commit/a0b661073ba5bcd22f8f59ddac43156b221d5766), [`e5dda7b`](https://github.com/emdash-cms/emdash/commit/e5dda7bcdc2b7ecb31bf7983ea544354c51670b5)]:
+  - emdash@1.3.1
 
 ## 1.3.0
 
@@ -655,12 +663,3 @@
 
 - Updated dependencies [[`b92807f`](https://github.com/emdash-cms/emdash/commit/b92807f02b3c7da9a19a0758a2213c6bda7ddc4c), [`9e4701e`](https://github.com/emdash-cms/emdash/commit/9e4701e89cffd77e98ea10f46731c47e2815b4e6)]:
   - emdash@0.28.1
-
-## 0.28.0
-
-### Patch Changes
-
-- [#1724](https://github.com/emdash-cms/emdash/pull/1724) [`90883de`](https://github.com/emdash-cms/emdash/commit/90883de81eb2da6409d1f176dd2dc8f27c56a547) Thanks [@swissky](https://github.com/swissky)! - Fixes `cloudflareEmail()` failing the Astro build. It now returns a plugin descriptor with a bundlable entrypoint instead of an in-process plugin definition, so the documented `plugins: [cloudflareEmail({...})]` usage builds again.
-
-- Updated dependencies [[`1866fa3`](https://github.com/emdash-cms/emdash/commit/1866fa346e1d4178c60db0fa437b65c0965b1475), [`b36d15c`](https://github.com/emdash-cms/emdash/commit/b36d15c1523dc6e0ada57b4c838f8948b3fbd4fa), [`a3ec23d`](https://github.com/emdash-cms/emdash/commit/a3ec23ddc36889e16a967049de233f21432165a6), [`cdca719`](https://github.com/emdash-cms/emdash/commit/cdca7194b2509993fbb1fc3c39e2e70c8d796ad7), [`ee5bfe6`](https://github.com/emdash-cms/emdash/commit/ee5bfe6b479b736e0432a4d614f5efa01fce02e7), [`a9e9dde`](https://github.com/emdash-cms/emdash/commit/a9e9dde98a9433a1c186490a24865587f1774fd9), [`a9e9dde`](https://github.com/emdash-cms/emdash/commit/a9e9dde98a9433a1c186490a24865587f1774fd9), [`7d16d95`](https://github.com/emdash-cms/emdash/commit/7d16d955003079c8c4a3093decf56bd4f4f05f8a), [`dd05063`](https://github.com/emdash-cms/emdash/commit/dd050637323731fe7795dbc9cf0c3edd906d6908), [`e2dd273`](https://github.com/emdash-cms/emdash/commit/e2dd2738404b7df57ca5e1d50d31b222218d3734), [`92fd412`](https://github.com/emdash-cms/emdash/commit/92fd41227225c425c703e0a0bb62b963c1cd4391), [`932f4ba`](https://github.com/emdash-cms/emdash/commit/932f4ba3adef8be21abc39b4cc7612609895e88c), [`15b4d2d`](https://github.com/emdash-cms/emdash/commit/15b4d2d189142abb69f5c9223c4c1f10363e837f)]:
-  - emdash@0.28.0
