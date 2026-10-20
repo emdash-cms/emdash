@@ -429,6 +429,33 @@ describe("leaving the content editor", () => {
 		10_000,
 	);
 
+	it("after switching entries, saves a revert made while the autosave is on its way", async () => {
+		mockFetch
+			.on("GET", `/_emdash/api/content/posts/${OTHER.id}`, { data: { item: OTHER } })
+			.on("PUT", `/_emdash/api/content/posts/${CREATED.id}?locale=en`, {
+				data: { item: { ...CREATED, data: { title: "Edited title" } }, _rev: "rev-2" },
+			});
+		const { router, title } = await renderEditor((start, queryClient) => {
+			queryClient.setQueryDefaults(["content"], { gcTime: Infinity });
+			return openPost(start, CREATED.id);
+		});
+		await openPost(router, OTHER.id);
+		await expect.element(title).toHaveValue("Other title");
+		await openPost(router, CREATED.id);
+		await expect.element(title).toHaveValue("Unsaved title");
+
+		const autosave = holdPuts();
+		const puts = recordPuts();
+		await title.fill("Edited title");
+		await expect.poll(() => puts.length, { timeout: 5000 }).toBe(1);
+		await title.fill("Unsaved title");
+		autosave.release();
+
+		await expect.poll(() => puts.length, { timeout: 5000 }).toBe(2);
+		expect(puts.at(-1)?.data).toEqual({ title: "Unsaved title" });
+		await expect.element(title).toHaveValue("Unsaved title");
+	}, 10_000);
+
 	it.each([
 		["an autosave", "a conflict", CONFLICT, "Autosave failed"],
 		["an autosave", "another editor's lock", LOCKED, "Autosave failed"],
