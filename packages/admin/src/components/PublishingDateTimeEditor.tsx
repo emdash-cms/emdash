@@ -96,12 +96,12 @@ function timePartsFromValue(value: string, use12HourClock: boolean): TimeParts {
 }
 
 function timeValueFromParts(parts: TimeParts, use12HourClock: boolean): string {
-	if (parts.hour.length !== 2 || parts.minute.length !== 2) return "";
+	if (!parts.hour || !parts.minute) return "";
 	const hour = Number(parts.hour);
 	const minute = Number(parts.minute);
 	if (minute > 59 || (use12HourClock ? hour < 1 || hour > 12 : hour > 23)) return "";
 	const hour24 = use12HourClock ? (hour % 12) + (parts.period === "pm" ? 12 : 0) : hour;
-	return `${String(hour24).padStart(2, "0")}:${parts.minute}`;
+	return `${String(hour24).padStart(2, "0")}:${parts.minute.padStart(2, "0")}`;
 }
 
 export function PublishingDateTimeFields({
@@ -184,11 +184,9 @@ export function PublishingDateTimeFields({
 	const errorId = React.useId();
 	const timeGroupRef = React.useRef<HTMLDivElement>(null);
 	const timeInvalid = invalid ? !invalid.reason.endsWith("-date") : false;
-	const hourComplete = timeParts.hour.length === 2;
-	const minuteComplete = timeParts.minute.length === 2;
-	const flagBothParts = hourComplete && minuteComplete;
-	const hourInvalid = timeInvalid && (flagBothParts || !hourComplete);
-	const minuteInvalid = timeInvalid && (flagBothParts || !minuteComplete);
+	const flagBothParts = Boolean(timeParts.hour && timeParts.minute);
+	const hourInvalid = timeInvalid && (flagBothParts || !timeParts.hour);
+	const minuteInvalid = timeInvalid && (flagBothParts || !timeParts.minute);
 	React.useEffect(() => {
 		if (!invalid) return;
 		timeGroupRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
@@ -295,18 +293,16 @@ export function PublishingDateTimeFields({
 						</div>
 					) : null}
 				</div>
-				{errorText ? (
-					<Text
-						as="p"
-						id={errorId}
-						role="alert"
-						variant="error"
-						size="sm"
-						DANGEROUS_className="mt-1.5 whitespace-pre-line"
-					>
-						{errorText}
-					</Text>
-				) : null}
+				<Text
+					as="p"
+					id={errorId}
+					role="alert"
+					variant="error"
+					size="sm"
+					DANGEROUS_className="mt-1.5 min-h-lh whitespace-pre-line"
+				>
+					{errorText}
+				</Text>
 				<div className="mt-2 flex items-start gap-2 text-kumo-subtle">
 					<span className="flex h-lh shrink-0 items-center" aria-hidden="true">
 						<Globe className="size-4" />
@@ -377,7 +373,7 @@ function PublishingDateTimeDialogContent({
 		>
 			<form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
 				<div className="flex shrink-0 items-center justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-6">
-					<Dialog.Title className="min-w-0 truncate text-lg font-semibold leading-none">
+					<Dialog.Title className="min-w-0 text-lg font-semibold leading-6 text-pretty">
 						{title}
 					</Dialog.Title>
 					<Dialog.Close
@@ -470,10 +466,11 @@ export function PublishingScheduleDialog({
 		reset();
 	}, [entryKey, reset]);
 
-	// The suggested slot is relative to now, so it is recomputed each time the dialog opens.
+	// Resetting on open rather than only on close also recomputes the suggested slot, which is
+	// relative to now, and discards edits that a blur fires while the dialog is closing.
 	React.useLayoutEffect(() => {
-		if (open && !scheduledAt) reset();
-	}, [open, scheduledAt, reset]);
+		if (open) reset();
+	}, [open, reset]);
 
 	const clearError = () => {
 		setInvalid(null);
@@ -604,7 +601,7 @@ export function PublicationDateDialog({
 	};
 
 	const handleOpenChange = (nextOpen: boolean) => {
-		if (!nextOpen && !pending) reset();
+		if (nextOpen || !pending) reset();
 		setOpen(nextOpen);
 	};
 

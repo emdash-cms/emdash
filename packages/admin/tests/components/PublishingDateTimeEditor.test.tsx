@@ -199,16 +199,66 @@ it("explains why the schedule cannot be saved", async () => {
 	const screen = await render(
 		<PublishingScheduleDialog {...scheduleDialogProps} open onSchedule={onSchedule} />,
 	);
-	const hour = screen.getByRole("textbox", { name: "Hour" });
-	await hour.fill("");
-	screen.getByRole("button", { name: "Schedule", exact: true }).element().click();
+	const minute = screen.getByRole("textbox", { name: "Minute" });
+	await minute.fill("");
+	await userEvent.keyboard("{Enter}");
 
-	await expect.element(hour).toHaveAccessibleDescription("Enter a time");
-	await expect.element(hour).toHaveAttribute("aria-invalid", "true");
-	await expect
-		.element(screen.getByRole("textbox", { name: "Minute" }))
-		.not.toHaveAttribute("aria-invalid");
+	await expect.element(minute).toHaveAccessibleDescription("Enter a time");
+	await expect.element(minute).toHaveAttribute("aria-invalid", "true");
 	expect(onSchedule).not.toHaveBeenCalled();
+});
+
+it("moves focus to the start of a time that has already passed", async () => {
+	vi.useFakeTimers({ toFake: ["Date"] });
+	vi.setSystemTime(new Date(2035, 5, 15, 14, 57));
+	const screen = await render(
+		<PublishingScheduleDialog {...scheduleDialogProps} open onSchedule={vi.fn()} />,
+	);
+	const hour = screen.getByRole("textbox", { name: "Hour" });
+	const minute = screen.getByRole("textbox", { name: "Minute" });
+	await hour.fill("01");
+	await minute.fill("30");
+	await userEvent.keyboard("{Enter}");
+
+	await expect.element(hour).toHaveAccessibleDescription("Choose a time in the future");
+	await expect.element(hour).toHaveFocus();
+});
+
+it("shows why the server rejected the schedule", async () => {
+	const onSchedule = vi.fn().mockRejectedValue(new Error("Scheduling is locked for this post"));
+	const screen = await render(
+		<PublishingScheduleDialog {...scheduleDialogProps} open onSchedule={onSchedule} />,
+	);
+	const schedule = screen.getByRole("button", { name: "Schedule", exact: true });
+	await expect.element(schedule).toBeVisible();
+	schedule.element().click();
+
+	await expect
+		.element(screen.getByRole("alert"))
+		.toHaveTextContent("Scheduling is locked for this post");
+});
+
+it("accepts a single-digit minute", async () => {
+	function ControlledFields() {
+		const [time, setTime] = React.useState("09:00");
+		return (
+			<>
+				<PublishingDateTimeFields
+					date={new Date(2035, 5, 15, 12)}
+					time={time}
+					dateAriaLabel="Publication date"
+					onDateChange={vi.fn()}
+					onTimeChange={setTime}
+				/>
+				<output>{time}</output>
+			</>
+		);
+	}
+
+	const screen = await render(<ControlledFields />);
+	await screen.getByRole("textbox", { name: "Minute" }).fill("5");
+
+	await expect.element(screen.getByText("09:05", { exact: true })).toBeVisible();
 });
 
 it("keeps hours before minutes in right-to-left locales", async () => {
