@@ -12,6 +12,7 @@ import { ImageBroken, ImageSquare, Trash } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { ContentSeo, ContentSeoInput, MediaItem } from "../lib/api";
+import { localMediaFileUrl } from "../lib/media-utils.js";
 import { cn } from "../lib/utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
@@ -43,7 +44,11 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 	const replaceButtonRef = React.useRef<HTMLButtonElement>(null);
 	const pickerOpenedWithFocusRef = React.useRef(false);
 	const focusHandoffRef = React.useRef<{ image: string | null; viaPicker: boolean } | null>(null);
-	const imageUrl = seo?.image || null;
+	const imageRef = seo?.image || null;
+	const imageUrl =
+		imageRef && !imageRef.includes("/") && !imageRef.includes(":")
+			? localMediaFileUrl(imageRef)
+			: imageRef;
 	const hasImage = imageUrl !== null;
 	const failed = hasImage && failedUrl === imageUrl;
 	const label = t`OG Image`;

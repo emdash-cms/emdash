@@ -5,8 +5,10 @@
  */
 
 import type { APIRoute } from "astro";
+import { isValid as isMediaId } from "ulidx";
 
 import { apiError, handleError } from "#api/error.js";
+import { MediaRepository } from "#db/repositories/media.js";
 import {
 	IMMUTABLE_IMAGE_CACHE,
 	MUTABLE_MEDIA_CACHE_CONTROL,
@@ -61,6 +63,13 @@ const SAFE_INLINE_TYPES = new Set([
 	"audio/ogg",
 ]);
 
+function isNotFound(error: unknown): boolean {
+	return (
+		error instanceof Error &&
+		(error.message.includes("not found") || error.message.includes("NOT_FOUND"))
+	);
+}
+
 export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 	const { key } = params;
 	const { emdash } = locals;
@@ -80,6 +89,8 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 		return apiError("NOT_CONFIGURED", "Storage not configured", 500);
 	}
 
+	const storage = emdash.storage;
+
 	// An unread download retains its storage connection even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
 	try {
@@ -91,9 +102,26 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 		// The route cache keys entries by URL alone, so a cached partial
 		// response would be served to requests for the whole file.
 		if (range && cache?.enabled) cache.set(false);
-		const result = range
-			? await emdash.storage.download(key, { range })
-			: await emdash.storage.download(key);
+		const download = (storageKey: string) =>
+			range ? storage.download(storageKey, { range }) : storage.download(storageKey);
+		let result;
+		try {
+			result = await download(key);
+		} catch (error) {
+			// Bare IDs are legacy media references, not storage keys. Keep direct
+			// file requests query-free and only resolve IDs after a storage miss.
+			if (!isNotFound(error) || !isMediaId(key) || !emdash.db) throw error;
+			const item = await new MediaRepository(emdash.db).findById(key);
+			if (
+				!item ||
+				item.status !== "ready" ||
+				item.storageKey === key ||
+				isPrivateMediaKey(item.storageKey)
+			) {
+				throw error;
+			}
+			result = await download(item.storageKey);
+		}
 		unusedBody = result.body;
 		const served = range ? result.range : undefined;
 
@@ -160,10 +188,7 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 		return response;
 	} catch (error) {
 		// Check if it's a "not found" error
-		if (
-			error instanceof Error &&
-			(error.message.includes("not found") || error.message.includes("NOT_FOUND"))
-		) {
+		if (isNotFound(error)) {
 			return apiError("NOT_FOUND", "File not found", 404);
 		}
 		return handleError(error, "Failed to serve file", "FILE_SERVE_ERROR");

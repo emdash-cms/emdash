@@ -202,6 +202,16 @@ beforeEach(() => {
 });
 
 describe("SeoImageField", () => {
+	it("requests a bare media ID from the media endpoint rather than the editor route", async () => {
+		const id = "01J00000000000000000000000";
+		const url = new URL(`/_emdash/api/media/file/${id}`, window.location.origin).href;
+		performance.clearResourceTimings();
+		await render(<Field image={id} />);
+		await vi.waitFor(() => {
+			expect(performance.getEntriesByName(url).length).toBeGreaterThan(0);
+		});
+	});
+
 	it.each([
 		["wide", 1600, 840],
 		["tall", 400, 1200],
