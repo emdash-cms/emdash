@@ -111,14 +111,14 @@ export function CommentDetail({
 						</p>
 						<p className="text-sm">
 							<span className="text-kumo-subtle">{t`Content ID:`}</span>{" "}
-							<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
+							<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 								{comment.contentId}
 							</code>
 						</p>
 						{comment.parentId && (
 							<p className="text-sm">
 								<span className="text-kumo-subtle">{t`Reply to:`}</span>{" "}
-								<code className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
+								<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded text-xs">
 									{comment.parentId}
 								</code>
 							</p>
@@ -131,7 +131,7 @@ export function CommentDetail({
 							<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
 								{t`Moderation Signals`}
 							</h3>
-							<pre className="text-xs bg-kumo-tint rounded p-3 overflow-x-auto">
+							<pre dir="ltr" className="text-xs bg-kumo-tint rounded p-3 overflow-x-auto">
 								{JSON.stringify(comment.moderationMetadata, null, 2)}
 							</pre>
 						</div>

@@ -428,6 +428,7 @@ export function Widgets() {
 								</div>
 								<form onSubmit={handleCreateArea} className="space-y-4">
 									<Input
+										dir="ltr"
 										label={t`Name`}
 										name="name"
 										required

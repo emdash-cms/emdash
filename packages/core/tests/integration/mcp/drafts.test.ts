@@ -813,4 +813,45 @@ describe("MCP drafts — liveData hydration (F13)", () => {
 		expect(item.data.title).toBe("draft title");
 		expect(item.liveData?.title).toBe("published title");
 	});
+
+	it("a Subscriber reads only the published values", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "published title" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
+		});
+		await harness.client.callTool({
+			name: "content_update",
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "draft title" },
+				_rev: await currentRev(harness.client, "post", id),
+			},
+		});
+
+		const subscriber = await connectMcpHarness({
+			db,
+			userId: "user_subscriber",
+			userRole: Role.SUBSCRIBER,
+		});
+		try {
+			const got = await subscriber.client.callTool({
+				name: "content_get",
+				arguments: { collection: "post", id },
+			});
+			const item = extractJson<{
+				item: { data: { title: string }; liveData?: unknown; draftRevisionId?: unknown };
+			}>(got).item;
+			expect(item.data.title).toBe("published title");
+			expect(item.liveData).toBeUndefined();
+			expect(item.draftRevisionId).toBeUndefined();
+		} finally {
+			await subscriber.cleanup();
+		}
+	});
 });

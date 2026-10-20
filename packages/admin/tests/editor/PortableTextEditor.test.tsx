@@ -347,6 +347,28 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(roundTripped).toEqual(blocks);
 	});
 
+	it("opens consecutive quote blocks as one quote and saves them unchanged", () => {
+		const blocks = [
+			textBlock("Before"),
+			textBlock("First quoted line", { style: "blockquote" }),
+			textBlock("Second quoted line", {
+				style: "blockquote",
+				marks: ["em", "link-1"],
+				markDefs: [{ _type: "link", _key: "link-1", href: "https://example.com" }],
+			}),
+			textBlock("After"),
+		];
+
+		const doc = _portableTextToProsemirror(blocks);
+
+		expect(doc.content.map((node) => (node as { type: string }).type)).toEqual([
+			"paragraph",
+			"blockquote",
+			"paragraph",
+		]);
+		expect(_prosemirrorToPortableText(doc)).toEqual(blocks);
+	});
+
 	it("keeps a no-op editor update lossless", async () => {
 		const onChange = vi.fn();
 		const blocks = [
@@ -1117,7 +1139,8 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(span?.text).toBe("API");
 		expect(span?.marks).toContain("code");
 		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
-		expect(linkDef?.href).toBe("https://api.example.com");
+		expect(linkDef).toMatchObject({ _type: "link", href: "https://api.example.com" });
+		expect(linkDef).not.toMatchObject({ blank: true });
 		expect(span?.marks).toContain(linkDef?._key);
 	});
 

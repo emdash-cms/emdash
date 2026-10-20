@@ -146,6 +146,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 				scheduled_at TEXT,
 				deleted_at TEXT,
 				version INTEGER DEFAULT 1,
+				draft_revision_id TEXT,
 				locale TEXT NOT NULL DEFAULT 'en',
 				translation_group TEXT,
 				title TEXT,

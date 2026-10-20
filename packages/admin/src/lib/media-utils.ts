@@ -111,11 +111,26 @@ export function metaPlayback(meta: Record<string, unknown> | undefined): MediaPl
 	return hls || dash ? { hls, dash } : undefined;
 }
 
+/** Keep the legacy metadata alias consistent with the per-use caption. */
+export function syncMediaCaption<T extends { caption?: string; meta?: Record<string, unknown> }>(
+	value: T,
+): T {
+	const caption = value.caption ?? metaString(value.meta, "caption");
+	if (caption === undefined) return value;
+	return {
+		...value,
+		caption,
+		...(value.meta && Object.hasOwn(value.meta, "caption")
+			? { meta: { ...value.meta, caption } }
+			: {}),
+	};
+}
+
 export function providerItemToMediaItem(
 	providerId: string,
 	item: MediaProviderItem,
 ): MediaItem & { provider: string; meta?: Record<string, unknown> } {
-	return {
+	return syncMediaCaption({
 		id: item.id,
 		filename: item.filename,
 		mimeType: item.mimeType,
@@ -129,10 +144,11 @@ export function providerItemToMediaItem(
 		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
 		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 		alt: item.alt,
+		caption: item.caption ?? metaString(item.meta, "caption"),
 		createdAt: new Date().toISOString(),
 		provider: providerId,
 		meta: item.meta,
-	};
+	});
 }
 
 const MAX_UPLOAD_PREVIEW_BYTES = 8 * 1024 * 1024;

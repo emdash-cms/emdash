@@ -1,7 +1,9 @@
-// Graceful handling for Workers AI capacity (HTTP 429) errors and stalled
-// inference calls.
+// Graceful handling for model capacity errors (Workers AI capacity, provider
+// rate limits and overload) and stalled inference calls.
 //
-// Workers AI returns 429 when a model is over capacity. Under sustained load
+// Workers AI returns 429 when a model is over capacity; Anthropic and OpenAI,
+// directly or through AI Gateway, return 429 when rate limited and 529 or 503
+// when overloaded. Under sustained load
 // the binding can also hold a request open well past any useful deadline, which
 // (without a bound) leaves a review workflow hung forever -- the agent call
 // never returns, nothing posts, and the only artifact is the container DO's
@@ -54,18 +56,54 @@ export interface CapacityRetryOptions {
 
 const CAPACITY_MARKERS = [
 	"429",
+	"529",
 	"too many requests",
 	"capacity",
-	"over capacity",
 	"rate limit",
+	"rate_limit",
 	"overloaded",
 	"3040", // Workers AI "Capacity temporarily exceeded" code
 ];
 
-/** Best-effort classification of a Workers AI / gateway capacity (429) error. */
+// A 503 is retried only when it reports overload or unavailability; other 503s
+// are as likely to be a misconfigured route as a busy provider.
+const OVERLOAD_STATUS_TEXT = /overload|unavailable/;
+const UNAVAILABLE = /\b503\b[\s\S]*(?:overload|unavailable)|(?:overload|unavailable)[\s\S]*\b503\b/;
+
+function errorStatus(error: unknown): number | undefined {
+	if (typeof error !== "object" || error === null) return undefined;
+	const status =
+		("status" in error ? error.status : undefined) ??
+		("statusCode" in error ? error.statusCode : undefined);
+	return typeof status === "number" ? status : undefined;
+}
+
+function errorMessages(error: unknown): string {
+	const messages: string[] = [];
+	let current: unknown = error;
+	for (let depth = 0; depth < 4 && current !== undefined && current !== null; depth++) {
+		if (current instanceof Error) {
+			messages.push(current.message);
+			current = current.cause;
+		} else {
+			messages.push(typeof current === "string" ? current : JSON.stringify(current));
+			current = undefined;
+		}
+	}
+	return messages.join("\n").toLowerCase();
+}
+
+/**
+ * Best-effort classification of a capacity error worth retrying: Workers AI
+ * capacity, and AI Gateway, Anthropic or OpenAI rate limits (429) and
+ * overload (529, or 503 reporting overload).
+ */
 export function isCapacityError(error: unknown): boolean {
-	const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
-	return CAPACITY_MARKERS.some((marker) => message.includes(marker));
+	const status = errorStatus(error);
+	if (status === 429 || status === 529) return true;
+	const message = errorMessages(error);
+	if (status === 503 && OVERLOAD_STATUS_TEXT.test(message)) return true;
+	return CAPACITY_MARKERS.some((marker) => message.includes(marker)) || UNAVAILABLE.test(message);
 }
 
 function isTimeoutAbort(error: unknown, timeoutSignal: AbortSignal | undefined): boolean {

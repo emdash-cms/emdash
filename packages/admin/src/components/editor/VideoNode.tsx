@@ -11,7 +11,7 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowsClockwise, Trash, VideoCameraSlash } from "@phosphor-icons/react";
+import { ArrowsClockwise, Subtitles, Trash, VideoCameraSlash } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Node, mergeAttributes, type Editor } from "@tiptap/core";
 import type { NodeType } from "@tiptap/pm/model";
@@ -29,6 +29,7 @@ import {
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
 import { MediaPickerModal } from "../MediaPickerModal";
+import { useCaptionField } from "./useCaptionField.js";
 
 type FieldCheck = (value: unknown) => boolean;
 
@@ -174,6 +175,7 @@ function VideoNodeView({
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const captionRef = React.useRef<HTMLTextAreaElement>(null);
 	const caption = isString(attrs.caption) ? attrs.caption : "";
+	const captionField = useCaptionField(caption);
 	const width = isDimension(attrs.width) ? attrs.width : undefined;
 	const height = isDimension(attrs.height) ? attrs.height : undefined;
 	const figureRef = React.useRef<HTMLElement>(null);
@@ -319,7 +321,9 @@ function VideoNodeView({
 
 				{editable ? (
 					// Inline-size containment keeps the caption's placeholder text from widening the block.
-					<figcaption className="mt-2 [contain:inline-size]">
+					<figcaption
+						className={cn("mt-2 [contain:inline-size]", !captionField.shown && "sr-only")}
+					>
 						<textarea
 							ref={captionRef}
 							aria-label={t`Caption`}
@@ -332,7 +336,11 @@ function VideoNodeView({
 							onChange={(event) => {
 								if (editor.isEditable) updateAttributes({ caption: event.target.value });
 							}}
-							onFocus={() => selectBlock(false)}
+							onFocus={() => {
+								captionField.onFocus();
+								selectBlock(false);
+							}}
+							onBlur={captionField.onBlur}
 							onKeyDown={handleCaptionKeyDown}
 							className="block w-full resize-none field-sizing-content rounded-sm bg-transparent text-center text-sm text-kumo-subtle placeholder:text-kumo-placeholder focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-focus/50"
 						/>
@@ -369,6 +377,21 @@ function VideoNodeView({
 							onClick={openPicker}
 						>
 							<ArrowsClockwise className="size-4" aria-hidden="true" />
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							size="sm"
+							className={cn(pillButtonClass, caption && "bg-kumo-tint text-kumo-link")}
+							aria-label={caption ? t`Edit caption` : t`Add caption`}
+							aria-pressed={Boolean(caption)}
+							title={caption ? t`Edit caption` : t`Add caption`}
+							tabIndex={-1}
+							data-video-stop=""
+							onClick={() => captionRef.current?.focus()}
+						>
+							<Subtitles className="size-4" aria-hidden="true" />
 						</Button>
 						<Button
 							type="button"

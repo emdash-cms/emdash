@@ -19,6 +19,7 @@ import { handleTaxonomyCreate } from "../../../src/api/handlers/taxonomies.js";
 import { TaxonomyRepository as TaxonomyRepo } from "../../../src/database/repositories/taxonomy.js";
 import { encodeCursor } from "../../../src/database/repositories/types.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { decodeBase64, encodeBase64 } from "../../../src/utils/base64.js";
 import {
@@ -164,6 +165,7 @@ describe("taxonomy_list_terms", () => {
 
 	afterEach(async () => {
 		if (harness) await harness.cleanup();
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
 	});
 
@@ -241,6 +243,35 @@ describe("taxonomy_list_terms", () => {
 		// No overlap
 		const p1Slugs = p1.items.map((i) => i.slug);
 		for (const t of p2.items) expect(p1Slugs).not.toContain(t.slug);
+	});
+
+	it("accepts a code-stamped cursor when filtering by its configured locale path", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en"],
+			localeAliases: { "en-US": "en" },
+		});
+		const repo = new TaxonomyRepo(db);
+		const first = await repo.create({ name: "categories", slug: "first", label: "First" });
+		await repo.create({ name: "categories", slug: "second", label: "Second" });
+		await db
+			.updateTable("taxonomies")
+			.set({ locale: "en-US" })
+			.where("id", "=", first.id)
+			.execute();
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		const page1 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", locale: "en", limit: 1 },
+		});
+		const p1 = extractJson<{ nextCursor?: string }>(page1);
+		expect(p1.nextCursor).toBeTruthy();
+		const page2 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", locale: "en", limit: 1, cursor: p1.nextCursor },
+		});
+		expect(page2.isError, extractText(page2)).toBeFalsy();
 	});
 
 	it("paginates in manual term order", async () => {

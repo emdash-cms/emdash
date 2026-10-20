@@ -1118,7 +1118,7 @@ export function MediaPickerModal({
 										<div className="grid gap-1.5">
 											<Label htmlFor="media-picker-url">{t`Image URL`}</Label>
 											<div className="flex flex-col gap-2 sm:flex-row">
-												<div className="relative min-w-0 flex-1">
+												<div dir="ltr" className="relative min-w-0 flex-1">
 													<Globe
 														className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-kumo-subtle"
 														aria-hidden="true"

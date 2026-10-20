@@ -413,7 +413,9 @@ function FieldRow({
 		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3 font-medium">{field.label}</td>
 			<td className="px-4 py-3">
-				<code className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">{field.slug}</code>
+				<code dir="ltr" className="text-sm bg-kumo-tint px-1.5 py-0.5 rounded">
+					{field.slug}
+				</code>
 			</td>
 			<td className="px-4 py-3 text-sm">{field.type}</td>
 			<td className="px-4 py-3 text-sm">

@@ -863,8 +863,8 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 			const tag = tagName.toLowerCase();
 			const text = currentText.trim();
 
-			// Site metadata
-			if (currentPath.length === 2 && currentPath[0] === "rss") {
+			// Site metadata: the closing tag is still on the path (rss > channel > tag)
+			if (currentPath.length === 3 && currentPath[1] === "channel") {
 				switch (tag) {
 					case "title":
 						data.site.title = text;
