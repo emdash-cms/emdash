@@ -76,4 +76,27 @@ describe("connection", () => {
 		expect(rejected.values.size).toBe(0);
 		expect(Object.fromEntries(accepted.values)).toEqual(input);
 	});
+
+	it("leaves the stored account unchanged when the token cannot be saved", async () => {
+		const saved = { accountId: "old-account", apiToken: "old-token" };
+		const { ctx, values } = memorySettings(saved);
+		const set = ctx.settings.set;
+		ctx.settings.set = async (key, value) => {
+			if (key === "apiToken") throw new Error("EMDASH_ENCRYPTION_KEY is not set");
+			await set(key, value);
+		};
+
+		await expect(
+			saveCredentials(
+				ctx,
+				options,
+				{ accountId: "new-account", apiToken: "new-token" },
+				{},
+				() => ({
+					verify: async () => {},
+				}),
+			),
+		).rejects.toThrow("EMDASH_ENCRYPTION_KEY");
+		expect(Object.fromEntries(values)).toEqual(saved);
+	});
 });

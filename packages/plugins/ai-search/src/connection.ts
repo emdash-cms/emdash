@@ -70,8 +70,9 @@ export async function saveCredentials(
 	if (accountId && apiToken) {
 		await connect({ accountId, apiToken, namespace: namespace(env) }).verify();
 	}
-	if (input.accountId) await ctx.settings.set(SETTINGS.accountId, input.accountId);
+	// The token goes first: encrypting it is what can fail, and then nothing is saved.
 	if (input.apiToken) await ctx.settings.set(SETTINGS.apiToken, input.apiToken);
+	if (input.accountId) await ctx.settings.set(SETTINGS.accountId, input.accountId);
 }
 
 function merge(...layers: Credentials[]): Credentials {
