@@ -315,9 +315,7 @@ async function buildMenuTree(
 		const menuItem = itemMap.get(item.id);
 		if (!menuItem) continue;
 		if (item.parent_id) {
-			const parent = itemMap.get(item.parent_id);
-			if (parent) parent.children.push(menuItem);
-			else rootItems.push(menuItem);
+			itemMap.get(item.parent_id)?.children.push(menuItem);
 		} else {
 			rootItems.push(menuItem);
 		}

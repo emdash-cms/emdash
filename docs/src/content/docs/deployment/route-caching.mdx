@@ -61,6 +61,8 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 `Astro.cache.set()` merges with the route rule, and tags accumulate across calls. The cache hints carry tags but no `maxAge`, so the route rule decides how long a page is cached.
 
+Menus are an exception. Publishing, unpublishing, trashing, or restoring an entry that a menu links to, or changing its slug, doesn't invalidate the menu's tag. A page that shows the menu picks up the change when its tags also name that entry's collection, or otherwise when the page expires.
+
 Give every public route an explicit rule. Rules match the request path, so list your public routes individually: a rest parameter at the site root, such as `/[...slug]`, also matches the admin and API routes under `/_emdash/`.
 
 ## Invalidation on publish is built-in
