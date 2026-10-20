@@ -27,6 +27,7 @@ const aiSearch = vi.hoisted(() => ({ current: null as FakeAiSearch | null }));
 vi.mock("../../../../plugins/ai-search/src/connection.js", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../../../plugins/ai-search/src/connection.js")>()),
 	openProvider: async () => aiSearch.current,
+	saveCredentials: async () => {},
 }));
 
 // The plugin imports its helpers from the `emdash` package. Resolve it to this
@@ -106,6 +107,11 @@ describe("ai-search plugin", () => {
 	/** Saves `config` and runs its build from the settings page. */
 	async function setUpSearchWith(config: unknown) {
 		await data("POST", "config/save", config);
+		await runBuild();
+	}
+
+	/** Runs the current build from the settings page. */
+	async function runBuild() {
 		for (let step = 0; step < 20; step++) {
 			const { build } = (await data("POST", "index/step")) as { build: unknown };
 			if (!build) return;
@@ -329,6 +335,34 @@ describe("ai-search plugin", () => {
 			rateLimited: false,
 			credentialsRejected: true,
 		});
+	});
+
+	it("rebuilds the index in a new account that has no instance yet", async () => {
+		await publish((await createPost("Rose garden", "Planting roses.")).id);
+		await setUpSearch();
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
+		aiSearch.current = service;
+
+		expect(await data("GET", "status")).toMatchObject({ instanceMissing: true });
+
+		await data("POST", "connection/save", { accountId: "other-account" });
+		await runBuild();
+		finishIndexing();
+
+		expect(await data("GET", "status")).toMatchObject({ instanceMissing: false });
+		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
+	});
+
+	it("rebuilds the index when setup is saved again after the instance went missing", async () => {
+		await publish((await createPost("Rose garden", "Planting roses.")).id);
+		await setUpSearch();
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
+		aiSearch.current = service;
+
+		await setUpSearch();
+		finishIndexing();
+
+		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
 	});
 
 	it("answers 503 before AI Search is set up and while it is failing", async () => {

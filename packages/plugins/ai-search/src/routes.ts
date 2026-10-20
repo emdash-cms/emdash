@@ -66,6 +66,7 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 				]);
 				let credentialsRejected = false;
 				let rateLimited = false;
+				let instanceMissing = false;
 				const [stats, listed, counts, info] = session
 					? await Promise.all([
 							session.provider.stats(),
@@ -75,6 +76,7 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 							build ? null : session.provider.info().catch(() => null),
 						]).catch(async (error: unknown) => {
 							if (isProviderError(error, "unauthorized")) credentialsRejected = true;
+							else if (isProviderError(error, "not-found")) instanceMissing = true;
 							else if (!isProviderError(error, "rate-limited")) throw error;
 							else if (await session.provider.tokenRejected?.()) credentialsRejected = true;
 							else rateLimited = true;
@@ -87,6 +89,7 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 					method: connected ? provider.kind : null,
 					credentialsRejected,
 					rateLimited,
+					instanceMissing,
 					configured: session !== null,
 					build,
 					totals: indexTotals({
@@ -160,7 +163,9 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 				if (!config) throw new Error("[ai-search] config was not saved");
 				await startBuild(
 					ctx,
-					indexImpact(previous, config).map((impact) => impact.source),
+					created
+						? enabledSources(config)
+						: indexImpact(previous, config).map((impact) => impact.source),
 				);
 				return config;
 			},
@@ -233,6 +238,16 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 						);
 					}
 					rethrowProviderError(error);
+				}
+				// Another account or namespace may not have the instance yet.
+				const config = await loadConfig(ctx);
+				const provider = config ? await openProvider(ctx, options) : null;
+				if (config && provider) {
+					const { created } = await provider.ensureInstance().catch(rethrowProviderError);
+					if (created) {
+						await markInstanceCreated(ctx);
+						await startBuild(ctx, enabledSources(config));
+					}
 				}
 				return describeConnection(ctx);
 			},

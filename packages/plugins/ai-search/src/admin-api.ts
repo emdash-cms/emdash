@@ -44,6 +44,8 @@ export interface Status {
 	credentialsRejected: boolean;
 	/** Cloudflare refused this status check for now, so its figures are missing. */
 	rateLimited: boolean;
+	/** AI Search has no instance with the configured name, for example after a change of account. */
+	instanceMissing: boolean;
 	configured: boolean;
 	build: BuildState | null;
 	totals: IndexTotals;

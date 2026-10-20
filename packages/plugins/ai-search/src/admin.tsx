@@ -221,6 +221,13 @@ function SettingsPage() {
 				</p>
 			</header>
 			{error && <Banner variant="error" description={error} />}
+			{status.instanceMissing && !wizard && (
+				<Banner
+					variant="alert"
+					title="AI Search has no instance for this site"
+					description="This can happen after connecting another account or namespace. Choose Edit setup and finish it to create the instance and rebuild the index."
+				/>
+			)}
 			{status.rateLimited && !wizard && (
 				<Banner
 					variant="alert"
