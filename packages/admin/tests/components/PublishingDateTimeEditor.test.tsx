@@ -1,12 +1,19 @@
 import { i18n } from "@lingui/core";
 import { fireEvent } from "@testing-library/react";
 import * as React from "react";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import { PublishingDateTimeFields } from "../../src/components/PublishingDateTimeEditor.js";
+import {
+	PublishingDateTimeFields,
+	PublishingScheduleDialog,
+} from "../../src/components/PublishingDateTimeEditor.js";
 import { getPublishingTimeZone } from "../../src/lib/publishing-datetime.js";
 import { render } from "../utils/render.tsx";
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 it("returns the calendar to the current month when a new entry has no saved date", async () => {
 	const previousDate = new Date(2035, 5, 15, 12);
@@ -138,4 +145,112 @@ it("moves focus to minutes and converts the selected day period", async () => {
 
 	await expect.element(screen.getByText("22:30", { exact: true })).toBeVisible();
 	await screen.unmount();
+});
+
+it("keeps the chosen day when it is clicked again", async () => {
+	function ControlledFields() {
+		const [date, setDate] = React.useState<Date | undefined>(new Date(2035, 5, 15, 12));
+		return (
+			<PublishingDateTimeFields
+				date={date}
+				time="09:00"
+				dateAriaLabel="Publication date"
+				onDateChange={setDate}
+				onTimeChange={vi.fn()}
+			/>
+		);
+	}
+
+	const screen = await render(<ControlledFields />);
+	const day = screen.getByRole("button", { name: /June 15/ });
+	const cell = () => day.element().closest('[role="gridcell"]')!;
+	expect(cell()).toHaveAttribute("aria-selected", "true");
+	await day.click();
+
+	expect(cell()).toHaveAttribute("aria-selected", "true");
+});
+
+const scheduleDialogProps = {
+	entryKey: "post-1:en",
+	isLive: false,
+	onOpenChange: vi.fn(),
+};
+
+it("suggests the next whole hour from when the schedule dialog opens", async () => {
+	vi.useFakeTimers({ toFake: ["Date"] });
+	vi.setSystemTime(new Date(2035, 5, 15, 9, 20));
+	const onSchedule = vi.fn();
+	const screen = await render(
+		<PublishingScheduleDialog {...scheduleDialogProps} open={false} onSchedule={onSchedule} />,
+	);
+	vi.setSystemTime(new Date(2035, 5, 15, 14, 57));
+	await screen.rerender(
+		<PublishingScheduleDialog {...scheduleDialogProps} open onSchedule={onSchedule} />,
+	);
+	const schedule = screen.getByRole("button", { name: "Schedule", exact: true });
+	await expect.element(schedule).toBeVisible();
+	schedule.element().click();
+
+	expect(onSchedule).toHaveBeenCalledWith(new Date(2035, 5, 15, 16, 0).toISOString());
+});
+
+it("explains why the schedule cannot be saved", async () => {
+	const onSchedule = vi.fn();
+	const screen = await render(
+		<PublishingScheduleDialog {...scheduleDialogProps} open onSchedule={onSchedule} />,
+	);
+	const hour = screen.getByRole("textbox", { name: "Hour" });
+	await hour.fill("");
+	screen.getByRole("button", { name: "Schedule", exact: true }).element().click();
+
+	await expect.element(hour).toHaveAccessibleDescription("Enter a time");
+	await expect.element(hour).toHaveAttribute("aria-invalid", "true");
+	await expect
+		.element(screen.getByRole("textbox", { name: "Minute" }))
+		.not.toHaveAttribute("aria-invalid");
+	expect(onSchedule).not.toHaveBeenCalled();
+});
+
+it("keeps hours before minutes in right-to-left locales", async () => {
+	const screen = await render(
+		<div dir="rtl">
+			<PublishingDateTimeFields
+				date={new Date(2035, 5, 15, 12)}
+				time="09:05"
+				dateAriaLabel="Publication date"
+				onDateChange={vi.fn()}
+				onTimeChange={vi.fn()}
+			/>
+		</div>,
+	);
+	const hour = screen.getByRole("textbox", { name: "Hour" }).element().getBoundingClientRect();
+	const minute = screen.getByRole("textbox", { name: "Minute" }).element().getBoundingClientRect();
+
+	expect(hour.left).toBeLessThan(minute.left);
+});
+
+it("restores an emptied time field when it loses focus", async () => {
+	function ControlledFields() {
+		const [time, setTime] = React.useState("14:30");
+		return (
+			<>
+				<PublishingDateTimeFields
+					date={new Date(2035, 5, 15, 12)}
+					time={time}
+					dateAriaLabel="Publication date"
+					onDateChange={vi.fn()}
+					onTimeChange={setTime}
+				/>
+				<output>{time}</output>
+			</>
+		);
+	}
+
+	const screen = await render(<ControlledFields />);
+	const minute = screen.getByRole("textbox", { name: "Minute" });
+	await minute.fill("");
+	screen.getByRole("textbox", { name: "Hour" }).element().focus();
+
+	await expect.element(minute).toHaveValue("30");
+	await expect.element(screen.getByText("14:30", { exact: true })).toBeVisible();
 });
