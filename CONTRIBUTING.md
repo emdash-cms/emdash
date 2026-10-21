@@ -172,9 +172,9 @@ Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue 
 
 ### Interface screenshots
 
-An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include before-and-after screenshots of every screen it affects. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
+An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include before-and-after screenshots of every screen it affects. For a new screen, the after state is enough. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
 
-Put each pair side by side in a two-column table, cropped to the changed area, and put extra states such as Arabic in a collapsed `<details>` block:
+Put each pair side by side in a two-column table, cropped to the changed area, at the same viewport and with the same content, and put extra states such as Arabic in a collapsed `<details>` block:
 
 ```markdown
 | Before                                                                  | After                                                                                      |
