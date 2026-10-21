@@ -58,19 +58,16 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		}
 
 		// Update sort_order for each widget
-		try {
-			await Promise.all(
-				body.widgetIds.map((id, index) =>
-					db
-						.updateTable("_emdash_widgets")
-						.set({ sort_order: index })
-						.where("id", "=", id)
-						.execute(),
-				),
-			);
-		} finally {
-			invalidateWidgetObjectCache();
-		}
+		// Invalidating before every update settles would let a concurrent read
+		// cache a half-reordered area under the new epoch.
+		const results = await Promise.allSettled(
+			body.widgetIds.map((id, index) =>
+				db.updateTable("_emdash_widgets").set({ sort_order: index }).where("id", "=", id).execute(),
+			),
+		);
+		invalidateWidgetObjectCache();
+		const failed = results.find((result) => result.status === "rejected");
+		if (failed) throw failed.reason;
 
 		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ success: true });
