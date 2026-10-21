@@ -82,7 +82,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - name: Check package versions
         run: node .github/scripts/check-no-major.mjs
       - run: pnpm install --frozen-lockfile
@@ -168,7 +168,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --filter emdash... build
       - run: pnpm --filter emdash exec vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
@@ -202,7 +202,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - name: Build and test selected packages
         if: needs.change-plan.outputs.unit == 'true'
@@ -336,7 +336,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: >-
           pnpm --filter emdash exec vitest run
@@ -366,7 +366,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: >-
           pnpm --filter emdash exec vitest run
@@ -396,7 +396,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - if: needs.change-plan.outputs.integration == 'true'
         run: pnpm --filter emdash exec vitest run --config vitest.integration.config.ts
@@ -430,7 +430,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - name: Build selected browser suites
         if: needs.change-plan.outputs.browser == 'true'
@@ -512,7 +512,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       # Build every package the selected fixtures need here, in one run so
       # shared packages build once and global setup finds nothing to build.
@@ -583,7 +583,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --filter "emdash-e2e-fixture..." build
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

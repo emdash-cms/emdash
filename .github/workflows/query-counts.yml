@@ -73,7 +73,7 @@ jobs:
         if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - name: Test query normalization
         if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         run: node --test scripts/query-counts-normalize.test.mjs
