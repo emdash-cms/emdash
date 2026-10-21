@@ -15,6 +15,7 @@ function memorySettings(initial: Record<string, string> = {}) {
 	const values = new Map(Object.entries(initial));
 	let lists = 0;
 	const settings = {
+		get: async (key: string) => values.get(key) ?? null,
 		set: async (key: string, value: unknown) => void values.set(key, String(value)),
 		delete: async (key: string) => values.delete(key),
 		list: async () => {
@@ -27,6 +28,7 @@ function memorySettings(initial: Record<string, string> = {}) {
 
 afterEach(() => {
 	vi.unstubAllEnvs();
+	vi.restoreAllMocks();
 });
 
 describe("connection", () => {
@@ -56,25 +58,53 @@ describe("connection", () => {
 		expect(JSON.stringify(info)).not.toContain("env-account");
 	});
 
-	it("stores credentials only after AI Search accepts them", async () => {
+	it("stores credentials only after AI Search accepts them and has the instance", async () => {
 		vi.stubEnv("EMDASH_ENCRYPTION_KEY", ENCRYPTION_KEY);
 		const input = { accountId: "account", apiToken: "token" };
-		const rejected = memorySettings();
-		const accepted = memorySettings();
-		const refuse = () => ({
-			verify: async () => {
-				throw new ProviderError("unauthorized", "Authentication error");
-			},
-		});
-		const accept = () => ({ verify: async () => {} });
+		const refused = async () => {
+			throw new ProviderError("unauthorized", "Authentication error");
+		};
+		const save = (
+			verify: () => Promise<void>,
+			ensureInstance: () => Promise<{ created: boolean }>,
+		) => {
+			const { ctx, values } = memorySettings();
+			const saved = saveCredentials(ctx, options, input, {
+				ensureInstance: true,
+				env: {},
+				connect: () => ({ verify, ensureInstance }),
+			});
+			return { saved, values };
+		};
 
-		await expect(saveCredentials(rejected.ctx, options, input, {}, refuse)).rejects.toMatchObject({
-			reason: "unauthorized",
-		});
-		await saveCredentials(accepted.ctx, options, input, {}, accept);
+		const badToken = save(refused, async () => ({ created: false }));
+		await expect(badToken.saved).rejects.toMatchObject({ reason: "unauthorized" });
+		const cannotCreate = save(async () => {}, refused);
+		await expect(cannotCreate.saved).rejects.toMatchObject({ reason: "unauthorized" });
+		const accepted = save(
+			async () => {},
+			async () => ({ created: true }),
+		);
+		expect(await accepted.saved).toEqual({ created: true });
 
-		expect(rejected.values.size).toBe(0);
+		expect(badToken.values.size).toBe(0);
+		expect(cannotCreate.values.size).toBe(0);
 		expect(Object.fromEntries(accepted.values)).toEqual(input);
+	});
+
+	it("keeps the stored account ID when the stored token cannot be decrypted", async () => {
+		const { ctx } = memorySettings({ accountId: "stored-account", apiToken: "encrypted" });
+		ctx.settings.list = async () => {
+			throw new Error("Plugin secret setting could not be decrypted");
+		};
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const provider = await openProvider(ctx, options, {
+			binding: null,
+			env: { [ENV.apiToken]: "env-token" },
+		});
+
+		expect(provider?.kind).toBe("rest");
 	});
 
 	it("leaves the stored account unchanged when the token cannot be saved", async () => {
@@ -91,10 +121,13 @@ describe("connection", () => {
 				ctx,
 				options,
 				{ accountId: "new-account", apiToken: "new-token" },
-				{},
-				() => ({
-					verify: async () => {},
-				}),
+				{
+					env: {},
+					connect: () => ({
+						verify: async () => {},
+						ensureInstance: async () => ({ created: false }),
+					}),
+				},
 			),
 		).rejects.toThrow("EMDASH_ENCRYPTION_KEY");
 		expect(Object.fromEntries(values)).toEqual(saved);

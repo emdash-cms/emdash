@@ -55,24 +55,36 @@ export async function describeConnection(
 
 /**
  * Saves the given credentials after checking them, with any not given taken
- * from the environment or settings. Throws the check's `ProviderError`.
+ * from the environment or settings. With `ensureInstance`, also creates the
+ * instance they reach unless it exists, before saving anything. Throws the
+ * check's `ProviderError`.
  */
 export async function saveCredentials(
 	ctx: SettingsContext,
 	options: AiSearchOptions,
 	input: Credentials,
-	env: Env = readEnv(),
-	connect: (credentials: RestCredentials) => Pick<RestAiSearch, "verify"> = (credentials) =>
-		new RestAiSearch(credentials, options.instance),
-): Promise<void> {
+	{
+		ensureInstance = false,
+		env = readEnv(),
+		connect = (credentials) => new RestAiSearch(credentials, options.instance),
+	}: {
+		ensureInstance?: boolean;
+		env?: Env;
+		connect?: (credentials: RestCredentials) => Pick<RestAiSearch, "verify" | "ensureInstance">;
+	} = {},
+): Promise<{ created: boolean }> {
 	const fromEnv = { accountId: env[ENV.accountId], apiToken: env[ENV.apiToken] };
 	const { accountId, apiToken } = merge(fromEnv, input, await stored(ctx));
+	let created = false;
 	if (accountId && apiToken) {
-		await connect({ accountId, apiToken, namespace: namespace(env) }).verify();
+		const provider = connect({ accountId, apiToken, namespace: namespace(env) });
+		await provider.verify();
+		if (ensureInstance) ({ created } = await provider.ensureInstance());
 	}
 	// The token goes first: encrypting it is what can fail, and then nothing is saved.
 	if (input.apiToken) await ctx.settings.set(SETTINGS.apiToken, input.apiToken);
 	if (input.accountId) await ctx.settings.set(SETTINGS.accountId, input.accountId);
+	return { created };
 }
 
 function merge(...layers: Credentials[]): Credentials {
@@ -84,9 +96,10 @@ function merge(...layers: Credentials[]): Credentials {
 
 /** Both credentials in one query. A token that cannot be decrypted counts as unset. */
 async function stored(ctx: SettingsContext): Promise<Credentials> {
-	const entries = await ctx.settings.list().catch((error: unknown) => {
-		console.error("[ai-search] could not read the stored AI Search credentials:", error);
-		return [];
+	const entries = await ctx.settings.list().catch(async (error: unknown) => {
+		console.error("[ai-search] could not read the stored AI Search API token:", error);
+		const accountId = await ctx.settings.get<string>(SETTINGS.accountId);
+		return accountId ? [{ key: SETTINGS.accountId, value: accountId }] : [];
 	});
 	const value = (key: string) => {
 		const found = entries.find((entry) => entry.key === key)?.value;

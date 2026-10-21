@@ -232,8 +232,13 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			methods: ["POST"],
 			input: z.object({ accountId: credentialSchema, apiToken: credentialSchema }),
 			handler: async (ctx) => {
+				const config = await loadConfig(ctx);
+				let created = false;
 				try {
-					await saveCredentials(ctx, options, ctx.input);
+					// Another account or namespace may not have the instance yet.
+					({ created } = await saveCredentials(ctx, options, ctx.input, {
+						ensureInstance: config !== null,
+					}));
 				} catch (error) {
 					if (
 						error instanceof PluginSettingEncryptionError &&
@@ -247,15 +252,9 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 					}
 					rethrowProviderError(error);
 				}
-				// Another account or namespace may not have the instance yet.
-				const config = await loadConfig(ctx);
-				const provider = config ? await openProvider(ctx, options) : null;
-				if (config && provider) {
-					const { created } = await provider.ensureInstance().catch(rethrowProviderError);
-					if (created) {
-						await markInstanceCreated(ctx);
-						await startBuild(ctx, enabledSources(config));
-					}
+				if (config && created) {
+					await markInstanceCreated(ctx);
+					await startBuild(ctx, enabledSources(config));
 				}
 				return describeConnection(ctx);
 			},

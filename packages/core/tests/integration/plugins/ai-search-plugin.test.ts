@@ -27,7 +27,12 @@ const aiSearch = vi.hoisted(() => ({ current: null as FakeAiSearch | null }));
 vi.mock("../../../../plugins/ai-search/src/connection.js", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../../../plugins/ai-search/src/connection.js")>()),
 	openProvider: async () => aiSearch.current,
-	saveCredentials: async () => {},
+	saveCredentials: async (
+		_ctx: unknown,
+		_options: unknown,
+		_input: unknown,
+		save?: { ensureInstance?: boolean },
+	) => (save?.ensureInstance ? aiSearch.current!.ensureInstance() : { created: false }),
 }));
 
 // The plugin imports its helpers from the `emdash` package. Resolve it to this
