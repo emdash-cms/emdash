@@ -46,7 +46,7 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.pnpm_config_cache_dir }}/lockfile-verified.jsonl
-          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ steps.pnpm-verdict.outputs.key }}-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       # Publish a preview for every public package via globs rather than a
