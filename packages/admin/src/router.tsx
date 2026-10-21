@@ -1285,18 +1285,18 @@ function ContentEditPage() {
 	});
 
 	const handleContentUpdateSuccess = React.useCallback(
-		async (targetId: string) => {
+		async (targetId: string, targetCollection = collection) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
 			// locale-scoped invalidation key would not match and the item would never
 			// refetch — leaving the publish/save buttons stale until a hard refresh.
 			const contentRefresh = queryClient.invalidateQueries({
-				queryKey: ["content", collection, targetId],
+				queryKey: ["content", targetCollection, targetId],
 			});
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
-				queryKey: ["revisions", collection, targetId],
+				queryKey: ["revisions", targetCollection, targetId],
 			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
 			if (rawItem?.draftRevisionId) {
@@ -1309,10 +1309,10 @@ function ContentEditPage() {
 		[collection, queryClient, rawItem?.draftRevisionId],
 	);
 	const recoverFromSaveConflict = React.useCallback(
-		async (entryId: string) => {
+		async (entryId: string, targetCollection = collection) => {
 			setConflictedEntryId(entryId);
 			try {
-				const server = await fetchContent(collection, entryId, {
+				const server = await fetchContent(targetCollection, entryId, {
 					locale: rawItem?.locale ?? activeLocale,
 				});
 				recordWriteRevision(entryId, server);
@@ -1411,13 +1411,13 @@ function ContentEditPage() {
 			recordWriteRevision(targetId, savedItem);
 			return savedItem;
 		},
-		onSuccess: (_, { targetId }) => {
+		onSuccess: (_, { targetCollection, targetId }) => {
 			setConflictedEntryId((current) => (current === targetId ? "" : current));
-			void handleContentUpdateSuccess(targetId);
+			void handleContentUpdateSuccess(targetId, targetCollection);
 		},
 		// The publication-date dialog shows the failure.
-		onError: async (error, { targetId }) => {
-			if (isSaveConflict(error)) await recoverFromSaveConflict(targetId);
+		onError: async (error, { targetCollection, targetId }) => {
+			if (isSaveConflict(error)) await recoverFromSaveConflict(targetId, targetCollection);
 		},
 	});
 

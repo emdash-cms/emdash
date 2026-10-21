@@ -100,7 +100,7 @@ async function renderEditorFrom(other: Entry) {
 	await expect.element(title).toHaveValue("Other title");
 	await openEntry(router, ENTRY);
 	await expect.element(title).toHaveValue("First title");
-	return { router, screen, title };
+	return { queryClient, router, screen, title };
 }
 
 function openEntry(router: ReturnType<typeof createAdminRouter>, entry: Entry) {
@@ -149,6 +149,39 @@ function recordEntryWrites() {
 		return send(input, init);
 	}) as typeof fetch;
 	return writes;
+}
+
+/** Answers every publication date change with a conflict and collects the reads of the first entry. */
+function refuseDateChanges() {
+	const reads: string[] = [];
+	const send = globalThis.fetch;
+	globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+		const method = init?.method ?? "GET";
+		if (typeof input === "string" && method === "GET" && input.split("?")[0]?.endsWith(ENTRY.id)) {
+			reads.push(input);
+		}
+		if (
+			method === "PUT" &&
+			typeof init?.body === "string" &&
+			"publishedAt" in JSON.parse(init.body)
+		) {
+			const body = { error: { code: "CONFLICT", message: "This entry changed somewhere else." } };
+			const headers = { "Content-Type": "application/json" };
+			return Promise.resolve(new Response(JSON.stringify(body), { status: 409, headers }));
+		}
+		return send(input, init);
+	}) as typeof fetch;
+	return reads;
+}
+
+async function changePublicationDate(screen: Screen) {
+	screen
+		.getByRole("button", { name: /Change publication date/ })
+		.element()
+		.click();
+	const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+	await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+	dialog.getByRole("button", { name: "Save date", exact: true }).element().click();
 }
 
 function localDateKey(date: Date) {
@@ -215,15 +248,7 @@ const ACTIONS: Array<{
 	{
 		title: "changes the publication date of the entry it was set on",
 		item: PUBLISHED,
-		act: async (screen) => {
-			screen
-				.getByRole("button", { name: /Change publication date/ })
-				.element()
-				.click();
-			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
-			await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
-			dialog.getByRole("button", { name: "Save date", exact: true }).element().click();
-		},
+		act: changePublicationDate,
 		write: {
 			method: "PUT",
 			path: `${ENTRY_PATH}?locale=en`,
@@ -257,23 +282,45 @@ describe.each([
 		mockFetch.restore();
 	});
 
+	/** Opens `item` as the first entry and edits it, then starts `act` and opens `other` before the save lands. */
+	async function actThenSwitch(item: object, act: (screen: Screen) => Promise<void> | void) {
+		mockFetch.on("GET", ENTRY_PATH, { data: { item, _rev: "rev-1" } });
+		const writes = recordEntryWrites();
+		const { queryClient, router, screen, title } = await renderEditorFrom(other);
+		await title.fill("Edited title");
+
+		const save = holdPuts();
+		await act(screen);
+		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await openEntry(router, other);
+		await expect.element(title).toHaveValue("Other title");
+		save.release();
+		await save.answered;
+
+		await expect.poll(() => writes.length).toBe(2);
+		return { queryClient, writes };
+	}
+
 	for (const { title: action, item, act, write } of ACTIONS) {
 		it(`${action} once its save lands`, async () => {
-			mockFetch.on("GET", ENTRY_PATH, { data: { item, _rev: "rev-1" } });
-			const writes = recordEntryWrites();
-			const { router, screen, title } = await renderEditorFrom(other);
-			await title.fill("Edited title");
+			const { writes } = await actThenSwitch(item, act);
 
-			const save = holdPuts();
-			await act(screen);
-			await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
-			await openEntry(router, other);
-			await expect.element(title).toHaveValue("Other title");
-			save.release();
-			await save.answered;
-
-			await expect.poll(() => writes.length).toBe(2);
 			expect(writes[1]).toMatchObject(write);
 		});
 	}
+
+	it("refreshes the entry whose publication date it changed", async () => {
+		const { queryClient } = await actThenSwitch(PUBLISHED, changePublicationDate);
+
+		await expect
+			.poll(() => queryClient.getQueryState(["content", "posts", ENTRY.id, { locale: undefined }]))
+			.toMatchObject({ isInvalidated: true });
+	});
+
+	it("reads back the entry whose publication date change conflicted", async () => {
+		const reads = refuseDateChanges();
+		await actThenSwitch(PUBLISHED, changePublicationDate);
+
+		await expect.poll(() => reads).toContain(`${ENTRY_PATH}?locale=en`);
+	});
 });
