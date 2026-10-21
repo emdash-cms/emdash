@@ -388,7 +388,7 @@ export function BylineCreditsEditor({
 																size="xs"
 																DANGEROUS_className="block wrap-break-word"
 															>
-																{option.byline.slug}
+																<bdi dir="ltr">{option.byline.slug}</bdi>
 															</Text>
 														</div>
 														<Button

@@ -41,6 +41,7 @@ import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import { resolveConfiguredLocale } from "../i18n/config.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -557,6 +558,14 @@ function isPublished(t: unknown): boolean {
 		t !== null &&
 		"status" in t &&
 		(t as Record<string, unknown>).status === "published"
+	);
+}
+
+function isEntry(t: unknown, idOrSlug: string): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		(("id" in t && t.id === idOrSlug) || ("slug" in t && t.slug === idOrSlug))
 	);
 }
 
@@ -1137,6 +1146,15 @@ export function createMcpServer(
 						success: false,
 						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
 					});
+				}
+				// handleContentGet overlays the draft revision onto item.data and
+				// moves the published values to item.liveData.
+				if (item) {
+					if (item.liveData && typeof item.liveData === "object") {
+						item.data = item.liveData;
+					}
+					delete item.liveData;
+					delete item.draftRevisionId;
 				}
 			}
 			if (result.success && args.markdown && result.data?.item) {
@@ -1983,6 +2001,8 @@ export function createMcpServer(
 			const result = await ec.handleContentTranslations(args.collection, args.id);
 			// Filter out non-published translations for users without draft
 			// access so a subscriber can't enumerate locales that aren't yet live.
+			// The requested entry is one of the translations; if it isn't
+			// published, report it as not found so its id or slug can't be probed.
 			if (result.success && !canReadDrafts(extra)) {
 				const data =
 					result.data && typeof result.data === "object"
@@ -1991,6 +2011,12 @@ export function createMcpServer(
 						: undefined;
 				const translations = Array.isArray(data?.translations) ? data.translations : [];
 				const filtered = translations.filter(isPublished);
+				if (!filtered.some((t) => isEntry(t, args.id))) {
+					return unwrap({
+						success: false,
+						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+					});
+				}
 				return unwrap({
 					success: true,
 					data: { ...data, translations: filtered },
@@ -3182,7 +3208,8 @@ export function createMcpServer(
 					if (
 						!cursorTerm ||
 						cursorTerm.name !== args.taxonomy ||
-						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+						(args.locale !== undefined &&
+							resolveConfiguredLocale(cursorTerm.locale) !== resolveConfiguredLocale(args.locale))
 					) {
 						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
 					}

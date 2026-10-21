@@ -25,11 +25,20 @@
  */
 
 import type { ContentSeo } from "./database/repositories/types.js";
-import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import {
+	getFallbackChain,
+	getI18nConfig,
+	getLocaleCandidates,
+	isI18nEnabled,
+	resolveConfiguredLocale,
+} from "./i18n/config.js";
+import { resolveLocale } from "./i18n/resolve.js";
+import {
+	creditFromFoldedAuthorByline,
 	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
 	encodeSortCursor,
+	FOLDED_AUTHOR_BYLINE,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
 	FOLDED_TERMS,
@@ -781,7 +790,7 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.offset ?? "",
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
-		filter.locale ?? "",
+		filter.locale === undefined ? "" : resolveConfiguredLocale(filter.locale),
 	];
 	return `collection:${type}:${parts.join("|")}`;
 }
@@ -915,11 +924,7 @@ function reviveEntry<D>(raw: unknown): ContentEntry<D> {
 
 /** Resolve the effective locale used by content reads, for the L2 cache key. */
 function effectiveLocaleKey(filter?: { locale?: string }): string {
-	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	return (
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined) ?? ""
-	);
+	return resolveLocale(filter?.locale) ?? "";
 }
 
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
@@ -932,9 +937,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	// Resolve locale: explicit filter > ALS context > defaultLocale (when i18n enabled)
 	// Without this, queries return all locale rows, producing broken IDs
 	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	const resolvedLocale =
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
+	const resolvedLocale = resolveLocale(filter?.locale);
 
 	const requestedLimit = filter?.limit;
 	// cursor and offset are mutually exclusive on the loader filter union, so
@@ -1197,7 +1200,8 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	const serveDrafts = isPreviewMode || isEditMode;
 
 	// Resolve locale: explicit option > ALS context > undefined (no filter)
-	const requestedLocale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const requestedLocale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 	const references = options?.references;
 	const portableTextFields = isEditMode ? await getPortableTextFieldSlugs(type) : undefined;
 
@@ -1344,7 +1348,14 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			const locale = localeChain[i];
 			const fallbackLocale = i > 0 ? locale : undefined;
 
-			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
+			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, {
+				type,
+				id,
+				locale,
+				...(locale !== undefined && getLocaleCandidates(locale).length > 1
+					? { publishedOnly: true }
+					: {}),
+			});
 			if (error) {
 				// Astro reports a missing entry as an error; try the next locale.
 				if (error.name === "LiveEntryNotFoundError") continue;
@@ -1446,7 +1457,8 @@ export async function getEmDashReferences<D = Record<string, unknown>>(
 	const ctx = getRequestContext();
 	const preview = ctx?.preview;
 	const isEditMode = ctx?.editMode ?? false;
-	const locale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const locale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 
 	try {
 		const { getDb } = await import("./loader.js");
@@ -1548,17 +1560,30 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 	if (entries.length === 0) return;
 
 	// Fast path: bylines were folded into the content query. Parse the JSON
-	// (no extra round trip) for the common case — explicit credits, no byline
-	// custom fields, no author fallback. The query path below handles the rest:
-	//  - author fallback (entry has authorId but no explicit credit), and
-	//  - custom byline fields (can't be expressed in the folded subquery).
+	// (no extra round trip): explicit credits, plus the author-fallback byline
+	// for an entry with none. Custom byline field values can't be expressed in
+	// the folded subquery, so when any credit resolves they are loaded for the
+	// folded bylines in one batched pass. The query path below handles only
+	// what the fold can't vouch for.
 	if (entries.every((e) => FOLDED_BYLINES in entryData(e))) {
 		const parsed = entries.map((entry) => {
 			const data = entryData(entry);
 			const folded = Reflect.get(data, FOLDED_BYLINES);
 			const rows = Array.isArray(folded) ? folded : [];
 			const credits = creditsFromFoldedBylines(rows);
-			return { data, credits };
+			// The fold is complete for an entry with no explicit credit when its
+			// author fallback was folded too and it has a locale: the query path
+			// resolves the fallback in that same locale (`(user_id, locale)` is
+			// unique), and a `primaryBylineId` without an explicit credit
+			// resolves to no byline on both paths.
+			const authorFolded = FOLDED_AUTHOR_BYLINE in data && dataStr(data, "locale") !== "";
+			if (credits.length === 0 && authorFolded && dataStr(data, "primaryBylineId") === "") {
+				const author = Reflect.get(data, FOLDED_AUTHOR_BYLINE);
+				if (dataStr(data, "authorId") !== "" && isRecord(author)) {
+					credits.push(creditFromFoldedAuthorByline(author));
+				}
+			}
+			return { data, credits, complete: credits.length > 0 || authorFolded };
 		});
 
 		// An empty `_emdash_bylines` table makes an empty fold authoritative: no
@@ -1572,34 +1597,36 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 
 		// Fall back to the full query path when the fold can't be trusted to be
 		// complete: an entry with a byline reference (explicit primary, or an
-		// author for the author-fallback) but no folded credits — e.g. a credit
-		// in a different locale than the row, which the locale-correlated subquery
-		// skips, or the author-fallback path which the fold doesn't express.
+		// author for the author-fallback) but no folded credits, and no folded
+		// author fallback either — e.g. a row read without the author column,
+		// or an entry with no locale, which the locale-correlated subqueries
+		// can't match.
 		let needsQueryPath =
 			!knownEmpty &&
 			parsed.some(
 				(p) =>
-					p.credits.length === 0 &&
+					!p.complete &&
 					(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
 			);
-		let hasCustomFields = false;
-		if (!needsQueryPath && !knownEmpty) {
+
+		// Custom byline fields: only bylines that resolved need their values, so
+		// an entry set with no credits skips the field-definition probe too.
+		const summaries = parsed.flatMap((p) => p.credits.map((c) => c.byline));
+		if (!needsQueryPath && summaries.length > 0) {
 			try {
 				const { getDb } = await import("./loader.js");
-				const db = await getDb();
-				const { getBylineFieldDefs } = await import("./bylines/field-defs-cache.js");
-				hasCustomFields = (await getBylineFieldDefs(db)).length > 0;
+				const { BylineRepository } = await import("./database/repositories/byline.js");
+				await new BylineRepository(await getDb()).hydrateBylineCustomFields(summaries);
 			} catch (error) {
 				// A missing table is expected pre-migration and means there are no
 				// custom fields — the fold's values are complete. Any other error
-				// (lock-init failure, dialect error) means the probe can't be
-				// trusted, so fall back to the query path rather than risk serving
-				// folded bylines with empty customFields.
+				// means the values can't be trusted, so fall back to the query
+				// path rather than risk serving bylines with empty customFields.
 				if (!isMissingTableError(error)) needsQueryPath = true;
 			}
 		}
 
-		if (!needsQueryPath && !hasCustomFields) {
+		if (!needsQueryPath) {
 			for (const p of parsed) {
 				p.data.bylines = p.credits;
 				p.data.byline = p.credits[0]?.byline ?? null;

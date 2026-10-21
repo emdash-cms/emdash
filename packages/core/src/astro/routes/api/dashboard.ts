@@ -26,6 +26,8 @@ export const GET: APIRoute = async ({ locals }) => {
 	try {
 		const result = await handleDashboardStats(emdash.db, {
 			includeDrafts: hasPermission(user, "content:read_drafts"),
+			includeMediaCount: hasPermission(user, "media:read"),
+			includeUserCount: hasPermission(user, "users:read"),
 		});
 
 		return unwrapResult(result);

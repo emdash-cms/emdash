@@ -257,6 +257,7 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 		<form onSubmit={handleSubmit} className="space-y-6">
 			<div className="space-y-4">
 				<Input
+					dir="ltr"
 					label={t`Your Email`}
 					type="email"
 					value={email}

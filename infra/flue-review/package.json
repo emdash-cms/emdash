@@ -20,6 +20,7 @@
 	"dependencies": {
 		"@cloudflare/codemode": "^0.4.1",
 		"@cloudflare/shell": "^0.4.0",
+		"@earendil-works/pi-ai": "0.80.6",
 		"@flue/runtime": "1.0.0-beta.9",
 		"agents": "^0.14.5",
 		"hono": "^4.12.23",

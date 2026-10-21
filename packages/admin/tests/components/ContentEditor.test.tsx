@@ -191,6 +191,7 @@ vi.mock("@tanstack/react-router", async () => {
 	return {
 		...actual,
 		Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+		useBlocker: () => ({ status: "idle" }),
 	};
 });
 
@@ -2616,7 +2617,7 @@ describe("ContentEditor", () => {
 			await screen.getByRole("button", { name: "Schedule" }).click();
 			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
 			await expect
-				.element(dialog.getByText("Choose when these changes replace the live version."))
+				.element(dialog.getByRole("button", { name: "Schedule changes", exact: true }))
 				.toBeVisible();
 		});
 

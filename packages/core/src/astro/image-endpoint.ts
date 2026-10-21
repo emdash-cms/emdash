@@ -82,15 +82,26 @@ export const GET: APIRoute = async (ctx) => {
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
 
+	// An unread download retains its storage connection even for a bodyless response.
+	let unusedBody: ReadableStream<Uint8Array> | undefined;
 	try {
 		const source = await storage.download(key);
+		unusedBody = source.body;
 
 		// Only raster images are transformable; serve anything else unchanged.
 		if (!source.contentType.startsWith("image/")) {
 			if (isNotModified(ctx.request, source.size, source.lastModified)) {
 				return notModifiedResponse(source.contentType, source.size, source.lastModified);
 			}
-			return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
+			const response = streamOriginal(
+				source.body,
+				source.contentType,
+				source.size,
+				source.lastModified,
+			);
+			if (ctx.request.method === "HEAD") return new Response(null, response);
+			unusedBody = undefined;
+			return response;
 		}
 
 		const transform = await service.parseURL(url, imageConfig);
@@ -98,7 +109,15 @@ export const GET: APIRoute = async (ctx) => {
 			if (isNotModified(ctx.request, source.size, source.lastModified)) {
 				return notModifiedResponse(source.contentType, source.size, source.lastModified);
 			}
-			return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
+			const response = streamOriginal(
+				source.body,
+				source.contentType,
+				source.size,
+				source.lastModified,
+			);
+			if (ctx.request.method === "HEAD") return new Response(null, response);
+			unusedBody = undefined;
+			return response;
 		}
 
 		const fingerprint = getTransformFingerprint(url.searchParams);
@@ -122,5 +141,7 @@ export const GET: APIRoute = async (ctx) => {
 		if (isNotFound(error)) return new Response("Not Found", { status: 404 });
 		console.error("[emdash] image transform failed:", error);
 		return new Response("Internal Server Error", { status: 500 });
+	} finally {
+		if (unusedBody && !unusedBody.locked) await unusedBody.cancel().catch(() => undefined);
 	}
 };

@@ -285,7 +285,9 @@ function PluginBlockNodeView({
 						<div className="flex-1 min-w-0">
 							<div className="text-sm font-medium">{label}</div>
 							{!isEditing && (
-								<div className="text-xs text-kumo-subtle truncate font-mono">{displayId}</div>
+								<div className="text-xs text-kumo-subtle truncate font-mono">
+									<bdi dir="ltr">{displayId}</bdi>
+								</div>
 							)}
 						</div>
 
@@ -373,6 +375,7 @@ function PluginBlockNodeView({
 						<div className="px-4 pb-3 pt-0">
 							<div className="flex gap-2">
 								<Input
+									dir="ltr"
 									ref={inputRef}
 									type="url"
 									value={editValue}

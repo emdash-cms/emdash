@@ -1082,6 +1082,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</Text>
 						<div className="grid gap-4">
 							<Input
+								dir="ltr"
 								label={t`Slug`}
 								value={slug}
 								onChange={(event) => onSlugChange(event.target.value)}
@@ -1429,12 +1430,20 @@ function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
 					<Select.Option key={user.id} value={user.id}>
 						<span className="flex items-center gap-2">
 							{user.name || user.email}
-							{user.name && <span className="text-xs text-kumo-subtle">({user.email})</span>}
+							{user.name && (
+								<span className="text-xs text-kumo-subtle">
+									(<bdi dir="ltr">{user.email}</bdi>)
+								</span>
+							)}
 						</span>
 					</Select.Option>
 				))}
 			</Select>
-			{currentAuthor && <p className="text-xs text-kumo-subtle">{currentAuthor.email}</p>}
+			{currentAuthor && (
+				<p className="text-xs text-kumo-subtle">
+					<bdi dir="ltr">{currentAuthor.email}</bdi>
+				</p>
+			)}
 		</div>
 	);
 }

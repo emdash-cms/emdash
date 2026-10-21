@@ -18,14 +18,25 @@ import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js"
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { jsonTextValues } from "./database/json-recordset.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
+import type { BylineSummary, ContentBylineCredit } from "./database/repositories/types.js";
 import { decodeCursor, encodeCursor, InvalidCursorError } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
-import { getI18nConfig } from "./i18n/config.js";
+import { getI18nConfig, getLocaleCandidates, type I18nConfig } from "./i18n/config.js";
+import {
+	canonicalLocaleColumn,
+	storedLocaleOrder,
+	localeMatches,
+	localeOrder,
+} from "./i18n/query.js";
 import type { Database } from "./index.js";
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
-import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
+import {
+	isMissingColumnError,
+	getMissingColumnIdentifier,
+	isMissingTableError,
+} from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -114,6 +125,13 @@ export const FOLDED_BYLINES = Symbol.for("emdash:foldedBylines");
  * via the byline query path on sites that never use bylines.
  */
 export const FOLDED_BYLINES_EXIST = Symbol.for("emdash:foldedBylinesExist");
+/**
+ * Marker for the folded author-fallback byline: the byline linked to the
+ * entry's `author_id` in the entry's locale, or `null` when there is none.
+ * Lets byline hydration resolve an entry with no explicit credit without the
+ * byline query path. Unset when the row's fold predates it.
+ */
+export const FOLDED_AUTHOR_BYLINE = Symbol.for("emdash:foldedAuthorByline");
 
 /**
  * Correlated JSON-array subqueries that fold taxonomy-term and byline hydration
@@ -151,7 +169,23 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 	const termAgg = pg
 		? sql`coalesce(json_agg(${termObj}) FILTER (WHERE ${selectedTermId} IS NOT NULL), '[]'::json)`
 		: sql`json_group_array(${termObj}) FILTER (WHERE ${selectedTermId} IS NOT NULL)`;
-	const terms = sql`(SELECT ${termAgg} FROM ${sql.ref("content_taxonomies")} AS ct LEFT JOIN ${sql.ref("taxonomies")} AS exact_term ON exact_term.translation_group = ct.taxonomy_id AND exact_term.locale = ${o}.locale LEFT JOIN ${sql.ref("taxonomies")} AS default_term ON default_term.translation_group = ct.taxonomy_id AND default_term.locale = ${defaultLocale} WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group) AS ${sql.ref("_emdash_terms")}`;
+	const hasLocaleAliases = Object.keys(getI18nConfig()?.localeAliases ?? {}).length > 0;
+	const terms = hasLocaleAliases
+		? sql`(SELECT ${termAgg} FROM ${sql.ref("content_taxonomies")} AS ct
+		LEFT JOIN ${sql.ref("taxonomies")} AS exact_term ON exact_term.id = (
+			SELECT candidate.id FROM taxonomies AS candidate
+			WHERE candidate.translation_group = ct.taxonomy_id
+				AND ${canonicalLocaleColumn("candidate.locale")} = ${canonicalLocaleColumn(`${outer}.locale`)}
+			ORDER BY ${storedLocaleOrder("candidate.locale")}, candidate.id LIMIT 1
+		)
+		LEFT JOIN ${sql.ref("taxonomies")} AS default_term ON default_term.id = (
+			SELECT candidate.id FROM taxonomies AS candidate
+			WHERE candidate.translation_group = ct.taxonomy_id
+				AND ${localeMatches("candidate.locale", defaultLocale)}
+			ORDER BY ${localeOrder("candidate.locale", defaultLocale)}, candidate.id LIMIT 1
+		)
+		WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group) AS ${sql.ref("_emdash_terms")}`
+		: sql`(SELECT ${termAgg} FROM ${sql.ref("content_taxonomies")} AS ct LEFT JOIN ${sql.ref("taxonomies")} AS exact_term ON exact_term.translation_group = ct.taxonomy_id AND exact_term.locale = ${o}.locale LEFT JOIN ${sql.ref("taxonomies")} AS default_term ON default_term.translation_group = ct.taxonomy_id AND default_term.locale = ${defaultLocale} WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group) AS ${sql.ref("_emdash_terms")}`;
 
 	const bylineInner = obj(
 		"'id', b.id, 'slug', b.slug, 'displayName', b.display_name, 'bio', b.bio, 'avatarMediaId', b.avatar_media_id, 'avatarStorageKey', m.storage_key, 'avatarAlt', m.alt, 'avatarBlurhash', m.blurhash, 'avatarDominantColor', m.dominant_color, 'websiteUrl', b.website_url, 'userId', b.user_id, 'isGuest', b.is_guest, 'createdAt', b.created_at, 'updatedAt', b.updated_at, 'locale', b.locale, 'translationGroup', b.translation_group",
@@ -162,7 +196,38 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 			)
 		: sql.raw("json_object('roleLabel', cb.role_label, 'sortOrder', cb.sort_order, 'byline', ");
 	const credit = sql`${creditObj}${bylineInner})`;
-	const bylines = sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb ${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale) AS ${sql.ref("_emdash_bylines")}`;
+	// The locale match differs with locale aliases: a row's locale may be any
+	// of its configured locale's codes, so both subqueries compare canonical
+	// locales and pick one byline per match, as the query path does.
+	const credits = hasLocaleAliases
+		? sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb
+		${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.id = (
+			SELECT candidate.id FROM _emdash_bylines AS candidate
+			WHERE candidate.translation_group = cb.byline_id
+				AND ${canonicalLocaleColumn("candidate.locale")} = ${canonicalLocaleColumn(`${outer}.locale`)}
+			ORDER BY ${storedLocaleOrder("candidate.locale")}, candidate.id LIMIT 1
+		)
+		LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id
+		WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id)`
+		: sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb ${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale)`;
+	// The author fallback for an entry with no explicit credit: the byline
+	// linked to its author in its locale. Without aliases `(user_id, locale)`
+	// is unique, so this is one index probe per row and matches
+	// `findByUserIds` exactly; with them, the same canonical-locale match and
+	// ordering as the credits above picks one.
+	const author = hasLocaleAliases
+		? sql`(SELECT ${bylineInner} FROM ${sql.ref("_emdash_bylines")} AS b LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id
+		WHERE b.user_id = ${o}.author_id
+			AND ${canonicalLocaleColumn("b.locale")} = ${canonicalLocaleColumn(`${outer}.locale`)}
+		ORDER BY ${storedLocaleOrder("b.locale")}, b.id LIMIT 1)`
+		: sql`(SELECT ${bylineInner} FROM ${sql.ref("_emdash_bylines")} AS b LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE b.user_id = ${o}.author_id AND b.locale = ${o}.locale LIMIT 1)`;
+	// Both ride in one result column: D1 caps a result set at 100 columns and
+	// the entry read is budgeted to the column, so folding them together keeps
+	// its width unchanged. SQLite's `json()` keeps each subquery's JSON text
+	// from being nested as a string.
+	const bylines = pg
+		? sql`json_build_object('credits', ${credits}, 'author', ${author}) AS ${sql.ref("_emdash_bylines")}`
+		: sql`json_object('credits', json(${credits}), 'author', json(${author})) AS ${sql.ref("_emdash_bylines")}`;
 	// Uncorrelated existence probe (evaluated once per statement, not per row):
 	// 1 when `_emdash_bylines` has any row, NULL when empty. An empty table
 	// means an empty fold is authoritative — no credit in any locale, no
@@ -240,24 +305,34 @@ function expandFoldedSeo(row: Record<string, unknown>): void {
 	}
 }
 
-export function creditsFromFoldedBylines(folded: unknown[]) {
+/**
+ * A folded byline object as a `BylineSummary`. The fold's JSON keys are the
+ * `BylineSummary` keys (see `bylineInner` in {@link foldedHydrationSelects}).
+ */
+function foldedBylineSummary(raw: unknown): BylineSummary {
+	const byline = isPlainObject(raw) ? raw : {};
+	// Folded rows omit custom-field values.
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- keys set by the fold's SQL
+	return { ...byline, isGuest: Boolean(byline.isGuest), customFields: {} } as BylineSummary;
+}
+
+export function creditsFromFoldedBylines(folded: unknown[]): ContentBylineCredit[] {
 	return folded
 		.map((raw) => {
 			const credit = isPlainObject(raw) ? raw : {};
-			const byline = isPlainObject(credit.byline) ? credit.byline : {};
 			return {
 				roleLabel: typeof credit.roleLabel === "string" ? credit.roleLabel : null,
 				sortOrder: Number(credit.sortOrder ?? 0),
 				source: "explicit" as const,
-				byline: {
-					...byline,
-					isGuest: Boolean(byline.isGuest),
-					// Folded rows omit custom-field values.
-					customFields: {},
-				},
+				byline: foldedBylineSummary(credit.byline),
 			};
 		})
 		.toSorted((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/** The inferred credit for a folded author-fallback byline. */
+export function creditFromFoldedAuthorByline(raw: Record<string, unknown>): ContentBylineCredit {
+	return { byline: foldedBylineSummary(raw), sortOrder: 0, roleLabel: null, source: "inferred" };
 }
 
 /**
@@ -277,11 +352,26 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 			} catch {
 				continue; // malformed: fall back to the query path
 			}
-		} else if (Array.isArray(raw)) {
+		} else if (Array.isArray(raw) || isPlainObject(raw)) {
 			value = raw; // Postgres json/jsonb already parsed by the driver
 		} else {
 			continue;
 		}
+		// The bylines column is `{ credits, author }` (see
+		// foldedHydrationSelects). A bare array is a fold without the author
+		// fallback; the marker stays unset and hydration treats it as unknown.
+		if (sym === FOLDED_BYLINES && isPlainObject(value)) {
+			const { credits, author } = value;
+			if (author === null || isPlainObject(author)) {
+				Object.defineProperty(data, FOLDED_AUTHOR_BYLINE, {
+					value: author,
+					enumerable: false,
+					configurable: true,
+				});
+			}
+			value = credits;
+		}
+		if (!Array.isArray(value)) continue;
 		Object.defineProperty(data, sym, { value, enumerable: false, configurable: true });
 	}
 	// Existence probe: 1 = table has rows, NULL = empty (both dialects). A row
@@ -730,12 +820,15 @@ export async function loadEntriesByGroups(
 	const statusFilter = options.publishedOnly ? sql`AND status = ${"published"}` : sql``;
 	const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
 	const localeChain = options.localeChain ?? [];
+	const localeCandidates = [
+		...new Set(localeChain.flatMap((locale) => getLocaleCandidates(locale))),
+	];
 	const chainPosition =
-		localeChain.length > 0
+		localeCandidates.length > 0
 			? sql`CASE locale ${sql.join(
-					localeChain.map((locale, index) => sql`WHEN ${locale} THEN ${sql.lit(index)}`),
+					localeCandidates.map((locale, index) => sql`WHEN ${locale} THEN ${sql.lit(index)}`),
 					sql` `,
-				)} ELSE ${sql.lit(localeChain.length)} END,`
+				)} ELSE ${sql.lit(localeCandidates.length)} END,`
 			: sql``;
 
 	const entries: LoadedEntry[] = [];
@@ -818,7 +911,7 @@ function mapRevisionData(
 let virtualConfig:
 	| {
 			database?: { config: unknown };
-			i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean } | null;
+			i18n?: I18nConfig | null;
 	  }
 	| undefined;
 let virtualCreateDialect: ((config: unknown) => Dialect) | undefined;
@@ -1229,7 +1322,7 @@ async function resolveTermGroups(
 					.as("large"),
 			),
 		);
-	if (locale) query = query.where("locale", "=", locale);
+	if (locale) query = query.where(localeMatches("locale", locale));
 	const rows = await query.execute();
 	const groups = new Set<string>();
 	let large = false;
@@ -1402,7 +1495,7 @@ export function buildTaxonomyPivotQuery(
 	// Authoritative re-check on the joined `ec_*` row.
 	const deletedR = deletedIsNull ? sql`r.deleted_at IS NULL` : sql`r.deleted_at IS NOT NULL`;
 	const statusR = status !== undefined ? sql`AND ${buildStatusCondition(db, status, "r")}` : sql``;
-	const localeR = locale ? sql`AND r.locale = ${locale}` : sql``;
+	const localeR = locale ? sql`AND ${localeMatches("r.locale", locale)}` : sql``;
 
 	if (isIndexedSort) {
 		const sortRef = sql.ref(`r.${primary.field}`);
@@ -1587,6 +1680,8 @@ export interface EntryFilter {
 	 * Used by preview mode to serve draft revision data.
 	 */
 	revisionId?: string;
+	/** Restrict slug resolution to published rows; explicit IDs remain addressable. */
+	publishedOnly?: boolean;
 	/**
 	 * Locale to scope slug lookup. Only affects slug resolution;
 	 * IDs are globally unique and always resolve regardless of locale.
@@ -1638,7 +1733,7 @@ export async function loadPublishedDates(type: string, locale?: string) {
 		SELECT published_at, updated_at FROM ${sql.ref(tableName)}
 		WHERE deleted_at IS NULL
 		AND ${buildStatusCondition(db, "published")}
-		${locale ? sql`AND locale = ${locale}` : sql``}
+		${locale ? sql`AND ${localeMatches("locale", locale)}` : sql``}
 		ORDER BY published_at DESC, id DESC
 	`.execute(db);
 	return result.rows;
@@ -1674,6 +1769,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 		 * Load all entries for a content type
 		 */
 		async loadCollection({ filter }) {
+			const callerColumns = new Set<string>();
 			try {
 				// Get DB instance (initializes on first use)
 				const db = await getDb();
@@ -1774,6 +1870,19 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					return { error: new Error(message) };
 				}
 
+				// Only caller-supplied field columns may fail as invalid filters.
+				// Keep qualifiers so a folded system-table read cannot be mistaken
+				// for a caller field with the same name.
+				for (const key of [...Object.keys(fieldFilters), ...Object.keys(orderBy ?? {})]) {
+					if (!FIELD_NAME_PATTERN.test(key) || SYSTEM_QUERY_KEYS.has(key)) continue;
+					const name = key.toLowerCase();
+					callerColumns.add(name);
+					callerColumns.add(`${tableName}.${name}`);
+					if (taxonomyFilters.length > 0 && Object.keys(fieldFilters).length === 0) {
+						callerColumns.add(`r.${name}`);
+					}
+				}
+
 				// A byline or taxonomy filter with no values matches nothing —
 				// short-circuit before building SQL (an empty `IN ()` is invalid
 				// SQL on both dialects).
@@ -1853,7 +1962,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					// conditions reference unprefixed columns as before.
 					const orderByClause = buildOrderByClause(orderBy);
 					const statusCondition = buildStatusCondition(db, status);
-					const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
+					const localeFilter = locale ? sql`AND ${localeMatches("locale", locale)}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
 					const fieldConds = buildFieldConditions(db, fieldFilters);
 					const fieldCondsSQL =
@@ -1874,7 +1983,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 								AND ct.entry_id = ${sql.ref(tableName)}.translation_group
 								AND t.name = ${f.name}
 								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
-							${locale ? sql`AND t.locale = ${locale}` : sql``}
+							${locale ? sql`AND ${localeMatches("t.locale", locale)}` : sql``}
 						)`,
 									),
 									sql` `,
@@ -1990,14 +2099,15 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					},
 				};
 			} catch (error) {
-				// Handle missing table/column gracefully - return empty collection.
-				// Missing table happens before migrations have run.
-				// Missing column happens when a where filter references a non-existent field.
+				// Missing tables are expected before migrations run. Only a missing
+				// caller field is an invalid filter; other columns indicate schema errors.
 				const message = error instanceof Error ? error.message : String(error);
-				if (isMissingTableError(error) || isMissingColumnError(error)) {
-					if (isMissingColumnError(error)) {
-						console.warn(`[emdash] where filter: ${message}`);
-					}
+				if (isMissingTableError(error)) {
+					return { entries: [] };
+				}
+				const missingColumn = getMissingColumnIdentifier(error);
+				if (missingColumn && callerColumns.has(missingColumn)) {
+					console.warn(`[emdash] where filter: ${message}`);
 					return { entries: [] };
 				}
 
@@ -2063,19 +2173,21 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					)
 					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}) AS metadata
 				) AS _emdash_entry_metadata`;
+				const slugVisibility = filter?.publishedOnly ? sql`AND c.status = ${"published"}` : sql``;
 				const result = locale
 					? await sql<Record<string, unknown>>`
 							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
-							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
+							AND ((c.slug = ${id} AND ${localeMatches("c.locale", locale)} ${slugVisibility}) OR c.id = ${id})
+							ORDER BY CASE WHEN c.id = ${id} THEN 0 ELSE 1 END, ${localeOrder("c.locale", locale)}, c.id
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
 							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
-							AND (c.slug = ${id} OR c.id = ${id})
+							AND ((c.slug = ${id} ${slugVisibility}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db);
 
