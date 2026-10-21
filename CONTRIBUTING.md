@@ -174,17 +174,43 @@ Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue 
 
 An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include screenshots of the rendered result. Include before-and-after images when the result alone does not make the change clear. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
 
-In the GitHub web interface, drag or paste the images into the issue or PR body. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
+Lay out screenshots so a reviewer can compare each pair without scrolling:
 
-The following command attaches two screenshots to a PR body:
+- Put each before-and-after pair side by side in a two-column table.
+- Crop each image to the changed area plus enough surroundings to recognize the screen, such as the dialog or panel. Keep crops to about 500 pixels of screen width so text stays legible at half the body width. When the change is wider, such as a toolbar or a page layout, stack the pair instead, with a **Before** or **After** line above each image.
+- In a PR, capture the before image from the base branch with the same viewport, content, and crop as the after image so the pair lines up. When only the result is needed, such as for new UI, show the after image alone.
+- Leave the main change visible. Put each other state, such as Arabic or phone width, in its own collapsed `<details>` block whose summary names the state.
+- For an interaction such as dragging or an animation, attach one short video instead of a sequence of stills, and keep it out of tables.
+
+The following PR body section shows the main change and collapses the Arabic version:
+
+```markdown
+| Before                                                                  | After                                                                                      |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ![Status filter before the change, a plain select](./status-before.png) | ![Status filter after the change, a menu with an icon for each status](./status-after.png) |
+
+<details>
+<summary>Arabic</summary>
+
+| Before                                                                            | After                                                                                                |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| ![Arabic status filter before the change, a plain select](./status-ar-before.png) | ![Arabic status filter after the change, a menu with an icon for each status](./status-ar-after.png) |
+
+</details>
+```
+
+In the GitHub web interface, drag or paste the images into the issue or PR body, then move each inserted image into its table cell. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
+
+With `--attach`, reference each image in the body file by its local path, as in the example, and pass the same path to `--attach`. `gh` uploads the file and replaces the local path in place, keeping the alt text written in the body. It appends attached files that the body does not reference to the end of the body. The following command attaches the first pair from the example; repeat `--attach` for every referenced file:
 
 ```bash
 gh pr create --body-file /tmp/emdash-pr.md \
-	--attach './before.png#Settings screen before the change' \
-	--attach './after.png#Settings screen after the change'
+	--attach ./status-before.png --attach ./status-after.png
 ```
 
-If the body contains `![Settings screen after the change](./after.png)`, pass `--attach ./after.png` to upload the image and replace the local path in place. GitHub appends attached files that are not referenced in the body. See [Attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) for the supported formats and size limits.
+If some uploads fail, `gh` still creates the issue or PR, exits with a non-zero status, and leaves the failed references as local paths. Rerun the upload with `gh issue edit` or `gh pr edit`, passing the same `--body-file` and `--attach` flags.
+
+See [Attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) for the supported formats and size limits.
 
 ### PR rules
 

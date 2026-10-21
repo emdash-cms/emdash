@@ -44,6 +44,8 @@ Use `auth/dev-bypass` instead when setup is already complete.
 
 Record the path tested, inputs, viewport, expected result, actual result, and any console or request failures. For UI changes, capture the rendered result and before-and-after screenshots when the difference is otherwise ambiguous.
 
-Save screenshots inside the task workspace with descriptive filenames. Inspect the saved image before reporting success; a completed screenshot command does not prove that the intended state was visible.
+For screenshots meant for a PR, capture a container that exists on both branches and keeps the same width, such as the dialog or panel around the changed control, with `agent-browser screenshot <selector> <path>`. Keep it to about 500 pixels wide where the layout allows. Take the before and after with the same viewport and content so the pair lines up in the table that [CONTRIBUTING.md § Interface screenshots](../../CONTRIBUTING.md#interface-screenshots) describes.
+
+Save screenshots inside the task workspace with descriptive filenames, such as `status-before.png` and `status-after.png`. Inspect the saved image before reporting success; a completed screenshot command does not prove that the intended state was visible.
 
 Browser exploration does not replace a regression test when stable automated coverage can protect the behavior. Convert a confirmed defect into the narrowest meaningful automated test when the task includes implementation.
