@@ -172,17 +172,9 @@ Read the [AI usage policy](AI_POLICY.md) before using an agent to open an issue 
 
 ### Interface screenshots
 
-An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include screenshots of the rendered result. Include before-and-after images when the result alone does not make the change clear. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
+An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include before-and-after screenshots of every screen it affects. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
 
-Lay out screenshots so a reviewer can compare each pair without scrolling:
-
-- Put each before-and-after pair side by side in a two-column table.
-- Crop each image to the changed area plus enough surroundings to recognize the screen, such as the dialog or panel. Keep crops to about 500 pixels of screen width so text stays legible at half the body width. When the change is wider, such as a toolbar or a page layout, stack the pair instead, with a **Before** or **After** line above each image.
-- In a PR, capture the before image from the base branch with the same viewport, content, and crop as the after image so the pair lines up. When only the result is needed, such as for new UI, show the after image alone.
-- Leave the main change visible. Put each other state, such as Arabic or phone width, in its own collapsed `<details>` block whose summary names the state.
-- For an interaction such as dragging or an animation, attach one short video instead of a sequence of stills, and keep it out of tables.
-
-The following PR body section shows the main change and collapses the Arabic version:
+Put each pair side by side in a two-column table, cropped to the changed area, and put extra states such as Arabic in a collapsed `<details>` block:
 
 ```markdown
 | Before                                                                  | After                                                                                      |

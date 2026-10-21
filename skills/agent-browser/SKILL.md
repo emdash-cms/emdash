@@ -42,9 +42,9 @@ Use `auth/dev-bypass` instead when setup is already complete.
 
 ## Evidence
 
-Record the path tested, inputs, viewport, expected result, actual result, and any console or request failures. For UI changes, capture the rendered result and before-and-after screenshots when the difference is otherwise ambiguous.
+Record the path tested, inputs, viewport, expected result, actual result, and any console or request failures. For UI changes, capture before-and-after screenshots of every affected screen.
 
-For screenshots meant for a PR, capture a container that exists on both branches and keeps the same width, such as the dialog or panel around the changed control, with `agent-browser screenshot <selector> <path>`. Keep it to about 500 pixels wide where the layout allows. Take the before and after with the same viewport and content so the pair lines up in the table that [CONTRIBUTING.md § Interface screenshots](../../CONTRIBUTING.md#interface-screenshots) describes.
+Take the before screenshots before you change the code. Capture the dialog or panel around the change with `agent-browser screenshot <selector> <path>`, and use the same viewport and content for the after screenshots so each pair lines up in the table that [CONTRIBUTING.md § Interface screenshots](../../CONTRIBUTING.md#interface-screenshots) describes.
 
 Save screenshots inside the task workspace with descriptive filenames, such as `status-before.png` and `status-after.png`. Inspect the saved image before reporting success; a completed screenshot command does not prove that the intended state was visible.
 
