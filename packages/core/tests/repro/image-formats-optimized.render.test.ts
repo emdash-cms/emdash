@@ -15,12 +15,20 @@ vi.mock("astro:assets", async (importOriginal) => {
 	return {
 		...mod,
 		getImage: vi.fn(
-			async (opts: { src: string; width?: number; format?: string; sizes?: string }) => ({
-				src: `/_image?href=${encodeURIComponent(opts.src)}&w=${opts.width}&f=${opts.format ?? "webp"}`,
-				srcSet: {
-					attribute: `/_image?href=${encodeURIComponent(opts.src)}&w=640&f=${opts.format ?? "webp"} 640w`,
-				},
-			}),
+			async (opts: {
+				src: string;
+				width?: number;
+				format?: string;
+				sizes?: string;
+				quality?: number | string;
+			}) => {
+				const q = opts.quality === undefined ? "" : `&q=${opts.quality}`;
+				const base = `/_image?href=${encodeURIComponent(opts.src)}`;
+				return {
+					src: `${base}&w=${opts.width}&f=${opts.format ?? "webp"}${q}`,
+					srcSet: { attribute: `${base}&w=640&f=${opts.format ?? "webp"}${q} 640w` },
+				};
+			},
 		),
 	};
 });
@@ -80,6 +88,14 @@ describe("Image formats on the optimized (non-AstroPicture) path", () => {
 		expect(attr(imgTag(html), "src")).toContain("f=avif");
 		// The avif source reuses the fallback's result: one call per distinct format.
 		expect(vi.mocked(getImage)).toHaveBeenCalledTimes(2);
+	});
+
+	test("quality applies to the source and the img", async () => {
+		const html = await render({ image: remoteImage, formats: ["avif", "webp"], quality: 70 });
+
+		const [source] = sourceTags(html);
+		expect(attr(source!, "srcset")).toContain("f=avif&q=70");
+		expect(attr(imgTag(html), "src")).toContain("f=webp&q=70");
 	});
 
 	test("without formats the optimized path stays a single img", async () => {

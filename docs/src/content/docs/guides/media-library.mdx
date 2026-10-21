@@ -300,7 +300,7 @@ gives the browser a high fetch-priority hint. Other images should retain the com
 default.
 
 Set `quality={70}` to control optimized image output, or use an Astro preset: `"low"`, `"mid"`,
-`"high"`, or `"max"`. The setting applies to both light and dark variants. External media providers
+`"high"`, or `"max"`. The setting applies to both light and dark variants, and to every `<source>` when `formats` is set. External media providers
 must support the quality option; unoptimized images retain their original quality. The built-in
 Cloudflare Images media provider does not currently apply this option. For internally stored media
 on Cloudflare, presets map to 25, 50, 80, and 100, and finite numeric values are rounded and clamped
@@ -310,7 +310,7 @@ upload without optimization.
 To serve a modern format with a fallback for older browsers, pass `formats` with the preferred
 formats first. With more than one format, the component renders a `<picture>` element: the last
 entry becomes the fallback `<img>` and the earlier entries become `<source>` elements in order.
-A single-entry `formats` renders one `<img>` in that format. Pass `fallbackFormat` to use a
+Without `fallbackFormat`, a single-entry `formats` renders one `<img>` in that format. Pass `fallbackFormat` to use a
 different format for the `<img>`; every `formats` entry then stays a `<source>`.
 
 ```astro

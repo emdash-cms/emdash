@@ -88,6 +88,46 @@ describe("Image formats prop", () => {
 		expect(attr(imgTag(html), "src")).toBe("https://cdn.example.com/photo.jpg");
 	});
 
+	test("sources carry the same sizes as the img, for both color schemes", async () => {
+		const html = await render({
+			image: {
+				...localImage,
+				darkVariant: { id: "01DARK", src: "/media/formats-dark.jpg", width: 1232, height: 565 },
+			},
+			formats: ["avif", "webp"],
+		});
+
+		const sources = sourceTags(html);
+		const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+		expect(sources).toHaveLength(2);
+		expect(imgs).toHaveLength(2);
+		for (const [i, source] of sources.entries()) {
+			expect(attr(source, "sizes")).toBe("(min-width: 1232px) 1232px, 100vw");
+			expect(attr(source, "sizes")).toBe(attr(imgs[i]!, "sizes"));
+		}
+	});
+
+	test("quality applies to the source and the img", async () => {
+		const c = await AstroContainer.create();
+		const html = await c.renderToString(EmDashImage, {
+			props: { image: localImage, formats: ["avif", "webp"], quality: 70 },
+			locals,
+			// An allowed image domain, so the image service rewrites the URLs.
+			request: new Request("https://quality.example.com/"),
+		});
+
+		const [source] = sourceTags(html);
+		const urls = [
+			attr(imgTag(html), "src")!,
+			...attr(source!, "srcset")!
+				.split(", ")
+				.map((candidate) => candidate.split(" ")[0]!),
+		];
+		for (const url of urls) {
+			expect(new URL(url, "https://example.com").searchParams.get("q")).toBe("70");
+		}
+	});
+
 	test("dark variants each get their own <picture>", async () => {
 		const html = await render({
 			image: {

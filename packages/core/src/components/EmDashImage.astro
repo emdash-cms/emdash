@@ -33,6 +33,7 @@ import {
 	buildResponsiveImage,
 	formatContentType,
 	toAbsoluteMediaUrl,
+	responsiveSizes,
 	responsiveWidths,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
@@ -63,8 +64,9 @@ interface Props extends Omit<
 	placeholder?: boolean;
 	/**
 	 * Output formats, most preferred first. With more than one format the
-	 * component renders a `<picture>`: the last entry (or `fallbackFormat`)
-	 * becomes the `<img>` and the others become `<source>` elements in order.
+	 * component renders a `<picture>`: the last entry becomes the `<img>` and
+	 * the others become `<source>` elements in order. With `fallbackFormat`,
+	 * that format becomes the `<img>` and every entry becomes a `<source>`.
 	 * Only applies to media optimized by the site's image service; images from
 	 * external media providers keep the provider's own URLs.
 	 */
@@ -129,8 +131,7 @@ function generateSrcset(
 }
 
 // The fallback `<img>` uses the last requested format unless overridden. With
-// an explicit `fallbackFormat`, every `formats` entry stays a `<source>` (like
-// Astro's `<Picture>`), so the preference order the caller listed is kept.
+// an explicit `fallbackFormat`, every `formats` entry stays a `<source>`.
 const imgFormat = formats?.length ? (fallbackFormat ?? formats.at(-1)) : undefined;
 const sourceFormats = formats?.length ? (fallbackFormat ? formats : formats.slice(0, -1)) : [];
 
@@ -193,6 +194,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 									height: finalHeight,
 									originalWidth: img.width,
 									format: sourceFormat,
+									quality,
 								}).then((alternate) => ({ sourceFormat, alternate })),
 					),
 				);
@@ -334,6 +336,7 @@ const astroClass = (variantClass: string | undefined) =>
 				alt={finalAlt}
 				width={resolved.width}
 				height={resolved.height}
+				sizes={responsiveSizes(resolved.width)}
 				quality={quality}
 				priority={priority}
 				layout="constrained"
@@ -385,6 +388,7 @@ const astroClass = (variantClass: string | undefined) =>
 				alt={finalAlt}
 				width={resolvedDark.width}
 				height={resolvedDark.height}
+				sizes={responsiveSizes(resolvedDark.width)}
 				quality={quality}
 				priority={priority}
 				layout="constrained"
