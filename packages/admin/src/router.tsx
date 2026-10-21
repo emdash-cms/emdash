@@ -1539,15 +1539,16 @@ function ContentEditPage() {
 	});
 
 	const discardDraftMutation = useMutation({
-		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: async (discardedItem) => {
-			setConflictedEntryId((conflicted) => (conflicted === id ? "" : conflicted));
-			recordWriteRevision(id, discardedItem);
+		mutationFn: ({ targetCollection, targetId, targetLocale }: EntryMutationTarget) =>
+			discardDraft(targetCollection, targetId, { locale: targetLocale }),
+		onSuccess: async (discardedItem, { targetCollection, targetId }) => {
+			setConflictedEntryId((conflicted) => (conflicted === targetId ? "" : conflicted));
+			recordWriteRevision(targetId, discardedItem);
 			await queryClient.invalidateQueries({
-				queryKey: ["content", collection, id],
+				queryKey: ["content", targetCollection, targetId],
 			});
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			resetEditorItem(id, { discarded: true });
+			void queryClient.invalidateQueries({ queryKey: ["revisions", targetCollection, targetId] });
+			resetEditorItem(targetId, { discarded: true });
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
@@ -1879,10 +1880,23 @@ function ContentEditPage() {
 	// that resolves, so the confirmation closes and the lock notice takes over.
 	const handleDiscardDraft = React.useCallback(
 		() =>
-			discardDraftMutation.mutateAsync().catch((error: unknown) => {
-				if (!entryLock.reportWriteError(error, id)) throw error;
-			}),
-		[discardDraftMutation.mutateAsync, entryLock.reportWriteError, id],
+			discardDraftMutation
+				.mutateAsync({
+					targetCollection: collection,
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+				})
+				.catch((error: unknown) => {
+					if (!entryLock.reportWriteError(error, id)) throw error;
+				}),
+		[
+			activeLocale,
+			collection,
+			discardDraftMutation.mutateAsync,
+			entryLock.reportWriteError,
+			id,
+			rawItem?.locale,
+		],
 	);
 	const handleSchedule = React.useCallback(
 		async (
