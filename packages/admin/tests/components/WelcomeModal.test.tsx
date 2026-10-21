@@ -3,6 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
 import { WelcomeModal } from "../../src/components/WelcomeModal";
+import { AdminBrandingProvider } from "../../src/lib/admin-branding-context";
 import { render } from "../utils/render";
 
 // ---------------------------------------------------------------------------
@@ -123,5 +124,18 @@ describe("WelcomeModal", () => {
 		expect(screen.container.textContent).not.toContain(
 			"As an administrator, you can invite other users",
 		);
+	});
+
+	it("shows the configured admin logo instead of the EmDash icon", async () => {
+		const screen = await render(
+			<AdminBrandingProvider adminBranding={{ logo: "/brand.svg", siteName: "Acme" }}>
+				<QueryWrapper>
+					<WelcomeModal open={true} onClose={noop} userRole={50} />
+				</QueryWrapper>
+			</AdminBrandingProvider>,
+		);
+		const logo = screen.getByRole("img", { name: "Acme" });
+		await expect.element(logo).toBeInTheDocument();
+		await expect.element(logo).toHaveAttribute("src", "/brand.svg");
 	});
 });

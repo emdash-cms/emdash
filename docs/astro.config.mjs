@@ -204,6 +204,7 @@ export default defineConfig({
 							slug: "plugins/registry-client",
 						},
 						{ label: "Field Kit", slug: "plugins/field-kit" },
+						{ label: "AI Search", slug: "plugins/ai-search" },
 					],
 				},
 				{
@@ -248,6 +249,7 @@ export default defineConfig({
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },
+						{ label: "Route Caching", slug: "deployment/route-caching" },
 						{ label: "Plugin Sandbox", slug: "deployment/plugin-sandbox" },
 						{ label: "Secrets & Key Management", slug: "deployment/secrets" },
 					],

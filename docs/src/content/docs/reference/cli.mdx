@@ -161,7 +161,7 @@ npx emdash types [options]
 
 | Option     | Alias | Description                        | Default                    |
 | ---------- | ----- | ---------------------------------- | -------------------------- |
-| `--url`    | `-u`  | EmDash instance URL                | `http://localhost:4321`     |
+| `--url`    | `-u`  | EmDash instance URL                | `EMDASH_URL` or `http://localhost:4321` |
 | `--token`  | `-t`  | Auth token                         | From env or stored credentials |
 | `--header` | `-H`  | Custom request header; repeatable  | From env or stored credentials |
 | `--json`   |       | Accepted but does not change this command's files or progress output | — |
@@ -200,7 +200,7 @@ npx emdash login [options]
 
 | Option     | Alias | Description                       | Default                    |
 | ---------- | ----- | --------------------------------- | -------------------------- |
-| `--url`    | `-u`  | EmDash instance URL               | `http://localhost:4321`     |
+| `--url`    | `-u`  | EmDash instance URL               | `EMDASH_URL` or `http://localhost:4321` |
 | `--header` | `-H`  | Custom request header; repeatable | From `EMDASH_HEADERS`       |
 
 #### Behavior
@@ -224,7 +224,7 @@ npx emdash logout [options]
 
 | Option  | Alias | Description           | Default                |
 | ------- | ----- | --------------------- | ---------------------- |
-| `--url` | `-u`  | EmDash instance URL | `http://localhost:4321` |
+| `--url` | `-u`  | EmDash instance URL | `EMDASH_URL` or `http://localhost:4321` |
 
 ### `emdash whoami`
 
@@ -804,7 +804,7 @@ The command also writes a raw schema export named `schema.json` beside the selec
 | ------------------------- | ---------------------------------------- |
 | `EMDASH_DATABASE_URL`     | Override database URL                      |
 | `EMDASH_TOKEN`            | Auth token for remote operations          |
-| `EMDASH_URL`              | Default URL for commands using the shared remote client |
+| `EMDASH_URL`              | Default URL for commands using the shared remote client, `login`, `logout`, and `whoami` |
 | `EMDASH_HEADERS`          | Newline-separated custom request headers for the shared remote client and `login` |
 | `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. Generate with `emdash secrets generate`. |
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, EmDash generates and persists one in the options table. |

@@ -80,6 +80,8 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 		return apiError("NOT_CONFIGURED", "Storage not configured", 500);
 	}
 
+	// An unread download retains its storage connection even for a bodyless response.
+	let unusedBody: ReadableStream<Uint8Array> | undefined;
 	try {
 		// Range requests that include If-Range are served as whole-file responses
 		// because this route does not compare If-Range validators.
@@ -92,12 +94,12 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 		const result = range
 			? await emdash.storage.download(key, { range })
 			: await emdash.storage.download(key);
+		unusedBody = result.body;
 		const served = range ? result.range : undefined;
 
 		// Adapters return the whole file for a range they don't serve, including
 		// one past the end. A size of 0 may be unknown, so it rules nothing out.
 		if (range && !served && result.size > 0 && !resolveByteRange(range, result.size)) {
-			await result.body.cancel().catch(() => undefined);
 			const response = apiError("RANGE_NOT_SATISFIABLE", "Range not satisfiable", 416);
 			response.headers.set("Content-Range", `bytes */${result.size}`);
 			return response;
@@ -138,18 +140,24 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 			headers["Content-Disposition"] = "attachment";
 		}
 
+		const body = request.method === "HEAD" ? null : result.body;
+
 		if (served) {
 			const end = served.offset + served.length - 1;
 			headers["Content-Range"] = `bytes ${served.offset}-${end}/${result.size}`;
 			headers["Content-Length"] = String(served.length);
-			return new Response(result.body, { status: 206, headers });
+			const response = new Response(body, { status: 206, headers });
+			if (body) unusedBody = undefined;
+			return response;
 		}
 
 		if (result.size) {
 			headers["Content-Length"] = String(result.size);
 		}
 
-		return new Response(result.body, { status: 200, headers });
+		const response = new Response(body, { status: 200, headers });
+		if (body) unusedBody = undefined;
+		return response;
 	} catch (error) {
 		// Check if it's a "not found" error
 		if (
@@ -159,5 +167,7 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 			return apiError("NOT_FOUND", "File not found", 404);
 		}
 		return handleError(error, "Failed to serve file", "FILE_SERVE_ERROR");
+	} finally {
+		if (unusedBody && !unusedBody.locked) await unusedBody.cancel().catch(() => undefined);
 	}
 };

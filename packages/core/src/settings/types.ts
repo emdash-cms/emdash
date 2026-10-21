@@ -44,6 +44,8 @@ export interface SeoSettings {
 	defaultOgImage?: MediaReference;
 	/** Custom robots.txt content. If unset, a default is generated. */
 	robotsTxt?: string;
+	/** Add rules to robots.txt that ask AI crawlers not to use the site for training. */
+	disallowAiTraining?: boolean;
 	/** Google Search Console verification meta tag content */
 	googleVerification?: string;
 	/** Bing Webmaster Tools verification meta tag content */

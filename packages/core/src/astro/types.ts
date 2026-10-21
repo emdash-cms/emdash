@@ -257,6 +257,7 @@ export interface EmDashManifest {
 		siteName?: string;
 		footerLabel?: string | false;
 		favicon?: string;
+		hiddenNavItems?: string[];
 	};
 }
 

@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CommentRepository, type Comment } from "../../../src/database/repositories/comment.js";
@@ -131,6 +131,41 @@ describe("CommentRepository", () => {
 			const found2 = await repo.findById(c2.id);
 			expect(found1!.status).toBe("approved");
 			expect(found2!.status).toBe("approved");
+		});
+
+		it("bulkUpdateStatus rolls back earlier batches when a later update fails", async () => {
+			const comments = [];
+			for (let i = 0; i < 50; i++) {
+				comments.push(await repo.create(makeInput()));
+			}
+			comments.push(await repo.create(makeInput({ body: "Reject update" })));
+			await sql`
+				CREATE TRIGGER reject_comment_status BEFORE UPDATE ON _emdash_comments
+				WHEN NEW.body = 'Reject update'
+				BEGIN
+					SELECT RAISE(ABORT, 'status update rejected');
+				END
+			`.execute(db);
+
+			await expect(
+				repo.bulkUpdateStatus(
+					comments.map((comment) => comment.id),
+					"approved",
+				),
+			).rejects.toThrow("status update rejected");
+
+			const stored = await db
+				.selectFrom("_emdash_comments")
+				.select(["id", "status", "updated_at"])
+				.execute();
+			expect(stored).toHaveLength(comments.length);
+			for (const comment of comments) {
+				expect(stored.find((row) => row.id === comment.id)).toEqual({
+					id: comment.id,
+					status: "pending",
+					updated_at: comment.updatedAt,
+				});
+			}
 		});
 
 		it("bulkUpdateStatus returns 0 for empty array", async () => {

@@ -2,6 +2,24 @@ import { describe, expect, it } from "vitest";
 
 import { validateSubmission } from "../src/validation.js";
 
+function singleCheckboxField(required = false): {
+	id: string;
+	type: "checkbox";
+	label: string;
+	name: string;
+	required: boolean;
+	width: "full";
+} {
+	return {
+		id: "f0",
+		type: "checkbox",
+		label: "I agree",
+		name: "agree",
+		required,
+		width: "full",
+	};
+}
+
 function checkboxField(): {
 	id: string;
 	type: "checkbox-group";
@@ -25,6 +43,33 @@ function checkboxField(): {
 		],
 	};
 }
+
+describe("validateSubmission checkbox", () => {
+	it("coerces the default value of a checked checkbox to true", () => {
+		const result = validateSubmission([singleCheckboxField()], { agree: "1" });
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+		expect(result.data.agree).toBe(true);
+	});
+
+	it("coerces an explicit true value to true", () => {
+		const result = validateSubmission([singleCheckboxField()], { agree: "true" });
+		expect(result.valid).toBe(true);
+		expect(result.data.agree).toBe(true);
+	});
+
+	it("coerces an on value to true", () => {
+		const result = validateSubmission([singleCheckboxField()], { agree: "on" });
+		expect(result.valid).toBe(true);
+		expect(result.data.agree).toBe(true);
+	});
+
+	it("rejects a required checkbox that is not submitted", () => {
+		const result = validateSubmission([singleCheckboxField(true)], {});
+		expect(result.valid).toBe(false);
+		expect(result.errors).toEqual([{ field: "agree", message: "I agree is required" }]);
+	});
+});
 
 describe("validateSubmission checkbox-group", () => {
 	it("accepts multiple selected values", () => {

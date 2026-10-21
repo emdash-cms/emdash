@@ -85,7 +85,10 @@ export function Dashboard({ manifest }: DashboardProps) {
 					<SummaryMetrics
 						stats={stats}
 						loading={isLoading}
-						linkCalendar={(user?.role ?? 0) >= ROLE_CONTRIBUTOR}
+						linkCalendar={
+							(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+							!manifest.admin?.hiddenNavItems?.includes("calendar")
+						}
 					/>
 
 					{/* Collections + Recent activity */}
@@ -344,9 +347,11 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 					{config.labelSingular ?? config.label}
 				</RouterLinkButton>
 			))}
-			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
-				{t`Upload Media`}
-			</RouterLinkButton>
+			{!manifest.admin?.hiddenNavItems?.includes("media") && (
+				<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
+					{t`Upload Media`}
+				</RouterLinkButton>
+			)}
 		</div>
 	);
 }
@@ -404,22 +409,32 @@ function SummaryMetrics({
 					},
 				]
 			: []),
-		{
-			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
-			value: stats.mediaCount,
-		},
-		{
-			label: plural(stats.userCount, { one: "User", other: "Users" }),
-			value: stats.userCount,
-		},
+		...(stats.mediaCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
+						value: stats.mediaCount,
+					},
+				]),
+		...(stats.userCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.userCount, { one: "User", other: "Users" }),
+						value: stats.userCount,
+					},
+				]),
 	];
 
 	return (
 		<div
 			className={
-				hasScheduledContent
+				metrics.length === 4
 					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-					: "grid gap-4 sm:grid-cols-3"
+					: metrics.length === 3
+						? "grid gap-4 sm:grid-cols-3"
+						: "grid gap-4 sm:grid-cols-2"
 			}
 		>
 			{metrics.map((metric) => (

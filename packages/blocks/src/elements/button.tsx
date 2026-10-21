@@ -47,7 +47,7 @@ export function ButtonElementComponent({
 			</Button>
 			{element.confirm && (
 				<DialogRoot open={confirmOpen} onOpenChange={setConfirmOpen}>
-					<Dialog>
+					<Dialog className="p-6" size="sm">
 						<h3 className="text-lg font-semibold text-kumo-default">{element.confirm.title}</h3>
 						<p className="mt-1 text-sm text-kumo-subtle">{element.confirm.text}</p>
 						<div className="flex justify-end gap-2 pt-4">

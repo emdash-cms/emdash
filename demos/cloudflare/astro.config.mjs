@@ -10,7 +10,7 @@ import {
 	cloudflareImages,
 	cloudflareStream,
 } from "@emdash-cms/cloudflare";
-import { aiSearch } from "@emdash-cms/cloudflare/plugins";
+import { aiSearch } from "@emdash-cms/plugin-ai-search";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
 import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 import { defineConfig, fontProviders } from "astro/config";
@@ -74,17 +74,10 @@ export default defineConfig({
 				// Test plugin that exercises all v2 APIs
 				formsPlugin(),
 				aiSearch({
-					// AI Search instance name (created on first index). Default: "emdash-content".
-					instanceName: "emdash-content",
-					// wrangler.jsonc `ai_search_namespaces` binding name. Default: "AI_SEARCH".
+					// wrangler.jsonc `ai_search_namespaces` binding name.
 					binding: "AI_SEARCH",
-					// Hybrid search (vector + keyword). Default: true.
-					hybridSearch: true,
-					// Public result URLs returned to the AI Search snippet.
-					urlTemplates: {
-						posts: "/posts/{slug}?lang={locale}",
-						pages: "/pages/{slug}?lang={locale}",
-					},
+					// Instance the plugin creates and owns inside the namespace.
+					instance: "emdash-demo",
 				}),
 			],
 			// Sandboxed plugins (run in isolated workers)

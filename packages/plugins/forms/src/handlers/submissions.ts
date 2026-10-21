@@ -1,7 +1,8 @@
 /**
  * Submission management route handlers.
  *
- * Admin-only routes for viewing, updating, exporting, and deleting submissions.
+ * Listing and viewing submissions is open to editors (`plugins:read`), who can see every
+ * submission. Updating, exporting and deleting stay admin-only (`plugins:manage`).
  */
 
 import type { RouteContext, StorageCollection } from "emdash";

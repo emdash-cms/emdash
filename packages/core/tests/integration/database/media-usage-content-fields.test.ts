@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { handleSchemaFieldCreate } from "../../../src/api/handlers/schema.js";
 import { IdentifierError } from "../../../src/database/validate.js";
 import {
 	buildContentMediaUsageFieldFingerprint,
@@ -217,6 +218,21 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			.execute();
 
 		await expect(loadContentMediaUsageFields(ctx.db, "posts")).rejects.toThrow(IdentifierError);
+	});
+
+	it("keeps a reference field bound to a relation out of the display fields", async () => {
+		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		const created = await handleSchemaFieldCreate(ctx.db, "posts", {
+			slug: "name",
+			label: "Name",
+			type: "reference",
+			validation: { targetCollection: "posts" },
+		});
+		expect(created.success).toBe(true);
+
+		const discovery = await loadContentMediaUsageFields(ctx.db, "posts");
+
+		expect(discovery.displayFieldSlugs).toEqual(["title"]);
 	});
 
 	it("fingerprints exact extraction and display-field definitions independent of row order", async () => {

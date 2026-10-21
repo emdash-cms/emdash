@@ -425,7 +425,9 @@ function TermRow({
 			<div className="flex items-center gap-4 py-2 px-4 hover:bg-kumo-tint/50">
 				<div style={{ marginInlineStart: `${level * 1.5}rem` }} className="flex-1">
 					<span className="font-medium">{term.label}</span>
-					<span className="text-sm text-kumo-subtle ms-2">({term.slug})</span>
+					<span className="text-sm text-kumo-subtle ms-2">
+						(<bdi dir="ltr">{term.slug}</bdi>)
+					</span>
 				</div>
 				<div className="text-sm text-kumo-subtle">{term.count || 0}</div>
 				<div className="flex gap-2">
@@ -797,6 +799,7 @@ function TermFormDialog({
 								{t`Slug`}
 							</FieldHelpLabel>
 							<Input
+								dir="ltr"
 								id={slugInputId}
 								aria-label={t`Slug`}
 								className="w-full"
@@ -1040,6 +1043,7 @@ function CreateTaxonomyDialog({
 
 						<div>
 							<Input
+								dir="ltr"
 								label={t`Name`}
 								value={name}
 								onChange={(e) => {
