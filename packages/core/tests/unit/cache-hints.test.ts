@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
@@ -41,21 +41,20 @@ describe("Cache hints", () => {
 			expect(result.cacheHint!.tags).toEqual(["post"]);
 		});
 
-		it("should include lastModified from most recent entry", async () => {
+		it("should not include lastModified on a collection hint", async () => {
+			// Collection/list hints must not emit a validator: deleting or unpublishing
+			// an entry changes the list but does not advance max(updated_at), so a
+			// conditional refresh after a missed purge would answer 304 and freeze
+			// the stale body indefinitely.
 			await createPublishedPost("First Post");
-			const second = await createPublishedPost("Second Post");
+			await createPublishedPost("Second Post");
 
 			const loader = emdashLoader();
 			const result = await runWithContext({ editMode: false, db }, () =>
 				loader.loadCollection!({ filter: { type: "post" } }),
 			);
 
-			expect(result.cacheHint!.lastModified).toBeInstanceOf(Date);
-			// lastModified should be >= the second post's updated_at
-			const secondUpdated = new Date(second.updatedAt);
-			expect(result.cacheHint!.lastModified!.getTime()).toBeGreaterThanOrEqual(
-				secondUpdated.getTime(),
-			);
+			expect(result.cacheHint!.lastModified).toBeUndefined();
 		});
 	});
 
@@ -84,6 +83,45 @@ describe("Cache hints", () => {
 
 			const entry = result.entries![0];
 			expect(entry.cacheHint!.lastModified).toBeInstanceOf(Date);
+		});
+	});
+
+	describe("detail pages with related content", () => {
+		it("keeps collection-level validators off even when the entry has one", async () => {
+			const main = await createPublishedPost("Main Post");
+			const related = await handleContentCreate(db, "page", {
+				data: { title: "Related Post" },
+				status: "published",
+			});
+			if (!related.success) throw new Error("Failed to create related post");
+
+			const loader = emdashLoader();
+			const initial = await runWithContext({ editMode: false, db }, async () => ({
+				entry: await loader.loadEntry!({ filter: { type: "post", id: main.slug } }),
+				related: await loader.loadCollection!({
+					filter: { type: "page", status: "published" },
+				}),
+			}));
+			expect(initial.entry?.cacheHint.lastModified).toBeInstanceOf(Date);
+			expect(initial.related.cacheHint?.lastModified).toBeUndefined();
+			expect(initial.related.entries).toHaveLength(1);
+
+			const mainBefore = await sql<{ updated_at: string }>`
+				SELECT updated_at FROM ec_post WHERE id = ${main.id}
+			`.execute(db);
+			await sql`UPDATE ec_page SET status = 'draft' WHERE id = ${related.data!.item.id}`.execute(
+				db,
+			);
+			const mainAfter = await sql<{ updated_at: string }>`
+				SELECT updated_at FROM ec_post WHERE id = ${main.id}
+			`.execute(db);
+			expect(mainAfter.rows[0]?.updated_at).toBe(mainBefore.rows[0]?.updated_at);
+
+			const refreshed = await runWithContext({ editMode: false, db }, () =>
+				loader.loadCollection!({ filter: { type: "page", status: "published" } }),
+			);
+			expect(refreshed.entries).toHaveLength(0);
+			expect(refreshed.cacheHint?.lastModified).toBeUndefined();
 		});
 	});
 

@@ -18,11 +18,11 @@ import { afterEach, describe, it, expect, vi } from "vitest";
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
-vi.mock("virtual:emdash/config", () => ({ default: { objectCacheEnabled: true } }));
+vi.mock("virtual:emdash/config", () => ({ default: { objectCacheEnabled: false } }));
 
 import onRequest from "../../../src/astro/middleware/request-context.js";
 import { __setObjectCacheBackendForTests, cachedQuery } from "../../../src/object-cache/index.js";
-import { getRequestContext } from "../../../src/request-context.js";
+import { getRequestContext, runWithContext } from "../../../src/request-context.js";
 
 function buildContext(opts: {
 	pathname?: string;
@@ -56,51 +56,75 @@ afterEach(() => {
 });
 
 describe("route-cache request context", () => {
-	it("marks anonymous production cache renders as route-cache fills", async () => {
-		const cache = { enabled: true, set: vi.fn() };
-		const context = buildContext({ cache });
-		let routeCacheFill: boolean | undefined;
+	it.each([false, true])(
+		"marks anonymous cache renders as fills (edit cookie: %s)",
+		async (editCookie) => {
+			const cache = { enabled: true, set: vi.fn() };
+			const context = buildContext({ cache, editCookie });
+			let routeCacheFill: boolean | undefined;
 
-		await onRequest(context, () => {
-			routeCacheFill = getRequestContext()?.routeCacheFill;
-			return htmlResponse();
-		});
+			await onRequest(context, () => {
+				routeCacheFill = getRequestContext()?.routeCacheFill;
+				return htmlResponse();
+			});
 
-		expect(routeCacheFill).toBe(true);
-	});
+			expect(routeCacheFill).toBe(true);
+		},
+	);
 
-	it("rebuilds an anonymous route-cache fill from the loader", async () => {
-		const store = new Map<string, string>();
-		__setObjectCacheBackendForTests({
-			get: (key) => Promise.resolve(store.get(key) ?? null),
-			set: (key, value) => {
-				store.set(key, value);
-				return Promise.resolve();
-			},
-			delete: (key) => {
-				store.delete(key);
-				return Promise.resolve();
-			},
-		});
-		await cachedQuery({
-			namespace: "content:v2:posts",
-			key: "list",
-			load: () => Promise.resolve("Before publish"),
-		});
-		await new Promise((resolve) => setTimeout(resolve, 0));
-
-		const context = buildContext({ cache: { enabled: true, set: vi.fn() } });
-		const response = await onRequest(context, async () => {
-			const title = await cachedQuery({
+	it.each([false, true])(
+		"rebuilds an anonymous fill from the loader (edit cookie: %s)",
+		async (editCookie) => {
+			const store = new Map<string, string>();
+			__setObjectCacheBackendForTests({
+				get: (key) => Promise.resolve(store.get(key) ?? null),
+				set: (key, value) => {
+					store.set(key, value);
+					return Promise.resolve();
+				},
+				delete: (key) => {
+					store.delete(key);
+					return Promise.resolve();
+				},
+			});
+			await cachedQuery({
 				namespace: "content:v2:posts",
 				key: "list",
-				load: () => Promise.resolve("After publish"),
+				load: () => Promise.resolve("Before publish"),
 			});
-			return new Response(title);
-		});
+			await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(await response.text()).toBe("After publish");
-	});
+			const context = buildContext({ cache: { enabled: true, set: vi.fn() }, editCookie });
+			const response = await onRequest(context, async () => {
+				const title = await cachedQuery({
+					namespace: "content:v2:posts",
+					key: "list",
+					load: () => Promise.resolve("After publish"),
+				});
+				return new Response(title);
+			});
+
+			expect(await response.text()).toBe("After publish");
+		},
+	);
+
+	it.each([false, true])(
+		"preserves outer context and requests live settings (edit cookie: %s)",
+		async (editCookie) => {
+			const context = buildContext({ cache: { enabled: true, set: vi.fn() }, editCookie });
+			const db = {};
+			const siteSettings = { live: false, onRead: vi.fn() };
+
+			await runWithContext({ editMode: false, db, siteSettings }, () =>
+				onRequest(context, () => {
+					expect(getRequestContext()?.db).toBe(db);
+					expect(getRequestContext()?.siteSettings).toBe(siteSettings);
+					expect(siteSettings.live).toBe(true);
+					return htmlResponse();
+				}),
+			);
+		},
+	);
 
 	it("keeps the anonymous fast path when route caching is disabled", async () => {
 		const cache = { enabled: false, set: vi.fn() };

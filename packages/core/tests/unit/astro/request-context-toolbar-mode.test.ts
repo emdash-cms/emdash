@@ -16,6 +16,8 @@ import { runInNewContext } from "node:vm";
 
 import { describe, it, expect, vi } from "vitest";
 
+import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
+
 type Middleware = (context: unknown, next: () => Promise<Response>) => Promise<Response> | Response;
 
 async function loadMiddleware(toolbar: unknown): Promise<Middleware> {
@@ -35,12 +37,13 @@ function buildContext(opts: {
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
 	playground?: boolean;
+	cacheEnabled?: boolean;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
 		request: new Request(url),
 		url,
-		cache: { set: vi.fn() },
+		cache: { enabled: opts.cacheEnabled ?? false, set: vi.fn() },
 		cookies: {
 			get: vi.fn((name: string) =>
 				name === "emdash-edit-mode" && opts.editCookie ? { value: "true" } : undefined,
@@ -59,6 +62,45 @@ const htmlResponse = () =>
 const EDITOR = { id: "u1", role: 30 };
 
 const HIDDEN_EDIT_TOOLBAR = /<div id="emdash-toolbar" data-edit-mode="true"[^>]* hidden>/;
+
+describe("toolbar: route-cache fills", () => {
+	it.each(["client", false, "server"])(
+		"bypasses stale settings for shareable editor responses (toolbar: %s)",
+		async (toolbar) => {
+			const onRequest = await loadMiddleware(toolbar);
+			const {
+				getSiteSettings,
+				__setSiteSettingsCacheForTests,
+				setSiteSettings,
+				invalidateSiteSettingsCache,
+			} = await import("../../../src/settings/index.js");
+			const { runWithContext } = await import("../../../src/request-context.js");
+			const db = await setupTestDatabaseWithCollections();
+			try {
+				await setSiteSettings({ title: "Fresh" }, db);
+				__setSiteSettingsCacheForTests({ title: "Stale" });
+
+				const siteSettings = { live: false, onRead: vi.fn() };
+				const context = buildContext({ user: EDITOR, cacheEnabled: true });
+				const response = await runWithContext({ editMode: false, db, siteSettings }, () =>
+					onRequest(context, async () => {
+						const settings = await getSiteSettings();
+						return new Response(settings.title, {
+							headers: { "content-type": toolbar === "server" ? "application/json" : "text/html" },
+						});
+					}),
+				);
+
+				expect(await response.text()).toBe("Fresh");
+				expect(siteSettings.live).toBe(true);
+				expect(context.cache.set).not.toHaveBeenCalled();
+			} finally {
+				invalidateSiteSettingsCache();
+				await teardownTestDatabase(db);
+			}
+		},
+	);
+});
 
 describe("toolbar: server (default)", () => {
 	it("injects the toolbar for editors and leaves anonymous HTML untouched", async () => {

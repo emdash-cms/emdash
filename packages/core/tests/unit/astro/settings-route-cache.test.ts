@@ -147,7 +147,8 @@ describe("settings freshness in route-cache renders", () => {
 		await db.destroy();
 	});
 
-	it("opts out stale renders, refreshes settings, and caches the next fresh render", async () => {
+	it("fills with fresh settings instead of rendering and rejecting a stale isolate snapshot", async () => {
+		await runWithContext({ editMode: false, db }, () => getSiteSettings());
 		const warmCache = {
 			enabled: true,
 			options: { tags: ["emdash:settings"], maxAge: 3600 },
@@ -163,10 +164,10 @@ describe("settings freshness in route-cache renders", () => {
 			options: { tags: ["emdash:settings"], maxAge: 3600 },
 			set: vi.fn(),
 		};
-		expect(await (await renderPipeline(db, staleCache)).text()).toBe("old");
-		expect(staleCache.set).toHaveBeenCalledWith(false);
+		expect(await (await renderPipeline(db, staleCache)).text()).toBe("new");
+		expect(staleCache.set).not.toHaveBeenCalled();
 		expect(counts.redirectStateSelects).toBe(1);
-		expect(counts.selects).toBe(1);
+		expect(counts.selects).toBe(2);
 
 		const freshCache = {
 			enabled: true,
@@ -175,6 +176,27 @@ describe("settings freshness in route-cache renders", () => {
 		};
 		expect(await (await renderPipeline(db, freshCache)).text()).toBe("new");
 		expect(freshCache.set).not.toHaveBeenCalled();
+	});
+
+	it("does not cache settings changed between rendering and verification", async () => {
+		const cache = {
+			enabled: true,
+			options: { tags: ["emdash:settings"], maxAge: 3600 },
+			set: vi.fn(),
+		};
+		const context = buildContext(cache, db) as unknown as MiddlewareContext;
+		const response = await runWithContext({ editMode: false, db }, () =>
+			redirectMiddleware(context, () =>
+				requestContextMiddleware(context, async () => {
+					const settings = await getSiteSettings();
+					await new OptionsRepository(db).set("site:seo", { googleVerification: "new" });
+					return new Response(settings.seo?.googleVerification);
+				}),
+			),
+		);
+
+		expect(await response.text()).toBe("old");
+		expect(cache.set).toHaveBeenCalledWith(false);
 	});
 
 	it("reloads a pre-write cold load first consumed after cache headers are finalized", async () => {
@@ -229,7 +251,7 @@ describe("settings freshness in route-cache renders", () => {
 		}
 	});
 
-	it("uses the existing warm redirect-state verification for the settings version", async () => {
+	it("loads settings live alongside the warm redirect-state verification", async () => {
 		await renderPipeline(db, {
 			enabled: true,
 			options: { tags: ["emdash:settings"], maxAge: 3600 },
@@ -243,12 +265,12 @@ describe("settings freshness in route-cache renders", () => {
 			set: vi.fn(),
 		});
 
-		expect(counts.selects).toBe(1);
+		expect(counts.selects).toBe(2);
 		expect(counts.redirectStateSelects).toBe(1);
 	});
 
 	it.each([false, true])(
-		"opts out before a lazy streamed settings read (object cache: %s)",
+		"uses live settings for a lazy streamed fill (object cache: %s)",
 		async (objectCacheEnabled) => {
 			config.objectCacheEnabled = objectCacheEnabled;
 			if (objectCacheEnabled) {
@@ -257,6 +279,7 @@ describe("settings freshness in route-cache renders", () => {
 				});
 			}
 
+			await runWithContext({ editMode: false, db }, () => getSiteSettings());
 			const warmCache = {
 				enabled: true,
 				options: { tags: ["emdash:settings"], maxAge: 3600 },
@@ -277,11 +300,7 @@ describe("settings freshness in route-cache renders", () => {
 			};
 			try {
 				const response = await renderLazyPipeline(db, cache, gate);
-				if (objectCacheEnabled) {
-					expect(cache.set).not.toHaveBeenCalled();
-				} else {
-					expect(cache.set).toHaveBeenCalledWith(false);
-				}
+				expect(cache.set).not.toHaveBeenCalled();
 				release();
 				expect(await response.text()).toBe("new");
 			} finally {
@@ -290,7 +309,8 @@ describe("settings freshness in route-cache renders", () => {
 		},
 	);
 
-	it("pins the verified settings snapshot for a lazy streamed read", async () => {
+	it("reads current settings when a write follows verification before a streamed read", async () => {
+		await runWithContext({ editMode: false, db }, () => getSiteSettings());
 		const warmCache = {
 			enabled: true,
 			options: { tags: ["emdash:settings"], maxAge: 3600 },
@@ -314,13 +334,13 @@ describe("settings freshness in route-cache renders", () => {
 			await setSiteSettings({ seo: { googleVerification: "new" } }, db);
 			await runWithContext({ editMode: false, db }, () => getSiteSettings());
 			release();
-			expect(await response.text()).toBe("old");
+			expect(await response.text()).toBe("new");
 		} finally {
 			release();
 		}
 	});
 
-	it("reuses prefetched layout data without duplicate queries", async () => {
+	it("reloads prefetched settings and menus in the fill context", async () => {
 		config.objectCacheEnabled = false;
 		await renderPipeline(db, {
 			enabled: true,
@@ -347,12 +367,38 @@ describe("settings freshness in route-cache renders", () => {
 			);
 		});
 
+		expect(counts.selects).toBe(3);
+		expect(counts.redirectStateSelects).toBe(1);
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
+	it("reuses layout data prefetched inside the fill context", async () => {
+		const cache = {
+			enabled: true,
+			options: { tags: ["emdash:settings"], maxAge: 3600 },
+			set: vi.fn(),
+		};
+		const context = buildContext(cache, db) as unknown as MiddlewareContext;
+		await runWithContext({ editMode: false, db }, () =>
+			redirectMiddleware(context, () =>
+				requestContextMiddleware(context, async () => {
+					await prefetchLayoutData();
+					resetCounts(counts);
+					const [settings, menu] = await Promise.all([getSiteSettings(), getMenu("primary")]);
+					expect(settings.seo?.googleVerification).toBe("old");
+					expect(menu?.label).toBe("Primary");
+					expect(counts.selects).toBe(0);
+					return new Response("ok");
+				}),
+			),
+		);
+
 		expect(counts.selects).toBe(1);
 		expect(counts.redirectStateSelects).toBe(1);
 		expect(cache.set).not.toHaveBeenCalled();
 	});
 
-	it("opts out when a prefetched request snapshot is stale despite a fresh global snapshot", async () => {
+	it("ignores a stale prefetched request snapshot during a fill", async () => {
 		const cache = {
 			enabled: true,
 			options: { tags: ["emdash:settings"], maxAge: 3600 },
@@ -375,10 +421,10 @@ describe("settings freshness in route-cache renders", () => {
 					return new Response(settings.seo?.googleVerification ?? "missing");
 				}),
 			);
-			expect(await response.text()).toBe("old");
+			expect(await response.text()).toBe("new");
 		});
 
-		expect(cache.set).toHaveBeenCalledWith(false);
+		expect(cache.set).not.toHaveBeenCalled();
 	});
 
 	it("bypasses a stale object-cache snapshot in a cold isolate", async () => {
@@ -449,7 +495,7 @@ describe("settings freshness in route-cache renders", () => {
 		});
 	});
 
-	it("does not cache when a pending settings prefetch rejects", async () => {
+	it("ignores a rejected unused prefetch from the fill context", async () => {
 		const cache = {
 			enabled: true,
 			options: { tags: ["emdash:settings"], maxAge: 3600 },
@@ -481,10 +527,10 @@ describe("settings freshness in route-cache renders", () => {
 			expect(await response.text()).toBe("no settings");
 		});
 		expect(nextCalls).toBe(1);
-		expect(cache.set).toHaveBeenCalledWith(false);
+		expect(cache.set).not.toHaveBeenCalled();
 	});
 
-	it("fences an unsafe legacy redirect destination after rendering", async () => {
+	it("reads live settings after skipping an unsafe legacy redirect", async () => {
 		await db
 			.insertInto("_emdash_redirects")
 			.values({
@@ -505,6 +551,7 @@ describe("settings freshness in route-cache renders", () => {
 			options: { tags: ["emdash:settings"], maxAge: 3600 },
 			set: vi.fn(),
 		});
+		await runWithContext({ editMode: false, db }, () => getSiteSettings());
 		await new OptionsRepository(db).set("site:seo", { googleVerification: "new" });
 		resetCounts(counts);
 		const cache = {
@@ -518,7 +565,7 @@ describe("settings freshness in route-cache renders", () => {
 		});
 		try {
 			const response = await renderLazyPipeline(db, cache, gate);
-			expect(cache.set).toHaveBeenCalledWith(false);
+			expect(cache.set).not.toHaveBeenCalled();
 			expect(counts.selects).toBe(1);
 			release();
 			expect(await response.text()).toBe("new");

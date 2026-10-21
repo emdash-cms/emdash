@@ -156,7 +156,7 @@ describeEachDialect("published dates", (dialect) => {
 			march,
 			"2025-12-15T12:00:00.000Z",
 		]);
-		expect(result.cacheHint).toEqual({ tags: ["post"], lastModified: new Date(march) });
+		expect(result.cacheHint).toEqual({ tags: ["post"] });
 		const entries = result.dates.map((publishedAt) => ({ data: { publishedAt } }));
 		expect(groupEntriesByPublishedAt(entries, { limit: 2 })).toEqual([
 			{ label: "April 2026", count: 1, url: "/archives/2026/04" },
@@ -167,10 +167,10 @@ describeEachDialect("published dates", (dialect) => {
 			{ label: "2025", count: 1, url: "/archives/2025" },
 		]);
 		expect(queries).toHaveLength(1);
-		expect(queries[0]?.fields).toEqual(["published_at", "updated_at"]);
+		expect(queries[0]?.fields).toEqual(["published_at"]);
 	});
 
-	it("ignores invalid publication dates and retains visible last-modified hints through L2", async () => {
+	it("ignores invalid publication dates and omits validators through L2", async () => {
 		await seed("valid", march);
 		await seed("missing-date", null, { updatedAt: may });
 		await seed("empty-date", "");
@@ -183,7 +183,7 @@ describeEachDialect("published dates", (dialect) => {
 		expect(first.error).toBeUndefined();
 		expect(second).toEqual(first);
 		expect(timestamps(second.dates)).toEqual([april, march]);
-		expect(second.cacheHint.lastModified).toEqual(new Date(may));
+		expect(second.cacheHint.lastModified).toBeUndefined();
 		expect(contentReads()).toHaveLength(1);
 	});
 

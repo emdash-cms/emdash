@@ -325,20 +325,13 @@ export async function getPublishedDates(
 				load: async () => {
 					const rows = await loadPublishedDates(type, locale);
 					const dates: Date[] = [];
-					let lastModified: Date | undefined;
 					for (const row of rows) {
 						if (row.published_at) {
 							const date = new Date(row.published_at);
 							if (!Number.isNaN(date.getTime())) dates.push(date);
 						}
-						if (row.updated_at) {
-							const modified = new Date(row.updated_at);
-							if (!Number.isNaN(modified.getTime()) && (!lastModified || modified > lastModified)) {
-								lastModified = modified;
-							}
-						}
 					}
-					return { dates, cacheHint: { tags: [type], lastModified } };
+					return { dates, cacheHint: { tags: [type] } };
 				},
 			}),
 		);
@@ -1096,12 +1089,9 @@ async function attachReferences<D>(
 
 	const references: ReferencePages = {};
 	const tags: string[] = [];
-	let lastModified: Date | undefined;
 	for (const [field, page] of Object.entries(pages)) {
 		for (const child of page.entries) {
 			tags.push(...child.cacheHint.tags);
-			const modified = child.cacheHint.lastModified;
-			if (modified && (!lastModified || modified > lastModified)) lastModified = modified;
 		}
 		references[field] = {
 			entries: page.entries.map((child) => wrapReferencedEntry(page.collection, child)),
@@ -1109,16 +1099,16 @@ async function attachReferences<D>(
 		};
 	}
 	entry.references = references;
-	return { tags, ...(lastModified ? { lastModified } : {}) };
+	return { tags };
 }
 
 /**
  * Fold the children's cache hint into the entry's own.
  *
  * A render that shows a referenced entry has read that row, so the route's tags
- * have to name it and its `Last-Modified` has to move when it changes. Without
- * this the route cache's `invalidate({ tags: [collection, id] })` on a child
- * write would never reach the pages that render the child.
+ * have to name it. Without this the route cache's
+ * `invalidate({ tags: [collection, id] })` on a child write would never reach
+ * the pages that render the child.
  */
 function mergeCacheHints(base: CacheHint, extra: CacheHint): CacheHint {
 	if (!extra.tags?.length && !extra.lastModified) return base;
@@ -1499,17 +1489,14 @@ export async function getEmDashReferences<D = Record<string, unknown>>(
 		if (!page) return { entries: [] };
 
 		const tags: string[] = [];
-		let lastModified: Date | undefined;
 		for (const child of page.entries) {
 			tags.push(...child.cacheHint.tags);
-			const modified = child.cacheHint.lastModified;
-			if (modified && (!lastModified || modified > lastModified)) lastModified = modified;
 		}
 
 		return {
 			entries: page.entries.map((child) => wrapReferencedEntry<D>(page.collection, child)),
 			...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
-			cacheHint: { tags, ...(lastModified ? { lastModified } : {}) },
+			cacheHint: { tags },
 		};
 	} catch (error) {
 		return { entries: [], error: error instanceof Error ? error : new Error(String(error)) };

@@ -2,8 +2,8 @@
  * EmDash Request Context Middleware
  *
  * Sets up AsyncLocalStorage-based request context for query functions.
- * Skips ALS for logged-out users with no CMS signals unless a configured
- * object cache must be fenced off during a route-cache render.
+ * Skips ALS for logged-out users with no CMS signals unless isolate and
+ * object caches must be bypassed during a route-cache render.
  *
  * Handles:
  * - Preview tokens: _preview query param with signed HMAC token
@@ -175,7 +175,7 @@ function redirectToCanonical(url: URL): Response {
 	});
 }
 
-export const onRequest = defineMiddleware(async (context, next) => {
+const handleRequest = defineMiddleware(async (context, next) => {
 	const { cookies, url } = context;
 
 	// Skip /_emdash routes (admin has its own UI, no rendering context needed)
@@ -200,7 +200,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Check if playground user has toggled edit mode on
 		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
 		return runWithContext(
-			{ editMode: hasEditCookie, db: playgroundDb, dbIsIsolated: true },
+			{ ...getRequestContext(), editMode: hasEditCookie, db: playgroundDb, dbIsIsolated: true },
 			async () => {
 				const response = await next();
 				if (!hasEditCookie || toolbarMode === false) return response;
@@ -242,19 +242,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	// No CMS signals and not an editor. Route-cache renders get a context so
-	// object-cache reads cannot seed a fresh response with stale data; other
-	// requests retain the anonymous fast path.
+	// No CMS signals and not an editor.
 	if (!hasEditCookie && !hasPreviewToken && !isEditor) {
 		const render = async () => {
 			const response = await next();
 			return toolbarMode === "client" ? injectBootstrap(response) : response;
 		};
-		if (virtualConfig?.objectCacheEnabled && context.cache?.enabled) {
-			const parent = getRequestContext();
-			if (parent?.siteSettings) parent.siteSettings.live = true;
-			return runWithContext({ ...parent, editMode: false, routeCacheFill: true }, render);
-		}
 		return render();
 	}
 
@@ -366,6 +359,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	}
 
 	return next();
+});
+
+export const onRequest = defineMiddleware((context, next) => {
+	if (
+		!context.cache?.enabled ||
+		context.url.pathname.startsWith("/_emdash") ||
+		context.url.searchParams.has("_preview")
+	) {
+		return handleRequest(context, next);
+	}
+
+	// Editors can also fill the shared cache (client toolbar, disabled toolbar,
+	// or non-HTML responses). Fence all potential fills before rendering; a
+	// toolbar-injected response can still opt out afterward.
+	const parent = getRequestContext();
+	// Redirect verification must not pin an isolate snapshot over these live reads.
+	if (parent?.siteSettings) parent.siteSettings.live = true;
+	return runWithContext({ ...parent, editMode: false, routeCacheFill: true }, () =>
+		handleRequest(context, next),
+	);
 });
 
 export default onRequest;

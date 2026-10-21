@@ -151,3 +151,22 @@ export function runWithContext<T>(ctx: EmDashRequestContext, fn: () => T): T {
 export function getRequestContext(): EmDashRequestContext | undefined {
 	return storage.getStore();
 }
+
+/**
+ * Whether the current request must not trust module-scope / isolate caches.
+ *
+ * Edit mode, preview tokens, and isolated databases need fresh data; a route-
+ * cache fill rendering after a purge must not resurrect a stale isolate copy.
+ *
+ * Shared by the object cache and the isolate taxonomy caches.
+ */
+export function shouldBypassModuleCaches(): boolean {
+	const ctx = getRequestContext();
+	if (!ctx) return false;
+	return (
+		ctx.editMode === true ||
+		ctx.preview !== undefined ||
+		ctx.dbIsIsolated === true ||
+		ctx.routeCacheFill === true
+	);
+}

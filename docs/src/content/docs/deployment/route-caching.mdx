@@ -101,6 +101,8 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 
 ## Provider differences
 
+With a cache provider enabled, EmDash reads fresh settings and taxonomy data during rendering so a cache miss after a purge cannot reuse an old server-process snapshot. These reads also happen on routes that ultimately remain uncached: a page can opt into caching while it renders, after its data has been read. This adds database queries to rendered requests; cache hits bypass rendering.
+
 ### Node.js with `memoryCache()`
 
 - Each server process keeps its own cache, and an invalidation only clears the process that handled the write. If you run several processes or instances, the others keep serving their cached pages until `maxAge` expires.
@@ -124,4 +126,8 @@ A rate-limited purge fails without an error in the admin, and the affected pages
 
 ## Browser caching is separate
 
-The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. When a page passes a cache hint with a last-modified date (as entry and collection hints do) and sets no `Cache-Control` itself, Astro sends `Cache-Control: no-cache`, so browsers revalidate on every visit. If you set your own header, for example with `Astro.response.headers.set("Cache-Control", ...)`, keep it short (minutes, not days), so a publish also reaches returning visitors quickly. `stale-while-revalidate` in that header gives returning visitors instant loads while their browser revalidates in the background.
+The route cache can afford long TTLs because EmDash invalidates it; browser caches are not invalidated. Collection, publication-date, and reference-list cache hints carry purge tags only. A page can depend on settings, related entries, and reference lists, so the newest modification time of the listed rows does not describe the whole response. Using that time as a validator can produce a `304 Not Modified` after an entry is deleted or unpublished, keeping a stale cached body.
+
+Single-entry hints still carry an automatic `Last-Modified` validator based on the entry's `updated_at`. If the page also renders referenced entries, menus, or settings, that timestamp does not cover those dependencies, so a custom `lastModified` hint that advances with every dependency is safer.
+
+Tag-only hints do not trigger Astro's implicit `Cache-Control: no-cache` header or enable conditional `304` revalidation on their own. Set browser caching explicitly with `Astro.response.headers.set("Cache-Control", ...)`. Use `no-cache` to require a fresh check on each visit, or a short lifetime (minutes, not days) so a publish reaches returning visitors quickly. `stale-while-revalidate` in that header gives returning visitors instant loads while their browser revalidates in the background. If you supply a custom `lastModified` hint, its timestamp must advance whenever any dependency of the response changes.

@@ -152,6 +152,12 @@ export function invalidateSiteSettingsCache(): void {
 	invalidateObjectCache(SETTINGS_CACHE_NAMESPACE);
 }
 
+/** @internal Test helper: seed the isolate cache with a stale value. */
+export function __setSiteSettingsCacheForTests(value: Partial<SiteSettings>): void {
+	settingsCache.snapshot = { data: value, version: settingsCache.generation.toString() };
+	settingsCache.expiresAt = Date.now() + SITE_SETTINGS_CACHE_TTL_MS;
+}
+
 /**
  * Type guard for MediaReference values
  */

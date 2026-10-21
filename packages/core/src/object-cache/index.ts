@@ -28,7 +28,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { after } from "../after.js";
-import { getRequestContext } from "../request-context.js";
+import { shouldBypassModuleCaches } from "../request-context.js";
 import { decode, encode } from "./codec.js";
 import type {
 	CreateObjectCacheBackendFn,
@@ -404,14 +404,7 @@ function epochsMatch(stored: readonly number[], current: readonly number[]): boo
  * object-cache snapshot.
  */
 function shouldBypass(): boolean {
-	const ctx = getRequestContext();
-	if (!ctx) return false;
-	return (
-		ctx.editMode === true ||
-		ctx.preview !== undefined ||
-		ctx.dbIsIsolated === true ||
-		ctx.routeCacheFill === true
-	);
+	return shouldBypassModuleCaches();
 }
 
 /**

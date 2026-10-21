@@ -1,12 +1,14 @@
 import cloudflare from "@astrojs/cloudflare";
+import { cacheCloudflare } from "@astrojs/cloudflare/cache";
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
-import { defineConfig } from "astro/config";
+import { defineConfig, memoryCache } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 const target = process.env.EMDASH_FIXTURE_TARGET ?? "sqlite";
+const routeCache = process.env.EMDASH_FIXTURE_ROUTE_CACHE === "1";
 
 const sqliteIntegration = emdash({
 	database: sqlite({ url: "file:./data.db" }),
@@ -25,6 +27,8 @@ const d1Integration = emdash({
 
 export default defineConfig({
 	output: "server",
+	outDir: routeCache ? "./dist-route-cache" : "./dist",
+	cache: routeCache ? { provider: target === "d1" ? cacheCloudflare() : memoryCache() } : undefined,
 	adapter:
 		target === "d1"
 			? cloudflare()

@@ -38,7 +38,7 @@ import {
 } from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
-import { getRequestContext } from "../request-context.js";
+import { shouldBypassModuleCaches } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import {
@@ -201,6 +201,14 @@ export function resetTaxonomyDefsCacheForTests(): void {
 	invalidateSingleFlightCache(defsCache);
 }
 
+/** @internal Test helper: seed the isolate cache with a stale definition set. */
+export function __setTaxonomyDefsCacheForTests(value: TaxonomyDef[]): void {
+	invalidateSingleFlightCache(defsCache);
+	defsCache.value = value;
+	defsCache.hasValue = true;
+	defsCache.valueVersion = defsCache.version;
+}
+
 /** Every locale's definition rows, straight from the database (no caching). */
 async function fetchTaxonomyDefRows(): Promise<TaxonomyDef[]> {
 	const db = await getDb();
@@ -216,7 +224,10 @@ async function fetchTaxonomyDefRows(): Promise<TaxonomyDef[]> {
  * for isolated databases.
  */
 function loadTaxonomyDefRows(): Promise<TaxonomyDef[]> {
-	if (getRequestContext()?.dbIsIsolated === true) {
+	// Isolated databases, route-cache fills, previews, and edit mode must read
+	// live definitions: an isolate copy could belong to another database or
+	// another purge generation.
+	if (shouldBypassModuleCaches()) {
 		return fetchTaxonomyDefRows();
 	}
 	return singleFlightCached(defsCache, fetchTaxonomyDefRows, {
@@ -229,8 +240,9 @@ function loadTaxonomyDefRows(): Promise<TaxonomyDef[]> {
  * Every locale's definition rows. Two-tier cache: per-request via
  * `requestCached`, then the object cache when configured, else the isolate
  * holder, so warm renders issue zero queries whatever locale they ask for.
+ * @internal Shared with the loader's taxonomy-filter classification.
  */
-function getTaxonomyDefRows(): Promise<TaxonomyDef[]> {
+export function getTaxonomyDefRows(): Promise<TaxonomyDef[]> {
 	return requestCached("taxonomy-def-rows", async () => {
 		if (await isObjectCacheActive()) {
 			return cachedQuery({

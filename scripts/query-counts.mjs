@@ -9,6 +9,11 @@
  * emits `[emdash-query-log]`-prefixed NDJSON on stdout, which the harness
  * captures.
  *
+ * Each target also builds a route-cache-enabled variant. Identical probes
+ * measure stored misses (distinct query keys) and an unstored route (the same
+ * URL twice), alongside a no-provider baseline. This records the conservative
+ * fill fence's cost even when a response is never stored.
+ *
  * Two snapshots are written/compared per target:
  *   query-counts.snapshot.{target}.json  — per route+phase query *count*
  *   query-counts.queries.{target}.json   — per route+phase map of the
@@ -57,7 +62,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createConnection } from "node:net";
 import { dirname, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -92,7 +97,10 @@ const ROUTES = [
 	// them is the whole cost of `getEmDashEntry(..., { references })`.
 	["GET", "/related", "text/html"],
 	["GET", "/related-baseline", "text/html"],
+	["GET", "/perf-cache/plain", "application/json"],
 ];
+
+const ROUTE_CACHE_MODES = ["stored", "unstored"];
 
 const TRACKED_PHASES = new Set(["cold", "warm"]);
 const VALID_TARGETS = new Set(["sqlite", "d1"]);
@@ -200,29 +208,47 @@ function resetD1State() {
 	rmSync(resolve(fixtureDir, ".wrangler"), { recursive: true, force: true });
 }
 
-const buildMarkerPath = resolve(fixtureDir, "dist/.perf-target");
+function buildPaths(routeCache) {
+	const dir = routeCache ? "dist-route-cache" : "dist";
+	return { dir, marker: resolve(fixtureDir, `${dir}/.perf-target`) };
+}
 
-function buildFixture() {
-	process.stdout.write(`$ (cd ${fixtureDir}) astro build\n`);
+function buildFixture(routeCache = false) {
+	const { marker } = buildPaths(routeCache);
+	process.stdout.write(`$ (cd ${fixtureDir}) astro build${routeCache ? " (route cache)" : ""}\n`);
 	const r = spawnSync("pnpm", ["exec", "astro", "build"], {
 		cwd: fixtureDir,
 		stdio: "inherit",
-		env: { ...process.env, EMDASH_FIXTURE_TARGET: target },
+		env: {
+			...process.env,
+			EMDASH_FIXTURE_TARGET: target,
+			EMDASH_FIXTURE_ROUTE_CACHE: routeCache ? "1" : "0",
+		},
 	});
 	if (r.status !== 0) throw new Error("astro build failed");
-	writeFileSync(buildMarkerPath, target + "\n");
-}
-
-function assertExistingBuildMatchesTarget() {
-	if (!existsSync(buildMarkerPath)) {
-		throw new Error(
-			`--skip-build was passed but dist/.perf-target is missing. Run without --skip-build to produce a build for target "${target}".`,
+	writeFileSync(marker, `${target}\n`);
+	if (target === "d1") {
+		copyFileSync(
+			resolve(fixtureDir, ".wrangler/deploy/config.json"),
+			resolve(dirname(marker), ".perf-deploy.json"),
 		);
 	}
-	const built = readFileSync(buildMarkerPath, "utf8").trim();
+}
+
+function assertExistingBuildMatchesTarget(routeCache = false) {
+	const { dir, marker } = buildPaths(routeCache);
+	if (
+		!existsSync(marker) ||
+		(target === "d1" && !existsSync(resolve(dirname(marker), ".perf-deploy.json")))
+	) {
+		throw new Error(
+			`--skip-build was passed but ${dir} build metadata is missing. Run without --skip-build to produce a build for target "${target}".`,
+		);
+	}
+	const built = readFileSync(marker, "utf8").trim();
 	if (built !== target) {
 		throw new Error(
-			`--skip-build was passed but existing build is for target "${built}", not "${target}". Drop --skip-build (or rebuild) to switch targets.`,
+			`--skip-build was passed but existing ${dir} build is for target "${built}", not "${target}". Drop --skip-build (or rebuild) to switch targets.`,
 		);
 	}
 }
@@ -322,18 +348,25 @@ async function seedD1ViaDevBypass(events) {
  * `ready` resolves on a successful TCP connection — no HTTP probing,
  * so a fresh workerd isolate stays cold until our first tagged request.
  */
-async function startServer({ collectedEvents, streamEndSnapshots = [] }) {
+async function startServer({ collectedEvents, streamEndSnapshots = [], routeCache = false }) {
 	let cmd;
 	let args;
 	if (target === "sqlite") {
 		cmd = "node";
-		args = ["./dist/server/entry.mjs"];
+		args = [`./${buildPaths(routeCache).dir}/server/entry.mjs`];
 	} else {
 		cmd = astroBin;
 		args = ["preview", "--host", HOST, "--port", String(PORT)];
 	}
 
 	await waitForPortFree(HOST, PORT);
+	if (target === "d1") {
+		// Astro preview follows this shared pointer, not the config's outDir.
+		copyFileSync(
+			resolve(fixtureDir, `${buildPaths(routeCache).dir}/.perf-deploy.json`),
+			resolve(fixtureDir, ".wrangler/deploy/config.json"),
+		);
+	}
 
 	const child = spawn(cmd, args, {
 		cwd: fixtureDir,
@@ -341,6 +374,7 @@ async function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 			...process.env,
 			ASTRO_PREVIEW_BACKGROUND: "0",
 			EMDASH_FIXTURE_TARGET: target,
+			EMDASH_FIXTURE_ROUTE_CACHE: routeCache ? "1" : "0",
 			EMDASH_QUERY_LOG: "1",
 			HOST,
 			PORT: String(PORT),
@@ -416,12 +450,12 @@ async function hit(method, path, accept, phase) {
 			await new Promise((r) => setTimeout(r, 200));
 			continue;
 		}
-		await response.arrayBuffer();
+		const body = await response.text();
 		process.stdout.write(`  ${phase.padEnd(5)} ${method} ${path} -> ${response.status}\n`);
 		if (!response.ok) {
 			throw new Error(`${phase} ${method} ${path} returned ${response.status}`);
 		}
-		return response.status;
+		return { status: response.status, body, headers: response.headers };
 	}
 	throw lastErr;
 }
@@ -551,6 +585,83 @@ async function runSqlite(events, streamEndSnapshots) {
 	} finally {
 		await server.stop();
 	}
+	await runRouteCacheSqlite(events, streamEndSnapshots);
+}
+
+async function probeRouteCache(mode) {
+	for (const phase of ["cold", "warm"]) {
+		const result = await hit(
+			"GET",
+			`/perf-cache/${mode}${mode === "stored" ? `?perf_phase=${phase}` : ""}`,
+			"application/json",
+			phase,
+		);
+		let payload;
+		try {
+			payload = JSON.parse(result.body);
+		} catch {
+			throw new Error(`perf-cache/${mode} returned invalid JSON`);
+		}
+		if (payload.routeCacheEnabled !== true) {
+			throw new Error(`perf-cache/${mode} did not enable route caching`);
+		}
+		const expectedMaxAge = mode === "stored" ? 60 : null;
+		if (payload.routeCacheMaxAge !== expectedMaxAge) {
+			throw new Error(
+				`perf-cache/${mode} has unexpected cache lifetime ${payload.routeCacheMaxAge}`,
+			);
+		}
+	}
+}
+
+function assertRouteCacheQueries(events) {
+	for (const mode of ROUTE_CACHE_MODES) {
+		for (const phase of ["cold", "warm"]) {
+			const queryEvents = events.filter(
+				(e) => e.route === `/perf-cache/${mode}` && e.phase === phase,
+			);
+			if (queryEvents.length === 0) {
+				throw new Error(`perf-cache/${mode} ${phase} produced no query events`);
+			}
+		}
+	}
+}
+
+async function runRouteCacheSqlite(events, streamEndSnapshots) {
+	if (skipBuild) assertExistingBuildMatchesTarget(true);
+	else buildFixture(true);
+	const server = await startServer({
+		collectedEvents: events,
+		streamEndSnapshots,
+		routeCache: true,
+	});
+	try {
+		await server.ready;
+		await warmup();
+		for (const mode of ROUTE_CACHE_MODES) {
+			await probeRouteCache(mode);
+		}
+	} finally {
+		await server.stop();
+	}
+}
+
+async function runRouteCacheD1(events, streamEndSnapshots) {
+	if (skipBuild) assertExistingBuildMatchesTarget(true);
+	else buildFixture(true);
+	for (const mode of ROUTE_CACHE_MODES) {
+		const server = await startServer({
+			collectedEvents: events,
+			streamEndSnapshots,
+			routeCache: true,
+		});
+		try {
+			await server.ready;
+			await probeRouteCache(mode);
+		} finally {
+			await server.stop();
+		}
+	}
 }
 
 // D1: seed via dev-bypass (dev mode only — dev-bypass is stripped from
@@ -584,6 +695,7 @@ async function runD1(events, streamEndSnapshots) {
 			await server.stop();
 		}
 	}
+	await runRouteCacheD1(events, streamEndSnapshots);
 }
 
 /**
@@ -615,6 +727,7 @@ async function main() {
 	const streamEndSnapshots = [];
 	if (target === "sqlite") await runSqlite(events, streamEndSnapshots);
 	else await runD1(events, streamEndSnapshots);
+	assertRouteCacheQueries(events);
 
 	reportStreamEnd(streamEndSnapshots);
 
