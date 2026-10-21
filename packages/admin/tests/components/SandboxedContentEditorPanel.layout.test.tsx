@@ -119,16 +119,16 @@ describe("SandboxedContentEditorPanel layout", () => {
 			await expect.element(screen.getByRole("button", { name: "Save findings" })).toBeVisible();
 			const panel = getPanel();
 			const nextSection = screen.getByText("Next settings section").element();
-			async function expectContentFits() {
+			async function expectContentFits(currentPanel: HTMLElement) {
 				await vi.waitFor(() => {
-					const box = panel.getBoundingClientRect();
-					const content = panel.firstElementChild!.getBoundingClientRect();
+					const box = currentPanel.getBoundingClientRect();
+					const content = currentPanel.firstElementChild!.getBoundingClientRect();
 					expect(content.bottom).toBeLessThanOrEqual(box.bottom + 1);
 					expect(box.height - content.height).toBeLessThanOrEqual(1);
 					expect(nextSection.getBoundingClientRect().top).toBeGreaterThanOrEqual(content.bottom);
 				});
 			}
-			if (!earlyResponse) await expectContentFits();
+			if (!earlyResponse) await expectContentFits(panel);
 			const compactHeight = panel.firstElementChild!.getBoundingClientRect().height;
 			const toggle = screen.getByRole("switch", { name: "Show details" });
 			if (earlyResponse) {
@@ -136,13 +136,13 @@ describe("SandboxedContentEditorPanel layout", () => {
 				toggle.element().click();
 			} else await userEvent.click(toggle);
 			await expect.element(screen.getByRole("textbox", { name: "Recommendation" })).toBeVisible();
-			await expectContentFits();
+			await expectContentFits(panel);
 			expect(panel.getBoundingClientRect().height).toBeGreaterThan(compactHeight + 40);
 			await userEvent.click(screen.getByRole("switch", { name: "Show details" }));
 			await expect
 				.element(screen.getByRole("textbox", { name: "Recommendation" }))
 				.not.toBeInTheDocument();
-			await expectContentFits();
+			await expectContentFits(panel);
 			expect(Math.abs(panel.getBoundingClientRect().height - compactHeight)).toBeLessThanOrEqual(1);
 			await userEvent.click(trigger);
 			await expect
@@ -150,7 +150,7 @@ describe("SandboxedContentEditorPanel layout", () => {
 				.not.toBeInTheDocument();
 			await userEvent.click(trigger);
 			await expect.element(screen.getByRole("button", { name: "Save findings" })).toBeVisible();
-			await expectContentFits();
+			await expectContentFits(getPanel());
 			expect(fetchMock).toHaveBeenCalledTimes(1);
 		},
 	);
