@@ -78,6 +78,7 @@ export function FormBlockComponent({
 			e.key !== "Enter" ||
 			e.defaultPrevented ||
 			e.nativeEvent.isComposing ||
+			e.nativeEvent.keyCode === 229 ||
 			!(input instanceof HTMLInputElement) ||
 			input.getAttribute("role") === "combobox" ||
 			!["text", "number", "email", "url", "password", "search", "tel", "date"].includes(input.type)

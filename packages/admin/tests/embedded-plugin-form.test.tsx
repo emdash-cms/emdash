@@ -99,23 +99,49 @@ describe("embedded plugin forms in Chromium", () => {
 		});
 	});
 
-	it("keeps textarea newlines and IME confirmation separate from submission", async () => {
+	it("keeps textarea newlines separate from submission", async () => {
 		const { screen, onAction, nativeSubmit } = await editor();
 		const notes = screen.getByRole("textbox", { name: "Notes" });
 		await notes.fill("First line");
 		await userEvent.keyboard("{Enter}Second line");
 		await expect.element(notes).toHaveValue("First line\nSecond line");
-		const price = screen.getByRole("textbox", { name: "Price", exact: true }).element();
-		const confirmation = new KeyboardEvent("keydown", {
-			key: "Enter",
-			isComposing: true,
-			bubbles: true,
-			cancelable: true,
-		});
-		expect(price.dispatchEvent(confirmation)).toBe(true);
 		expect(onAction).not.toHaveBeenCalled();
 		expect(nativeSubmit).not.toHaveBeenCalled();
 	});
+
+	it.each([
+		{ isComposing: true, keyCode: 13 },
+		{ isComposing: false, keyCode: 229 },
+	])(
+		"ignores IME confirmation with isComposing=$isComposing and keyCode=$keyCode, then submits on Enter",
+		async ({ isComposing, keyCode }) => {
+			const { screen, onAction, outerSubmit, nativeSubmit } = await editor();
+			const price = screen.getByRole("textbox", { name: "Price", exact: true });
+			await price.fill("日本語");
+			const confirmation = new KeyboardEvent("keydown", {
+				key: "Enter",
+				isComposing,
+				keyCode,
+				bubbles: true,
+				cancelable: true,
+			});
+			price.element().dispatchEvent(confirmation);
+			expect(onAction).not.toHaveBeenCalled();
+			expect(confirmation.defaultPrevented).toBe(false);
+			expect(outerSubmit).not.toHaveBeenCalled();
+			expect(nativeSubmit).not.toHaveBeenCalled();
+
+			await userEvent.keyboard("{Enter}");
+			expect(onAction).toHaveBeenCalledExactlyOnceWith({
+				type: "form_submit",
+				block_id: "pricing",
+				action_id: "save_price",
+				values: { price: "日本語" },
+			});
+			expect(outerSubmit).not.toHaveBeenCalled();
+			expect(nativeSubmit).not.toHaveBeenCalled();
+		},
+	);
 
 	it("renders valid form structure inside the editor", async () => {
 		await editor();
