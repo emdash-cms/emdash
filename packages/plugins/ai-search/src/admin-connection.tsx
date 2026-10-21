@@ -91,7 +91,7 @@ export function ConnectPanel(props: { rejected: boolean; onConnected: () => Prom
  * which core shows for any declared settings, saves them unchecked.
  * Renders nothing for a binding or for credentials the environment sets.
  */
-export function ConnectionCard() {
+export function ConnectionCard(props: { onChanged: () => void }) {
 	const { connection, setConnection } = useConnection();
 	const [editing, setEditing] = React.useState(false);
 
@@ -118,6 +118,8 @@ export function ConnectionCard() {
 						onSaved={(next) => {
 							setConnection(next);
 							setEditing(false);
+							// Saving can start a build, when the new account has no instance yet.
+							props.onChanged();
 						}}
 						onCancel={() => setEditing(false)}
 					/>

@@ -205,7 +205,9 @@ function SettingsPage() {
 						onRebuild={() => void rebuild()}
 						onChanged={async () => void (await refreshStatus())}
 					/>
-					{status.method === "rest" && <ConnectionCard />}
+					{status.method === "rest" && (
+						<ConnectionCard onChanged={() => void refreshStatus().catch(() => {})} />
+					)}
 				</aside>
 			</div>
 		);
