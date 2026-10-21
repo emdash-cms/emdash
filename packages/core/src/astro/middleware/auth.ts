@@ -633,9 +633,16 @@ async function handleExternalAuth(
 		locals.user = user;
 
 		// Persist to session so public pages can identify the user
-		// (external auth headers are only verified on /_emdash routes)
+		// (external auth headers are only verified on /_emdash routes).
+		// Astro marks the session dirty on every set(), and a dirty session is
+		// written to the store at the end of the request. Skip the set when the
+		// stored id already matches, or each request costs a session-store write
+		// (a KV put on Cloudflare, which also rate-limits writes to one key).
 		const { session } = context;
-		session?.set("user", { id: user.id });
+		if (session) {
+			const sessionUser = await resolveSessionUser(session);
+			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+		}
 
 		return next();
 	} catch (error) {
