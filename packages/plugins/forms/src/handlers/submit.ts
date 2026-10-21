@@ -5,6 +5,7 @@
  * Handles spam protection, validation, file uploads, notifications, and webhooks.
  */
 
+import { z } from "astro/zod";
 import type { RouteContext, StorageCollection } from "emdash";
 import { after, PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
@@ -220,11 +221,16 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
-	// The submitter's address, from the form's first email field (already validated): the reply
-	// address of the notifications and the recipient of the autoresponder.
+	// The submitter's address, from the form's first email field (already validated): the recipient
+	// of the autoresponder.
 	const emailField = allFields.find((f) => f.type === "email");
 	const emailValue = emailField ? result.data[emailField.name] : undefined;
 	const submitterEmail = typeof emailValue === "string" && emailValue ? emailValue : undefined;
+	// The reply address of the notifications, only when it's a plain address. The field's own check
+	// lets through values like `"IT-Support"<someone@example.com>` or `jane@example.com,`, which
+	// would show the team a made-up name or get the notification rejected.
+	const replyTo =
+		submitterEmail && z.email().safeParse(submitterEmail).success ? submitterEmail : undefined;
 
 	// 7. Immediate email notifications (not digest)
 	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {
@@ -236,7 +242,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					subject: `New submission: ${form.name}`,
 					text,
 					// Replying to the notification reaches the submitter, not the site's sender address.
-					...(submitterEmail ? { replyTo: submitterEmail } : {}),
+					...(replyTo ? { replyTo } : {}),
 				})
 				.catch((err: unknown) => {
 					ctx.log.error("Failed to send notification email", {

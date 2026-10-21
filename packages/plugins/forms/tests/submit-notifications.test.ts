@@ -93,6 +93,24 @@ describe("notification emails", () => {
 		}
 	});
 
+	it.each(['"IT-Support"<someone@example.com>', "jane@example.com,"])(
+		"have no Reply-To when the address is not a plain one: %s",
+		async (email) => {
+			const { ctx, send } = context(form(true, true), { name: "Jane", email });
+
+			await submitHandler(ctx as never);
+
+			// The notifications still go out, and the autoresponder keeps the field's own check.
+			expect(send).toHaveBeenCalledTimes(3);
+			for (const [message] of send.mock.calls.slice(0, 2) as unknown as [
+				Record<string, unknown>,
+			][]) {
+				expect(message).not.toHaveProperty("replyTo");
+			}
+			expect(send.mock.calls[2]![0]).toMatchObject({ to: email });
+		},
+	);
+
 	it("have no Reply-To when the form has no email field", async () => {
 		const { ctx, send } = context(form(false), { name: "Jane" });
 
