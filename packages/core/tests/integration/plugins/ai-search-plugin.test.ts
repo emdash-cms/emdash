@@ -46,6 +46,7 @@ describe("ai-search plugin", () => {
 		runtime = await EmDashRuntime.create({
 			config: {
 				database: { entrypoint: `test-ai-search-${randomUUID()}`, config: {}, type: "sqlite" },
+				trustedProxyHeaders: ["x-real-ip"],
 			},
 			createDialect: () => new SqliteDialect({ database: sqlite }),
 			createStorage: null,
@@ -82,18 +83,31 @@ describe("ai-search plugin", () => {
 		vi.useRealTimers();
 	});
 
-	async function route(method: "GET" | "POST", path: string, body?: unknown) {
+	async function route(
+		method: "GET" | "POST",
+		path: string,
+		body?: unknown,
+		headers: Record<string, string> = {},
+	) {
 		const request = new Request(`http://localhost/_emdash/api/plugins/ai-search/${path}`, {
 			method,
 			...(body === undefined
-				? {}
-				: { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+				? { headers }
+				: {
+						headers: { "content-type": "application/json", ...headers },
+						body: JSON.stringify(body),
+					}),
 		});
 		return runtime.handlePluginApiRoute("ai-search", method, path, request);
 	}
 
-	async function data(method: "GET" | "POST", path: string, body?: unknown) {
-		const result = await route(method, path, body);
+	async function data(
+		method: "GET" | "POST",
+		path: string,
+		body?: unknown,
+		headers?: Record<string, string>,
+	) {
+		const result = await route(method, path, body, headers);
 		if (!result.success) throw new Error(`${path} failed: ${JSON.stringify(result.error)}`);
 		return result.data;
 	}
@@ -119,10 +133,13 @@ describe("ai-search plugin", () => {
 		throw new Error("the build did not finish");
 	}
 
-	async function search(query: string) {
-		const response = (await data("POST", "search", {
-			messages: [{ role: "user", content: query }],
-		})) as PluginResponse;
+	async function search(query: string, ip?: string) {
+		const response = (await data(
+			"POST",
+			"search",
+			{ messages: [{ role: "user", content: query }] },
+			ip ? { "x-real-ip": ip } : {},
+		)) as PluginResponse;
 		const body = response.body?.kind === "text" ? JSON.parse(response.body.value) : null;
 		return { status: response.status, body };
 	}
@@ -363,6 +380,16 @@ describe("ai-search plugin", () => {
 		finishIndexing();
 
 		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
+	});
+
+	it("limits how often one visitor searches through the REST API", async () => {
+		await setUpSearch();
+		service.kind = "rest";
+
+		for (let i = 0; i < 30; i++) expect((await search("garden", "192.0.2.10")).status).toBe(200);
+		expect((await search("garden", "192.0.2.10")).status).toBe(429);
+		expect((await search("garden", "192.0.2.11")).status).toBe(200);
+		expect(service.searches).toHaveLength(31);
 	});
 
 	it("answers 503 before AI Search is set up and while it is failing", async () => {

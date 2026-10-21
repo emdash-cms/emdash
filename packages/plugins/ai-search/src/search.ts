@@ -114,10 +114,22 @@ function escapeHtml(text: string): string {
 	return text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
 
-function json(status: number, body: unknown) {
+/** The answer to a visitor who searched too often, without asking AI Search. */
+export function tooManySearches(retryAfterSeconds: number) {
+	return json(
+		429,
+		{
+			success: false,
+			error: { code: "RATE_LIMITED", message: "Too many searches. Try again soon." },
+		},
+		{ "retry-after": String(retryAfterSeconds) },
+	);
+}
+
+function json(status: number, body: unknown, headers: Record<string, string> = {}) {
 	return pluginResponse({
 		status,
-		headers: { "content-type": "application/json; charset=utf-8" },
+		headers: { "content-type": "application/json; charset=utf-8", ...headers },
 		body: { kind: "text", value: JSON.stringify(body) },
 	});
 }

@@ -25,7 +25,8 @@ import { indexTotals } from "./ingestion.js";
 import type { AiSearchOptions } from "./options.js";
 import { type InstanceInfo, isProviderError, ProviderError } from "./ports/ai-search.js";
 import { clearDropped, getRetryQueue, retryRecord } from "./retry.js";
-import { searchResponse } from "./search.js";
+import { searchResponse, tooManySearches } from "./search.js";
+import { allowSearch, SEARCH_WINDOW_MS } from "./throttle.js";
 import { URL_TEMPLATE } from "./url-template.js";
 import { markInstanceCreated } from "./warm-up.js";
 
@@ -51,7 +52,14 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			methods: ["POST"],
 			request: { body: "json", maxBytes: 16 * 1024 },
 			response: "raw",
-			handler: async (ctx) => searchResponse(await openSession(ctx, options), ctx.input),
+			handler: async (ctx) => {
+				const session = await openSession(ctx, options);
+				// Every REST search spends the API token's rate limit, which builds and the admin share.
+				if (session?.provider.kind === "rest" && !allowSearch(ctx.requestMeta.ip)) {
+					return tooManySearches(SEARCH_WINDOW_MS / 1000);
+				}
+				return searchResponse(session, ctx.input);
+			},
 		}),
 
 		status: {

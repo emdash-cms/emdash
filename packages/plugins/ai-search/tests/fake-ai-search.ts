@@ -36,7 +36,7 @@ const WHITESPACE = /\s+/;
  * `requireInstance` is set.
  */
 export class FakeAiSearch implements AiSearchProvider {
-	readonly kind = "binding";
+	kind: AiSearchProvider["kind"] = "binding";
 	readonly items = new Map<string, StoredItem>();
 	created = false;
 	uploads = 0;
