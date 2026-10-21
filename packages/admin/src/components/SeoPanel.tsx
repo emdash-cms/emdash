@@ -225,6 +225,7 @@ export function SeoPanel({
 					{t`Canonical URL`}
 				</FieldHelpLabel>
 				<Input
+					dir="ltr"
 					id={canonicalId}
 					aria-label={t`Canonical URL`}
 					className="w-full"

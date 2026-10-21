@@ -390,6 +390,18 @@ describe("GET /content/:collection/:id/translations", () => {
 		expect(body.data.translations.map((t) => t.id)).toEqual(["t-en"]);
 	});
 
+	it.each([
+		{ entry: "a draft", id: "t-fr", status: 404 },
+		{ entry: "a scheduled entry", id: "t-de", status: 404 },
+		{ entry: "a published entry", id: "t-en", status: 200 },
+	])("answers SUBSCRIBER asking for $entry with $status", async ({ id, status }) => {
+		const emdash = buildEmdash({ translations });
+		const res = await getTranslations(
+			ctx({ user: subscriber, emdash, params: { collection: "post", id } }),
+		);
+		expect(res.status).toBe(status);
+	});
+
 	it("returns all translations for CONTRIBUTOR", async () => {
 		const emdash = buildEmdash({ translations });
 		const res = await getTranslations(

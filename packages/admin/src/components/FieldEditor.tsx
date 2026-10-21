@@ -719,7 +719,7 @@ export function FieldEditor({
 				</div>
 
 				{step === "type" ? (
-					<div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+					<div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto -m-1 p-1">
 						{FIELD_TYPES.map((ft) => {
 							const Icon = ft.icon;
 							return (
@@ -744,7 +744,7 @@ export function FieldEditor({
 					</div>
 				) : (
 					<div
-						className="space-y-6 max-h-[60vh] overflow-y-auto"
+						className="space-y-6 max-h-[60vh] overflow-y-auto -m-1 p-1"
 						data-testid="field-editor-config-content"
 					>
 						{/* Type indicator */}
@@ -832,7 +832,7 @@ export function FieldEditor({
 						{showFieldDetails && (
 							<>
 								{/* Basic info */}
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-4">
 									<Input
 										label={t`Label`}
 										value={label}
@@ -841,6 +841,7 @@ export function FieldEditor({
 									/>
 									<div>
 										<Input
+											dir="ltr"
 											label={t`Slug`}
 											value={slug}
 											onChange={(e) => setField("slug", e.target.value)}
@@ -894,7 +895,7 @@ export function FieldEditor({
 						{(selectedType === "string" || selectedType === "text" || selectedType === "slug") && (
 							<div className="space-y-4">
 								<h4 className="font-medium text-sm">{t`Validation`}</h4>
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									<Input
 										label={t`Min Length`}
 										type="number"
@@ -912,6 +913,7 @@ export function FieldEditor({
 								</div>
 								{selectedType === "string" && (
 									<Input
+										dir="ltr"
 										label={t`Pattern (Regex)`}
 										value={pattern}
 										onChange={(e) => setField("pattern", e.target.value)}
@@ -924,7 +926,7 @@ export function FieldEditor({
 						{(selectedType === "number" || selectedType === "integer") && (
 							<div className="space-y-4">
 								<h4 className="font-medium text-sm">{t`Validation`}</h4>
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									<Input
 										label={t`Min Value`}
 										type="number"
@@ -1122,7 +1124,9 @@ export function FieldEditor({
 																);
 															}}
 														/>
-														<code className="text-xs text-kumo-subtle">{blockType.slug}</code>
+														<code dir="ltr" className="text-xs text-kumo-subtle">
+															{blockType.slug}
+														</code>
 														{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
 														{selected && (
 															<div className="ms-auto flex gap-1">
@@ -1169,7 +1173,7 @@ export function FieldEditor({
 																{version.active
 																	? t`Active v${version.version}`
 																	: t`v${version.version}`}{" "}
-																· <code>{version.fingerprint.slice(-8)}</code>
+																· <code dir="ltr">{version.fingerprint.slice(-8)}</code>
 															</span>
 														))}
 													</div>
@@ -1178,7 +1182,7 @@ export function FieldEditor({
 										})}
 									</div>
 								)}
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									<Input
 										label={t`Minimum blocks`}
 										type="number"
@@ -1244,9 +1248,10 @@ export function FieldEditor({
 									return (
 										<div key={i} className="flex gap-2 items-start border rounded-lg p-3">
 											<div className="flex-1 space-y-2">
-												<div className="grid grid-cols-3 gap-2">
+												<div className="grid grid-cols-1 sm:grid-cols-3 items-start gap-2">
 													<Input
 														label={t`Label`}
+														className="min-w-0"
 														value={sf.label}
 														onChange={(e) => {
 															const updated = [...formState.subFields];
@@ -1262,7 +1267,9 @@ export function FieldEditor({
 														placeholder={t`Field label`}
 													/>
 													<Input
+														dir="ltr"
 														label={t`Slug`}
+														className="min-w-0"
 														value={sf.slug}
 														disabled={sf.slugPersisted}
 														onChange={(e) => {
@@ -1330,7 +1337,7 @@ export function FieldEditor({
 									);
 								})}
 
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									<Input
 										label={t`Min Items`}
 										type="number"

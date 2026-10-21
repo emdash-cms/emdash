@@ -163,7 +163,7 @@ export interface MediaDetailPanelProps {
 	onExit?: () => void;
 	onClosed?: () => void;
 	onUpdated?: () => void;
-	onItemRefreshed?: (item: LocalMediaItem) => void;
+	onItemRefreshed?: (item: LocalMediaItem, metadataChanges?: MediaUpdateInput) => void;
 	onCroppedCopyCreated?: (item: LocalMediaItem) => void;
 	onUnavailable?: (id: string) => void;
 	onDeleted?: () => void;
@@ -660,7 +660,7 @@ export function MediaDetailPanel({
 
 	const updateMutation = useMutation({
 		mutationFn: (data: MediaUpdateInput) => updateMedia(item.id, data),
-		onSuccess: (updatedItem) => {
+		onSuccess: (updatedItem, metadataChanges) => {
 			if (locationChanged) restoreFocusAfterDeleteRef.current = true;
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			onItemRefreshed?.(
@@ -671,6 +671,7 @@ export function MediaDetailPanel({
 							url: updatedItem.url || localItem.url,
 						}
 					: updatedItem,
+				metadataChanges,
 			);
 			onUpdated?.();
 		},
@@ -1439,6 +1440,7 @@ export function MediaDetailPanel({
 										/>
 									</div>
 									<Input
+										dir="auto"
 										aria-label={t`Filename`}
 										value={filename}
 										onChange={(event) => setFilename(event.target.value)}

@@ -327,6 +327,8 @@ export interface AdminManifest {
 		logo?: string;
 		siteName?: string;
 		footerLabel?: string | false;
+		/** Built-in navigation entries hidden from the sidebar and command palette. */
+		hiddenNavItems?: string[];
 		favicon?: string;
 	};
 }

@@ -1,5 +1,25 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.11
+
+### Patch Changes
+
+- [#4249](https://github.com/emdash-cms/emdash/pull/4249) [`05c06a3`](https://github.com/emdash-cms/emdash/commit/05c06a31cc87f1b38916eff596efaeb378f4e4f9) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes conditional form fields remaining visible when their condition is false on sites using the forms plugin's default stylesheet.
+
+- [#4247](https://github.com/emdash-cms/emdash/pull/4247) [`1d9bc72`](https://github.com/emdash-cms/emdash/commit/1d9bc72126ef86b0553f9ef7548a12496a17fc96) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes single `checkbox` fields so the input keeps its intrinsic width and sits next to its label, instead of stretching to full width and pushing the label away.
+
+- [#4248](https://github.com/emdash-cms/emdash/pull/4248) [`29c43c3`](https://github.com/emdash-cms/emdash/commit/29c43c38e2d9698740485cc1fb17b86168eb922d) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes single checkbox fields so a checked box is stored as `true` when the default submitted value is `"1"`. Required checkbox fields that are not checked are still rejected during validation.
+
+## 0.2.10
+
+### Patch Changes
+
+- [#3979](https://github.com/emdash-cms/emdash/pull/3979) [`65aa1f4`](https://github.com/emdash-cms/emdash/commit/65aa1f4608116c668b9e04f81dcf468a15b3a1b8) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes the daily digest. Creating a form with the digest on, or turning it on for an existing form, failed with an "Invalid task name" error, and a form created that way was saved with the digest on but never sent one. The digest is now scheduled, including for a duplicated form, and is rescheduled or cancelled when the form's digest settings change.
+
+- [#3031](https://github.com/emdash-cms/emdash/pull/3031) [`cc40400`](https://github.com/emdash-cms/emdash/commit/cc40400341760dbf5fce53b54205dfb6bbee5dbd) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes duplicate element IDs when the same form is embedded more than once on a page. Field IDs were built from the form ID and the field name alone, so a form appearing in, say, a sidebar and a pop-up produced several elements sharing an ID: clicking a label focused the first copy rather than the one beside it, and anything resolving an ID — `aria-describedby`, a password manager, a test selector — reached the wrong instance. Each rendering now suffixes its IDs with a per-instance value, so labels, inputs and the honeypot stay paired within their own copy. Element IDs are not part of the plugin's API and nothing else references them; the client script scopes its lookups to the form element.
+
+- [#3032](https://github.com/emdash-cms/emdash/pull/3032) [`b709d72`](https://github.com/emdash-cms/emdash/commit/b709d720e801ce48e5fcae28e25df57f1b34aae6) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes embedded forms showing only the browser's validation bubble instead of the plugin's inline field errors. Native validation is turned off by the client script once it loads, so readers without JavaScript keep it.
+
 ## 0.2.9
 
 No changes in this release.

@@ -8,6 +8,7 @@ import {
 	handleRelationList,
 	handleRelationUpdate,
 	handleRelationDelete,
+	resolveEntryGroups,
 } from "../../../src/api/handlers/relations.js";
 import { handleSchemaCollectionDelete } from "../../../src/api/handlers/schema.js";
 import { PATCH as patchRelation } from "../../../src/astro/routes/api/relations/[id]/index.js";
@@ -64,6 +65,38 @@ describeEachDialect("relations definition handlers", (dialect) => {
 			boundFields: [],
 			linkCount: 0,
 		});
+	});
+
+	it("selects a code-stamped variant for its configured locale", async () => {
+		setI18nConfig({
+			defaultLocale: "es-MX",
+			locales: ["es-MX", "en"],
+			localeAliases: { "en-US": "en" },
+		});
+		const content = new ContentRepository(ctx.db);
+		const source = await content.create({
+			type: "post",
+			slug: "terms",
+			locale: "es-MX",
+			data: { title: "Terms" },
+		});
+		const codeVariant = await content.create({
+			type: "post",
+			slug: "terms",
+			locale: "en-US",
+			translationOf: source.id,
+			data: { title: "Terms code" },
+		});
+
+		const result = await resolveEntryGroups(
+			content,
+			"post",
+			[source.translationGroup!],
+			"en-US",
+			true,
+		);
+		expect(result).toHaveLength(1);
+		expect(result[0]?.id).toBe(codeVariant.id);
 	});
 
 	it("get returns NOT_FOUND for an unknown id", async () => {

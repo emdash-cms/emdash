@@ -1,0 +1,811 @@
+---
+import { permissionCopy } from "../../lib/registry.js";
+import { storyIcons as i } from "./story/icons.js";
+import "./story/story.css";
+
+const readContent = permissionCopy("content:read").label;
+const network = permissionCopy("network:request").label;
+const sendEmail = permissionCopy("email:send");
+
+const declared = [
+	{ label: readContent, icon: i.shieldCheck },
+	{ label: network, icon: i.shieldCheck },
+];
+
+const denied = [
+	{ label: "Environment variables", icon: i.key },
+	{ label: "Filesystem", icon: i.hardDrives },
+	{ label: "Other plugins’ storage", icon: i.database },
+	{ label: "Undeclared hosts", icon: i.globeSimple },
+];
+
+const checks = [
+	{ label: "Checksum matches", meta: "sha256 9f2c…41ab" },
+	{ label: "Name and version match", meta: "search-ping 1.2.0" },
+	{ label: "Permissions match the release", meta: "2 of 2" },
+];
+
+const installed = [
+	{ name: "Contact Forms", version: "1.0.3", icon: i.rows },
+	{ name: "Image Gallery", version: "2.4.1", icon: i.imagesSquare },
+];
+---
+
+<section class="trust section" aria-labelledby="trust-title">
+	<div class="shell">
+		<div class="section-head">
+			<div>
+				<p class="eyebrow">Security</p>
+				<h2 class="h-section" id="trust-title">
+					Plugins without <span class="tone">the security nightmare</span>
+				</h2>
+			</div>
+			<p>
+				Plugins from the registry run in their own sandbox and get only the
+				capabilities they declare and you approve.
+			</p>
+		</div>
+
+		<div class="bento">
+			<div class="bento-card card bento-card--wide">
+				<div class="bento-copy">
+					<h3>Sandboxed by default</h3>
+					<p>
+						Each plugin runs in an isolated sandbox. It can’t read environment
+						variables, the filesystem, or another plugin’s storage.
+					</p>
+				</div>
+				<div class="bento-stage st-stage stage-isolate" aria-hidden="true">
+					<div class="st-win isolate isolate--ghost">
+						<div class="st-bar">
+							<svg class="st-icon" viewBox="0 0 256 256" set:html={i.cube} />
+							<span class="st-mono st-strong">contact-forms</span>
+							<span class="st-pill st-pill--end">Isolate</span>
+						</div>
+						<div class="ghost-body">
+							<span class="st-sk" style="inline-size: 62%"></span>
+							<span class="st-sk" style="inline-size: 84%"></span>
+							<span class="st-sk" style="inline-size: 48%"></span>
+						</div>
+					</div>
+					<div class="st-win isolate">
+						<div class="st-bar">
+							<svg class="st-icon" viewBox="0 0 256 256" set:html={i.cube} />
+							<span class="st-mono st-strong">search-ping</span>
+							<span class="st-sep">/</span>
+							<span class="st-mono">1.2.0</span>
+							<span class="st-pill st-pill--end st-pill--accent"
+								><span class="st-dot st-dot--accent"></span>Isolate</span
+							>
+						</div>
+						<div class="isolate-body">
+							<div class="isolate-col">
+								<p class="isolate-label">Declared</p>
+								<ul>
+									{
+										declared.map((row) => (
+											<li>
+												<svg
+													class="st-icon"
+													viewBox="0 0 256 256"
+													set:html={row.icon}
+												/>
+												<span class="isolate-text">{row.label}</span>
+											</li>
+										))
+									}
+								</ul>
+								<p class="isolate-label isolate-label--hosts">Allowed hosts</p>
+								<ul>
+									<li>
+										<svg
+											class="st-icon"
+											viewBox="0 0 256 256"
+											set:html={i.globeSimple}
+										/>
+										<span class="host st-mono">api.indexnow.org</span>
+									</li>
+								</ul>
+							</div>
+							<div class="isolate-col isolate-col--denied">
+								<p class="isolate-label">No access</p>
+								<ul>
+									{
+										denied.map((row) => (
+											<li>
+												<svg
+													class="st-icon"
+													viewBox="0 0 256 256"
+													set:html={row.icon}
+												/>
+												<span class="isolate-text">{row.label}</span>
+												<svg
+													class="st-icon lock"
+													viewBox="0 0 256 256"
+													set:html={i.lock}
+												/>
+											</li>
+										))
+									}
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="bento-card card">
+				<div class="bento-copy">
+					<h3>You approve every permission</h3>
+					<p>
+						The consent dialog lists the exact permissions and network hosts a
+						plugin asks for before anything installs.
+					</p>
+				</div>
+				<div class="bento-stage st-stage stage-consent" aria-hidden="true">
+					<div class="backdrop">
+						<span class="st-sk" style="inline-size: 38%"></span>
+						<span class="st-sk" style="inline-size: 72%"></span>
+						<span class="st-sk" style="inline-size: 56%"></span>
+					</div>
+					<div class="st-win consent">
+						<div class="consent-head">
+							<p class="consent-title">Review Verified Plugin</p>
+							<p class="consent-sub">
+								Review the independently verified release evidence and
+								permissions for Search Ping before continuing.
+							</p>
+						</div>
+						<div class="consent-body">
+							<p class="consent-verified">
+								<svg
+									class="st-icon"
+									viewBox="0 0 256 256"
+									set:html={i.shieldCheck}
+								/>
+								Signed release verified
+							</p>
+							<p class="consent-count">2 permissions requested</p>
+							<p class="consent-cap">
+								<svg
+									class="st-icon"
+									viewBox="0 0 256 256"
+									set:html={i.shieldCheck}
+								/>
+								<span>{readContent}</span>
+							</p>
+							<p class="consent-cap">
+								<svg
+									class="st-icon"
+									viewBox="0 0 256 256"
+									set:html={i.shieldCheck}
+								/>
+								<span
+									>{network} to:
+									<span class="host st-mono">api.indexnow.org</span></span
+								>
+							</p>
+						</div>
+						<div class="consent-foot">
+							<span class="st-btn st-btn--ghost">Cancel</span>
+							<span class="st-btn st-btn--primary">Accept &amp; Install</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="bento-card card">
+				<div class="bento-copy">
+					<h3>Checked before it installs</h3>
+					<p>
+						EmDash verifies the bundle’s checksum, name, version, and
+						permissions. Installation stops if any check fails.
+					</p>
+				</div>
+				<div class="bento-stage st-stage stage-checks" aria-hidden="true">
+					<div class="st-win checks">
+						<div class="st-bar">
+							<svg
+								class="st-icon"
+								viewBox="0 0 256 256"
+								set:html={i.puzzlePiece}
+							/>
+							<span class="st-strong">Search Ping</span>
+							<span class="st-sep">/</span>
+							<span class="st-mono">1.2.0</span>
+							<span class="st-pill st-pill--end"
+								><span class="st-dot st-dot--accent"></span>Verifying</span
+							>
+						</div>
+						<ul class="check-list">
+							{
+								checks.map((check) => (
+									<li class="check">
+										<svg
+											class="st-icon check-icon"
+											viewBox="0 0 256 256"
+											set:html={i.checkCircle}
+										/>
+										<span class="check-label">{check.label}</span>
+										<span class="check-meta st-mono">{check.meta}</span>
+									</li>
+								))
+							}
+							<li class="check check--active st-thread">
+								<span class="check-pending"></span>
+								<span class="check-label">
+									Build provenance
+									<span class="check-sub">When the publisher requires it</span>
+								</span>
+								<span class="check-meta">Checking</span>
+							</li>
+						</ul>
+						<div class="checks-foot">
+							<span class="progress"><span></span></span>
+							<span>3 of 4 checks passed</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="bento-card card bento-card--wide">
+				<div class="bento-copy">
+					<h3>Updates ask first</h3>
+					<p>
+						An update waits for your confirmation when it adds permissions or
+						MCP tools, or makes an authenticated route public.
+					</p>
+				</div>
+				<div class="bento-stage st-stage stage-update" aria-hidden="true">
+					<div class="st-win updates">
+						<div class="st-bar">
+							<svg
+								class="st-icon"
+								viewBox="0 0 256 256"
+								set:html={i.puzzlePiece}
+							/>
+							<span>Plugins</span>
+							<span class="st-sep">/</span>
+							<span class="st-strong">Installed</span>
+							<span class="st-pill st-pill--end st-pill--accent"
+								><span class="st-dot st-dot--accent"></span>1 update</span
+							>
+						</div>
+						<div class="update">
+							<div class="plugin-row">
+								<span class="st-tile"
+									><svg
+										class="st-icon"
+										viewBox="0 0 256 256"
+										set:html={i.magnifyingGlass}
+									/></span
+								>
+								<span class="plugin-name">
+									<span class="st-strong">Search Ping</span>
+									<span class="plugin-meta">v1.3.0 available</span>
+								</span>
+							</div>
+							<div class="new-cap">
+								<svg
+									class="st-icon"
+									viewBox="0 0 256 256"
+									set:html={i.envelope}
+								/>
+								<span class="new-cap-text">
+									<span class="st-strong">{sendEmail.label}</span>
+									<span class="new-cap-desc">{sendEmail.description}</span>
+								</span>
+								<span class="st-pill st-pill--accent">New</span>
+							</div>
+							<div class="update-actions">
+								<span class="st-btn st-btn--ghost">Cancel</span>
+								<span class="st-btn st-btn--primary">Accept &amp; Update</span>
+							</div>
+						</div>
+						{
+							installed.map((plugin) => (
+								<div class="plugin-row plugin-row--quiet">
+									<span class="st-tile">
+										<svg
+											class="st-icon"
+											viewBox="0 0 256 256"
+											set:html={plugin.icon}
+										/>
+									</span>
+									<span class="plugin-name">
+										<span class="st-strong">{plugin.name}</span>
+										<span class="plugin-meta st-mono">{plugin.version}</span>
+									</span>
+									<span class="st-pill">
+										<span class="st-dot st-dot--success" />
+										Up to date
+									</span>
+								</div>
+							))
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.trust {
+		background: var(--page-lift);
+	}
+
+	.bento {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 1rem;
+	}
+
+	.bento-card {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.bento-copy {
+		padding: 2rem 2rem 0;
+	}
+
+	.bento-copy h3 {
+		margin: 0;
+		color: var(--ink-strong);
+		font-size: 1.0625rem;
+		font-weight: 600;
+		line-height: 1.3;
+		letter-spacing: -0.02em;
+	}
+
+	.bento-copy p {
+		max-width: 26rem;
+		margin: 0.5rem 0 0;
+		color: var(--muted);
+		font-size: 0.9375rem;
+		line-height: 1.6;
+		text-wrap: pretty;
+	}
+
+	.bento-stage {
+		display: flex;
+		flex: 1 1 auto;
+		min-height: 15rem;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
+	}
+
+	@media (min-width: 900px) {
+		.bento {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
+		}
+
+		.bento-card {
+			grid-column: span 5;
+		}
+
+		.bento-card--wide {
+			grid-column: span 7;
+		}
+
+		.bento-stage {
+			min-height: 17rem;
+		}
+	}
+
+	@media (max-width: 479.98px) {
+		.bento-copy {
+			padding: 1.5rem 1.5rem 0;
+		}
+
+		.bento-stage {
+			padding: 1.5rem 1.25rem;
+		}
+	}
+
+	.st-win ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.host {
+		display: inline-block;
+		padding: 0 0.3125rem;
+		color: var(--ink);
+		font-size: 0.65625rem;
+		line-height: 1.5;
+		background: var(--st-tint);
+		border: 1px solid var(--st-line);
+		border-radius: 4px;
+	}
+
+	/* Sandboxed by default */
+	.stage-isolate {
+		padding-block-start: 2.5rem;
+	}
+
+	.isolate {
+		z-index: 1;
+		width: min(100%, 27rem);
+	}
+
+	.isolate--ghost {
+		position: absolute;
+		z-index: 0;
+		inset-block-start: 1.25rem;
+		inset-inline-end: calc(50% - 16.5rem);
+		width: 15rem;
+		opacity: 0.55;
+		box-shadow: var(--shadow-sm);
+	}
+
+	.ghost-body {
+		display: grid;
+		gap: 0.5rem;
+		padding: 0.75rem 0.875rem 3.5rem;
+	}
+
+	.isolate-body {
+		display: grid;
+		grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+	}
+
+	.isolate-col {
+		min-width: 0;
+		padding: 0.625rem 0.875rem 0.5rem;
+	}
+
+	.isolate-col--denied {
+		border-inline-start: 1px solid var(--st-line);
+	}
+
+	.isolate-label {
+		color: var(--muted);
+		font-size: 0.6875rem;
+		font-weight: 500;
+	}
+
+	.isolate-label--hosts {
+		margin-block-start: 0.5rem !important;
+	}
+
+	.isolate-col li {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding-block: 0.375rem;
+		color: var(--ink);
+	}
+
+	.isolate-col li + li {
+		border-block-start: 1px solid var(--st-line);
+	}
+
+	.isolate-col li > .st-icon {
+		color: var(--muted);
+	}
+
+	.isolate-col--denied li {
+		color: var(--muted);
+	}
+
+	.isolate-col--denied li > .st-icon {
+		color: var(--subtle);
+	}
+
+	.isolate-text {
+		display: flex;
+		min-width: 0;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 0.375rem;
+	}
+
+	.lock {
+		margin-inline-start: auto;
+		width: 0.75rem;
+		height: 0.75rem;
+	}
+
+	@container (max-width: 30rem) {
+		.isolate--ghost {
+			display: none;
+		}
+
+		.stage-isolate {
+			padding-block-start: 2rem;
+		}
+	}
+
+	@container (max-width: 22rem) {
+		.isolate-body {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.isolate-col--denied {
+			border-inline-start: 0;
+			border-block-start: 1px solid var(--st-line);
+		}
+	}
+
+	/* You approve every permission */
+	.backdrop {
+		position: absolute;
+		z-index: 0;
+		inset-block-start: 1.5rem;
+		inset-inline: max(1.5rem, 50% - 14rem);
+		display: grid;
+		gap: 0.625rem;
+		height: 9rem;
+		padding: 1rem;
+		background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+		border: 1px solid var(--st-line);
+		border-radius: var(--radius-md);
+		-webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent);
+		mask-image: linear-gradient(to bottom, #000 30%, transparent);
+	}
+
+	.consent {
+		z-index: 1;
+		width: min(100%, 19rem);
+		overflow: hidden;
+		box-shadow: var(--shadow-float);
+	}
+
+	.consent-head {
+		padding: 0.75rem 0.875rem 0.6875rem;
+		border-block-end: 1px solid var(--st-line);
+	}
+
+	.consent-title {
+		font-size: 0.8125rem;
+		font-weight: 600;
+	}
+
+	.consent-sub {
+		margin-block-start: 0.1875rem !important;
+		color: var(--muted);
+		font-size: 0.6875rem;
+		text-wrap: pretty;
+	}
+
+	.consent-verified {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		color: var(--muted);
+		font-size: 0.6875rem;
+	}
+
+	.consent-verified .st-icon {
+		color: var(--success);
+	}
+
+	.consent-body {
+		display: grid;
+		gap: 0.375rem;
+		padding: 0.625rem 0.875rem 0.75rem;
+	}
+
+	.consent-count {
+		font-size: 0.6875rem;
+		font-weight: 500;
+	}
+
+	.consent-cap {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.4375rem 0.5rem;
+		background: var(--st-tint);
+		border-radius: var(--radius-xs);
+	}
+
+	.consent-cap .st-icon {
+		margin-block-start: 0.0625rem;
+		color: var(--muted);
+	}
+
+	.consent-foot {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.375rem;
+		padding: 0.5rem 0.875rem;
+		border-block-start: 1px solid var(--st-line);
+	}
+
+	/* Checked before it installs */
+	.checks {
+		width: min(100%, 20rem);
+		overflow: hidden;
+	}
+
+	.check-list {
+		display: grid;
+		gap: 0.125rem;
+		padding: 0.5rem !important;
+	}
+
+	.check {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.4375rem 0.5rem;
+		border-radius: var(--radius-xs);
+	}
+
+	.check-icon {
+		color: var(--success);
+	}
+
+	.check-pending {
+		width: 0.875rem;
+		height: 0.875rem;
+		flex: 0 0 auto;
+		border: 1.5px dashed var(--muted);
+		border-radius: 50%;
+	}
+
+	.check-label {
+		display: grid;
+		min-width: 0;
+		gap: 0.0625rem;
+	}
+
+	.check--active .check-label {
+		font-weight: 500;
+	}
+
+	.check-sub {
+		color: var(--muted);
+		font-size: 0.625rem;
+		font-weight: 400;
+	}
+
+	.check-meta {
+		margin-inline-start: auto;
+		padding-inline-start: 0.5rem;
+		color: var(--muted);
+		font-size: 0.625rem;
+		white-space: nowrap;
+	}
+
+	.check--active .check-meta {
+		color: var(--ink);
+		font-weight: 500;
+	}
+
+	.checks-foot {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		padding: 0.5rem 0.875rem 0.625rem;
+		color: var(--muted);
+		font-size: 0.625rem;
+		border-block-start: 1px solid var(--st-line);
+	}
+
+	.progress {
+		position: relative;
+		height: 0.25rem;
+		flex: 1 1 auto;
+		overflow: hidden;
+		background: var(--st-skeleton);
+		border-radius: var(--radius-full);
+	}
+
+	.progress span {
+		position: absolute;
+		inset-block: 0;
+		inset-inline-start: 0;
+		width: 75%;
+		background: var(--success);
+		border-radius: inherit;
+	}
+
+	@container (max-width: 21rem) {
+		.check-meta.st-mono {
+			display: none;
+		}
+	}
+
+	/* Updates ask first: the window bleeds off the card's bottom edge. */
+	.stage-update {
+		align-items: flex-start;
+		padding-block-end: 0;
+	}
+
+	.updates {
+		width: min(100%, 28rem);
+		margin-block-end: -1.5rem;
+		overflow: hidden;
+	}
+
+	.update {
+		margin: 0.5rem;
+		padding: 0.25rem 0 0.5rem;
+		background: var(--st-tint);
+		border: 1px solid var(--st-line);
+		border-radius: var(--radius-sm);
+	}
+
+	.plugin-row {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		padding: 0.5rem 0.625rem;
+	}
+
+	.plugin-row--quiet {
+		margin-inline: 0.5rem;
+		padding-inline: 0.625rem;
+	}
+
+	.plugin-row--quiet + .plugin-row--quiet {
+		border-block-start: 1px solid var(--st-line);
+	}
+
+	.plugin-row--quiet .st-pill {
+		margin-inline-start: auto;
+	}
+
+	.plugin-name {
+		display: grid;
+		min-width: 0;
+		gap: 0.0625rem;
+	}
+
+	.plugin-meta {
+		color: var(--muted);
+		font-size: 0.6875rem;
+	}
+
+	.update .plugin-meta {
+		color: var(--accent-ink);
+		font-weight: 500;
+	}
+
+	.new-cap {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		margin: 0.125rem 0.625rem 0;
+		padding: 0.5rem 0.625rem;
+		background: var(--surface-raised);
+		border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+		border-radius: var(--radius-xs);
+	}
+
+	.new-cap > .st-icon {
+		margin-block-start: 0.0625rem;
+		color: var(--accent-ink);
+	}
+
+	.new-cap-text {
+		display: grid;
+		min-width: 0;
+		gap: 0.125rem;
+	}
+
+	.new-cap-desc {
+		color: var(--muted);
+		font-size: 0.6875rem;
+		text-wrap: pretty;
+	}
+
+	.new-cap .st-pill {
+		margin-inline-start: auto;
+	}
+
+	.update-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.375rem;
+		padding: 0.625rem 0.625rem 0;
+	}
+</style>
