@@ -29,6 +29,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import type {
 	AdminManifest,
@@ -53,9 +54,10 @@ import {
 	formatPublishingInstantWithZone,
 } from "../lib/publishing-datetime.js";
 import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
-import { cn } from "../lib/utils";
+import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
+import type { BylineFormValues } from "./BylineFormDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -66,6 +68,7 @@ import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
+import { useRevisionViewContext } from "./revisions/revision-view-context.js";
 import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
 import type {
 	BrowserEditorDraftRequest,
@@ -125,12 +128,14 @@ function PublishingVersionRelationship({
 	scheduledAt,
 	locale,
 	onDiscardDraft,
+	discardDisabled,
 }: {
 	publishingState: ContentPublishingState;
 	supportsDrafts: boolean;
 	scheduledAt?: string | null;
 	locale: string;
 	onDiscardDraft?: () => void;
+	discardDisabled?: boolean;
 }) {
 	const { t } = useLingui();
 	const formattedSchedule = scheduledAt
@@ -138,7 +143,7 @@ function PublishingVersionRelationship({
 		: null;
 	const scheduledSummary =
 		scheduledAt && formattedSchedule ? (
-			<time dateTime={scheduledAt}>{t`Scheduled for ${formattedSchedule}`}</time>
+			<time dateTime={scheduledAt}>{t`Scheduled for ${isolate(formattedSchedule)}`}</time>
 		) : null;
 
 	if (!supportsDrafts) {
@@ -197,7 +202,11 @@ function PublishingVersionRelationship({
 						description={t`Ready to publish now or schedule for later`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
 							) : undefined
 						}
 					/>
@@ -219,7 +228,11 @@ function PublishingVersionRelationship({
 						description={scheduledSummary ?? t`A publication time has not been selected`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
 							) : undefined
 						}
 					/>
@@ -259,7 +272,7 @@ function TimestampValue({
 	return (
 		<time dateTime={value}>
 			<Text as="span" size={size}>
-				{formatPublishingInstant(value, locale)}
+				<bdi>{formatPublishingInstant(value, locale)}</bdi>
 			</Text>
 		</time>
 	);
@@ -303,23 +316,27 @@ export function DiscardDraftDialog({
 	triggerVariant = "ghost",
 	triggerSize,
 	compact,
+	disabled,
 }: {
 	onDiscard?: () => void;
 	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
 	/** Shows only the icon on small screens, for the editor bar. */
 	compact?: boolean;
+	disabled?: boolean;
 }) {
 	const { t } = useLingui();
 	return (
 		<Dialog.Root>
 			<Dialog.Trigger
+				disabled={disabled}
 				render={(p) => (
 					<Button
 						{...p}
 						type="button"
 						variant={triggerVariant}
 						size={triggerSize}
+						disabled={disabled}
 						className={compact ? compactBarExtraButtonClassName : undefined}
 						icon={<X />}
 					>
@@ -743,7 +760,6 @@ export interface ContentSettingsPanelProps {
 	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
-	onRevisionRestored?: (item: ContentItem) => void;
 	onDelete?: () => void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
@@ -754,11 +770,8 @@ export interface ContentSettingsPanelProps {
 	availableBylines?: BylineSummary[];
 	availableBylinesLoaded?: boolean;
 	onBylinesChange: (next: BylineCreditInput[]) => void;
-	onQuickCreateByline?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEditByline?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
+	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
+	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
 	i18n?: { defaultLocale: string; locales: string[] };
 	translations?: TranslationSummary[];
 	onTranslate?: (locale: string) => void;
@@ -810,7 +823,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	onDiscardDraft,
-	onRevisionRestored,
 	onDelete,
 	isDeleting,
 	currentUser,
@@ -839,6 +851,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
 	const pluginAdmins = usePluginAdmins();
+	const revisionView = useRevisionViewContext();
+	const viewingRevision = Boolean(revisionView?.viewingId);
 	const trustedExtensionPanels = React.useMemo(
 		() =>
 			!isNew && item
@@ -933,7 +947,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
 			<SortableContentSettingsSections
 				collection={collection}
-				userId={currentUser?.id}
+				// A new entry shows fewer sections, and saving its order would drop the rest.
+				userId={isNew ? undefined : currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
@@ -953,6 +968,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 										scheduledAt={item?.scheduledAt}
 										locale={lingui.locale}
 										onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
+										discardDisabled={viewingRevision}
 									/>
 								) : null}
 
@@ -1066,6 +1082,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</Text>
 						<div className="grid gap-4">
 							<Input
+								dir="ltr"
 								label={t`Slug`}
 								value={slug}
 								onChange={(event) => onSlugChange(event.target.value)}
@@ -1296,7 +1313,23 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 				{portableTextEditor && (
 					<SortableContentSettingsSection id="outline" label={t`Outline`} disclosure>
-						<div className="p-4">
+						<div
+							className="p-4"
+							// A heading moves the caret in the editor, so the editor has to be back on screen
+							// before the outline handles the click. The section toggle stays in the view.
+							onClickCapture={
+								viewingRevision && revisionView
+									? (event) => {
+											if (
+												event.target instanceof Element &&
+												event.target.closest("button:not([aria-expanded])")
+											) {
+												flushSync(revisionView.exit);
+											}
+										}
+									: undefined
+							}
+						>
 							<DocumentOutline editor={portableTextEditor} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
@@ -1305,12 +1338,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{!isNew && item && supportsRevisions && (
 					<SortableContentSettingsSection id="revisions" label={t`Revisions`} disclosure>
 						<div className="p-4">
-							<RevisionHistory
-								collection={collection}
-								entryId={item.id}
-								onRestored={onRevisionRestored}
-								reserveHeaderEnd
-							/>
+							<RevisionHistory collection={collection} entryId={item.id} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
 				)}
@@ -1402,12 +1430,20 @@ function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
 					<Select.Option key={user.id} value={user.id}>
 						<span className="flex items-center gap-2">
 							{user.name || user.email}
-							{user.name && <span className="text-xs text-kumo-subtle">({user.email})</span>}
+							{user.name && (
+								<span className="text-xs text-kumo-subtle">
+									(<bdi dir="ltr">{user.email}</bdi>)
+								</span>
+							)}
 						</span>
 					</Select.Option>
 				))}
 			</Select>
-			{currentAuthor && <p className="text-xs text-kumo-subtle">{currentAuthor.email}</p>}
+			{currentAuthor && (
+				<p className="text-xs text-kumo-subtle">
+					<bdi dir="ltr">{currentAuthor.email}</bdi>
+				</p>
+			)}
 		</div>
 	);
 }

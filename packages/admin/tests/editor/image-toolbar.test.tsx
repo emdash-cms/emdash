@@ -335,6 +335,52 @@ describe("Image toolbar", () => {
 		expect(toolbar).toBeVisible();
 	});
 
+	it.each(["toolbar", "settings panel"])(
+		"keeps a replaced image's display width, in the new image's shape, from the %s",
+		async (from) => {
+			const { editor, img } = await setup({
+				image: { width: 300, height: 400, displayWidth: 150, displayHeight: 200 },
+			});
+			const toolbar = await selectImage(img);
+			if (from === "toolbar") {
+				await userEvent.click(button(toolbar, "Replace"));
+			} else {
+				await userEvent.click(button(toolbar, "Image settings"));
+				const panelReplace = await vi.waitFor(() => {
+					const found = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+						(candidate) => candidate.textContent === "Replace" && !toolbar.contains(candidate),
+					);
+					expect(found).toBeDefined();
+					return found!;
+				});
+				await userEvent.click(panelReplace);
+			}
+
+			await userEvent.click(page.getByRole("button", { name: "Choose replacement" }));
+
+			await vi.waitFor(() => expect(imageAttrs(editor)?.mediaId).toBe("new-media"));
+			expect(imageAttrs(editor)?.displayWidth).toBe(150);
+			expect(imageAttrs(editor)?.displayHeight ?? null).toBeNull();
+		},
+	);
+
+	it.each([
+		{ size: "a display height alone", display: { displayHeight: 200 } },
+		{
+			size: "a display size that crops the image on purpose",
+			display: { displayWidth: 150, displayHeight: 50 },
+		},
+	])("keeps $size when replacing an image", async ({ display }) => {
+		const { editor, img } = await setup({ image: { width: 300, height: 400, ...display } });
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Replace"));
+
+		await userEvent.click(page.getByRole("button", { name: "Choose replacement" }));
+
+		await vi.waitFor(() => expect(imageAttrs(editor)?.mediaId).toBe("new-media"));
+		expect(imageAttrs(editor)).toMatchObject(display);
+	});
+
 	it("deletes the image and closes its settings", async () => {
 		const { editor, img, getPanel } = await setup();
 		const toolbar = await selectImage(img);
@@ -381,7 +427,7 @@ describe("Image toolbar", () => {
 	});
 
 	it("rings the selected image only while focus is in the editor", async () => {
-		const { img, caption } = await setup();
+		const { img, caption } = await setup({ image: { caption: "Red bike" } });
 		const ringed = () => getComputedStyle(img).boxShadow !== "none";
 		await selectImage(img);
 		expect(ringed()).toBe(true);
@@ -495,13 +541,41 @@ describe("Image toolbar", () => {
 	});
 
 	it("shows the toolbar when a caption is clicked from another field", async () => {
-		const { editor, caption } = await setup();
+		const { editor, caption } = await setup({ image: { caption: "Red bike" } });
 		await userEvent.click(document.querySelector<HTMLInputElement>('input[aria-label="Title"]')!);
 		await userEvent.click(caption);
 
 		expect(document.activeElement).toBe(caption);
 		expectImageSelected(editor);
 		await waitForToolbar();
+	});
+
+	it("takes no room for an empty caption until Add caption opens it", async () => {
+		const { img, caption } = await setup();
+		const figure = img.closest("figure")!;
+		const imageHeight = img.getBoundingClientRect().height;
+		expect(figure.getBoundingClientRect().height).toBeCloseTo(imageHeight, 0);
+
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Add caption"));
+		expect(document.activeElement).toBe(caption);
+		expect(figure.getBoundingClientRect().height).toBeGreaterThan(imageHeight);
+
+		await userEvent.keyboard("{Escape}");
+		await vi.waitFor(() =>
+			expect(figure.getBoundingClientRect().height).toBeCloseTo(imageHeight, 0),
+		);
+	});
+
+	it("keeps a caption under the image once it has text", async () => {
+		const { img, caption } = await setup();
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Add caption"));
+		await userEvent.keyboard("Red bike{Escape}");
+
+		expect(caption).toHaveValue("Red bike");
+		expect(caption).toBeVisible();
+		expect(button(toolbar, "Edit caption")).toHaveAttribute("aria-pressed", "true");
 	});
 
 	it("keeps text dropped on a caption out of the document", async () => {

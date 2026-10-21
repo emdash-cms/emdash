@@ -1,0 +1,699 @@
+---
+/**
+ * The "Open in EmDash" hand-off. Any element with `data-install-trigger`
+ * opens it. It remembers the visitor's site and sends them to that site's
+ * registry install screen for this plugin.
+ */
+import PluginArt from "../PluginArt.astro";
+import { detailIcons } from "./icons.js";
+
+interface Props {
+	did: string;
+	slug: string;
+	name: string;
+	/** `@handle/slug`, or `did/slug` when the publisher has no handle. */
+	publicName: string;
+	icon?: string;
+	artSeed: string;
+}
+
+const { did, slug, name, publicName, icon, artSeed } = Astro.props;
+---
+
+<dialog
+	class="install-dialog"
+	data-install-dialog
+	data-publisher={did}
+	data-slug={slug}
+	aria-labelledby="install-dialog-title"
+	aria-describedby="install-dialog-description"
+>
+	<div class="install-dialog-content">
+		<div class="install-dialog-top">
+			<p class="eyebrow install-dialog-kicker">Install on your site</p>
+			<form method="dialog">
+				<button
+					class="btn btn-ghost btn-icon dialog-close"
+					value="cancel"
+					aria-label="Close"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+						focusable="false"
+						set:html={detailIcons.close}
+					/>
+				</button>
+			</form>
+		</div>
+
+		<div class="install-dialog-heading">
+			<span class="install-plugin-icon">
+				{
+					icon ? (
+						<img
+							src={icon}
+							alt=""
+							width="52"
+							height="52"
+							decoding="async"
+							referrerpolicy="no-referrer"
+						/>
+					) : (
+						<PluginArt seed={artSeed} variant="tile" />
+					)
+				}
+			</span>
+			<div class="install-plugin-titles">
+				<h2 id="install-dialog-title">Open in EmDash</h2>
+				<p class="install-plugin-name" dir="auto">{name}</p>
+				<p class="install-plugin-public" dir="auto" title={publicName}>
+					{publicName}
+				</p>
+			</div>
+		</div>
+
+		<p id="install-dialog-description" class="install-dialog-description">
+			Choose the EmDash site where you want to review this plugin. Nothing is
+			installed until you confirm its permissions in that site's admin.
+		</p>
+
+		<div class="saved-site" data-saved-site hidden>
+			<a
+				class="btn btn-primary btn-lg saved-site-link"
+				data-saved-site-link
+				href="/"
+			>
+				<span>Open in</span><span class="saved-site-host" data-saved-site-host
+				></span>
+				<svg
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+					focusable="false"
+					set:html={detailIcons.arrowUpRight}
+				/>
+			</a>
+			<button class="btn btn-ghost change-site" type="button" data-change-site>
+				Use a different site
+			</button>
+		</div>
+
+		<form class="install-site-form" data-install-site-form novalidate>
+			<label for="emdash-site-url">Your EmDash site</label>
+			<div class="site-field">
+				<svg
+					class="site-field-icon"
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+					focusable="false"
+					set:html={detailIcons.globe}
+				/>
+				<input
+					id="emdash-site-url"
+					name="site"
+					type="url"
+					inputmode="url"
+					autocomplete="url"
+					placeholder="https://cms.example.com"
+					aria-describedby="site-url-help site-url-error"
+					maxlength="2048"
+					required
+				/>
+			</div>
+			<p id="site-url-help" class="site-url-help">
+				This browser will remember the site. You can change it next time.
+			</p>
+			<p id="site-url-error" class="site-url-error" aria-live="polite"></p>
+			<button class="btn btn-primary btn-lg site-submit" type="submit">
+				Continue to your site
+			</button>
+		</form>
+
+		<div class="install-help">
+			<span>Need help?</span>
+			<a
+				href="https://docs.emdashcms.com/plugins/installing/#install-from-the-registry"
+			>
+				Installation guide
+			</a>
+			<a href="https://docs.emdashcms.com/plugins/registry/">
+				Registry setup
+			</a>
+		</div>
+	</div>
+</dialog>
+
+<style>
+	.install-dialog {
+		width: min(28rem, calc(100vw - 2rem));
+		max-width: none;
+		max-height: calc(100dvh - 2rem);
+		padding: 0;
+		overflow: auto;
+		color: var(--ink);
+		background: var(--surface-raised);
+		border: 1px solid var(--line);
+		border-radius: 20px;
+		box-shadow:
+			0 0 0 4px var(--line-soft),
+			var(--shadow-float);
+		overscroll-behavior: contain;
+	}
+
+	.install-dialog::backdrop {
+		background: rgb(0 0 0 / 40%);
+		backdrop-filter: blur(6px);
+	}
+
+	/*
+	 * Transitions rather than keyframes so closing fades too: `overlay` and
+	 * `display` hold the dialog in the top layer until the fade ends.
+	 */
+	@media (prefers-reduced-motion: no-preference) {
+		.install-dialog,
+		.install-dialog::backdrop {
+			transition:
+				opacity 140ms ease-in,
+				transform 140ms ease-in,
+				overlay 140ms ease-in allow-discrete,
+				display 140ms ease-in allow-discrete;
+		}
+
+		.install-dialog[open],
+		.install-dialog[open]::backdrop {
+			transition-duration: 200ms;
+			transition-timing-function: var(--ease-out);
+		}
+
+		.install-dialog:not([open]) {
+			opacity: 0;
+			transform: translateY(6px) scale(0.98);
+		}
+
+		.install-dialog:not([open])::backdrop {
+			opacity: 0;
+		}
+
+		@starting-style {
+			.install-dialog[open] {
+				opacity: 0;
+				transform: translateY(8px) scale(0.98);
+			}
+
+			.install-dialog[open]::backdrop {
+				opacity: 0;
+			}
+		}
+	}
+
+	.install-dialog-content {
+		padding: 16px 24px 22px;
+	}
+
+	.install-dialog p {
+		margin: 0;
+	}
+
+	.install-dialog svg {
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.install-dialog-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-inline-end: -10px;
+	}
+
+	.install-dialog-kicker {
+		font-size: 13px;
+	}
+
+	.dialog-close {
+		border-radius: var(--radius);
+	}
+
+	.install-dialog-heading {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		margin-block-start: 16px;
+		min-width: 0;
+	}
+
+	.install-plugin-icon {
+		position: relative;
+		display: block;
+		flex: none;
+		width: 52px;
+		height: 52px;
+		overflow: hidden;
+		background: var(--surface-soft);
+		border-radius: 14px;
+		box-shadow: 0 0 0 4px var(--line-soft);
+	}
+
+	.install-plugin-icon::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+		pointer-events: none;
+	}
+
+	.install-plugin-icon img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.install-plugin-titles {
+		display: grid;
+		gap: 2px;
+		min-width: 0;
+	}
+
+	.install-dialog h2 {
+		margin: 0 0 2px;
+		color: var(--ink-strong);
+		font-size: 22px;
+		font-weight: 600;
+		line-height: 1.15;
+		letter-spacing: -0.03em;
+	}
+
+	.install-plugin-name,
+	.install-plugin-public {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.install-plugin-name {
+		color: var(--ink);
+		font-size: 14px;
+		font-weight: 500;
+		line-height: 1.35;
+	}
+
+	.install-plugin-public {
+		color: var(--muted);
+		font-family: var(--font-mono);
+		font-size: 12px;
+		line-height: 1.45;
+	}
+
+	.install-dialog-description {
+		margin-block-start: 20px !important;
+		padding-block-start: 18px;
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.55;
+		text-wrap: pretty;
+		border-block-start: 1px solid var(--line);
+	}
+
+	.install-site-form {
+		display: grid;
+		gap: 8px;
+		margin-block-start: 20px;
+	}
+
+	.install-site-form label {
+		color: var(--ink);
+		font-size: 14px;
+		font-weight: 500;
+	}
+
+	.site-field {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		height: 48px;
+		padding-inline: 14px;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
+		box-shadow:
+			0 0 0 4px var(--line-soft),
+			var(--shadow-sm);
+		transition:
+			border-color 150ms ease,
+			box-shadow 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.site-field:hover {
+			border-color: var(--line-strong);
+		}
+	}
+
+	.site-field:focus-within {
+		border-color: var(--accent-ink);
+		box-shadow:
+			0 0 0 4px var(--accent-tint),
+			var(--shadow-sm);
+	}
+
+	.site-field:has(input[aria-invalid="true"]) {
+		border-color: var(--danger);
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--danger) 14%, transparent),
+			var(--shadow-sm);
+	}
+
+	.site-field-icon {
+		flex: none;
+		width: 18px;
+		height: 18px;
+		color: var(--subtle);
+	}
+
+	.site-field:focus-within .site-field-icon {
+		color: var(--muted);
+	}
+
+	.site-field input {
+		flex: 1;
+		min-width: 0;
+		height: 100%;
+		padding: 0;
+		color: var(--ink);
+		font: inherit;
+		font-size: 16px;
+		background: transparent;
+		border: 0;
+		outline: none;
+	}
+
+	.site-field input::placeholder {
+		color: var(--muted);
+		opacity: 1;
+	}
+
+	.site-url-help,
+	.site-url-error {
+		font-size: 13px;
+		line-height: 1.45;
+	}
+
+	.site-url-help {
+		margin-block-start: 2px !important;
+		color: var(--muted);
+	}
+
+	.site-url-error {
+		min-height: 1.45em;
+		color: var(--danger);
+		font-weight: 500;
+	}
+
+	.install-site-form[aria-busy="true"] .site-url-error {
+		color: var(--muted);
+		font-weight: 400;
+	}
+
+	.site-submit,
+	.saved-site-link {
+		width: 100%;
+	}
+
+	.site-submit {
+		margin-block-start: 2px;
+	}
+
+	.install-site-form[aria-busy="true"] .site-submit::before {
+		content: "";
+		width: 14px;
+		height: 14px;
+		border: 1.75px solid currentColor;
+		border-inline-end-color: transparent;
+		border-radius: 50%;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.install-site-form[aria-busy="true"] .site-submit::before {
+			animation: install-spin 700ms linear infinite;
+		}
+	}
+
+	@keyframes install-spin {
+		to {
+			transform: rotate(1turn);
+		}
+	}
+
+	.saved-site {
+		display: grid;
+		gap: 6px;
+		margin-block-start: 20px;
+	}
+
+	.saved-site-link {
+		gap: 0.3em;
+		min-width: 0;
+	}
+
+	.saved-site-host {
+		overflow: hidden;
+		min-width: 0;
+		text-overflow: ellipsis;
+	}
+
+	.saved-site-link svg {
+		width: 16px;
+		height: 16px;
+		margin-inline-start: 4px;
+	}
+
+	.saved-site-link svg:dir(rtl) {
+		transform: scaleX(-1);
+	}
+
+	.change-site {
+		width: 100%;
+	}
+
+	.install-help {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 14px;
+		margin-block-start: 22px;
+		padding-block-start: 16px;
+		color: var(--muted);
+		font-size: 13px;
+		border-block-start: 1px solid var(--line);
+	}
+
+	.install-help a {
+		color: var(--accent-ink);
+		text-decoration: underline;
+		text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+		text-underline-offset: 0.2em;
+	}
+
+	@media (hover: hover) {
+		.install-help a:hover {
+			text-decoration-color: currentColor;
+		}
+	}
+
+	.install-dialog [hidden] {
+		display: none;
+	}
+
+	@media (max-width: 479px) {
+		.install-dialog-content {
+			padding: 12px 18px 18px;
+		}
+
+		.install-dialog-top {
+			margin-inline-end: -8px;
+		}
+
+		.install-dialog-heading {
+			gap: 12px;
+		}
+
+		.install-plugin-icon {
+			width: 44px;
+			height: 44px;
+			border-radius: 12px;
+		}
+
+		.install-dialog h2 {
+			font-size: 20px;
+		}
+	}
+</style>
+
+<script>
+	import {
+		normalizeSiteOrigin,
+		pluginAdminUrl,
+		probeEmDashSite,
+	} from "../../lib/install.js";
+
+	const SITE_STORAGE_KEY = "emdash:plugins-site:last-site-origin:v1";
+
+	const dialog = document.querySelector<HTMLDialogElement>(
+		"[data-install-dialog]",
+	);
+	const installTriggers = document.querySelectorAll<HTMLButtonElement>(
+		"[data-install-trigger]",
+	);
+	const siteForm = dialog?.querySelector<HTMLFormElement>(
+		"[data-install-site-form]",
+	);
+	const siteInput = dialog?.querySelector<HTMLInputElement>("#emdash-site-url");
+	const siteError = dialog?.querySelector<HTMLElement>("#site-url-error");
+	const savedSite = dialog?.querySelector<HTMLElement>("[data-saved-site]");
+	const savedSiteLink = dialog?.querySelector<HTMLAnchorElement>(
+		"[data-saved-site-link]",
+	);
+	const savedSiteHost = dialog?.querySelector<HTMLElement>(
+		"[data-saved-site-host]",
+	);
+	const changeSite =
+		dialog?.querySelector<HTMLButtonElement>("[data-change-site]");
+	const siteSubmit = siteForm?.querySelector<HTMLButtonElement>(
+		"button[type='submit']",
+	);
+
+	let siteCheck: AbortController | undefined;
+
+	function endSiteCheck(message = "") {
+		siteCheck = undefined;
+		siteForm?.removeAttribute("aria-busy");
+		if (siteError) siteError.textContent = message;
+		if (siteSubmit) {
+			siteSubmit.disabled = false;
+			siteSubmit.textContent = "Continue to your site";
+		}
+	}
+
+	function readSavedSite(): string | undefined {
+		try {
+			const stored = localStorage.getItem(SITE_STORAGE_KEY);
+			const origin = stored ? normalizeSiteOrigin(stored) : undefined;
+			if (stored && !origin) localStorage.removeItem(SITE_STORAGE_KEY);
+			return origin;
+		} catch {
+			return undefined;
+		}
+	}
+
+	function destinationFor(origin: string): string | undefined {
+		const publisher = dialog?.dataset.publisher;
+		const slug = dialog?.dataset.slug;
+		if (!publisher || !slug) return undefined;
+		return pluginAdminUrl(origin, publisher, slug);
+	}
+
+	function showSiteForm(origin?: string) {
+		if (!siteForm || !savedSite || !siteInput) return;
+		savedSite.hidden = true;
+		siteForm.hidden = false;
+		siteInput.value = origin ?? "";
+		siteInput.removeAttribute("aria-invalid");
+		if (siteError) siteError.textContent = "";
+		queueMicrotask(() => siteInput.focus());
+	}
+
+	function showSavedSite(origin: string) {
+		if (!siteForm || !savedSite || !savedSiteLink || !savedSiteHost) return;
+		const destination = destinationFor(origin);
+		if (!destination) return showSiteForm(origin);
+		const host = new URL(origin).host;
+		siteForm.hidden = true;
+		savedSite.hidden = false;
+		savedSiteLink.href = destination;
+		savedSiteLink.setAttribute("aria-label", `Open in ${host}`);
+		savedSiteHost.textContent = host;
+	}
+
+	installTriggers.forEach((trigger) => {
+		trigger.addEventListener("click", () => {
+			if (!dialog) return;
+			const origin = readSavedSite();
+			if (origin) showSavedSite(origin);
+			else showSiteForm();
+			dialog.showModal();
+		});
+	});
+
+	changeSite?.addEventListener("click", () => {
+		showSiteForm(readSavedSite());
+	});
+
+	siteForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		if (!siteInput) return;
+		const origin = normalizeSiteOrigin(siteInput.value);
+		const destination = origin ? destinationFor(origin) : undefined;
+		if (!origin || !destination) {
+			siteInput.setAttribute("aria-invalid", "true");
+			if (siteError) {
+				siteError.textContent =
+					"Enter an HTTPS site address, or a local HTTP address for development.";
+			}
+			siteInput.focus();
+			return;
+		}
+
+		siteInput.removeAttribute("aria-invalid");
+		siteForm.setAttribute("aria-busy", "true");
+		if (siteError) siteError.textContent = "Checking this site…";
+		if (siteSubmit) {
+			siteSubmit.disabled = true;
+			siteSubmit.textContent = "Checking site…";
+		}
+
+		const check = new AbortController();
+		siteCheck = check;
+		const timeout = window.setTimeout(() => check.abort(), 4_000);
+		const probe = await probeEmDashSite(origin, check.signal);
+		window.clearTimeout(timeout);
+		// Closing cancels the check; `open` covers a close whose event hasn't run yet.
+		if (siteCheck !== check || !dialog?.open) return;
+
+		if (probe === "registry-disabled") {
+			siteInput.setAttribute("aria-invalid", "true");
+			endSiteCheck(
+				"This EmDash site does not have the plugin registry enabled.",
+			);
+			return;
+		}
+
+		try {
+			localStorage.setItem(SITE_STORAGE_KEY, origin);
+		} catch {
+			// Browser storage may be disabled; the handoff does not depend on it.
+		}
+		window.location.assign(destination);
+	});
+
+	dialog?.addEventListener("click", (event) => {
+		if (event.target === dialog) dialog.close();
+	});
+
+	// Closing the dialog cancels a site check that hasn't handed off yet.
+	dialog?.addEventListener("close", () => {
+		siteCheck?.abort();
+		endSiteCheck();
+	});
+
+	// Back from the site restores this page from the bfcache mid hand-off.
+	window.addEventListener("pageshow", (event) => {
+		if (!event.persisted) return;
+		endSiteCheck();
+		if (dialog?.open) dialog.close();
+	});
+</script>

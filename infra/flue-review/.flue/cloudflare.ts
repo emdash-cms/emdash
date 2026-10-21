@@ -2,10 +2,15 @@ import { getRun } from "@flue/runtime";
 import { DurableObject } from "cloudflare:workers";
 
 import {
+	classifyRereviewMove,
 	completeReviewCheck,
 	createReviewCheck,
+	fetchHeadChecks,
+	fetchLastReviewedHead,
+	fetchPullRequestState,
 	findReviewCheck,
 	getPullRequestHeadSha,
+	hasReviewCheck,
 	githubRateLimitGate,
 	GitHubRateLimitError,
 	readAppCreds,
@@ -14,6 +19,14 @@ import {
 	type GitHubToken,
 } from "./lib/github.js";
 import {
+	evaluateRereview,
+	REREVIEW_POLL_MS,
+	rereviewLimit,
+	type PendingRereview,
+	type RereviewHistory,
+} from "./lib/rereview.js";
+import {
+	getReviewWatchdog,
 	isReviewAttemptStale,
 	reviewStaleAfter,
 	REVIEW_SETUP_LEASE_MS,
@@ -21,7 +34,10 @@ import {
 	type ReviewStage,
 	type ReviewTerminal,
 } from "./lib/review-watchdog.js";
+import type { GatedPr } from "./lib/webhook.js";
 import { admitReviewWorkflow } from "./lib/workflow-admission.js";
+
+export { GitHubRateLimitDO } from "./lib/github-rate-limit.js";
 
 const ATTEMPT_KEY = "attempt";
 const TERMINAL_RETRY_BASE_MS = 60_000;
@@ -323,6 +339,11 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		});
 		await this.ctx.storage.setAlarm(lastProgressAt + reviewStaleAfter(stage));
 		return true;
+	}
+
+	async isActive(attemptId: string): Promise<boolean> {
+		const attempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
+		return attempt?.attemptId === attemptId && !attempt.terminal;
 	}
 
 	async complete(attemptId: string): Promise<void> {
@@ -697,5 +718,153 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		} catch (error) {
 			await this.scheduleTerminalRetry(terminalAttempt, error);
 		}
+	}
+}
+
+const PENDING_KEY = "pending";
+const HISTORY_KEY = "history";
+const REREVIEW_ERROR_LIMIT = 10;
+const ADMITTED_HEADS_KEPT = 20;
+
+interface StoredPending extends PendingRereview {
+	errorCount?: number;
+}
+
+/** One per PR: waits for CI on the PR's current head, then admits a scoped re-review. */
+export class ReReviewScheduler extends DurableObject<Env> {
+	async schedule(pr: GatedPr): Promise<void> {
+		const pending = await this.ctx.storage.get<StoredPending>(PENDING_KEY);
+		if (pending?.headSha !== pr.headSha) {
+			const next: StoredPending = {
+				owner: pr.owner,
+				repo: pr.repo,
+				prNumber: pr.prNumber,
+				headSha: pr.headSha,
+				since: Date.now(),
+			};
+			await this.ctx.storage.put(PENDING_KEY, next);
+		}
+		if ((await this.ctx.storage.getAlarm()) === null) {
+			await this.ctx.storage.setAlarm(Date.now() + REREVIEW_POLL_MS);
+		}
+	}
+
+	private log(message: string, pending: PendingRereview, extra: Record<string, unknown> = {}) {
+		console.log(
+			JSON.stringify({
+				message,
+				owner: pending.owner,
+				repo: pending.repo,
+				prNumber: pending.prNumber,
+				headSha: pending.headSha,
+				...extra,
+			}),
+		);
+	}
+
+	override async alarm(): Promise<void> {
+		const pending = await this.ctx.storage.get<StoredPending>(PENDING_KEY);
+		if (!pending) return;
+		const history: RereviewHistory = (await this.ctx.storage.get<RereviewHistory>(HISTORY_KEY)) ?? {
+			admittedAt: [],
+			admittedHeads: [],
+		};
+		const now = Date.now();
+		let decision: Awaited<ReturnType<typeof evaluateRereview>>;
+		try {
+			if (!readAppCreds(this.env)) {
+				throw new TerminalConfigurationError("GitHub App credentials are unavailable");
+			}
+			const gate = githubRateLimitGate(this.env);
+			const token: GitHubToken = {
+				token: await gate.getInstallationToken(),
+				gate,
+				consumer: `rereview:${pending.owner}/${pending.repo}#${pending.prNumber}`,
+			};
+			const { owner, repo, prNumber } = pending;
+			decision = await evaluateRereview(
+				pending,
+				history,
+				{
+					pullRequest: () => fetchPullRequestState(token, owner, repo, prNumber),
+					headChecks: (sha) => fetchHeadChecks(token, owner, repo, sha),
+					lastReviewedHead: () => fetchLastReviewedHead(token, owner, repo, prNumber),
+					reviewStarted: (sha) => hasReviewCheck(token, owner, repo, sha),
+					classifyMove: (baseSha, from, to) =>
+						classifyRereviewMove(token, owner, repo, baseSha, from, to),
+					reviewInFlight: (attemptId) => getReviewWatchdog(this.env, attemptId).isActive(attemptId),
+				},
+				{ now, limit: rereviewLimit(this.env) },
+			);
+		} catch (error) {
+			const errorCount = (pending.errorCount ?? 0) + 1;
+			const terminal =
+				error instanceof TerminalConfigurationError || errorCount >= REREVIEW_ERROR_LIMIT;
+			this.log("re-review evaluation failed", pending, {
+				error: error instanceof Error ? error.message : String(error),
+				errorCount,
+				dropped: terminal,
+			});
+			if (terminal) {
+				await this.ctx.storage.delete(PENDING_KEY);
+				return;
+			}
+			await this.ctx.storage.put(PENDING_KEY, { ...pending, errorCount });
+			await this.ctx.storage.setAlarm(
+				now +
+					(error instanceof GitHubRateLimitError
+						? Math.max(REREVIEW_POLL_MS, error.retryDelayMs)
+						: REREVIEW_POLL_MS),
+			);
+			return;
+		}
+
+		if (decision.kind === "wait") {
+			await this.ctx.storage.put(PENDING_KEY, { ...decision.pending, errorCount: 0 });
+			await this.ctx.storage.setAlarm(now + REREVIEW_POLL_MS);
+			if (decision.reason === "head_moved") {
+				this.log("re-review moved to the current head", decision.pending);
+			}
+			return;
+		}
+		await this.ctx.storage.delete(PENDING_KEY);
+		if (decision.kind === "drop") {
+			this.log("re-review skipped", pending, { reason: decision.reason });
+			return;
+		}
+
+		const { input, attemptId } = decision;
+		const reservation = await getReviewWatchdog(this.env, attemptId).reserve(
+			{
+				attemptId,
+				runId: attemptId,
+				deliveryId: attemptId,
+				owner: input.owner,
+				repo: input.repo,
+				prNumber: input.prNumber,
+				headSha: input.headSha,
+				workflowInput: input,
+				stage: "admitted",
+				lastProgressAt: now,
+			},
+			crypto.randomUUID(),
+		);
+		if (reservation.status === "acquired") {
+			await this.ctx.storage.put(HISTORY_KEY, {
+				admittedAt: [...history.admittedAt, now].filter((at) => now - at < 7 * 24 * 60 * 60_000),
+				admittedHeads: [...history.admittedHeads, input.headSha].slice(-ADMITTED_HEADS_KEPT),
+				inFlightAttemptId: attemptId,
+			} satisfies RereviewHistory);
+		}
+		this.log(
+			"re-review admitted",
+			{ ...pending, headSha: input.headSha },
+			{
+				attemptId,
+				reason: decision.reason,
+				priorHeadSha: input.priorHeadSha,
+				reservation: reservation.status,
+			},
+		);
 	}
 }

@@ -4,6 +4,8 @@ For human-facing contributor info (setup, repo layout, PR policy, i18n), see [CO
 
 Follow [AI_POLICY.md](AI_POLICY.md) for external actions and project communication. In particular, do not open design PRs, and do not comment on issues, Discussions, or design PRs. On implementation PRs, post only a specifically requested code review or a reply to code review, and sign agent-written comments posted from a human account as the policy requires.
 
+To check the autofix bot's status on an issue or PR, read `https://autofix.emdashcms.com/api/cases?issue=N`, where N is the issue or PR number.
+
 `CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
 
 When writing, revising, or reviewing documentation, load the `writing-emdash-docs` skill. Use it for public docs, READMEs, contributor guidance, technical specifications, release notes and changesets, and skill instructions.

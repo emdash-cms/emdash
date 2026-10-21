@@ -1,29 +1,65 @@
 /**
- * Revisions E2E Tests
- *
- * Tests revision history in the content editor.
- * Creates a dedicated collection with revision support because the
- * fixture seed's posts collection doesn't include `supports: ["revisions"]`.
- *
- * Covers:
- *   - Edit creates a new revision
- *   - Revision history panel shows revisions
- *   - Restoring a revision updates content
+ * Revision history E2E tests: the Revisions list, the read-only version view
+ * in the canvas, and restoring a version.
  */
 
-import { test, expect } from "../fixtures";
+import type { Locator, Page } from "@playwright/test";
 
-// Regex patterns
-const REVISIONS_API_PATTERN = /\/api\/content\/[^/]+\/[^/]+\/revisions/;
+import { test, expect, type AdminPage } from "../fixtures";
 
-// API helper
-function apiHeaders(token: string, baseUrl: string) {
+const REVISIONS_TRIGGER = /^Revisions/;
+const VERSION_VIEW = /^Version from /;
+const RESTORED_CURRENT_ROW = /, Current version, Dev Admin, Restored from \u2068?.+\u2069?$/u;
+const PUBLISHED_ROW = /, Published, Dev Admin$/;
+const INSERTED_RED = /(?:^|\s)red$/;
+const REMOVED_BROWN = /(?:^|\s)brown$/;
+// Interpolated values in change labels are wrapped in Unicode isolates.
+const EDITED_EXCERPT = /^Edited \u2068?Excerpt\u2069?$/u;
+const EDITED_FOX = /^Edited “\u2068?The quick red fox jumps…\u2069?”$/u;
+const RESTORED_FROM = /^Restored the version from \u2068?.+\u2069?$/u;
+
+function paragraph(key: string, text: string) {
 	return {
-		"Content-Type": "application/json",
-		Authorization: `Bearer ${token}`,
-		"X-EmDash-Request": "1",
-		Origin: baseUrl,
+		_type: "block",
+		_key: key,
+		style: "normal",
+		markDefs: [],
+		children: [{ _type: "span", _key: `${key}-span`, text, marks: [] }],
 	};
+}
+
+// Keeps the edited paragraph below the fold, so jumping to it has to scroll.
+const FILLER = Array.from({ length: 20 }, (_, index) =>
+	paragraph(`filler${index}`, `Filler paragraph ${index + 1} keeps the edited line out of view.`),
+);
+
+function body(foxColor: string) {
+	return [...FILLER, paragraph("fox", `The quick ${foxColor} fox jumps over the lazy dog.`)];
+}
+
+const ORIGINAL = { title: "Original Title", excerpt: "Original excerpt", body: body("brown") };
+const REVISED = { title: "Revised Title", excerpt: "Revised excerpt", body: body("red") };
+const LATEST = { title: "Latest Title", excerpt: "Revised excerpt", body: body("grey") };
+
+function versionView(page: Page): Locator {
+	return page.getByRole("article", { name: VERSION_VIEW });
+}
+
+function versionBar(page: Page): Locator {
+	return page
+		.getByRole("region")
+		.filter({ has: page.getByRole("button", { name: "Back to editing" }) });
+}
+
+function changeList(page: Page): Locator {
+	return page.getByRole("list", { name: "Changes in this version" });
+}
+
+async function expandRevisions(scope: Page | Locator): Promise<Locator> {
+	await scope.getByRole("button", { name: REVISIONS_TRIGGER }).click();
+	const rows = scope.locator("[data-revision-row]");
+	await expect(rows).toHaveCount(3);
+	return rows;
 }
 
 test.describe("Revisions", () => {
@@ -32,60 +68,68 @@ test.describe("Revisions", () => {
 	let headers: Record<string, string>;
 	let baseUrl: string;
 
+	async function api(method: string, path: string, data?: unknown): Promise<Response> {
+		const response = await fetch(`${baseUrl}/_emdash/api${path}`, {
+			method,
+			headers,
+			body: data === undefined ? undefined : JSON.stringify(data),
+		});
+		expect(response.ok, `${method} ${path} returned ${response.status}`).toBe(true);
+		return response;
+	}
+
+	async function openEditor(admin: AdminPage): Promise<void> {
+		await admin.goToEditContent(collectionSlug, postId);
+		await admin.waitForLoading();
+		await expect(admin.page.locator("#field-title")).toHaveValue(LATEST.title);
+	}
+
 	test.beforeEach(async ({ admin, serverInfo }) => {
 		await admin.devBypassAuth();
 
 		baseUrl = serverInfo.baseUrl;
-		headers = apiHeaders(serverInfo.token, baseUrl);
+		headers = {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${serverInfo.token}`,
+			"X-EmDash-Request": "1",
+			Origin: baseUrl,
+		};
 
-		// Create a collection with revision + draft support
 		collectionSlug = `rev_test_${Date.now()}`;
-		await fetch(`${baseUrl}/_emdash/api/schema/collections`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({
-				slug: collectionSlug,
-				label: "Revision Test",
-				labelSingular: "Revision Test",
-				supports: ["revisions", "drafts"],
-			}),
+		await api("POST", "/schema/collections", {
+			slug: collectionSlug,
+			label: "Revision Test",
+			labelSingular: "Revision Test",
+			supports: ["revisions", "drafts"],
 		});
-
-		// Add a title field
-		await fetch(`${baseUrl}/_emdash/api/schema/collections/${collectionSlug}/fields`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({ slug: "title", type: "string", label: "Title", required: true }),
+		const fieldsPath = `/schema/collections/${collectionSlug}/fields`;
+		await api("POST", fieldsPath, {
+			slug: "title",
+			type: "string",
+			label: "Title",
+			required: true,
 		});
+		await api("POST", fieldsPath, { slug: "excerpt", type: "text", label: "Excerpt" });
+		await api("POST", fieldsPath, { slug: "body", type: "portableText", label: "Body" });
 
-		// Add an excerpt field for multi-field revision diffs
-		await fetch(`${baseUrl}/_emdash/api/schema/collections/${collectionSlug}/fields`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({ slug: "excerpt", type: "text", label: "Excerpt" }),
-		});
-
-		// Create and publish a post (publishing creates the first live revision)
-		const createRes = await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({
-				data: { title: "Original Title", excerpt: "Original excerpt" },
+		const created = (await (
+			await api("POST", `/content/${collectionSlug}`, {
+				data: ORIGINAL,
 				slug: "revision-test-post",
-			}),
-		});
-		const createData: any = await createRes.json();
-		postId = createData.data?.item?.id ?? createData.data?.id;
+			})
+		).json()) as { data: { item: { id: string } } };
+		postId = created.data.item.id;
 
-		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/publish`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({}),
-		});
+		// Creating an entry saves no revision, so each version is a PUT, which
+		// records the token's user as the revision's author.
+		const entryPath = `/content/${collectionSlug}/${postId}`;
+		await api("PUT", entryPath, { data: ORIGINAL });
+		await api("PUT", entryPath, { data: REVISED });
+		await api("POST", `${entryPath}/publish`, {});
+		await api("PUT", entryPath, { data: LATEST });
 	});
 
 	test.afterEach(async () => {
-		// Clean up test data
 		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}`, {
 			method: "DELETE",
 			headers,
@@ -96,274 +140,156 @@ test.describe("Revisions", () => {
 		}).catch(() => {});
 	});
 
-	test("revision history panel is visible for collections with revision support", async ({
+	test("shows an older version read-only, with change marks that Show changes hides", async ({
 		admin,
 		page,
 	}) => {
-		await admin.goToEditContent(collectionSlug, postId);
-		await admin.waitForLoading();
+		await openEditor(admin);
+		const rows = await expandRevisions(page);
+		await rows.nth(1).click();
 
-		// The title field should have the original value
-		await expect(page.locator("#field-title")).toHaveValue("Original Title");
-
-		// The Revisions panel should be visible (collapsed by default)
-		const revisionsButton = page.locator("button", { hasText: "Revisions" });
-		await expect(revisionsButton).toBeVisible({ timeout: 10000 });
-	});
-
-	test("expanding revision history shows existing revisions", async ({ admin, page }) => {
-		await admin.goToEditContent(collectionSlug, postId);
-		await admin.waitForLoading();
-
-		// Click on the Revisions header to expand
-		const revisionsButton = page.locator("button", { hasText: "Revisions" });
-		await revisionsButton.click();
-
-		// Wait for revisions to load (API call)
-		await page
-			.waitForResponse((res) => REVISIONS_API_PATTERN.test(res.url()) && res.status() === 200, {
-				timeout: 10000,
-			})
-			.catch(() => {});
-
-		// Should show at least one revision entry
-		// The latest revision has a "Current" badge (a span.badge element)
-		const currentBadge = page.locator("span.rounded-full", { hasText: "Current" });
-		await expect(currentBadge.first()).toBeVisible({ timeout: 10000 });
-	});
-
-	test("editing and saving creates a new revision", async ({ admin, page }) => {
-		// Get initial revision count
-		const initialRes = await fetch(
-			`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/revisions`,
-			{ headers },
+		const canvas = versionView(page);
+		await expect(canvas).toBeVisible();
+		await expect(page.locator("#field-title")).toBeHidden();
+		await expect(canvas.getByRole("textbox")).toHaveCount(0);
+		await expect(canvas.getByRole("group", { name: "Title", exact: true })).toContainText(
+			REVISED.title,
 		);
-		const initialData: any = await initialRes.json();
-		const initialCount = initialData.data?.total ?? 0;
 
-		// Navigate to edit
-		await admin.goToEditContent(collectionSlug, postId);
-		await admin.waitForLoading();
+		const bodyField = canvas.getByRole("group", { name: "Body", exact: true });
+		await expect(bodyField.locator("ins")).toHaveText(INSERTED_RED);
+		await expect(bodyField.locator("del")).toHaveText(REMOVED_BROWN);
 
+		await expect(changeList(page).getByRole("listitem")).toHaveText([
+			"Changed the title",
+			EDITED_EXCERPT,
+			EDITED_FOX,
+		]);
+
+		const showChanges = versionBar(page).getByRole("switch", { name: "Show changes" });
+		await showChanges.click();
+		await expect(canvas.locator("del")).toHaveCount(0);
+		await expect(canvas.locator("ins")).toHaveCount(0);
+		await expect(bodyField).toContainText("The quick red fox jumps over the lazy dog.");
+		await showChanges.click();
+		await expect(bodyField.locator("del")).toHaveText(REMOVED_BROWN);
+	});
+
+	test("clicking a change scrolls to it and focuses it", async ({ admin, page }) => {
+		await openEditor(admin);
+		const rows = await expandRevisions(page);
+		await rows.nth(1).click();
+
+		const canvas = versionView(page);
+		const fox = canvas
+			.getByRole("group", { name: "Body", exact: true })
+			.locator("p", { hasText: "fox jumps over" });
+		await expect(fox).toBeVisible();
+		await expect(fox).not.toBeInViewport();
+
+		const changes = changeList(page);
+		await changes.getByRole("button", { name: EDITED_FOX }).click();
+		await expect(fox).toBeFocused();
+		await expect(fox).toBeInViewport();
+		await expect(fox.locator("ins")).toHaveText(INSERTED_RED);
+
+		const title = canvas.getByRole("group", { name: "Title", exact: true });
+		await changes.getByRole("button", { name: "Changed the title", exact: true }).click();
+		await expect(title).toBeFocused();
+		await expect(title).toBeInViewport();
+		await expect(title).toContainText(REVISED.title);
+	});
+
+	test("Back to editing returns to the editor with unsaved edits intact", async ({
+		admin,
+		page,
+	}) => {
+		await openEditor(admin);
 		const titleInput = page.locator("#field-title");
-		await expect(titleInput).toHaveValue("Original Title");
+		await titleInput.fill("Unsaved title edit");
 
-		// Wait for any initial autosave to settle
-		await page.waitForTimeout(3000);
+		const rows = await expandRevisions(page);
+		await rows.nth(1).click();
+		const canvas = versionView(page);
+		await expect(canvas).toBeVisible();
+		await expect(titleInput).toBeHidden();
 
-		// Edit the title -- autosave will fire after debounce
-		const contentUrl = `/_emdash/api/content/${collectionSlug}/${postId}`;
-		const autosavePut = page.waitForResponse(
-			(res) => res.url().includes(contentUrl) && res.request().method() === "PUT",
-			{ timeout: 15000 },
-		);
-
-		await titleInput.fill("Updated Title for Revision");
-		const response = await autosavePut;
-		expect(response.status()).toBe(200);
-
-		// Wait for SaveButton live region to settle on "Saved" after autosave
-		await expect(page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible({
-			timeout: 5000,
-		});
-
-		// Now publish to create a new live revision
-		const publishButton = page.getByRole("button", { name: "Publish changes" });
-		if (await publishButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await publishButton.click();
-			await page
-				.getByRole("dialog", { name: "Publish changes?" })
-				.getByRole("button", { name: "Publish changes", exact: true })
-				.click();
-			await admin.waitForLoading();
-		}
-
-		// Check that revision count increased
-		const afterRes = await fetch(
-			`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/revisions`,
-			{ headers },
-		);
-		const afterData: any = await afterRes.json();
-		const afterCount = afterData.data?.total ?? 0;
-
-		expect(afterCount).toBeGreaterThan(initialCount);
+		await versionBar(page).getByRole("button", { name: "Back to editing" }).click();
+		await expect(canvas).toHaveCount(0);
+		await expect(titleInput).toBeVisible();
+		await expect(titleInput).toHaveValue("Unsaved title edit");
 	});
 
-	test("can view a revision's data by clicking on it", async ({ admin, page }) => {
-		// Create a second revision by updating via API + publishing
-		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}`, {
-			method: "PUT",
-			headers,
-			body: JSON.stringify({ data: { title: "Second Version", excerpt: "Updated excerpt" } }),
-		});
-		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/publish`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({}),
-		});
+	test("restoring a version makes it the current draft", async ({ admin, page }) => {
+		await openEditor(admin);
+		const rows = await expandRevisions(page);
+		await rows.nth(1).click();
+		const canvas = versionView(page);
+		await expect(canvas).toBeVisible();
 
-		// Navigate to edit
-		await admin.goToEditContent(collectionSlug, postId);
-		await admin.waitForLoading();
+		await versionBar(page).getByRole("button", { name: "Restore", exact: true }).click();
+		const dialog = page.getByRole("dialog", { name: "Restore this version?" });
+		await dialog.getByRole("button", { name: "Restore", exact: true }).click();
 
-		// Expand revisions panel
-		const revisionsButton = page.locator("button", { hasText: "Revisions" });
-		await revisionsButton.click();
+		await expect(page.getByRole("heading", { name: "Version restored" })).toBeVisible();
+		await expect(dialog).toBeHidden();
+		await expect(canvas).toHaveCount(0);
+		await expect(page.locator("#field-title")).toHaveValue(REVISED.title);
+		const bodyEditor = page.locator("#field-body");
+		await expect(bodyEditor).toContainText("The quick red fox jumps over the lazy dog.");
+		await expect(bodyEditor).not.toContainText("grey");
 
-		// Wait for revisions to load
-		await page
-			.waitForResponse((res) => REVISIONS_API_PATTERN.test(res.url()) && res.status() === 200, {
-				timeout: 10000,
-			})
-			.catch(() => {});
+		await expect(rows).toHaveCount(4);
+		await expect(rows.nth(0)).toHaveAccessibleName(RESTORED_CURRENT_ROW);
+		await expect(rows.nth(0)).toBeFocused();
+		await expect(rows.nth(2)).toHaveAccessibleName(PUBLISHED_ROW);
 
-		// Should see the "Current" badge on the latest revision
-		await expect(page.locator("span.rounded-full", { hasText: "Current" }).first()).toBeVisible({
-			timeout: 10000,
-		});
+		await rows.nth(0).click();
+		await expect(canvas).toBeVisible();
+		await expect(changeList(page).getByRole("listitem").first()).toBeVisible();
+		await expect(changeList(page).getByText(RESTORED_FROM)).toHaveCount(0);
+		const restore = versionBar(page).getByRole("button", { name: "Restore", exact: true });
+		await expect(restore).toHaveCount(0);
 
-		// There should be multiple revision items (rounded-lg border entries)
-		const revisionItems = page.locator(".rounded-lg.border.p-3");
-		const count = await revisionItems.count();
-		expect(count).toBeGreaterThanOrEqual(2);
-
-		// Click on the non-latest (older) revision to view its data
-		// The second item (index 1) is the older revision
-		const olderRevision = revisionItems.nth(1);
-		await olderRevision.locator("button.flex-1.text-start").click();
-
-		// A diff view or snapshot should appear
-		// Look for either "Content snapshot" or a diff with field changes
-		const snapshotOrDiff = page.locator("text=Content snapshot").or(page.locator("text=change"));
-		await expect(snapshotOrDiff.first()).toBeVisible({ timeout: 5000 });
+		await rows.nth(2).click();
+		await expect(versionBar(page)).toContainText("Same as current version");
+		await expect(restore).toHaveCount(0);
 	});
 
-	test("restoring a revision updates the content", async ({ admin, page }) => {
-		const originalTitle = "Original Title";
+	test("on a phone, versions open from the settings sheet and step with arrows", async ({
+		admin,
+		page,
+	}) => {
+		await openEditor(admin);
+		await page.setViewportSize({ width: 390, height: 844 });
 
-		// Create a second version via API
-		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}`, {
-			method: "PUT",
-			headers,
-			body: JSON.stringify({ data: { title: "Changed Title", excerpt: "Changed excerpt" } }),
-		});
-		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/publish`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({}),
-		});
+		await page.getByRole("button", { name: "Settings", exact: true }).click();
+		const sheet = page.getByRole("navigation", { name: "Settings" });
+		await expect(sheet).toBeVisible();
+		const rows = await expandRevisions(sheet);
+		await rows.nth(0).click();
+		await expect(sheet).toBeHidden();
 
-		// Get revision list to find the older revision's ID
-		const revisionsRes = await fetch(
-			`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/revisions`,
-			{ headers },
+		const canvas = versionView(page);
+		const bar = versionBar(page);
+		const older = bar.getByRole("button", { name: "Older version" });
+		const newer = bar.getByRole("button", { name: "Newer version" });
+		await expect(canvas.getByRole("group", { name: "Title", exact: true })).toContainText(
+			LATEST.title,
 		);
-		const revisionsData: any = await revisionsRes.json();
-		const revisions = revisionsData.data?.items ?? [];
+		await expect(bar).toContainText("Current version");
+		await expect(newer).toBeDisabled();
 
-		// Need at least 2 revisions to restore
-		expect(revisions.length).toBeGreaterThanOrEqual(2);
-
-		// The first item (index 0) is the latest, older ones follow
-		const olderRevision = revisions[1];
-		expect(olderRevision).toBeDefined();
-
-		// Navigate to the editor
-		await admin.goToEditContent(collectionSlug, postId);
-		await admin.waitForLoading();
-
-		// Verify we have the latest title
-		await expect(page.locator("#field-title")).toHaveValue("Changed Title");
-
-		// Expand revisions
-		const revisionsButton = page.locator("button", { hasText: "Revisions" });
-		await revisionsButton.click();
-
-		// Wait for revisions to load
-		await page
-			.waitForResponse((res) => REVISIONS_API_PATTERN.test(res.url()) && res.status() === 200, {
-				timeout: 10000,
-			})
-			.catch(() => {});
-
-		// Wait for revision items to render
-		const revisionItems = page.locator(".rounded-lg.border.p-3");
-		await expect(revisionItems.first()).toBeVisible({ timeout: 10000 });
-
-		// Find the restore button on the older revision (not the "Current" one).
-		// The restore button uses ArrowCounterClockwise icon. Kumo 2.x renders
-		// <Button title> as a Tooltip popup rather than a DOM title attribute,
-		// so we locate by aria-label instead.
-		const restoreButton = page.locator('button[aria-label="Restore this version"]').first();
-		await expect(restoreButton).toBeVisible({ timeout: 5000 });
-
-		// Click restore -- this opens a ConfirmDialog
-		await restoreButton.click();
-
-		// ConfirmDialog should appear
-		const confirmDialog = page.getByRole("dialog", { name: /Restore Revision/ });
-		await expect(confirmDialog).toBeVisible({ timeout: 5000 });
-
-		// Confirm the restore
-		await confirmDialog.getByRole("button", { name: "Restore" }).click();
-
-		// Wait for the restore to complete
-		await expect(confirmDialog).not.toBeVisible({ timeout: 10000 });
-
-		// Wait for the page to update with restored content
-		await admin.waitForLoading();
-
-		// Verify via API that the content was restored
-		const contentRes = await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}`, {
-			headers,
-		});
-		const contentData: any = await contentRes.json();
-		const currentTitle = contentData.data?.item?.data?.title ?? contentData.data?.item?.title;
-
-		// The title should be back to the original
-		expect(currentTitle).toBe(originalTitle);
-	});
-
-	test("restore creates a new revision in the history", async ({ admin: _admin }) => {
-		// Create a second version
-		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}`, {
-			method: "PUT",
-			headers,
-			body: JSON.stringify({ data: { title: "Version 2", excerpt: "v2 excerpt" } }),
-		});
-		await fetch(`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/publish`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({}),
-		});
-
-		// Get revision count before restore
-		const beforeRes = await fetch(
-			`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/revisions`,
-			{ headers },
+		await older.click();
+		await expect(canvas.getByRole("group", { name: "Title", exact: true })).toContainText(
+			REVISED.title,
 		);
-		const beforeData: any = await beforeRes.json();
-		const countBefore = beforeData.data?.total ?? 0;
-		const revisions = beforeData.data?.items ?? [];
+		await expect(bar).toContainText("Published");
+		await expect(bar).not.toContainText("Current version");
+		await expect(newer).toBeEnabled();
 
-		expect(revisions.length).toBeGreaterThanOrEqual(2);
-		const olderRevisionId = revisions[1].id;
-
-		// Restore via API
-		const restoreRes = await fetch(`${baseUrl}/_emdash/api/revisions/${olderRevisionId}/restore`, {
-			method: "POST",
-			headers,
-		});
-		expect(restoreRes.status).toBe(200);
-
-		// Get revision count after restore -- should have increased
-		const afterRes = await fetch(
-			`${baseUrl}/_emdash/api/content/${collectionSlug}/${postId}/revisions`,
-			{ headers },
-		);
-		const afterData: any = await afterRes.json();
-		const countAfter = afterData.data?.total ?? 0;
-
-		expect(countAfter).toBeGreaterThan(countBefore);
+		await bar.getByRole("button", { name: "Back to editing" }).click();
+		await expect(canvas).toHaveCount(0);
+		await expect(page.locator("#field-title")).toBeVisible();
 	});
 });

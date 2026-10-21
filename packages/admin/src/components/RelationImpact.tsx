@@ -45,7 +45,9 @@ export function RelationImpact({
 				return (
 					<li key={relation.id}>
 						{nameRelations && (
-							<code className="bg-kumo-tint px-1.5 py-0.5 rounded me-2">{relation.slug}</code>
+							<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded me-2">
+								{relation.slug}
+							</code>
 						)}
 						<span className="text-kumo-subtle">
 							{plural(relation.linkCount, { one: "# link", other: "# links" })}

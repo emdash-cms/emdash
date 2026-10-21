@@ -1,0 +1,63 @@
+---
+const shoulder = "M0 0.5Q4 0.5 6.83 3.33L21.17 17.67Q24 20.5 28 20.5";
+---
+
+<div class="notch" dir="ltr" aria-hidden="true">
+	<span class="notch-side"></span>
+	<svg class="notch-shoulder" viewBox="0 0 28 24" preserveAspectRatio="none">
+		<path class="notch-fill" d={`${shoulder}V24H0Z`}></path>
+		<path class="notch-line" d={shoulder}></path>
+	</svg>
+	<span class="notch-floor"></span>
+	<svg
+		class="notch-shoulder notch-shoulder--end"
+		viewBox="0 0 28 24"
+		preserveAspectRatio="none"
+	>
+		<path class="notch-fill" d={`${shoulder}V24H0Z`}></path>
+		<path class="notch-line" d={shoulder}></path>
+	</svg>
+	<span class="notch-side"></span>
+</div>
+
+<style>
+	/* The line steps down through the notch; everything under it is the lifted canvas. */
+	.notch {
+		display: grid;
+		grid-template-columns:
+			minmax(0, 1fr) 28px minmax(0, min(23rem, 52vw))
+			28px minmax(0, 1fr);
+		height: 24px;
+	}
+
+	.notch-side,
+	.notch-floor {
+		background: var(--page-lift);
+		border-block-start: 1px solid var(--line);
+	}
+
+	.notch-floor {
+		margin-block-start: 20px;
+	}
+
+	.notch-shoulder {
+		display: block;
+		width: 28px;
+		height: 24px;
+		overflow: visible;
+	}
+
+	.notch-shoulder--end {
+		transform: scaleX(-1);
+	}
+
+	.notch-fill {
+		fill: var(--page-lift);
+	}
+
+	.notch-line {
+		fill: none;
+		stroke: var(--line);
+		stroke-width: 1;
+	}
+</style>

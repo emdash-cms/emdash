@@ -1,7 +1,12 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../types.js";
-import { getExactMigrationStatus, runMigrations } from "./runner.js";
+import {
+	getExactMigrationStatus,
+	MigrationLockHeldError,
+	MigrationRowLimitError,
+	runMigrations,
+} from "./runner.js";
 
 export type RuntimeMigrationMode = "auto" | "check" | "manual";
 
@@ -53,13 +58,34 @@ export class PendingMigrationsError extends Error {
 	}
 }
 
+/**
+ * Whether a runtime init error leaves the database waiting for migrations that
+ * this request cannot apply. A backed-off init carries the original error as
+ * its cause.
+ */
+export function isMigrationRequiredError(error: unknown): boolean {
+	const cause = error instanceof Error ? error.cause : undefined;
+	return [error, cause].some(
+		(candidate) =>
+			candidate instanceof PendingMigrationsError ||
+			candidate instanceof MigrationLockHeldError ||
+			candidate instanceof MigrationRowLimitError,
+	);
+}
+
+export interface RuntimeMigrationPolicyOptions {
+	/** In auto mode, see `MigrationOptions.contentRowLimit`. */
+	contentRowLimit?: number;
+}
+
 export async function enforceRuntimeMigrationPolicy(
 	db: Kysely<Database>,
 	mode: RuntimeMigrationMode,
+	options: RuntimeMigrationPolicyOptions = {},
 ): Promise<void> {
 	if (mode === "manual") return;
 	if (mode === "auto") {
-		await runMigrations(db);
+		await runMigrations(db, { contentRowLimit: options.contentRowLimit });
 		return;
 	}
 

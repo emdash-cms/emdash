@@ -432,6 +432,121 @@ describe("publisher operations archive", () => {
 		expect(response.status, await response.clone().text()).toBe(200);
 	});
 
+	it("restores a version that failed before it was published", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.putWorkloadPolicy({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "gallery",
+			repository: "example/gallery",
+			repositoryId: "123",
+			repositoryOwnerId: "456",
+			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+			allowedRefs: ["refs/heads/main"],
+			allowedEnvironments: [],
+			active: true,
+			expectedVersion: null,
+			now: NOW,
+		});
+		const failedId = `${INTENT_ID.slice(0, -1)}0`;
+		const publishedId = `${INTENT_ID.slice(0, -1)}1`;
+		const steps = {
+			[failedId]: ["received", "verifying", "failed"],
+			[publishedId]: ["received", "verifying", "verified", "ready", "publishing", "published"],
+		} as const;
+		for (const [index, intentId] of [failedId, publishedId].entries()) {
+			const created = await publisher.createIntent({
+				publisherDid: PUBLISHER_DID,
+				intentId,
+				packageSlug: "gallery",
+				version: "1.2.0",
+				workloadPolicyVersion: 1,
+				workloadIdentityDigest: String(index).repeat(43),
+				workloadIdempotencyDigest: String(index + 4).repeat(43),
+				idempotencyKey: `github-run-${index}-attempt-1`,
+				requestDigest: String(index + 5).repeat(43),
+				workloadIdentityJson: "{}",
+				releaseInputJson: "{}",
+				expiresAt: NOW + 60_000,
+				now: NOW + index * 10 + 1,
+			});
+			expect(created).toMatchObject({ ok: true });
+			const states = steps[intentId]!;
+			for (let generation = 1; generation < states.length; generation += 1) {
+				const moved = await publisher.transitionIntent({
+					publisherDid: PUBLISHER_DID,
+					intentId,
+					expectedState: states[generation - 1]!,
+					expectedGeneration: generation,
+					toState: states[generation]!,
+					transitionDigest: String.fromCharCode(65 + generation).repeat(43),
+					actorRealm: "system",
+					actorIdentity: "release-service",
+					reasonCode: null,
+					stateDataJson: "{}",
+					now: NOW + index * 10 + generation + 1,
+				});
+				expect(moved).toMatchObject({ ok: true });
+			}
+		}
+
+		let cursor: string | null = null;
+		let page = 0;
+		do {
+			const response = await handleArchivePublisher(
+				request(cursor, page),
+				`archive-retried-${page}`,
+				configuration,
+				{ publisherDid: PUBLISHER_DID },
+				ADMIN,
+			);
+			expect(response.status).toBe(200);
+			const body = await response.json<{
+				data: { nextCursor: string | null; nextPage: number };
+			}>();
+			cursor = body.data.nextCursor;
+			page = body.data.nextPage;
+		} while (cursor !== null);
+		await env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME).setPublisherControl({
+			actor: ADMIN,
+			idempotencyKey: "suspend-before-restore-retried",
+			requestDigest: "R".repeat(43),
+			publisherDid: PUBLISHER_DID,
+			status: "suspended",
+			reasonCode: "SHARD_RESTORE",
+			now: NOW + 100,
+		});
+		const prepared = await handlePreparePublisherRestore(
+			prepareRestoreRequest(),
+			"prepare-retried",
+			configuration,
+			{ publisherDid: PUBLISHER_DID },
+			ADMIN,
+		);
+		expect(prepared.status).toBe(200);
+		for (let restorePage = 0; restorePage < page; restorePage += 1) {
+			const response = await handleRestorePublisher(
+				restoreRequest(restorePage),
+				`restore-retried-${restorePage}`,
+				configuration,
+				{ publisherDid: PUBLISHER_DID },
+				ADMIN,
+			);
+			expect(response.status, await response.clone().text()).toBe(200);
+		}
+
+		await expect(publisher.getIntent(PUBLISHER_DID, failedId)).resolves.toMatchObject({
+			state: "failed",
+		});
+		await expect(publisher.getIntent(PUBLISHER_DID, publishedId)).resolves.toMatchObject({
+			state: "published",
+		});
+		const reservations = await runInDurableObject(publisher, (_instance, state) =>
+			state.storage.sql.exec("SELECT version, intent_id FROM release_reservations").toArray(),
+		);
+		expect(reservations).toEqual([{ version: "1.2.0", intent_id: publishedId }]);
+	});
+
 	it("can abort a restore whose next archive page is missing and prepare it again", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		let cursor: string | null = null;

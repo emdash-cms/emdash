@@ -321,4 +321,28 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 		// prove the select rendered without overlapping the listbox.
 		await expect.element(screen.getByText("Tier")).toBeInTheDocument();
 	});
+
+	it("stops at an invalid custom URL field instead of saving", async () => {
+		const byline = makeByline();
+		vi.mocked(fetchBylines).mockResolvedValue({ items: [byline], nextCursor: undefined });
+		vi.mocked(fetchByline).mockResolvedValue(byline);
+		vi.mocked(listBylineFields).mockResolvedValue({
+			items: [makeField({ slug: "homepage", label: "Homepage", type: "url" })],
+		});
+		vi.mocked(updateByline).mockResolvedValue(byline);
+
+		const screen = await render(
+			<TestWrapper>
+				<BylinesPage />
+			</TestWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Edit Jane Doe" }).click();
+		const homepage = screen.getByLabelText("Homepage");
+		await homepage.fill("not a url");
+		await screen.getByRole("button", { name: "Save" }).click();
+
+		await expect.element(homepage).toHaveFocus();
+		expect(vi.mocked(updateByline)).not.toHaveBeenCalled();
+	});
 });

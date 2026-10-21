@@ -17,10 +17,18 @@
 				"name": "CONTRIBUTOR_INVITATIONS",
 				"class_name": "ContributorInvitation",
 			},
+			{
+				"name": "CONTRIBUTOR_LINKS",
+				"class_name": "ContributorLinks",
+			},
 		],
 	},
 	"exports": {
 		"ContributorInvitation": {
+			"type": "durable-object",
+			"storage": "sqlite",
+		},
+		"ContributorLinks": {
 			"type": "durable-object",
 			"storage": "sqlite",
 		},

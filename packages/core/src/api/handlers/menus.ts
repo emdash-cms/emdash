@@ -15,6 +15,7 @@ import type { Kysely } from "kysely";
 
 import {
 	MenuGoneError,
+	MenuItemParentError,
 	MenuRepository,
 	type CreateMenuItemInput as CreateMenuItemRepoInput,
 	type Menu,
@@ -25,7 +26,7 @@ import {
 	type UpdateMenuItemInput as UpdateMenuItemRepoInput,
 } from "../../database/repositories/menu.js";
 import type { Database } from "../../database/types.js";
-import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
+import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
 // Re-export entity types so route files and tests can import them from the
@@ -100,16 +101,20 @@ async function resolveMenu(
 			},
 		};
 	}
-	if (matches.length > 1) {
+	const canonicalLocales = new Set(matches.map((match) => resolveConfiguredLocale(match.locale)));
+	if (locale === undefined && canonicalLocales.size > 1) {
 		return {
 			success: false,
-			error: ambiguousMenuLocaleError(
-				name,
-				matches.map((m) => m.locale),
-			).error,
+			error: ambiguousMenuLocaleError(name, [...canonicalLocales]).error,
 		};
 	}
-	return { success: true, menu: matches[0] };
+	const preferredLocale = locale ?? resolveConfiguredLocale(matches[0].locale);
+	const menu = matches.toSorted(
+		(a, b) =>
+			getLocaleRank(a.locale, preferredLocale) - getLocaleRank(b.locale, preferredLocale) ||
+			a.id.localeCompare(b.id),
+	)[0];
+	return { success: true, menu };
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +374,10 @@ export async function handleMenuItemCreate(
 
 		const item = await repo.createItem(resolved.menu.id, resolved.menu.locale, input);
 		return { success: true, data: item };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_ITEM_CREATE_ERROR", message: "Failed to create menu item" },
@@ -400,7 +408,10 @@ export async function handleMenuItemUpdate(
 			};
 		}
 		return { success: true, data: updated };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_ITEM_UPDATE_ERROR", message: "Failed to update menu item" },
@@ -528,7 +539,10 @@ export async function handleMenuItemReorder(
 
 		const updated = await repo.reorderItems(resolved.menu.id, items);
 		return { success: true, data: updated };
-	} catch {
+	} catch (error) {
+		if (error instanceof MenuItemParentError) {
+			return { success: false, error: { code: "VALIDATION_ERROR", message: error.message } };
+		}
 		return {
 			success: false,
 			error: { code: "MENU_REORDER_ERROR", message: "Failed to reorder menu items" },
