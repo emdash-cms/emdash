@@ -40,6 +40,7 @@ interface Envelope<T> {
 /** AI Search through the Cloudflare REST API, authenticated with an API token. */
 export class RestAiSearch implements AiSearchProvider {
 	readonly kind = "rest";
+	requests = 0;
 
 	constructor(
 		private readonly credentials: RestCredentials,
@@ -103,6 +104,7 @@ export class RestAiSearch implements AiSearchProvider {
 			`/accounts/${encodeURIComponent(accountId)}/tokens/verify`,
 			"/user/tokens/verify",
 		]) {
+			this.requests++;
 			const response = await this.fetcher(`${API}${path}`, {
 				headers: { authorization: `Bearer ${apiToken}` },
 				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -132,6 +134,7 @@ export class RestAiSearch implements AiSearchProvider {
 		const { accountId, apiToken, namespace } = this.credentials;
 		const url = `${API}/accounts/${encodeURIComponent(accountId)}/ai-search/namespaces/${encodeURIComponent(namespace)}${path}`;
 		const form = payload instanceof FormData;
+		this.requests++;
 		const response = await this.fetcher(url, {
 			method,
 			headers: {

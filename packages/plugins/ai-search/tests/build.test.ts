@@ -322,23 +322,34 @@ describe("build", () => {
 		expect(await getBuild(ctx)).toBeNull();
 	});
 
-	it("pauses a REST build once it has made its share of the token's requests", async () => {
-		const since = Date.now();
+	it("pauses a REST build once its requests, deletions included, reach its share of the limit", async () => {
 		const run = async (kind: "rest" | "binding") => {
 			const ctx = await buildContext();
 			await startBuild(ctx, ["posts"]);
-			await ctx.kv.set("build", { ...(await getBuild(ctx)), requests: { since, count: 599 } });
-			const indexer = pagedIndexer();
-			const build = await runBuild(ctx, indexer, 10_000, { kind });
-			return { calls: indexer.calls, build };
+			await ctx.kv.set("build", { ...(await getBuild(ctx)), step: { phase: "sweep" } });
+			const provider = { kind, requests: 0 };
+			let pages = 0;
+			// Each sweep page deletes 50 items and uploads nothing.
+			const sweeping = {
+				...pagedIndexer(),
+				sweepPage: async () => {
+					pages++;
+					provider.requests += 50;
+					return { synced: [], uploaded: 0, failures: [], backOff: false, done: pages === 20 };
+				},
+			};
+			const build = await runBuild(ctx, sweeping, 10_000, provider);
+			return { pages, build };
 		};
 
 		const rest = await run("rest");
 		const binding = await run("binding");
 
-		expect(rest.calls).toEqual(["posts:snapshot-1"]);
-		expect(rest.build?.pausedUntil).toBe(since + 5 * 60_000);
-		expect(binding.calls).toEqual(["posts:snapshot-1", "posts:start", "posts:page-2"]);
+		expect(rest.pages).toBe(12);
+		expect(rest.build?.requests?.count).toBe(600);
+		expect(rest.build?.pausedUntil).toBeGreaterThan(Date.now());
+		expect(binding.pages).toBe(20);
+		expect(binding.build).toBeNull();
 	});
 
 	it("pauses for minutes instead of seconds when a rate-limited token is rejected", async () => {

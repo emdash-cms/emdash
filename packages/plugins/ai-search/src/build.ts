@@ -127,7 +127,7 @@ export async function runBuild(
 	ctx: BuildContext,
 	indexer: BuildIndexer,
 	budgetMs: number,
-	provider?: Pick<AiSearchProvider, "kind" | "tokenRejected">,
+	provider?: Pick<AiSearchProvider, "kind" | "tokenRejected" | "requests">,
 ): Promise<BuildState | null> {
 	const paced = provider?.kind === "rest";
 	const deadline = Date.now() + budgetMs;
@@ -156,6 +156,7 @@ export async function runBuild(
 			}
 			const source = build.sources[0];
 			const pageStartedAt = Date.now();
+			const requestsBefore = provider?.requests ?? 0;
 			const { page, next } = await advance(indexer, source, build.step);
 			// A rate-limited page is retried whole once the pause is over, so nothing from it is counted.
 			if (!page.backOff) {
@@ -177,12 +178,11 @@ export async function runBuild(
 				page.backOff && (await provider?.tokenRejected?.())
 					? REJECTED_TOKEN_PAUSE_MS
 					: RATE_LIMIT_PAUSE_MS;
+			const spent = (provider?.requests ?? 0) - requestsBefore;
 			const advanced = await updateBuild(ctx, (current) => {
 				if (!holds(current)) return undefined;
 				const { since, count } = requestWindow(current.requests);
-				const requests = paced
-					? { since, count: count + page.uploaded + page.failures.length + 1 }
-					: undefined;
+				const requests = paced ? { since, count: count + spent } : undefined;
 				if (page.backOff) return { ...current, requests, pausedUntil: Date.now() + pause };
 				return {
 					...current,

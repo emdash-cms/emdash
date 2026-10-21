@@ -83,6 +83,8 @@ export interface AiSearchProvider {
 	 * alone does not tell the two apart. Absent when there are no credentials.
 	 */
 	tokenRejected?(): Promise<boolean>;
+	/** Cloudflare API requests this provider has made, when they count against a rate limit. */
+	readonly requests?: number;
 }
 
 /**

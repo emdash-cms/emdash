@@ -164,6 +164,7 @@ describe("RestAiSearch", () => {
 			query: "hello",
 			ai_search_options: { retrieval: { max_num_results: 3, metadata_only: true } },
 		});
+		expect(provider.requests).toBe(requests.length);
 	});
 
 	it("reports an unreachable API as a failed call", async () => {
