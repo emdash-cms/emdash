@@ -42,7 +42,9 @@ A changeset is user-facing documentation that lands verbatim in a package CHANGE
 
 When opening an implementation PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section. When helping prepare a design PR for a human to open, use `.github/PULL_REQUEST_TEMPLATE/design.md` instead. The GitHub UI injects a template automatically but the CLI does not, and PRs missing one are auto-closed. Check the AI assistance disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset, i18n, screenshots, or design links are not applicable.
 
-Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include screenshots of the rendered result; include before-and-after images when the change is not clear from the result alone. Keep the behavior described in text and give every image useful alt text.
+Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include before-and-after screenshots of every screen they affect; for a new screen, the after state is enough. Keep the behavior described in text and give every image useful alt text.
+
+Lay out screenshots as [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots) shows: each pair side by side in a two-column table, cropped to the changed area, at the same viewport and with the same content, and extra states such as Arabic in a collapsed `<details>` block.
 
 Agents can attach local images with GitHub CLI 2.99.0 or later. The `--attach` flag is repeatable on `gh issue create|edit|comment` and `gh pr create|edit|comment`. For example:
 
