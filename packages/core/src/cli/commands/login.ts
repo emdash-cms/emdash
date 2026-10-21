@@ -189,7 +189,6 @@ export const loginCommand = defineCommand({
 			type: "string",
 			alias: "u",
 			description: "EmDash instance URL",
-			default: "http://localhost:4321",
 		},
 		header: {
 			type: "string",
@@ -198,7 +197,7 @@ export const loginCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
-		const baseUrl = args.url || "http://localhost:4321";
+		const baseUrl = resolveBaseUrl(args);
 		consola.start(`Connecting to ${baseUrl}...`);
 
 		// Resolve custom headers from --header flags and EMDASH_HEADERS env
@@ -371,11 +370,10 @@ export const logoutCommand = defineCommand({
 			type: "string",
 			alias: "u",
 			description: "EmDash instance URL",
-			default: "http://localhost:4321",
 		},
 	},
 	async run({ args }) {
-		const baseUrl = args.url || "http://localhost:4321";
+		const baseUrl = resolveBaseUrl(args);
 
 		// Get stored credentials
 		const cred = getCredentials(baseUrl);

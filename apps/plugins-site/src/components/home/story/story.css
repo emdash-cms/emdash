@@ -1,0 +1,194 @@
+/* Product-UI primitives shared by the homepage story mocks (trust bento, install steps). */
+
+.st-stage {
+	--st-border: color-mix(in srgb, var(--ink) 10%, transparent);
+	--st-line: color-mix(in srgb, var(--ink) 8%, transparent);
+	--st-tint: color-mix(in srgb, var(--ink) 4.5%, transparent);
+	--st-skeleton: color-mix(in srgb, var(--ink) 8%, transparent);
+	--st-dot: color-mix(in srgb, var(--ink) 13%, transparent);
+
+	position: relative;
+	isolation: isolate;
+	container-type: inline-size;
+}
+
+.st-stage::before {
+	position: absolute;
+	z-index: -1;
+	inset: 0;
+	background-image: radial-gradient(var(--st-dot) 1px, transparent 1.2px);
+	background-size: 14px 14px;
+	-webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 55%, #000 20%, transparent 75%);
+	mask-image: radial-gradient(ellipse 70% 70% at 50% 55%, #000 20%, transparent 75%);
+	pointer-events: none;
+	content: "";
+}
+
+.st-win {
+	position: relative;
+	min-width: 0;
+	color: var(--ink);
+	font-size: 0.75rem;
+	line-height: 1.35;
+	text-align: start;
+	background: var(--surface-raised);
+	border: 1px solid var(--st-border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-sm), var(--shadow-xl);
+}
+
+.st-win p {
+	margin: 0;
+}
+
+.st-icon {
+	flex: 0 0 auto;
+	fill: currentColor;
+	width: 0.875rem;
+	height: 0.875rem;
+}
+
+.st-bar {
+	display: flex;
+	min-height: 2.125rem;
+	align-items: center;
+	gap: 0.375rem;
+	padding-inline: 0.75rem;
+	color: var(--muted);
+	font-size: 0.6875rem;
+	white-space: nowrap;
+	border-block-end: 1px solid var(--st-line);
+}
+
+.st-bar .st-icon {
+	width: 0.8125rem;
+	height: 0.8125rem;
+}
+
+.st-sep {
+	color: var(--subtle);
+}
+
+.st-strong {
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.st-mono {
+	direction: ltr;
+	unicode-bidi: isolate;
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	letter-spacing: -0.01em;
+}
+
+.st-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3125rem;
+	padding: 0.125rem 0.4375rem;
+	color: var(--muted);
+	font-size: 0.625rem;
+	font-weight: 600;
+	line-height: 1.4;
+	white-space: nowrap;
+	background: var(--st-skeleton);
+	border-radius: var(--radius-full);
+}
+
+.st-pill--end {
+	margin-inline-start: auto;
+}
+
+.st-pill--accent {
+	color: var(--accent-ink);
+	background: var(--accent-soft);
+}
+
+.st-dot {
+	width: 0.375rem;
+	height: 0.375rem;
+	flex: 0 0 auto;
+	background: var(--subtle);
+	border-radius: 50%;
+}
+
+.st-dot--accent {
+	background: var(--accent);
+}
+
+.st-dot--success {
+	background: var(--success);
+}
+
+.st-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.3125rem;
+	min-height: 1.625rem;
+	padding: 0 0.625rem;
+	color: var(--ink);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	line-height: 1;
+	white-space: nowrap;
+	background: var(--surface);
+	border: 1px solid var(--st-border);
+	border-radius: 7px;
+	box-shadow: 0 1px 1px rgb(0 0 0 / 4%);
+}
+
+.st-btn--primary {
+	color: var(--btn-primary-fg);
+	background: var(--btn-primary-bg);
+	border-color: var(--btn-primary-border);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 14%),
+		0 1px 2px rgb(0 0 0 / 16%);
+}
+
+.st-btn--ghost {
+	color: var(--muted);
+	background: transparent;
+	border-color: transparent;
+	box-shadow: none;
+}
+
+.st-tile {
+	display: grid;
+	width: 1.625rem;
+	height: 1.625rem;
+	flex: 0 0 auto;
+	place-items: center;
+	color: var(--muted);
+	background: var(--surface-soft);
+	border: 1px solid var(--st-line);
+	border-radius: 7px;
+}
+
+.st-tile .st-icon {
+	width: 0.875rem;
+	height: 0.875rem;
+}
+
+.st-sk {
+	display: block;
+	height: 0.375rem;
+	background: var(--st-skeleton);
+	border-radius: var(--radius-full);
+}
+
+/* The row the mock is about, shown the way a selected row looks in the admin. */
+.st-thread {
+	background: var(--st-tint);
+}
+
+.st-caret {
+	display: inline-block;
+	width: 1.5px;
+	height: 1em;
+	margin-inline-start: 1px;
+	vertical-align: -0.15em;
+	background: var(--accent);
+}

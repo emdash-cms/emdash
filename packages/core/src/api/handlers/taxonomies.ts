@@ -24,7 +24,8 @@ import {
 import { TaxonomyRepository, type SiblingPosition } from "../../database/repositories/taxonomy.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
-import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
+import { getI18nConfig, getLocaleChainRank, resolveConfiguredLocale } from "../../i18n/config.js";
+import { localeMatches } from "../../i18n/query.js";
 import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
 import { fetchVisibleTermCounts } from "../../taxonomies/term-counts.js";
 import type { ApiResult } from "../types.js";
@@ -181,9 +182,11 @@ async function requireTaxonomyDef(
 	name: string,
 	locale?: string,
 ): Promise<TaxonomyDefLookup> {
-	let query = selectTaxonomyDefs(db).where("d.name", "=", name);
-	if (locale !== undefined) query = query.where("d.locale", "=", locale);
-	const def = await query.orderBy("d.locale", "asc").orderBy("d.id", "asc").executeTakeFirst();
+	const def = await selectTaxonomyDefs(db, locale)
+		.where("d.name", "=", name)
+		.orderBy("d.locale", "asc")
+		.orderBy("d.id", "asc")
+		.executeTakeFirst();
 	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
 }
 
@@ -196,16 +199,19 @@ async function requireTaxonomyDefWithFallback(
 	name: string,
 	locale?: string,
 ): Promise<TaxonomyDefLookup> {
-	const defs = await selectTaxonomyDefs(db)
-		.where("d.name", "=", name)
-		.orderBy("d.locale", "asc")
-		.orderBy("d.id", "asc")
-		.execute();
+	const defs = await selectTaxonomyDefs(db).where("d.name", "=", name).execute();
 	const defaultLocale = getI18nConfig()?.defaultLocale;
-	const def =
-		(locale ? defs.find((candidate) => candidate.locale === locale) : undefined) ??
-		(defaultLocale ? defs.find((candidate) => candidate.locale === defaultLocale) : undefined) ??
-		defs[0];
+	const chain = locale
+		? [locale, ...(defaultLocale && defaultLocale !== locale ? [defaultLocale] : [])]
+		: defaultLocale
+			? [defaultLocale]
+			: [];
+	const def = defs.toSorted(
+		(a, b) =>
+			getLocaleChainRank(a.locale, chain) - getLocaleChainRank(b.locale, chain) ||
+			a.locale.localeCompare(b.locale) ||
+			a.id.localeCompare(b.id),
+	)[0];
 	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
 }
 
@@ -298,8 +304,7 @@ export async function handleTaxonomyList(
 ): Promise<ApiResult<TaxonomyListResponse>> {
 	try {
 		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
-		let query = selectTaxonomyDefs(db);
-		if (locale !== undefined) query = query.where("d.locale", "=", locale);
+		const query = selectTaxonomyDefs(db, locale);
 		const [rows, collectionRows] = await Promise.all([
 			query.execute(),
 			db.selectFrom("_emdash_collections").select("slug").execute(),
@@ -418,7 +423,7 @@ export async function handleTaxonomyCreate(
 			.selectFrom("_emdash_taxonomy_defs")
 			.select("id")
 			.where("name", "=", input.name)
-			.where("locale", "=", locale)
+			.where(localeMatches("locale", locale))
 			.executeTakeFirst();
 		if (existing) {
 			return {
@@ -1019,7 +1024,12 @@ export async function handleTermCreate(
 			}
 			selfGroup = source.translationGroup ?? source.id;
 			const translations = await repo.findTranslations(selfGroup);
-			if (translations.some((translation) => translation.locale === locale)) {
+			if (
+				translations.some(
+					(translation) =>
+						resolveConfiguredLocale(translation.locale) === resolveConfiguredLocale(locale),
+				)
+			) {
 				return {
 					success: false,
 					error: {

@@ -244,7 +244,7 @@ export function AllowedDomainsSettings() {
 											id={`allowed-domain-${domain.domain}`}
 											className="break-words text-sm font-medium"
 										>
-											{domain.domain}
+											<bdi dir="ltr">{domain.domain}</bdi>
 										</div>
 										<div className="text-sm leading-5 text-kumo-subtle">
 											{t`Default role:`} {getRoleLabel(domain.defaultRole)}
@@ -290,6 +290,7 @@ export function AllowedDomainsSettings() {
 						<div className="grid gap-4">
 							<div className="grid gap-4 sm:grid-cols-2">
 								<Input
+									dir="ltr"
 									label={t`Domain`}
 									placeholder={t`example.com`}
 									value={newDomain}

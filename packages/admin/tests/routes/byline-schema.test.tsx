@@ -95,7 +95,7 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
 	// `<Toast.Provider>` is normally supplied by Shell; the page calls
-	// `Toast.useToastManager()` unconditionally so the test wrapper has
+	// `useKumoToastManager()` unconditionally so the test wrapper has
 	// to provide it even for the early-return access-denied path.
 	return (
 		<QueryClientProvider client={queryClient}>

@@ -84,4 +84,33 @@ describe("WordPressImport migration key flow", () => {
 			.element(screen.getByText(/Allow requests to \/wp-json\/emdash\/v1\//))
 			.toBeVisible();
 	});
+
+	it("explains how to let EmDash through when bot protection challenges the URL check", async () => {
+		mockFetch.on("POST", "/_emdash/api/import/probe", {
+			data: {
+				result: {
+					url: "https://wp.example.com",
+					isWordPress: false,
+					bestMatch: null,
+					allMatches: [],
+					challenged: true,
+				},
+			},
+		});
+
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<WordPressImport />
+			</I18nProvider>,
+			{ wrapper: TestWrapper },
+		);
+
+		await screen.getByLabelText("Enter your WordPress site URL").fill("https://wp.example.com");
+		await screen.getByRole("button", { name: "Check Site" }).click();
+
+		await expect.element(screen.getByText("Bot protection blocked the connection")).toBeVisible();
+		await expect
+			.element(screen.getByText(/Allow requests to \/wp-json\/emdash\/v1\//))
+			.toBeVisible();
+	});
 });

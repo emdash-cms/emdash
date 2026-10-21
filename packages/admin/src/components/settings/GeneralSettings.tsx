@@ -492,6 +492,7 @@ export function GeneralSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Date Format`}
 							value={pattern}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}

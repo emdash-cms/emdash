@@ -33,7 +33,7 @@ import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js"
 
 function seoSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
-		titleSeparator: settings.seo?.titleSeparator || "|",
+		titleSeparator: settings.seo?.titleSeparator ?? "",
 		defaultOgImage: settings.seo?.defaultOgImage ?? null,
 		googleVerification: settings.seo?.googleVerification ?? "",
 		bingVerification: settings.seo?.bingVerification ?? "",
@@ -171,7 +171,8 @@ export function SeoSettings() {
 					<SettingRow>
 						<Input
 							label={t`Title Separator`}
-							value={formData.seo?.titleSeparator || "|"}
+							value={formData.seo?.titleSeparator ?? ""}
+							placeholder="|"
 							onChange={(e) => handleSeoChange("titleSeparator", e.target.value)}
 							description={t`Character between page title and site name (e.g., "My Post | My Site")`}
 						/>
@@ -245,6 +246,7 @@ export function SeoSettings() {
 				>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Google Verification`}
 							value={formData.seo?.googleVerification || ""}
 							onChange={(e) => handleSeoChange("googleVerification", e.target.value)}
@@ -253,6 +255,7 @@ export function SeoSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Bing Verification`}
 							value={formData.seo?.bingVerification || ""}
 							onChange={(e) => handleSeoChange("bingVerification", e.target.value)}
@@ -264,6 +267,7 @@ export function SeoSettings() {
 				<SettingsSection title={t`robots.txt`}>
 					<SettingRow>
 						<InputArea
+							dir="ltr"
 							label={t`robots.txt`}
 							value={formData.seo?.robotsTxt || ""}
 							onChange={(e) => handleSeoChange("robotsTxt", e.target.value)}

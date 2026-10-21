@@ -189,7 +189,7 @@ function coerceValue(type: FieldType, value: unknown): unknown {
 		case "number":
 			return Number(value);
 		case "checkbox":
-			return value === "on" || value === "true" || value === true;
+			return value === "on" || value === "true" || value === "1" || value === true;
 		case "checkbox-group":
 			return Array.isArray(value) ? value : [value];
 		default:

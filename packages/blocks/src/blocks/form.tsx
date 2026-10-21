@@ -1,6 +1,7 @@
 import { Button } from "@cloudflare/kumo";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import { renderElement } from "../render-element.js";
 import type { BlockInteraction, FieldCondition, FormBlock, FormField } from "../types.js";
 
@@ -41,6 +42,7 @@ export function FormBlockComponent({
 	block: FormBlock;
 	onAction: (interaction: BlockInteraction) => void;
 }) {
+	const container = useRef<HTMLDivElement>(null);
 	const [values, setValues] = useState<Record<string, unknown>>(() =>
 		getInitialValues(block.fields),
 	);
@@ -58,36 +60,56 @@ export function FormBlockComponent({
 		});
 	}
 
-	// Submit from the button's click so no native submit event is dispatched. Plugin editor
-	// panels render inside the content editor's form, and Chromium stops a nested form's
-	// `submit` from bubbling past the outer form, so React's onSubmit never runs and the
-	// browser reloads the editor. Pressing Enter in a single-line input clicks this button
-	// too. Preventing the click also skips the browser's validation, so run it here.
-	function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
-		e.preventDefault();
-		const form = e.currentTarget.form;
-		if (form && !form.reportValidity()) return;
-		submit();
+	function validate() {
+		const controls = container.current?.querySelectorAll<
+			HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+		>("input, select, textarea");
+		return controls ? [...controls].every((control) => control.reportValidity()) : false;
 	}
 
-	function handleSubmit(e: React.FormEvent) {
+	function handleClick() {
+		if (validate()) submit();
+	}
+
+	function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+		// Leave multiline editing, IME confirmation and combobox selection to the control.
+		const input = e.target;
+		if (
+			e.key !== "Enter" ||
+			e.defaultPrevented ||
+			e.nativeEvent.isComposing ||
+			e.nativeEvent.keyCode === 229 ||
+			!(input instanceof HTMLInputElement) ||
+			input.getAttribute("role") === "combobox" ||
+			!["text", "number", "email", "url", "password", "search", "tel", "date"].includes(input.type)
+		)
+			return;
 		e.preventDefault();
-		submit();
+		e.stopPropagation();
+		if (validate()) submit();
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-			{block.fields.map((field) => {
-				if (field.condition && !evaluateCondition(field.condition, values)) {
-					return null;
-				}
-				return <div key={field.action_id}>{renderElement(field, onAction, handleChange)}</div>;
-			})}
-			<div>
-				<Button type="submit" onClick={handleClick}>
-					{block.submit.label}
-				</Button>
+		<FormOwnerContext.Provider value="">
+			<div
+				ref={container}
+				role="group"
+				aria-label={block.submit.label}
+				onKeyDown={handleKeyDown}
+				className="flex flex-col gap-4"
+			>
+				{block.fields.map((field) => {
+					if (field.condition && !evaluateCondition(field.condition, values)) {
+						return null;
+					}
+					return <div key={field.action_id}>{renderElement(field, onAction, handleChange)}</div>;
+				})}
+				<div>
+					<Button type="button" onClick={handleClick}>
+						{block.submit.label}
+					</Button>
+				</div>
 			</div>
-		</form>
+		</FormOwnerContext.Provider>
 	);
 }

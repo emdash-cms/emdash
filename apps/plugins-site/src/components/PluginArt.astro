@@ -1,0 +1,100 @@
+---
+/**
+ * Halftone art seeded by a string, such as `pluginArtSeed(plugin)`.
+ *
+ * - `tile`: a square stand-in for a missing plugin icon, drawn at 44–56px.
+ * - `feature`: a 64×40 canvas for large decorative slots. It slices to fill
+ *   whatever box it is given.
+ *
+ * The art fills its container, so the caller sets the size. Colours come from
+ * `--art-bg`, `--art-ink`, `--art-paper` and `--art-accent`, which a parent
+ * may override.
+ */
+import { type ArtVariant, pluginArt } from "../lib/plugin-art.js";
+
+interface Props {
+	seed: string;
+	variant?: ArtVariant;
+}
+
+const { seed, variant = "tile" } = Astro.props;
+const art = pluginArt(seed, variant);
+const paperId = `plugin-art-paper-${art.key}`;
+---
+
+<svg
+	class:list={["plugin-art", `plugin-art--${variant}`]}
+	viewBox={`0 0 ${art.width} ${art.height}`}
+	preserveAspectRatio="xMidYMid slice"
+	aria-hidden="true"
+	focusable="false"
+>
+	{
+		variant === "feature" && (
+			<>
+				<defs>
+					<pattern
+						id={paperId}
+						width="2"
+						height="2"
+						patternUnits="userSpaceOnUse"
+					>
+						<circle class="grain" cx="1" cy="1" r="0.15" />
+					</pattern>
+				</defs>
+				<rect
+					width="100%"
+					height="100%"
+					fill={`url(#${paperId})`}
+					stroke="none"
+				/>
+			</>
+		)
+	}
+	{
+		art.layers.map((layer) => (
+			<path
+				class={layer.accent ? "accent" : undefined}
+				d={layer.d}
+				stroke-width={layer.width}
+			/>
+		))
+	}
+</svg>
+
+<style is:global>
+	/* Global, so the many small paths don't each carry a scoping attribute. */
+	.plugin-art {
+		--plugin-art-ink: color-mix(in srgb, var(--ink) 60%, transparent);
+		--plugin-art-paper: color-mix(in srgb, var(--ink) 9%, transparent);
+
+		display: block;
+		width: 100%;
+		height: 100%;
+		background: var(--art-bg, var(--surface-soft));
+		fill: none;
+		stroke: var(--art-ink, var(--plugin-art-ink));
+		stroke-linecap: round;
+	}
+
+	:root[data-theme="dark"] .plugin-art {
+		--plugin-art-ink: color-mix(in srgb, var(--ink) 50%, transparent);
+		--plugin-art-paper: color-mix(in srgb, var(--ink) 8%, transparent);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-theme]) .plugin-art {
+			--plugin-art-ink: color-mix(in srgb, var(--ink) 50%, transparent);
+			--plugin-art-paper: color-mix(in srgb, var(--ink) 8%, transparent);
+		}
+	}
+
+	.plugin-art .accent {
+		stroke: var(--art-accent, var(--accent));
+	}
+
+	.plugin-art .grain {
+		fill: var(--art-paper, var(--plugin-art-paper));
+		stroke: none;
+	}
+</style>

@@ -1,5 +1,53 @@
 # @emdash-cms/admin
 
+## 1.3.1
+
+### Patch Changes
+
+- [#4177](https://github.com/emdash-cms/emdash/pull/4177) [`eba70bc`](https://github.com/emdash-cms/emdash/commit/eba70bc5f70d79592acba9aa17b598299f0ad23c) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes Contributors and Authors seeing Duplicate, Publish, Unpublish, and Schedule on entries where the server refuses them. An entry the user can't save now opens read-only, with a note saying why.
+
+- [#4241](https://github.com/emdash-cms/emdash/pull/4241) [`1390d82`](https://github.com/emdash-cms/emdash/commit/1390d82b964021b5ebc757467f71a66d856ae3ae) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes the Title Separator field in Settings > SEO so its value can be cleared with Backspace and replaced without the previous fallback reappearing. The default separator is now shown as a placeholder.
+
+- [#4181](https://github.com/emdash-cms/emdash/pull/4181) [`d33d0a5`](https://github.com/emdash-cms/emdash/commit/d33d0a50b40ca3b2f1f79069895f2917988ebb5c) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the admin dashboard showing the number of users to roles that cannot list users. The Users card, and `userCount` in the `GET /_emdash/api/dashboard` response, are now limited to Administrators.
+
+- [#4206](https://github.com/emdash-cms/emdash/pull/4206) [`6b168aa`](https://github.com/emdash-cms/emdash/commit/6b168aab35b1642d3ef72fc74018aa36b2050f65) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes a new, not yet saved entry being discarded without warning when you leave the editor. Following a link to another admin page now asks before leaving, and reloading or closing the tab shows the browser's prompt.
+
+- [#4013](https://github.com/emdash-cms/emdash/pull/4013) [`03409e6`](https://github.com/emdash-cms/emdash/commit/03409e67ee01a949a8c3ddc4948e10ebbef4f9a7) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes the admin login page so the help text under a provider's `LoginForm` is no longer hard-coded to "Enter your handle to sign in." for every provider.
+  
+  Providers can now export an optional `loginHelp` string or component from their admin entry. When `loginHelp` is absent, the page falls back to a neutral "Continue with {label}." message.
+  
+  The built-in AT Protocol provider keeps its handle-specific prompt and translates it using the admin's active locale. It requires `@lingui/react` as a peer dependency; if your package manager does not install peers automatically, install a compatible Lingui 5 version alongside the provider.
+
+- [#4264](https://github.com/emdash-cms/emdash/pull/4264) [`2940ab9`](https://github.com/emdash-cms/emdash/commit/2940ab9ddba8e3f56104ce49753a05f28e864bef) Thanks [@MarioCerulo](https://github.com/MarioCerulo)! - Adds Italian translations for the admin navigation, including the sidebar, navigation bar, and command palette. Italian remains unavailable in the language selector while translation coverage is still incomplete.
+
+- [#4104](https://github.com/emdash-cms/emdash/pull/4104) [`66d0294`](https://github.com/emdash-cms/emdash/commit/66d029411fb53c660f8706030d782dd9b3b8d70d) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Adds Hindi (`hi`) admin translations for deleting and editing media, folders, tags, table and block controls, domain changes, and error messages. Hindi strings now consistently use the transliterations "एरर" for error and "सोर्स" for source.
+
+- [#4197](https://github.com/emdash-cms/emdash/pull/4197) [`a763760`](https://github.com/emdash-cms/emdash/commit/a7637608a591bcfc4b92c76145d75aa5e4edf792) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes accessible field names in Portable Text plugin block dialogs so screen readers announce text, number, select, and toggle labels, and identify media picker and repeater groups.
+
+- [#4142](https://github.com/emdash-cms/emdash/pull/4142) [`68b954e`](https://github.com/emdash-cms/emdash/commit/68b954e651da818b53cdacc477ea6fd5ae8ad5cf) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Adds missing Indonesian (`id`) translations for publishing-date labels, menu rename notices, menu CSS class hints, and scheduled-publication descriptions in the admin UI.
+
+- [#4211](https://github.com/emdash-cms/emdash/pull/4211) [`fabbbb0`](https://github.com/emdash-cms/emdash/commit/fabbbb00713a52b84411be01b961402f0b1eaf14) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Adds missing Indonesian (`id`) translations for revision history, version restore dialogs, AI crawler training rules, and WordPress import bot-protection notices in the admin UI.
+
+- [#4257](https://github.com/emdash-cms/emdash/pull/4257) [`d2da24b`](https://github.com/emdash-cms/emdash/commit/d2da24b5ccbd2096cb00f4a8e0f3928d1aa7aaf2) Thanks [@Yusaku01](https://github.com/Yusaku01)! - Adds Japanese translations for the menu renaming dialog, success notification, and fallback update error.
+
+- [#4230](https://github.com/emdash-cms/emdash/pull/4230) [`9310f50`](https://github.com/emdash-cms/emdash/commit/9310f505547eb9436c43937f26cef736c6370dde) Thanks [@Yusaku01](https://github.com/Yusaku01)! - Adds Japanese translations for relationship deletion warnings and error messages, including details of affected links and reference fields.
+
+- [#4201](https://github.com/emdash-cms/emdash/pull/4201) [`185c709`](https://github.com/emdash-cms/emdash/commit/185c709c096f78f390da81279f1732929e67423a) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes captions being omitted from image field values and their generated TypeScript types. Image selection, content saves, and seed export/import preserve captions, including explicitly empty captions. Seed exports keep library defaults separately from per-use captions. Image and focal-point edits retain per-use captions unless the caption is explicitly edited. Templates should read the top-level `caption`; the legacy `meta.caption` alias stays consistent when present.
+  
+  For existing image fields whose captions were previously omitted, reselect the image or explicitly edit its caption, then save and publish the content entry. Upgrading alone does not fill captions into previously stored content values.
+
+- [#3556](https://github.com/emdash-cms/emdash/pull/3556) [`7846c84`](https://github.com/emdash-cms/emdash/commit/7846c84b3686bec825d70e1f601f5735a6709e42) Thanks [@nesmachny](https://github.com/nesmachny)! - Adds Russian (Русский) translations for the admin UI. The locale is selectable from the language picker.
+
+- [#4106](https://github.com/emdash-cms/emdash/pull/4106) [`a0b6610`](https://github.com/emdash-cms/emdash/commit/a0b661073ba5bcd22f8f59ddac43156b221d5766) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Stop forcing `blank: true` on every new text link.
+  
+  TipTap's Link extension defaults `HTMLAttributes.target` to `"_blank"`. Because both the admin rich-text editor and the inline visual editor configured Link with only styling classes, the default survived deep-merge, so every link created with `setLink()` was serialized as `blank: true` and rendered with `target="_blank" rel="noopener noreferrer"`. Both editors now set `target: null` in their Link `HTMLAttributes`, so newly saved text links no longer open in a new tab unless an author explicitly chooses that option (available only for image links today).
+  
+  Existing content that already has `blank: true` is unchanged and will continue to open in a new tab.
+
+- [#4222](https://github.com/emdash-cms/emdash/pull/4222) [`34b218d`](https://github.com/emdash-cms/emdash/commit/34b218de2e6ef4073cc8fb7da07c9499fe562467) Thanks [@Yusaku01](https://github.com/Yusaku01)! - Adds Japanese translations for media deletion, image replacement, and cropping confirmation dialogs and their progress messages.
+- Updated dependencies [[`9e74ea3`](https://github.com/emdash-cms/emdash/commit/9e74ea36b88509ba3e6b61f718aabe4dda26784a)]:
+  - @emdash-cms/blocks@1.3.1
+
 <!-- emdash-changelog-archive: ./changelog/0.39.0-to-0.39.0.md -->
 
 ## 1.3.0

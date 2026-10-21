@@ -191,7 +191,11 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 					)}
 					<div>
 						<div className="font-medium">{displayName}</div>
-						{user.name && <div className="text-sm text-kumo-subtle">{user.email}</div>}
+						{user.name && (
+							<div className="text-sm text-kumo-subtle">
+								<bdi dir="ltr">{user.email}</bdi>
+							</div>
+						)}
 					</div>
 				</div>
 			</td>

@@ -5,6 +5,7 @@
  * POST /_emdash/api/content/:collection/:id/terms/:taxonomy - Set terms for an entry
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requireAnyPerm, requireEntryEditPerm, requirePerm } from "#api/authorize.js";
@@ -80,7 +81,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		// entry's locale server-side so the response includes only that locale's
 		// term variant.
 		const entry = await new ContentRepository(emdash.db).findByIdOrSlug(collection, id);
-		if (!entry) return apiError("NOT_FOUND", "Content not found", 404);
+		if (!entry || (entry.status !== "published" && !hasPermission(user, "content:read_drafts"))) {
+			return apiError("NOT_FOUND", "Content not found", 404);
+		}
 		const locale = entry.locale || getI18nConfig()?.defaultLocale || "en";
 		const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
 

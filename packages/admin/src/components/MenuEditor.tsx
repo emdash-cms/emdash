@@ -4,7 +4,7 @@
  * Edit menu items with basic reordering (simplified version without drag-and-drop)
  */
 
-import { Button, Dialog, Input, Select, Toast } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Select, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -47,8 +47,7 @@ interface DisplayItem {
 
 /**
  * Flattens items into parent-then-children display order. Guards against
- * cyclic parentId data (not currently possible via this UI, but the API
- * doesn't validate against it either) with a visited set.
+ * cyclic parentId data from older API writes with a visited set.
  */
 function buildDisplayList(items: MenuItem[]): DisplayItem[] {
 	const childrenByParent = new Map<string | null, MenuItem[]>();
@@ -100,7 +99,7 @@ export function MenuEditor() {
 	const routeLocale = search.locale;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [isAddOpen, setIsAddOpen] = React.useState(false);
 	const [isRenameOpen, setIsRenameOpen] = React.useState(false);
 	const [isContentPickerOpen, setIsContentPickerOpen] = React.useState(false);
@@ -158,7 +157,7 @@ export function MenuEditor() {
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -226,7 +225,7 @@ export function MenuEditor() {
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -266,7 +265,7 @@ export function MenuEditor() {
 			toastManager.add({
 				title: t`Error`,
 				description: error.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -519,6 +518,7 @@ export function MenuEditor() {
 								<form onSubmit={handleAddCustomLink} className="space-y-4">
 									<Input label={t`Label`} name="label" required placeholder={t`Home`} />
 									<Input
+										dir="ltr"
 										label={t`URL`}
 										name="url"
 										type="text"
@@ -716,6 +716,7 @@ export function MenuEditor() {
 							<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
 							{editingItem.type === "custom" && (
 								<Input
+									dir="ltr"
 									label={t`URL`}
 									name="url"
 									type="text"

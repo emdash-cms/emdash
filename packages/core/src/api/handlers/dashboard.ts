@@ -47,8 +47,10 @@ export interface RecentItem {
 
 export interface DashboardStats {
 	collections: CollectionStats[];
-	mediaCount: number;
-	userCount: number;
+	/** Omitted for callers without `media:read`. */
+	mediaCount?: number;
+	/** Omitted for callers without `users:read`. */
+	userCount?: number;
 	recentItems: RecentItem[];
 	schedulerHealth: SchedulerHealth;
 	policyRejectedScheduled: number;
@@ -65,11 +67,16 @@ const POLICY_REJECTION_PREVIEW_LIMIT = 20;
  *
  * Without `includeDrafts` (callers lacking `content:read_drafts`), only
  * published entries are counted or listed, and scheduled-publication policy
- * rejections are omitted.
+ * rejections are omitted. Without `includeMediaCount` / `includeUserCount`,
+ * `mediaCount` / `userCount` are omitted.
  */
 export async function handleDashboardStats(
 	db: Kysely<Database>,
-	{ includeDrafts }: { includeDrafts: boolean },
+	{
+		includeDrafts,
+		includeMediaCount,
+		includeUserCount,
+	}: { includeDrafts: boolean; includeMediaCount: boolean; includeUserCount: boolean },
 	now = new Date(),
 ): Promise<ApiResult<DashboardStats>> {
 	try {
@@ -119,8 +126,8 @@ export async function handleDashboardStats(
 			policyRejectedScheduled,
 			versionedPolicyRejectionOptions,
 		] = await Promise.all([
-			mediaRepo.count(),
-			userRepo.count(),
+			includeMediaCount ? mediaRepo.count() : undefined,
+			includeUserCount ? userRepo.count() : undefined,
 			getSchedulerHealth(db, now),
 			includeDrafts ? optionsRepo.countByPrefix(SCHEDULED_POLICY_REJECTION_PREFIX) : 0,
 			includeDrafts

@@ -104,9 +104,17 @@ const adminUser = {
 	role: Role.ADMIN as RoleLevel,
 };
 
+const subscriberUser = {
+	id: "u-subscriber",
+	email: "s@example.com",
+	name: "Subscriber",
+	role: Role.SUBSCRIBER as RoleLevel,
+};
+
 function buildGetContext(
 	db: Kysely<Database>,
 	params: { collection: string; id: string; taxonomy: string },
+	user: { id: string; role: RoleLevel } = adminUser,
 ): APIContext {
 	const url = new URL(
 		`http://localhost/_emdash/api/content/${params.collection}/${params.id}/terms/${params.taxonomy}`,
@@ -121,7 +129,7 @@ function buildGetContext(
 				handleContentGet: (collection: string, id: string, locale?: string) =>
 					handleContentGet(db, collection, id, locale),
 			},
-			user: adminUser,
+			user,
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
@@ -768,6 +776,32 @@ function findInTree(terms: TermWithCount[], slug: string): TermWithCount | undef
 	}
 	return undefined;
 }
+
+describeEachDialect("content terms route without draft access", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("GET answers 404 to a Subscriber until the entry is published", async () => {
+		const fx = await seedLocalizedTags(ctx.db);
+		const params = { collection: "post", id: fx.enContentId, taxonomy: "tags" };
+
+		const draft = await getTerms(buildGetContext(ctx.db, params, subscriberUser));
+		expect(draft.status, await draft.clone().text()).toBe(404);
+
+		await new ContentRepository(ctx.db).update("post", fx.enContentId, { status: "published" });
+		const published = await getTerms(buildGetContext(ctx.db, params, subscriberUser));
+		expect(published.status).toBe(200);
+		const body = (await published.json()) as TermsResponse;
+		expect((body.data?.terms ?? []).map((t) => t.id)).toEqual([fx.enTagId]);
+	});
+});
 
 describeEachDialect("taxonomy parent stays nested across locales (#1347)", (dialect) => {
 	let ctx: DialectTestContext;

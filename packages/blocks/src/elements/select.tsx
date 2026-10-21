@@ -1,6 +1,7 @@
 import { Select } from "@cloudflare/kumo";
-import { useCallback } from "react";
+import { useCallback, useContext } from "react";
 
+import { FormOwnerContext } from "../form-context.js";
 import type { BlockInteraction, SelectElement } from "../types.js";
 
 export function SelectElementComponent({
@@ -12,6 +13,7 @@ export function SelectElementComponent({
 	onAction: (interaction: BlockInteraction) => void;
 	onChange?: (actionId: string, value: unknown) => void;
 }) {
+	const form = useContext(FormOwnerContext);
 	const handleValueChange = useCallback(
 		(value: unknown) => {
 			if (onChange) {
@@ -29,6 +31,7 @@ export function SelectElementComponent({
 
 	return (
 		<Select
+			form={form}
 			label={element.label}
 			defaultValue={element.initial_value}
 			onValueChange={handleValueChange}
