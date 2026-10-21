@@ -46,15 +46,18 @@ Issues that refer to the interface must include a screenshot that shows the repo
 
 Lay out screenshots as [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots) shows: each pair side by side in a two-column table, cropped to the changed area, and extra states such as Arabic in a collapsed `<details>` block.
 
-Agents can attach local images with GitHub CLI 2.99.0 or later. The `--attach` flag is repeatable on `gh issue create|edit|comment` and `gh pr create|edit|comment`. Reference each image in the body file by its local path and pass the same path to `--attach`; `gh` replaces the path with the uploaded asset URL and keeps the body's alt text. An unreferenced attachment is appended to the end of the body, with the alt text written after `#`. If `gh` exits non-zero after creating the issue or PR, some uploads failed and still point at local paths; rerun `gh issue edit` or `gh pr edit` with the same `--body-file` and `--attach` flags. CLI `--attach` uploads require repository write access.
+Agents can attach local images with GitHub CLI 2.99.0 or later. The `--attach` flag is repeatable on `gh issue create|edit|comment` and `gh pr create|edit|comment`. For example:
 
 ```bash
 gh issue create --body-file /tmp/emdash-issue.md \
 	--attach './interface-error.png#The settings screen showing the validation error'
 
 gh pr create --body-file /tmp/emdash-pr.md \
-	--attach ./status-before.png --attach ./status-after.png
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
 ```
+
+To place an image at a specific point in the body, add `![descriptive alt text](./after.png)` to the body file and pass `--attach ./after.png`; `gh` replaces the local path with the uploaded asset URL. An attachment that is not referenced in the body is appended. CLI `--attach` uploads require repository write access. See [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots).
 
 ## Architecture
 

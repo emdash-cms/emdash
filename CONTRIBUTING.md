@@ -191,18 +191,17 @@ Put each pair side by side in a two-column table, cropped to the changed area, a
 </details>
 ```
 
-In the GitHub web interface, drag or paste the images into the issue or PR body, then move each inserted image into its table cell. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
+In the GitHub web interface, drag or paste the images into the issue or PR body. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
 
-With `--attach`, reference each image in the body file by its local path, as in the example, and pass the same path to `--attach`. `gh` uploads the file and replaces the local path in place, keeping the alt text written in the body. It appends attached files that the body does not reference to the end of the body. The following command attaches the first pair from the example; repeat `--attach` for every referenced file:
+The following command attaches two screenshots to a PR body:
 
 ```bash
 gh pr create --body-file /tmp/emdash-pr.md \
-	--attach ./status-before.png --attach ./status-after.png
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
 ```
 
-If some uploads fail, `gh` still creates the issue or PR, exits with a non-zero status, and leaves the failed references as local paths. Rerun the upload with `gh issue edit` or `gh pr edit`, passing the same `--body-file` and `--attach` flags.
-
-See [Attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) for the supported formats and size limits.
+If the body contains `![Settings screen after the change](./after.png)`, pass `--attach ./after.png` to upload the image and replace the local path in place. GitHub appends attached files that are not referenced in the body. See [Attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) for the supported formats and size limits.
 
 ### PR rules
 
