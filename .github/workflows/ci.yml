@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         shardIndex: [1, 2, 3, 4]
         shardTotal: [4]
@@ -229,7 +229,8 @@ jobs:
         test-smoke-sites,
         test-backend,
         test-browser,
-        test-e2e,
+        test-e2e-node,
+        test-e2e-cloudflare,
         test-e2e-table,
       ]
     runs-on: ubuntu-latest
@@ -249,8 +250,10 @@ jobs:
           BACKEND_RESULT: ${{ needs.test-backend.result }}
           BROWSER_SELECTED: ${{ needs.change-plan.outputs.browser == 'true' || needs.change-plan.outputs.e2e_playground == 'true' }}
           BROWSER_RESULT: ${{ needs.test-browser.result }}
-          E2E_SELECTED: ${{ needs.change-plan.outputs.e2e_node == 'true' || needs.change-plan.outputs.e2e_cloudflare == 'true' }}
-          E2E_RESULT: ${{ needs.test-e2e.result }}
+          E2E_NODE_SELECTED: ${{ needs.change-plan.outputs.e2e_node }}
+          E2E_NODE_RESULT: ${{ needs.test-e2e-node.result }}
+          E2E_CLOUDFLARE_SELECTED: ${{ needs.change-plan.outputs.e2e_cloudflare }}
+          E2E_CLOUDFLARE_RESULT: ${{ needs.test-e2e-cloudflare.result }}
           TABLE_SELECTED: ${{ needs.change-plan.outputs.e2e_table }}
           TABLE_RESULT: ${{ needs.test-e2e-table.result }}
         run: |
@@ -277,7 +280,8 @@ jobs:
           check_lane "Live-site smoke tests" "$SMOKE_SELECTED" "$SMOKE_SITES_RESULT"
           check_lane "Backend tests" "$BACKEND_SELECTED" "$BACKEND_RESULT"
           check_lane "Browser and playground tests" "$BROWSER_SELECTED" "$BROWSER_RESULT"
-          check_lane "Node/Cloudflare E2E" "$E2E_SELECTED" "$E2E_RESULT"
+          check_lane "Node E2E" "$E2E_NODE_SELECTED" "$E2E_NODE_RESULT"
+          check_lane "Cloudflare E2E" "$E2E_CLOUDFLARE_SELECTED" "$E2E_CLOUDFLARE_RESULT"
           check_lane "Table E2E" "$TABLE_SELECTED" "$TABLE_RESULT"
           exit "$failed"
 
@@ -416,14 +420,14 @@ jobs:
     steps:
       - run: echo "E2E results are aggregated by the Tests job"
 
-  test-e2e:
-    name: E2E shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+  test-e2e-node:
+    name: Node E2E shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     needs: change-plan
-    if: needs.change-plan.outputs.e2e_node == 'true' || needs.change-plan.outputs.e2e_cloudflare == 'true'
+    if: needs.change-plan.outputs.e2e_node == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
         shardTotal: [8]
@@ -437,17 +441,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Build every package the selected fixtures need here, in one run so
-      # shared packages build once and global setup finds nothing to build.
-      - name: Build E2E fixtures
-        env:
-          E2E_NODE: ${{ needs.change-plan.outputs.e2e_node }}
-          E2E_CLOUDFLARE: ${{ needs.change-plan.outputs.e2e_cloudflare }}
-        run: |
-          filters=()
-          if [ "$E2E_NODE" = true ]; then filters+=(--filter "emdash-e2e-fixture..."); fi
-          if [ "$E2E_CLOUDFLARE" = true ]; then filters+=(--filter "emdash-e2e-fixture-cloudflare..."); fi
-          pnpm run "${filters[@]}" build
+      # Build everything the fixture needs here, so global setup finds nothing to build.
+      - run: pnpm run --filter "emdash-e2e-fixture..." build
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
@@ -456,26 +451,54 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
       - name: Run Node E2E
-        id: node-e2e
-        if: needs.change-plan.outputs.e2e_node == 'true'
+        id: e2e
         run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure() && steps.node-e2e.outcome == 'failure'
+        if: failure() && steps.e2e.outcome == 'failure'
         with:
           name: playwright-report-node-${{ matrix.shardIndex }}
           path: |
             playwright-report/
             test-results/
           retention-days: 7
-      # Runs after a Node E2E failure too, but not after a failed setup step.
+
+  test-e2e-cloudflare:
+    name: Cloudflare E2E shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    needs: change-plan
+    if: needs.change-plan.outputs.e2e_cloudflare == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
+        shardTotal: [8]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Build everything the fixture needs here, so global setup finds nothing to build.
+      - run: pnpm run --filter "emdash-e2e-fixture-cloudflare..." build
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
       - name: Run Cloudflare E2E
-        id: cloudflare-e2e
-        if: ${{ !cancelled() && (success() || steps.node-e2e.outcome == 'failure') && needs.change-plan.outputs.e2e_cloudflare == 'true' }}
+        id: e2e
         run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           EMDASH_E2E_TARGET: cloudflare
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure() && steps.cloudflare-e2e.outcome == 'failure'
+        if: failure() && steps.e2e.outcome == 'failure'
         with:
           name: playwright-report-cloudflare-${{ matrix.shardIndex }}
           path: |
