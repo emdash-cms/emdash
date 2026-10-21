@@ -233,12 +233,12 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			input: z.object({ accountId: credentialSchema, apiToken: credentialSchema }),
 			handler: async (ctx) => {
 				const config = await loadConfig(ctx);
-				let created = false;
+				let saved = { created: false, accountChanged: false };
 				try {
-					// Another account or namespace may not have the instance yet.
-					({ created } = await saveCredentials(ctx, options, ctx.input, {
+					// Another account may not have the instance yet, or an index out of date.
+					saved = await saveCredentials(ctx, options, ctx.input, {
 						ensureInstance: config !== null,
-					}));
+					});
 				} catch (error) {
 					if (
 						error instanceof PluginSettingEncryptionError &&
@@ -252,8 +252,8 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 					}
 					rethrowProviderError(error);
 				}
-				if (config && created) {
-					await markInstanceCreated(ctx);
+				if (saved.created) await markInstanceCreated(ctx);
+				if (config && (saved.created || saved.accountChanged)) {
 					await startBuild(ctx, enabledSources(config));
 				}
 				return describeConnection(ctx);

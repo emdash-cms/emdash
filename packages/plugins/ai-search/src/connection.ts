@@ -56,8 +56,9 @@ export async function describeConnection(
 /**
  * Saves the given credentials after checking them, with any not given taken
  * from the environment or settings. With `ensureInstance`, also creates the
- * instance they reach unless it exists, before saving anything. Throws the
- * check's `ProviderError`.
+ * instance they reach unless it exists, before saving anything.
+ * `accountChanged` compares with the stored credentials, so a retry after a
+ * failed save still reports the change. Throws the check's `ProviderError`.
  */
 export async function saveCredentials(
 	ctx: SettingsContext,
@@ -72,9 +73,10 @@ export async function saveCredentials(
 		env?: Env;
 		connect?: (credentials: RestCredentials) => Pick<RestAiSearch, "verify" | "ensureInstance">;
 	} = {},
-): Promise<{ created: boolean }> {
+): Promise<{ created: boolean; accountChanged: boolean }> {
 	const fromEnv = { accountId: env[ENV.accountId], apiToken: env[ENV.apiToken] };
-	const { accountId, apiToken } = merge(fromEnv, input, await stored(ctx));
+	const current = merge(fromEnv, await stored(ctx));
+	const { accountId, apiToken } = merge(fromEnv, input, current);
 	let created = false;
 	if (accountId && apiToken) {
 		const provider = connect({ accountId, apiToken, namespace: namespace(env) });
@@ -84,7 +86,7 @@ export async function saveCredentials(
 	// The token goes first: encrypting it is what can fail, and then nothing is saved.
 	if (input.apiToken) await ctx.settings.set(SETTINGS.apiToken, input.apiToken);
 	if (input.accountId) await ctx.settings.set(SETTINGS.accountId, input.accountId);
-	return { created };
+	return { created, accountChanged: accountId !== current.accountId };
 }
 
 function merge(...layers: Credentials[]): Credentials {

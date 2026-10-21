@@ -22,7 +22,10 @@ import type { PluginResponse } from "../../../src/plugin-types.js";
 
 const INDEXING_MS = 30_000;
 
-const aiSearch = vi.hoisted(() => ({ current: null as FakeAiSearch | null }));
+const aiSearch = vi.hoisted(() => ({
+	current: null as FakeAiSearch | null,
+	accountChanged: false,
+}));
 
 vi.mock("../../../../plugins/ai-search/src/connection.js", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../../../plugins/ai-search/src/connection.js")>()),
@@ -32,7 +35,10 @@ vi.mock("../../../../plugins/ai-search/src/connection.js", async (importOriginal
 		_options: unknown,
 		_input: unknown,
 		save?: { ensureInstance?: boolean },
-	) => (save?.ensureInstance ? aiSearch.current!.ensureInstance() : { created: false }),
+	) => ({
+		created: save?.ensureInstance ? (await aiSearch.current!.ensureInstance()).created : false,
+		accountChanged: aiSearch.accountChanged,
+	}),
 }));
 
 // The plugin imports its helpers from the `emdash` package. Resolve it to this
@@ -85,6 +91,7 @@ describe("ai-search plugin", () => {
 		await waitForDeferredTasks();
 		await runtime.shutdown();
 		aiSearch.current = null;
+		aiSearch.accountChanged = false;
 		vi.useRealTimers();
 	});
 
@@ -372,6 +379,21 @@ describe("ai-search plugin", () => {
 		finishIndexing();
 
 		expect(await data("GET", "status")).toMatchObject({ instanceMissing: false });
+		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
+	});
+
+	it("rebuilds the index in a new account whose instance an earlier failed save created", async () => {
+		await publish((await createPost("Rose garden", "Planting roses.")).id);
+		await setUpSearch();
+		service = new FakeAiSearch({ indexingMs: INDEXING_MS, requireInstance: true });
+		await service.ensureInstance();
+		aiSearch.current = service;
+		aiSearch.accountChanged = true;
+
+		await data("POST", "connection/save", { accountId: "other-account" });
+		await runBuild();
+		finishIndexing();
+
 		expect(await resultUrls("roses")).toEqual(["/posts/rose-garden"]);
 	});
 

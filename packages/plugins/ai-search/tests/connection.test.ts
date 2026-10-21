@@ -85,7 +85,7 @@ describe("connection", () => {
 			async () => {},
 			async () => ({ created: true }),
 		);
-		expect(await accepted.saved).toEqual({ created: true });
+		expect(await accepted.saved).toEqual({ created: true, accountChanged: true });
 
 		expect(badToken.values.size).toBe(0);
 		expect(cannotCreate.values.size).toBe(0);
@@ -107,7 +107,7 @@ describe("connection", () => {
 		expect(provider?.kind).toBe("rest");
 	});
 
-	it("leaves the stored account unchanged when the token cannot be saved", async () => {
+	it("leaves the stored account unchanged when the token cannot be saved, and reports the change on retry", async () => {
 		const saved = { accountId: "old-account", apiToken: "old-token" };
 		const { ctx, values } = memorySettings(saved);
 		const set = ctx.settings.set;
@@ -115,21 +115,27 @@ describe("connection", () => {
 			if (key === "apiToken") throw new Error("EMDASH_ENCRYPTION_KEY is not set");
 			await set(key, value);
 		};
-
-		await expect(
+		// The first attempt creates the instance; a retry finds it.
+		let exists = false;
+		const save = () =>
 			saveCredentials(
 				ctx,
 				options,
 				{ accountId: "new-account", apiToken: "new-token" },
 				{
+					ensureInstance: true,
 					env: {},
 					connect: () => ({
 						verify: async () => {},
-						ensureInstance: async () => ({ created: false }),
+						ensureInstance: async () => ({ created: !exists && (exists = true) }),
 					}),
 				},
-			),
-		).rejects.toThrow("EMDASH_ENCRYPTION_KEY");
+			);
+
+		await expect(save()).rejects.toThrow("EMDASH_ENCRYPTION_KEY");
 		expect(Object.fromEntries(values)).toEqual(saved);
+
+		ctx.settings.set = set;
+		expect(await save()).toEqual({ created: false, accountChanged: true });
 	});
 });
