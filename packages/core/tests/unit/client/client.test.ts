@@ -1,7 +1,12 @@
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+
 import { Role } from "@emdash-cms/auth";
 import { describe, it, expect } from "vitest";
 
 import { GET as schemaGET } from "../../../src/astro/routes/api/schema/index.js";
+import { customHeadersInterceptor } from "../../../src/client/cf-access.js";
 import { EmDashClient, EmDashApiError } from "../../../src/client/index.js";
 import type { Interceptor } from "../../../src/client/transport.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
@@ -559,6 +564,33 @@ describe("EmDashClient", () => {
 						version,
 					}),
 				});
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		});
+
+		it("schema TypeScript export imports every type emitted by the interfaces", async () => {
+			const db = await setupTestDatabaseWithCollections();
+
+			try {
+				const response = await schemaGET({
+					request: new Request("http://localhost:4321/_emdash/api/schema?format=typescript"),
+					locals: {
+						emdash: { db },
+						user: { id: "user_1", role: Role.EDITOR },
+					},
+				} as never);
+
+				expect(response.status).toBe(200);
+				expect(response.headers.get("Content-Type")).toBe("text/typescript");
+
+				const body = await response.text();
+				expect(body).toContain(
+					'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";',
+				);
+				expect(body).toContain("byline?: BylineSummary | null;");
+				expect(body).toContain("bylines?: ContentBylineCredit[];");
+				expect(body).toContain("terms?: Record<string, TaxonomyTerm[]>;");
 			} finally {
 				await teardownTestDatabase(db);
 			}
@@ -1554,6 +1586,62 @@ describe("EmDashClient", () => {
 			expect(capturedData!.title).toBe("Hello");
 			expect(Array.isArray(capturedData!.body)).toBe(true);
 		});
+
+		it.each([false, true])(
+			"converts nested Markdown for a single-type block with a preloaded schema: %s",
+			async (preloadSchema) => {
+				let capturedData: Record<string, unknown> | undefined;
+				const backend = createMockBackend([
+					{
+						method: "GET",
+						path: "/schema/collections/posts",
+						handler: () =>
+							jsonResponse({
+								item: {
+									slug: "posts",
+									fields: [
+										{
+											slug: "layout",
+											type: "blocks",
+											validation: { allowedTypes: ["hero"] },
+											blockTypes: [
+												{
+													slug: "hero",
+													currentVersion: 1,
+													versions: [
+														{ version: 1, fields: [{ slug: "body", type: "portableText" }] },
+													],
+												},
+											],
+										},
+									],
+								},
+							}),
+					},
+					{
+						method: "POST",
+						path: "/content/posts",
+						handler: async (request) => {
+							const body = (await request.json()) as { data: Record<string, unknown> };
+							capturedData = body.data;
+							return jsonResponse({ item: { id: "new1", data: {} } });
+						},
+					},
+				]);
+				const client = new EmDashClient({
+					baseUrl: "http://localhost:4321",
+					token: "test",
+					interceptors: [backend],
+				});
+				if (preloadSchema) await client.collection("posts");
+				await client.create("posts", { data: { layout: [{ body: "**Welcome**" }] } });
+				expect(capturedData).toBeDefined();
+				const block = (capturedData!.layout as Array<Record<string, unknown>>)[0]!;
+				expect(block.body).toMatchObject([
+					{ _type: "block", children: [{ text: "Welcome", marks: ["strong"] }] },
+				]);
+			},
+		);
 	});
 
 	// -----------------------------------------------------------------------
@@ -1782,6 +1870,43 @@ describe("EmDashClient", () => {
 			expect(Array.isArray(result)).toBe(true);
 			expect(result.length).toBe(1);
 			expect(result[0]!.name).toBe("primary");
+		});
+	});
+
+	describe("token refresh", () => {
+		it("refreshes an expired token behind a proxy that requires custom headers", async () => {
+			const server = createServer((req, res) => {
+				const json = (status: number, body: unknown) => {
+					res.writeHead(status, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(body));
+				};
+				if (req.headers["cf-access-client-id"] !== "access-id") {
+					json(403, { error: "blocked by proxy" });
+				} else if (req.method === "POST" && req.url === "/_emdash/api/oauth/token/refresh") {
+					json(200, { success: true, data: { access_token: "ec_oat_new", expires_in: 3600 } });
+				} else if (req.headers.authorization === "Bearer ec_oat_new") {
+					json(200, { success: true, data: { items: [{ slug: "posts" }] } });
+				} else {
+					json(401, { success: false, error: { code: "UNAUTHORIZED", message: "Expired" } });
+				}
+			});
+			server.listen(0, "127.0.0.1");
+			await once(server, "listening");
+			const { port } = server.address() as AddressInfo;
+
+			try {
+				const client = new EmDashClient({
+					baseUrl: `http://127.0.0.1:${port}`,
+					token: "ec_oat_expired",
+					refreshToken: "ec_ort_valid",
+					interceptors: [customHeadersInterceptor({ "CF-Access-Client-Id": "access-id" })],
+				});
+
+				const collections = await client.collections();
+				expect(collections.map((c) => c.slug)).toEqual(["posts"]);
+			} finally {
+				await new Promise<void>((done) => server.close(() => done()));
+			}
 		});
 	});
 });

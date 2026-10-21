@@ -75,6 +75,27 @@ describe("sitemap-[collection].xml route", () => {
 		expect(res.status).toBe(500);
 	});
 
+	// 64 is one past the collection slug cap; 129 is past validateIdentifier's cap.
+	const invalidSlugs = ["0", "1a", "Post", "_post", "po.st", "a".repeat(64), "a".repeat(129)];
+
+	it("still returns a 500 without a runtime for a valid 63-character slug", async () => {
+		const res = await getSitemap(mockContext({ collectionSlug: "a".repeat(63), db: null }));
+		expect(res.status).toBe(500);
+	});
+
+	it.each(invalidSlugs)(
+		"returns a 404 for %s without a runtime, since it cannot be a collection slug",
+		async (collectionSlug) => {
+			const res = await getSitemap(mockContext({ collectionSlug, db: null }));
+			expect(res.status).toBe(404);
+		},
+	);
+
+	it.each(invalidSlugs)("returns a 404 for %s with a runtime", async (collectionSlug) => {
+		const res = await getSitemap(mockContext({ collectionSlug, db }));
+		expect(res.status).toBe(404);
+	});
+
 	it("returns a 404 when the collection has no published content", async () => {
 		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
 		expect(res.status).toBe(404);

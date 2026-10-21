@@ -11,7 +11,10 @@ const config: LinguiConfig = {
 	catalogs: [
 		{
 			path: "<rootDir>/packages/admin/src/locales/{locale}/messages",
-			include: ["<rootDir>/packages/admin/src/**/*.{ts,tsx}"],
+			include: [
+				"<rootDir>/packages/admin/src/**/*.{ts,tsx}",
+				"<rootDir>/packages/auth-atproto/src/admin.tsx",
+			],
 		},
 	],
 	format: "po",

@@ -1,9 +1,11 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { ApiResponseError } from "../../../src/lib/api";
 import type {
 	AdminManifest,
 	EmailSettings,
@@ -380,6 +382,108 @@ describe("GeneralSettings", () => {
 			),
 		);
 		expect(mockUpdateSettings.mock.lastCall?.[0]).not.toHaveProperty("url");
+	});
+
+	it("shows the hint for an invalid domain in the admin language", async () => {
+		const hint = msg`Enter a domain such as example.com, without a path or port`;
+		const previousLocale = i18n.locale;
+		i18n.load("de", { [hint.id]: "Gib eine Domain wie example.com ohne Pfad oder Port ein." });
+		i18n.activate("de");
+		mockChangeSiteDomain.mockRejectedValue(
+			new ApiResponseError(
+				400,
+				"VALIDATION_ERROR",
+				"Enter a domain such as example.com, without a path or port",
+			),
+		);
+
+		try {
+			const screen = await renderGeneralSettings();
+			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+			await screen.getByLabelText("New domain").fill("example.com/path");
+			await userEvent.keyboard("{Enter}");
+			await expect
+				.element(screen.getByRole("alert"))
+				.toHaveTextContent("Gib eine Domain wie example.com ohne Pfad oder Port ein.");
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
+	const host = "new.example";
+	const origin = "https://new.example";
+	const target = "https://www.new.example";
+	it.each([
+		{
+			case: "a host without a public address",
+			details: { reason: "NO_PUBLIC_ADDRESS", host },
+			message: msg`${host} does not resolve to a public address`,
+			translation: "{host} hat keine öffentliche Adresse.",
+			shown: "new.example hat keine öffentliche Adresse.",
+		},
+		{
+			case: "an unreachable domain",
+			details: { reason: "UNREACHABLE", origin },
+			message: msg`Could not reach ${origin}`,
+			translation: "{origin} ist nicht erreichbar.",
+			shown: "https://new.example ist nicht erreichbar.",
+		},
+		{
+			case: "a redirect to another address",
+			details: { reason: "REDIRECT", origin, target },
+			message: msg`${origin} redirects to ${target}. Enter that address instead.`,
+			translation: "{origin} leitet auf {target} um. Gib stattdessen diese Adresse ein.",
+			shown:
+				"https://new.example leitet auf https://www.new.example um. Gib stattdessen diese Adresse ein.",
+		},
+		{
+			case: "a redirect without a location",
+			details: { reason: "REDIRECT", origin },
+			message: msg`${origin} redirects elsewhere`,
+			translation: "{origin} leitet auf eine andere Adresse um.",
+			shown: "https://new.example leitet auf eine andere Adresse um.",
+		},
+		{
+			case: "a domain serving another site",
+			details: { reason: "NOT_SERVING", origin },
+			message: msg`${origin} does not serve this site yet`,
+			translation: "{origin} liefert diese Website noch nicht aus.",
+			shown: "https://new.example liefert diese Website noch nicht aus.",
+		},
+	])(
+		"shows the failed domain check for $case in the admin language",
+		async ({ details, message, translation, shown }) => {
+			const previousLocale = i18n.locale;
+			i18n.load("de", { [message.id]: translation });
+			i18n.activate("de");
+			mockChangeSiteDomain.mockRejectedValue(
+				new ApiResponseError(422, "DOMAIN_CHECK_FAILED", "English server message", details),
+			);
+
+			try {
+				const screen = await renderGeneralSettings();
+				await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+				await screen.getByLabelText("New domain").fill("new.example");
+				await userEvent.keyboard("{Enter}");
+				await expect.element(screen.getByRole("alert")).toHaveTextContent(shown);
+			} finally {
+				i18n.activate(previousLocale);
+			}
+		},
+	);
+
+	it("shows the server's message when a failed domain check has no known reason", async () => {
+		mockChangeSiteDomain.mockRejectedValue(
+			new ApiResponseError(400, "DOMAIN_CHECK_FAILED", "Could not reach https://example.com"),
+		);
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("example.com");
+		await userEvent.keyboard("{Enter}");
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("Could not reach https://example.com");
 	});
 
 	it("offers to use an address without the check when the check fails", async () => {

@@ -18,6 +18,7 @@ run(["install", "--no-frozen-lockfile"]);
 
 if (mode === "version") {
 	run(["changeset", "version"]);
+	execFileSync("node", ["scripts/archive-changelogs.mjs"], { stdio: "inherit" });
 	run(["install", "--no-frozen-lockfile"]);
 } else {
 	throw new Error(`Unknown release mode: ${JSON.stringify(mode)} (expected "version")`);

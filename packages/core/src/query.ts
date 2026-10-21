@@ -25,11 +25,20 @@
  */
 
 import type { ContentSeo } from "./database/repositories/types.js";
-import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import {
+	getFallbackChain,
+	getI18nConfig,
+	getLocaleCandidates,
+	isI18nEnabled,
+	resolveConfiguredLocale,
+} from "./i18n/config.js";
+import { resolveLocale } from "./i18n/resolve.js";
+import {
+	creditFromFoldedAuthorByline,
 	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
 	encodeSortCursor,
+	FOLDED_AUTHOR_BYLINE,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
 	FOLDED_TERMS,
@@ -426,19 +435,57 @@ export function getEditMeta(value: unknown): EditFieldMeta | undefined {
 	return undefined;
 }
 
+/** Slugs of a collection's Portable Text fields; empty when they can't be read. */
+function getPortableTextFieldSlugs(collection: string): Promise<ReadonlySet<string>> {
+	return requestCached(`portable-text-fields:${collection}`, async () => {
+		try {
+			const { getDb } = await import("./loader.js");
+			const db = await getDb();
+			const rows = await db
+				.selectFrom("_emdash_fields as f")
+				.innerJoin("_emdash_collections as c", "c.id", "f.collection_id")
+				.select("f.slug")
+				.where("c.slug", "=", collection)
+				.where("f.type", "=", "portableText")
+				.execute();
+			return new Set(rows.map((row) => row.slug));
+		} catch (error) {
+			if (!isMissingTableError(error)) {
+				const msg = error instanceof Error ? error.message : String(error);
+				console.warn("[emdash] Failed to load Portable Text fields:", msg);
+			}
+			return new Set<string>();
+		}
+	});
+}
+
 /**
  * Tag PT-like arrays in entry data with edit metadata (non-enumerable).
  * A PT array is identified by: is an array, first element has _type property.
+ * An empty one is identified by its field being in `portableTextFields`, and
+ * a missing or blank one becomes an empty array, so the page can still render
+ * an editor for it.
  */
-function tagEditableFields(data: Record<string, unknown>, collection: string, id: string): void {
+function tagEditableFields(
+	data: Record<string, unknown>,
+	collection: string,
+	id: string,
+	portableTextFields: ReadonlySet<string> = new Set(),
+): void {
+	for (const field of portableTextFields) {
+		const value = data[field];
+		if (value == null || (typeof value === "string" && !value.trim())) {
+			data[field] = [];
+		}
+	}
 	for (const [field, value] of Object.entries(data)) {
-		if (
-			Array.isArray(value) &&
-			value.length > 0 &&
-			value[0] &&
-			typeof value[0] === "object" &&
-			"_type" in value[0]
-		) {
+		if (!Array.isArray(value)) continue;
+		const first: unknown = value[0];
+		const isPortableText =
+			value.length === 0
+				? portableTextFields.has(field)
+				: typeof first === "object" && first !== null && "_type" in first;
+		if (isPortableText) {
 			Object.defineProperty(value, EMDASH_EDIT, {
 				value: { collection, id, field } satisfies EditFieldMeta,
 				enumerable: false,
@@ -743,7 +790,7 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.offset ?? "",
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
-		filter.locale ?? "",
+		filter.locale === undefined ? "" : resolveConfiguredLocale(filter.locale),
 	];
 	return `collection:${type}:${parts.join("|")}`;
 }
@@ -877,11 +924,7 @@ function reviveEntry<D>(raw: unknown): ContentEntry<D> {
 
 /** Resolve the effective locale used by content reads, for the L2 cache key. */
 function effectiveLocaleKey(filter?: { locale?: string }): string {
-	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	return (
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined) ?? ""
-	);
+	return resolveLocale(filter?.locale) ?? "";
 }
 
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
@@ -894,9 +937,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	// Resolve locale: explicit filter > ALS context > defaultLocale (when i18n enabled)
 	// Without this, queries return all locale rows, producing broken IDs
 	const ctx = getRequestContext();
-	const i18nConfig = getI18nConfig();
-	const resolvedLocale =
-		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
+	const resolvedLocale = resolveLocale(filter?.locale);
 
 	const requestedLimit = filter?.limit;
 	// cursor and offset are mutually exclusive on the loader filter union, so
@@ -907,6 +948,13 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 			: filter?.offset !== undefined
 				? { offset: filter.offset }
 				: {};
+	// Same draft access as `getEmDashEntry`: editors see every entry's draft,
+	// a preview token only the draft of the entry it was issued for.
+	const draftRevisions = ctx?.editMode
+		? "all"
+		: ctx?.preview?.collection === type
+			? { id: ctx.preview.id }
+			: undefined;
 	const result = await getLiveCollection(COLLECTION_NAME, {
 		type,
 		status: filter?.status,
@@ -915,6 +963,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
+		draftRevisions,
 	});
 
 	const { entries, error, cacheHint } = result;
@@ -931,10 +980,12 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const hasMoreResult = requestedLimit != null && requestedLimit > 0 ? hasMore : undefined;
 
 	const isEditMode = ctx?.editMode ?? false;
+	const portableTextFields =
+		isEditMode && pageEntries.length > 0 ? await getPortableTextFieldSlugs(type) : undefined;
 	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
 		const dbId = entryDatabaseId(entry);
 		if (isEditMode) {
-			tagEditableFields(entryData(entry), type, dbId);
+			tagEditableFields(entryData(entry), type, dbId, portableTextFields);
 		}
 		if (!canExposeRevisionMetadata(entry, type)) {
 			stripRevisionMetadata(entry);
@@ -1149,14 +1200,16 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	const serveDrafts = isPreviewMode || isEditMode;
 
 	// Resolve locale: explicit option > ALS context > undefined (no filter)
-	const requestedLocale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const requestedLocale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 	const references = options?.references;
+	const portableTextFields = isEditMode ? await getPortableTextFieldSlugs(type) : undefined;
 
 	/** Wrap a raw Astro entry with edit proxy, tagging editable fields if needed */
 	function wrapEntry(raw: ContentEntry<D>): ContentEntry<D> {
 		const dbId = entryDatabaseId(raw);
 		if (isEditMode) {
-			tagEditableFields(entryData(raw), type, dbId);
+			tagEditableFields(entryData(raw), type, dbId, portableTextFields);
 		}
 		return {
 			...raw,
@@ -1295,7 +1348,14 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			const locale = localeChain[i];
 			const fallbackLocale = i > 0 ? locale : undefined;
 
-			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
+			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, {
+				type,
+				id,
+				locale,
+				...(locale !== undefined && getLocaleCandidates(locale).length > 1
+					? { publishedOnly: true }
+					: {}),
+			});
 			if (error) {
 				// Astro reports a missing entry as an error; try the next locale.
 				if (error.name === "LiveEntryNotFoundError") continue;
@@ -1397,7 +1457,8 @@ export async function getEmDashReferences<D = Record<string, unknown>>(
 	const ctx = getRequestContext();
 	const preview = ctx?.preview;
 	const isEditMode = ctx?.editMode ?? false;
-	const locale = options?.locale ?? ctx?.locale;
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const locale = rawLocale === undefined ? undefined : resolveConfiguredLocale(rawLocale);
 
 	try {
 		const { getDb } = await import("./loader.js");
@@ -1499,17 +1560,30 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 	if (entries.length === 0) return;
 
 	// Fast path: bylines were folded into the content query. Parse the JSON
-	// (no extra round trip) for the common case — explicit credits, no byline
-	// custom fields, no author fallback. The query path below handles the rest:
-	//  - author fallback (entry has authorId but no explicit credit), and
-	//  - custom byline fields (can't be expressed in the folded subquery).
+	// (no extra round trip): explicit credits, plus the author-fallback byline
+	// for an entry with none. Custom byline field values can't be expressed in
+	// the folded subquery, so when any credit resolves they are loaded for the
+	// folded bylines in one batched pass. The query path below handles only
+	// what the fold can't vouch for.
 	if (entries.every((e) => FOLDED_BYLINES in entryData(e))) {
 		const parsed = entries.map((entry) => {
 			const data = entryData(entry);
 			const folded = Reflect.get(data, FOLDED_BYLINES);
 			const rows = Array.isArray(folded) ? folded : [];
 			const credits = creditsFromFoldedBylines(rows);
-			return { data, credits };
+			// The fold is complete for an entry with no explicit credit when its
+			// author fallback was folded too and it has a locale: the query path
+			// resolves the fallback in that same locale (`(user_id, locale)` is
+			// unique), and a `primaryBylineId` without an explicit credit
+			// resolves to no byline on both paths.
+			const authorFolded = FOLDED_AUTHOR_BYLINE in data && dataStr(data, "locale") !== "";
+			if (credits.length === 0 && authorFolded && dataStr(data, "primaryBylineId") === "") {
+				const author = Reflect.get(data, FOLDED_AUTHOR_BYLINE);
+				if (dataStr(data, "authorId") !== "" && isRecord(author)) {
+					credits.push(creditFromFoldedAuthorByline(author));
+				}
+			}
+			return { data, credits, complete: credits.length > 0 || authorFolded };
 		});
 
 		// An empty `_emdash_bylines` table makes an empty fold authoritative: no
@@ -1523,34 +1597,36 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 
 		// Fall back to the full query path when the fold can't be trusted to be
 		// complete: an entry with a byline reference (explicit primary, or an
-		// author for the author-fallback) but no folded credits — e.g. a credit
-		// in a different locale than the row, which the locale-correlated subquery
-		// skips, or the author-fallback path which the fold doesn't express.
+		// author for the author-fallback) but no folded credits, and no folded
+		// author fallback either — e.g. a row read without the author column,
+		// or an entry with no locale, which the locale-correlated subqueries
+		// can't match.
 		let needsQueryPath =
 			!knownEmpty &&
 			parsed.some(
 				(p) =>
-					p.credits.length === 0 &&
+					!p.complete &&
 					(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
 			);
-		let hasCustomFields = false;
-		if (!needsQueryPath && !knownEmpty) {
+
+		// Custom byline fields: only bylines that resolved need their values, so
+		// an entry set with no credits skips the field-definition probe too.
+		const summaries = parsed.flatMap((p) => p.credits.map((c) => c.byline));
+		if (!needsQueryPath && summaries.length > 0) {
 			try {
 				const { getDb } = await import("./loader.js");
-				const db = await getDb();
-				const { getBylineFieldDefs } = await import("./bylines/field-defs-cache.js");
-				hasCustomFields = (await getBylineFieldDefs(db)).length > 0;
+				const { BylineRepository } = await import("./database/repositories/byline.js");
+				await new BylineRepository(await getDb()).hydrateBylineCustomFields(summaries);
 			} catch (error) {
 				// A missing table is expected pre-migration and means there are no
 				// custom fields — the fold's values are complete. Any other error
-				// (lock-init failure, dialect error) means the probe can't be
-				// trusted, so fall back to the query path rather than risk serving
-				// folded bylines with empty customFields.
+				// means the values can't be trusted, so fall back to the query
+				// path rather than risk serving bylines with empty customFields.
 				if (!isMissingTableError(error)) needsQueryPath = true;
 			}
 		}
 
-		if (!needsQueryPath && !hasCustomFields) {
+		if (!needsQueryPath) {
 			for (const p of parsed) {
 				p.data.bylines = p.credits;
 				p.data.byline = p.credits[0]?.byline ?? null;

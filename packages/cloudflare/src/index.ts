@@ -33,16 +33,19 @@
  * ```
  */
 
+import { createRequire } from "node:module";
+
 import type {
 	AuthDescriptor,
 	DatabaseDescriptor,
 	ObjectCacheDescriptor,
 	StorageDescriptor,
 } from "emdash";
-import { unstable_readConfig } from "wrangler";
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
+
+const require = createRequire(import.meta.url);
 
 const ENVIRONMENT_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -245,7 +248,7 @@ export interface AccessConfig {
 
 	/**
 	 * Role level for users not matching any group in roleMapping
-	 * @default 30 (Editor)
+	 * @default 30 (Author, who can publish their own content)
 	 */
 	defaultRole?: number;
 
@@ -271,8 +274,8 @@ export interface AccessConfig {
 	 * ```ts
 	 * roleMapping: {
 	 *   "Admins": 50,        // Admin
-	 *   "Developers": 40,    // Developer
-	 *   "Content Team": 30,  // Editor
+	 *   "Editors": 40,       // Editor
+	 *   "Content Team": 30,  // Author
 	 * }
 	 * ```
 	 */
@@ -524,7 +527,8 @@ export function r2(config: R2StorageConfig): StorageDescriptor {
  *   audience: "abc123...",
  *   roleMapping: {
  *     "Admins": 50,
- *     "Editors": 30,
+ *     "Editors": 40, // Editor
+ *     "Authors": 30, // Author
  *   },
  * })
  * ```
@@ -543,6 +547,7 @@ export function access(config: AccessConfig): AuthDescriptor {
  * Returns the module path for the Cloudflare sandbox runner when the project's
  * Wrangler config includes the `LOADER` Worker Loader binding. Without that
  * paid-plan binding, sandboxed plugins are disabled at build time.
+ * Requires `wrangler` to be installed; other config helpers do not need it.
  *
  * @example
  * ```ts
@@ -551,6 +556,7 @@ export function access(config: AccessConfig): AuthDescriptor {
  */
 export function sandbox(): string | undefined {
 	const environment = process.env.CLOUDFLARE_ENV;
+	const { unstable_readConfig }: typeof import("wrangler") = require("wrangler");
 	const config = unstable_readConfig(environment ? { env: environment } : {}, {
 		hideWarnings: true,
 	});

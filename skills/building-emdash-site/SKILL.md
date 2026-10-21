@@ -13,7 +13,7 @@ These are the things that silently break sites. Know them before you start.
 
 1. **Image fields are objects, not strings.** `post.data.featured_image` is `{ id, src, alt }`. Writing `<img src={post.data.featured_image} />` renders `[object Object]`. Use `<Image image={post.data.featured_image} />` from `"emdash/ui"`.
 
-2. **`entry.id` vs `entry.data.id` are different things.** `entry.id` is the slug (use in URLs). `entry.data.id` is the database ULID (use for `getEntryTerms`, `Comments`, and other API calls that need the real ID). Mixing them up causes silent empty results.
+2. **`entry.id` vs `entry.data.id` are different things.** `entry.id` is the slug, prefixed with the locale (`en/my-post`) for locales whose URLs are prefixed (use in URLs; `entry.data.slug` is the bare slug). `entry.data.id` is the database ULID (use for `getEntryTerms`, `Comments`, and other API calls that need the real ID). Mixing them up causes silent empty results.
 
 3. **Taxonomy names must match the seed exactly.** If your seed defines `"name": "category"`, you must query `getTerm("category", slug)` -- not `"categories"`. Wrong name = empty results, no error.
 

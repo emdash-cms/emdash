@@ -66,6 +66,8 @@ Each `.po` file contains `msgid`/`msgstr` pairs. The `msgid` is the English sour
 
 6. **Open a PR** targeting `main`. Title format: `i18n(de): add/update German translations`.
 
+   Keep the PR to the PO file, a changeset, and the locale files described in [Adding a new language](#adding-a-new-language). Automation comments on a translation PR that changes anything else.
+
 </Steps>
 
 ### What to translate
@@ -143,11 +145,17 @@ If your language doesn't have a PO file yet:
    ```ts
    export const LOCALES: LocaleDefinition[] = [
      { code: "en", label: "English", enabled: true },
-     { code: "de", label: "Deutsch", enabled: true },
      // ...
-     { code: "vi", label: "Tiếng Việt", enabled: false },  // add yours
+     {
+       code: "vi",
+       label: "Tiếng Việt",
+       enabled: false,
+       dateLocale: () => import("react-day-picker/locale/vi").then((m) => m.vi),
+     },
    ];
    ```
+
+   `dateLocale` loads the calendar and date-format localization for your language. Pick the closest file in [`react-day-picker/locale`](https://github.com/gpbl/react-day-picker/tree/main/packages/react-day-picker/src/locale), such as `pt` for `pt-PT`, and use the export named in that file. Omit it only if your language uses the US English calendar.
 
    This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` while translation is in progress. A maintainer enables the locale once it has sufficient coverage for use in the admin UI.
 

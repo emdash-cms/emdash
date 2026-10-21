@@ -117,7 +117,7 @@ export async function bulkTagPosts(
 	});
 	return parseApiResponse<{ results: BulkTagResult[]; cacheRefreshFailed: boolean }>(
 		response,
-		"Failed to add term to entries",
+		i18n._(msg`Failed to add term to entries`),
 	);
 }
 
@@ -134,7 +134,7 @@ export async function fetchTaxonomyDefs(options: LocaleOptions = {}): Promise<Ta
 	const response = await apiFetch(withLocale(`${API_BASE}/taxonomies`, options.locale));
 	const data = await parseApiResponse<{ taxonomies: TaxonomyDef[] }>(
 		response,
-		"Failed to fetch taxonomies",
+		i18n._(msg`Failed to fetch taxonomies`),
 	);
 	return data.taxonomies;
 }
@@ -161,7 +161,7 @@ export async function createTaxonomy(input: CreateTaxonomyInput): Promise<Taxono
 	});
 	const data = await parseApiResponse<{ taxonomy: TaxonomyDef }>(
 		response,
-		"Failed to create taxonomy",
+		i18n._(msg`Failed to create taxonomy`),
 	);
 	return data.taxonomy;
 }
@@ -191,7 +191,10 @@ export async function fetchTerms(
 		params.set("resolveFallback", String(options.resolveFallback));
 	const query = params.size > 0 ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/taxonomies/${taxonomyName}/terms${query}`);
-	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(response, "Failed to fetch terms");
+	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
+		response,
+		i18n._(msg`Failed to fetch terms`),
+	);
 	return data.terms;
 }
 
@@ -207,7 +210,10 @@ export async function createTerm(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ term: TaxonomyTerm }>(response, "Failed to create term");
+	const data = await parseApiResponse<{ term: TaxonomyTerm }>(
+		response,
+		i18n._(msg`Failed to create term`),
+	);
 	return data.term;
 }
 
@@ -228,7 +234,10 @@ export async function updateTerm(
 			body: JSON.stringify(input),
 		},
 	);
-	const data = await parseApiResponse<{ term: TaxonomyTerm }>(response, "Failed to update term");
+	const data = await parseApiResponse<{ term: TaxonomyTerm }>(
+		response,
+		i18n._(msg`Failed to update term`),
+	);
 	return data.term;
 }
 
@@ -249,7 +258,7 @@ export async function reorderTerms(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	await parseApiResponse<{ reordered: true }>(response, "Failed to reorder terms");
+	await parseApiResponse<{ reordered: true }>(response, i18n._(msg`Failed to reorder terms`));
 }
 
 /**
@@ -276,7 +285,10 @@ export async function fetchTermTranslations(
 	const response = await apiFetch(
 		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms/${slug}/translations`, options.locale),
 	);
-	return parseApiResponse<TermTranslationsResponse>(response, "Failed to fetch term translations");
+	return parseApiResponse<TermTranslationsResponse>(
+		response,
+		i18n._(msg`Failed to fetch term translations`),
+	);
 }
 
 /**
@@ -299,7 +311,7 @@ export async function createTermTranslation(
 	);
 	const data = await parseApiResponse<{ term: TaxonomyTerm }>(
 		response,
-		"Failed to create term translation",
+		i18n._(msg`Failed to create term translation`),
 	);
 	return data.term;
 }

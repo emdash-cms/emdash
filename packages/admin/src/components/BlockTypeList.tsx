@@ -28,7 +28,9 @@ export function BlockTypeList({ blockTypes, isLoading = false }: BlockTypeListPr
 						<div key={blockType.slug} className="px-4 py-3">
 							<div className="flex flex-wrap items-center gap-2">
 								<span className="font-medium">{blockType.label}</span>
-								<code className="text-xs text-kumo-subtle">{blockType.slug}</code>
+								<code dir="ltr" className="text-xs text-kumo-subtle">
+									{blockType.slug}
+								</code>
 								<Badge variant="secondary">{t`Active v${blockType.currentVersion}`}</Badge>
 							</div>
 							{blockType.description && (
@@ -40,7 +42,7 @@ export function BlockTypeList({ blockTypes, isLoading = false }: BlockTypeListPr
 										{version.active
 											? t`Version ${version.version} (active)`
 											: t`Version ${version.version}`}{" "}
-										· <code>{version.fingerprint}</code>
+										· <code dir="ltr">{version.fingerprint}</code>
 									</span>
 								))}
 							</div>

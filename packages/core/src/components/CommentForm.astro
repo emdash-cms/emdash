@@ -108,7 +108,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			{/* Honeypot — hidden from humans, filled by bots */}
 			<div
 				aria-hidden="true"
-				style="position:absolute;left:-9999px;top:-9999px;"
+				style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;"
 			>
 				<label>
 					Don't fill this out
@@ -323,7 +323,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 
 	.ec-comment-user-email::before {
 		content: "·";
-		margin-right: 0.5rem;
+		margin-inline-end: 0.5rem;
 	}
 
 	.ec-comment-form-submit {

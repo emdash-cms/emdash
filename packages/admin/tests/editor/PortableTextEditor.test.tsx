@@ -347,6 +347,28 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(roundTripped).toEqual(blocks);
 	});
 
+	it("opens consecutive quote blocks as one quote and saves them unchanged", () => {
+		const blocks = [
+			textBlock("Before"),
+			textBlock("First quoted line", { style: "blockquote" }),
+			textBlock("Second quoted line", {
+				style: "blockquote",
+				marks: ["em", "link-1"],
+				markDefs: [{ _type: "link", _key: "link-1", href: "https://example.com" }],
+			}),
+			textBlock("After"),
+		];
+
+		const doc = _portableTextToProsemirror(blocks);
+
+		expect(doc.content.map((node) => (node as { type: string }).type)).toEqual([
+			"paragraph",
+			"blockquote",
+			"paragraph",
+		]);
+		expect(_prosemirrorToPortableText(doc)).toEqual(blocks);
+	});
+
 	it("keeps a no-op editor update lossless", async () => {
 		const onChange = vi.fn();
 		const blocks = [
@@ -896,6 +918,106 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(onChange).not.toHaveBeenCalled();
 	});
 
+	describe("opening stored content that ends in a block", () => {
+		type StoredValue = Parameters<typeof PortableTextEditor>[0]["value"];
+		const code = { _type: "code", _key: "code-1", language: "js", code: "const a = 1;" };
+		const span = (extra: Record<string, unknown> = {}) => ({
+			_type: "span",
+			_key: "s1",
+			text: "Intro",
+			...extra,
+		});
+		// The shape markdownToPortableText writes.
+		const withEmptyArrays = [
+			{
+				_type: "block",
+				_key: "p1",
+				style: "normal",
+				markDefs: [],
+				children: [span({ marks: [] })],
+			},
+			code,
+		];
+
+		/** Opens the content and waits for TrailingNode to append its paragraph. */
+		async function open(value: unknown[]) {
+			const onChange = vi.fn();
+			const { editor, pm } = await renderAndGetEditor({ value: value as StoredValue, onChange });
+			await vi.waitFor(() => expect(pm.lastElementChild?.matches("p.is-empty")).toBe(true));
+			return { editor, onChange };
+		}
+
+		it.each([
+			["empty markDefs and marks", withEmptyArrays],
+			["a block with no style", [{ _type: "block", _key: "p1", children: [span()] }, code]],
+			[
+				"a list item with no level",
+				[
+					{ _type: "block", _key: "l1", style: "normal", listItem: "bullet", children: [span()] },
+					code,
+				],
+			],
+			[
+				"an unused markDefs entry",
+				[
+					{
+						_type: "block",
+						_key: "p1",
+						style: "normal",
+						markDefs: [{ _type: "link", _key: "u1", href: "https://example.com" }],
+						children: [span()],
+					},
+					code,
+				],
+			],
+			[
+				"a code block field the editor doesn't map",
+				[
+					{ _type: "block", _key: "p1", style: "normal", children: [span()] },
+					{ ...code, filename: "a.js" },
+				],
+			],
+			["a block with no _key", [{ _type: "block", style: "normal", children: [span()] }, code]],
+			[
+				"a span with no _key",
+				[
+					{
+						_type: "block",
+						_key: "p1",
+						style: "normal",
+						children: [{ _type: "span", text: "Intro" }],
+					},
+					code,
+				],
+			],
+		])("does not report a change when the content has %s", async (_shape, value) => {
+			const { onChange } = await open(value);
+
+			expect(onChange).not.toHaveBeenCalled();
+		});
+
+		it("reports typing", async () => {
+			const { editor, onChange } = await open(withEmptyArrays);
+			onChange.mockClear();
+
+			editor.chain().focus().setTextSelection(6).insertContent(" text").run();
+
+			expect(onChange).toHaveBeenCalledTimes(1);
+			expect(JSON.stringify(onChange.mock.calls[0]![0])).toContain(" text");
+		});
+
+		it("reports undoing an edit back to the opened content", async () => {
+			const { editor, onChange } = await open(withEmptyArrays);
+			onChange.mockClear();
+
+			editor.chain().focus().setTextSelection(6).insertContent(" text").run();
+			editor.commands.undo();
+
+			expect(onChange).toHaveBeenCalledTimes(2);
+			expect(JSON.stringify(onChange.mock.calls[1]![0])).not.toContain(" text");
+		});
+	});
+
 	it("renders an h1 heading", async () => {
 		await render(<PortableTextEditor value={[textBlock("Title", { style: "h1" })]} />);
 		const pm = await waitForEditor();
@@ -1017,7 +1139,8 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(span?.text).toBe("API");
 		expect(span?.marks).toContain("code");
 		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
-		expect(linkDef?.href).toBe("https://api.example.com");
+		expect(linkDef).toMatchObject({ _type: "link", href: "https://api.example.com" });
+		expect(linkDef).not.toMatchObject({ blank: true });
 		expect(span?.marks).toContain(linkDef?._key);
 	});
 
@@ -1219,14 +1342,26 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(items.length).toBe(2);
 	});
 
-	it("renders a blockquote", async () => {
-		await render(
-			<PortableTextEditor value={[textBlock("A wise quote", { style: "blockquote" })]} />,
-		);
+	it.each(["A wise quote", '"A wise quote." — An author', '"اقتباس حكيم." — الكاتب'])(
+		"renders blockquote text without decorative quotation marks: %s",
+		async (text) => {
+			await render(<PortableTextEditor value={[textBlock(text, { style: "blockquote" })]} />);
+			const pm = await waitForEditor();
+			const bq = pm.querySelector("blockquote");
+			expect(bq).toBeTruthy();
+			expect(bq!.textContent).toBe(text);
+			const paragraph = bq!.querySelector("p")!;
+			for (const pseudo of ["::before", "::after"]) {
+				expect(["none", "normal"]).toContain(getComputedStyle(paragraph, pseudo).content);
+			}
+		},
+	);
+
+	it("keeps the quote placeholder visible in an empty blockquote", async () => {
+		await render(<PortableTextEditor value={[textBlock("", { style: "blockquote" })]} />);
 		const pm = await waitForEditor();
-		const bq = pm.querySelector("blockquote");
-		expect(bq).toBeTruthy();
-		expect(bq!.textContent).toBe("A wise quote");
+		const paragraph = pm.querySelector("blockquote p")!;
+		expect(getComputedStyle(paragraph, "::before").content).toContain("Quote");
 	});
 
 	it("renders a code block", async () => {
@@ -1452,10 +1587,12 @@ describe("Editor component behaviour", () => {
 		const scroller = document.querySelector<HTMLElement>('[data-testid="scroller"]')!;
 		const toolbar = document.querySelector<HTMLElement>('[data-emdash-editor-toolbar="document"]')!;
 		const lineStart = editor.state.doc.child(0).nodeSize * 40 + 1;
-		editor.chain().focus().setTextSelection(lineStart).run();
+		await focusEditor(editor.view.dom);
+		editor.commands.setTextSelection(lineStart);
+		scroller.scrollTop = 200;
+		await vi.waitFor(() => expect(toolbar.hasAttribute("data-stuck")).toBe(true));
 		scroller.scrollTop +=
 			editor.view.coordsAtPos(lineStart).top - toolbar.getBoundingClientRect().bottom - 30;
-		await vi.waitFor(() => expect(toolbar.hasAttribute("data-stuck")).toBe(true));
 
 		await userEvent.keyboard("{ArrowUp}");
 
@@ -1490,6 +1627,54 @@ describe("Editor component behaviour", () => {
 		const heading = pm.querySelector("h2")!;
 		await vi.waitFor(() => expect(heading.getAttribute("data-placeholder")).toBe("Heading 2"));
 		expect(getComputedStyle(heading, "::before").content).toBe('"Heading 2"');
+	});
+
+	it("updates the document toolbar fade to the latest batched intersection", async () => {
+		const pending: IntersectionObserverEntry[] = [];
+		let deliver = () => {};
+		const NativeIntersectionObserver = window.IntersectionObserver;
+		window.IntersectionObserver = class extends NativeIntersectionObserver {
+			constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+				super((entries, observer) => {
+					pending.push(...entries);
+					deliver = () => callback(pending.splice(0), observer);
+				}, options);
+			}
+		};
+
+		try {
+			await render(
+				<div style={{ height: 300, overflowY: "auto" }} data-testid="scroller">
+					<PortableTextEditor
+						variant="document"
+						value={Array.from({ length: 30 }, (_, index) => textBlock(`Line ${index}`))}
+					/>
+				</div>,
+			);
+			await waitForEditor();
+			const scroller = document.querySelector<HTMLElement>('[data-testid="scroller"]')!;
+			const toolbar = document.querySelector<HTMLElement>(
+				'[data-emdash-editor-toolbar="document"]',
+			)!;
+			const fade = () => getComputedStyle(toolbar, "::after").opacity;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(true));
+
+			scroller.scrollTop = 200;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(false));
+			deliver();
+			await vi.waitFor(() => expect(fade()).toBe("1"));
+
+			scroller.scrollTop = 0;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(true));
+			scroller.scrollTop = 200;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(false));
+			scroller.scrollTop = 0;
+			await vi.waitFor(() => expect(pending.at(-1)?.isIntersecting).toBe(true));
+			deliver();
+			await vi.waitFor(() => expect(fade()).toBe("0"));
+		} finally {
+			window.IntersectionObserver = NativeIntersectionObserver;
+		}
 	});
 
 	it("fades text under the document toolbar only while it's stuck", async () => {
@@ -2000,6 +2185,34 @@ describe("Code block toolbar", () => {
 		await userEvent.keyboard("{ArrowRight}");
 		await expect.element(screen.getByRole("button", { name: "Copy code" })).toHaveFocus();
 	});
+
+	it.each([
+		["ltr", "Hello"],
+		["rtl", "مرحبا"],
+	] as const)(
+		"rounds the outer corners and divides the buttons in %s content",
+		async (dir, text) => {
+			const { screen } = await renderAndGetEditor({
+				value: [textBlock(text), { _type: "code", _key: "code", code: "const a = 1;" }],
+			});
+			const languageButton = screen.getByRole("button", {
+				name: "Set language (current: Plain text)",
+			});
+			await expect.element(languageButton).toBeInTheDocument();
+			const language = getComputedStyle(languageButton.element());
+			const copy = getComputedStyle(screen.getByRole("button", { name: "Copy code" }).element());
+			const [start, end] = dir === "rtl" ? ["right", "left"] : ["left", "right"];
+
+			expect(copy.direction).toBe(dir);
+			expect(language.getPropertyValue(`border-${start}-width`)).toBe("0px");
+			expect(copy.getPropertyValue(`border-${start}-width`)).toBe("1px");
+			expect(copy.getPropertyValue(`border-${end}-width`)).toBe("0px");
+			expect(language.getPropertyValue(`border-top-${start}-radius`)).not.toBe("0px");
+			expect(language.getPropertyValue(`border-top-${end}-radius`)).toBe("0px");
+			expect(copy.getPropertyValue(`border-top-${start}-radius`)).toBe("0px");
+			expect(copy.getPropertyValue(`border-top-${end}-radius`)).not.toBe("0px");
+		},
+	);
 });
 
 describe("Code block copy action", () => {

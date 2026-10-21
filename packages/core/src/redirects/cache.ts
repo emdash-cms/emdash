@@ -9,7 +9,8 @@
  * A cold isolate loads the rules from its source and waits for them. Once
  * warm, requests never wait: an expired cache keeps serving while one
  * background revalidation asks the source whether the loaded version is still
- * current and reloads only when it is not.
+ * current and reloads only when it is not. A caller that must not act on stale
+ * rules asks for them to be verified, and waits for that check.
  *
  * This module deliberately has NO Astro imports so it can be safely imported
  * from handlers, seed, CLI, and tests without dragging in `astro:middleware`.
@@ -147,9 +148,40 @@ function revalidateInBackground(source: RedirectSource, cached: CachedRedirects)
 	});
 }
 
-export async function loadCachedRedirects(source: RedirectSource): Promise<CachedRedirects> {
+export interface LoadCachedRedirectsOptions {
+	/**
+	 * Confirm the cached rules are current before returning them, reloading
+	 * them when they are not, instead of revalidating in the background. If the
+	 * check fails, the cached rules are returned.
+	 */
+	verify?: boolean;
+}
+
+export async function loadCachedRedirects(
+	source: RedirectSource,
+	options: LoadCachedRedirectsOptions = {},
+): Promise<CachedRedirects> {
+	let verify = options.verify === true;
 	for (let attempt = 0; attempt < REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS; attempt++) {
 		const cached = cacheState.redirects;
+		if (cached && verify) {
+			verify = false;
+			let current: boolean;
+			try {
+				current = cached.version !== null && (await source.isCurrent(cached.version));
+			} catch (error) {
+				console.error("[emdash:redirects] checking redirects are current failed:", error);
+				return cached;
+			}
+			if (current) {
+				if (cacheState.redirects === cached) {
+					cacheState.expiresAt = Date.now() + REDIRECT_CACHE_TTL_MS;
+				}
+				return cached;
+			}
+			if (cacheState.redirects === cached) invalidateRedirectCache();
+			continue;
+		}
 		if (cached) {
 			if (Date.now() >= cacheState.expiresAt) revalidateInBackground(source, cached);
 			return cached;

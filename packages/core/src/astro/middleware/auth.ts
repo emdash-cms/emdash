@@ -126,6 +126,8 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/search/suggest",
 ]);
 
+const DEV_PUBLIC_API_EXACT = new Set(["/_emdash/api/typegen", "/_emdash/api/dev/scheduled-tasks"]);
+
 // Build merged public routes at module load from auth provider descriptors.
 // Routes ending with "/" are treated as prefixes; all others are exact matches.
 const { exact: _providerExactRoutes, prefixes: _providerPrefixRoutes } = (() => {
@@ -171,7 +173,7 @@ function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
 	if (_providerExactRoutes.has(pathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
 	return false;
 }
 
@@ -631,9 +633,16 @@ async function handleExternalAuth(
 		locals.user = user;
 
 		// Persist to session so public pages can identify the user
-		// (external auth headers are only verified on /_emdash routes)
+		// (external auth headers are only verified on /_emdash routes).
+		// Astro marks the session dirty on every set(), and a dirty session is
+		// written to the store at the end of the request. Skip the set when the
+		// stored id already matches, or each request costs a session-store write
+		// (a KV put on Cloudflare, which also rate-limits writes to one key).
 		const { session } = context;
-		session?.set("user", { id: user.id });
+		if (session) {
+			const sessionUser = await resolveSessionUser(session);
+			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+		}
 
 		return next();
 	} catch (error) {

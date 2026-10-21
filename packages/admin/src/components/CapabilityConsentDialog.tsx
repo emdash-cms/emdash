@@ -283,7 +283,7 @@ export function CapabilityConsentDialog({
 							<ul className="mt-2 space-y-1 ps-5 text-xs">
 								{newlyPublicRoutes.map((route) => (
 									<li key={route} className="list-disc font-mono">
-										{route}
+										<bdi dir="ltr">{route}</bdi>
 									</li>
 								))}
 							</ul>
@@ -299,7 +299,9 @@ export function CapabilityConsentDialog({
 							<ul className="mt-2 space-y-2">
 								{mcpTools.map((tool) => (
 									<li key={tool.name} className="rounded bg-kumo-base p-2 text-xs">
-										<div className="font-mono">{tool.name}</div>
+										<div className="font-mono">
+											<bdi dir="ltr">{tool.name}</bdi>
+										</div>
 										<p className="mt-1 text-kumo-subtle">{tool.description}</p>
 										<p className="mt-1 text-kumo-subtle">
 											{t`Route: ${tool.route} · Permission: ${tool.permission}`}

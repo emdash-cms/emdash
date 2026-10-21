@@ -125,6 +125,15 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain('collections[1].slug: duplicate collection slug "posts"');
 		});
 
+		it("should reject a reserved collection slug", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [{ slug: "content", label: "Content", fields: [] }],
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain('collections[0].slug: collection slug "content" is reserved');
+		});
+
 		it("should reject a non-boolean routable value", () => {
 			const result = validateSeed({
 				version: "1",
@@ -317,6 +326,23 @@ describe("validateSeed", () => {
 			});
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]).toContain('duplicate field slug "title"');
+		});
+
+		it("should reject a reserved field slug", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "plugins",
+						label: "Plugins",
+						fields: [{ slug: "version", label: "Version", type: "string" }],
+					},
+				],
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				'collections[0].fields[0].slug: field slug "version" is reserved',
+			);
 		});
 
 		it("should accept valid collection with fields", () => {

@@ -41,7 +41,7 @@ import {
 	type CalendarSearch,
 	type CalendarView,
 } from "../lib/calendar.js";
-import { getDayPickerLocale } from "../locales/day-picker.js";
+import { useDateLocale } from "../locales/date-locale.js";
 
 const REFRESH_MS = 60_000;
 /** Below this width the month grid's cells get too narrow, so the calendar uses its compact layout. */
@@ -148,7 +148,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const today = dayKeyInZone(now, display.timeZone);
 	const month = search.month ?? today.slice(0, 7);
 	const view: CalendarView = search.view ?? (compact ? "agenda" : "month");
-	const weekStartsOn = getDayPickerLocale(i18n.locale).options?.weekStartsOn ?? 0;
+	const dateLocale = useDateLocale();
+	const weekStartsOn = dateLocale.options?.weekStartsOn ?? 0;
 	const gridDays = React.useMemo(() => monthGridDays(month, weekStartsOn), [month, weekStartsOn]);
 	const range = React.useMemo(() => fetchRange(gridDays), [gridDays]);
 

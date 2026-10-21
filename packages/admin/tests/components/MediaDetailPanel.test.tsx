@@ -1540,7 +1540,7 @@ describe("MediaDetailPanel", () => {
 		const refreshed = { ...item, alt: "New alt" };
 		resolveUpdate(refreshed);
 		await vi.waitFor(() => {
-			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed);
+			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed, { alt: "New alt" });
 		});
 		expect(onClose).not.toHaveBeenCalled();
 		await expect.element(altInput).toBeEnabled();
@@ -1561,10 +1561,29 @@ describe("MediaDetailPanel", () => {
 			expect(updateMedia).toHaveBeenCalledWith("media-1", {
 				alt: "Shortcut alt",
 			});
-			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed);
+			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed, { alt: "Shortcut alt" });
 		});
 		expect(onClose).not.toHaveBeenCalled();
 	});
+
+	it.each(["Updated caption", ""])(
+		"passes an explicit caption metadata change when saving %j",
+		async (caption) => {
+			const item = makeImageItem({ caption: "Previous caption" });
+			const refreshed = makeLocalItem({ ...item, caption });
+			const onItemRefreshed = vi.fn();
+			vi.mocked(updateMedia).mockResolvedValueOnce(refreshed);
+			const screen = await renderPanel({ item, onItemRefreshed });
+
+			await screen.getByLabelText("Caption").fill(caption);
+			screen.getByRole("button", { name: "Save" }).element().click();
+
+			await vi.waitFor(() => {
+				expect(updateMedia).toHaveBeenCalledWith("media-1", { caption });
+				expect(onItemRefreshed).toHaveBeenCalledWith(refreshed, { caption });
+			});
+		},
+	);
 
 	it("loads bounded Location options only after the control opens", async () => {
 		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });

@@ -203,7 +203,7 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 				<h1 className="truncate text-2xl font-semibold">{section.title}</h1>
 				<p className="text-sm text-kumo-subtle">
 					{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
-					{section.slug}
+					<bdi dir="ltr">{section.slug}</bdi>
 				</p>
 			</EditorHeader>
 
@@ -277,6 +277,7 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 
 								<div>
 									<Input
+										dir="ltr"
 										label={t`Slug`}
 										value={sectionSlug}
 										onChange={(e) => {

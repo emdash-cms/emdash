@@ -12,7 +12,7 @@ import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/das
 import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api/dashboard";
 import { fetchTransferCapabilities, TRANSFER_CAPABILITIES_QUERY_KEY } from "../lib/api/transfer.js";
 import { usePluginWidget } from "../lib/plugin-context";
-import { cn, formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime } from "../lib/utils.js";
 import { ArrowNext } from "./ArrowIcons";
 import {
 	ContentStatusIcon,
@@ -85,7 +85,10 @@ export function Dashboard({ manifest }: DashboardProps) {
 					<SummaryMetrics
 						stats={stats}
 						loading={isLoading}
-						linkCalendar={(user?.role ?? 0) >= ROLE_CONTRIBUTOR}
+						linkCalendar={
+							(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+							!manifest.admin?.hiddenNavItems?.includes("calendar")
+						}
 					/>
 
 					{/* Collections + Recent activity */}
@@ -344,9 +347,11 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 					{config.labelSingular ?? config.label}
 				</RouterLinkButton>
 			))}
-			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
-				{t`Upload Media`}
-			</RouterLinkButton>
+			{!manifest.admin?.hiddenNavItems?.includes("media") && (
+				<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
+					{t`Upload Media`}
+				</RouterLinkButton>
+			)}
 		</div>
 	);
 }
@@ -404,22 +409,32 @@ function SummaryMetrics({
 					},
 				]
 			: []),
-		{
-			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
-			value: stats.mediaCount,
-		},
-		{
-			label: plural(stats.userCount, { one: "User", other: "Users" }),
-			value: stats.userCount,
-		},
+		...(stats.mediaCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
+						value: stats.mediaCount,
+					},
+				]),
+		...(stats.userCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.userCount, { one: "User", other: "Users" }),
+						value: stats.userCount,
+					},
+				]),
 	];
 
 	return (
 		<div
 			className={
-				hasScheduledContent
+				metrics.length === 4
 					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-					: "grid gap-4 sm:grid-cols-3"
+					: metrics.length === 3
+						? "grid gap-4 sm:grid-cols-3"
+						: "grid gap-4 sm:grid-cols-2"
 			}
 		>
 			{metrics.map((metric) => (
@@ -585,7 +600,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 									data-testid="activity-time"
 									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
 								>
-									{formatRelativeTime(item.updatedAt, i18n.locale)}
+									<bdi>{formatRelativeTime(item.updatedAt, i18n.locale)}</bdi>
 								</span>
 							</Link>
 						))}

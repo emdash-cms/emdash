@@ -47,6 +47,8 @@ export function initForms() {
 		document.querySelectorAll<HTMLFormElement>("[data-ec-form]").forEach((form) => {
 			if (form.dataset.ecInitialized) return;
 			form.dataset.ecInitialized = "1";
+			// Set here, not in the markup, so a reader without JavaScript keeps native validation.
+			form.noValidate = true;
 			restoreState(form);
 			initMultiPage(form);
 			initConditions(form);
