@@ -486,6 +486,7 @@ export function PublishingScheduleDialog({
 		if (!onSchedule || pending || activeSubmissionRef.current?.entryKey === entryKey) return;
 		const result = serializeFuturePublishingDateTime(date, time);
 		if (!result.success) {
+			setMutationError(null);
 			setInvalid({ reason: result.error });
 			return;
 		}
@@ -609,6 +610,7 @@ export function PublicationDateDialog({
 		if (pending || activeSubmissionRef.current?.contextKey === contextKey) return;
 		const result = resolvePublishingLocalDateTime(date, time);
 		if (!result.success) {
+			setMutationError(null);
 			setInvalid({ reason: result.error });
 			return;
 		}

@@ -238,6 +238,26 @@ it("shows why the server rejected the schedule", async () => {
 		.toHaveTextContent("Scheduling is locked for this post");
 });
 
+it("replaces a server error with the reason a retry cannot be saved", async () => {
+	vi.useFakeTimers({ toFake: ["Date"] });
+	vi.setSystemTime(new Date(2035, 5, 15, 14, 57));
+	const onSchedule = vi.fn().mockRejectedValue(new Error("Scheduling is locked for this post"));
+	const screen = await render(
+		<PublishingScheduleDialog {...scheduleDialogProps} open onSchedule={onSchedule} />,
+	);
+	const schedule = screen.getByRole("button", { name: "Schedule", exact: true });
+	await expect.element(schedule).toBeVisible();
+	schedule.element().click();
+	await expect
+		.element(screen.getByRole("alert"))
+		.toHaveTextContent("Scheduling is locked for this post");
+
+	vi.setSystemTime(new Date(2035, 5, 15, 16, 30));
+	schedule.element().click();
+
+	await expect.element(screen.getByRole("alert")).toHaveTextContent("Choose a time in the future");
+});
+
 it("accepts a single-digit minute", async () => {
 	function ControlledFields() {
 		const [time, setTime] = React.useState("09:00");
