@@ -59,6 +59,7 @@ describe("build", () => {
 	});
 
 	it("stops at the budget and resumes where it left off", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
 		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);
 
@@ -69,7 +70,7 @@ describe("build", () => {
 			sweepPage,
 			forget,
 			syncPage: async (source: string, cursor: string | undefined) => {
-				await new Promise((resolve) => setTimeout(resolve, 20));
+				vi.advanceTimersByTime(20);
 				return slow.syncPage(source, cursor);
 			},
 		};
