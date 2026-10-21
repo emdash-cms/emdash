@@ -322,6 +322,40 @@ describe("build", () => {
 		expect(await getBuild(ctx)).toBeNull();
 	});
 
+	it("pauses a REST build once it has made its share of the token's requests", async () => {
+		const since = Date.now();
+		const run = async (kind: "rest" | "binding") => {
+			const ctx = await buildContext();
+			await startBuild(ctx, ["posts"]);
+			await ctx.kv.set("build", { ...(await getBuild(ctx)), requests: { since, count: 599 } });
+			const indexer = pagedIndexer();
+			const build = await runBuild(ctx, indexer, 10_000, { kind });
+			return { calls: indexer.calls, build };
+		};
+
+		const rest = await run("rest");
+		const binding = await run("binding");
+
+		expect(rest.calls).toEqual(["posts:snapshot-1"]);
+		expect(rest.build?.pausedUntil).toBe(since + 5 * 60_000);
+		expect(binding.calls).toEqual(["posts:snapshot-1", "posts:start", "posts:page-2"]);
+	});
+
+	it("pauses for minutes instead of seconds when a rate-limited token is rejected", async () => {
+		const pausedFor = async (tokenRejected: boolean) => {
+			const ctx = await buildContext();
+			await startBuild(ctx, ["posts"]);
+			const build = await runBuild(ctx, pagedIndexer({ backOff: true }), 10_000, {
+				kind: "rest",
+				tokenRejected: async () => tokenRejected,
+			});
+			return (build?.pausedUntil ?? 0) - Date.now();
+		};
+
+		expect(await pausedFor(false)).toBeLessThanOrEqual(10_000);
+		expect(await pausedFor(true)).toBeGreaterThan(60_000);
+	});
+
 	it("pauses on a rate limit and retries the same page once the pause is over", async () => {
 		const ctx = await buildContext();
 		await startBuild(ctx, ["posts"]);

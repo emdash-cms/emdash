@@ -264,8 +264,8 @@ export function createRoutes(options: AiSearchOptions): Record<string, PluginRou
 			permission: "search:manage",
 			methods: ["POST"],
 			handler: async (ctx) => {
-				const { indexer } = await requireSession(ctx);
-				return { build: await runBuild(ctx, indexer, STEP_BUDGET_MS) };
+				const { indexer, provider } = await requireSession(ctx);
+				return { build: await runBuild(ctx, indexer, STEP_BUDGET_MS, provider) };
 			},
 		},
 	};

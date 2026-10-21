@@ -65,7 +65,9 @@ Alternatively, enter them on the plugin's settings page in the admin. EmDash sto
 
 The plugin uses the account's `default` namespace. To use another, set `EMDASH_AI_SEARCH_NAMESPACE`. Choose the namespace before building the index, because the plugin keeps its instance in that namespace. If you change it later, the settings page reports that the instance is missing. Choose **Edit setup** and finish it to create the instance and rebuild the index. Changing the account on the settings page does this automatically.
 
-With an API token, every visitor search is a Cloudflare API request, and Cloudflare [limits each token](https://developers.cloudflare.com/fundamentals/api/reference/limits/) to 1,200 requests every 5 minutes, shared with indexing and the admin. Each EmDash process allows a visitor 30 searches a minute, counted by IP address. A self-hosted site behind a reverse proxy must configure [`trustedProxyHeaders`](/reference/configuration/#trustedproxyheaders) for this limit to apply; without a trusted client IP, searches are not limited. A Workers binding does not count against this limit, so busy sites on Workers should use one.
+With an API token, indexing, the admin, and every visitor search make Cloudflare API requests, and Cloudflare [limits each token](https://developers.cloudflare.com/fundamentals/api/reference/limits/) to 1,200 requests every 5 minutes. A Workers binding does not count against that limit, so busy sites on Workers should use one.
+
+To stay within the limit, indexing uses at most half of it, so building the index takes about an hour per 7,000 records. Each EmDash process also allows a visitor 30 searches a minute, counted by IP address. A self-hosted site behind a reverse proxy must configure [`trustedProxyHeaders`](/reference/configuration/#trustedproxyheaders) for the search limit to apply; without a trusted client IP, searches are not limited.
 
 ## Options
 
