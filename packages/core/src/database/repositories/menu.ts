@@ -651,14 +651,39 @@ export class MenuRepository {
 		return rowToMenuItem(row);
 	}
 
-	/** Delete an item scoped to its menu. Returns false if nothing was deleted. */
+	/**
+	 * Delete an item and its descendants, scoped to its menu. Returns false if
+	 * the item was not found. SQLite/D1 has no `parent_id` cascade (dropped by
+	 * migration 036), so descendants are removed here for every dialect.
+	 */
 	async deleteItem(menuId: string, itemId: string): Promise<boolean> {
-		const result = await this.db
-			.deleteFrom("_emdash_menu_items")
-			.where("id", "=", itemId)
-			.where("menu_id", "=", menuId)
-			.execute();
-		const deleted = result[0]?.numDeletedRows !== 0n;
+		const deleted = await withTransaction(this.db, async (trx) => {
+			const rows = await trx
+				.selectFrom("_emdash_menu_items")
+				.select(["id", "parent_id"])
+				.where("menu_id", "=", menuId)
+				.execute();
+			if (!rows.some((row) => row.id === itemId)) return false;
+
+			const childrenByParent = new Map<string, string[]>();
+			for (const row of rows) {
+				if (row.parent_id === null) continue;
+				const siblings = childrenByParent.get(row.parent_id) ?? [];
+				siblings.push(row.id);
+				childrenByParent.set(row.parent_id, siblings);
+			}
+			// The set also stops the walk on cyclic links from older API writes.
+			const toDelete = new Set([itemId]);
+			for (const id of toDelete) {
+				for (const childId of childrenByParent.get(id) ?? []) toDelete.add(childId);
+			}
+
+			// Children before parents: on D1 a failed later batch then leaves a subtree that is still attached.
+			for (const batch of chunks([...toDelete].toReversed(), SQL_BATCH_SIZE)) {
+				await trx.deleteFrom("_emdash_menu_items").where("id", "in", batch).execute();
+			}
+			return true;
+		});
 		if (deleted) invalidateMenuObjectCache();
 		return deleted;
 	}
