@@ -18,6 +18,7 @@ import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js"
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { jsonTextValues } from "./database/json-recordset.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
+import type { BylineSummary, ContentBylineCredit } from "./database/repositories/types.js";
 import { decodeCursor, encodeCursor, InvalidCursorError } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig, getLocaleCandidates, type I18nConfig } from "./i18n/config.js";
@@ -124,6 +125,13 @@ export const FOLDED_BYLINES = Symbol.for("emdash:foldedBylines");
  * via the byline query path on sites that never use bylines.
  */
 export const FOLDED_BYLINES_EXIST = Symbol.for("emdash:foldedBylinesExist");
+/**
+ * Marker for the folded author-fallback byline: the byline linked to the
+ * entry's `author_id` in the entry's locale, or `null` when there is none.
+ * Lets byline hydration resolve an entry with no explicit credit without the
+ * byline query path. Unset when the row's fold predates it.
+ */
+export const FOLDED_AUTHOR_BYLINE = Symbol.for("emdash:foldedAuthorByline");
 
 /**
  * Correlated JSON-array subqueries that fold taxonomy-term and byline hydration
@@ -188,7 +196,10 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 			)
 		: sql.raw("json_object('roleLabel', cb.role_label, 'sortOrder', cb.sort_order, 'byline', ");
 	const credit = sql`${creditObj}${bylineInner})`;
-	const bylines = hasLocaleAliases
+	// The locale match differs with locale aliases: a row's locale may be any
+	// of its configured locale's codes, so both subqueries compare canonical
+	// locales and pick one byline per match, as the query path does.
+	const credits = hasLocaleAliases
 		? sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb
 		${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.id = (
 			SELECT candidate.id FROM _emdash_bylines AS candidate
@@ -197,8 +208,26 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 			ORDER BY ${storedLocaleOrder("candidate.locale")}, candidate.id LIMIT 1
 		)
 		LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id
-		WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id) AS ${sql.ref("_emdash_bylines")}`
-		: sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb ${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale) AS ${sql.ref("_emdash_bylines")}`;
+		WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id)`
+		: sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb ${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale)`;
+	// The author fallback for an entry with no explicit credit: the byline
+	// linked to its author in its locale. Without aliases `(user_id, locale)`
+	// is unique, so this is one index probe per row and matches
+	// `findByUserIds` exactly; with them, the same canonical-locale match and
+	// ordering as the credits above picks one.
+	const author = hasLocaleAliases
+		? sql`(SELECT ${bylineInner} FROM ${sql.ref("_emdash_bylines")} AS b LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id
+		WHERE b.user_id = ${o}.author_id
+			AND ${canonicalLocaleColumn("b.locale")} = ${canonicalLocaleColumn(`${outer}.locale`)}
+		ORDER BY ${storedLocaleOrder("b.locale")}, b.id LIMIT 1)`
+		: sql`(SELECT ${bylineInner} FROM ${sql.ref("_emdash_bylines")} AS b LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE b.user_id = ${o}.author_id AND b.locale = ${o}.locale LIMIT 1)`;
+	// Both ride in one result column: D1 caps a result set at 100 columns and
+	// the entry read is budgeted to the column, so folding them together keeps
+	// its width unchanged. SQLite's `json()` keeps each subquery's JSON text
+	// from being nested as a string.
+	const bylines = pg
+		? sql`json_build_object('credits', ${credits}, 'author', ${author}) AS ${sql.ref("_emdash_bylines")}`
+		: sql`json_object('credits', json(${credits}), 'author', json(${author})) AS ${sql.ref("_emdash_bylines")}`;
 	// Uncorrelated existence probe (evaluated once per statement, not per row):
 	// 1 when `_emdash_bylines` has any row, NULL when empty. An empty table
 	// means an empty fold is authoritative — no credit in any locale, no
@@ -276,24 +305,34 @@ function expandFoldedSeo(row: Record<string, unknown>): void {
 	}
 }
 
-export function creditsFromFoldedBylines(folded: unknown[]) {
+/**
+ * A folded byline object as a `BylineSummary`. The fold's JSON keys are the
+ * `BylineSummary` keys (see `bylineInner` in {@link foldedHydrationSelects}).
+ */
+function foldedBylineSummary(raw: unknown): BylineSummary {
+	const byline = isPlainObject(raw) ? raw : {};
+	// Folded rows omit custom-field values.
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- keys set by the fold's SQL
+	return { ...byline, isGuest: Boolean(byline.isGuest), customFields: {} } as BylineSummary;
+}
+
+export function creditsFromFoldedBylines(folded: unknown[]): ContentBylineCredit[] {
 	return folded
 		.map((raw) => {
 			const credit = isPlainObject(raw) ? raw : {};
-			const byline = isPlainObject(credit.byline) ? credit.byline : {};
 			return {
 				roleLabel: typeof credit.roleLabel === "string" ? credit.roleLabel : null,
 				sortOrder: Number(credit.sortOrder ?? 0),
 				source: "explicit" as const,
-				byline: {
-					...byline,
-					isGuest: Boolean(byline.isGuest),
-					// Folded rows omit custom-field values.
-					customFields: {},
-				},
+				byline: foldedBylineSummary(credit.byline),
 			};
 		})
 		.toSorted((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/** The inferred credit for a folded author-fallback byline. */
+export function creditFromFoldedAuthorByline(raw: Record<string, unknown>): ContentBylineCredit {
+	return { byline: foldedBylineSummary(raw), sortOrder: 0, roleLabel: null, source: "inferred" };
 }
 
 /**
@@ -313,11 +352,26 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 			} catch {
 				continue; // malformed: fall back to the query path
 			}
-		} else if (Array.isArray(raw)) {
+		} else if (Array.isArray(raw) || isPlainObject(raw)) {
 			value = raw; // Postgres json/jsonb already parsed by the driver
 		} else {
 			continue;
 		}
+		// The bylines column is `{ credits, author }` (see
+		// foldedHydrationSelects). A bare array is a fold without the author
+		// fallback; the marker stays unset and hydration treats it as unknown.
+		if (sym === FOLDED_BYLINES && isPlainObject(value)) {
+			const { credits, author } = value;
+			if (author === null || isPlainObject(author)) {
+				Object.defineProperty(data, FOLDED_AUTHOR_BYLINE, {
+					value: author,
+					enumerable: false,
+					configurable: true,
+				});
+			}
+			value = credits;
+		}
+		if (!Array.isArray(value)) continue;
 		Object.defineProperty(data, sym, { value, enumerable: false, configurable: true });
 	}
 	// Existence probe: 1 = table has rows, NULL = empty (both dialects). A row

@@ -97,7 +97,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# kommentar importerad} other {# kommentarer importerade}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2445
+#: packages/admin/src/router.tsx:2446
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# kommentar uppdaterad} other {# kommentarer uppdaterade}}"
 
@@ -156,7 +156,7 @@ msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {# matchande tagg} other {# matchande taggar}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:496
+#: packages/admin/src/components/PluginManager.tsx:503
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP-verktyg} other {# MCP-verktyg}}"
 
@@ -187,7 +187,7 @@ msgstr "{0, plural, one {# behörighet begärs} other {# behörigheter begärs}}
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:510
+#: packages/admin/src/components/PluginManager.tsx:517
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# behörighet} other {# behörigheter}}"
 
@@ -282,12 +282,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {fält} other {fält}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:411
+#: packages/admin/src/components/Dashboard.tsx:416
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr "{0, plural, one {Mediefil} other {Mediefiler}}"
 
 #. placeholder {0}: policyRejected - policyRejections.length
-#: packages/admin/src/components/Dashboard.tsx:211
+#: packages/admin/src/components/Dashboard.tsx:214
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
 msgstr "{0, plural, one {Ytterligare en stoppad post visas inte.} other {Ytterligare # stoppade poster visas inte.}}"
 
@@ -302,7 +302,7 @@ msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, one {Visa # till} other {Visa # till}}"
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:419
+#: packages/admin/src/components/Dashboard.tsx:424
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {Användare} other {Användare}}"
 
@@ -339,12 +339,12 @@ msgid "{0} fallback"
 msgstr "{0} (reserv)"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:149
+#: packages/admin/src/components/PluginManager.tsx:156
 msgid "{0} has been deactivated"
 msgstr "{0} har inaktiverats"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:391
+#: packages/admin/src/components/PluginManager.tsx:398
 msgid "{0} has been removed"
 msgstr "{0} har tagits bort"
 
@@ -359,7 +359,7 @@ msgid "{0} installs"
 msgstr "{0} installationer"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:130
+#: packages/admin/src/components/PluginManager.tsx:137
 msgid "{0} is now active"
 msgstr "{0} är nu aktiv"
 
@@ -432,7 +432,7 @@ msgid "{0} of media, {1} of records"
 msgstr "{0} media, {1} poster"
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:213
+#: packages/admin/src/components/PluginManager.tsx:220
 msgid "{0} plugins"
 msgstr "{0} tillägg"
 
@@ -464,7 +464,7 @@ msgid "{0} updated everywhere it appears."
 msgstr "{0} har uppdaterats överallt där den visas."
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:300
+#: packages/admin/src/components/PluginManager.tsx:307
 msgid "{0} updated to v{installedVersion}"
 msgstr "{0} uppdaterat till v{installedVersion}"
 
@@ -704,11 +704,11 @@ msgstr "{origin} omdirigerar till en annan adress"
 msgid "{origin} redirects to {target}. Enter that address instead."
 msgstr "{origin} omdirigerar till {target}. Ange den adressen i stället."
 
-#: packages/admin/src/components/Dashboard.tsx:151
+#: packages/admin/src/components/Dashboard.tsx:154
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {En schemalagd publicering är försenad och schemaläggaren har inte gett något livstecken på länge. Kör `npx emdash doctor` och kontrollera din driftsatta Cron Trigger.} other {# schemalagda publiceringar är försenade och schemaläggaren har inte gett något livstecken på länge. Kör `npx emdash doctor` och kontrollera din driftsatta Cron Trigger.}}"
 
-#: packages/admin/src/components/Dashboard.tsx:146
+#: packages/admin/src/components/Dashboard.tsx:149
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {En schemalagd publicering är försenad men schemaläggaren har inte slutfört någon körning. Kör `npx emdash doctor` och kontrollera din driftsatta Cron Trigger.} other {# schemalagda publiceringar är försenade men schemaläggaren har inte slutfört någon körning. Kör `npx emdash doctor` och kontrollera din driftsatta Cron Trigger.}}"
 
@@ -734,7 +734,7 @@ msgstr "Inställningar för {pluginName}"
 msgid "{plural} go live now; draft edits stay unpublished."
 msgstr "{plural} publiceras direkt. Ändringar i utkast förblir opublicerade."
 
-#: packages/admin/src/components/Dashboard.tsx:165
+#: packages/admin/src/components/Dashboard.tsx:168
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr "{policyRejected, plural, one {Öppna den berörda posten, åtgärda det policyn invänder mot och schemalägg den igen. Meddelandet försvinner när posten har schemalagts eller publicerats.} other {Öppna de berörda posterna, åtgärda det policyn invänder mot och schemalägg dem igen. Varje meddelande försvinner när posten har schemalagts eller publicerats.}}"
 
@@ -832,11 +832,11 @@ msgstr "Ny publiceringstid för {title}: {when}."
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# objekt} other {# objekt}}"
 
-#: packages/admin/src/components/Dashboard.tsx:395
+#: packages/admin/src/components/Dashboard.tsx:400
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {Utkast} other {Utkast}}"
 
-#: packages/admin/src/components/Dashboard.tsx:401
+#: packages/admin/src/components/Dashboard.tsx:406
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {Schemalagd} other {Schemalagda}}"
 
@@ -1172,7 +1172,7 @@ msgstr "Acceptera inbjudan"
 msgid "Access denied"
 msgstr "Åtkomst nekad"
 
-#: packages/admin/src/router.tsx:2465
+#: packages/admin/src/router.tsx:2466
 msgid "Access Denied"
 msgstr "Åtkomst nekad"
 
@@ -1448,7 +1448,7 @@ msgstr "Lägg till term"
 msgid "Add to posts"
 msgstr "Lägg till i inlägg"
 
-#: packages/admin/src/components/Widgets.tsx:404
+#: packages/admin/src/components/Widgets.tsx:412
 msgid "Add Widget Area"
 msgstr "Lägg till widgetområde"
 
@@ -1552,16 +1552,16 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:640
+#: packages/admin/src/components/Sidebar.tsx:692
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Administratör"
 
-#: packages/admin/src/components/Sidebar.tsx:582
+#: packages/admin/src/components/Sidebar.tsx:634
 msgid "Admin navigation"
 msgstr "Administrationsnavigering"
 
-#: packages/admin/src/components/WelcomeModal.tsx:25
+#: packages/admin/src/components/WelcomeModal.tsx:26
 msgid "Administrator"
 msgstr "Administratör"
 
@@ -1590,12 +1590,12 @@ msgstr "När du uttryckligen anropar det här tillägget kan det skicka markerat
 msgid "Agenda"
 msgstr "Agenda"
 
-#: packages/admin/src/components/PluginManager.tsx:605
+#: packages/admin/src/components/PluginManager.tsx:612
 msgid "Agent access"
 msgstr "Agentåtkomst"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:409
 msgid "Agent access for {0} has been updated"
 msgstr "Agentåtkomsten för {0} har uppdaterats"
 
@@ -1684,7 +1684,7 @@ msgstr "Alla typer"
 msgid "All uploads finished"
 msgstr "Alla uppladdningar är klara"
 
-#: packages/admin/src/components/PluginManager.tsx:607
+#: packages/admin/src/components/PluginManager.tsx:614
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "Låt MCP-tokens med behörigheten plugin-tool anropa de här rutterna."
 
@@ -1721,7 +1721,7 @@ msgstr "Redan tilldelad eller dubblett"
 msgid "Already have an account?"
 msgstr "Har du redan ett konto?"
 
-#: packages/admin/src/components/PluginManager.tsx:804
+#: packages/admin/src/components/PluginManager.tsx:811
 msgid "Also delete plugin storage data"
 msgstr "Ta även bort tilläggets lagrade data"
 
@@ -1784,9 +1784,9 @@ msgstr "En krypterad digital nyckel som du låser upp med fingeravtryck, ansikts
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:136
-#: packages/admin/src/components/PluginManager.tsx:155
-#: packages/admin/src/components/PluginManager.tsx:333
+#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:162
+#: packages/admin/src/components/PluginManager.tsx:340
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -1829,11 +1829,11 @@ msgstr "En krypterad digital nyckel som du låser upp med fingeravtryck, ansikts
 #: packages/admin/src/router.tsx:1593
 #: packages/admin/src/router.tsx:1626
 #: packages/admin/src/router.tsx:1647
-#: packages/admin/src/router.tsx:2410
-#: packages/admin/src/router.tsx:2426
-#: packages/admin/src/router.tsx:2451
-#: packages/admin/src/router.tsx:2877
-#: packages/admin/src/router.tsx:3062
+#: packages/admin/src/router.tsx:2411
+#: packages/admin/src/router.tsx:2427
+#: packages/admin/src/router.tsx:2452
+#: packages/admin/src/router.tsx:2878
+#: packages/admin/src/router.tsx:3063
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1889,7 +1889,7 @@ msgstr "Valfritt antal"
 msgid "API Tokens"
 msgstr "API-tokens"
 
-#: packages/admin/src/components/Widgets.tsx:442
+#: packages/admin/src/components/Widgets.tsx:450
 msgid "Appears on posts and pages"
 msgstr "Visas på inlägg och sidor"
 
@@ -1961,7 +1961,7 @@ msgid "Archived"
 msgstr "Arkiverad"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:68
-#: packages/admin/src/components/Widgets.tsx:159
+#: packages/admin/src/components/Widgets.tsx:167
 msgid "Archives"
 msgstr "Arkiv"
 
@@ -1984,7 +1984,7 @@ msgstr "Är du säker på att du vill ta bort fältet ”{0}”?"
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "Är du säker på att du vill ta bort den här menyn? Då tas även alla menyobjekt bort. Åtgärden kan inte ångras."
 
-#: packages/admin/src/components/WelcomeModal.tsx:59
+#: packages/admin/src/components/WelcomeModal.tsx:60
 msgid "As an administrator, you can invite other users from the Users section."
 msgstr "Som administratör kan du bjuda in andra användare från avsnittet Användare."
 
@@ -2058,7 +2058,7 @@ msgstr "Autentiseringen avbröts eller tog för lång tid. Försök igen."
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1418
 #: packages/admin/src/components/RelationForm.tsx:315
 #: packages/admin/src/components/users/roleDefinitions.ts:30
-#: packages/admin/src/components/WelcomeModal.tsx:27
+#: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Author"
 msgstr "Författare"
 
@@ -2152,7 +2152,7 @@ msgstr "Finns på {0}"
 msgid "Available Providers"
 msgstr "Tillgängliga leverantörer"
 
-#: packages/admin/src/components/Widgets.tsx:469
+#: packages/admin/src/components/Widgets.tsx:477
 msgid "Available Widgets"
 msgstr "Tillgängliga widgetar"
 
@@ -2392,7 +2392,7 @@ msgstr "Bläddra bland filer"
 msgid "Browse files to upload"
 msgstr "Välj filer att ladda upp"
 
-#: packages/admin/src/components/PluginManager.tsx:67
+#: packages/admin/src/components/PluginManager.tsx:74
 msgid "Browse the <0>registry</0> to install plugins."
 msgstr "Bläddra i <0>registret</0> för att installera tillägg."
 
@@ -2452,7 +2452,7 @@ msgstr "Skribentfält"
 msgid "Byline schema"
 msgstr "Skribentschema"
 
-#: packages/admin/src/components/Sidebar.tsx:484
+#: packages/admin/src/components/Sidebar.tsx:526
 msgid "Byline Schema"
 msgstr "Skribentschema"
 
@@ -2466,7 +2466,7 @@ msgstr "Skribenten har uppdaterats"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1148
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:454
+#: packages/admin/src/components/Sidebar.tsx:492
 #: packages/admin/src/routes/bylines.tsx:285
 msgid "Bylines"
 msgstr "Skribenter"
@@ -2483,9 +2483,9 @@ msgstr "C#"
 msgid "C++"
 msgstr "C++"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:142
+#: packages/admin/src/components/AdminCommandPalette.tsx:143
 #: packages/admin/src/components/ContentTypeEditor.tsx:568
-#: packages/admin/src/components/Sidebar.tsx:614
+#: packages/admin/src/components/Sidebar.tsx:666
 #: packages/admin/src/routes/calendar.tsx:277
 msgid "Calendar"
 msgstr "Kalender"
@@ -2531,7 +2531,7 @@ msgstr "Kan visa innehåll"
 #: packages/admin/src/components/MenuEditor.tsx:548
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
-#: packages/admin/src/components/PluginManager.tsx:810
+#: packages/admin/src/components/PluginManager.tsx:817
 #: packages/admin/src/components/PortableTextEditor.tsx:5762
 #: packages/admin/src/components/PortableTextEditor.tsx:5788
 #: packages/admin/src/components/PortableTextEditor.tsx:6535
@@ -2548,7 +2548,7 @@ msgstr "Kan visa innehåll"
 #: packages/admin/src/components/TaxonomyManager.tsx:882
 #: packages/admin/src/components/TaxonomyManager.tsx:1102
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
-#: packages/admin/src/components/Widgets.tsx:453
+#: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Cancel"
 msgstr "Avbryt"
@@ -2592,7 +2592,7 @@ msgstr "Sektioner från temat kan inte tas bort"
 msgid "Canonical URL"
 msgstr "Kanonisk URL"
 
-#: packages/admin/src/components/PluginManager.tsx:581
+#: packages/admin/src/components/PluginManager.tsx:588
 msgid "Capabilities"
 msgstr "Behörigheter"
 
@@ -2617,8 +2617,8 @@ msgstr "Bildtexter/undertexter"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr "Insamlingen förbereds. Låt redigeringen vara pausad tills konfigurationen är klar."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:205
-#: packages/admin/src/components/Widgets.tsx:136
+#: packages/admin/src/components/AdminCommandPalette.tsx:206
+#: packages/admin/src/components/Widgets.tsx:144
 msgid "Categories"
 msgstr "Kategorier"
 
@@ -2788,7 +2788,7 @@ msgstr "Tecken mellan sidtitel och webbplatsnamn (t.ex. ”Mitt inlägg | Min we
 msgid "Check and switch"
 msgstr "Kontrollera och byt"
 
-#: packages/admin/src/components/PluginManager.tsx:205
+#: packages/admin/src/components/PluginManager.tsx:212
 msgid "Check for updates"
 msgstr "Sök efter uppdateringar"
 
@@ -3096,10 +3096,10 @@ msgstr "Klicka på den här länken för att logga in på {siteName}:"
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
 #: packages/admin/src/components/users/InviteUserModal.tsx:98
-#: packages/admin/src/components/WelcomeModal.tsx:60
-#: packages/admin/src/components/Widgets.tsx:414
-#: packages/admin/src/components/Widgets.tsx:420
-#: packages/admin/src/components/Widgets.tsx:424
+#: packages/admin/src/components/WelcomeModal.tsx:61
+#: packages/admin/src/components/Widgets.tsx:422
+#: packages/admin/src/components/Widgets.tsx:428
+#: packages/admin/src/components/Widgets.tsx:432
 msgid "Close"
 msgstr "Stäng"
 
@@ -3151,8 +3151,8 @@ msgstr "Åtgärder för kodblock"
 msgid "Collapse block"
 msgstr "Fäll ihop block"
 
-#: packages/admin/src/components/PluginManager.tsx:564
-#: packages/admin/src/components/PluginManager.tsx:569
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Collapse details"
 msgstr "Dölj detaljer"
 
@@ -3249,7 +3249,7 @@ msgstr "Reaktioner på kommentarer"
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:440
+#: packages/admin/src/components/Sidebar.tsx:456
 msgid "Comments"
 msgstr "Kommentarer"
 
@@ -3269,7 +3269,7 @@ msgstr "Klar"
 msgid "Complete signup"
 msgstr "Slutför registrering"
 
-#: packages/admin/src/components/Widgets.tsx:935
+#: packages/admin/src/components/Widgets.tsx:943
 msgid "Component"
 msgstr "Komponent"
 
@@ -3334,17 +3334,17 @@ msgstr "Kopplar ihop"
 msgid "content"
 msgstr "innehåll"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:400
+#: packages/admin/src/components/AdminCommandPalette.tsx:403
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
-#: packages/admin/src/components/Dashboard.tsx:489
+#: packages/admin/src/components/Dashboard.tsx:494
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:624
-#: packages/admin/src/components/Widgets.tsx:903
+#: packages/admin/src/components/Sidebar.tsx:676
+#: packages/admin/src/components/Widgets.tsx:911
 msgid "Content"
 msgstr "Innehåll"
 
-#: packages/admin/src/components/Widgets.tsx:98
+#: packages/admin/src/components/Widgets.tsx:106
 msgid "Content Block"
 msgstr "Innehållsblock"
 
@@ -3414,9 +3414,9 @@ msgstr "Innehåll att importera"
 msgid "Content types"
 msgstr "Innehållstyper"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:197
+#: packages/admin/src/components/AdminCommandPalette.tsx:198
 #: packages/admin/src/components/ContentTypeList.tsx:131
-#: packages/admin/src/components/Sidebar.tsx:480
+#: packages/admin/src/components/Sidebar.tsx:522
 msgid "Content Types"
 msgstr "Innehållstyper"
 
@@ -3482,7 +3482,7 @@ msgid "Continue with security key"
 msgstr "Fortsätt med säkerhetsnyckel"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
-#: packages/admin/src/components/WelcomeModal.tsx:28
+#: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Contributor"
 msgstr "Bidragsgivare"
 
@@ -3570,7 +3570,7 @@ msgstr "Kunde inte infoga sektionen"
 msgid "Could not load {pluralLower}."
 msgstr "Kunde inte läsa in {pluralLower}."
 
-#: packages/admin/src/components/Dashboard.tsx:307
+#: packages/admin/src/components/Dashboard.tsx:310
 msgid "Could not load dashboard data"
 msgstr "Kunde inte läsa in översiktsdata"
 
@@ -3714,7 +3714,7 @@ msgstr "Antal"
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
 #: packages/admin/src/components/TaxonomyManager.tsx:893
-#: packages/admin/src/components/Widgets.tsx:456
+#: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "Skapa"
 
@@ -3871,7 +3871,7 @@ msgstr "Skapa taxonomitermer och ändra hur innehåll klassificeras"
 msgid "Create Token"
 msgstr "Skapa token"
 
-#: packages/admin/src/components/Widgets.tsx:411
+#: packages/admin/src/components/Widgets.tsx:419
 msgid "Create Widget Area"
 msgstr "Skapa widgetområde"
 
@@ -4050,11 +4050,11 @@ msgstr "Dagliga automatiska säkerhetskopior"
 msgid "Dark mode variant"
 msgstr "Variant för mörkt läge"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:135
+#: packages/admin/src/components/AdminCommandPalette.tsx:136
 #: packages/admin/src/components/ContentTypeList.tsx:394
 #: packages/admin/src/components/Dashboard.tsx:71
-#: packages/admin/src/components/Sidebar.tsx:415
-#: packages/admin/src/components/Sidebar.tsx:609
+#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/Sidebar.tsx:661
 msgid "Dashboard"
 msgstr "Översikt"
 
@@ -4155,7 +4155,7 @@ msgstr "Definierad i kod"
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
 #: packages/admin/src/components/TaxonomyManager.tsx:1538
 #: packages/admin/src/components/TaxonomyManager.tsx:1554
-#: packages/admin/src/components/Widgets.tsx:720
+#: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/routes/byline-schema.tsx:378
 msgid "Delete"
 msgstr "Ta bort"
@@ -4180,7 +4180,7 @@ msgstr "Ta bort ”{0}”?"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:329
 #: packages/admin/src/components/TaxonomyManager.tsx:492
-#: packages/admin/src/components/Widgets.tsx:821
+#: packages/admin/src/components/Widgets.tsx:829
 #: packages/admin/src/routes/byline-schema.tsx:460
 msgid "Delete {0}"
 msgstr "Ta bort {0}"
@@ -4196,7 +4196,7 @@ msgid "Delete {0} menu"
 msgstr "Ta bort menyn {0}"
 
 #. placeholder {0}: area.label
-#: packages/admin/src/components/Widgets.tsx:668
+#: packages/admin/src/components/Widgets.tsx:676
 msgid "Delete {0} widget area"
 msgstr "Ta bort widgetområdet {0}"
 
@@ -4345,7 +4345,7 @@ msgstr "Ta bort taxonomi"
 msgid "Delete video"
 msgstr "Ta bort video"
 
-#: packages/admin/src/components/Widgets.tsx:718
+#: packages/admin/src/components/Widgets.tsx:726
 msgid "Delete Widget Area?"
 msgstr "Ta bort widgetområde?"
 
@@ -4377,7 +4377,7 @@ msgstr "Om du tar bort ”{0}” försvinner även {1, plural, one {# sparat vä
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
 #: packages/admin/src/components/TaxonomyManager.tsx:1539
 #: packages/admin/src/components/TaxonomyManager.tsx:1555
-#: packages/admin/src/components/Widgets.tsx:721
+#: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Deleting..."
 msgstr "Tar bort …"
@@ -4444,7 +4444,7 @@ msgstr "Beskriv vad sektionen är till för …"
 #: packages/admin/src/components/RegistryPluginDetail.tsx:907
 #: packages/admin/src/components/SectionEditor.tsx:296
 #: packages/admin/src/components/Sections.tsx:221
-#: packages/admin/src/components/Widgets.tsx:440
+#: packages/admin/src/components/Widgets.tsx:448
 msgid "Description"
 msgstr "Beskrivning"
 
@@ -4461,7 +4461,7 @@ msgid "Destination path"
 msgstr "Målsökväg"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:311
-#: packages/admin/src/components/PluginManager.tsx:626
+#: packages/admin/src/components/PluginManager.tsx:633
 msgid "Destructive"
 msgstr "Destruktiv"
 
@@ -4506,11 +4506,11 @@ msgstr "Dimensioner:"
 msgid "Disable"
 msgstr "Inaktivera"
 
-#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Disable plugin"
 msgstr "Inaktivera tillägg"
 
-#: packages/admin/src/components/PluginManager.tsx:616
+#: packages/admin/src/components/PluginManager.tsx:623
 msgid "Disable plugin MCP tools"
 msgstr "Inaktivera tilläggets MCP-verktyg"
 
@@ -4526,14 +4526,14 @@ msgstr "Inaktivera användare"
 msgid "Disable User?"
 msgstr "Inaktivera användare?"
 
-#: packages/admin/src/components/PluginManager.tsx:451
+#: packages/admin/src/components/PluginManager.tsx:458
 #: packages/admin/src/components/Redirects.tsx:399
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:209
 msgid "Disabled"
 msgstr "Inaktiverad"
 
-#: packages/admin/src/components/PluginManager.tsx:678
+#: packages/admin/src/components/PluginManager.tsx:685
 msgid "Disabled:"
 msgstr "Inaktiverad:"
 
@@ -4573,7 +4573,7 @@ msgid "Discarding..."
 msgstr "Kasserar …"
 
 #: packages/admin/src/components/CoreUpdateBanner.tsx:76
-#: packages/admin/src/components/Dashboard.tsx:201
+#: packages/admin/src/components/Dashboard.tsx:204
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:117
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
@@ -4584,7 +4584,7 @@ msgstr "Stäng"
 msgid "Dismiss completed {0}"
 msgstr "Ta bort slutförd {0} från listan"
 
-#: packages/admin/src/components/Dashboard.tsx:291
+#: packages/admin/src/components/Dashboard.tsx:294
 msgid "Dismiss import suggestion"
 msgstr "Stäng importförslaget"
 
@@ -4596,15 +4596,15 @@ msgstr "Stäng sektionsfelet"
 msgid "Dismiss table paste error"
 msgstr "Stäng felet om inklistrad tabell"
 
-#: packages/admin/src/components/Widgets.tsx:127
+#: packages/admin/src/components/Widgets.tsx:135
 msgid "Display a list of recent posts"
 msgstr "Visa en lista med senaste inläggen"
 
-#: packages/admin/src/components/Widgets.tsx:105
+#: packages/admin/src/components/Widgets.tsx:113
 msgid "Display a navigation menu"
 msgstr "Visa en navigeringsmeny"
 
-#: packages/admin/src/components/Widgets.tsx:137
+#: packages/admin/src/components/Widgets.tsx:145
 msgid "Display category list"
 msgstr "Visa kategorilista"
 
@@ -4621,7 +4621,7 @@ msgstr "Visningsstorlek"
 msgid "Display Size"
 msgstr "Visningsstorlek"
 
-#: packages/admin/src/components/Widgets.tsx:145
+#: packages/admin/src/components/Widgets.tsx:153
 msgid "Display tag cloud"
 msgstr "Visa taggmoln"
 
@@ -4780,7 +4780,7 @@ msgid "draft, published, or archived"
 msgstr "utkast, publicerad eller arkiverad"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:91
-#: packages/admin/src/components/Dashboard.tsx:523
+#: packages/admin/src/components/Dashboard.tsx:528
 msgid "Drafts"
 msgstr "Utkast"
 
@@ -4796,7 +4796,7 @@ msgstr "Dra och släpp filer här"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Dra och släpp eller klicka för att bläddra (.xml)"
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:712
 msgid "Drag here to add"
 msgstr "Dra hit för att lägga till"
 
@@ -4807,7 +4807,7 @@ msgstr "Dra för att ändra ordning"
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:937
-#: packages/admin/src/components/Widgets.tsx:806
+#: packages/admin/src/components/Widgets.tsx:814
 msgid "Drag to reorder {0}"
 msgstr "Dra för att ändra ordning på {0}"
 
@@ -4816,11 +4816,11 @@ msgstr "Dra för att ändra ordning på {0}"
 msgid "Drag to reorder {label}"
 msgstr "Dra för att ändra ordning på {label}"
 
-#: packages/admin/src/components/Widgets.tsx:708
+#: packages/admin/src/components/Widgets.tsx:716
 msgid "Drag widgets here to add them"
 msgstr "Dra widgetar hit för att lägga till dem"
 
-#: packages/admin/src/components/Widgets.tsx:470
+#: packages/admin/src/components/Widgets.tsx:478
 msgid "Drag widgets into an area to add them"
 msgstr "Dra widgetar till ett område för att lägga till dem"
 
@@ -4840,7 +4840,7 @@ msgstr "Släpp filer för att ladda upp dem"
 msgid "Drop one image at a time."
 msgstr "Släpp en bild i taget."
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:712
 msgid "Drop to add widget"
 msgstr "Släpp för att lägga till widget"
 
@@ -4902,7 +4902,7 @@ msgstr ""
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:667
 #: packages/admin/src/components/Sections.tsx:439
-#: packages/admin/src/components/Shell.tsx:86
+#: packages/admin/src/components/Shell.tsx:87
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 msgid "Edit"
 msgstr "Redigera"
@@ -5111,7 +5111,7 @@ msgid "visualEditing.sessionExpired"
 msgstr "Redigeringssessionen har gått ut. Uppdatera sidan för att fortsätta."
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
-#: packages/admin/src/components/WelcomeModal.tsx:26
+#: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Editor"
 msgstr "Redaktör"
 
@@ -5281,11 +5281,11 @@ msgstr "Aktivera kommentarer"
 msgid "Enable full-text search on this collection"
 msgstr "Aktivera fritextsökning för den här samlingen"
 
-#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Enable plugin"
 msgstr "Aktivera tillägg"
 
-#: packages/admin/src/components/PluginManager.tsx:617
+#: packages/admin/src/components/PluginManager.tsx:624
 msgid "Enable plugin MCP tools"
 msgstr "Aktivera tilläggets MCP-verktyg"
 
@@ -5412,16 +5412,16 @@ msgstr "post på den länkande sidan"
 #: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:607
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
-#: packages/admin/src/components/Widgets.tsx:773
-#: packages/admin/src/router.tsx:3337
+#: packages/admin/src/components/Widgets.tsx:781
+#: packages/admin/src/router.tsx:3338
 msgid "Error"
 msgstr "Fel"
 
-#: packages/admin/src/components/Widgets.tsx:237
+#: packages/admin/src/components/Widgets.tsx:245
 msgid "Error adding widget"
 msgstr "Fel vid tillägg av widget"
 
-#: packages/admin/src/components/Widgets.tsx:298
+#: packages/admin/src/components/Widgets.tsx:306
 msgid "Error reordering widgets"
 msgstr "Fel vid ändring av widgetordning"
 
@@ -5429,7 +5429,7 @@ msgstr "Fel vid ändring av widgetordning"
 msgid "Error saving section"
 msgstr "Fel vid sparande av sektion"
 
-#: packages/admin/src/components/Widgets.tsx:788
+#: packages/admin/src/components/Widgets.tsx:796
 msgid "Error updating widget"
 msgstr "Fel vid uppdatering av widget"
 
@@ -5498,8 +5498,8 @@ msgstr "Avsluta distraktionsfritt läge (⌘⇧\\)"
 msgid "Expand block"
 msgstr "Fäll ut block"
 
-#: packages/admin/src/components/PluginManager.tsx:564
-#: packages/admin/src/components/PluginManager.tsx:569
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Expand details"
 msgstr "Visa detaljer"
 
@@ -5790,7 +5790,7 @@ msgid "Failed to delete collection"
 msgstr "Det gick inte att ta bort samlingen"
 
 #: packages/admin/src/lib/api/comments.ts:114
-#: packages/admin/src/router.tsx:2425
+#: packages/admin/src/router.tsx:2426
 msgid "Failed to delete comment"
 msgstr "Det gick inte att ta bort kommentaren"
 
@@ -5859,7 +5859,7 @@ msgstr "Det gick inte att ta bort widgetområdet"
 msgid "Failed to deny request"
 msgstr "Det gick inte att neka förfrågan"
 
-#: packages/admin/src/components/PluginManager.tsx:154
+#: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "Det gick inte att inaktivera tillägget"
@@ -5880,12 +5880,12 @@ msgstr "Det gick inte att kassera ändringarna"
 msgid "Failed to discard draft"
 msgstr "Det gick inte att kassera utkastet"
 
-#: packages/admin/src/components/Dashboard.tsx:220
+#: packages/admin/src/components/Dashboard.tsx:223
 #: packages/admin/src/lib/api/dashboard.ts:73
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr "Det gick inte att stänga meddelandet om stoppad schemalagd publicering"
 
-#: packages/admin/src/components/WelcomeModal.tsx:76
+#: packages/admin/src/components/WelcomeModal.tsx:78
 msgid "Failed to dismiss welcome"
 msgstr "Det gick inte att stänga välkomstmeddelandet"
 
@@ -5905,7 +5905,7 @@ msgstr "Det gick inte att duplicera innehållet"
 msgid "Failed to email users"
 msgstr "Det gick inte att mejla användarna"
 
-#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:142
 #: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "Det gick inte att aktivera tillägget"
@@ -5934,7 +5934,7 @@ msgstr "Det gick inte att hämta tillåtna domäner"
 msgid "Failed to fetch API tokens"
 msgstr "Det gick inte att hämta API-tokens"
 
-#: packages/admin/src/lib/api/client.ts:371
+#: packages/admin/src/lib/api/client.ts:373
 msgid "Failed to fetch auth mode"
 msgstr "Det gick inte att hämta autentiseringsläge"
 
@@ -6008,7 +6008,7 @@ msgstr "Det gick inte att hämta termer för posten"
 msgid "Failed to fetch fields"
 msgstr "Det gick inte att hämta fält"
 
-#: packages/admin/src/lib/api/client.ts:354
+#: packages/admin/src/lib/api/client.ts:356
 msgid "Failed to fetch manifest"
 msgstr "Det gick inte att hämta manifestet"
 
@@ -6155,7 +6155,7 @@ msgstr "Det gick inte att hämta uppdateringsstatus"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2356
+#: packages/admin/src/router.tsx:2357
 msgid "Failed to fetch user"
 msgstr "Det gick inte att hämta användaren"
 
@@ -6302,7 +6302,7 @@ msgid "Failed to load plugin settings"
 msgstr "Det gick inte att läsa in tilläggets inställningar"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:183
+#: packages/admin/src/components/PluginManager.tsx:190
 msgid "Failed to load plugins: {0}"
 msgstr "Det gick inte att läsa in tillägg: {0}"
 
@@ -6344,7 +6344,7 @@ msgid "Failed to lock the entry"
 msgstr "Det gick inte att låsa posten"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2450
+#: packages/admin/src/router.tsx:2451
 msgid "Failed to perform bulk action"
 msgstr "Det gick inte att utföra massåtgärden"
 
@@ -6374,7 +6374,7 @@ msgstr "Det gick inte att publicera innehållet"
 msgid "Failed to read byline field usage"
 msgstr "Det gick inte att läsa hur skribentfältet används"
 
-#: packages/admin/src/router.tsx:2876
+#: packages/admin/src/router.tsx:2877
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6457,7 +6457,7 @@ msgstr "Det gick inte att skriva om URL:erna"
 
 #: packages/admin/src/router.tsx:910
 #: packages/admin/src/router.tsx:1313
-#: packages/admin/src/router.tsx:3061
+#: packages/admin/src/router.tsx:3062
 msgid "Failed to save"
 msgstr "Det gick inte att spara"
 
@@ -6597,7 +6597,7 @@ msgstr "Det gick inte att uppdatera menyn"
 msgid "Failed to update menu item"
 msgstr "Det gick inte att uppdatera menyobjektet"
 
-#: packages/admin/src/components/PluginManager.tsx:332
+#: packages/admin/src/components/PluginManager.tsx:339
 #: packages/admin/src/lib/api/marketplace.ts:373
 #: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
@@ -6627,7 +6627,7 @@ msgstr "Det gick inte att uppdatera sektionen"
 msgid "Failed to update settings"
 msgstr "Det gick inte att uppdatera inställningar"
 
-#: packages/admin/src/router.tsx:2409
+#: packages/admin/src/router.tsx:2410
 msgid "Failed to update status"
 msgstr "Det gick inte att uppdatera statusen"
 
@@ -6873,7 +6873,7 @@ msgstr "Mappen har tagits bort"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "Mappnamnet måste vara mellan 1 och 200 tecken"
 
-#: packages/admin/src/router.tsx:2079
+#: packages/admin/src/router.tsx:2080
 msgid "Folder no longer exists"
 msgstr "Mappen finns inte längre"
 
@@ -6991,7 +6991,7 @@ msgstr "Allmänna inställningar"
 msgid "Genres"
 msgstr "Genrer"
 
-#: packages/admin/src/components/WelcomeModal.tsx:154
+#: packages/admin/src/components/WelcomeModal.tsx:156
 msgid "Get Started"
 msgstr "Kom igång"
 
@@ -7020,7 +7020,7 @@ msgid "Go live {countdown}"
 msgstr "Publiceras {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3357
+#: packages/admin/src/router.tsx:3358
 msgid "Go to Dashboard"
 msgstr "Gå till översikten"
 
@@ -7058,7 +7058,7 @@ msgstr "Grupp"
 msgid "Group (optional)"
 msgstr "Grupp (valfri)"
 
-#: packages/admin/src/components/Widgets.tsx:163
+#: packages/admin/src/components/Widgets.tsx:171
 msgid "Group by"
 msgstr "Gruppera efter"
 
@@ -7179,7 +7179,7 @@ msgstr "Dölj token"
 msgid "visualEditing.hideToolbar"
 msgstr "Dölj verktygsfältet"
 
-#: packages/admin/src/components/Shell.tsx:86
+#: packages/admin/src/components/Shell.tsx:87
 msgid "Hide toolbar"
 msgstr "Dölj verktygsfältet"
 
@@ -7208,7 +7208,7 @@ msgstr "Hem"
 msgid "Homepage"
 msgstr "Startsida"
 
-#: packages/admin/src/components/PluginManager.tsx:490
+#: packages/admin/src/components/PluginManager.tsx:497
 msgid "Hooks"
 msgstr "Hooks"
 
@@ -7416,9 +7416,9 @@ msgstr "Bild-URL"
 msgid "Images"
 msgstr "Bilder"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:239
+#: packages/admin/src/components/AdminCommandPalette.tsx:240
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:506
+#: packages/admin/src/components/Sidebar.tsx:548
 #: packages/admin/src/components/WordPressImport.tsx:783
 msgid "Import"
 msgstr "Importera"
@@ -7428,7 +7428,7 @@ msgstr "Importera"
 msgid "Import {0}"
 msgstr "Importera {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:283
+#: packages/admin/src/components/Dashboard.tsx:286
 msgid "Import a site package"
 msgstr "Importera ett webbplatspaket"
 
@@ -7736,11 +7736,11 @@ msgid "Installed"
 msgstr "Installerad"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:645
+#: packages/admin/src/components/PluginManager.tsx:652
 msgid "Installed from marketplace (v{0})"
 msgstr "Installerad från marknadsplats (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:666
+#: packages/admin/src/components/PluginManager.tsx:673
 msgid "Installed:"
 msgstr "Installerad:"
 
@@ -7947,7 +7947,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:716
 #: packages/admin/src/components/MenuList.tsx:153
 #: packages/admin/src/components/TaxonomyManager.tsx:1037
-#: packages/admin/src/components/Widgets.tsx:438
+#: packages/admin/src/components/Widgets.tsx:446
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
 msgstr "Etikett"
@@ -7980,7 +7980,7 @@ msgstr "Stor sektionsrubrik"
 msgid "Last edited"
 msgstr "Senast redigerad"
 
-#: packages/admin/src/components/PluginManager.tsx:672
+#: packages/admin/src/components/PluginManager.tsx:679
 msgid "Last enabled:"
 msgstr "Senast aktiverad:"
 
@@ -8019,7 +8019,7 @@ msgstr "Senast använd {0}"
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
 msgstr "Senare poster har inte lästs in. Perioden har fler poster än kalendern kan visa."
 
-#: packages/admin/src/components/PluginManager.tsx:81
+#: packages/admin/src/components/PluginManager.tsx:88
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
 msgstr "Läs om hur du installerar tillägg i <0>dokumentationen<1/></0>."
 
@@ -8060,7 +8060,7 @@ msgstr "Bibliotek"
 msgid "License"
 msgstr "Licens"
 
-#: packages/admin/src/components/Widgets.tsx:166
+#: packages/admin/src/components/Widgets.tsx:174
 msgid "Limit"
 msgstr "Gräns"
 
@@ -8207,7 +8207,7 @@ msgid "Load preview"
 msgstr "Läs in förhandsgranskning"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3312
+#: packages/admin/src/router.tsx:3313
 msgid "Loading"
 msgstr "Läser in"
 
@@ -8236,8 +8236,8 @@ msgstr "Läser in samlingar …"
 msgid "Loading comments..."
 msgstr "Läser in kommentarer …"
 
-#: packages/admin/src/router.tsx:3314
-#: packages/admin/src/router.tsx:3326
+#: packages/admin/src/router.tsx:3315
+#: packages/admin/src/router.tsx:3327
 msgid "Loading configuration..."
 msgstr "Läser in konfiguration …"
 
@@ -8287,7 +8287,7 @@ msgstr "Läser in menyer …"
 msgid "Loading plugin panel"
 msgstr "Läser in tilläggspanelen"
 
-#: packages/admin/src/components/PluginManager.tsx:174
+#: packages/admin/src/components/PluginManager.tsx:181
 msgid "Loading plugins..."
 msgstr "Läser in tillägg …"
 
@@ -8333,7 +8333,7 @@ msgstr "Läser in importplanen …"
 msgid "Loading usage"
 msgstr "Läser in användning"
 
-#: packages/admin/src/components/Widgets.tsx:373
+#: packages/admin/src/components/Widgets.tsx:381
 msgid "Loading widgets..."
 msgstr "Läser in widgetar …"
 
@@ -8459,11 +8459,11 @@ msgstr "Lua"
 msgid "Main library"
 msgstr "Huvudbibliotek"
 
-#: packages/admin/src/components/Widgets.tsx:438
+#: packages/admin/src/components/Widgets.tsx:446
 msgid "Main Sidebar"
 msgstr "Huvudsidofält"
 
-#: packages/admin/src/components/Sidebar.tsx:632
+#: packages/admin/src/components/Sidebar.tsx:684
 msgid "Manage"
 msgstr "Hantera"
 
@@ -8477,11 +8477,11 @@ msgstr "Hantera {0} för {1}"
 msgid "Manage bylines in {entryLocale}"
 msgstr "Hantera skribenter för {entryLocale}"
 
-#: packages/admin/src/components/Widgets.tsx:391
+#: packages/admin/src/components/Widgets.tsx:399
 msgid "Manage content widgets in your widget areas"
 msgstr "Hantera innehållswidgetar i dina widgetområden"
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:201
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "Hantera installerade tillägg. Aktivera eller inaktivera tillägg för att styra deras funktionalitet."
 
@@ -8545,15 +8545,15 @@ msgid "Markdown"
 msgstr "Markdown"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:452
+#: packages/admin/src/components/PluginManager.tsx:459
 msgid "Marketplace"
 msgstr "Marknadsplats"
 
-#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2714
 msgid "Marketplace browsing is no longer available."
 msgstr "Det går inte längre att bläddra på marknadsplatsen."
 
-#: packages/admin/src/router.tsx:2688
+#: packages/admin/src/router.tsx:2689
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Det går inte längre att bläddra på marknadsplatsen. Hantera installerade tillägg under Tillägg."
 
@@ -8589,7 +8589,7 @@ msgstr "Maxantal"
 msgid "Maximum blocks"
 msgstr "Högsta antal block"
 
-#: packages/admin/src/components/Widgets.tsx:148
+#: packages/admin/src/components/Widgets.tsx:156
 msgid "Maximum tags"
 msgstr "Max antal taggar"
 
@@ -8601,7 +8601,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:428
+#: packages/admin/src/components/Sidebar.tsx:441
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
@@ -8643,7 +8643,7 @@ msgstr "Media i den här mappen flyttas tillbaka till huvudbiblioteket. Inga fil
 msgid "visualEditing.mediaLibrary"
 msgstr "Mediebibliotek"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:166
+#: packages/admin/src/components/AdminCommandPalette.tsx:167
 #: packages/admin/src/components/MediaLibrary.tsx:755
 #: packages/admin/src/components/MediaLibrary.tsx:770
 msgid "Media Library"
@@ -8699,8 +8699,8 @@ msgstr "Redigera media"
 msgid "Medium section heading"
 msgstr "Medelstor sektionsrubrik"
 
-#: packages/admin/src/components/Widgets.tsx:104
-#: packages/admin/src/components/Widgets.tsx:918
+#: packages/admin/src/components/Widgets.tsx:112
+#: packages/admin/src/components/Widgets.tsx:926
 msgid "Menu"
 msgstr "Meny"
 
@@ -8752,10 +8752,10 @@ msgstr "Menyordningen har uppdaterats."
 msgid "Menu renamed"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:173
+#: packages/admin/src/components/AdminCommandPalette.tsx:174
 #: packages/admin/src/components/MenuList.tsx:101
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:445
+#: packages/admin/src/components/Sidebar.tsx:464
 #: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Menus"
 msgstr "Menyer"
@@ -8842,11 +8842,11 @@ msgstr "Ändra samlingsscheman"
 msgid "Month"
 msgstr "Månad"
 
-#: packages/admin/src/components/Widgets.tsx:164
+#: packages/admin/src/components/Widgets.tsx:172
 msgid "Monthly"
 msgstr "Månadsvis"
 
-#: packages/admin/src/components/Widgets.tsx:160
+#: packages/admin/src/components/Widgets.tsx:168
 msgid "Monthly/yearly archives"
 msgstr "Månads-/årsarkiv"
 
@@ -9093,7 +9093,7 @@ msgstr "Flyttar {label} till position {0} av {1}."
 msgid "Moving {label} was cancelled."
 msgstr "Flytten av {label} avbröts."
 
-#: packages/admin/src/components/Dashboard.tsx:273
+#: packages/admin/src/components/Dashboard.tsx:276
 msgid "Moving from another EmDash site?"
 msgstr "Flyttar du från en annan EmDash-webbplats?"
 
@@ -9124,7 +9124,7 @@ msgstr "Min fantastiska blogg"
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
-#: packages/admin/src/components/Widgets.tsx:432
+#: packages/admin/src/components/Widgets.tsx:440
 msgid "Name"
 msgstr "Namn"
 
@@ -9144,7 +9144,7 @@ msgstr "Namnge sektionen och lägg sedan till innehållet i redigeraren."
 msgid "Navigate"
 msgstr "Navigera"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:362
+#: packages/admin/src/components/AdminCommandPalette.tsx:365
 #: packages/admin/src/components/ContentTypeEditor.tsx:562
 msgid "Navigation"
 msgstr "Navigering"
@@ -9239,7 +9239,7 @@ msgstr "Ny återanvändbar profil"
 msgid "New section"
 msgstr "Ny sektion"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:501
+#: packages/admin/src/components/AdminCommandPalette.tsx:504
 msgid "new tab"
 msgstr "ny flik"
 
@@ -9387,7 +9387,7 @@ msgstr "Inga skribenter ännu"
 msgid "No changes"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:495
+#: packages/admin/src/components/Dashboard.tsx:500
 msgid "No collections configured"
 msgstr "Inga samlingar konfigurerade"
 
@@ -9613,7 +9613,7 @@ msgstr "Inga passkeys registrerade ännu."
 msgid "No pending requests"
 msgstr "Inga väntande förfrågningar"
 
-#: packages/admin/src/components/PluginManager.tsx:233
+#: packages/admin/src/components/PluginManager.tsx:240
 msgid "No plugins configured"
 msgstr "Inga tillägg konfigurerade"
 
@@ -9633,7 +9633,7 @@ msgstr "Inga tillägg matchar ”{debouncedQuery}”."
 msgid "No public URL available"
 msgstr "Ingen offentlig URL tillgänglig"
 
-#: packages/admin/src/components/Dashboard.tsx:574
+#: packages/admin/src/components/Dashboard.tsx:579
 msgid "No recent activity"
 msgstr "Ingen senaste aktivitet"
 
@@ -9668,7 +9668,7 @@ msgstr "Inga resultat för ”{activeSearch}”"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Inga resultat för ”{debouncedQuery}”. Försök med ett annat sökord."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:487
+#: packages/admin/src/components/AdminCommandPalette.tsx:490
 #: packages/admin/src/components/Settings.tsx:166
 msgid "No results found"
 msgstr "Inga resultat hittades"
@@ -9714,7 +9714,7 @@ msgstr "Inga användare ännu."
 msgid "No versions yet"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:507
+#: packages/admin/src/components/Widgets.tsx:515
 msgid "No widget areas yet. Create one to get started."
 msgstr "Inga widgetområden ännu. Skapa ett för att komma igång."
 
@@ -9789,7 +9789,7 @@ msgstr "Nu · {time}"
 msgid "Number"
 msgstr "Tal"
 
-#: packages/admin/src/components/Widgets.tsx:129
+#: packages/admin/src/components/Widgets.tsx:137
 msgid "Number of posts"
 msgstr "Antal inlägg"
 
@@ -10054,7 +10054,7 @@ msgstr "Åsidosätter sidtiteln i sökmotorresultat"
 msgid "Ownership"
 msgstr "Ägarskap"
 
-#: packages/admin/src/components/PluginManager.tsx:654
+#: packages/admin/src/components/PluginManager.tsx:661
 msgid "Package"
 msgstr "Paket"
 
@@ -10068,7 +10068,7 @@ msgstr "Paketets kontrollsumma"
 msgid "Package downloaded"
 msgstr "Paketet har laddats ner"
 
-#: packages/admin/src/router.tsx:3352
+#: packages/admin/src/router.tsx:3353
 msgid "Page Not Found"
 msgstr "Sidan hittades inte"
 
@@ -10082,7 +10082,7 @@ msgstr "Sidnummer"
 msgid "Page size"
 msgstr "Antal per sida"
 
-#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:485
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "Sidor"
@@ -10296,7 +10296,7 @@ msgstr "När fältet väljer poster som den här posten länkar till kan redakt�
 msgid "picks {0}"
 msgstr "väljer {0}"
 
-#: packages/admin/src/components/Widgets.tsx:155
+#: packages/admin/src/components/Widgets.tsx:163
 msgid "Placeholder text"
 msgstr "Platshållartext"
 
@@ -10358,11 +10358,11 @@ msgstr "Tilläggskolumnen är inte tillgänglig"
 msgid "Plugin details"
 msgstr "Tilläggsdetaljer"
 
-#: packages/admin/src/components/PluginManager.tsx:148
+#: packages/admin/src/components/PluginManager.tsx:155
 msgid "Plugin disabled"
 msgstr "Tillägg inaktiverat"
 
-#: packages/admin/src/components/PluginManager.tsx:129
+#: packages/admin/src/components/PluginManager.tsx:136
 msgid "Plugin enabled"
 msgstr "Tillägg aktiverat"
 
@@ -10379,7 +10379,7 @@ msgstr "Tilläggsfel ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Installation av tillägg kräver uttryckligt samtycke"
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "Plugin MCP access updated"
 msgstr "Tilläggets MCP-åtkomst har uppdaterats"
 
@@ -10400,7 +10400,7 @@ msgstr "Tillägget hittades inte"
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr "Tillägget hittades inte. Utgivaren eller slugen kan vara fel."
 
-#: packages/admin/src/components/PluginManager.tsx:547
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Plugin pages"
 msgstr "Tilläggssidor"
 
@@ -10422,8 +10422,8 @@ msgstr "Tilläggsregister"
 msgid "Plugin registry configuration error"
 msgstr "Fel i konfigurationen av tilläggsregistret"
 
-#: packages/admin/src/router.tsx:2648
-#: packages/admin/src/router.tsx:2679
+#: packages/admin/src/router.tsx:2649
+#: packages/admin/src/router.tsx:2680
 msgid "Plugin registry is not configured."
 msgstr "Tilläggsregistret är inte konfigurerat."
 
@@ -10438,7 +10438,7 @@ msgstr "Tillägget svarade med {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr "Tilläggsverktyg: {0}"
 
-#: packages/admin/src/components/PluginManager.tsx:390
+#: packages/admin/src/components/PluginManager.tsx:397
 msgid "Plugin uninstalled"
 msgstr "Tillägg avinstallerat"
 
@@ -10447,7 +10447,7 @@ msgstr "Tillägg avinstallerat"
 msgid "Plugin update requires re-consent"
 msgstr "Uppdatering av tillägg kräver nytt samtycke"
 
-#: packages/admin/src/components/PluginManager.tsx:299
+#: packages/admin/src/components/PluginManager.tsx:306
 msgid "Plugin updated"
 msgstr "Tillägg uppdaterat"
 
@@ -10455,12 +10455,12 @@ msgstr "Tillägg uppdaterat"
 msgid "Plugin widget error"
 msgstr "Fel i tilläggswidget"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:231
-#: packages/admin/src/components/PluginManager.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:182
-#: packages/admin/src/components/PluginManager.tsx:192
-#: packages/admin/src/components/Sidebar.tsx:488
-#: packages/admin/src/components/Sidebar.tsx:648
+#: packages/admin/src/components/AdminCommandPalette.tsx:232
+#: packages/admin/src/components/PluginManager.tsx:180
+#: packages/admin/src/components/PluginManager.tsx:189
+#: packages/admin/src/components/PluginManager.tsx:199
+#: packages/admin/src/components/Sidebar.tsx:530
+#: packages/admin/src/components/Sidebar.tsx:700
 msgid "Plugins"
 msgstr "Tillägg"
 
@@ -10638,7 +10638,7 @@ msgstr "Offentliga rutter"
 msgid "Publication date"
 msgstr "Publiceringsdatum"
 
-#: packages/admin/src/components/Dashboard.tsx:164
+#: packages/admin/src/components/Dashboard.tsx:167
 msgid "Publication policy blocked scheduled content"
 msgstr "Publiceringspolicyn stoppade schemalagt innehåll"
 
@@ -10685,7 +10685,7 @@ msgstr "Publicera, avpublicera, schemalägga och avboka schemaläggning av inneh
 #: packages/admin/src/components/ContentList.tsx:1024
 #: packages/admin/src/components/ContentList.tsx:1035
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:517
+#: packages/admin/src/components/Dashboard.tsx:522
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1463
@@ -10850,7 +10850,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Läsa dina taxonomier och termer"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
-#: packages/admin/src/router.tsx:2012
+#: packages/admin/src/router.tsx:2013
 msgid "Read-only"
 msgstr "Skrivskyddad"
 
@@ -10886,7 +10886,7 @@ msgstr "Bygger om sökindex och cacheminnen"
 msgid "Receipt digest"
 msgstr "Kvittots kontrollsumma"
 
-#: packages/admin/src/components/Dashboard.tsx:568
+#: packages/admin/src/components/Dashboard.tsx:573
 msgid "Recent Activity"
 msgstr "Senaste aktivitet"
 
@@ -10894,7 +10894,7 @@ msgstr "Senaste aktivitet"
 msgid "Recent exports"
 msgstr "Senaste exporter"
 
-#: packages/admin/src/components/Widgets.tsx:126
+#: packages/admin/src/components/Widgets.tsx:134
 msgid "Recent Posts"
 msgstr "Senaste inläggen"
 
@@ -10940,7 +10940,7 @@ msgstr "Omdirigerar till inloggning …"
 #: packages/admin/src/components/Redirects.tsx:424
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:448
+#: packages/admin/src/components/Sidebar.tsx:471
 msgid "Redirects"
 msgstr "Omdirigeringar"
 
@@ -10986,7 +10986,7 @@ msgstr "Uppdatera status"
 msgid "Refresh status before continuing."
 msgstr "Uppdatera statusen innan du fortsätter."
 
-#: packages/admin/src/components/Dashboard.tsx:308
+#: packages/admin/src/components/Dashboard.tsx:311
 msgid "Refresh the page or try again."
 msgstr "Uppdatera sidan eller försök igen."
 
@@ -11011,9 +11011,9 @@ msgstr "Registreringen misslyckades"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Registreringen avbröts eller tog för lång tid. Försök igen."
 
-#: packages/admin/src/components/PluginManager.tsx:210
-#: packages/admin/src/components/PluginManager.tsx:453
-#: packages/admin/src/components/Sidebar.tsx:497
+#: packages/admin/src/components/PluginManager.tsx:217
+#: packages/admin/src/components/PluginManager.tsx:460
+#: packages/admin/src/components/Sidebar.tsx:539
 msgid "Registry"
 msgstr "Register"
 
@@ -11402,7 +11402,7 @@ msgstr "Kodarkiv"
 msgid "Request a new link"
 msgstr "Begär en ny länk"
 
-#: packages/admin/src/lib/api/client.ts:342
+#: packages/admin/src/lib/api/client.ts:344
 msgid "Request failed"
 msgstr "Begäran misslyckades"
 
@@ -11573,7 +11573,7 @@ msgstr "Utfasad"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3340
+#: packages/admin/src/router.tsx:3341
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
@@ -11704,7 +11704,7 @@ msgstr "Återkallar …"
 msgid "Rich Text"
 msgstr "Rik text"
 
-#: packages/admin/src/components/Widgets.tsx:99
+#: packages/admin/src/components/Widgets.tsx:107
 msgid "Rich text content"
 msgstr "Innehåll med rik text"
 
@@ -11760,7 +11760,7 @@ msgstr "Egen URL"
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:307
-#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:637
 msgid "Route: {0} · Permission: {1}"
 msgstr "Rutt: {0} · Behörighet: {1}"
 
@@ -11819,7 +11819,7 @@ msgstr "Exempelinnehåll"
 #: packages/admin/src/components/MenuEditor.tsx:757
 #: packages/admin/src/components/Redirects.tsx:195
 #: packages/admin/src/components/SaveButton.tsx:35
-#: packages/admin/src/components/Widgets.tsx:987
+#: packages/admin/src/components/Widgets.tsx:995
 msgid "Save"
 msgstr "Spara"
 
@@ -11917,7 +11917,7 @@ msgstr "Om du sparar en samling här blir fältet en postväljare. De lagrade po
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/users/UserDetail.tsx:330
-#: packages/admin/src/components/Widgets.tsx:987
+#: packages/admin/src/components/Widgets.tsx:995
 msgid "Saving..."
 msgstr "Sparar …"
 
@@ -11991,7 +11991,7 @@ msgstr ""
 msgid "Scheduled publication"
 msgstr "Schemalagd publicering"
 
-#: packages/admin/src/components/Dashboard.tsx:228
+#: packages/admin/src/components/Dashboard.tsx:231
 msgid "Scheduled publishing needs attention"
 msgstr "Schemalagd publicering behöver åtgärdas"
 
@@ -12056,7 +12056,7 @@ msgstr "SCSS"
 #: packages/admin/src/components/ContentTypeEditor.tsx:106
 #: packages/admin/src/components/Settings.tsx:165
 #: packages/admin/src/components/Settings.tsx:165
-#: packages/admin/src/components/Widgets.tsx:152
+#: packages/admin/src/components/Widgets.tsx:160
 msgid "Search"
 msgstr "Sök"
 
@@ -12152,7 +12152,7 @@ msgstr "Sök efter ett språk …"
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "Sök efter en IANA-tidszon (t.ex. Europe/Stockholm)"
 
-#: packages/admin/src/components/Widgets.tsx:153
+#: packages/admin/src/components/Widgets.tsx:161
 msgid "Search form"
 msgstr "Sökformulär"
 
@@ -12166,7 +12166,7 @@ msgstr "Sök i media"
 msgid "Search or type a URL"
 msgstr "Sök eller skriv en URL"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:460
+#: packages/admin/src/components/AdminCommandPalette.tsx:463
 msgid "Search pages and content..."
 msgstr "Sök i sidor och innehåll …"
 
@@ -12268,11 +12268,11 @@ msgstr "Sektionen hittades inte"
 msgid "Section title"
 msgstr "Sektionstitel"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:189
+#: packages/admin/src/components/AdminCommandPalette.tsx:190
 #: packages/admin/src/components/Sections.tsx:150
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:453
+#: packages/admin/src/components/Sidebar.tsx:485
 msgid "Sections"
 msgstr "Sektioner"
 
@@ -12322,7 +12322,7 @@ msgstr "Säkerhetskontakter"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Säkerhetsfel. Kontrollera att du använder en säker anslutning."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:263
+#: packages/admin/src/components/AdminCommandPalette.tsx:264
 #: packages/admin/src/components/Header.tsx:96
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
@@ -12358,7 +12358,7 @@ msgstr "Välj {title}"
 msgid "Select a collection"
 msgstr "Välj en samling"
 
-#: packages/admin/src/components/Widgets.tsx:960
+#: packages/admin/src/components/Widgets.tsx:968
 msgid "Select a component..."
 msgstr "Välj en komponent …"
 
@@ -12371,7 +12371,7 @@ msgstr "Välj en innehållstyp"
 msgid "Select a location"
 msgstr "Välj en plats"
 
-#: packages/admin/src/components/Widgets.tsx:923
+#: packages/admin/src/components/Widgets.tsx:931
 msgid "Select a menu..."
 msgstr "Välj en meny …"
 
@@ -12648,14 +12648,14 @@ msgstr "Konfigureras"
 msgid "Setting up..."
 msgstr "Konfigurerar …"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:247
+#: packages/admin/src/components/AdminCommandPalette.tsx:248
 #: packages/admin/src/components/ContentEditor.tsx:1883
 #: packages/admin/src/components/ContentEditor.tsx:2207
 #: packages/admin/src/components/ContentTypeEditor.tsx:467
 #: packages/admin/src/components/Header.tsx:104
-#: packages/admin/src/components/PluginManager.tsx:536
+#: packages/admin/src/components/PluginManager.tsx:543
 #: packages/admin/src/components/Settings.tsx:46
-#: packages/admin/src/components/Sidebar.tsx:510
+#: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/WordPressImport.tsx:1868
 msgid "Settings"
 msgstr "Inställningar"
@@ -12703,15 +12703,15 @@ msgstr "Kort text"
 msgid "Show changes"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:147
+#: packages/admin/src/components/Widgets.tsx:155
 msgid "Show count"
 msgstr "Visa antal"
 
-#: packages/admin/src/components/Widgets.tsx:131
+#: packages/admin/src/components/Widgets.tsx:139
 msgid "Show date"
 msgstr "Visa datum"
 
-#: packages/admin/src/components/Widgets.tsx:140
+#: packages/admin/src/components/Widgets.tsx:148
 msgid "Show hierarchy"
 msgstr "Visa hierarki"
 
@@ -12719,11 +12719,11 @@ msgstr "Visa hierarki"
 msgid "Show older versions"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:139
+#: packages/admin/src/components/Widgets.tsx:147
 msgid "Show post count"
 msgstr "Visa antal inlägg"
 
-#: packages/admin/src/components/Widgets.tsx:130
+#: packages/admin/src/components/Widgets.tsx:138
 msgid "Show thumbnails"
 msgstr "Visa miniatyrer"
 
@@ -12889,7 +12889,7 @@ msgstr "Webbplatstitel och slogan"
 msgid "Site title is required"
 msgstr "Webbplatstitel krävs"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:255
+#: packages/admin/src/components/AdminCommandPalette.tsx:256
 msgid "Site Transfer"
 msgstr "Webbplatsflytt"
 
@@ -13046,7 +13046,7 @@ msgstr "Sortera teman"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:568
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/PluginManager.tsx:642
+#: packages/admin/src/components/PluginManager.tsx:649
 #: packages/admin/src/components/Redirects.tsx:492
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
@@ -13160,7 +13160,7 @@ msgstr "Status"
 msgid "Status code"
 msgstr "Statuskod"
 
-#: packages/admin/src/components/Dashboard.tsx:621
+#: packages/admin/src/components/Dashboard.tsx:626
 msgid "Status: {status}"
 msgstr "Status: {status}"
 
@@ -13220,7 +13220,7 @@ msgid "Sub-Fields"
 msgstr "Underfält"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:18
-#: packages/admin/src/components/WelcomeModal.tsx:29
+#: packages/admin/src/components/WelcomeModal.tsx:30
 msgid "Subscriber"
 msgstr "Prenumerant"
 
@@ -13303,8 +13303,8 @@ msgstr "Tabeller kan inte klistras in i listor eller citat. Klistra in tabellen 
 msgid "Tagline"
 msgstr "Slogan"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:214
-#: packages/admin/src/components/Widgets.tsx:144
+#: packages/admin/src/components/AdminCommandPalette.tsx:215
+#: packages/admin/src/components/Widgets.tsx:152
 msgid "Tags"
 msgstr "Taggar"
 
@@ -13708,7 +13708,7 @@ msgstr "Paketets innehåll skrivs till den här webbplatsen. Importen kan inte �
 msgid "The package’s file index is not valid."
 msgstr "Paketets filindex är ogiltigt."
 
-#: packages/admin/src/router.tsx:3354
+#: packages/admin/src/router.tsx:3355
 msgid "The page you're looking for doesn't exist."
 msgstr "Sidan du letar efter finns inte."
 
@@ -13940,11 +13940,11 @@ msgstr "Posten har ändrats någon annanstans sedan du öppnade den."
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Posten har ändrats någon annanstans. Spara ändå eller läs in sidan igen för att hämta den nyare versionen."
 
-#: packages/admin/src/router.tsx:1949
+#: packages/admin/src/router.tsx:1950
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Posten finns inte eller är inte publicerad. Med din roll kan du bara se publicerat innehåll."
 
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1951
 msgid "This entry doesn't exist or was deleted."
 msgstr "Posten finns inte eller har tagits bort."
 
@@ -14143,7 +14143,7 @@ msgstr "Tillägget är inte tillgängligt ännu"
 msgid "This plugin requires no special permissions."
 msgstr "Tillägget kräver inga särskilda behörigheter."
 
-#: packages/admin/src/components/PluginManager.tsx:463
+#: packages/admin/src/components/PluginManager.tsx:470
 msgid "This publisher identity no longer resolves."
 msgstr "Utgivarens identitet går inte längre att slå upp."
 
@@ -14221,7 +14221,7 @@ msgstr "Den här webbplatsen kan inte ta emot en import"
 msgid "This site has no content yet, so it can receive an import. Choose a .emdash package file. It is checked in your browser and uploaded in parts; nothing on this site changes until you review and confirm the import."
 msgstr "Den här webbplatsen har inget innehåll ännu, så den kan ta emot en import. Välj en .emdash-paketfil. Filen kontrolleras i webbläsaren och laddas upp i delar. Inget på webbplatsen ändras förrän du har granskat och bekräftat importen."
 
-#: packages/admin/src/components/Dashboard.tsx:274
+#: packages/admin/src/components/Dashboard.tsx:277
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
 msgstr "Webbplatsen har inget innehåll ännu, så du kan importera ett .emdash-paket som exporterats från en annan EmDash-webbplats."
 
@@ -14265,7 +14265,7 @@ msgstr "Den här versionen syns inte på webbplatsen"
 msgid "This video can't be played."
 msgstr "Videon kan inte spelas upp."
 
-#: packages/admin/src/components/Widgets.tsx:719
+#: packages/admin/src/components/Widgets.tsx:727
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Widgetområdet och alla dess widgetar tas bort. Åtgärden kan inte ångras."
 
@@ -14287,7 +14287,7 @@ msgstr "”{0}” tas bort permanent. Åtgärden kan inte ångras."
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Kommentaren tas bort permanent. Åtgärden kan inte ångras."
 
-#: packages/admin/src/components/PluginManager.tsx:799
+#: packages/admin/src/components/PluginManager.tsx:806
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Tillägget och dess paket tas bort från webbplatsen."
 
@@ -14320,7 +14320,7 @@ msgstr "Tidszon"
 #: packages/admin/src/components/ContentList.tsx:911
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
-#: packages/admin/src/components/Widgets.tsx:895
+#: packages/admin/src/components/Widgets.tsx:903
 msgid "Title"
 msgstr "Titel"
 
@@ -14332,7 +14332,7 @@ msgstr "Titel (verktygstips)"
 msgid "Title Separator"
 msgstr "Titelavgränsare"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:505
+#: packages/admin/src/components/AdminCommandPalette.tsx:508
 msgid "to close"
 msgstr "för att stänga"
 
@@ -14340,7 +14340,7 @@ msgstr "för att stänga"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "Använd <0>Flytt</0> för att flytta en webbplats till en annan EmDash-installation."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:495
+#: packages/admin/src/components/AdminCommandPalette.tsx:498
 msgid "to select"
 msgstr "för att välja"
 
@@ -14655,20 +14655,20 @@ msgid "Unfinished media uploads were left out"
 msgstr "Ofullständiga medieuppladdningar utelämnades"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
-#: packages/admin/src/components/PluginManager.tsx:694
-#: packages/admin/src/components/PluginManager.tsx:813
+#: packages/admin/src/components/PluginManager.tsx:701
+#: packages/admin/src/components/PluginManager.tsx:820
 msgid "Uninstall"
 msgstr "Avinstallera"
 
-#: packages/admin/src/components/PluginManager.tsx:797
+#: packages/admin/src/components/PluginManager.tsx:804
 msgid "Uninstall {pluginName}?"
 msgstr "Avinstallera {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:792
+#: packages/admin/src/components/PluginManager.tsx:799
 msgid "Uninstall confirmation"
 msgstr "Bekräfta avinstallation"
 
-#: packages/admin/src/components/PluginManager.tsx:813
+#: packages/admin/src/components/PluginManager.tsx:820
 msgid "Uninstalling..."
 msgstr "Avinstallerar …"
 
@@ -14761,7 +14761,7 @@ msgstr "Widgetelementtyp som inte stöds: {0}"
 msgid "Until {0}"
 msgstr "Till {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:588
+#: packages/admin/src/components/Dashboard.tsx:593
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "Utan titel"
@@ -14771,8 +14771,8 @@ msgstr "Utan titel"
 msgid "Untitled file"
 msgstr "Fil utan namn"
 
-#: packages/admin/src/components/Widgets.tsx:540
-#: packages/admin/src/components/Widgets.tsx:813
+#: packages/admin/src/components/Widgets.tsx:548
+#: packages/admin/src/components/Widgets.tsx:821
 msgid "Untitled Widget"
 msgstr "Widget utan namn"
 
@@ -14829,7 +14829,7 @@ msgid "Update this redirect rule."
 msgstr "Uppdatera omdirigeringsregeln."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:528
+#: packages/admin/src/components/PluginManager.tsx:535
 msgid "Update to v{0}"
 msgstr "Uppdatera till v{0}"
 
@@ -14856,7 +14856,7 @@ msgid "Updating usage"
 msgstr "Uppdaterar användning"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:355
-#: packages/admin/src/components/PluginManager.tsx:528
+#: packages/admin/src/components/PluginManager.tsx:535
 #: packages/admin/src/components/SandboxedPluginPage.tsx:161
 #: packages/admin/src/components/SandboxedPluginPage.tsx:165
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:122
@@ -14922,7 +14922,7 @@ msgstr "Ladda upp filer"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Ladda upp bilder, videor och dokument för att samla återanvändbara mediefiler på ett ställe."
 
-#: packages/admin/src/components/Dashboard.tsx:348
+#: packages/admin/src/components/Dashboard.tsx:352
 msgid "Upload Media"
 msgstr "Ladda upp media"
 
@@ -15005,7 +15005,7 @@ msgstr "URL och språk"
 msgid "URL Pattern"
 msgstr "URL-mönster"
 
-#: packages/admin/src/components/Widgets.tsx:132
+#: packages/admin/src/components/Widgets.tsx:140
 msgid "URL template (e.g. /blog/:slug)"
 msgstr "URL-mall (t.ex. /blog/:slug)"
 
@@ -15153,8 +15153,8 @@ msgstr "Användare för {0}"
 msgid "User not found"
 msgstr "Användaren hittades inte"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:223
-#: packages/admin/src/components/Sidebar.tsx:485
+#: packages/admin/src/components/AdminCommandPalette.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:527
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "Användare"
@@ -15177,7 +15177,7 @@ msgid "v{0}"
 msgstr "v{0}"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "v{0} available"
 msgstr "v{0} tillgänglig"
 
@@ -15390,11 +15390,11 @@ msgstr "Webbplats"
 msgid "Website URL"
 msgstr "Webbplats-URL"
 
-#: packages/admin/src/components/WelcomeModal.tsx:102
+#: packages/admin/src/components/WelcomeModal.tsx:104
 msgid "Welcome to EmDash, {firstName}!"
 msgstr "Välkommen till EmDash, {firstName}!"
 
-#: packages/admin/src/components/WelcomeModal.tsx:102
+#: packages/admin/src/components/WelcomeModal.tsx:104
 msgid "Welcome to EmDash!"
 msgstr "Välkommen till EmDash!"
 
@@ -15511,20 +15511,20 @@ msgstr "Varför är det här viktigt?"
 msgid "Wide"
 msgstr "Bred"
 
-#: packages/admin/src/components/Widgets.tsx:806
-#: packages/admin/src/components/Widgets.tsx:821
+#: packages/admin/src/components/Widgets.tsx:814
+#: packages/admin/src/components/Widgets.tsx:829
 msgid "widget"
 msgstr "widget"
 
-#: packages/admin/src/components/Widgets.tsx:233
+#: packages/admin/src/components/Widgets.tsx:241
 msgid "Widget added"
 msgstr "Widget tillagd"
 
-#: packages/admin/src/components/Widgets.tsx:221
+#: packages/admin/src/components/Widgets.tsx:229
 msgid "Widget area created"
 msgstr "Widgetområde skapat"
 
-#: packages/admin/src/components/Widgets.tsx:649
+#: packages/admin/src/components/Widgets.tsx:657
 msgid "Widget area deleted"
 msgstr "Widgetområde borttaget"
 
@@ -15532,24 +15532,24 @@ msgstr "Widgetområde borttaget"
 msgid "Widget areas"
 msgstr "Widgetområden"
 
-#: packages/admin/src/components/Widgets.tsx:769
+#: packages/admin/src/components/Widgets.tsx:777
 msgid "Widget deleted"
 msgstr "Widget borttagen"
 
-#: packages/admin/src/components/Widgets.tsx:898
+#: packages/admin/src/components/Widgets.tsx:906
 msgid "Widget title"
 msgstr "Widgettitel"
 
-#: packages/admin/src/components/Widgets.tsx:784
+#: packages/admin/src/components/Widgets.tsx:792
 msgid "Widget updated"
 msgstr "Widget uppdaterad"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/AdminCommandPalette.tsx:182
+#: packages/admin/src/components/PluginManager.tsx:491
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:452
-#: packages/admin/src/components/Widgets.tsx:389
+#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Widgets.tsx:397
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
 msgstr "Widgetar"
@@ -15619,7 +15619,7 @@ msgstr "Skriv HTML …"
 msgid "Write JavaScript…"
 msgstr "Skriv JavaScript …"
 
-#: packages/admin/src/components/Widgets.tsx:908
+#: packages/admin/src/components/Widgets.tsx:916
 msgid "Write widget content..."
 msgstr "Skriv widgetinnehåll …"
 
@@ -15643,7 +15643,7 @@ msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgid "YAML"
 msgstr "YAML"
 
-#: packages/admin/src/components/Widgets.tsx:164
+#: packages/admin/src/components/Widgets.tsx:172
 msgid "Yearly"
 msgstr "Årligen"
 
@@ -15666,11 +15666,11 @@ msgstr "Yoast/RankMath"
 msgid "You can close this page and return to your terminal."
 msgstr "Du kan stänga den här sidan och gå tillbaka till din terminal."
 
-#: packages/admin/src/components/WelcomeModal.tsx:49
+#: packages/admin/src/components/WelcomeModal.tsx:50
 msgid "You can create and edit your own content."
 msgstr "Du kan skapa och redigera ditt eget innehåll."
 
-#: packages/admin/src/components/WelcomeModal.tsx:48
+#: packages/admin/src/components/WelcomeModal.tsx:49
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Du kan hantera innehåll, media, menyer och taxonomier."
 
@@ -15678,7 +15678,7 @@ msgstr "Du kan hantera innehåll, media, menyer och taxonomier."
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "Du kan fortfarande redigera de fasta fälten ovan. Att spara påverkar inte lagrade värden för anpassade fält."
 
-#: packages/admin/src/components/WelcomeModal.tsx:50
+#: packages/admin/src/components/WelcomeModal.tsx:51
 msgid "You can view and contribute to the site."
 msgstr "Du kan visa och bidra till webbplatsen."
 
@@ -15703,7 +15703,7 @@ msgstr "Du har inte behörighet att flytta den här filen."
 msgid "You don't have permission to view the calendar."
 msgstr "Du har inte behörighet att visa kalendern."
 
-#: packages/admin/src/components/WelcomeModal.tsx:47
+#: packages/admin/src/components/WelcomeModal.tsx:48
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "Du har full åtkomst att hantera den här webbplatsen, inklusive användare, inställningar och allt innehåll."
 
@@ -15719,7 +15719,7 @@ msgstr "Du behöver administratörsbehörighet för att hantera spårning av med
 msgid "You need Admin permissions to transfer this site."
 msgstr "Du behöver administratörsbehörighet för att flytta webbplatsen."
 
-#: packages/admin/src/router.tsx:2466
+#: packages/admin/src/router.tsx:2467
 msgid "You need Editor permissions to moderate comments."
 msgstr "Du behöver redaktörsbehörighet för att moderera kommentarer."
 
@@ -15782,7 +15782,7 @@ msgstr "du@foretag.se"
 msgid "you@example.com"
 msgstr "du@exempel.se"
 
-#: packages/admin/src/components/WelcomeModal.tsx:45
+#: packages/admin/src/components/WelcomeModal.tsx:46
 msgid "Your account has been created successfully."
 msgstr "Ditt konto har skapats."
 
@@ -15856,15 +15856,15 @@ msgstr "Ditt namn"
 msgid "Your name (optional)"
 msgstr "Ditt namn (valfritt)"
 
-#: packages/admin/src/components/WelcomeModal.tsx:46
+#: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "Your Role"
 msgstr "Din roll"
 
-#: packages/admin/src/router.tsx:2017
+#: packages/admin/src/router.tsx:2018
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2018
+#: packages/admin/src/router.tsx:2019
 msgid "Your role can't edit this entry."
 msgstr ""
 
