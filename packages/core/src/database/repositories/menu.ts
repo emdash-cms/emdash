@@ -13,7 +13,7 @@
  * single menu item survives content translations.
  */
 
-import type { Compilable, Insertable, Kysely, Selectable } from "kysely";
+import { sql, type Compilable, type Insertable, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { localeMatches, localeOrder } from "../../i18n/query.js";
@@ -657,39 +657,26 @@ export class MenuRepository {
 	 * migration 036), so descendants are removed here for every dialect.
 	 */
 	async deleteItem(menuId: string, itemId: string): Promise<boolean> {
-		let deleting = false;
-		try {
-			return await withTransaction(this.db, async (trx) => {
-				const rows = await trx
-					.selectFrom("_emdash_menu_items")
-					.select(["id", "parent_id"])
-					.where("menu_id", "=", menuId)
-					.execute();
-				if (!rows.some((row) => row.id === itemId)) return false;
-
-				const childrenByParent = new Map<string, string[]>();
-				for (const row of rows) {
-					if (row.parent_id === null) continue;
-					const siblings = childrenByParent.get(row.parent_id) ?? [];
-					siblings.push(row.id);
-					childrenByParent.set(row.parent_id, siblings);
-				}
-				// The set also stops the walk on cyclic links from older API writes.
-				const toDelete = new Set([itemId]);
-				for (const id of toDelete) {
-					for (const childId of childrenByParent.get(id) ?? []) toDelete.add(childId);
-				}
-
-				deleting = true;
-				// Children before parents: on D1 a failed later batch then leaves a subtree that is still attached.
-				for (const batch of chunks([...toDelete].toReversed(), SQL_BATCH_SIZE)) {
-					await trx.deleteFrom("_emdash_menu_items").where("id", "in", batch).execute();
-				}
-				return true;
-			});
-		} finally {
-			if (deleting) invalidateMenuObjectCache();
-		}
+		// A single statement, so a failure on D1 (no transactions) leaves the
+		// whole subtree in place. UNION, not UNION ALL, ends the walk on cyclic
+		// links from older API writes.
+		const subtreeIds = sql<string>`(
+			WITH RECURSIVE subtree(id) AS (
+				SELECT id FROM _emdash_menu_items WHERE id = ${itemId} AND menu_id = ${menuId}
+				UNION
+				SELECT item.id FROM _emdash_menu_items AS item
+				INNER JOIN subtree ON item.parent_id = subtree.id
+				WHERE item.menu_id = ${menuId}
+			)
+			SELECT id FROM subtree
+		)`;
+		const result = await this.db
+			.deleteFrom("_emdash_menu_items")
+			.where("id", "in", subtreeIds)
+			.execute();
+		const deleted = result[0]?.numDeletedRows !== 0n;
+		if (deleted) invalidateMenuObjectCache();
+		return deleted;
 	}
 
 	/**
