@@ -7906,7 +7906,7 @@ msgstr "https://example.com 或 /about"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:549
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:776
 msgid "https://example.com or /page"
-msgstr "https://example.com or /page"
+msgstr "https://example.com 或 /page"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:405
 msgid "https://example.com/blog/my-post"
