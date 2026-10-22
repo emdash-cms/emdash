@@ -47,7 +47,7 @@ The setting never changes content that is already stored. A post that has an H1 
 
 ### Paste and drop
 
-Pasted or dropped content can come from anywhere, so its headings are adjusted on the way in. A heading at a level the field doesn't allow becomes the closest allowed level. When two allowed levels are equally close, it takes the smaller heading, so pasted text never becomes more prominent than it was. With headings turned off, pasted headings become paragraphs. Inserted sections and duplicated blocks are new content in the field too, so their headings are adjusted the same way.
+Pasted or dropped content can come from anywhere, so its headings are adjusted on the way in. A heading at a level the field doesn't allow becomes the closest allowed level. When two allowed levels are equally close, it takes the smaller heading, so a tie never makes pasted text more prominent than it was. With headings turned off, pasted headings become paragraphs. Inserted sections and duplicated blocks are new content in the field too, so their headings are adjusted the same way.
 
 Dragging a block to another spot in the same editor keeps its level, also when the drag copies it. Copying and pasting a block is a paste, so it's adjusted.
 
@@ -94,9 +94,9 @@ No migration is needed. `options` is already a stored JSON column, and fields wi
 
 **Admin.** The field settings dialog for rich text fields gets a **Heading levels** group with six checkboxes. `PortableTextEditor` gets an optional `headingLevels` prop; when it's left out, all six levels are offered, so other callers don't change.
 
-**Visual editor.** In edit mode, `getEmDashEntry` and `getEmDashCollection` already read the collection's Portable Text fields from `_emdash_fields`, once per request, to tag fields for inline editing. That query also selects each field's `options`, and the edit metadata that `PortableText.astro` passes to the inline editor carries the allowed levels. Referenced entries are tagged without that query today; they use the same cached helper for their own collection, which adds at most one query per referenced collection, in edit mode only. Logged-out page views run none of this.
+**Visual editor.** In edit mode, `getEmDashEntry` and `getEmDashCollection` already read the collection's Portable Text fields from `_emdash_fields`, once per request, to tag fields for inline editing. Today that query reads only the field slugs. The plan adds each field's `options` to it, so the edit metadata that `PortableText.astro` passes to the inline editor carries the allowed levels. Referenced entries are tagged without that query today. With this plan they use the same cached helper for their own collection, which adds at most one query per referenced collection, in edit mode only. Logged-out page views run none of this.
 
-**Compatibility.** Additive only. No default changes, no breaking change, and no migration.
+**Compatibility.** Additive, except for the reserved `headingLevels` option name above. No default changes and no migration.
 
 ## Where the setting lives
 
@@ -121,7 +121,7 @@ If a site needs a hard guarantee later, a `validation.headingLevels` rule can be
 
 - **An option in `astro.config.mjs`, even as a site-wide default.** It would split the content model between the database and the site's code. The admin couldn't show or change it, seeds and exports wouldn't carry it, and the two places could disagree about the same field.
 - **Rendering disallowed levels as another level on the site.** The editor would still offer Heading 1 and show text that looks different once published.
-- **Passing the allowed levels to the editor's heading extension directly.** TipTap's heading extension then draws a stored H1 as the first allowed level and turns pasted H1s into plain paragraphs, which hides existing content and loses structure. The editor keeps all six levels in its schema and filters only the ways of creating a heading.
+- **Passing the allowed levels to the editor's heading extension directly.** TipTap's heading extension then draws a stored H1 as the first allowed level and turns pasted H1s into plain paragraphs. Editors would see existing headings at the wrong level, and pasted headings would lose their structure. The editor keeps all six levels in its schema and filters only the ways of creating a heading.
 
 ## Errors and edge cases
 
