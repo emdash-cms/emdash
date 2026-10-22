@@ -158,7 +158,7 @@ msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr ""
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:496
+#: packages/admin/src/components/PluginManager.tsx:503
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr ""
 
@@ -189,7 +189,7 @@ msgstr ""
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:510
+#: packages/admin/src/components/PluginManager.tsx:517
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# مجوز} other {# مجوز}}"
 
@@ -341,12 +341,12 @@ msgid "{0} fallback"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:149
+#: packages/admin/src/components/PluginManager.tsx:156
 msgid "{0} has been deactivated"
 msgstr "{0} غیرفعال شد"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:391
+#: packages/admin/src/components/PluginManager.tsx:398
 msgid "{0} has been removed"
 msgstr "{0} حذف شد"
 
@@ -361,7 +361,7 @@ msgid "{0} installs"
 msgstr "{0} نصب"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:130
+#: packages/admin/src/components/PluginManager.tsx:137
 msgid "{0} is now active"
 msgstr "{0} اکنون فعال است"
 
@@ -434,7 +434,7 @@ msgid "{0} of media, {1} of records"
 msgstr ""
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:213
+#: packages/admin/src/components/PluginManager.tsx:220
 msgid "{0} plugins"
 msgstr "{0} افزونه"
 
@@ -466,7 +466,7 @@ msgid "{0} updated everywhere it appears."
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:300
+#: packages/admin/src/components/PluginManager.tsx:307
 msgid "{0} updated to v{installedVersion}"
 msgstr ""
 
@@ -1450,7 +1450,7 @@ msgstr ""
 msgid "Add to posts"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:404
+#: packages/admin/src/components/Widgets.tsx:412
 msgid "Add Widget Area"
 msgstr ""
 
@@ -1592,12 +1592,12 @@ msgstr ""
 msgid "Agenda"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:605
+#: packages/admin/src/components/PluginManager.tsx:612
 msgid "Agent access"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:409
 msgid "Agent access for {0} has been updated"
 msgstr ""
 
@@ -1686,7 +1686,7 @@ msgstr "همه انواع"
 msgid "All uploads finished"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:607
+#: packages/admin/src/components/PluginManager.tsx:614
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
@@ -1723,7 +1723,7 @@ msgstr ""
 msgid "Already have an account?"
 msgstr "آیا از قبل حساب کاربری دارید؟"
 
-#: packages/admin/src/components/PluginManager.tsx:804
+#: packages/admin/src/components/PluginManager.tsx:811
 msgid "Also delete plugin storage data"
 msgstr "داده‌های ذخیره‌سازی افزونه نیز حذف شود"
 
@@ -1786,9 +1786,9 @@ msgstr ""
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:136
-#: packages/admin/src/components/PluginManager.tsx:155
-#: packages/admin/src/components/PluginManager.tsx:333
+#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:162
+#: packages/admin/src/components/PluginManager.tsx:340
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -1891,7 +1891,7 @@ msgstr ""
 msgid "API Tokens"
 msgstr "توکن‌های API"
 
-#: packages/admin/src/components/Widgets.tsx:442
+#: packages/admin/src/components/Widgets.tsx:450
 msgid "Appears on posts and pages"
 msgstr ""
 
@@ -1963,7 +1963,7 @@ msgid "Archived"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:68
-#: packages/admin/src/components/Widgets.tsx:159
+#: packages/admin/src/components/Widgets.tsx:167
 msgid "Archives"
 msgstr ""
 
@@ -2154,7 +2154,7 @@ msgstr ""
 msgid "Available Providers"
 msgstr "ارائه‌دهندگان موجود"
 
-#: packages/admin/src/components/Widgets.tsx:469
+#: packages/admin/src/components/Widgets.tsx:477
 msgid "Available Widgets"
 msgstr ""
 
@@ -2394,7 +2394,7 @@ msgstr "انتخاب فایل‌ها"
 msgid "Browse files to upload"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:67
+#: packages/admin/src/components/PluginManager.tsx:74
 msgid "Browse the <0>registry</0> to install plugins."
 msgstr ""
 
@@ -2533,11 +2533,11 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/MenuEditor.tsx:548
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
-#: packages/admin/src/components/PluginManager.tsx:810
+#: packages/admin/src/components/PluginManager.tsx:817
 #: packages/admin/src/components/PortableTextEditor.tsx:5762
 #: packages/admin/src/components/PortableTextEditor.tsx:5788
 #: packages/admin/src/components/PortableTextEditor.tsx:6535
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:369
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2550,7 +2550,7 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/TaxonomyManager.tsx:882
 #: packages/admin/src/components/TaxonomyManager.tsx:1102
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
-#: packages/admin/src/components/Widgets.tsx:453
+#: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Cancel"
 msgstr "لغو"
@@ -2594,7 +2594,7 @@ msgstr "بخش‌های قالب قابل حذف نیستند"
 msgid "Canonical URL"
 msgstr "آدرس کانونیکال"
 
-#: packages/admin/src/components/PluginManager.tsx:581
+#: packages/admin/src/components/PluginManager.tsx:588
 msgid "Capabilities"
 msgstr "قابلیت‌ها"
 
@@ -2620,7 +2620,7 @@ msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:206
-#: packages/admin/src/components/Widgets.tsx:136
+#: packages/admin/src/components/Widgets.tsx:144
 msgid "Categories"
 msgstr "دسته‌ها"
 
@@ -2682,17 +2682,17 @@ msgstr ""
 msgid "Change Logo"
 msgstr "تغییر لوگو"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:629
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:674
 msgid "Change publication date"
 msgstr ""
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:604
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:649
 msgid "Change publication date: {0}"
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Change schedule"
 msgstr ""
 
@@ -2790,7 +2790,7 @@ msgstr "حرف جداکننده‌ی بین عنوان صفحه و نام وبس
 msgid "Check and switch"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:205
+#: packages/admin/src/components/PluginManager.tsx:212
 msgid "Check for updates"
 msgstr "بررسی به‌روزرسانی‌ها"
 
@@ -2887,6 +2887,10 @@ msgstr ""
 msgid "Choose a credential manager on this device, another device, or a security key."
 msgstr ""
 
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:36
+msgid "Choose a date"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:1210
 #: packages/admin/src/components/ContentList.tsx:1216
 msgid "Choose a date range"
@@ -2894,10 +2898,6 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:234
 msgid "Choose a file from the library or upload a new one."
-msgstr ""
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
-msgid "Choose a new publication time for this draft."
 msgstr ""
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
@@ -2911,6 +2911,14 @@ msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:184
 msgid "Choose a term and enter between 1 and 50 posts."
+msgstr ""
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:40
+msgid "Choose a time in the future"
+msgstr ""
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:37
+msgid "Choose a valid date"
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:236
@@ -2949,14 +2957,6 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
-msgstr ""
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
-msgid "Choose when these changes replace the live version."
-msgstr ""
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
-msgid "Choose when this draft becomes public."
 msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
@@ -3077,7 +3077,7 @@ msgstr ""
 #: packages/admin/src/components/PortableTextEditor.tsx:2697
 #: packages/admin/src/components/PortableTextEditor.tsx:2703
 #: packages/admin/src/components/PortableTextEditor.tsx:2707
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:349
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:386
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/RelationDialog.tsx:65
@@ -3099,9 +3099,9 @@ msgstr ""
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
 #: packages/admin/src/components/users/InviteUserModal.tsx:98
 #: packages/admin/src/components/WelcomeModal.tsx:61
-#: packages/admin/src/components/Widgets.tsx:414
-#: packages/admin/src/components/Widgets.tsx:420
-#: packages/admin/src/components/Widgets.tsx:424
+#: packages/admin/src/components/Widgets.tsx:422
+#: packages/admin/src/components/Widgets.tsx:428
+#: packages/admin/src/components/Widgets.tsx:432
 msgid "Close"
 msgstr "بستن"
 
@@ -3153,8 +3153,8 @@ msgstr ""
 msgid "Collapse block"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:564
-#: packages/admin/src/components/PluginManager.tsx:569
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Collapse details"
 msgstr "بستن جزئیات"
 
@@ -3271,7 +3271,7 @@ msgstr ""
 msgid "Complete signup"
 msgstr "تکمیل ثبت‌نام"
 
-#: packages/admin/src/components/Widgets.tsx:935
+#: packages/admin/src/components/Widgets.tsx:943
 msgid "Component"
 msgstr ""
 
@@ -3342,11 +3342,11 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:494
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:676
-#: packages/admin/src/components/Widgets.tsx:903
+#: packages/admin/src/components/Widgets.tsx:911
 msgid "Content"
 msgstr "محتوا"
 
-#: packages/admin/src/components/Widgets.tsx:98
+#: packages/admin/src/components/Widgets.tsx:106
 msgid "Content Block"
 msgstr "بلوک محتوا"
 
@@ -3716,7 +3716,7 @@ msgstr "تعداد"
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
 #: packages/admin/src/components/TaxonomyManager.tsx:893
-#: packages/admin/src/components/Widgets.tsx:456
+#: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "ساخت جدید"
 
@@ -3873,7 +3873,7 @@ msgstr ""
 msgid "Create Token"
 msgstr "ساخت توکن"
 
-#: packages/admin/src/components/Widgets.tsx:411
+#: packages/admin/src/components/Widgets.tsx:419
 msgid "Create Widget Area"
 msgstr ""
 
@@ -4157,7 +4157,7 @@ msgstr ""
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
 #: packages/admin/src/components/TaxonomyManager.tsx:1538
 #: packages/admin/src/components/TaxonomyManager.tsx:1554
-#: packages/admin/src/components/Widgets.tsx:720
+#: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/routes/byline-schema.tsx:378
 msgid "Delete"
 msgstr "حذف"
@@ -4182,7 +4182,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:329
 #: packages/admin/src/components/TaxonomyManager.tsx:492
-#: packages/admin/src/components/Widgets.tsx:821
+#: packages/admin/src/components/Widgets.tsx:829
 #: packages/admin/src/routes/byline-schema.tsx:460
 msgid "Delete {0}"
 msgstr "حذف {0}"
@@ -4198,7 +4198,7 @@ msgid "Delete {0} menu"
 msgstr "حذف فهرستی {0}"
 
 #. placeholder {0}: area.label
-#: packages/admin/src/components/Widgets.tsx:668
+#: packages/admin/src/components/Widgets.tsx:676
 msgid "Delete {0} widget area"
 msgstr ""
 
@@ -4347,7 +4347,7 @@ msgstr ""
 msgid "Delete video"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:718
+#: packages/admin/src/components/Widgets.tsx:726
 msgid "Delete Widget Area?"
 msgstr ""
 
@@ -4379,7 +4379,7 @@ msgstr ""
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
 #: packages/admin/src/components/TaxonomyManager.tsx:1539
 #: packages/admin/src/components/TaxonomyManager.tsx:1555
-#: packages/admin/src/components/Widgets.tsx:721
+#: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Deleting..."
 msgstr "در حال حذف..."
@@ -4446,7 +4446,7 @@ msgstr "توضیح دهید این بخش برای چیست..."
 #: packages/admin/src/components/RegistryPluginDetail.tsx:907
 #: packages/admin/src/components/SectionEditor.tsx:296
 #: packages/admin/src/components/Sections.tsx:221
-#: packages/admin/src/components/Widgets.tsx:440
+#: packages/admin/src/components/Widgets.tsx:448
 msgid "Description"
 msgstr "توضیحات"
 
@@ -4463,7 +4463,7 @@ msgid "Destination path"
 msgstr "مسیر مقصد"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:311
-#: packages/admin/src/components/PluginManager.tsx:626
+#: packages/admin/src/components/PluginManager.tsx:633
 msgid "Destructive"
 msgstr ""
 
@@ -4508,11 +4508,11 @@ msgstr "ابعاد:"
 msgid "Disable"
 msgstr "غیرفعال‌سازی"
 
-#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Disable plugin"
 msgstr "غیرفعال‌سازی افزونه"
 
-#: packages/admin/src/components/PluginManager.tsx:616
+#: packages/admin/src/components/PluginManager.tsx:623
 msgid "Disable plugin MCP tools"
 msgstr ""
 
@@ -4528,14 +4528,14 @@ msgstr ""
 msgid "Disable User?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:451
+#: packages/admin/src/components/PluginManager.tsx:458
 #: packages/admin/src/components/Redirects.tsx:399
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:209
 msgid "Disabled"
 msgstr "غیرفعال"
 
-#: packages/admin/src/components/PluginManager.tsx:678
+#: packages/admin/src/components/PluginManager.tsx:685
 msgid "Disabled:"
 msgstr "غیرفعال:"
 
@@ -4598,15 +4598,15 @@ msgstr ""
 msgid "Dismiss table paste error"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:127
+#: packages/admin/src/components/Widgets.tsx:135
 msgid "Display a list of recent posts"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:105
+#: packages/admin/src/components/Widgets.tsx:113
 msgid "Display a navigation menu"
 msgstr "نمایش فهرستی ناوبری"
 
-#: packages/admin/src/components/Widgets.tsx:137
+#: packages/admin/src/components/Widgets.tsx:145
 msgid "Display category list"
 msgstr ""
 
@@ -4623,7 +4623,7 @@ msgstr ""
 msgid "Display Size"
 msgstr "اندازه نمایش"
 
-#: packages/admin/src/components/Widgets.tsx:145
+#: packages/admin/src/components/Widgets.tsx:153
 msgid "Display tag cloud"
 msgstr ""
 
@@ -4798,7 +4798,7 @@ msgstr ""
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "بکشید و رها کنید یا برای مرور کلیک کنید (.xml)"
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:712
 msgid "Drag here to add"
 msgstr ""
 
@@ -4809,7 +4809,7 @@ msgstr ""
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:937
-#: packages/admin/src/components/Widgets.tsx:806
+#: packages/admin/src/components/Widgets.tsx:814
 msgid "Drag to reorder {0}"
 msgstr ""
 
@@ -4818,11 +4818,11 @@ msgstr ""
 msgid "Drag to reorder {label}"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:708
+#: packages/admin/src/components/Widgets.tsx:716
 msgid "Drag widgets here to add them"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:470
+#: packages/admin/src/components/Widgets.tsx:478
 msgid "Drag widgets into an area to add them"
 msgstr ""
 
@@ -4842,7 +4842,7 @@ msgstr ""
 msgid "Drop one image at a time."
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:712
 msgid "Drop to add widget"
 msgstr ""
 
@@ -5280,11 +5280,11 @@ msgstr ""
 msgid "Enable full-text search on this collection"
 msgstr "فعال‌سازی جستجوی تمام‌متن روی این مجموعه"
 
-#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Enable plugin"
 msgstr "فعال‌سازی افزونه"
 
-#: packages/admin/src/components/PluginManager.tsx:617
+#: packages/admin/src/components/PluginManager.tsx:624
 msgid "Enable plugin MCP tools"
 msgstr ""
 
@@ -5329,10 +5329,18 @@ msgstr ""
 msgid "Enter a slug."
 msgstr ""
 
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:38
+msgid "Enter a time"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:527
 #: packages/admin/src/components/MenuEditor.tsx:725
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "یک آدرس (https://…) یا یک مسیر نسبی (/…) وارد کنید"
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:39
+msgid "Enter a valid time"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3179
 msgid "Enter a valid URL (e.g. https://example.com)"
@@ -5411,16 +5419,16 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:607
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
-#: packages/admin/src/components/Widgets.tsx:773
+#: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3338
 msgid "Error"
 msgstr "خطا"
 
-#: packages/admin/src/components/Widgets.tsx:237
+#: packages/admin/src/components/Widgets.tsx:245
 msgid "Error adding widget"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:298
+#: packages/admin/src/components/Widgets.tsx:306
 msgid "Error reordering widgets"
 msgstr ""
 
@@ -5428,7 +5436,7 @@ msgstr ""
 msgid "Error saving section"
 msgstr "خطا در ذخیره بخش"
 
-#: packages/admin/src/components/Widgets.tsx:788
+#: packages/admin/src/components/Widgets.tsx:796
 msgid "Error updating widget"
 msgstr ""
 
@@ -5497,8 +5505,8 @@ msgstr ""
 msgid "Expand block"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:564
-#: packages/admin/src/components/PluginManager.tsx:569
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Expand details"
 msgstr "باز کردن جزئیات"
 
@@ -5858,7 +5866,7 @@ msgstr ""
 msgid "Failed to deny request"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:154
+#: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "غیرفعال‌سازی افزونه ناموفق بود"
@@ -5904,7 +5912,7 @@ msgstr ""
 msgid "Failed to email users"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:142
 #: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "فعال‌سازی افزونه ناموفق بود"
@@ -6301,7 +6309,7 @@ msgid "Failed to load plugin settings"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:183
+#: packages/admin/src/components/PluginManager.tsx:190
 msgid "Failed to load plugins: {0}"
 msgstr "بارگذاری افزونه‌ها ناموفق بود: {0}"
 
@@ -6596,7 +6604,7 @@ msgstr ""
 msgid "Failed to update menu item"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:332
+#: packages/admin/src/components/PluginManager.tsx:339
 #: packages/admin/src/lib/api/marketplace.ts:373
 #: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
@@ -7057,7 +7065,7 @@ msgstr ""
 msgid "Group (optional)"
 msgstr "گروه (اختیاری)"
 
-#: packages/admin/src/components/Widgets.tsx:163
+#: packages/admin/src/components/Widgets.tsx:171
 msgid "Group by"
 msgstr ""
 
@@ -7207,7 +7215,7 @@ msgstr "خانه"
 msgid "Homepage"
 msgstr "صفحه اصلی"
 
-#: packages/admin/src/components/PluginManager.tsx:490
+#: packages/admin/src/components/PluginManager.tsx:497
 msgid "Hooks"
 msgstr "هوک‌ها"
 
@@ -7217,7 +7225,7 @@ msgstr "هوک‌ها"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:194
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
 msgid "Hour"
 msgstr ""
 
@@ -7354,7 +7362,7 @@ msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:336
 #: packages/admin/src/components/ImageFieldRenderer.tsx:351
-#: packages/admin/src/components/SeoImageField.tsx:128
+#: packages/admin/src/components/SeoImageField.tsx:171
 msgid "Image actions"
 msgstr ""
 
@@ -7373,7 +7381,7 @@ msgstr ""
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
 #: packages/admin/src/components/ImageFieldRenderer.tsx:488
 #: packages/admin/src/components/ImageFieldRenderer.tsx:543
-#: packages/admin/src/components/SeoImageField.tsx:107
+#: packages/admin/src/components/SeoImageField.tsx:146
 msgid "Image not found"
 msgstr ""
 
@@ -7394,7 +7402,7 @@ msgstr ""
 msgid "Image Settings"
 msgstr "تنظیمات تصویر"
 
-#: packages/admin/src/components/SeoImageField.tsx:97
+#: packages/admin/src/components/SeoImageField.tsx:136
 msgid "Image shown when this page is shared on social media"
 msgstr "تصویر نمایش داده شده هنگام اشتراک‌گذاری این صفحه در شبکه‌های اجتماعی"
 
@@ -7735,11 +7743,11 @@ msgid "Installed"
 msgstr "نصب‌شده"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:645
+#: packages/admin/src/components/PluginManager.tsx:652
 msgid "Installed from marketplace (v{0})"
 msgstr "نصب‌شده از فروشگاه (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:666
+#: packages/admin/src/components/PluginManager.tsx:673
 msgid "Installed:"
 msgstr "نصب شد:"
 
@@ -7946,7 +7954,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:716
 #: packages/admin/src/components/MenuList.tsx:153
 #: packages/admin/src/components/TaxonomyManager.tsx:1037
-#: packages/admin/src/components/Widgets.tsx:438
+#: packages/admin/src/components/Widgets.tsx:446
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
 msgstr "برچسب"
@@ -7979,7 +7987,7 @@ msgstr "سرتیتر بزرگ بخش"
 msgid "Last edited"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:672
+#: packages/admin/src/components/PluginManager.tsx:679
 msgid "Last enabled:"
 msgstr "آخرین فعال‌سازی:"
 
@@ -8018,7 +8026,7 @@ msgstr "آخرین استفاده {0}"
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:81
+#: packages/admin/src/components/PluginManager.tsx:88
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
 msgstr ""
 
@@ -8059,7 +8067,7 @@ msgstr "کتابخانه"
 msgid "License"
 msgstr "مجوز"
 
-#: packages/admin/src/components/Widgets.tsx:166
+#: packages/admin/src/components/Widgets.tsx:174
 msgid "Limit"
 msgstr ""
 
@@ -8286,7 +8294,7 @@ msgstr "در حال بارگذاری فهرستها..."
 msgid "Loading plugin panel"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:174
+#: packages/admin/src/components/PluginManager.tsx:181
 msgid "Loading plugins..."
 msgstr "در حال بارگذاری افزونه‌ها..."
 
@@ -8332,7 +8340,7 @@ msgstr ""
 msgid "Loading usage"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:373
+#: packages/admin/src/components/Widgets.tsx:381
 msgid "Loading widgets..."
 msgstr ""
 
@@ -8377,7 +8385,7 @@ msgstr ""
 msgid "Loading…"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:112
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:129
 msgid "Local time"
 msgstr ""
 
@@ -8458,7 +8466,7 @@ msgstr ""
 msgid "Main library"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:438
+#: packages/admin/src/components/Widgets.tsx:446
 msgid "Main Sidebar"
 msgstr ""
 
@@ -8476,11 +8484,11 @@ msgstr "مدیریت {0} برای {1}"
 msgid "Manage bylines in {entryLocale}"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:391
+#: packages/admin/src/components/Widgets.tsx:399
 msgid "Manage content widgets in your widget areas"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:201
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "افزونه‌های نصب‌شده را مدیریت کنید. افزونه‌ها را فعال یا غیرفعال کنید تا عملکرد آن‌ها را کنترل کنید."
 
@@ -8544,7 +8552,7 @@ msgid "Markdown"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:452
+#: packages/admin/src/components/PluginManager.tsx:459
 msgid "Marketplace"
 msgstr "فروشگاه"
 
@@ -8588,7 +8596,7 @@ msgstr ""
 msgid "Maximum blocks"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:148
+#: packages/admin/src/components/Widgets.tsx:156
 msgid "Maximum tags"
 msgstr ""
 
@@ -8698,8 +8706,8 @@ msgstr "نوشتن رسانه"
 msgid "Medium section heading"
 msgstr "سرتیتر متوسط بخش"
 
-#: packages/admin/src/components/Widgets.tsx:104
-#: packages/admin/src/components/Widgets.tsx:918
+#: packages/admin/src/components/Widgets.tsx:112
+#: packages/admin/src/components/Widgets.tsx:926
 msgid "Menu"
 msgstr "فهرست"
 
@@ -8817,7 +8825,7 @@ msgstr ""
 msgid "Minor section heading"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:216
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
 msgid "Minute"
 msgstr ""
 
@@ -8841,11 +8849,11 @@ msgstr "تغییر طرح‌های مجموعه"
 msgid "Month"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:164
+#: packages/admin/src/components/Widgets.tsx:172
 msgid "Monthly"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:160
+#: packages/admin/src/components/Widgets.tsx:168
 msgid "Monthly/yearly archives"
 msgstr ""
 
@@ -9123,7 +9131,7 @@ msgstr "وبلاگ عالی من"
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
-#: packages/admin/src/components/Widgets.tsx:432
+#: packages/admin/src/components/Widgets.tsx:440
 msgid "Name"
 msgstr "نام"
 
@@ -9612,7 +9620,7 @@ msgstr "هنوز شاه‌کلیدی ثبت نشده."
 msgid "No pending requests"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:233
+#: packages/admin/src/components/PluginManager.tsx:240
 msgid "No plugins configured"
 msgstr "افزونه‌ای پیکربندی نشده"
 
@@ -9713,7 +9721,7 @@ msgstr ""
 msgid "No versions yet"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:507
+#: packages/admin/src/components/Widgets.tsx:515
 msgid "No widget areas yet. Create one to get started."
 msgstr ""
 
@@ -9788,7 +9796,7 @@ msgstr ""
 msgid "Number"
 msgstr "عدد"
 
-#: packages/admin/src/components/Widgets.tsx:129
+#: packages/admin/src/components/Widgets.tsx:137
 msgid "Number of posts"
 msgstr ""
 
@@ -9811,7 +9819,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: packages/admin/src/components/SeoImageField.tsx:49
+#: packages/admin/src/components/SeoImageField.tsx:88
 msgid "OG Image"
 msgstr "تصویر OG"
 
@@ -10050,7 +10058,7 @@ msgstr "عنوان صفحه را در نتایج موتورهای جستجو ب�
 msgid "Ownership"
 msgstr "مالکیت"
 
-#: packages/admin/src/components/PluginManager.tsx:654
+#: packages/admin/src/components/PluginManager.tsx:661
 msgid "Package"
 msgstr "بسته"
 
@@ -10078,7 +10086,7 @@ msgstr ""
 msgid "Page size"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:485
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "صفحات"
@@ -10253,7 +10261,7 @@ msgstr ""
 msgid "Per page"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:235
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
 msgid "Period"
 msgstr ""
 
@@ -10292,7 +10300,7 @@ msgstr ""
 msgid "picks {0}"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:155
+#: packages/admin/src/components/Widgets.tsx:163
 msgid "Placeholder text"
 msgstr ""
 
@@ -10354,11 +10362,11 @@ msgstr ""
 msgid "Plugin details"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:148
+#: packages/admin/src/components/PluginManager.tsx:155
 msgid "Plugin disabled"
 msgstr "افزونه غیرفعال شد"
 
-#: packages/admin/src/components/PluginManager.tsx:129
+#: packages/admin/src/components/PluginManager.tsx:136
 msgid "Plugin enabled"
 msgstr "افزونه فعال شد"
 
@@ -10375,7 +10383,7 @@ msgstr ""
 msgid "Plugin installation requires explicit consent"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "Plugin MCP access updated"
 msgstr ""
 
@@ -10396,7 +10404,7 @@ msgstr "افزونه یافت نشد"
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:547
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Plugin pages"
 msgstr ""
 
@@ -10434,7 +10442,7 @@ msgstr ""
 msgid "Plugin tools: {0}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:390
+#: packages/admin/src/components/PluginManager.tsx:397
 msgid "Plugin uninstalled"
 msgstr "افزونه حذف نصب شد"
 
@@ -10443,7 +10451,7 @@ msgstr "افزونه حذف نصب شد"
 msgid "Plugin update requires re-consent"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:299
+#: packages/admin/src/components/PluginManager.tsx:306
 msgid "Plugin updated"
 msgstr "افزونه به‌روزرسانی شد"
 
@@ -10452,9 +10460,9 @@ msgid "Plugin widget error"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:232
-#: packages/admin/src/components/PluginManager.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:182
-#: packages/admin/src/components/PluginManager.tsx:192
+#: packages/admin/src/components/PluginManager.tsx:180
+#: packages/admin/src/components/PluginManager.tsx:189
+#: packages/admin/src/components/PluginManager.tsx:199
 #: packages/admin/src/components/Sidebar.tsx:530
 #: packages/admin/src/components/Sidebar.tsx:700
 msgid "Plugins"
@@ -10630,7 +10638,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:987
 #: packages/admin/src/components/ContentSettingsPanel.tsx:992
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1003
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:678
 msgid "Publication date"
 msgstr ""
 
@@ -10890,7 +10898,7 @@ msgstr "فعالیت‌های اخیر"
 msgid "Recent exports"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:126
+#: packages/admin/src/components/Widgets.tsx:134
 msgid "Recent Posts"
 msgstr ""
 
@@ -11007,8 +11015,8 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "ثبت‌نام لغو شد یا زمان آن به پایان رسید. لطفاً دوباره تلاش کنید."
 
-#: packages/admin/src/components/PluginManager.tsx:210
-#: packages/admin/src/components/PluginManager.tsx:453
+#: packages/admin/src/components/PluginManager.tsx:217
+#: packages/admin/src/components/PluginManager.tsx:460
 #: packages/admin/src/components/Sidebar.tsx:539
 msgid "Registry"
 msgstr ""
@@ -11096,8 +11104,8 @@ msgid "Remove {entry}"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3415
-#: packages/admin/src/components/SeoImageField.tsx:163
-#: packages/admin/src/components/SeoImageField.tsx:164
+#: packages/admin/src/components/SeoImageField.tsx:206
+#: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
 msgstr ""
 
@@ -11311,15 +11319,15 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/PortableTextEditor.tsx:5806
 #: packages/admin/src/components/PortableTextEditor.tsx:5887
-#: packages/admin/src/components/SeoImageField.tsx:151
-#: packages/admin/src/components/SeoImageField.tsx:184
+#: packages/admin/src/components/SeoImageField.tsx:194
+#: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3443
 #: packages/admin/src/components/ImageFieldRenderer.tsx:595
-#: packages/admin/src/components/SeoImageField.tsx:148
-#: packages/admin/src/components/SeoImageField.tsx:183
+#: packages/admin/src/components/SeoImageField.tsx:191
+#: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Replace {label}"
 msgstr ""
 
@@ -11700,7 +11708,7 @@ msgstr "در حال لغو..."
 msgid "Rich Text"
 msgstr "متن غنی"
 
-#: packages/admin/src/components/Widgets.tsx:99
+#: packages/admin/src/components/Widgets.tsx:107
 msgid "Rich text content"
 msgstr "محتوای متن غنی"
 
@@ -11756,7 +11764,7 @@ msgstr ""
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:307
-#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:637
 msgid "Route: {0} · Permission: {1}"
 msgstr ""
 
@@ -11815,7 +11823,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:757
 #: packages/admin/src/components/Redirects.tsx:195
 #: packages/admin/src/components/SaveButton.tsx:35
-#: packages/admin/src/components/Widgets.tsx:987
+#: packages/admin/src/components/Widgets.tsx:995
 msgid "Save"
 msgstr "ذخیره"
 
@@ -11848,13 +11856,17 @@ msgstr ""
 msgid "Save content as draft before publishing"
 msgstr "ذخیره محتوا به‌عنوان پیش‌نویس قبل از انتشار"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:635
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:681
 msgid "Save date"
 msgstr ""
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:62
 msgid "visualEditing.saveFailed"
+msgstr ""
+
+#: packages/admin/src/components/SeoImageField.tsx:241
+msgid "Save image URL"
 msgstr ""
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:112
@@ -11869,7 +11881,7 @@ msgstr ""
 msgid "Save Relation"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Save schedule"
 msgstr ""
 
@@ -11913,7 +11925,7 @@ msgstr ""
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/users/UserDetail.tsx:330
-#: packages/admin/src/components/Widgets.tsx:987
+#: packages/admin/src/components/Widgets.tsx:995
 msgid "Saving..."
 msgstr "درحال ذخیره‌سازی …"
 
@@ -11940,20 +11952,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Schedule"
 msgstr "زمان‌بندی"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:471
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:520
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Schedule changes"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:489
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Schedule date"
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:521
 msgid "Schedule publication"
 msgstr ""
 
@@ -12052,7 +12064,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeEditor.tsx:106
 #: packages/admin/src/components/Settings.tsx:165
 #: packages/admin/src/components/Settings.tsx:165
-#: packages/admin/src/components/Widgets.tsx:152
+#: packages/admin/src/components/Widgets.tsx:160
 msgid "Search"
 msgstr "جستجو"
 
@@ -12148,7 +12160,7 @@ msgstr ""
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:153
+#: packages/admin/src/components/Widgets.tsx:161
 msgid "Search form"
 msgstr ""
 
@@ -12342,7 +12354,7 @@ msgstr "انتخاب"
 #: packages/admin/src/components/ContentEditor.tsx:3427
 #: packages/admin/src/components/ContentEditor.tsx:3443
 #: packages/admin/src/components/ImageFieldRenderer.tsx:596
-#: packages/admin/src/components/SeoImageField.tsx:183
+#: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
 msgstr "انتخاب {label}"
 
@@ -12354,7 +12366,7 @@ msgstr ""
 msgid "Select a collection"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:960
+#: packages/admin/src/components/Widgets.tsx:968
 msgid "Select a component..."
 msgstr ""
 
@@ -12367,7 +12379,7 @@ msgstr ""
 msgid "Select a location"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:923
+#: packages/admin/src/components/Widgets.tsx:931
 msgid "Select a menu..."
 msgstr ""
 
@@ -12649,7 +12661,7 @@ msgstr "در حال راه‌اندازی..."
 #: packages/admin/src/components/ContentEditor.tsx:2207
 #: packages/admin/src/components/ContentTypeEditor.tsx:467
 #: packages/admin/src/components/Header.tsx:104
-#: packages/admin/src/components/PluginManager.tsx:536
+#: packages/admin/src/components/PluginManager.tsx:543
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/WordPressImport.tsx:1868
@@ -12686,6 +12698,10 @@ msgstr "این لینک را با کاربر دعوت‌شده به اشتراک
 msgid "Shared across all translations of the same byline."
 msgstr ""
 
+#: packages/admin/src/components/SeoImageField.tsx:226
+msgid "Sharing image needs a URL"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:47
 msgid "Short text"
 msgstr ""
@@ -12699,15 +12715,15 @@ msgstr "متن کوتاه"
 msgid "Show changes"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:147
+#: packages/admin/src/components/Widgets.tsx:155
 msgid "Show count"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:131
+#: packages/admin/src/components/Widgets.tsx:139
 msgid "Show date"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:140
+#: packages/admin/src/components/Widgets.tsx:148
 msgid "Show hierarchy"
 msgstr ""
 
@@ -12715,11 +12731,11 @@ msgstr ""
 msgid "Show older versions"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:139
+#: packages/admin/src/components/Widgets.tsx:147
 msgid "Show post count"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:130
+#: packages/admin/src/components/Widgets.tsx:138
 msgid "Show thumbnails"
 msgstr ""
 
@@ -13042,7 +13058,7 @@ msgstr "مرتب‌سازی قالب‌ها"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:568
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/PluginManager.tsx:642
+#: packages/admin/src/components/PluginManager.tsx:649
 #: packages/admin/src/components/Redirects.tsx:492
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
@@ -13300,7 +13316,7 @@ msgid "Tagline"
 msgstr "شعار"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:215
-#: packages/admin/src/components/Widgets.tsx:144
+#: packages/admin/src/components/Widgets.tsx:152
 msgid "Tags"
 msgstr "برچسب‌ها"
 
@@ -13419,6 +13435,10 @@ msgstr "test@example.com"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6588
 msgid "Text formatting"
+msgstr ""
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:41
+msgid "That time does not exist in your time zone"
 msgstr ""
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:546
@@ -13761,6 +13781,10 @@ msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:188
 msgid "The sample content added so far is kept. Continue to add the rest."
+msgstr ""
+
+#: packages/admin/src/components/SeoImageField.tsx:229
+msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
@@ -14139,7 +14163,7 @@ msgstr ""
 msgid "This plugin requires no special permissions."
 msgstr "این افزونه نیاز به مجوز خاصی ندارد."
 
-#: packages/admin/src/components/PluginManager.tsx:463
+#: packages/admin/src/components/PluginManager.tsx:470
 msgid "This publisher identity no longer resolves."
 msgstr ""
 
@@ -14261,7 +14285,7 @@ msgstr ""
 msgid "This video can't be played."
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:719
+#: packages/admin/src/components/Widgets.tsx:727
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr ""
 
@@ -14283,7 +14307,7 @@ msgstr "این «{0}» را برای همیشه حذف می‌کند. این ع�
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "این دیدگاه برای همیشه حذف خواهد شد. این عمل قابل بازگشت نیست."
 
-#: packages/admin/src/components/PluginManager.tsx:799
+#: packages/admin/src/components/PluginManager.tsx:806
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "این افزونه و بسته آن را از وبسایت شما حذف می‌کند."
 
@@ -14295,7 +14319,7 @@ msgstr "این به نسخه منتشرشده بازمی‌گردد. تغییر�
 msgid "Thoughts, tutorials, and more"
 msgstr "اندیشه‌ها، آموزش‌ها و بیشتر"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:184
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
 msgid "Time"
 msgstr ""
 
@@ -14307,7 +14331,7 @@ msgstr ""
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:254
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "منطقه زمانی"
@@ -14316,7 +14340,7 @@ msgstr "منطقه زمانی"
 #: packages/admin/src/components/ContentList.tsx:911
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
-#: packages/admin/src/components/Widgets.tsx:895
+#: packages/admin/src/components/Widgets.tsx:903
 msgid "Title"
 msgstr "عنوان"
 
@@ -14651,20 +14675,20 @@ msgid "Unfinished media uploads were left out"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
-#: packages/admin/src/components/PluginManager.tsx:694
-#: packages/admin/src/components/PluginManager.tsx:813
+#: packages/admin/src/components/PluginManager.tsx:701
+#: packages/admin/src/components/PluginManager.tsx:820
 msgid "Uninstall"
 msgstr "حذف نصب"
 
-#: packages/admin/src/components/PluginManager.tsx:797
+#: packages/admin/src/components/PluginManager.tsx:804
 msgid "Uninstall {pluginName}?"
 msgstr "حذف نصب {pluginName}؟"
 
-#: packages/admin/src/components/PluginManager.tsx:792
+#: packages/admin/src/components/PluginManager.tsx:799
 msgid "Uninstall confirmation"
 msgstr "تأیید حذف نصب"
 
-#: packages/admin/src/components/PluginManager.tsx:813
+#: packages/admin/src/components/PluginManager.tsx:820
 msgid "Uninstalling..."
 msgstr "در حال حذف نصب..."
 
@@ -14767,8 +14791,8 @@ msgstr "بی‌نام"
 msgid "Untitled file"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:540
-#: packages/admin/src/components/Widgets.tsx:813
+#: packages/admin/src/components/Widgets.tsx:548
+#: packages/admin/src/components/Widgets.tsx:821
 msgid "Untitled Widget"
 msgstr ""
 
@@ -14825,7 +14849,7 @@ msgid "Update this redirect rule."
 msgstr "این قانون    تغییر مسیر را به‌روزرسانی کنید."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:528
+#: packages/admin/src/components/PluginManager.tsx:535
 msgid "Update to v{0}"
 msgstr "به‌روزرسانی به v{0}"
 
@@ -14852,7 +14876,7 @@ msgid "Updating usage"
 msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:355
-#: packages/admin/src/components/PluginManager.tsx:528
+#: packages/admin/src/components/PluginManager.tsx:535
 #: packages/admin/src/components/SandboxedPluginPage.tsx:161
 #: packages/admin/src/components/SandboxedPluginPage.tsx:165
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:122
@@ -15001,7 +15025,7 @@ msgstr ""
 msgid "URL Pattern"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:132
+#: packages/admin/src/components/Widgets.tsx:140
 msgid "URL template (e.g. /blog/:slug)"
 msgstr ""
 
@@ -15173,7 +15197,7 @@ msgid "v{0}"
 msgstr ""
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "v{0} available"
 msgstr "v{0} در دسترس"
 
@@ -15495,7 +15519,7 @@ msgstr ""
 msgid "Why is this important for search visibility?"
 msgstr ""
 
-#: packages/admin/src/components/SeoImageField.tsx:98
+#: packages/admin/src/components/SeoImageField.tsx:137
 msgid "Why is this important for social sharing?"
 msgstr ""
 
@@ -15507,20 +15531,20 @@ msgstr ""
 msgid "Wide"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:806
-#: packages/admin/src/components/Widgets.tsx:821
+#: packages/admin/src/components/Widgets.tsx:814
+#: packages/admin/src/components/Widgets.tsx:829
 msgid "widget"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:233
+#: packages/admin/src/components/Widgets.tsx:241
 msgid "Widget added"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:221
+#: packages/admin/src/components/Widgets.tsx:229
 msgid "Widget area created"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:649
+#: packages/admin/src/components/Widgets.tsx:657
 msgid "Widget area deleted"
 msgstr ""
 
@@ -15528,24 +15552,24 @@ msgstr ""
 msgid "Widget areas"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:769
+#: packages/admin/src/components/Widgets.tsx:777
 msgid "Widget deleted"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:898
+#: packages/admin/src/components/Widgets.tsx:906
 msgid "Widget title"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:784
+#: packages/admin/src/components/Widgets.tsx:792
 msgid "Widget updated"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:182
-#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/PluginManager.tsx:491
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:478
-#: packages/admin/src/components/Widgets.tsx:389
+#: packages/admin/src/components/Widgets.tsx:397
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
 msgstr "ابزارک‌ها"
@@ -15615,7 +15639,7 @@ msgstr ""
 msgid "Write JavaScript…"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:908
+#: packages/admin/src/components/Widgets.tsx:916
 msgid "Write widget content..."
 msgstr ""
 
@@ -15639,7 +15663,7 @@ msgstr ""
 msgid "YAML"
 msgstr ""
 
-#: packages/admin/src/components/Widgets.tsx:164
+#: packages/admin/src/components/Widgets.tsx:172
 msgid "Yearly"
 msgstr ""
 

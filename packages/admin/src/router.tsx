@@ -4,7 +4,7 @@
  * Defines all admin routes and their components.
  */
 
-import { Banner, Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
+import { Banner, Button, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -526,7 +526,7 @@ function ContentListPage() {
 	const { locale: localeParam } = useSearch({ from: "/_admin/content/$collection" });
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -645,7 +645,7 @@ function ContentListPage() {
 			toastManager.add({
 				title: t`Failed to delete`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -660,7 +660,7 @@ function ContentListPage() {
 			toastManager.add({
 				title: t`Failed to restore`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -674,7 +674,7 @@ function ContentListPage() {
 			toastManager.add({
 				title: t`Failed to delete`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -688,7 +688,7 @@ function ContentListPage() {
 			toastManager.add({
 				title: t`Failed to duplicate`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -708,12 +708,12 @@ function ContentListPage() {
 		},
 		onSuccess: ({ total, failedIds }) => {
 			if (failedIds.length === 0) {
-				toastManager.add({ title: t`Published ${total} items`, type: "success" });
+				toastManager.add({ title: t`Published ${total} items`, variant: "success" });
 			} else {
 				toastManager.add({
 					title: t`Failed to publish`,
 					description: t`${failedIds.length} of ${total} could not be published`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -731,12 +731,12 @@ function ContentListPage() {
 		},
 		onSuccess: ({ total, failedIds }) => {
 			if (failedIds.length === 0) {
-				toastManager.add({ title: t`Moved ${total} items to draft`, type: "success" });
+				toastManager.add({ title: t`Moved ${total} items to draft`, variant: "success" });
 			} else {
 				toastManager.add({
 					title: t`Failed to update`,
 					description: t`${failedIds.length} of ${total} could not be updated`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -752,12 +752,12 @@ function ContentListPage() {
 		},
 		onSuccess: ({ total, failedIds }) => {
 			if (failedIds.length === 0) {
-				toastManager.add({ title: t`Moved ${total} items to trash`, type: "success" });
+				toastManager.add({ title: t`Moved ${total} items to trash`, variant: "success" });
 			} else {
 				toastManager.add({
 					title: t`Failed to delete`,
 					description: t`${failedIds.length} of ${total} could not be deleted`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -1035,7 +1035,7 @@ function ContentEditPage() {
 	});
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const isEditorDirtyRef = React.useRef(false);
 	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
 	const [editorItemReset, setEditorItemReset] = React.useState({ entryId: "", token: 0 });
@@ -1314,7 +1314,7 @@ function ContentEditPage() {
 				description:
 					describeContentValidationError(error, collectionFields) ??
 					(error instanceof Error ? error.message : t`An error occurred`),
-				type: "error",
+				variant: "error",
 			});
 		},
 		[collectionFields, entryLock.reportWriteError, t, toastManager],
@@ -1433,7 +1433,7 @@ function ContentEditPage() {
 				description:
 					describeContentValidationError(err, collectionFields) ??
 					(err instanceof Error ? err.message : t`An error occurred`),
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1467,7 +1467,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to publish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1491,7 +1491,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to unpublish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1516,7 +1516,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to discard changes`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1572,7 +1572,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to schedule`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1591,7 +1591,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to unschedule`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1624,7 +1624,7 @@ function ContentEditPage() {
 				description:
 					describeContentValidationError(error, collectionFields) ??
 					(error instanceof Error ? error.message : t`An error occurred`),
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1645,7 +1645,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to delete`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -2050,7 +2050,7 @@ function MediaPage() {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const { folder } = useSearch({ from: "/_admin/media" });
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const { data: currentUser } = useCurrentUser();
 
 	const [search, setSearch] = React.useState("");
@@ -2078,7 +2078,7 @@ function MediaPage() {
 		void navigate({ to: "/media", search: { folder: undefined }, replace: true });
 		toastManager.add({
 			title: t`Folder no longer exists`,
-			type: "warning",
+			variant: "warning",
 			timeout: 4000,
 		});
 	}, [folder, missingFolder, navigate, t, toastManager]);
@@ -2342,7 +2342,7 @@ const ROLE_ADMIN = 50;
 function CommentsPage() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -2409,7 +2409,7 @@ function CommentsPage() {
 			toastManager.add({
 				title: t`Failed to update status`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -2425,7 +2425,7 @@ function CommentsPage() {
 			toastManager.add({
 				title: t`Failed to delete comment`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -2450,7 +2450,7 @@ function CommentsPage() {
 			toastManager.add({
 				title: t`Failed to perform bulk action`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -3015,7 +3015,7 @@ const contentTypesEditRoute = createRoute({
 function ContentTypesEditPage() {
 	const { slug } = useParams({ from: "/_admin/content-types/$slug" });
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const { t } = useLingui();
 
 	const {
@@ -3061,7 +3061,7 @@ function ContentTypesEditPage() {
 			toastManager.add({
 				title: t`Failed to save`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});

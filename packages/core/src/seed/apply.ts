@@ -44,7 +44,11 @@ import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../i18n/c
 import { localeMatches, localeOrder } from "../i18n/query.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
+import {
+	coalesceObjectCacheWrites,
+	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
+} from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "../schema/registry.js";
@@ -1259,54 +1263,58 @@ async function applySeedWrites(
 
 	// 10. Widget Areas and Widgets
 	if (seed.widgetAreas) {
-		const areaIds: string[] = [];
-		const widgetRows: Insertable<WidgetTable>[] = [];
-		for (const area of seed.widgetAreas) {
-			// Check if area exists
-			const lookup = db
-				.selectFrom("_emdash_widget_areas")
-				.selectAll()
-				.where("name", "=", area.name);
-			const existingArea = await lookup.executeTakeFirst();
+		try {
+			const areaIds: string[] = [];
+			const widgetRows: Insertable<WidgetTable>[] = [];
+			for (const area of seed.widgetAreas) {
+				// Check if area exists
+				const lookup = db
+					.selectFrom("_emdash_widget_areas")
+					.selectAll()
+					.where("name", "=", area.name);
+				const existingArea = await lookup.executeTakeFirst();
 
-			let areaId: string;
+				let areaId: string;
 
-			if (existingArea) {
-				areaId = existingArea.id;
-			} else {
-				// Create area
-				areaId = ulid();
-				const inserted = await db
-					.insertInto("_emdash_widget_areas")
-					.values({
-						id: areaId,
-						name: area.name,
-						label: area.label,
-						description: area.description ?? null,
-					})
-					.onConflict((conflict) => conflict.column("name").doNothing())
-					.returning("id")
-					.executeTakeFirst();
-				if (inserted) {
-					result.widgetAreas.created++;
+				if (existingArea) {
+					areaId = existingArea.id;
 				} else {
-					areaId = (await lookup.executeTakeFirstOrThrow()).id;
+					// Create area
+					areaId = ulid();
+					const inserted = await db
+						.insertInto("_emdash_widget_areas")
+						.values({
+							id: areaId,
+							name: area.name,
+							label: area.label,
+							description: area.description ?? null,
+						})
+						.onConflict((conflict) => conflict.column("name").doNothing())
+						.returning("id")
+						.executeTakeFirst();
+					if (inserted) {
+						result.widgetAreas.created++;
+					} else {
+						areaId = (await lookup.executeTakeFirstOrThrow()).id;
+					}
+				}
+
+				areaIds.push(areaId);
+				for (let i = 0; i < area.widgets.length; i++) {
+					const widget = area.widgets[i];
+					widgetRows.push(createSeedWidgetRow(areaId, widget, i));
+					result.widgetAreas.widgets++;
 				}
 			}
-
-			areaIds.push(areaId);
-			for (let i = 0; i < area.widgets.length; i++) {
-				const widget = area.widgets[i];
-				widgetRows.push(createSeedWidgetRow(areaId, widget, i));
-				result.widgetAreas.widgets++;
-			}
+			await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
+				...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
+				...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
+					target.insertInto("_emdash_widgets").values(rows),
+				),
+			]);
+		} finally {
+			invalidateWidgetObjectCache();
 		}
-		await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
-			...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
-			...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
-				target.insertInto("_emdash_widgets").values(rows),
-			),
-		]);
 	}
 
 	// 11. Sections

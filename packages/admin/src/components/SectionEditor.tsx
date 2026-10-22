@@ -4,7 +4,7 @@
  * Edit a section's content and metadata.
  */
 
-import { Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
+import { Input, InputArea, Label, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
@@ -37,7 +37,7 @@ export function SectionEditor() {
 	const { slug } = useParams({ from: "/_admin/sections/$slug" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const {
 		data: section,
@@ -70,7 +70,7 @@ export function SectionEditor() {
 			toastManager.add({
 				title: t`Error saving section`,
 				description: mutationError.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});

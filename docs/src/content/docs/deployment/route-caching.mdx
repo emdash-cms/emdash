@@ -69,6 +69,8 @@ EmDash's content API routes invalidate the route cache whenever live content cha
 
 Site chrome is covered too: saving site settings invalidates `emdash:settings`, menu edits invalidate `emdash:menu:{name}`, and taxonomy and widget-area writes invalidate their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()`, `getSiteSettingsWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, or `getWidgetAreaWithCacheHint()`.
 
+Menu tags cover menu edits only. Publishing, unpublishing, trashing, or restoring an entry that a menu links to, or changing the slug of a linked entry or taxonomy term, doesn't invalidate the menu's tag. A page that shows the menu picks up such a change when its tags also name that entry, its collection, or that term's taxonomy, and otherwise when the page expires.
+
 Creating, editing, or deleting a redirect invalidates the cached page at the redirect's source path, with and without a trailing slash, so the redirect applies on the next request.
 
 Restoring an older revision, and changes to bylines, the media library, and comments, invalidate nothing. Cached pages affected by them update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).

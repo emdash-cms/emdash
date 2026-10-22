@@ -156,7 +156,7 @@ msgid "{0, plural, one {# matching tag} other {# matching tags}}"
 msgstr "{0, plural, one {# eşleşen etiket} other {# eşleşen etiket}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:496
+#: packages/admin/src/components/PluginManager.tsx:503
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP aracı} other {# MCP aracı}}"
 
@@ -187,7 +187,7 @@ msgstr "{0, plural, one {# izin istendi} other {# izin istendi}}"
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:510
+#: packages/admin/src/components/PluginManager.tsx:517
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# izin} other {# izin}}"
 
@@ -339,12 +339,12 @@ msgid "{0} fallback"
 msgstr "{0} dilinden gösteriliyor"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:149
+#: packages/admin/src/components/PluginManager.tsx:156
 msgid "{0} has been deactivated"
 msgstr "{0} devre dışı bırakıldı"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:391
+#: packages/admin/src/components/PluginManager.tsx:398
 msgid "{0} has been removed"
 msgstr "{0} kaldırıldı"
 
@@ -359,7 +359,7 @@ msgid "{0} installs"
 msgstr "{0} yüklemeleri"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:130
+#: packages/admin/src/components/PluginManager.tsx:137
 msgid "{0} is now active"
 msgstr "{0} artık aktif"
 
@@ -432,7 +432,7 @@ msgid "{0} of media, {1} of records"
 msgstr "Medya: {0}, kayıtlar: {1}"
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:213
+#: packages/admin/src/components/PluginManager.tsx:220
 msgid "{0} plugins"
 msgstr "{0} eklentileri"
 
@@ -464,7 +464,7 @@ msgid "{0} updated everywhere it appears."
 msgstr "{0} göründüğü her yerde güncellendi."
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:300
+#: packages/admin/src/components/PluginManager.tsx:307
 msgid "{0} updated to v{installedVersion}"
 msgstr "{0}, v{installedVersion} sürümüne güncellendi"
 
@@ -1448,7 +1448,7 @@ msgstr "Terim ekle"
 msgid "Add to posts"
 msgstr "Gönderilere ekle"
 
-#: packages/admin/src/components/Widgets.tsx:404
+#: packages/admin/src/components/Widgets.tsx:412
 msgid "Add Widget Area"
 msgstr "Widget Alanı Ekle"
 
@@ -1590,12 +1590,12 @@ msgstr "Bu eklentiyi açıkça çağırdıktan sonra eklenti, düzenleyicide se�
 msgid "Agenda"
 msgstr "Ajanda"
 
-#: packages/admin/src/components/PluginManager.tsx:605
+#: packages/admin/src/components/PluginManager.tsx:612
 msgid "Agent access"
 msgstr "Ajan erişimi"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:409
 msgid "Agent access for {0} has been updated"
 msgstr "{0} için ajan erişimi güncellendi"
 
@@ -1684,7 +1684,7 @@ msgstr "Tüm türler"
 msgid "All uploads finished"
 msgstr "Tüm yüklemeler tamamlandı"
 
-#: packages/admin/src/components/PluginManager.tsx:607
+#: packages/admin/src/components/PluginManager.tsx:614
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "Eklenti aracı kapsamına sahip MCP belirteçlerinin bu yolları çağırmasına izin verin."
 
@@ -1721,7 +1721,7 @@ msgstr "Zaten atanmış veya yinelenen"
 msgid "Already have an account?"
 msgstr "Zaten bir hesabınız var mı?"
 
-#: packages/admin/src/components/PluginManager.tsx:804
+#: packages/admin/src/components/PluginManager.tsx:811
 msgid "Also delete plugin storage data"
 msgstr "Ayrıca eklenti depolama verilerini de silin"
 
@@ -1784,9 +1784,9 @@ msgstr "Parmak izi, yüz tanıma, PIN veya cihaz parolasıyla açabildiğiniz ş
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:136
-#: packages/admin/src/components/PluginManager.tsx:155
-#: packages/admin/src/components/PluginManager.tsx:333
+#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:162
+#: packages/admin/src/components/PluginManager.tsx:340
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -1889,7 +1889,7 @@ msgstr "Sınırsız"
 msgid "API Tokens"
 msgstr "API Belirteçleri"
 
-#: packages/admin/src/components/Widgets.tsx:442
+#: packages/admin/src/components/Widgets.tsx:450
 msgid "Appears on posts and pages"
 msgstr "Gönderilerde ve sayfalarda görünür"
 
@@ -1961,7 +1961,7 @@ msgid "Archived"
 msgstr "Arşivlendi"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:68
-#: packages/admin/src/components/Widgets.tsx:159
+#: packages/admin/src/components/Widgets.tsx:167
 msgid "Archives"
 msgstr "Arşivler"
 
@@ -2152,7 +2152,7 @@ msgstr "{0} dilinde kullanılabilir"
 msgid "Available Providers"
 msgstr "Mevcut Sağlayıcılar"
 
-#: packages/admin/src/components/Widgets.tsx:469
+#: packages/admin/src/components/Widgets.tsx:477
 msgid "Available Widgets"
 msgstr "Mevcut Widget'lar"
 
@@ -2392,7 +2392,7 @@ msgstr "Dosyalara göz at"
 msgid "Browse files to upload"
 msgstr "Yüklenecek dosyalara göz at"
 
-#: packages/admin/src/components/PluginManager.tsx:67
+#: packages/admin/src/components/PluginManager.tsx:74
 msgid "Browse the <0>registry</0> to install plugins."
 msgstr "Eklenti yüklemek için <0>eklenti kataloğuna</0> göz atın."
 
@@ -2531,11 +2531,11 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/MenuEditor.tsx:548
 #: packages/admin/src/components/MenuEditor.tsx:754
 #: packages/admin/src/components/MenuList.tsx:184
-#: packages/admin/src/components/PluginManager.tsx:810
+#: packages/admin/src/components/PluginManager.tsx:817
 #: packages/admin/src/components/PortableTextEditor.tsx:5762
 #: packages/admin/src/components/PortableTextEditor.tsx:5788
 #: packages/admin/src/components/PortableTextEditor.tsx:6535
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:369
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:407
 #: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/RelationDialog.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2548,7 +2548,7 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/TaxonomyManager.tsx:882
 #: packages/admin/src/components/TaxonomyManager.tsx:1102
 #: packages/admin/src/components/users/InviteUserModal.tsx:202
-#: packages/admin/src/components/Widgets.tsx:453
+#: packages/admin/src/components/Widgets.tsx:461
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Cancel"
 msgstr "İptal"
@@ -2592,7 +2592,7 @@ msgstr "Tema bölümleri silinemiyor"
 msgid "Canonical URL"
 msgstr "Kanonik URL"
 
-#: packages/admin/src/components/PluginManager.tsx:581
+#: packages/admin/src/components/PluginManager.tsx:588
 msgid "Capabilities"
 msgstr "İzinler"
 
@@ -2618,7 +2618,7 @@ msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr "İçerik değişikliklerinin takibi hazırlanıyor. Kurulum tamamlanana kadar düzenlemeye yeniden başlamayın."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:206
-#: packages/admin/src/components/Widgets.tsx:136
+#: packages/admin/src/components/Widgets.tsx:144
 msgid "Categories"
 msgstr "Kategoriler"
 
@@ -2680,17 +2680,17 @@ msgstr "Resmi Değiştir"
 msgid "Change Logo"
 msgstr "Logoyu Değiştir"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:629
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:674
 msgid "Change publication date"
 msgstr "Yayın tarihini değiştir"
 
 #. placeholder {0}: isolate(formattedValue)
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:604
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:649
 msgid "Change publication date: {0}"
 msgstr "Yayın tarihini değiştir: {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:518
 msgid "Change schedule"
 msgstr "Zamanlamayı değiştir"
 
@@ -2788,7 +2788,7 @@ msgstr "Sayfa başlığı ile site adı arasındaki karakter (ör. \"Gönderim |
 msgid "Check and switch"
 msgstr "Kontrol et ve geçiş yap"
 
-#: packages/admin/src/components/PluginManager.tsx:205
+#: packages/admin/src/components/PluginManager.tsx:212
 msgid "Check for updates"
 msgstr "Güncellemeleri kontrol et"
 
@@ -2885,6 +2885,10 @@ msgstr "{label} seç"
 msgid "Choose a credential manager on this device, another device, or a security key."
 msgstr "Bu cihazdaki bir kimlik bilgisi yöneticisini, başka bir cihazı veya güvenlik anahtarını seçin."
 
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:36
+msgid "Choose a date"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:1210
 #: packages/admin/src/components/ContentList.tsx:1216
 msgid "Choose a date range"
@@ -2893,10 +2897,6 @@ msgstr "Tarih aralığı seçin"
 #: packages/admin/src/components/MediaPickerModal.tsx:234
 msgid "Choose a file from the library or upload a new one."
 msgstr "Kitaplıktan bir dosya seçin veya yeni bir dosya yükleyin."
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
-msgid "Choose a new publication time for this draft."
-msgstr "Bu taslak için yeni bir yayın zamanı seçin."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
 #: packages/admin/src/components/MediaDetailPanel.tsx:918
@@ -2910,6 +2910,14 @@ msgstr "Tarihlerin doğru gösterilmesi için tanınan bir saat dilimi seçin."
 #: packages/admin/src/components/BulkTagDialog.tsx:184
 msgid "Choose a term and enter between 1 and 50 posts."
 msgstr "Bir terim seçin ve 1 ile 50 arasında gönderi girin."
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:40
+msgid "Choose a time in the future"
+msgstr ""
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:37
+msgid "Choose a valid date"
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:236
 msgid "Choose a video from the library or upload a new one."
@@ -2948,14 +2956,6 @@ msgstr "Yüklemeyi tamamlamak için aynı paket dosyasını yeniden seçin."
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "Touch ID'yi veya kullanılabilir başka bir kimlik bilgisi yöneticisini seçin, ardından parmak izinizle veya Mac parolanızla onaylayın."
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:474
-msgid "Choose when these changes replace the live version."
-msgstr "Bu değişikliklerin yayındaki sürümün yerini ne zaman alacağını seçin."
-
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:477
-msgid "Choose when this draft becomes public."
-msgstr "Bu taslağın ne zaman yayınlanacağını seçin."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
@@ -3075,7 +3075,7 @@ msgstr "{siteName} sitesinde oturum açmak için bu bağlantıya tıklayın:"
 #: packages/admin/src/components/PortableTextEditor.tsx:2697
 #: packages/admin/src/components/PortableTextEditor.tsx:2703
 #: packages/admin/src/components/PortableTextEditor.tsx:2707
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:349
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:386
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/RelationDialog.tsx:65
@@ -3097,9 +3097,9 @@ msgstr "{siteName} sitesinde oturum açmak için bu bağlantıya tıklayın:"
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
 #: packages/admin/src/components/users/InviteUserModal.tsx:98
 #: packages/admin/src/components/WelcomeModal.tsx:61
-#: packages/admin/src/components/Widgets.tsx:414
-#: packages/admin/src/components/Widgets.tsx:420
-#: packages/admin/src/components/Widgets.tsx:424
+#: packages/admin/src/components/Widgets.tsx:422
+#: packages/admin/src/components/Widgets.tsx:428
+#: packages/admin/src/components/Widgets.tsx:432
 msgid "Close"
 msgstr "Kapat"
 
@@ -3151,8 +3151,8 @@ msgstr "Kod bloğu işlemleri"
 msgid "Collapse block"
 msgstr "Bloğu daralt"
 
-#: packages/admin/src/components/PluginManager.tsx:564
-#: packages/admin/src/components/PluginManager.tsx:569
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Collapse details"
 msgstr "Ayrıntıları daralt"
 
@@ -3269,7 +3269,7 @@ msgstr "Tamamlandı"
 msgid "Complete signup"
 msgstr "Kaydı tamamla"
 
-#: packages/admin/src/components/Widgets.tsx:935
+#: packages/admin/src/components/Widgets.tsx:943
 msgid "Component"
 msgstr "Bileşen"
 
@@ -3340,11 +3340,11 @@ msgstr "içerik"
 #: packages/admin/src/components/Dashboard.tsx:494
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:676
-#: packages/admin/src/components/Widgets.tsx:903
+#: packages/admin/src/components/Widgets.tsx:911
 msgid "Content"
 msgstr "İçerik"
 
-#: packages/admin/src/components/Widgets.tsx:98
+#: packages/admin/src/components/Widgets.tsx:106
 msgid "Content Block"
 msgstr "İçerik Bloğu"
 
@@ -3714,7 +3714,7 @@ msgstr "Sayı"
 #: packages/admin/src/components/MenuList.tsx:187
 #: packages/admin/src/components/Redirects.tsx:196
 #: packages/admin/src/components/TaxonomyManager.tsx:893
-#: packages/admin/src/components/Widgets.tsx:456
+#: packages/admin/src/components/Widgets.tsx:464
 msgid "Create"
 msgstr "Oluştur"
 
@@ -3871,7 +3871,7 @@ msgstr "Sınıflandırma terimleri oluşturun ve içerik sınıflandırmaların�
 msgid "Create Token"
 msgstr "Belirteç Oluştur"
 
-#: packages/admin/src/components/Widgets.tsx:411
+#: packages/admin/src/components/Widgets.tsx:419
 msgid "Create Widget Area"
 msgstr "Widget Alanı Oluştur"
 
@@ -4155,7 +4155,7 @@ msgstr "Kodda tanımlandı"
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
 #: packages/admin/src/components/TaxonomyManager.tsx:1538
 #: packages/admin/src/components/TaxonomyManager.tsx:1554
-#: packages/admin/src/components/Widgets.tsx:720
+#: packages/admin/src/components/Widgets.tsx:728
 #: packages/admin/src/routes/byline-schema.tsx:378
 msgid "Delete"
 msgstr "Sil"
@@ -4180,7 +4180,7 @@ msgstr "“{0}” silinsin mi?"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:329
 #: packages/admin/src/components/TaxonomyManager.tsx:492
-#: packages/admin/src/components/Widgets.tsx:821
+#: packages/admin/src/components/Widgets.tsx:829
 #: packages/admin/src/routes/byline-schema.tsx:460
 msgid "Delete {0}"
 msgstr "Sil: {0}"
@@ -4196,7 +4196,7 @@ msgid "Delete {0} menu"
 msgstr "{0} menüsünü sil"
 
 #. placeholder {0}: area.label
-#: packages/admin/src/components/Widgets.tsx:668
+#: packages/admin/src/components/Widgets.tsx:676
 msgid "Delete {0} widget area"
 msgstr "{0} widget alanını silin"
 
@@ -4345,7 +4345,7 @@ msgstr "Sınıflandırmayı Sil"
 msgid "Delete video"
 msgstr "Videoyu sil"
 
-#: packages/admin/src/components/Widgets.tsx:718
+#: packages/admin/src/components/Widgets.tsx:726
 msgid "Delete Widget Area?"
 msgstr "Widget Alanı Silinsin mi?"
 
@@ -4377,7 +4377,7 @@ msgstr "\"{0}\" silindiğinde tüm yazar bilgilerinde {1, plural, one {# saklana
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
 #: packages/admin/src/components/TaxonomyManager.tsx:1539
 #: packages/admin/src/components/TaxonomyManager.tsx:1555
-#: packages/admin/src/components/Widgets.tsx:721
+#: packages/admin/src/components/Widgets.tsx:729
 #: packages/admin/src/routes/bylines.tsx:535
 msgid "Deleting..."
 msgstr "Siliniyor..."
@@ -4444,7 +4444,7 @@ msgstr "Bu bölümün ne işe yaradığını açıklayın..."
 #: packages/admin/src/components/RegistryPluginDetail.tsx:907
 #: packages/admin/src/components/SectionEditor.tsx:296
 #: packages/admin/src/components/Sections.tsx:221
-#: packages/admin/src/components/Widgets.tsx:440
+#: packages/admin/src/components/Widgets.tsx:448
 msgid "Description"
 msgstr "Açıklama"
 
@@ -4461,7 +4461,7 @@ msgid "Destination path"
 msgstr "Hedef yolu"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:311
-#: packages/admin/src/components/PluginManager.tsx:626
+#: packages/admin/src/components/PluginManager.tsx:633
 msgid "Destructive"
 msgstr "Yıkıcı"
 
@@ -4506,11 +4506,11 @@ msgstr "Boyutlar:"
 msgid "Disable"
 msgstr "Devre dışı bırak"
 
-#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Disable plugin"
 msgstr "Eklentiyi devre dışı bırak"
 
-#: packages/admin/src/components/PluginManager.tsx:616
+#: packages/admin/src/components/PluginManager.tsx:623
 msgid "Disable plugin MCP tools"
 msgstr "Eklentinin MCP araçlarını devre dışı bırak"
 
@@ -4526,14 +4526,14 @@ msgstr "Kullanıcıyı Devre Dışı Bırak"
 msgid "Disable User?"
 msgstr "Kullanıcı Devre Dışı Bırakılsın mı?"
 
-#: packages/admin/src/components/PluginManager.tsx:451
+#: packages/admin/src/components/PluginManager.tsx:458
 #: packages/admin/src/components/Redirects.tsx:399
 #: packages/admin/src/components/users/UserDetail.tsx:214
 #: packages/admin/src/components/users/UserList.tsx:209
 msgid "Disabled"
 msgstr "Devre dışı"
 
-#: packages/admin/src/components/PluginManager.tsx:678
+#: packages/admin/src/components/PluginManager.tsx:685
 msgid "Disabled:"
 msgstr "Devre dışı:"
 
@@ -4596,15 +4596,15 @@ msgstr "Bölüm hatasını kapat"
 msgid "Dismiss table paste error"
 msgstr "Tablo yapıştırma hatasını kapat"
 
-#: packages/admin/src/components/Widgets.tsx:127
+#: packages/admin/src/components/Widgets.tsx:135
 msgid "Display a list of recent posts"
 msgstr "Son gönderilerin listesini göster"
 
-#: packages/admin/src/components/Widgets.tsx:105
+#: packages/admin/src/components/Widgets.tsx:113
 msgid "Display a navigation menu"
 msgstr "Gezinme menüsü göster"
 
-#: packages/admin/src/components/Widgets.tsx:137
+#: packages/admin/src/components/Widgets.tsx:145
 msgid "Display category list"
 msgstr "Kategori listesini göster"
 
@@ -4621,7 +4621,7 @@ msgstr "Görüntü boyutu"
 msgid "Display Size"
 msgstr "Ekran Boyutu"
 
-#: packages/admin/src/components/Widgets.tsx:145
+#: packages/admin/src/components/Widgets.tsx:153
 msgid "Display tag cloud"
 msgstr "Etiket bulutunu göster"
 
@@ -4796,7 +4796,7 @@ msgstr "Dosyaları buraya sürükleyip bırakın"
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Göz atmak için sürükleyip bırakın veya tıklayın (.xml)"
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:712
 msgid "Drag here to add"
 msgstr "Eklemek için buraya sürükleyin"
 
@@ -4807,7 +4807,7 @@ msgstr "Yeniden sıralamak için sürükleyin"
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
 #: packages/admin/src/components/ContentTypeEditor.tsx:937
-#: packages/admin/src/components/Widgets.tsx:806
+#: packages/admin/src/components/Widgets.tsx:814
 msgid "Drag to reorder {0}"
 msgstr "{0}'i yeniden sıralamak için sürükleyin"
 
@@ -4816,11 +4816,11 @@ msgstr "{0}'i yeniden sıralamak için sürükleyin"
 msgid "Drag to reorder {label}"
 msgstr "Yeniden sıralamak için {label} sürükle"
 
-#: packages/admin/src/components/Widgets.tsx:708
+#: packages/admin/src/components/Widgets.tsx:716
 msgid "Drag widgets here to add them"
 msgstr "Widget'ları eklemek için buraya sürükleyin"
 
-#: packages/admin/src/components/Widgets.tsx:470
+#: packages/admin/src/components/Widgets.tsx:478
 msgid "Drag widgets into an area to add them"
 msgstr "Widget'ları eklemek için bir alana sürükleyin"
 
@@ -4840,7 +4840,7 @@ msgstr "Yüklemek için dosyaları bırakın"
 msgid "Drop one image at a time."
 msgstr "Tek seferde bir görsel bırakın."
 
-#: packages/admin/src/components/Widgets.tsx:704
+#: packages/admin/src/components/Widgets.tsx:712
 msgid "Drop to add widget"
 msgstr "Widget eklemek için bırakın"
 
@@ -5281,11 +5281,11 @@ msgstr "Yorumları etkinleştir"
 msgid "Enable full-text search on this collection"
 msgstr "Bu koleksiyonda tam metin aramasını etkinleştir"
 
-#: packages/admin/src/components/PluginManager.tsx:558
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Enable plugin"
 msgstr "Eklentiyi etkinleştir"
 
-#: packages/admin/src/components/PluginManager.tsx:617
+#: packages/admin/src/components/PluginManager.tsx:624
 msgid "Enable plugin MCP tools"
 msgstr "Eklentinin MCP araçlarını etkinleştir"
 
@@ -5330,10 +5330,18 @@ msgstr "Kaydetmek için tanınan bir saat dilimi girin"
 msgid "Enter a slug."
 msgstr "Slug girin."
 
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:38
+msgid "Enter a time"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:527
 #: packages/admin/src/components/MenuEditor.tsx:725
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Bir URL (https://…) veya göreli yol (/…) girin"
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:39
+msgid "Enter a valid time"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3179
 msgid "Enter a valid URL (e.g. https://example.com)"
@@ -5412,16 +5420,16 @@ msgstr "bağlantı veren taraftaki kayıt"
 #: packages/admin/src/components/MenuEditor.tsx:266
 #: packages/admin/src/components/SetupWizard.tsx:607
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
-#: packages/admin/src/components/Widgets.tsx:773
+#: packages/admin/src/components/Widgets.tsx:781
 #: packages/admin/src/router.tsx:3338
 msgid "Error"
 msgstr "Hata"
 
-#: packages/admin/src/components/Widgets.tsx:237
+#: packages/admin/src/components/Widgets.tsx:245
 msgid "Error adding widget"
 msgstr "Widget eklenirken hata oluştu"
 
-#: packages/admin/src/components/Widgets.tsx:298
+#: packages/admin/src/components/Widgets.tsx:306
 msgid "Error reordering widgets"
 msgstr "Widget'lar yeniden sıralanırken hata oluştu"
 
@@ -5429,7 +5437,7 @@ msgstr "Widget'lar yeniden sıralanırken hata oluştu"
 msgid "Error saving section"
 msgstr "Bölüm kaydedilirken hata oluştu"
 
-#: packages/admin/src/components/Widgets.tsx:788
+#: packages/admin/src/components/Widgets.tsx:796
 msgid "Error updating widget"
 msgstr "Widget güncellenirken hata oluştu"
 
@@ -5498,8 +5506,8 @@ msgstr "Dikkat dağıtmayan moddan çık (⌘⇧\\)"
 msgid "Expand block"
 msgstr "Bloğu genişlet"
 
-#: packages/admin/src/components/PluginManager.tsx:564
-#: packages/admin/src/components/PluginManager.tsx:569
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Expand details"
 msgstr "Ayrıntıları genişlet"
 
@@ -5859,7 +5867,7 @@ msgstr "Widget alanı silinemedi"
 msgid "Failed to deny request"
 msgstr "İstek reddedilemedi"
 
-#: packages/admin/src/components/PluginManager.tsx:154
+#: packages/admin/src/components/PluginManager.tsx:161
 #: packages/admin/src/lib/api/plugins.ts:161
 msgid "Failed to disable plugin"
 msgstr "Eklenti devre dışı bırakılamadı"
@@ -5905,7 +5913,7 @@ msgstr "İçerik çoğaltılamadı"
 msgid "Failed to email users"
 msgstr "Kullanıcılara e-posta gönderilemedi"
 
-#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:142
 #: packages/admin/src/lib/api/plugins.ts:147
 msgid "Failed to enable plugin"
 msgstr "Eklenti etkinleştirilemedi"
@@ -6302,7 +6310,7 @@ msgid "Failed to load plugin settings"
 msgstr "Eklenti ayarları yüklenemedi"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:183
+#: packages/admin/src/components/PluginManager.tsx:190
 msgid "Failed to load plugins: {0}"
 msgstr "Eklentiler yüklenemedi: {0}"
 
@@ -6597,7 +6605,7 @@ msgstr "Menü güncellenemedi"
 msgid "Failed to update menu item"
 msgstr "Menü öğesi güncellenemedi"
 
-#: packages/admin/src/components/PluginManager.tsx:332
+#: packages/admin/src/components/PluginManager.tsx:339
 #: packages/admin/src/lib/api/marketplace.ts:373
 #: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
@@ -7058,7 +7066,7 @@ msgstr "Grup"
 msgid "Group (optional)"
 msgstr "Grup (isteğe bağlı)"
 
-#: packages/admin/src/components/Widgets.tsx:163
+#: packages/admin/src/components/Widgets.tsx:171
 msgid "Group by"
 msgstr "Gruplama ölçütü"
 
@@ -7208,7 +7216,7 @@ msgstr "Ana sayfa"
 msgid "Homepage"
 msgstr "Ana sayfa"
 
-#: packages/admin/src/components/PluginManager.tsx:490
+#: packages/admin/src/components/PluginManager.tsx:497
 msgid "Hooks"
 msgstr "Kancalar"
 
@@ -7218,7 +7226,7 @@ msgstr "Kancalar"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "Yatay %{0}, dikey %{1}"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:194
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:232
 msgid "Hour"
 msgstr "Saat"
 
@@ -7355,7 +7363,7 @@ msgstr "Görsel {0}"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:336
 #: packages/admin/src/components/ImageFieldRenderer.tsx:351
-#: packages/admin/src/components/SeoImageField.tsx:128
+#: packages/admin/src/components/SeoImageField.tsx:171
 msgid "Image actions"
 msgstr "Görsel işlemleri"
 
@@ -7374,7 +7382,7 @@ msgstr "Görsel bağlantısı"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
 #: packages/admin/src/components/ImageFieldRenderer.tsx:488
 #: packages/admin/src/components/ImageFieldRenderer.tsx:543
-#: packages/admin/src/components/SeoImageField.tsx:107
+#: packages/admin/src/components/SeoImageField.tsx:146
 msgid "Image not found"
 msgstr "Resim bulunamadı"
 
@@ -7395,7 +7403,7 @@ msgstr "Görsel ayarları"
 msgid "Image Settings"
 msgstr "Görsel Ayarları"
 
-#: packages/admin/src/components/SeoImageField.tsx:97
+#: packages/admin/src/components/SeoImageField.tsx:136
 msgid "Image shown when this page is shared on social media"
 msgstr "Bu sayfa sosyal medyada paylaşıldığında gösterilen resim"
 
@@ -7736,11 +7744,11 @@ msgid "Installed"
 msgstr "Yüklendi"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:645
+#: packages/admin/src/components/PluginManager.tsx:652
 msgid "Installed from marketplace (v{0})"
 msgstr "Pazar yerinden yüklendi (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:666
+#: packages/admin/src/components/PluginManager.tsx:673
 msgid "Installed:"
 msgstr "Kurulu:"
 
@@ -7947,7 +7955,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:716
 #: packages/admin/src/components/MenuList.tsx:153
 #: packages/admin/src/components/TaxonomyManager.tsx:1037
-#: packages/admin/src/components/Widgets.tsx:438
+#: packages/admin/src/components/Widgets.tsx:446
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
 msgstr "Etiket"
@@ -7980,7 +7988,7 @@ msgstr "Büyük bölüm başlığı"
 msgid "Last edited"
 msgstr "Son düzenleme"
 
-#: packages/admin/src/components/PluginManager.tsx:672
+#: packages/admin/src/components/PluginManager.tsx:679
 msgid "Last enabled:"
 msgstr "Son etkinleştirilen:"
 
@@ -8019,7 +8027,7 @@ msgstr "Son kullanılan {0}"
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
 msgstr "Sonraki kayıtlar yüklenmedi. Bu aralıkta takvimin gösterebileceğinden fazla kayıt var."
 
-#: packages/admin/src/components/PluginManager.tsx:81
+#: packages/admin/src/components/PluginManager.tsx:88
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
 msgstr "Eklenti yüklemeyi <0>belgelerden<1/></0> öğrenin."
 
@@ -8060,7 +8068,7 @@ msgstr "Kütüphane"
 msgid "License"
 msgstr "Lisans"
 
-#: packages/admin/src/components/Widgets.tsx:166
+#: packages/admin/src/components/Widgets.tsx:174
 msgid "Limit"
 msgstr "Sınır"
 
@@ -8287,7 +8295,7 @@ msgstr "Menüler yükleniyor..."
 msgid "Loading plugin panel"
 msgstr "Eklenti paneli yükleniyor"
 
-#: packages/admin/src/components/PluginManager.tsx:174
+#: packages/admin/src/components/PluginManager.tsx:181
 msgid "Loading plugins..."
 msgstr "Eklentiler yükleniyor..."
 
@@ -8333,7 +8341,7 @@ msgstr "İçe aktarma planı yükleniyor…"
 msgid "Loading usage"
 msgstr "Kullanım bilgileri yükleniyor"
 
-#: packages/admin/src/components/Widgets.tsx:373
+#: packages/admin/src/components/Widgets.tsx:381
 msgid "Loading widgets..."
 msgstr "Widget'lar yükleniyor..."
 
@@ -8378,7 +8386,7 @@ msgstr "Yükleniyor…"
 msgid "Loading…"
 msgstr "Yükleniyor…"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:112
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:129
 msgid "Local time"
 msgstr "Yerel saat"
 
@@ -8459,7 +8467,7 @@ msgstr "Lua"
 msgid "Main library"
 msgstr "Ana kitaplık"
 
-#: packages/admin/src/components/Widgets.tsx:438
+#: packages/admin/src/components/Widgets.tsx:446
 msgid "Main Sidebar"
 msgstr "Ana Kenar Çubuğu"
 
@@ -8477,11 +8485,11 @@ msgstr "{1} için {0}'i yönetin"
 msgid "Manage bylines in {entryLocale}"
 msgstr "{entryLocale} için yazar bilgilerini yönetin"
 
-#: packages/admin/src/components/Widgets.tsx:391
+#: packages/admin/src/components/Widgets.tsx:399
 msgid "Manage content widgets in your widget areas"
 msgstr "Widget alanlarınızdaki içerik widget'larını yönetin"
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:201
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "Yüklü eklentileri yönetin. İşlevlerini kontrol etmek için eklentileri etkinleştirin veya devre dışı bırakın."
 
@@ -8545,7 +8553,7 @@ msgid "Markdown"
 msgstr "Markdown"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:452
+#: packages/admin/src/components/PluginManager.tsx:459
 msgid "Marketplace"
 msgstr "Pazar yeri"
 
@@ -8589,7 +8597,7 @@ msgstr "En fazla"
 msgid "Maximum blocks"
 msgstr "En fazla blok sayısı"
 
-#: packages/admin/src/components/Widgets.tsx:148
+#: packages/admin/src/components/Widgets.tsx:156
 msgid "Maximum tags"
 msgstr "En fazla etiket sayısı"
 
@@ -8699,8 +8707,8 @@ msgstr "Medya Yazma"
 msgid "Medium section heading"
 msgstr "Orta bölüm başlığı"
 
-#: packages/admin/src/components/Widgets.tsx:104
-#: packages/admin/src/components/Widgets.tsx:918
+#: packages/admin/src/components/Widgets.tsx:112
+#: packages/admin/src/components/Widgets.tsx:926
 msgid "Menu"
 msgstr "Menü"
 
@@ -8818,7 +8826,7 @@ msgstr "En az blok sayısı"
 msgid "Minor section heading"
 msgstr "Alt düzey bölüm başlığı"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:216
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:258
 msgid "Minute"
 msgstr "Dakika"
 
@@ -8842,11 +8850,11 @@ msgstr "Koleksiyon şemalarını değiştirin"
 msgid "Month"
 msgstr "Ay"
 
-#: packages/admin/src/components/Widgets.tsx:164
+#: packages/admin/src/components/Widgets.tsx:172
 msgid "Monthly"
 msgstr "Aylık"
 
-#: packages/admin/src/components/Widgets.tsx:160
+#: packages/admin/src/components/Widgets.tsx:168
 msgid "Monthly/yearly archives"
 msgstr "Aylık/yıllık arşivler"
 
@@ -9124,7 +9132,7 @@ msgstr "Benim Harika Blogum"
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:152
 #: packages/admin/src/components/users/UserDetail.tsx:159
-#: packages/admin/src/components/Widgets.tsx:432
+#: packages/admin/src/components/Widgets.tsx:440
 msgid "Name"
 msgstr "İsim"
 
@@ -9613,7 +9621,7 @@ msgstr "Henüz kayıtlı geçiş anahtarı yok."
 msgid "No pending requests"
 msgstr "Bekleyen istek yok"
 
-#: packages/admin/src/components/PluginManager.tsx:233
+#: packages/admin/src/components/PluginManager.tsx:240
 msgid "No plugins configured"
 msgstr "Hiçbir eklenti yapılandırılmadı"
 
@@ -9714,7 +9722,7 @@ msgstr "Henüz kullanıcı yok."
 msgid "No versions yet"
 msgstr "Henüz sürüm yok"
 
-#: packages/admin/src/components/Widgets.tsx:507
+#: packages/admin/src/components/Widgets.tsx:515
 msgid "No widget areas yet. Create one to get started."
 msgstr "Henüz widget alanı yok. Başlamak için bir tane oluşturun."
 
@@ -9789,7 +9797,7 @@ msgstr "Şimdi · {time}"
 msgid "Number"
 msgstr "Sayı"
 
-#: packages/admin/src/components/Widgets.tsx:129
+#: packages/admin/src/components/Widgets.tsx:137
 msgid "Number of posts"
 msgstr "Gönderi sayısı"
 
@@ -9812,7 +9820,7 @@ msgstr "OAuth yetkilendirmesi HTTPS gerektirir. Lütfen kimlik bilgilerini manue
 msgid "Off"
 msgstr "Kapalı"
 
-#: packages/admin/src/components/SeoImageField.tsx:49
+#: packages/admin/src/components/SeoImageField.tsx:88
 msgid "OG Image"
 msgstr "OG Görseli"
 
@@ -10054,7 +10062,7 @@ msgstr "Arama motoru sonuçlarındaki sayfa başlığını geçersiz kılar"
 msgid "Ownership"
 msgstr "Mülkiyet"
 
-#: packages/admin/src/components/PluginManager.tsx:654
+#: packages/admin/src/components/PluginManager.tsx:661
 msgid "Package"
 msgstr "Paket"
 
@@ -10082,7 +10090,7 @@ msgstr "Sayfa numarası"
 msgid "Page size"
 msgstr "Sayfa boyutu"
 
-#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:485
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Pages"
 msgstr "Sayfalar"
@@ -10257,7 +10265,7 @@ msgstr "Bu gönderide herkese açık olarak gösterilen kişiler."
 msgid "Per page"
 msgstr "Sayfa başına"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:235
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:282
 msgid "Period"
 msgstr "Günün bölümü"
 
@@ -10296,7 +10304,7 @@ msgstr "Bu kaydın bağlantı verdiği kayıtları seçerken editörler bunları
 msgid "picks {0}"
 msgstr "Seçer: {0}"
 
-#: packages/admin/src/components/Widgets.tsx:155
+#: packages/admin/src/components/Widgets.tsx:163
 msgid "Placeholder text"
 msgstr "Yer tutucu metin"
 
@@ -10358,11 +10366,11 @@ msgstr "Eklenti sütunu kullanılamıyor"
 msgid "Plugin details"
 msgstr "Eklenti ayrıntıları"
 
-#: packages/admin/src/components/PluginManager.tsx:148
+#: packages/admin/src/components/PluginManager.tsx:155
 msgid "Plugin disabled"
 msgstr "Eklenti devre dışı bırakıldı"
 
-#: packages/admin/src/components/PluginManager.tsx:129
+#: packages/admin/src/components/PluginManager.tsx:136
 msgid "Plugin enabled"
 msgstr "Eklenti etkin"
 
@@ -10379,7 +10387,7 @@ msgstr "Eklenti hatası ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Eklenti yüklemek için açık onay gerekir"
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "Plugin MCP access updated"
 msgstr "Eklenti MCP erişimi güncellendi"
 
@@ -10400,7 +10408,7 @@ msgstr "Eklenti bulunamadı"
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr "Eklenti bulunamadı. Yayıncı veya slug yanlış olabilir."
 
-#: packages/admin/src/components/PluginManager.tsx:547
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Plugin pages"
 msgstr "Eklenti sayfaları"
 
@@ -10438,7 +10446,7 @@ msgstr "Eklenti {0} ile yanıt verdi: {text}"
 msgid "Plugin tools: {0}"
 msgstr "Eklenti araçları: {0}"
 
-#: packages/admin/src/components/PluginManager.tsx:390
+#: packages/admin/src/components/PluginManager.tsx:397
 msgid "Plugin uninstalled"
 msgstr "Eklenti kaldırıldı"
 
@@ -10447,7 +10455,7 @@ msgstr "Eklenti kaldırıldı"
 msgid "Plugin update requires re-consent"
 msgstr "Eklenti güncellemesi yeniden onay gerektiriyor"
 
-#: packages/admin/src/components/PluginManager.tsx:299
+#: packages/admin/src/components/PluginManager.tsx:306
 msgid "Plugin updated"
 msgstr "Eklenti güncellendi"
 
@@ -10456,9 +10464,9 @@ msgid "Plugin widget error"
 msgstr "Eklenti widget'ı hatası"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:232
-#: packages/admin/src/components/PluginManager.tsx:173
-#: packages/admin/src/components/PluginManager.tsx:182
-#: packages/admin/src/components/PluginManager.tsx:192
+#: packages/admin/src/components/PluginManager.tsx:180
+#: packages/admin/src/components/PluginManager.tsx:189
+#: packages/admin/src/components/PluginManager.tsx:199
 #: packages/admin/src/components/Sidebar.tsx:530
 #: packages/admin/src/components/Sidebar.tsx:700
 msgid "Plugins"
@@ -10634,7 +10642,7 @@ msgstr "Herkese açık yollar"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:987
 #: packages/admin/src/components/ContentSettingsPanel.tsx:992
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1003
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:678
 msgid "Publication date"
 msgstr "Yayın tarihi"
 
@@ -10894,7 +10902,7 @@ msgstr "Son Etkinlik"
 msgid "Recent exports"
 msgstr "Son dışa aktarmalar"
 
-#: packages/admin/src/components/Widgets.tsx:126
+#: packages/admin/src/components/Widgets.tsx:134
 msgid "Recent Posts"
 msgstr "Son Gönderiler"
 
@@ -11011,8 +11019,8 @@ msgstr "Kayıt başarısız oldu"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Kayıt iptal edildi veya zaman aşımına uğradı. Lütfen tekrar deneyin."
 
-#: packages/admin/src/components/PluginManager.tsx:210
-#: packages/admin/src/components/PluginManager.tsx:453
+#: packages/admin/src/components/PluginManager.tsx:217
+#: packages/admin/src/components/PluginManager.tsx:460
 #: packages/admin/src/components/Sidebar.tsx:539
 msgid "Registry"
 msgstr "Eklenti kataloğu"
@@ -11100,8 +11108,8 @@ msgid "Remove {entry}"
 msgstr "{entry} öğesini kaldır"
 
 #: packages/admin/src/components/ContentEditor.tsx:3415
-#: packages/admin/src/components/SeoImageField.tsx:163
-#: packages/admin/src/components/SeoImageField.tsx:164
+#: packages/admin/src/components/SeoImageField.tsx:206
+#: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
 msgstr "{label}'i kaldırın"
 
@@ -11315,15 +11323,15 @@ msgstr "Değiştir"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:604
 #: packages/admin/src/components/PortableTextEditor.tsx:5806
 #: packages/admin/src/components/PortableTextEditor.tsx:5887
-#: packages/admin/src/components/SeoImageField.tsx:151
-#: packages/admin/src/components/SeoImageField.tsx:184
+#: packages/admin/src/components/SeoImageField.tsx:194
+#: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr "Değiştir"
 
 #: packages/admin/src/components/ContentEditor.tsx:3443
 #: packages/admin/src/components/ImageFieldRenderer.tsx:595
-#: packages/admin/src/components/SeoImageField.tsx:148
-#: packages/admin/src/components/SeoImageField.tsx:183
+#: packages/admin/src/components/SeoImageField.tsx:191
+#: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Replace {label}"
 msgstr "{label} öğesini değiştir"
 
@@ -11704,7 +11712,7 @@ msgstr "İptal ediliyor..."
 msgid "Rich Text"
 msgstr "Zengin Metin"
 
-#: packages/admin/src/components/Widgets.tsx:99
+#: packages/admin/src/components/Widgets.tsx:107
 msgid "Rich text content"
 msgstr "Zengin metin içeriği"
 
@@ -11760,7 +11768,7 @@ msgstr "URL üzerinden erişilebilir"
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:307
-#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:637
 msgid "Route: {0} · Permission: {1}"
 msgstr "Yol: {0} · İzin: {1}"
 
@@ -11819,7 +11827,7 @@ msgstr "Örnek içerik"
 #: packages/admin/src/components/MenuEditor.tsx:757
 #: packages/admin/src/components/Redirects.tsx:195
 #: packages/admin/src/components/SaveButton.tsx:35
-#: packages/admin/src/components/Widgets.tsx:987
+#: packages/admin/src/components/Widgets.tsx:995
 msgid "Save"
 msgstr "Kaydet"
 
@@ -11852,7 +11860,7 @@ msgstr "Eklenti işlemlerini çalıştırmadan önce değişiklikleri kaydedin"
 msgid "Save content as draft before publishing"
 msgstr "İçeriği yayınlamadan önce taslak olarak kaydedin"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:635
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:681
 msgid "Save date"
 msgstr "Tarihi kaydet"
 
@@ -11860,6 +11868,10 @@ msgstr "Tarihi kaydet"
 #: packages/admin/src/locales/server.ts:62
 msgid "visualEditing.saveFailed"
 msgstr "Kaydedilemedi"
+
+#: packages/admin/src/components/SeoImageField.tsx:241
+msgid "Save image URL"
+msgstr ""
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:112
 msgid "Save name"
@@ -11873,7 +11885,7 @@ msgstr "Kırpmadan önce diğer değişiklikleri kaydedin veya onlardan vazgeçi
 msgid "Save Relation"
 msgstr "İlişkiyi Kaydet"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Save schedule"
 msgstr "Zamanlamayı kaydet"
 
@@ -11917,7 +11929,7 @@ msgstr "Burada bir koleksiyon kaydetmek bu alanı kayıt seçiciye dönüştür�
 #: packages/admin/src/components/SaveButton.tsx:36
 #: packages/admin/src/components/TaxonomyManager.tsx:890
 #: packages/admin/src/components/users/UserDetail.tsx:330
-#: packages/admin/src/components/Widgets.tsx:987
+#: packages/admin/src/components/Widgets.tsx:995
 msgid "Saving..."
 msgstr "Kaydediliyor..."
 
@@ -11944,20 +11956,20 @@ msgid "Scan it with a nearby phone or tablet."
 msgstr "Yakındaki bir telefon veya tabletle QR kodunu tarayın."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Schedule"
 msgstr "Zamanla"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:471
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:478
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:520
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:522
 msgid "Schedule changes"
 msgstr "Değişiklikleri zamanla"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:489
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:532
 msgid "Schedule date"
 msgstr "Zamanlama tarihi"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:521
 msgid "Schedule publication"
 msgstr "Yayını zamanla"
 
@@ -12056,7 +12068,7 @@ msgstr "SCSS"
 #: packages/admin/src/components/ContentTypeEditor.tsx:106
 #: packages/admin/src/components/Settings.tsx:165
 #: packages/admin/src/components/Settings.tsx:165
-#: packages/admin/src/components/Widgets.tsx:152
+#: packages/admin/src/components/Widgets.tsx:160
 msgid "Search"
 msgstr "Ara"
 
@@ -12152,7 +12164,7 @@ msgstr "Bir dil ara…"
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr "IANA saat dilimi arayın (ör. Europe/London)"
 
-#: packages/admin/src/components/Widgets.tsx:153
+#: packages/admin/src/components/Widgets.tsx:161
 msgid "Search form"
 msgstr "Arama formu"
 
@@ -12346,7 +12358,7 @@ msgstr "Seç"
 #: packages/admin/src/components/ContentEditor.tsx:3427
 #: packages/admin/src/components/ContentEditor.tsx:3443
 #: packages/admin/src/components/ImageFieldRenderer.tsx:596
-#: packages/admin/src/components/SeoImageField.tsx:183
+#: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
 msgstr "{label}'i seçin"
 
@@ -12358,7 +12370,7 @@ msgstr "{title} öğesini seç"
 msgid "Select a collection"
 msgstr "Bir koleksiyon seçin"
 
-#: packages/admin/src/components/Widgets.tsx:960
+#: packages/admin/src/components/Widgets.tsx:968
 msgid "Select a component..."
 msgstr "Bir bileşen seçin..."
 
@@ -12371,7 +12383,7 @@ msgstr "Bir içerik türü seçin"
 msgid "Select a location"
 msgstr "Bir konum seçin"
 
-#: packages/admin/src/components/Widgets.tsx:923
+#: packages/admin/src/components/Widgets.tsx:931
 msgid "Select a menu..."
 msgstr "Bir menü seçin..."
 
@@ -12653,7 +12665,7 @@ msgstr "Kurulum..."
 #: packages/admin/src/components/ContentEditor.tsx:2207
 #: packages/admin/src/components/ContentTypeEditor.tsx:467
 #: packages/admin/src/components/Header.tsx:104
-#: packages/admin/src/components/PluginManager.tsx:536
+#: packages/admin/src/components/PluginManager.tsx:543
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/WordPressImport.tsx:1868
@@ -12690,6 +12702,10 @@ msgstr "Bu bağlantıyı davet edilen kullanıcıyla paylaşın"
 msgid "Shared across all translations of the same byline."
 msgstr "Aynı yazar bilgisinin tüm çevirilerinde paylaşılır."
 
+#: packages/admin/src/components/SeoImageField.tsx:226
+msgid "Sharing image needs a URL"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:47
 msgid "Short text"
 msgstr "Kısa metin"
@@ -12703,15 +12719,15 @@ msgstr "Kısa Metin"
 msgid "Show changes"
 msgstr "Değişiklikleri göster"
 
-#: packages/admin/src/components/Widgets.tsx:147
+#: packages/admin/src/components/Widgets.tsx:155
 msgid "Show count"
 msgstr "Sayıyı göster"
 
-#: packages/admin/src/components/Widgets.tsx:131
+#: packages/admin/src/components/Widgets.tsx:139
 msgid "Show date"
 msgstr "Tarihi göster"
 
-#: packages/admin/src/components/Widgets.tsx:140
+#: packages/admin/src/components/Widgets.tsx:148
 msgid "Show hierarchy"
 msgstr "Hiyerarşiyi göster"
 
@@ -12719,11 +12735,11 @@ msgstr "Hiyerarşiyi göster"
 msgid "Show older versions"
 msgstr "Daha eski sürümleri göster"
 
-#: packages/admin/src/components/Widgets.tsx:139
+#: packages/admin/src/components/Widgets.tsx:147
 msgid "Show post count"
 msgstr "Gönderi sayısını göster"
 
-#: packages/admin/src/components/Widgets.tsx:130
+#: packages/admin/src/components/Widgets.tsx:138
 msgid "Show thumbnails"
 msgstr "Küçük resimleri göster"
 
@@ -13046,7 +13062,7 @@ msgstr "Temaları sırala"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:568
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:790
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/PluginManager.tsx:642
+#: packages/admin/src/components/PluginManager.tsx:649
 #: packages/admin/src/components/Redirects.tsx:492
 #: packages/admin/src/components/SectionEditor.tsx:316
 msgid "Source"
@@ -13304,7 +13320,7 @@ msgid "Tagline"
 msgstr "Slogan"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:215
-#: packages/admin/src/components/Widgets.tsx:144
+#: packages/admin/src/components/Widgets.tsx:152
 msgid "Tags"
 msgstr "Etiketler"
 
@@ -13424,6 +13440,10 @@ msgstr "test@example.com"
 #: packages/admin/src/components/PortableTextEditor.tsx:6588
 msgid "Text formatting"
 msgstr "Metin biçimlendirmesi"
+
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:41
+msgid "That time does not exist in your time zone"
+msgstr ""
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:546
 msgid "That version is no longer available. Back to editing."
@@ -13766,6 +13786,10 @@ msgstr "İlişki, referans verilen koleksiyonu ve bu alanın kabul edeceği kay�
 #: packages/admin/src/components/SetupWizard.tsx:188
 msgid "The sample content added so far is kept. Continue to add the rest."
 msgstr "Şimdiye kadar eklenen örnek içerik korunur. Kalanını eklemek için devam edin."
+
+#: packages/admin/src/components/SeoImageField.tsx:229
+msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
 msgid "The scheduled changes to {title} stay as a draft."
@@ -14143,7 +14167,7 @@ msgstr "Bu eklenti henüz kullanılamıyor"
 msgid "This plugin requires no special permissions."
 msgstr "Bu eklenti özel izin gerektirmez."
 
-#: packages/admin/src/components/PluginManager.tsx:463
+#: packages/admin/src/components/PluginManager.tsx:470
 msgid "This publisher identity no longer resolves."
 msgstr "Bu yayıncı kimliği artık çözümlenemiyor."
 
@@ -14265,7 +14289,7 @@ msgstr "Bu sürüm sitede görünmüyor"
 msgid "This video can't be played."
 msgstr "Bu video oynatılamıyor."
 
-#: packages/admin/src/components/Widgets.tsx:719
+#: packages/admin/src/components/Widgets.tsx:727
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Bu, widget alanını ve tüm widget'larını siler. Bu eylem geri alınamaz."
 
@@ -14287,7 +14311,7 @@ msgstr "Bu, \"{0}\" dosyasını kalıcı olarak silecektir. Bu eylem geri alına
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Bu işlem, bu yorumu kalıcı olarak silecektir. Bu eylem geri alınamaz."
 
-#: packages/admin/src/components/PluginManager.tsx:799
+#: packages/admin/src/components/PluginManager.tsx:806
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Bu, eklentiyi ve paketini sitenizden kaldıracaktır."
 
@@ -14299,7 +14323,7 @@ msgstr "Bu, yayınlanan sürüme geri dönecektir. Taslak değişiklikleriniz ka
 msgid "Thoughts, tutorials, and more"
 msgstr "Düşünceler, öğreticiler ve daha fazlası"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:184
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:220
 msgid "Time"
 msgstr "Saat"
 
@@ -14311,7 +14335,7 @@ msgstr "Saatler {zoneName} saat dilimindedir."
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "Saatler {zoneName} saat dilimindedir. Tarayıcınız {viewerZoneName} saat dilimini kullanıyor."
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:254
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:311
 #: packages/admin/src/components/settings/GeneralSettings.tsx:508
 msgid "Timezone"
 msgstr "Saat dilimi"
@@ -14320,7 +14344,7 @@ msgstr "Saat dilimi"
 #: packages/admin/src/components/ContentList.tsx:911
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:192
-#: packages/admin/src/components/Widgets.tsx:895
+#: packages/admin/src/components/Widgets.tsx:903
 msgid "Title"
 msgstr "Başlık"
 
@@ -14655,20 +14679,20 @@ msgid "Unfinished media uploads were left out"
 msgstr "Tamamlanmamış medya yüklemeleri dahil edilmedi"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
-#: packages/admin/src/components/PluginManager.tsx:694
-#: packages/admin/src/components/PluginManager.tsx:813
+#: packages/admin/src/components/PluginManager.tsx:701
+#: packages/admin/src/components/PluginManager.tsx:820
 msgid "Uninstall"
 msgstr "Kaldır"
 
-#: packages/admin/src/components/PluginManager.tsx:797
+#: packages/admin/src/components/PluginManager.tsx:804
 msgid "Uninstall {pluginName}?"
 msgstr "{pluginName} kaldırılsın mı?"
 
-#: packages/admin/src/components/PluginManager.tsx:792
+#: packages/admin/src/components/PluginManager.tsx:799
 msgid "Uninstall confirmation"
 msgstr "Kaldırma onayı"
 
-#: packages/admin/src/components/PluginManager.tsx:813
+#: packages/admin/src/components/PluginManager.tsx:820
 msgid "Uninstalling..."
 msgstr "Kaldırılıyor..."
 
@@ -14771,8 +14795,8 @@ msgstr "İsimsiz"
 msgid "Untitled file"
 msgstr "Başlıksız dosya"
 
-#: packages/admin/src/components/Widgets.tsx:540
-#: packages/admin/src/components/Widgets.tsx:813
+#: packages/admin/src/components/Widgets.tsx:548
+#: packages/admin/src/components/Widgets.tsx:821
 msgid "Untitled Widget"
 msgstr "Başlıksız Widget"
 
@@ -14829,7 +14853,7 @@ msgid "Update this redirect rule."
 msgstr "Bu yönlendirme kuralını güncelleyin."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:528
+#: packages/admin/src/components/PluginManager.tsx:535
 msgid "Update to v{0}"
 msgstr "v{0}'e güncelleme"
 
@@ -14856,7 +14880,7 @@ msgid "Updating usage"
 msgstr "Kullanım bilgileri güncelleniyor"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:355
-#: packages/admin/src/components/PluginManager.tsx:528
+#: packages/admin/src/components/PluginManager.tsx:535
 #: packages/admin/src/components/SandboxedPluginPage.tsx:161
 #: packages/admin/src/components/SandboxedPluginPage.tsx:165
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:122
@@ -15005,7 +15029,7 @@ msgstr "URL ve dil"
 msgid "URL Pattern"
 msgstr "URL Modeli"
 
-#: packages/admin/src/components/Widgets.tsx:132
+#: packages/admin/src/components/Widgets.tsx:140
 msgid "URL template (e.g. /blog/:slug)"
 msgstr "URL şablonu (ör. /blog/:slug)"
 
@@ -15177,7 +15201,7 @@ msgid "v{0}"
 msgstr "v{0}"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "v{0} available"
 msgstr "v{0} mevcut"
 
@@ -15499,7 +15523,7 @@ msgstr "Arama sonucu başlıkları için bu neden önemli?"
 msgid "Why is this important for search visibility?"
 msgstr "Arama görünürlüğü için bu neden önemli?"
 
-#: packages/admin/src/components/SeoImageField.tsx:98
+#: packages/admin/src/components/SeoImageField.tsx:137
 msgid "Why is this important for social sharing?"
 msgstr "Sosyal medyada paylaşım için bu neden önemli?"
 
@@ -15511,20 +15535,20 @@ msgstr "Bu neden önemli?"
 msgid "Wide"
 msgstr "Geniş"
 
-#: packages/admin/src/components/Widgets.tsx:806
-#: packages/admin/src/components/Widgets.tsx:821
+#: packages/admin/src/components/Widgets.tsx:814
+#: packages/admin/src/components/Widgets.tsx:829
 msgid "widget"
 msgstr "widget"
 
-#: packages/admin/src/components/Widgets.tsx:233
+#: packages/admin/src/components/Widgets.tsx:241
 msgid "Widget added"
 msgstr "Widget eklendi"
 
-#: packages/admin/src/components/Widgets.tsx:221
+#: packages/admin/src/components/Widgets.tsx:229
 msgid "Widget area created"
 msgstr "Widget alanı oluşturuldu"
 
-#: packages/admin/src/components/Widgets.tsx:649
+#: packages/admin/src/components/Widgets.tsx:657
 msgid "Widget area deleted"
 msgstr "Widget alanı silindi"
 
@@ -15532,24 +15556,24 @@ msgstr "Widget alanı silindi"
 msgid "Widget areas"
 msgstr "Widget alanları"
 
-#: packages/admin/src/components/Widgets.tsx:769
+#: packages/admin/src/components/Widgets.tsx:777
 msgid "Widget deleted"
 msgstr "Widget silindi"
 
-#: packages/admin/src/components/Widgets.tsx:898
+#: packages/admin/src/components/Widgets.tsx:906
 msgid "Widget title"
 msgstr "Widget başlığı"
 
-#: packages/admin/src/components/Widgets.tsx:784
+#: packages/admin/src/components/Widgets.tsx:792
 msgid "Widget updated"
 msgstr "Widget güncellendi"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:182
-#: packages/admin/src/components/PluginManager.tsx:484
+#: packages/admin/src/components/PluginManager.tsx:491
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:478
-#: packages/admin/src/components/Widgets.tsx:389
+#: packages/admin/src/components/Widgets.tsx:397
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Widgets"
 msgstr "Widget'lar"
@@ -15619,7 +15643,7 @@ msgstr "HTML yazın…"
 msgid "Write JavaScript…"
 msgstr "JavaScript yazın…"
 
-#: packages/admin/src/components/Widgets.tsx:908
+#: packages/admin/src/components/Widgets.tsx:916
 msgid "Write widget content..."
 msgstr "Widget içeriğini yaz..."
 
@@ -15643,7 +15667,7 @@ msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgid "YAML"
 msgstr "YAML"
 
-#: packages/admin/src/components/Widgets.tsx:164
+#: packages/admin/src/components/Widgets.tsx:172
 msgid "Yearly"
 msgstr "Yıllık"
 

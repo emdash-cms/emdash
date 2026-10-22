@@ -15,7 +15,7 @@ import {
 	LayerCard,
 	Select,
 	Table,
-	Toast,
+	useKumoToastManager,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -1117,7 +1117,7 @@ function CreateTaxonomyDialog({
 export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProps) {
 	const { t, i18n: lingui } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const [formOpen, setFormOpen] = React.useState(false);
 	const [editingTerm, setEditingTerm] = React.useState<TaxonomyTerm | undefined>();
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
@@ -1207,7 +1207,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 		mutationFn: ({ parentId, ids }: { parentId: string | null; ids: string[] }) =>
 			reorderTerms(taxonomyName, { parentId, ids }),
 		onError: (error: Error) => {
-			toastManager.add({ title: t`Error`, description: error.message, type: "error" });
+			toastManager.add({ title: t`Error`, description: error.message, variant: "error" });
 		},
 		onSettled: () => {
 			// The count includes this mutation, so >1 means another move is queued
