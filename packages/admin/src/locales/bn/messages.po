@@ -70,12 +70,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# আইটেম)} other {(# আইটেম)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3102
+#: packages/admin/src/components/ContentEditor.tsx:3201
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {# অক্ষরের মধ্যে {counted}, কমপক্ষে {min}} other {# অক্ষরের মধ্যে {counted}, কমপক্ষে {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3107
+#: packages/admin/src/components/ContentEditor.tsx:3206
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {# অক্ষরের মধ্যে {counted}} other {# অক্ষরের মধ্যে {counted}}}"
 
@@ -97,7 +97,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {#টি মন্তব্য ইমপোর্ট করা হয়েছে} other {#টি মন্তব্য ইমপোর্ট করা হয়েছে}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2446
+#: packages/admin/src/router.tsx:2472
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {#টি মন্তব্য আপডেট করা হয়েছে} other {#টি মন্তব্য আপডেট করা হয়েছে}}"
 
@@ -267,7 +267,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3112
+#: packages/admin/src/components/ContentEditor.tsx:3211
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {কমপক্ষে # অক্ষর} other {কমপক্ষে # অক্ষর}}"
 
@@ -1081,7 +1081,7 @@ msgstr "একটি প্যাকেজ ফাইল অনুপস্থি
 msgid "A publication time has not been selected"
 msgstr "প্রকাশের সময় নির্বাচন করা হয়নি"
 
-#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1408
 msgid "A publishing action is already in progress"
 msgstr "একটি প্রকাশনা কার্যক্রম ইতিমধ্যে চলছে"
 
@@ -1172,7 +1172,7 @@ msgstr "আমন্ত্রণ গ্রহণ করুন"
 msgid "Access denied"
 msgstr "অ্যাক্সেস অস্বীকৃত"
 
-#: packages/admin/src/router.tsx:2466
+#: packages/admin/src/router.tsx:2492
 msgid "Access Denied"
 msgstr "অ্যাক্সেস অস্বীকৃত"
 
@@ -1400,8 +1400,8 @@ msgstr "noindex মেটা ট্যাগ যোগ করুন"
 msgid "Add Passkey"
 msgstr "পাসকি যোগ করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3024
-#: packages/admin/src/components/ContentEditor.tsx:3024
+#: packages/admin/src/components/ContentEditor.tsx:3123
+#: packages/admin/src/components/ContentEditor.tsx:3123
 msgid "Add reference"
 msgstr ""
 
@@ -1820,20 +1820,20 @@ msgstr "একটি এনক্রিপ্টেড ডিজিটাল ক
 #: packages/admin/src/router.tsx:676
 #: packages/admin/src/router.tsx:690
 #: packages/admin/src/router.tsx:915
-#: packages/admin/src/router.tsx:1316
-#: packages/admin/src/router.tsx:1435
-#: packages/admin/src/router.tsx:1469
-#: packages/admin/src/router.tsx:1493
+#: packages/admin/src/router.tsx:1337
+#: packages/admin/src/router.tsx:1460
+#: packages/admin/src/router.tsx:1494
 #: packages/admin/src/router.tsx:1518
-#: packages/admin/src/router.tsx:1574
-#: packages/admin/src/router.tsx:1593
-#: packages/admin/src/router.tsx:1626
-#: packages/admin/src/router.tsx:1647
-#: packages/admin/src/router.tsx:2411
-#: packages/admin/src/router.tsx:2427
-#: packages/admin/src/router.tsx:2452
-#: packages/admin/src/router.tsx:2878
-#: packages/admin/src/router.tsx:3063
+#: packages/admin/src/router.tsx:1543
+#: packages/admin/src/router.tsx:1599
+#: packages/admin/src/router.tsx:1618
+#: packages/admin/src/router.tsx:1651
+#: packages/admin/src/router.tsx:1673
+#: packages/admin/src/router.tsx:2437
+#: packages/admin/src/router.tsx:2453
+#: packages/admin/src/router.tsx:2478
+#: packages/admin/src/router.tsx:2904
+#: packages/admin/src/router.tsx:3089
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -2008,11 +2008,11 @@ msgstr "MCP-এর মাধ্যমে সংযুক্ত অ্যাস�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3135
+#: packages/admin/src/components/ContentEditor.tsx:3234
 msgid "At least {min}"
 msgstr "কমপক্ষে {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3132
+#: packages/admin/src/components/ContentEditor.tsx:3231
 msgid "At most {max}"
 msgstr "সর্বোচ্চ {max}"
 
@@ -2135,7 +2135,7 @@ msgstr "স্বয়ংক্রিয় ব্যাকআপ"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "স্বয়ংক্রিয় ব্যাকআপের জন্য একটি স্টোরেজ ব্যাকএন্ড (R2, S3 বা লোকাল স্টোরেজ) প্রয়োজন। এগুলো চালু করতে আপনার EmDash কনফিগে স্টোরেজ কনফিগার করুন।"
 
-#: packages/admin/src/router.tsx:1432
+#: packages/admin/src/router.tsx:1457
 msgid "Autosave failed"
 msgstr "স্বয়ংক্রিয় সংরক্ষণ ব্যর্থ হয়েছে"
 
@@ -2180,7 +2180,7 @@ msgstr ""
 msgid "Back"
 msgstr "ফিরে যান"
 
-#: packages/admin/src/components/ContentEditor.tsx:1552
+#: packages/admin/src/components/ContentEditor.tsx:1648
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel} তালিকায় ফিরে যান"
 
@@ -2288,7 +2288,7 @@ msgstr "পাঠানোর আগে:"
 msgid "Before you continue:"
 msgstr "চালিয়ে যাওয়ার আগে:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3129
+#: packages/admin/src/components/ContentEditor.tsx:3228
 msgid "Between {min} and {max}"
 msgstr "{min} থেকে {max}-এর মধ্যে"
 
@@ -2768,7 +2768,7 @@ msgstr "চেঞ্জলগ"
 msgid "Changes apply everywhere this byline appears."
 msgstr "এই বাইলাইন যেখানেই দেখা যায়, সব জায়গায় পরিবর্তন প্রযোজ্য হবে।"
 
-#: packages/admin/src/router.tsx:1510
+#: packages/admin/src/router.tsx:1535
 msgid "Changes discarded"
 msgstr "পরিবর্তনগুলো বাতিল করা হয়েছে"
 
@@ -3123,7 +3123,7 @@ msgstr "ছবির সেটিংস বন্ধ করুন"
 msgid "Close panel"
 msgstr "প্যানেল বন্ধ করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2221
+#: packages/admin/src/components/ContentEditor.tsx:2320
 msgid "Close settings"
 msgstr "সেটিংস বন্ধ করুন"
 
@@ -3361,7 +3361,7 @@ msgstr "কনটেন্ট ত্রুটি ({0})"
 msgid "Content found:"
 msgstr "পাওয়া কনটেন্ট:"
 
-#: packages/admin/src/router.tsx:1567
+#: packages/admin/src/router.tsx:1592
 msgid "Content has been scheduled for publishing"
 msgstr "কনটেন্ট প্রকাশের জন্য নির্ধারিত হয়েছে"
 
@@ -3369,7 +3369,7 @@ msgstr "কনটেন্ট প্রকাশের জন্য নির্
 msgid "Content ID:"
 msgstr "কনটেন্ট ID:"
 
-#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1488
 msgid "Content is now live"
 msgstr "কনটেন্ট এখন লাইভ"
 
@@ -3394,11 +3394,11 @@ msgstr "কনটেন্ট অবৈধভাবে মিডিয়া র
 msgid "Content refers to media that is not in the package"
 msgstr "কনটেন্ট এমন মিডিয়া রেফারেন্স করে যা প্যাকেজে নেই"
 
-#: packages/admin/src/router.tsx:1487
+#: packages/admin/src/router.tsx:1512
 msgid "Content removed from public view"
 msgstr "কনটেন্ট সর্বজনীন দৃশ্য থেকে সরানো হয়েছে"
 
-#: packages/admin/src/router.tsx:1586
+#: packages/admin/src/router.tsx:1611
 msgid "Content reverted to draft"
 msgstr "কনটেন্ট খসড়ায় ফেরানো হয়েছে"
 
@@ -3618,7 +3618,7 @@ msgstr "মিডিয়া আইটেম বা নির্বাচিত
 msgid "Couldn't detect WordPress"
 msgstr "WordPress শনাক্ত করা যায়নি"
 
-#: packages/admin/src/components/ContentEditor.tsx:3003
+#: packages/admin/src/components/ContentEditor.tsx:3102
 msgid "Couldn't load all references."
 msgstr ""
 
@@ -3930,7 +3930,7 @@ msgid "Created {0}"
 msgstr "তৈরি হয়েছে {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1618
+#: packages/admin/src/router.tsx:1643
 msgid "Created {0} translation"
 msgstr "{0} অনুবাদ তৈরি করা হয়েছে"
 
@@ -4629,7 +4629,7 @@ msgstr "ট্যাগ ক্লাউড দেখান"
 msgid "Displayed below the image as a visible caption."
 msgstr "ছবির নিচে দৃশ্যমান ক্যাপশন হিসেবে দেখানো হয়।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1671
+#: packages/admin/src/components/ContentEditor.tsx:1767
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "মনোযোগ-কেন্দ্রিক মোড (⌘⇧\\)"
 
@@ -4930,7 +4930,7 @@ msgstr "{0} সম্পাদনা করুন"
 msgid "Edit {0} field"
 msgstr "{0} ফিল্ড সম্পাদনা করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1407
+#: packages/admin/src/components/ContentEditor.tsx:1503
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel} সম্পাদনা করুন"
 
@@ -5343,7 +5343,7 @@ msgstr "একটি URL (https://…) বা একটি রিলেটিভ
 msgid "Enter a valid time"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3179
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "একটি বৈধ URL লিখুন (যেমন https://example.com)"
 
@@ -5351,7 +5351,7 @@ msgstr "একটি বৈধ URL লিখুন (যেমন https://example
 msgid "Enter credentials manually"
 msgstr "ক্রেডেনশিয়াল নিজে লিখুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1666
+#: packages/admin/src/components/ContentEditor.tsx:1762
 msgid "Enter distraction-free mode"
 msgstr "মনোযোগ-কেন্দ্রিক মোডে যান"
 
@@ -5359,7 +5359,7 @@ msgstr "মনোযোগ-কেন্দ্রিক মোডে যান"
 msgid "Enter email"
 msgstr "ইমেইল লিখুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2519
+#: packages/admin/src/components/ContentEditor.tsx:2618
 msgid "Enter markdown content..."
 msgstr "Markdown কনটেন্ট লিখুন..."
 
@@ -5421,7 +5421,7 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:607
 #: packages/admin/src/components/TaxonomyManager.tsx:1210
 #: packages/admin/src/components/Widgets.tsx:781
-#: packages/admin/src/router.tsx:3338
+#: packages/admin/src/router.tsx:3364
 msgid "Error"
 msgstr "ত্রুটি"
 
@@ -5494,11 +5494,11 @@ msgstr "বিদ্যমান কনটেন্ট ইনডেক্স ক
 msgid "Exists"
 msgstr "বিদ্যমান"
 
-#: packages/admin/src/components/ContentEditor.tsx:1666
+#: packages/admin/src/components/ContentEditor.tsx:1762
 msgid "Exit distraction-free mode"
 msgstr "মনোযোগ-কেন্দ্রিক মোড থেকে বেরিয়ে আসুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1670
+#: packages/admin/src/components/ContentEditor.tsx:1766
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "মনোযোগ-কেন্দ্রিক মোড থেকে বেরিয়ে আসুন (⌘⇧\\)"
 
@@ -5758,7 +5758,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:782
-#: packages/admin/src/router.tsx:1623
+#: packages/admin/src/router.tsx:1648
 msgid "Failed to create translation"
 msgstr "অনুবাদ তৈরি করতে ব্যর্থ হয়েছে"
 
@@ -5773,7 +5773,7 @@ msgstr ""
 #: packages/admin/src/router.tsx:646
 #: packages/admin/src/router.tsx:675
 #: packages/admin/src/router.tsx:758
-#: packages/admin/src/router.tsx:1646
+#: packages/admin/src/router.tsx:1672
 msgid "Failed to delete"
 msgstr "মুছতে ব্যর্থ হয়েছে"
 
@@ -5798,7 +5798,7 @@ msgid "Failed to delete collection"
 msgstr "কালেকশন মুছতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/lib/api/comments.ts:114
-#: packages/admin/src/router.tsx:2426
+#: packages/admin/src/router.tsx:2452
 msgid "Failed to delete comment"
 msgstr "মন্তব্য মুছতে ব্যর্থ হয়েছে"
 
@@ -5880,7 +5880,7 @@ msgstr "অনুসন্ধান বন্ধ করতে ব্যর্থ
 msgid "Failed to disable user"
 msgstr "ব্যবহারকারীকে নিষ্ক্রিয় করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:1517
+#: packages/admin/src/router.tsx:1542
 msgid "Failed to discard changes"
 msgstr "পরিবর্তনগুলো বাতিল করতে ব্যর্থ হয়েছে"
 
@@ -6163,7 +6163,7 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2357
+#: packages/admin/src/router.tsx:2383
 msgid "Failed to fetch user"
 msgstr "ব্যবহারকারী আনতে ব্যর্থ হয়েছে"
 
@@ -6352,7 +6352,7 @@ msgid "Failed to lock the entry"
 msgstr "এন্ট্রিটি লক করতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2451
+#: packages/admin/src/router.tsx:2477
 msgid "Failed to perform bulk action"
 msgstr "একসাথে একাধিক কাজ সম্পন্ন করতে ব্যর্থ হয়েছে"
 
@@ -6370,7 +6370,7 @@ msgid "Failed to probe URL"
 msgstr ""
 
 #: packages/admin/src/router.tsx:714
-#: packages/admin/src/router.tsx:1468
+#: packages/admin/src/router.tsx:1493
 msgid "Failed to publish"
 msgstr "প্রকাশ করতে ব্যর্থ হয়েছে"
 
@@ -6382,7 +6382,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "বাইলাইন ফিল্ডের ব্যবহার পড়তে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:2877
+#: packages/admin/src/router.tsx:2903
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6464,8 +6464,8 @@ msgid "Failed to rewrite URLs"
 msgstr "URL পুনর্লিখন করতে ব্যর্থ হয়েছে"
 
 #: packages/admin/src/router.tsx:910
-#: packages/admin/src/router.tsx:1313
-#: packages/admin/src/router.tsx:3062
+#: packages/admin/src/router.tsx:1334
+#: packages/admin/src/router.tsx:3088
 msgid "Failed to save"
 msgstr "সংরক্ষণ করতে ব্যর্থ হয়েছে"
 
@@ -6484,7 +6484,7 @@ msgstr "ফিল্ড সংরক্ষণ করতে ব্যর্থ �
 msgid "Failed to save settings"
 msgstr "সেটিংস সংরক্ষণ করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:1573
+#: packages/admin/src/router.tsx:1598
 msgid "Failed to schedule"
 msgstr "সময় নির্ধারণ করতে ব্যর্থ হয়েছে"
 
@@ -6528,7 +6528,7 @@ msgstr "ইমপোর্ট শুরু করতে ব্যর্থ হ�
 msgid "Failed to uninstall plugin"
 msgstr "প্লাগইন আনইনস্টল করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1517
 msgid "Failed to unpublish"
 msgstr "অপ্রকাশিত করতে ব্যর্থ হয়েছে"
 
@@ -6536,7 +6536,7 @@ msgstr "অপ্রকাশিত করতে ব্যর্থ হয়ে
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1592
+#: packages/admin/src/router.tsx:1617
 msgid "Failed to unschedule"
 msgstr "নির্ধারিত সময় বাতিল করতে ব্যর্থ হয়েছে"
 
@@ -6635,7 +6635,7 @@ msgstr "সেকশন আপডেট করতে ব্যর্থ হয�
 msgid "Failed to update settings"
 msgstr "সেটিংস আপডেট করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/router.tsx:2410
+#: packages/admin/src/router.tsx:2436
 msgid "Failed to update status"
 msgstr "স্ট্যাটাস আপডেট করতে ব্যর্থ হয়েছে"
 
@@ -6851,11 +6851,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "শুধু প্রথমবার মন্তব্যকারীদের"
 
-#: packages/admin/src/components/ContentEditor.tsx:1389
+#: packages/admin/src/components/ContentEditor.tsx:1485
 msgid "Fix invalid fields before changing the publication date"
 msgstr "প্রকাশের তারিখ পরিবর্তনের আগে অবৈধ ফিল্ডগুলো ঠিক করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1333
+#: packages/admin/src/components/ContentEditor.tsx:1415
 msgid "Fix invalid fields before changing the schedule"
 msgstr "সময়সূচি পরিবর্তনের আগে অবৈধ ফিল্ডগুলো ঠিক করুন"
 
@@ -6881,7 +6881,7 @@ msgstr "ফোল্ডার মুছে ফেলা হয়েছে"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "ফোল্ডারের নাম 1 থেকে 200 অক্ষরের মধ্যে হতে হবে"
 
-#: packages/admin/src/router.tsx:2080
+#: packages/admin/src/router.tsx:2106
 msgid "Folder no longer exists"
 msgstr "ফোল্ডারটি আর নেই"
 
@@ -7019,7 +7019,7 @@ msgstr "পরে সহজে চেনার জন্য এই পাসক�
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1329
+#: packages/admin/src/components/ContentEditor.tsx:1411
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7028,7 +7028,7 @@ msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3358
+#: packages/admin/src/router.tsx:3384
 msgid "Go to Dashboard"
 msgstr "ড্যাশবোর্ডে যান"
 
@@ -7204,7 +7204,7 @@ msgstr "হিট"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "কেউ সম্পাদনা করার সময় এন্ট্রিটি ধরে রাখুন এবং অন্য লেখকদের পরিবর্তন প্রত্যাখ্যান করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2692
+#: packages/admin/src/components/ContentEditor.tsx:2791
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
@@ -7769,7 +7769,7 @@ msgstr "অবৈধ হ্যান্ডেল"
 msgid "Invalid invite link"
 msgstr "অবৈধ আমন্ত্রণ লিঙ্ক"
 
-#: packages/admin/src/components/ContentEditor.tsx:3255
+#: packages/admin/src/components/ContentEditor.tsx:3354
 msgid "Invalid JSON"
 msgstr "অবৈধ JSON"
 
@@ -8035,8 +8035,8 @@ msgstr ""
 msgid "Learn more"
 msgstr "আরও জানুন"
 
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:27
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:29
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:38
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:40
 msgid "Leave"
 msgstr ""
 
@@ -8044,7 +8044,7 @@ msgstr ""
 msgid "Leave unassigned"
 msgstr "অনির্ধারিত রাখুন"
 
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:25
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:36
 msgid "Leave without saving?"
 msgstr ""
 
@@ -8215,7 +8215,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3313
+#: packages/admin/src/router.tsx:3339
 msgid "Loading"
 msgstr "লোড হচ্ছে"
 
@@ -8244,8 +8244,8 @@ msgstr "কালেকশন লোড হচ্ছে..."
 msgid "Loading comments..."
 msgstr "মন্তব্য লোড হচ্ছে..."
 
-#: packages/admin/src/router.tsx:3315
-#: packages/admin/src/router.tsx:3327
+#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/router.tsx:3353
 msgid "Loading configuration..."
 msgstr "কনফিগারেশন লোড হচ্ছে..."
 
@@ -8303,7 +8303,7 @@ msgstr "প্লাগইন লোড হচ্ছে..."
 msgid "Loading redirects..."
 msgstr "রিডাইরেক্ট লোড হচ্ছে..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3011
+#: packages/admin/src/components/ContentEditor.tsx:3110
 msgid "Loading references..."
 msgstr ""
 
@@ -8557,11 +8557,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "মার্কেটপ্লেস"
 
-#: packages/admin/src/router.tsx:2714
+#: packages/admin/src/router.tsx:2740
 msgid "Marketplace browsing is no longer available."
 msgstr "মার্কেটপ্লেস ব্রাউজ করার সুবিধা আর উপলব্ধ নেই।"
 
-#: packages/admin/src/router.tsx:2689
+#: packages/admin/src/router.tsx:2715
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "মার্কেটপ্লেস ব্রাউজ করার সুবিধা আর উপলব্ধ নেই। প্লাগইন পেজ থেকে ইনস্টল করা প্লাগইন পরিচালনা করুন।"
 
@@ -8918,7 +8918,7 @@ msgstr "\"{title}\" ট্র্যাশে সরাবেন? আপনি �
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2978
+#: packages/admin/src/components/ContentEditor.tsx:3077
 #: packages/admin/src/components/FieldEditor.tsx:1163
 #: packages/admin/src/components/TaxonomyManager.tsx:463
 msgid "Move {0} down"
@@ -8942,7 +8942,7 @@ msgstr "{0} পরে সরান"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #. placeholder {0}: term.label
-#: packages/admin/src/components/ContentEditor.tsx:2967
+#: packages/admin/src/components/ContentEditor.tsx:3066
 #: packages/admin/src/components/FieldEditor.tsx:1146
 #: packages/admin/src/components/TaxonomyManager.tsx:450
 msgid "Move {0} up"
@@ -9173,7 +9173,7 @@ msgstr "মনোযোগ প্রয়োজন"
 msgid "Never"
 msgstr "কখনও না"
 
-#: packages/admin/src/router.tsx:1618
+#: packages/admin/src/router.tsx:1643
 msgid "new"
 msgstr "নতুন"
 
@@ -9181,7 +9181,7 @@ msgstr "নতুন"
 msgid "NEW"
 msgstr "নতুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1407
+#: packages/admin/src/components/ContentEditor.tsx:1503
 msgid "New {itemLabel}"
 msgstr "নতুন {itemLabel}"
 
@@ -9649,7 +9649,7 @@ msgstr "সাম্প্রতিক কোনো কার্যকলাপ 
 msgid "No redirects yet"
 msgstr "এখনও কোনো রিডাইরেক্ট নেই"
 
-#: packages/admin/src/components/ContentEditor.tsx:2921
+#: packages/admin/src/components/ContentEditor.tsx:3020
 msgid "No references selected."
 msgstr ""
 
@@ -9887,7 +9887,7 @@ msgid "Open"
 msgstr "খুলুন"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:2956
+#: packages/admin/src/components/ContentEditor.tsx:3055
 msgid "Open {0} in a new tab"
 msgstr ""
 
@@ -10076,7 +10076,7 @@ msgstr "প্যাকেজ ডাইজেস্ট"
 msgid "Package downloaded"
 msgstr "প্যাকেজ ডাউনলোড হয়েছে"
 
-#: packages/admin/src/router.tsx:3353
+#: packages/admin/src/router.tsx:3379
 msgid "Page Not Found"
 msgstr "পেজ পাওয়া যায়নি"
 
@@ -10354,7 +10354,7 @@ msgstr "প্লাগইন অ্যাকশন ব্যর্থ হয়
 msgid "Plugin actions"
 msgstr "প্লাগইন অ্যাকশন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1740
+#: packages/admin/src/components/ContentEditor.tsx:1836
 msgid "Plugin changes were not applied"
 msgstr "প্লাগইনের পরিবর্তনগুলো প্রয়োগ করা হয়নি"
 
@@ -10430,8 +10430,8 @@ msgstr "প্লাগইন রেজিস্ট্রি"
 msgid "Plugin registry configuration error"
 msgstr "প্লাগইন রেজিস্ট্রি কনফিগারেশন ত্রুটি"
 
-#: packages/admin/src/router.tsx:2649
-#: packages/admin/src/router.tsx:2680
+#: packages/admin/src/router.tsx:2675
+#: packages/admin/src/router.tsx:2706
 msgid "Plugin registry is not configured."
 msgstr "প্লাগইন রেজিস্ট্রি কনফিগার করা হয়নি।"
 
@@ -10696,7 +10696,7 @@ msgstr "কনটেন্ট প্রকাশ, অপ্রকাশিত, �
 #: packages/admin/src/components/Dashboard.tsx:522
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1488
 msgid "Published"
 msgstr "প্রকাশিত"
 
@@ -10858,7 +10858,7 @@ msgid "Read your taxonomies and terms"
 msgstr "আপনার ট্যাক্সোনমি ও টার্ম পড়া"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:70
-#: packages/admin/src/router.tsx:2013
+#: packages/admin/src/router.tsx:2039
 msgid "Read-only"
 msgstr "শুধু পড়ার জন্য"
 
@@ -11070,7 +11070,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3417
+#: packages/admin/src/components/ContentEditor.tsx:3516
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11090,7 +11090,7 @@ msgstr "সরান"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:2991
+#: packages/admin/src/components/ContentEditor.tsx:3090
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11107,7 +11107,7 @@ msgstr "নির্বাচন থেকে {0} সরান"
 msgid "Remove {entry}"
 msgstr "{entry} সরান"
 
-#: packages/admin/src/components/ContentEditor.tsx:3415
+#: packages/admin/src/components/ContentEditor.tsx:3514
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11309,8 +11309,8 @@ msgstr "পুনরাবৃত্ত ফিল্ডের গ্রুপ"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3407
-#: packages/admin/src/components/ContentEditor.tsx:3444
+#: packages/admin/src/components/ContentEditor.tsx:3506
+#: packages/admin/src/components/ContentEditor.tsx:3543
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -11328,7 +11328,7 @@ msgstr ""
 msgid "Replace"
 msgstr "প্রতিস্থাপন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3443
+#: packages/admin/src/components/ContentEditor.tsx:3542
 #: packages/admin/src/components/ImageFieldRenderer.tsx:595
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -11365,7 +11365,7 @@ msgstr "মূল ছবি প্রতিস্থাপন করবেন?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "মূল ছবি প্রতিস্থাপন শুধুমাত্র Original অনুপাতে উপলব্ধ।"
 
-#: packages/admin/src/components/ContentEditor.tsx:3024
+#: packages/admin/src/components/ContentEditor.tsx:3123
 msgid "Replace reference"
 msgstr ""
 
@@ -11505,7 +11505,7 @@ msgstr "উপরের-বাম কোণ থেকে ক্রপের আ�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "উপরের-ডান কোণ থেকে ক্রপের আকার পরিবর্তন করুন। আকার পরিবর্তনে অ্যারো কী ব্যবহার করুন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:2016
+#: packages/admin/src/components/ContentEditor.tsx:2115
 msgid "Resize settings panel"
 msgstr "সেটিংস প্যানেলের আকার পরিবর্তন করুন"
 
@@ -11565,7 +11565,7 @@ msgid "Retired"
 msgstr "অবসরপ্রাপ্ত"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3005
+#: packages/admin/src/components/ContentEditor.tsx:3104
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:217
@@ -11581,7 +11581,7 @@ msgstr "অবসরপ্রাপ্ত"
 #: packages/admin/src/components/Sections.tsx:281
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/router.tsx:3367
 #: packages/admin/src/routes/byline-schema.tsx:280
 #: packages/admin/src/routes/calendar.tsx:345
 msgid "Retry"
@@ -11632,7 +11632,7 @@ msgstr "আবার চেষ্টা করা হচ্ছে…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "পুনর্ব্যবহারযোগ্য কনটেন্ট ব্লক, যা আপনি যেকোনো কনটেন্টে যোগ করতে পারেন"
 
-#: packages/admin/src/router.tsx:1511
+#: packages/admin/src/router.tsx:1536
 msgid "Reverted to published version"
 msgstr "প্রকাশিত সংস্করণে ফিরিয়ে নেওয়া হয়েছে"
 
@@ -11839,7 +11839,7 @@ msgstr "সংরক্ষণ করুন (Enter)"
 msgid "Save alt text"
 msgstr "বিকল্প টেক্সট সংরক্ষণ করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:1768
+#: packages/admin/src/components/ContentEditor.tsx:1864
 msgid "Save anyway"
 msgstr "তবুও সংরক্ষণ করুন"
 
@@ -11981,7 +11981,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 #: packages/admin/src/components/ContentList.tsx:1026
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1566
+#: packages/admin/src/router.tsx:1591
 msgid "Scheduled"
 msgstr "নির্ধারিত"
 
@@ -12355,8 +12355,8 @@ msgid "Select"
 msgstr "নির্বাচন করুন"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3427
-#: packages/admin/src/components/ContentEditor.tsx:3443
+#: packages/admin/src/components/ContentEditor.tsx:3526
+#: packages/admin/src/components/ContentEditor.tsx:3542
 #: packages/admin/src/components/ImageFieldRenderer.tsx:596
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
@@ -12403,7 +12403,7 @@ msgstr "সব নির্বাচন করুন"
 msgid "Select all on this page"
 msgstr "এই পেজের সব নির্বাচন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:2917
+#: packages/admin/src/components/ContentEditor.tsx:3016
 msgid "Select at least one entry."
 msgstr ""
 
@@ -12436,7 +12436,7 @@ msgstr "ফেভিকন নির্বাচন করুন"
 msgid "Select Favicon"
 msgstr "ফেভিকন নির্বাচন করুন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3431
+#: packages/admin/src/components/ContentEditor.tsx:3530
 #: packages/admin/src/components/MediaPickerModal.tsx:232
 msgid "Select file"
 msgstr "ফাইল নির্বাচন করুন"
@@ -12661,8 +12661,8 @@ msgid "Setting up..."
 msgstr "সেট আপ করা হচ্ছে..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:248
-#: packages/admin/src/components/ContentEditor.tsx:1883
-#: packages/admin/src/components/ContentEditor.tsx:2207
+#: packages/admin/src/components/ContentEditor.tsx:1979
+#: packages/admin/src/components/ContentEditor.tsx:2306
 #: packages/admin/src/components/ContentTypeEditor.tsx:467
 #: packages/admin/src/components/Header.tsx:104
 #: packages/admin/src/components/PluginManager.tsx:543
@@ -13135,7 +13135,7 @@ msgstr "টেমপ্লেটের উদাহরণ পোস্ট ও �
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2480
+#: packages/admin/src/components/ContentEditor.tsx:2579
 #: packages/admin/src/components/PortableTextEditor.tsx:3493
 msgid "Start writing, or type '/' for commands"
 msgstr "লেখা শুরু করুন, অথবা কমান্ডের জন্য '/' টাইপ করুন"
@@ -13180,7 +13180,7 @@ msgstr "স্ট্যাটাস কোড"
 msgid "Status: {status}"
 msgstr "স্ট্যাটাস: {status}"
 
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:28
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:39
 msgid "Stay"
 msgstr ""
 
@@ -13728,7 +13728,7 @@ msgstr "প্যাকেজের কনটেন্ট এই সাইটে
 msgid "The package’s file index is not valid."
 msgstr "প্যাকেজের ফাইল ইনডেক্স বৈধ নয়।"
 
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3381
 msgid "The page you're looking for doesn't exist."
 msgstr "আপনি যে পেজটি খুঁজছেন তা নেই।"
 
@@ -13748,8 +13748,8 @@ msgstr "প্লাগইনের ফিল্ড উইজেট রেন্
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "প্লাগইন এই পরিবর্তনগুলো সংরক্ষণ করেনি। এডিটর আপডেট করার আগে এগুলো পর্যালোচনা করুন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1041
-#: packages/admin/src/components/ContentEditor.tsx:1057
+#: packages/admin/src/components/ContentEditor.tsx:1089
+#: packages/admin/src/components/ContentEditor.tsx:1105
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "প্লাগইনের ফলাফল পুরোনো হয়ে গেছে, কারণ এটি কাজ করার সময় এডিটরে পরিবর্তন হয়েছে।"
 
@@ -13955,20 +13955,20 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "এটি একটি বৈধ মাইগ্রেশন কী বলে মনে হচ্ছে না। প্লাগইনে নতুন একটি তৈরি করুন এবং \"em1.\" দিয়ে শুরু হওয়া পুরো স্ট্রিংটি পেস্ট করুন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1764
+#: packages/admin/src/components/ContentEditor.tsx:1860
 msgid "This entry changed somewhere else after you opened it."
 msgstr "আপনি খোলার পর এই এন্ট্রিটি অন্য কোথাও পরিবর্তন করা হয়েছে।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1339
-#: packages/admin/src/router.tsx:1130
+#: packages/admin/src/components/ContentEditor.tsx:1421
+#: packages/admin/src/router.tsx:1138
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "এই এন্ট্রিটি অন্য কোথাও পরিবর্তন করা হয়েছে। তবুও সংরক্ষণ করুন, অথবা নতুন সংস্করণ পেতে রিলোড করুন।"
 
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1975
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1951
+#: packages/admin/src/router.tsx:1976
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -13980,7 +13980,7 @@ msgstr "প্রকাশিত না হওয়া পর্যন্ত �
 msgid "This entry is open somewhere else"
 msgstr "এই এন্ট্রিটি অন্য কোথাও খোলা আছে"
 
-#: packages/admin/src/components/ContentEditor.tsx:1751
+#: packages/admin/src/components/ContentEditor.tsx:1847
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "এই এন্ট্রিটি শুধু-পঠনযোগ্য, কারণ এর স্কিমা এমন ফিল্ড টাইপ ব্যবহার করে যা EmDash-এর এই সংস্করণ সমর্থন করে না।"
 
@@ -13992,7 +13992,7 @@ msgstr ""
 msgid "This export is large"
 msgstr "এই এক্সপোর্টটি বড়"
 
-#: packages/admin/src/components/ContentEditor.tsx:2308
+#: packages/admin/src/components/ContentEditor.tsx:2407
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "EmDash-এর এই সংস্করণ দিয়ে এই ফিল্ডটি সম্পাদনা করা যাবে না।"
@@ -14018,7 +14018,7 @@ msgstr "এই ফিল্ড {mimeType} ফাইল গ্রহণ করে
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "এই ফিল্ডে একটি তালিকা প্রত্যাশিত। আপনি এটিকে একটি খালি তালিকা দিয়ে প্রতিস্থাপন না করা পর্যন্ত সংরক্ষিত মান অপরিবর্তিত থাকবে, আর প্রতিস্থাপন করলে এটি মুছে যাবে। প্রয়োজনীয় কিছু থাকলে আগে কপি করে নিন।"
 
-#: packages/admin/src/components/ContentEditor.tsx:3447
+#: packages/admin/src/components/ContentEditor.tsx:3546
 #: packages/admin/src/components/ImageFieldRenderer.tsx:615
 msgid "This field is required"
 msgstr "এই ফিল্ডটি আবশ্যক"
@@ -14465,7 +14465,7 @@ msgstr "অনুবাদ করা হচ্ছে..."
 #: packages/admin/src/components/MenuEditor.tsx:146
 #: packages/admin/src/components/TaxonomyManager.tsx:1256
 #: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1617
+#: packages/admin/src/router.tsx:1642
 msgid "Translation created"
 msgstr "অনুবাদ তৈরি হয়েছে"
 
@@ -14740,7 +14740,7 @@ msgstr ""
 msgid "Unpublish {itemLabel}"
 msgstr "{itemLabel} অপ্রকাশিত করুন"
 
-#: packages/admin/src/router.tsx:1487
+#: packages/admin/src/router.tsx:1512
 msgid "Unpublished"
 msgstr "অপ্রকাশিত"
 
@@ -14766,7 +14766,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "অসংরক্ষিত কনটেন্ট আপনার সাইটের বাইরে যেতে পারে"
 
-#: packages/admin/src/router.tsx:1585
+#: packages/admin/src/router.tsx:1610
 msgid "Unscheduled"
 msgstr "সময় নির্ধারিত নয়"
 
@@ -14790,7 +14790,7 @@ msgstr "{0} পর্যন্ত"
 msgid "Untitled"
 msgstr "শিরোনামহীন"
 
-#: packages/admin/src/components/ContentEditor.tsx:3349
+#: packages/admin/src/components/ContentEditor.tsx:3448
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "শিরোনামহীন ফাইল"
@@ -15126,7 +15126,7 @@ msgstr "কোনো পেজে ছবি না থাকলে এটি ফ
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "শনাক্তকারী হিসেবে ব্যবহৃত হয়। শুধু ছোট হাতের অক্ষর, সংখ্যা এবং আন্ডারস্কোর।"
 
-#: packages/admin/src/components/ContentEditor.tsx:2603
+#: packages/admin/src/components/ContentEditor.tsx:2702
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "তালিকা পেজে এবং পোস্টের শীর্ষে এই পোস্টের প্রধান ভিজ্যুয়াল হিসেবে ব্যবহৃত হয়"
 
@@ -15458,7 +15458,7 @@ msgstr "যা ইমপোর্ট করা হবে"
 msgid "What will happen when you import"
 msgstr "ইমপোর্ট করলে যা ঘটবে"
 
-#: packages/admin/src/components/ContentEditor.tsx:1765
+#: packages/admin/src/components/ContentEditor.tsx:1861
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "আপনি যা লিখেছেন তা এখনো এখানে আছে। সংরক্ষণ করলে নতুন সংস্করণটি প্রতিস্থাপিত হবে।"
 
@@ -15743,7 +15743,7 @@ msgstr "মিডিয়া ব্যবহার ট্র্যাকিং 
 msgid "You need Admin permissions to transfer this site."
 msgstr "এই সাইট ট্রান্সফার করতে আপনার অ্যাডমিন অনুমতি প্রয়োজন।"
 
-#: packages/admin/src/router.tsx:2467
+#: packages/admin/src/router.tsx:2493
 msgid "You need Editor permissions to moderate comments."
 msgstr "মন্তব্য মডারেট করতে আপনার এডিটর অনুমতি প্রয়োজন।"
 
@@ -15884,11 +15884,11 @@ msgstr "আপনার নাম (ঐচ্ছিক)"
 msgid "Your Role"
 msgstr "আপনার ভূমিকা"
 
-#: packages/admin/src/router.tsx:2018
+#: packages/admin/src/router.tsx:2044
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2019
+#: packages/admin/src/router.tsx:2045
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -15915,7 +15915,7 @@ msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "আপনার Twitter/X হ্যান্ডেল (যেমন, @username)"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:123
-#: packages/admin/src/components/UnsavedChangesGuard.tsx:26
+#: packages/admin/src/components/UnsavedChangesGuard.tsx:37
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
