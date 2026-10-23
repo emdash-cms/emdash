@@ -1,0 +1,43 @@
+.changeset/iframe-embed-reliability.md
+  s_598b471e4e64e2::t_5e675d95fe1383 1-8
+docs/src/content/docs/guides/working-with-content.mdx
+  s_598b471e4e64e2::t_f4a571ddffe9d8 144-148
+e2e/tests/editor-iframe-block.spec.ts
+  s_598b471e4e64e2::t_10659dbe2fc394 1-150
+packages/admin/src/components/editor/IframeBlockNode.tsx
+  s_598b471e4e64e2::t_4c5bcd455fcbc7 15-16,39,47-53,56,106,116-120,130-143,157-160,163-172,178-180,182-183,188-189,194,201-208,210,212-213,216-217,230-234,240-242,246-271,309,321-334
+packages/admin/src/components/editor/iframe-embed.ts
+  s_598b471e4e64e2::t_4559499fbd74b9 18-19,178-189,198-204,207-222
+packages/admin/tests/editor/iframe-block-editor.test.tsx
+  s_598b471e4e64e2::t_14dcb9c19db156 175-300,304-323
+packages/admin/tests/editor/iframe-embed.test.ts
+  s_f0cd7862bf4fc9::t_19560e0d96ec12 24-82
+packages/core/src/components/Iframe.astro
+  s_f0cd7862bf4fc9::t_6770ea255e4d48 89,119-120,127,138
+packages/core/tests/repro/iframe.render.test.ts
+  s_f0cd7862bf4fc9::t_5c68b43de63fb8 82,85-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e8252bef2b1193279c9dd86b81b7156c88b003ce",
+  "prompts": {},
+  "sessions": {
+    "s_598b471e4e64e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a169c3-2239-7790-95b8-e45986bf1e43",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_f0cd7862bf4fc9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a169dc-ea0a-7821-afb1-b9bac10655cd",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
