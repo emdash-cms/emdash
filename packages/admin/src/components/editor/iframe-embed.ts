@@ -15,7 +15,8 @@ export interface IframeEmbed {
 
 export type IframeParseResult =
 	| { ok: true; embed: IframeEmbed | null }
-	| { ok: false; reason: "no-iframe" | "not-https" };
+	| { ok: false; reason: "no-iframe" | "not-https" }
+	| { ok: false; reason: "requires-html"; html: string };
 
 /** Permissions that video and map players need. The site renders only these. */
 export const IFRAME_ALLOWED_FEATURES: ReadonlySet<string> = new Set([
@@ -174,10 +175,18 @@ function playerEmbed(url: URL): IframeEmbed | undefined {
 	return undefined;
 }
 
-/**
- * Parse an embed code or a link. Blank text clears the embed. Other
- * attributes of a pasted iframe are dropped.
- */
+const IFRAME_INPUT_ATTRIBUTES = new Map<string, (value: string) => boolean>([
+	["src", () => true],
+	["title", () => true],
+	["allow", () => true],
+	["allowfullscreen", () => true],
+	["width", (value) => value.trim() === "100%" || dimension(value) !== undefined],
+	["height", (value) => dimension(value) !== undefined],
+	["frameborder", (value) => value.trim() === "0"],
+	["loading", (value) => value.trim().toLowerCase() === "lazy"],
+	["referrerpolicy", (value) => value.trim().toLowerCase() === "strict-origin-when-cross-origin"],
+]);
+
 export function parseIframeInput(text: string): IframeParseResult {
 	const input = text.trim();
 	if (!input) return { ok: true, embed: null };
@@ -186,10 +195,31 @@ export function parseIframeInput(text: string): IframeParseResult {
 		if (!url) return { ok: false, reason: "not-https" };
 		return { ok: true, embed: playerEmbed(url) ?? { src: url.href } };
 	}
-	const frame = new DOMParser().parseFromString(input, "text/html").querySelector("iframe");
-	if (!frame) return { ok: false, reason: "no-iframe" };
+	const document = new DOMParser().parseFromString(input, "text/html");
+	const frame = document.querySelector("iframe");
+	if (!frame) {
+		return document.querySelector("script, style")
+			? { ok: false, reason: "requires-html", html: text }
+			: { ok: false, reason: "no-iframe" };
+	}
 	const url = httpsUrl(frame.getAttribute("src"));
 	if (!url) return { ok: false, reason: "not-https" };
+	const onlyFrame =
+		!document.doctype &&
+		document.documentElement.attributes.length === 0 &&
+		document.body.attributes.length === 0 &&
+		document.head.childNodes.length === 0 &&
+		[...document.body.childNodes].every(
+			(child) =>
+				child === frame || (child.nodeType === Node.TEXT_NODE && !child.textContent?.trim()),
+		) &&
+		!frame.textContent?.trim();
+	if (
+		!onlyFrame ||
+		![...frame.attributes].every(({ name, value }) => IFRAME_INPUT_ATTRIBUTES.get(name)?.(value))
+	) {
+		return { ok: false, reason: "requires-html", html: text };
+	}
 	const embed: IframeEmbed = { src: url.href };
 	const title = frame.getAttribute("title")?.trim();
 	const width = dimension(frame.getAttribute("width"));

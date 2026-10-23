@@ -79,9 +79,18 @@ describe("Iframe rendering", () => {
 		}
 	});
 
-	it("sizes the frame from its width and height", async () => {
+	it("keeps a custom ratio on the iframe without fixing its wrapper's height", async () => {
 		const html = await render({ src: "https://example.com/", width: 560, height: 315 });
 
-		expect(attribute(html, "div", "style")).toContain("aspect-ratio: 560 / 315");
+		expect(attribute(html, "iframe", "style")).toContain("aspect-ratio: 560 / 315");
+		expect(attribute(html, "iframe", "height")).toBeUndefined();
+		expect(attribute(html, "div", "style")).toBeUndefined();
+	});
+
+	it("uses a height-only block's height as the iframe's initial height", async () => {
+		const html = await render({ src: "https://example.com/", height: 450 });
+
+		expect(attribute(html, "iframe", "height")).toBe("450");
+		expect(attribute(html, "div", "style")).toBeUndefined();
 	});
 });

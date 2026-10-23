@@ -86,8 +86,7 @@ if (!src) {
 
 const width = dimension(node.width);
 const height = dimension(node.height);
-const size =
-	width && height ? `aspect-ratio: ${width} / ${height}` : height ? `height: ${height}px` : undefined;
+const size = width && height ? `aspect-ratio: ${width} / ${height}` : undefined;
 
 // A page on the site's own origin with both scripts and same-origin access
 // could remove its own sandbox.
@@ -117,17 +116,18 @@ const attributes = [
 	'loading="lazy"',
 	'referrerpolicy="strict-origin-when-cross-origin"',
 	`sandbox="${sandbox}"`,
+	size && `style="${size}"`,
+	height && !width && `height="${height}"`,
 	allow && `allow="${allow}"`,
 	node.allowFullscreen === true && "allowfullscreen",
 ].filter(Boolean);
 const frame = `<iframe ${attributes.join(" ")}></iframe>`;
 ---
 
-<div class="emdash-iframe" style={size}><Fragment set:html={frame} /></div>
+<div class="emdash-iframe"><Fragment set:html={frame} /></div>
 
 <style>
 	.emdash-iframe {
-		aspect-ratio: 16 / 9;
 		margin: 1.5rem 0;
 		width: 100%;
 	}
@@ -135,7 +135,7 @@ const frame = `<iframe ${attributes.join(" ")}></iframe>`;
 	.emdash-iframe :global(iframe) {
 		display: block;
 		width: 100%;
-		height: 100%;
+		aspect-ratio: 16 / 9;
 		border: 0;
 	}
 </style>

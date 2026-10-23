@@ -172,9 +172,155 @@ describe("Iframe block editor", () => {
 			expect(codeEditor()?.textContent).toContain(`<iframe src="${YOUTUBE_EMBED}"`),
 		);
 	});
+
+	it("saves another URL after parsing the saved URL again", async () => {
+		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
+		const { screen, latest } = await renderEditor({ value: [saved] });
+		await screen.getByRole("tab", { name: "Code" }).click();
+		const input = screen.getByRole("textbox", { name: "Embed code" });
+		await input.fill("https://example.com/map");
+		await new Promise((resolve) => setTimeout(resolve, 350));
+		expect(frames(latest())).toEqual([saved]);
+
+		await input.fill("https://example.com/next");
+		await screen.getByRole("tab", { name: "Preview" }).click();
+
+		await vi.waitFor(() => expect(frames(latest())[0]?.src).toBe("https://example.com/next"));
+	});
+
+	it("converts a complete embed after parsing the saved URL again", async () => {
+		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
+		const html =
+			'<div><iframe src="https://example.com/chart" data-theme="auto"></iframe><script src="https://example.com/resize.js"></script></div>';
+		const { screen, latest } = await renderEditor({ value: [saved] });
+		await screen.getByRole("tab", { name: "Code" }).click();
+		const input = screen.getByRole("textbox", { name: "Embed code" });
+		await input.fill("https://example.com/map");
+		await new Promise((resolve) => setTimeout(resolve, 350));
+		await input.fill(html);
+		await screen.getByRole("button", { name: "Use as HTML block" }).click();
+
+		await vi.waitFor(() =>
+			expect(latest()).toEqual([{ _type: "htmlBlock", _key: "saved", html, isolated: true }]),
+		);
+	});
+
+	it("flushes a second edit before a toolbar undo after an automatic write", async () => {
+		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/start" };
+		const { screen, latest } = await renderEditor({ value: [saved] });
+		await screen.getByRole("tab", { name: "Code" }).click();
+		const input = screen.getByRole("textbox", { name: "Embed code" });
+		await input.fill("https://example.com/first");
+		await vi.waitFor(() => expect(frames(latest())[0]?.src).toBe("https://example.com/first"));
+		await new Promise((resolve) => setTimeout(resolve, 650));
+
+		await input.fill("https://example.com/second");
+		await screen.getByRole("button", { name: "Undo", exact: true }).click();
+
+		await vi.waitFor(() => expect(frames(latest())[0]?.src).toBe("https://example.com/first"));
+	});
+
+	it("keeps a complete embed through blur and tab changes until the author converts it", async () => {
+		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
+		const html =
+			'<div class="chart"><iframe src="https://embed.example.com/chart" data-theme="auto"></iframe><script src="https://embed.example.com/resize.js"></script></div>';
+		const { screen, editor, pm, latest } = await renderEditor({ value: [INTRO, saved] });
+		await screen.getByRole("tab", { name: "Code" }).click();
+		await screen.getByRole("textbox", { name: "Embed code" }).fill(html);
+
+		await expect.element(screen.getByRole("button", { name: "Use as HTML block" })).toBeVisible();
+		expect(frames(latest())).toEqual([saved]);
+		await userEvent.click(pm.querySelector("p")!);
+		expect(codeEditor()?.textContent).toBe(html);
+		await screen.getByRole("tab", { name: "Preview" }).click();
+		await screen.getByRole("tab", { name: "Code" }).click();
+		expect(codeEditor()?.textContent).toBe(html);
+
+		await screen.getByRole("button", { name: "Use as HTML block" }).click();
+
+		await vi.waitFor(() =>
+			expect(latest().find((block) => block._key === "saved")).toEqual({
+				_type: "htmlBlock",
+				_key: "saved",
+				html,
+				isolated: true,
+			}),
+		);
+		expect(frames(latest())).toEqual([]);
+		expect(latest()[0]).toMatchObject({
+			_type: "block",
+			_key: "intro",
+			children: [{ _type: "span", _key: "intro-span", text: "Intro" }],
+		});
+		editor.commands.undo();
+		await vi.waitFor(() => expect(frames(latest())).toEqual([saved]));
+	});
+
+	it("converts the latest script-only snippet after a read-only transition", async () => {
+		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
+		const first = '<script src="https://embed.example.com/first.js"></script>';
+		const latestScript = '<script src="https://embed.example.com/latest.js"></script>';
+		const { screen, editor, latest } = await renderEditor({ value: [saved] });
+		await screen.getByRole("tab", { name: "Code" }).click();
+		await screen.getByRole("textbox", { name: "Embed code" }).fill(first);
+		await expect.element(screen.getByRole("button", { name: "Use as HTML block" })).toBeVisible();
+		await screen.getByRole("textbox", { name: "Embed code" }).fill(latestScript);
+		await expect.element(screen.getByRole("button", { name: "Use as HTML block" })).toBeVisible();
+		editor.setEditable(false);
+		await expect.element(screen.getByRole("button", { name: "Use as HTML block" })).toBeDisabled();
+		expect(frames(latest())).toEqual([saved]);
+		editor.setEditable(true);
+		await screen.getByRole("button", { name: "Use as HTML block" }).click();
+
+		await vi.waitFor(() =>
+			expect(latest()).toEqual([
+				{ _type: "htmlBlock", _key: "saved", html: latestScript, isolated: true },
+			]),
+		);
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(latest()).toEqual([
+			{ _type: "htmlBlock", _key: "saved", html: latestScript, isolated: true },
+		]);
+	});
+
+	it("drops a pending snippet when external content replaces the iframe", async () => {
+		const saved: Block = { _type: "iframe", _key: "saved", src: "https://example.com/map" };
+		const { screen, editor, latest } = await renderEditor({ value: [saved] });
+		await screen.getByRole("tab", { name: "Code" }).click();
+		await screen.getByRole("textbox", { name: "Embed code" }).fill("https://example.com/pending");
+		editor.commands.setContent({
+			type: "doc",
+			content: [{ type: "iframeBlock", attrs: { src: "https://example.com/replaced" } }],
+		});
+
+		await vi.waitFor(() => expect(frames(latest())[0]?.src).toBe("https://example.com/replaced"));
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(frames(latest())[0]?.src).toBe("https://example.com/replaced");
+		expect(codeEditor()?.textContent).not.toContain("https://example.com/pending");
+	});
 });
 
 describe("Iframe block preview", () => {
+	it("lets provider height updates size the preview and its container", async () => {
+		const { screen } = await renderEditor({
+			value: [{ _type: "iframe", _key: "chart", src: "https://example.com/chart", height: 450 }],
+		});
+		await screen.getByRole("button", { name: "Load preview" }).click();
+		await vi.waitFor(() => expect(document.querySelector(".iframe-block iframe")).not.toBeNull());
+		const frame = document.querySelector<HTMLIFrameElement>(".iframe-block iframe");
+		if (!frame?.parentElement) throw new Error("The preview did not mount");
+		const container = frame.parentElement;
+		expect(frame.getBoundingClientRect().height).toBe(450);
+		for (const height of [640, 240]) {
+			frame.setAttribute("height", String(height));
+			expect(frame.getBoundingClientRect().height).toBe(height);
+			expect(container.getBoundingClientRect().height).toBe(height);
+		}
+		frame.style.height = "720px";
+		expect(frame.getBoundingClientRect().height).toBe(720);
+		expect(container.getBoundingClientRect().height).toBe(720);
+	});
+
 	it("previews only https sources, without same-origin access to the admin", async () => {
 		const blocks: Block[] = [
 			{ _type: "iframe", _key: "relative", src: "/" },
