@@ -83,6 +83,7 @@ describe("sandboxed plugin authorization across admin status changes", () => {
 				version: "1.0.0",
 				options: {},
 				code: "export default {};",
+				hooks: [],
 				capabilities: [],
 				allowedHosts: [],
 				storage: {},

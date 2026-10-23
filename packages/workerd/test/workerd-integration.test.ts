@@ -809,6 +809,98 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(httpFetch).toHaveBeenCalledOnce();
 	}, 30_000);
 
+	it.each([false, true])(
+		"installs a config sandbox once and schedules cron during activation (bypassed: %s)",
+		async (sandboxBypassed) => {
+			const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
+			const runtimeSqlite = new Database(":memory:");
+			let now = new Date("2030-01-01T00:00:00.000Z");
+			const deps: RuntimeDependencies = {
+				config: {
+					database: {
+						entrypoint: `workerd-lifecycle-${crypto.randomUUID()}`,
+						type: "sqlite",
+						config: {},
+					},
+				},
+				plugins: [],
+				createDialect: () => new SqliteDialect({ database: runtimeSqlite }),
+				createStorage: null,
+				createScheduler: null,
+				sandboxEnabled: !sandboxBypassed,
+				sandboxBypassed,
+				now: () => now,
+				sandboxedPluginEntries: [
+					{
+						id: "config-lifecycle",
+						version: "1.0.0",
+						options: {},
+						code: `export default {
+					hooks: {
+						"plugin:install": async (_event, ctx) => {
+							await ctx.kv.set("installs", (await ctx.kv.get("installs") ?? 0) + 1);
+						},
+						"plugin:activate": async (_event, ctx) => {
+							if (await ctx.kv.get("installs") !== 1) throw new Error("install must run first");
+							await ctx.kv.set("activations", (await ctx.kv.get("activations") ?? 0) + 1);
+							await ctx.cron.schedule("tick", { schedule: "* * * * *" });
+						},
+						cron: async (_event, ctx) => { await ctx.kv.set("ticked", true); }
+					},
+					routes: {
+						state: { handler: async (_route, ctx) => ({
+							installs: await ctx.kv.get("installs"),
+							activations: await ctx.kv.get("activations"),
+							ticked: await ctx.kv.get("ticked")
+						}) }
+					}
+				}`,
+						capabilities: [],
+						allowedHosts: [],
+						storage: {},
+						hooks: ["plugin:install", "plugin:activate", "cron"],
+						routes: [{ name: "state", public: true }],
+					},
+				],
+				createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
+			};
+			let runtime = await EmDashRuntime.create(deps);
+			try {
+				const state = await runtime.db
+					.selectFrom("_plugin_state")
+					.selectAll()
+					.where("plugin_id", "=", "config-lifecycle")
+					.executeTakeFirst();
+				expect(state).toMatchObject({ status: "active", source: "config", version: "1.0.0" });
+				const tasks = await runtime.db
+					.selectFrom("_emdash_cron_tasks")
+					.selectAll()
+					.where("plugin_id", "=", "config-lifecycle")
+					.execute();
+				expect(tasks).toEqual([expect.objectContaining({ task_name: "tick", enabled: 1 })]);
+				now = new Date("2030-01-01T00:01:00.000Z");
+				await expect(runtime.runScheduledTasksWithStats()).resolves.toMatchObject({ processed: 1 });
+				await runtime.shutdown();
+				runtime = await EmDashRuntime.create(deps);
+				const result = await runtime.handlePluginApiRoute(
+					"config-lifecycle",
+					"GET",
+					"/state",
+					new Request("https://test.local/state"),
+				);
+				expect(result).toMatchObject({
+					success: true,
+					data: { installs: 1, activations: 1, ticked: true },
+				});
+			} finally {
+				await runtime.shutdown();
+				await runtime.db.destroy();
+				runtimeSqlite.close();
+			}
+		},
+		30_000,
+	);
+
 	it("runs an equivalent runtime content and cold-restart journey through workerd", async () => {
 		const { EmDashRuntime } = await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");

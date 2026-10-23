@@ -1159,7 +1159,7 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Run install → activate once for each native plugin registered in the
+	 * Run install → activate once for each loaded plugin registered in the
 	 * integration config that has no `_plugin_state` row.
 	 *
 	 * Only the isolate whose insert creates the row runs the hooks. A plugin
@@ -1213,6 +1213,7 @@ export class EmDashRuntime {
 				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
 			}
 			this.pluginStates.set(plugin.id, "inactive");
+			this.setSandboxedPluginActive(plugin.id, false);
 			this.enabledPlugins.delete(plugin.id);
 		}
 		await this.rebuildHookPipeline();
@@ -2362,8 +2363,13 @@ export class EmDashRuntime {
 		sandboxRunner?.setContentActions?.(contentActions);
 
 		if (ownsConfiguredDb && pluginStatesRead) {
+			// A sandbox that failed to load must not consume its first-install guard.
+			const configPlugins = [
+				...deps.plugins,
+				...allPipelinePlugins.filter((plugin) => configuredSandboxIds.has(plugin.id)),
+			];
 			await phase("rt.lifecycle", "Config plugin install/activate", () =>
-				runtime.installUnrecordedConfigPlugins(deps.plugins, new Map(pluginStates)),
+				runtime.installUnrecordedConfigPlugins(configPlugins, new Map(pluginStates)),
 			);
 		}
 
