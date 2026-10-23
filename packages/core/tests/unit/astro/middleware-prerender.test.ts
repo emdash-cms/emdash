@@ -754,6 +754,34 @@ describe("astro middleware anonymous session reads", () => {
 		);
 		expect(mockHandleMediaUpload).toHaveBeenCalledWith(input);
 	});
+
+	it("gives anonymous page renders the storage public media URL resolver", async () => {
+		const { context } = createAnonymousPublicPageContext();
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
+	});
+
+	it("gives authenticated page renders the storage public media URL resolver", async () => {
+		const { context } = createRequestContext({
+			url: "https://example.com/",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+		});
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
+	});
 });
 
 describe("astro middleware request-scoped db", () => {
@@ -885,6 +913,22 @@ describe("astro middleware request-scoped db", () => {
 		// a refactor to enterWith() could silently leak request state into
 		// other async work on the same worker.
 		expect(getRequestContext()).toBeUndefined();
+	});
+
+	it("keeps the public media URL resolver in the scoped db context", async () => {
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit: vi.fn(),
+		});
+		const { context } = createAnonymousPublicPageContext();
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
 	});
 
 	it("marks an API-token (Bearer) request as authenticated even without a session cookie", async () => {
