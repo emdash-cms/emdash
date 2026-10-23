@@ -331,10 +331,12 @@ function VideoNodeView({
 							rows={1}
 							tabIndex={-1}
 							dir="auto"
-							value={caption}
+							value={captionField.value}
 							data-video-stop=""
 							onChange={(event) => {
-								if (editor.isEditable) updateAttributes({ caption: event.target.value });
+								if (!editor.isEditable) return;
+								captionField.onChange(event);
+								updateAttributes({ caption: event.target.value });
 							}}
 							onFocus={() => {
 								captionField.onFocus();

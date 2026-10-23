@@ -1,12 +1,20 @@
 import * as React from "react";
 
 /**
- * Whether a media block's caption field shows. A caption with text always
+ * A media block's caption input value and visibility. A caption with text always
  * shows; an empty one only while it has focus, so it takes no room otherwise.
  * Losing focus closes the field after the press that moved focus ends and
  * the click it makes has landed, so nothing moves under the pointer first.
  */
 export function useCaptionField(caption: string) {
+	// Node-view attribute updates may reach React after the input event ends.
+	// Keep the controlled value current before React restores the field's value.
+	const [value, setValue] = React.useState(caption);
+	const [storedCaption, setStoredCaption] = React.useState(caption);
+	if (storedCaption !== caption) {
+		setStoredCaption(caption);
+		setValue(caption);
+	}
 	const [state, setState] = React.useState<"closed" | "open" | "closing">("closed");
 	const pressedRef = React.useRef(false);
 
@@ -37,7 +45,11 @@ export function useCaptionField(caption: string) {
 	}, [state]);
 
 	return {
-		shown: caption !== "" || state !== "closed",
+		value,
+		onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+			setValue(event.currentTarget.value);
+		},
+		shown: value !== "" || state !== "closed",
 		onFocus: () => {
 			// Drops a press whose release a context menu swallowed. A press that focuses
 			// the field is on the field, so it never has to keep the field open.
