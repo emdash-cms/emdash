@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import * as React from "react";
 import { describe, it, expect } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { ImageExtension } from "../src/components/editor/ImageNode.js";
 import { render } from "./utils/render.js";
@@ -36,6 +37,18 @@ describe("Editor image caption display", () => {
 		const caption = await screen.findByRole("textbox", { name: "Caption" });
 		expect(caption).toHaveValue("A real caption");
 		expect(caption.closest("figcaption")).not.toBeNull();
+	});
+
+	it("keeps the cursor where the editor is typing in the caption", async () => {
+		void render(<TestEditor attrs={{ src: "/img.jpg", caption: "Keeneland Race Course" }} />);
+		const caption = (await screen.findByRole("textbox", {
+			name: "Caption",
+		})) as HTMLTextAreaElement;
+		caption.focus();
+		caption.setSelectionRange(0, 0);
+		await userEvent.keyboard("The Paddock ");
+		expect(caption).toHaveValue("The Paddock Keeneland Race Course");
+		expect(caption.selectionStart).toBe("The Paddock ".length);
 	});
 
 	it("does NOT render alt text as a caption (WYSIWYG parity with Image.astro)", async () => {
