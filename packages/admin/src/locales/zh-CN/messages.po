@@ -1897,7 +1897,7 @@ msgstr "裁剪后，动态 WebP 文件将变为静态图片。"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:27
 msgid "Another editor"
-msgstr "其他编辑器"
+msgstr "其他编辑者"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "Another import is already using this package."
