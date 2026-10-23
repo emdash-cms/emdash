@@ -28,6 +28,8 @@ import {
 	Tag,
 	Upload,
 	X,
+	SquaresFour,
+	List,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -48,6 +50,7 @@ import {
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { inlineLabel } from "../lib/inline-label.js";
+import { localMediaFileUrl } from "../lib/media-utils.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, formatDate, parseTimestamp } from "../lib/utils.js";
@@ -304,6 +307,7 @@ export function ContentList({
 	const { t, i18n: lingui } = useLingui();
 	const pluginAdmins = usePluginAdmins();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
+	const [viewMode, setViewMode] = React.useState<"table" | "cards">("table");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
 	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
@@ -482,12 +486,54 @@ export function ContentList({
 	const trashColSpan = i18n ? 4 : 3;
 	const tabPagination = activeTab === "all" ? pagination : trashPagination;
 	const showPaginationFooter = !!tabPagination && tabPagination.totalCount > 0;
+	const emptyContent =
+		items.length === 0 && (isLoading || pagination?.isPending) ? (
+			<span className="inline-flex items-center gap-2">
+				<Loader size="sm" />
+				{t`Loading...`}
+			</span>
+		) : paginatedItems.length === 0 ? (
+			activeSearch ? (
+				t`No results for "${activeSearch}"`
+			) : (
+				<>
+					{t`No ${inlineLabel(collectionLabel, lingui.locale)} yet.`}{" "}
+					<Link
+						to="/content/$collection/new"
+						params={{ collection }}
+						search={{ locale: activeLocale }}
+						className="text-kumo-link underline"
+					>{t`Create your first one`}</Link>
+				</>
+			)
+		) : null;
+	const renderedItems = paginatedItems.map((item) => (
+		<ContentListItem
+			layout={viewMode}
+			key={item.id}
+			item={item}
+			visibleItems={paginatedItems}
+			collection={collection}
+			onDelete={deleteRow}
+			onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
+			showLocale={!!i18n}
+			i18n={i18n}
+			urlPattern={urlPattern}
+			titleField={titleField}
+			dateField={dateField}
+			listColumns={listColumns}
+			selectable={bulkEnabled}
+			selected={selectedIds.has(item.id)}
+			onToggleSelect={toggleOne}
+			extensionColumns={extensionColumns}
+		/>
+	));
 
 	return (
 		<div
 			className={
 				showPaginationFooter
-					? "flex min-h-full flex-col gap-4 [&_tbody_*]:scroll-mb-48"
+					? "flex min-h-full flex-col gap-4 [&_tbody_*]:scroll-mb-48 [&_[data-content-card]_*]:scroll-mb-48"
 					: "space-y-4"
 			}
 		>
@@ -540,8 +586,40 @@ export function ContentList({
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
 				<>
-					{(serverSearch || items.length > 0 || onStatusFilterChange) && (
-						<TableToolbar>
+					{
+						<TableToolbar
+							trailing={
+								<div role="group" aria-label={t`View mode`}>
+									<Tabs
+										variant="segmented"
+										value={viewMode}
+										onValueChange={(value) => {
+											if (value === "table" || value === "cards") setViewMode(value);
+										}}
+										tabs={[
+											{
+												value: "table",
+												label: (
+													<>
+														<List className="size-4" aria-hidden="true" />
+														<span>{t`Table`}</span>
+													</>
+												),
+											},
+											{
+												value: "cards",
+												label: (
+													<>
+														<SquaresFour className="size-4" aria-hidden="true" />
+														<span>{t`Cards`}</span>
+													</>
+												),
+											},
+										]}
+									/>
+								</div>
+							}
+						>
 							{(serverSearch || items.length > 0) && (
 								<TableToolbarSearch
 									placeholder={t`Search ${inlineLabel(collectionLabel, lingui.locale)}...`}
@@ -565,7 +643,7 @@ export function ContentList({
 								/>
 							)}
 						</TableToolbar>
-					)}
+					}
 
 					{/* Bulk action toolbar — appears once one or more rows are selected */}
 					{bulkEnabled && selectedCount > 0 && (
@@ -711,138 +789,157 @@ export function ContentList({
 						}}
 					/>
 
-					{/* Table */}
-					<div className="rounded-md border bg-kumo-base overflow-x-auto">
-						<table className="w-full" aria-busy={pagination?.isPending || undefined}>
-							<thead>
-								<tr className="border-b bg-kumo-tint/50">
-									{bulkEnabled && (
-										<th
-											scope="col"
-											className="w-10 px-4 py-3"
-											inert={pagination?.isPending || undefined}
-										>
-											<Checkbox
-												checked={allPageSelected}
-												onCheckedChange={togglePage}
-												aria-label={t`Select all on this page`}
-											/>
-										</th>
-									)}
-									{/* The Title/Date columns sort by the collection's configured
-									    titleField/dateField when set */}
-									<SortableTh
-										field={titleField ?? "title"}
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Title`}
-									/>
-									{listColumns.map((column) => (
-										<th
-											key={column.slug}
-											scope="col"
-											className="px-4 py-3 text-start text-sm font-medium"
-										>
-											{column.label}
-										</th>
-									))}
-									<SortableTh
-										field="status"
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Status`}
-									/>
-									{i18n && (
-										<SortableTh
-											field="locale"
-											sort={sort}
-											onSortChange={onSortChange}
-											label={t`Locale`}
-										/>
-									)}
-									<SortableTh
-										field={dateField ?? "updatedAt"}
-										sort={sort}
-										onSortChange={onSortChange}
-										label={t`Date`}
-									/>
-									{extensionColumns.map((column) => (
-										<ExtensionColumnHeader
-											key={`${column.pluginId}:${column.extension.id}`}
-											column={column}
-											collection={collection}
-											locale={activeLocale}
-										/>
-									))}
-									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-										{t`Actions`}
-									</th>
-								</tr>
-							</thead>
-							<tbody
-								className="divide-y divide-kumo-line"
+					{viewMode === "cards" ? (
+						<>
+							<div
+								className="flex flex-wrap items-center justify-between gap-3"
 								inert={pagination?.isPending || undefined}
 							>
-								{items.length === 0 && (isLoading || pagination?.isPending) ? (
-									<tr>
-										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											<span className="inline-flex items-center gap-2">
-												<Loader size="sm" />
-												{t`Loading...`}
-											</span>
-										</td>
-									</tr>
-								) : items.length === 0 ? (
-									<tr>
-										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											{activeSearch ? (
-												t`No results for "${activeSearch}"`
-											) : (
-												<>
-													{t`No ${inlineLabel(collectionLabel, lingui.locale)} yet.`}{" "}
-													<Link
-														to="/content/$collection/new"
-														params={{ collection }}
-														search={{ locale: activeLocale }}
-														className="text-kumo-link underline"
-													>
-														{t`Create your first one`}
-													</Link>
-												</>
-											)}
-										</td>
-									</tr>
-								) : paginatedItems.length === 0 ? (
-									<tr>
-										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No results for "${activeSearch}"`}
-										</td>
-									</tr>
-								) : (
-									paginatedItems.map((item) => (
-										<ContentListItem
-											key={item.id}
-											item={item}
-											visibleItems={paginatedItems}
-											collection={collection}
-											onDelete={deleteRow}
-											onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
-											showLocale={!!i18n}
-											i18n={i18n}
-											urlPattern={urlPattern}
-											titleField={titleField}
-											dateField={dateField}
-											listColumns={listColumns}
-											selectable={bulkEnabled}
-											selected={selectedIds.has(item.id)}
-											onToggleSelect={toggleOne}
-											extensionColumns={extensionColumns}
+								{bulkEnabled && paginatedItems.length > 0 && (
+									<label className="flex items-center gap-2 text-sm">
+										<Checkbox
+											checked={allPageSelected}
+											onCheckedChange={togglePage}
+											aria-label={t`Select all on this page`}
 										/>
-									))
+										{t`Select all on this page`}
+									</label>
 								)}
-							</tbody>
-						</table>
-					</div>
+								{onSortChange && (
+									<div className="flex flex-wrap items-center gap-2">
+										<Select
+											size="sm"
+											aria-label={t`Sort by`}
+											value={sort?.field ?? dateField ?? "updatedAt"}
+											onValueChange={(field) => {
+												if (field) onSortChange({ field, direction: sort?.direction ?? "desc" });
+											}}
+											items={{
+												[titleField ?? "title"]: t`Title`,
+												status: t`Status`,
+												[dateField ?? "updatedAt"]: t`Date`,
+												...(i18n ? { locale: t`Language` } : {}),
+											}}
+										/>
+										<Button
+											size="sm"
+											variant="secondary"
+											icon={sort?.direction === "asc" ? <CaretUp /> : <CaretDown />}
+											onClick={() =>
+												onSortChange({
+													field: sort?.field ?? dateField ?? "updatedAt",
+													direction: sort?.direction === "asc" ? "desc" : "asc",
+												})
+											}
+										>
+											{sort?.direction === "asc" ? t`Ascending` : t`Descending`}
+										</Button>
+									</div>
+								)}
+							</div>
+							{emptyContent ? (
+								<div
+									className="rounded-md border bg-kumo-base p-8 text-center text-kumo-subtle"
+									role="status"
+								>
+									{emptyContent}
+								</div>
+							) : (
+								<ul
+									aria-label={collectionLabel}
+									aria-busy={pagination?.isPending || undefined}
+									inert={pagination?.isPending || undefined}
+									className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+								>
+									{renderedItems}
+								</ul>
+							)}
+						</>
+					) : (
+						<div className="rounded-md border bg-kumo-base overflow-x-auto">
+							<table className="w-full" aria-busy={pagination?.isPending || undefined}>
+								<thead>
+									<tr className="border-b bg-kumo-tint/50">
+										{bulkEnabled && (
+											<th
+												scope="col"
+												className="w-10 px-4 py-3"
+												inert={pagination?.isPending || undefined}
+											>
+												<Checkbox
+													checked={allPageSelected}
+													onCheckedChange={togglePage}
+													aria-label={t`Select all on this page`}
+												/>
+											</th>
+										)}
+										{/* The Title/Date columns sort by the collection's configured
+									    titleField/dateField when set */}
+										<SortableTh
+											field={titleField ?? "title"}
+											sort={sort}
+											onSortChange={onSortChange}
+											label={t`Title`}
+										/>
+										{listColumns.map((column) => (
+											<th
+												key={column.slug}
+												scope="col"
+												className="px-4 py-3 text-start text-sm font-medium"
+											>
+												{column.label}
+											</th>
+										))}
+										<SortableTh
+											field="status"
+											sort={sort}
+											onSortChange={onSortChange}
+											label={t`Status`}
+										/>
+										{i18n && (
+											<SortableTh
+												field="locale"
+												sort={sort}
+												onSortChange={onSortChange}
+												label={t`Locale`}
+											/>
+										)}
+										<SortableTh
+											field={dateField ?? "updatedAt"}
+											sort={sort}
+											onSortChange={onSortChange}
+											label={t`Date`}
+										/>
+										{extensionColumns.map((column) => (
+											<ExtensionColumnHeader
+												key={`${column.pluginId}:${column.extension.id}`}
+												column={column}
+												collection={collection}
+												locale={activeLocale}
+											/>
+										))}
+										<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
+											{t`Actions`}
+										</th>
+									</tr>
+								</thead>
+								<tbody
+									className="divide-y divide-kumo-line"
+									inert={pagination?.isPending || undefined}
+								>
+									{emptyContent ? (
+										<tr>
+											<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
+												{emptyContent}
+											</td>
+										</tr>
+									) : (
+										renderedItems
+									)}
+								</tbody>
+							</table>
+						</div>
+					)}
 
 					{/* Pagination */}
 					{!pagination && totalPages > 1 && (
@@ -1376,7 +1473,25 @@ function renderItemCount({
 	});
 }
 
+function contentThumbnail(value: unknown): string | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const image = value as Record<string, unknown>;
+	if (typeof image.src === "string" && image.src) return image.src;
+	const meta =
+		image.meta && typeof image.meta === "object"
+			? (image.meta as Record<string, unknown>)
+			: undefined;
+	const key =
+		typeof meta?.storageKey === "string"
+			? meta.storageKey
+			: typeof image.id === "string"
+				? image.id
+				: undefined;
+	return key ? localMediaFileUrl(key) : undefined;
+}
+
 interface ContentListItemProps {
+	layout?: "table" | "cards";
 	item: ContentItem;
 	visibleItems: readonly ContentItem[];
 	collection: string;
@@ -1395,6 +1510,7 @@ interface ContentListItemProps {
 }
 
 function ContentListItem({
+	layout = "table",
 	item,
 	visibleItems,
 	collection,
@@ -1418,74 +1534,119 @@ function ContentListItem({
 	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
 	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
 
+	const card = layout === "cards";
+	const Row = card ? "li" : "tr";
+	const Cell = card ? "div" : "td";
+	const thumbnail = card ? contentThumbnail(item.data.featured_image) : undefined;
+
 	return (
-		<tr className={cn("hover:bg-kumo-tint/25", selected && "bg-kumo-tint/40")}>
+		<Row
+			data-content-card={card || undefined}
+			aria-label={card ? title : undefined}
+			className={cn(
+				card
+					? "flex min-w-0 flex-col gap-3 rounded-xl border bg-kumo-base p-4"
+					: "hover:bg-kumo-tint/25",
+				selected && "bg-kumo-tint/40",
+			)}
+		>
+			{thumbnail && (
+				<img
+					src={thumbnail}
+					alt=""
+					loading="lazy"
+					className="aspect-video w-full rounded-md object-cover"
+					onError={(event) => {
+						event.currentTarget.hidden = true;
+					}}
+				/>
+			)}
 			{selectable && (
-				<td className="px-4 py-3">
+				<Cell className={card ? "min-w-0" : "px-4 py-3"}>
 					<Checkbox
 						checked={!!selected}
 						onCheckedChange={() => onToggleSelect?.(item.id)}
 						aria-label={t`Select ${title}`}
 					/>
-				</td>
+				</Cell>
 			)}
-			<td className="px-4 py-3">
+			<Cell className={card ? "min-w-0" : "px-4 py-3"}>
 				<Link
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-link"
+					className={
+						card
+							? "block break-words text-base font-semibold hover:text-kumo-link"
+							: "font-medium hover:text-kumo-link"
+					}
 				>
-					{title}
+					{card ? <h2>{title}</h2> : title}
 				</Link>
-			</td>
+				{card && typeof item.data.excerpt === "string" && item.data.excerpt && (
+					<p className="mt-2 line-clamp-3 break-words text-sm text-kumo-subtle">
+						{item.data.excerpt}
+					</p>
+				)}
+			</Cell>
 			{listColumns.map((column) => (
-				<ContentListCustomCell key={column.slug} column={column} value={item.data[column.slug]} />
+				<ContentListCustomCell
+					layout={layout}
+					key={column.slug}
+					column={column}
+					value={item.data[column.slug]}
+				/>
 			))}
-			<td className="px-4 py-3">
+			<Cell className={card ? "min-w-0" : "px-4 py-3"}>
 				<StatusBadge
 					status={item.status}
 					hasPendingChanges={getDraftStatus(item) === "published_with_changes"}
 				/>
-			</td>
+			</Cell>
 			{showLocale && (
-				<td className="px-4 py-3">
+				<Cell className={card ? "min-w-0" : "px-4 py-3"}>
 					<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
 						{item.locale}
 					</span>
-				</td>
+				</Cell>
 			)}
-			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
+			<Cell
+				data-testid="content-updated"
+				className={card ? "text-sm text-kumo-subtle" : "px-4 py-3 text-sm text-kumo-subtle"}
+			>
 				<bdi>{formatDate(date, lingui.locale)}</bdi>
-			</td>
+			</Cell>
 			{extensionColumns?.map(({ pluginId, extension }) => {
-				const Cell = extension.cell;
+				const ExtensionCell = extension.cell;
 				return (
-					<td
+					<Cell
 						key={`${pluginId}:${extension.id}`}
 						className={cn(
-							"px-4 py-3 text-sm",
+							card ? "min-w-0 text-sm" : "px-4 py-3 text-sm",
 							extension.align === "end" ? "text-end" : "text-start",
 						)}
 					>
+						{card && <span className="me-2 text-kumo-subtle">{lingui._(extension.label)}</span>}
 						<ContentListColumnBoundary
 							key={`${collection}:${item.locale}:${item.id}:${pluginId}:${extension.id}`}
 							pluginId={pluginId}
 							columnId={extension.id}
 							resetKey={item.updatedAt}
 						>
-							<Cell
+							<ExtensionCell
 								collection={collection}
 								item={item}
 								locale={item.locale}
 								visibleItems={visibleItems}
 							/>
 						</ContentListColumnBoundary>
-					</td>
+					</Cell>
 				);
 			})}
-			<td className="px-4 py-3 text-end">
-				<div className="flex items-center justify-end space-x-1">
+			<Cell
+				className={card ? "mt-auto border-t border-kumo-line pt-3 text-end" : "px-4 py-3 text-end"}
+			>
+				<div className="flex flex-wrap items-center justify-end gap-1">
 					{item.status === "published" && item.slug && (
 						<LinkButton
 							href={contentUrl(collection, item.slug, urlPattern, {
@@ -1557,17 +1718,19 @@ function ContentListItem({
 						</Dialog>
 					</Dialog.Root>
 				</div>
-			</td>
-		</tr>
+			</Cell>
+		</Row>
 	);
 }
 
 function ContentListCustomCell({
 	column,
 	value,
+	layout = "table",
 }: {
 	column: ContentListColumn;
 	value: unknown;
+	layout?: "table" | "cards";
 }): React.ReactNode {
 	const { i18n, t } = useLingui();
 	const text = formatListColumnValue(column, value, {
@@ -1576,6 +1739,13 @@ function ContentListCustomCell({
 		locale: i18n.locale,
 		trueLabel: t`Yes`,
 	});
+	if (layout === "cards")
+		return (
+			<div className="min-w-0 text-sm">
+				<span className="me-2 text-kumo-subtle">{column.label}</span>
+				<span className="break-words">{text}</span>
+			</div>
+		);
 	return (
 		<td className="max-w-48 px-4 py-3 text-sm">
 			<span className="block truncate" title={text}>

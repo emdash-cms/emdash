@@ -513,7 +513,7 @@ function FormEditor({
 		if (target < 0 || target >= fields.length) return;
 		setFields((prev) => {
 			const next = [...prev];
-			[next[index]!, next[target]!] = [next[target]!, next[index]!];
+			[next[index], next[target]] = [next[target]!, next[index]!];
 			return next;
 		});
 	};

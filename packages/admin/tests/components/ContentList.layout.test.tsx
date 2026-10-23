@@ -1,4 +1,5 @@
 import { Sidebar } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
@@ -60,6 +61,7 @@ function pagination(totalCount: number) {
 
 afterEach(async () => {
 	await page.viewport(1280, 800);
+	i18n.loadAndActivate({ locale: "en", messages: {} });
 });
 
 describe("Content list pagination layout", () => {
@@ -140,6 +142,49 @@ describe("Content list pagination layout", () => {
 			expect(lastTitle.getBoundingClientRect().bottom).toBeLessThan(
 				footer.getBoundingClientRect().top,
 			);
+		},
+	);
+});
+
+describe("Content card layout", () => {
+	it.each([
+		{ width: 1280, locale: "en", direction: "ltr" },
+		{ width: 320, locale: "ar", direction: "rtl" },
+	])(
+		"keeps cards and controls inside the viewport at $width px in $locale",
+		async ({ width, locale, direction }) => {
+			await page.viewport(width, 800);
+			i18n.loadAndActivate({ locale, messages: {} });
+			const screen = await render(
+				<main dir={direction} style={{ padding: 16 }}>
+					<ContentList
+						collection="posts"
+						collectionLabel={
+							locale === "ar" ? "\u0627\u0644\u0645\u0642\u0627\u0644\u0627\u062A" : "Posts"
+						}
+						items={posts.slice(0, 3).map((post) => ({
+							...post,
+							data: {
+								title:
+									locale === "ar"
+										? "\u0645\u0642\u0627\u0644 \u0639\u0646 \u0628\u0646\u0627\u0621 \u062A\u0637\u0628\u064A\u0642\u0627\u062A \u0627\u0644\u0648\u064A\u0628"
+										: "Building useful web applications",
+								excerpt:
+									"A longer summary with a link https://example.com/a/very/long/path/that/should/wrap/inside/the/card",
+							},
+						}))}
+					/>
+				</main>,
+			);
+			await screen.getByRole("tab", { name: "Cards", exact: true }).click();
+			const main = screen.getByRole("main").element();
+			expect(main.scrollWidth).toBeLessThanOrEqual(width);
+			for (const card of main.querySelectorAll("li[data-content-card]")) {
+				const bounds = card.getBoundingClientRect();
+				expect(bounds.left).toBeGreaterThanOrEqual(0);
+				expect(bounds.right).toBeLessThanOrEqual(width);
+				expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);
+			}
 		},
 	);
 });

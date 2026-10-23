@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import { createServer } from "vite";
+import { createServer, normalizePath } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -25,7 +25,7 @@ function unwrapHook<T>(hook: T | { handler: T } | null | undefined): T {
 
 describe("createViteConfig admin aliasing", () => {
 	const monorepoDemoRoot = new URL("../../../../../demos/simple/", import.meta.url);
-	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
+	const externalProjectRoot = pathToFileURL(`${join(tmpdir(), "emdash-site")}/`);
 	const siblingProjectRoot = new URL("../../../../../../emdash-site/", import.meta.url);
 	const adminSourcePattern = /[/\\]packages[/\\]admin[/\\]src$/;
 	const adminDistPattern = /[/\\]packages[/\\]admin[/\\]dist$/;
@@ -159,9 +159,9 @@ describe("createViteConfig Lingui singleton aliases", () => {
 				const providerCoreMacro = await resolveFrom("@lingui/core/macro", providerImporter);
 
 				expect(adminReact).toBe(providerReact);
-				expect(adminReact).toContain(adminLinguiReactPath);
-				expect(providerCoreMacro).toContain(adminLinguiCorePath);
-				expect(providerCoreMacro).not.toContain(join(providerDir, "node_modules"));
+				expect(adminReact).toContain(normalizePath(adminLinguiReactPath));
+				expect(providerCoreMacro).toContain(normalizePath(adminLinguiCorePath));
+				expect(providerCoreMacro).not.toContain(normalizePath(join(providerDir, "node_modules")));
 			} finally {
 				await server.close();
 			}
@@ -170,7 +170,7 @@ describe("createViteConfig Lingui singleton aliases", () => {
 });
 
 describe("createViteConfig use-sync-external-store shim aliasing", () => {
-	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
+	const externalProjectRoot = pathToFileURL(`${join(tmpdir(), "emdash-site")}/`);
 
 	function buildConfig(adapter: string) {
 		return createViteConfig(
@@ -341,7 +341,7 @@ describe("linguiMacroPlugin path handling", () => {
 
 describe("createViteConfig inline Portable Text hydration deps", () => {
 	const monorepoDemoRoot = new URL("../../../../../demos/simple/", import.meta.url);
-	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
+	const externalProjectRoot = pathToFileURL(`${join(tmpdir(), "emdash-site")}/`);
 
 	function buildConfig(root: URL) {
 		return createViteConfig(
