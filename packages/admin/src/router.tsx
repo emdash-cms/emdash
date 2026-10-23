@@ -75,6 +75,7 @@ import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
+import type { StagedTermsWrite } from "./components/TaxonomySidebar.js";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
 import {
@@ -1766,6 +1767,14 @@ function ContentEditPage() {
 		],
 	);
 
+	const handleTermsStaged = React.useCallback(
+		(write: StagedTermsWrite) => {
+			recordWriteRevision(id, write);
+			void handleContentUpdateSuccess(id);
+		},
+		[handleContentUpdateSuccess, id, recordWriteRevision],
+	);
+
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
 			updateMutation.mutate({
@@ -2026,6 +2035,7 @@ function ContentEditPage() {
 			pluginBlocks={pluginBlocks}
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
+			onTermsStaged={handleTermsStaged}
 			availableBylines={bylinesData?.items}
 			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={handleQuickCreateByline}

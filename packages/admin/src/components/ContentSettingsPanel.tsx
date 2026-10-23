@@ -80,7 +80,11 @@ import {
 	SortableContentSettingsSection,
 	SortableContentSettingsSections,
 } from "./SortableContentSettingsSections.js";
-import { TaxonomySidebar, useHasApplicableTaxonomies } from "./TaxonomySidebar";
+import {
+	TaxonomySidebar,
+	useHasApplicableTaxonomies,
+	type StagedTermsWrite,
+} from "./TaxonomySidebar";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
@@ -777,6 +781,8 @@ export interface ContentSettingsPanelProps {
 	onTranslate?: (locale: string) => void;
 	hasSeo: boolean;
 	onSeoChange?: (seo: ContentSeoInput) => void;
+	/** Called with the entry's new revision token after taxonomy terms are staged in its draft */
+	onTermsStaged?: (write: StagedTermsWrite) => void;
 	/** portableText editor for the document outline (null when none mounted) */
 	portableTextEditor: Editor | null;
 	/** When set, the panel shows the block's detail panel instead of settings */
@@ -840,6 +846,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onTranslate,
 	hasSeo,
 	onSeoChange,
+	onTermsStaged,
 	portableTextEditor,
 	blockSidebarPanel,
 	onBlockSidebarClose,
@@ -1220,6 +1227,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							entryLocale={activeEntryLocale}
 							defaultLocale={i18n?.defaultLocale}
 							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+							onTermsStaged={onTermsStaged}
 						/>
 					</SortableContentSettingsSection>
 				)}
