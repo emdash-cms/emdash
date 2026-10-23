@@ -1,0 +1,19 @@
+packages/admin/src/components/editor/IframeBlockNode.tsx
+  s_598b471e4e64e2::t_63b52f8f0fb03b 9,13,53,320-340
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f38a1c211dc1ace897e68bb284d63e4ce92835e8",
+  "prompts": {},
+  "sessions": {
+    "s_598b471e4e64e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a169c3-2239-7790-95b8-e45986bf1e43",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
