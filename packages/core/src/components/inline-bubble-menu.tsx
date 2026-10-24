@@ -262,6 +262,7 @@ function LinkToolbar({
 	});
 	const [shown, setShown] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
+	const surfaceRef = React.useRef<HTMLDivElement>(null);
 	const getReferencedVirtualElement = React.useCallback(() => {
 		const rect = linkLineRect(editor);
 		return rect && { getBoundingClientRect: () => rect, getClientRects: () => [rect] };
@@ -283,7 +284,7 @@ function LinkToolbar({
 			scrollTarget,
 			onShow: () => {
 				setShown(true);
-				playToolbarEntrance(menuRef.current?.firstElementChild);
+				playToolbarEntrance(surfaceRef.current);
 			},
 			onHide: () => setShown(false),
 		}),
@@ -314,38 +315,42 @@ function LinkToolbar({
 			updateDelay={0}
 			options={options}
 			shouldShow={shouldShow}
-			role="toolbar"
-			aria-label="Link options"
-			className="emdash-inline-ui-bar emdash-inline-ui-link-preview emdash-link-bubble-menu"
-			onKeyDown={(event) => handleToolbarKeyDown(event, editor)}
 		>
-			<ToolbarShownContext.Provider value={shown}>
-				<ToolbarTooltipGroup>
-					<Globe className="emdash-inline-ui-link-globe" aria-hidden="true" />
-					{SAFE_LINK_HREF_REGEX.test(href) ? (
-						<a
-							href={href}
-							target="_blank"
-							rel="noopener noreferrer"
-							dir="auto"
-							className="emdash-inline-ui-link-url"
-						>
-							{href.replace(LINK_DISPLAY_PREFIX_REGEX, "")}
-						</a>
-					) : (
-						<span dir="auto" className="emdash-inline-ui-link-url">
-							{href}
-						</span>
-					)}
-					<ToolbarSeparator />
-					<ToolbarButton label="Edit link" onClick={onEdit}>
-						<PencilSimple />
-					</ToolbarButton>
-					<ToolbarButton label="Remove link" onClick={() => removeLinkAtCaret(editor)}>
-						<LinkBreak />
-					</ToolbarButton>
-				</ToolbarTooltipGroup>
-			</ToolbarShownContext.Provider>
+			<div
+				ref={surfaceRef}
+				role="toolbar"
+				aria-label="Link options"
+				className="emdash-inline-ui-bar emdash-inline-ui-link-preview emdash-link-bubble-menu"
+				onKeyDown={(event) => handleToolbarKeyDown(event, editor)}
+			>
+				<ToolbarShownContext.Provider value={shown}>
+					<ToolbarTooltipGroup>
+						<Globe className="emdash-inline-ui-link-globe" aria-hidden="true" />
+						{SAFE_LINK_HREF_REGEX.test(href) ? (
+							<a
+								href={href}
+								target="_blank"
+								rel="noopener noreferrer"
+								dir="auto"
+								className="emdash-inline-ui-link-url"
+							>
+								{href.replace(LINK_DISPLAY_PREFIX_REGEX, "")}
+							</a>
+						) : (
+							<span dir="auto" className="emdash-inline-ui-link-url">
+								{href}
+							</span>
+						)}
+						<ToolbarSeparator />
+						<ToolbarButton label="Edit link" onClick={onEdit}>
+							<PencilSimple />
+						</ToolbarButton>
+						<ToolbarButton label="Remove link" onClick={() => removeLinkAtCaret(editor)}>
+							<LinkBreak />
+						</ToolbarButton>
+					</ToolbarTooltipGroup>
+				</ToolbarShownContext.Provider>
+			</div>
 		</BubbleMenu>
 	);
 }
@@ -458,6 +463,7 @@ export function InlineBubbleMenu({
 		setOpenMenu((current) => (open ? menu : current === menu ? null : current));
 	const [shown, setShown] = React.useState(false);
 	const menuRef = React.useRef<HTMLDivElement>(null);
+	const surfaceRef = React.useRef<HTMLDivElement>(null);
 	const editingLinkRef = React.useRef(editingLink);
 	editingLinkRef.current = editingLink;
 	useTabIntoToolbar(editor, uiRoot);
@@ -501,7 +507,7 @@ export function InlineBubbleMenu({
 			},
 			scrollTarget: scrollTarget ?? undefined,
 			onShow: () => {
-				const surface = menuRef.current?.firstElementChild;
+				const surface = surfaceRef.current;
 				setShown(true);
 				playToolbarEntrance(surface);
 				// Edit link opens the field while this toolbar is still hidden, too early to focus it.
@@ -618,72 +624,80 @@ export function InlineBubbleMenu({
 				updateDelay={120}
 				options={options}
 				shouldShow={shouldShow}
-				role="toolbar"
-				aria-label="Format selection"
-				className="emdash-inline-ui-bar emdash-bubble-menu"
-				onKeyDown={(event) => handleToolbarKeyDown(event, editor)}
 			>
-				<ToolbarShownContext.Provider value={shown}>
-					<ToolbarTooltipGroup>
-						{editingLink ? (
-							<LinkField editor={editor} linked={state.link} onDone={() => setEditingLink(false)} />
-						) : (
-							// Scrolls sideways, fading at the cut-off edge, when a narrow screen can't fit it.
-							<div className="emdash-inline-ui-toolbar">
-								{state.canTurnInto && (
-									<>
-										<ToolbarMenu
-											editor={editor}
-											label="Turn into"
-											placement="bottom-start"
-											open={openMenu === "turnInto"}
-											onOpenChange={(open) => toggleMenu("turnInto", open)}
-											trigger={
-												<>
-													<span className="emdash-inline-ui-trigger-label">
-														{activeType?.label ?? "Turn into"}
-													</span>
-													<CaretDown className="emdash-inline-ui-caret" aria-hidden="true" />
-												</>
-											}
-											groups={turnIntoGroups}
-										/>
-										<ToolbarSeparator />
-									</>
-								)}
-								<ToolbarButton
-									label={state.link ? "Edit link" : "Add link"}
-									active={state.link}
-									onClick={() => setEditingLink(true)}
-								>
-									<LinkIcon />
-								</ToolbarButton>
-								<ToolbarSeparator />
-								{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
-									<ToolbarButton
-										key={mark}
-										label={label}
-										active={state[mark]}
-										onClick={() => editor.chain().focus().toggleMark(mark).run()}
-									>
-										<MarkIcon />
-									</ToolbarButton>
-								))}
-								<ToolbarSeparator />
-								<ToolbarMenu
+				<div
+					ref={surfaceRef}
+					role="toolbar"
+					aria-label="Format selection"
+					className="emdash-inline-ui-bar emdash-bubble-menu"
+					onKeyDown={(event) => handleToolbarKeyDown(event, editor)}
+				>
+					<ToolbarShownContext.Provider value={shown}>
+						<ToolbarTooltipGroup>
+							{editingLink ? (
+								<LinkField
 									editor={editor}
-									label="More formatting"
-									placement="bottom-end"
-									iconOnly
-									open={openMenu === "more"}
-									onOpenChange={(open) => toggleMenu("more", open)}
-									trigger={<DotsThree weight="bold" aria-hidden="true" />}
-									groups={moreGroups}
+									linked={state.link}
+									onDone={() => setEditingLink(false)}
 								/>
-							</div>
-						)}
-					</ToolbarTooltipGroup>
-				</ToolbarShownContext.Provider>
+							) : (
+								// Scrolls sideways, fading at the cut-off edge, when a narrow screen can't fit it.
+								<div className="emdash-inline-ui-toolbar">
+									{state.canTurnInto && (
+										<>
+											<ToolbarMenu
+												editor={editor}
+												label="Turn into"
+												placement="bottom-start"
+												open={openMenu === "turnInto"}
+												onOpenChange={(open) => toggleMenu("turnInto", open)}
+												trigger={
+													<>
+														<span className="emdash-inline-ui-trigger-label">
+															{activeType?.label ?? "Turn into"}
+														</span>
+														<CaretDown className="emdash-inline-ui-caret" aria-hidden="true" />
+													</>
+												}
+												groups={turnIntoGroups}
+											/>
+											<ToolbarSeparator />
+										</>
+									)}
+									<ToolbarButton
+										label={state.link ? "Edit link" : "Add link"}
+										active={state.link}
+										onClick={() => setEditingLink(true)}
+									>
+										<LinkIcon />
+									</ToolbarButton>
+									<ToolbarSeparator />
+									{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
+										<ToolbarButton
+											key={mark}
+											label={label}
+											active={state[mark]}
+											onClick={() => editor.chain().focus().toggleMark(mark).run()}
+										>
+											<MarkIcon />
+										</ToolbarButton>
+									))}
+									<ToolbarSeparator />
+									<ToolbarMenu
+										editor={editor}
+										label="More formatting"
+										placement="bottom-end"
+										iconOnly
+										open={openMenu === "more"}
+										onOpenChange={(open) => toggleMenu("more", open)}
+										trigger={<DotsThree weight="bold" aria-hidden="true" />}
+										groups={moreGroups}
+									/>
+								</div>
+							)}
+						</ToolbarTooltipGroup>
+					</ToolbarShownContext.Provider>
+				</div>
 			</BubbleMenu>
 			<InlineImageToolbar
 				editor={editor}
