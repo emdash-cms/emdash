@@ -476,6 +476,7 @@ function TaxonomyTermPicker({
 					side="bottom"
 					sideOffset={6}
 					positionMethod="fixed"
+					collisionAvoidance={{ fallbackAxisSide: "none" }}
 					className="z-[100]"
 				>
 					<PopoverPrimitive.Popup
@@ -484,11 +485,11 @@ function TaxonomyTermPicker({
 						style={{ width: "var(--anchor-width)" }}
 						className="max-w-(--available-width) origin-(--transform-origin) outline-none transition-[transform,scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
 					>
-						<LayerCard className="p-0 shadow-md">
+						<LayerCard className="flex max-h-(--available-height) flex-col p-0 shadow-md">
 							<PopoverPrimitive.Title className="sr-only">
 								{t`Choose ${label}`}
 							</PopoverPrimitive.Title>
-							<div className="p-1.5 pb-0">
+							<div className="shrink-0 p-1.5 pb-0">
 								<InputGroup className="w-full" disabled={isCreating}>
 									<InputGroup.Addon>
 										<MagnifyingGlass size={16} aria-hidden="true" />
@@ -531,7 +532,7 @@ function TaxonomyTermPicker({
 								id={listId}
 								role="group"
 								aria-label={t`${label} options`}
-								className="emdash-auto-scrollbar max-h-56 overflow-y-auto overscroll-contain p-1.5"
+								className="emdash-auto-scrollbar h-56 min-h-0 overflow-y-auto overscroll-contain p-1.5"
 							>
 								{visibleOptions.length > 0 ? (
 									visibleOptions.map((option, index) => (
@@ -571,7 +572,7 @@ function TaxonomyTermPicker({
 							</div>
 
 							{canCreate ? (
-								<div className="border-t border-kumo-hairline p-1.5">
+								<div className="shrink-0 border-t border-kumo-hairline p-1.5">
 									<Button
 										type="button"
 										variant="ghost"
@@ -586,7 +587,7 @@ function TaxonomyTermPicker({
 								</div>
 							) : null}
 
-							<div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-kumo-hairline bg-kumo-elevated px-3 py-2 text-xs leading-4 text-kumo-subtle">
+							<div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t border-kumo-hairline bg-kumo-elevated px-3 py-2 text-xs leading-4 text-kumo-subtle">
 								<span className="flex items-center gap-1.5 whitespace-nowrap">
 									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-xs leading-4 text-kumo-default">
 										↑ ↓
