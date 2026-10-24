@@ -272,6 +272,15 @@ async function streamToText(stream: ReadableStream<Uint8Array>): Promise<string>
 	return new Response(stream).text();
 }
 
+export interface LoadBundleOptions {
+	/**
+	 * Also read the optional `admin.js`. Defaults to `true`. Running a plugin
+	 * only needs the manifest and the backend, so the runtime passes `false`
+	 * and saves one R2 read per plugin on every cold start.
+	 */
+	includeAdmin?: boolean;
+}
+
 /**
  * Load a plugin bundle from site-local R2 storage.
  *
@@ -285,31 +294,33 @@ export async function loadBundleFromR2(
 	pluginId: string,
 	version: string,
 	source: PluginBundleSource = "marketplace",
+	options: LoadBundleOptions = {},
 ): Promise<{ manifest: PluginManifest; backendCode: string; adminCode?: string } | null> {
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
 	const prefix = bundlePrefix(source, pluginId, version);
+	const { includeAdmin = true } = options;
 
 	try {
-		const manifestResult = await storage.download(`${prefix}/manifest.json`);
-		const backendResult = await storage.download(`${prefix}/backend.js`);
+		// The files are independent: read them together instead of paying one
+		// R2 round trip per file.
+		const [manifestText, backendCode, adminCode] = await Promise.all([
+			storage.download(`${prefix}/manifest.json`).then((file) => streamToText(file.body)),
+			storage.download(`${prefix}/backend.js`).then((file) => streamToText(file.body)),
+			includeAdmin
+				? storage
+						.download(`${prefix}/admin.js`)
+						.then((file) => streamToText(file.body))
+						// admin.js is optional
+						.catch(() => undefined)
+				: undefined,
+		]);
 
-		const manifestText = await streamToText(manifestResult.body);
-		const backendCode = await streamToText(backendResult.body);
 		const parsed: unknown = JSON.parse(manifestText);
 		const result = pluginManifestSchema.safeParse(parsed);
 		if (!result.success) return null;
 		const manifest = reconcileManifestAccess(result.data);
 		warnDeprecatedPluginCapabilities(manifest.id, manifest.capabilities);
-
-		// Try to load admin code (optional)
-		let adminCode: string | undefined;
-		try {
-			const adminResult = await storage.download(`${prefix}/admin.js`);
-			adminCode = await streamToText(adminResult.body);
-		} catch {
-			// admin.js is optional
-		}
 
 		return { manifest, backendCode, adminCode };
 	} catch {

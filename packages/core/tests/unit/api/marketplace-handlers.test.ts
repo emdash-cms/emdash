@@ -1484,3 +1484,86 @@ describe("stored bundles with deprecated capability names", () => {
 		}
 	});
 });
+
+describe("loadBundleFromR2 reads", () => {
+	/** Hold every download for a macrotask and record which reads overlap. */
+	function trackDownloads(storage: Storage) {
+		const requested: string[] = [];
+		let inFlight = 0;
+		let maxInFlight = 0;
+		const download = storage.download.bind(storage);
+		storage.download = async (key: string) => {
+			requested.push(key);
+			inFlight++;
+			maxInFlight = Math.max(maxInFlight, inFlight);
+			try {
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				return await download(key);
+			} finally {
+				inFlight--;
+			}
+		};
+		return {
+			requested,
+			get maxInFlight() {
+				return maxInFlight;
+			},
+		};
+	}
+
+	it("reads the bundle files concurrently", async () => {
+		const storage = createMockStorage();
+		await storeBundleInR2(storage, "concurrent-bundle", "1.0.0", {
+			manifest: mockManifest("concurrent-bundle"),
+			backendCode: "export default {};",
+			adminCode: "export const pages = {};",
+		});
+		const reads = trackDownloads(storage);
+
+		const bundle = await loadBundleFromR2(storage, "concurrent-bundle", "1.0.0");
+
+		expect(bundle?.backendCode).toBe("export default {};");
+		expect(bundle?.adminCode).toBe("export const pages = {};");
+		expect(reads.maxInFlight).toBe(3);
+	});
+
+	it("does not read admin.js when includeAdmin is false", async () => {
+		const storage = createMockStorage();
+		await storeBundleInR2(
+			storage,
+			"runtime-bundle",
+			"1.0.0",
+			{
+				manifest: mockManifest("runtime-bundle"),
+				backendCode: "export default {};",
+				adminCode: "export const pages = {};",
+			},
+			"registry",
+		);
+		const reads = trackDownloads(storage);
+
+		const bundle = await loadBundleFromR2(storage, "runtime-bundle", "1.0.0", "registry", {
+			includeAdmin: false,
+		});
+
+		expect(bundle?.manifest.id).toBe("runtime-bundle");
+		expect(bundle?.adminCode).toBeUndefined();
+		expect(reads.requested.toSorted()).toEqual([
+			"registry/runtime-bundle/1.0.0/backend.js",
+			"registry/runtime-bundle/1.0.0/manifest.json",
+		]);
+	});
+
+	it("still loads a bundle that has no admin.js", async () => {
+		const storage = createMockStorage();
+		await storeBundleInR2(storage, "no-admin-bundle", "1.0.0", {
+			manifest: mockManifest("no-admin-bundle"),
+			backendCode: "export default {};",
+		});
+
+		const bundle = await loadBundleFromR2(storage, "no-admin-bundle", "1.0.0");
+
+		expect(bundle?.manifest.id).toBe("no-admin-bundle");
+		expect(bundle?.adminCode).toBeUndefined();
+	});
+});
