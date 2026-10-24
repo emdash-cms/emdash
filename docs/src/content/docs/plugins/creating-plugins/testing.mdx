@@ -38,6 +38,8 @@ export default defineConfig({
 
 `emdashPluginTest()` runs the plugin build before Vitest starts. It reads the generated runtime and manifest, creates an isolated D1 database and Worker Loader binding, and exports the same `PluginBridge` used by Cloudflare deployments. Pass `{ dir: "./packages/gallery" }` when the Vitest configuration lives outside the plugin directory.
 
+Test builds use temporary output directories that are removed after the runtime and manifest are loaded. Testing leaves any existing `dist/` directory unchanged. Run `emdash-plugin build` separately to generate build artifacts.
+
 ## Test sandbox transport
 
 Create and dispose a host inside each test. Disposal stops the plugin and resets its test bindings:
