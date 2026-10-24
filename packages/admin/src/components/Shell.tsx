@@ -44,6 +44,7 @@ export interface ShellProps {
 		version?: string;
 		admin?: AdminManifest["admin"];
 		registryConfigurationError?: AdminManifest["registryConfigurationError"];
+		staging?: boolean;
 	};
 }
 
@@ -114,7 +115,7 @@ export function Shell({ children, manifest }: ShellProps) {
 
 			{/* Main content area — scrolls independently so sidebar stays full height */}
 			<div className="flex flex-1 flex-col overflow-hidden">
-				<Header />
+				<Header staging={manifest.staging} />
 				{manifest.registryConfigurationError && (
 					<div className="space-y-3 px-6 pt-6">
 						<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
