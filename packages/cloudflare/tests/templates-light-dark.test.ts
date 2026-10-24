@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 // Vite's default `build.cssTarget` ("baseline-widely-available"), which the
-// production CSS minifier compiles the Cloudflare templates for. Safari 16.4
+// production CSS minifier compiles the Cloudflare sites for. Safari 16.4
 // predates light-dark().
 const VITE_DEFAULT_CSS_TARGETS = {
 	chrome: 111 << 16,
@@ -14,23 +14,36 @@ const VITE_DEFAULT_CSS_TARGETS = {
 	safari: (16 << 16) | (4 << 8),
 };
 
-const TEMPLATES = ["blog-cloudflare", "marketing-cloudflare", "portfolio-cloudflare"] as const;
+const SITES = [
+	"templates/blog-cloudflare",
+	"templates/marketing-cloudflare",
+	"templates/portfolio-cloudflare",
+	"demos/cloudflare",
+	"demos/playground",
+	"demos/preview",
+	"infra/blog-demo",
+	"infra/cache-demo",
+	"infra/do-demo",
+	"infra/do-solo-demo",
+] as const;
 
 interface LightningCss {
 	transform(options: Record<string, unknown>): { code: Uint8Array };
 }
 
-function templatePath(template: string, file: string): string {
-	return fileURLToPath(new URL(`../../../templates/${template}/${file}`, import.meta.url));
+function sitePath(site: string, file: string): string {
+	return fileURLToPath(new URL(`../../../${site}/${file}`, import.meta.url));
 }
 
-describe.each(TEMPLATES)("%s template theme switcher", (template) => {
-	it("keeps light-dark() through the production CSS minifier", async () => {
-		const { default: config } = await import(templatePath(template, "astro.config.mjs"));
-		// The template's own Lightning CSS, the copy Vite minifies its CSS with.
-		const require = createRequire(templatePath(template, "package.json"));
+describe.each(SITES)("%s theme switcher", (site) => {
+	// Importing a site's Astro config loads Astro, EmDash and any plugins,
+	// which can take longer than the default timeout on a cold start.
+	it("keeps light-dark() through the production CSS minifier", { timeout: 30_000 }, async () => {
+		const { default: config } = await import(sitePath(site, "astro.config.mjs"));
+		// The site's own Lightning CSS, the copy Vite minifies its CSS with.
+		const require = createRequire(sitePath(site, "package.json"));
 		const { transform } = require("lightningcss") as LightningCss;
-		const tokens = readFileSync(templatePath(template, "src/styles/tokens.css"));
+		const tokens = readFileSync(sitePath(site, "src/styles/tokens.css"));
 
 		// Mirrors Vite's Lightning CSS minify step: the config's
 		// css.lightningcss options plus the build CSS targets.
