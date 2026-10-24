@@ -409,7 +409,7 @@ function uniqueKeys(blocks: readonly NormalizedBlock[]): Map<string, number> {
 }
 
 /** Positions in `values` of one longest strictly increasing subsequence. */
-function longestIncreasingSubsequence(values: readonly number[]): Set<number> {
+export function longestIncreasingSubsequence(values: readonly number[]): Set<number> {
 	// tails[k] is the position of the smallest value ending an increasing run of length k + 1.
 	const tails: number[] = [];
 	const previous = new Int32Array(values.length).fill(-1);
