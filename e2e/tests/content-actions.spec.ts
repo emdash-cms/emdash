@@ -240,6 +240,10 @@ test.describe("Schedule content", () => {
 		await expect(publishButton).not.toHaveAttribute("aria-haspopup", "menu");
 		await page.getByRole("button", { name: "Settings" }).click();
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
+		// Below lg the panel is a sheet that slides in; measure it where it stops.
+		await settingsPanel.evaluate(async (element) => {
+			await Promise.all(element.getAnimations().map((animation) => animation.finished));
+		});
 		const publishingSummary = settingsPanel.getByRole("group", { name: "Publishing summary" });
 		const scheduleButton = settingsPanel.getByRole("button", { name: "Schedule" });
 		await expect(publishingSummary).toBeVisible();
