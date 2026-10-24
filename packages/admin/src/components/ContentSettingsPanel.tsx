@@ -1032,13 +1032,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												/>
 											</Collapsible.Trigger>
 											<Collapsible.Panel
-												className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+												className="overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 												style={({ transitionStatus }) => ({
 													height:
 														transitionStatus === "starting" || transitionStatus === "ending"
 															? 0
 															: "var(--collapsible-panel-height)",
-													transitionProperty: "height",
 												})}
 											>
 												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
