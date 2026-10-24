@@ -69,6 +69,7 @@ import {
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { declaredLabelTranslator } from "./Sidebar.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 /**
@@ -1311,7 +1312,7 @@ function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHe
 	const { i18n } = useLingui();
 	const { pluginId, extension } = column;
 	const Header = extension.header;
-	const label = i18n._(extension.label);
+	const label = declaredLabelTranslator(i18n, (id) => i18n._(id))(extension.label);
 
 	return (
 		<th
