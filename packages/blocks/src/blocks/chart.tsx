@@ -53,8 +53,19 @@ function escapeHtml(str: string): string {
 // that can execute arbitrary code. We strip dangerous properties and force
 // richText tooltip mode to eliminate HTML injection vectors.
 
-/** Keys that accept HTML strings or executable content in ECharts options */
-const DANGEROUS_KEYS = new Set(["formatter", "rich", "graphic", "axisPointer"]);
+/**
+ * Keys that accept HTML strings or executable content in ECharts options, or
+ * that turn on components registered only for the timeseries chart
+ */
+const DANGEROUS_KEYS = new Set([
+	"formatter",
+	"rich",
+	"graphic",
+	"axisPointer",
+	"toolbox",
+	"brush",
+	"dataZoom",
+]);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
