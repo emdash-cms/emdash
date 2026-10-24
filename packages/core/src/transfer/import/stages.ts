@@ -6,6 +6,8 @@
 
 import { sql } from "kysely";
 
+import { processMediaUsageCollectionDeletion } from "../../media/usage/collection-deletion-processor.js";
+import { MediaUsageCollectionDeletionRepository } from "../../media/usage/collection-deletion.js";
 import { SchemaError, SchemaRegistry } from "../../schema/registry.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { TransferError } from "../errors.js";
@@ -51,10 +53,17 @@ export const STAGE_STREAMS: Readonly<Record<ImportRecordStage, readonly RecordKi
 
 const DEFAULT_BATCH = 100;
 const ENTRY_BATCH = 50;
-const COLLECTION_STATEMENTS = 80;
+const COLLECTION_STATEMENTS = 81;
 
 /** Thrown out of a stage when the operation was asked to cancel. */
 export class ImportCancelledSignal extends Error {}
+
+/** Yield without checkpointing a unit whose collection slug is still being released. */
+export class ImportCollectionDeletionSignal extends Error {
+	constructor(readonly waiting: boolean) {
+		super();
+	}
+}
 
 export type Checkpoint = (position: StreamPosition) => Promise<void>;
 
@@ -211,6 +220,27 @@ async function importCollection(
 	context: ImportContext,
 	record: RecordOfKind<"collection">,
 ): Promise<void> {
+	const deletion = await new MediaUsageCollectionDeletionRepository(context.db).findBySlug(
+		record.slug,
+	);
+	if (deletion) {
+		const outcome =
+			deletion.state === "failed"
+				? "failed"
+				: await processMediaUsageCollectionDeletion(context.db, deletion);
+		if (outcome === "failed") {
+			throw new TransferError("TRANSFER_IMPORT_ERROR", "Previous collection deletion failed", {
+				detail: {
+					kind: "collection",
+					id: record.id,
+					reason: "COLLECTION_DELETION_FAILED",
+					deletedCollectionId: deletion.collectionId,
+					message: `Deletion of the previous collection "${record.slug}" failed. Abandon this import with \`emdash site import abandon ${context.operationId}\`, then send {"collectionId":"${deletion.collectionId}"} to POST /_emdash/api/admin/media-usage/collection-deletions/retry. After cleanup finishes, reset this site or set up a new one before analyzing and running the import again.`,
+				},
+			});
+		}
+		throw new ImportCollectionDeletionSignal(outcome !== "progress" && outcome !== "finalized");
+	}
 	const fields = (await context.allRecords("field")).filter(
 		(field) => field.collectionId === record.id,
 	);
@@ -219,7 +249,12 @@ async function importCollection(
 	} catch (error) {
 		if (error instanceof SchemaError) {
 			throw new TransferError("TRANSFER_IMPORT_ERROR", "Collection could not be imported", {
-				detail: { kind: "collection", id: record.id, reason: error.code },
+				detail: {
+					kind: "collection",
+					id: record.id,
+					reason: error.code,
+					message: error.message.slice(0, 512),
+				},
 				cause: error,
 			});
 		}
