@@ -524,12 +524,15 @@ export class MenuRepository {
 		}
 		let sortOrder = input.sortOrder ?? 0;
 		if (input.sortOrder === undefined) {
-			const maxOrder = await this.db
+			const query = this.db
 				.selectFrom("_emdash_menu_items")
 				.select(({ fn }) => fn.max("sort_order").as("max"))
-				.where("menu_id", "=", menuId)
-				.where("parent_id", "is", input.parentId ?? null)
-				.executeTakeFirst();
+				.where("menu_id", "=", menuId);
+			const maxOrder = await (
+				input.parentId == null
+					? query.where("parent_id", "is", null)
+					: query.where("parent_id", "=", input.parentId)
+			).executeTakeFirst();
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely fn.max returns unknown; always a number for sort_order column
 			sortOrder = ((maxOrder?.max as number) ?? -1) + 1;
 		}
