@@ -1891,16 +1891,6 @@ export async function handleContentDuplicate(
 			const original = await repo.findById(collection, resolvedId);
 			const dup = await repo.duplicate(collection, resolvedId, authorId);
 
-			// Not staged as the draft, so autosave never replaces this first revision.
-			if ((await getCollectionPublishConfig(trx, collection)).supportsRevisions) {
-				await new RevisionRepository(trx).create({
-					collection,
-					entryId: dup.id,
-					data: dup.data,
-					authorId: dup.authorId ?? undefined,
-				});
-			}
-
 			// Reference edges are storage-less (keyed by translation_group, not in
 			// `data`), so they don't ride along in the row copy — carry the original's
 			// outgoing references onto the duplicate explicitly.
@@ -1932,6 +1922,22 @@ export async function handleContentDuplicate(
 						"child",
 					);
 				}
+			}
+
+			// Not staged as the draft, so autosave never replaces this first revision. Written
+			// after the links are copied: a restore brings back only the selection a revision carries.
+			if ((await getCollectionPublishConfig(trx, collection)).supportsRevisions) {
+				const data = { ...dup.data };
+				if (dup.translationGroup) {
+					const selection = await liveReferenceSelection(trx, collection, dup.translationGroup);
+					if (Object.keys(selection).length > 0) data[STAGED_REFERENCES_KEY] = selection;
+				}
+				await new RevisionRepository(trx).create({
+					collection,
+					entryId: dup.id,
+					data,
+					authorId: dup.authorId ?? undefined,
+				});
 			}
 
 			const existingBylines = await bylineRepo.getContentBylines(collection, resolvedId);
