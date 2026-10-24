@@ -2162,6 +2162,7 @@ export class EmDashRuntime {
 			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
+			imagePlaceholders: deps.config.imagePlaceholders ?? true,
 			siteInfo,
 			commentModerate: (
 				pluginId: string,

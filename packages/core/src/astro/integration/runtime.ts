@@ -439,12 +439,8 @@ export interface EmDashConfig {
 	/**
 	 * Generate blurhash and dominant-color placeholders during image upload.
 	 *
-	 * Defaults to `true` on unconstrained runtimes and `false` when deploying to
-	 * Cloudflare Workers (detected via the `@astrojs/cloudflare` adapter),
-	 * because server-side LQIP generation decodes the full image in JavaScript
-	 * and can exceed request CPU limits on edge runtimes. Explicitly set `true`
-	 * or `false` to override the adapter-aware default. Dimensions, validation,
-	 * and content hashing remain active regardless.
+	 * Defaults to `true`. Set to `false` to skip server-side LQIP generation
+	 * while preserving dimensions, validation, and content hashing.
 	 */
 	imagePlaceholders?: boolean;
 

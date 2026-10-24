@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 import {
+	createImageThumbnail,
 	getVideoDimensions,
 	replaceMediaImage,
 	uploadMedia,
@@ -53,6 +54,33 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
 });
+
+async function imageFile(width: number, height: number, name = "image.png"): Promise<File> {
+	const canvas = document.createElement("canvas");
+	canvas.width = width;
+	canvas.height = height;
+	const context = canvas.getContext("2d");
+	if (!context) throw new Error("Canvas 2D context unavailable");
+	context.fillStyle = "#336699";
+	context.fillRect(0, 0, width, height);
+	const blob = await new Promise<Blob>((resolve, reject) => {
+		canvas.toBlob((value) => {
+			if (value) {
+				resolve(value);
+			} else {
+				reject(new Error("Could not encode image"));
+			}
+		}, "image/png");
+	});
+	return new File([blob], name, { type: "image/png" });
+}
+
+async function imageDimensions(blob: Blob): Promise<{ width: number; height: number }> {
+	const bitmap = await createImageBitmap(blob);
+	const dimensions = { width: bitmap.width, height: bitmap.height };
+	bitmap.close();
+	return dimensions;
+}
 
 function mediaItemResponse(id: string, filename: string, mimeType = "application/pdf") {
 	return Response.json({
@@ -484,6 +512,135 @@ it("aborts image probing when cancellation races object URL creation", async () 
 		await upload.catch(() => undefined);
 	}
 });
+
+it.each([
+	[32, 16, 32, 16, "small landscape"],
+	[320, 120, 64, 24, "landscape"],
+	[120, 320, 24, 64, "portrait"],
+	[10000, 1, 64, 1, "extreme aspect ratio"],
+] as const)(
+	"creates a %s thumbnail within the 64px cap",
+	async (width, height, thumbnailWidth, thumbnailHeight) => {
+		const file = await imageFile(width, height);
+		const thumbnail = await createImageThumbnail(file, { width, height });
+
+		expect(thumbnail).not.toBeNull();
+		expect(thumbnail?.type).toBe("image/png");
+		expect(await imageDimensions(thumbnail!)).toEqual({
+			width: thumbnailWidth,
+			height: thumbnailHeight,
+		});
+	},
+);
+
+it("sends the decoded thumbnail as base64 in signed upload confirmation", async () => {
+	let confirmBody: Record<string, unknown> | undefined;
+	const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/upload-url") {
+			return Response.json({
+				success: true,
+				data: {
+					uploadUrl: "https://uploads.example/photo.png",
+					method: "PUT",
+					headers: {},
+					mediaId: "image-media",
+					storageKey: "photo.png",
+					expiresAt: "2026-01-01T01:00:00.000Z",
+				},
+			});
+		}
+		if (url === "https://uploads.example/photo.png") return new Response(null, { status: 200 });
+		if (url === "/_emdash/api/media/image-media/confirm") {
+			if (typeof init?.body === "string")
+				confirmBody = JSON.parse(init.body) as Record<string, unknown>;
+			return mediaItemResponse("image-media", "photo.png", "image/png");
+		}
+		return new Response(null, { status: 500 });
+	});
+
+	const file = await imageFile(320, 120, "photo.png");
+	await uploadMedia(file, { deduplicate: false });
+
+	const thumbnail = confirmBody?.thumbnail as { contentType: string; data: string } | undefined;
+	expect(thumbnail?.contentType).toBe("image/png");
+	expect(
+		await imageDimensions(
+			new Blob([Uint8Array.from(atob(thumbnail!.data), (char) => char.charCodeAt(0))], {
+				type: thumbnail!.contentType,
+			}),
+		),
+	).toEqual({ width: 64, height: 24 });
+	expect(confirmBody).toMatchObject({ size: file.size, width: 320, height: 120 });
+	expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+it("sends the decoded thumbnail in direct upload form data", async () => {
+	let directBody: FormData | undefined;
+	vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/upload-url") return new Response(null, { status: 501 });
+		if (url === "/_emdash/api/media") {
+			directBody = init?.body as FormData;
+			return mediaItemResponse("direct-image", "photo.png", "image/png");
+		}
+		return new Response(null, { status: 500 });
+	});
+
+	await uploadMedia(await imageFile(120, 320, "photo.png"));
+
+	const thumbnail = directBody?.get("thumbnail");
+	expect(thumbnail).toBeInstanceOf(Blob);
+	expect(await imageDimensions(thumbnail as Blob)).toEqual({ width: 24, height: 64 });
+	expect(directBody?.get("width")).toBe("120");
+	expect(directBody?.get("height")).toBe("320");
+});
+
+it.each(["signed", "direct"] as const)(
+	"omits thumbnails for non-image files on %s upload",
+	async (mode) => {
+		let requestBody: BodyInit | null | undefined;
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (url === "/_emdash/api/media/upload-url") {
+				if (mode === "direct") return new Response(null, { status: 501 });
+				return Response.json({
+					success: true,
+					data: {
+						uploadUrl: "https://uploads.example/document.pdf",
+						method: "PUT",
+						headers: {},
+						mediaId: "document-media",
+						storageKey: "document.pdf",
+						expiresAt: "2026-01-01T01:00:00.000Z",
+					},
+				});
+			}
+			if (url === "https://uploads.example/document.pdf")
+				return new Response(null, { status: 200 });
+			if (url === "/_emdash/api/media/document-media/confirm") {
+				requestBody = init?.body;
+				return mediaItemResponse("document-media", "document.pdf");
+			}
+			if (url === "/_emdash/api/media") {
+				requestBody = init?.body;
+				return mediaItemResponse("document-media", "document.pdf");
+			}
+			return new Response(null, { status: 500 });
+		});
+
+		await uploadMedia(new File(["document"], "document.pdf", { type: "application/pdf" }));
+
+		if (mode === "signed") {
+			expect(JSON.parse(requestBody as string)).not.toHaveProperty("thumbnail");
+		} else {
+			expect((requestBody as FormData).get("thumbnail")).toBeNull();
+		}
+	},
+);
 
 it("resolves video dimensions from the loadedmetadata event", async () => {
 	stubDocumentCreateElement();

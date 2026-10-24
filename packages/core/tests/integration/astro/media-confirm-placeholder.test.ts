@@ -6,8 +6,10 @@ import { POST as postConfirm } from "../../../src/astro/routes/api/media/[id]/co
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
 import { computeContentHash } from "../../../src/utils/hash.js";
-import { JPEG_4x4 } from "../../utils/image-fixtures.js";
+import { JPEG_4x4, PNG_4x4 } from "../../utils/image-fixtures.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+vi.mock("jpeg-js", { spy: true });
 
 /** Storage stub matching the real interface: download returns a ReadableStream. */
 function storageWith(bytes: Uint8Array) {
@@ -44,6 +46,7 @@ function buildContext(opts: {
 	storage: unknown;
 	body: Record<string, unknown>;
 	role?: 20 | 50;
+	imagePlaceholders?: boolean;
 }): APIContext {
 	const request = new Request(`http://localhost/_emdash/api/media/${opts.id}/confirm`, {
 		method: "POST",
@@ -55,7 +58,11 @@ function buildContext(opts: {
 		url: new URL(request.url),
 		request,
 		locals: {
-			emdash: { db: opts.db, storage: opts.storage },
+			emdash: {
+				db: opts.db,
+				storage: opts.storage,
+				config: { imagePlaceholders: opts.imagePlaceholders },
+			},
 			user: { id: "user-1", email: "t@example.com", name: "T", role: opts.role ?? 50 },
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
@@ -304,6 +311,255 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 			status: "ready",
 			contentHash: null,
 		});
+	});
+
+	it("uses a supplied thumbnail without decoding the original and preserves its dimensions and hash", async () => {
+		const repo = new MediaRepository(db);
+		const jpeg = await import("jpeg-js");
+		const width = 2333;
+		const height = 3500;
+		const original = new Uint8Array(
+			jpeg.encode(
+				{
+					data: Buffer.alloc(width * height * 4, 0xff),
+					width,
+					height,
+				},
+				50,
+			).data,
+		);
+		const decodeOriginal = vi.mocked(jpeg.decode);
+		decodeOriginal.mockClear();
+		const pending = await repo.createPending({
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			size: original.byteLength,
+			storageKey: "photo.jpg",
+			authorId: "user-1",
+		});
+		const thumbnail = Buffer.from(PNG_4x4).toString("base64");
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: storageWith(original),
+				body: {
+					size: original.byteLength,
+					width,
+					height,
+					thumbnail: { contentType: "image/png", data: thumbnail },
+				},
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "ready",
+			width,
+			height,
+			blurhash: expect.any(String),
+			dominantColor: "rgb(255,0,0)",
+			contentHash: await computeContentHash(original),
+		});
+		expect(decodeOriginal).not.toHaveBeenCalled();
+	});
+
+	it("accepts a 64px thumbnail without replacing original dimensions or hashing thumbnail bytes", async () => {
+		const { encode } = await import("jpeg-js");
+		const thumbnail = encode(
+			{ data: Buffer.alloc(64 * 64 * 4, 0xff), width: 64, height: 64 },
+			50,
+		).data;
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			storageKey: "photo.jpg",
+			authorId: "user-1",
+		});
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: storageWith(JPEG_4x4),
+				body: {
+					thumbnail: { contentType: "image/jpeg", data: Buffer.from(thumbnail).toString("base64") },
+				},
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			width: 4,
+			height: 4,
+			dominantColor: "rgb(255,255,255)",
+			contentHash: await computeContentHash(JPEG_4x4),
+		});
+	});
+
+	it.each([true, false])(
+		"uses a thumbnail for an oversized original without reading its body (dimensions supplied: %s)",
+		async (supplyDimensions) => {
+			const repo = new MediaRepository(db);
+			const reportedSize = 8 * 1024 * 1024 + 1;
+			const pending = await repo.createPending({
+				filename: "large.jpg",
+				mimeType: "image/jpeg",
+				size: reportedSize,
+				storageKey: "large.jpg",
+				authorId: "user-1",
+			});
+			const getReader = vi.fn(() => {
+				throw new Error("large original body must not be read");
+			});
+			const cancel = vi.fn(async () => undefined);
+			const storage = {
+				exists: vi.fn(async () => true),
+				download: vi.fn(async () => ({
+					body: { getReader, cancel },
+					contentType: "image/jpeg",
+					size: reportedSize,
+				})),
+			};
+
+			const res = await postConfirm(
+				buildContext({
+					db,
+					id: pending.id,
+					storage,
+					body: {
+						size: reportedSize,
+						...(supplyDimensions ? { width: 4000, height: 3000 } : {}),
+						thumbnail: { contentType: "image/png", data: Buffer.from(PNG_4x4).toString("base64") },
+					},
+				}),
+			);
+
+			expect(res.status).toBe(200);
+			expect(getReader).not.toHaveBeenCalled();
+			expect(cancel).toHaveBeenCalledOnce();
+			expect(await repo.findById(pending.id)).toMatchObject({
+				status: "ready",
+				width: supplyDimensions ? 4000 : null,
+				height: supplyDimensions ? 3000 : null,
+				blurhash: expect.any(String),
+			});
+		},
+	);
+
+	it("does not decode thumbnails when placeholders are disabled", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "disabled.jpg",
+			mimeType: "image/jpeg",
+			size: JPEG_4x4.byteLength,
+			storageKey: "disabled.jpg",
+			authorId: "user-1",
+		});
+		const decodeError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: storageWith(JPEG_4x4),
+				imagePlaceholders: false,
+				body: {
+					size: JPEG_4x4.byteLength,
+					width: 4,
+					height: 4,
+					thumbnail: { contentType: "image/png", data: "not-base64" },
+				},
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(decodeError).not.toHaveBeenCalledWith(
+			expect.stringContaining("thumbnail decode failed:"),
+			expect.anything(),
+		);
+		expect(await repo.findById(pending.id)).toMatchObject({
+			status: "ready",
+			width: 4,
+			height: 4,
+			blurhash: null,
+			dominantColor: null,
+			contentHash: await computeContentHash(JPEG_4x4),
+		});
+	});
+
+	it.each([
+		["image/png", "a".repeat(32_769)],
+		["image/gif", Buffer.from(PNG_4x4).toString("base64")],
+	] as const)("rejects invalid confirm thumbnail %s", async (contentType, data) => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "invalid-thumbnail.jpg",
+			mimeType: "image/jpeg",
+			size: JPEG_4x4.byteLength,
+			storageKey: "invalid-thumbnail.jpg",
+			authorId: "user-1",
+		});
+
+		const res = await postConfirm(
+			buildContext({
+				db,
+				id: pending.id,
+				storage: storageWith(JPEG_4x4),
+				body: { size: JPEG_4x4.byteLength, thumbnail: { contentType, data } },
+			}),
+		);
+
+		expect(res.status).toBe(400);
+		expect(await repo.findById(pending.id)).toMatchObject({ status: "pending" });
+	});
+
+	it("omits a placeholder for oversized or corrupt thumbnails without decoding the original", async () => {
+		const repo = new MediaRepository(db);
+		const { encode } = await import("jpeg-js");
+		const oversizedThumbnail = encode(
+			{ data: Buffer.alloc(65 * 65 * 4, 0xff), width: 65, height: 65 },
+			50,
+		).data;
+		const cases = [
+			Buffer.from(oversizedThumbnail).toString("base64"),
+			"%%%not-base64%%",
+			Buffer.from([1, 2, 3]).toString("base64"),
+		];
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+		for (const [index, data] of cases.entries()) {
+			const pending = await repo.createPending({
+				filename: `bad-thumbnail-${index}.jpg`,
+				mimeType: "image/jpeg",
+				size: JPEG_4x4.byteLength,
+				storageKey: `bad-thumbnail-${index}.jpg`,
+				authorId: "user-1",
+			});
+			const res = await postConfirm(
+				buildContext({
+					db,
+					id: pending.id,
+					storage: storageWith(JPEG_4x4),
+					body: {
+						size: JPEG_4x4.byteLength,
+						width: 1,
+						height: 1,
+						thumbnail: { contentType: "image/jpeg", data },
+					},
+				}),
+			);
+
+			expect(res.status).toBe(200);
+			expect(await repo.findById(pending.id)).toMatchObject({
+				status: "ready",
+				width: 1,
+				height: 1,
+				blurhash: null,
+				dominantColor: null,
+			});
+		}
 	});
 
 	it("reports invalid state when another request resolves the pending upload first", async () => {

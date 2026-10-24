@@ -1,11 +1,10 @@
 ---
-"emdash": patch
+"emdash": minor
+"@emdash-cms/admin": patch
 ---
 
-Fixes signed-URL media confirmations exceeding CPU limits on large JPEGs by skipping server-side placeholder generation for decoded images above 4 megapixels.
+Reduces CPU usage during image upload confirmation by generating placeholders from small browser thumbnails instead of decoding full-resolution originals. The admin and visual-editing toolbar now send thumbnails fitting a 64-pixel box with signed and direct uploads. This also enables blurhash and dominant-color placeholders for browser-decodable formats such as WebP and AVIF, which previously had none. Image dimensions, upload validation, content hashing, and responsive image variants remain unchanged.
 
-The generatePlaceholder guard now rejects images whose pixel area exceeds `MAX_DECODE_PIXELS` (4,000,000) before invoking jpeg-js, protecting constrained runtimes (e.g. Cloudflare Workers Free) from decoding costs that can exceed request CPU budgets even when the RGBA buffer fits within the existing 32 MiB memory cap. Dimensions, content hashing, and upload validation are unchanged.
+Adds the `imagePlaceholders` configuration option, defaulting to `true` on every runtime, including Cloudflare Workers. Set it to `false` to skip blurhash and dominant-color generation. On CPU-constrained runtimes, consider disabling placeholders for WordPress imports, MCP uploads, plugin uploads, or custom upload clients without thumbnails: these paths still decode originals for placeholders.
 
-`POST /_emdash/api/media/{id}/confirm` also accepts an optional `thumbnail` object (`{ contentType, data }`, base64-encoded bytes). When provided, the small thumbnail is decoded for the blurhash instead of the full-resolution original, allowing clients to keep LQIP for large images without server-side full decode.
-
-Placeholder generation can now be disabled entirely with the new `imagePlaceholders: false` option in the EmDash config, and it defaults to `false` on Cloudflare Workers (detected via the `@astrojs/cloudflare` adapter) to avoid burning request CPU budgets on full-image decoding. Node and other unconstrained runtimes keep the previous default of `true` for backwards compatibility. Cloudflare sites that use blurhash or dominant-color placeholders can opt back in with `imagePlaceholders: true`. In all cases, dimensions, validation, content hashing, and responsive image variants remain intact.
+Custom clients can send an optional `{ thumbnail: { contentType, data } }` in `POST /_emdash/api/media/{id}/confirm`. Confirm thumbnails accept JPEG or PNG, at most 32,768 base64 characters and 4,096 decoded pixels. Unusable thumbnails omit the placeholder rather than falling back to decoding the original. Thumbnails also work when originals exceed the 8 MiB download cap; supply the original `width` and `height` to record dimensions in that case.

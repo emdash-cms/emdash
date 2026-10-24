@@ -194,8 +194,8 @@ export const mediaConfirmBody = z
 		height: z.number().int().positive().optional(),
 		thumbnail: z
 			.object({
-				contentType: z.string().regex(CONTENT_TYPE_RE),
-				data: z.string(),
+				contentType: z.enum(["image/jpeg", "image/png"]),
+				data: z.string().max(32_768),
 			})
 			.optional()
 			.meta({

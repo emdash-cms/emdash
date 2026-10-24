@@ -16,6 +16,7 @@ import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { mediaConfirmBody } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
+import { readDimensions } from "#media/placeholder.js";
 import type { MediaItem } from "#types";
 import { decodeBase64Bytes } from "#utils/base64.js";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
@@ -79,11 +80,14 @@ function decodeThumbnail(thumbnail?: {
 	data: string;
 }): Uint8Array | undefined {
 	if (!thumbnail) return undefined;
+	// An unusable supplied thumbnail must not fall back to decoding the original.
 	try {
-		return decodeBase64Bytes(thumbnail.data);
+		const bytes = decodeBase64Bytes(thumbnail.data);
+		const dimensions = readDimensions(bytes);
+		return dimensions && dimensions.width * dimensions.height <= 64 * 64 ? bytes : new Uint8Array();
 	} catch (error) {
 		console.error("[media] confirm thumbnail decode failed:", error);
-		return undefined;
+		return new Uint8Array();
 	}
 }
 
@@ -207,34 +211,32 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				if (!hasServerHash) contentHash = null;
 				await cancelDownload(storedFile);
 			}
-
-			if (isImage && !canBuffer) {
-				console.warn(
-					`[media] confirm skipping placeholder: object ${existing.storageKey} reported size ${storedFile.size} bytes (> ${MAX_PLACEHOLDER_DOWNLOAD_BYTES})`,
-				);
-			}
 		}
 
-		// LQIP is best-effort; oversized images skip server-side placeholders.
+		// Original bytes supply dimensions; thumbnail dimensions must not reach the record.
 		let blurhash: string | undefined;
 		let dominantColor: string | undefined;
 		let width = body.width;
 		let height = body.height;
-		if (imageBytes) {
+		const placeholdersEnabled = emdash.config?.imagePlaceholders ?? true;
+		const thumbnail = body.thumbnail;
+		const thumbnailBytes = placeholdersEnabled ? decodeThumbnail(thumbnail) : undefined;
+		if (imageBytes || thumbnailBytes) {
 			try {
-				const thumbnail = body.thumbnail;
-				const thumbnailBytes = decodeThumbnail(thumbnail);
-				const placeholdersEnabled = emdash.config?.imagePlaceholders ?? true;
-				const enriched = await enrichImageMetadata(imageBytes, existing.mimeType, {
-					knownDimensions:
-						body.width != null && body.height != null
-							? { width: body.width, height: body.height }
+				const enriched = await enrichImageMetadata(
+					imageBytes ?? new Uint8Array(),
+					existing.mimeType,
+					{
+						knownDimensions:
+							body.width != null && body.height != null
+								? { width: body.width, height: body.height }
+								: undefined,
+						placeholder: thumbnailBytes
+							? { bytes: thumbnailBytes, contentType: thumbnail.contentType }
 							: undefined,
-					placeholder: thumbnailBytes
-						? { bytes: thumbnailBytes, contentType: thumbnail.contentType }
-						: undefined,
-					placeholders: placeholdersEnabled,
-				});
+						placeholders: placeholdersEnabled,
+					},
+				);
 				blurhash = enriched.blurhash;
 				dominantColor = enriched.dominantColor;
 				width = width ?? enriched.width;
